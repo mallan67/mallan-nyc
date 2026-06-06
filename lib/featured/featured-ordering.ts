@@ -107,31 +107,45 @@ export function filterFeaturedDisplayable<T extends FeaturedDisplayable>(listing
  * Why: the homepage config sorts by `newest`, and the newest listings
  * disproportionately lack media coverage (the `listing_media` backfill gap —
  * production diagnosis 2026-06-06: 38 of the 48 newest Manhattan sale listings
- * were photoless). A single page therefore yields fewer than `target`
- * displayable rows, so the section under-fills (5 cards instead of 6). Collecting
- * across pages fills `limit` reliably whenever enough displayable listings exist
- * in the feed. **Interim fill-fix until media coverage is backfilled** — once the
+ * were photoless). A single page therefore yields too few displayable rows, so
+ * the section under-fills (5 cards instead of 6). Collecting across pages fills
+ * the grid reliably whenever enough displayable listings exist in the feed.
+ * **Interim fill-fix until media coverage is backfilled** — once the
  * coverage/denorm backfills land, the first page almost always satisfies
- * `target` and this loop stops after one fetch.
+ * `enough` and this loop stops after one fetch.
  *
  * `fetchPage(skip, pageSize)` returns ONE raw page (already-mapped DTO rows).
- * The loop stops when: enough displayable collected (`>= target`), the feed is
- * exhausted (a short page), or `maxPages` is reached. Returns the accumulated
- * DISPLAYABLE rows (Coming-Soon-free, photo-bearing), in feed order.
+ * The loop stops when:
+ *  - `enough(collected)` returns true — a caller-supplied predicate that should
+ *    evaluate the POST-DEDUPE ordered count (e.g. run `orderFeaturedListings`
+ *    and check `.length >= limit`), NOT the raw collected length, because
+ *    ordering can collapse several general rows against one Mallan exclusive;
+ *  - the feed is exhausted — only an EMPTY page is a reliable signal, since the
+ *    API may post-filter a page to fewer rows than requested while more exist
+ *    (so `batch.length < pageSize` must NOT stop the loop); or
+ *  - `maxPages` is reached.
+ * Returns the accumulated DISPLAYABLE rows (Coming-Soon-free, photo-bearing),
+ * in feed order.
  */
 export async function collectDisplayableFeatured<T extends FeaturedDisplayable>(
   fetchPage: (skip: number, pageSize: number) => Promise<readonly T[]>,
-  opts: { target: number; pageSize?: number; maxPages?: number },
+  opts: { enough: (collected: T[]) => boolean; pageSize?: number; maxPages?: number },
 ): Promise<T[]> {
   const pageSize = Math.max(1, opts.pageSize ?? 48);
   const maxPages = Math.max(1, opts.maxPages ?? 5);
   const out: T[] = [];
   for (let page = 0; page < maxPages; page++) {
     const batch = await fetchPage(page * pageSize, pageSize);
+    // Only an EMPTY page is a reliable exhaustion signal. `/api/listings`
+    // post-filters a page (server-side dedupe / display gates) and can return
+    // FEWER rows than requested while later pages still have results, so
+    // `batch.length < pageSize` must NOT stop the loop (Codex #368).
     if (!batch || batch.length === 0) break;
     out.push(...filterFeaturedDisplayable(batch as T[]));
-    if (out.length >= opts.target) break; // enough displayable to fill the grid
-    if (batch.length < pageSize) break; // feed exhausted — no more pages
+    // Stop on the caller's `enough` predicate — which evaluates the POST-DEDUPE
+    // ordered count, not the raw collected length, because ordering can collapse
+    // several general rows against one Mallan exclusive (Codex #368).
+    if (opts.enough(out)) break;
   }
   return out;
 }

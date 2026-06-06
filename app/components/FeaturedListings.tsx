@@ -405,27 +405,26 @@ export default function FeaturedListings() {
         if (filters.neighborhoods.length === 1) params.set('neighborhood', filters.neighborhoods[0]);
 
         // Exclusives feed (Mallan-owned) — small, single fetch, kicked off in
-        // parallel with the general pagination below.
+        // parallel; awaited before the general loop so the stop condition can
+        // account for exclusive-vs-general dedupe collapse.
         const exclParams = new URLSearchParams(params.toString());
         exclParams.set('exclusive', 'mallan');
         exclParams.set('limit', '12');
         const exclPromise = fetch(`/api/listings?${exclParams.toString()}`)
           .then((r) => (r.ok ? r.json() : { listings: [] }))
           .catch(() => ({ listings: [] }));
+        const exclData = await exclPromise;
+        const exclusives: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(exclData.listings || []);
 
-        // General feed — page DEEPER until enough displayable rows fill the grid.
-        // The newest listings disproportionately lack media coverage (the
-        // listing_media backfill gap), so a single page can leave the section
-        // short (5 cards instead of 6). collectDisplayableFeatured pages until
-        // `limit` displayable rows exist. Capture `_lastUpdated` from page 0 for
-        // the IDX disclaimer. (Interim fill-fix until coverage backfill.)
-        //
-        // target = limit (no buffer): orderFeaturedListings caps to `limit`, and
-        // collecting `limit` displayable general rows already guarantees ≥ limit
-        // after ordering — exclusives are added first and dedupe only collapses
-        // general rows that twin an exclusive (bounded by the exclusive count),
-        // so survivors ≥ E + limit − E = limit. A larger target would force an
-        // extra page once the grid can already be filled (Codex #368).
+        // General feed — page DEEPER until the ORDERED grid is full. The newest
+        // listings disproportionately lack media coverage (the listing_media
+        // backfill gap), so a single page can leave the section short (5 cards
+        // instead of 6). The stop predicate runs the REAL ordering and checks the
+        // post-dedupe count ≥ limit — not the raw collected length — because
+        // orderFeaturedListings can collapse SEVERAL general rows against one
+        // Mallan exclusive's address, so a raw count could still under-fill
+        // (Codex #368). Capture `_lastUpdated` from page 0 for the IDX disclaimer.
+        // (Interim fill-fix until coverage backfill.)
         const pageSize = Math.max(limit * 8, 48);
         let firstLastUpdated: string | undefined;
         const generalListings = await collectDisplayableFeatured<FeaturedListing>(
@@ -439,11 +438,13 @@ export default function FeaturedListings() {
             if (skip === 0 && d._lastUpdated) firstLastUpdated = d._lastUpdated as string;
             return (d.listings || []) as FeaturedListing[];
           },
-          { target: limit, pageSize, maxPages: 5 },
+          {
+            enough: (collected) =>
+              orderFeaturedListings(exclusives, collected, pinnedSet, limit).length >= limit,
+            pageSize,
+            maxPages: 5,
+          },
         );
-
-        const exclData = await exclPromise;
-        const exclusives: FeaturedListing[] = filterFeaturedDisplayable<FeaturedListing>(exclData.listings || []);
 
         if (cancelled || (generalListings.length === 0 && exclusives.length === 0)) return;
 
