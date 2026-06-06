@@ -84,6 +84,31 @@ describe('resolveListingMedia (JSON path) — dedupe + hero safety', () => {
     ];
     expect(heroOf(items)).toBe(LISTING_PLACEHOLDER_IMAGE);
   });
+
+  // ── Codex #363: dedupe must key on the SOURCE URL, not the proxied URL ──
+  // The default mapper (`proxyTrestleUrl`) rewrites every Cotality/CoreLogic
+  // URL to `/api/media/proxy?url=<encoded>`. `visualIdentity` strips the query,
+  // so keying on the proxied URL would give every proxied item the identical
+  // key `/api/media/proxy` and collapse a whole gallery to one image. These
+  // tests exercise the DEFAULT mapper (no mapUrl) — the real JSON-fallback path.
+  it('does NOT collapse distinct Cotality photos under the default proxy mapper', () => {
+    const items = [
+      { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/1.jpg', Order: 0 },
+      { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/2.jpg', Order: 1 },
+      { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/3.jpg', Order: 2 },
+    ];
+    const out = resolveListingMedia(items); // default mapper proxies the URLs
+    expect(out).toHaveLength(3);
+    expect(out.every((m) => m.url.startsWith('/api/media/proxy'))).toBe(true);
+  });
+
+  it('DOES collapse a true duplicate Cotality source URL under the default proxy mapper', () => {
+    const items = [
+      { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/1.jpg', Order: 0 },
+      { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/abc/1.jpg', Order: 5 }, // dup source
+    ];
+    expect(resolveListingMedia(items)).toHaveLength(1);
+  });
 });
 
 describe('table-backed path (resolveListingMediaFromRows) — unchanged', () => {

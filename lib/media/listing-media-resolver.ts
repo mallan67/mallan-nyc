@@ -308,6 +308,13 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
       const url = mapFn(rawUrl);
       return {
         url,
+        // Keep the pre-map source URL for dedupe identity. `mapFn` (default
+        // `proxyTrestleUrl`) rewrites Cotality/CoreLogic URLs to
+        // `/api/media/proxy?url=<encoded>`; `visualIdentity` strips the query,
+        // so keying dedupe on the mapped `url` would give EVERY proxied item
+        // the same identity (`/api/media/proxy`) and collapse the gallery to
+        // one image (Codex review, PR #363, 2026-06-06).
+        rawUrl,
         thumbUrl: rawThumb ? mapFn(rawThumb) : url,
         klass,
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
@@ -334,7 +341,8 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
   const deduped = options.skipDedupe
     ? decorated
     : decorated.filter((d) => {
-        const key = visualIdentity(d.url, d.url) || d.url;
+        // Key on the SOURCE URL (pre-proxy), never the mapped `d.url`.
+        const key = visualIdentity(d.rawUrl, d.rawUrl) || d.rawUrl;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
