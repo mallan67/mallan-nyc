@@ -45,8 +45,10 @@ the preview deltas equal what a real backfill would persist:
   excluded. (The writer matches `'photo'` only — *not* `'image'`. The pack
   reports Image-typed rows separately so you can decide if that matters.)
 - **Hero** (drives `primary_photo_url`) = among those active Photo rows:
-  `preferred_photo_yn = true` wins, then **lowest `order`**, then first-seen
-  (`id ASC`). `primary_photo_url = hero.media_url_original`;
+  `preferred_photo_yn = true` wins, then **lowest `order`**, then **first-encountered**
+  — and "first-encountered" is the order `updateListingMediaSummary()`'s
+  `findMany()` returns rows **with no `orderBy`** (i.e. Postgres physical order, not
+  guaranteed `id`-ascending). `primary_photo_url = hero.media_url_original`;
   `primary_photo_r2_key = hero.r2_key`.
 - **No eligible Photo** → `primary_photo_url = NULL`, `primary_photo_r2_key =
   NULL`, `photo_count = 0`.
@@ -54,6 +56,20 @@ the preview deltas equal what a real backfill would persist:
 **HARD REQUIREMENT proven by §Pack Q4:** `primary_photo_url` is sourced **only**
 from an active Photo row. A FloorPlan / document / Video / VirtualTour can never
 become `primary_photo_url`.
+
+**Tie-break determinism caveat (Codex review, #364):** because the writer's
+"first-encountered" tiebreak rides an `orderBy`-less `findMany`, the persisted
+hero for rows that tie on **both** `preferred_photo_yn` **and** `order` is **not
+guaranteed** to be the lowest `id`. The pack imposes `id ASC` as the final
+tiebreak so the preview is stable/reproducible — but for those tied listings the
+pack's hero may differ from what the *current* writer would persist, so the
+`primary_photo_url` delta is approximate there. **§Pack Q6 measures exactly how
+many listings have such a hero tie.** Recommended fix in the backfill PR: make the
+writer deterministic — add `orderBy: [{ preferred_photo_yn: 'desc' }, { order:
+'asc' }, { id: 'asc' }]` to the `findMany` in `updateListingMediaSummary()` and the
+matching `id` tiebreak in `computeListingMediaSummary()` — so the persisted hero
+equals the pack's `id ASC` and Q3's `primary_photo_url`/`r2_key` deltas become
+exact.
 
 ---
 
@@ -127,10 +143,14 @@ LIMIT 25;
 ```
 
 ### Q3 — denorm deltas (all required numbers in one query)
-Mirrors the canonical writer (Photo-only, preferred→order→id hero):
+Mirrors the canonical writer (Photo-only, preferred→order→id hero). Compares **all
+four** columns `updateListingMediaSummary()` writes — `photo_count`,
+`primary_photo_url`, `primary_photo_r2_key`, `photos_change_timestamp` — so the
+post-backfill re-run is a true gate (a stale R2 key or timestamp alone still
+counts as "would change"). All comparisons use null-safe `IS DISTINCT FROM`.
 ```sql
 WITH photo_rows AS (
-  SELECT lm.listing_id, lm.id, lm.media_url_original,
+  SELECT lm.listing_id, lm.id, lm.media_url_original, lm.r2_key,
          ROW_NUMBER() OVER (
            PARTITION BY lm.listing_id
            ORDER BY lm.preferred_photo_yn DESC, lm."order" ASC, lm.id ASC
@@ -144,28 +164,50 @@ counts AS (
   WHERE status = 'active' AND lower(media_type) = 'photo'
   GROUP BY listing_id
 ),
+pct AS (  -- photos_change_timestamp = max(media_modification_ts, modification_ts) over ALL active rows
+  SELECT listing_id, GREATEST(MAX(media_modification_ts), MAX(modification_ts)) AS new_pct
+  FROM listing_media
+  WHERE status = 'active'
+  GROUP BY listing_id
+),
 computed AS (
   SELECT l.listing_id,
-         l.photo_count                          AS cur_photo_count,
-         l.primary_photo_url                    AS cur_primary_photo_url,
-         COALESCE(c.new_photo_count, 0)         AS new_photo_count,
-         h.media_url_original                   AS new_primary_photo_url,
+         l.photo_count             AS cur_photo_count,
+         l.primary_photo_url       AS cur_primary_photo_url,
+         l.primary_photo_r2_key    AS cur_r2_key,
+         l.photos_change_timestamp AS cur_pct,
+         COALESCE(c.new_photo_count, 0) AS new_photo_count,
+         h.media_url_original      AS new_primary_photo_url,
+         h.r2_key                  AS new_r2_key,
+         p.new_pct                 AS new_pct,
          EXISTS (SELECT 1 FROM listing_media lm
                  WHERE lm.listing_id = l.listing_id AND lm.status = 'active') AS has_active_media
   FROM listings l
   LEFT JOIN counts c     ON c.listing_id = l.listing_id
+  LEFT JOIN pct p        ON p.listing_id = l.listing_id
   LEFT JOIN photo_rows h ON h.listing_id = l.listing_id AND h.rn = 1
   WHERE lower(l.status) IN ('active','comingsoon')
 )
 SELECT
-  COUNT(*)                                                                                   AS total_active_comingsoon,
-  COUNT(*) FILTER (WHERE COALESCE(cur_photo_count,-1) <> new_photo_count)                    AS photo_count_would_change_ALL,
-  COUNT(*) FILTER (WHERE COALESCE(cur_primary_photo_url,'') <> COALESCE(new_primary_photo_url,'')) AS primary_url_would_change_ALL,
-  COUNT(*) FILTER (WHERE new_photo_count = 0)                                                AS rows_with_zero_active_photo_rows,
-  COUNT(*) FILTER (WHERE NOT has_active_media)                                               AS rows_with_no_active_media_at_all,
-  -- media-bearing-only (the set SAFE to denorm before coverage backfill):
-  COUNT(*) FILTER (WHERE has_active_media AND COALESCE(cur_photo_count,-1) <> new_photo_count)                    AS photo_count_change_MEDIA_ONLY,
-  COUNT(*) FILTER (WHERE has_active_media AND COALESCE(cur_primary_photo_url,'') <> COALESCE(new_primary_photo_url,'')) AS primary_url_change_MEDIA_ONLY
+  COUNT(*)                                                                        AS total_active_comingsoon,
+  -- per-column "would change":
+  COUNT(*) FILTER (WHERE cur_photo_count       IS DISTINCT FROM new_photo_count)        AS photo_count_would_change_ALL,
+  COUNT(*) FILTER (WHERE cur_primary_photo_url IS DISTINCT FROM new_primary_photo_url)  AS primary_url_would_change_ALL,
+  COUNT(*) FILTER (WHERE cur_r2_key            IS DISTINCT FROM new_r2_key)             AS r2_key_would_change_ALL,
+  COUNT(*) FILTER (WHERE cur_pct               IS DISTINCT FROM new_pct)                AS photos_change_ts_would_change_ALL,
+  -- ANY of the 4 writer columns would change — the TRUE verification gate:
+  COUNT(*) FILTER (WHERE cur_photo_count       IS DISTINCT FROM new_photo_count
+                      OR cur_primary_photo_url IS DISTINCT FROM new_primary_photo_url
+                      OR cur_r2_key            IS DISTINCT FROM new_r2_key
+                      OR cur_pct               IS DISTINCT FROM new_pct)               AS any_of_4_would_change_ALL,
+  COUNT(*) FILTER (WHERE new_photo_count = 0)                                          AS rows_with_zero_active_photo_rows,
+  COUNT(*) FILTER (WHERE NOT has_active_media)                                         AS rows_with_no_active_media_at_all,
+  -- media-bearing-only (SAFE to denorm before coverage backfill), all 4 columns:
+  COUNT(*) FILTER (WHERE has_active_media AND (
+                       cur_photo_count       IS DISTINCT FROM new_photo_count
+                    OR cur_primary_photo_url IS DISTINCT FROM new_primary_photo_url
+                    OR cur_r2_key            IS DISTINCT FROM new_r2_key
+                    OR cur_pct               IS DISTINCT FROM new_pct))               AS any_of_4_change_MEDIA_ONLY
 FROM computed;
 ```
 
@@ -203,6 +245,24 @@ FROM listing_media
 WHERE status = 'active' AND lower(media_type) = 'image';
 ```
 
+### Q6 — listings with an ambiguous hero tie (determinism exposure)
+Counts listings where ≥2 active Photo rows tie for the top hero slot (same
+`preferred_photo_yn` AND `order`) — the only rows for which the `id ASC` tiebreak
+can disagree with the current (nondeterministic) writer. If `0`, Q3's
+`primary_photo_url`/`r2_key` deltas are exact; if `>0`, apply the
+writer-determinism fix (see the tie-break caveat above) before trusting them.
+```sql
+WITH ranked AS (
+  SELECT listing_id,
+         RANK() OVER (PARTITION BY listing_id
+                      ORDER BY preferred_photo_yn DESC, "order" ASC) AS rk
+  FROM listing_media
+  WHERE status = 'active' AND lower(media_type) = 'photo'
+)
+SELECT COUNT(*) AS listings_with_hero_tie
+FROM (SELECT listing_id FROM ranked WHERE rk = 1 GROUP BY listing_id HAVING COUNT(*) > 1) t;
+```
+
 ---
 
 ## Results (FILL after running the pack — do not fabricate)
@@ -213,14 +273,17 @@ WHERE status = 'active' AND lower(media_type) = 'image';
 | — CRM vs IDX split | Q1b | _pending_ |
 | Total Active/ComingSoon | Q3 | _pending_ |
 | `photo_count` would change (ALL) | Q3 | _pending_ |
-| `photo_count` would change (media-bearing only) | Q3 | _pending_ |
 | `primary_photo_url` would change (ALL) | Q3 | _pending_ |
-| `primary_photo_url` would change (media-bearing only) | Q3 | _pending_ |
+| `primary_photo_r2_key` would change (ALL) | Q3 | _pending_ |
+| `photos_change_timestamp` would change (ALL) | Q3 | _pending_ |
+| **Any of the 4 columns would change (ALL)** | Q3 | _pending_ |
+| **Any of the 4 would change (media-bearing only)** — the denorm work-set | Q3 | _pending_ |
 | Rows with zero active Photo rows | Q3 | _pending_ |
 | Rows with no active media at all | Q3 | _pending_ |
 | Non-photo/inactive heroes (must be 0) | Q4 | _pending_ |
 | Hero URL looks like document (must be 0) | Q4 | _pending_ |
 | Active Image-typed rows | Q5 | _pending_ |
+| Listings with an ambiguous hero tie | Q6 | _pending_ |
 
 (Prior pasted probe, 2026-06-02/06, for orientation only — re-confirm with the
 pack: Photo 63,828 · FloorPlan 4,846 · `photo_count` null ≈ 8,527 ·
@@ -285,16 +348,24 @@ active Photo only. **Run denorm scoped to `has_active_media = true`** (the
   Vercel preview before any production run.
 
 ### 4b. Denorm backfill (write PR — needs approval)
+- **Prerequisite (determinism fix, from the tie-break caveat):** add
+  `orderBy: [{ preferred_photo_yn: 'desc' }, { order: 'asc' }, { id: 'asc' }]` to the
+  `findMany` in `updateListingMediaSummary()` and the matching `id` tiebreak in
+  `computeListingMediaSummary()`, so the persisted hero is deterministic and equals
+  the pack's `id ASC`. Ship this with the denorm PR (its own unit test) so Q3 is an
+  exact gate. (Only material when **Q6 > 0**.)
 - **Path:** `updateListingMediaSummary(listingId)` (single `Listing.update`, the
   4 derived columns only — never touches `media` JSON or other fields).
-- **Scope:** listings with `has_active_media = true` (Q3 `*_MEDIA_ONLY` set).
+- **Scope:** listings with `has_active_media = true` (Q3 `any_of_4_change_MEDIA_ONLY` set).
 - **Batch:** 500–1000 listings/run.
 - **Idempotency:** re-running with no media change writes identical values
   (proven by `media-sync` unit tests).
 
 ### 4c. Verification (after each)
-- Re-run Q3 → the `*_would_change` counts should drop to ~0 for the processed set.
-- Re-run Q4 → `nonphoto_or_inactive_heroes = 0`.
+- Re-run Q3 → **`any_of_4_change_MEDIA_ONLY` drops to 0** for the processed set
+  (all four columns — `photo_count`, `primary_photo_url`, `primary_photo_r2_key`,
+  `photos_change_timestamp` — reconciled, not just the first two).
+- Re-run Q4 → `nonphoto_or_inactive_heroes = 0`; Q6 → `0` (post determinism fix).
 - `GET /api/health` 200; spot-check the Q2 sample listing pages (card == detail hero).
 
 ### 4d. Rollback / soft-fail
