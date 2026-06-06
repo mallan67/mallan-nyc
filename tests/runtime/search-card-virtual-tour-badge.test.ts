@@ -60,6 +60,21 @@ describe('SearchListingCard — 3D Tour badge wiring (source guard)', () => {
   });
 });
 
+describe('/api/listings DB-search select carries raw_data (Codex #361 — DB-backed tour path)', () => {
+  const src = readFileSync(
+    path.resolve(__dirname, '../../app/api/listings/route.ts'),
+    'utf8',
+  );
+
+  it('both DB-first findMany selects include raw_data (the source of virtualTourURL)', () => {
+    // dbListingToPublicDTO derives virtualTourURL (and previousListPrice,
+    // daysOnMarket, leaseAmount, availabilityDate, on/closeDate) from raw_data.
+    // Without raw_data selected, DB-backed cards never show the 3D Tour badge.
+    const matches = src.match(/raw_data:\s*true/g) || [];
+    expect(matches.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('ListingMediaGallery — tab gating (source guard)', () => {
   const src = readFileSync(
     path.resolve(__dirname, '../../app/components/ListingMediaGallery.tsx'),

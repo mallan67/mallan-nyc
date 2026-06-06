@@ -345,6 +345,15 @@ export async function GET(request: Request) {
                 postal_code: true,
                 address: true,
                 features: true,
+                // dbListingToPublicDTO derives several public fields ONLY from
+                // raw_data (the full Trestle payload): virtualTourURL
+                // (VirtualTourURLBranded/Unbranded — not stored in `features`,
+                // which excludes the B26 media group), plus previousListPrice,
+                // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
+                // Omitting raw_data silently dropped all of these from DB-backed
+                // cards (e.g. the PR-C 3D Tour badge never showed). Response is
+                // cached (5 min), so the extra JSON is amortized.
+                raw_data: true,
                 // PR 4: keep reading `media` JSON as the fallback source for
                 // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
@@ -1213,6 +1222,10 @@ async function fetchExclusiveListings(
         neighborhood: true,
         address: true,
         features: true,
+        // dbListingToPublicDTO derives virtualTourURL + previousListPrice,
+        // daysOnMarket, leaseAmount, availabilityDate, on/closeDate from
+        // raw_data (not stored in `features`). Mirrors the main DB-first select.
+        raw_data: true,
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
         agent_info: true,
