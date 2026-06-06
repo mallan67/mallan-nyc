@@ -146,15 +146,38 @@ FROM listing_media WHERE status='active'
 GROUP BY 1 ORDER BY n DESC;
 ```
 
-### S7 — duplicate source-URL groups (redundant rows)
+### S7 — duplicate source-URL rows WITHIN a listing (the only cleanup candidates)
+A cleanup candidate is a duplicate **within the same `listing_id`** — two active
+rows for one listing pointing at the same `media_url_original`. Grouping must
+include `listing_id`; grouping by URL alone would count the same image on two
+DIFFERENT listings as "extra", and a cleanup driven by that could delete media
+from another listing (Codex #367). Readers resolve media per listing, so
+per-listing scope is correct.
 ```sql
-SELECT COUNT(*) AS dup_source_url_groups,
-       COALESCE(SUM(cnt) - COUNT(*), 0) AS extra_duplicate_rows
+SELECT COUNT(*) AS within_listing_dup_groups,
+       COALESCE(SUM(cnt) - COUNT(*), 0) AS extra_rows_safe_to_dedupe
 FROM (
-  SELECT media_url_original, COUNT(*) AS cnt
+  SELECT listing_id, media_url_original, COUNT(*) AS cnt
   FROM listing_media
   WHERE status='active' AND media_url_original IS NOT NULL
-  GROUP BY media_url_original HAVING COUNT(*) > 1
+  GROUP BY listing_id, media_url_original
+  HAVING COUNT(*) > 1
+) t;
+```
+
+### S7b — same source URL reused ACROSS listings (DIAGNOSTIC ONLY — never cleanup)
+Different listings legitimately referencing the same upstream image. This is a
+data-quality observation, **not** rows eligible for deletion — removing them would
+strip media from a different listing.
+```sql
+SELECT COUNT(*) AS urls_used_on_multiple_listings,
+       COALESCE(SUM(listing_cnt), 0) AS total_listing_references
+FROM (
+  SELECT media_url_original, COUNT(DISTINCT listing_id) AS listing_cnt
+  FROM listing_media
+  WHERE status='active' AND media_url_original IS NOT NULL
+  GROUP BY media_url_original
+  HAVING COUNT(DISTINCT listing_id) > 1
 ) t;
 ```
 
@@ -175,7 +198,8 @@ WHERE l.listing_id IS NULL;
 | both_table_and_json · json_only_no_table · table_only_no_json | S4 | _pending_ |
 | active cached/r2_key coverage · tombstoned · r2_failed_3plus | S5 | _pending_ |
 | cached host distribution | S6 | _pending_ |
-| duplicate source-URL groups / extra rows | S7 | _pending_ |
+| within-listing dup rows (cleanup candidates) | S7 | _pending_ |
+| URLs reused across listings (diagnostic only) | S7b | _pending_ |
 | orphan media rows | S8 | _pending_ |
 
 ---
@@ -200,8 +224,11 @@ that is the proof it is a cache, not source of truth.
 
 **Duplicated (redundant copies):**
 - `both_table_and_json` (S4) — `listings.media` JSON duplicating `listing_media` rows.
-- duplicate source-URL rows in `listing_media` (S7) — the #363 resolver already
-  dedupes these at *read* time; cleanup is optional, not urgent.
+- **within-listing** duplicate source-URL rows in `listing_media` (S7) — the #363
+  resolver already dedupes these at *read* time; cleanup is optional, not urgent,
+  and must be scoped per `listing_id`. The same URL appearing on **different**
+  listings (S7b) is **not** a duplicate to clean — it is cross-listing reuse and
+  deleting it would strip media from another listing.
 
 **Stale:**
 - `media` JSON for listings that already have `listing_media` (the JSON is the old copy).
@@ -212,7 +239,8 @@ that is the proof it is a cache, not source of truth.
 - Shrink/retire `listings.media` JSON — *after* coverage backfill + the reader-swap
   proof that cards no longer touch the JSON path.
 - Prune R2 objects whose `listing_media` row is `deleted`/`replaced` — *after* DB SoT stable.
-- Dedupe `listing_media` duplicate-URL rows (S7) — optional DB-hygiene PR.
+- Dedupe **within-listing** duplicate-URL rows (S7, grouped by `listing_id` +
+  `media_url_original`) — optional DB-hygiene PR. NEVER act on S7b (cross-listing reuse).
 
 **MUST NOT delete yet:**
 - `listings.media` JSON for `json_only_no_table` (the ~5,998) — it is the **only**
