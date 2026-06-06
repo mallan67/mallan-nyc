@@ -245,12 +245,19 @@ FROM listing_media
 WHERE status = 'active' AND lower(media_type) = 'image';
 ```
 
-### Q6 — listings with an ambiguous hero tie (determinism exposure)
+### Q6 — listings with an ambiguous hero tie (DIAGNOSTIC ONLY)
 Counts listings where ≥2 active Photo rows tie for the top hero slot (same
 `preferred_photo_yn` AND `order`) — the only rows for which the `id ASC` tiebreak
-can disagree with the current (nondeterministic) writer. If `0`, Q3's
-`primary_photo_url`/`r2_key` deltas are exact; if `>0`, apply the
-writer-determinism fix (see the tie-break caveat above) before trusting them.
+can disagree with the *current* (nondeterministic) writer.
+
+**Q6 is a diagnostic count, NOT a gate that must reach 0.** The deterministic
+`orderBy` fix changes *which* tied row wins; it does **not** modify `listing_media`
+or remove tied rows, so Q6 legitimately stays `>0` after the fix and backfill.
+Interpretation: if `0`, the `id ASC` tiebreak is moot and Q3's
+`primary_photo_url`/`r2_key` deltas are already exact; if `>0`, the
+writer-determinism fix (see the tie-break caveat above) is what makes hero
+selection *deterministic* (same winner every run) — it does not, and is not
+expected to, drive Q6 to 0.
 ```sql
 WITH ranked AS (
   SELECT listing_id,
@@ -361,12 +368,19 @@ active Photo only. **Run denorm scoped to `has_active_media = true`** (the
 - **Idempotency:** re-running with no media change writes identical values
   (proven by `media-sync` unit tests).
 
-### 4c. Verification (after each)
-- Re-run Q3 → **`any_of_4_change_MEDIA_ONLY` drops to 0** for the processed set
-  (all four columns — `photo_count`, `primary_photo_url`, `primary_photo_r2_key`,
-  `photos_change_timestamp` — reconciled, not just the first two).
-- Re-run Q4 → `nonphoto_or_inactive_heroes = 0`; Q6 → `0` (post determinism fix).
-- `GET /api/health` 200; spot-check the Q2 sample listing pages (card == detail hero).
+### 4c. Verification (after each) — success criteria
+Success after the writer determinism fix + denorm backfill is **all** of:
+1. The writer has a deterministic `orderBy [preferred_photo_yn DESC, order ASC,
+   id ASC]` on the `findMany` (+ matching `id` tiebreak in
+   `computeListingMediaSummary()`).
+2. **Q3 `any_of_4_change_MEDIA_ONLY` drops to 0** for the processed set (all four
+   columns — `photo_count`, `primary_photo_url`, `primary_photo_r2_key`,
+   `photos_change_timestamp` — reconciled, not just the first two).
+3. **Q4 `nonphoto_or_inactive_heroes` remains 0.**
+4. **Q6 may remain `>0`** — tied source rows still exist; that is **acceptable**
+   as long as the deterministic tiebreak selects the **same** winner every run.
+   Q6 is diagnostic, **not** a pass/fail gate.
+- Also: `GET /api/health` 200; spot-check the Q2 sample listing pages (card == detail hero).
 
 ### 4d. Rollback / soft-fail
 - `listing_media` writes are soft (`status` flips; never hard-delete) → reversible.
