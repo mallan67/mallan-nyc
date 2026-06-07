@@ -184,6 +184,13 @@ jobs:
 
           echo "Preflight OK."
 
+      # Phase 0.5 guardrail — fail-closed BEFORE the first Neon mutation
+      # (reset_password). Refuses to proceed unless PROJECT_ID is the canonical
+      # production project (hidden-mountain-87248164). This is code, not a comment:
+      # a dispatch against the stale morning-bread project aborts here, untouched.
+      - name: Guard — refuse non-canonical Neon project (fail-closed)
+        run: node scripts/ci/assert-canonical-neon-target.mjs --project "$PROJECT_ID"
+
       - name: Rotate Neon password and update consumers
         id: rotate
         run: |
@@ -315,6 +322,13 @@ jobs:
           fi
           echo "::add-mask::$pooled_uri"
           echo "::add-mask::$direct_uri"
+
+          # Phase 0.5 guardrail — fail-closed host guard BEFORE any gh-secret /
+          # Vercel-env write. Refuses a URI whose host is not the canonical
+          # production host (ep-cold-waterfall-adno3ao2) or is the stale royal-dawn.
+          # The guard never echoes the URI (it carries credentials).
+          node "$GITHUB_WORKSPACE/scripts/ci/assert-canonical-neon-target.mjs" --host "$pooled_uri"
+          node "$GITHUB_WORKSPACE/scripts/ci/assert-canonical-neon-target.mjs" --host "$direct_uri"
 
           printf '%s' "$pooled_uri" | gh secret set DATABASE_URL --repo "$REPO" --app actions
           printf '%s' "$pooled_uri" | gh secret set ASSISTANT_DATABASE_URL --repo "$REPO" --app actions
