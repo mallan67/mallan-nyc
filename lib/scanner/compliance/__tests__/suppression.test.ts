@@ -128,9 +128,12 @@ describe("matchEntry — normalization and matching (via mocked list)", () => {
   });
 
   it("matches owner_name case-insensitively + whitespace-tolerant", () => {
-    expect(suppressionMock.isSuppressed({ owner_name: "smith family trust" }).suppressed).toBe(true);
-    expect(suppressionMock.isSuppressed({ owner_name: "SMITH FAMILY TRUST" }).suppressed).toBe(true);
-    expect(suppressionMock.isSuppressed({ owner_name: "  Smith   Family   Trust  " }).suppressed).toBe(true);
+    // Deterministic `now` pinned to the fixture's canonical capture date (2026-04-30)
+    // so the test never rots when ms-002 (owner_name) expires on 2026-06-01.
+    const asOf = new Date("2026-04-30");
+    expect(suppressionMock.isSuppressed({ owner_name: "smith family trust" }, asOf).suppressed).toBe(true);
+    expect(suppressionMock.isSuppressed({ owner_name: "SMITH FAMILY TRUST" }, asOf).suppressed).toBe(true);
+    expect(suppressionMock.isSuppressed({ owner_name: "  Smith   Family   Trust  " }, asOf).suppressed).toBe(true);
   });
 
   it("matches phone with formatting differences", () => {
@@ -163,10 +166,11 @@ describe("matchEntry — normalization and matching (via mocked list)", () => {
   });
 
   it("composes multiple matches into reasons + matched_entries", () => {
+    // Deterministic `now` (fixture capture date) — ms-002 owner_name is live as of 2026-04-30.
     const v = suppressionMock.isSuppressed({
       bbl: "1015730019",
       owner_name: "Smith Family Trust",
-    });
+    }, new Date("2026-04-30"));
     expect(v.suppressed).toBe(true);
     expect(v.reasons).toHaveLength(2);
     expect(v.matched_entries).toHaveLength(2);

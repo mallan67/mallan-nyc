@@ -241,4 +241,12 @@ if (jsonOutput) {
   console.log('');
 }
 
+// `--json` is REPORT mode: programmatic callers (ci-compliance-check.js,
+// release-truth-check.js, idx-validate.js) parse `summary.blocking_failures`
+// from the JSON body and gate themselves. Emit the report and exit 0 — the prior
+// non-zero exit made callers' execSync() treat a VALID report as a crashed
+// validator and mark it "UNVERIFIED" (compliance-check workflow-completeness).
+// Standalone/human mode KEEPS exit-1 gating so `npm run validator:workflows`
+// still fails CI directly on a release-blocking workflow.
+if (jsonOutput) process.exit(0);
 process.exit(results.summary.blocking_failures > 0 ? 1 : 0);

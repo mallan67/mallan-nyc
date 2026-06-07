@@ -1,0 +1,108 @@
+/// <reference types="jest" />
+/**
+ * Coverage backfill — DRY-RUN PREVIEW (read-only) tests.
+ *
+ * Context (live run 2026-06-06): ~8,568 IDX/RLS displayable-status listings have
+ * NO active `listing_media` (80% of Active inventory). The coverage backfill must
+ * fetch live Trestle Media and populate `listing_media`. This PR is **preview /
+ * dry-run ONLY** — it selects the target set and reports the expected Photo/
+ * FloorPlan yield from live Trestle, and **writes nothing**. The write/execute
+ * path is a deliberately-separate, separately-approved PR.
+ */
+import {
+  previewCoverageBackfill,
+  COVERAGE_TARGET_SQL,
+  COVERAGE_DISPLAYABLE_STATUSES,
+} from '@/lib/idx/coverage-backfill-preview';
+import * as previewModule from '@/lib/idx/coverage-backfill-preview';
+
+describe('COVERAGE_TARGET_SQL — read-only target selection', () => {
+  it('is a read-only SELECT (no write/DDL keywords)', () => {
+    expect(/^\s*SELECT/i.test(COVERAGE_TARGET_SQL)).toBe(true);
+    expect(
+      /\b(INSERT|UPDATE|DELETE|UPSERT|MERGE|DROP|ALTER|TRUNCATE|CREATE)\b/i.test(COVERAGE_TARGET_SQL),
+    ).toBe(false);
+  });
+
+  it('excludes CRM ids (SL-/RL-)', () => {
+    expect(COVERAGE_TARGET_SQL).toMatch(/NOT LIKE 'SL-%'/);
+    expect(COVERAGE_TARGET_SQL).toMatch(/NOT LIKE 'RL-%'/);
+  });
+
+  it('filters exactly the displayable statuses', () => {
+    expect(COVERAGE_TARGET_SQL.toLowerCase()).toContain(
+      "in ('active','comingsoon','activeundercontract')",
+    );
+    expect([...COVERAGE_DISPLAYABLE_STATUSES]).toEqual(['Active', 'ComingSoon', 'ActiveUnderContract']);
+  });
+
+  it('requires NO active listing_media (the coverage gap)', () => {
+    expect(COVERAGE_TARGET_SQL).toMatch(/NOT EXISTS/i);
+    expect(COVERAGE_TARGET_SQL).toMatch(/lm\.status = 'active'/);
+  });
+
+  it('prioritizes Active first', () => {
+    expect(COVERAGE_TARGET_SQL.toLowerCase()).toContain("order by (lower(l.status) = 'active') desc");
+  });
+});
+
+describe('module exposes NO write/execute path (structural guard)', () => {
+  it('has no exported function whose name implies a write', () => {
+    const writeLike = Object.keys(previewModule).filter((n) =>
+      /execute|write|upsert|insert|update|delete|commit|run\b/i.test(n),
+    );
+    expect(writeLike).toEqual([]);
+  });
+});
+
+describe('previewCoverageBackfill — dry-run, deps injected, never writes', () => {
+  const photo = { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/x/PHOTO-Jpeg/1.jpg' };
+  const floorplan = { MediaCategory: 'FloorPlan', MediaURL: 'https://api.cotality.com/x/Media/Property/DOCUMENT-Jpeg/fp.jpg' };
+
+  it('counts byStatus + expected Photo/FloorPlan yield, marks dryRun', async () => {
+    const targets = [
+      { listing_id: 'RLS1', status: 'Active', mls_id: 'RLS1' },
+      { listing_id: 'RLS2', status: 'Active', mls_id: 'RLS2' },
+      { listing_id: 'RLS3', status: 'ComingSoon', mls_id: 'RLS3' },
+    ];
+    const mediaByKey: Record<string, unknown[]> = {
+      RLS1: [photo, photo, floorplan],
+      RLS2: [],
+      RLS3: [photo],
+    };
+    const res = await previewCoverageBackfill({
+      sampleSize: 25,
+      targetFetcher: async (limit) => { expect(limit).toBe(25); return targets; },
+      mediaFetcher: async (key) => mediaByKey[String(key)] ?? [],
+    });
+    expect(res.dryRun).toBe(true);
+    expect(res.targetsReturned).toBe(3);
+    expect(res.byStatus).toEqual({ Active: 2, ComingSoon: 1 });
+    expect(res.sample.find((s) => s.listing_id === 'RLS1')).toMatchObject({
+      expectedPhotos: 2, expectedFloorPlans: 1, expectedTotal: 3,
+    });
+    expect(res.withExpectedMedia).toBe(2);   // RLS1, RLS3
+    expect(res.withZeroExpectedMedia).toBe(1); // RLS2
+  });
+
+  it('uses mls_id as the Trestle ResourceRecordKey, falling back to listing_id', async () => {
+    const seen: string[] = [];
+    await previewCoverageBackfill({
+      targetFetcher: async () => [
+        { listing_id: 'RLSA', status: 'Active', mls_id: 'KEY-A' },
+        { listing_id: 'RLSB', status: 'Active', mls_id: null },
+      ],
+      mediaFetcher: async (key) => { seen.push(String(key)); return []; },
+    });
+    expect(seen).toEqual(['KEY-A', 'RLSB']);
+  });
+
+  it('a Trestle fetch failure is non-fatal (listing reported with 0 expected)', async () => {
+    const res = await previewCoverageBackfill({
+      targetFetcher: async () => [{ listing_id: 'RLSX', status: 'Active', mls_id: 'RLSX' }],
+      mediaFetcher: async () => { throw new Error('trestle 429'); },
+    });
+    expect(res.sample[0]).toMatchObject({ listing_id: 'RLSX', expectedTotal: 0 });
+    expect(res.withZeroExpectedMedia).toBe(1);
+  });
+});
