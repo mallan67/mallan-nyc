@@ -323,10 +323,40 @@ FROM (SELECT listing_id FROM ranked WHERE rk = 1 GROUP BY listing_id HAVING COUN
 - **Q4 = 0/0, Q5 = 0, Q6 = 0** → the hero-safety + Photo-only + determinism
   assumptions all hold on real data; no surprises block the writers.
 
+## Status × media-coverage clarification (live, 2026-06-06)
+
+`SB0–SB3` run (status breakdown + per-status coverage + CRM/IDX split):
+
+- **Total listings = 106,746** (NOT the 8,560 — that is a subset of *Active* inventory).
+- **By status:** Closed **88,428** · Active **10,700** · Pending **4,956** · Withdrawn
+  **2,660** · ComingSoon **2**. (Closed dominates; only Active/ComingSoon/AUC are
+  publicly displayable.)
+- **Coverage per displayable status:**
+  - **Active** — total **10,702**, with media **2,137**, **without media 8,565
+    (80.0% missing)**.
+  - **ComingSoon** — total **2**, with media **0**, **without media 2 (100% missing)**.
+  - **ActiveUnderContract** — **0 rows** (no row exists in any spelling; under-contract
+    is stored as `Pending`, which the site does not display). In the allow-list for
+    forward-safety only.
+- **CRM vs IDX split of the missing-media set:** `idx_rls` **8,568** · `crm_exclusive`
+  **0** → the media failure is **entirely public IDX/RLS inventory**, not CRM exclusives.
+
+**Status-alias verification (code):** displayable set =
+`ALLOWED_PUBLIC_STATUSES = [Active, ComingSoon, ActiveUnderContract]`
+(`lib/search/public-listing-db.ts:14`, `public-listing-trestle.ts:28`). AUC canonical =
+`'ActiveUnderContract'`; `'Active Under Contract'` / `'ACTIVE_UNDER_CONTRACT'` normalize
+to it (`lib/compliance/status.ts:60,73,81`). DB has 0 AUC rows today.
+
+**Corrected coverage target:** **IDX/RLS listings in a displayable status (Active +
+ComingSoon + ActiveUnderContract) missing active `listing_media`, excluding `SL-`/`RL-`
+≈ 8,568** (≈8,565 Active + 2 ComingSoon; AUC 0; CRM 0). **Active first; ComingSoon (2
+rows) is a separate, product-policy-controlled lane.** NOT all 106,746 — Closed/Pending/
+Withdrawn are not displayed and are out of scope.
+
 ## Decision (from the live numbers)
 
 **Coverage backfill and denorm backfill MUST be two separate, sequential write PRs.**
-Running denorm first would write zeros/nulls for the 8,560 no-media rows and **lock in
+Running denorm first would write zeros/nulls for the ~8,565 no-media rows and **lock in
 the broken state**. Coverage must populate `listing_media` from live Trestle first.
 
 **Recommended order:**
