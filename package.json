@@ -44,6 +44,8 @@
         "validator:workflows": "node scripts/validate-workflow-completeness.js",
         "validator:workflows:json": "node scripts/validate-workflow-completeness.js --json",
         "validator:migration": "node scripts/validate-migration-discipline.js",
+        "gate:micro": "node scripts/ci/micro-gate.js",
+        "gate:macro": "node scripts/ci/macro-gate.js",
         "validator:deploy": "node scripts/validate-release-status.js",
         "release:truth": "node scripts/release-truth-check.js",
         "release:truth:json": "node scripts/release-truth-check.js --json",
