@@ -59,6 +59,14 @@ export interface MediaSyncCursor {
    * listings flagged by `last_photos_change`.
    */
   last_media_modified: Date | null;
+  /**
+   * RC1 keyset tie-breaker: the `ListingKey` of the last fully-processed
+   * listing AT `last_photos_change`. Enables same-timestamp continuation so a
+   * run of more than `listingsPerRun` listings sharing one PhotosChangeTimestamp
+   * cannot starve the cursor. null = no tie-breaker yet (first run after the
+   * RC1 migration, or a fresh cursor) → callers use the inclusive `ge` form.
+   */
+  last_listing_key: string | null;
 }
 
 /**
@@ -69,7 +77,7 @@ export interface MediaSyncCursor {
  * can mutate the result without aliasing a shared default.
  */
 export function emptyMediaSyncCursor(): MediaSyncCursor {
-  return { last_photos_change: null, last_media_modified: null };
+  return { last_photos_change: null, last_media_modified: null, last_listing_key: null };
 }
 
 /**
@@ -81,12 +89,13 @@ export function emptyMediaSyncCursor(): MediaSyncCursor {
 export async function getMediaSyncCursor(): Promise<MediaSyncCursor> {
   const row = await prisma.mediaSyncState.findUnique({
     where: { resource: RESOURCE_MEDIA },
-    select: { last_photos_change: true, last_media_modified: true },
+    select: { last_photos_change: true, last_media_modified: true, last_listing_key: true },
   });
   if (!row) return emptyMediaSyncCursor();
   return {
     last_photos_change: row.last_photos_change ?? null,
     last_media_modified: row.last_media_modified ?? null,
+    last_listing_key: row.last_listing_key ?? null,
   };
 }
 
@@ -103,13 +112,30 @@ export interface MediaSyncBatchRecord {
   MediaModificationTimestamp?: Date | string | null | undefined;
 }
 
+/** A keyset watermark: the (PhotosChangeTimestamp, ListingKey) of the last
+ * fully-processed listing. Produced by `pickKeysetWatermark`. */
+export interface KeysetWatermark {
+  last_photos_change: Date;
+  last_listing_key: string;
+}
+
 /** Inputs for `advanceMediaSyncCursor`. */
 export interface AdvanceMediaSyncCursorOptions {
   /**
    * Trestle records seen this run. Empty array is valid (no advancement
-   * happens; only `last_run_at` and counters are touched).
+   * happens; only `last_run_at` and counters are touched). Still drives
+   * `last_media_modified` (max). Drives `last_photos_change` ONLY on the
+   * legacy path (when `watermark` is omitted).
    */
   records: MediaSyncBatchRecord[];
+  /**
+   * RC1 keyset watermark. When provided, it (not `records`) drives
+   * `last_photos_change` + `last_listing_key`, advancing forward-only to the
+   * last fully-processed listing. `null` ⇒ preserve the prior ts + key
+   * unchanged (empty/halted-at-start run — must NOT erase the tie-breaker).
+   * Omitted (`undefined`) ⇒ legacy behavior (records-max ts, key preserved).
+   */
+  watermark?: KeysetWatermark | null;
   /** Run outcome — `"ok"` | `"error"` | other free-form. Defaults to `"ok"`. */
   status?: string | null;
   /** Number of rows the run inspected. */
@@ -120,6 +146,30 @@ export interface AdvanceMediaSyncCursorOptions {
   rowsFailed?: number;
   /** Test seam — defaults to `new Date()`. */
   now?: Date;
+}
+
+/**
+ * Forward-only composite max of two (ts, key) cursors. Never regresses:
+ *   - higher ts wins; on equal ts the lexicographically-greater ListingKey wins.
+ *   - a null prior ts yields the candidate; equal ts + null prior key yields the
+ *     candidate key.
+ * Used so the keyset watermark can only ever move forward.
+ */
+function compositeForwardMax(
+  prior: { ts: Date | null; key: string | null },
+  cand: KeysetWatermark,
+): { ts: Date; key: string } {
+  if (prior.ts === null) return { ts: cand.last_photos_change, key: cand.last_listing_key };
+  if (cand.last_photos_change > prior.ts) {
+    return { ts: cand.last_photos_change, key: cand.last_listing_key };
+  }
+  if (cand.last_photos_change < prior.ts) {
+    return { ts: prior.ts, key: prior.key ?? cand.last_listing_key };
+  }
+  // Equal timestamps — advance the ListingKey tie-breaker forward only.
+  const key =
+    prior.key === null || cand.last_listing_key > prior.key ? cand.last_listing_key : prior.key;
+  return { ts: prior.ts, key };
 }
 
 /**
@@ -172,8 +222,30 @@ export async function advanceMediaSyncCursor(
 
   // Read prior state so we never move the watermark backward.
   const prior = await getMediaSyncCursor();
-  const nextPhotosChange = maxDate(prior.last_photos_change, batchPhotosChange);
   const nextMediaModified = maxDate(prior.last_media_modified, batchMediaModified);
+
+  // RC1: the keyset watermark (when supplied) drives last_photos_change +
+  // last_listing_key, advancing forward-only to the last fully-processed
+  // listing. `null` preserves the prior cursor (must not erase the tie-breaker
+  // on an empty/halted run). Omitted = legacy records-max ts, key preserved.
+  let nextPhotosChange: Date | null;
+  let nextListingKey: string | null;
+  if ("watermark" in options) {
+    if (options.watermark == null) {
+      nextPhotosChange = prior.last_photos_change;
+      nextListingKey = prior.last_listing_key;
+    } else {
+      const c = compositeForwardMax(
+        { ts: prior.last_photos_change, key: prior.last_listing_key },
+        options.watermark,
+      );
+      nextPhotosChange = c.ts;
+      nextListingKey = c.key;
+    }
+  } else {
+    nextPhotosChange = maxDate(prior.last_photos_change, batchPhotosChange);
+    nextListingKey = prior.last_listing_key;
+  }
 
   await prisma.mediaSyncState.upsert({
     where: { resource: RESOURCE_MEDIA },
@@ -181,6 +253,7 @@ export async function advanceMediaSyncCursor(
       resource: RESOURCE_MEDIA,
       last_photos_change: nextPhotosChange,
       last_media_modified: nextMediaModified,
+      last_listing_key: nextListingKey,
       last_run_at: now,
       last_run_status: status,
       rows_checked: rowsChecked,
@@ -190,6 +263,7 @@ export async function advanceMediaSyncCursor(
     update: {
       last_photos_change: nextPhotosChange,
       last_media_modified: nextMediaModified,
+      last_listing_key: nextListingKey,
       last_run_at: now,
       last_run_status: status,
       rows_checked: rowsChecked,
@@ -201,6 +275,7 @@ export async function advanceMediaSyncCursor(
   return {
     last_photos_change: nextPhotosChange,
     last_media_modified: nextMediaModified,
+    last_listing_key: nextListingKey,
   };
 }
 
@@ -234,7 +309,42 @@ export function computeAdvancedCursor(
   return {
     last_photos_change: maxDate(prior.last_photos_change, batchPhotosChange),
     last_media_modified: maxDate(prior.last_media_modified, batchMediaModified),
+    // Pure legacy variant does not compute the keyset tie-breaker — preserve it.
+    last_listing_key: prior.last_listing_key,
   };
+}
+
+// ─── RC1 — keyset watermark selection ────────────────────────────────────
+
+/**
+ * One listing's Phase-1 outcome, in the order the run walked them (ascending
+ * `PhotosChangeTimestamp, ListingKey`). `ok` = Media pagination was COMPLETE
+ * and upsert + summary both succeeded.
+ */
+export interface ProcessedListing {
+  listingKey: string;
+  photosChangeTs: Date | null;
+  ok: boolean;
+}
+
+/**
+ * Pick the keyset watermark = the (PhotosChangeTimestamp, ListingKey) of the
+ * LAST contiguously fully-processed listing. Walks in order and STOPS at the
+ * first `ok:false` (incomplete Media / failed upsert/summary) — so the cursor
+ * never advances PAST a failed listing, even if later listings succeeded
+ * (they'll be re-processed next run; upsert is idempotent). An `ok` listing
+ * with a null `photosChangeTs` cannot anchor the cursor but does not halt.
+ * Returns null when nothing advanceable was processed (caller preserves prior).
+ */
+export function pickKeysetWatermark(processed: ProcessedListing[]): KeysetWatermark | null {
+  let watermark: KeysetWatermark | null = null;
+  for (const p of processed) {
+    if (!p.ok) break; // never advance past a failed/incomplete listing
+    if (p.photosChangeTs && !Number.isNaN(p.photosChangeTs.getTime()) && p.listingKey) {
+      watermark = { last_photos_change: p.photosChangeTs, last_listing_key: p.listingKey };
+    }
+  }
+  return watermark;
 }
 
 /** Coerce a Date | string | null | undefined to a valid Date or null. */
@@ -1046,8 +1156,15 @@ export function isPropertyComplianceBlocked(property: TrestleProperty): boolean 
 
 /** Test-injectable Trestle fetchers. */
 export interface MediaSyncFetchDeps {
-  fetchProperties: (since: Date, top: number) => Promise<TrestleProperty[]>;
-  fetchMedia: (resourceRecordKey: string, top: number) => Promise<UpsertListingMediaInput[]>;
+  /** Fetch one Property page using the RC1 keyset cursor. */
+  fetchProperties: (cursor: PropertyQueryCursor, top: number) => Promise<TrestleProperty[]>;
+  /**
+   * Fetch the COMPLETE media set for a listing (following `@odata.nextLink`).
+   * RESOLVES ⇒ complete set (safe to tombstone vanished rows). THROWS ⇒ the
+   * media could not be completely fetched — caller preserves existing media,
+   * does not tombstone, and does not advance the cursor past this listing.
+   */
+  fetchMedia: (resourceRecordKey: string) => Promise<UpsertListingMediaInput[]>;
 }
 
 export interface RunMediaSyncOptions {
@@ -1128,6 +1245,12 @@ export interface RunMediaSyncResult {
 
 export const DEFAULT_LISTINGS_PER_RUN = 50;
 export const DEFAULT_MEDIA_PER_LISTING = 30;
+/**
+ * RC1: per-PAGE Media `$top`. The complete set for a listing is assembled by
+ * following `@odata.nextLink` across pages (see `defaultFetchMedia`), so this is
+ * a page size, NOT a per-listing cap — no listing's photos are silently truncated.
+ */
+export const DEFAULT_MEDIA_PAGE_SIZE = 200;
 export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
 /**
  * Time-budget defaults (chosen to fit Vercel `maxDuration=120s` with headroom):
@@ -1173,16 +1296,37 @@ export const R2_MIRROR_CONCURRENCY = 5;
  *     fallback to `property.Permissions` simply reads `undefined` on this feed,
  *     which is harmless.
  */
-export function buildPropertyQuery(since: Date, top: number): URLSearchParams {
+export interface PropertyQueryCursor {
+  /** Watermark timestamp — `null` ⇒ first run, fall back to `fallbackSince`. */
+  lastPhotosChange: Date | null;
+  /** Keyset tie-breaker — `null` ⇒ inclusive `ge` transition run. */
+  lastListingKey: string | null;
+  /** First-run window floor (used only when `lastPhotosChange` is null). */
+  fallbackSince: Date;
+}
+
+export function buildPropertyQuery(cursor: PropertyQueryCursor, top: number): URLSearchParams {
   const params = new URLSearchParams();
-  // Filter by Property.PhotosChangeTimestamp (Trestle vendor-recommended trigger
-  // for media-only changes). We additionally constrain to active-displayable
-  // statuses so we don't churn on terminal-status rows. `ge` (not `gt`) keeps
-  // boundary rows visible — see review comment 2.
-  params.set(
-    "$filter",
-    `PhotosChangeTimestamp ge ${since.toISOString()} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'Pending')`,
-  );
+  const statuses =
+    "(StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'Pending')";
+
+  // RC1 keyset continuation — fixes same-timestamp starvation:
+  //   - null watermark      → first run: PhotosChangeTimestamp ge fallbackSince
+  //   - watermark, null key → transition run (no tie-breaker yet): ge ts
+  //   - watermark + key      → (pct gt ts) OR (pct eq ts AND ListingKey gt 'key')
+  //     so a run of >top listings sharing one PhotosChangeTimestamp resumes
+  //     AFTER the last processed ListingKey instead of re-fetching the head.
+  let timeClause: string;
+  if (cursor.lastPhotosChange === null) {
+    timeClause = `PhotosChangeTimestamp ge ${cursor.fallbackSince.toISOString()}`;
+  } else if (cursor.lastListingKey === null) {
+    timeClause = `PhotosChangeTimestamp ge ${cursor.lastPhotosChange.toISOString()}`;
+  } else {
+    const ts = cursor.lastPhotosChange.toISOString();
+    const key = cursor.lastListingKey.replace(/'/g, "''"); // OData single-quote escape
+    timeClause = `(PhotosChangeTimestamp gt ${ts} or (PhotosChangeTimestamp eq ${ts} and ListingKey gt '${key}'))`;
+  }
+  params.set("$filter", `${timeClause} and ${statuses}`);
   // `Permissions` (plural) is NOT a Trestle IDX Plus Property field — see the
   // doc comment above. Do NOT add it back. `Permission` (singular) is canonical.
   params.set(
@@ -1194,11 +1338,14 @@ export function buildPropertyQuery(since: Date, top: number): URLSearchParams {
   return params;
 }
 
-async function defaultFetchProperties(since: Date, top: number): Promise<TrestleProperty[]> {
+async function defaultFetchProperties(
+  cursor: PropertyQueryCursor,
+  top: number,
+): Promise<TrestleProperty[]> {
   const token = await defaultGetAccessToken();
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-  const url = `${TRESTLE_API}/odata/Property?${buildPropertyQuery(since, top).toString()}`;
+  const url = `${TRESTLE_API}/odata/Property?${buildPropertyQuery(cursor, top).toString()}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
@@ -1207,13 +1354,69 @@ async function defaultFetchProperties(since: Date, top: number): Promise<Trestle
   return (data.value || []) as TrestleProperty[];
 }
 
-async function defaultFetchMedia(
-  resourceRecordKey: string,
-  top: number,
-): Promise<UpsertListingMediaInput[]> {
-  const token = await defaultGetAccessToken();
-  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+/** One page of an OData Media response. `nextLink` is `@odata.nextLink` or null. */
+export interface MediaPage {
+  value: unknown[];
+  nextLink: string | null;
+}
 
+/**
+ * RC1 — follow `@odata.nextLink` until the Media response is exhausted, so the
+ * caller has the COMPLETE current media set for a listing before it writes or
+ * tombstones. Returns `complete: false` (and whatever rows were gathered) when
+ * any page fetch fails OR the page count exceeds `maxPages` (runaway guard) —
+ * the caller MUST then preserve existing media and NOT tombstone (a missing key
+ * on an incomplete response is not proven deleted at source).
+ *
+ * Pure over an injected `fetchPage` so the pagination loop is unit-testable
+ * without the network. Production wraps `defaultFetchMediaPage`.
+ */
+export async function paginateMedia(
+  firstUrl: string,
+  fetchPage: (url: string) => Promise<MediaPage>,
+  maxPages = 50,
+): Promise<{ rows: UpsertListingMediaInput[]; complete: boolean }> {
+  const rows: UpsertListingMediaInput[] = [];
+  let url: string | null = firstUrl;
+  let pages = 0;
+  while (url) {
+    if (pages >= maxPages) return { rows, complete: false }; // fail closed on runaway
+    let page: MediaPage;
+    try {
+      page = await fetchPage(url);
+    } catch {
+      return { rows, complete: false }; // a failed page ⇒ incomplete ⇒ no destructive write
+    }
+    for (const r of page.value) rows.push(r as UpsertListingMediaInput);
+    url = page.nextLink;
+    pages++;
+  }
+  return { rows, complete: true };
+}
+
+async function defaultFetchMediaPage(url: string): Promise<MediaPage> {
+  const token = await defaultGetAccessToken();
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`Media fetch failed: HTTP ${res.status}`);
+  const data = await res.json();
+  return {
+    value: (data.value || []) as unknown[],
+    nextLink: (data["@odata.nextLink"] as string | undefined) ?? null,
+  };
+}
+
+/**
+ * Fetch the COMPLETE media set for one listing, following `@odata.nextLink`.
+ * THROWS when pagination is incomplete (a page failed / runaway) — runMediaSync
+ * treats a throw as a per-listing failure: it preserves existing media, does NOT
+ * tombstone, and does not advance the cursor past this listing. A successful
+ * return therefore guarantees a complete set, which is what makes
+ * `tombstoneVanished: true` safe.
+ */
+async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListingMediaInput[]> {
+  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   const escaped = resourceRecordKey.replace(/'/g, "''");
   const params = new URLSearchParams();
   params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
@@ -1222,15 +1425,15 @@ async function defaultFetchMedia(
     "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",
   );
   params.set("$orderby", "Order asc");
-  params.set("$top", String(top));
+  // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.
+  params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));
 
-  const url = `${TRESTLE_API}/odata/Media?${params.toString()}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (!res.ok) throw new Error(`Media fetch failed: HTTP ${res.status}`);
-  const data = await res.json();
-  return (data.value || []) as UpsertListingMediaInput[];
+  const firstUrl = `${TRESTLE_API}/odata/Media?${params.toString()}`;
+  const { rows, complete } = await paginateMedia(firstUrl, defaultFetchMediaPage);
+  if (!complete) {
+    throw new Error(`Media pagination incomplete for ResourceRecordKey='${resourceRecordKey}'`);
+  }
+  return rows;
 }
 
 const defaultFetchDeps: MediaSyncFetchDeps = {
@@ -1307,7 +1510,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   const now = options.now ?? Date.now;
   const startTime = now();
   const listingsPerRun = options.listingsPerRun ?? DEFAULT_LISTINGS_PER_RUN;
-  const mediaPerListing = options.mediaPerListing ?? DEFAULT_MEDIA_PER_LISTING;
+  // RC1: `mediaPerListing` (per-listing cap) is retired — media is now fully
+  // paginated via @odata.nextLink. The option remains accepted (ignored) for
+  // backward-compat with existing callers/tests.
   const fallbackWindowDays = options.fallbackWindowDays ?? DEFAULT_FALLBACK_WINDOW_DAYS;
   const fetchDeps = options.fetchDeps ?? defaultFetchDeps;
   const mirrorDeps = options.mirrorDeps ?? defaultMirrorMediaToR2Deps;
@@ -1331,13 +1536,19 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
   // ── PHASE 1: source ingest ───────────────────────────────────────────
   const cursor = await getMediaSyncCursor();
-  const since =
-    cursor.last_photos_change ??
-    new Date(now() - fallbackWindowDays * 86_400_000);
+  // RC1 keyset cursor: continue AFTER (last_photos_change, last_listing_key).
+  const queryCursor: PropertyQueryCursor = {
+    lastPhotosChange: cursor.last_photos_change,
+    lastListingKey: cursor.last_listing_key,
+    fallbackSince: new Date(now() - fallbackWindowDays * 86_400_000),
+  };
+  // Ordered Phase-1 outcomes — drives the keyset watermark (advance only to the
+  // last contiguously fully-processed listing; never past a failure).
+  const processed: ProcessedListing[] = [];
 
   let properties: TrestleProperty[];
   try {
-    properties = await fetchDeps.fetchProperties(since, listingsPerRun);
+    properties = await fetchDeps.fetchProperties(queryCursor, listingsPerRun);
   } catch (err) {
     // Source-fetch failure: do NOT advance cursor. No Phase 2/3/4.
     return {
@@ -1363,53 +1574,70 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       break;
     }
 
+    const listingKey = property.ListingKey ? String(property.ListingKey) : null;
+    const propTs = parseDate(property.PhotosChangeTimestamp ?? null);
+
     if (isPropertyComplianceBlocked(property)) {
+      // Intentionally skipped, but resolved — let the cursor advance past it so
+      // a blocked listing is not re-fetched every run (it re-surfaces only when
+      // its PhotosChangeTimestamp bumps). Needs a key to anchor the watermark.
       listingsSkipped++;
+      if (listingKey) processed.push({ listingKey, photosChangeTs: propTs, ok: true });
       continue;
     }
 
     const listingId = property.ListingId ? String(property.ListingId) : null;
-    const listingKey = property.ListingKey ? String(property.ListingKey) : null;
     if (!listingId || !listingKey) {
+      // Unprocessable (malformed) — cannot anchor the keyset; skip without
+      // pushing (never becomes a watermark; does not halt later listings).
       listingsSkipped++;
       continue;
     }
 
     try {
-      const mediaRows = await fetchDeps.fetchMedia(listingKey, mediaPerListing);
+      // RC1: fetchMedia follows @odata.nextLink and THROWS on an incomplete
+      // response — a resolve guarantees the COMPLETE current media set.
+      const mediaRows = await fetchDeps.fetchMedia(listingKey);
       rowsChecked += mediaRows.length;
 
       const upsertResult = await upsertListingMedia(listingId, mediaRows, {
         photosChangeTsSnapshot: property.PhotosChangeTimestamp ?? null,
-        // FORCED FALSE — see PR #96 review-comment fix.
-        tombstoneVanished: false,
+        // SAFE NOW (RC1): the set is complete (full pagination), so a media_key
+        // absent from the input is proven deleted at source → tombstone it.
+        // An empty COMPLETE set tombstones every active row for the listing.
+        tombstoneVanished: true,
       });
       rowsUpdated += upsertResult.inserted + upsertResult.updated;
 
-      // Summary uses media_url_original (R2-independent) per
-      // computeListingMediaSummary() at media-sync.ts:614. primary_photo_r2_key
-      // may legitimately stay null until Phase 3 catches up. NEW: summary
-      // failure is FAIL-LOUD (no longer swallowed) — surfaces in rows_failed
-      // and prevents cursor advance for this listing so it re-tries next run.
+      // Fail-loud: a summary failure throws → caught below → ok:false → the
+      // keyset watermark will not advance past this listing (retried next run).
       await updateListingMediaSummary(listingId);
 
       cursorRecords.push({
         PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
         ModificationTimestamp: property.ModificationTimestamp ?? null,
       });
+      processed.push({ listingKey, photosChangeTs: propTs, ok: true });
       listingsProcessed++;
     } catch {
       rowsFailed++;
-      // Do NOT push to cursorRecords — failed listing re-surfaces next run.
+      // Media incomplete / upsert / summary failed → existing media is left
+      // intact (no upsert side effects on a fetch throw; tombstone never ran),
+      // and ok:false STOPS the keyset watermark here. We continue so healthy
+      // later listings still refresh, but the cursor will NOT advance past this
+      // one — it re-surfaces (idempotently) next run.
+      processed.push({ listingKey, photosChangeTs: propTs, ok: false });
     }
   }
 
   // ── PHASE 2: cursor checkpoint (durable forward progress) ────────────
-  // Runs only when Property fetch succeeded. Empty cursorRecords ⟹
-  // advanceMediaSyncCursor's empty-batch contract advances last_run_at
-  // heartbeat without changing watermarks.
+  // Runs only when Property fetch succeeded. The keyset watermark advances only
+  // to the last contiguously fully-processed listing (never past a failure);
+  // a null watermark (nothing advanceable) preserves the prior cursor +
+  // tie-breaker. `records` still drives last_media_modified.
   await advanceMediaSyncCursor({
     records: cursorRecords,
+    watermark: pickKeysetWatermark(processed),
     status: rowsFailed > 0 ? "partial" : "ok",
     rowsChecked,
     rowsUpdated,

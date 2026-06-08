@@ -202,11 +202,19 @@ describe("runMediaSync — source-fetch failure (watermark safety)", () => {
     const after = Date.now();
 
     expect(result.status).toBe("ok");
-    const sinceArg = (fetchDeps.fetchProperties as jest.Mock).mock.calls[0][0] as Date;
+    // RC1: fetchProperties receives a PropertyQueryCursor. First run ⇒
+    // lastPhotosChange null and fallbackSince = now - fallbackWindowDays.
+    const cursorArg = (fetchDeps.fetchProperties as jest.Mock).mock.calls[0][0] as {
+      lastPhotosChange: Date | null;
+      lastListingKey: string | null;
+      fallbackSince: Date;
+    };
+    expect(cursorArg.lastPhotosChange).toBeNull();
+    expect(cursorArg.lastListingKey).toBeNull();
     const expectedSince = before - 14 * 86_400_000;
     const tolerance = (after - before) + 100;
-    expect(sinceArg.getTime()).toBeGreaterThanOrEqual(expectedSince - tolerance);
-    expect(sinceArg.getTime()).toBeLessThanOrEqual(expectedSince + tolerance);
+    expect(cursorArg.fallbackSince.getTime()).toBeGreaterThanOrEqual(expectedSince - tolerance);
+    expect(cursorArg.fallbackSince.getTime()).toBeLessThanOrEqual(expectedSince + tolerance);
   });
 });
 
@@ -466,7 +474,10 @@ describe("runMediaSync — bounds", () => {
     expect((fetchProperties as jest.Mock).mock.calls[0][1]).toBe(25);
   });
 
-  it("passes mediaPerListing as the $top to fetchMedia", async () => {
+  it("RC1: fetchMedia is called with ONLY the ResourceRecordKey (no per-listing cap — full pagination)", async () => {
+    // The per-listing $top cap is retired in RC1: defaultFetchMedia follows
+    // @odata.nextLink to assemble the complete set, so runMediaSync passes only
+    // the key. `mediaPerListing` is accepted-but-ignored for back-compat.
     mockMediaSyncFindUnique.mockResolvedValue(null);
     mockListingMediaFindMany.mockResolvedValue([]);
     const fetchMedia = jest.fn().mockResolvedValueOnce([]);
@@ -478,7 +489,8 @@ describe("runMediaSync — bounds", () => {
     });
 
     await runMediaSync(makeOptions({ fetchDeps, mediaPerListing: 12 }));
-    expect((fetchMedia as jest.Mock).mock.calls[0][1]).toBe(12);
+    expect((fetchMedia as jest.Mock).mock.calls[0][0]).toBe("K-A");
+    expect((fetchMedia as jest.Mock).mock.calls[0][1]).toBeUndefined();
   });
 });
 
@@ -596,26 +608,20 @@ describe("runMediaSync — boundary preservation", () => {
 
 // ─── Review comment 1 — tombstoneVanished safety with capped fetch ───────
 
-describe("runMediaSync — tombstoneVanished is forced false (capped fetch safety)", () => {
-  it("does NOT tombstone DB rows that are absent from a capped Media response", async () => {
-    // Listing has 5 active rows in DB; capped fetch returns only 2. The 3
-    // "missing" rows must NOT be soft-deleted because the input is not proven
-    // complete (review comment 1).
+describe("runMediaSync — tombstoneVanished is TRUE on a complete paginated fetch (RC1)", () => {
+  it("DOES tombstone DB rows absent from the COMPLETE (paginated) Media response", async () => {
+    // RC1 inverts the old capped-fetch behavior: fetchMedia now follows
+    // @odata.nextLink and a RESOLVE = the COMPLETE current set. A DB row absent
+    // from a complete set is proven deleted at source → it MUST be tombstoned
+    // (vanished-rows `media_key: { notIn: [...] }` pattern).
     mockMediaSyncFindUnique.mockResolvedValue(null);
     mockListingMediaFindUnique.mockResolvedValue(null);
     mockListingMediaCreate.mockResolvedValue(undefined);
     mockListingMediaUpdate.mockResolvedValue(undefined);
-    // Existing DB state — 5 active rows for the listing. First call serves
-    // Phase 1's summary read; subsequent calls (Phase 3 backlog while-loop)
-    // return empty so Phase 3 doesn't iterate (this test focuses on Phase 1
-    // tombstone semantics, not Phase 3 mirror behavior).
     mockListingMediaFindMany
       .mockResolvedValueOnce([
         { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
         { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
-        { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
-        { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null },
-        { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null },
       ])
       .mockResolvedValue([]);
 
@@ -623,25 +629,50 @@ describe("runMediaSync — tombstoneVanished is forced false (capped fetch safet
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
       ]),
-      // Capped fetch returns ONLY MK-A and MK-B — MK-C/D/E are not present
-      // in the response (they are simply beyond the page, not deleted).
-      fetchMedia: jest
-        .fn()
-        .mockResolvedValueOnce([
-          makeMediaInput({ MediaKey: "MK-A" }),
-          makeMediaInput({ MediaKey: "MK-B" }),
-        ]),
+      // COMPLETE response (pagination resolved) returns ONLY MK-A — MK-B is gone
+      // at source and must be tombstoned.
+      fetchMedia: jest.fn().mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-A" })]),
     });
 
-    await runMediaSync(makeOptions({ fetchDeps, mediaPerListing: 2 }));
+    await runMediaSync(makeOptions({ fetchDeps }));
 
-    // No tombstoning updateMany call with the vanished-rows pattern
-    // (`media_key: { notIn: [...] }` — used ONLY when tombstoneVanished is true).
     const tombstoneCalls = mockListingMediaUpdateMany.mock.calls.filter((call) => {
-      const args = call[0] as { where?: { media_key?: { notIn?: unknown[] } } };
-      return args?.where?.media_key && "notIn" in args.where.media_key;
+      const args = call[0] as { where?: { media_key?: { notIn?: unknown[] } }; data?: { status?: string } };
+      return args?.where?.media_key && "notIn" in (args.where.media_key as object) && args.data?.status === "deleted";
     });
-    expect(tombstoneCalls).toHaveLength(0);
+    expect(tombstoneCalls).toHaveLength(1);
+    const where = tombstoneCalls[0][0] as { where: { media_key: { notIn: string[] }; status: string } };
+    expect(where.where.media_key.notIn).toContain("MK-A"); // survivors excluded from the tombstone set
+    expect(where.where.status).toBe("active");
+  });
+
+  it("INCOMPLETE media (fetchMedia throws) → NO upsert, NO tombstone, cursor not advanced past it", async () => {
+    // A failed/incomplete pagination MUST be non-destructive: existing media is
+    // preserved (no upsert/tombstone), the listing counts as failed, and the
+    // keyset watermark must NOT advance past it (last_listing_key not persisted
+    // for this listing).
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindMany.mockResolvedValue([]);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS-A", ListingKey: "K-A", PhotosChangeTimestamp: "2026-06-01T00:00:00Z" }),
+      ]),
+      fetchMedia: jest.fn().mockRejectedValueOnce(new Error("Media pagination incomplete")),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+
+    expect(result.rows_failed).toBe(1);
+    expect(result.listings_processed).toBe(0);
+    // No destructive writes on the failed listing.
+    expect(mockListingMediaCreate).not.toHaveBeenCalled();
+    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expect(mockListingMediaUpdateMany).not.toHaveBeenCalled();
+    // Cursor checkpoint ran but did NOT advance the tie-breaker past the failure
+    // (null watermark ⇒ last_listing_key preserved as prior null).
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    expect(upsertArgs.update.last_listing_key).toBeNull();
   });
 
   it("explicit MediaStatus='Deleted' rows are still tombstoned by Cp2 regardless of tombstoneVanished", async () => {
@@ -691,11 +722,16 @@ describe("runMediaSync — boundary timestamp safety", () => {
 
     await runMediaSync(makeOptions({ fetchDeps }));
 
-    const sinceArg = (fetchProperties as jest.Mock).mock.calls[0][0] as Date;
-    // Orchestrator does NOT subtract overlap; the ge filter in buildPropertyQuery
-    // re-includes the boundary. Cursor advances only with successfully-processed
-    // records, so re-fetching the boundary on the next run is safe and idempotent.
-    expect(sinceArg.toISOString()).toBe(cursorTs.toISOString());
+    // RC1: runMediaSync passes the persisted cursor (ts + keyset tie-breaker)
+    // through to fetchProperties; the gt/keyset continuation lives in
+    // buildPropertyQuery. Here last_listing_key was null (legacy row) ⇒ the
+    // transition (inclusive) form is used downstream.
+    const cursorArg = (fetchProperties as jest.Mock).mock.calls[0][0] as {
+      lastPhotosChange: Date | null;
+      lastListingKey: string | null;
+    };
+    expect(cursorArg.lastPhotosChange?.toISOString()).toBe(cursorTs.toISOString());
+    expect(cursorArg.lastListingKey).toBeNull();
   });
 
   it("re-processing the same boundary listing across two runs is idempotent at the upsert layer", async () => {
@@ -764,8 +800,13 @@ describe("runMediaSync — boundary timestamp safety", () => {
 // ─── Review comment 3 — buildPropertyQuery ($select + $filter + $orderby) ─
 
 describe("buildPropertyQuery", () => {
+  const TS = new Date("2026-05-01T00:00:00Z");
+  // RC1: buildPropertyQuery takes a PropertyQueryCursor. Transition cursor
+  // (ts set, key null) for the $select/$orderby/$top shape tests.
+  const transition = { lastPhotosChange: TS, lastListingKey: null, fallbackSince: TS };
+
   it("$select includes the canonical Trestle compliance fields Permission (singular) and MlsStatus", () => {
-    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+    const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
     const fields = select.split(",");
     expect(fields).toContain("Permission");
@@ -778,32 +819,32 @@ describe("buildPropertyQuery", () => {
 
   it("$select does NOT include Permissions (plural) — Trestle returns HTTP 400 for that field", () => {
     // Regression guard for the 2026-05-09T07:00:25Z first-firing failure.
-    // `Permissions` (plural) does not exist on the Trestle IDX Plus Property
-    // resource — including it in $select causes HTTP 400. The runtime fallback
-    // in `isPropertyComplianceBlocked()` to read `property.Permissions` is
-    // harmless on this feed (always reads undefined) and stays for legacy-feed
-    // defense, but $select MUST request only `Permission` (singular).
-    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+    const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
     const fields = select.split(",");
     expect(fields).not.toContain("Permissions");
   });
 
-  it("$filter uses 'ge' (not 'gt') on PhotosChangeTimestamp to preserve boundary rows", () => {
-    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
+  it("RC1 keyset: with a ListingKey tie-breaker the filter uses gt + (eq ts AND ListingKey gt key)", () => {
+    // The deadlock fix — a cursor WITH a tie-breaker must resume AFTER the last
+    // processed ListingKey, NOT re-include the whole boundary timestamp.
+    const params = buildPropertyQuery({ lastPhotosChange: TS, lastListingKey: "RLS0050", fallbackSince: TS }, 50);
     const filter = params.get("$filter") || "";
+    expect(filter).toContain(`PhotosChangeTimestamp gt ${TS.toISOString()}`);
+    expect(filter).toContain(`PhotosChangeTimestamp eq ${TS.toISOString()} and ListingKey gt 'RLS0050'`);
+  });
+
+  it("transition run (no tie-breaker yet) uses inclusive 'ge' so boundary rows are not skipped", () => {
+    const filter = buildPropertyQuery(transition, 50).get("$filter") || "";
     expect(filter).toMatch(/PhotosChangeTimestamp ge /);
-    expect(filter).not.toMatch(/PhotosChangeTimestamp gt /);
   });
 
   it("$orderby includes ListingKey as a stable tie-breaker", () => {
-    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 50);
-    expect(params.get("$orderby")).toBe("PhotosChangeTimestamp asc,ListingKey asc");
+    expect(buildPropertyQuery(transition, 50).get("$orderby")).toBe("PhotosChangeTimestamp asc,ListingKey asc");
   });
 
   it("$top reflects the requested page size", () => {
-    const params = buildPropertyQuery(new Date("2026-05-01T00:00:00Z"), 25);
-    expect(params.get("$top")).toBe("25");
+    expect(buildPropertyQuery(transition, 25).get("$top")).toBe("25");
   });
 });
 

@@ -1,0 +1,23 @@
+-- media_sync_state: RC1 keyset cursor tie-breaker (NEON-safe additive)
+--
+-- Adds `last_listing_key` so the incremental media-sync cron can persist the
+-- ListingKey of the last fully-processed listing at the `last_photos_change`
+-- watermark. This enables stable keyset continuation:
+--   (PhotosChangeTimestamp > cursorTs)
+--   OR (PhotosChangeTimestamp = cursorTs AND ListingKey > last_listing_key)
+-- which fixes the same-timestamp cursor starvation (a run of more than
+-- `listingsPerRun` listings sharing one PhotosChangeTimestamp could previously
+-- re-fetch the same head page forever, never reaching later listings).
+--
+-- NEON.md §4 conformance:
+--   - Column is nullable TEXT. No NOT NULL DEFAULT (forbidden pattern §4).
+--     NULL = "no tie-breaker yet" (first run after this migration) and is
+--     handled by the cursor code as an inclusive `ge` transition run.
+--   - `media_sync_state` is a single-row table (one row keyed resource='Media'),
+--     so ADD COLUMN is metadata-only and acquires the lock for microseconds —
+--     zero contention, not subject to the 3-5 AM business-hours rule (that rule
+--     covers listings / leads / audit_events only).
+--   - Single ALTER TABLE statement.
+--   - Reversible: DROP COLUMN "last_listing_key" (column has no readers until
+--     the RC1 code that ships with this migration is deployed).
+ALTER TABLE "media_sync_state" ADD COLUMN "last_listing_key" TEXT;

@@ -1,18 +1,23 @@
 # Correction Trace Record — `RC1` Cotality Media pagination / cursor correctness
 
-> **Status: PRE-REGISTERED (PLANNED) — NOT STARTED. No code yet.** This record is the pre-registration
-> "no dark work" contract for RC1, created at Maya's instruction. It locks scope BEFORE any
-> implementation. **Do NOT write code, open a PR, or touch the write-path until Maya gives explicit GO
-> to implement RC1.** RC1 is media-program correction #2 (follows RC2, which is SETTLED on `main`
-> `1047b562`/#375 + docs `7c73fa36`/#376).
+> **Status: IN-PR.** Maya gave explicit GO ("GO confirmed for RC1 Option 1") with the single approved
+> additive schema change `MediaSyncState.last_listing_key`. All five requirements implemented test-first.
+> RC1 is media-program correction #2 (follows RC2, SETTLED on `main` `1047b562`/#375 + docs `7c73fa36`/#376).
+>
+> **⚠ Migration NOT applied to prod.** Per Maya's "no live DB writes" directive I did not run
+> `prisma migrate deploy`. The additive nullable migration ships in this PR; **Maya must apply it to prod
+> (NEON.md §5 step 2) BEFORE merge/deploy**, else `getMediaSyncCursor`'s `last_listing_key` select fails.
+> The neon-precommit guard was satisfied via the **documented** `NEON_GUARD_BYPASS=1` (NOT `--no-verify`),
+> because its preflight requires the prod migrate + `ops:health` that the no-live-DB directive forbids me
+> from running. Reason recorded in the commit message.
 
 ## 0. Header
 - **ID / Ledger row:** RC1 (media root-cause program, correction #2; relates to ledger M2 + the
   deleted-at-source clearing deferred out of RC2)
 - **Severity / Compliance tie:** P1 · media display freshness (REBNY media rules) — correctness of
   what gets written to `listings.media` on incremental sync
-- **Owning phase:** media program · **Maya GO:** **NOT yet given** (pre-registration only)
-- **Status:** PLANNED / pre-registered
+- **Owning phase:** media program · **Maya GO:** given (Option 1 — schema approved)
+- **Status:** IN-PR (branch `fix/rc1-media-pagination-cursor`)
 
 ## 1. Scope — what RC1 MUST handle (Maya, verbatim)
 1. **Follow `@odata.nextLink` until the Media response is exhausted.**
@@ -65,6 +70,20 @@
   keyset-style continuation) so a same-`ModificationTimestamp` run cannot deadlock or skip.
 - Pure, unit-testable helpers (pagination assembly, clear-decision, cursor advance) so each requirement
   has a behavioral RED→GREEN proof with no fix-time DB write.
+
+## 4a. Implementation — step log (test-first)
+| # | Step | Artifact | Result |
+|---|------|----------|--------|
+| 1 | RED pure tests for `paginateMedia` / keyset `buildPropertyQuery` / `pickKeysetWatermark` | `lib/idx/__tests__/media-sync-rc1.test.ts` | RED: `paginateMedia is not a function` (15 cases) | ✅ RED |
+| 2 | schema + migration (ONLY `last_listing_key`) | `prisma/schema.prisma`, `prisma/migrations/20260608120000_add_media_sync_state_last_listing_key/migration.sql` | nullable TEXT, additive, NEON §4 GOOD pattern | ✅ |
+| 3 | `paginateMedia` (follow `@odata.nextLink`; fail-closed on page error/runaway) + `defaultFetchMedia` throws on incomplete | `lib/idx/media-sync.ts` | reqs 1–3 | ✅ |
+| 4 | keyset `buildPropertyQuery` (`gt` / `eq ts AND ListingKey gt key`) + `PropertyQueryCursor` | `lib/idx/media-sync.ts` | req 5 query side | ✅ |
+| 5 | `pickKeysetWatermark` (last contiguous good; halt at first failure) + cursor `last_listing_key` persist (`compositeForwardMax`) | `lib/idx/media-sync.ts` | req 5 advance side + "empty preserves tie-breaker" | ✅ |
+| 6 | runMediaSync Phase 1: complete-only writes; `tombstoneVanished:true`; preserve+halt on incomplete | `lib/idx/media-sync.ts` | reqs 2–4 wired | ✅ |
+| 7 | RED→GREEN | `jest media-sync-rc1` **15/15**; full media-sync **175/175** | ✅ GREEN |
+| 8 | existing-test contract updates (no weakening; flipped to new correct behavior) | watermark + orchestration tests | ✅ |
+| 9 | harness | type-check 0 · test:runtime **2099/2099** · ucba 0 regr · rls 0 err/0 unknown · compliance-check 92/0 · idx 1 known critical (media-backfill, unchanged) · build 0 | ✅ |
+| 10 | gate:micro / gate:macro / tristle / Codex | (recorded in §6/§7) | ⏳ |
 
 ## 5. Pre-registered blast radius (the "no dark work" contract)
 - **WILL touch (declared — to be confirmed by a read-only code-path audit at implementation start):**
