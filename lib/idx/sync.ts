@@ -20,6 +20,28 @@ import type { Prisma } from "@prisma/client";
 const ACTIVE_SEED_STATUSES = new Set(["Active", "ActiveUnderContract", "Pending"]);
 
 /**
+ * RC2 — media-stomp guard for the per-record listing UPDATE.
+ *
+ * The incremental idx-sync fetches Property WITHOUT expanded Media
+ * (`useExpandMedia = false`), so `mapped.media` is `[]`. Writing that on the
+ * UPDATE branch would WIPE existing `listings.media`. Media is never permanently
+ * lost (Cotality is the source), but the app must stop continuously overwriting
+ * its own local media with empty arrays. So: only write `media` on UPDATE when it
+ * was actually fetched/expanded; otherwise OMIT it (preserve existing media — the
+ * separate batch-media path at sync.ts owns the refill). CREATE is unaffected (a
+ * new listing has no existing media to preserve).
+ */
+export function mediaUpdatePatch(
+  media: unknown,
+  mediaWasFetched: boolean,
+): { media?: Prisma.InputJsonValue } {
+  // Only write media on UPDATE when it was actually fetched/expanded. When the
+  // incremental sync ran without expanded Media, OMIT media so existing
+  // listings.media is preserved (the batch-media path owns the refill).
+  return mediaWasFetched ? { media: media as Prisma.InputJsonValue } : {};
+}
+
+/**
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
  */
@@ -307,7 +329,7 @@ export async function syncListings(
           owner_opt_out: mapped.owner_opt_out,
           address: mapped.address as Prisma.InputJsonValue,
           features: mapped.features as Prisma.InputJsonValue,
-          media: mapped.media as Prisma.InputJsonValue,
+          ...mediaUpdatePatch(mapped.media, useExpandMedia),
           compliance: mapped.compliance as Prisma.InputJsonValue,
           agent_info: mapped.agent_info as Prisma.InputJsonValue,
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
@@ -1138,7 +1160,7 @@ export async function syncAgentHistory(
           owner_opt_out: mapped.owner_opt_out,
           address: mapped.address as Prisma.InputJsonValue,
           features: mapped.features as Prisma.InputJsonValue,
-          media: mapped.media as Prisma.InputJsonValue,
+          ...mediaUpdatePatch(mapped.media, useExpandMedia),
           compliance: mapped.compliance as Prisma.InputJsonValue,
           agent_info: mapped.agent_info as Prisma.InputJsonValue,
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
