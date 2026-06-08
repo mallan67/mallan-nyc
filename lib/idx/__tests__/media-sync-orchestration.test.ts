@@ -371,6 +371,34 @@ describe("runMediaSync — defensive compliance gates", () => {
     expect(result.listings_skipped).toBe(2);
     expect(fetchMedia).not.toHaveBeenCalled();
   });
+
+  it("Codex #377: a malformed row (ListingKey, no ListingId) BEFORE a good listing HALTS the cursor — never advances past unprocessed media", async () => {
+    // The malformed row cannot be media-synced. If the cursor advanced to the
+    // later good listing, the malformed one's media would be silently skipped
+    // forever. The keyset must halt at the malformed row (ok:false).
+    mockMediaSyncFindUnique.mockResolvedValue(null);
+    mockListingMediaFindUnique.mockResolvedValue(null);
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaFindMany.mockResolvedValue([]);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        // ordered by (PhotosChangeTimestamp, ListingKey): malformed first…
+        makeProperty({ ListingId: null, ListingKey: "K-BAD", PhotosChangeTimestamp: "2026-06-01T00:00:00Z" }),
+        // …then a fully-processable listing at a later ts
+        makeProperty({ ListingId: "RLS-GOOD", ListingKey: "K-GOOD", PhotosChangeTimestamp: "2026-06-02T00:00:00Z" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValue([]),
+    });
+
+    await runMediaSync(makeOptions({ fetchDeps }));
+
+    // Cursor must NOT have advanced to K-GOOD — it halts at the malformed row,
+    // so last_listing_key stays null (prior). (Pre-fix it advanced to "K-GOOD".)
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    expect(upsertArgs.update.last_listing_key).toBeNull();
+    expect(upsertArgs.update.last_listing_key).not.toBe("K-GOOD");
+  });
 });
 
 // ─── Per-listing failure isolation ───────────────────────────────────────

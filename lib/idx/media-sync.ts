@@ -1597,9 +1597,14 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
     const listingId = property.ListingId ? String(property.ListingId) : null;
     if (!listingId || !listingKey) {
-      // Unprocessable (malformed) — cannot anchor the keyset; skip without
-      // pushing (never becomes a watermark; does not halt later listings).
+      // Malformed/incomplete row (e.g. a ListingKey with no ListingId): its media
+      // CANNOT be synced. Record it as ok:false so `pickKeysetWatermark` HALTS
+      // here and the cursor never advances PAST unprocessed media — even if a
+      // later listing in this ordered batch succeeds (Codex #377). A row with no
+      // ListingKey at all (Trestle ListingKey is non-nullable, so effectively
+      // impossible) still halts via the empty-string key. It re-surfaces next run.
       listingsSkipped++;
+      processed.push({ listingKey: listingKey ?? "", photosChangeTs: propTs, ok: false });
       continue;
     }
 

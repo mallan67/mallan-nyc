@@ -132,8 +132,13 @@
 - **rebny-search-compliance-auditor: PASS** — fields valid vs live `$metadata`; `Permissions` (plural)
   absent; status filter unchanged; keyset never skips a changed listing under `PhotosChangeTimestamp`
   monotonicity (documented dependency — **noted in PR + code comment**).
-- **Codex review:** runs on PR open (CI). · **Maya GO-to-implement:** given. · **Maya merge:** pending
-  (and **Maya must apply the additive migration to prod pre-merge**).
+- **Codex review (PR #377, head `7ac646b2`):** one valid **P2** — "Halt the keyset when ListingId is
+  missing": a `ListingKey`-but-no-`ListingId` row was skipped without `ok:false`, so the watermark could
+  advance past it if a later listing succeeded. **Fixed** — that row now records `ok:false` so
+  `pickKeysetWatermark` halts there (behavioral RED→GREEN: pre-fix advanced to `K-GOOD`; post-fix
+  `last_listing_key` stays null). media-sync **176/176**.
+- **Maya GO-to-implement:** given. · **Maya merge:** pending (and **Maya must apply the additive migration
+  to prod pre-merge**).
 
 ## 8. Trace-back / reproduce — PENDING (filled at implementation)
 
