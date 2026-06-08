@@ -41,6 +41,20 @@ describe('correction template obeys the plan’s RED-proof rule (no grep-only)',
   });
 });
 
+describe('plan ↔ template cross-consistency (one cannot contradict the other)', () => {
+  const plan = read(PLAN);
+  const tpl = read(TEMPLATE);
+  it('if the plan forbids grep-only proof, the template must too', () => {
+    if (/never grep alone/i.test(plan)) {
+      expect(tpl).toMatch(/never grep alone/i);
+    }
+  });
+  it('neither plan nor template treats grep as a sufficient RED proof', () => {
+    expect(plan).not.toMatch(/grep[^.\n]{0,40}\b(is )?(a )?(sufficient|acceptable|valid) (red )?proof/i);
+    expect(tpl).not.toMatch(/grep[^.\n]{0,40}\b(is )?(a )?(sufficient|acceptable|valid) (red )?proof/i);
+  });
+});
+
 describe('plan keeps its non-negotiables (drift guard)', () => {
   const plan = read(PLAN);
   it('§F: never grep alone', () => {

@@ -16,6 +16,8 @@ function arg(flag, dflt) {
 }
 
 const base = arg('--base', 'origin/main');
+// Intentional test-exemption must carry a reason (recorded in the Trace Record).
+const exemptReason = arg('--exempt-reason', '');
 let files;
 try {
   files = execSync(`git diff --name-only ${base}...HEAD`, { encoding: 'utf8' })
@@ -25,7 +27,8 @@ try {
   process.exit(2);
 }
 
-const issues = microGateIssues(files);
+const issues = microGateIssues(files, { testExemptReason: exemptReason });
+if (exemptReason) console.log(`[micro-gate] test-exemption claimed: "${exemptReason}" (must be recorded in the Trace Record).`);
 if (issues.length > 0) {
   for (const i of issues) console.error(`::error::[micro-gate] ${i.rule}: ${i.msg}`);
   process.exit(1);

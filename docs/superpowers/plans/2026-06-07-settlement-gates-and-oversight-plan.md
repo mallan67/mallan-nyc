@@ -363,6 +363,30 @@ The micro/macro gates are real scripts, not prose:
 - Wiring `gate:micro`/`gate:macro` + the harness as **required CI checks** (G1) is the remaining
   HELD `.github` step — the control that makes these block the merge platform-side, not by promise.
 
+**MICRO rules (enforced in `gate-lib.js`, pinned by tests):**
+1. Any non-test, non-generated, non-config code change → a test change must be in the same diff.
+2. Docs-only changes are allowed without tests; test-only changes are allowed.
+3. **Generated files/artifacts do NOT bypass and do NOT satisfy the rule** (they are neither code
+   needing a test nor a valid test).
+4. Route/API/auth/compliance code changes require a **test** (the RED proof is a failing test or
+   live probe per §F — never grep).
+5. An intentional test-exemption is allowed **only with an explicit reason**
+   (`testExemptReason`), which the reviewer records in the Trace Record.
+
+**MACRO rules (enforced in `gate-lib.js`, pinned by tests):**
+1. Changed files map to domains; domains map to required gates/agents (compliance/auth/API/data →
+   domain-specific review gates: security-agent / tristle / rebny-search-compliance-auditor / etc.).
+2. Any code change requires a **Correction Trace Record**.
+3. Actual changed code files must fall **within** the record's declared blast radius; files outside
+   it fail the gate (unexpected reach).
+4. **Fail-closed on UNKNOWN changed-file domains** — code with no matching domain rule fails unless
+   explicitly classified (allowlist).
+
+**RED-proof machine-check (basic — G2-hardening follow-up for full parsing):**
+`traceRecordIssues()` flags a **completed** (IN-PR/VERIFYING/SETTLED) Trace Record that has a blank
+RED proof, a grep-only RED proof, or no permanent regression guard. This is a **heuristic**; full
+structured Trace-Record parsing is recorded as **G2-hard (PLANNED)** in the ledger — **not "done."**
+
 ---
 
 ## PART F — Governance (standing rules)

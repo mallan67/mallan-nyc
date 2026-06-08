@@ -1,13 +1,19 @@
 # Correction Trace Record — `U4` offer-transmit cross-agent ownership guard
 
-> Status: **PLANNED — awaiting Maya GO.** Nothing coded yet. Sections 1-4 + the planned step log
-> are pre-registered now; 5-9 fill in during execution and are committed with the fix PR.
+> **Status: PLANNED — NOT FIXED.** This record exists in #372 only to pre-register the plan.
+> Explicitly, as of #372:
+> - **No code fix has been written.**
+> - **No RED proof captured and no GREEN — no test has been run.**
+> - **No security-agent sign-off, no macro sign-off, no live proof.**
+> - Sections 5–9 will be filled **during the separate U4 PR** (off post-#372 main), committed with
+>   the fix, under the micro+macro gates.
+> - **This does NOT settle the U4 ledger row** — U4 stays `PLANNED` until that PR merges green.
 
 ## 0. Header
-- **ID / Ledger row:** U4 (`settlement-ledger-2026-06.md` → Domain U)
+- **ID / Ledger row:** U4 (`settlement-ledger-2026-06.md` → Domain U; row status = **PLANNED**)
 - **Severity / Compliance tie:** P1 (urgent) · UCBA Art. II (offer-transmission audit-trail integrity) · NY SHIELD (agent data segregation)
-- **Owning phase:** 3 (auth/security) · **Maya GO:** _pending_
-- **Status:** PLANNED
+- **Owning phase:** 3 (auth/security) · **Maya GO:** _pending (not given)_
+- **Status:** PLANNED (no fix yet)
 
 ## 1. Defect — the BEFORE proof
 - `app/api/crm/offers/[id]/transmit/route.ts` is gated only by `requireAgentOrBroker` (`:25`),
