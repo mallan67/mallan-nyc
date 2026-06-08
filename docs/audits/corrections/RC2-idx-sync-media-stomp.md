@@ -77,7 +77,9 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 | tristle-rebny-compliance | **PASS** |
 
 ## 7. Sign-offs
-- gate:micro / gate:macro: **PASS** · **tristle-rebny-compliance: PASS** · Maya merge: pending.
+- gate:micro / gate:macro: **PASS** · **tristle-rebny-compliance: PASS** (RC2) · **tristle re-PASS**
+  (Codex #375 batch-clear increment — query path unchanged, clears `[]` only on confirmed-deleted
+  behind the `res.ok` gate) · Maya merge: pending.
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run the not-fetched helper test → RED (pre-fix unconditional `media: mapped.media`); apply the fix commit → `jest idx-sync-media-stomp` 7/7 GREEN + `test:runtime` 2099/2099.
