@@ -35,7 +35,26 @@
   no rotate-db-keys · no live production DB writes at fix time · no denorm · no dedup/PR-Foundation ·
   no CRM frontend.
 
-## 2. Defect — the BEFORE (to be proven test-first at implementation; classified per §J)
+## 2. Pre-registered blast radius (the "no dark work" contract — ACTUAL files)
+- **WILL touch (declared, confirmed against the implemented diff):**
+  - `lib/idx/media-sync.ts` — the RC1 cursor + pagination surface: `paginateMedia`,
+    `defaultFetchMedia` (now follows `@odata.nextLink`; throws on incomplete), keyset
+    `buildPropertyQuery` + `PropertyQueryCursor`, `pickKeysetWatermark` + `compositeForwardMax`,
+    `MediaSyncCursor.last_listing_key`, and `runMediaSync` Phase 1/2 wiring (`tombstoneVanished:true`
+    on complete; preserve + halt-cursor on incomplete).
+  - `lib/idx/__tests__/media-sync-rc1.test.ts` — new behavioral RED→GREEN proofs (pure functions).
+  - `lib/idx/__tests__/media-sync-watermark.test.ts` — cursor shape + keyset-persist coverage.
+  - `lib/idx/__tests__/media-sync-orchestration.test.ts` — contract updates (complete-only writes,
+    keyset cursor passthrough, incomplete→no-write).
+  - `prisma/schema.prisma` + `prisma/migrations/20260608120000_add_media_sync_state_last_listing_key/`
+    — ONLY the approved additive nullable `last_listing_key` column.
+- **Transitive reach / consumers:** the `media-sync` cron path only (`app/api/cron/media-sync` →
+  `runMediaSync`). `listing_media` writes go through the unchanged `upsertListingMedia`. NO change to
+  `Listing.media` JSON (that is the RC2 surface), the search projection, or any reader.
+- **MUST NOT touch (held):** backfill (M4) · R2 cleanup · search canonicalization · denorm · card/detail
+  /CRM/frontend · env/deploy/cron config · `.github/**` · any other schema. (All honored — see the diff.)
+
+## 2b. Defect — the BEFORE (proven test-first; classified per §J)
 - **Class A (static, provable from code):**
   - The incremental Media batch fetch caps with `$top` and **does not follow `@odata.nextLink`**, so a
     truncated page can (i) omit later listings entirely and (ii) split a listing's rows at the page
@@ -85,17 +104,11 @@
 | 9 | harness | type-check 0 · test:runtime **2099/2099** · ucba 0 regr · rls 0 err/0 unknown · compliance-check 92/0 · idx 1 known critical (media-backfill, unchanged) · build 0 | ✅ |
 | 10 | gate:micro / gate:macro / tristle / Codex | (recorded in §6/§7) | ⏳ |
 
-## 5. Pre-registered blast radius (the "no dark work" contract)
-- **WILL touch (declared — to be confirmed by a read-only code-path audit at implementation start):**
-  - `lib/idx/sync.ts` — the Media batch fetch + write loops (`syncListings` + `syncAgentHistory`) and
-    the incremental cursor advance.
-  - the media-sync cursor/service path (`lib/media/media-sync-service.ts` and/or the media-backfill
-    route's shared logic) **if** the cursor lives there — confirm at audit; declare before editing.
-  - `tests/runtime/**` — behavioral tests for pagination assembly, clear-on-complete, cursor advance.
-  - this Trace Record.
-- **Transitive reach / consumers:** `listings.media` write path only. The search projection dual-write
-  remains the pre-existing behavior (PR-5B reader swap HELD) — not changed unless explicitly re-scoped.
-- **MUST NOT touch:** see §1a (no backfill/R2/search-canon) + standing exclusions.
+## 5. Pre-registration radius GUESS — SUPERSEDED by §2 (kept for history)
+> The pre-registration (before the read-only audit) guessed the cursor lived in `lib/idx/sync.ts` /
+> `lib/media/media-sync-service.ts`. The audit found it in **`lib/idx/media-sync.ts`** (cron
+> `media-sync` → `runMediaSync`). The authoritative, actual blast radius is **§2 above**. This guess is
+> retained only to show the "no dark work" contract evolving with evidence — it is NOT the declared radius.
 
 ## 6. Gates required (to run at implementation, before merge)
 - B0 full harness (type-check · lint · test:runtime · crm:test · scanner · ucba:audit · compliance-check
