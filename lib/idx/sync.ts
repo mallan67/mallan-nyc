@@ -42,6 +42,26 @@ export function mediaUpdatePatch(
 }
 
 /**
+ * RC2 / Codex #375 — resolve the per-key media writes for a Media batch that was
+ * SUCCESSFULLY queried (after `res.ok`). Returns a write for EVERY queried key:
+ * the media Trestle returned, or `[]` for keys with no (non-deleted) media — so
+ * photos DELETED at source are cleared. Because this only runs on a successful
+ * query, it distinguishes "batch fetched and empty" (clear `[]`) from "not
+ * fetched / fetch failed" (preserve — handled by omitting media on the per-record
+ * update). Without the `[]` writes, stale/deleted photos would persist forever.
+ */
+export function resolveBatchMediaWrites<M>(
+  queriedKeys: string[],
+  mediaByKey: Map<string, M[]>,
+  keyToIdMap: Map<string, string>,
+): { listingId: string; media: M[] }[] {
+  return queriedKeys.map((key) => ({
+    listingId: keyToIdMap.get(key) || key,
+    media: mediaByKey.get(key) ?? [],
+  }));
+}
+
+/**
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
  */
@@ -509,9 +529,11 @@ export async function syncListings(
               });
             }
 
-            // Update DB records — convert ResourceRecordKey back to listing_id via map
-            for (const [key, media] of mediaByListing) {
-              const listingId = keyToIdMap.get(key) || key;
+            // Write media for EVERY key this batch successfully queried: the
+            // returned media, or [] for keys Trestle returned no (non-deleted)
+            // media for — clearing photos deleted at source. (RC2 + Codex #375:
+            // "batch fetched and empty" → clear; "not fetched" → preserve.)
+            for (const { listingId, media } of resolveBatchMediaWrites(batch, mediaByListing, keyToIdMap)) {
               await prisma.listing.updateMany({
                 where: { listing_id: listingId },
                 data: { media: media as unknown as Prisma.InputJsonValue },
@@ -1294,9 +1316,10 @@ export async function syncAgentHistory(
               });
             }
 
-            // Convert ResourceRecordKey back to listing_id via map
-            for (const [key, media] of mediaByKey) {
-              const listingId = agentKeyToIdMap.get(key) || key;
+            // Write media for EVERY key this batch successfully queried: returned
+            // media, or [] for keys with no (non-deleted) media — clearing photos
+            // deleted at source. (RC2 + Codex #375.)
+            for (const { listingId, media } of resolveBatchMediaWrites(batch, mediaByKey, agentKeyToIdMap)) {
               await prisma.listing.updateMany({
                 where: { listing_id: listingId },
                 data: { media: media as unknown as Prisma.InputJsonValue },

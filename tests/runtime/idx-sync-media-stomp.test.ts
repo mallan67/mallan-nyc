@@ -19,7 +19,7 @@ jest.mock('@/lib/prisma', () => ({ __esModule: true, default: {} }));
 
 import { readFileSync } from 'fs';
 import * as path from 'path';
-import { mediaUpdatePatch } from '@/lib/idx/sync';
+import { mediaUpdatePatch, resolveBatchMediaWrites } from '@/lib/idx/sync';
 
 const PHOTO = { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/x/1.jpg' };
 
@@ -44,6 +44,26 @@ describe('mediaUpdatePatch — RC2 media-stomp guard (behavioral / RED→GREEN)'
   });
 });
 
+describe('resolveBatchMediaWrites — clear deleted-at-source media (Codex #375, behavioral)', () => {
+  const keyToId = new Map([['K-A', 'L-A'], ['K-B', 'L-B']]);
+
+  it('writes [] for a queried key Trestle returned NO media for (deleted at source)', () => {
+    const photo = { url: 'u', mediaType: 'Photo', order: 0 };
+    const mediaByKey = new Map([['K-A', [photo]]]); // K-B queried but returned nothing
+    const writes = resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId);
+    expect(writes).toEqual([
+      { listingId: 'L-A', media: [photo] },
+      { listingId: 'L-B', media: [] }, // cleared — not silently skipped
+    ]);
+  });
+
+  it('falls back to the key as listing_id when not in the map', () => {
+    expect(resolveBatchMediaWrites(['K-X'], new Map(), new Map())).toEqual([
+      { listingId: 'K-X', media: [] },
+    ]);
+  });
+});
+
 describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
@@ -61,8 +81,9 @@ describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', (
     expect(src).toContain('status_changed_at: new Date()');
   });
 
-  it('the batch-media path is unchanged (still owns the refill via updateMany)', () => {
+  it('the batch-media path clears deleted-at-source media via resolveBatchMediaWrites (Codex #375)', () => {
     expect(src).toContain('if (!useExpandMedia && upserted > 0)');
-    expect(src).toMatch(/updateMany\(/);
+    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByListing, keyToIdMap\)/);
+    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByKey, agentKeyToIdMap\)/);
   });
 });

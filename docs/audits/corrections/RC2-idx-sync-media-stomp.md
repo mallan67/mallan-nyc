@@ -26,13 +26,18 @@
 
 ## 2. Pre-registered blast radius (the "no dark work" contract)
 - **WILL touch (direct):**
-  - `lib/idx/sync.ts` — add a pure `mediaUpdatePatch(media, mediaWasFetched)` helper; wire it into
-    the **UPDATE** branch of both `syncListings` and `syncAgentHistory` (omit `media` when not fetched).
-  - `tests/runtime/idx-sync-media-stomp.test.ts` — behavioral tests for the helper.
-- **Transitive reach / consumers:** the per-record listing UPDATE media write only. The CREATE branch,
-  the batch-media block (`:412` `updateMany`), `listing_media`, R2, and `listingSearchProjection` are
-  **unchanged**.
-- **Compliance surfaces:** media display (preserves media; no gate/display/Media-API-query change).
+  - `lib/idx/sync.ts` — (a) `mediaUpdatePatch(media, mediaWasFetched)` helper wired into the **UPDATE**
+    branch of both `syncListings` and `syncAgentHistory` (omit `media` when not fetched); (b) **Codex
+    #375:** `resolveBatchMediaWrites(queriedKeys, mediaByKey, keyToIdMap)` helper wired into both
+    **batch-media write loops** so a key the batch SUCCESSFULLY queried but that returned no media is
+    cleared to `[]` (deleted-at-source photos), distinguishing "batch fetched and empty" (clear) from
+    "not fetched" (preserve). The Media **query** path (`ResourceRecordKey`/`/odata/Media`/filters) is
+    unchanged — only the write loop.
+  - `tests/runtime/idx-sync-media-stomp.test.ts` — behavioral tests for both helpers.
+- **Transitive reach / consumers:** the per-record listing UPDATE media write + the batch-media write
+  loops. `listing_media`, R2, `listingSearchProjection`, and the CREATE branch are **unchanged**.
+- **Compliance surfaces:** media display — preserves media on not-fetched, clears confirmed-deleted;
+  no gate/display/Media-API-query change.
 - **Coupled ledger rows:** RC1 (cursor), M3 (classifier), M4 (backfill) — RC2 stops future loss; it
   does NOT restore already-empty rows (that is the HELD backfill) — sequenced after.
 - **MUST NOT touch:** prisma schema/migrations · env/deploy/cron · R2 · the batch-media block ·
