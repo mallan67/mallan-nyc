@@ -349,6 +349,20 @@ require a **tangible artifact** and fail the PR if it's absent:
 produces a *missing artifact / red check / unverified verdict*, which blocks the merge
 automatically. Honesty stops being a precondition.
 
+### G8. Implemented now (runnable + harness-tested checkers)
+The micro/macro gates are real scripts, not prose:
+- **`npm run gate:micro`** (`scripts/ci/micro-gate.js`) — enforces **test-first**: any code change
+  in the diff must ship a test change (fail-closed, exit 1).
+- **`npm run gate:macro`** (`scripts/ci/macro-gate.js`) — enforces **whole-system impact**: maps
+  changed files → domains → the gates/agents that must run, requires a **Correction Trace Record**
+  for any code change, and reconciles actual changed files against the record's **declared blast
+  radius** ("no work in the dark").
+- Pure logic in `scripts/ci/gate-lib.js`, pinned by `tests/runtime/gate-checkers.test.ts`.
+- **Governance-doc drift** (e.g. the template contradicting §F) is caught automatically by
+  `tests/runtime/governance-consistency.test.ts` — both run in the harness on every PR.
+- Wiring `gate:micro`/`gate:macro` + the harness as **required CI checks** (G1) is the remaining
+  HELD `.github` step — the control that makes these block the merge platform-side, not by promise.
+
 ---
 
 ## PART F — Governance (standing rules)
