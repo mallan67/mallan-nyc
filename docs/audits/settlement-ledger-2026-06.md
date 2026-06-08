@@ -45,6 +45,8 @@ Sources: `repo-wide-audit-verification-2026-06-07.md`, `system-root-cause-regist
 | M2 | Incremental-only sync, no reconcile (starvation/stale/incomplete) | P1 | IDX display freshness | 3 | B0+B1+B4 | PLANNED |
 | M3 | `mapping.ts` classifies Trestle FloorPlan as Photo (live path) | P1 | media display | 4 | B0+B2 live+tristle | PLANNED |
 | M4 | ~8,568 displayable listings with no active `listing_media` | P1 | display completeness | 8 | B0+B2 (dry-run→execute) | HELD |
+| **RC2** | idx-sync per-record UPDATE stomps `listings.media` with `[]` when Media not expanded (continuous self-overwrite) | P1 | media display (REBNY) | 3 | B0+B2 behavioral+gate:micro/macro+tristle | **SETTLED** (#375 → main `1047b562`; `mediaUpdatePatch` omits media on the not-fetched UPDATE so existing `listings.media` is preserved; batch loops unchanged from `main`; the deleted-at-source batch-clear add-on was **reverted** — it needs `@odata.nextLink` pagination = RC1; Codex 3-pass → clean "Swish"; tristle final PASS; gate:micro/macro PASS; harness green; Trace Record `docs/audits/corrections/RC2-idx-sync-media-stomp.md`) — media program correction #1, relates to **M2** |
+| **RC1** | Cursor + `@odata.nextLink` pagination; owns deleted-at-source media clearing + boundary-key partial-write fix (deferred from RC2) | P1 | media display freshness | 3 | B0+B1+B2 behavioral+tristle | PLANNED (next in media program — **awaiting Maya GO**) |
 | SF1 | Sync/media crons log `status=ok` while broken | P1 | — | 2 | B0+silent-failure-hunter | PLANNED |
 | SF2 | `/api/analytics/event` missing → analytics dropped | P2 | — | 2 | B0+flow-verifier | PLANNED |
 | SF3 | DB-outage → silent Trestle fallback | P2 | — | 2 | B0+silent-failure-hunter | PLANNED |

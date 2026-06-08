@@ -1,15 +1,17 @@
 # Correction Trace Record — `RC2` idx-sync media-stomp fix
 
-> **Status: IN-PR.** Approved next correction (Maya: "Approved next correction: Media RC2 — idx-sync
-> media-stomp fix"). Code fix only — no DB writes, no migration, no env/cron, no R2, no backfill, no
-> denorm, no canonicalization. First correction of the media root-cause program (RC2 → RC1 cursor →
-> coverage re-pull → denorm → detail tabs → search canon). Ledger row stays its status until merge.
+> **Status: SETTLED.** Merged to `main` via **#375 → `1047b562`** (2026-06-08, documented waiver —
+> sole non-success was the known-stuck `release-truth` PARTIAL). Code fix only — no DB writes, no
+> migration, no env/cron, no R2, no backfill, no denorm, no canonicalization. First correction of the
+> media root-cause program (RC2 → RC1 cursor/pagination → coverage re-pull → denorm → detail tabs →
+> search canon). Final scope: the `mediaUpdatePatch` per-record stomp fix only; the deleted-at-source
+> batch-clear add-on was reverted (needs RC1 pagination — see §10).
 
 ## 0. Header
 - **ID / Ledger row:** RC2 (media root-cause program, correction #1; relates to ledger M2)
 - **Severity / Compliance tie:** P1 · media display (REBNY media rules) — non-destructive (preserves media)
 - **Owning phase:** media program · **Maya GO:** given
-- **Status:** IN-PR
+- **Status:** SETTLED (#375 → main `1047b562`)
 
 ## 1. Defect — the BEFORE proof
 - The incremental idx-sync fetches Property **without** expanded Media (`lib/idx/sync.ts:176`
@@ -71,7 +73,7 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 | 6 | gate:micro / gate:macro | runners | micro OK (test-first) · macro OK (idx domain → tristle; declared radius reconciled) | ✅ |
 | 7 | tristle-rebny-compliance (idx/§D gate) | review | **VERDICT: PASS** — non-destructive; gates + §2.05 + Media-API path + CREATE + batch-media all unchanged | ✅ |
 | 8 | actual-diff vs §2 radius | `git diff --name-status main...HEAD` | `lib/idx/sync.ts` + `idx-sync-media-stomp.test.ts` + this record — **within declared radius** | ✅ |
-| 9 | commit / PR | branch `fix/rc2-idx-sync-media-stomp` | PR opened (link below); **awaiting merge** | ⏳ |
+| 9 | commit / PR / **merge** | branch `fix/rc2-idx-sync-media-stomp` | **#375 squash-merged → main `1047b562`** (documented waiver; no --admin, no force) | ✅ |
 | 10 | **Codex #375 + re-review (batch-clear attempts):** added then progressively hardened `resolveBatchMediaWrites` to clear deleted-at-source media | `lib/idx/sync.ts` | Codex 3rd pass: `$top` truncation can split a listing's rows → even returned keys may be partial; correct clearing needs `@odata.nextLink` pagination (RC1) | ⛔ superseded |
 | 11 | **REVERT (Maya decision):** drop `resolveBatchMediaWrites` + completeness gate entirely; restore original batch loops; RC2 = pure per-record stomp fix | `lib/idx/sync.ts` (batch loops byte-identical to `main`) + test rewritten | `sync.ts` diff vs `main` = **only** `mediaUpdatePatch` helper + 2 UPDATE one-liners; media-stomp **7/7**; type-check 0; deleted-at-source clearing deferred to §10 | ✅ |
 
