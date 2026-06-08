@@ -167,3 +167,60 @@ describe('UCBA Art. II §18 — offer transmit route', () => {
     );
   });
 });
+
+// ── U4: cross-agent ownership guard (UCBA Art. II audit-trail integrity) ──
+// baseOffer.list_agent_id = 1n, buyer_agent_id = 7n. Only those two agents, or a
+// broker, may transmit. Any other agent must be refused BEFORE any write/audit.
+describe('U4 — offer transmit ownership guard', () => {
+  async function setAuthOnce(ctx: { userId: bigint; userType: 'agent'; role: string }) {
+    const auth = await import('@/lib/auth');
+    (auth.requireAgentOrBroker as jest.Mock).mockResolvedValueOnce(ctx);
+  }
+
+  it('REFUSES a non-owner agent (403, no offer.update, no AuditEvent)', async () => {
+    await setAuthOnce({ userId: 999n, userType: 'agent', role: 'AGENT' });
+    const auth = await import('@/lib/auth');
+    const logSpy = auth.logAuditEvent as jest.Mock;
+
+    const res = await callTransmit({}); // offer owned by agents 1n / 7n
+    expect(res.status).toBe(403);
+
+    const updateCalls = (prismaMock as { offer: { update: jest.Mock } }).offer.update.mock.calls;
+    expect(updateCalls.length).toBe(0);
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it('REFUSES a non-owner agent even on an ALREADY-transmitted offer (no data leak via idempotency)', async () => {
+    await setAuthOnce({ userId: 999n, userType: 'agent', role: 'AGENT' });
+    const res = await callTransmit({ transmitted_to_seller_at: new Date('2026-04-15T10:00:00Z') });
+    expect(res.status).toBe(403);
+  });
+
+  it('ALLOWS the list agent (owner) → 200 + update', async () => {
+    await setAuthOnce({ userId: 1n, userType: 'agent', role: 'AGENT' });
+    const res = await callTransmit({});
+    expect(res.status).toBe(200);
+    expect((prismaMock as { offer: { update: jest.Mock } }).offer.update.mock.calls.length).toBe(1);
+  });
+
+  it('ALLOWS the buyer agent (owner) → 200', async () => {
+    await setAuthOnce({ userId: 7n, userType: 'agent', role: 'AGENT' });
+    const res = await callTransmit({});
+    expect(res.status).toBe(200);
+  });
+
+  it('ALLOWS a broker (any id) → 200', async () => {
+    await setAuthOnce({ userId: 555n, userType: 'agent', role: 'BROKER' });
+    const res = await callTransmit({});
+    expect(res.status).toBe(200);
+  });
+
+  it('ALLOWS a lowercase-role broker (legacy "broker") who is NOT an offer agent → 200 (Codex #373)', async () => {
+    // requireAgentOrBroker admits lowercase "broker" (compares role.toUpperCase())
+    // but returns the raw role. The ownership check must normalize, else a valid
+    // legacy/lowercase broker is wrongly 403'd on offers they do not own.
+    await setAuthOnce({ userId: 555n, userType: 'agent', role: 'broker' });
+    const res = await callTransmit({});
+    expect(res.status).toBe(200);
+  });
+});
