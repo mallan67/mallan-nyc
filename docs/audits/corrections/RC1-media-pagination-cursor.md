@@ -121,9 +121,19 @@
 - tristle-rebny-compliance PASS (deleted-at-source clearing is destructive → fail-closed review).
 - Optional: a read-only runtime/Trestle probe (Class B/D) for the cursor strategy — Maya-run.
 
-## 7. Sign-offs — PENDING (pre-registration)
-- gate:micro / gate:macro: pending · tristle: pending · security/search auditor (if search domain
-  touched): pending · Maya GO-to-implement: **pending** · Maya merge: pending.
+## 7. Sign-offs
+- **gate:micro PASS · gate:macro PASS** (declared radius reconciled to §2; idx + schema domains).
+- **tristle-rebny-compliance: PASS** — distribution gates + `Permission` (singular) + §2.05 + display
+  semantics unchanged; new tombstone is fail-closed (incomplete → preserve). Flagged a stale JSDoc
+  (now fixed) — no behavioral exposure.
+- **security-agent: PASS** — 0 critical/high/medium. OData injection CLEAR (quote-doubling on
+  `last_listing_key` + `ResourceRecordKey`, both server-only feed data). 1 LOW: origin-pin
+  `@odata.nextLink` before following (defense-in-depth, server→Cotality only) — **follow-up §10**.
+- **rebny-search-compliance-auditor: PASS** — fields valid vs live `$metadata`; `Permissions` (plural)
+  absent; status filter unchanged; keyset never skips a changed listing under `PhotosChangeTimestamp`
+  monotonicity (documented dependency — **noted in PR + code comment**).
+- **Codex review:** runs on PR open (CI). · **Maya GO-to-implement:** given. · **Maya merge:** pending
+  (and **Maya must apply the additive migration to prod pre-merge**).
 
 ## 8. Trace-back / reproduce — PENDING (filled at implementation)
 
@@ -132,6 +142,13 @@
   same-timestamp boundary advances without stall/skip.
 
 ## 10. Sequence / coupled follow-ups
+- **Specialist-flagged follow-ups (out of RC1 scope, non-blocking):**
+  - **SSRF defense-in-depth (security LOW):** origin-pin/host-allowlist the `@odata.nextLink` URL before
+    following it with the bearer attached. Deferred because a naive strict origin-pin could break
+    legitimate Cotality CDN/host nextLinks — needs a host-allowlist decision. Next sprint.
+  - **`PhotosChangeTimestamp` monotonicity (rebny-search CONCERN):** the no-skip guarantee assumes a
+    media change never recurs at an already-passed timestamp with a lower `ListingKey`. Documented
+    Cotality semantics; optionally confirm via `trestle:probe` (Class B).
 - **After RC1 (in order, each its own approved correction):** coverage re-pull → denorm → detail tabs /
   image quality → search canonicalization. **Backfill (M4) stays HELD** until RC1 lands (no re-pull into
   a still-mis-writing pipeline).

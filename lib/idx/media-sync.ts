@@ -1487,14 +1487,23 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
  *   - Per-row Permission filter and `MediaStatus='Deleted'` tombstoning are
  *     handled inside `upsertListingMedia()`.
  *
- * Tombstoning of vanished rows:
- *   - `tombstoneVanished: false` always — fetchMedia is capped, "missing"
- *     rows aren't proven vanished. Explicit `MediaStatus='Deleted'` still
- *     tombstones via Cp2's separate path.
+ * Tombstoning of vanished rows (RC1):
+ *   - `tombstoneVanished: true` — `fetchMedia` now follows `@odata.nextLink` to
+ *     exhaustion, so a RESOLVE is the COMPLETE current set and a `media_key`
+ *     absent from it is proven deleted at source → tombstoned. An empty COMPLETE
+ *     set tombstones every active row for the listing. INCOMPLETE pagination
+ *     THROWS (caught below): existing media is preserved, nothing is tombstoned,
+ *     and the keyset cursor does NOT advance past the listing. Explicit
+ *     `MediaStatus='Deleted'` still tombstones via Cp2's separate path.
  *
- * Boundary timestamp safety:
- *   - `buildPropertyQuery()` uses `PhotosChangeTimestamp ge` (not `gt`) and
- *     adds `ListingKey asc` to `$orderby` for stable boundary paging.
+ * Boundary timestamp safety (RC1 keyset):
+ *   - `buildPropertyQuery()` uses keyset continuation
+ *     `(PhotosChangeTimestamp gt ts) OR (PhotosChangeTimestamp eq ts AND
+ *     ListingKey gt key)` with `$orderby PhotosChangeTimestamp asc,ListingKey asc`,
+ *     so a run of more than `listingsPerRun` listings sharing one
+ *     PhotosChangeTimestamp no longer starves the cursor. `last_listing_key`
+ *     persists the tie-breaker. (No-skip relies on `PhotosChangeTimestamp`
+ *     monotonicity at source — the documented Cotality media-change semantics.)
  *
  * Throughput:
  *   - Phase 3 R2 mirror uses `Promise.allSettled` with `R2_MIRROR_CONCURRENCY=5`,
