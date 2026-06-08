@@ -46,19 +46,40 @@ describe('mediaUpdatePatch — RC2 media-stomp guard (behavioral / RED→GREEN)'
 
 describe('resolveBatchMediaWrites — clear deleted-at-source media (Codex #375, behavioral)', () => {
   const keyToId = new Map([['K-A', 'L-A'], ['K-B', 'L-B']]);
+  const photo = { url: 'u', mediaType: 'Photo', order: 0 };
 
-  it('writes [] for a queried key Trestle returned NO media for (deleted at source)', () => {
-    const photo = { url: 'u', mediaType: 'Photo', order: 0 };
+  it('COMPLETE page: writes [] for a queried key Trestle returned NO media for (deleted at source)', () => {
     const mediaByKey = new Map([['K-A', [photo]]]); // K-B queried but returned nothing
-    const writes = resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId);
+    const writes = resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId, true);
     expect(writes).toEqual([
       { listingId: 'L-A', media: [photo] },
       { listingId: 'L-B', media: [] }, // cleared — not silently skipped
     ]);
   });
 
-  it('falls back to the key as listing_id when not in the map', () => {
-    expect(resolveBatchMediaWrites(['K-X'], new Map(), new Map())).toEqual([
+  // Codex re-review (2026-06-08): the Media query is $top-capped and does not
+  // follow @odata.nextLink, so an absent key on a TRUNCATED page may simply be on
+  // the next page. Clearing it would wipe live photos. Must fail closed = preserve.
+  it('TRUNCATED page: PRESERVES an absent key (no [] write) — its media may be on the next page', () => {
+    const mediaByKey = new Map([['K-A', [photo]]]); // K-B absent, but the page was truncated
+    const writes = resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId, false);
+    expect(writes).toEqual([
+      { listingId: 'L-A', media: [photo] }, // returned key still refreshed
+      // K-B is NOT written — existing media preserved (fail closed)
+    ]);
+    expect(writes.some((w) => w.listingId === 'L-B')).toBe(false);
+  });
+
+  it('TRUNCATED page: still refreshes every key the page DID return media for', () => {
+    const mediaByKey = new Map([['K-A', [photo]], ['K-B', [photo]]]);
+    expect(resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId, false)).toEqual([
+      { listingId: 'L-A', media: [photo] },
+      { listingId: 'L-B', media: [photo] },
+    ]);
+  });
+
+  it('COMPLETE page: falls back to the key as listing_id when not in the map', () => {
+    expect(resolveBatchMediaWrites(['K-X'], new Map(), new Map(), true)).toEqual([
       { listingId: 'K-X', media: [] },
     ]);
   });
@@ -83,7 +104,13 @@ describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', (
 
   it('the batch-media path clears deleted-at-source media via resolveBatchMediaWrites (Codex #375)', () => {
     expect(src).toContain('if (!useExpandMedia && upserted > 0)');
-    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByListing, keyToIdMap\)/);
-    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByKey, agentKeyToIdMap\)/);
+    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByListing, keyToIdMap, mediaResponseComplete\)/);
+    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByKey, agentKeyToIdMap, mediaResponseComplete\)/);
+  });
+
+  it('the batch path gates clearing on a provably-complete page (no nextLink + under $top) — Codex re-review', () => {
+    // Must not clear absent keys on a truncated response (would wipe live photos).
+    expect(src).toContain('@odata.nextLink');
+    expect(src).toMatch(/const mediaResponseComplete\s*=/);
   });
 });

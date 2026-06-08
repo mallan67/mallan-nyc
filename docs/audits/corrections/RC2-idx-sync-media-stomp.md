@@ -28,11 +28,15 @@
 - **WILL touch (direct):**
   - `lib/idx/sync.ts` — (a) `mediaUpdatePatch(media, mediaWasFetched)` helper wired into the **UPDATE**
     branch of both `syncListings` and `syncAgentHistory` (omit `media` when not fetched); (b) **Codex
-    #375:** `resolveBatchMediaWrites(queriedKeys, mediaByKey, keyToIdMap)` helper wired into both
-    **batch-media write loops** so a key the batch SUCCESSFULLY queried but that returned no media is
-    cleared to `[]` (deleted-at-source photos), distinguishing "batch fetched and empty" (clear) from
-    "not fetched" (preserve). The Media **query** path (`ResourceRecordKey`/`/odata/Media`/filters) is
-    unchanged — only the write loop.
+    #375:** `resolveBatchMediaWrites(queriedKeys, mediaByKey, keyToIdMap, responseComplete)` helper wired
+    into both **batch-media write loops** so a key the batch SUCCESSFULLY queried but that returned no
+    media is cleared to `[]` (deleted-at-source photos), distinguishing "batch fetched and empty" (clear)
+    from "not fetched" (preserve); (c) **Codex re-review (2026-06-08):** the clear in (b) now FAILS CLOSED
+    on truncation — absent keys are cleared **only** when the page is provably complete
+    (`!data["@odata.nextLink"]` AND returned rows `< $top` cap); on a truncated page absent keys are
+    PRESERVED (their media may be on the next page). Full `@odata.nextLink` pagination is RC1 scope. The
+    Media **query** path (`ResourceRecordKey`/`/odata/Media`/filters/`$top`) is unchanged — only the write
+    loop + a read of the existing `@odata.nextLink`/`value.length` on the response.
   - `tests/runtime/idx-sync-media-stomp.test.ts` — behavioral tests for both helpers.
 - **Transitive reach / consumers:** the per-record listing UPDATE media write + the batch-media write
   loops. `listing_media`, R2, `listingSearchProjection`, and the CREATE branch are **unchanged**.
@@ -65,6 +69,7 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 | 7 | tristle-rebny-compliance (idx/§D gate) | review | **VERDICT: PASS** — non-destructive; gates + §2.05 + Media-API path + CREATE + batch-media all unchanged | ✅ |
 | 8 | actual-diff vs §2 radius | `git diff --name-status main...HEAD` | `lib/idx/sync.ts` + `idx-sync-media-stomp.test.ts` + this record — **within declared radius** | ✅ |
 | 9 | commit / PR | branch `fix/rc2-idx-sync-media-stomp` | PR opened (link below); **awaiting merge** | ⏳ |
+| 10 | **Codex re-review (truncation):** add `responseComplete` completeness gate (no `@odata.nextLink` + under `$top`) so absent keys on a **truncated** page are PRESERVED, not cleared | `lib/idx/sync.ts` helper + both call sites | RED: "TRUNCATED page PRESERVES absent key" → naive body wrote `L-B` (Received +4 `"listingId":"L-B"`) → fix `.filter(responseComplete \|\| mediaByKey.has(key))` → **12/12 GREEN** · test:runtime **2104/2104** | ✅ |
 
 ## 6. Gate results
 | Gate | Result |
@@ -79,7 +84,9 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 ## 7. Sign-offs
 - gate:micro / gate:macro: **PASS** · **tristle-rebny-compliance: PASS** (RC2) · **tristle re-PASS**
   (Codex #375 batch-clear increment — query path unchanged, clears `[]` only on confirmed-deleted
-  behind the `res.ok` gate) · Maya merge: pending.
+  behind the `res.ok` gate) · **tristle re-PASS #2** (Codex re-review truncation gate — clear now
+  also gated on a provably-complete page; strictly more conservative, no query change) · Maya merge:
+  pending.
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run the not-fetched helper test → RED (pre-fix unconditional `media: mapped.media`); apply the fix commit → `jest idx-sync-media-stomp` 7/7 GREEN + `test:runtime` 2099/2099.

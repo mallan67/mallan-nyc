@@ -43,22 +43,38 @@ export function mediaUpdatePatch(
 
 /**
  * RC2 / Codex #375 — resolve the per-key media writes for a Media batch that was
- * SUCCESSFULLY queried (after `res.ok`). Returns a write for EVERY queried key:
- * the media Trestle returned, or `[]` for keys with no (non-deleted) media — so
- * photos DELETED at source are cleared. Because this only runs on a successful
- * query, it distinguishes "batch fetched and empty" (clear `[]`) from "not
- * fetched / fetch failed" (preserve — handled by omitting media on the per-record
- * update). Without the `[]` writes, stale/deleted photos would persist forever.
+ * SUCCESSFULLY queried (after `res.ok`). Returns the media Trestle returned for
+ * each key, plus — ONLY when the response is provably COMPLETE — a `[]` write for
+ * keys with no (non-deleted) media, so photos DELETED at source are cleared.
+ *
+ * `responseComplete` (Codex re-review, 2026-06-08): the Media query is capped at
+ * `$top` and does NOT follow `@odata.nextLink`. A key absent from a TRUNCATED
+ * response may simply be on the next page — clearing it would wipe live photos.
+ * So when `responseComplete` is false we FAIL CLOSED: write media only for keys
+ * the page actually returned, and PRESERVE (skip) absent keys. We clear `[]` for
+ * absent keys only when the page is complete (no nextLink + under the $top cap).
+ *
+ * This only runs on a successful query, so it distinguishes "batch fetched
+ * complete and key empty" (clear `[]`) from "not fetched / fetch failed /
+ * truncated" (preserve — via omitting media on the per-record update, or skipping
+ * the key here). Full `@odata.nextLink` pagination is RC1 scope, not RC2.
  */
 export function resolveBatchMediaWrites<M>(
   queriedKeys: string[],
   mediaByKey: Map<string, M[]>,
   keyToIdMap: Map<string, string>,
+  responseComplete: boolean,
 ): { listingId: string; media: M[] }[] {
-  return queriedKeys.map((key) => ({
-    listingId: keyToIdMap.get(key) || key,
-    media: mediaByKey.get(key) ?? [],
-  }));
+  return queriedKeys
+    // Fail closed on truncation: when the page is NOT provably complete, only
+    // write keys the page actually returned (refresh), and PRESERVE absent keys
+    // (their media may be on an un-fetched page). When complete, absent keys are
+    // genuinely empty → cleared to [] below.
+    .filter((key) => responseComplete || mediaByKey.has(key))
+    .map((key) => ({
+      listingId: keyToIdMap.get(key) || key,
+      media: mediaByKey.get(key) ?? [],
+    }));
 }
 
 /**
@@ -529,11 +545,16 @@ export async function syncListings(
               });
             }
 
-            // Write media for EVERY key this batch successfully queried: the
-            // returned media, or [] for keys Trestle returned no (non-deleted)
-            // media for — clearing photos deleted at source. (RC2 + Codex #375:
-            // "batch fetched and empty" → clear; "not fetched" → preserve.)
-            for (const { listingId, media } of resolveBatchMediaWrites(batch, mediaByListing, keyToIdMap)) {
+            // Only clear absent keys when the page is provably COMPLETE — no
+            // @odata.nextLink AND under the $top cap. On a truncated response a
+            // missing key may be on the next page, so clearing it would wipe live
+            // photos (Codex re-review). Fail closed: preserve absent keys then.
+            const mediaResponseComplete =
+              !data["@odata.nextLink"] &&
+              (Array.isArray(data.value) ? data.value.length : 0) < batch.length * 30;
+            // Write media for keys this batch returned; clear [] for absent keys
+            // only when the page is complete (deleted at source). (RC2 + Codex #375.)
+            for (const { listingId, media } of resolveBatchMediaWrites(batch, mediaByListing, keyToIdMap, mediaResponseComplete)) {
               await prisma.listing.updateMany({
                 where: { listing_id: listingId },
                 data: { media: media as unknown as Prisma.InputJsonValue },
@@ -1316,10 +1337,16 @@ export async function syncAgentHistory(
               });
             }
 
-            // Write media for EVERY key this batch successfully queried: returned
-            // media, or [] for keys with no (non-deleted) media — clearing photos
-            // deleted at source. (RC2 + Codex #375.)
-            for (const { listingId, media } of resolveBatchMediaWrites(batch, mediaByKey, agentKeyToIdMap)) {
+            // Only clear absent keys when the page is provably COMPLETE — no
+            // @odata.nextLink AND under the $top cap (Codex re-review). On a
+            // truncated response a missing key may be on the next page; clearing
+            // would wipe live photos. Fail closed: preserve absent keys then.
+            const mediaResponseComplete =
+              !data["@odata.nextLink"] &&
+              (Array.isArray(data.value) ? data.value.length : 0) < batch.length * 30;
+            // Write media for keys this batch returned; clear [] for absent keys
+            // only when the page is complete (deleted at source). (RC2 + Codex #375.)
+            for (const { listingId, media } of resolveBatchMediaWrites(batch, mediaByKey, agentKeyToIdMap, mediaResponseComplete)) {
               await prisma.listing.updateMany({
                 where: { listing_id: listingId },
                 data: { media: media as unknown as Prisma.InputJsonValue },
