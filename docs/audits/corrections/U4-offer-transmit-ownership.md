@@ -1,8 +1,8 @@
 # Correction Trace Record — `U4` offer-transmit cross-agent ownership guard
 
-> **Status: IN-PR — fix implemented test-first** (off post-#372 main). RED→GREEN captured,
-> full harness green, **security-agent PASS**, micro/macro gates pass. **The U4 ledger row stays
-> `PLANNED` until THIS PR MERGES green** — do NOT mark it SETTLED before merge.
+> **Status: SETTLED** — #373 squash-merged to main `e02060a3` (documented waiver; only the known
+> `release-truth` PARTIAL remained). RED→GREEN captured, full harness green, **security-agent PASS**,
+> gate:micro/gate:macro PASS, Codex #373 resolved. Ledger row U4 → SETTLED.
 >
 > **Codex #373 follow-up (addressed):** the guard now normalizes the role
 > (`auth.role.toUpperCase() === "BROKER"`) — a legacy/lowercase `"broker"` session (admitted by
@@ -12,10 +12,10 @@
 > write) tracked as a separate non-blocking LOW for a future sprint.
 
 ## 0. Header
-- **ID / Ledger row:** U4 (`settlement-ledger-2026-06.md` → Domain U; row stays **PLANNED** until merge)
+- **ID / Ledger row:** U4 (`settlement-ledger-2026-06.md` → Domain U; row = **SETTLED**)
 - **Severity / Compliance tie:** P1 (urgent) · UCBA Art. II (offer-transmission audit-trail integrity) · NY SHIELD (agent data segregation)
 - **Owning phase:** 3 (auth/security) · **Maya GO:** given ("move to U4")
-- **Status:** IN-PR (fix done + verified; awaiting PR merge)
+- **Status:** SETTLED (#373 → main e02060a3)
 
 ## 1. Defect — the BEFORE proof
 - `app/api/crm/offers/[id]/transmit/route.ts` is gated only by `requireAgentOrBroker` (`:25`),
