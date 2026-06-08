@@ -28,7 +28,8 @@ Sources: `repo-wide-audit-verification-2026-06-07.md`, `system-root-cause-regist
 | ID | Item | Sev | Phase | Status |
 |---|---|---|---|---|
 | **G1** | Wire `gate:micro` + `gate:macro` + the harness as **REQUIRED CI checks** (branch protection) so the gates are **merge-blocking**, not just runnable. **Highest-leverage governance follow-up. Until G1 lands, no correction PR is fully protected (discipline-enforced only).** | P1 (gov) | 7 | **HELD** (.github/workflows — required next) |
-| G2-hard | Full structured Trace-Record parsing (beyond the current basic heuristic) — RED-proof + regression-guard completeness enforced on every completed record. | P2 (gov) | later | **PLANNED** |
+| G2-hard | Full structured Trace-Record parsing (beyond the current basic heuristic) — RED-proof + regression-guard completeness enforced on every completed record; **auto-verify a claimed test-exemption reason is actually recorded in the Trace Record**. | P2 (gov) | later | **PLANNED** |
+| G3 | **Remove or narrow the gate-tooling bootstrap exemption** (`isGateTooling`) after #372 lands, so future changes to `scripts/ci/gate-*.js` themselves require test updates (the exemption only existed so #372 could introduce the gates). | P2 (gov) | after #372 | **PLANNED** |
 
 ## Open rows (by domain) — gate column = which gates must go green to settle
 | ID | Defect | Sev | Compliance | Phase | Gates | Status |

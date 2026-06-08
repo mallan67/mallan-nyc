@@ -56,6 +56,38 @@ It is recorded in the Settlement Ledger as a row (status **HELD**, classified th
 governance follow-up**). **Until G1 lands, no correction PR is fully protected** — it is
 discipline-enforced, not platform-enforced.
 
+## 4b. Balance — protect the system WITHOUT freezing development
+
+> **The gates are designed to fail closed on UNCLASSIFIED RISK, not to block normal work. Safe
+> non-code changes pass. Code changes proceed with tests, a Trace Record, or a documented
+> exemption + alternate proof.**
+
+The gates must **NOT block** (verified by `gate-checkers.test.ts`):
+- docs-only changes · test-only changes · config-only changes · generated-only changes
+- PLANNED Trace Records with incomplete sections (a planned record need not be filled)
+- legitimate code changes that ship a test **or** an approved, recorded exemption
+
+The gates **MUST block** (verified by `gate-checkers.test.ts`):
+- app/business code with **no test and no explicit exemption** (`test-first`)
+- any code change with **no Correction Trace Record** (`trace-record`)
+- code in an **unknown domain** with no classification (`unknown-domain`, fail-closed)
+- changed files **outside the declared blast radius** (`blast-radius`)
+- a **completed** Trace Record with a **blank** RED proof (`red-proof-blank`)
+- a **completed** Trace Record with a **grep-only** RED proof (`red-proof-grep-only`)
+- a **completed** Trace Record with **no regression guard** (`regression-guard`)
+
+**Controlled escape hatches (so real work is never frozen):**
+1. **Test exemption** is allowed **only with an explicit reason** (`--exempt-reason` /
+   `testExemptReason`), and that reason **must be recorded in the Trace Record**. *(The gate
+   accepts a reason today; auto-verifying the reason is present in the record is part of
+   G2-hardening — see the ledger.)*
+2. **Alternate proof** (when a unit test genuinely can't exercise the change) must be a **live
+   probe / preview capture / runtime log / build- or type-check proof** — never "because I said
+   so." Grep is never sufficient (§F).
+3. An **unknown domain** can proceed only by (a) adding a `DOMAIN_RULE` in `gate-lib.js` **+ a
+   test**, or (b) a **one-time `classifiedAllow`** entry that is **documented in the Trace
+   Record** with the reason.
+
 ## 5. Merge gate — #372 may merge ONLY when ALL hold
 1. This PR body / this doc accurately describes the actual changed files (no "docs only").
 2. The harness is green (incl. `gate-checkers` + `governance-consistency` tests).

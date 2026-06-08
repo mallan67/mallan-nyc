@@ -19,8 +19,19 @@ const ROOT = process.cwd();
 const PLAN = path.join(ROOT, 'docs/superpowers/plans/2026-06-07-settlement-gates-and-oversight-plan.md');
 const TEMPLATE = path.join(ROOT, 'docs/audits/corrections/_TEMPLATE.md');
 const LEDGER = path.join(ROOT, 'docs/audits/settlement-ledger-2026-06.md');
+const IMPROVEMENT = path.join(ROOT, 'docs/audits/pr372-improvement-and-merge-gate-2026-06-07.md');
 
 const read = (p: string) => fs.readFileSync(p, 'utf8');
+
+describe('the gate-balance statement is documented (protect without freezing)', () => {
+  it('the #372 improvement doc states the fail-closed-on-unclassified-risk balance', () => {
+    expect(fs.existsSync(IMPROVEMENT)).toBe(true);
+    const doc = read(IMPROVEMENT);
+    expect(doc).toMatch(/fail closed on (unclassified )?risk, not to block normal work/i);
+    expect(doc).toMatch(/docs-only/i);
+    expect(doc).toMatch(/unknown[- ]domain/i);
+  });
+});
 
 describe('governance trail is durable (committed, not just local)', () => {
   it('plan + correction template + settlement ledger exist on this ref', () => {
