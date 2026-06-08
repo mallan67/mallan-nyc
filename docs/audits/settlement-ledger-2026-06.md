@@ -64,7 +64,7 @@ Sources: `repo-wide-audit-verification-2026-06-07.md`, `system-root-cause-regist
 ## Domain U — CRM/Portal (Phase 1 traces, now CONFIRMED)
 | ID | Defect | Sev | Compliance | Phase | Gates | Status |
 |---|---|---|---|---|---|---|
-| **U4** | Cross-agent offer-transmit: any agent transmits another's offer + writes UCBA audit under own id | **P1 urgent** | UCBA Art. II / SHIELD | 3 | B0+security(blocker)+**auth test**+tristle | PLANNED |
+| **U4** | Cross-agent offer-transmit: any agent transmits another's offer + writes UCBA audit under own id | **P1 urgent** | UCBA Art. II / SHIELD | 3 | B0+security(blocker)+**auth test**+tristle | **SETTLED** (#373 → main e02060a3; ownership guard, security-agent PASS, Codex #373 resolved, gate:micro/macro PASS, Trace Record complete) |
 | **U1** | Portal offers write `ClientListingAction`, never create `Offer` → bypass UCBA transmission | P0 | UCBA Art. II | 6 | B0+B1+tristle+B4 | PLANNED |
 | **U7** | Commission "Submit Request" silent-fail (success-on-error toast, no write) | P1 | financial oversight | 6 | B0+flow-verifier+silent-failure-hunter | PLANNED |
 | **U8** | Payout approve/reject `payout_status` vs `status` mismatch → pipeline unreachable | P1 | financial oversight | 6 | B0+flow-verifier | PLANNED |
