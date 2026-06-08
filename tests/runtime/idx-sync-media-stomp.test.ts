@@ -12,14 +12,22 @@
  * existing — the separate batch-media path owns refills). CREATE and the
  * batch-media block are unchanged.
  *
- * The behavioral helper tests are the RED proof (failing-test-flips-green, §F).
+ * SCOPE NOTE (Codex re-review, 2026-06-08): an earlier increment also tried to
+ * CLEAR deleted-at-source media in the batch loop. Codex correctly showed that is
+ * unsafe without following `@odata.nextLink` (a `$top`-truncated page can split a
+ * listing's rows / omit later keys), so clearing-on-delete was REVERTED out of
+ * RC2 and deferred to the media program (it needs complete pagination = RC1).
+ * RC2 is now exactly the per-record stomp fix; the batch loop is unchanged from
+ * `main`.
+ *
+ * The behavioral helper test is the RED proof (failing-test-flips-green, §F).
  * The source-level "non-regression" block is SUPPORTING context only.
  */
 jest.mock('@/lib/prisma', () => ({ __esModule: true, default: {} }));
 
 import { readFileSync } from 'fs';
 import * as path from 'path';
-import { mediaUpdatePatch, resolveBatchMediaWrites } from '@/lib/idx/sync';
+import { mediaUpdatePatch } from '@/lib/idx/sync';
 
 const PHOTO = { MediaCategory: 'Photo', MediaURL: 'https://api.cotality.com/x/1.jpg' };
 
@@ -44,53 +52,12 @@ describe('mediaUpdatePatch — RC2 media-stomp guard (behavioral / RED→GREEN)'
   });
 });
 
-describe('resolveBatchMediaWrites — clear deleted-at-source media (Codex #375, behavioral)', () => {
-  const keyToId = new Map([['K-A', 'L-A'], ['K-B', 'L-B']]);
-  const photo = { url: 'u', mediaType: 'Photo', order: 0 };
-
-  it('COMPLETE page: writes [] for a queried key Trestle returned NO media for (deleted at source)', () => {
-    const mediaByKey = new Map([['K-A', [photo]]]); // K-B queried but returned nothing
-    const writes = resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId, true);
-    expect(writes).toEqual([
-      { listingId: 'L-A', media: [photo] },
-      { listingId: 'L-B', media: [] }, // cleared — not silently skipped
-    ]);
-  });
-
-  // Codex re-review (2026-06-08): the Media query is $top-capped and does not
-  // follow @odata.nextLink, so an absent key on a TRUNCATED page may simply be on
-  // the next page. Clearing it would wipe live photos. Must fail closed = preserve.
-  it('TRUNCATED page: PRESERVES an absent key (no [] write) — its media may be on the next page', () => {
-    const mediaByKey = new Map([['K-A', [photo]]]); // K-B absent, but the page was truncated
-    const writes = resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId, false);
-    expect(writes).toEqual([
-      { listingId: 'L-A', media: [photo] }, // returned key still refreshed
-      // K-B is NOT written — existing media preserved (fail closed)
-    ]);
-    expect(writes.some((w) => w.listingId === 'L-B')).toBe(false);
-  });
-
-  it('TRUNCATED page: still refreshes every key the page DID return media for', () => {
-    const mediaByKey = new Map([['K-A', [photo]], ['K-B', [photo]]]);
-    expect(resolveBatchMediaWrites(['K-A', 'K-B'], mediaByKey, keyToId, false)).toEqual([
-      { listingId: 'L-A', media: [photo] },
-      { listingId: 'L-B', media: [photo] },
-    ]);
-  });
-
-  it('COMPLETE page: falls back to the key as listing_id when not in the map', () => {
-    expect(resolveBatchMediaWrites(['K-X'], new Map(), new Map(), true)).toEqual([
-      { listingId: 'K-X', media: [] },
-    ]);
-  });
-});
-
 describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
   it('the UPDATE branches use the guarded patch (no raw `media: mapped.media` on update)', () => {
-    // The update branches are anchored by the `modification_timestamp` line; they
-    // must now spread the guarded patch, not write media unconditionally.
+    // The update branches must spread the guarded patch, not write media
+    // unconditionally.
     expect(src).toMatch(/\.\.\.mediaUpdatePatch\(mapped\.media, useExpandMedia\),/);
   });
 
@@ -102,15 +69,14 @@ describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', (
     expect(src).toContain('status_changed_at: new Date()');
   });
 
-  it('the batch-media path clears deleted-at-source media via resolveBatchMediaWrites (Codex #375)', () => {
-    expect(src).toContain('if (!useExpandMedia && upserted > 0)');
-    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByListing, keyToIdMap, mediaResponseComplete\)/);
-    expect(src).toMatch(/resolveBatchMediaWrites\(batch, mediaByKey, agentKeyToIdMap, mediaResponseComplete\)/);
-  });
-
-  it('the batch path gates clearing on a provably-complete page (no nextLink + under $top) — Codex re-review', () => {
-    // Must not clear absent keys on a truncated response (would wipe live photos).
-    expect(src).toContain('@odata.nextLink');
-    expect(src).toMatch(/const mediaResponseComplete\s*=/);
+  it('the batch-media loops are UNCHANGED from main — no deleted-at-source clearing in RC2', () => {
+    // RC2 deliberately does NOT touch the batch-media write loops (the
+    // clear-on-delete increment was reverted; it needs @odata.nextLink
+    // pagination = RC1). Lock that: the original Map-iterating loops remain, and
+    // no clearing helper / completeness gate leaked into RC2.
+    expect(src).toContain('for (const [key, media] of mediaByListing) {');
+    expect(src).toContain('for (const [key, media] of mediaByKey) {');
+    expect(src).not.toContain('resolveBatchMediaWrites');
+    expect(src).not.toContain('mediaResponseComplete');
   });
 });

@@ -26,24 +26,27 @@
 
 ## 2. Pre-registered blast radius (the "no dark work" contract)
 - **WILL touch (direct):**
-  - `lib/idx/sync.ts` — (a) `mediaUpdatePatch(media, mediaWasFetched)` helper wired into the **UPDATE**
-    branch of both `syncListings` and `syncAgentHistory` (omit `media` when not fetched); (b) **Codex
-    #375:** `resolveBatchMediaWrites(queriedKeys, mediaByKey, keyToIdMap, responseComplete)` helper wired
-    into both **batch-media write loops** so a key the batch SUCCESSFULLY queried but that returned no
-    media is cleared to `[]` (deleted-at-source photos), distinguishing "batch fetched and empty" (clear)
-    from "not fetched" (preserve); (c) **Codex re-review (2026-06-08):** the clear in (b) now FAILS CLOSED
-    on truncation — absent keys are cleared **only** when the page is provably complete
-    (`!data["@odata.nextLink"]` AND returned rows `< $top` cap); on a truncated page absent keys are
-    PRESERVED (their media may be on the next page). Full `@odata.nextLink` pagination is RC1 scope. The
-    Media **query** path (`ResourceRecordKey`/`/odata/Media`/filters/`$top`) is unchanged — only the write
-    loop + a read of the existing `@odata.nextLink`/`value.length` on the response.
-  - `tests/runtime/idx-sync-media-stomp.test.ts` — behavioral tests for both helpers.
-- **Transitive reach / consumers:** the per-record listing UPDATE media write + the batch-media write
-  loops. `listing_media`, R2, `listingSearchProjection`, and the CREATE branch are **unchanged**.
-- **Compliance surfaces:** media display — preserves media on not-fetched, clears confirmed-deleted;
-  no gate/display/Media-API-query change.
-- **Coupled ledger rows:** RC1 (cursor), M3 (classifier), M4 (backfill) — RC2 stops future loss; it
-  does NOT restore already-empty rows (that is the HELD backfill) — sequenced after.
+  - `lib/idx/sync.ts` — **only** `mediaUpdatePatch(media, mediaWasFetched)` helper wired into the
+    **UPDATE** branch of both `syncListings` and `syncAgentHistory` (omit `media` when not fetched).
+    The batch-media write loops and the Media **query** path are **byte-unchanged from `main`**.
+  - `tests/runtime/idx-sync-media-stomp.test.ts` — behavioral test for `mediaUpdatePatch` + a
+    non-regression lock asserting the batch loops are unchanged (no clearing helper leaked in).
+- **REVERTED out of RC2 (Codex re-review, 2026-06-08):** an earlier increment added
+  `resolveBatchMediaWrites` to also **clear** deleted-at-source media in the batch loop (Codex #375),
+  then gated it on page-completeness. Codex's third pass showed that clearing cannot be made correct
+  without following `@odata.nextLink`: a `$top`-truncated page (ordered `ResourceRecordKey,Order`) can
+  **split a listing's rows**, so even a *returned* key may hold a partial set. Correct deleted-at-source
+  clearing therefore **requires complete pagination = RC1**, which is on hold. Per Maya's decision the
+  clearing add-on was **reverted entirely**; RC2 ships as the pure per-record stomp fix and the batch
+  loop returns to its original behavior. Deleted-at-source clearing is deferred to the media program (§10).
+- **Transitive reach / consumers:** the per-record listing UPDATE media write only.
+  `listing_media`, R2, `listingSearchProjection`, the **batch-media loops**, and the CREATE branch
+  are **unchanged**.
+- **Compliance surfaces:** media display — preserves existing media on not-fetched incremental runs;
+  no clearing, no gate/display/Media-API-query change.
+- **Coupled ledger rows:** RC1 (cursor + pagination — also owns deleted-at-source clearing), M3
+  (classifier), M4 (backfill) — RC2 stops future stomp loss; it does NOT clear deleted media and does
+  NOT restore already-empty rows (HELD backfill) — sequenced after.
 - **MUST NOT touch:** prisma schema/migrations · env/deploy/cron · R2 · the batch-media block ·
   `listing_media` · denorm columns · the CREATE branch · search/dedup · PR-Foundation.
 
@@ -69,7 +72,8 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 | 7 | tristle-rebny-compliance (idx/§D gate) | review | **VERDICT: PASS** — non-destructive; gates + §2.05 + Media-API path + CREATE + batch-media all unchanged | ✅ |
 | 8 | actual-diff vs §2 radius | `git diff --name-status main...HEAD` | `lib/idx/sync.ts` + `idx-sync-media-stomp.test.ts` + this record — **within declared radius** | ✅ |
 | 9 | commit / PR | branch `fix/rc2-idx-sync-media-stomp` | PR opened (link below); **awaiting merge** | ⏳ |
-| 10 | **Codex re-review (truncation):** add `responseComplete` completeness gate (no `@odata.nextLink` + under `$top`) so absent keys on a **truncated** page are PRESERVED, not cleared | `lib/idx/sync.ts` helper + both call sites | RED: "TRUNCATED page PRESERVES absent key" → naive body wrote `L-B` (Received +4 `"listingId":"L-B"`) → fix `.filter(responseComplete \|\| mediaByKey.has(key))` → **12/12 GREEN** · test:runtime **2104/2104** | ✅ |
+| 10 | **Codex #375 + re-review (batch-clear attempts):** added then progressively hardened `resolveBatchMediaWrites` to clear deleted-at-source media | `lib/idx/sync.ts` | Codex 3rd pass: `$top` truncation can split a listing's rows → even returned keys may be partial; correct clearing needs `@odata.nextLink` pagination (RC1) | ⛔ superseded |
+| 11 | **REVERT (Maya decision):** drop `resolveBatchMediaWrites` + completeness gate entirely; restore original batch loops; RC2 = pure per-record stomp fix | `lib/idx/sync.ts` (batch loops byte-identical to `main`) + test rewritten | `sync.ts` diff vs `main` = **only** `mediaUpdatePatch` helper + 2 UPDATE one-liners; media-stomp **7/7**; type-check 0; deleted-at-source clearing deferred to §10 | ✅ |
 
 ## 6. Gate results
 | Gate | Result |
@@ -82,11 +86,15 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 | tristle-rebny-compliance | **PASS** |
 
 ## 7. Sign-offs
-- gate:micro / gate:macro: **PASS** · **tristle-rebny-compliance: PASS** (RC2) · **tristle re-PASS**
-  (Codex #375 batch-clear increment — query path unchanged, clears `[]` only on confirmed-deleted
-  behind the `res.ok` gate) · **tristle re-PASS #2** (Codex re-review truncation gate — clear now
-  also gated on a provably-complete page; strictly more conservative, no query change) · Maya merge:
-  pending.
+- gate:micro / gate:macro: **PASS** · **tristle-rebny-compliance: PASS** (RC2 per-record stomp fix).
+- The batch-clear increments (Codex #375 + truncation gate) were tristle-PASSed in earlier rounds but
+  then **reverted** per Maya's decision (clearing needs RC1 pagination). Final RC2 diff is a strict
+  subset of what tristle reviewed — only the non-destructive `mediaUpdatePatch` change remains, with
+  the batch loops back to `main` — so it is **strictly safer** than any reviewed state. **tristle
+  final re-PASS on the reverted diff: PASS** (diff = `+24/-2`, only `mediaUpdatePatch`; `resolveBatchMediaWrites`/
+  `mediaResponseComplete` = 0 hits; non-destructive; no gate/status/§2.05/DTO/`listing_media`/R2/schema/cron
+  change). gate:micro/macro PASS · test:runtime 2099/2099 · ucba 0 regr · rls 0 err · compliance-check
+  92/0 · build 0 · idx 1 known critical (unchanged). · Maya merge: pending.
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run the not-fetched helper test → RED (pre-fix unconditional `media: mapped.media`); apply the fix commit → `jest idx-sync-media-stomp` 7/7 GREEN + `test:runtime` 2099/2099.
@@ -94,8 +102,19 @@ path continues to own media refills. CREATE unchanged (a new listing has no medi
 ## 9. Permanent regression guard
 `tests/runtime/idx-sync-media-stomp.test.ts` — not-fetched ⇒ `media` omitted from the update patch.
 
-## 10. Coupled follow-ups (flagged by tristle, out of RC2 scope — media program)
-- **Projection dual-write:** `lib/idx/sync.ts:380, :1206` still passes `[]` media to the search
-  projection on incremental runs (pre-existing on `main`, NOT in this diff; the projection reader
-  swap PR-5B is HELD so it is not a live read path today). Fold into the projection-media follow-up.
-- Program sequence after RC2: **RC1 cursor → coverage re-pull → denorm → detail tabs → search canon.**
+## 10. Coupled follow-ups (out of RC2 scope — media program)
+- **Deleted-at-source media clearing (deferred from RC2):** clearing `listings.media` when Cotality no
+  longer returns (non-deleted) Media for a listing **requires following `@odata.nextLink`** so each
+  listing's complete row set is known before writing — otherwise a `$top`-truncated page (ordered
+  `ResourceRecordKey,Order`) splits a listing's rows and a clear/partial-write loses live photos
+  (Codex, 2026-06-08). This is **RC1** (cursor + pagination) work, not RC2. Until then the batch loop
+  keeps `main`'s behavior: it refreshes media for keys the page returns and does **not** clear absent
+  keys (so deleted-at-source photos persist until a complete fetch — accepted, non-destructive).
+- **Boundary-key partial write (pre-existing on `main`):** the original batch loop already writes the
+  last listing on a truncated page with a partial row set. Pre-existing, not introduced by RC2; fixed
+  by the same RC1 pagination above.
+- **Projection dual-write:** `lib/idx/sync.ts` still passes `[]` media to the search projection on
+  incremental runs (pre-existing on `main`, NOT in this diff; the projection reader swap PR-5B is HELD
+  so it is not a live read path today). Fold into the projection-media follow-up.
+- Program sequence after RC2: **RC1 (cursor + `@odata.nextLink` pagination, owns deleted-at-source
+  clearing) → coverage re-pull → denorm → detail tabs → search canon.**
