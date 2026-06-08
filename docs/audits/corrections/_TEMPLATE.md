@@ -14,8 +14,12 @@
 ## 1. Defect — the BEFORE proof (what is wrong, proven)
 - Description: …
 - Evidence (file:line + the observed failure): …
-- **RED proof:** the failing test / grep / probe output that demonstrates the defect *before* any
-  fix. (Path to captured output.)
+- **RED proof (§F — NEVER grep alone):** a **failing automated test** that demonstrates the
+  defect *before* the fix (preferred), OR — only for behavior that genuinely cannot be
+  unit-tested — a **live probe** (preview-URL capture / runtime log). A static grep or
+  source-read may be attached as *supporting context*, but is **never sufficient** as the RED
+  proof of a behavior or compliance defect (a grep proves code shape, not behavior). A Trace
+  Record whose RED proof is grep-only is **invalid / fail-closed**. (Path to captured output.)
 
 ## 2. Pre-registered blast radius (declared BEFORE coding — the "no dark work" contract)
 - **Files/modules it WILL touch** (direct): …
