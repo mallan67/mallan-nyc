@@ -48,20 +48,40 @@ Gate the per-record UPDATE media write on "media was actually fetched" (`useExpa
 false, **omit** `media` from the update so existing `listings.media` is preserved; the batch-media
 path continues to own media refills. CREATE unchanged (a new listing has no media to preserve).
 
-## 5. Step log (fills during execution)
+## 5. Step log
 | # | Step | Command / file | Artifact | Result |
 |---|------|----------------|----------|--------|
-| 1 | extract helper preserving current behavior + wire sites | `lib/idx/sync.ts` | diff | ▢ |
-| 2 | failing test (not-fetched must omit media) | `tests/runtime/idx-sync-media-stomp.test.ts` | RED output | ▢ |
-| 3 | fix helper → conditional on mediaWasFetched | `lib/idx/sync.ts` | diff | ▢ |
-| 4 | tests GREEN | `jest idx-sync-media-stomp` | output | ▢ |
-| 5 | full harness | B0 chain | counts | ▢ |
-| 6 | gate:micro / gate:macro | runners | output | ▢ |
-| 7 | rebny-search-compliance / tristle (idx domain) | review | verdict | ▢ |
-| 8 | actual-diff vs §2 radius | `git diff --name-only` | list | ▢ |
-| 9 | commit / PR | SHA, PR# | links | ▢ |
+| 1 | helper + wire both UPDATE sites (`...mediaUpdatePatch(mapped.media, useExpandMedia)`) | `lib/idx/sync.ts:34-42, :332, :1163` | diff | ✅ |
+| 2 | failing test (not-fetched must OMIT media) | `tests/runtime/idx-sync-media-stomp.test.ts` | RED: 2 cases `'media' in patch` Expected false / Received **true** | ✅ RED |
+| 3 | fix helper → conditional on `mediaWasFetched` | `lib/idx/sync.ts:34-42` | diff | ✅ |
+| 4 | tests GREEN | `jest idx-sync-media-stomp` | **7/7 pass** | ✅ GREEN |
+| 5 | full harness | B0 chain | type-check 0 · idx-sync existing **79/79** · test:runtime **2099/2099** · ucba 0 regr · rls 0 err · idx 1 known critical (unchanged) · compliance-check 92/0 · build exit 0 | ✅ |
+| 6 | gate:micro / gate:macro | runners | micro OK (test-first) · macro OK (idx domain → tristle; declared radius reconciled) | ✅ |
+| 7 | tristle-rebny-compliance (idx/§D gate) | review | **VERDICT: PASS** — non-destructive; gates + §2.05 + Media-API path + CREATE + batch-media all unchanged | ✅ |
+| 8 | actual-diff vs §2 radius | `git diff --name-status main...HEAD` | `lib/idx/sync.ts` + `idx-sync-media-stomp.test.ts` + this record — **within declared radius** | ✅ |
+| 9 | commit / PR | branch `fix/rc2-idx-sync-media-stomp` | PR opened (link below); **awaiting merge** | ⏳ |
 
-## 6. Gate results — ▢
-## 7. Sign-offs — gate:micro/macro · idx-domain review · Maya merge — ▢
-## 8. Trace-back — `git checkout main` → helper omits-on-not-fetched test RED ; fix → GREEN — ▢
-## 9. Permanent regression guard — `tests/runtime/idx-sync-media-stomp.test.ts` (not-fetched ⇒ no media write) — ▢
+## 6. Gate results
+| Gate | Result |
+|---|---|
+| B0 harness | green (counts above) |
+| B1 compliance chain | ucba 0 regr · rls 0 err · idx 1 known critical (unchanged) · compliance-check 92/0 |
+| B2 proof (§F) | behavioral RED→GREEN on `mediaUpdatePatch` (no grep RED) |
+| C1 gate:micro | PASS (test-first) |
+| C2 gate:macro | PASS (idx domain mapped; blast-radius reconciled) |
+| tristle-rebny-compliance | **PASS** |
+
+## 7. Sign-offs
+- gate:micro / gate:macro: **PASS** · **tristle-rebny-compliance: PASS** · Maya merge: pending.
+
+## 8. Trace-back / reproduce
+`git checkout main` → run the not-fetched helper test → RED (pre-fix unconditional `media: mapped.media`); apply the fix commit → `jest idx-sync-media-stomp` 7/7 GREEN + `test:runtime` 2099/2099.
+
+## 9. Permanent regression guard
+`tests/runtime/idx-sync-media-stomp.test.ts` — not-fetched ⇒ `media` omitted from the update patch.
+
+## 10. Coupled follow-ups (flagged by tristle, out of RC2 scope — media program)
+- **Projection dual-write:** `lib/idx/sync.ts:380, :1206` still passes `[]` media to the search
+  projection on incremental runs (pre-existing on `main`, NOT in this diff; the projection reader
+  swap PR-5B is HELD so it is not a live read path today). Fold into the projection-media follow-up.
+- Program sequence after RC2: **RC1 cursor → coverage re-pull → denorm → detail tabs → search canon.**
