@@ -55,6 +55,27 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Offer not found" }, { status: 404 });
   }
 
+  // Authorization (U4): only the offer's OWN agents (list or buyer side) or a
+  // broker may transmit it. Without this, any authenticated agent could transmit
+  // another agent's offer and write the UCBA Art. II `offer_transmitted_to_seller`
+  // AuditEvent under their own identity — corrupting the transmission trail.
+  // Checked BEFORE the idempotency return so a non-owner cannot read the offer's
+  // data either. (auth.userId is bigint; list/buyer_agent_id are bigint.)
+  // Normalize the role: requireAgentOrBroker admits both "BROKER" and legacy
+  // lowercase "broker" (it compares role.toUpperCase()) but returns the raw
+  // SessionUser.role — so an exact-case check would wrongly 403 a valid
+  // lowercase broker on offers they do not own. (Codex #373.)
+  const isOwnerOrBroker =
+    auth.role.toUpperCase() === "BROKER" ||
+    (existing.list_agent_id !== null && existing.list_agent_id === auth.userId) ||
+    (existing.buyer_agent_id !== null && existing.buyer_agent_id === auth.userId);
+  if (!isOwnerOrBroker) {
+    return NextResponse.json(
+      { error: "Not authorized to transmit this offer" },
+      { status: 403 },
+    );
+  }
+
   // Idempotent: if already transmitted, return 200 with the existing
   // timestamp rather than re-stamping. Prevents accidental double-write
   // from a UI double-click that would otherwise lose the original audit
