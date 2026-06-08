@@ -64,7 +64,9 @@ beforeEach(() => {
   process.env.CRON_SECRET = 'test-cron-secret';
   // Default: both env vars present; individual tests override.
   process.env.NEON_API_KEY = 'fake-neon-key';
-  process.env.NEON_PROJECT_ID = 'fake-project-id';
+  // Phase 0.5: the route now refuses any non-canonical project before pruning,
+  // so the proceed-cases must use the canonical production project id.
+  process.env.NEON_PROJECT_ID = 'hidden-mountain-87248164';
 });
 
 afterAll(() => {
@@ -250,6 +252,38 @@ describe('neon-branch-prune cron route — observability contract', () => {
     // Auth failure must NOT write to the audit log (would let
     // unauthenticated callers spam it).
     expect(auditEventCreateMock).not.toHaveBeenCalled();
+    expect(pruneBranchesMock).not.toHaveBeenCalled();
+  });
+
+  // ── Phase 0.5 production-target guard ──────────────────────────────────
+  it('case 10: non-canonical NEON_PROJECT_ID → 409 refused, pruneBranches NOT called (refuse before mutation)', async () => {
+    process.env.NEON_PROJECT_ID = 'some-other-project-12345';
+    const route = await import('@/app/api/cron/neon-branch-prune/route');
+    const res = await route.GET(makeAuthedRequest());
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.refused).toBe(true);
+
+    // The load-bearing assertion: refusal happens BEFORE any prune mutation.
+    expect(pruneBranchesMock).not.toHaveBeenCalled();
+
+    // Refusal is audited so ops:health can see a wrong-project dispatch.
+    expect(auditEventCreateMock).toHaveBeenCalledTimes(1);
+    const auditArgs = auditEventCreateMock.mock.calls[0][0] as { data: { changes: Record<string, unknown> } };
+    expect(auditArgs.data.changes.status).toBe('refused');
+    expect(auditArgs.data.changes.reason).toBe('non_canonical_project');
+  });
+
+  it('case 11: the STALE do-not-serve morning-bread project is refused before pruning', async () => {
+    process.env.NEON_PROJECT_ID = 'morning-bread-68708332';
+    const route = await import('@/app/api/cron/neon-branch-prune/route');
+    const res = await route.GET(makeAuthedRequest());
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.refused).toBe(true);
     expect(pruneBranchesMock).not.toHaveBeenCalled();
   });
 });

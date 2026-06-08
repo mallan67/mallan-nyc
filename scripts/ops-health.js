@@ -66,6 +66,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const { PrismaClient } = require('@prisma/client');
+const { deriveBranchPruneIssues } = require('./branch-prune-health');
 const prisma = new PrismaClient();
 
 const JSON_OUT = process.argv.includes('--json');
@@ -278,6 +279,9 @@ async function run() {
   // by app/api/cron/neon-branch-prune/route.ts. Surfaces:
   //   - critical if no audit event ever (cron has never run)
   //   - critical if last status is `skipped` (env-var misconfig)
+  //   - critical if last status is `refused` (Phase 0.5 guard: NEON_PROJECT_ID is
+  //     non-canonical, so the fail-closed guard blocks every prune — must not be
+  //     silent, since a refused run is recent and carries no examined count)
   //   - warning  if last successful run >25h ago (cron stopped firing)
   //   - warning  if last run had errors_count > 0 (some deletes failed)
   //   - warning  if examined branch count >= branch_count_warning (25):
@@ -326,56 +330,19 @@ async function run() {
           ? lastPrune.changes.error.slice(0, 200)
           : undefined,
       };
-      if (status === 'skipped') {
-        const missingList = Array.isArray(lastPrune.changes?.missing) ? lastPrune.changes.missing.join(',') : 'unknown';
-        report.issues.push({
-          level: 'critical',
-          category: 'neon-prune',
-          msg: `neon-branch-prune cron is skipping due to missing env: ${missingList} — provision in Vercel Production env`,
-        });
-      } else if (status === 'error') {
-        // The route's exception path (catch block in route.ts) writes
-        // status:"error" when pruneBranches throws (Neon API outage,
-        // network error, malformed response, etc.). Without flagging
-        // this branch, an exception-thrown cron would land an audit
-        // event but ops:health would still report green — the same
-        // silent-failure shape this PR was built to eliminate.
-        const errMsg = typeof lastPrune.changes?.error === 'string'
-          ? lastPrune.changes.error.slice(0, 200)
-          : 'unknown';
-        report.issues.push({
-          level: 'critical',
-          category: 'neon-prune',
-          msg: `neon-branch-prune cron threw on last run: ${errMsg}`,
-        });
-      } else if (ageH !== null && ageH > 25) {
-        report.issues.push({
-          level: 'warning',
-          category: 'neon-prune',
-          msg: `neon-branch-prune cron last fired ${ageH.toFixed(1)}h ago — schedule is daily, expected <25h`,
-        });
-      } else if (status === 'partial' || (typeof lastPrune.changes?.errors_count === 'number' && lastPrune.changes.errors_count > 0)) {
-        report.issues.push({
-          level: 'warning',
-          category: 'neon-prune',
-          msg: `neon-branch-prune last run had ${lastPrune.changes.errors_count ?? '?'} per-branch delete failures`,
-        });
-      }
-      if (typeof lastPrune.changes?.examined === 'number') {
-        const branches = lastPrune.changes.examined;
-        if (branches >= THRESHOLDS.branch_count_critical) {
-          report.issues.push({
-            level: 'critical',
-            category: 'neon-prune',
-            msg: `${branches} Neon branches examined — approaching Launch plan cap of 5000 (>= ${THRESHOLDS.branch_count_critical}). Operator must investigate preview-branch creation rate or aggressively prune.`,
-          });
-        } else if (branches >= THRESHOLDS.branch_count_warning) {
-          report.issues.push({
-            level: 'warning',
-            category: 'neon-prune',
-            msg: `${branches} Neon branches examined — exceeds Launch-plan hygiene threshold of ${THRESHOLDS.branch_count_warning} (baseline ~8). Preview-branch creation has accelerated; cap of 5000 is not yet at risk.`,
-          });
-        }
+      // Status->issue policy lives in the pure, unit-tested helper
+      // scripts/branch-prune-health.js (incl. the Phase 0.5 `refused` branch).
+      for (const issue of deriveBranchPruneIssues({
+        status,
+        ageHours: ageH,
+        examined: lastPrune.changes?.examined,
+        errorsCount: lastPrune.changes?.errors_count,
+        error: lastPrune.changes?.error,
+        missing: lastPrune.changes?.missing,
+        projectId: lastPrune.changes?.project_id,
+        thresholds: THRESHOLDS,
+      })) {
+        report.issues.push(issue);
       }
     }
   } catch (e) {

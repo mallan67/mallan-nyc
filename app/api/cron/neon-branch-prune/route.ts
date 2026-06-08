@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { pruneBranches } from "@/lib/neon/branches";
+import { isCanonicalNeonProject } from "@/lib/ops/canonical-neon-target";
 
 export const maxDuration = 60;
 
@@ -90,6 +91,28 @@ export async function GET(req: NextRequest) {
         missing,
       },
       { status: 503 }
+    );
+  }
+
+  // Fail-closed production-target guard. Refuse to prune any project that is not
+  // the canonical production project (e.g. the stale do-not-serve
+  // morning-bread-68708332). This runs BEFORE pruneBranches so no branch is ever
+  // deleted against an ambiguous / wrong NEON_PROJECT_ID. (Phase 0.5 guardrail.)
+  if (!isCanonicalNeonProject(projectId)) {
+    await writeAudit({
+      status: "refused",
+      reason: "non_canonical_project",
+      project_id: projectId,
+    });
+    return NextResponse.json(
+      {
+        ok: false,
+        refused: true,
+        reason:
+          "NEON_PROJECT_ID is not the canonical production project; prune refused (fail-closed).",
+        project_id: projectId,
+      },
+      { status: 409 }
     );
   }
 
