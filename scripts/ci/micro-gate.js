@@ -2,13 +2,12 @@
 // MICRO gate runner — local correctness checker (plan PART B/G).
 //
 // Enforces test-first on the PR's diff: every code change must ship a test
-// change. Fail-closed (exit 1) on violation. Run:
-//   node scripts/ci/micro-gate.js [--base <ref>]   (default base: origin/main)
-//
-// This is the deterministic structural half of the MICRO gate; the behavioral
-// half is the npm harness (type-check/test:runtime/compliance chain/build).
+// change. A --exempt-reason is honoured ONLY if a Correction Trace Record is in
+// the diff AND the exact reason text appears in it (otherwise the exemption is a
+// loophole). Fail-closed (exit 1) on violation. Run:
+//   node scripts/ci/micro-gate.js [--base <ref>] [--exempt-reason "<text>"]
 const { execSync } = require('child_process');
-const { microGateIssues } = require('./gate-lib');
+const { microGateIssues, exemptionIssues } = require('./gate-lib');
 
 function arg(flag, dflt) {
   const i = process.argv.indexOf(flag);
@@ -16,8 +15,8 @@ function arg(flag, dflt) {
 }
 
 const base = arg('--base', 'origin/main');
-// Intentional test-exemption must carry a reason (recorded in the Trace Record).
 const exemptReason = arg('--exempt-reason', '');
+
 let files;
 try {
   files = execSync(`git diff --name-only ${base}...HEAD`, { encoding: 'utf8' })
@@ -28,7 +27,14 @@ try {
 }
 
 const issues = microGateIssues(files, { testExemptReason: exemptReason });
-if (exemptReason) console.log(`[micro-gate] test-exemption claimed: "${exemptReason}" (must be recorded in the Trace Record).`);
+
+if (exemptReason) {
+  // A claimed exemption must be RECORDED in a changed Trace Record — verify it,
+  // do not just trust the flag. (Pure logic in gate-lib, unit-tested.)
+  issues.push(...exemptionIssues(files, exemptReason));
+  console.log(`[micro-gate] test-exemption claimed: "${exemptReason}"`);
+}
+
 if (issues.length > 0) {
   for (const i of issues) console.error(`::error::[micro-gate] ${i.rule}: ${i.msg}`);
   process.exit(1);

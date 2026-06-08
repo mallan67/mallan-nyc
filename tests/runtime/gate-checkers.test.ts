@@ -27,9 +27,9 @@ describe('MICRO gate — test-first enforcement', () => {
   it('PASSES for test-only changes', () => {
     expect(gate.microGateIssues(['tests/runtime/x.test.ts'])).toHaveLength(0);
   });
-  it('does NOT block the gate tooling itself (bootstrap exemption)', () => {
-    expect(gate.microGateIssues(['scripts/ci/gate-lib.js'])).toHaveLength(0);
-  });
+  // NOTE: the gate-tooling bootstrap exemption is now NARROWED (G3) — gate
+  // scripts bypass test-first ONLY when tests/runtime/gate-checkers.test.ts is
+  // also in the diff. See the dedicated "narrowed gate-tooling" describe below.
   it('generated artifacts do NOT bypass the rule (still need a test for the real code)', () => {
     // a real code file + a regenerated artifact, no test → still fails
     const issues: GateIssue[] = gate.microGateIssues([
@@ -128,5 +128,95 @@ describe('Trace-Record validity checker (basic; full parsing is a G2-hardening f
     const md = '- **Status:** SETTLED\n## 1. Defect\n- **RED proof:** failing test tests/runtime/x.test.ts captured RED\n## 9. Permanent regression guard\n- ▢';
     const { issues } = gate.traceRecordIssues(md);
     expect(issues.some((i: GateIssue) => i.rule === 'regression-guard')).toBe(true);
+  });
+});
+
+describe('extractDeclaredRadius — auto-parse §2 WILL touch', () => {
+  it('extracts exact code-file paths from §2', () => {
+    const md = `
+## 2. Pre-registered blast radius
+- **WILL touch (direct):**
+  - \`app/api/crm/offers/[id]/transmit/route.ts\`
+  - \`tests/runtime/offer-transmit.test.ts\`
+## 3. next
+`;
+    expect(gate.extractDeclaredRadius(md)).toEqual([
+      'app/api/crm/offers/[id]/transmit/route.ts',
+      'tests/runtime/offer-transmit.test.ts',
+    ]);
+  });
+  it('ignores placeholders / ellipsis / angle-bracket paths', () => {
+    const md = `
+## 2. Pre-registered blast radius
+- \`…/offer-transmit/route.ts:~54\`
+- \`<test file>\`
+- \`app/api/crm/x/route.ts\`
+## 3. next
+`;
+    expect(gate.extractDeclaredRadius(md)).toEqual(['app/api/crm/x/route.ts']);
+  });
+  it('returns [] when there is no §2 section', () => {
+    expect(gate.extractDeclaredRadius('## 1. Defect\nno blast radius here')).toEqual([]);
+  });
+});
+
+describe('MICRO gate — narrowed gate-tooling bootstrap exemption (G3)', () => {
+  it('gate tooling change WITHOUT its gate test FAILS test-first', () => {
+    const issues: GateIssue[] = gate.microGateIssues(['scripts/ci/gate-lib.js']);
+    expect(issues.some((i) => i.rule === 'test-first')).toBe(true);
+  });
+  it('gate tooling change WITH tests/runtime/gate-checkers.test.ts PASSES', () => {
+    expect(
+      gate.microGateIssues(['scripts/ci/gate-lib.js', 'tests/runtime/gate-checkers.test.ts']),
+    ).toHaveLength(0);
+  });
+});
+
+describe('exemptionIssues — exemption must be recorded in a Trace Record', () => {
+  const REASON = 'pure type-only refactor, covered by type-check';
+  it('exemption used but NO Trace Record in the diff → fails', () => {
+    const issues: GateIssue[] = gate.exemptionIssues(['app/api/crm/x/route.ts'], REASON, {
+      readFile: () => '',
+    });
+    expect(issues.some((i) => i.rule === 'exemption-trace-record')).toBe(true);
+  });
+  it('Trace Record present but reason NOT in it → fails', () => {
+    const issues: GateIssue[] = gate.exemptionIssues(
+      ['app/api/crm/x/route.ts', 'docs/audits/corrections/U4.md'],
+      REASON,
+      { readFile: () => 'a record that does not mention the reason' },
+    );
+    expect(issues.some((i) => i.rule === 'exemption-not-recorded')).toBe(true);
+  });
+  it('exact reason recorded in the Trace Record → passes', () => {
+    const issues: GateIssue[] = gate.exemptionIssues(
+      ['app/api/crm/x/route.ts', 'docs/audits/corrections/U4.md'],
+      REASON,
+      { readFile: () => `…\nTEST-EXEMPT: ${REASON}\n…` },
+    );
+    expect(issues).toHaveLength(0);
+  });
+  it('no exemption claimed → no issues', () => {
+    expect(gate.exemptionIssues(['app/api/crm/x/route.ts'], '')).toHaveLength(0);
+  });
+});
+
+describe('declaredRadiusMissingIssue — macro must parse a radius when code + record present', () => {
+  it('code + Trace Record but EMPTY declared radius → fails', () => {
+    const issue = gate.declaredRadiusMissingIssue(
+      ['app/api/crm/x/route.ts', 'docs/audits/corrections/U4.md'],
+      [],
+    );
+    expect(issue && issue.rule).toBe('declared-radius-missing');
+  });
+  it('code + Trace Record + a parsed radius → null', () => {
+    const issue = gate.declaredRadiusMissingIssue(
+      ['app/api/crm/x/route.ts', 'docs/audits/corrections/U4.md'],
+      ['app/api/crm/x/route.ts'],
+    );
+    expect(issue).toBeNull();
+  });
+  it('docs-only change → null (no code, nothing to declare)', () => {
+    expect(gate.declaredRadiusMissingIssue(['docs/x.md'], [])).toBeNull();
   });
 });

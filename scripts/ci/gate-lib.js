@@ -97,7 +97,12 @@ function unmappedCode(files) {
 function microGateIssues(files, opts = {}) {
   const { code, tests } = classify(files);
   const issues = [];
-  const realCode = code.filter((f) => !isGateTooling(f));
+  // Narrowed bootstrap exemption: gate tooling bypasses test-first ONLY when its
+  // own test (tests/runtime/gate-checkers.test.ts) is in the same diff. A change
+  // to the gate scripts with no gate-test change is treated as ordinary code and
+  // must ship a test. (G3: this replaces the permanent blanket exemption.)
+  const hasGateTests = files.some((f) => f === 'tests/runtime/gate-checkers.test.ts');
+  const realCode = code.filter((f) => !(isGateTooling(f) && hasGateTests));
   if (realCode.length > 0 && tests.length === 0) {
     if (opts.testExemptReason && String(opts.testExemptReason).trim().length > 0) {
       // Allowed, but the macro gate still requires a Trace Record where the
@@ -207,6 +212,82 @@ function traceRecordIssues(content) {
   return { status, issues };
 }
 
+// Parse the Trace Record's "## 2. Pre-registered blast radius" section and
+// return the exact code-file paths it declares (backtick-quoted *.ts/tsx/js/...
+// paths), ignoring placeholders/ellipsis. Used by macro-gate to auto-reconcile
+// the declared radius against the actual diff — so the "no work in the dark"
+// check can't be skipped by forgetting --declared.
+function extractDeclaredRadius(content) {
+  const sectionMatch = content.match(
+    /## 2\.\s*Pre-registered blast radius[\s\S]*?(?=\n## 3\.|\n##\s+\d+\.|$)/i,
+  );
+  if (!sectionMatch) return [];
+  const section = sectionMatch[0];
+  const codePaths = new Set();
+  for (const m of section.matchAll(/`([^`]+\.(?:ts|tsx|js|mjs|cjs))`/g)) {
+    const p = m[1].trim();
+    if (
+      !p.includes('…') &&
+      !p.includes('<') &&
+      !p.includes('>') &&
+      !p.startsWith('jest ') &&
+      !p.startsWith('npm ')
+    ) {
+      codePaths.add(p);
+    }
+  }
+  return Array.from(codePaths);
+}
+
+// Verify a claimed test-exemption (--exempt-reason) is ACTUALLY recorded in a
+// changed Correction Trace Record — otherwise the exemption is a loophole.
+// `readFile` is injected for testability (default: fs.readFileSync). Returns [].
+function exemptionIssues(files, exemptReason, opts = {}) {
+  const issues = [];
+  if (!exemptReason || !String(exemptReason).trim()) return issues;
+  const readFile = opts.readFile || ((p) => require('fs').readFileSync(p, 'utf8'));
+  const { traceRecords } = classify(files);
+  if (traceRecords.length === 0) {
+    issues.push({
+      level: 'fail',
+      rule: 'exemption-trace-record',
+      msg: '--exempt-reason was used, but no Correction Trace Record exists in the diff.',
+    });
+    return issues;
+  }
+  const found = traceRecords.some((p) => {
+    if (!isTraceRecord(p)) return false;
+    try {
+      return readFile(p).includes(exemptReason);
+    } catch {
+      return false;
+    }
+  });
+  if (!found) {
+    issues.push({
+      level: 'fail',
+      rule: 'exemption-not-recorded',
+      msg: '--exempt-reason was used, but the exact reason was not found in any changed Correction Trace Record.',
+    });
+  }
+  return issues;
+}
+
+// Code changed + a Trace Record present, but no declared blast-radius could be
+// parsed → the blast-radius check would silently no-op, so fail. Returns the
+// issue or null.
+function declaredRadiusMissingIssue(files, declaredRadius) {
+  const { code, traceRecords } = classify(files);
+  if (code.length > 0 && traceRecords.length > 0 && (!declaredRadius || declaredRadius.length === 0)) {
+    return {
+      level: 'fail',
+      rule: 'declared-radius-missing',
+      msg: 'Code changed and a Trace Record exists, but no declared blast-radius files were parsed. Fill §2 "WILL touch" with exact `path` entries or pass --declared.',
+    };
+  }
+  return null;
+}
+
 module.exports = {
   DOMAIN_RULES,
   classify,
@@ -214,6 +295,9 @@ module.exports = {
   domainOf,
   unmappedCode,
   microGateIssues,
+  extractDeclaredRadius,
+  exemptionIssues,
+  declaredRadiusMissingIssue,
   macroGateIssues,
   parseTraceStatus,
   traceRecordIssues,
