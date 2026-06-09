@@ -1,15 +1,19 @@
 # Correction Trace Record — `RC1` Cotality Media pagination / cursor correctness
 
-> **Status: IN-PR.** Maya gave explicit GO ("GO confirmed for RC1 Option 1") with the single approved
-> additive schema change `MediaSyncState.last_listing_key`. All five requirements implemented test-first.
-> RC1 is media-program correction #2 (follows RC2, SETTLED on `main` `1047b562`/#375 + docs `7c73fa36`/#376).
+> **Status: SETTLED.** Merged `#377 → main 07ec45b1` (squash, documented waiver). The approved additive
+> nullable migration `20260608120000_add_media_sync_state_last_listing_key` was **applied to canonical
+> prod** (`ep-cold-waterfall-adno3ao2`) by Maya BEFORE merge (NEON.md §5 step 2 — operator-run; Claude
+> ran no live DB writes). Production deploy READY `2026-06-09T00:29Z`. **Runtime-verified:** post-deploy
+> `ops:health` MEDIA SYNC shows real cursor data — `last run status=ok, checked=380 updated=380 failed=0`,
+> **no `last_listing_key` error, no longer `pre_migration`** (same select path as `getMediaSyncCursor`).
+> Reviews: Claude Code Review SUCCESS · Codex CLEAN (P2 ListingId-missing-halt fixed) · tristle/security/
+> rebny-search PASS. The neon-precommit guard was cleared via the **documented** `NEON_GUARD_BYPASS=1`
+> (Maya-authorized, once; NOT `--no-verify`).
 >
-> **⚠ Migration NOT applied to prod.** Per Maya's "no live DB writes" directive I did not run
-> `prisma migrate deploy`. The additive nullable migration ships in this PR; **Maya must apply it to prod
-> (NEON.md §5 step 2) BEFORE merge/deploy**, else `getMediaSyncCursor`'s `last_listing_key` select fails.
-> The neon-precommit guard was satisfied via the **documented** `NEON_GUARD_BYPASS=1` (NOT `--no-verify`),
-> because its preflight requires the prod migrate + `ops:health` that the no-live-DB directive forbids me
-> from running. Reason recorded in the commit message.
+> **Post-RC1 catch-up is in progress (not a failure):** the cursor sits on the same-timestamp boundary
+> cluster `2026-05-06T18:18:56Z`; `last_photos_change` stays pinned while `last_listing_key` drains it
+> 50/run. Canary observation approved (read-only). The remaining media criticals (R2 retry purgatory =
+> RC3; reader swap PR-4/5B; storage RC4) are SEPARATE corrections — see incident 2026-05-21 §4/§7.
 
 ## 0. Header
 - **ID / Ledger row:** RC1 (media root-cause program, correction #2; relates to ledger M2 + the
@@ -17,7 +21,7 @@
 - **Severity / Compliance tie:** P1 · media display freshness (REBNY media rules) — correctness of
   what gets written to `listings.media` on incremental sync
 - **Owning phase:** media program · **Maya GO:** given (Option 1 — schema approved)
-- **Status:** IN-PR (branch `fix/rc1-media-pagination-cursor`)
+- **Status:** SETTLED (#377 → main `07ec45b1`; migration applied to prod by Maya; runtime-verified)
 
 ## 1. Scope — what RC1 MUST handle (Maya, verbatim)
 1. **Follow `@odata.nextLink` until the Media response is exhausted.**
