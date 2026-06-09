@@ -64,7 +64,7 @@ describe("computeAdvancedCursor (pure function)", () => {
 
   it("returns the empty cursor when prior is empty and batch is empty", () => {
     const next = computeAdvancedCursor(empty, []);
-    expect(next).toEqual({ last_photos_change: null, last_media_modified: null });
+    expect(next).toEqual({ last_photos_change: null, last_media_modified: null, last_listing_key: null });
   });
 
   it("advances last_photos_change to the max PhotosChangeTimestamp in the batch", () => {
@@ -93,6 +93,7 @@ describe("computeAdvancedCursor (pure function)", () => {
     const prior: MediaSyncCursor = {
       last_photos_change: new Date("2026-08-01T00:00:00Z"),
       last_media_modified: new Date("2026-08-01T00:00:00Z"),
+      last_listing_key: null,
     };
     const records: MediaSyncBatchRecord[] = [
       { PhotosChangeTimestamp: "2026-04-01T00:00:00Z", ModificationTimestamp: "2026-04-01T00:00:00Z" },
@@ -149,10 +150,10 @@ describe("getMediaSyncCursor", () => {
   it("returns the empty cursor when no row exists for resource = 'Media'", async () => {
     mockFindUnique.mockResolvedValueOnce(null);
     const cursor = await getMediaSyncCursor();
-    expect(cursor).toEqual({ last_photos_change: null, last_media_modified: null });
+    expect(cursor).toEqual({ last_photos_change: null, last_media_modified: null, last_listing_key: null });
     expect(mockFindUnique).toHaveBeenCalledWith({
       where: { resource: RESOURCE_MEDIA },
-      select: { last_photos_change: true, last_media_modified: true },
+      select: { last_photos_change: true, last_media_modified: true, last_listing_key: true },
     });
   });
 
@@ -300,5 +301,57 @@ describe("advanceMediaSyncCursor", () => {
     expect(args.create.rows_checked).toBe(0);
     expect(args.create.rows_updated).toBe(0);
     expect(args.create.rows_failed).toBe(0);
+  });
+
+  // ─── RC1 keyset watermark persistence ──────────────────────────────────
+  it("RC1: persists the keyset watermark (last_photos_change + last_listing_key)", async () => {
+    mockFindUnique.mockResolvedValueOnce(null);
+    mockUpsert.mockResolvedValueOnce(undefined);
+    const result = await advanceMediaSyncCursor({
+      records: [],
+      watermark: { last_photos_change: new Date("2026-06-01T00:00:00Z"), last_listing_key: "RLS0073" },
+      now: new Date("2026-06-01T03:00:00Z"),
+    });
+    expect(result.last_photos_change?.toISOString()).toBe("2026-06-01T00:00:00.000Z");
+    expect(result.last_listing_key).toBe("RLS0073");
+    const args = mockUpsert.mock.calls[0][0];
+    expect(args.create.last_listing_key).toBe("RLS0073");
+    expect(args.update.last_listing_key).toBe("RLS0073");
+  });
+
+  it("RC1: equal-timestamp watermark advances the ListingKey tie-breaker forward only", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      last_photos_change: new Date("2026-06-01T00:00:00Z"),
+      last_media_modified: null,
+      last_listing_key: "RLS0050",
+    });
+    mockUpsert.mockResolvedValueOnce(undefined);
+    const result = await advanceMediaSyncCursor({
+      records: [],
+      // same ts, higher key → resume point moves from RLS0050 to RLS0099
+      watermark: { last_photos_change: new Date("2026-06-01T00:00:00Z"), last_listing_key: "RLS0099" },
+    });
+    expect(result.last_photos_change?.toISOString()).toBe("2026-06-01T00:00:00.000Z");
+    expect(result.last_listing_key).toBe("RLS0099");
+  });
+
+  it("RC1: a null watermark (empty/halted run) PRESERVES the prior tie-breaker — does not erase it", async () => {
+    mockFindUnique.mockResolvedValueOnce({
+      last_photos_change: new Date("2026-06-01T00:00:00Z"),
+      last_media_modified: null,
+      last_listing_key: "RLS0050",
+    });
+    mockUpsert.mockResolvedValueOnce(undefined);
+    const result = await advanceMediaSyncCursor({
+      records: [],
+      watermark: null,
+      now: new Date("2026-06-02T00:00:00Z"),
+    });
+    // Watermark + tie-breaker intact; only the heartbeat moved.
+    expect(result.last_photos_change?.toISOString()).toBe("2026-06-01T00:00:00.000Z");
+    expect(result.last_listing_key).toBe("RLS0050");
+    const args = mockUpsert.mock.calls[0][0];
+    expect(args.update.last_listing_key).toBe("RLS0050");
+    expect(args.update.last_run_at).toEqual(new Date("2026-06-02T00:00:00Z"));
   });
 });

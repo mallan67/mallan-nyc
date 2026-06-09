@@ -2398,6 +2398,12 @@ model MediaSyncState {
   resource            String    @unique
   last_photos_change  DateTime? @map("last_photos_change")
   last_media_modified DateTime? @map("last_media_modified")
+  // RC1 keyset cursor tie-breaker: the ListingKey of the last fully-processed
+  // listing at the last_photos_change watermark. Enables same-timestamp
+  // continuation `(PhotosChangeTimestamp = ts AND ListingKey > last_listing_key)`
+  // so a run of >listingsPerRun listings sharing one PhotosChangeTimestamp can
+  // no longer starve the cursor. Nullable (null = no tie-breaker yet / legacy).
+  last_listing_key    String?   @map("last_listing_key")
   last_run_at         DateTime? @map("last_run_at")
   last_run_status     String?   @map("last_run_status")
   rows_checked        Int       @default(0) @map("rows_checked")
