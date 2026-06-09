@@ -68,7 +68,12 @@ preserved so the resolver keeps serving its `media_url_original`. Permanent 404/
 | tristle | pending |
 
 ## 7. Sign-offs
-- gate:micro / gate:macro: pending (committed diff) · tristle: pending · Codex: on PR open · Maya merge: pending.
+- **gate:micro PASS · gate:macro PASS** (declared radius matched; idx domain → tristle).
+- **tristle-rebny-compliance: PASS** — non-destructive (no `status` write; excluded rows stay active and
+  still serve `media_url_original` via proxy); no display/distribution/§2.05/Permission/DTO change;
+  tombstone classification unchanged; strictly an R2-backlog budget optimization. rebny-search-auditor:
+  N/A (no search filter / field-map / picklist change — this is the R2 re-mirror backlog only).
+- **Codex:** on PR open. · **Maya merge:** pending.
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run the `buildR2BacklogWhere` exclusion test → RED (function absent); apply the fix
