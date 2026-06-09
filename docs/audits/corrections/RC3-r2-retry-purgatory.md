@@ -84,8 +84,19 @@ preserved so the resolver keeps serving its `media_url_original`. Permanent 404/
 still serves a usable proxied photo. Plus the unchanged `media-sync-r2.test.ts` tombstone-classification suite.
 
 ## 10. Coupled follow-ups (out of RC3 scope)
-- **Re-arm (optional):** RC3 parks exhausted rows permanently (hard exclusion via `r2_attempts`). A future
+- **ops-health observability gap (KNOWN, documented; NOT fixed in this PR — no schema, no scope creep):**
+  RC3 parks rows by `r2_attempts >= 8` but, without a new column, does **not** record *why/when* a row was
+  parked. `scripts/ops-health.js:568-589` still counts **every** active row with `r2_attempts > 0` as
+  `r2_retry_backlog` (warn/critical), and has no knowledge of the `>= 8` exhaustion threshold. So after RC3:
+  - retry-exhausted active rows are **parked** by `r2_attempts >= 8` (excluded from the Phase-3 backlog SELECT);
+  - they **remain displayable** via `media_url_original` through `/api/media/proxy` (status stays `active`);
+  - they should **NOT** be counted as *urgent/actionable* retry backlog — they are intentionally not retried;
+  - **a future ops-health follow-up is needed** to split the count: actionable backlog
+    (`r2_attempts < 8`) vs **parked/exhausted** (`r2_attempts >= 8`), so the metric stops over-reporting.
+    Cleanest version uses a dedicated `r2_exhausted_at` column (schema — Maya-gated) for "why/when";
+    a no-schema interim can derive the split from `r2_attempts >= R2_RETRY_EXHAUSTED_THRESHOLD`. **Deferred.**
+- **Re-arm (optional):** RC3 parks exhausted rows persistently (hard `r2_attempts` exclusion). A future
   periodic re-arm (e.g., a long-cooldown tier so a multi-day R2 outage doesn't strand recoverable rows)
-  would need either a new column or a `r2_last_attempt_at`-based long tier — deferred; not needed for the
+  would need a new column or an `r2_last_attempt_at`-based long tier — deferred; not needed for the
   current 40-row poison set.
 - Program: RC1 catch-up (running) · then reassess coverage → controlled backfill or Featured config.
