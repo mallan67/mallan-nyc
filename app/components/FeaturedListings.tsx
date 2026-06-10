@@ -293,8 +293,10 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
               CC: ${cc.toLocaleString()}/mo
             </p>
           )}
-          {/* Attribution: CRM exclusives show Mallan; RLS shows brokerage courtesy */}
-          <p className="text-base text-brand-dark/80 mt-2">
+          {/* Attribution: CRM exclusives show Mallan; RLS shows brokerage courtesy.
+              UCBA Art. III §2(C): font not smaller than median — median of always-rendered
+              text elements in this card = 13px (tristle gate 2026-06-10), so 13px is the floor. */}
+          <p className="text-[13px] text-brand-dark/60 mt-2">
             {listing._source === 'exclusive'
               ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
               : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}

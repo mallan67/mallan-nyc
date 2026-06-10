@@ -212,8 +212,9 @@ export default function OpenHousesList() {
                               variant="button"
                             />
                           </div>
-                          {/* REBNY RLS Attribution — UCBA Art. III §2(C): font not smaller than median */}
-                          <p className="text-sm text-brand-dark/80 mt-2">
+                          {/* REBNY RLS Attribution — UCBA Art. III §2(C): font not smaller than median — median of
+                              always-rendered text elements in this card = 14px (tristle gate 2026-06-10); size pinned, lightened to /70. */}
+                          <p className="text-sm text-brand-dark/70 mt-2">
                             RLS · Listing Courtesy of {oh.agentName || 'REBNY RLS'}
                           </p>
                         </div>

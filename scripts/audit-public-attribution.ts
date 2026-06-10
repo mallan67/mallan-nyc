@@ -34,6 +34,18 @@ const TEXT_SIZE_PX: Record<string, number> = {
   'text-xl': 20, 'text-2xl': 24, 'text-3xl': 30, 'text-4xl': 36,
 };
 
+// Word-boundary-safe matcher for Tailwind classes. `\b` after `]` never
+// matches (`]` and the following quote/space are both non-word chars), so
+// the old `\b${cls}\b` pattern silently ignored every bracketed class like
+// `text-[13px]`: medians were computed from named classes only, and a
+// bracketed attribution font skipped the check entirely (attribFont null).
+// Classes are delimited by whitespace/quote/backtick/braces or a `:`
+// variant prefix; reject word chars, `[`, or `-` on either side instead.
+function classRegex(cls: string, flags: string): RegExp {
+  const escaped = cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\w\\]-])${escaped}(?![\\w[-])`, flags);
+}
+
 interface Finding {
   file: string;
   kind: 'MISSING_ATTRIBUTION' | 'BELOW_MEDIAN_FONT' | 'OK';
@@ -111,9 +123,7 @@ function extractMedianFont(content: string): number | null {
   const sizes: number[] = [];
   for (const [cls, px] of Object.entries(TEXT_SIZE_PX)) {
     if (px > BODY_TEXT_CAP_PX) continue;
-    const escaped = cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp(`\\b${escaped}\\b`, 'g');
-    const matches = content.match(re);
+    const matches = content.match(classRegex(cls, 'g'));
     if (matches) for (let i = 0; i < matches.length; i++) sizes.push(px);
   }
   const inlineRe = /fontSize:\s*(\d+)/g;
@@ -141,8 +151,7 @@ function extractAttributionFont(content: string): number | null {
       if (j < i && /^\s*>\s*$/.test(lines[j])) break;
       // Match Tailwind class or inline fontSize on this line
       for (const [cls, px] of Object.entries(TEXT_SIZE_PX)) {
-        const escaped = cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        if (new RegExp(`\\b${escaped}\\b`).test(lines[j])) return px;
+        if (classRegex(cls, '').test(lines[j])) return px;
       }
       const inline = /fontSize:\s*(\d+)/.exec(lines[j]);
       if (inline) return parseInt(inline[1], 10);

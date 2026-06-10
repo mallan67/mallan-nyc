@@ -454,7 +454,9 @@ export default async function BuildingPage({ searchParams }: Props) {
                 ))}
               </div>
 
-              <p className="text-[10px] text-brand-dark/40 mt-3">
+              {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median.
+                  Raised from 10px: this card's median = 13px, so 10px was below the compliance floor. */}
+              <p className="text-[13px] text-brand-dark/55 mt-3">
                 {saleUnits
                   .map((u) => u.office)
                   .filter((v, i, a) => v && a.indexOf(v) === i)
@@ -543,7 +545,9 @@ export default async function BuildingPage({ searchParams }: Props) {
                 ))}
               </div>
 
-              <p className="text-[10px] text-brand-dark/40 mt-3">
+              {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median.
+                  Raised from 10px: this card's median = 13px, so 10px was below the compliance floor. */}
+              <p className="text-[13px] text-brand-dark/55 mt-3">
                 {rentalUnits
                   .map((u) => u.office)
                   .filter((v, i, a) => v && a.indexOf(v) === i)
