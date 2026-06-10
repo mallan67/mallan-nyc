@@ -101,7 +101,7 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
         </p>
         <div className="flex-1 min-h-[8px]" />
         {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median (median = ~12-13px in this card) */}
-        <p className="text-[13px] text-brand-dark/75 pt-1.5 mt-1.5 truncate">
+        <p className="text-[13px] text-brand-dark/60 pt-1.5 mt-1.5 truncate">
           RLS · Listing Courtesy of {item.office || 'REBNY RLS'}
         </p>
       </div>

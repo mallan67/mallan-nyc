@@ -297,9 +297,10 @@ export default function ListingSidePanel() {
             </div>
           )}
 
-          {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
+          {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median — median of
+              always-rendered text elements in this panel = 14px (tristle gate 2026-06-10). */}
           {listing.agent?.listOfficeName && (
-            <p className="text-lg text-brand-dark/85 mt-6 text-center font-medium">
+            <p className="text-sm text-brand-dark/60 mt-6 text-center font-light">
               RLS · Listing Courtesy of {listing.agent.listOfficeName}
             </p>
           )}

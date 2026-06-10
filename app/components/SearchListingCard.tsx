@@ -200,8 +200,9 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
             className="mt-1"
           />
         )}
-        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
-        <p className="text-sm text-brand-dark/80 mt-2">
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median — median of
+            always-rendered text elements in this card = 14px (tristle gate 2026-06-10); size pinned, lightened to /70. */}
+        <p className="text-sm text-brand-dark/70 mt-2">
           {listing._source === 'exclusive'
             ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
@@ -318,8 +319,9 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
             className="mt-1"
           />
         )}
-        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
-        <p className="text-sm text-brand-dark/80 mt-2">
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median — median of
+            always-rendered text elements in this card = 14px (tristle gate 2026-06-10); size pinned, lightened to /70. */}
+        <p className="text-sm text-brand-dark/70 mt-2">
           {listing._source === 'exclusive'
             ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}
@@ -480,8 +482,9 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         {isRental && listing.moveInCosts && (
           <p className="text-[13px] text-brand-dark/70 mt-0.5">Move-In: {listing.moveInCosts}</p>
         )}
-        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median */}
-        <p className="text-sm text-brand-dark/80 mt-2">
+        {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median — median of
+            always-rendered text elements in this SplitCard = 14px (tristle gate 2026-06-10); size pinned. */}
+        <p className="text-sm text-brand-dark/60 mt-2">
           {listing._source === 'exclusive'
             ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.')
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}`}

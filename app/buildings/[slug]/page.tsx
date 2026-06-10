@@ -378,8 +378,9 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                         {unit.sqft > 0 && <><span className="text-brand-dark/20">&middot;</span><span>{unit.sqft.toLocaleString()} SF</span></>}
                       </div>
                       {unit.propertyType && <p className="text-[11px] text-brand-dark/50">{unit.propertyType}</p>}
-                      {/* REBNY attribution per-card — UCBA Art. III §2(C): font not smaller than median */}
-                      <p className="text-sm text-brand-dark/80 mt-2 truncate">
+                      {/* REBNY attribution per-card — UCBA Art. III §2(C): font not smaller than median —
+                          13px is the floor robust across all conditional render states (tristle gate 2026-06-10). */}
+                      <p className="text-[13px] text-brand-dark/60 mt-2 truncate">
                         RLS · Listing Courtesy of {unit.office || 'listing broker'}
                       </p>
                     </div>
@@ -426,8 +427,9 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                         {unit.sqft > 0 && <><span className="text-brand-dark/20">&middot;</span><span>{unit.sqft.toLocaleString()} SF</span></>}
                       </div>
                       {unit.propertyType && <p className="text-[11px] text-brand-dark/50">{unit.propertyType}</p>}
-                      {/* REBNY attribution per-card — UCBA Art. III §2(C): font not smaller than median */}
-                      <p className="text-sm text-brand-dark/80 mt-2 truncate">
+                      {/* REBNY attribution per-card — UCBA Art. III §2(C): font not smaller than median —
+                          13px is the floor robust across all conditional render states (tristle gate 2026-06-10). */}
+                      <p className="text-[13px] text-brand-dark/60 mt-2 truncate">
                         RLS · Listing Courtesy of {unit.office || 'listing broker'}
                       </p>
                     </div>

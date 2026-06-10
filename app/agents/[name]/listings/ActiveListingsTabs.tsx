@@ -132,7 +132,7 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
             prefix is the definitive CRM-authored signal — Trestle-synced rows
             carry RLS… ids (and a synced agent_id), so they never match here and
             keep the required RLS courtesy. (Codex reviews, PR #307/#308.) */}
-        <p className="text-sm text-brand-dark/80 mt-2 truncate">
+        <p className="text-[13px] text-brand-dark/60 mt-2 truncate">
           {listing._source === 'exclusive' || /^(SL|RL)-/i.test(listing.id || '')
             ? listing._displayCompliance?.attributionText || 'Exclusive listing by Mallan Real Estate Inc.'
             : `RLS · Listing Courtesy of ${listing.listOfficeName || 'Mallan Real Estate Inc.'}`}
