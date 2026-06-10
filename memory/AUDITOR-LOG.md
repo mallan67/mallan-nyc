@@ -580,3 +580,49 @@
 - P1-2: Broker MFA — NOT IMPLEMENTED (needs plan, 2-3 day feature)
 - P2-6: Audit logging verification — NOT DONE (20 min manual check)
 - P2-7: Portal DTO unit tests — NOT DONE (1-2 hours Jest tests)
+
+## SECURITY GATE — U4 offer-transmit ownership — 2026-06-07
+
+**Scope:** branch `fix/u4-offer-transmit-ownership` (diff vs main):
+`app/api/crm/offers/[id]/transmit/route.ts` (+17) + `tests/runtime/offer-transmit.test.ts` (+48).
+**Trigger:** Authorization fix (U4 correction) — release gate.
+**Verdict:** PASS. Zero CRITICAL, zero HIGH.
+
+**What it fixes:** IDOR / broken-object-level-authorization. POST transmit previously stamped
+`transmitted_to_seller_at` + wrote the UCBA Art. II `offer_transmitted_to_seller` AuditEvent with
+NO ownership check — any authenticated agent could transmit another agent's offer and forge the
+audit under their own identity. Fix adds owner/broker guard after the 404 check and BEFORE the
+idempotency 200, the `offer.update`, and the audit write.
+
+**Verification (Class-A static + proof-first):**
+- bigint===bigint comparison is type-correct (SessionUser.userId: bigint; Offer.list_agent_id /
+  buyer_agent_id: BigInt? in schema:2435/2437). Null-guarded on both sides. No number coercion.
+- Placement proven: non-owner returns 403 BEFORE serializeOffer/update/audit → no data leak,
+  no mutation, no forged AuditEvent. Already-transmitted leak case also 403.
+- No over-block on legit paths (list agent / buyer agent / broker all 200).
+- `auth.role === "BROKER"` matches the dominant CRM convention (agents/me, alerts, events,
+  growth-tools, past-deals, lib/crm/access.ts).
+- 9/9 runtime tests pass (`npx jest tests/runtime/offer-transmit.test.ts`).
+- Touches no secrets/env/headers/new routes.
+
+**LOW (non-blocking, pre-existing, repo-wide):** role-casing — `scripts/reset-password.js:58`
+writes lowercase `role:"broker"`. Against this route that is FAIL-CLOSED (denies, never
+over-permits). Recommend normalizing reset-password.js to "BROKER" as data hygiene; not a
+blocker for this PR.
+
+---
+
+## 2026-06-08 — RC1 media-pagination keyset cursor — VERDICT: PASS
+
+**Branch:** fix/rc1-media-pagination-cursor (HEAD de7986ae) · **Trigger:** macro-gate schema-domain change (security sign-off required) · **Mode:** READ-ONLY, no deploy.
+
+**Scope:** Additive nullable column `MediaSyncState.last_listing_key` (TEXT) + migration `20260608120000_add_media_sync_state_last_listing_key`; `lib/idx/media-sync.ts` incremental-cron internals (keyset cursor + @odata.nextLink pagination); tests + 1 doc. Cron route `app/api/cron/media-sync/route.ts` UNCHANGED (verified empty diff). No route/auth/env/header/middleware/PII changes (verified `--name-only`).
+
+**Findings:**
+- OData injection — NONE. Both interpolations (`buildPropertyQuery` `ListingKey gt '${key}'`; `defaultFetchMedia` `ResourceRecordKey eq '${escaped}'`) sit inside single-quoted OData literals and use `replace(/'/g,"''")`. Quote-doubling is the complete escape for OData v4 string literals. Value is server-only MLS feed data, not attacker-reachable; also URL-encoded via URLSearchParams. SUFFICIENT.
+- Secrets — NONE. No console/logger in file; errors carry only HTTP status / ListingKey, never token or URL. Token stays in Authorization header.
+- SSRF (following server-returned `@odata.nextLink` with bearer) — LOW / defense-in-depth only, NON-BLOCKING. nextLink originates from api.cotality.com responses; `paginateMedia` has maxPages=50 fail-closed runaway guard. Recommended (not required): assert nextLink origin === api.cotality.com before fetch.
+- Migration safety — PASS. Single `ALTER TABLE ADD COLUMN` nullable TEXT, no NOT NULL/DEFAULT, single-row table → metadata-only microsecond lock. NEON.md §4 conformant. Human-applied pre-merge.
+- Tenant scope — PASS. Both tombstone `updateMany` (media-sync.ts:583, 608) scoped by `listing_id: listingId`; no cross-listing write. `tombstoneVanished` false→true is safe (fetchMedia THROWS on incomplete pagination → complete set guaranteed before any destructive tombstone).
+
+**Critical: 0 · High: 0 · Medium: 0 · Low: 1 (SSRF hardening, non-blocking). Blocking deployment: No.**

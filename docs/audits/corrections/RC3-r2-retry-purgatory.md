@@ -1,14 +1,31 @@
 # Correction Trace Record — `RC3` R2 retry purgatory
 
-> **Status: IN-PR.** Maya GO ("Approved to implement RC3 test-first"). Media-program correction #3
-> (after RC1 #377 SETTLED). **Code fix only — NO schema, NO DB writes, NO R2 cleanup, NO backfill, NO
-> manual cron, NO frontend/CRM/search.** Fixes incident 2026-05-21 §4 RC3.
+> **Status: SETTLED.** Merged `#379 → main 0fe39174` (full: `0fe391740e63121a6de526a36ccb94160fc533ca`,
+> merged 2026-06-10T03:00:08Z, documented waiver as on RC1). Media-program correction #3 (after RC1 #377
+> SETTLED). **Code fix only — NO schema, NO DB writes, NO R2 cleanup, NO backfill, NO manual cron, NO
+> frontend/CRM/search** (held & honored). Fixes incident 2026-05-21 §4 RC3.
+>
+> **Runtime-verified (2026-06-10):** Vercel production deployment `dpl_Goch7TkRqHDeLYLrN2JmrwNsP736`
+> for commit `0fe39174` is **READY** (target=production, created 2026-06-10T03:00:13Z). Post-deploy
+> SQL split (operator-run by Maya, read-only): **`r2_retry_eligible = 44` · `r2_retry_parked = 40` ·
+> `r2_cached_active = 81,751`**. Interpretation: the 40 retry-exhausted rows (`r2_attempts >= 8`) are
+> **parked** — excluded from the Phase-3 retry budget while remaining `status='active'`/displayable via
+> the `media_url_original` proxy; 44 rows remain actionable backlog; R2 mirror is broadly healthy
+> (81,751 cached active rows).
+>
+> **Known caveat (deferred, §10):** `scripts/ops-health.js` still counts parked rows as
+> `r2_retry_backlog` — a follow-up is needed to split actionable (`r2_attempts < 8`) vs
+> parked/exhausted (`r2_attempts >= 8`) so the metric stops over-reporting.
+>
+> **Out-of-scope note — Featured 4-vs-6:** NOT an RC3 failure. The remaining Featured shortfall is
+> newest-sort/media-coverage starvation while the RC1 catch-up continues to drain the boundary
+> cluster. Any Featured config change is a separate operator decision, not part of this settlement.
 
 ## 0. Header
 - **ID / Ledger row:** RC3 (media program, correction #3; incident §4 RC3 / §7 PR-E)
 - **Severity / Compliance tie:** P1 · media display freshness / R2 mirror throughput — non-destructive
 - **Owning phase:** media program · **Maya GO:** given (exhausted-exclusion approach; NOT blanket tombstone)
-- **Status:** IN-PR (branch `fix/rc3-r2-retry-purgatory`)
+- **Status:** SETTLED (#379 → main `0fe39174`; deploy READY; runtime-verified via post-deploy SQL split)
 
 ## 1. Defect — the BEFORE (proven in code)
 - `lib/idx/media-sync.ts` `emitFailure` tombstones a `listing_media` row (`status='deleted'`) **only** on
@@ -56,16 +73,18 @@ preserved so the resolver keeps serving its `media_url_original`. Permanent 404/
 | 3 | GREEN | `jest media-sync-rc3` | **5/5** | ✅ GREEN |
 | 4 | tombstone classification UNCHANGED (regression guards) | `media-sync-r2.test.ts` (existing) | 404/410→tombstone@3; 429/5xx/403/network/upload/head/token→NO tombstone — all green | ✅ |
 | 5 | safety net | `media-sync-rc3.test.ts` | cached-null row → proxied `media_url_original` passes `getValidPhotoMedia` (not dropped) | ✅ |
-| 6 | harness | B0 chain | type-check 0 · media-sync **181/181** · idx-sync **65/65** · test:runtime · ucba 0 regr · rls 0 err · compliance-check 92/0 · build 0 | ⏳ (filled at commit) |
-| 7 | gate:micro / gate:macro / tristle / Codex | — | recorded in §6/§7 | ⏳ |
+| 6 | harness | B0 chain | type-check 0 · media-sync **181/181** · idx-sync **65/65** · test:runtime **2099/2099** · ucba 0 regr · rls 0 err · compliance-check 92/0 · build 0 | ✅ |
+| 7 | gate:micro / gate:macro / tristle / Codex | — | recorded in §6/§7 | ✅ |
+| 8 | merge + deploy | #379 → main `0fe39174` | Vercel production deployment READY (2026-06-10T03:00:13Z) | ✅ |
+| 9 | runtime verification | post-deploy SQL split (operator-run) | eligible=44 · parked=40 · cached_active=81,751 — exhausted rows out of retry budget, still displayable | ✅ |
 
 ## 6. Gate results
 | Gate | Result |
 |---|---|
-| B2 proof (§F) | behavioral RED→GREEN on `buildR2BacklogWhere` (not grep) |
-| C1 gate:micro | (committed-diff) |
-| C2 gate:macro | (committed-diff; search/idx domain → tristle) |
-| tristle | pending |
+| B2 proof (§F) | behavioral RED→GREEN on `buildR2BacklogWhere` (not grep) + post-deploy SQL split (runtime) |
+| C1 gate:micro | PASS (committed-diff; declared radius matched) |
+| C2 gate:macro | PASS (committed-diff; idx domain → tristle routed) |
+| tristle | PASS (see §7) |
 
 ## 7. Sign-offs
 - **gate:micro PASS · gate:macro PASS** (declared radius matched; idx domain → tristle).
@@ -73,7 +92,9 @@ preserved so the resolver keeps serving its `media_url_original`. Permanent 404/
   still serve `media_url_original` via proxy); no display/distribution/§2.05/Permission/DTO change;
   tombstone classification unchanged; strictly an R2-backlog budget optimization. rebny-search-auditor:
   N/A (no search filter / field-map / picklist change — this is the R2 re-mirror backlog only).
-- **Codex:** on PR open. · **Maya merge:** pending.
+- **Codex (#379):** CLEAN — "Didn't find any major issues." · **claude-review / pr-check / guardrails /
+  scan / release-truth:** all SUCCESS. · **Maya merge:** DONE — #379 squash-merged to main `0fe39174`
+  (2026-06-10T03:00:08Z, documented waiver as on RC1).
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run the `buildR2BacklogWhere` exclusion test → RED (function absent); apply the fix
