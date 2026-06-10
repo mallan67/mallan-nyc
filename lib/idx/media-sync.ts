@@ -28,6 +28,7 @@
 //   touching this row.
 
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import {
   buildMediaR2Key,
   classifyTrestleMediaCategory,
@@ -823,6 +824,60 @@ const R2_TOMBSTONE_4XX_THRESHOLD = 3;
  * the entire Phase 3 budget every cron firing.
  */
 export const R2_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+/**
+ * RC3 — retry-exhausted exclusion threshold. A non-permanent failure
+ * (429 / 5xx / 403 / 408 / network / r2_upload_failed / r2_head_failed / token)
+ * NEVER tombstones — the row stays `status='active'` and still serves
+ * `media_url_original` via the `/api/media/proxy` fallback. But once a row has
+ * failed this many times (≈ `N × 6h` cooldowns ≈ 2 days), it is "retry-exhausted"
+ * and dropped from the Phase-3 backlog SELECT so it stops wasting mirror budget —
+ * WITHOUT being deleted, so its photo never disappears. Set ABOVE
+ * `R2_TOMBSTONE_4XX_THRESHOLD` (3) so transient failures get MORE retries than a
+ * permanent 404/410 before parking.
+ */
+export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
+
+/**
+ * Build the Phase-3 R2 backlog SELECT `where`. Exported + pure so the RC3
+ * retry-exhausted exclusion is unit-testable without a live DB. A row is eligible
+ * when it is active, still missing its R2 copy (`r2_key` OR `media_url_cached`
+ * null), past the 6h cooldown, not already attempted this invocation, AND not
+ * retry-exhausted. `r2_attempts` null (never failed) stays eligible; `>=`
+ * threshold is parked. Permanent 404/410 rows are already gone (tombstoned at 3),
+ * so any active row at/above the exhaustion threshold is non-permanent by
+ * construction — parking it (not deleting it) is the safe stop.
+ */
+export function buildR2BacklogWhere(
+  cooldownThreshold: Date,
+  attemptedIds: bigint[],
+): Prisma.ListingMediaWhereInput {
+  return {
+    status: "active",
+    media_url_original: { not: null },
+    OR: [{ r2_key: null }, { media_url_cached: null }],
+    // Exclude rows already attempted this invocation (empty ⇒ no filter).
+    ...(attemptedIds.length > 0 ? { id: { notIn: attemptedIds } } : {}),
+    AND: [
+      // Cross-invocation 6h cooldown.
+      {
+        OR: [
+          { r2_last_attempt_at: null },
+          { r2_last_attempt_at: { lt: cooldownThreshold } },
+        ],
+      },
+      // RC3 retry-exhausted exclusion — park non-permanent rows that keep
+      // failing so they stop consuming Phase-3 budget. The row stays active
+      // (photo still serves via the media_url_original proxy) — NOT deleted.
+      {
+        OR: [
+          { r2_attempts: null },
+          { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
+        ],
+      },
+    ],
+  };
+}
 
 /**
  * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
@@ -1691,26 +1746,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
   while (remainingMs() > phase2ReserveMs) {
     const backlogRows = await prisma.listingMedia.findMany({
-      where: {
-        status: "active",
-        media_url_original: { not: null },
-        OR: [{ r2_key: null }, { media_url_cached: null }],
-        // Exclude rows already attempted this invocation. Empty Set is a
-        // no-op via `undefined`; Prisma treats undefined as "no filter".
-        ...(attemptedBacklogIds.size > 0
-          ? { id: { notIn: [...attemptedBacklogIds] } }
-          : {}),
-        // Cross-invocation cooldown: never-attempted rows OR rows whose
-        // last failure is older than the cooldown window are eligible.
-        AND: [
-          {
-            OR: [
-              { r2_last_attempt_at: null },
-              { r2_last_attempt_at: { lt: cooldownThreshold } },
-            ],
-          },
-        ],
-      },
+      // RC3: backlog `where` is built by the pure `buildR2BacklogWhere` so the
+      // retry-exhausted exclusion (park non-permanent rows at >= threshold) is
+      // unit-testable. Eligibility = active + missing-R2 + past-cooldown +
+      // not-attempted-this-invocation + not-retry-exhausted.
+      where: buildR2BacklogWhere(cooldownThreshold, [...attemptedBacklogIds]),
       orderBy: { created_at: "asc" },
       take: R2_MIRROR_CONCURRENCY,
       select: {
