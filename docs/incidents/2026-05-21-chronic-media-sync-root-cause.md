@@ -20,6 +20,37 @@ There is no single bug. There are **seven distinct chronic root causes running s
 
 ---
 
+## §0.5 MANDATORY MEDIA-PR PREAMBLE (Maya directive, 2026-06-10)
+
+**Every PR touching any media surface (the file list in the Status note above) MUST open its
+description / Trace Record with this preamble, completed honestly:**
+
+1. **"Read this incident document first"** — confirmed, with the reading dated.
+2. **Which chronic root cause (§4 RC1–RC7) this PR addresses** — exactly which, and which
+   *variant* if it is a new manifestation of an existing class (e.g. the 2026-06-10
+   ghost-listing freeze is a NEW variant of the §4 RC1 cursor-deadlock CLASS — note that the
+   correction-series numbering RC1/RC2/RC3/RC5… tracks PRs and does NOT always equal §4 numbers;
+   state the mapping explicitly to avoid collision, e.g. correction-RC5 ≠ incident-RC5).
+3. **Which chronic root causes remain OPEN after this PR** — no PR may imply the architecture
+   is fixed. As of 2026-06-10 the open set includes: the Phase-1 writer-loop closures
+   (`docs/superpowers/plans/2026-06-10-phase1-media-loop-closures-plan.md`), M1
+   source-of-truth/held migrations (§4 RC5), observability gaps (§4 RC6), and ALL data cleaning
+   (deleted-photo strike, targeted re-sync, M4 backfill, R2 orphans).
+4. **Why this PR cannot reintroduce the four canonical regressions:**
+   - **`Listing.media` stomping** (§4 RC2 class) — what in the diff proves no unconditional
+     JSON write returns;
+   - **cursor deadlock** (§4 RC1 class) — what proves the keyset watermark still halts
+     fail-closed on transient failures AND cannot livelock on permanent ones;
+   - **retry purgatory** (§4 RC3 class) — what proves no unbounded retry loop is created;
+   - **JSON/table/R2 mismatch** — what proves the diff does not widen divergence between the
+     three layers.
+5. **The cleanup gate:** NO JSON/R2/data cleanup ships or runs until the writer loops are
+   closed (Maya's standing rule, 2026-06-10) — restated verbatim in every media PR.
+
+A media PR whose description lacks this preamble fails review by default.
+
+---
+
 ## §1. Why this document exists
 
 The user phrasing was: *"this is a chronic situation"* and *"i do not want to deal with this again"*. The literal incident (one $10 charge plus photos offline for ~10,000 IDX-displayable listings) is the surface; the underlying architectural state has produced **nine reportable incidents in 21 days** at the same boundary:

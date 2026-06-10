@@ -6,6 +6,35 @@
 > NO tombstoning of valid media.** Fixes the production P0 found by the 2026-06-10 media-pipeline
 > diagnosis (`docs/audits/media-pipeline-error-diagnosis-2026-06-10.md`).
 
+## 0-pre. Mandatory media-PR preamble (incident 2026-05-21, §0.5 — Maya directive 2026-06-10)
+1. **Incident document read:** `docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`,
+   re-read 2026-06-10 before this correction.
+2. **Chronic root cause addressed:** a **NEW ghost-listing variant of incident §4 RC1's
+   cursor-deadlock CLASS** (livelock on a permanently-unprocessable batch head). Numbering
+   collision stated plainly: this correction is series-RC5; it is **unrelated to incident §4 RC5**
+   (held architectural migrations). Incident-RC1's original boundary-cluster deadlock was fixed by
+   correction-RC1 (#377); this closes the next deadlock species the keyset semantics allowed.
+3. **Chronic root causes remaining OPEN after this PR:** all Phase-1 writer-loop closures
+   (crm: tombstone/media-order guards, reset-sync RC2 patch, MT-bump, floorplan classifiers,
+   table-aware ops-health metric, feed-reconcile $expand verification — the ghost-IMPORT side of
+   this very bug) · incident §4 RC5 held migrations (M1/PR-4/5B) · §4 RC6 observability ·
+   ALL data cleaning (deleted-photo strike, ~360-key re-sync, M4, R2 orphans). This PR fixes ONE
+   freeze; it does not claim the media architecture is fixed.
+4. **Why this PR cannot reintroduce the four canonical regressions:**
+   - **`Listing.media` stomping (§4 RC2 class):** the diff contains zero `Listing.media` writes;
+     `runMediaSync` never touches the JSON column (asserted in the reader/PR-4 boundary note and
+     unchanged); tristle verified no display/JSON write paths in the diff.
+   - **cursor deadlock (§4 RC1 class):** transient failures still halt fail-closed
+     (`catch → ok:false`, test 5 proves probe-failure halts); ONLY a proven-permanent condition
+     (no local listings row, re-checked every run) is skipped — and the skip is `ok:true` past a
+     listing that cannot render, so no display data is ever skipped-over.
+   - **retry purgatory (§4 RC3 class):** no retry loop added; ghosts are NOT retried at all within
+     a run and re-surface only on PCT bump; RC3's exhaustion parking is untouched.
+   - **JSON/table/R2 mismatch:** ghosts get ZERO writes in any layer — the diff cannot widen
+     divergence; for valid listings the existing complete-set semantics (RC1 pagination) are
+     byte-identical.
+5. **Cleanup gate restated:** NO JSON/R2/data cleanup until the writer loops are closed.
+
 ## 0. Header
 - **ID / Ledger row:** RC5 (media program, correction #4; the upstream feed-reconcile ghost-import
   question is SEPARATE — Phase-1 loop-closure plan item 6)
@@ -78,13 +107,22 @@ its media waits for the next full/backfill pass — the import-side fix is Phase
 ## 6. Gate results
 | Gate | Result |
 |---|---|
-| B2 proof (§F) | behavioral RED→GREEN + post-deploy cursor-movement proof (pending) |
-| C1 gate:micro | pending |
-| C2 gate:macro | pending |
-| tristle | pending |
+| B2 proof (§F) | behavioral RED→GREEN (5/5) + post-deploy cursor-movement proof (pending, §10) |
+| C1 gate:micro | PASS (4 files; test-first satisfied) |
+| C2 gate:macro | PASS (declared radius matched; search/idx domain → tristle routed) |
+| tristle | **PASS, no corrections** — gates 1/2/3 run before ghost probe (verified byte-identical); ghost gets zero writes (FK-reinforced); fail-closed probe-failure halt proven by test 5; advancing past a ghost is REBNY-safe (nothing renders without a listings row); result fields additive (cron route spreads result, zero route changes); search/field-map surface N/A |
 
 ## 7. Sign-offs
-- pending (PR open → Codex; tristle on diff; Maya merge).
+- **gate:micro PASS · gate:macro PASS** (2026-06-10, committed diff `d68f6a1d`).
+- **tristle-rebny-compliance: PASS, no required corrections** (full verdict in §6; two pre-existing
+  main-baseline findings noted — idx:validate CI3 critical + crm-smoke 11 — neither caused by nor
+  blocking this PR, both already tracked).
+- **Codex:** on PR open. · **Maya merge:** pending — **MERGE GATE: quantify the `crm:`-row tombstone
+  hazard first** (Phase-1 plan item #2): unfreezing the cursor lets the catch-up drain fire
+  `tombstoneVanished` over ~11,822 listings; if ANY active `media_key LIKE 'crm:%'` rows exist on
+  RLS-synced listings, the `crm:` tombstone guard must merge BEFORE RC5 deploys. Read-only check
+  script ready at `scripts/__rc5-crm-tombstone-hazard-check.mjs` (untracked; operator-run — the
+  agent permission layer correctly blocked Claude from reading .env.local).
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run `media-sync-rc5.test.ts` → RED (watermark null with ghost at head);
