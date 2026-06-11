@@ -74,6 +74,10 @@ enum filterability UNPROVEN on this feed** (the InternetEntireListingDisplayYN l
 **Q3 to the operator probe** (`scripts/__c6-feed-reconcile-probe.mjs`); adopt it in a follow-up
 only on a proven 200. Structural lock pins ×10 AND the absence of the unproven filter.
 Blast radius: the agents route line + the p1c3 test + this record.
+**Amendment gates (2026-06-11, `fa4a2bff`):** tristle PASS (query strings byte-identical except
+$top; Class-B discipline verified real — probe Q3 exists) · rebny-search PASS (single caller;
+bounded ≤1000/single page; ×10 covers Order-collisions ×4 could not). Non-blocking F1 (lock-regex
+same-line evasion) + F2 (confirm Media page cap in Q3) recorded for the Q3 follow-up.
 
 ## 6. Sign-offs
 - **micro/macro PASS · security PASS · tristle PASS · rebny-search PASS** (2026-06-11, `8abc9597`).
