@@ -642,3 +642,17 @@ blocker for this PR.
 - ROLE-CASING — pre-existing repo-wide LOW; this route's exact-case `=== "BROKER"` is fail-closed (denies, never over-permits). Not introduced here.
 
 **Critical: 0 · High: 0 · Medium: 0 · Low: 2 (DoS array-cap + role-casing — both pre-existing, non-blocking). Blocking deployment: No.**
+
+---
+
+## 2026-06-11 — P1C1 reset-sync RC2 media-stomp guard (release gate)
+- **Branch:** `fix/p1c1-reset-sync-rc2` (HEAD 5be65199), diff `main...HEAD`
+- **Scope:** POST `app/api/crm/listings/reset-sync/route.ts` (+9/-3: import `mediaUpdatePatch`; hoisted `const EXPAND_MEDIA=false`; UPDATE-branch `media: mapped.media` replaced by `...mediaUpdatePatch(mapped.media, EXPAND_MEDIA)`) · 1 new test `tests/runtime/reset-sync-media-stomp.test.ts` · 1 doc trace.
+- **Verdict: PASS ✅ — non-blocking.**
+- AuthN/AuthZ — PASS. `assertWriteAllowed`(19) → `requireBroker`(21) → `IDX_ENABLED`/`hasCredentials`(24) ordering UNCHANGED; both diff hunks (l.94, l.160) land entirely AFTER auth + OData-filter construction. No reorder/bypass.
+- No new input flow — PASS. `EXPAND_MEDIA` is a literal `false`; `mediaUpdatePatch(x,false)` returns `{}` (lib/idx/sync.ts:34 — 2nd arg is the gate, not data), so the UPDATE spread injects nothing. No request-derived value enters the payload. OData filter quote-escaping (`replace(/'/g,"''"'")`, l.72/77) untouched; values are server-side agent MLS-id/license (not request body).
+- Secrets/env/headers/cookies/middleware/deps — none changed. Sole `process.env` hit in diff is a test-local mock (`IDX_ENABLED` in `beforeEach`), not shipped code, not a secret.
+- PRE-EXISTING (OUT of scope) — STEP 1 `deleteMany` of ALL listings + dependents (clean-slate, broker-auth, "one-time use"). Destructive-by-design; removal tracked as Maya decision OQ-1. Not introduced or worsened by this diff. Severity: pre-existing HIGH-by-design, not a finding against this PR.
+- Tests — route-level mocked Trestle+Prisma: asserts UPDATE payload OMITS `media` key (RC2 contract) and CREATE still writes `media`. RED→GREEN behavioral.
+
+**Critical: 0 · High: 0 · Medium: 0 · Low: 0 (1 pre-existing destructive-design item out of scope, OQ-1). Blocking deployment: No.**
