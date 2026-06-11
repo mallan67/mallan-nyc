@@ -88,9 +88,20 @@ Ghost → **resolved skip** (Maya's verbatim scope): `ok:true` so the keyset wat
 it; the ghost re-surfaces only when its `PhotosChangeTimestamp` bumps (same re-surface semantics as
 compliance-blocked). Ghost count + ids (cap 20) recorded in the run result → cron JSON → runtime
 logs. Valid listings behind the ghost keep processing (loop already continues; now the watermark
-advances too). Residual (documented, accepted): if a ghost is later imported WITHOUT a PCT bump,
-its media waits for the next full/backfill pass — the import-side fix is Phase-1 plan item 6
-(feed-reconcile `$expand=Media` verification).
+advances too).
+
+**Residual + Codex #382 finding (verified, accepted, closure assigned):** Codex flagged that a
+ghost later imported by feed-reconcile lands with its PCT already behind the advanced cursor → no
+`listing_media` until Trestle bumps PCT. Verified assessment: (a) TODAY the scenario cannot begin —
+feed-reconcile orphan-create uses `$expand=Media` which Trestle 400s (`fetch.ts:32-43`; deep-review
+L13), so ghosts are never imported at all (that import failure IS the upstream source of this
+freeze); (b) verifying the claim exposed that Phase-1 #6 as-specced (drop `$expand`, create without
+media) would make Codex's scenario real — imported ex-ghosts photoless in BOTH layers. **Closure
+baked into Phase-1 plan item #6 (amended): on orphan-create, the reconcile route must also arrange
+media for the created listing** (fetch post-create or anchor for media-sync pickup). Skipped-ghost
+ids stay recoverable: result counters → cron JSON → runtime logs, plus the known set (3 ids)
+recorded here; ghost ids feed the Phase-3 targeted re-sync inventory. The implicit alternative —
+keep halting the cursor on ghosts — preserves the production livelock and is rejected.
 
 ## 5. Step log
 | # | Step | Artifact | Result |
