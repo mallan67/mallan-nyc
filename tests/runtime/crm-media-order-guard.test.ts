@@ -100,4 +100,13 @@ describe('P1C2 — media-order route must not renumber Trestle feed rows', () =>
     expect(json.skipped_trestle_keys).toEqual([]);
     expect(mockMediaUpdateMany).toHaveBeenCalledTimes(2);
   });
+
+  it('all-Trestle payload (nothing persisted) is NON-OK — no false "saved" toast (Codex #383)', async () => {
+    const res = await call([TRESTLE_KEY, '1159000002-MK-10']);
+    expect(res.status).toBe(422);
+    const json = await readJson<{ skipped_trestle_keys: string[]; rows_updated: number }>(res);
+    expect(json.rows_updated).toBe(0);
+    expect(json.skipped_trestle_keys).toEqual([TRESTLE_KEY, '1159000002-MK-10']);
+    expect(mockMediaUpdateMany).not.toHaveBeenCalled();
+  });
 });

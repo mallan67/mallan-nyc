@@ -69,13 +69,29 @@ export async function PATCH(
     else skippedTrestleKeys.push(mediaKey);
   });
 
+  // Codex #383: if EVERY submitted key is feed-owned, nothing was persisted —
+  // that must be a non-OK response, because the CRM callers toast "saved" on
+  // any 2xx. A silent-success no-op is exactly the failure mode this repo's
+  // silent-failure ledger rows exist to prevent.
+  if (crmOrdered.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "No order saved: all submitted keys are Trestle feed photos, whose order is feed-owned (synced from Cotality). Only CRM-uploaded media can be reordered.",
+        skipped_trestle_keys: skippedTrestleKeys,
+        rows_updated: 0,
+      },
+      { status: 422 }
+    );
+  }
+
   const updates = crmOrdered.map(({ key, index }) =>
     prisma.listingMedia.updateMany({
       where: { media_key: key, listing_id: listing.listing_id, status: "active" },
       data: { order: index },
     })
   );
-  const results = updates.length > 0 ? await prisma.$transaction(updates) : [];
+  const results = await prisma.$transaction(updates);
   const updatedCount = results.reduce((n, r) => n + r.count, 0);
 
   await prisma.listing.update({
