@@ -61,6 +61,14 @@
 | security-agent | **PASS 0/0/0/0** — log line emits only an integer + ListingIds (verified public IDX Plus display field, length-bounded by GHOST_ID_LOG_CAP=20); CRON_SECRET gate byte-identical; zero new SQL interpolation (added arms are static); no env/dep changes |
 | code-reviewer | **APPROVE** — bucket arithmetic EXACT (byte-identical JSON-empty predicate split by total EXISTS); join key + status casing match the media-sync writers; `lower_bound` meaning change safe (zero programmatic consumers); >= boundaries match legacy; Lane-D block untouched. Cosmetic note: field name vs new semantics — future dashboard naming consideration |
 
+## 4b. Post-merge Codex amendment (2026-06-11, branch fix/p1c5-photo-bearing-exists)
+Codex on #391 (accepted): "table-served" counted ANY active `listing_media` row — a listing whose
+only active rows are FloorPlan/Video still renders the card placeholder (card helpers filter to
+Photo), so `no_image_any_layer` could undercount. Both EXISTS arms now require
+`media_type = 'Photo' AND COALESCE(media_url_cached, media_url_original) IS NOT NULL`.
+Live re-verified: partition exact (2,459 + 8,260 = 10,719). Structural lock added pinning the
+photo-bearing predicate. Blast radius: `scripts/ops-health.js` + the test + this record.
+
 ## 5. Sign-offs
 - **micro/macro PASS · security PASS · code-reviewer APPROVE** (2026-06-11, `7f479dbf`). tristle
   N/A-with-rationale per the macro gate's routing (read-only observability; zero display surface —
