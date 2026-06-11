@@ -9,6 +9,7 @@ import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
+import { mediaUpdatePatch } from "@/lib/idx/sync";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
@@ -93,11 +94,14 @@ export async function POST(req: NextRequest) {
   try {
     // PR-S.1c (2026-05-15): `expandMedia: true` was rejected by Trestle with
     // HTTP 400 in production. CRM reset-sync now pulls structured data only;
-    // media is backfilled by the media-sync / media-backfill crons after upsert.
+    // media is backfilled by the media-sync cron after upsert.
+    // P1C1: hoisted so the fetch and the RC2 media patch below can never
+    // silently diverge — if someone flips this to true, media writes resume.
+    const EXPAND_MEDIA = false;
     const result = await fetchFromTrestle({
       filter,
       maxTotal: 2000,
-      expandMedia: false,
+      expandMedia: EXPAND_MEDIA,
       orderby: "ModificationTimestamp desc",
     });
 
@@ -156,7 +160,11 @@ export async function POST(req: NextRequest) {
             owner_opt_out: mapped.owner_opt_out,
             address: mapped.address as Prisma.InputJsonValue,
             features: mapped.features as Prisma.InputJsonValue,
-            media: mapped.media as Prisma.InputJsonValue,
+            // P1C1 (RC2 semantics): media was NOT fetched (EXPAND_MEDIA=false →
+            // mapped.media is always []) — OMIT the key on UPDATE so existing
+            // listings.media is preserved instead of being stomped to [].
+            // CREATE above is unchanged (new row, nothing to preserve).
+            ...mediaUpdatePatch(mapped.media, EXPAND_MEDIA),
             compliance: mapped.compliance as Prisma.InputJsonValue,
             agent_info: mapped.agent_info as Prisma.InputJsonValue,
             raw_data: mapped.raw_data as Prisma.InputJsonValue,
