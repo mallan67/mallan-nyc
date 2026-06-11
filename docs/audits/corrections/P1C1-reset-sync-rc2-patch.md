@@ -35,10 +35,10 @@ defense-in-depth that makes the route RC2-consistent, NOT a claim the branch fir
 route's delete-first destructiveness is by design and OUT of scope (OQ-1).
 
 ## 2. Pre-registered blast radius
-- **WILL touch:** the reset-sync route (import + hoisted `EXPAND_MEDIA` + the one UPDATE line) ·
-  new `tests/runtime/reset-sync-media-stomp.test.ts` · this Trace Record.
-- **MUST NOT touch:** `lib/idx/sync.ts` (mediaUpdatePatch used as-is, NOT edited) · batch loops ·
-  projection dual-write · the delete-first design · schema · cron/env · public/crm/**.
+- **WILL touch:** `app/api/crm/listings/reset-sync/route.ts` (import + hoisted `EXPAND_MEDIA` +
+  the one UPDATE line) · new `tests/runtime/reset-sync-media-stomp.test.ts` · this Trace Record.
+- **MUST NOT touch:** lib/idx sync module (mediaUpdatePatch consumed as-is, NOT edited) · batch
+  loops · projection dual-write · the delete-first design · schema · cron/env · CRM frontend.
 
 ## 3. Compliance pre-read (§D)
 Display gates in the payload (`idx_display_yn` etc.) flow from `mapTrestleToPrisma` unchanged;
