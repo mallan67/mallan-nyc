@@ -111,8 +111,15 @@ describe("P1C3 — mapAgentCardMedia (agent cards live batch)", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("node:fs") as typeof import("node:fs");
     const src = fs.readFileSync("app/api/agents/[slug]/listings/route.ts", "utf8");
-    expect(src).toContain("needsPhotos.length * 10");
-    // The server-side MediaCategory $filter stays OUT until live-proven (Class B, probe Q3).
-    expect(src).not.toMatch(/\$filter[^\n]*MediaCategory eq/);
+    // Codex #393: clamped to Trestle's documented 500-row max $top —
+    // an over-limit page is rejected and the fail-soft return would
+    // placeholder the WHOLE batch.
+    expect(src).toContain("Math.min(needsPhotos.length * 10, 500)");
+    // The server-side MediaCategory $filter stays OUT until live-proven
+    // (Class B, probe Q3) — match anywhere in CODE (comment lines excluded;
+    // gate finding F1: the same-line-only regex was evadable via the
+    // mediaFilter template literal).
+    const codeOnly = src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    expect(codeOnly).not.toMatch(/MediaCategory eq/);
   });
 });
