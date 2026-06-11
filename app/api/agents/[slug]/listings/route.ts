@@ -317,7 +317,15 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     mediaParams.set('$filter', mediaFilter);
     mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus');
     mediaParams.set('$orderby', 'Order asc');
-    mediaParams.set('$top', String(needsPhotos.length * 4));
+    // Codex #389: classification happens CLIENT-side (mapAgentCardMedia keeps
+    // only canonical Photos), so the page needs headroom for the non-photo
+    // rows it will discard — at x4 a mixed batch could fill the page with
+    // floorplans/tours and starve later-sorted Photos. x10 bounds the worst
+    // realistic mix while staying a single page. A server-side
+    // `MediaCategory eq 'Photo'` $filter would be cleaner but enum
+    // filterability on this feed is UNPROVEN (Class B per CLAUDE.md §J —
+    // pending live probe Q3); do not add it without that proof.
+    mediaParams.set('$top', String(needsPhotos.length * 10));
 
     const resp = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },

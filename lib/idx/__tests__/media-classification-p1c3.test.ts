@@ -106,4 +106,13 @@ describe("P1C3 — mapAgentCardMedia (agent cards live batch)", () => {
     const items = byKey.get("1159000001")!;
     expect(items[0]).toEqual({ url: "https://cdn/x.jpg", mediaType: "Photo", order: -1 });
   });
+
+  it("Codex #389 structural lock: the batch query carries x10 headroom for client-side discards", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("node:fs") as typeof import("node:fs");
+    const src = fs.readFileSync("app/api/agents/[slug]/listings/route.ts", "utf8");
+    expect(src).toContain("needsPhotos.length * 10");
+    // The server-side MediaCategory $filter stays OUT until live-proven (Class B, probe Q3).
+    expect(src).not.toMatch(/\$filter[^\n]*MediaCategory eq/);
+  });
 });
