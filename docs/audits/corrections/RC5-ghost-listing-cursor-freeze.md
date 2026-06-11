@@ -143,9 +143,30 @@ apply fix → 5/5 GREEN; `media-sync-watermark` + `media-sync-orchestration` sui
 `media-sync-rc5.test.ts`: ghost at head → watermark advances to the last valid listing; ghost ids
 recorded; probe-failure → fail-closed halt (ok:false) preserved; ghost gets zero writes.
 
-## 10. Post-deploy verification plan (Maya's verbatim proof bar)
-1. production deploy READY;
-2. `MediaSyncState.last_photos_change`/`last_listing_key` move within 2-3 cron firings (read-only);
-3. `listing_media` row count increases vs the 2026-06-10 baseline (90/day frozen rate);
-4. EMPTY/new-listing starvation begins decreasing (ops:health `empty (no image)` trend, baseline
-   10,674) — full drain ETA ~2.5-3 days at the measured healthy rate (~4,500 listings/day).
+## 10. Post-deploy verification plan (Maya's final proof bar, 2026-06-10 — supersedes the draft)
+1. **skipped ghost ids** captured from runtime logs (`ghost_listing_ids` in the media-sync cron
+   JSON) — recorded in this Trace Record;
+2. **ghost-id fate check:** whether those ghost ids later exist in `listings` (feed-reconcile
+   import) — read-only;
+3. **stranding check:** whether any skipped ghost later exists locally WITHOUT `listing_media`
+   (the Codex scenario) — read-only; any hit feeds the Phase-3 targeted re-sync inventory and
+   raises the priority of Phase-1 Correction 6's hard checklist item;
+4. **cursor advanced:** `MediaSyncState.last_photos_change`/`last_listing_key` move past the
+   ghost cluster within 2-3 cron firings;
+5. **`listing_media` row count increased** vs the 2026-06-10 frozen baseline (~90/day) — and
+   valid listings behind the ghosts processed media;
+6. **no CRM media tombstoned:** active `crm:` rows unchanged (pre-deploy baseline: 10 active rows
+   on 1 non-RLS listing — operator hazard check 2026-06-10, Q2=0) — operator re-runs
+   `scripts/__rc5-crm-tombstone-hazard-check.mjs` to confirm;
+7. **zero R2 deletes and zero backfill:** no delete callers exist in the deployed code path
+   (static), media-backfill remains unscheduled, no manual cron fired — confirmed via runtime
+   logs + cron config unchanged.
+
+Supplemental trend (not a gate): EMPTY/new-listing starvation begins decreasing (baseline 10,674;
+full drain ETA ~2.5-3 days at the measured healthy rate ~4,500 listings/day). Featured/search
+photo coverage improvement follows the drain — Featured stays at its 2-card floor until coverage
+returns or the operator price-desc config change is applied (separate operator lane).
+
+**Scope statement (Maya's merge condition):** #382 is a **P0 cursor-unfreeze patch ONLY** — not a
+complete media fix. The chronic architecture remains open per the §0-pre preamble; Phase-1
+Correction 6 carries the hard ghost-import checklist item.
