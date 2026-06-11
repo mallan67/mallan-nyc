@@ -482,11 +482,13 @@ async function run() {
         ))::int AS empty_media,
         (COUNT(*) FILTER (
           WHERE (media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0)
-            AND EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id = listings.listing_id AND lm.status = 'active')
+            AND EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id = listings.listing_id AND lm.status = 'active'
+              AND LOWER(COALESCE(lm.media_type, '')) IN ('photo', 'image', '') AND COALESCE(lm.media_url_cached, lm.media_url_original) IS NOT NULL)
         ))::int AS json_empty_table_served,
         (COUNT(*) FILTER (
           WHERE (media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0)
-            AND NOT EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id = listings.listing_id AND lm.status = 'active')
+            AND NOT EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id = listings.listing_id AND lm.status = 'active'
+              AND LOWER(COALESCE(lm.media_type, '')) IN ('photo', 'image', '') AND COALESCE(lm.media_url_cached, lm.media_url_original) IS NOT NULL)
         ))::int AS no_image_any_layer,
         (COUNT(*) FILTER (
           WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
