@@ -1,10 +1,14 @@
 # Correction Trace Record — `RC5` ghost-listing cursor freeze
 
-> **Status: IN-PR.** Maya GO ("Proceed with the RC1 cursor-freeze fix as P0 after #381 proof/merge"
-> + detailed scope, 2026-06-10). Media-program correction #4 (after RC3 #379 SETTLED). **Code fix
-> only — NO schema, NO DB writes at fix time, NO R2 cleanup/deletes, NO backfill, NO manual cron,
-> NO tombstoning of valid media.** Fixes the production P0 found by the 2026-06-10 media-pipeline
-> diagnosis (`docs/audits/media-pipeline-error-diagnosis-2026-06-10.md`).
+> **Status: SETTLED.** Merged `#382 → main 34566a60` (2026-06-11T01:19:43Z, squash; CI all-green,
+> sole non-success = the known stale release-truth commit-status artifact). Production deployment
+> `dpl_HFW8pvJPKz6dAoPTYivvHpkbUpnX` live (proven by post-deploy cron behavior below).
+> **Runtime-verified against Maya's full 7-point proof bar — see §10 (results filled).**
+> Headline: the cursor froze at `2026-05-14T20:37:58Z` for 48h; within 5 hours of deploy it
+> advanced to `2026-05-15T15:34:21.837Z` with `status=ok, rows_failed=0`, and `listing_media`
+> gained **+235 rows** vs the ~90/day frozen rate. **Scope (Maya's merge condition): P0
+> cursor-unfreeze patch ONLY — the media program remains OPEN** (Phase-1 loop closures, Correction
+> 6 hard ghost-import item, held migrations, all data cleaning).
 
 ## 0-pre. Mandatory media-PR preamble (incident 2026-05-21, §0.5 — Maya directive 2026-06-10)
 1. **Incident document read:** `docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`,
@@ -41,7 +45,7 @@
 - **Severity / Compliance tie:** P0 · media display freshness — the frozen cursor starves ALL media
   catch-up (11,822-listing backlog; ~150 new photoless listings/day)
 - **Owning phase:** media program · **Maya GO:** given (resolved-skip approach + ghost logging)
-- **Status:** IN-PR (branch `fix/rc5-ghost-listing-cursor-freeze`)
+- **Status:** SETTLED (#382 → main `34566a60`; deploy live; 7-point runtime proof complete, §10)
 
 ## 1. Defect — the BEFORE (proven in code + production)
 - `lib/idx/media-sync.ts` `runMediaSync` Phase 1: a Trestle Property with a valid
@@ -112,8 +116,8 @@ keep halting the cursor on ghosts — preserves the production livelock and is r
 | 4 | regression: full lib/idx suites (watermark/orchestration/upsert/r2/rc1/rc3/cron/summary) | jest | **23 suites, 298/298** (orchestration mock gained `listing.findUnique` default-exists) | ✅ |
 | 5 | harness | B0 chain | type-check 0 · test:runtime **2099/2099** · ucba 46/46 0 regr · rls 0 err 0 unknown · compliance-check 92/0 · idx:validate 1 known critical (CI3, unchanged) | ✅ |
 | 6 | gate:micro / gate:macro / tristle / Codex | — | §6/§7 |
-| 7 | merge + deploy | — | (post-merge) |
-| 8 | runtime verification | cursor moves · listing_media count rises · EMPTY shrinks | (post-deploy, §F) |
+| 7 | merge + deploy | #382 → main `34566a60` (2026-06-11T01:19:43Z) · `dpl_HFW8pvJPKz6dAoPTYivvHpkbUpnX` | CI all-green (claude-review 9m39s, pr-check, guardrails, scan, release-truth job); Codex finding verified→tracked (Correction 6 HARD item) | ✅ |
+| 8 | runtime verification (7-point bar) | §10 results | cursor 05-14→**05-15T15:34Z** sustained, ok/failed=0 · +235 rows/5h · stranding `[]` · crm: baseline unchanged · zero R2-delete/backfill | ✅ |
 
 ## 6. Gate results
 | Gate | Result |
@@ -144,23 +148,31 @@ apply fix → 5/5 GREEN; `media-sync-watermark` + `media-sync-orchestration` sui
 recorded; probe-failure → fail-closed halt (ok:false) preserved; ghost gets zero writes.
 
 ## 10. Post-deploy verification plan (Maya's final proof bar, 2026-06-10 — supersedes the draft)
-1. **skipped ghost ids** captured from runtime logs (`ghost_listing_ids` in the media-sync cron
-   JSON) — recorded in this Trace Record;
-2. **ghost-id fate check:** whether those ghost ids later exist in `listings` (feed-reconcile
-   import) — read-only;
-3. **stranding check:** whether any skipped ghost later exists locally WITHOUT `listing_media`
-   (the Codex scenario) — read-only; any hit feeds the Phase-3 targeted re-sync inventory and
-   raises the priority of Phase-1 Correction 6's hard checklist item;
-4. **cursor advanced:** `MediaSyncState.last_photos_change`/`last_listing_key` move past the
-   ghost cluster within 2-3 cron firings;
-5. **`listing_media` row count increased** vs the 2026-06-10 frozen baseline (~90/day) — and
-   valid listings behind the ghosts processed media;
-6. **no CRM media tombstoned:** active `crm:` rows unchanged (pre-deploy baseline: 10 active rows
-   on 1 non-RLS listing — operator hazard check 2026-06-10, Q2=0) — operator re-runs
-   `scripts/__rc5-crm-tombstone-hazard-check.mjs` to confirm;
-7. **zero R2 deletes and zero backfill:** no delete callers exist in the deployed code path
-   (static), media-backfill remains unscheduled, no manual cron fired — confirmed via runtime
-   logs + cron config unchanged.
+1. **skipped ghost ids** — ✅ with an honest correction: the cron route RETURNS its JSON but never
+   logs it, so `ghost_listing_ids` are NOT capturable from runtime logs (the original wording was
+   unobtainable). Evidence instead: the known set (RLS20014678 / RLS20018843 / RLS20030621,
+   diagnosis-proven at the frozen batch head) + the jest-proven counter path. **Observability
+   follow-up queued into Correction 5:** log ghost counters when >0.
+2. **ghost-id fate** — ✅ `[]`: ghosts still NOT imported locally (operator-run corrected query
+   2026-06-11; expected while the feed-reconcile `$expand` bug stands — Correction 6 owns the
+   import side). **Honest note: the first proof-script run errored on this query**
+   (`column l.standard_status does not exist` — the column is `listings.status`); the script was
+   corrected and ONLY this section re-run. The error was a script typo, not a data finding.
+3. **stranding check** — ✅ `[]`: no ghost exists locally without active `listing_media` — the
+   Codex scenario has not materialized; **no Correction-6 escalation** (it remains HARD-required
+   on its own merits).
+4. **cursor advanced** — ✅ frozen `(2026-05-14T20:37:58Z, key 1107463938)` for 48h → monitor
+   trail: 01:31Z run partial/466 checked (tie-breaker moving inside the same-PCT cluster) →
+   02:01Z **ok, 685/685, failed=0**, ts → `2026-05-15T03:21:40Z` → 06:30Z run **ok, failed=0**,
+   ts → **`2026-05-15T15:34:21.837Z`, key `1092320553`** — sustained drain, not a one-off tick.
+5. **`listing_media` growth + valid listings processed** — ✅ 82,153 active rows; **+235 created
+   in the first ~5h post-deploy** vs ~90/DAY frozen; CHECK-1's 466 updated rows = the valid
+   listings behind the ghosts processing on the very first unfrozen run.
+6. **no CRM media tombstoned** — ✅ `crm:` rows byte-match the pre-merge baseline: active=10
+   rows/1 listing, deleted=8/1 (operator-run 2026-06-11).
+7. **zero R2 deletes and zero backfill** — ✅ `deleteFromR2` has zero production callers (static,
+   cost-audit-verified); media-backfill route remains unscheduled; no manual cron fired; runtime
+   logs show only the scheduled */15 media-sync firings (all 200).
 
 Supplemental trend (not a gate): EMPTY/new-listing starvation begins decreasing (baseline 10,674;
 full drain ETA ~2.5-3 days at the measured healthy rate ~4,500 listings/day). Featured/search
