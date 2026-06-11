@@ -626,3 +626,19 @@ blocker for this PR.
 - Tenant scope — PASS. Both tombstone `updateMany` (media-sync.ts:583, 608) scoped by `listing_id: listingId`; no cross-listing write. `tombstoneVanished` false→true is safe (fetchMedia THROWS on incomplete pagination → complete set guaranteed before any destructive tombstone).
 
 **Critical: 0 · High: 0 · Medium: 0 · Low: 1 (SSRF hardening, non-blocking). Blocking deployment: No.**
+
+---
+
+## 2026-06-10 — P1C2 CRM media guards (release gate)
+- **Branch:** `fix/p1c2-crm-media-guards` (HEAD 7d9b9992), diff `main...HEAD`
+- **Scope:** PATCH `app/api/crm/listings/[id]/media-order/route.ts` (crm:-namespace partition + `skipped_trestle_keys` echo + audit count) · `lib/idx/media-sync.ts` (cron-internal static where-clause `NOT startsWith crm:`) · 3 test files · 1 doc trace.
+- **Verdict: PASS ✅ — non-blocking.**
+- AuthN/AuthZ — PASS. `assertWriteAllowed` → `requireAgentOrBroker` → 404 → ownership (`auth.role!=="BROKER" && listing.agent_id!==auth.userId` → 403) all run BEFORE any write; diff only touches code after line 65 (post-ownership). No reorder/bypass.
+- Injection — PASS. `updateMany` equals-match on `media_key` (parameterized) STILL scoped by `listing_id: listing.listing_id` + `status:"active"` on every update (route.ts:74). Crafted `crm:OTHER-LISTING:x` cannot escape the listing_id scope → no cross-listing write. No raw SQL, no broadened where.
+- Info disclosure — PASS. `skipped_trestle_keys` echoes the client's own submitted keys (partition of `ordered_media_ids`), not server enumeration; audit adds only a count. Zero new exposure.
+- DoS — LOW (PRE-EXISTING, not introduced). `ordered_media_ids` has no length cap on main or this branch; auth-gated to agent/broker (not public). New `updates.length>0 ? $transaction : []` guard is a minor improvement. Non-blocking.
+- media-sync.ts — PASS. Cron-only (CRON_SECRET route unchanged); added filter is a static const `crm:` prefix; no new input flow; tenant `listing_id` scope preserved on both branches.
+- Secrets/env/headers/cookies/middleware/deps — none changed (verified by diff scan).
+- ROLE-CASING — pre-existing repo-wide LOW; this route's exact-case `=== "BROKER"` is fail-closed (denies, never over-permits). Not introduced here.
+
+**Critical: 0 · High: 0 · Medium: 0 · Low: 2 (DoS array-cap + role-casing — both pre-existing, non-blocking). Blocking deployment: No.**

@@ -39,6 +39,7 @@ import {
   uploadToR2 as defaultUploadToR2,
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
+import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";
 
 /** Resource-key constant for the media-sync state row. */
 export const RESOURCE_MEDIA = "Media" as const;
@@ -597,14 +598,24 @@ export async function upsertListingMedia(
       ...mapped.map((r) => r.mediaKey),
       ...explicitDeleteKeys,
     ]);
-    // Empty-input case: tombstone every active row for the listing.
+    // Empty-input case: tombstone every active TRESTLE row for the listing.
+    // P1C2: BOTH branches exclude the `crm:` namespace — CRM-owned uploads are
+    // absent from every Trestle media set BY DESIGN (crm-media.ts:2-7), so
+    // "vanished from the complete set" can never mean "deleted at source" for
+    // them. Trestle never emits crm:-prefixed MediaKeys, so feed semantics
+    // (incl. deleted-at-source removal) are unchanged for feed rows.
     const where =
       seenKeys.size === 0
-        ? { listing_id: listingId, status: "active" }
+        ? {
+            listing_id: listingId,
+            status: "active",
+            NOT: { media_key: { startsWith: CRM_MEDIA_KEY_PREFIX } },
+          }
         : {
             listing_id: listingId,
             status: "active",
             media_key: { notIn: [...seenKeys] },
+            NOT: { media_key: { startsWith: CRM_MEDIA_KEY_PREFIX } },
           };
     const res = await prisma.listingMedia.updateMany({
       where,

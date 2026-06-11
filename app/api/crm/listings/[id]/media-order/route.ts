@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { importJsonMediaToRows } from "@/lib/media/crm-media";
+import { importJsonMediaToRows, isCrmMediaKey } from "@/lib/media/crm-media";
 
 export async function PATCH(
   req: NextRequest,
@@ -58,9 +58,36 @@ export async function PATCH(
   // actually reads (replaces the old raw_data.media_order, which the resolver
   // ignored). Scoped to THIS listing so a stray key can't reorder another
   // listing's media.
-  const updates = ordered_media_ids.map((mediaKey, index) =>
+  // P1C2: CRM ordering applies ONLY to the `crm:` namespace. Trestle feed rows'
+  // `order` is owned by media-sync (rewritten from the feed on every complete
+  // set), so writing it here just ping-pongs and silently reverts the agent's
+  // edit. Skipped feed keys are REPORTED, never silently dropped.
+  const crmOrdered: Array<{ key: string; index: number }> = [];
+  const skippedTrestleKeys: string[] = [];
+  ordered_media_ids.forEach((mediaKey, index) => {
+    if (isCrmMediaKey(mediaKey)) crmOrdered.push({ key: mediaKey, index });
+    else skippedTrestleKeys.push(mediaKey);
+  });
+
+  // Codex #383: if EVERY submitted key is feed-owned, nothing was persisted —
+  // that must be a non-OK response, because the CRM callers toast "saved" on
+  // any 2xx. A silent-success no-op is exactly the failure mode this repo's
+  // silent-failure ledger rows exist to prevent.
+  if (crmOrdered.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          "No order saved: all submitted keys are Trestle feed photos, whose order is feed-owned (synced from Cotality). Only CRM-uploaded media can be reordered.",
+        skipped_trestle_keys: skippedTrestleKeys,
+        rows_updated: 0,
+      },
+      { status: 422 }
+    );
+  }
+
+  const updates = crmOrdered.map(({ key, index }) =>
     prisma.listingMedia.updateMany({
-      where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+      where: { media_key: key, listing_id: listing.listing_id, status: "active" },
       data: { order: index },
     })
   );
@@ -77,7 +104,12 @@ export async function PATCH(
     "listing",
     id,
     auth,
-    { field: "media_order", media_count: ordered_media_ids.length, rows_updated: updatedCount },
+    {
+      field: "media_order",
+      media_count: ordered_media_ids.length,
+      rows_updated: updatedCount,
+      trestle_keys_skipped: skippedTrestleKeys.length,
+    },
     ipAddress
   );
 
@@ -85,5 +117,6 @@ export async function PATCH(
     listing_id: id,
     media_order: ordered_media_ids,
     rows_updated: updatedCount,
+    skipped_trestle_keys: skippedTrestleKeys,
   });
 }
