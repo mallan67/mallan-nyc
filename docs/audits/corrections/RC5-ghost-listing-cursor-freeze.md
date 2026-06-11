@@ -122,7 +122,7 @@ keep halting the cursor on ghosts — preserves the production livelock and is r
 ## 6. Gate results
 | Gate | Result |
 |---|---|
-| B2 proof (§F) | behavioral RED→GREEN (5/5) + post-deploy cursor-movement proof (pending, §10) |
+| B2 proof (§F) | **COMPLETE** — behavioral RED→GREEN (5/5) + post-deploy 7-point runtime proof (§10: cursor frozen 48h → sustained drain to `2026-05-15T15:34:21.837Z`, ok/failed=0; +235 rows/5h; stranding `[]`; crm: baseline unchanged; zero R2-delete/backfill) |
 | C1 gate:micro | PASS (4 files; test-first satisfied) |
 | C2 gate:macro | PASS (declared radius matched; search/idx domain → tristle routed) |
 | tristle | **PASS, no corrections** — gates 1/2/3 run before ghost probe (verified byte-identical); ghost gets zero writes (FK-reinforced); fail-closed probe-failure halt proven by test 5; advancing past a ghost is REBNY-safe (nothing renders without a listings row); result fields additive (cron route spreads result, zero route changes); search/field-map surface N/A |
@@ -132,12 +132,14 @@ keep halting the cursor on ghosts — preserves the production livelock and is r
 - **tristle-rebny-compliance: PASS, no required corrections** (full verdict in §6; two pre-existing
   main-baseline findings noted — idx:validate CI3 critical + crm-smoke 11 — neither caused by nor
   blocking this PR, both already tracked).
-- **Codex:** on PR open. · **Maya merge:** pending — **MERGE GATE: quantify the `crm:`-row tombstone
-  hazard first** (Phase-1 plan item #2): unfreezing the cursor lets the catch-up drain fire
-  `tombstoneVanished` over ~11,822 listings; if ANY active `media_key LIKE 'crm:%'` rows exist on
-  RLS-synced listings, the `crm:` tombstone guard must merge BEFORE RC5 deploys. Read-only check
-  script ready at `scripts/__rc5-crm-tombstone-hazard-check.mjs` (untracked; operator-run — the
-  agent permission layer correctly blocked Claude from reading .env.local).
+- **Codex (#382):** ghost-reimport gap finding — verified real, closure assigned as the HARD
+  checklist item on Phase-1 Correction 6 (orphan-create must arrange media); substantive reply on
+  the PR; no code change required in RC5.
+- **Maya merge:** DONE — the pre-merge **MERGE GATE was satisfied first**: operator-run hazard
+  check (2026-06-10) returned **Q2 = 0** active `crm:` rows on RLS-synced listings, clearing #382
+  to merge without waiting for the crm: guard. (The guard itself — P1C2 — merged immediately after
+  RC5's runtime proof as #383 → main `4cd1e31f`, protecting the now-active drain.) #382
+  squash-merged 2026-06-11T01:19:43Z → main `34566a60`.
 
 ## 8. Trace-back / reproduce
 `git checkout main` → run `media-sync-rc5.test.ts` → RED (watermark null with ghost at head);
