@@ -31,12 +31,15 @@ export interface TrestleFetchOptions {
   /**
    * Whether to include `$expand=Media` in the OData request.
    *
-   * **Default is `false` (PR-S.1c, 2026-05-15).** Trestle consistently
-   * rejects requests carrying `$expand=Media` with HTTP 400 — verified via
-   * production Vercel logs after PR-S.1b. The existing `fetchSingleListing`
-   * function already documents this (see comment in this file). Callers that
-   * genuinely need inline media MUST opt in explicitly with
-   * `expandMedia: true` AND verify it works against current Trestle behavior.
+   * **Default is `false` (PR-S.1c, 2026-05-15).** Trestle rejected THIS
+   * function's `$expand=Media` form with HTTP 400 — verified via production
+   * Vercel logs after PR-S.1b. **Scope correction (P1C6, live-probed
+   * 2026-06-11): the 400 is NOT universal to every expand shape** — the
+   * inner-`$filter` form `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`
+   * used by feed-reconcile returned HTTP 200 with populated Media arrays
+   * against live Cotality (deep-review L13 REFUTED). Callers that genuinely
+   * need inline media MUST opt in explicitly with `expandMedia: true` AND
+   * verify their exact expand shape against current Trestle behavior.
    *
    * For most callers, prefer `fetchListingMedia()` for separate media fetch.
    */
