@@ -35,6 +35,11 @@ import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import {
+  upsertListingMedia,
+  updateListingMediaSummary,
+  type UpsertListingMediaInput,
+} from "@/lib/idx/media-sync";
 // Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
 // (every file that imports sendEmail/sendgrid must reference escapeHtml).
 // The template handles its own escaping internally; aliasing to _escapeHtml
@@ -89,6 +94,36 @@ async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
   return ids;
 }
 
+/**
+ * P1C6: Pending / ActiveUnderContract ListingIds — extends ORPHAN detection
+ * ONLY. Live probe 2026-06-11 proved the 3 media-sync ghosts are
+ * StandardStatus=Pending, invisible to the Active-only diff BY DESIGN (not an
+ * $expand failure — the route's expand form returned HTTP 200 with media).
+ * SEPARATE query so `fetchTrestleActiveIds` stays byte-identical: the
+ * ghost-transition semantics and that query's paging headroom under the 25K
+ * skip cap are untouched.
+ */
+async function fetchTrestleEligibleNonActiveIds(token: string): Promise<Set<string>> {
+  const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  const filter = "StandardStatus eq 'Pending' or StandardStatus eq 'ActiveUnderContract'";
+  const ids = new Set<string>();
+  let skip = 0;
+  const pageSize = 1000;
+  while (skip < 25000) {
+    const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$select=ListingId&$top=${pageSize}&$skip=${skip}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) {
+      throw new Error(`Trestle eligible-non-active fetch failed at skip=${skip}: ${res.status}`);
+    }
+    const page = (await res.json()) as { value?: Array<{ ListingId?: string }> };
+    const rows = page.value ?? [];
+    for (const r of rows) if (r.ListingId) ids.add(r.ListingId);
+    if (rows.length < pageSize) break;
+    skip += pageSize;
+  }
+  return ids;
+}
+
 export async function GET(req: NextRequest) {
   // Auth
   const authHeader = req.headers.get("authorization");
@@ -118,6 +153,10 @@ export async function GET(req: NextRequest) {
     // 1. Fetch Trestle Active set
     const token = await getAccessToken();
     const trestleIds = await fetchTrestleActiveIds(token);
+    // P1C6: orphan eligibility = Active ∪ Pending ∪ ActiveUnderContract
+    // (ACTIVE_SEED_STATUSES). Ghost detection below uses trestleIds ONLY —
+    // semantics byte-identical to main.
+    const trestleNonActiveEligible = await fetchTrestleEligibleNonActiveIds(token);
 
     // 2. Our DB Active set + full RLS ID set (both directions of diff)
     const ourActive = await prisma.listing.findMany({
@@ -141,8 +180,11 @@ export async function GET(req: NextRequest) {
     const ghosts = ourActive.filter(
       (r) => !TERMINAL_STATUSES.has(r.status) && !trestleIds.has(r.listing_id),
     );
-    // 3b. Orphans — in Trestle Active, missing from our DB entirely
-    const orphans = [...trestleIds].filter((id) => !ourAllIdsSet.has(id));
+    // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
+    // missing from our DB entirely
+    const orphans = [...new Set([...trestleIds, ...trestleNonActiveEligible])].filter(
+      (id) => !ourAllIdsSet.has(id),
+    );
 
     // 4. Safety caps — either direction aborting halts the whole run
     if (ghosts.length > GHOST_ABORT_CAP) {
@@ -252,6 +294,9 @@ export async function GET(req: NextRequest) {
     //     that the normal cron sync uses.
     let orphansCreated = 0;
     let orphansErrored = 0;
+    let orphansWithMedia = 0;
+    let orphansNoMedia = 0;
+    let orphanMediaErrors = 0;
     for (let i = 0; i < orphans.length; i += ORPHAN_FETCH_BATCH) {
       const batchIds = orphans.slice(i, i + ORPHAN_FETCH_BATCH);
       const filter = batchIds
@@ -303,7 +348,8 @@ export async function GET(req: NextRequest) {
                   user_id: null,
                   changes: {
                     listing_id: String(raw.ListingId),
-                    reason: "Present in Trestle Active but missing from DB — incremental sync gap",
+                    reason: "Present in the Trestle eligible set (Active/Pending/AUC) but missing from DB — incremental sync gap",
+                    standard_status: String(raw.StandardStatus || ""),
                     cron_run_at: now.toISOString(),
                   },
                 },
@@ -321,6 +367,38 @@ export async function GET(req: NextRequest) {
                 "[feed-reconcile] orphan projection dual-write failed:",
                 err instanceof Error ? err.message : err,
               );
+            }
+
+            // P1C6 (Maya hard item): a created orphan must populate
+            // listing_media or record a CLEAN no-media outcome — never
+            // silently photoless-in-both-layers. The inline $expand payload
+            // is NOT pagination-proven complete, so tombstoneVanished stays
+            // FALSE (media-sync's complete-set path owns deletion truth);
+            // worst case is missing rows that media-sync fills later, never
+            // wrongly-deleted ones. mediaCount=0 is recorded, not faked.
+            const rawMedia = Array.isArray(raw.Media)
+              ? (raw.Media as UpsertListingMediaInput[])
+              : [];
+            if (rawMedia.length > 0) {
+              try {
+                await upsertListingMedia(String(raw.ListingId), rawMedia, {
+                  photosChangeTsSnapshot:
+                    (raw.PhotosChangeTimestamp as string | undefined) ?? null,
+                  tombstoneVanished: false,
+                });
+                await updateListingMediaSummary(String(raw.ListingId));
+                orphansWithMedia++;
+              } catch (mediaErr) {
+                // Listing stays created (JSON media already written by the
+                // create); table population failure is non-fatal + counted.
+                orphanMediaErrors++;
+                console.error(
+                  `[feed-reconcile] orphan media population failed for ${raw.ListingId}:`,
+                  mediaErr instanceof Error ? mediaErr.message : mediaErr,
+                );
+              }
+            } else {
+              orphansNoMedia++;
             }
 
             orphansCreated++;
@@ -414,6 +492,10 @@ export async function GET(req: NextRequest) {
       orphans_detected: orphans.length,
       orphans_created: orphansCreated,
       orphans_errored: orphansErrored,
+      trestle_eligible_nonactive: trestleNonActiveEligible.size,
+      orphans_with_media: orphansWithMedia,
+      orphans_no_media: orphansNoMedia,
+      orphan_media_errors: orphanMediaErrors,
       duration_ms: Date.now() - startTime,
     });
   } catch (e) {
