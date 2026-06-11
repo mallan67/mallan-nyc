@@ -44,7 +44,7 @@
 - Orphan-create wrote media **JSON only** — `listing_media` stayed empty for created orphans
   (table-lag of the Codex #382 scenario), and there was no clean record of a no-media outcome.
 
-## 2. The fix (exact)
+## 1b. The fix (exact)
 - **`fetchTrestleEligibleNonActiveIds`** (new, route-local): Pending + ActiveUnderContract ids —
   a SEPARATE query so `fetchTrestleActiveIds` stays byte-identical (ghost semantics + paging
   headroom under the 25K skip cap untouched). Orphans = (Active ∪ Pending ∪ AUC) \ local.
@@ -58,7 +58,7 @@
 - `lib/idx/fetch.ts` comment scope-corrected (the 400 is THIS-function's form; the
   inner-$filter form live-proven 200; **L13 REFUTED** recorded).
 
-## 3. Pre-registered blast radius
+## 2. Pre-registered blast radius
 - **WILL touch:** `app/api/cron/feed-reconcile/route.ts` · `lib/idx/fetch.ts` (comment only) ·
   new `tests/runtime/feed-reconcile-c6.test.ts` · this Trace Record.
 - **MUST NOT touch:** `lib/idx/media-sync.ts` (consumed as-is) · ghost-transition logic ·
