@@ -36,6 +36,29 @@ export function isCrmMediaKey(key: string | null | undefined): boolean {
 }
 
 /**
+ * P1C4 (loop L8): listing-touch data for a CRM media action — or null.
+ *
+ * The idx-sync cursor is MAX(modification_timestamp) over rows WHERE
+ * last_synced_from_trestle IS NOT NULL (lib/idx/sync.ts getLastSyncTimestamp);
+ * MT must remain the TRESTLE row clock for synced rows. A CRM media action
+ * that bumps MT with local NOW makes the next incremental filter
+ * (`ModificationTimestamp gt SINCE`) skip every unprocessed feed record older
+ * than the bump — the PR-S.6/S.7 cursor hazard through a side door.
+ *
+ * Scoped stop-bump (Maya, Phase-1 Correction 4): Trestle-synced listing →
+ * null (no touch — media truth lives in listing_media rows, which carry their
+ * own updated_at; the listing row did not change). CRM-only exclusive
+ * (last_synced_from_trestle NULL, SL-/RL-) → the bump object, preserving
+ * today's behavior (sitemap lastModified, disclaimer lastUpdated, portal
+ * ordering all read MT for that cohort).
+ */
+export function crmListingTouchData(
+  lastSyncedFromTrestle: Date | null | undefined,
+): { modification_timestamp: Date } | null {
+  return lastSyncedFromTrestle ? null : { modification_timestamp: new Date() };
+}
+
+/**
  * Deterministic, stable, unique media_key for a CRM media item.
  * `basis` is a hex hash (the upload's SHA-256, or a hash of the URL for legacy
  * items). Format: `crm:{listingId}:{basis[:24]}`. The same image on the same

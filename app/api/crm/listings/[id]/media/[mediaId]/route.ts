@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { isCrmMediaKey, importJsonMediaToRows } from "@/lib/media/crm-media";
+import { isCrmMediaKey, importJsonMediaToRows, crmListingTouchData } from "@/lib/media/crm-media";
 import type { SessionUser } from "@/lib/auth/session";
 
 async function resolveOwnedListing(
@@ -22,13 +22,13 @@ async function resolveOwnedListing(
   if (!isNaN(numericId)) {
     listing = await prisma.listing.findUnique({
       where: { id: BigInt(numericId) },
-      select: { id: true, listing_id: true, agent_id: true, media: true },
+      select: { id: true, listing_id: true, agent_id: true, media: true, last_synced_from_trestle: true },
     });
   }
   if (!listing) {
     listing = await prisma.listing.findUnique({
       where: { listing_id: id },
-      select: { id: true, listing_id: true, agent_id: true, media: true },
+      select: { id: true, listing_id: true, agent_id: true, media: true, last_synced_from_trestle: true },
     });
   }
   if (!listing) return { error: NextResponse.json({ error: "Listing not found" }, { status: 404 }) };
@@ -71,10 +71,12 @@ export async function DELETE(
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
   }
 
-  await prisma.listing.update({
-    where: { id: listing.id },
-    data: { modification_timestamp: new Date() },
-  });
+  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // CRM-only exclusives keep the touch. See crmListingTouchData.
+  const touch = crmListingTouchData(listing.last_synced_from_trestle);
+  if (touch) {
+    await prisma.listing.update({ where: { id: listing.id }, data: touch });
+  }
 
   await logAuditEvent(
     "delete",
@@ -155,10 +157,12 @@ export async function PATCH(
     }),
   ]);
 
-  await prisma.listing.update({
-    where: { id: listing.id },
-    data: { modification_timestamp: new Date() },
-  });
+  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // CRM-only exclusives keep the touch. See crmListingTouchData.
+  const touch = crmListingTouchData(listing.last_synced_from_trestle);
+  if (touch) {
+    await prisma.listing.update({ where: { id: listing.id }, data: touch });
+  }
 
   await logAuditEvent(
     "update",

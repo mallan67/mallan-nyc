@@ -28,6 +28,7 @@ import {
   crmMediaType,
   crmMediaCategory,
   crmMediaClassification,
+  crmListingTouchData,
   importJsonMediaToRows,
 } from "@/lib/media/crm-media";
 
@@ -270,11 +271,14 @@ export async function POST(
       });
   const restored = !!existingRow;
 
-  // Touch the listing so ISR/edit-load see the change (legacy JSON left intact).
-  await prisma.listing.update({
-    where: { id: listing.id },
-    data: { modification_timestamp: new Date() },
-  });
+  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // CRM-only exclusives keep the touch (legacy JSON left intact either way).
+  // The old "ISR sees the change" rationale was inert — detail pages are
+  // time-based ISR (revalidate=300), not MT-triggered.
+  const touch = crmListingTouchData(listing.last_synced_from_trestle);
+  if (touch) {
+    await prisma.listing.update({ where: { id: listing.id }, data: touch });
+  }
 
   await logAuditEvent(
     "media_upload",
