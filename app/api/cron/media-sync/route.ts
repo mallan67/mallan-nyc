@@ -96,6 +96,15 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // P1C5 (queued from RC5): ghosts are otherwise invisible in runtime logs —
+    // the JSON below is RETURNED to the cron invoker, never logged. One line
+    // when >0 makes skipped ghosts greppable in Vercel runtime logs.
+    if (result.ghost_listings_skipped > 0) {
+      console.log(
+        `[media-sync] ghost listings skipped: ${result.ghost_listings_skipped} (${result.ghost_listing_ids.join(", ")})`,
+      );
+    }
+
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     // Defensive — any unexpected throw escapes runMediaSync()'s internal
