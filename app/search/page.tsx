@@ -988,9 +988,20 @@ function SearchClient() {
               />
             </div>
 
-            {/* Count */}
+            {/* Count — the API's TOTAL match count, not the loaded-page length
+                (sortedListings.length capped the label at the 50-row first page).
+                Codex #384: the API total predates post-filters (amenities/keywords/
+                open-house...), so once every page is loaded (!hasMore) the loaded
+                length IS the exact post-filtered count and wins; while more pages
+                remain, the API total is the best available figure (exact
+                post-filtered totals = ledger S2, API-side). */}
             <p className="text-xs sm:text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium shrink-0" aria-live="polite">
-              {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
+              {loading
+                ? 'Searching...'
+                : (() => {
+                    const count = !hasMore ? sortedListings.length : (total ?? sortedListings.length);
+                    return `${count.toLocaleString()} ${count === 1 ? 'property' : 'properties'}`;
+                  })()}
             </p>
 
             {(activeFilterPills.length > 0 || searchQuery) && (
