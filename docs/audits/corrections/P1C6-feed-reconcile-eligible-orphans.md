@@ -54,7 +54,14 @@
   and counted. `mediaCount=0` → **clean no-media outcome**: no upsert, NO faked photos, counted
   in `orphans_no_media` (P1C5's `no_image_any_layer` then reports it truthfully).
 - New response/audit fields: `trestle_eligible_nonactive`, `orphans_with_media`,
-  `orphans_no_media`, `orphan_media_errors`; per-orphan audit gains `standard_status`.
+  `orphans_no_media`, `orphans_media_gated`, `orphan_media_errors`; per-orphan audit gains
+  `standard_status`.
+- **Tristle blocking correction (applied):** the media write is conditioned on
+  `gates.displayable` — a gate-blocked orphan (Owner Opt-Out / Participant-Only /
+  display-blocked / terminal) gets its listing row created `gated:` but **ZERO media rows**
+  (the Phase-3 R2 mirror has no compliance join; writing them would mirror a blocked listing's
+  photos to the public bucket — the 2026-04-30 incident class). Counted separately as
+  `orphans_media_gated` (a compliance skip, not a clean no-media outcome). Test-pinned.
 - `lib/idx/fetch.ts` comment scope-corrected (the 400 is THIS-function's form; the
   inner-$filter form live-proven 200; **L13 REFUTED** recorded).
 
@@ -63,7 +70,9 @@
   new `tests/runtime/feed-reconcile-c6.test.ts` · this Trace Record.
 - **MUST NOT touch:** `lib/idx/media-sync.ts` (consumed as-is) · ghost-transition logic ·
   abort caps (the designed guardrails — if the first broadened run exceeds ORPHAN_ABORT_CAP=500,
-  the route aborts safely + alerts brokers, by design) · schema · cron config · cleanup/R2/backfill.
+  the route aborts with a 503 + console.error; **tristle correction: only the GHOST-cap abort
+  sends broker alerts + an audit row — the orphan-cap abort does not**; alerting parity is a
+  candidate follow-up, NOT this PR) · schema · cron config · cleanup/R2/backfill.
 
 ## 4. Compliance pre-read (§D)
 Created orphans flow through the same `validateRequiredFields` + `checkDistributionGates` +

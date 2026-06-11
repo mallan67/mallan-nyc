@@ -296,6 +296,7 @@ export async function GET(req: NextRequest) {
     let orphansErrored = 0;
     let orphansWithMedia = 0;
     let orphansNoMedia = 0;
+    let orphansMediaGated = 0;
     let orphanMediaErrors = 0;
     for (let i = 0; i < orphans.length; i += ORPHAN_FETCH_BATCH) {
       const batchIds = orphans.slice(i, i + ORPHAN_FETCH_BATCH);
@@ -379,7 +380,16 @@ export async function GET(req: NextRequest) {
             const rawMedia = Array.isArray(raw.Media)
               ? (raw.Media as UpsertListingMediaInput[])
               : [];
-            if (rawMedia.length > 0) {
+            if (!gates.displayable && rawMedia.length > 0) {
+              // Tristle P1C6 (blocking): NEVER write media rows for a gated
+              // orphan (Owner Opt-Out / Participant-Only / display-blocked /
+              // terminal). The Phase-3 R2 mirror has no compliance join, so
+              // gated rows would be mirrored to the PUBLIC bucket — trusting
+              // the IDX Plus pre-filter here is the 2026-04-30 incident
+              // class. Counted separately: this is a compliance skip, not a
+              // clean no-media-at-source outcome.
+              orphansMediaGated++;
+            } else if (rawMedia.length > 0) {
               try {
                 await upsertListingMedia(String(raw.ListingId), rawMedia, {
                   photosChangeTsSnapshot:
@@ -495,6 +505,7 @@ export async function GET(req: NextRequest) {
       trestle_eligible_nonactive: trestleNonActiveEligible.size,
       orphans_with_media: orphansWithMedia,
       orphans_no_media: orphansNoMedia,
+      orphans_media_gated: orphansMediaGated,
       orphan_media_errors: orphanMediaErrors,
       duration_ms: Date.now() - startTime,
     });

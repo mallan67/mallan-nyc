@@ -58,10 +58,16 @@ jest.mock('@/lib/idx/auth', () => ({
   getAccessToken: jest.fn(async () => 'test-token'),
 }));
 
+const GATED_ID = 'RLS-GATED';
+
 jest.mock('@/lib/idx/trestle-mapper', () => ({
   __esModule: true,
   validateRequiredFields: jest.fn(() => ({ valid: true, missingFields: [] })),
-  checkDistributionGates: jest.fn(() => ({ displayable: true, reason: null })),
+  checkDistributionGates: jest.fn((raw: Record<string, unknown>) =>
+    String(raw.ListingId) === 'RLS-GATED'
+      ? { displayable: false, reason: 'owner_opt_out' }
+      : { displayable: true, reason: null },
+  ),
   mapTrestleToPrisma: jest.fn((raw: Record<string, unknown>) => ({
     listing_id: String(raw.ListingId),
     mls_id: String(raw.ListingId),
@@ -122,12 +128,23 @@ beforeEach(() => {
           ],
         },
         { ListingId: PENDING_NO_MEDIA, StandardStatus: 'Pending', Media: [] },
+        {
+          // Gate-blocked orphan WITH media — its photos must NEVER reach
+          // listing_media (the R2 mirror has no compliance join).
+          ListingId: GATED_ID, StandardStatus: 'Pending',
+          Media: [{ MediaKey: 'MK-G', MediaURL: 'https://cdn/g.jpg', MediaCategory: 'Photo', MediaStatus: 'Active', Order: 1 }],
+        },
       ]);
     }
     if (url.includes('Pending')) {
       // Eligible-non-active id page — includes RLS-GHOST to prove ghost
       // semantics stay Active-only
-      return ok([{ ListingId: PENDING_WITH_MEDIA }, { ListingId: PENDING_NO_MEDIA }, { ListingId: 'RLS-GHOST' }]);
+      return ok([
+        { ListingId: PENDING_WITH_MEDIA },
+        { ListingId: PENDING_NO_MEDIA },
+        { ListingId: GATED_ID },
+        { ListingId: 'RLS-GHOST' },
+      ]);
     }
     // Active id page
     return ok([{ ListingId: 'RLS-A1' }]);
@@ -150,7 +167,19 @@ describe('P1C6 — eligible-orphan import (RED on main: Active-only diff)', () =
     const createdIds = createdListings.map((d) => d.listing_id);
     expect(createdIds).toContain(PENDING_WITH_MEDIA);
     expect(createdIds).toContain(PENDING_NO_MEDIA);
-    expect(json.orphans_created).toBe(2);
+    expect(json.orphans_created).toBe(3);
+  });
+
+  it('TRISTLE BLOCKER: gate-blocked orphan with media → listing created gated:, ZERO media rows written, counted as compliance skip (not no-media)', async () => {
+    const res = await call();
+    const json = await readJson<Record<string, number>>(res);
+    const gated = createdListings.find((d) => d.listing_id === GATED_ID);
+    expect(gated).toBeDefined();
+    expect(String(gated!.sync_status)).toContain('gated:');
+    expect(upsertCalls.map((c) => c.id)).not.toContain(GATED_ID);
+    expect(summaryCalls).not.toContain(GATED_ID);
+    expect(json.orphans_media_gated).toBe(1);
+    expect(json.orphans_no_media).toBe(1); // the clean-no-media case stays distinct
   });
 
   it('media-bearing orphan → listing_media populated via the hardened upsert, NEVER tombstoning from the inline payload', async () => {
