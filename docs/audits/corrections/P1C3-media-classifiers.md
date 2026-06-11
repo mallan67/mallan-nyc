@@ -33,9 +33,11 @@
   `app/api/agents/[slug]/listings/route.ts` (batchFetchPhotos loop → helper call) · new
   `lib/idx/agent-card-media.ts` (pure helper; route files cannot export helpers) · new
   `lib/idx/__tests__/media-classification-p1c3.test.ts` · this Trace Record.
-- **Transitive (declared):** every `mapRESOToInternal` caller — detail Trestle-direct path +
-  search Trestle-merge branch; inert on cron writes (`useExpandMedia=false` → `Media` absent →
-  media `[]`); bites only where Media is present inline + the agent live-batch path.
+- **Transitive (declared; tristle-completed caller set):** every `mapRESOToInternal` caller —
+  `app/api/listings/route.ts:813` (search Trestle-merge) · `app/listing/[...slug]/page.tsx:234`
+  (detail) · `app/api/listings/[id]/route.ts` (detail API) · the agents route. All read/render
+  paths — NO cron writer calls this mapper (idx-sync uses `mapTrestleToPrisma`), so the change is
+  fully inert on writes; `cacheListingPhotosToR2` is dormant (zero callers).
   **Declared behavior change:** Videos/VirtualTours no longer masquerade as agent-card photos.
 - **MUST NOT touch:** `classifyTrestleMediaCategory` itself · `buildMediaR2Key` · the resolver ·
   TABLE/JSON writers · gates/status logic · schema · cron/env.
@@ -50,11 +52,26 @@ or status change. Floorplans-not-hero matches the canonical resolver's hero rule
 | 1 | RED | `media-classification-p1c3.test.ts` | RED: 2 failed on mapping.ts (FloorPlan→Photo-and-first; VirtualTour→Photo); helper cases RED-by-absent-module | ✅ RED |
 | 2 | fix: classifier swap + helper extraction + route wiring | 3 files | diff | ✅ |
 | 3 | GREEN + mapping regression | jest | new 7/7 · with `c1-classification` + `c1-mapping-idx-plus` = **26/26** | ✅ GREEN |
-| 4 | harness | B0 chain | (filled at commit) |
-| 5 | gates · B2 LIVE proof (M3 requirement) | §5/§6 | before/after probe of `/api/agents/[slug]/listings` media[0] | (pending) |
+| 4 | harness | B0 chain | type-check 0 · test:runtime **2112/2112** · ucba 46/46 0 regr · rls 0 err (1 pre-existing warning — correct: rentals can't be ComingSoon) · compliance-check 92/0 · idx 1 known critical (CI3, "delta +0" per the validator's own run history) | ✅ |
+| 5 | gates | §5/§6 | tristle PASS · security PASS (0 findings) · rebny-search PASS (13/13 categories) | ✅ |
+| 6 | B2 LIVE proof (M3 settlement requirement) | before/after capture | production BEFORE snapshot captured 2026-06-11 (no FloorPlan subject in the current live batch); **AFTER capture pending-until-subject — per tristle, ANY displayable listing with a FloorPlan/VirtualTour Media record on the Trestle-direct path qualifies** | ⏳ M3 stays IN-PR post-merge |
 
 ## 5. Gate results
-(pending)
+| Gate | Result |
+|---|---|
+| B2 (fix claim) | behavioral RED→GREEN 7/7 + regression 26/26 — satisfies §F for the FIX; the M3 LEDGER settlement additionally requires the live capture (ledger header: "live proof attached") |
+| C1/C2 micro/macro | PASS (5 files, radius matched) |
+| security-agent | **PASS, 0 findings** — public route's token/query untouched context; helper sees no request-derived data; output strictly narrowed; fail-safe in both directions |
+| tristle | **PASS, merge permitted; M3 must NOT settle on merge** — metadata enum verified at source (§J.4); behavior change matches the established card policy (`listing-card-media.ts REJECTED_MEDIA_TYPES`) instead of diverging; caller set completed (4 callers, all read paths, zero writers) |
+| rebny-search auditor | **PASS, 13/13 categories** — picklist-CORRECTING fix; `photosCount` becomes accurate; search ranking/composition untouched |
 
 ## 6. Sign-offs
-(pending)
+- **micro/macro PASS · security PASS · tristle PASS · rebny-search PASS** (2026-06-11, `8abc9597`).
+- **Codex:** on PR open. · **Maya merge:** standing queue approval; merges on green CI.
+- **M3 settlement condition (tristle ruling, binding):** ledger row M3 flips to SETTLED only when
+  the live before/after capture is attached — first qualifying subject wins (agent batch OR any
+  Trestle-direct detail render with FloorPlan media).
+- **Queued follow-ups surfaced by the gates:** third inline classifier at `lib/idx/fetch.ts:534-541`
+  (works, but consolidation candidate — divergence species this PR closes) · classifier's
+  unknown-members→Photo default (pre-existing, future hardening candidate) · smoke-baseline drift
+  + CI3 already tracked.
