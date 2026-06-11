@@ -48,10 +48,18 @@
 | 6 | gates | §4/§5 |
 
 ## 4. Gate results
-(pending)
+| Gate | Result |
+|---|---|
+| B2 | RED→GREEN 5/5 + **LIVE proof run** (production split rendered; legitimate-warn semantics confirmed during active drain) |
+| C1/C2 micro/macro | PASS (ops/tooling → code-reviewer routed) |
+| code-reviewer | **APPROVE, zero findings ≥80** — SQL interpolation safe (module-level integer literal, CLI script, no request surface); actionable/parked partition EXACT (union=total, intersection=∅); boundaries consistent SQL↔policy↔tests↔canonical `buildR2BacklogWhere`; report JSON backward-compatible (additive only); drift guard genuinely binds both sides under the runtime jest config |
 
 ## 5. Sign-offs
-(pending)
+- **micro/macro PASS · code-reviewer APPROVE** (2026-06-11, `c39973e9`). No §D surface → tristle
+  N/A per the macro gate's own routing (internal DB-health telemetry).
+- **Codex:** on PR open. · **Maya merge:** standing queue approval; merges on green CI.
+- Cosmetic notes from review (sub-80, not blocking): redundant-but-harmless IS NOT NULL guards
+  (kept for parity); the type-anchor import in the drift test (conventional underscore).
 
 ## 6. Live observations recorded for the program (2026-06-11T14:22Z)
 - Cursor `2026-05-27T21:19:53Z` — drain advancing (~12 days of backlog left); coverage 39.7%.
