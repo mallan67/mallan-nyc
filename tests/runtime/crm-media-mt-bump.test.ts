@@ -83,6 +83,10 @@ describe('P1C4 — crmListingTouchData (pure)', () => {
     expect(touch).not.toBeNull();
     expect(touch!.modification_timestamp).toBeInstanceOf(Date);
   });
+
+  it('fail-closed: undefined (caller forgot the select — sync state UNKNOWN) → no touch', () => {
+    expect(crmListingTouchData(undefined)).toBeNull();
+  });
 });
 
 describe('P1C4 — media-order route', () => {

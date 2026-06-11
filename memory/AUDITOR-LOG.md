@@ -656,3 +656,19 @@ blocker for this PR.
 - Tests — route-level mocked Trestle+Prisma: asserts UPDATE payload OMITS `media` key (RC2 contract) and CREATE still writes `media`. RED→GREEN behavioral.
 
 **Critical: 0 · High: 0 · Medium: 0 · Low: 0 (1 pre-existing destructive-design item out of scope, OQ-1). Blocking deployment: No.**
+
+---
+
+## SECURITY GATE — 2026-06-11 — P1C4 CRM media MT-bump scope (branch `fix/p1c4-crm-media-mt-bump`, HEAD 559e2acb)
+
+**Scope:** Committed diff vs main, 6 files. Additive pure helper `crmListingTouchData` (`lib/media/crm-media.ts`) + 3 CRM media routes swapping an unconditional `prisma.listing.update({data:{modification_timestamp:new Date()}})` for a guarded `const touch = crmListingTouchData(listing.last_synced_from_trestle); if (touch) await prisma.listing.update(...)`; each route's `select` widened by `last_synced_from_trestle`. + 1 test + 1 doc.
+**Trigger:** Pre-merge release gate.
+**Verdict: PASS ✅ — Critical 0 · High 0 · Medium 0 · Low 0. Non-blocking.**
+
+- **AuthN/AuthZ unchanged, correct order (all 4 verbs):** every diff hunk lands AFTER `assertWriteAllowed` → `requireAgentOrBroker` → 404 → ownership 403. media-order touch@99 (auth 12-16, 404@41, own@46); [mediaId] DELETE touch@76 / PATCH touch@162 (both gate `isCrmMediaKey` then `resolveOwnedListing` 404+own@34-37, `.toUpperCase()`); upload touch@278 (auth 49-52, 404@69, own@74). No reorder/bypass.
+- **No new input flow:** helper arg is DB-read column `last_synced_from_trestle` (DateTime?), never request-derived. Widened selects are server-side only; grep confirms the column appears ONLY in `select`/helper-arg, NEVER in any `NextResponse.json` body. Not PII. No leak.
+- **Secrets/env/header/cookie/middleware/dependency:** none changed.
+- **Skip-write abuse (Q4):** the touch is display/sync bookkeeping (sitemap `lastModified`, IDX disclaimer `lastUpdated`, portal ordering, ISR), NOT authz/session/audit-retention. `modification_timestamp` absent from `lib/auth` entirely. `logAuditEvent` still fires unconditionally per action, independent of the touch. Nothing security-relevant depended on the unconditional bump. The change is a *correctness* fix — closes a cursor-poison vector where bumping MT to local NOW on a Trestle-synced row advanced the idx-sync incremental cursor (`MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL`, `getLastSyncTimestamp` sync.ts:1033) and skipped unprocessed feed records.
+- **Note (pre-existing, not introduced):** `media-order` ownership uses exact-case `=== "BROKER"` (FAIL-CLOSED; lowercase-broker denied, never over-permitted). `[mediaId]` + `upload` use `.toUpperCase()`. Repo-wide casing LOW tracked separately.
+
+**Critical: 0 · High: 0 · Medium: 0 · Low: 0. Blocking deployment: No.**

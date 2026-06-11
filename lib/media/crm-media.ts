@@ -55,6 +55,11 @@ export function isCrmMediaKey(key: string | null | undefined): boolean {
 export function crmListingTouchData(
   lastSyncedFromTrestle: Date | null | undefined,
 ): { modification_timestamp: Date } | null {
+  // Fail-closed (tristle P1C4 observation): `undefined` means the caller did
+  // not SELECT the column — sync state UNKNOWN — so do NOT bump (a wrong skip
+  // costs one benign sitemap stamp; a wrong bump can skip feed records).
+  // Only an explicit NULL (provably CRM-only) earns the touch.
+  if (lastSyncedFromTrestle === undefined) return null;
   return lastSyncedFromTrestle ? null : { modification_timestamp: new Date() };
 }
 

@@ -55,11 +55,22 @@ MORE feed-true (fail-closed direction: local actions can no longer perturb feed 
 | 1 | RED (proven via stash of source fix; test kept) | `crm-media-mt-bump.test.ts` | RED: 4 failed (helper absent; reorder + delete bumped on synced; upload unconditional) / 2 passed (preserved-behavior cases, correct on main) | ✅ RED |
 | 2 | fix: pure helper + 4 sites through it + selects widened | 4 files | diff | ✅ |
 | 3 | GREEN | jest | **6/6**; companion cursor guards unchanged-green (verified in harness) | ✅ GREEN |
-| 4 | harness | B0 chain | (filled at commit) |
-| 5 | gate:micro/macro · tristle · security-agent · Codex | — | §5/§6 |
+| 4 | harness | B0 chain | type-check 0 · test:runtime **2111/2111** (2112 after the fail-closed case) · ucba 46/46 0 regr · rls 0 err (1 pre-existing warning) · compliance-check 92/0 · idx 1 known critical (CI3, unchanged) | ✅ |
+| 5 | gate:micro/macro · tristle · security-agent | — | all PASS, §5/§6 | ✅ |
+| 6 | tristle observation hardened | helper + test | `undefined` (caller forgot the select) now FAIL-CLOSED → no touch (a wrong skip costs one benign sitemap stamp; a wrong bump can skip feed records); new unit case | ✅ |
 
 ## 5. Gate results
-(pending)
+| Gate | Result |
+|---|---|
+| B2 proof | RED via source-stash (4 failed / 2 preserved-behavior passes) → GREEN 7/7 (incl. the post-gate fail-closed case); companion cursor suites 26/26 unchanged-green |
+| C1 gate:micro / C2 gate:macro | PASS (6 files; declared radius matched exactly) |
+| security-agent | **PASS, 0 findings at any severity** — auth chains untouched, column never serialized into any response, the touch gates nothing security-relevant (audit events fire unconditionally); characterized the fix as closing a silent feed-data-loss vector |
+| tristle | **PASS** — no gate/status/DTO/field-map change; behavior delta is a compliance IMPROVEMENT (skill §9.4: "last updated **from the MLS feed**" — the old bump overstated feed freshness on IDXDisclaimer + sitemap); CRM-only cohort preserved; W13 no-creep verified; preamble complete; smoke 211/11 pre-existing on main (separate Class-E item) |
 
 ## 6. Sign-offs
-(pending)
+- **gate:micro PASS · gate:macro PASS · security-agent PASS · tristle PASS** (2026-06-11, `559e2acb` + the fail-closed hardening commit).
+- **Tristle non-blocking observations:** #1 helper-undefined direction — HARDENED in this PR
+  (fail-closed, unit-tested) rather than JSDoc-only; #2 trace-record sections — filled here;
+  #3 smoke-baseline drift — pre-existing, tracked separately (Class E, CRM frontend HELD).
+- **Codex:** on PR open. · **Maya merge:** standing queue approval (Correction 4 GO,
+  2026-06-11); merges on green CI.
