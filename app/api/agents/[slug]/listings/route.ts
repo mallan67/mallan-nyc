@@ -317,7 +317,20 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     mediaParams.set('$filter', mediaFilter);
     mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus');
     mediaParams.set('$orderby', 'Order asc');
-    mediaParams.set('$top', String(needsPhotos.length * 4));
+    // Codex #389: classification happens CLIENT-side (mapAgentCardMedia keeps
+    // only canonical Photos), so the page needs headroom for the non-photo
+    // rows it will discard — at x4 a mixed batch could fill the page with
+    // floorplans/tours and starve later-sorted Photos. x10 bounds the worst
+    // realistic mix while staying a single page. A server-side
+    // `MediaCategory eq 'Photo'` $filter would be cleaner but enum
+    // filterability on this feed is UNPROVEN (Class B per CLAUDE.md §J —
+    // pending live probe Q3); do not add it without that proof.
+    // Codex #393: clamp to Trestle's documented max $top of 500
+    // (docs/architecture/COTALITY-COMPLETE-REFERENCE.md:348-350) — an
+    // over-limit request can be rejected, and this function's fail-soft
+    // `return` would then leave EVERY listing in the batch on placeholders.
+    // At the route's 100-listing ceiling the clamp still yields x5 headroom.
+    mediaParams.set('$top', String(Math.min(needsPhotos.length * 10, 500)));
 
     const resp = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },

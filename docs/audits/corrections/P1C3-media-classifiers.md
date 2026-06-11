@@ -65,6 +65,20 @@ or status change. Floorplans-not-hero matches the canonical resolver's hero rule
 | tristle | **PASS, merge permitted; M3 must NOT settle on merge** — metadata enum verified at source (§J.4); behavior change matches the established card policy (`listing-card-media.ts REJECTED_MEDIA_TYPES`) instead of diverging; caller set completed (4 callers, all read paths, zero writers) |
 | rebny-search auditor | **PASS, 13/13 categories** — picklist-CORRECTING fix; `photosCount` becomes accurate; search ranking/composition untouched |
 
+## 5b. Post-merge Codex amendment (2026-06-11, branch fix/p1c3-card-batch-headroom)
+Codex on #389 (accepted): classification moved client-side, but the Media batch `$top` stayed at
+`needsPhotos.length * 4` — a mixed page could fill with discarded non-photo rows and starve
+later-sorted Photos (placeholder on cards despite valid Photos existing). Fix: ×10 headroom
+(single page, bounded). The cleaner server-side `MediaCategory eq 'Photo'` $filter is **Class B —
+enum filterability UNPROVEN on this feed** (the InternetEntireListingDisplayYN lesson) — added as
+**Q3 to the operator probe** (`scripts/__c6-feed-reconcile-probe.mjs`); adopt it in a follow-up
+only on a proven 200. Structural lock pins ×10 AND the absence of the unproven filter.
+Blast radius: the agents route line + the p1c3 test + this record.
+**Amendment gates (2026-06-11, `fa4a2bff`):** tristle PASS (query strings byte-identical except
+$top; Class-B discipline verified real — probe Q3 exists) · rebny-search PASS (single caller;
+bounded ≤1000/single page; ×10 covers Order-collisions ×4 could not). Non-blocking F1 (lock-regex
+same-line evasion) + F2 (confirm Media page cap in Q3) recorded for the Q3 follow-up.
+
 ## 6. Sign-offs
 - **micro/macro PASS · security PASS · tristle PASS · rebny-search PASS** (2026-06-11, `8abc9597`).
 - **Codex:** on PR open. · **Maya merge:** standing queue approval; merges on green CI.
