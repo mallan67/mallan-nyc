@@ -67,6 +67,7 @@ if (!process.env.DATABASE_URL) {
 
 const { PrismaClient } = require('@prisma/client');
 const { deriveBranchPruneIssues } = require('./branch-prune-health');
+const { R2_RETRY_EXHAUSTED_THRESHOLD, classifyR2RetryBacklog } = require('./r2-retry-health');
 const prisma = new PrismaClient();
 
 const JSON_OUT = process.argv.includes('--json');
@@ -105,8 +106,8 @@ const THRESHOLDS = {
   listing_media_coverage_warn_pct: 50,               // < 50% of IDX-displayable have listing_media rows
   listing_media_coverage_critical_pct: 30,
   r2_cached_coverage_warn_pct: 40,                   // < 40% have media_url_cached on listing_media
-  r2_attempts_backlog_warn: 50,                      // > 50 rows with r2_attempts > 0
-  r2_attempts_backlog_critical: 500,
+  // r2 retry-backlog thresholds moved to scripts/r2-retry-health.js (Lane-D
+  // actionable/parked split; drift-guarded against lib/idx/media-sync).
   no_usable_image_warn: 1000,                        // > 1K IDX-displayable have empty media
   no_usable_image_critical: 5000,
   listings_dead_tuple_warn_pct: 20,                  // listings table dead-tuple ratio > 20%
@@ -562,32 +563,35 @@ async function run() {
       });
     }
 
-    // R2 retry backlog — listing_media rows currently in or near tombstone window.
+    // R2 retry backlog — Lane-D split (RC3 §10 follow-up): ACTIONABLE rows
+    // (still in the Phase-3 retry budget) drive the historical 50/500 alarms;
+    // PARKED retry-exhausted rows (r2_attempts >= 8, intentionally not
+    // retried, still displayable via proxy) get a separate fail-closed growth
+    // guard. Legacy total retained for continuity. Threshold mirrors
+    // lib/idx/media-sync R2_RETRY_EXHAUSTED_THRESHOLD via the drift-guarded
+    // scripts/r2-retry-health module.
     const [retryRow] = await prisma.$queryRawUnsafe(`
       SELECT
         (COUNT(*) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND status = 'active'))::int AS rows_with_attempts,
+        (COUNT(*) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND r2_attempts < ${R2_RETRY_EXHAUSTED_THRESHOLD} AND status = 'active'))::int AS rows_actionable,
+        (COUNT(*) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts >= ${R2_RETRY_EXHAUSTED_THRESHOLD} AND status = 'active'))::int AS rows_parked,
         (COUNT(*) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts >= 3 AND status = 'active'))::int AS rows_at_or_above_threshold,
         MIN(r2_last_attempt_at) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND status = 'active') AS oldest_last_attempt,
         MAX(r2_last_attempt_at) FILTER (WHERE r2_attempts IS NOT NULL AND r2_attempts > 0 AND status = 'active') AS newest_last_attempt
       FROM listing_media
     `);
     report.media_sync.r2_retry_backlog = Number(retryRow.rows_with_attempts);
+    report.media_sync.r2_retry_backlog_actionable = Number(retryRow.rows_actionable);
+    report.media_sync.r2_retry_parked = Number(retryRow.rows_parked);
     report.media_sync.r2_above_tombstone_threshold = Number(retryRow.rows_at_or_above_threshold);
     report.media_sync.r2_retry_backlog_oldest = retryRow.oldest_last_attempt;
     report.media_sync.r2_retry_backlog_newest = retryRow.newest_last_attempt;
-    if (Number(retryRow.rows_with_attempts) >= THRESHOLDS.r2_attempts_backlog_critical) {
-      report.issues.push({
-        level: 'critical',
-        category: 'media-sync',
-        msg: `${retryRow.rows_with_attempts} listing_media rows have r2_attempts > 0 (critical >= ${THRESHOLDS.r2_attempts_backlog_critical})`,
-      });
-    } else if (Number(retryRow.rows_with_attempts) > THRESHOLDS.r2_attempts_backlog_warn) {
-      report.issues.push({
-        level: 'warning',
-        category: 'media-sync',
-        msg: `${retryRow.rows_with_attempts} listing_media rows have r2_attempts > 0 (warn > ${THRESHOLDS.r2_attempts_backlog_warn})`,
-      });
-    }
+    report.issues.push(
+      ...classifyR2RetryBacklog({
+        actionable: Number(retryRow.rows_actionable),
+        parked: Number(retryRow.rows_parked),
+      }),
+    );
   } catch (e) {
     if (e.message?.includes('does not exist')) {
       report.media_sync.state = 'pre_migration';
@@ -784,7 +788,7 @@ function renderHuman(r) {
       if (ms.r2_retry_backlog !== undefined) {
         const oldest = ms.r2_retry_backlog_oldest ? new Date(ms.r2_retry_backlog_oldest).toISOString().slice(0, 19) + 'Z' : 'n/a';
         const newest = ms.r2_retry_backlog_newest ? new Date(ms.r2_retry_backlog_newest).toISOString().slice(0, 19) + 'Z' : 'n/a';
-        console.log(`  R2 retry backlog: ${ms.r2_retry_backlog} rows w/ r2_attempts>0 (${ms.r2_above_tombstone_threshold} ≥ 3-strike threshold) · oldest=${oldest} newest=${newest}`);
+        console.log(`  R2 retry backlog: actionable=${ms.r2_retry_backlog_actionable} · parked=${ms.r2_retry_parked} (exhausted ≥${R2_RETRY_EXHAUSTED_THRESHOLD}, displayable via proxy) · total=${ms.r2_retry_backlog} · oldest=${oldest} newest=${newest}`);
       }
     }
   }
