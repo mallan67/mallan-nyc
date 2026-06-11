@@ -260,6 +260,9 @@ describe("upsertListingMedia — Checkpoint 2", () => {
         listing_id: "RLS20012345",
         status: "active",
         media_key: { notIn: ["MK-1"] },
+        // P1C2: crm:-namespace rows are CRM-owned and absent from every
+        // Trestle set by design — never "vanished at source".
+        NOT: { media_key: { startsWith: "crm:" } },
       },
       data: { status: "deleted" },
     });
@@ -275,9 +278,14 @@ describe("upsertListingMedia — Checkpoint 2", () => {
     );
 
     expect(result.tombstoned).toBe(7);
-    // Special path: with no `media_key` filter when seenKeys is empty.
+    // Special path: no `media_key.notIn` filter when seenKeys is empty —
+    // but the P1C2 crm: exclusion still applies (CRM rows never feed-tombstone).
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { listing_id: "RLS20012345", status: "active" },
+      where: {
+        listing_id: "RLS20012345",
+        status: "active",
+        NOT: { media_key: { startsWith: "crm:" } },
+      },
       data: { status: "deleted" },
     });
   });
@@ -304,6 +312,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       listing_id: "RLS20012345",
       status: "active",
       media_key: { notIn: ["MK-LIVE", "MK-DEAD"] },
+      NOT: { media_key: { startsWith: "crm:" } },
     });
   });
 

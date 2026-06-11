@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { importJsonMediaToRows } from "@/lib/media/crm-media";
+import { importJsonMediaToRows, isCrmMediaKey } from "@/lib/media/crm-media";
 
 export async function PATCH(
   req: NextRequest,
@@ -58,13 +58,24 @@ export async function PATCH(
   // actually reads (replaces the old raw_data.media_order, which the resolver
   // ignored). Scoped to THIS listing so a stray key can't reorder another
   // listing's media.
-  const updates = ordered_media_ids.map((mediaKey, index) =>
+  // P1C2: CRM ordering applies ONLY to the `crm:` namespace. Trestle feed rows'
+  // `order` is owned by media-sync (rewritten from the feed on every complete
+  // set), so writing it here just ping-pongs and silently reverts the agent's
+  // edit. Skipped feed keys are REPORTED, never silently dropped.
+  const crmOrdered: Array<{ key: string; index: number }> = [];
+  const skippedTrestleKeys: string[] = [];
+  ordered_media_ids.forEach((mediaKey, index) => {
+    if (isCrmMediaKey(mediaKey)) crmOrdered.push({ key: mediaKey, index });
+    else skippedTrestleKeys.push(mediaKey);
+  });
+
+  const updates = crmOrdered.map(({ key, index }) =>
     prisma.listingMedia.updateMany({
-      where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+      where: { media_key: key, listing_id: listing.listing_id, status: "active" },
       data: { order: index },
     })
   );
-  const results = await prisma.$transaction(updates);
+  const results = updates.length > 0 ? await prisma.$transaction(updates) : [];
   const updatedCount = results.reduce((n, r) => n + r.count, 0);
 
   await prisma.listing.update({
@@ -77,7 +88,12 @@ export async function PATCH(
     "listing",
     id,
     auth,
-    { field: "media_order", media_count: ordered_media_ids.length, rows_updated: updatedCount },
+    {
+      field: "media_order",
+      media_count: ordered_media_ids.length,
+      rows_updated: updatedCount,
+      trestle_keys_skipped: skippedTrestleKeys.length,
+    },
     ipAddress
   );
 
@@ -85,5 +101,6 @@ export async function PATCH(
     listing_id: id,
     media_order: ordered_media_ids,
     rows_updated: updatedCount,
+    skipped_trestle_keys: skippedTrestleKeys,
   });
 }
