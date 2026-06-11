@@ -46,6 +46,10 @@ describe('P1C5 — structural locks (secondary guards, never the only proof)', (
     expect(src).toContain('json_empty_table_served');
     expect(src).toContain('no_image_any_layer');
     expect(src).toContain('deriveImageIssues');
+    // Codex #391: "table-served" must mean a row that can actually supply a
+    // CARD image — an active URL-bearing Photo row, not any active row (a
+    // FloorPlan/Video-only listing still renders the placeholder).
+    expect(src).toMatch(/lm\.media_type = 'Photo' AND COALESCE\(lm\.media_url_cached, lm\.media_url_original\) IS NOT NULL/);
     // Legacy fields retained — re-labeled, never hidden.
     expect(src).toContain('first_image_empty');
     expect(src).toContain('first_image_table_served');
