@@ -68,6 +68,7 @@ if (!process.env.DATABASE_URL) {
 const { PrismaClient } = require('@prisma/client');
 const { deriveBranchPruneIssues } = require('./branch-prune-health');
 const { R2_RETRY_EXHAUSTED_THRESHOLD, classifyR2RetryBacklog } = require('./r2-retry-health');
+const { deriveImageIssues } = require('./media-image-health');
 const prisma = new PrismaClient();
 
 const JSON_OUT = process.argv.includes('--json');
@@ -108,8 +109,8 @@ const THRESHOLDS = {
   r2_cached_coverage_warn_pct: 40,                   // < 40% have media_url_cached on listing_media
   // r2 retry-backlog thresholds moved to scripts/r2-retry-health.js (Lane-D
   // actionable/parked split; drift-guarded against lib/idx/media-sync).
-  no_usable_image_warn: 1000,                        // > 1K IDX-displayable have empty media
-  no_usable_image_critical: 5000,
+  // no-usable-image thresholds moved to scripts/media-image-health.js (P1C5
+  // table-aware split; the alarm keys off no_image_any_layer).
   listings_dead_tuple_warn_pct: 20,                  // listings table dead-tuple ratio > 20%
   listings_dead_tuple_critical_pct: 35,
 };
@@ -480,6 +481,14 @@ async function run() {
           WHERE media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0
         ))::int AS empty_media,
         (COUNT(*) FILTER (
+          WHERE (media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0)
+            AND EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id = listings.listing_id AND lm.status = 'active')
+        ))::int AS json_empty_table_served,
+        (COUNT(*) FILTER (
+          WHERE (media IS NULL OR jsonb_typeof(media) != 'array' OR jsonb_array_length(media) = 0)
+            AND NOT EXISTS (SELECT 1 FROM listing_media lm WHERE lm.listing_id = listings.listing_id AND lm.status = 'active')
+        ))::int AS no_image_any_layer,
+        (COUNT(*) FILTER (
           WHERE jsonb_typeof(media) = 'array' AND jsonb_array_length(media) > 0
             AND (
               COALESCE(media->0->>'url', media->0->>'MediaURL', '') LIKE '%r2.dev%'
@@ -515,21 +524,17 @@ async function run() {
     // Conservative lower bound on "no usable image": only the empty-media set
     // is definitively unusable. Trestle-proxy URLs may still render via the
     // proxy if Trestle hasn't rotated them; R2 URLs are stable.
-    report.media_sync.idx_displayable_no_usable_image_lower_bound = Number(imgRow.empty_media);
-    if (Number(imgRow.empty_media) >= THRESHOLDS.no_usable_image_critical) {
-      report.issues.push({
-        level: 'critical',
-        category: 'media-sync',
-        msg: `${imgRow.empty_media} IDX-displayable listings have empty media (placeholder rendered) — critical >= ${THRESHOLDS.no_usable_image_critical}`,
-      });
-    } else if (Number(imgRow.empty_media) >= THRESHOLDS.no_usable_image_warn) {
-      report.issues.push({
-        level: 'warning',
-        category: 'media-sync',
-        msg: `${imgRow.empty_media} IDX-displayable listings have empty media (warn >= ${THRESHOLDS.no_usable_image_warn})`,
-      });
-    }
-
+    // P1C5 (L11): the ALARM keys off no_image_any_layer — the real render-path
+    // placeholder count (JSON empty AND no active listing_media row). The
+    // legacy JSON-empty count stays reported (lower_bound semantics now: it is
+    // an UPPER bound on JSON-layer emptiness, not render-path truth) so the
+    // table-served residue stays observable — re-labeled, never hidden.
+    report.media_sync.first_image_table_served = Number(imgRow.json_empty_table_served);
+    report.media_sync.no_image_any_layer = Number(imgRow.no_image_any_layer);
+    report.media_sync.idx_displayable_no_usable_image_lower_bound = Number(imgRow.no_image_any_layer);
+    report.issues.push(
+      ...deriveImageIssues({ noImageAnyLayer: Number(imgRow.no_image_any_layer) }),
+    );
     // R2 mirror progress — last 24h (from media_sync_cron audit events).
     const [r2_24h] = await prisma.$queryRawUnsafe(`
       SELECT
@@ -779,6 +784,8 @@ function renderHuman(r) {
         console.log(`  First image classification (media->0 ‘url’ / ‘MediaURL’ on IDX-displayable):`);
         console.log(`    R2 URL:           ${ms.first_image_r2}`);
         console.log(`    Trestle/proxy:    ${ms.first_image_trestle_proxy}`);
+        console.log(`    JSON-empty but TABLE-served: ${ms.first_image_table_served} (renders fine via listing_media — not alarmed)`);
+        console.log(`    NO image any layer: ${ms.no_image_any_layer} (true placeholder count — drives the alarm)`);
         console.log(`    other URL host:   ${ms.first_image_other ?? 0}`);
         console.log(`    empty (no image): ${ms.first_image_empty}`);
       }
