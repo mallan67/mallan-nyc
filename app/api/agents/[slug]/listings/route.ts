@@ -7,6 +7,7 @@ import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { getAccessToken } from '@/lib/idx/auth';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
+import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import type { IDXListing } from '@/lib/idx/types';
 
 /**
@@ -327,21 +328,11 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     const data = await resp.json();
     const records = data.value || [];
 
-    const byKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
-    for (const m of records) {
-      // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
-      const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || '');
-      if (!mkey || !m.MediaURL) continue;
-      const cat = String(m.MediaCategory || '').toLowerCase();
-      if (cat.includes('floor plan')) continue; // Skip floorplans for cards
-      const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true';
-      if (!byKey.has(mkey)) byKey.set(mkey, []);
-      byKey.get(mkey)!.push({
-        url: String(m.MediaURL),
-        mediaType: 'Photo',
-        order: isPreferred ? -1 : Number(m.Order ?? 0),
-      });
-    }
+    // P1C3 (M3): canonical classification via the extracted pure helper —
+    // the old `cat.includes('floor plan')` never matched the feed's no-space
+    // 'FloorPlan' member, so floorplans leaked onto cards; Videos/VirtualTours
+    // no longer masquerade as card photos either.
+    const byKey = mapAgentCardMedia(records);
 
     for (const listing of needsPhotos) {
       // Match by mlsId (ResourceRecordKey) first, fall back to listingId (ResourceRecordID)

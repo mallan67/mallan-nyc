@@ -10,6 +10,7 @@
 import type { IDXListing } from './types';
 import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
 import { normalizeStreetCase } from './normalize-street-case';
+import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 
 /**
  * RESO Data Dictionary field names — complete set.
@@ -328,13 +329,17 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
       const item = m as Record<string, unknown>;
       // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video)
       //          MediaType = file format (jpeg, png, gif) — NOT content type
-      const cat = String(item.MediaCategory || '').toLowerCase();
       const desc = String(item.ShortDescription || '').toLowerCase();
       const isPreferred = item.PreferredPhotoYN === true || item.PreferredPhotoYN === 'true';
-      let mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan' = 'Photo';
-      if (cat.includes('floor plan') || desc.includes('floor plan') || desc.includes('floorplan')) mediaType = 'FloorPlan';
-      else if (cat.includes('video')) mediaType = 'Video';
-      else if (cat.includes('virtual tour')) mediaType = 'VirtualTour';
+      // P1C3 (M3): canonical classifier — the old `cat.includes('floor plan')`
+      // / `includes('virtual tour')` with-space checks never matched the
+      // feed's no-space enum members ('FloorPlan', 'UnbrandedVirtualTour'),
+      // so floorplans/tours classified as Photo and could become the hero.
+      // ShortDescription floor-plan heuristic retained (classifier is
+      // category-only).
+      let mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan' =
+        classifyTrestleMediaCategory(item.MediaCategory as string | null | undefined);
+      if (desc.includes('floor plan') || desc.includes('floorplan')) mediaType = 'FloorPlan';
       return {
         url: String(item.MediaURL || ''),
         mediaType,

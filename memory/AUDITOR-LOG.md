@@ -672,3 +672,11 @@ blocker for this PR.
 - **Note (pre-existing, not introduced):** `media-order` ownership uses exact-case `=== "BROKER"` (FAIL-CLOSED; lowercase-broker denied, never over-permitted). `[mediaId]` + `upload` use `.toUpperCase()`. Repo-wide casing LOW tracked separately.
 
 **Critical: 0 · High: 0 · Medium: 0 · Low: 0. Blocking deployment: No.**
+
+---
+
+## 2026-06-11 — P1C3 media classifiers (branch fix/p1c3-media-classifiers, HEAD 8abc9597)
+- **Scope:** lib/idx/mapping.ts (classifier swap), new pure lib/idx/agent-card-media.ts, route swap in PUBLIC GET app/api/agents/[slug]/listings/route.ts (inline loop → mapAgentCardMedia), 1 test (7/7 green), 1 doc. No secrets/env/header/cookie/middleware/dependency/config diff.
+- **Verdict: PASS.** Pure-function extraction + canonical classifier reuse. Canonical classifyTrestleMediaCategory unchanged + pure. Public route public-by-design, no auth/token/$filter/$select/fetch change (those lines are context above the swap). records arg = already-fetched feed data; no new input flow. Output strictly narrowed (non-Photo excluded). No PII/secret/MLS-exposure delta; floorplan leak was display-correctness, not breach.
+
+**Critical: 0 · High: 0 · Medium: 0 · Low: 0. Blocking deployment: No.**
