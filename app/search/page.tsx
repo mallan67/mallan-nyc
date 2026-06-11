@@ -988,9 +988,13 @@ function SearchClient() {
               />
             </div>
 
-            {/* Count */}
+            {/* Count — the API's TOTAL match count, not the loaded-page length.
+                Showing sortedListings.length capped the label at the 50-row first
+                page ("50 properties"), which read as the full inventory. */}
             <p className="text-xs sm:text-sm text-brand-dark/70 ml-auto whitespace-nowrap font-medium shrink-0" aria-live="polite">
-              {loading ? 'Searching...' : `${sortedListings.length} ${sortedListings.length === 1 ? 'property' : 'properties'}`}
+              {loading
+                ? 'Searching...'
+                : `${(total ?? sortedListings.length).toLocaleString()} ${(total ?? sortedListings.length) === 1 ? 'property' : 'properties'}`}
             </p>
 
             {(activeFilterPills.length > 0 || searchQuery) && (
