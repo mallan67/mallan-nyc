@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { importJsonMediaToRows, isCrmMediaKey } from "@/lib/media/crm-media";
+import { importJsonMediaToRows, isCrmMediaKey, crmListingTouchData } from "@/lib/media/crm-media";
 
 export async function PATCH(
   req: NextRequest,
@@ -35,7 +35,7 @@ export async function PATCH(
   // Find listing by listing_id (string ID like "SL-0001")
   const listing = await prisma.listing.findUnique({
     where: { listing_id: id },
-    select: { id: true, listing_id: true, agent_id: true, media: true },
+    select: { id: true, listing_id: true, agent_id: true, media: true, last_synced_from_trestle: true },
   });
 
   if (!listing) {
@@ -94,10 +94,12 @@ export async function PATCH(
   const results = await prisma.$transaction(updates);
   const updatedCount = results.reduce((n, r) => n + r.count, 0);
 
-  await prisma.listing.update({
-    where: { listing_id: id },
-    data: { modification_timestamp: new Date() },
-  });
+  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // CRM-only exclusives keep the touch. See crmListingTouchData.
+  const touch = crmListingTouchData(listing.last_synced_from_trestle);
+  if (touch) {
+    await prisma.listing.update({ where: { listing_id: id }, data: touch });
+  }
 
   await logAuditEvent(
     "update",
