@@ -54,7 +54,15 @@
 | 6 | gates | §4/§5 | (pending) |
 
 ## 4. Gate results
-(pending)
+| Gate | Result |
+|---|---|
+| B2 | RED→GREEN 5/5 + **LIVE proof run** (3-way split rendered against production; the metric now shows the drain's recovery the old one hid) |
+| C1/C2 micro/macro | PASS (cron → security + ops-health[run live]; ops/tooling → code-reviewer) |
+| security-agent | **PASS 0/0/0/0** — log line emits only an integer + ListingIds (verified public IDX Plus display field, length-bounded by GHOST_ID_LOG_CAP=20); CRON_SECRET gate byte-identical; zero new SQL interpolation (added arms are static); no env/dep changes |
+| code-reviewer | **APPROVE** — bucket arithmetic EXACT (byte-identical JSON-empty predicate split by total EXISTS); join key + status casing match the media-sync writers; `lower_bound` meaning change safe (zero programmatic consumers); >= boundaries match legacy; Lane-D block untouched. Cosmetic note: field name vs new semantics — future dashboard naming consideration |
 
 ## 5. Sign-offs
-(pending)
+- **micro/macro PASS · security PASS · code-reviewer APPROVE** (2026-06-11, `7f479dbf`). tristle
+  N/A-with-rationale per the macro gate's routing (read-only observability; zero display surface —
+  Lane-D precedent).
+- **Codex:** on PR open. · **Maya merge:** standing queue approval; merges on green CI.
