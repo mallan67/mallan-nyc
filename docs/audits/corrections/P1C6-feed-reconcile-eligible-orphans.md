@@ -92,10 +92,23 @@ own eligibility set).
 | 7 | post-merge runtime proof | next 03:30Z firing: `orphans_created>=3` expected (the 3 ghosts) with `orphans_with_media=2` + `orphans_no_media>=1` (RLS20014678 has zero media at source — clean outcome, not faked); then the stranding check re-run | (pending) |
 
 ## 6. Gate results
-(pending)
+| Gate | Result |
+|---|---|
+| B2 (fix claim) | Class-B probe FIRST (operator-run) → RED via stash (3 failed/1 regression-pin green) → GREEN **5/5** incl. the tristle-blocker pin; runtime proof = next 03:30Z firing (§5.7) |
+| C1/C2 micro/macro | PASS (first run correctly rejected blast radius in the wrong section — §2 required) |
+| security-agent | **PASS 0/0/0/0** — no deletion path reachable by construction (tombstoneVanished:false + expand pre-filters Deleted + fresh-create target); broadened orphan set bounded by the 500-cap abort BEFORE any create loop |
+| rebny-search auditor | **PASS 3/3** — Pending cannot surface publicly (ALLOWED_PUBLIC_STATUSES excludes it); statuses canonical per live $metadata; INFO: lookup-CSV StandardStatus block incomplete (Class-E refresh candidate) + ComingSoon scoping asymmetry (deliberate, flagged for Maya) |
+| tristle | **FAIL → corrections applied → re-audit PASS** — blocking finding: the media write ran for gated: orphans (first listing_media writer bypassing the listing-level compliance skip; R2 mirror has no compliance join → public-bucket exposure, the 2026-04-30 class). Now gated on `gates.displayable`, counted as `orphans_media_gated`, test-pinned. Doc correction: orphan-cap abort = 503+console.error only (alerting parity = follow-up candidate) |
 
 ## 7. Sign-offs
-(pending)
+- **micro/macro PASS · security PASS · rebny-search PASS · tristle PASS-on-re-audit**
+  (2026-06-11, `ba0d2b7d`).
+- **Codex:** on PR open. · **Maya merge:** her C6 directive (2026-06-11) = the build approval;
+  merges on green CI. **C6 SETTLES only after the §5.7 runtime proof** (next 03:30Z firing:
+  the 3 ghosts imported, 2 with media, ≥1 clean no-media) — the hard checklist item then closes
+  and the data-cleanup phase unlocks.
+- **Follow-up candidates surfaced by the gates:** orphan-cap alerting parity · lookup-CSV
+  StandardStatus refresh (Class E) · ComingSoon orphan-scope symmetry (Maya intent check).
 
 ## 8. Adjacent observation (recorded, NOT in scope)
 The ghost path withdraws local-Active listings absent from Trestle-ACTIVE; one whose live status
