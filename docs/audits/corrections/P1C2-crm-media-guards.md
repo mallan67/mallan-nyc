@@ -76,7 +76,18 @@ partition changes — no new state, no schema.
 | 6 | merge (AFTER RC5 proof) + post-deploy spot-check | — | (pending) |
 
 ## 6. Gate results
-(pending)
+| Gate | Result |
+|---|---|
+| B2 proof | behavioral RED→GREEN (guard tests 6/6; where-shape contracts asserted exactly) |
+| C1 gate:micro | PASS (6 files; test-first satisfied) |
+| C2 gate:macro | PASS (crm → security-agent + tristle; idx → tristle; declared radius matched) |
+| security-agent | **PASS** — 0 critical/high/medium; authz ordering intact; listing_id binds every update (crafted cross-listing crm: key cannot write); skipped-keys echo client input only; 2 pre-existing LOW (array-length cap → CRM-0 hardening; role-casing → tracked since U4) |
+| tristle | **PASS** — feed-key shape proof (Trestle MediaKey ≤20-char per $metadata, structurally cannot enter crm: namespace); deleted-at-source preserved both branches; CRM supplemental media on own listing violates no REBNY/UCBA display rule; tests strictly stricter; §0.5 preamble complete |
 
 ## 7. Sign-offs
-(pending — PR opened, merge HELD behind RC5 post-deploy proof per the single write/merge lane)
+- **gate:micro PASS · gate:macro PASS · security-agent PASS · tristle PASS** (2026-06-10/11, diff `7d9b9992`).
+- **Tristle advisory (queued, NOT this PR):** ownership-scope the `crm:` upload route
+  (`media/upload/route.ts:73` lets BROKER upload to ANY listing incl. third-party IDX listings —
+  durable now that P1C2 stops the accidental purge). → Phase-1 follow-up list.
+- **Codex:** on PR open. · **Maya merge:** HELD behind RC5 (#382) post-deploy proof (single
+  write/merge lane; sequencing hold, not a compliance finding).
