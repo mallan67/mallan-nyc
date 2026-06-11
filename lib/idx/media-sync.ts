@@ -1282,6 +1282,15 @@ export interface RunMediaSyncResult {
   rows_failed: number;
   listings_processed: number;
   listings_skipped: number;
+  /**
+   * RC5: Trestle Properties whose listing has NO local `listings` row
+   * ("ghosts" — never imported, e.g. feed-reconcile orphan-create failing).
+   * Counted within `listings_skipped` as resolved skips so the keyset
+   * watermark advances past them instead of freezing the cursor.
+   */
+  ghost_listings_skipped: number;
+  /** RC5: ListingIds of the skipped ghosts (capped at GHOST_ID_LOG_CAP). */
+  ghost_listing_ids: string[];
   /** R2 mirror successes (uploaded + reused) in Phase 3. */
   r2_mirrored: number;
   /** R2 mirror failures in Phase 3 — row stays in backlog for retry. */
@@ -1299,6 +1308,8 @@ export interface RunMediaSyncResult {
 }
 
 export const DEFAULT_LISTINGS_PER_RUN = 50;
+/** RC5: cap on ghost ListingIds carried in the run result (log hygiene). */
+export const GHOST_ID_LOG_CAP = 20;
 export const DEFAULT_MEDIA_PER_LISTING = 30;
 /**
  * RC1: per-PAGE Media `$top`. The complete set for a listing is assembled by
@@ -1591,6 +1602,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let rowsFailed = 0;
   let listingsProcessed = 0;
   let listingsSkipped = 0;
+  let ghostListingsSkipped = 0;
+  const ghostListingIds: string[] = [];
   let r2Mirrored = 0;
   let r2Failed = 0;
   let r2Skipped = 0;
@@ -1624,6 +1637,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       rows_failed: 0,
       listings_processed: 0,
       listings_skipped: 0,
+      ghost_listings_skipped: 0,
+      ghost_listing_ids: [],
       r2_mirrored: 0,
       r2_failed: 0,
       r2_skipped: 0,
@@ -1664,6 +1679,31 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     }
 
     try {
+      // RC5: a Property whose listing has NO local `listings` row ("ghost" —
+      // never imported; e.g. feed-reconcile orphan-create failing) CANNOT have
+      // media synced: `listing_media.listing_id` FK and the summary write both
+      // target the local row, so before RC5 it threw → ok:false → the keyset
+      // watermark froze at this position FOREVER (2026-06-09 production
+      // freeze: 3 ghosts at batch head starved the entire catch-up). A ghost
+      // is not a transient failure — halting on it is a livelock. Treat it as
+      // a RESOLVED skip (ok:true, like the compliance-blocked case above): the
+      // cursor advances past it and it re-surfaces only when its
+      // PhotosChangeTimestamp bumps. The probe sits INSIDE try so a probe
+      // failure (DB hiccup) falls to catch → ok:false → fail-closed halt
+      // (never advance past UNKNOWN existence). Ghosts get ZERO writes — the
+      // skip happens before fetch/upsert/tombstone/summary.
+      const localListing = await prisma.listing.findUnique({
+        where: { listing_id: listingId },
+        select: { listing_id: true },
+      });
+      if (!localListing) {
+        ghostListingsSkipped++;
+        if (ghostListingIds.length < GHOST_ID_LOG_CAP) ghostListingIds.push(listingId);
+        listingsSkipped++;
+        processed.push({ listingKey, photosChangeTs: propTs, ok: true });
+        continue;
+      }
+
       // RC1: fetchMedia follows @odata.nextLink and THROWS on an incomplete
       // response — a resolve guarantees the COMPLETE current media set.
       const mediaRows = await fetchDeps.fetchMedia(listingKey);
@@ -1843,6 +1883,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,
     listings_skipped: listingsSkipped,
+    ghost_listings_skipped: ghostListingsSkipped,
+    ghost_listing_ids: ghostListingIds,
     r2_mirrored: r2Mirrored,
     r2_failed: r2Failed,
     r2_skipped: r2Skipped,

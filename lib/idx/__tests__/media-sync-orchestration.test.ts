@@ -34,6 +34,9 @@ const mockListingMediaFindMany = jest.fn<Promise<unknown[]>, [unknown]>();
 const mockListingMediaCount = jest.fn<Promise<number>, [unknown]>();
 
 const mockListingUpdate = jest.fn<Promise<unknown>, [unknown]>();
+// RC5: the Phase-1 ghost probe — default "exists" so the orchestration paths
+// under test are unchanged; RC5-specific ghost behavior lives in media-sync-rc5.test.ts.
+const mockListingFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
@@ -52,6 +55,7 @@ jest.mock("@/lib/prisma", () => ({
     },
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
+      findUnique: (args: unknown) => mockListingFindUnique(args),
     },
   },
 }));
@@ -73,8 +77,12 @@ beforeEach(() => {
   mockListingMediaFindMany.mockReset();
   mockListingMediaCount.mockReset();
   mockListingUpdate.mockReset();
+  mockListingFindUnique.mockReset();
 
   // Sensible defaults for happy paths.
+  mockListingFindUnique.mockImplementation(async (args: unknown) => ({
+    listing_id: (args as { where?: { listing_id?: string } })?.where?.listing_id,
+  }));
   mockListingMediaUpdateMany.mockResolvedValue({ count: 0 });
   mockListingMediaFindMany.mockResolvedValue([]);
   mockListingMediaCount.mockResolvedValue(0);
