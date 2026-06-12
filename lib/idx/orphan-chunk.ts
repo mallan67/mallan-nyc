@@ -7,11 +7,12 @@
 // the catch-up forever; chunked import bounds writes per nightly run instead.
 // The DESTRUCTIVE ghost direction keeps abort-all semantics (route, untouched).
 //
-// DETERMINISTIC ORDER (documented, stable, replayable): ListingId ascending,
-// localeCompare with 'en' + numeric:false — pure code-point-stable string
-// ordering. The set shrinks front-first each night, so positions are
-// monotone: probe positions 514/550/649 (the 3 known ghosts) land on nightly
-// runs 2-3 at chunkSize=300.
+// DETERMINISTIC ORDER (documented, stable, replayable): ListingId ascending
+// by PLAIN code-point comparison (`<`) — literally ICU/locale-independent
+// (search-audit O2: localeCompare collation only coincides with code-point
+// order for the current RLS+digit id shape). The set shrinks front-first each
+// night, so positions are monotone: probe positions 514/550/649 (the 3 known
+// ghosts) land on nightly runs 2-3 at chunkSize=300.
 
 export interface OrphanChunkInput {
   ListingId: string;
@@ -48,7 +49,7 @@ export function selectOrphanChunk<T extends OrphanChunkInput>(
     if (archivedIds.has(row.ListingId)) archiveOverlap++;
     else eligible.push(row);
   }
-  eligible.sort((a, b) => a.ListingId.localeCompare(b.ListingId, "en", { numeric: false }));
+  eligible.sort((a, b) => (a.ListingId < b.ListingId ? -1 : a.ListingId > b.ListingId ? 1 : 0));
   const chunk = eligible.slice(0, chunkSize);
   return {
     totalEligible: eligible.length,
