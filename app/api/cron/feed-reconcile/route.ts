@@ -40,23 +40,38 @@ import {
   updateListingMediaSummary,
   type UpsertListingMediaInput,
 } from "@/lib/idx/media-sync";
+import {
+  selectOrphanChunk,
+  ORPHAN_CHUNK_SIZE,
+  ORPHAN_TOTAL_SANITY_CAP,
+} from "@/lib/idx/orphan-chunk";
 // Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
 // (every file that imports sendEmail/sendgrid must reference escapeHtml).
 // The template handles its own escaping internally; aliasing to _escapeHtml
 // satisfies ESLint's unused-vars rule (allowed prefix /^_/u).
 import { escapeHtml as _escapeHtml } from "@/lib/sanitize";
 
-// Allow up to 120s — Trestle fetch paginates through ~10K records across ~10
-// HTTP calls at ~1-2s each, plus per-ghost transactions.
-export const maxDuration = 120;
+// P1C6b: 300s (was 120). Chunked orphan catch-up math at chunk=300:
+// ~15 $expand batches (~25s) + ~300 creates with avg 13.1 media rows (probe
+// 2026-06-12) ≈ ~105s DB work + two id-set fetches (~30s) ≈ ~160s estimate —
+// exceeds 120, fits 300 with ~2x margin. A hard in-run time budget
+// (ORPHAN_TIME_BUDGET_MS) additionally stops the import loop early and
+// reports the remainder, so the estimate can be wrong without consequence.
+export const maxDuration = 300;
 
 const GHOST_ABORT_CAP = 2000;
 
-// Orphan = Trestle has a ListingId we don't. Caused by incremental-sync
-// pagination edge or transient Trestle 5xx. Cap higher than ghost cap
-// because a one-shot post-deploy catch-up may legitimately create hundreds
-// (steady state: single digits daily).
-const ORPHAN_ABORT_CAP = 500;
+// Orphan = Trestle has a ListingId we don't (eligible set: Active/Pending/
+// AUC). P1C6b: abort-all on the orphan side is REPLACED by deterministic
+// chunked import (lib/idx/orphan-chunk.ts — ORPHAN_CHUNK_SIZE per run,
+// ListingId-ASC order, archive-excluded) because the probe-sized backlog
+// (1,361 incident-era Pending residue) would otherwise block the catch-up
+// forever. A SANITY abort remains at ORPHAN_TOTAL_SANITY_CAP (feed-reset
+// signal). The DESTRUCTIVE ghost direction keeps abort-all semantics above.
+
+// Hard wall-clock budget for the orphan import loop — stops early and
+// reports the remainder; keeps the run far inside maxDuration.
+const ORPHAN_TIME_BUDGET_MS = 240_000;
 
 // Batch size for the orphan OData OR-filter. Keeps URLs under 8KB.
 const ORPHAN_FETCH_BATCH = 20;
@@ -181,8 +196,10 @@ export async function GET(req: NextRequest) {
       (r) => !TERMINAL_STATUSES.has(r.status) && !trestleIds.has(r.listing_id),
     );
     // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
-    // missing from our DB entirely
-    const orphans = [...new Set([...trestleIds, ...trestleNonActiveEligible])].filter(
+    // missing from our DB entirely. P1C6b: archive-excluded (an archived id
+    // must NEVER be re-imported — Maya rule, even though the probe showed 0
+    // today) and selected as a bounded deterministic chunk per run.
+    const orphanIds = [...new Set([...trestleIds, ...trestleNonActiveEligible])].filter(
       (id) => !ourAllIdsSet.has(id),
     );
 
@@ -270,18 +287,37 @@ export async function GET(req: NextRequest) {
         duration_ms: Date.now() - startTime,
       }, { status: 503 });
     }
-    if (orphans.length > ORPHAN_ABORT_CAP) {
+    // P1C6b: archive exclusion + deterministic chunk selection — AFTER the
+    // ghost-cap check above so an aborting run does no extra DB work (and the
+    // ghost-abort path stays byte-equivalent for its guard tests).
+    const archivedIds = new Set(
+      (
+        await prisma.listingsArchive.findMany({
+          where: { listing_id: { startsWith: "RLS" } },
+          select: { listing_id: true },
+        })
+      )
+        .map((r) => r.listing_id)
+        .filter((id): id is string => typeof id === "string"),
+    );
+    const chunkResult = selectOrphanChunk(
+      orphanIds.map((id) => ({ ListingId: id })),
+      archivedIds,
+    );
+    const orphans = chunkResult.chunk.map((r) => r.ListingId);
+
+    if (chunkResult.totalEligible > ORPHAN_TOTAL_SANITY_CAP) {
       console.error(
-        `[feed-reconcile] ABORT — orphan count ${orphans.length} exceeds cap ${ORPHAN_ABORT_CAP}. ` +
-        `Likely Trestle feed reset or incremental-sync bug. Investigate.`,
+        `[feed-reconcile] ABORT — eligible orphan total ${chunkResult.totalEligible} exceeds sanity cap ${ORPHAN_TOTAL_SANITY_CAP}. ` +
+        `Likely Trestle feed reset or broken local-id read (probe truth 2026-06-12: 1,361). Investigate.`,
       );
       return NextResponse.json({
         success: false,
         aborted: true,
-        reason: "orphan_count_exceeds_safety_cap",
+        reason: "orphan_total_exceeds_sanity_cap",
         trestle_active: trestleIds.size,
-        orphans_detected: orphans.length,
-        cap: ORPHAN_ABORT_CAP,
+        total_eligible: chunkResult.totalEligible,
+        cap: ORPHAN_TOTAL_SANITY_CAP,
         duration_ms: Date.now() - startTime,
       }, { status: 503 });
     }
@@ -298,8 +334,16 @@ export async function GET(req: NextRequest) {
     let orphansNoMedia = 0;
     let orphansMediaGated = 0;
     let orphanMediaErrors = 0;
+    let orphanBudgetStopped = false;
+    let orphansAttempted = 0;
     for (let i = 0; i < orphans.length; i += ORPHAN_FETCH_BATCH) {
+      // P1C6b: hard wall-clock budget — stop importing, report the remainder.
+      if (Date.now() - startTime > ORPHAN_TIME_BUDGET_MS) {
+        orphanBudgetStopped = true;
+        break;
+      }
       const batchIds = orphans.slice(i, i + ORPHAN_FETCH_BATCH);
+      orphansAttempted += batchIds.length;
       const filter = batchIds
         .map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`)
         .join(" or ");
@@ -503,6 +547,17 @@ export async function GET(req: NextRequest) {
       orphans_created: orphansCreated,
       orphans_errored: orphansErrored,
       trestle_eligible_nonactive: trestleNonActiveEligible.size,
+      // P1C6b chunked catch-up counters (Maya's required set)
+      total_eligible: chunkResult.totalEligible,
+      chunk_size: ORPHAN_CHUNK_SIZE,
+      imported_this_run: orphansCreated,
+      remaining_after_run:
+        chunkResult.remainingAfter + (orphans.length - orphansAttempted),
+      with_media: orphansWithMedia,
+      no_media: orphansNoMedia,
+      gated_skipped: orphansMediaGated,
+      archive_overlap: chunkResult.archiveOverlap,
+      orphan_budget_stopped: orphanBudgetStopped,
       orphans_with_media: orphansWithMedia,
       orphans_no_media: orphansNoMedia,
       orphans_media_gated: orphansMediaGated,

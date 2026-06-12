@@ -67,7 +67,9 @@
 
 ## 2. Pre-registered blast radius
 - **WILL touch:** `app/api/cron/feed-reconcile/route.ts` · `lib/idx/fetch.ts` (comment only) ·
-  new `tests/runtime/feed-reconcile-c6.test.ts` · this Trace Record.
+  new `tests/runtime/feed-reconcile-c6.test.ts` · **P1C6b additions:** new
+  `lib/idx/orphan-chunk.ts` (pure chunk selection) + new
+  `lib/idx/__tests__/orphan-chunk.test.ts` · this Trace Record.
 - **MUST NOT touch:** `lib/idx/media-sync.ts` (consumed as-is) · ghost-transition logic ·
   abort caps (the designed guardrails — if the first broadened run exceeds ORPHAN_ABORT_CAP=500,
   the route aborts with a 503 + console.error; **tristle correction: only the GHOST-cap abort
@@ -109,6 +111,56 @@ own eligibility set).
   and the data-cleanup phase unlocks.
 - **Follow-up candidates surfaced by the gates:** orphan-cap alerting parity · lookup-CSV
   StandardStatus refresh (Class E) · ComingSoon orphan-scope symmetry (Maya intent check).
+
+## 9. P1C6b amendment — chunked catch-up (Maya directive 2026-06-12, probe-driven)
+**Why:** the first post-merge firing ABORTED on the orphan cap — the probe (operator-run) sized
+the backlog at **1,361 Pending orphans** (zero AUC; zero archive overlap): a pre-seed cohort
+(2025-10..12) + the **May-2026 incident-era leak** (406 in 2026-05 vs 1 in healthy April — the
+closed writer loops fixed the go-forward path; this is residue). First chunk media sample:
+97/100 with media, avg 13.1 items.
+**Change (Maya's spec, verbatim honored):**
+- Pure `lib/idx/orphan-chunk.ts` — `selectOrphanChunk`: **deterministic documented order =
+  ListingId ascending** (stable/replayable); archive-excluded (counted, even at 0 today);
+  bounded chunk; `ORPHAN_CHUNK_SIZE=300`; `ORPHAN_TOTAL_SANITY_CAP=5000` (abort-all retained
+  ONLY as a feed-reset sanity signal; the DESTRUCTIVE ghost direction keeps its abort-all
+  untouched — byte-equivalent, guard-suite-proven).
+- `maxDuration` 120→300 **with evidence** (chunk-300 estimate ≈160s; in-route
+  `ORPHAN_TIME_BUDGET_MS=240s` hard wall additionally stops the loop early and reports the
+  remainder, so the estimate can be wrong without consequence).
+- Counters (Maya's required set): `total_eligible, chunk_size, imported_this_run,
+  remaining_after_run, with_media, no_media, gated_skipped, archive_overlap` (+
+  `orphan_budget_stopped`); legacy counters retained.
+- Archive read + chunk selection moved AFTER the ghost-cap check (an aborting run does no
+  extra DB work — also keeps the ghost-abort path byte-equivalent for its pre-existing
+  lifecycle guard suite, which caught the first ordering).
+- Gate-blocked exclusion from media/R2 writes unchanged (tristle-pinned).
+**Settlement (Maya, binding):** ghosts at probe positions 514/550/649 land on **nightly runs
+2-3** under the shrinking-set order (test-pinned simulation) — C6 settles ONLY when the runtime
+counters show the 3 ghosts imported with `gated_skipped` violations = 0 and the stranding check
+clean. NO cleanup/backfill/R2 deletion in this amendment.
+**Proof:** chunk suite 5/5 (incl. the 1,361-row landing-forecast simulation) · route suite 7/7
+(archive exclusion + counter coherence added) · lifecycle ghost-cap guards 8/8 restored ·
+test:runtime **2129/2129** · type-check 0 · ucba 0 regr · compliance 92/0.
+
+## 9b. P1C6b gate sign-offs (2026-06-12)
+- **micro PASS · macro PASS** (caught the undeclared chunk module — fixed; 4th macro catch of
+  the series) · **security PASS 0/0/0/1-pre-existing-LOW** (writes hard-capped by the slice
+  itself independent of any cap; sanity abort + 240s budget verified; no env/cron/dep changes) ·
+  **rebny-search PASS** (id fetches byte-identical; chunk module pure; Pending still publicly
+  invisible; O1-O4 observations — O2 ADOPTED in-PR: plain code-point `<` ordering, commit
+  `528bd0b6`, semantically identical for all current ids, 12/12 unchanged) · **tristle PASS,
+  all six verified** (ghost abort byte-equivalent, guard suite run; gated-media exclusion
+  unchanged; archive exclusion fail-closed — and its writer-trace shows archive rows are
+  TERMINAL-only, so re-import would resurrect a §2.05-removed listing: the compliance teeth of
+  the exclusion; maxDuration is route code, not held cron config; §9 honest).
+- **Honest review-scope note:** security + search + tristle reviewed `e9b41b58`; the O2
+  comparator swap (`528bd0b6`) post-dates them — a pure sort-comparator change proven
+  behavior-identical by the unchanged suites, strengthening the property all three verified.
+- **Reporting-only observations recorded:** remaining_after_run undercounts on error nights
+  (self-correcting — the diff is recomputed nightly) · ghost loop after a budget-stopped orphan
+  run has ~60s headroom (per-ghost idempotent transactions truncate safely).
+- **Codex:** on PR open. · **Maya merge:** chunk_size=300 approved with maxDuration evidence
+  (her directive 2026-06-12); merges on green CI. **Settlement: HELD per §9.**
 
 ## 8. Adjacent observation (recorded, NOT in scope)
 The ghost path withdraws local-Active listings absent from Trestle-ACTIVE; one whose live status

@@ -692,3 +692,24 @@ blocker for this PR.
 - **Verdict: PASS.** (1) CRON_SECRET timingSafeEqual gate (length-check + Buffer compare) UNCHANGED byte-identical, IDX_ENABLED!=="true" skip FOLLOWS, BOTH precede the try{}; new fetch runs post-auth inside try only. (2) New filter is a STATIC OData string literal — no request-derived input; orphan batch ids still flow through the UNCHANGED quote-doubled `ListingId eq '${id.replace(/'/g,"''")}'` (server-internal RLS ids, not attacker-reachable). (3) Media population reachability-verified: upsertListingMedia's vanished-tombstone block is gated entirely behind tombstoneVanished===true → UNREACHABLE with the PR's `false`; explicit MediaStatus='Deleted' tombstone can't fire (inline $expand pre-filters `MediaStatus ne 'Deleted'`) AND the target is a brand-new prisma.listing.create orphan with ZERO pre-existing media rows → no destructive surface regardless. rawMedia = feed payload (raw.Media), never request-derived. Media catch logs ListingId+message only, non-fatal+counted. (4) GHOST_ABORT_CAP(2000)/ORPHAN_ABORT_CAP(500)/ORPHAN_FETCH_BATCH(20) UNTOUCHED; broadened union computed BEFORE the 500-cap check → bounded by existing abort+broker-alert path. Ghost diff still Active-only (semantics byte-identical, test-locked). (5) No secrets/env/header/dependency change; TRESTLE_API_URL non-secret w/ public default, CRON_SECRET only in timing-safe compare, never logged/returned. Counters = ints; audit standard_status = public RLS status enum; ListingId = public IDX field. No PII/secret/MLS-licensed leak. fetch.ts = pure jsdoc scope-correction, zero behavior change.
 
 **Critical: 0 · High: 0 · Medium: 0 · Low: 0. Blocking deployment: No.**
+
+
+## SECURITY GATE — P1C6b chunked orphan catch-up — 2026-06-12
+
+**Branch:** fix/p1c6b-chunked-orphan-catchup (HEAD e9b41b58) · **Verdict:** PASS ✅ (0 CRITICAL / 0 HIGH / 0 MED / 1 LOW)
+
+**Scope:** `git diff main...HEAD` — 5 files: `app/api/cron/feed-reconcile/route.ts` (+70/-17), new pure `lib/idx/orphan-chunk.ts`, 2 tests (`lib/idx/__tests__/orphan-chunk.test.ts` new, `tests/runtime/feed-reconcile-c6.test.ts` amended), 1 doc. NO package.json/lock/vercel.json/next.config/proxy.ts/middleware diff (name-only confirmed).
+
+**Trigger:** Pre-merge security gate on a cron-route change that removes an abort cap and raises maxDuration.
+
+**Findings:**
+- CRON_SECRET timingSafeEqual gate + IDX_ENABLED skip UNCHANGED, byte-identical canonical pattern, both precede try{} (route.ts:144-163). All new work post-auth.
+- Write count HARD-BOUNDED at 300 creates/run by `chunkResult.chunk = eligible.slice(0,300)` — the removed ORPHAN_ABORT_CAP(500) is replaced by the slice itself; unbounded `orphanIds` feeds selectOrphanChunk ONLY, never drives writes. Plus 240s wall-clock loop budget. No runaway-cost vector.
+- maxDuration 120→300 within Pro-plan ceiling (300s; project already ships 120s crons). Route-segment export wins over vercel.json glob(30); no per-path override → no conflict. (Class-D: plan inferred, not live-verified.)
+- SANITY abort at totalEligible>5000 prevents feed-reset mass-import; 503 body carries ints only.
+- No new request-derived input: chunk = pure set math; archive read = static `startsWith:"RLS"` parameterized Prisma filter (listing_id String? → route post-filters typeof==="string"). Orphan OData $filter unchanged (quote-doubled, server-internal RLS ids).
+- Counters all ints/bools; no PII/secret in response or console.error (ListingId/HTTP-status only). Media path unchanged from P1C6 (tombstoneVanished:false, gated-skip, brand-new-create so no delete reachable).
+
+**LOW (pre-existing, repo-wide, NOT introduced):** orphan OData `$filter` uses inline `replace(/'/g,"''")` quote-doubling vs canonical `sanitizeOData` — correct here (server-internal RLS ids, allowlist would corrupt legit keys), tracked since RC1.
+
+**Blocking deployment:** No.
