@@ -142,6 +142,26 @@ clean. NO cleanup/backfill/R2 deletion in this amendment.
 (archive exclusion + counter coherence added) · lifecycle ghost-cap guards 8/8 restored ·
 test:runtime **2129/2129** · type-check 0 · ucba 0 regr · compliance 92/0.
 
+## 9b. P1C6b gate sign-offs (2026-06-12)
+- **micro PASS · macro PASS** (caught the undeclared chunk module — fixed; 4th macro catch of
+  the series) · **security PASS 0/0/0/1-pre-existing-LOW** (writes hard-capped by the slice
+  itself independent of any cap; sanity abort + 240s budget verified; no env/cron/dep changes) ·
+  **rebny-search PASS** (id fetches byte-identical; chunk module pure; Pending still publicly
+  invisible; O1-O4 observations — O2 ADOPTED in-PR: plain code-point `<` ordering, commit
+  `528bd0b6`, semantically identical for all current ids, 12/12 unchanged) · **tristle PASS,
+  all six verified** (ghost abort byte-equivalent, guard suite run; gated-media exclusion
+  unchanged; archive exclusion fail-closed — and its writer-trace shows archive rows are
+  TERMINAL-only, so re-import would resurrect a §2.05-removed listing: the compliance teeth of
+  the exclusion; maxDuration is route code, not held cron config; §9 honest).
+- **Honest review-scope note:** security + search + tristle reviewed `e9b41b58`; the O2
+  comparator swap (`528bd0b6`) post-dates them — a pure sort-comparator change proven
+  behavior-identical by the unchanged suites, strengthening the property all three verified.
+- **Reporting-only observations recorded:** remaining_after_run undercounts on error nights
+  (self-correcting — the diff is recomputed nightly) · ghost loop after a budget-stopped orphan
+  run has ~60s headroom (per-ghost idempotent transactions truncate safely).
+- **Codex:** on PR open. · **Maya merge:** chunk_size=300 approved with maxDuration evidence
+  (her directive 2026-06-12); merges on green CI. **Settlement: HELD per §9.**
+
 ## 8. Adjacent observation (recorded, NOT in scope)
 The ghost path withdraws local-Active listings absent from Trestle-ACTIVE; one whose live status
 merely moved to Pending could be over-withdrawn if the MT-driven incremental missed the bump.
