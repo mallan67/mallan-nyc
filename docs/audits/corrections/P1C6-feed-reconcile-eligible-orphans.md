@@ -67,7 +67,9 @@
 
 ## 2. Pre-registered blast radius
 - **WILL touch:** `app/api/cron/feed-reconcile/route.ts` · `lib/idx/fetch.ts` (comment only) ·
-  new `tests/runtime/feed-reconcile-c6.test.ts` · this Trace Record.
+  new `tests/runtime/feed-reconcile-c6.test.ts` · **P1C6b additions:** new
+  `lib/idx/orphan-chunk.ts` (pure chunk selection) + new
+  `lib/idx/__tests__/orphan-chunk.test.ts` · this Trace Record.
 - **MUST NOT touch:** `lib/idx/media-sync.ts` (consumed as-is) · ghost-transition logic ·
   abort caps (the designed guardrails — if the first broadened run exceeds ORPHAN_ABORT_CAP=500,
   the route aborts with a 503 + console.error; **tristle correction: only the GHOST-cap abort
