@@ -530,6 +530,38 @@ sequencing principle: **close writer loops before reconciling data**):
 > being manufactured would produce cleanup that is wrong again the next time any of those fire.
 > Each data-cleanup item afterwards remains separately Maya-gated per the existing holds.
 
+### Amendment 2026-06-12 — cleanup re-scoped on dry-run evidence (Maya directive)
+
+The pre-cleanup dry-runs (operator-held, untracked: `docs/audits/strike-121-dryrun-2026-06-12.md`,
+`docs/audits/resync-360-dryrun-2026-06-12.md`, `docs/audits/inventory-reconciliation-2026-06-12.md`)
+invalidated the original strike scope. Maya's directive, 2026-06-12:
+
+- **The original 121-photo compliance strike is INVALID AS SCOPED and MUST NOT be executed.**
+  Live-Trestle cross-check (complete paginated Media per listing, MediaKey-matched) proved
+  **142 of 160** detected items are **still live at source** — wrong tombstones from the legacy
+  Cp4 3×-404 strike on rotated URLs (149 carry the `r2_attempts>=3` signature), not REBNY
+  removals. Executing the original scope would have deleted photos REBNY still serves.
+- **Real strike-eligible set: 10 items / 2 listings** — `RLS11030439` (Active, IDX-displayable,
+  3 items; the only live compliance exposure) + `RLS20082431` (Withdrawn, 7 of 8 items).
+- **8 `SL-0004` items (Mallan exclusive, non-Trestle) are excluded** from any Trestle-driven
+  cleanup.
+- **The 142 wrong tombstones need resurrection/re-sync, not deletion** — likely folded into the
+  366-key targeted re-sync mechanism (complete per-listing re-fetch re-activates rows whose
+  MediaKeys are live at source).
+- **The three potential card-blanking listings** (`RLS20003771`, `RLS20052270`, `RLS20077743`)
+  **move to resurrection, not deletion** — they are still-live cases; no card-blanking decision
+  remains.
+
+**Post-C6-settlement cleanup order (supersedes the prior strike→re-sync→M4→R2 order; every step
+stays BLOCKED until C6 settles on the ghost proof, and each remains separately Maya-gated):**
+
+1. Resurrect/re-sync the **142 wrong tombstones** — likely through the 366-key targeted
+   re-sync plan.
+2. Strike the **10 genuinely deleted-at-source items** (2 listings).
+3. Complete the **366-key targeted re-sync**.
+4. **Re-evaluate M4** (the dry-run evidence changes its sizing inputs).
+5. **R2 orphan cleanup last.**
+
 ---
 
 ## Open questions for Maya
