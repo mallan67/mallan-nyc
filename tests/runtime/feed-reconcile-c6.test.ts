@@ -49,6 +49,9 @@ jest.mock('@/lib/prisma', () => ({
     },
     auditEvent: { create: jest.fn(async () => ({})) },
     agent: { findMany: jest.fn(async () => []) },
+    // P1C6b: archive exclusion read — RLS-ARCHIVED simulates an archived id
+    // present in the Trestle eligible set (must never be re-imported).
+    listingsArchive: { findMany: jest.fn(async () => [{ listing_id: 'RLS-ARCHIVED' }]) },
     $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   },
 }));
@@ -144,6 +147,7 @@ beforeEach(() => {
         { ListingId: PENDING_NO_MEDIA },
         { ListingId: GATED_ID },
         { ListingId: 'RLS-GHOST' },
+        { ListingId: 'RLS-ARCHIVED' }, // P1C6b: archived — must be excluded
       ]);
     }
     // Active id page
@@ -205,5 +209,24 @@ describe('P1C6 — eligible-orphan import (RED on main: Active-only diff)', () =
     expect(ghostTransitions).toHaveLength(1);
     const data = (ghostTransitions[0] as { data: Record<string, unknown> }).data;
     expect(data.status).toBe('Withdrawn');
+  });
+
+  it('P1C6b: archived id in the eligible set is EXCLUDED from import and counted', async () => {
+    const res = await call();
+    const json = await readJson<Record<string, number>>(res);
+    expect(createdListings.map((d) => d.listing_id)).not.toContain('RLS-ARCHIVED');
+    expect(json.archive_overlap).toBe(1);
+  });
+
+  it('P1C6b: chunked-catch-up counters present and coherent (small set fits one chunk)', async () => {
+    const res = await call();
+    const json = await readJson<Record<string, number>>(res);
+    expect(json.chunk_size).toBe(300);
+    expect(json.total_eligible).toBe(3); // gated + 2 pending (archived excluded)
+    expect(json.imported_this_run).toBe(3);
+    expect(json.remaining_after_run).toBe(0);
+    expect(json.with_media).toBe(1);
+    expect(json.no_media).toBe(1);
+    expect(json.gated_skipped).toBe(1);
   });
 });
