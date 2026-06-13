@@ -1,10 +1,16 @@
 # Zero-Billing / Connection Audit — Neon + Vercel — 2026-06-12
 
-> **READ-ONLY. DO NOT COMMIT without Maya approval.** No plan changes, no deletes, no env changes, no migrations, no Neon settings writes were made. All probes are `GET`/`SELECT`-only; the one SQL probe is host-guarded to cold-waterfall and runs `SET default_transaction_read_only = on`. No secret values are printed anywhere in this document — only var NAMES, project IDs, store IDs, and masked host fragments.
+> **READ-ONLY. COMMITTED 2026-06-12 per Maya option A (PR #398)** as durable evidence for the
+> P2-MONEY plan. No plan changes, no deletes, no env changes, no migrations, no Neon settings writes
+> were made. All probes are `GET`/`SELECT`-only; the one SQL probe is host-guarded to cold-waterfall
+> and runs `SET default_transaction_read_only = on`. No secret values are printed anywhere in this
+> document — only var NAMES, project IDs, store IDs, and masked host fragments. **The probe scripts
+> stay UNTRACKED / operator-held** (they read `.env`; not in the repo — a fresh clone lacks them);
+> the load-bearing facts are inlined so this document is self-contained (Codex #398).
 >
 > **Maya's framing:** "Neon should be FREE — prove why it charges. Do not assume the charge is legitimate." This audit answers that head-on (§8/§9).
 
-**Probes (all untracked, DO NOT COMMIT):** `scripts/__zero-billing-neon-2026-06-12{,b,c,d,e,f,g,h}.mjs`. Live capture 2026-06-13T02:10–02:15Z.
+**Probes (operator-held, NOT in the repo):** `scripts/__zero-billing-neon-2026-06-12{,b,c,d,e,f,g,h}.mjs`. Live capture 2026-06-13T02:10–02:15Z.
 
 ---
 
@@ -189,7 +195,7 @@ There is no "free AND always-warm AND no-cleanup" option. If Maya's priority is 
 
 ## Appendix — provenance & could-not-verify
 
-- Probes (untracked, DO NOT COMMIT): `scripts/__zero-billing-neon-2026-06-12{,b,c,d,e,f,g,h}.mjs`. Capture window 2026-06-13T02:10–02:15Z.
+- Probes (operator-held, NOT in repo): `scripts/__zero-billing-neon-2026-06-12{,b,c,d,e,f,g,h}.mjs`. Capture window 2026-06-13T02:10–02:15Z.
 - **Verified:** per-project storage/compute/branch/endpoint metadata (project-scoped Neon key); all Vercel env var names + masked hosts; all 7 Vercel stores + bindings; Vercel team plan; GitHub secret + variable names; runtime `current_database()` + host + size; production `/api/health` 200.
 - **Could NOT verify (key/permission-blocked) + operator command:**
   - Neon **org-level** plan tier + org consumption meter — account keys 401, project key 400 (`org_id required`). Operator: use an **org-scoped** Neon API key → `GET /api/v2/consumption_history/account?org_id=<org>&from=…&to=…&granularity=daily`, and check the Neon Console → Billing page.

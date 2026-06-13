@@ -4,16 +4,23 @@
 
 **Status:** STRICT READ-ONLY. R2 side = ListBuckets (denied) + HeadBucket + GetBucketLocation + GetBucketLifecycleConfiguration/Cors GET attempts + 1 public HTTP GET of an existing 2-byte object. **Zero writes, zero deletes, zero lifecycle/settings changes.** Main-bucket size numbers REUSED from the cached `scripts/__r2-inventory-2026-06-12.json` — no re-listing of the 264 pages. DB side = SELECT-only against canonical prod (`ep-cold-waterfall-adno3ao2`, fail-closed host guard passed, `default_transaction_read_only = on`). No secret values printed anywhere — names + masked fragments only.
 
-**DO NOT COMMIT this file** (stays untracked alongside the probe scripts).
+> **COMMITTED 2026-06-12 per Maya option A (PR #398)** — this document is intentionally tracked as
+> durable evidence for the P2-MONEY plan. It contains no secrets (topology IDs, the public r2.dev
+> domain, variable NAMES, storage numbers, conclusions only). **The probe scripts listed below stay
+> UNTRACKED / operator-held** — they read `.env` and are deliberately not in the repo, so a fresh
+> clone will NOT have them; the rerun command requires the operator's local copies. The
+> load-bearing facts are inlined in this document, so it is self-contained without the probes
+> (Codex #398).
 
-**Artifacts (untracked, `scripts/__` throwaway pattern, DO NOT COMMIT):**
+**Probe artifacts (operator-held, `scripts/__` throwaway pattern, NOT in the repo):**
 - `scripts/__zero-billing-r2-2026-06-12.mjs` — main probe (bucket enumeration + DB host extraction)
 - `scripts/__zero-billing-r2-2026-06-12-results.json` — machine-readable results
 - `scripts/__zero-billing-r2-2026-06-12-calibrate.mjs` — HeadBucket-403 semantics calibration
 - `scripts/__zero-billing-r2-2026-06-12-vercel-env.mjs` — Vercel env var NAME listing (no values)
 - `scripts/__zero-billing-r2-2026-06-12-envdiff.mjs` — local-vs-backup env equality (no values)
 
-Operator re-run: `node scripts/__zero-billing-r2-2026-06-12.mjs`
+Operator re-run (requires the operator's local probe scripts above — absent in a fresh clone):
+`node scripts/__zero-billing-r2-2026-06-12.mjs`
 
 ---
 
@@ -111,4 +118,4 @@ SELECT-only, canonical prod, host-guard passed:
 
 ---
 
-*Generated 2026-06-12. All probes read-only; scripts untracked. Do not commit without Maya approval.*
+*Generated 2026-06-12. All probes read-only; probe scripts operator-held/untracked (not in repo). This document committed per Maya option A (PR #398).*

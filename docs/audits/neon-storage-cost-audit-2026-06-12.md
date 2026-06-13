@@ -6,7 +6,10 @@
 
 **Baseline read first:** `docs/audits/r2-neon-cost-audit-2026-06-10.md` (prior cost audit, 2026-06-10), `NEON.md` (billing model: Launch plan $19/mo since 2026-05-17; Neon bills storage GB-months + compute CU-hours; keepalive/cron compute analysis is in the 06-10 audit §2.4 and unchanged here).
 
-**DO NOT COMMIT this file without Maya approval.**
+> **COMMITTED 2026-06-12 per Maya option A (PR #398)** as durable evidence for the P2-MONEY plan.
+> No secrets — topology, storage numbers, conclusions only. **The probe `scripts/__neon-cost-2026-06-12.mjs`
+> stays UNTRACKED / operator-held** (reads `.env`; not in the repo — a fresh clone lacks it); the
+> facts below are inlined so this document is self-contained (Codex #398).
 
 ---
 
@@ -175,7 +178,7 @@ Other log-shaped tables (Q8c): `demand_signals` 4.3 MB / ~16K rows, `geocode_cac
 
 ## Appendix — provenance
 
-- Probe: `scripts/__neon-cost-2026-06-12.mjs` (untracked, DO NOT COMMIT). Host-guard line: refuses unless `DATABASE_URL` contains `ep-cold-waterfall-adno3ao2`; session set `default_transaction_read_only = on`. All queries labeled Q1–Q10c; raw output preserved in the session transcript (2026-06-12T21:40Z).
+- Probe: `scripts/__neon-cost-2026-06-12.mjs` (operator-held, NOT in repo). Host-guard line: refuses unless `DATABASE_URL` contains `ep-cold-waterfall-adno3ao2`; session set `default_transaction_read_only = on`. All queries labeled Q1–Q10c; raw output preserved in the session transcript (2026-06-12T21:40Z).
 - Known probe defect: Q8d referenced `sync_errors.created_at` (actual column `occurred_at`) and errored — immaterial (table = 40 kB total per Q2).
 - Code evidence: `app/api/cron/data-retention/route.ts` (2-yr audit purge, T+30 media-null, T+180 archive with 500/day cap), `vercel.json` cron table, `NEON.md` §2/§4/§8.
 - Not visible from SQL (console checks, carried over from the 06-10 audit §2.6): history/PITR GB, compute-size/autoscaling config on `ep-cold-waterfall-adno3ao2`, current-cycle CU-hr meter, sibling-project (`morning-bread` ~1 GB stale copy) billing in the same org.
