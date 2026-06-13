@@ -168,3 +168,32 @@ merely moved to Pending could be over-withdrawn if the MT-driven incremental mis
 Pre-existing, rare (incremental normally catches the MT bump within 15 min), regression-pinned
 unchanged by this PR's test #4. Candidate for a future refinement (status-correct instead of
 withdraw when the id is in the eligible-non-active set).
+
+## 10. Night-1 runtime proof (2026-06-13, operator-run) — clean, NOT YET SETTLED
+
+First chunked firing under P1C6b (production cron 2026-06-13T03:30:37Z, HTTP **200** — no
+abort; pre-#395 this firing 503'd on the orphan cap). Verified read-only post-hoc via
+`scripts/__c6-night1-verify.mjs` (untracked operator probe: host-guarded to cold-waterfall,
+`SET TRANSACTION READ ONLY` + `default_transaction_read_only=on`, no writes, no R2 calls, no
+token echo; Trestle re-derivation GET-only). Maya's 9 settlement criteria → **6/6 hard gates PASS**:
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Orphan import delta since 03:30Z | **300 created** (audit `feed_reconcile_orphan_created`) |
+| 2 | Eligible-orphan remaining | **1,052** (baseline 1,361 − 300 − feed drift; ≈ forecast 1,061) |
+| 3 | Chunk-1 by status | `{ Pending: 300 }` |
+| 4 | with_media / no_media | **284 with / 16 clean no-media** |
+| 5 | gated_skipped violations = 0 | **PASS** — imported_gated=0, with-media=0 |
+| 6 | Gated imported listings have 0 media | **PASS** — 0 (historical ALL-gated-with-media=637/88,177 recorded as a separate pre-existing concern, NOT this run) |
+| 7 | 94 ghost-Active transition | **99 transitions logged; ghost-Active 94 → 9** (cleared ≈85) |
+| 8 | Stranding = 0 | **PASS** — 0 imported non-gated with source media yet 0 listing_media |
+| 9 | No cleanup/backfill/R2-delete action | **PASS** — none (tombstones_in_window=291 are media-sync `*/15` drain, NOT feed-reconcile — informational) |
+
+**Why NOT settled (Maya, binding):** the **3 known ghosts at deterministic positions 514/550/649
+have not landed yet** — the shrinking-set order puts them on nightly runs **2-3**, not run 1. The
+9 residual ghost-Actives include `SL-0004` (a Mallan exclusive, correctly never in the Trestle
+Active feed — expected, not a defect) and must be re-checked next run. C6 settles ONLY after the
+3 named ghosts import with `gated_skipped`=0 and stranding clean on the run that reaches them.
+**Next:** re-run `scripts/__c6-night1-verify.mjs` after the 2026-06-14T03:30Z firing (and again
+after 06-15 if needed) before declaring SETTLED. All cleanup / Neon downgrade / storage reduction
+/ targeted re-sync / R2 cleanup / DB migration remain LOCKED until settlement.
