@@ -4,12 +4,16 @@
 > $0**. The $19/mo Launch subscription is **NOT accepted as a floor** — the 2026-06-12 zero-billing
 > audit proved it is a plan toggle, not a usage requirement, and therefore a defect to retire.
 >
-> **Evidence basis:** `docs/audits/zero-billing-neon-vercel-2026-06-12.md` (Opus, 2026-06-12,
-> read-only). Key proofs: Launch (`launch_v3`) was switched on **2026-05-17** to mute a **FALSE**
-> Vercel "branch limit exceeded" check; compute ~150 CU-h/mo (inside Free), branches 1/5000
-> (inside Free); the ONLY real Free blocker is **storage 1,139 MB > 500 MB cap**, of which ~663 MB
-> is legacy JSON on terminal/dead listings. morning-bread = 90 MB / $0-marginal. round-recipe =
-> separate Neon account, not mallan's.
+> **Evidence basis:** `docs/audits/zero-billing-neon-vercel-2026-06-12.md` — **UNTRACKED /
+> operator-held** (lives in Maya's working tree, deliberately not committed alongside the other
+> 2026-06-12 billing audits; a fresh clone will NOT have it — Codex #397 correctly flagged the dead
+> reference). The load-bearing facts are therefore inlined here so this plan is self-verifying
+> without the file: Launch (`launch_v3`) was switched on **2026-05-17** to mute a **FALSE** Vercel
+> "branch limit exceeded" check; compute ~150 CU-h/mo (inside Free), branches 1/5000 (inside Free);
+> the ONLY real Free blocker is **storage 1,139 MB > 500 MB cap**, of which ~663 MB is legacy JSON
+> on terminal/dead listings. morning-bread = 90 MB / $0-marginal. round-recipe = separate Neon
+> account, not mallan's. *(Open decision for Maya: commit the billing-audit docs so the evidence is
+> durable for future operators, or keep them operator-held — see "Open decision" at end of plan.)*
 >
 > **Hard rule (Maya directive 2026-06-12):** NO downgrade, deletes, migrations, or project
 > deletion without explicit Maya approval. Every step below is gated.
@@ -34,18 +38,23 @@ proof (per `docs/audits/corrections/P1C6-feed-reconcile-eligible-orphans.md` §9
 and runtime-verified first, or the cleanup is wrong again the next time a loop fires. Steps 2 and 3
 are *preparation* and may proceed in parallel (they touch no listing data).
 
-### Step 2 — Fix the stale `NEON_PROJECT_ID` foot-gun (rotate-db-keys can never target morning-bread)
-**Defect:** GitHub Actions repo variable `NEON_PROJECT_ID = morning-bread-68708332` (stale). Only
-consumed by `rotate-db-keys`, whose schedule is disabled — but a **manual dispatch** would still
-re-break production (the 2026-06-02 cross-project incident class).
-**Fix (HELD — `.github/workflows/**` + repo-variable surface = Maya approval):**
-- Repoint or remove the `NEON_PROJECT_ID` repo variable so it can never resolve to morning-bread.
-- Add a **fail-closed host/project guard** inside `rotate-db-keys` (refuse to run unless the target
-  resolves to `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`) — the same guard NEON.md
-  already requires before the schedule is ever re-enabled.
-- Proof: a workflow-level assertion test or a dry-run dispatch that aborts on a wrong target.
-**Do NOT run rotate-db-keys** under any circumstance (CLAUDE.md standing rule). This step makes
-the foot-gun inert; it does not re-enable the schedule.
+### Step 2 — Clean up the stale `NEON_PROJECT_ID` variable (LOW / housekeeping — the production-break risk is ALREADY guarded)
+**Correction (Codex #397, verified 2026-06-12 by direct Read):** the production-break path is
+already closed, so this step is downgraded from a safety blocker to bookkeeping. The fail-closed
+guard `scripts/ci/assert-canonical-neon-target.mjs` (landed in **#371**, present in this commit's
+parent) runs at `rotate-db-keys.yml:191` **before the first Neon mutation** and explicitly lists
+`morning-bread-68708332` as FORBIDDEN; the `--host` guard (`:330`) gates the secret/env writes. A
+manual dispatch carrying the stale `NEON_PROJECT_ID = morning-bread-68708332` would therefore
+**abort at the guard, not re-break production**. The earlier "would still re-break prod" framing was
+wrong and is retracted.
+**What actually remains (cosmetic correctness, not a safety blocker):** the repo variable
+`NEON_PROJECT_ID` still names the stale project. It is misleading and would make a *legitimate*
+future re-enable of rotate-db-keys point at the wrong project — which the guard would then refuse,
+so the worst case is a hard abort, never data loss.
+**Fix (HELD — repo-variable surface = Maya approval):** set `NEON_PROJECT_ID` to the canonical
+`hidden-mountain-87248164`, or delete it. **No workflow-code change needed — the guard already
+exists.** **Do NOT run rotate-db-keys** regardless (CLAUDE.md standing rule). This step no longer
+gates Step 7 as a safety item.
 
 ### Step 3 — Confirm the Vercel false branch-limit issue is cleared or escalated
 The Launch upgrade exists ONLY to mute the false "branch limit exceeded" check (hidden-mountain is
@@ -90,8 +99,9 @@ with headroom, **report that honestly** and present Maya the real choice (deeper
 $19) rather than downgrading into immediate cap-breach.
 
 ### Step 7 — Request Maya approval to downgrade Launch → Free
-ONLY after Steps 2, 3, 5, 6 all pass. Present: cleared Vercel check (3), size-under-cap proof (6),
-no-JSON-dependency proof (5), foot-gun closed (2). Maya decides. No downgrade before this.
+ONLY after the **safety/proof gates** pass: Step 3 (cleared Vercel check), Step 6 (size-under-cap
+proof), Step 5 (no-JSON-dependency proof). Step 2 is housekeeping, NOT a safety gate (the guard
+already protects rotation) — recommended-but-not-blocking. Maya decides. No downgrade before this.
 
 ### Step 8 — Document the tradeoff (autosuspend / cold starts)
 Free tier autosuspends idle compute after ~5 min → **cold starts for visitors** (first hit after
@@ -113,7 +123,22 @@ today). State the chosen posture in the downgrade request. **$0 is incompatible 
 - Steps 4–7 BLOCKED until **C6 settles** (ghost proof).
 - Step 4b BLOCKED until **PR 5B** (public reader swap off `listings.idx_display_yn`) lands — it is
   part of the legacy-column retirement (HELD, master refactor plan).
-- Step 7 BLOCKED until **Step 3** (Vercel check cleared).
+- Step 7 BLOCKED until **Step 3** (Vercel check cleared) + Steps 5, 6 pass. Step 2 is recommended
+  housekeeping, not a Step-7 blocker.
+
+## Open decision for Maya — durability of the evidence audits
+The three 2026-06-12 billing audits (`zero-billing-neon-vercel`, `zero-billing-r2-cloudflare`,
+`neon-storage-cost`) are currently **untracked / operator-held**, consistent with how the other
+2026-06-12 audit + dry-run docs are kept. Because this is a *tracked* plan that gates real spend
+decisions on those numbers, Codex #397 fairly noted the citation points at a file a fresh clone
+won't have. Two clean options — **your call**:
+- **(A) Commit the billing audits** (durable evidence for the next operator; they contain infra
+  topology + project ids but **no secrets** — values were masked during the audit). Recommended if
+  this plan will be executed by anyone but you.
+- **(B) Keep them operator-held** (consistent with current audit-doc hygiene). The load-bearing
+  facts are inlined in this plan's header, so the plan stands alone either way.
+This plan does not assume either; it inlines the facts so it is self-verifying now.
 
 *Plan authored read-only by Claude (Fable 5), 2026-06-12, at Maya's direction. Tracks the
-zero-billing audit's $0 path. No execution authorized; every step Maya-gated.*
+zero-billing audit's $0 path. No execution authorized; every step Maya-gated. Amended same-day for
+Codex #397 (evidence-doc untracked; rotate-db-keys guard already landed in #371).*
