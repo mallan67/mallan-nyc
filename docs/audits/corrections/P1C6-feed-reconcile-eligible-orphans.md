@@ -1,6 +1,8 @@
 # Correction Trace Record — `P1C6` feed-reconcile eligible-orphan import + media population
 
-> **Status: IN-PR.** Phase-1 Correction 6 — the FINAL loop closure before the data-cleanup phase
+> **Status: SETTLED** — Maya approval recorded 2026-06-15 (PR #402 / thread) for **formal
+> bookkeeping closure only; unlocks no execution** (data-cleanup / P2-MONEY Step 4 stay separately
+> gated). Phase-1 Correction 6 — the FINAL loop closure before the data-cleanup phase
 > unlocks. Designed from Maya's directive (2026-06-11) + the live probe she ran. Carries the
 > **HARD checklist item** (Phase-1 plan, Maya verbatim): "Any orphan listing created by
 > feed-reconcile must immediately populate media or enqueue targeted media re-sync, with a RED
@@ -201,11 +203,15 @@ after 06-15 if needed) before declaring SETTLED. All cleanup / Neon downgrade / 
 ## 11. C6 SETTLEMENT EVIDENCE — consolidated (2026-06-15) — SETTLEMENT-READY, pending Maya approval
 
 The 3 named orphan-ghosts have all landed via the P1C6b chunked catch-up across three nightly
-runs. **Source attribution (Maya 2026-06-15):** every feed fetch is against the **Cotality/Trestle
-IDX Plus Web API at `api.cotality.com`** (host-guarded in both the route and the verifier —
-`scripts/__c6-night1-verify.mjs:39-40` refuses any non-`api.cotality.com` base). **"RLS" is the
-REBNY RLS listing-key PREFIX on each `ListingId` (`LIKE 'RLS%'`), NOT a data source or host** — the
-data comes from Cotality, not from an "rls" endpoint.
+runs. **Source attribution (Maya 2026-06-15):** every feed fetch targets the **Cotality/Trestle
+IDX Plus Web API at `api.cotality.com`**. The **verifier IS host-guarded** —
+`scripts/__c6-night1-verify.mjs:39-40` refuses any non-`api.cotality.com` base. The **production
+route is NOT yet host-guarded** (Codex #402): `app/api/cron/feed-reconcile/route.ts` reads
+`process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle"` and *defaults* to Cotality but
+performs **no hostname validation**, so a misconfigured `TRESTLE_API_URL` could point elsewhere —
+carried forward as a hardening monitor item below (NOT a settlement blocker; no code change here).
+**"RLS" is the REBNY RLS listing-key PREFIX on each `ListingId` (`LIKE 'RLS%'`), NOT a data source
+or host** — the data comes from Cotality, not from an "rls" endpoint.
 
 Cron fires `30 3 * * *` UTC = **11:30 PM America/New_York the prior evening** (EDT). Verified
 read-only via `scripts/__c6-night1-verify.mjs` (host-guarded `ep-cold-waterfall`, `SET TRANSACTION
@@ -237,8 +243,12 @@ re-derivation is GET-only against `api.cotality.com`).
   be tracked as a future correction, not fixed here.
 - **`ALL-gated-with-media` drift** (637 → 649 over the three nights) — the historical gated-listing
   media population (the post-C6 R2/gated-media compliance concern), separate from these runs.
+- **Route host-validation hardening (Codex #402):** `app/api/cron/feed-reconcile/route.ts` should
+  reject a non-`api.cotality.com` `TRESTLE_API_URL` before any fetch (the verifier already does).
+  Carried forward as a hardening item — NOT a settlement blocker; no code change in this PR.
 
-**SETTLEMENT STATUS:** settlement-ready. The settlement ledger flips to **SETTLED** and **P2-MONEY
-Step 4 / data-cleanup unlock ONLY on explicit Maya approval** (her 2026-06-15 directive). This
-record performs and unlocks NOTHING — no cleanup, no Neon downgrade, no storage reduction, no
-targeted re-sync, no R2 cleanup, no DB migration.
+**SETTLEMENT STATUS:** **SETTLED — Maya approval recorded 2026-06-15** (PR #402 / thread) for
+**formal bookkeeping closure ONLY.** This settlement **unlocks NO execution**: **P2-MONEY Step 4 /
+data-cleanup require SEPARATE explicit Maya approval.** This record performs and unlocks NOTHING —
+no cleanup, no Neon downgrade, no storage reduction, no targeted re-sync, no R2 cleanup, no DB
+migration.
