@@ -197,3 +197,48 @@ Active feed — expected, not a defect) and must be re-checked next run. C6 sett
 **Next:** re-run `scripts/__c6-night1-verify.mjs` after the 2026-06-14T03:30Z firing (and again
 after 06-15 if needed) before declaring SETTLED. All cleanup / Neon downgrade / storage reduction
 / targeted re-sync / R2 cleanup / DB migration remain LOCKED until settlement.
+
+## 11. C6 SETTLEMENT EVIDENCE — consolidated (2026-06-15) — SETTLEMENT-READY, pending Maya approval
+
+The 3 named orphan-ghosts have all landed via the P1C6b chunked catch-up across three nightly
+runs. **Source attribution (Maya 2026-06-15):** every feed fetch is against the **Cotality/Trestle
+IDX Plus Web API at `api.cotality.com`** (host-guarded in both the route and the verifier —
+`scripts/__c6-night1-verify.mjs:39-40` refuses any non-`api.cotality.com` base). **"RLS" is the
+REBNY RLS listing-key PREFIX on each `ListingId` (`LIKE 'RLS%'`), NOT a data source or host** — the
+data comes from Cotality, not from an "rls" endpoint.
+
+Cron fires `30 3 * * *` UTC = **11:30 PM America/New_York the prior evening** (EDT). Verified
+read-only via `scripts/__c6-night1-verify.mjs` (host-guarded `ep-cold-waterfall`, `SET TRANSACTION
+READ ONLY` + `default_transaction_read_only=on`, no writes / no R2 / no token echo; Cotality
+re-derivation is GET-only against `api.cotality.com`).
+
+| Night | Eastern fire | UTC stamp | HTTP | orphans created | ghost-transitions | named ghosts landed | hard gates |
+|---|---|---|---|---|---|---|---|
+| 1 | Fri 06-12 11:30 PM | 06-13 03:30Z | 200 | 300 | 99 | 0/3 (514/550/649 not yet reached) | clean |
+| 2 | Sat 06-13 11:30 PM | 06-14 03:30Z | 200 | 300 | 15 | 2/3 — RLS20014678 (media 0) · RLS20018843 (media 11) | 7/7 PASS |
+| 3 | Sun 06-14 11:30 PM | 06-15 03:30Z | 200 | 300 | 11 | **3/3** — + RLS20030621 (media 18) | 7/7 PASS |
+
+**Settlement criteria (Maya, binding) — ALL MET:**
+- ✅ **3/3 named ghosts imported with media matching the 2026-06-12 probe** — RLS20014678 clean
+  no-media (0), RLS20018843 = 11, RLS20030621 = 18. All Pending, all now local.
+- ✅ `gated_skipped` violations = **0** every run (imported gated rows carry 0 `listing_media`).
+- ✅ stranding = **0** every run (no imported orphan photoless-in-both-layers despite source media).
+- ✅ **NO cleanup / backfill / R2-deletion** audit action in any run window (cleanup_actions=none).
+- ✅ backlog draining deterministically: eligible-orphan remaining **1,361 → 1,052 → 751 → 449**.
+- ✅ ghost-Active (withdraw) direction drained **94 → 0** on night-2, route-scoped to `RLS%`
+  (SL-0004 and other non-RLS exclusives correctly excluded — they are never in the Cotality Active
+  set and the route never touches them).
+
+**Monitor items carried forward (NOT settlement blockers):**
+- **Q7 residual `RLS_ghost_Active = 2`** on night-3 (`RLS20072123`, `RLS20063884`) — a low-rate
+  ongoing inflow of local-Active listings absent from the Cotality Active set. Candidate for the
+  §8 refinement (status-correct instead of withdraw when the id is in the Cotality eligible-non-
+  active set, so a listing that merely moved Active→Pending in the feed is not over-withdrawn). To
+  be tracked as a future correction, not fixed here.
+- **`ALL-gated-with-media` drift** (637 → 649 over the three nights) — the historical gated-listing
+  media population (the post-C6 R2/gated-media compliance concern), separate from these runs.
+
+**SETTLEMENT STATUS:** settlement-ready. The settlement ledger flips to **SETTLED** and **P2-MONEY
+Step 4 / data-cleanup unlock ONLY on explicit Maya approval** (her 2026-06-15 directive). This
+record performs and unlocks NOTHING — no cleanup, no Neon downgrade, no storage reduction, no
+targeted re-sync, no R2 cleanup, no DB migration.
