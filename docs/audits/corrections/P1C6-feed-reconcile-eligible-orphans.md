@@ -200,9 +200,12 @@ have not landed yet** — the shrinking-set order puts them on nightly runs **2-
 9 residual ghost-Actives include `SL-0004` (a Mallan exclusive, correctly never in the Trestle
 Active feed — expected, not a defect) and must be re-checked next run. C6 settles ONLY after the
 3 named ghosts import with `gated_skipped`=0 and stranding clean on the run that reaches them.
-**Next:** re-run `scripts/__c6-night1-verify.mjs` after the 2026-06-14T03:30Z firing (and again
-after 06-15 if needed) before declaring SETTLED. All cleanup / Neon downgrade / storage reduction
-/ targeted re-sync / R2 cleanup / DB migration remain LOCKED until settlement.
+**Next (historical, from the night-1 run; superseded by §11 — C6 is now SETTLED):** re-run
+`scripts/__c6-night1-verify.mjs` after the 2026-06-14T03:30Z firing (and again after 06-15 if
+needed) before declaring SETTLED. All cleanup / Neon downgrade / storage reduction / targeted
+re-sync / R2 cleanup / DB migration remain **LOCKED — and stay LOCKED after settlement**:
+settlement is bookkeeping closure only and does **NOT** release them; each requires **SEPARATE
+explicit Maya approval** (see §11).
 
 ## 11. C6 SETTLEMENT EVIDENCE — consolidated (2026-06-15) — SETTLED (bookkeeping closure only; unlocks no execution)
 
