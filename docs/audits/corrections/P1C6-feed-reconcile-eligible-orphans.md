@@ -1,9 +1,10 @@
 # Correction Trace Record — `P1C6` feed-reconcile eligible-orphan import + media population
 
 > **Status: SETTLED** — Maya approval recorded 2026-06-15 (PR #402 / thread) for **formal
-> bookkeeping closure only; unlocks no execution** (data-cleanup / P2-MONEY Step 4 stay separately
-> gated). Phase-1 Correction 6 — the FINAL loop closure before the data-cleanup phase
-> unlocks. Designed from Maya's directive (2026-06-11) + the live probe she ran. Carries the
+> bookkeeping closure ONLY. C6 settlement does NOT unlock execution** — P2-MONEY Step 4 /
+> data-cleanup require SEPARATE explicit Maya approval; no cleanup, Neon downgrade, storage
+> reduction, targeted re-sync, R2 cleanup, or DB migration is authorized. Phase-1 Correction 6 was
+> the LAST writer-loop closure. Designed from Maya's directive (2026-06-11) + the live probe she ran. Carries the
 > **HARD checklist item** (Phase-1 plan, Maya verbatim): "Any orphan listing created by
 > feed-reconcile must immediately populate media or enqueue targeted media re-sync, with a RED
 > test proving it cannot remain photoless in both `listing_media` and legacy `media`."
@@ -20,7 +21,8 @@
    **StandardStatus=Pending** — were invisible BY DESIGN. Not called a generic $expand bug
    anywhere (Maya's bound; the only proven 400 is THIS-function's form in `fetch.ts`, PR-S.1c —
    comment scope-corrected in this PR).
-3. **Remaining OPEN after this PR:** the data-cleanup phase (unlocks on this settling) ·
+3. **Remaining OPEN after this PR:** the data-cleanup phase (a SEPARATE Maya-approved decision —
+   C6 settlement does NOT unlock it) ·
    C6c enum-filter adoption (Q3 proved `MediaCategory eq 'Photo'` 200 — **page-cap behavior
    still unproven**, so the Class-B lock STAYS until that is explicitly probed; Maya's bound) ·
    M3 live capture · CI3 · crm:-upload advisory · fetch.ts third-classifier consolidation ·
@@ -37,7 +39,8 @@
      because the inline expand payload is NOT pagination-proven complete (fail-closed: missing
      rows get filled by media-sync's complete-set path later; nothing can be wrongly deleted).
 5. **Cleanup gate:** NO JSON/R2/data cleanup until the writer loops are closed — this PR closes
-   the last one.
+   the last one. Closing the loops is a PRECONDITION for cleanup, NOT an authorization: even with
+   C6 settled, data-cleanup / P2-MONEY Step 4 still require SEPARATE explicit Maya approval.
 
 ## 1. Defect — the BEFORE (per Maya's required-fix list)
 - **Why the Pending listings were never imported:** `fetchTrestleActiveIds` filters
@@ -109,8 +112,9 @@ own eligibility set).
   (2026-06-11, `ba0d2b7d`).
 - **Codex:** on PR open. · **Maya merge:** her C6 directive (2026-06-11) = the build approval;
   merges on green CI. **C6 SETTLES only after the §5.7 runtime proof** (next 03:30Z firing:
-  the 3 ghosts imported, 2 with media, ≥1 clean no-media) — the hard checklist item then closes
-  and the data-cleanup phase unlocks.
+  the 3 ghosts imported, 2 with media, ≥1 clean no-media) — the hard checklist item then closes.
+  Settlement is bookkeeping closure only and does NOT unlock the data-cleanup phase, which remains
+  a SEPARATE explicit Maya approval (see §11).
 - **Follow-up candidates surfaced by the gates:** orphan-cap alerting parity · lookup-CSV
   StandardStatus refresh (Class E) · ComingSoon orphan-scope symmetry (Maya intent check).
 
@@ -196,11 +200,14 @@ have not landed yet** — the shrinking-set order puts them on nightly runs **2-
 9 residual ghost-Actives include `SL-0004` (a Mallan exclusive, correctly never in the Trestle
 Active feed — expected, not a defect) and must be re-checked next run. C6 settles ONLY after the
 3 named ghosts import with `gated_skipped`=0 and stranding clean on the run that reaches them.
-**Next:** re-run `scripts/__c6-night1-verify.mjs` after the 2026-06-14T03:30Z firing (and again
-after 06-15 if needed) before declaring SETTLED. All cleanup / Neon downgrade / storage reduction
-/ targeted re-sync / R2 cleanup / DB migration remain LOCKED until settlement.
+**Next (historical, from the night-1 run; superseded by §11 — C6 is now SETTLED):** re-run
+`scripts/__c6-night1-verify.mjs` after the 2026-06-14T03:30Z firing (and again after 06-15 if
+needed) before declaring SETTLED. All cleanup / Neon downgrade / storage reduction / targeted
+re-sync / R2 cleanup / DB migration remain **LOCKED — and stay LOCKED after settlement**:
+settlement is bookkeeping closure only and does **NOT** release them; each requires **SEPARATE
+explicit Maya approval** (see §11).
 
-## 11. C6 SETTLEMENT EVIDENCE — consolidated (2026-06-15) — SETTLEMENT-READY, pending Maya approval
+## 11. C6 SETTLEMENT EVIDENCE — consolidated (2026-06-15) — SETTLED (bookkeeping closure only; unlocks no execution)
 
 The 3 named orphan-ghosts have all landed via the P1C6b chunked catch-up across three nightly
 runs. **Source attribution (Maya 2026-06-15):** every feed fetch targets the **Cotality/Trestle
