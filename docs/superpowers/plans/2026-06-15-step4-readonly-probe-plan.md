@@ -90,35 +90,55 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
 - **ROOT-CAUSE NOTE (do-not-ignore sweep, 2026-06-16) — this map is ILLUSTRATIVE, NOT exhaustive.**
   Repeated review (Codex #406 r1–r4) kept surfacing consumers an inline list had missed — render
   `raw_data`, render `compliance`, projection `address`, and the public `/api/open-houses` payload.
-  The lesson: a hand-written consumer list is not a safe drop gate. **The authoritative gate is a
-  repo-wide multi-pattern sweep that Step 5 MUST run and clear per column, NOT this prose.** A
-  single grep is insufficient (Codex #406 r5: `app/api/buildings/search/route.ts:536` reads
-  `address`/`features`/`raw_data` via raw `$queryRawUnsafe` SQL → `extractSavedProfileValues(...)`,
-  which a Prisma-`select` grep misses entirely). **Step 5 must run ALL of:**
-  1. **Prisma narrow selects** — `grep -rn "^\s*<col>:\s*true" app lib` → (run 2026-06-16)
-     **`address` ~30 sites · `media` 11 · `features` 8 · `agent_info` 7 · `raw_data` 4 ·
-     `compliance` 0.** Spans public render (`app/api/listings/route.ts`,
-     `app/api/agents/[slug]/listings/route.ts`, `app/api/open-houses/route.ts`,
-     `app/api/listings/[id]/route.ts`, `app/api/market/route.ts`, `app/sitemap.ts`), portal
-     (`app/api/portal/favorites|offers|offer-status|showings`), CRM (many `app/api/crm/**`), cron
-     (`data-retention`, `listing-expiration`), lib (`lib/search/core.ts`,
-     `lib/search/listing-search-projection.ts`, `lib/cma/engine.ts`, `lib/buyer-intent/recommender.ts`).
-  2. **Full-record fetches** — `findUnique`/`findMany` with NO `select` (or a `select` returning the
-     whole row), e.g. the detail page (item below).
-  3. **Raw SQL** — `grep -rn "queryRaw\|queryRawUnsafe" app lib` then read each for column names in
-     the (often string-built) SQL: known hits incl. `app/api/buildings/search/route.ts:536`
-     (`address`/`features`/`raw_data`), `app/api/debug/media-health/route.ts:69` + `lib/idx/sync.ts:850`
-     (`media`). **String-built SQL (`$queryRawUnsafe`) can't be fully resolved by static grep — each
-     such call site needs manual read.**
-  4. **Property-access reads** — `grep -rn "\.<col>\b" app lib` for `.raw_data`/`.features`/etc. on
-     listing objects that a select/raw-SQL grep didn't already attribute.
-  - **`compliance` has ZERO narrow `compliance: true` selects yet is still render-critical** — the
-    detail page reads it via a full-record fetch (`app/listing/[...slug]/page.tsx:545,621`,
-    `publicRemarks` ← `compliance.PublicRemarks`). **So the grep gate must ALSO catch full-record
-    fetches (`findUnique`/`findMany` with no `select`, or `select` that returns the whole row), not
-    just narrow `<col>: true` selects** — column-narrow grep alone would wrongly clear `compliance`.
-  Representative per-column criticality (illustrative — confirm against the live grep, do not treat
-  as the whole list):
+  The lesson: a hand-written consumer list is not a safe drop gate, and **`grep -rn "^\s*<col>:\s*true"`
+  is NOT the authoritative gate — it is only ONE probe among several.** A column-narrow Prisma-select
+  grep misses raw SQL, property reads, destructuring, helpers, and writers (Codex #406 r5:
+  `app/api/buildings/search/route.ts:536-556` reads `address`/`features`/`raw_data` via raw
+  `$queryRawUnsafe` SQL → `extractSavedProfileValues(l.raw_data, l.features, l.custom_fields)`, which
+  a select grep misses entirely). **SCOPE: every probe runs across `app lib scripts public/crm`**
+  (Codex #406 r6 — JSON readers exist outside `app`/`lib`: `scripts/backfill-listing-search-projection.ts:149-151`
+  selects `address`/`features`/`media`; `public/crm/SALE-FORM-REDESIGN.html:9548-9552` reads
+  `raw_data`/`address`/`features`/`agent_info`/`media` from API payloads to hydrate the seller form;
+  an `app`/`lib`-only gate would leave these operational/CRM consumers broken by a strip). **The
+  authoritative Step-5 scan is a repo-wide multi-probe sweep covering ALL of the following; a column
+  cannot be marked CLEAR until every probe is clean across all four roots OR each hit is
+  migrated/proven safe:**
+  1. **Prisma `select` AND `include` patterns** — `grep -rn "^\s*<col>:\s*true" app lib scripts public/crm`
+     is the starting probe (run 2026-06-16 over `app`+`lib`: **`address` ~30 sites · `media` 11 ·
+     `features` 8 · `agent_info` 7 · `raw_data` 4 · `compliance` 0**; spans public render `app/api/listings`,
+     `app/api/agents/[slug]/listings`, `app/api/open-houses`, `app/api/listings/[id]`,
+     `app/api/market`, `app/sitemap.ts`; portal `app/api/portal/favorites|offers|offer-status|showings`;
+     CRM `app/api/crm/**`; cron `data-retention`/`listing-expiration`; lib `lib/search/core.ts`,
+     `lib/search/listing-search-projection.ts`, `lib/cma/engine.ts`, `lib/buyer-intent/recommender.ts`;
+     **plus `scripts/**` — e.g. `scripts/backfill-listing-search-projection.ts`, `scripts/comps/by-property.ts`,
+     `scripts/backfill-crm-exclusive-cotality-identity.mjs`**) — but NOT sufficient alone.
+  2. **Direct property reads** — `listing.<col>`, `dbListing.<col>`, `l.<col>`, `s.listing.<col>`
+     (`grep -rn "\.<col>\b" app lib scripts public/crm`; incl. browser JS reading API payloads, e.g.
+     `public/crm/SALE-FORM-REDESIGN.html:9548-9552`).
+  3. **Destructuring of the JSON columns** — `const { <col> } = listing` / `({ <col> }) =>` forms.
+  4. **Raw SQL `SELECT`s** mentioning the columns — `grep -rn "queryRaw\|queryRawUnsafe" app lib scripts`,
+     then read each (known hits: `app/api/buildings/search/route.ts:536-556`
+     `address`/`features`/`raw_data`; `app/api/debug/media-health/route.ts:69` + `lib/idx/sync.ts:850`
+     `media`). **String-built `$queryRawUnsafe` can't be statically resolved — each call site needs a
+     manual read.**
+  5. **Mapper / builder / parser functions** that take a JSON column as input — e.g.
+     `extractSavedProfileValues`, `dbListingToPublicDTO`, the projection builder, the RESO mapper —
+     trace their callers even when the column name doesn't appear at the call site.
+  6. **Writer / upsert / update paths** — `lib/idx/sync.ts:330-335`, `:1161-1166` re-upsert the JSON;
+     these REPOPULATE a stripped column (see the writer/refill blocker below). Includes operational
+     writers in `scripts/**` (e.g. `scripts/backfill-crm-exclusive-cotality-identity.mjs` writes
+     `agent_info`).
+  7. **Refill / backfill paths** — `backfillEmptyMedia` (`lib/idx/sync.ts:696-702`) re-fetches `media`
+     on `[]`/null; `scripts/backfill-listing-search-projection.ts` rebuilds the projection from
+     `address`/`features`/`media` (stripping those first would backfill EMPTY search data).
+  8. **Full-record fetches followed by helper calls** — `findUnique`/`findMany` with no `select` (or
+     a `select` returning the whole row) whose result is then handed to a mapper/render path, e.g.
+     the detail page (`compliance` has ZERO narrow selects yet renders via `page.tsx:545,621`,
+     `publicRemarks` ← `compliance.PublicRemarks` — column-narrow grep alone would wrongly clear it).
+  **A column is CLEAR only when all 8 probes are clean across `app lib scripts public/crm` (or each
+  hit is migrated/proven safe). Nothing is classified out-of-scope by default.**
+  Representative per-column criticality (illustrative — confirm against the full multi-probe scan, do
+  not treat as the whole list):
   - **`raw_data`** → **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates ONLY from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) + archive (`:225-228`) + CRM PATCH (`:101-103`). Render-critical — live-row reclaim needs the public-DTO migration too.
   - **`agent_info`** → public/portal/agent-page DTO (`lib/compliance/dto.ts:270,282,368`; `app/api/open-houses/route.ts:368-370` office attribution; `app/api/agents/[slug]/listings`) + archive + CRM + **syndication**.
   - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **public `/api/open-houses` property-type display** (`app/api/open-houses/route.ts:363`, `features.CommonInterest`); **search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555`; RESO `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH `app/api/crm/listings/[id]/route.ts:329`.

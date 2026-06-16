@@ -44,9 +44,19 @@
    for the NOT-NULL columns — see §C) + GC past the PITR window — **NOT** the output of
    `DROP COLUMN`, which is catalog-only and frees no bytes (see §C, Codex #404). Targets are
    projections from the 06-12 audit; the go/no-go uses the **measured** Neon billed size after the
-   rewrite (Step 6), never these estimates:
+   rewrite (Step 6), never these estimates.
 
-   | Action (each separately gated; `raw_data` only via archive/migration — §C, Codex #404) | post-rewrite DB size |
+   > **CREDITING RULE (general, Codex #406-r5).** No JSON storage saving is creditable toward the
+   > Free go/no-go until BOTH (a) **all read consumers** of that column are migrated off it (the
+   > full multi-probe Step-5 scan is clean — readers, mappers, raw SQL, property reads, full-record
+   > fetches) **AND** (b) **all writer/refill paths** are migrated, disabled, or proven unable to
+   > repopulate the JSON (`lib/idx/sync.ts:330-335`, `:1161-1166` re-upsert on every update;
+   > `backfillEmptyMedia` `:696-702` re-fetches `media`). Reader migration ALONE is insufficient:
+   > the strip would be **transient** and the next incremental sync / media backfill would
+   > repopulate the column, breaching the Free cap again. The estimates below assume both conditions
+   > are met for the row in question; none is met today.
+
+   | Action (each separately gated; `raw_data` only via archive/migration — §C; readers **and** writers must be migrated first — Codex #404/#406-r5) | post-rewrite DB size |
    |---|---|
    | Today | ~1,135 MB |
    | Archive drain (terminal rows): reclaims `raw_data` 223 + `compliance` 170 + `media` ≈ 398 MB | ~737 MB |
@@ -61,10 +71,15 @@
    "~674 MB all-row raw_data strip" row was incorrect.)*
 
 6. **$19 Launch remains the low-maintenance floor** unless the JSON-drop path is COMPLETED AND
-   PROVEN. Even when complete it lands **at or just over the ~477 MiB cap (tighter than 512) — thin
-   or negative margin** vs ~45 MB/mo organic growth, and Free **autosuspends** idle compute (cold
-   starts for visitors). The corrected, tighter cap makes the case *stronger* that Free is a
-   schema/data-model cleanup *project*, not a quick cleanup job — and that $19 is the safe floor.
+   PROVEN. **Bottom line (unchanged across 6 review rounds): NO JSON column is freely strippable
+   today.** Reaching Free is not a cleanup job — it requires **(1) a six-front consumer migration**
+   (render DTO · CRM · archiver · syndication · search projection · RESO/IDX-feed), **PLUS (2) a
+   writer/refill migration** (idx-sync upserts + media backfill stop repopulating the JSON), **PLUS
+   (3) measured Neon billed bytes** under 500,000,000 (~477 MiB) AFTER the row-rewrite + GC-past-PITR
+   (Step 6) — never an estimate. Even when all three complete, projected size lands **at or just over
+   the ~477 MiB cap (tighter than 512) — thin or negative margin** vs ~45 MB/mo organic growth, and
+   Free **autosuspends** idle compute (cold starts for visitors). So Free is a schema/data-model
+   migration *project*, and **$19 is the safe floor.**
 
 ## A. Hard dependencies (why this is not "just drop the columns")
 - **PR 5B** (public reader swap off `listings.idx_display_yn`/JSON → projection) — HELD. Until the
