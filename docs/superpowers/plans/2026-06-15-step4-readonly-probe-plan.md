@@ -48,9 +48,10 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
 - Grep `lib/`, `app/`, `public/crm/`, `scripts/` for reads of the column (Prisma `select`,
   `.raw_data`, JSON-path access, DTO mappers, render components, sitemap, search projection
   builders).
-- Classify each read into one of FOUR blocker categories (+ non-blocking): **render-critical**
+- Classify each read into one of the blocker categories (+ non-blocking): **render-critical**
   (public listing page / search card / portal) · **CRM-critical** · **archive-critical** ·
-  **syndication-critical** · ETL/re-derivation only · dead/unused.
+  **syndication-critical** · **projection-critical** (the search-projection builder reads it) ·
+  **RESO-critical** (the RESO / IDX-feed mapper reads it) · ETL/re-derivation only · dead/unused.
 - **CRM-critical reads are BLOCKERS, not a free pass (Codex #404).** A column is **NOT** "safe to
   drop" merely because no public render reads it — the CRM has production dependencies that lose
   data:
@@ -89,14 +90,26 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   **Conclusion: NO JSON column is freely strippable today.** Each per-column verdict MUST be
   re-derived from this complete consumer map; the only `raw_data`/JSON reclaim available now is the
   archive path (terminal rows). This makes Free further off, reinforcing $19 as the floor.
-- Verdict per column — **SAFE TO DROP requires NO public-render read, NO CRM-critical read, NO
-  archive-critical read, AND NO syndication-critical read.** Otherwise: **DROP AFTER PR 5B** (public
-  read moves to the projection) + **AFTER CRM migration** + **AFTER ARCHIVER MIGRATION** + **AFTER
-  SYNDICATION migration** (each critical reader moved off the column); or **NORMALIZE FIRST**
-  (`address`, `agent_info` feed display, CRM, archiver, AND syndication). **Any render / CRM /
-  archive / syndication critical read = a required migration or exclusion BEFORE drop.**
-- **Output:** a per-column dependency matrix (public + CRM + archive + syndication) feeding Step 5's
-  proof.
+- **PROJECTION-critical and RESO-critical reads are ALSO BLOCKERS (Codex #404) — not just listed in
+  the map above, but BLOCKING in the verdict:**
+  - **Projection:** `lib/search/listing-search-projection.ts:193-290` derives searchable text,
+    amenity keys, and media flags from `features`/`media` (and others) into
+    `listing_search_projection`, which `lib/search/core.ts:114-121` uses for **production listing
+    search**. Stripping the JSON before the projection builder is migrated/re-derived would make the
+    next sync/backfill write **empty projection data** → broken search. The projection is the PR-5B
+    *read* target but is itself a *consumer/builder* of the JSON.
+  - **RESO/IDX-feed:** `lib/compliance/reso-mapper.ts:239-253,281` maps `features`/`media` into RESO
+    output. Stripping before migrating it blanks feed/syndication output fields.
+- Verdict per column — **SAFE TO DROP requires NO render-critical, NO CRM-critical, NO
+  archive-critical, NO syndication-critical, NO projection-critical, AND NO RESO-critical read.**
+  Otherwise: **DROP only AFTER migrating every critical reader off the column** — PR 5B (public read
+  → projection) **+** CRM migration **+** archiver migration **+** syndication migration **+**
+  **projection-builder migration** (derive from structured columns) **+** **RESO-mapper migration**;
+  or **NORMALIZE FIRST** (`address`, `agent_info` feed display, CRM, archiver, syndication). **Any
+  render / CRM / archive / syndication / projection / RESO critical read = a required migration or
+  exclusion BEFORE drop.**
+- **Output:** a per-column dependency matrix (render + CRM + archive + syndication + projection +
+  RESO) feeding Step 5's proof.
 
 ## Probe 3 — Required normalization fields (for `address` / `agent_info`)
 **Goal:** identify the exact sub-fields the render paths need from `address`/`agent_info`, so a
