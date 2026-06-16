@@ -78,11 +78,19 @@ does"). **Relying on `DROP COLUMN` alone would leave billed storage near current
 approved on the §5 waterfall would then breach the cap.** The waterfall sizes are *post-rewrite*
 targets, not `DROP COLUMN` outputs.
 
-**The bytes are reclaimed only by a ROW REWRITE that drops the JSON values, then GC past the PITR
+**The bytes are reclaimed only by a ROW REWRITE that empties the JSON values, then GC past the PITR
 window:**
-1. **Batch `UPDATE listings SET raw_data = NULL, compliance = NULL, … ` (bounded batches).** This
-   rewrites each row to a smaller live tuple; the old tuple becomes dead. (Same mechanism the
-   data-retention archive already uses for terminal rows.)
+1. **Batch `UPDATE` that EMPTIES each column to a VALID value (bounded batches).** Per
+   `prisma/schema.prisma:476-481`, **only `raw_data` is nullable (`Json?`)**; `address`, `features`,
+   `media`, `compliance`, `agent_info` are **NOT NULL** with JSON defaults, so `SET … = NULL` would
+   violate the constraint (Codex #404). Use the schema-default empty values, exactly as the
+   data-retention archiver already does (`media: []`, `compliance: {}`):
+   `SET raw_data = NULL, compliance = '{}'::jsonb, media = '[]'::jsonb, features = '{}'::jsonb`
+   (and `agent_info`/`address` → `'{}'` only AFTER normalization — see §A). An empty `{}`/`[]` is a
+   few bytes vs the hundreds of MB it replaces, so this reclaims the column just as effectively as
+   NULL. (Alternative: a nullable migration first — extra schema churn for no storage benefit; the
+   empty-JSON rewrite is preferred.) This rewrites each row to a smaller live tuple; the old tuple
+   becomes dead. (Same mechanism the data-retention archive already uses for terminal rows.)
 2. **Garbage collection:** on Neon's log-structured storage the old page versions drop out of the
    billed synthetic size only after they **age past the PITR window** (6 h Free / 7 d Launch) +
    autovacuum. So reclaim **lags** the UPDATE by the retention window — plan for it.
