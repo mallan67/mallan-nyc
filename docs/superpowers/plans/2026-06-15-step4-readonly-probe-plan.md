@@ -14,19 +14,28 @@ candidate drop — measured, not estimated.
   `features`, `agent_info`, `address`, `media` — over all rows AND split by
   displayable vs terminal (`status IN TERMINAL_STATUSES`), so we see how much each drop frees on
   live rows vs terminal-only rows.
-- Cumulative simulation, split by RECLAIM PATH so the go/no-go does not over-credit `raw_data`
-  (Codex #404 — the plan §C says `raw_data` is NOT bulk-strippable on live rows):
-  - **(a) Archive-path reclaim:** `raw_data` + `compliance` + `media` **on TERMINAL rows only**
-    (what the archive drain frees) — this is the only `raw_data` reclaim allowed pre-prerequisite.
-  - **(b) Bulk-strip reclaim:** `compliance` + `media` + `features` on the remaining (live) rows
-    (NOT `raw_data`), then `address`/`agent_info` after normalization.
-  - **(c) Live-row `raw_data` — REPORT SEPARATELY, DO NOT credit in the go/no-go** until the
-    archiver-migration prerequisite (§A) ships; label it explicitly as locked.
-  Compare (a)+(b)+normalization against the **Free cap of 500,000,000 bytes (~477 MiB; Neon's
-  0.5 GB is decimal)**, in BYTES, with (c) shown as a separate not-yet-creditable line.
+- **`raw_data` savings are SPLIT into two parts that must never be combined in a pre-migration
+  go/no-go (Codex #404; plan §C/§A):**
+  1. **Archive-safe / terminal `raw_data` reclaim** — freed through the **archive path** (the
+     archiver extracts close terms, then nulls `raw_data` atomically) as the T+180 backlog drains.
+     This is the ONLY `raw_data` reclaim creditable before the archiver migration.
+  2. **Live / non-terminal `raw_data` reclaim — HELD.** Locked until the archiver migration /
+     re-fetch / structured-close-term proof ships (§A prerequisite). **It must NOT be counted in
+     any pre-migration Free go/no-go.**
+- Present the simulation as **two explicit scenarios:**
+  - **Scenario 1 — Pre-migration Free go/no-go (the ONLY one that may gate a downgrade):**
+    terminal `raw_data` (archive path) + `compliance` + `media` + `features` bulk-strip (live rows,
+    NOT `raw_data`) + `address`/`agent_info` after normalization. **Live `raw_data` EXCLUDED.**
+    Compare against the **Free cap of 500,000,000 bytes (~477 MiB; Neon's 0.5 GB is decimal)**, in
+    BYTES.
+  - **Scenario 2 — Post-archiver-migration (informational ONLY, not a downgrade gate yet):**
+    Scenario 1 **plus** the live-row `raw_data` reclaim — valid only once the §A archiver-migration
+    prerequisite is shipped and proven. Clearly labeled "not creditable until migration."
 - Bloat context: per-table `n_live_tup` / `n_dead_tup` / dead% + `last_autovacuum` (confirms the
   ~11.6% / ~30 MB figure is current; bloat ages out of Free's 6-h PITR so it is not the lever).
-- **Output:** a savings waterfall table + the live-vs-terminal split per column.
+- **Output:** the **Scenario 1** waterfall (the downgrade gate) + the **Scenario 2** waterfall
+  (informational, post-migration) as separate tables, plus the live-vs-terminal split per column.
+  Live `raw_data` appears ONLY in Scenario 2.
 - Suggested script (untracked): `scripts/__step4-plan-archive-throughput-2026-06-15.mjs` +
   `scripts/__step4-plan-scat-distribution-2026-06-15.mjs` already drafted by the (timed-out)
   planning agent — extend with the per-column `pg_column_size` sums.
