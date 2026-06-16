@@ -76,14 +76,27 @@
   derive `close_price`/`close_date`/`original_list_price` from structured columns or a fresh Trestle
   re-fetch (not from `raw_data`). Until then `raw_data` is reclaimed only via the archive drain
   (terminal rows) — see §C.
-- **Consumer-migration prerequisites for `compliance`/`features`/`media`/`agent_info` (Codex #404,
-  do-not-ignore sweep 2026-06-16): NO JSON column is freely strippable today.** Each has live
-  consumers that must be migrated first — render DTO (`lib/compliance/dto.ts`,
-  `lib/idx/db-to-public-dto.ts`), the search **projection** (`lib/search/listing-search-projection.ts`),
-  **RESO output** (`lib/compliance/reso-mapper.ts`), CRM PATCH (`app/api/crm/listings/[id]/route.ts`),
-  and **syndication** (`lib/syndication/eligibility.ts` reads `compliance` + `agent_info`). The
-  probe-plan drop-gate (render + CRM + archive + **syndication** critical) is the authority; every
-  per-column verdict re-derives from the complete consumer map.
+- **Consumer-migration prerequisites for ALL JSON columns (Codex #404/#406, do-not-ignore sweep
+  2026-06-16): NO JSON column is freely strippable today.** Each has live consumers that must be
+  migrated first — render DTO (`lib/compliance/dto.ts`, `lib/idx/db-to-public-dto.ts`); the search
+  **projection** (`lib/search/listing-search-projection.ts:193-290` derives searchable text, amenity
+  keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing search**);
+  **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
+  (`app/api/crm/listings/[id]/route.ts`); **syndication** (`lib/syndication/eligibility.ts` reads
+  `compliance` + `agent_info`). The probe-plan drop-gate is the authority — a column is SAFE TO DROP
+  only with **no render, no CRM, no archive, no syndication, no projection/search, AND no RESO
+  critical read**; every per-column verdict re-derives from the complete consumer map.
+
+  **Per-column HELD status (none droppable today):**
+
+  | Column | HELD until — migrate these consumers first |
+  |---|---|
+  | `raw_data` | archive (close terms) + CRM PATCH; live-row reclaim needs archiver migration |
+  | `address` | render + CRM + archive — NORMALIZE to structured columns first |
+  | `agent_info` | render + CRM + archive + **syndication** — normalize + syndication migration |
+  | `compliance` | **syndication** (`compliance.syndication`/`mallan_control_verification`/`seller_advertising_authorization`/`media_rights`) |
+  | `features` | **render + projection/search + RESO + CRM** — HELD until the projection builder + RESO mapper are migrated/re-derived |
+  | `media` | **render + projection/search + RESO + CRM** media routes — HELD until projection + RESO migration |
 
 ## B. The archive eligibility bug (now scoped as a STANDALONE correction)
 Root cause (code-proven, `data-retention/route.ts:162-168`): the T+180 archive filters
