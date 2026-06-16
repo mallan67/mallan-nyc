@@ -32,15 +32,19 @@
    the same JSON on the ~16K live/displayable rows, and it leaves `features`/`agent_info`/`address`
    even on terminal rows.
 5. **Free is achievable ONLY through safe legacy-JSON elimination / normalization, + audit
-   compaction, + ongoing archival discipline:**
+   compaction, + ongoing archival discipline.** Each "size" below is the **post-rewrite target**
+   reached by NULLing the column values (a row rewrite) + GC past the PITR window — **NOT** the
+   output of `DROP COLUMN`, which is catalog-only and frees no bytes (see §C, Codex #404). Targets
+   are projections from the 06-12 audit; the go/no-go uses the **measured** Neon billed size after
+   the rewrite (Step 6), never these estimates:
 
-   | Action (each separately gated) | DB size |
+   | Action — NULL the values (row rewrite), then DROP COLUMN as cleanup; each separately gated | post-rewrite DB size |
    |---|---|
    | Today | ~1,135 MB |
-   | Drop `raw_data` + `compliance` + `media` (all rows) | ~674 MB |
-   | + drop `features` (if proven unused at render) | ~575 MB |
+   | Strip `raw_data` + `compliance` + `media` (all rows) | ~674 MB |
+   | + strip `features` (if proven unused at render) | ~575 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~540 MB |
-   | + normalize `address`/`agent_info` into structured columns, then drop JSON | **~470–510 MB → under Free** |
+   | + normalize `address`/`agent_info` into structured columns, then strip JSON | **~470–510 MB → under Free** |
 
 6. **$19 Launch remains the low-maintenance floor** unless the JSON-drop path is COMPLETED AND
    PROVEN. Even when complete it lands **right at the 512 MB cap with thin margin** vs ~45 MB/mo
@@ -64,11 +68,32 @@ separately in `docs/audits/corrections/scope-archive-eligibility-bug-2026-06-15.
 test; preserves the batch cap + dry-run; NO cleanup execution in that PR). Archive remains a
 *secondary* lever — it helps terminal rows but cannot reach Free alone (§5.4).
 
-## C. Online-rewrite mechanism (Neon, no VACUUM FULL)
-- Column DROP on Neon = metadata change + online background rewrite — safe. `VACUUM FULL` is
-  forbidden (blocks all traffic).
-- Reclaim is not instant: stripped/dropped data leaves the billed synthetic size only after it
-  ages past the PITR window (6 h on Free, 7 d on Launch) + autovacuum. Plan for a lag.
+## C. Reclaim mechanism (Neon, no VACUUM FULL) — CORRECTED per Codex #404
+
+**`DROP COLUMN` does NOT reclaim storage.** In Postgres it is a **catalog-only** change — it marks
+the column dropped but leaves the existing values in the heap/TOAST pages untouched, so the bytes
+(and the billed/logical size) stay until the rows are **physically rewritten**. This matches the
+audit's §5/R4 note ("autovacuum reclaims for reuse but never shrinks the file; only a rewrite
+does"). **Relying on `DROP COLUMN` alone would leave billed storage near current size — a downgrade
+approved on the §5 waterfall would then breach the cap.** The waterfall sizes are *post-rewrite*
+targets, not `DROP COLUMN` outputs.
+
+**The bytes are reclaimed only by a ROW REWRITE that drops the JSON values, then GC past the PITR
+window:**
+1. **Batch `UPDATE listings SET raw_data = NULL, compliance = NULL, … ` (bounded batches).** This
+   rewrites each row to a smaller live tuple; the old tuple becomes dead. (Same mechanism the
+   data-retention archive already uses for terminal rows.)
+2. **Garbage collection:** on Neon's log-structured storage the old page versions drop out of the
+   billed synthetic size only after they **age past the PITR window** (6 h Free / 7 d Launch) +
+   autovacuum. So reclaim **lags** the UPDATE by the retention window — plan for it.
+3. **`DROP COLUMN` last, as catalog cleanup ONLY** — after the values are nulled and the schema no
+   longer needs the column. It frees no additional bytes by itself.
+4. **If a full table rewrite is ever needed** (e.g. to compact remaining bloat), use an **online
+   copy-swap or `pg_repack`-style** path — **never `VACUUM FULL`** (it blocks all traffic on Neon).
+
+**MEASURED-PROOF GATE (Step 6, mandatory):** the Free-tier go/no-go must read the **actual Neon
+billed synthetic size from the console/API AFTER the row-rewrite + PITR-window elapse** — never a
+projected `DROP COLUMN` size. No downgrade is approved on a projection.
 
 ## D. Recommended sequence (Maya's bottom line, adopted)
 1. **Fix the archive bug** (standalone correction — closes the latent leak; does NOT reach Free).
