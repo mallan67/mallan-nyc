@@ -50,7 +50,7 @@
    |---|---|
    | Today | ~1,135 MB |
    | Archive drain (terminal rows): reclaims `raw_data` 223 + `compliance` 170 + `media` ≈ 398 MB | ~737 MB |
-   | + bulk-strip `compliance` (live remainder) + `media` + `features` (proven unused at render+CRM) | ~600 MB |
+   | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/RESO/CRM/syndication consumers** (Codex #404; none are freely strippable today — see §A + probe plan) | ~600 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~565 MB |
    | + normalize `address`/`agent_info` → structured columns, then strip JSON | ~490 MB |
    | + **migrate archiver off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
@@ -76,6 +76,14 @@
   derive `close_price`/`close_date`/`original_list_price` from structured columns or a fresh Trestle
   re-fetch (not from `raw_data`). Until then `raw_data` is reclaimed only via the archive drain
   (terminal rows) — see §C.
+- **Consumer-migration prerequisites for `compliance`/`features`/`media`/`agent_info` (Codex #404,
+  do-not-ignore sweep 2026-06-16): NO JSON column is freely strippable today.** Each has live
+  consumers that must be migrated first — render DTO (`lib/compliance/dto.ts`,
+  `lib/idx/db-to-public-dto.ts`), the search **projection** (`lib/search/listing-search-projection.ts`),
+  **RESO output** (`lib/compliance/reso-mapper.ts`), CRM PATCH (`app/api/crm/listings/[id]/route.ts`),
+  and **syndication** (`lib/syndication/eligibility.ts` reads `compliance` + `agent_info`). The
+  probe-plan drop-gate (render + CRM + archive + **syndication** critical) is the authority; every
+  per-column verdict re-derives from the complete consumer map.
 
 ## B. The archive eligibility bug (now scoped as a STANDALONE correction)
 Root cause (code-proven, `data-retention/route.ts:162-168`): the T+180 archive filters
@@ -150,7 +158,11 @@ window:**
 
 **MEASURED-PROOF GATE (Step 6, mandatory):** the Free-tier go/no-go must read the **actual Neon
 billed synthetic size from the console/API AFTER the row-rewrite + PITR-window elapse** — never a
-projected `DROP COLUMN` size. No downgrade is approved on a projection.
+projected `DROP COLUMN` size. No downgrade is approved on a projection. **Projected savings are not
+creditable for downgrade until the actual Neon billed synthetic size is measured in BYTES after the
+rewrite / PITR / autovacuum; if compaction is required to realize the truncation, it must be an
+online copy-swap / `pg_repack`-style path, never `VACUUM FULL`** (Codex #404 — standard VACUUM only
+makes space reusable unless free pages are at the physical end of the file).
 
 ## D. Recommended sequence (Maya's bottom line, adopted)
 1. **Fix the archive bug** (standalone correction — closes the latent leak; does NOT reach Free).

@@ -48,9 +48,9 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
 - Grep `lib/`, `app/`, `public/crm/`, `scripts/` for reads of the column (Prisma `select`,
   `.raw_data`, JSON-path access, DTO mappers, render components, sitemap, search projection
   builders).
-- Classify each read into one of THREE blocker categories (+ non-blocking): **render-critical**
+- Classify each read into one of FOUR blocker categories (+ non-blocking): **render-critical**
   (public listing page / search card / portal) · **CRM-critical** · **archive-critical** ·
-  ETL/re-derivation only · dead/unused.
+  **syndication-critical** · ETL/re-derivation only · dead/unused.
 - **CRM-critical reads are BLOCKERS, not a free pass (Codex #404).** A column is **NOT** "safe to
   drop" merely because no public render reads it — the CRM has production dependencies that lose
   data:
@@ -68,16 +68,35 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   - **`address`** → `address_line` (`:198-209`).
   - **`agent_info`** → `list_agent_full_name`, `list_office_name` (`:237-239`).
   These three are **archive-critical until the archiver is migrated/proven to read from structured
-  columns or a safe re-fetch.** Checked and **NOT archive-critical: `compliance`, `media`,
-  `features`** (the archiver does not read them) — but they remain subject to the public-render /
-  CRM-critical / ETL dependency checks above before any drop.
-- Verdict per column — **SAFE TO DROP requires NO public-render read, NO CRM-critical read, AND NO
-  archive-critical read.** Otherwise: **DROP AFTER PR 5B** (public read moves to the projection) +
-  **AFTER CRM migration** (CRM reads moved off the column) + **AFTER ARCHIVER MIGRATION** (archive
-  reads moved off the column); or **NORMALIZE FIRST** (`address`, `agent_info` feed display, CRM,
-  AND the archiver — need structured columns before the JSON can go). **Any render / CRM / archive
-  critical read = a required migration or exclusion BEFORE drop.**
-- **Output:** a per-column dependency matrix (public + CRM + archive) feeding Step 5's proof.
+  columns or a safe re-fetch.** The archiver does not read `compliance`/`media`/`features`.
+- **SYNDICATION-critical reads are ALSO BLOCKERS (Codex #404).** `lib/syndication/eligibility.ts`
+  reads `listing.agent_info` and `listing.compliance` to gate Mallan-Exclusive / co-list / manual
+  syndication eligibility — specifically `compliance.syndication` (`:128`),
+  `compliance.mallan_control_verification` (`:221`), `compliance.seller_advertising_authorization`
+  (`:282`), `compliance.media_rights` (`:289`), and `agent_info` for canonical MLS IDs. **Mark
+  `compliance` and `agent_info` syndication-critical until `lib/syndication/eligibility.ts` is
+  migrated/proven to use structured fields or a safe re-derivation path.** (Syndication is HELD
+  today via the empty-config guard, but the code reads these fields — stripping them would
+  fail-close approved exclusives/co-list/manual rows or lose their approval state when syndication
+  is enabled.)
+- **ROOT-CAUSE COMPLETENESS NOTE (do-not-ignore sweep, 2026-06-16).** An exhaustive repo sweep shows
+  the "bulk-strippable" labels on `compliance`/`features`/`media` were premature — every one has a
+  live consumer beyond the archiver:
+  - **`agent_info`** → public/portal DTO `lib/compliance/dto.ts:270,282,368` (render) + archive + CRM + **syndication**.
+  - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **the search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555` (the future read path); RESO output `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH merge `app/api/crm/listings/[id]/route.ts:329`.
+  - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + projection `:261,556` + RESO `lib/compliance/reso-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).
+  - **`compliance`** → **syndication** `lib/syndication/eligibility.ts`.
+  **Conclusion: NO JSON column is freely strippable today.** Each per-column verdict MUST be
+  re-derived from this complete consumer map; the only `raw_data`/JSON reclaim available now is the
+  archive path (terminal rows). This makes Free further off, reinforcing $19 as the floor.
+- Verdict per column — **SAFE TO DROP requires NO public-render read, NO CRM-critical read, NO
+  archive-critical read, AND NO syndication-critical read.** Otherwise: **DROP AFTER PR 5B** (public
+  read moves to the projection) + **AFTER CRM migration** + **AFTER ARCHIVER MIGRATION** + **AFTER
+  SYNDICATION migration** (each critical reader moved off the column); or **NORMALIZE FIRST**
+  (`address`, `agent_info` feed display, CRM, archiver, AND syndication). **Any render / CRM /
+  archive / syndication critical read = a required migration or exclusion BEFORE drop.**
+- **Output:** a per-column dependency matrix (public + CRM + archive + syndication) feeding Step 5's
+  proof.
 
 ## Probe 3 — Required normalization fields (for `address` / `agent_info`)
 **Goal:** identify the exact sub-fields the render paths need from `address`/`agent_info`, so a
