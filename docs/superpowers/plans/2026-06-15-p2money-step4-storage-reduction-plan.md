@@ -114,18 +114,26 @@
   text, amenity keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing
   search**); **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
   (`app/api/crm/listings/[id]/route.ts`); **syndication** (`lib/syndication/eligibility.ts` reads
-  `compliance` + `agent_info`). The companion probe-plan drop-gate is the authority and **its full
-  test is broader than "no critical read"** — a column is SAFE TO DROP only when BOTH: (a) the
-  **8-probe Step-5 dependency scan** (Prisma select/include · direct property reads · destructuring ·
-  raw SQL `SELECT`s · mapper/builder/parser fns · writer/upsert paths · refill/backfill paths ·
-  full-record-fetch-then-helper) is clean across **`app lib scripts public/crm`** (not just
-  `app`/`lib` — readers live in `scripts/backfill-listing-search-projection.ts` and
-  `public/crm/SALE-FORM-REDESIGN.html`, and raw SQL in `app/api/buildings/search/route.ts:536-556`),
-  AND (b) the **writer/refill paths are migrated/disabled/proven unable to repopulate** the column
-  (`lib/idx/sync.ts:330-335`,`:1161-1166`,`:696-702`) — else the strip is transient. **The inline
-  consumer lists here are illustrative, not exhaustive** (6 review rounds kept finding omitted
-  consumers); every per-column verdict re-derives from that live 8-probe scan + writer check in the
-  probe plan, NOT from this prose or any single grep.
+  `compliance` + `agent_info`). **The companion probe plan is the authority for the SAFE TO DROP
+  gate** (`2026-06-15-step4-readonly-probe-plan.md`); do NOT approve a strip from this summary alone.
+  Its full test — mirrored here verbatim so the two docs cannot drift — is that a column is SAFE TO
+  DROP only when **ALL FOUR** hold:
+  1. **All read consumers cleared** through the full Step-5 repo-wide **8-probe** scan (Prisma
+     `select`/`include` · direct property reads `listing.<col>`/`dbListing.<col>`/`l.<col>` ·
+     destructuring · raw SQL `SELECT`s · mapper/builder/parser fns · writer/upsert paths ·
+     refill/backfill paths · full-record-fetch-then-helper). A single `<col>: true` grep is NOT the
+     gate.
+  2. **Scope = `app lib scripts public/crm`** (NOT just `app`/`lib`). Real readers live outside
+     `app`/`lib`: `scripts/backfill-listing-search-projection.ts`,
+     `public/crm/SALE-FORM-REDESIGN.html`, and raw SQL in `app/api/buildings/search/route.ts:536-556`.
+  3. **All writer / upsert / refill / backfill paths migrated, disabled, or proven unable to
+     repopulate** the JSON (`lib/idx/sync.ts:330-335`, `:1161-1166`, `:696-702`) — otherwise the
+     strip is **transient** and the next sync/backfill re-breaches the Free cap.
+  4. **Measured Neon billed bytes** after the row-rewrite + GC-past-PITR (Step 6) confirm the
+     reduction — **never a projection**; the estimates in this plan do not gate a downgrade.
+  **The inline consumer lists here are illustrative, not exhaustive** (6 review rounds kept finding
+  omitted consumers); every per-column verdict re-derives from that live 8-probe scan + writer check
+  + measured bytes in the probe plan, NOT from this prose or any single grep.
 
   **Per-column HELD status (none droppable today):**
 
