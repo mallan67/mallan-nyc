@@ -100,6 +100,22 @@ window:**
    NULL. (Alternative: a nullable migration first — extra schema churn for no storage benefit; the
    empty-JSON rewrite is preferred.) This rewrites each row to a smaller live tuple; the old tuple
    becomes dead. (Same mechanism the data-retention archive already uses for terminal rows.)
+
+   **ORDERING CONSTRAINT — archive terminal rows BEFORE nulling `raw_data` (Codex #404, blocking).**
+   The data-retention archiver derives **`close_price`, `close_date`, `original_list_price` ONLY
+   from `raw_data`** when it upserts `listings_archive` (`data-retention/route.ts:225-228`). If the
+   bulk `raw_data = NULL` strip runs on a terminal row that has NOT yet been archived, that row's
+   sale terms are lost forever from the NY-DOS 6-year archive record. Since the archive-bug fix
+   leaves a ~91K-row backlog draining at the 500/run cap, the `raw_data` strip MUST **exclude
+   terminal-but-unarchived rows** — i.e. only strip `raw_data` where `sync_status = 'archived'`
+   (already extracted + nulled atomically by the archiver, lines 245-253) OR on non-terminal rows
+   (which are never archived and have no sale terms to preserve). **Sequence:** (1) fix archive
+   eligibility, (2) **drain the T+180 backlog to completion** (sale terms safely in
+   `listings_archive`), (3) only then bulk-strip `raw_data` on the remainder. Equivalently, the
+   strip predicate carries `NOT (status IN TERMINAL_STATUSES AND sync_status <> 'archived')`.
+   Step 6's measured proof must confirm the backlog is fully drained before the bulk `raw_data`
+   strip is approved. (`compliance`/`media`/`features` carry no archive-derived fields, so this
+   constraint is `raw_data`-specific — but the safe default is to drain first regardless.)
 2. **Garbage collection:** on Neon's log-structured storage the old page versions drop out of the
    billed synthetic size only after they **age past the PITR window** (6 h Free / 7 d Launch) +
    autovacuum. So reclaim **lags** the UPDATE by the retention window — plan for it.
