@@ -14,9 +14,16 @@ candidate drop — measured, not estimated.
   `features`, `agent_info`, `address`, `media` — over all rows AND split by
   displayable vs terminal (`status IN TERMINAL_STATUSES`), so we see how much each drop frees on
   live rows vs terminal-only rows.
-- Cumulative simulation: DB size after {raw_data}, {+compliance}, {+media}, {+features},
-  {+address}, {+agent_info} — a waterfall to compare against the **Free cap of 500,000,000 bytes
-  (~477 MiB; Neon's 0.5 GB is decimal)**, in BYTES to avoid binary/decimal MB confusion (Codex #404).
+- Cumulative simulation, split by RECLAIM PATH so the go/no-go does not over-credit `raw_data`
+  (Codex #404 — the plan §C says `raw_data` is NOT bulk-strippable on live rows):
+  - **(a) Archive-path reclaim:** `raw_data` + `compliance` + `media` **on TERMINAL rows only**
+    (what the archive drain frees) — this is the only `raw_data` reclaim allowed pre-prerequisite.
+  - **(b) Bulk-strip reclaim:** `compliance` + `media` + `features` on the remaining (live) rows
+    (NOT `raw_data`), then `address`/`agent_info` after normalization.
+  - **(c) Live-row `raw_data` — REPORT SEPARATELY, DO NOT credit in the go/no-go** until the
+    archiver-migration prerequisite (§A) ships; label it explicitly as locked.
+  Compare (a)+(b)+normalization against the **Free cap of 500,000,000 bytes (~477 MiB; Neon's
+  0.5 GB is decimal)**, in BYTES, with (c) shown as a separate not-yet-creditable line.
 - Bloat context: per-table `n_live_tup` / `n_dead_tup` / dead% + `last_autovacuum` (confirms the
   ~11.6% / ~30 MB figure is current; bloat ages out of Free's 6-h PITR so it is not the lever).
 - **Output:** a savings waterfall table + the live-vs-terminal split per column.
