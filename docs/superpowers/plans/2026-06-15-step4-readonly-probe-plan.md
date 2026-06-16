@@ -48,23 +48,36 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
 - Grep `lib/`, `app/`, `public/crm/`, `scripts/` for reads of the column (Prisma `select`,
   `.raw_data`, JSON-path access, DTO mappers, render components, sitemap, search projection
   builders).
-- Classify each read: **render-critical** (public listing page / search card / portal) ·
-  **CRM-critical** · **ETL/re-derivation only** · **dead/unused**.
-- **CRM-only reads are BLOCKERS, not a free pass (Codex #404).** A column is **NOT** "safe to drop"
-  merely because no public render reads it — the CRM has production dependencies that lose data:
+- Classify each read into one of THREE blocker categories (+ non-blocking): **render-critical**
+  (public listing page / search card / portal) · **CRM-critical** · **archive-critical** ·
+  ETL/re-derivation only · dead/unused.
+- **CRM-critical reads are BLOCKERS, not a free pass (Codex #404).** A column is **NOT** "safe to
+  drop" merely because no public render reads it — the CRM has production dependencies that lose
+  data:
   - `app/api/crm/listings/[id]/route.ts:101-103` — **PATCH merges `listing.raw_data`** into the
     saved record (`{ ...existingRaw, ...body }`); nulling `raw_data` drops saved form state on edit.
   - `app/api/crm/listings/[id]/route.ts:62-70` GET returns the **full sanitized listing** (all JSON
     columns), consumed by `public/crm/js/core/data-loader.js:217-221` (`address`/`features`/
     `agent_info`/`media`) + `.../validate/route.ts:43-50`. Dropping these blanks CRM edit/search
     fields.
-- Verdict per column — **SAFE TO DROP requires NO public-render read AND NO CRM-critical read**
-  (e.g. `raw_data` is a re-fetchable Trestle cache for DISPLAY, but its CRM PATCH-merge dependency
-  must be removed/migrated first); **DROP AFTER PR 5B** (public read moves to the projection) +
-  **AFTER CRM migration** (CRM reads moved off the column); or **NORMALIZE FIRST** (`address`,
-  `agent_info` feed both display and CRM — need structured columns before the JSON can go).
-  **Any CRM-critical read = a required CRM migration/exclusion BEFORE drop.**
-- **Output:** a per-column dependency matrix (public + CRM) feeding Step 5's proof.
+- **ARCHIVE-critical reads are ALSO BLOCKERS (Codex #404).** The data-retention archiver
+  (`app/api/cron/data-retention/route.ts:187-239`) reads several JSON columns to build the NY-DOS
+  6-year `listings_archive` summary; stripping those from live rows without migrating the archiver
+  blanks historical archive fields on future terminal rows:
+  - **`raw_data`** → `close_price`, `close_date`, `original_list_price` (`:225-228`).
+  - **`address`** → `address_line` (`:198-209`).
+  - **`agent_info`** → `list_agent_full_name`, `list_office_name` (`:237-239`).
+  These three are **archive-critical until the archiver is migrated/proven to read from structured
+  columns or a safe re-fetch.** Checked and **NOT archive-critical: `compliance`, `media`,
+  `features`** (the archiver does not read them) — but they remain subject to the public-render /
+  CRM-critical / ETL dependency checks above before any drop.
+- Verdict per column — **SAFE TO DROP requires NO public-render read, NO CRM-critical read, AND NO
+  archive-critical read.** Otherwise: **DROP AFTER PR 5B** (public read moves to the projection) +
+  **AFTER CRM migration** (CRM reads moved off the column) + **AFTER ARCHIVER MIGRATION** (archive
+  reads moved off the column); or **NORMALIZE FIRST** (`address`, `agent_info` feed display, CRM,
+  AND the archiver — need structured columns before the JSON can go). **Any render / CRM / archive
+  critical read = a required migration or exclusion BEFORE drop.**
+- **Output:** a per-column dependency matrix (public + CRM + archive) feeding Step 5's proof.
 
 ## Probe 3 — Required normalization fields (for `address` / `agent_info`)
 **Goal:** identify the exact sub-fields the render paths need from `address`/`agent_info`, so a
