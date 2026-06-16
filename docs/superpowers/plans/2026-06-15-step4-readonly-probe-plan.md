@@ -55,7 +55,8 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   `.raw_data`, JSON-path access, DTO mappers, render components, sitemap, search projection
   builders).
 - Classify each read into one of the blocker categories (+ non-blocking): **render-critical**
-  (public listing page / search card / portal) · **CRM-critical** · **archive-critical** ·
+  (public listing page / search card / portal / **public `/api/open-houses` payload** / agent page /
+  sitemap) · **CRM-critical** · **archive-critical** ·
   **syndication-critical** · **projection-critical** (the search-projection builder reads it) ·
   **RESO-critical** (the RESO / IDX-feed mapper reads it) · ETL/re-derivation only · dead/unused.
 - **CRM-critical reads are BLOCKERS, not a free pass (Codex #404).** A column is **NOT** "safe to
@@ -86,18 +87,37 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   today via the empty-config guard, but the code reads these fields — stripping them would
   fail-close approved exclusives/co-list/manual rows or lose their approval state when syndication
   is enabled.)
-- **ROOT-CAUSE COMPLETENESS NOTE (do-not-ignore sweep, 2026-06-16).** An exhaustive repo sweep shows
-  the "bulk-strippable" labels on `compliance`/`features`/`media` were premature — every one has a
-  live consumer beyond the archiver:
-  - **`raw_data`** → **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates ONLY from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) + archive (`:225-228`) + CRM PATCH (`:101-103`). Render-critical, not just archive/CRM — live-row reclaim needs the public-DTO migration too.
-  - **`agent_info`** → public/portal DTO `lib/compliance/dto.ts:270,282,368` (render) + archive + CRM + **syndication**.
-  - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **the search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555` (the future read path); RESO output `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH merge `app/api/crm/listings/[id]/route.ts:329`.
-  - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + projection `:261,556` + RESO `lib/compliance/reso-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).
-  - **`compliance`** → **render** (detail-page `publicRemarks` falls back to `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) + **syndication** `lib/syndication/eligibility.ts`. Render-critical, not syndication-only.
-  - **`address`** → render + CRM + archive (`address_line`, `route.ts:198-209`) + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`). Normalizing/dropping `address` requires re-deriving the projection builder from the new structured columns, else the next projection sync/backfill loses address keyword text used by customer-facing search.
+- **ROOT-CAUSE NOTE (do-not-ignore sweep, 2026-06-16) — this map is ILLUSTRATIVE, NOT exhaustive.**
+  Repeated review (Codex #406 r1–r4) kept surfacing consumers an inline list had missed — render
+  `raw_data`, render `compliance`, projection `address`, and the public `/api/open-houses` payload.
+  The lesson: a hand-written consumer list is not a safe drop gate. **The authoritative gate is the
+  repo-wide select-site grep that Step 5 MUST run and clear per column, NOT this prose.** Reference
+  command + counts (run 2026-06-16, `app` + `lib`, excluding tests):
+  - `grep -rn "^\s*<col>:\s*true" app lib` → **`address` ~30 sites · `media` 11 · `features` 8 ·
+    `agent_info` 7 · `raw_data` 4 · `compliance` 0 narrow selects.** Spans public render
+    (`app/api/listings/route.ts`, `app/api/agents/[slug]/listings/route.ts`,
+    `app/api/open-houses/route.ts`, `app/api/listings/[id]/route.ts`, `app/api/market/route.ts`,
+    `app/sitemap.ts`), portal (`app/api/portal/favorites|offers|offer-status|showings`), CRM
+    (many `app/api/crm/**`), cron (`data-retention`, `listing-expiration`), and lib
+    (`lib/search/core.ts`, `lib/search/listing-search-projection.ts`, `lib/cma/engine.ts`,
+    `lib/buyer-intent/recommender.ts`).
+  - **`compliance` has ZERO narrow `compliance: true` selects yet is still render-critical** — the
+    detail page reads it via a full-record fetch (`app/listing/[...slug]/page.tsx:545,621`,
+    `publicRemarks` ← `compliance.PublicRemarks`). **So the grep gate must ALSO catch full-record
+    fetches (`findUnique`/`findMany` with no `select`, or `select` that returns the whole row), not
+    just narrow `<col>: true` selects** — column-narrow grep alone would wrongly clear `compliance`.
+  Representative per-column criticality (illustrative — confirm against the live grep, do not treat
+  as the whole list):
+  - **`raw_data`** → **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates ONLY from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) + archive (`:225-228`) + CRM PATCH (`:101-103`). Render-critical — live-row reclaim needs the public-DTO migration too.
+  - **`agent_info`** → public/portal/agent-page DTO (`lib/compliance/dto.ts:270,282,368`; `app/api/open-houses/route.ts:368-370` office attribution; `app/api/agents/[slug]/listings`) + archive + CRM + **syndication**.
+  - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **public `/api/open-houses` property-type display** (`app/api/open-houses/route.ts:363`, `features.CommonInterest`); **search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555`; RESO `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH `app/api/crm/listings/[id]/route.ts:329`.
+  - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + **public `/api/open-houses` first-photo image** (`app/api/open-houses/route.ts:350-351`) + projection `:261,556` + RESO `lib/compliance/reso-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).
+  - **`compliance`** → **render** (detail-page `publicRemarks` ← `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) + **syndication** `lib/syndication/eligibility.ts`. Render-critical, not syndication-only.
+  - **`address`** → render (incl. **public `/api/open-houses` street build**, `app/api/open-houses/route.ts:333-342`) + CRM + archive (`address_line`, `route.ts:198-209`) + sitemap (`app/sitemap.ts:97`) + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`). Normalizing/dropping `address` requires re-deriving the projection builder from the new structured columns, else the next projection sync/backfill loses address keyword text used by customer-facing search.
   **Conclusion: NO JSON column is freely strippable today.** Each per-column verdict MUST be
-  re-derived from this complete consumer map; the only `raw_data`/JSON reclaim available now is the
-  archive path (terminal rows). This makes Free further off, reinforcing $19 as the floor.
+  re-derived from the live Step-5 grep (above), not from this prose; the only `raw_data`/JSON reclaim
+  available now is the archive path (terminal rows). This makes Free further off, reinforcing $19 as
+  the floor.
 - **PROJECTION-critical and RESO-critical reads are ALSO BLOCKERS (Codex #404) — not just listed in
   the map above, but BLOCKING in the verdict:**
   - **Projection:** `lib/search/listing-search-projection.ts:193-290` derives searchable text,

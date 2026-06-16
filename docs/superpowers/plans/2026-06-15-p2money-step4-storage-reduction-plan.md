@@ -84,14 +84,18 @@
   only via the archive drain (terminal rows, which are not publicly rendered) — see §C.
 - **Consumer-migration prerequisites for ALL JSON columns (Codex #404/#406, do-not-ignore sweep
   2026-06-16): NO JSON column is freely strippable today.** Each has live consumers that must be
-  migrated first — render DTO (`lib/compliance/dto.ts`, `lib/idx/db-to-public-dto.ts`); the search
-  **projection** (`lib/search/listing-search-projection.ts:193-290` derives searchable text, amenity
-  keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing search**);
-  **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
+  migrated first — render DTO (`lib/compliance/dto.ts`, `lib/idx/db-to-public-dto.ts`); the public
+  `/api/open-houses` payload (address/media/features/agent_info, `app/api/open-houses/route.ts:278-375`);
+  the search **projection** (`lib/search/listing-search-projection.ts:193-290` derives searchable
+  text, amenity keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing
+  search**); **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
   (`app/api/crm/listings/[id]/route.ts`); **syndication** (`lib/syndication/eligibility.ts` reads
   `compliance` + `agent_info`). The probe-plan drop-gate is the authority — a column is SAFE TO DROP
   only with **no render, no CRM, no archive, no syndication, no projection/search, AND no RESO
-  critical read**; every per-column verdict re-derives from the complete consumer map.
+  critical read**. **The inline consumer lists here are illustrative, not exhaustive** (4 review
+  rounds kept finding omitted consumers); each per-column verdict re-derives from the live Step-5
+  repo-wide select-site grep (`grep -rn "^\s*<col>:\s*true" app lib` PLUS full-record fetches —
+  `compliance` has zero narrow selects yet renders via `page.tsx:545`), not from this prose.
 
   **Per-column HELD status (none droppable today):**
 
