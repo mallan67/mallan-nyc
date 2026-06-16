@@ -13,8 +13,12 @@
 
 ## REVISED CONCLUSION (the headline)
 
-1. **Neon Free target = 512 MB (0.5 GB) per project.** Confirmed authoritative — not higher, not a
-   helpful aggregate. Free PITR window is 6 hours (vs Launch 7 days).
+1. **Neon Free target ≈ 477 MiB per project** — NOT 512 (Codex #404). Neon's Free storage is
+   **0.5 GB**, and Neon's GB is **decimal (10⁹ bytes)** → **500,000,000 bytes = ~477 MiB**. The
+   audit's "MB" are `pg_size_pretty` **binary MiB**, so the go/no-go must compare in consistent
+   units: **synthetic size ≤ 500,000,000 bytes (~477 MiB), with margin** — tighter than 512, which
+   makes Free harder. Free PITR window is 6 hours (vs Launch 7 days). (Throughout this doc "MB" =
+   `pg_size_pretty` MiB unless stated; the cap is the decimal-GB figure above.)
 2. **Current DB is ~1.1 GB of genuinely LIVE/logical data — not dead-tuple bloat.** Neon bills
    *synthetic/logical size*, not `pg_database_size`; that distinction raised the hope that bloat
    was inflating the number. It is not: audit §5 shows `listings` is only **11.6% dead (~30 MB)**;
@@ -30,7 +34,7 @@
    bug — see §B and the separate correction scope) only strips `raw_data`+`compliance`+`media`
    **on the ~91.5K terminal rows**, which hold **raw_data 223 MB + compliance 170 MB** (+ a sliver
    of `media`) per audit Q6b/R2 — **~398 MB**, NOT the all-row 461 MB total. So archive-only →
-   DB **~737 MB**, **still well over 512 MB** (Codex #404). It cannot touch the same JSON on the
+   DB **~737 MB**, **still well over the ~477 MiB Free cap** (Codex #404). It cannot touch the same JSON on the
    ~16K live/displayable rows, and it **leaves `features` (87 MB) + `agent_info` + `address`** even
    on terminal rows.
 5. **Free is achievable ONLY through safe legacy-JSON elimination / normalization, + audit
@@ -48,12 +52,13 @@
    | Strip `raw_data` + `compliance` + `media` (all rows) | ~674 MB |
    | + strip `features` (if proven unused at render) | ~575 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~540 MB |
-   | + normalize `address`/`agent_info` into structured columns, then strip JSON | **~470–510 MB → under Free** |
+   | + normalize `address`/`agent_info` into structured columns, then strip JSON | **~470–510 MiB — STRADDLES the ~477 MiB cap: only the LOW end clears it, and not with margin** |
 
 6. **$19 Launch remains the low-maintenance floor** unless the JSON-drop path is COMPLETED AND
-   PROVEN. Even when complete it lands **right at the 512 MB cap with thin margin** vs ~45 MB/mo
-   organic growth, and Free **autosuspends** idle compute (cold starts for visitors). Free is a
-   schema/data-model cleanup *project*, not a quick cleanup job.
+   PROVEN. Even when complete it lands **at or just over the ~477 MiB cap (tighter than 512) — thin
+   or negative margin** vs ~45 MB/mo organic growth, and Free **autosuspends** idle compute (cold
+   starts for visitors). The corrected, tighter cap makes the case *stronger* that Free is a
+   schema/data-model cleanup *project*, not a quick cleanup job — and that $19 is the safe floor.
 
 ## A. Hard dependencies (why this is not "just drop the columns")
 - **PR 5B** (public reader swap off `listings.idx_display_yn`/JSON → projection) — HELD. Until the

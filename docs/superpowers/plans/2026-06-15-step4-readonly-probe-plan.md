@@ -15,7 +15,8 @@ candidate drop — measured, not estimated.
   displayable vs terminal (`status IN TERMINAL_STATUSES`), so we see how much each drop frees on
   live rows vs terminal-only rows.
 - Cumulative simulation: DB size after {raw_data}, {+compliance}, {+media}, {+features},
-  {+address}, {+agent_info} — a waterfall to compare against the 512 MB Free cap.
+  {+address}, {+agent_info} — a waterfall to compare against the **Free cap of 500,000,000 bytes
+  (~477 MiB; Neon's 0.5 GB is decimal)**, in BYTES to avoid binary/decimal MB confusion (Codex #404).
 - Bloat context: per-table `n_live_tup` / `n_dead_tup` / dead% + `last_autovacuum` (confirms the
   ~11.6% / ~30 MB figure is current; bloat ages out of Free's 6-h PITR so it is not the lever).
 - **Output:** a savings waterfall table + the live-vs-terminal split per column.
