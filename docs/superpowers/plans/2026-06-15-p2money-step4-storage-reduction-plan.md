@@ -44,25 +44,42 @@
    for the NOT-NULL columns — see §C) + GC past the PITR window — **NOT** the output of
    `DROP COLUMN`, which is catalog-only and frees no bytes (see §C, Codex #404). Targets are
    projections from the 06-12 audit; the go/no-go uses the **measured** Neon billed size after the
-   rewrite (Step 6), never these estimates:
+   rewrite (Step 6), never these estimates.
 
-   | Action (each separately gated; `raw_data` only via archive/migration — §C, Codex #404) | post-rewrite DB size |
+   > **CREDITING RULE (general, Codex #406-r5).** No JSON storage saving is creditable toward the
+   > Free go/no-go until BOTH (a) **all read consumers** of that column are migrated off it (the
+   > full multi-probe Step-5 scan is clean — readers, mappers, raw SQL, property reads, full-record
+   > fetches) **AND** (b) **all writer/refill paths** are migrated, disabled, or proven unable to
+   > repopulate the JSON (`lib/idx/sync.ts:330-335`, `:1161-1166` re-upsert on every update;
+   > `backfillEmptyMedia` `:696-702` re-fetches `media`). Reader migration ALONE is insufficient:
+   > the strip would be **transient** and the next incremental sync / media backfill would
+   > repopulate the column, breaching the Free cap again. The estimates below assume both conditions
+   > are met for the row in question; none is met today.
+
+   | Action (each separately gated; `raw_data` only via archive/migration — §C; readers **and** writers must be migrated first — Codex #404/#406-r5) | post-rewrite DB size |
    |---|---|
    | Today | ~1,135 MB |
    | Archive drain (terminal rows): reclaims `raw_data` 223 + `compliance` 170 + `media` ≈ 398 MB | ~737 MB |
-   | + bulk-strip `compliance` (live remainder) + `media` + `features` (proven unused at render+CRM) | ~600 MB |
+   | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/RESO/CRM/syndication READERS *and* stopping the WRITERS** (idx-sync re-upserts these JSON on every update — `lib/idx/sync.ts:330-335`,`:1161-1166`; `backfillEmptyMedia` re-fetches `media` when it sees `[]`/null — `:696-702`). **Without the writer/refill migration the strip is TRANSIENT — the next sync repopulates it and the cap breaches again** (Codex #404/#406-r5; see §A + probe plan) | ~600 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~565 MB |
    | + normalize `address`/`agent_info` → structured columns, then strip JSON | ~490 MB |
-   | + **migrate archiver off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
+   | + **migrate archiver AND public render DTO off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
    *(`raw_data` is NOT all-row stripped: ~223 MB reclaims via the archive drain; the ~35 MB on live
-   rows needs the archiver-migration prerequisite — §C. The prior "~674 MB all-row raw_data strip"
-   row was incorrect.)*
+   rows needs BOTH the archiver-migration AND the render-DTO-migration prerequisite — §C / §A. Live
+   rows are publicly rendered and the public DB DTO derives virtualTourURL/DOM/lease/availability/
+   close-date fields from `raw_data`, so nulling it on live rows would blank those cards. The prior
+   "~674 MB all-row raw_data strip" row was incorrect.)*
 
 6. **$19 Launch remains the low-maintenance floor** unless the JSON-drop path is COMPLETED AND
-   PROVEN. Even when complete it lands **at or just over the ~477 MiB cap (tighter than 512) — thin
-   or negative margin** vs ~45 MB/mo organic growth, and Free **autosuspends** idle compute (cold
-   starts for visitors). The corrected, tighter cap makes the case *stronger* that Free is a
-   schema/data-model cleanup *project*, not a quick cleanup job — and that $19 is the safe floor.
+   PROVEN. **Bottom line (unchanged across 6 review rounds): NO JSON column is freely strippable
+   today.** Reaching Free is not a cleanup job — it requires **(1) a six-front consumer migration**
+   (render DTO · CRM · archiver · syndication · search projection · RESO/IDX-feed), **PLUS (2) a
+   writer/refill migration** (idx-sync upserts + media backfill stop repopulating the JSON), **PLUS
+   (3) measured Neon billed bytes** under 500,000,000 (~477 MiB) AFTER the row-rewrite + GC-past-PITR
+   (Step 6) — never an estimate. Even when all three complete, projected size lands **at or just over
+   the ~477 MiB cap (tighter than 512) — thin or negative margin** vs ~45 MB/mo organic growth, and
+   Free **autosuspends** idle compute (cold starts for visitors). So Free is a schema/data-model
+   migration *project*, and **$19 is the safe floor.**
 
 ## A. Hard dependencies (why this is not "just drop the columns")
 - **PR 5B** (public reader swap off `listings.idx_display_yn`/JSON → projection) — HELD. Until the
@@ -70,12 +87,64 @@
 - **Step 5** (prove no read path depends on each JSON column) — the gate that must pass per column
   before any drop. The read-only **dependency probe plan** (companion doc
   `2026-06-15-step4-readonly-probe-plan.md`) inventories those paths.
+- **WRITER / REFILL prerequisite (Codex #406-r5) — the strip is not durable until the writers stop.**
+  idx-sync re-upserts `address`/`features`/`compliance`/`agent_info`/`raw_data` on **every** listing
+  update (`lib/idx/sync.ts:330-335`, `:1161-1166`), and `backfillEmptyMedia` re-fetches `media`
+  whenever it sees `[]`/null (`:696-702`). So a bulk strip on live rows wins storage only
+  *transiently*: the next incremental sync (or media backfill) rewrites the same JSON and the Free
+  cap breaches again. **The downgrade gate therefore requires an explicit "no writer/refill path
+  repopulates the column" proof — the writer must be migrated to stop writing the JSON (or write a
+  reduced shape) BEFORE the reclaim can be credited.** This applies to all five sync-written columns,
+  not just `raw_data`, and is a distinct prerequisite on top of the reader migrations.
 - Normalizing `address`/`agent_info` is a real data-model change (M1-class), not a delete.
-- **Archiver-migration prerequisite for live-row `raw_data` (Codex #404):** the ~35 MB of
-  `raw_data` on live rows can be reclaimed only after the data-retention archiver is migrated to
-  derive `close_price`/`close_date`/`original_list_price` from structured columns or a fresh Trestle
-  re-fetch (not from `raw_data`). Until then `raw_data` is reclaimed only via the archive drain
-  (terminal rows) — see §C.
+- **Two-migration prerequisite for live-row `raw_data` (Codex #404 + #406):** the ~35 MB of
+  `raw_data` on live rows can be reclaimed only after BOTH (a) the data-retention archiver is
+  migrated to derive `close_price`/`close_date`/`original_list_price` from structured columns or a
+  fresh Trestle re-fetch (not from `raw_data`), AND (b) the public DB render DTO is migrated off
+  `raw_data` — `app/api/listings/route.ts:348-356` + `lib/idx/db-to-public-dto.ts:298` derive
+  virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates from `raw_data`
+  for live (displayable) cards. Live rows are publicly rendered, so nulling `raw_data` before the
+  render-DTO migration would silently blank those fields. Until both ship, `raw_data` is reclaimed
+  only via the archive drain (terminal rows, which are not publicly rendered) — see §C.
+- **Consumer-migration prerequisites for ALL JSON columns (Codex #404/#406, do-not-ignore sweep
+  2026-06-16): NO JSON column is freely strippable today.** Each has live consumers that must be
+  migrated first — render DTO (`lib/compliance/dto.ts`, `lib/idx/db-to-public-dto.ts`); the public
+  `/api/open-houses` payload (address/media/features/agent_info, `app/api/open-houses/route.ts:278-375`);
+  the search **projection** (`lib/search/listing-search-projection.ts:193-290` derives searchable
+  text, amenity keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing
+  search**); **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
+  (`app/api/crm/listings/[id]/route.ts`); **syndication** (`lib/syndication/eligibility.ts` reads
+  `compliance` + `agent_info`). **The companion probe plan is the authority for the SAFE TO DROP
+  gate** (`2026-06-15-step4-readonly-probe-plan.md`); do NOT approve a strip from this summary alone.
+  Its full test — mirrored here verbatim so the two docs cannot drift — is that a column is SAFE TO
+  DROP only when **ALL FOUR** hold:
+  1. **All read consumers cleared** through the full Step-5 repo-wide **8-probe** scan (Prisma
+     `select`/`include` · direct property reads `listing.<col>`/`dbListing.<col>`/`l.<col>` ·
+     destructuring · raw SQL `SELECT`s · mapper/builder/parser fns · writer/upsert paths ·
+     refill/backfill paths · full-record-fetch-then-helper). A single `<col>: true` grep is NOT the
+     gate.
+  2. **Scope = `app lib scripts public/crm`** (NOT just `app`/`lib`). Real readers live outside
+     `app`/`lib`: `scripts/backfill-listing-search-projection.ts`,
+     `public/crm/SALE-FORM-REDESIGN.html`, and raw SQL in `app/api/buildings/search/route.ts:536-556`.
+  3. **All writer / upsert / refill / backfill paths migrated, disabled, or proven unable to
+     repopulate** the JSON (`lib/idx/sync.ts:330-335`, `:1161-1166`, `:696-702`) — otherwise the
+     strip is **transient** and the next sync/backfill re-breaches the Free cap.
+  4. **Measured Neon billed bytes** after the row-rewrite + GC-past-PITR (Step 6) confirm the
+     reduction — **never a projection**; the estimates in this plan do not gate a downgrade.
+  **The inline consumer lists here are illustrative, not exhaustive** (6 review rounds kept finding
+  omitted consumers); every per-column verdict re-derives from that live 8-probe scan + writer check
+  + measured bytes in the probe plan, NOT from this prose or any single grep.
+
+  **Per-column HELD status (none droppable today):**
+
+  | Column | HELD until — migrate these consumers first |
+  |---|---|
+  | `raw_data` | **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) **+ archive** (close terms) **+ CRM PATCH**; live-row reclaim needs render-DTO + archiver migration |
+  | `address` | render + CRM + archive + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`) — NORMALIZE to structured columns AND re-derive the projection builder from those structured fields first |
+  | `agent_info` | render + CRM + archive + **syndication** — normalize + syndication migration |
+  | `compliance` | **render** (detail-page `publicRemarks` falls back to `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) **+ syndication** (`compliance.syndication`/`mallan_control_verification`/`seller_advertising_authorization`/`media_rights`) — HELD until render migration AND syndication migration |
+  | `features` | **render + projection/search + RESO + CRM** — HELD until the projection builder + RESO mapper are migrated/re-derived |
+  | `media` | **render + projection/search + RESO + CRM** media routes — HELD until projection + RESO migration |
 
 ## B. The archive eligibility bug (now scoped as a STANDALONE correction)
 Root cause (code-proven, `data-retention/route.ts:162-168`): the T+180 archive filters
@@ -122,9 +191,13 @@ window:**
    (Codex #404, blocking):**
    - **Terminal-but-unarchived rows:** their sale terms are only in `raw_data` until the archiver
      extracts them. Excluded.
-   - **Non-terminal (live) rows are ALSO unsafe** — every live listing is a *future* terminal row;
-     when it later closes, the same archiver (`route.ts:225-228`) pulls `close_price`/`close_date`/
-     `original_list_price` from `raw_data`. *Verified:* idx-sync DOES rewrite `raw_data` on every
+   - **Non-terminal (live) rows are ALSO unsafe — two reasons.** (i) **Render NOW (Codex #406):** live
+     rows are the publicly displayed listings, and the public DB DTO derives virtualTourURL /
+     previousListPrice / DOM / lease / availability / on-close dates from `raw_data`
+     (`app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) — nulling it blanks
+     those card/detail fields immediately. (ii) **Future archive:** every live listing is a *future*
+     terminal row; when it later closes, the same archiver (`route.ts:225-228`) pulls
+     `close_price`/`close_date`/`original_list_price` from `raw_data`. *Verified:* idx-sync DOES rewrite `raw_data` on every
      update (`lib/idx/sync.ts:335`,`:1166`), so a nulled `raw_data` would usually re-fill at the
      close transition — **but relying on that couples `raw_data` safety to idx-sync incremental
      reliability, which has a documented gap history (RC1/RC5/C6 were "idx-sync missed records").**
@@ -132,8 +205,9 @@ window:**
    - **Therefore `raw_data` (258 MB) is reclaimed ONLY via the archive path** — the archiver
      extracts close terms then nulls `raw_data` atomically (`route.ts:245-253`) as the T+180 backlog
      drains (the ~223 MB on terminal rows). The remaining ~35 MB on live rows is reclaimable **only
-     after a PREREQUISITE: migrate the archiver's close-field derivation off `raw_data`** (to
-     structured columns or a fresh Trestle re-fetch). Until then, do not bulk-null `raw_data`.
+     after TWO PREREQUISITES: (a) migrate the archiver's close-field derivation off `raw_data` AND
+     (b) migrate the public render DTO off `raw_data`** (both to structured columns or a fresh
+     Trestle re-fetch). Until both ship, do not bulk-null `raw_data`.
    - `compliance` / `media` / `features` carry **no** archive-derived fields, so the bulk row-rewrite
      strip applies to them (after the CRM-dependency + no-render proofs); `raw_data` does not.
    **Sequence:** (1) fix archive eligibility (flag-gated), (2) **drain the T+180 backlog** (sale
@@ -150,7 +224,11 @@ window:**
 
 **MEASURED-PROOF GATE (Step 6, mandatory):** the Free-tier go/no-go must read the **actual Neon
 billed synthetic size from the console/API AFTER the row-rewrite + PITR-window elapse** — never a
-projected `DROP COLUMN` size. No downgrade is approved on a projection.
+projected `DROP COLUMN` size. No downgrade is approved on a projection. **Projected savings are not
+creditable for downgrade until the actual Neon billed synthetic size is measured in BYTES after the
+rewrite / PITR / autovacuum; if compaction is required to realize the truncation, it must be an
+online copy-swap / `pg_repack`-style path, never `VACUUM FULL`** (Codex #404 — standard VACUUM only
+makes space reusable unless free pages are at the physical end of the file).
 
 ## D. Recommended sequence (Maya's bottom line, adopted)
 1. **Fix the archive bug** (standalone correction — closes the latent leak; does NOT reach Free).
