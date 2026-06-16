@@ -44,16 +44,28 @@ accumulates unbounded. This is a **latent storage leak**, independent of the $0/
     decide whether a one-time read-only-proven `status_changed_at` backfill is the safer route.
   - Alternative (more invasive): a one-time backfill of `status_changed_at` for terminal rows —
     only if the COALESCE proves insufficient; prefer the pure query change.
+- **ROLLOUT GUARD — REQUIRED (Codex #404). The cron is NOT a separate gate; it auto-runs.**
+  `/api/cron/data-retention` runs **nightly (`vercel.json`: `0 3 * * *`)**, archiving up to 500
+  eligible rows/run. So **merging a broadened predicate would start draining the ~91K backlog on
+  the very next 03:00 UTC run — with no Maya gate.** The fix therefore MUST ship the broadened
+  predicate **behind a default-OFF flag** (e.g. env `ARCHIVE_T180_BACKLOG_ENABLED`): unset/off →
+  the route keeps the CURRENT narrow `status_changed_at < cutoff` behavior (zero change in prod on
+  merge); on → the `COALESCE(status_changed_at, modification_timestamp)` predicate takes effect and
+  the capped drain begins. **Maya flipping that flag (a held env-var change) IS the explicit
+  execution gate.** Merging the PR is then truly inert.
 - **Preserve the existing batch cap** (`T180_BATCH_CAP = 500`) and the per-run/`maxDuration=60`
-  budget — the fix changes WHICH rows qualify, not HOW MANY per run; draining the now-eligible
-  backlog stays bounded and nightly.
-- **Preserve dry-run / non-destructive behavior:** the archive UPDATE-strip + `listings_archive`
-  upsert is unchanged; rows are NOT deleted (FK integrity, as today). No new deletion path.
+  budget — the fix changes WHICH rows qualify (when enabled), not HOW MANY per run; the drain stays
+  bounded and nightly.
+- **Non-destructive behavior unchanged:** the archive UPDATE-strip + `listings_archive` upsert is
+  as today; rows are NOT deleted (FK integrity). No new deletion path.
 
 ## RED test (required in the future PR)
-- A row-level test proving a terminal row with `status_changed_at = NULL` **and old
-  `modification_timestamp` (>180d)** is **selected** by the fixed predicate and **skipped** by the
-  current one (RED on `main`, GREEN after fix). The age must come from `modification_timestamp`.
+- **Flag-OFF (default) test:** with `ARCHIVE_T180_BACKLOG_ENABLED` unset, a `status_changed_at=NULL`
+  terminal row stays **EXCLUDED** — proving merge changes nothing in prod until Maya enables it.
+- **Flag-ON test (the fix):** a terminal row with `status_changed_at = NULL` **and old
+  `modification_timestamp` (>180d)** is **selected** when the flag is on, and **skipped** by the
+  current/`main` predicate (RED on `main`, GREEN after fix). The age must come from
+  `modification_timestamp`.
 - **Anti-`updated_at` guard (Codex #404):** a terminal row with `status_changed_at = NULL`, old
   `modification_timestamp` (>180d), but a **recent `updated_at`** (simulating an unrelated rewrite)
   MUST still be **selected** — proving the predicate ages on `modification_timestamp`, not
@@ -64,9 +76,16 @@ accumulates unbounded. This is a **latent storage leak**, independent of the $0/
 
 ## Hard bounds for the future PR
 - Edits ONLY `app/api/cron/data-retention/route.ts` + a new test.
-- **NO archive run, NO cleanup, NO backfill execution** in that PR — it fixes the query + proves
-  it with a test; the actual drain is a separate Maya-gated operation (nightly cron, bounded by
-  the cap).
+- **Merge is execution-INERT ONLY because of the default-OFF rollout guard above (Codex #404).**
+  Without that flag the nightly cron would auto-drain on merge — so the guard is mandatory, not
+  optional. The PR fixes the query (behind the flag) + proves it with a test; the actual drain
+  begins ONLY when Maya sets `ARCHIVE_T180_BACKLOG_ENABLED` (a held env-var change = the gate),
+  capped at 500/run.
+- The RED test must cover BOTH flag states: **flag OFF** → NULL-dated terminal row still EXCLUDED
+  (current behavior preserved on merge); **flag ON** → the same row with old
+  `modification_timestamp` is SELECTED (the fix), plus the anti-`updated_at` case.
+- Env-var addition (`ARCHIVE_T180_BACKLOG_ENABLED`) is itself a held surface — flag default OFF in
+  code; the env var is set later, by Maya, as the separate execution approval.
 - No schema change, no Neon downgrade, no column drops, no R2.
 - Gates: gate:micro/macro · the §G chain · tristle (touches a §D retention/§2.05 surface —
   terminal rows are already non-displayable, so this is a storage-hygiene improvement, but confirm).

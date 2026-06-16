@@ -74,8 +74,10 @@ Root cause (code-proven, `data-retention/route.ts:162-168`): the T+180 archive f
 bulk-synced terminal rows are invisible forever (only 34 of ~91,536 ever archived). This is a
 **latent storage leak worth fixing on its own merits**, independent of the $0 goal. Scoped
 separately in `docs/audits/corrections/scope-archive-eligibility-bug-2026-06-15.md` (code + RED
-test; preserves the batch cap + dry-run; NO cleanup execution in that PR). Archive remains a
-*secondary* lever — it helps terminal rows but cannot reach Free alone (§5.4).
+test; preserves the batch cap; **the broadened predicate ships behind a default-OFF flag so the
+nightly `data-retention` cron does not auto-drain on merge** — Codex #404; the drain begins only on
+Maya's flag flip). Archive remains a *secondary* lever — it helps terminal rows but cannot reach
+Free alone (§5.4).
 
 ## C. Reclaim mechanism (Neon, no VACUUM FULL) — CORRECTED per Codex #404
 
