@@ -19,18 +19,24 @@ candidate drop — measured, not estimated.
   1. **Archive-safe / terminal `raw_data` reclaim** — freed through the **archive path** (the
      archiver extracts close terms, then nulls `raw_data` atomically) as the T+180 backlog drains.
      This is the ONLY `raw_data` reclaim creditable before the archiver migration.
-  2. **Live / non-terminal `raw_data` reclaim — HELD.** Locked until the archiver migration /
-     re-fetch / structured-close-term proof ships (§A prerequisite). **It must NOT be counted in
-     any pre-migration Free go/no-go.**
+  2. **Live / non-terminal `raw_data` reclaim — HELD behind TWO prerequisites.** Locked until BOTH
+     (a) the archiver migration / re-fetch / structured-close-term proof AND (b) the **public render
+     DTO migration off `raw_data`** ship (§A two-migration prerequisite). Live rows are publicly
+     rendered and the public DB DTO derives virtualTourURL / DOM / lease / availability / close-date
+     fields from `raw_data` — so this reclaim is render-critical too. **It must NOT be counted in any
+     pre-migration Free go/no-go.**
 - Present the simulation as **two explicit scenarios:**
   - **Scenario 1 — Pre-migration Free go/no-go (the ONLY one that may gate a downgrade):**
     terminal `raw_data` (archive path) + `compliance` + `media` + `features` bulk-strip (live rows,
     NOT `raw_data`) + `address`/`agent_info` after normalization. **Live `raw_data` EXCLUDED.**
     Compare against the **Free cap of 500,000,000 bytes (~477 MiB; Neon's 0.5 GB is decimal)**, in
     BYTES.
-  - **Scenario 2 — Post-archiver-migration (informational ONLY, not a downgrade gate yet):**
-    Scenario 1 **plus** the live-row `raw_data` reclaim — valid only once the §A archiver-migration
-    prerequisite is shipped and proven. Clearly labeled "not creditable until migration."
+  - **Scenario 2 — Post-migration (informational ONLY, not a downgrade gate yet):**
+    Scenario 1 **plus** the live-row `raw_data` reclaim — valid only once **BOTH** §A prerequisites
+    (archiver migration AND public render-DTO migration off `raw_data`) are shipped and proven. A
+    post-archiver-migration run alone does NOT unlock this: while `dbListingToPublicDTO` still reads
+    `raw_data`, nulling live rows would blank virtualTourURL / DOM / lease / availability / close-date
+    on public cards. Clearly labeled "not creditable until BOTH migrations ship."
 - Bloat context: per-table `n_live_tup` / `n_dead_tup` / dead% + `last_autovacuum` (confirms the
   ~11.6% / ~30 MB figure is current; bloat ages out of Free's 6-h PITR so it is not the lever).
 - **Output:** the **Scenario 1** waterfall (the downgrade gate) + the **Scenario 2** waterfall
