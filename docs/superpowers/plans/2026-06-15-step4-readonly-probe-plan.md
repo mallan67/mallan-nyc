@@ -90,17 +90,28 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
 - **ROOT-CAUSE NOTE (do-not-ignore sweep, 2026-06-16) — this map is ILLUSTRATIVE, NOT exhaustive.**
   Repeated review (Codex #406 r1–r4) kept surfacing consumers an inline list had missed — render
   `raw_data`, render `compliance`, projection `address`, and the public `/api/open-houses` payload.
-  The lesson: a hand-written consumer list is not a safe drop gate. **The authoritative gate is the
-  repo-wide select-site grep that Step 5 MUST run and clear per column, NOT this prose.** Reference
-  command + counts (run 2026-06-16, `app` + `lib`, excluding tests):
-  - `grep -rn "^\s*<col>:\s*true" app lib` → **`address` ~30 sites · `media` 11 · `features` 8 ·
-    `agent_info` 7 · `raw_data` 4 · `compliance` 0 narrow selects.** Spans public render
-    (`app/api/listings/route.ts`, `app/api/agents/[slug]/listings/route.ts`,
-    `app/api/open-houses/route.ts`, `app/api/listings/[id]/route.ts`, `app/api/market/route.ts`,
-    `app/sitemap.ts`), portal (`app/api/portal/favorites|offers|offer-status|showings`), CRM
-    (many `app/api/crm/**`), cron (`data-retention`, `listing-expiration`), and lib
-    (`lib/search/core.ts`, `lib/search/listing-search-projection.ts`, `lib/cma/engine.ts`,
-    `lib/buyer-intent/recommender.ts`).
+  The lesson: a hand-written consumer list is not a safe drop gate. **The authoritative gate is a
+  repo-wide multi-pattern sweep that Step 5 MUST run and clear per column, NOT this prose.** A
+  single grep is insufficient (Codex #406 r5: `app/api/buildings/search/route.ts:536` reads
+  `address`/`features`/`raw_data` via raw `$queryRawUnsafe` SQL → `extractSavedProfileValues(...)`,
+  which a Prisma-`select` grep misses entirely). **Step 5 must run ALL of:**
+  1. **Prisma narrow selects** — `grep -rn "^\s*<col>:\s*true" app lib` → (run 2026-06-16)
+     **`address` ~30 sites · `media` 11 · `features` 8 · `agent_info` 7 · `raw_data` 4 ·
+     `compliance` 0.** Spans public render (`app/api/listings/route.ts`,
+     `app/api/agents/[slug]/listings/route.ts`, `app/api/open-houses/route.ts`,
+     `app/api/listings/[id]/route.ts`, `app/api/market/route.ts`, `app/sitemap.ts`), portal
+     (`app/api/portal/favorites|offers|offer-status|showings`), CRM (many `app/api/crm/**`), cron
+     (`data-retention`, `listing-expiration`), lib (`lib/search/core.ts`,
+     `lib/search/listing-search-projection.ts`, `lib/cma/engine.ts`, `lib/buyer-intent/recommender.ts`).
+  2. **Full-record fetches** — `findUnique`/`findMany` with NO `select` (or a `select` returning the
+     whole row), e.g. the detail page (item below).
+  3. **Raw SQL** — `grep -rn "queryRaw\|queryRawUnsafe" app lib` then read each for column names in
+     the (often string-built) SQL: known hits incl. `app/api/buildings/search/route.ts:536`
+     (`address`/`features`/`raw_data`), `app/api/debug/media-health/route.ts:69` + `lib/idx/sync.ts:850`
+     (`media`). **String-built SQL (`$queryRawUnsafe`) can't be fully resolved by static grep — each
+     such call site needs manual read.**
+  4. **Property-access reads** — `grep -rn "\.<col>\b" app lib` for `.raw_data`/`.features`/etc. on
+     listing objects that a select/raw-SQL grep didn't already attribute.
   - **`compliance` has ZERO narrow `compliance: true` selects yet is still render-critical** — the
     detail page reads it via a full-record fetch (`app/listing/[...slug]/page.tsx:545,621`,
     `publicRemarks` ← `compliance.PublicRemarks`). **So the grep gate must ALSO catch full-record
@@ -130,16 +141,24 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
     re-point the projection builder at the new structured columns before the JSON is dropped.**
   - **RESO/IDX-feed:** `lib/compliance/reso-mapper.ts:239-253,281` maps `features`/`media` into RESO
     output. Stripping before migrating it blanks feed/syndication output fields.
+- **WRITER / REFILL is a SEVENTH blocker (Codex #406-r5) — and it gates DURABILITY, not just
+  correctness.** idx-sync re-upserts `address`/`features`/`compliance`/`agent_info`/`raw_data` on
+  every update (`lib/idx/sync.ts:330-335`,`:1161-1166`) and `backfillEmptyMedia` re-fetches `media`
+  on `[]`/null (`:696-702`). A strip that passes every reader gate STILL repopulates on the next
+  sync unless the writer is migrated to stop writing the JSON (or write a reduced shape). **No
+  reclaim is creditable for the downgrade until a "no writer/refill repopulates this column" proof
+  passes.**
 - Verdict per column — **SAFE TO DROP requires NO render-critical, NO CRM-critical, NO
-  archive-critical, NO syndication-critical, NO projection-critical, AND NO RESO-critical read.**
-  Otherwise: **DROP only AFTER migrating every critical reader off the column** — PR 5B (public read
-  → projection) **+** CRM migration **+** archiver migration **+** syndication migration **+**
-  **projection-builder migration** (derive from structured columns) **+** **RESO-mapper migration**;
-  or **NORMALIZE FIRST** (`address`, `agent_info` feed display, CRM, archiver, syndication). **Any
-  render / CRM / archive / syndication / projection / RESO critical read = a required migration or
-  exclusion BEFORE drop.**
+  archive-critical, NO syndication-critical, NO projection-critical, NO RESO-critical read, AND a
+  proven no-writer/refill-repopulation path.** Otherwise: **DROP only AFTER migrating every critical
+  reader off the column AND migrating the writer** — PR 5B (public read → projection) **+** CRM
+  migration **+** archiver migration **+** syndication migration **+** **projection-builder
+  migration** (derive from structured columns) **+** **RESO-mapper migration** **+** **idx-sync
+  writer/backfill migration**; or **NORMALIZE FIRST** (`address`, `agent_info` feed display, CRM,
+  archiver, syndication). **Any render / CRM / archive / syndication / projection / RESO critical
+  read — OR any live writer/refill path — = a required migration or exclusion BEFORE drop.**
 - **Output:** a per-column dependency matrix (render + CRM + archive + syndication + projection +
-  RESO) feeding Step 5's proof.
+  RESO + **writer/refill**) feeding Step 5's proof.
 
 ## Probe 3 — Required normalization fields (for `address` / `agent_info`)
 **Goal:** identify the exact sub-fields the render paths need from `address`/`agent_info`, so a

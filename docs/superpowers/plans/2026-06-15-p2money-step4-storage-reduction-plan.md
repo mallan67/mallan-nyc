@@ -50,7 +50,7 @@
    |---|---|
    | Today | ~1,135 MB |
    | Archive drain (terminal rows): reclaims `raw_data` 223 + `compliance` 170 + `media` ≈ 398 MB | ~737 MB |
-   | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/RESO/CRM/syndication consumers** (Codex #404; none are freely strippable today — see §A + probe plan) | ~600 MB |
+   | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/RESO/CRM/syndication READERS *and* stopping the WRITERS** (idx-sync re-upserts these JSON on every update — `lib/idx/sync.ts:330-335`,`:1161-1166`; `backfillEmptyMedia` re-fetches `media` when it sees `[]`/null — `:696-702`). **Without the writer/refill migration the strip is TRANSIENT — the next sync repopulates it and the cap breaches again** (Codex #404/#406-r5; see §A + probe plan) | ~600 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~565 MB |
    | + normalize `address`/`agent_info` → structured columns, then strip JSON | ~490 MB |
    | + **migrate archiver AND public render DTO off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
@@ -72,6 +72,15 @@
 - **Step 5** (prove no read path depends on each JSON column) — the gate that must pass per column
   before any drop. The read-only **dependency probe plan** (companion doc
   `2026-06-15-step4-readonly-probe-plan.md`) inventories those paths.
+- **WRITER / REFILL prerequisite (Codex #406-r5) — the strip is not durable until the writers stop.**
+  idx-sync re-upserts `address`/`features`/`compliance`/`agent_info`/`raw_data` on **every** listing
+  update (`lib/idx/sync.ts:330-335`, `:1161-1166`), and `backfillEmptyMedia` re-fetches `media`
+  whenever it sees `[]`/null (`:696-702`). So a bulk strip on live rows wins storage only
+  *transiently*: the next incremental sync (or media backfill) rewrites the same JSON and the Free
+  cap breaches again. **The downgrade gate therefore requires an explicit "no writer/refill path
+  repopulates the column" proof — the writer must be migrated to stop writing the JSON (or write a
+  reduced shape) BEFORE the reclaim can be credited.** This applies to all five sync-written columns,
+  not just `raw_data`, and is a distinct prerequisite on top of the reader migrations.
 - Normalizing `address`/`agent_info` is a real data-model change (M1-class), not a delete.
 - **Two-migration prerequisite for live-row `raw_data` (Codex #404 + #406):** the ~35 MB of
   `raw_data` on live rows can be reclaimed only after BOTH (a) the data-retention archiver is
