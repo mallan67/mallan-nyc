@@ -83,6 +83,7 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
 - **ROOT-CAUSE COMPLETENESS NOTE (do-not-ignore sweep, 2026-06-16).** An exhaustive repo sweep shows
   the "bulk-strippable" labels on `compliance`/`features`/`media` were premature — every one has a
   live consumer beyond the archiver:
+  - **`raw_data`** → **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates ONLY from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) + archive (`:225-228`) + CRM PATCH (`:101-103`). Render-critical, not just archive/CRM — live-row reclaim needs the public-DTO migration too.
   - **`agent_info`** → public/portal DTO `lib/compliance/dto.ts:270,282,368` (render) + archive + CRM + **syndication**.
   - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **the search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555` (the future read path); RESO output `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH merge `app/api/crm/listings/[id]/route.ts:329`.
   - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + projection `:261,556` + RESO `lib/compliance/reso-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).

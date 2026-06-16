@@ -53,10 +53,12 @@
    | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/RESO/CRM/syndication consumers** (Codex #404; none are freely strippable today — see §A + probe plan) | ~600 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~565 MB |
    | + normalize `address`/`agent_info` → structured columns, then strip JSON | ~490 MB |
-   | + **migrate archiver off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
+   | + **migrate archiver AND public render DTO off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
    *(`raw_data` is NOT all-row stripped: ~223 MB reclaims via the archive drain; the ~35 MB on live
-   rows needs the archiver-migration prerequisite — §C. The prior "~674 MB all-row raw_data strip"
-   row was incorrect.)*
+   rows needs BOTH the archiver-migration AND the render-DTO-migration prerequisite — §C / §A. Live
+   rows are publicly rendered and the public DB DTO derives virtualTourURL/DOM/lease/availability/
+   close-date fields from `raw_data`, so nulling it on live rows would blank those cards. The prior
+   "~674 MB all-row raw_data strip" row was incorrect.)*
 
 6. **$19 Launch remains the low-maintenance floor** unless the JSON-drop path is COMPLETED AND
    PROVEN. Even when complete it lands **at or just over the ~477 MiB cap (tighter than 512) — thin
@@ -71,11 +73,15 @@
   before any drop. The read-only **dependency probe plan** (companion doc
   `2026-06-15-step4-readonly-probe-plan.md`) inventories those paths.
 - Normalizing `address`/`agent_info` is a real data-model change (M1-class), not a delete.
-- **Archiver-migration prerequisite for live-row `raw_data` (Codex #404):** the ~35 MB of
-  `raw_data` on live rows can be reclaimed only after the data-retention archiver is migrated to
-  derive `close_price`/`close_date`/`original_list_price` from structured columns or a fresh Trestle
-  re-fetch (not from `raw_data`). Until then `raw_data` is reclaimed only via the archive drain
-  (terminal rows) — see §C.
+- **Two-migration prerequisite for live-row `raw_data` (Codex #404 + #406):** the ~35 MB of
+  `raw_data` on live rows can be reclaimed only after BOTH (a) the data-retention archiver is
+  migrated to derive `close_price`/`close_date`/`original_list_price` from structured columns or a
+  fresh Trestle re-fetch (not from `raw_data`), AND (b) the public DB render DTO is migrated off
+  `raw_data` — `app/api/listings/route.ts:348-356` + `lib/idx/db-to-public-dto.ts:298` derive
+  virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates from `raw_data`
+  for live (displayable) cards. Live rows are publicly rendered, so nulling `raw_data` before the
+  render-DTO migration would silently blank those fields. Until both ship, `raw_data` is reclaimed
+  only via the archive drain (terminal rows, which are not publicly rendered) — see §C.
 - **Consumer-migration prerequisites for ALL JSON columns (Codex #404/#406, do-not-ignore sweep
   2026-06-16): NO JSON column is freely strippable today.** Each has live consumers that must be
   migrated first — render DTO (`lib/compliance/dto.ts`, `lib/idx/db-to-public-dto.ts`); the search
@@ -91,7 +97,7 @@
 
   | Column | HELD until — migrate these consumers first |
   |---|---|
-  | `raw_data` | archive (close terms) + CRM PATCH; live-row reclaim needs archiver migration |
+  | `raw_data` | **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) **+ archive** (close terms) **+ CRM PATCH**; live-row reclaim needs render-DTO + archiver migration |
   | `address` | render + CRM + archive — NORMALIZE to structured columns first |
   | `agent_info` | render + CRM + archive + **syndication** — normalize + syndication migration |
   | `compliance` | **syndication** (`compliance.syndication`/`mallan_control_verification`/`seller_advertising_authorization`/`media_rights`) |
@@ -143,9 +149,13 @@ window:**
    (Codex #404, blocking):**
    - **Terminal-but-unarchived rows:** their sale terms are only in `raw_data` until the archiver
      extracts them. Excluded.
-   - **Non-terminal (live) rows are ALSO unsafe** — every live listing is a *future* terminal row;
-     when it later closes, the same archiver (`route.ts:225-228`) pulls `close_price`/`close_date`/
-     `original_list_price` from `raw_data`. *Verified:* idx-sync DOES rewrite `raw_data` on every
+   - **Non-terminal (live) rows are ALSO unsafe — two reasons.** (i) **Render NOW (Codex #406):** live
+     rows are the publicly displayed listings, and the public DB DTO derives virtualTourURL /
+     previousListPrice / DOM / lease / availability / on-close dates from `raw_data`
+     (`app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) — nulling it blanks
+     those card/detail fields immediately. (ii) **Future archive:** every live listing is a *future*
+     terminal row; when it later closes, the same archiver (`route.ts:225-228`) pulls
+     `close_price`/`close_date`/`original_list_price` from `raw_data`. *Verified:* idx-sync DOES rewrite `raw_data` on every
      update (`lib/idx/sync.ts:335`,`:1166`), so a nulled `raw_data` would usually re-fill at the
      close transition — **but relying on that couples `raw_data` safety to idx-sync incremental
      reliability, which has a documented gap history (RC1/RC5/C6 were "idx-sync missed records").**
@@ -153,8 +163,9 @@ window:**
    - **Therefore `raw_data` (258 MB) is reclaimed ONLY via the archive path** — the archiver
      extracts close terms then nulls `raw_data` atomically (`route.ts:245-253`) as the T+180 backlog
      drains (the ~223 MB on terminal rows). The remaining ~35 MB on live rows is reclaimable **only
-     after a PREREQUISITE: migrate the archiver's close-field derivation off `raw_data`** (to
-     structured columns or a fresh Trestle re-fetch). Until then, do not bulk-null `raw_data`.
+     after TWO PREREQUISITES: (a) migrate the archiver's close-field derivation off `raw_data` AND
+     (b) migrate the public render DTO off `raw_data`** (both to structured columns or a fresh
+     Trestle re-fetch). Until both ship, do not bulk-null `raw_data`.
    - `compliance` / `media` / `features` carry **no** archive-derived fields, so the bulk row-rewrite
      strip applies to them (after the CRM-dependency + no-render proofs); `raw_data` does not.
    **Sequence:** (1) fix archive eligibility (flag-gated), (2) **drain the T+180 backlog** (sale
