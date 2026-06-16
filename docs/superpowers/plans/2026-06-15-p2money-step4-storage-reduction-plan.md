@@ -33,12 +33,14 @@
    even on terminal rows.
 5. **Free is achievable ONLY through safe legacy-JSON elimination / normalization, + audit
    compaction, + ongoing archival discipline.** Each "size" below is the **post-rewrite target**
-   reached by NULLing the column values (a row rewrite) + GC past the PITR window — **NOT** the
-   output of `DROP COLUMN`, which is catalog-only and frees no bytes (see §C, Codex #404). Targets
-   are projections from the 06-12 audit; the go/no-go uses the **measured** Neon billed size after
-   the rewrite (Step 6), never these estimates:
+   reached by **rewriting each column to its schema-valid minimal value** (`raw_data=NULL` since it
+   is nullable; `compliance='{}'`, `features='{}'`, `agent_info='{}'`, `address='{}'`, `media='[]'`
+   for the NOT-NULL columns — see §C) + GC past the PITR window — **NOT** the output of
+   `DROP COLUMN`, which is catalog-only and frees no bytes (see §C, Codex #404). Targets are
+   projections from the 06-12 audit; the go/no-go uses the **measured** Neon billed size after the
+   rewrite (Step 6), never these estimates:
 
-   | Action — NULL the values (row rewrite), then DROP COLUMN as cleanup; each separately gated | post-rewrite DB size |
+   | Action — rewrite each column to its schema-valid minimal value (row rewrite), then DROP COLUMN as cleanup; each separately gated | post-rewrite DB size |
    |---|---|
    | Today | ~1,135 MB |
    | Strip `raw_data` + `compliance` + `media` (all rows) | ~674 MB |
