@@ -160,11 +160,34 @@ export async function GET(req: NextRequest) {
   // and preserving referential integrity matters more than the row overhead.
   // The archive table satisfies NY DOS 6-year recordkeeping requirements.
   const oneEightyDayCutoff = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+  // Archive eligibility — default-OFF backlog flag (scope-archive-eligibility-bug-2026-06-15).
+  // The original predicate `status_changed_at < cutoff` silently excludes rows where
+  // `status_changed_at IS NULL` (NULL < ts is NULL, not true), so bulk-synced terminal rows are
+  // invisible to the archive forever (only 34 of ~91,536 ever archived). The fix broadens the
+  // predicate to COALESCE(status_changed_at, modification_timestamp) < cutoff — but ONLY when
+  // ARCHIVE_T180_BACKLOG_ENABLED is explicitly set, so merging this change drains nothing: the
+  // nightly cron keeps the current narrow behavior until Maya flips the flag (the explicit gate).
+  //   - modification_timestamp is NOT NULL (prisma/schema.prisma) and is the Trestle source-of-
+  //     truth clock — NOT updated_at, which is bumped by unrelated rewrites (idx-sync, media drain)
+  //     and would keep the backlog perpetually "recent" → stuck forever.
+  //   - The 500/run cap (T180_BATCH_CAP) and the archive UPDATE-strip are unchanged: this only
+  //     changes WHICH rows qualify when enabled.
+  const archiveBacklogEnabled = process.env.ARCHIVE_T180_BACKLOG_ENABLED === "true";
+  const eligibilityWhere: Prisma.ListingWhereInput = archiveBacklogEnabled
+    ? {
+        OR: [
+          { status_changed_at: { lt: oneEightyDayCutoff } },
+          { status_changed_at: null, modification_timestamp: { lt: oneEightyDayCutoff } },
+        ],
+      }
+    : { status_changed_at: { lt: oneEightyDayCutoff } };
+
   const toArchive = await prisma.listing.findMany({
     where: {
       status: { in: [...TERMINAL_STATUSES] },
-      status_changed_at: { lt: oneEightyDayCutoff },
       sync_status: { not: "archived" },
+      ...eligibilityWhere,
     },
     select: {
       id: true,
