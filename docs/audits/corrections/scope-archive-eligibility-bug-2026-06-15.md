@@ -28,10 +28,22 @@ accumulates unbounded. This is a **latent storage leak**, independent of the $0/
   scoping it separately keeps the storage-reduction decision cleanly gated.
 
 ## Proposed fix (for the future PR — NOT applied here)
-- Broaden eligibility so NULL-dated terminal rows qualify once genuinely old, e.g. compare
-  `COALESCE(status_changed_at, updated_at, created_at) < now-180d`, OR a one-time read-only-proven
-  backfill of `status_changed_at` for terminal rows. Prefer the COALESCE predicate (no data write,
-  purely a query change) pending the dependency check on whatever else reads `status_changed_at`.
+- Broaden eligibility so NULL-dated terminal rows qualify once genuinely old, comparing
+  **`COALESCE(status_changed_at, modification_timestamp) < now-180d`** — a query change, no data
+  write. **Fall back to `modification_timestamp`, NOT `updated_at` (Codex #404):**
+  - `modification_timestamp` is **NOT NULL** (`prisma/schema.prisma:550`) and is the documented
+    **Trestle source-of-truth clock** for these rows (`lib/idx/sync.ts:284-285` + the Phase-1
+    backfill / idx-sync keyset cursor). So the COALESCE is never NULL and ages on a real signal.
+  - **Do NOT use `updated_at`** — it is `@updatedAt` (`schema.prisma:99`), bumped by *every*
+    unrelated Listing rewrite/upsert (idx-sync, the media drain), so terminal rows would look
+    perpetually "recent" → the archive backlog stays stuck forever (the exact failure mode being
+    fixed). **Do NOT use `created_at`** as the primary fallback — it is ingestion time, far older
+    than the terminal transition → would archive on the wrong (too-early) age.
+  - **Caveat to verify first (audit R2/Q10a):** confirm `modification_timestamp` is honest for the
+    ~87,525 `gated:Closed…` legacy rows before expecting throughput; if any are implausibly old/new,
+    decide whether a one-time read-only-proven `status_changed_at` backfill is the safer route.
+  - Alternative (more invasive): a one-time backfill of `status_changed_at` for terminal rows —
+    only if the COALESCE proves insufficient; prefer the pure query change.
 - **Preserve the existing batch cap** (`T180_BATCH_CAP = 500`) and the per-run/`maxDuration=60`
   budget — the fix changes WHICH rows qualify, not HOW MANY per run; draining the now-eligible
   backlog stays bounded and nightly.
@@ -39,11 +51,16 @@ accumulates unbounded. This is a **latent storage leak**, independent of the $0/
   upsert is unchanged; rows are NOT deleted (FK integrity, as today). No new deletion path.
 
 ## RED test (required in the future PR)
-- A row-level test proving a terminal row with `status_changed_at = NULL` (and old
-  `created_at`/`updated_at`) is **selected** by the fixed predicate and **skipped** by the current
-  one (RED on `main`, GREEN after fix).
-- Plus: a non-NULL recent terminal row stays excluded; the batch cap still bounds the result set;
-  an already-`archived` row is still skipped (idempotent).
+- A row-level test proving a terminal row with `status_changed_at = NULL` **and old
+  `modification_timestamp` (>180d)** is **selected** by the fixed predicate and **skipped** by the
+  current one (RED on `main`, GREEN after fix). The age must come from `modification_timestamp`.
+- **Anti-`updated_at` guard (Codex #404):** a terminal row with `status_changed_at = NULL`, old
+  `modification_timestamp` (>180d), but a **recent `updated_at`** (simulating an unrelated rewrite)
+  MUST still be **selected** — proving the predicate ages on `modification_timestamp`, not
+  `updated_at` (so the backlog can't be stuck by routine rewrites).
+- Plus: a NULL-dated row with **recent `modification_timestamp`** stays excluded; a non-NULL recent
+  `status_changed_at` row stays excluded; the batch cap still bounds the result set; an
+  already-`archived` row is still skipped (idempotent).
 
 ## Hard bounds for the future PR
 - Edits ONLY `app/api/cron/data-retention/route.ts` + a new test.

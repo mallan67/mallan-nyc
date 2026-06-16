@@ -28,9 +28,11 @@
    ~630 MB of dead-weight duplicate JSON.
 4. **Archive-only is INSUFFICIENT.** Archiving terminal rows (even after fixing the eligibility
    bug — see §B and the separate correction scope) only strips `raw_data`+`compliance`+`media`
-   **on the ~91.5K terminal rows** → ~461 MB → DB ~674 MB, **still over 512 MB.** It cannot touch
-   the same JSON on the ~16K live/displayable rows, and it leaves `features`/`agent_info`/`address`
-   even on terminal rows.
+   **on the ~91.5K terminal rows**, which hold **raw_data 223 MB + compliance 170 MB** (+ a sliver
+   of `media`) per audit Q6b/R2 — **~398 MB**, NOT the all-row 461 MB total. So archive-only →
+   DB **~737 MB**, **still well over 512 MB** (Codex #404). It cannot touch the same JSON on the
+   ~16K live/displayable rows, and it **leaves `features` (87 MB) + `agent_info` + `address`** even
+   on terminal rows.
 5. **Free is achievable ONLY through safe legacy-JSON elimination / normalization, + audit
    compaction, + ongoing archival discipline.** Each "size" below is the **post-rewrite target**
    reached by **rewriting each column to its schema-valid minimal value** (`raw_data=NULL` since it
