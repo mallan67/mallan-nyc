@@ -87,18 +87,21 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   - **`agent_info`** → public/portal DTO `lib/compliance/dto.ts:270,282,368` (render) + archive + CRM + **syndication**.
   - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **the search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555` (the future read path); RESO output `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH merge `app/api/crm/listings/[id]/route.ts:329`.
   - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + projection `:261,556` + RESO `lib/compliance/reso-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).
-  - **`compliance`** → **syndication** `lib/syndication/eligibility.ts`.
+  - **`compliance`** → **render** (detail-page `publicRemarks` falls back to `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) + **syndication** `lib/syndication/eligibility.ts`. Render-critical, not syndication-only.
+  - **`address`** → render + CRM + archive (`address_line`, `route.ts:198-209`) + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`). Normalizing/dropping `address` requires re-deriving the projection builder from the new structured columns, else the next projection sync/backfill loses address keyword text used by customer-facing search.
   **Conclusion: NO JSON column is freely strippable today.** Each per-column verdict MUST be
   re-derived from this complete consumer map; the only `raw_data`/JSON reclaim available now is the
   archive path (terminal rows). This makes Free further off, reinforcing $19 as the floor.
 - **PROJECTION-critical and RESO-critical reads are ALSO BLOCKERS (Codex #404) — not just listed in
   the map above, but BLOCKING in the verdict:**
   - **Projection:** `lib/search/listing-search-projection.ts:193-290` derives searchable text,
-    amenity keys, and media flags from `features`/`media` (and others) into
-    `listing_search_projection`, which `lib/search/core.ts:114-121` uses for **production listing
-    search**. Stripping the JSON before the projection builder is migrated/re-derived would make the
-    next sync/backfill write **empty projection data** → broken search. The projection is the PR-5B
-    *read* target but is itself a *consumer/builder* of the JSON.
+    amenity keys, and media flags from `features`/`media` **and `address`** (street parts +
+    city, `:195-202,305`) into `listing_search_projection`, which `lib/search/core.ts:114-121`
+    uses for **production listing search**. Stripping/normalizing the JSON before the projection
+    builder is migrated/re-derived would make the next sync/backfill write **empty projection
+    data** → broken search (including loss of address keyword text). The projection is the PR-5B
+    *read* target but is itself a *consumer/builder* of the JSON. **`address` normalization MUST
+    re-point the projection builder at the new structured columns before the JSON is dropped.**
   - **RESO/IDX-feed:** `lib/compliance/reso-mapper.ts:239-253,281` maps `features`/`media` into RESO
     output. Stripping before migrating it blanks feed/syndication output fields.
 - Verdict per column — **SAFE TO DROP requires NO render-critical, NO CRM-critical, NO

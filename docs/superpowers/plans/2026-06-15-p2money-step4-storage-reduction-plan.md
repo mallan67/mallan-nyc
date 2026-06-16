@@ -98,9 +98,9 @@
   | Column | HELD until — migrate these consumers first |
   |---|---|
   | `raw_data` | **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) **+ archive** (close terms) **+ CRM PATCH**; live-row reclaim needs render-DTO + archiver migration |
-  | `address` | render + CRM + archive — NORMALIZE to structured columns first |
+  | `address` | render + CRM + archive + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`) — NORMALIZE to structured columns AND re-derive the projection builder from those structured fields first |
   | `agent_info` | render + CRM + archive + **syndication** — normalize + syndication migration |
-  | `compliance` | **syndication** (`compliance.syndication`/`mallan_control_verification`/`seller_advertising_authorization`/`media_rights`) |
+  | `compliance` | **render** (detail-page `publicRemarks` falls back to `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) **+ syndication** (`compliance.syndication`/`mallan_control_verification`/`seller_advertising_authorization`/`media_rights`) — HELD until render migration AND syndication migration |
   | `features` | **render + projection/search + RESO + CRM** — HELD until the projection builder + RESO mapper are migrated/re-derived |
   | `media` | **render + projection/search + RESO + CRM** media routes — HELD until projection + RESO migration |
 
