@@ -114,12 +114,18 @@
   text, amenity keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing
   search**); **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
   (`app/api/crm/listings/[id]/route.ts`); **syndication** (`lib/syndication/eligibility.ts` reads
-  `compliance` + `agent_info`). The probe-plan drop-gate is the authority — a column is SAFE TO DROP
-  only with **no render, no CRM, no archive, no syndication, no projection/search, AND no RESO
-  critical read**. **The inline consumer lists here are illustrative, not exhaustive** (4 review
-  rounds kept finding omitted consumers); each per-column verdict re-derives from the live Step-5
-  repo-wide select-site grep (`grep -rn "^\s*<col>:\s*true" app lib` PLUS full-record fetches —
-  `compliance` has zero narrow selects yet renders via `page.tsx:545`), not from this prose.
+  `compliance` + `agent_info`). The companion probe-plan drop-gate is the authority and **its full
+  test is broader than "no critical read"** — a column is SAFE TO DROP only when BOTH: (a) the
+  **8-probe Step-5 dependency scan** (Prisma select/include · direct property reads · destructuring ·
+  raw SQL `SELECT`s · mapper/builder/parser fns · writer/upsert paths · refill/backfill paths ·
+  full-record-fetch-then-helper) is clean across **`app lib scripts public/crm`** (not just
+  `app`/`lib` — readers live in `scripts/backfill-listing-search-projection.ts` and
+  `public/crm/SALE-FORM-REDESIGN.html`, and raw SQL in `app/api/buildings/search/route.ts:536-556`),
+  AND (b) the **writer/refill paths are migrated/disabled/proven unable to repopulate** the column
+  (`lib/idx/sync.ts:330-335`,`:1161-1166`,`:696-702`) — else the strip is transient. **The inline
+  consumer lists here are illustrative, not exhaustive** (6 review rounds kept finding omitted
+  consumers); every per-column verdict re-derives from that live 8-probe scan + writer check in the
+  probe plan, NOT from this prose or any single grep.
 
   **Per-column HELD status (none droppable today):**
 
