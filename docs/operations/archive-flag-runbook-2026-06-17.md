@@ -35,11 +35,17 @@ the flag is a separate, explicit, Maya-gated decision taken **after** reviewing 
 Vercel → project `mallan-nyc` → Settings → Environment Variables → confirm `ARCHIVE_T180_BACKLOG_ENABLED`
 is **absent** or **≠ `true`** in the **Production** environment. (It is not a GitHub Actions
 variable/secret; the archiver code is default-OFF and treats anything other than the literal string
-`"true"` as OFF.) Note Vercel env vars are snapshotted per deployment, so the cron's *actual*
-behavior is governed by the **active Production deployment's** env, not just the Settings value — but
-since the flag has never been enabled or redeployed-true, the active deployment has it OFF. This
-guarantees the production cron is on the narrow predicate while you measure. (The two read-only counts
-in §2 do not depend on Vercel at all — they run locally.)
+`"true"` as OFF.) Vercel env vars are snapshotted per deployment, so the cron's *actual* behavior is
+governed by the **active Production deployment's** env, **not** the Settings value. **Do not assume —
+verify the active deployment:** confirm the current Production deployment was created while the flag
+was not `true` (its build post-dates any change back to false/absent). **If the flag was ever set
+`true` and you cannot confirm a later redeploy-to-OFF, trigger a fresh Production redeploy and confirm
+it is READY before measuring or trusting the narrow predicate** — otherwise the active deployment may
+still be archiving on a stale `true` (the exact case §5 guards). On first-time use, before the flag
+was ever enabled in this project, the active deployment is OFF by construction — but still confirm
+rather than assume. (The two read-only counts in §2 do not depend on Vercel at all — they run
+locally — so they are safe to run regardless; this active-deployment check is about the production
+cron's behavior, not the measurement.)
 
 ## 1. What the archiver does per row (one-way)
 
