@@ -277,7 +277,7 @@ JSON-derived value; (2) replace the direct `agent_info.*` read with `resolveList
 (3) where the route uses a Prisma `select: { agent_info: true }`, **also** swap it to select the 8 typed
 columns; (4) run the surface's tests + a live probe. Readers (each its own task + checkbox):
 
-- [ ] **B2 — public DTO** `lib/idx/db-to-public-dto.ts:414,529-530` (+ select at `app/api/listings/route.ts:360,1231`). Gate: card/detail office attribution unchanged; live probe.
+- [ ] **B2 — public DTO** `lib/idx/db-to-public-dto.ts:414,529-530` (+ Prisma `agent_info:true` selects that feed `dbListingToPublicDTO`: `app/api/listings/route.ts:360,1231` **AND** `app/api/agents/[slug]/listings/route.ts:227` — swap BOTH to the typed columns, else agent-profile cards hit a Prisma runtime error at Phase D even if `/api/listings` was migrated). Gate: card/detail office attribution unchanged on `/listings` **and** the agent page; live probe of both.
 - [ ] **B3 — direct detail page** `app/listing/[...slug]/page.tsx:510,614` (`listOfficeName` public third-party attribution). Gate: **own test + live public-detail-page probe** (NY DOS §175.25).
 - [ ] **B4 — exclusive contact card** `lib/listings/assigned-agent.ts:69-72` (agent name/email/phone — PII, gated on `isMallanExclusive`). Gate: exclusive card renders agent PII only when exclusive; IDX rows show none.
 - [ ] **B5 — open-houses office attribution** `app/api/open-houses/route.ts:370-371` (+ select `:293`). Gate: office-only on public OH.
@@ -285,12 +285,13 @@ columns; (4) run the surface's tests + a live probe. Readers (each its own task 
 - [ ] **B7 — portal PII mask** `lib/compliance/dto.ts:270-282` (+ select `app/api/portal/favorites/route.ts:53`). Gate: `sanitizeForPortal` still emits `{company}` only — **`portal-dto.test.ts` + `c1-classification.test.ts` green**.
 - [ ] **B8 — syndication MLS-ID gate** `lib/syndication/eligibility.ts:130-133` (and consolidate the office-name dual-read at `:300-301`). Gate: **fail-closed test** — empty MLS-IDs → blocked (invariant I.5).
 - [ ] **B9 — archiver** `app/api/cron/data-retention/route.ts:261-262` (+ select `:211`). Gate: `listings_archive` rows still carry `list_agent_full_name`/`list_office_name`.
-- [ ] **B10 — CRM grid + forms** `public/crm/js/core/data-loader.js:220,254-257` + the 4 form HTML (`SALE-FORM-*`, `RENTAL-FORM-*`), + select `app/api/crm/listings/route.ts:82`. Gate: `crm:test` 172/172.
+- [ ] **B10 — CRM grid + forms** `public/crm/js/core/data-loader.js:220,254-257` + the 4 form HTML (`SALE-FORM-*`, `RENTAL-FORM-*`), + select `app/api/crm/listings/route.ts:82`. **`/crm/search` is served by the generated bundle `public/crm/index-built.html`, NOT the source JS** — editing `public/crm/js/*` does NOT auto-rebuild it. Gate: **`npm run crm:build`** (regenerate `index-built.html` via `public/crm/build.js`) **+ `npm run crm:check-build`** (drift guard, CI-enforced) **+ `npm run crm:test` 172/172**. Without the rebuild, production CRM search keeps reading the old `apiListing.agent_info` after the API moved to typed fields (CLAUDE.md §A.2: never hand-edit `index-built.html`).
 
 ### Phase B exit gate
 - [ ] Per-reader equality test green; PII-mask + syndication-fail-closed regression green.
 - [ ] **Grep proof — ALL gone/swapped:** (a) `grep -rn "\.agent_info" app lib public/crm` (direct reads), (b) `grep -rn "agent_info: true" app lib` (Prisma selects), (c) API response shapes. None remain except the resolver + writers.
 - [ ] `rls:validate` / `ucba:audit` / `idx:validate` / `crm:test` clean; live probes per surface.
+- [ ] **If `public/crm/*` was edited (B10): `npm run crm:build` ran + `npm run crm:check-build` passes** (the served `index-built.html` bundle is regenerated, not drifted) — else prod CRM search still reads the old `agent_info`.
 - [ ] **Maya sign-off to proceed to Phase C.**
 
 ---
