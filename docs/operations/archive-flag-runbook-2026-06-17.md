@@ -102,6 +102,24 @@ $env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run --silent ops:health:json > ops
 > The inline/local env var changes only that one read-only process's count predicate. It does **not**
 > enable the production cron and archives nothing. Never set this variable in Vercel to "measure."
 
+> **Node ≥ 20.19.0 required for both forms above.** `--env-file-if-exists` (used by the explicit node
+> command **and** by the `ops:health:json` npm script) was *Added in Node v20.19.0*. On Node 20.0–20.18
+> — still valid under the repo's `engines: { node: "20.x" }` — these commands fail before producing
+> JSON. Either run on Node ≥ 20.19, **or** use this version-agnostic fallback that needs no
+> `--env-file` flag (export the vars into the shell yourself, then run the script directly):
+>
+> ```bash
+> # NARROW — export DATABASE_URL from your .env.local first
+> export DATABASE_URL='postgresql://…cold-waterfall…'   # the canonical production URL
+> node scripts/ops-health.js --json > ops-health-narrow.json
+>
+> # WIDENED — same, plus the local-only flag
+> ARCHIVE_T180_BACKLOG_ENABLED=true node scripts/ops-health.js --json > ops-health-widened.json
+> ```
+>
+> (ops-health reads `process.env.DATABASE_URL` directly, so once it is exported no env-file loading is
+> needed — this works on any Node 20.x.)
+
 ### Fields to record (from each JSON `retention` object)
 - `archive_backlog` — the count
 - `archive_backlog_predicate` — must read **"narrow…"** for run A, **"widened…"** for run B (proves which ran)
