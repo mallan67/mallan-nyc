@@ -57,22 +57,33 @@ the intended storage reclaim, and it is **forward-only per row**.
 ## 2. The two read-only counts
 
 `scripts/ops-health.js` performs a read-only `prisma.listing.count()` — it never archives, never
-enables the flag, never writes env/Neon/Vercel/R2.
+enables the flag, never writes env/Neon/Vercel/R2. Use the repo-supported `ops:health:json` entry
+point so `.env.local` / `.env` are loaded automatically for `DATABASE_URL`.
 
 ```bash
 # A) NARROW count — flag OFF (the set the production cron drains today)
-node scripts/ops-health.js --json > ops-health-narrow.json
+npm run ops:health:json > ops-health-narrow.json
 #    record: retention.archive_backlog   (predicate must read "narrow ...")
 
 # B) SIMULATED WIDENED count — local shell env ONLY (does NOT touch Vercel/cron/production)
-ARCHIVE_T180_BACKLOG_ENABLED=true node scripts/ops-health.js --json > ops-health-widened.json
+ARCHIVE_T180_BACKLOG_ENABLED=true npm run ops:health:json > ops-health-widened.json
 #    record: retention.archive_backlog   (predicate must read "widened ...")
 ```
 
-PowerShell variant for (B) — set, run, immediately unset:
+Equivalent explicit Node form, if an operator needs to avoid the npm wrapper:
+
+```bash
+# A) NARROW count — env files loaded explicitly
+node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js --json > ops-health-narrow.json
+
+# B) SIMULATED WIDENED count — env files loaded explicitly, local shell flag only
+ARCHIVE_T180_BACKLOG_ENABLED=true node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js --json > ops-health-widened.json
+```
+
+PowerShell variant for (B) — set, run through the env-loading npm entry point, immediately unset:
 
 ```powershell
-$env:ARCHIVE_T180_BACKLOG_ENABLED='true'; node scripts/ops-health.js --json > ops-health-widened.json; Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
+$env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run ops:health:json > ops-health-widened.json; Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
 ```
 
 > The inline/local env var changes only that one read-only process's count predicate. It does **not**
@@ -103,9 +114,13 @@ runbook.
 
 ## 4. Verify-after-each-run checklist (because it is one-way)
 
-After each nightly run while the flag is ON:
+After each nightly run while the flag is ON, run the same **simulated widened** read-only ops-health
+command from §2 and confirm `retention.archive_backlog_predicate` contains **"widened"** before
+comparing movement. A local ops-health run defaults to the local shell environment; if the operator
+forgets the local `ARCHIVE_T180_BACKLOG_ENABLED=true`, it will report the narrow backlog even while
+production is draining widened rows.
 
-1. `archive_backlog` dropped by up to ~500 (the run made progress).
+1. `archive_backlog` from the widened check dropped by up to ~500 (the run made progress).
 2. `listings_archived_total` rose by the same amount (rows landed in `listings_archive`).
 3. No new `syncError` rows with resource `listings_archive_move` (no archive failures).
 4. `/api/health` → 200; public listings still render; archived terminal rows correctly **not** displayed.
