@@ -95,7 +95,7 @@ $env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run --silent ops:health:json > ops
 ### Fields to record (from each JSON `retention` object)
 - `archive_backlog` — the count
 - `archive_backlog_predicate` — must read **"narrow…"** for run A, **"widened…"** for run B (proves which ran)
-- `listings_missing_status_changed` — the NULL-dated population the widening newly reaches
+- `listings_missing_status_changed` — **broad diagnostic only, NOT the unlocked population.** ops-health computes this as an *unfiltered* `count({ where: { status_changed_at: null } })` (`ops-health.js:211-214`) — every listing with a NULL `status_changed_at`, regardless of status, `sync_status`, or age. It **overstates** what the flag newly archives, because the widened predicate also requires terminal status, `sync_status != 'archived'`, and `modification_timestamp < cutoff`. For the true newly-unlocked archive population, use **`widened_delta = N_on − N_off`** (§3), not this field.
 - `listings_archived_total` — already archived (baseline)
 - Stamp each run: UTC **and** Eastern time.
 
