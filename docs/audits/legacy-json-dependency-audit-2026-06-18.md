@@ -32,12 +32,14 @@ direct Read.
 ### 2.1 `raw_data` (`Listing.raw_data Json?` — `prisma/schema.prisma:476`)
 
 - **Strippable today: NO.**
-- **Readers (render-critical):** `lib/idx/db-to-public-dto.ts:298` derives **12 public-DTO fields
-  ONLY from `raw_data`** with no column/`features` fallback — `comingSoonDate`←ActivationDate (:300),
-  `originalListPrice` (:390), `previousListPrice` (:391), `closePrice` (:392), `onMarketDate` (:422),
+- **Readers (render-critical):** `lib/idx/db-to-public-dto.ts:298` derives public-DTO fields from
+  `raw_data`. **~10 of these have NO fallback** — they go blank if `raw_data` is dropped:
+  `comingSoonDate`←ActivationDate (:300), `previousListPrice` (:391), `onMarketDate` (:422),
   `closeDate` (:423), `leaseAmount` (:449), `leaseAmountFrequency` (:450), `availabilityDate` (:452),
-  `daysOnMarket` (:454), `cumulativeDaysOnMarket` (:455), `virtualTourURL` (:457). Selected at
-  `app/api/listings/route.ts:356` and `:1228`.
+  `daysOnMarket` (:454), `cumulativeDaysOnMarket` (:455), `virtualTourURL` (:457). **Two more PREFER
+  `raw_data` but degrade gracefully via a fallback** (so they would not break, but lose precision):
+  `closePrice` (:392 — falls back to `features.ClosePrice`) and `originalListPrice` (:390 — falls back
+  to the `list_price` column). Selected at `app/api/listings/route.ts:356` and `:1228`.
 - **Readers (CRM-critical):** PATCH merge `app/api/crm/listings/[id]/route.ts:102,435`
   (`{...existingRaw, ...body}` → write-back); form rehydrate `public/crm/SALE-FORM-REDESIGN.html:9548`
   + `RENTAL-FORM-REDESIGN.html:6878`; validators `.../validate/route.ts:44`, `.../status/route.ts:122`;
@@ -72,8 +74,10 @@ direct Read.
   portal `app/api/portal/favorites/route.ts:52`, `buyer/saved/route.ts:32`; search selects
   `app/api/listings/route.ts:359,960,1230`; Featured exclusion `lib/featured/featured-ordering.ts:89`.
 - **Readers (projection/search-critical):** `lib/search/listing-search-projection.ts:261-279,522,556`
-  derives `has_floorplan/has_video/has_virtual_tour` from `media[]` (and stores a copy); used by
-  `lib/search/core.ts:24,250`.
+  reads `media[]` to **derive** `feature_flags` (`has_floorplan/has_video/has_virtual_tour`). The
+  projection does NOT persist a copy of the `media` JSON — `ListingSearchProjection`
+  (`prisma/schema.prisma:2561-2563`) has only `searchable_text`/`amenity_keys`/`feature_flags`; `:556`
+  passes `media` in as *builder input*, not storage. Used by `lib/search/core.ts:24,250`.
 - **Writers / refill:** idx-sync `lib/idx/sync.ts:298,332,1135,1163`; **`backfillEmptyMedia`
   `lib/idx/sync.ts:696-721`** re-fetches Trestle media when JSON is empty/null (the **purgatory
   re-fill loop**); `migrateMediaToR2` `:850`; `feed-reconcile:379`; CRM photo-add (authoritative)
@@ -131,7 +135,10 @@ direct Read.
   display `app/api/open-houses/route.ts:365` (`features.CommonInterest`), `market/route.ts:257`,
   `similar/route.ts:202`, `buildings/route.ts:579`; amenity filter `app/api/listings/route.ts:347,429`.
 - **Readers (projection/search-critical):** `lib/search/listing-search-projection.ts:194-344,521,555`
-  (searchable text + amenity keys; stores whole `features` at :555) → `lib/search/core.ts`.
+  reads `features` to **derive** `searchable_text` + `amenity_keys` + `feature_flags`. The projection
+  does NOT persist a copy of the `features` JSON — `ListingSearchProjection`
+  (`prisma/schema.prisma:2561-2563`) has only `searchable_text`/`amenity_keys`/`feature_flags`; `:555`
+  passes `features` in as *builder input*, not storage. → `lib/search/core.ts`.
 - **Readers (building-search):** `app/api/buildings/search/route.ts:546-669` (`features.
   BuildingKeyNumeric` identity + ~20 `buildingExtras` keys).
 - **Writers / refill:** `lib/idx/sync.ts:297,331,379,1134,1162,1205`; `feed-reconcile:378`;
