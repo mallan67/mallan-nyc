@@ -116,10 +116,22 @@ Each phase is one or more PRs; each is a recoverable checkpoint.
 
 ### Phase A — Add columns + dual-write + backfill
 - Manual prod migration adds the 6 nullable columns (NEON.md §5, **before** code merge).
-- Extend the agent_info **builder** (`lib/idx/trestle-mapper.ts:1087`) and all writers to **dual-write**
-  typed columns + JSON: `lib/idx/sync.ts` (×4), `feed-reconcile:381`, `reset-sync:137,169`,
-  `ensure-listing:88-93` (lowercase shape), CRM POST (`crm/listings/route.ts:418-425`) + PATCH
-  (`[id]/route.ts:386-417`), `lib/listings/exclusive-agent-assignment.ts`, `lib/compliance/normalizer.ts`.
+- Extend the agent_info **builder** (`lib/idx/trestle-mapper.ts:1087`) and **every writer** to
+  **dual-write** typed columns + JSON. Runtime writers: `lib/idx/sync.ts` (×4), `feed-reconcile:381`,
+  `reset-sync:137,169`, `ensure-listing:88-93` (lowercase shape), CRM POST (`crm/listings/route.ts:418-425`)
+  + PATCH (`[id]/route.ts:386-417`), `lib/listings/exclusive-agent-assignment.ts`,
+  `lib/compliance/normalizer.ts`.
+- **Ops / import writers (do NOT omit — #409 §2.5; Codex #410).** These tools also write `agent_info`
+  (and some already mirror only the 2 existing typed columns), so they must be extended to dual-write
+  the 6 net-new columns **or explicitly retired** — otherwise they leave the new typed columns
+  unpopulated and break once the JSON is dropped (Phase D): `scripts/backfill-crm-exclusive-cotality-identity.mjs`
+  (writes `ListAgentMlsId`/`ListAgentFullName`/`ListAgentEmail`/`ListOfficeName`),
+  `scripts/ops/set-exclusive-listing-agent.mjs` + `scripts/ops/repair-exclusive-agent-assignment.mjs`
+  (write `ListAgentFullName`/`ListOfficeName`/`ListAgentEmail`/`ListAgentDirectPhone`; already mirror
+  `list_agent_full_name`/`list_office_name`), `scripts/import-closed-from-trestle.ts:307-313`
+  (writes `ListAgentFullName`/`ListAgentEmail`/`ListAgentDirectPhone`/`ListAgentMlsId`/`ListOfficeName`/`ListOfficeMlsId`).
+  The Phase A audit checklist must enumerate **runtime + ops + import** writers; the Phase C "stop the
+  JSON write" gate is not satisfied until all of them are accounted for.
 - Backfill existing rows JSON→columns, reconciling both key-shapes.
 - **Gate to exit A:** backfill coverage SQL = 0 unpopulated for displayable rows
   (`SELECT count(*) FROM listings WHERE list_office_mls_id IS NULL AND agent_info ? 'ListOfficeMlsId'`,
