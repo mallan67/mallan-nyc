@@ -128,10 +128,23 @@ Each phase is one or more PRs; each is a recoverable checkpoint.
   (writes `ListAgentMlsId`/`ListAgentFullName`/`ListAgentEmail`/`ListOfficeName`),
   `scripts/ops/set-exclusive-listing-agent.mjs` + `scripts/ops/repair-exclusive-agent-assignment.mjs`
   (write `ListAgentFullName`/`ListOfficeName`/`ListAgentEmail`/`ListAgentDirectPhone`; already mirror
-  `list_agent_full_name`/`list_office_name`), `scripts/import-closed-from-trestle.ts:307-313`
-  (writes `ListAgentFullName`/`ListAgentEmail`/`ListAgentDirectPhone`/`ListAgentMlsId`/`ListOfficeName`/`ListOfficeMlsId`).
-  The Phase A audit checklist must enumerate **runtime + ops + import** writers; the Phase C "stop the
-  JSON write" gate is not satisfied until all of them are accounted for.
+  the two existing typed columns `list_agent_full_name`/`list_office_name`).
+- **`scripts/import-closed-from-trestle.ts:307-313` — currently writes the `agent_info` JSON ONLY**
+  (no typed columns), mapping just `ListAgentFullName`, `ListAgentMlsId`, `ListAgentStateLicense`,
+  `ListOfficeName`, `ListOfficeMlsId`. It does **NOT** map `ListAgentEmail` or `ListAgentDirectPhone`
+  (those are absent from its write — verified). Before Phase C/D it must either be **extended to
+  dual-write all eight typed homes where the source row provides the value**, or **explicitly
+  retired**. Mapping when extended:
+  - `list_agent_full_name` ← `ListAgentFullName` (source present)
+  - `list_office_name` ← `ListOfficeName` (source present)
+  - `list_agent_email` ← `ListAgentEmail` — **only if source exists** (not in the current import)
+  - `list_agent_direct_phone` ← `ListAgentDirectPhone` — **only if source exists** (not in the current import)
+  - `list_office_mls_id` ← `ListOfficeMlsId` (source present)
+  - `list_agent_mls_id` ← `ListAgentMlsId` (source present)
+  - `co_list_office_mls_id` ← `CoListOfficeMlsId` — **only if source exists**
+  - `co_list_agent_mls_id` ← `CoListAgentMlsId` — **only if source exists**
+- The Phase A audit checklist must enumerate **runtime + ops + import** writers; the Phase C "stop the
+  JSON write" gate is not satisfied until all of them are accounted for (extended or retired).
 - Backfill existing rows JSON→columns, reconciling both key-shapes.
 - **Gate to exit A:** backfill coverage SQL = 0 unpopulated for displayable rows
   (`SELECT count(*) FROM listings WHERE list_office_mls_id IS NULL AND agent_info ? 'ListOfficeMlsId'`,
@@ -140,13 +153,19 @@ Each phase is one or more PRs; each is a recoverable checkpoint.
 ### Phase B — Migrate readers to the resolver
 - Add `resolveListingAgentInfo` (typed-first / JSON-fallback). Repoint every reader to it, grouped by
   surface (likely 2 PRs: public+portal+archive, then syndication+CRM): public DTO
-  (`db-to-public-dto.ts:414,529-530`), exclusive card (`assigned-agent.ts:69-72`), open-houses office
-  attribution (`open-houses:370-371`), `similar:203`, **portal PII mask** (`compliance/dto.ts:270-282`),
-  **syndication MLS-ID gate** (`eligibility.ts:130-133`), archiver (`data-retention:261-262`), CRM
-  grid/forms (`data-loader.js`, the 4 form HTML files).
+  (`db-to-public-dto.ts:414,529-530`); **direct detail-page office attribution**
+  (`app/listing/[...slug]/page.tsx:510` reads `dbListing.agent_info` directly; `:614` does
+  `agentInfo.ListOfficeName || agentInfo.company || 'Mallan Real Estate Inc.'` — the **public,
+  third-party IDX detail-page** brokerage attribution, separate from the exclusive card); exclusive
+  card (`assigned-agent.ts:69-72`); open-houses office attribution (`open-houses:370-371`);
+  `similar:203`; **portal PII mask** (`compliance/dto.ts:270-282`); **syndication MLS-ID gate**
+  (`eligibility.ts:130-133`); archiver (`data-retention:261-262`); CRM grid/forms (`data-loader.js`,
+  the 4 form HTML files).
 - **Gate to exit B:** per-reader test proving `resolver(typed) == legacy(JSON)` shape; PII-mask +
-  syndication-fail-closed regression tests green; `rls:validate`/`ucba:audit`/`idx:validate` clean; live
-  route probes; **no reader reads `agent_info` directly anymore** (grep proof).
+  syndication-fail-closed regression tests green; **the direct detail-page office-attribution reader
+  (`page.tsx:510,614`) gets its own test + a live public-detail-page probe** (it drives third-party
+  listing brokerage attribution — NY DOS §175.25); `rls:validate`/`ucba:audit`/`idx:validate` clean;
+  live route probes; **no reader reads `agent_info` directly anymore** (grep proof).
 
 ### Phase C — Stop writing the JSON
 - Remove `agent_info` from every writer payload (typed columns only).
