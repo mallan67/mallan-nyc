@@ -69,6 +69,7 @@ const { PrismaClient } = require('@prisma/client');
 const { deriveBranchPruneIssues } = require('./branch-prune-health');
 const { R2_RETRY_EXHAUSTED_THRESHOLD, classifyR2RetryBacklog } = require('./r2-retry-health');
 const { deriveImageIssues } = require('./media-image-health');
+const { buildArchiveBacklogWhere } = require('./archive-backlog-predicate');
 const prisma = new PrismaClient();
 
 const JSON_OUT = process.argv.includes('--json');
@@ -253,14 +254,21 @@ async function run() {
     });
   }
 
+  // Archive backlog — mirror the data-retention archiver predicate EXACTLY (PR #405),
+  // so this count reflects the real population the nightly cron archives and the 500/run
+  // cap warning below stays accurate (Codex P2 on PR #405, route.ts:181).
+  //   - flag OFF (default): terminal AND status_changed_at < cutoff AND sync_status != archived
+  //   - flag ON: also NULL-status_changed_at rows whose modification_timestamp < cutoff
+  // READ-ONLY count. This script NEVER enables ARCHIVE_T180_BACKLOG_ENABLED or runs the archive;
+  // it only reflects whichever predicate the cron is currently using. Never references updated_at.
+  const archiveBacklogFlagEnabled = process.env.ARCHIVE_T180_BACKLOG_ENABLED === 'true';
   const archiveEligible = await prisma.listing.count({
-    where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
-      status_changed_at: { lt: new Date(Date.now() - 180 * 86400000) },
-      sync_status: { not: 'archived' },
-    },
+    where: buildArchiveBacklogWhere({ flagEnabled: archiveBacklogFlagEnabled, now: new Date() }),
   });
   report.retention.archive_backlog = archiveEligible;
+  report.retention.archive_backlog_predicate = archiveBacklogFlagEnabled
+    ? 'widened (ARCHIVE_T180_BACKLOG_ENABLED=true — includes NULL status_changed_at via modification_timestamp)'
+    : 'narrow (flag OFF / default — status_changed_at < cutoff only)';
   if (archiveEligible > THRESHOLDS.archive_backlog_warn) {
     report.issues.push({
       level: 'warning',
@@ -753,6 +761,9 @@ function renderHuman(r) {
   console.log(`  Listings missing status_changed_at: ${r.retention.listings_missing_status_changed ?? 0}`);
   console.log(`  REBNY §2.05 violations (terminal >24h, IDX on): ${r.retention.rebny_sec_2_05_violations ?? 0}`);
   console.log(`  T+180d archive backlog: ${r.retention.archive_backlog ?? 0}`);
+  if (r.retention.archive_backlog_predicate) {
+    console.log(`    predicate: ${r.retention.archive_backlog_predicate}`);
+  }
   if (r.retention.listings_archived_total !== undefined) {
     console.log(`  Archived total: ${r.retention.listings_archived_total}`);
   }
