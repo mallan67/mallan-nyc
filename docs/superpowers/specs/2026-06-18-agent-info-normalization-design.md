@@ -137,12 +137,17 @@ Each phase is one or more PRs; each is a recoverable checkpoint.
   retired**. Mapping when extended:
   - `list_agent_full_name` ← `ListAgentFullName` (source present)
   - `list_office_name` ← `ListOfficeName` (source present)
-  - `list_agent_email` ← `ListAgentEmail` — **only if source exists** (not in the current import)
-  - `list_agent_direct_phone` ← `ListAgentDirectPhone` — **only if source exists** (not in the current import)
+  - `list_agent_email` ← `ListAgentEmail` — **source IS available**: the import already selects it in
+    `SELECT_FIELDS` (line 57) and only omits it from the *write*. **Map it when the source value is
+    present — do NOT skip it** (otherwise closed imports silently lose agent email once `agent_info`
+    is dropped).
+  - `list_agent_direct_phone` ← `ListAgentDirectPhone` — **source IS available** (selected at line 57,
+    omitted from the current write). Map when present — do NOT skip.
   - `list_office_mls_id` ← `ListOfficeMlsId` (source present)
   - `list_agent_mls_id` ← `ListAgentMlsId` (source present)
-  - `co_list_office_mls_id` ← `CoListOfficeMlsId` — **only if source exists**
-  - `co_list_agent_mls_id` ← `CoListAgentMlsId` — **only if source exists**
+  - `co_list_office_mls_id` ← `CoListOfficeMlsId` — only if source exists; **this import does NOT
+    select `CoList*`**, so it is genuinely absent here (leave null).
+  - `co_list_agent_mls_id` ← `CoListAgentMlsId` — same: not selected by this import, leave null.
 - The Phase A audit checklist must enumerate **runtime + ops + import** writers; the Phase C "stop the
   JSON write" gate is not satisfied until all of them are accounted for (extended or retired).
 - Backfill existing rows JSON→columns, reconciling both key-shapes.
@@ -161,11 +166,20 @@ Each phase is one or more PRs; each is a recoverable checkpoint.
   `similar:203`; **portal PII mask** (`compliance/dto.ts:270-282`); **syndication MLS-ID gate**
   (`eligibility.ts:130-133`); archiver (`data-retention:261-262`); CRM grid/forms (`data-loader.js`,
   the 4 form HTML files).
+- **Also swap the Prisma `select`/`include` payloads, not just property reads.** Several routes still
+  `select: { agent_info: true }` to feed the DTO/portal sanitizers — `app/api/listings/route.ts:360,1231`,
+  `app/api/agents/[slug]/listings/route.ts:227`, `app/api/portal/favorites/route.ts:53`,
+  `app/api/open-houses/route.ts:293`, `app/api/crm/listings/route.ts:82`,
+  `app/api/cron/data-retention/route.ts:211`. After the resolver swap these must select the **typed
+  columns** instead. A `select`/`include` referencing `agent_info` AFTER Phase D drops the column is a
+  **runtime Prisma error** — so this is a Phase D pre-requisite, not optional.
 - **Gate to exit B:** per-reader test proving `resolver(typed) == legacy(JSON)` shape; PII-mask +
   syndication-fail-closed regression tests green; **the direct detail-page office-attribution reader
   (`page.tsx:510,614`) gets its own test + a live public-detail-page probe** (it drives third-party
   listing brokerage attribution — NY DOS §175.25); `rls:validate`/`ucba:audit`/`idx:validate` clean;
-  live route probes; **no reader reads `agent_info` directly anymore** (grep proof).
+  live route probes. **The grep gate covers BOTH (a) direct property reads (`.agent_info`) AND
+  (b) Prisma `select`/`include` of `agent_info` AND (c) API response shapes — all must be gone /
+  swapped to typed columns** before Phase D (grep proof for each).
 
 ### Phase C — Stop writing the JSON
 - Remove `agent_info` from every writer payload (typed columns only).
