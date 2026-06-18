@@ -58,15 +58,18 @@ the intended storage reclaim, and it is **forward-only per row**.
 
 `scripts/ops-health.js` performs a read-only `prisma.listing.count()` — it never archives, never
 enables the flag, never writes env/Neon/Vercel/R2. Use the repo-supported `ops:health:json` entry
-point so `.env.local` / `.env` are loaded automatically for `DATABASE_URL`.
+point so `.env.local` / `.env` are loaded automatically for `DATABASE_URL`. **Keep the `--silent`
+flag on every redirected capture** — it suppresses npm's lifecycle banner (`> mallan-nyc@… ops:health:json`),
+which would otherwise prepend non-JSON lines to the output file and make it unparseable (Codex #408).
+The explicit Node form below has no banner and is equally clean for capture.
 
 ```bash
 # A) NARROW count — flag OFF (the set the production cron drains today)
-npm run ops:health:json > ops-health-narrow.json
+npm run --silent ops:health:json > ops-health-narrow.json
 #    record: retention.archive_backlog   (predicate must read "narrow ...")
 
 # B) SIMULATED WIDENED count — local shell env ONLY (does NOT touch Vercel/cron/production)
-ARCHIVE_T180_BACKLOG_ENABLED=true npm run ops:health:json > ops-health-widened.json
+ARCHIVE_T180_BACKLOG_ENABLED=true npm run --silent ops:health:json > ops-health-widened.json
 #    record: retention.archive_backlog   (predicate must read "widened ...")
 ```
 
@@ -83,7 +86,7 @@ ARCHIVE_T180_BACKLOG_ENABLED=true node --env-file-if-exists=.env.local --env-fil
 PowerShell variant for (B) — set, run through the env-loading npm entry point, immediately unset:
 
 ```powershell
-$env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run ops:health:json > ops-health-widened.json; Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
+$env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run --silent ops:health:json > ops-health-widened.json; Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
 ```
 
 > The inline/local env var changes only that one read-only process's count predicate. It does **not**
