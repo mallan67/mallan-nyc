@@ -490,21 +490,31 @@ model Listing {
   photos_change_timestamp DateTime? @map("photos_change_timestamp")
   photo_count             Int?      @map("photo_count")
 
-  // --- Agent attribution typed columns (JSON-drop Phase A.5, 2026-05-10) ---
-  // Promoted from `agent_info` JSON for the two display-relevant keys
-  // (ListAgentFullName + ListOfficeName). All other agent_info keys are
-  // REBNY-private (email, direct phone, MLS IDs) and INTENTIONALLY remain
-  // in the JSON column until Phase D drops it entirely.
+  // --- Agent attribution typed columns (agent_info JSON-drop) ---
+  // Phase A.5 (2026-05-10) promoted the 2 display keys (list_agent_full_name,
+  // list_office_name). The 2026-06-18 normalization spec (#410) extends this to
+  // ALL 8 read keys so the `agent_info` JSON can be dropped (Phase D). The 6 columns
+  // added 2026-06-18 (Phase A1) complete the typed set.
   //
-  // ALL nullable per NEON.md §4 (additive on populated table). No
-  // NOT NULL DEFAULT. Backfilled separately from `agent_info` JSON during
-  // a 3-5am ET maintenance window (see migration runbook).
+  // PII boundary (spec §4, fail-closed): list_agent_email + list_agent_direct_phone
+  // are PRIVATE/internal — having a typed column does NOT make them render. The
+  // DTO/portal-mask layer still gates exposure: office/name on public; agent PII only
+  // on the exclusive contact card + authenticated CRM; buyer/tenant portal masked
+  // fail-closed. The MLS-ID columns feed syndication eligibility GATES, not display.
   //
-  // Readers continue to use the `agent_info` JSON column until Phase B
-  // swaps them with a fallback pattern. See
-  // memory/JSON-DROP-AUDIT-agent-info.md for the full audit and plan.
-  list_agent_full_name String? @map("list_agent_full_name")
-  list_office_name     String? @map("list_office_name")
+  // ALL nullable per NEON.md §4 (additive on populated table). No NOT NULL DEFAULT.
+  // Backfilled separately from `agent_info` JSON during a 3-5am ET window (NOT in the
+  // migration). Readers keep using the JSON column until Phase B swaps them via
+  // `resolveListingAgentInfo` (typed-first / JSON-fallback). Full plan:
+  // docs/superpowers/plans/2026-06-18-agent-info-normalization.md.
+  list_agent_full_name    String? @map("list_agent_full_name")
+  list_office_name        String? @map("list_office_name")
+  list_agent_email        String? @map("list_agent_email") // PRIVATE — gated by DTO/mask layer
+  list_agent_direct_phone String? @map("list_agent_direct_phone") // PRIVATE — gated by DTO/mask layer
+  list_office_mls_id      String? @map("list_office_mls_id")
+  list_agent_mls_id       String? @map("list_agent_mls_id")
+  co_list_office_mls_id   String? @map("co_list_office_mls_id")
+  co_list_agent_mls_id    String? @map("co_list_agent_mls_id")
 
   // --- Auction listing fields (UCBA Art. I exception path — Workstream C3) ---
   // Closes C15 [low] in compliance/rules/ucba-audit-checklist.json:
