@@ -124,10 +124,11 @@ direct Read.
 ### 2.4 `features` (`Listing.features Json @default("{}")` — `prisma/schema.prisma:477`)
 
 - **Strippable today: NO.**
-- **Disambiguation:** only the `listings.features` JSON column is in scope — NOT the
-  `listing_search_projection.*_features String[]` columns (the migration *destination*) nor the
-  DTO-shaped `listing.features.interior/...` TS type. The RESO mapper (`reso-mapper.ts:239-253`) reads
-  the **DTO**, not this column.
+- **Disambiguation:** only the `listings.features` JSON column is in scope — NOT the projection's
+  derived feature storage (`ListingSearchProjection` has only `amenity_keys`/`feature_flags` Json
+  columns, `prisma/schema.prisma:2562-2563` — the migration *destination*; it does **not** define
+  `*_features String[]` columns), nor the DTO-shaped `listing.features.interior/...` TS type. The RESO
+  mapper (`reso-mapper.ts:239-253`) reads the **DTO**, not this column.
 - **Readers (render-critical):** public DTO `lib/idx/db-to-public-dto.ts:272,392-468` reads **~50
   keys** (CommonInterest, PublicRemarks, FARE-Act fee group MoveInCosts/OngoingFees/TenantPays/
   AdditionalFee/FeeFrequency, AssociationFee, TaxAnnualAmount, amenity arrays, YearBuilt, …); detail
@@ -176,9 +177,12 @@ direct Read.
   `repair-exclusive-agent-assignment.mjs`, `scripts/import-closed-from-trestle.ts:307-313`.
 - **Runtime surfaces:** public render, CRM, syndication, archive, ops, tests.
 - **Migration required before strip:** promote **all 8 read keys** to typed columns (today only
-  `list_agent_full_name`/`list_office_name` exist, and readers don't use them yet — schema "Phase B");
-  repoint every render reader + the portal PII mask + syndication MLS-ID gate + archiver; rewrite all
-  writers; backfill; update fixtures.
+  `list_agent_full_name`/`list_office_name` exist; **the migration is already partially in place** —
+  `lib/syndication/eligibility.ts:300` reads the typed `listing.list_office_name` column for
+  brokerage attribution, so that typed read path must be preserved/extended, not treated as
+  JSON-only; most other readers still use the `agent_info` JSON — schema "Phase B"); repoint every
+  render reader + the portal PII mask + syndication MLS-ID gate + archiver; rewrite all writers;
+  backfill; update fixtures.
 - **Risk if stripped prematurely:** breaks office attribution on public, the exclusive contact card,
   and CRM grid/forms; syndication fail-closes silently (MLS-ID gate empties); **PII-masking guards
   must be preserved** (office-only on public, agent PII only on exclusive card / authenticated CRM).
