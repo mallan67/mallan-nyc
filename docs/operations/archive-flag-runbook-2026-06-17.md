@@ -75,7 +75,9 @@ The explicit Node form below has no banner and is equally clean for capture.
 
 ```bash
 # A) NARROW count — flag OFF (the set the production cron drains today)
-npm run --silent ops:health:json > ops-health-narrow.json
+#    The leading ARCHIVE_T180_BACKLOG_ENABLED=false FORCES narrow regardless of any value
+#    already exported in your shell or loaded from an env file — do not rely on it being absent.
+ARCHIVE_T180_BACKLOG_ENABLED=false npm run --silent ops:health:json > ops-health-narrow.json
 #    record: retention.archive_backlog   (predicate must read "narrow ...")
 
 # B) SIMULATED WIDENED count — local shell env ONLY (does NOT touch Vercel/cron/production)
@@ -83,24 +85,34 @@ ARCHIVE_T180_BACKLOG_ENABLED=true npm run --silent ops:health:json > ops-health-
 #    record: retention.archive_backlog   (predicate must read "widened ...")
 ```
 
-Equivalent explicit Node form, if an operator needs to avoid the npm wrapper:
+Equivalent explicit Node form, if an operator needs to avoid the npm wrapper (`--env-file-if-exists`
+requires **Node ≥ 20.19.0** — see the version note below for a fallback on older 20.x):
 
 ```bash
-# A) NARROW count — env files loaded explicitly
-node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js --json > ops-health-narrow.json
+# A) NARROW count — env files loaded explicitly; flag FORCED off
+ARCHIVE_T180_BACKLOG_ENABLED=false node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js --json > ops-health-narrow.json
 
-# B) SIMULATED WIDENED count — env files loaded explicitly, local shell flag only
+# B) SIMULATED WIDENED count — env files loaded explicitly, flag FORCED on (local only)
 ARCHIVE_T180_BACKLOG_ENABLED=true node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js --json > ops-health-widened.json
 ```
 
-PowerShell variant for (B) — set, run through the env-loading npm entry point, immediately unset:
+PowerShell — force the flag explicitly in **both** runs, and clean up after:
 
 ```powershell
-$env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run --silent ops:health:json > ops-health-widened.json; Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
+# A) NARROW — force the flag false so ambient $env: state can't widen run A
+$env:ARCHIVE_T180_BACKLOG_ENABLED='false'; npm run --silent ops:health:json > ops-health-narrow.json
+# B) WIDENED — force true (local only), then unset
+$env:ARCHIVE_T180_BACKLOG_ENABLED='true';  npm run --silent ops:health:json > ops-health-widened.json
+Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
 ```
 
-> The inline/local env var changes only that one read-only process's count predicate. It does **not**
-> enable the production cron and archives nothing. Never set this variable in Vercel to "measure."
+> **Every command forces its flag state** (`=false` for narrow, `=true` for widened) so neither run
+> depends on what is already exported in your shell or env file — a stray `ARCHIVE_T180_BACKLOG_ENABLED=true`
+> can otherwise make the "narrow" run capture widened data and corrupt `N_off`/`widened_delta`. The
+> `archive_backlog_predicate` field in each JSON is the ground-truth check — always confirm it reads
+> "narrow…" for A and "widened…" for B. The inline/local env var changes only that one read-only
+> process's count predicate; it does **not** enable the production cron and archives nothing. Never set
+> this variable in Vercel to "measure."
 
 > **Node ≥ 20.19.0 required for both forms above.** `--env-file-if-exists` (used by the explicit node
 > command **and** by the `ops:health:json` npm script) was *Added in Node v20.19.0*. On Node 20.0–20.18
@@ -109,11 +121,11 @@ $env:ARCHIVE_T180_BACKLOG_ENABLED='true'; npm run --silent ops:health:json > ops
 > `--env-file` flag (export the vars into the shell yourself, then run the script directly):
 >
 > ```bash
-> # NARROW — export DATABASE_URL from your .env.local first
+> # NARROW — export DATABASE_URL from your .env.local first; flag FORCED off
 > export DATABASE_URL='postgresql://…cold-waterfall…'   # the canonical production URL
-> node scripts/ops-health.js --json > ops-health-narrow.json
+> ARCHIVE_T180_BACKLOG_ENABLED=false node scripts/ops-health.js --json > ops-health-narrow.json
 >
-> # WIDENED — same, plus the local-only flag
+> # WIDENED — same, flag FORCED on (local only)
 > ARCHIVE_T180_BACKLOG_ENABLED=true node scripts/ops-health.js --json > ops-health-widened.json
 > ```
 >
