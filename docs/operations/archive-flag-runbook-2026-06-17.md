@@ -35,7 +35,11 @@ the flag is a separate, explicit, Maya-gated decision taken **after** reviewing 
 Vercel → project `mallan-nyc` → Settings → Environment Variables → confirm `ARCHIVE_T180_BACKLOG_ENABLED`
 is **absent** or **≠ `true`** in the **Production** environment. (It is not a GitHub Actions
 variable/secret; the archiver code is default-OFF and treats anything other than the literal string
-`"true"` as OFF.) This guarantees the production cron is on the narrow predicate while you measure.
+`"true"` as OFF.) Note Vercel env vars are snapshotted per deployment, so the cron's *actual*
+behavior is governed by the **active Production deployment's** env, not just the Settings value — but
+since the flag has never been enabled or redeployed-true, the active deployment has it OFF. This
+guarantees the production cron is on the narrow predicate while you measure. (The two read-only counts
+in §2 do not depend on Vercel at all — they run locally.)
 
 ## 1. What the archiver does per row (one-way)
 
@@ -136,8 +140,16 @@ production is draining widened rows.
 
 ## 5. Rollback / stop procedure
 
-- **STOP (kill-switch):** set `ARCHIVE_T180_BACKLOG_ENABLED=false` (or remove it) in Vercel
-  Production. The next nightly run reverts to the narrow predicate; no new NULL-dated rows are selected.
+- **STOP (kill-switch) — env change ALONE is not enough; you must REDEPLOY:** set
+  `ARCHIVE_T180_BACKLOG_ENABLED=false` (or remove it) in Vercel Production **and then trigger a fresh
+  Production redeploy** (a *new* deployment that picks up the changed env — do NOT just promote an
+  older deployment, which keeps its own env snapshot). Vercel applies env-var changes only to *new*
+  deployments — the
+  currently-running `/api/cron/data-retention` function keeps its deploy-time env snapshot, so
+  editing Settings alone does **not** stop the next nightly batch; the cron would archive another
+  500-row batch on the old (true) value. **Verify the now-active Production deployment post-dates the
+  env change (state READY)** before trusting the stop. Only after that redeploy is the narrow
+  predicate guaranteed for the next run.
 - **Rollback means stop future selection, not undo prior archive-strip actions.** Rows already
   archived are not restored by the flag — each has `raw_data/media/compliance` emptied and
   `sync_status='archived'`; only the summary survives in `listings_archive`. Reversing a specific row
@@ -150,6 +162,11 @@ production is draining widened rows.
 
 **Do not enable `ARCHIVE_T180_BACKLOG_ENABLED` until Maya approves, after reviewing the measured
 `N_off`, `N_on`, `widened_delta`, and `nights_to_drain`.**
+
+When enabling is eventually approved, the same Vercel rule applies in reverse: setting the var to
+`true` in Production Settings takes effect **only after a Production redeploy** — verify the active
+deployment post-dates the change before counting on the widened drain. (Enabling, like disabling,
+is env-change **plus** redeploy.)
 
 ---
 
