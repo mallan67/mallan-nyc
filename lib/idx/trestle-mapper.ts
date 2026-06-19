@@ -940,6 +940,15 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   media: unknown;
   compliance: Record<string, unknown>;
   agent_info: Record<string, unknown>;
+  // Phase A2 typed agent columns (mirror agent_info JSON; added A1, dual-written here)
+  list_agent_full_name: string | null;
+  list_office_name: string | null;
+  list_agent_email: string | null;
+  list_agent_direct_phone: string | null;
+  list_office_mls_id: string | null;
+  list_agent_mls_id: string | null;
+  co_list_office_mls_id: string | null;
+  co_list_agent_mls_id: string | null;
   raw_data: Record<string, unknown>;
   modification_timestamp: Date;
   listing_contract_date: Date | null;
@@ -1139,6 +1148,14 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ? new Date(String(raw.ListingContractDate))
     : null;
 
+  // Phase A2: typed agent columns mirror the agent_info JSON value (string-or-null).
+  const typedAgent = (k: string): string | null => {
+    const v = (agentInfo as Record<string, unknown>)[k];
+    if (v == null) return null;
+    const s = String(v).trim();
+    return s.length ? s : null;
+  };
+
   return {
     listing_id: listingId,
     mls_id: mlsId,
@@ -1167,6 +1184,18 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     media,
     compliance,
     agent_info: agentInfo,
+    // Phase A2 (agent_info normalization, #410/#411): dual-write the 8 typed agent
+    // columns, each mirroring the agent_info JSON above. agent_info JSON is UNCHANGED.
+    // PII boundary: list_agent_email/list_agent_direct_phone are stored here but their
+    // EXPOSURE stays gated by the DTO/portal-mask layer (Phase B readers).
+    list_agent_full_name: typedAgent("ListAgentFullName"),
+    list_office_name: typedAgent("ListOfficeName"),
+    list_agent_email: typedAgent("ListAgentEmail"),
+    list_agent_direct_phone: typedAgent("ListAgentDirectPhone"),
+    list_office_mls_id: typedAgent("ListOfficeMlsId"),
+    list_agent_mls_id: typedAgent("ListAgentMlsId"),
+    co_list_office_mls_id: typedAgent("CoListOfficeMlsId"),
+    co_list_agent_mls_id: typedAgent("CoListAgentMlsId"),
     // raw_data goes through TWO filters before persistence:
     //   1. stripPrivateFields — REBNY/UCBA private fields (PrivateRemarks,
     //      ShowingInstructions, ShowingContactPhone, agent direct phone/email,
