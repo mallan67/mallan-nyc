@@ -16,6 +16,7 @@ import type { Prisma } from "@prisma/client";
 import { affirmPermission } from "@/lib/compliance/gates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -132,6 +133,9 @@ export async function POST(req: NextRequest) {
         internet_entire_listing_display_yn: affirmPermission(body.internet_display_yn),
         internet_address_display_yn: affirmPermission(body.address_display_yn),
         agent_info: agentInfoJson as Prisma.InputJsonValue,
+        // Phase A: dual-write the typed agent columns from the lowercase manual
+        // shape ({name,email,phone,company}) — the helper handles that shape.
+        ...typedAgentColumnsFromJson(agentInfoJson),
         media: (body.images as Prisma.InputJsonValue) ?? ([] as Prisma.InputJsonValue),
         features: {} as Prisma.InputJsonValue,
         compliance: {} as Prisma.InputJsonValue,

@@ -85,9 +85,20 @@ try {
     if (Object.keys(colChanges).length) console.log(`       fill  columns:    ${JSON.stringify(colChanges)}`);
 
     if (APPLY) {
+      const mergedAi = { ...ai, ...changes };
+      // Phase A: dual-write the 6 net-new typed columns, mirroring the merged
+      // agent_info JSON (the 2 display columns stay blank-only via colChanges).
+      const typedNew = {
+        list_agent_email: mergedAi.ListAgentEmail || null,
+        list_agent_direct_phone: mergedAi.ListAgentDirectPhone || null,
+        list_office_mls_id: mergedAi.ListOfficeMlsId || null,
+        list_agent_mls_id: mergedAi.ListAgentMlsId || null,
+        co_list_office_mls_id: mergedAi.CoListOfficeMlsId || null,
+        co_list_agent_mls_id: mergedAi.CoListAgentMlsId || null,
+      };
       await prisma.listing.update({
         where: { listing_id: row.listing_id },
-        data: { agent_info: { ...ai, ...changes }, ...colChanges },
+        data: { agent_info: mergedAi, ...colChanges, ...typedNew },
       });
       console.log(`       -> written`);
     }

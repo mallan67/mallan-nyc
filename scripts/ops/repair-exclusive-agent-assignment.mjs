@@ -155,6 +155,13 @@ async function main() {
         agent_info: p.desiredInfo,
         list_agent_full_name: p.newCol,
         list_office_name: p.newOffice,
+        // Phase A: dual-write the 6 net-new typed columns from desiredInfo.
+        list_agent_email: p.desiredInfo?.ListAgentEmail || null,
+        list_agent_direct_phone: p.desiredInfo?.ListAgentDirectPhone || null,
+        list_office_mls_id: p.desiredInfo?.ListOfficeMlsId || null,
+        list_agent_mls_id: p.desiredInfo?.ListAgentMlsId || null,
+        co_list_office_mls_id: p.desiredInfo?.CoListOfficeMlsId || null,
+        co_list_agent_mls_id: p.desiredInfo?.CoListAgentMlsId || null,
       },
     });
     console.log(`  ✓ ${p.listing_id} updated.`);

@@ -6,6 +6,7 @@
 import { affirmPermission } from "@/lib/compliance/gates";
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 
 // ═══════════════════════════════════════════════════════════
 // RESO-to-RLS RENAMES (23 fields)
@@ -1148,13 +1149,8 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ? new Date(String(raw.ListingContractDate))
     : null;
 
-  // Phase A2: typed agent columns mirror the agent_info JSON value (string-or-null).
-  const typedAgent = (k: string): string | null => {
-    const v = (agentInfo as Record<string, unknown>)[k];
-    if (v == null) return null;
-    const s = String(v).trim();
-    return s.length ? s : null;
-  };
+  // Phase A: typed agent columns mirror the agent_info JSON (shared producer seam).
+  const typedAgentCols = typedAgentColumnsFromJson(agentInfo as Record<string, unknown>);
 
   return {
     listing_id: listingId,
@@ -1188,14 +1184,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     // columns, each mirroring the agent_info JSON above. agent_info JSON is UNCHANGED.
     // PII boundary: list_agent_email/list_agent_direct_phone are stored here but their
     // EXPOSURE stays gated by the DTO/portal-mask layer (Phase B readers).
-    list_agent_full_name: typedAgent("ListAgentFullName"),
-    list_office_name: typedAgent("ListOfficeName"),
-    list_agent_email: typedAgent("ListAgentEmail"),
-    list_agent_direct_phone: typedAgent("ListAgentDirectPhone"),
-    list_office_mls_id: typedAgent("ListOfficeMlsId"),
-    list_agent_mls_id: typedAgent("ListAgentMlsId"),
-    co_list_office_mls_id: typedAgent("CoListOfficeMlsId"),
-    co_list_agent_mls_id: typedAgent("CoListAgentMlsId"),
+    ...typedAgentCols,
     // raw_data goes through TWO filters before persistence:
     //   1. stripPrivateFields — REBNY/UCBA private fields (PrivateRemarks,
     //      ShowingInstructions, ShowingContactPhone, agent direct phone/email,

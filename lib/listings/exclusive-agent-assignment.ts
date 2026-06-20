@@ -43,6 +43,7 @@
  */
 
 import { MALLAN_BROKERAGE_NAME } from '@/lib/syndication/mallan-identity';
+import { typedAgentColumnsFromJson } from '@/lib/listings/agent-info-typed-columns';
 
 const CRM_PREFIXES = ['SL-', 'RL-'] as const;
 
@@ -78,6 +79,17 @@ export interface ExclusiveAgentAssignment {
   list_office_name: string;
   /** REBNY-shaped agent_info JSON (merged blank-only over the existing one). */
   agent_info: Record<string, unknown>;
+  /**
+   * Phase A: the 6 NET-NEW typed agent columns derived from `agent_info` (the 2
+   * display columns above are kept verbatim for backwards-compat). PII boundary:
+   * email/direct-phone are stored but exposure stays gated by the read layer.
+   */
+  list_agent_email: string | null;
+  list_agent_direct_phone: string | null;
+  list_office_mls_id: string | null;
+  list_agent_mls_id: string | null;
+  co_list_office_mls_id: string | null;
+  co_list_agent_mls_id: string | null;
 }
 
 /**
@@ -161,10 +173,19 @@ export function buildExclusiveAgentAssignment(
   const resolvedName = String(agentInfo.ListAgentFullName ?? fullName);
   const resolvedOffice = String(agentInfo.ListOfficeName ?? officeName);
 
+  // Phase A: derive the 6 net-new typed columns from the merged agent_info JSON.
+  const typed = typedAgentColumnsFromJson(agentInfo);
+
   return {
     agent_id: BigInt(agent.id),
     list_agent_full_name: resolvedName,
     list_office_name: resolvedOffice,
     agent_info: agentInfo,
+    list_agent_email: typed.list_agent_email,
+    list_agent_direct_phone: typed.list_agent_direct_phone,
+    list_office_mls_id: typed.list_office_mls_id,
+    list_agent_mls_id: typed.list_agent_mls_id,
+    co_list_office_mls_id: typed.co_list_office_mls_id,
+    co_list_agent_mls_id: typed.co_list_agent_mls_id,
   };
 }
