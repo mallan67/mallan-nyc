@@ -10,6 +10,7 @@ import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
@@ -421,8 +422,13 @@ export async function POST(req: NextRequest) {
         // detail card read. Falls back to the raw form agentInfo if the agent
         // row could not be loaded.
         agent_info: (exclusiveAssignment?.agent_info ?? persistence.agentInfo) as Prisma.InputJsonValue,
-        list_agent_full_name: exclusiveAssignment?.list_agent_full_name ?? null,
-        list_office_name: exclusiveAssignment?.list_office_name ?? null,
+        // Phase A: dual-write ALL 8 typed agent columns, mirroring whichever
+        // agent_info JSON is persisted above (exclusive assignment or raw form).
+        // Replaces the prior 2-column write so the new email/phone/MLS-ID columns
+        // populate too. PII exposure stays gated by the read layer.
+        ...typedAgentColumnsFromJson(
+          (exclusiveAssignment?.agent_info ?? persistence.agentInfo) as Record<string, unknown>,
+        ),
         // raw_data stores the full normalized payload (removed fields already stripped)
         raw_data: persistence.raw_data as Prisma.InputJsonValue,
         modification_timestamp: now,

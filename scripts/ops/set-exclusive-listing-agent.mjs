@@ -103,6 +103,14 @@ async function main() {
       agent_info: newInfo,
       list_agent_full_name: fullName,
       list_office_name: MALLAN_BROKERAGE_NAME,
+      // Phase A: dual-write the 6 net-new typed columns from newInfo (the 2
+      // display columns above are kept verbatim). PII gated by the read layer.
+      list_agent_email: newInfo.ListAgentEmail || null,
+      list_agent_direct_phone: newInfo.ListAgentDirectPhone || null,
+      list_office_mls_id: newInfo.ListOfficeMlsId || null,
+      list_agent_mls_id: newInfo.ListAgentMlsId || null,
+      co_list_office_mls_id: newInfo.CoListOfficeMlsId || null,
+      co_list_agent_mls_id: newInfo.CoListAgentMlsId || null,
     },
   });
   console.log(`\n✓ Applied. ${LISTING} assigned to ${fullName} (agent_id=${agent.id.toString()}).`);

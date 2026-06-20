@@ -5,6 +5,7 @@
 import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter } from "./fetch";
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
+import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import {
@@ -332,6 +333,9 @@ export async function syncListings(
           ...mediaUpdatePatch(mapped.media, useExpandMedia),
           compliance: mapped.compliance as Prisma.InputJsonValue,
           agent_info: mapped.agent_info as Prisma.InputJsonValue,
+          // Phase A: dual-write the 8 typed agent columns on UPDATE (mirror the
+          // agent_info JSON above). Create spreads ...mapped so it already has them.
+          ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           modification_timestamp: mapped.modification_timestamp,
           listing_contract_date: mapped.listing_contract_date,
@@ -1163,6 +1167,8 @@ export async function syncAgentHistory(
           ...mediaUpdatePatch(mapped.media, useExpandMedia),
           compliance: mapped.compliance as Prisma.InputJsonValue,
           agent_info: mapped.agent_info as Prisma.InputJsonValue,
+          // Phase A: dual-write the 8 typed agent columns on UPDATE (mirror the JSON).
+          ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           modification_timestamp: mapped.modification_timestamp,
           listing_contract_date: mapped.listing_contract_date,

@@ -16,6 +16,7 @@ dotenv.config({ path: path.resolve(".env.local"), override: true });
 import { PrismaClient } from "@prisma/client";
 import { getAccessToken } from "../lib/idx/auth";
 import { dualWriteProjectionForListingId } from "../lib/search/listing-search-projection";
+import { typedAgentColumnsFromJson } from "../lib/listings/agent-info-typed-columns";
 
 const prisma = new PrismaClient();
 
@@ -84,6 +85,25 @@ const SELECT_FIELDS = [
   // B18: Remarks
   "PublicRemarks",
 ].join(",");
+
+/**
+ * Phase A: build the agent_info JSON for a closed-import row, INCLUDING the
+ * selected ListAgentEmail / ListAgentDirectPhone (previously dropped from the
+ * write). CoList* are NOT selected by this import, so they are absent (→ null
+ * typed columns). The typed-column dual-write derives from this same object.
+ */
+function closedAgentInfo(r: Record<string, unknown>): Record<string, unknown> {
+  const s = (v: unknown) => (v != null && String(v).trim().length ? String(v) : null);
+  return {
+    ListAgentFullName: String(r.ListAgentFullName || ""),
+    ListAgentEmail: s(r.ListAgentEmail),
+    ListAgentDirectPhone: s(r.ListAgentDirectPhone),
+    ListAgentMlsId: s(r.ListAgentMlsId),
+    ListAgentStateLicense: s(r.ListAgentStateLicense),
+    ListOfficeName: String(r.ListOfficeName || ""),
+    ListOfficeMlsId: s(r.ListOfficeMlsId),
+  };
+}
 
 async function main() {
   const token = await getAccessToken();
@@ -304,13 +324,11 @@ async function main() {
             LotSizeArea: r.LotSizeArea != null ? Number(r.LotSizeArea) : null,
           },
           media: photos,
-          agent_info: {
-            ListAgentFullName: String(r.ListAgentFullName || ""),
-            ListAgentMlsId: r.ListAgentMlsId ? String(r.ListAgentMlsId) : null,
-            ListAgentStateLicense: r.ListAgentStateLicense ? String(r.ListAgentStateLicense) : null,
-            ListOfficeName: String(r.ListOfficeName || ""),
-            ListOfficeMlsId: r.ListOfficeMlsId ? String(r.ListOfficeMlsId) : null,
-          },
+          // Phase A: include the SELECTED email/phone in the JSON (they were in
+          // SELECT_FIELDS but previously dropped from the write), then dual-write
+          // all 8 typed agent columns from the same object.
+          agent_info: closedAgentInfo(r),
+          ...typedAgentColumnsFromJson(closedAgentInfo(r)),
 
           // Closed listings: distribution gates set correctly
           idx_display_yn: true,

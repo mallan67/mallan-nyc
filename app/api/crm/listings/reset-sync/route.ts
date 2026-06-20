@@ -11,6 +11,7 @@ import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { mediaUpdatePatch } from "@/lib/idx/sync";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
+import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -167,6 +168,8 @@ export async function POST(req: NextRequest) {
             ...mediaUpdatePatch(mapped.media, EXPAND_MEDIA),
             compliance: mapped.compliance as Prisma.InputJsonValue,
             agent_info: mapped.agent_info as Prisma.InputJsonValue,
+            // Phase A: dual-write the 8 typed agent columns on UPDATE (mirror the JSON).
+            ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
             raw_data: mapped.raw_data as Prisma.InputJsonValue,
             modification_timestamp: mapped.modification_timestamp,
             listing_contract_date: mapped.listing_contract_date,

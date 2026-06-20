@@ -20,6 +20,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
+import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -416,6 +417,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   } else {
     update.agent_info = updatedAgentInfo as Prisma.InputJsonValue;
   }
+  // Phase A: dual-write ALL 8 typed agent columns, mirroring the agent_info JSON
+  // just assigned to `update.agent_info` (exclusive assignment or merged form).
+  // Keeps the new email/phone/MLS-ID columns in lock-step with the JSON on PATCH.
+  Object.assign(
+    update,
+    typedAgentColumnsFromJson(update.agent_info as Record<string, unknown>),
+  );
 
   // Update compliance with latest validation + eligibility classification
   update.compliance = {
