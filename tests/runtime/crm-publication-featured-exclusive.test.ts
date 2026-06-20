@@ -328,9 +328,15 @@ describe('Exclusive agent assignment is wired into the CRM write paths', () => {
     );
     expect(src).toMatch(/import \{ buildExclusiveAgentAssignment \}/);
     expect(src).toMatch(/buildExclusiveAgentAssignment\(/);
-    // The two promoted display columns are persisted from the assignment.
-    expect(src).toMatch(/list_agent_full_name: exclusiveAssignment\?\.list_agent_full_name/);
-    expect(src).toMatch(/list_office_name: exclusiveAssignment\?\.list_office_name/);
+    // Phase A: the promoted agent columns are now persisted via the shared
+    // typed-agent seam (`typedAgentColumnsFromJson`), spread over the SAME
+    // agent_info JSON written above (exclusive assignment or raw form). This
+    // dual-writes ALL 8 typed columns — superseding the prior 2-literal write.
+    expect(src).toMatch(/import \{ typedAgentColumnsFromJson \}/);
+    expect(src).toMatch(/\.\.\.typedAgentColumnsFromJson\(/);
+    // …and it derives from the exclusive assignment / persistence agent_info,
+    // so a saved exclusive still carries listing-agent attribution.
+    expect(src).toMatch(/exclusiveAssignment\?\.agent_info \?\? persistence\.agentInfo/);
   });
 
   test('PATCH /api/crm/listings/[id] re-stamps the assignment on edit', () => {
