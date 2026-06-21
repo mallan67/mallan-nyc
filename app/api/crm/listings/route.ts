@@ -420,16 +420,11 @@ export async function POST(req: NextRequest) {
         features: persistence.features as Prisma.InputJsonValue,
         media: (body.media as Prisma.InputJsonValue) ?? [],
         compliance: compliance as Prisma.InputJsonValue,
-        // agent_info carries the assigned Mallan listing-agent attribution
-        // (blank-only merged over form values); list_agent_full_name /
-        // list_office_name are the promoted display columns the public DTO +
-        // detail card read. Falls back to the raw form agentInfo if the agent
-        // row could not be loaded.
-        agent_info: (exclusiveAssignment?.agent_info ?? persistence.agentInfo) as Prisma.InputJsonValue,
-        // Phase A: dual-write ALL 8 typed agent columns, mirroring whichever
-        // agent_info JSON is persisted above (exclusive assignment or raw form).
-        // Replaces the prior 2-column write so the new email/phone/MLS-ID columns
-        // populate too. PII exposure stays gated by the read layer.
+        // Phase C: agent_info JSON is no longer persisted. The assigned Mallan
+        // listing-agent attribution is written ONLY to the 8 typed columns
+        // (list_agent_full_name / list_office_name etc.), derived in-memory from
+        // whichever agent_info object the exclusive assignment / form produced.
+        // PII exposure stays gated by the read layer.
         ...typedAgentColumnsFromJson(
           (exclusiveAssignment?.agent_info ?? persistence.agentInfo) as Record<string, unknown>,
         ),

@@ -100,11 +100,11 @@ async function main() {
     where: { listing_id: LISTING },
     data: {
       agent_id: agent.id,
-      agent_info: newInfo,
+      // Phase C: agent_info JSON no longer persisted. Write only the typed columns.
       list_agent_full_name: fullName,
       list_office_name: MALLAN_BROKERAGE_NAME,
-      // Phase A: dual-write the 6 net-new typed columns from newInfo (the 2
-      // display columns above are kept verbatim). PII gated by the read layer.
+      // 6 net-new typed columns from newInfo (the 2 display columns above are kept
+      // verbatim). PII gated by the read layer.
       list_agent_email: newInfo.ListAgentEmail || null,
       list_agent_direct_phone: newInfo.ListAgentDirectPhone || null,
       list_office_mls_id: newInfo.ListOfficeMlsId || null,

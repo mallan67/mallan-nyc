@@ -370,15 +370,17 @@ export async function GET(req: NextRequest) {
             const mapped = mapTrestleToPrisma(raw);
             if (!gates.displayable) mapped.sync_status = `gated:${gates.reason}`;
 
+            // Phase C: strip the legacy agent_info JSON from the spread; the 8 typed
+            // agent columns remain in typedOnlyMapped (mapper emits them).
+            const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
             await prisma.$transaction([
               prisma.listing.create({
                 data: {
-                  ...mapped,
+                  ...typedOnlyMapped,
                   address: mapped.address as Prisma.InputJsonValue,
                   features: mapped.features as Prisma.InputJsonValue,
                   media: mapped.media as Prisma.InputJsonValue,
                   compliance: mapped.compliance as Prisma.InputJsonValue,
-                  agent_info: mapped.agent_info as Prisma.InputJsonValue,
                   raw_data: mapped.raw_data as Prisma.InputJsonValue,
                   status_changed_at: now,
                   first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status) ? now : null,

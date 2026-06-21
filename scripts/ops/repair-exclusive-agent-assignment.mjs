@@ -152,10 +152,10 @@ async function main() {
     await prisma.listing.update({
       where: { listing_id: p.listing_id },
       data: {
-        agent_info: p.desiredInfo,
+        // Phase C: agent_info JSON no longer persisted. Write only the typed columns.
         list_agent_full_name: p.newCol,
         list_office_name: p.newOffice,
-        // Phase A: dual-write the 6 net-new typed columns from desiredInfo.
+        // 6 net-new typed columns from desiredInfo.
         list_agent_email: p.desiredInfo?.ListAgentEmail || null,
         list_agent_direct_phone: p.desiredInfo?.ListAgentDirectPhone || null,
         list_office_mls_id: p.desiredInfo?.ListOfficeMlsId || null,

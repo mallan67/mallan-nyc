@@ -410,20 +410,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         updatedAgentInfo,
       )
     : null;
-  if (exclusiveAssignment) {
-    update.agent_info = exclusiveAssignment.agent_info as Prisma.InputJsonValue;
-    update.list_agent_full_name = exclusiveAssignment.list_agent_full_name;
-    update.list_office_name = exclusiveAssignment.list_office_name;
-  } else {
-    update.agent_info = updatedAgentInfo as Prisma.InputJsonValue;
-  }
-  // Phase A: dual-write ALL 8 typed agent columns, mirroring the agent_info JSON
-  // just assigned to `update.agent_info` (exclusive assignment or merged form).
-  // Keeps the new email/phone/MLS-ID columns in lock-step with the JSON on PATCH.
-  Object.assign(
-    update,
-    typedAgentColumnsFromJson(update.agent_info as Record<string, unknown>),
-  );
+  // Phase C: agent_info JSON is no longer persisted. The effective agent_info
+  // (exclusive assignment, else the merged form) is used ONLY in-memory to derive
+  // the 8 typed columns; it is never written to the agent_info column.
+  const effectiveAgentInfo = (exclusiveAssignment?.agent_info ?? updatedAgentInfo) as Record<string, unknown>;
+  Object.assign(update, typedAgentColumnsFromJson(effectiveAgentInfo));
 
   // Update compliance with latest validation + eligibility classification
   update.compliance = {

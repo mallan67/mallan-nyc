@@ -288,17 +288,21 @@ export async function syncListings(
       }
 
       // 4. Upsert to local DB
+      // Phase C (agent_info normalization): stop persisting the legacy agent_info JSON.
+      // Strip it from the spread so `create: { ...typedOnlyMapped }` no longer carries it;
+      // the 8 typed columns remain in typedOnlyMapped (mapper emits them). mapped.agent_info
+      // stays in memory for the UPDATE branch's typed derivation below.
+      const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
       await prisma.listing.upsert({
         where: { listing_id: mapped.listing_id },
         create: {
-          ...mapped,
+          ...typedOnlyMapped,
           list_price: mapped.list_price,
           living_area: mapped.living_area,
           address: mapped.address as Prisma.InputJsonValue,
           features: mapped.features as Prisma.InputJsonValue,
           media: mapped.media as Prisma.InputJsonValue,
           compliance: mapped.compliance as Prisma.InputJsonValue,
-          agent_info: mapped.agent_info as Prisma.InputJsonValue,
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           // Seed status_changed_at on create so new listings are immediately
           // eligible for retention-cron age checks. first_active_date seeds
@@ -332,9 +336,8 @@ export async function syncListings(
           features: mapped.features as Prisma.InputJsonValue,
           ...mediaUpdatePatch(mapped.media, useExpandMedia),
           compliance: mapped.compliance as Prisma.InputJsonValue,
-          agent_info: mapped.agent_info as Prisma.InputJsonValue,
-          // Phase A: dual-write the 8 typed agent columns on UPDATE (mirror the
-          // agent_info JSON above). Create spreads ...mapped so it already has them.
+          // Phase C: agent_info JSON is no longer persisted. Only the 8 typed agent
+          // columns are written, still derived from the in-memory mapped.agent_info.
           ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           modification_timestamp: mapped.modification_timestamp,
@@ -1127,10 +1130,14 @@ export async function syncAgentHistory(
       }
 
       // 3. Upsert to local DB — SET agent_id to link to agent's DB record
+      // Phase C: strip the legacy agent_info JSON from the create spread; the 8 typed
+      // columns remain in typedOnlyMapped. mapped.agent_info stays in memory for the
+      // UPDATE branch's typed derivation below.
+      const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
       await prisma.listing.upsert({
         where: { listing_id: mapped.listing_id },
         create: {
-          ...mapped,
+          ...typedOnlyMapped,
           agent_id: options.agentDbId,
           list_price: mapped.list_price,
           living_area: mapped.living_area,
@@ -1138,7 +1145,6 @@ export async function syncAgentHistory(
           features: mapped.features as Prisma.InputJsonValue,
           media: mapped.media as Prisma.InputJsonValue,
           compliance: mapped.compliance as Prisma.InputJsonValue,
-          agent_info: mapped.agent_info as Prisma.InputJsonValue,
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
         },
         update: {
@@ -1166,8 +1172,8 @@ export async function syncAgentHistory(
           features: mapped.features as Prisma.InputJsonValue,
           ...mediaUpdatePatch(mapped.media, useExpandMedia),
           compliance: mapped.compliance as Prisma.InputJsonValue,
-          agent_info: mapped.agent_info as Prisma.InputJsonValue,
-          // Phase A: dual-write the 8 typed agent columns on UPDATE (mirror the JSON).
+          // Phase C: agent_info JSON no longer persisted; only the 8 typed columns,
+          // still derived from the in-memory mapped.agent_info.
           ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           modification_timestamp: mapped.modification_timestamp,

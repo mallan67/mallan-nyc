@@ -132,9 +132,8 @@ export async function POST(req: NextRequest) {
         // which let missing/null fields become displayable.
         internet_entire_listing_display_yn: affirmPermission(body.internet_display_yn),
         internet_address_display_yn: affirmPermission(body.address_display_yn),
-        agent_info: agentInfoJson as Prisma.InputJsonValue,
-        // Phase A: dual-write the typed agent columns from the lowercase manual
-        // shape ({name,email,phone,company}) — the helper handles that shape.
+        // Phase C: agent_info JSON no longer persisted. The 8 typed agent columns are
+        // written from the in-memory manual shape ({name,email,phone,company}).
         ...typedAgentColumnsFromJson(agentInfoJson),
         media: (body.images as Prisma.InputJsonValue) ?? ([] as Prisma.InputJsonValue),
         features: {} as Prisma.InputJsonValue,
