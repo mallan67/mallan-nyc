@@ -32,6 +32,11 @@ export interface RepairAgentIdentity {
   phone?: string | null;
 }
 
+/** Agent identity for an intentional reassignment — includes the Trestle MLS member id. */
+export interface ReassignAgentIdentity extends RepairAgentIdentity {
+  trestle_mls_id?: string | null;
+}
+
 export interface RepairedTypedColumns {
   list_agent_full_name: string | null;
   list_office_name: string | null;
@@ -97,5 +102,33 @@ export function planExclusiveRepair(
       co_list_office_mls_id: r.coListOfficeMlsId,
       co_list_agent_mls_id: r.coListAgentMlsId,
     },
+  };
+}
+
+/**
+ * Plan the typed-column write for an INTENTIONAL reassignment of a Mallan exclusive to a
+ * chosen Agent (the set-exclusive-listing-agent ops path). Unlike a repair, this DELIBERATELY
+ * overwrites the agent identity (name / email / phone / agent-MLS) from the chosen Agent and
+ * stamps the Mallan brokerage. But it must NOT wipe the office / co-list typed MLS IDs just
+ * because the retired `agent_info` JSON lacks them — those are resolved TYPED-FIRST and
+ * preserved (the Agent row does not define them). `agent_info` is never written. (Codex #420.)
+ */
+export function planExclusiveReassignment(
+  listing: ResolvableListingAgent,
+  agent: ReassignAgentIdentity,
+): RepairedTypedColumns {
+  const r = resolveListingAgentInfo(listing);
+  return {
+    // Intentionally written from the chosen Agent:
+    list_agent_full_name: agentFullName(agent),
+    list_office_name: MALLAN_BROKERAGE_NAME,
+    list_agent_email: clean(agent.email),
+    list_agent_direct_phone: clean(agent.phone),
+    // New agent's MLS member id when present, else PRESERVE the existing typed value:
+    list_agent_mls_id: clean(agent.trestle_mls_id) ?? r.agentMlsId,
+    // Not derivable from the Agent — PRESERVE the existing typed Cotality identity:
+    list_office_mls_id: r.officeMlsId,
+    co_list_office_mls_id: r.coListOfficeMlsId,
+    co_list_agent_mls_id: r.coListAgentMlsId,
   };
 }

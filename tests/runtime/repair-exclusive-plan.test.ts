@@ -6,7 +6,7 @@
  * retired JSON — otherwise a row with good typed attribution but `agent_info = {}` gets
  * wrongly repaired (manual name overwritten, MLS/email nulled).
  */
-import { planExclusiveRepair, MALLAN_BROKERAGE_NAME } from "@/lib/listings/repair-exclusive-plan";
+import { planExclusiveRepair, planExclusiveReassignment, MALLAN_BROKERAGE_NAME } from "@/lib/listings/repair-exclusive-plan";
 import type { ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
 
 const OWNER = {
@@ -80,5 +80,52 @@ describe("planExclusiveRepair — typed-first candidate + fill", () => {
   it("legacy fallback: name only in agent_info JSON (pre-Phase-C frozen row) → resolved, skipped by default", () => {
     const d = planExclusiveRepair(row({ list_agent_full_name: null, agent_info: { ListAgentFullName: "From JSON" } }), OWNER);
     expect(d.skip).toBe(true); // resolver typed-first falls back to JSON → name present → not a candidate
+  });
+});
+
+describe("planExclusiveReassignment — intentional reassign preserves typed MLS identity", () => {
+  const NEW_AGENT = {
+    id: 9, full_name: "New Agent", first_name: "New", last_name: "Agent",
+    email: "new@mallan.nyc", phone: "646-111-2222", trestle_mls_id: "AG-NEW-MLS",
+  };
+
+  it("existing typed office/co-list MLS + empty agent_info → preserved (NOT nulled)", () => {
+    const t = planExclusiveReassignment(
+      row({
+        list_office_mls_id: "OFF-EXIST", list_agent_mls_id: "AG-EXIST",
+        co_list_office_mls_id: "COFF-EXIST", co_list_agent_mls_id: "CAG-EXIST",
+        agent_info: {},
+      }),
+      NEW_AGENT,
+    );
+    expect(t.list_office_mls_id).toBe("OFF-EXIST");          // preserved (not on Agent row)
+    expect(t.co_list_office_mls_id).toBe("COFF-EXIST");      // preserved
+    expect(t.co_list_agent_mls_id).toBe("CAG-EXIST");        // preserved
+  });
+
+  it("intentionally updates name/email/phone + agent-MLS from the chosen Agent", () => {
+    const t = planExclusiveReassignment(
+      row({ list_office_mls_id: "OFF-EXIST", agent_info: {} }),
+      NEW_AGENT,
+    );
+    expect(t.list_agent_full_name).toBe("New Agent");
+    expect(t.list_office_name).toBe(MALLAN_BROKERAGE_NAME);
+    expect(t.list_agent_email).toBe("new@mallan.nyc");
+    expect(t.list_agent_direct_phone).toBe("646-111-2222");
+    expect(t.list_agent_mls_id).toBe("AG-NEW-MLS");          // new agent's MLS id
+    expect(t.list_office_mls_id).toBe("OFF-EXIST");          // office MLS still preserved
+  });
+
+  it("agent without trestle_mls_id → preserves the existing typed agent-MLS", () => {
+    const t = planExclusiveReassignment(
+      row({ list_agent_mls_id: "AG-EXIST", agent_info: {} }),
+      { ...NEW_AGENT, trestle_mls_id: null },
+    );
+    expect(t.list_agent_mls_id).toBe("AG-EXIST"); // preserved, not nulled
+  });
+
+  it("never produces an agent_info write (typed-only payload)", () => {
+    const t = planExclusiveReassignment(row({ agent_info: {} }), NEW_AGENT);
+    expect(t as unknown as Record<string, unknown>).not.toHaveProperty("agent_info");
   });
 });
