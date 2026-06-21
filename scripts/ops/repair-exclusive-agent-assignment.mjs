@@ -39,6 +39,9 @@ const MALLAN_BROKERAGE_NAME = "Mallan Real Estate Inc.";
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
 const VERIFY = args.includes("--verify");
+// Phase C: by default only repair rows whose RESOLVED (typed-first) name is BLANK.
+// --force restamps even when a name is already present (still blank-only fill, manual wins).
+const FORCE = args.includes("--force");
 const listingFilter = (args.find((a) => a.startsWith("--listing=")) || "").split("=")[1] || null;
 
 // Load DATABASE_URL from .env.local (script reads it; secret is not printed).
@@ -57,15 +60,44 @@ const prisma = new PrismaClient();
 
 const isBlank = (v) => v == null || (typeof v === "string" && v.trim() === "");
 
-// Faithful copy of mergeBlankOnly from lib/listings/exclusive-agent-assignment.ts:
-// write a key ONLY when base has no non-empty value (manual values win).
-function fillBlankOnly(base, additions) {
-  const out = { ...base };
-  for (const [k, v] of Object.entries(additions)) {
-    if (v == null || v === "") continue;
-    if (isBlank(out[k])) out[k] = v;
-  }
-  return out;
+const clean = (v) => { const s = v == null ? "" : String(v).trim(); return s.length ? s : null; };
+
+// Typed-FIRST resolution — mirrors lib/listings/agent-info-resolver.ts: prefer the typed
+// column, fall back to the agent_info JSON (PascalCase, then the lowercase ensure shape).
+// Phase C: the typed columns are the source of truth; agent_info JSON is fallback only.
+function resolveTypedFirst(l) {
+  const j = (l.agent_info && typeof l.agent_info === "object") ? l.agent_info : {};
+  return {
+    fullName: clean(l.list_agent_full_name) ?? clean(j.ListAgentFullName) ?? clean(j.name),
+    officeName: clean(l.list_office_name) ?? clean(j.ListOfficeName) ?? clean(j.company),
+    agentEmail: clean(l.list_agent_email) ?? clean(j.ListAgentEmail) ?? clean(j.email),
+    agentDirectPhone: clean(l.list_agent_direct_phone) ?? clean(j.ListAgentDirectPhone) ?? clean(j.phone),
+    officeMlsId: clean(l.list_office_mls_id) ?? clean(j.ListOfficeMlsId),
+    agentMlsId: clean(l.list_agent_mls_id) ?? clean(j.ListAgentMlsId),
+    coListOfficeMlsId: clean(l.co_list_office_mls_id) ?? clean(j.CoListOfficeMlsId),
+    coListAgentMlsId: clean(l.co_list_agent_mls_id) ?? clean(j.CoListAgentMlsId),
+  };
+}
+
+// Plan the typed-column repair for ONE row. Mirrors lib/listings/repair-exclusive-plan.ts
+// (the unit-tested canonical source). Returns null to skip, else the typed write payload.
+function planRow(l, agent, { force }) {
+  const r = resolveTypedFirst(l);
+  if (!force && !isBlank(r.fullName)) return null; // resolved name present → not a candidate
+  const agentFullName = clean(agent.full_name) ??
+    clean([agent.first_name, agent.last_name].map((p) => (p || "").trim()).filter(Boolean).join(" "));
+  // Blank-only fill from the Agent row / default brokerage. Existing non-blank resolved
+  // values are PRESERVED; MLS IDs (not on the Agent row) pass through. Never nulls a value.
+  return {
+    list_agent_full_name: r.fullName ?? agentFullName,
+    list_office_name: r.officeName ?? MALLAN_BROKERAGE_NAME,
+    list_agent_email: r.agentEmail ?? clean(agent.email),
+    list_agent_direct_phone: r.agentDirectPhone ?? clean(agent.phone),
+    list_office_mls_id: r.officeMlsId,
+    list_agent_mls_id: r.agentMlsId,
+    co_list_office_mls_id: r.coListOfficeMlsId,
+    co_list_agent_mls_id: r.coListAgentMlsId,
+  };
 }
 
 function isMallanExclusive(l) {
@@ -85,7 +117,12 @@ async function main() {
     where,
     select: {
       listing_id: true, agent_id: true, rls_eligible: true, status: true,
-      agent_info: true, list_agent_full_name: true, list_office_name: true,
+      agent_info: true,
+      // Phase C: all 8 typed columns — the source of truth for the typed-first repair.
+      list_agent_full_name: true, list_office_name: true,
+      list_agent_email: true, list_agent_direct_phone: true,
+      list_office_mls_id: true, list_agent_mls_id: true,
+      co_list_office_mls_id: true, co_list_agent_mls_id: true,
     },
     orderBy: { listing_id: "asc" },
   });
@@ -97,10 +134,11 @@ async function main() {
       console.log(`SKIP  ${l.listing_id}: no agent_id (cannot resolve owner — not repairing).`);
       continue;
     }
-    const existing = (l.agent_info && typeof l.agent_info === "object") ? l.agent_info : {};
-    const nameAlready = !isBlank(existing.ListAgentFullName);
-    const colAlready = !isBlank(l.list_agent_full_name);
-    if (nameAlready && colAlready) continue; // already correct — leave it
+    // Phase C: candidate gate is TYPED-FIRST — skip rows whose resolved name is already
+    // present (unless --force). A row with good typed attribution but empty agent_info is
+    // NOT a candidate (the old agent_info-only check wrongly repaired it).
+    const before = resolveTypedFirst(l);
+    if (!FORCE && !isBlank(before.fullName)) continue;
 
     const agent = await prisma.agent.findUnique({
       where: { id: l.agent_id },
@@ -110,36 +148,28 @@ async function main() {
       console.log(`SKIP  ${l.listing_id}: agent_id=${l.agent_id} has no Agent row.`);
       continue;
     }
-    const fullName = (agent.full_name || "").trim() ||
-      [agent.first_name, agent.last_name].map((p) => (p || "").trim()).filter(Boolean).join(" ").trim();
-    const desiredInfo = fillBlankOnly(existing, {
-      ListAgentFullName: fullName,
-      ListOfficeName: MALLAN_BROKERAGE_NAME,
-      ListAgentEmail: (agent.email || "").trim(),
-      ListAgentDirectPhone: (agent.phone || "").trim(),
-    });
-    const newCol = String(desiredInfo.ListAgentFullName ?? fullName);
-    const newOffice = String(desiredInfo.ListOfficeName ?? MALLAN_BROKERAGE_NAME);
+    const typed = planRow(l, agent, { force: FORCE });
+    if (!typed) continue;
 
     plan.push({
       listing_id: l.listing_id, status: l.status, agent_id: l.agent_id.toString(),
-      before: { name: existing.ListAgentFullName ?? "(missing)", col: l.list_agent_full_name ?? "(null)", office_col: l.list_office_name ?? "(null)" },
-      after: { name: desiredInfo.ListAgentFullName, col: newCol, office_col: newOffice },
-      desiredInfo, newCol, newOffice,
+      before: { col: l.list_agent_full_name ?? "(null)", office_col: l.list_office_name ?? "(null)" },
+      typed,
     });
   }
 
   if (plan.length === 0) {
-    console.log("No listings need repair. (All Mallan exclusives already carry an agent name.)");
+    console.log("No listings need repair. (All Mallan exclusives already carry a resolved agent name.)");
     return;
   }
 
   console.log(`Candidates needing repair: ${plan.length}\n`);
   for (const p of plan) {
     console.log(`• ${p.listing_id} (status=${p.status}, agent_id=${p.agent_id})`);
-    console.log(`    agent_info.ListAgentFullName : "${p.before.name}"  →  "${p.after.name}"`);
-    console.log(`    list_agent_full_name (col)   : ${p.before.col}  →  ${p.after.col}`);
-    console.log(`    list_office_name (col)       : ${p.before.office_col}  →  ${p.after.office_col}`);
+    console.log(`    list_agent_full_name : ${p.before.col}  →  ${p.typed.list_agent_full_name ?? "(null)"}`);
+    console.log(`    list_office_name     : ${p.before.office_col}  →  ${p.typed.list_office_name ?? "(null)"}`);
+    console.log(`    email/phone          : ${p.typed.list_agent_email ?? "(null)"} / ${p.typed.list_agent_direct_phone ?? "(null)"}`);
+    console.log(`    office/agent MLS IDs  : ${p.typed.list_office_mls_id ?? "(null)"} / ${p.typed.list_agent_mls_id ?? "(null)"} (preserved typed-first)`);
   }
 
   if (!APPLY) {
@@ -149,20 +179,11 @@ async function main() {
 
   console.log(`\nApplying ${plan.length} update(s)...`);
   for (const p of plan) {
+    // Phase C: agent_info JSON no longer persisted. Write ONLY the typed columns, computed
+    // typed-first (existing non-blank values preserved; blanks filled from the Agent row).
     await prisma.listing.update({
       where: { listing_id: p.listing_id },
-      data: {
-        // Phase C: agent_info JSON no longer persisted. Write only the typed columns.
-        list_agent_full_name: p.newCol,
-        list_office_name: p.newOffice,
-        // 6 net-new typed columns from desiredInfo.
-        list_agent_email: p.desiredInfo?.ListAgentEmail || null,
-        list_agent_direct_phone: p.desiredInfo?.ListAgentDirectPhone || null,
-        list_office_mls_id: p.desiredInfo?.ListOfficeMlsId || null,
-        list_agent_mls_id: p.desiredInfo?.ListAgentMlsId || null,
-        co_list_office_mls_id: p.desiredInfo?.CoListOfficeMlsId || null,
-        co_list_agent_mls_id: p.desiredInfo?.CoListAgentMlsId || null,
-      },
+      data: { ...p.typed },
     });
     console.log(`  ✓ ${p.listing_id} updated.`);
   }
