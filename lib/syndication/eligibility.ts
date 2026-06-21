@@ -39,7 +39,16 @@ export interface ListingForEligibility {
   status?: string | null;
   /** Free-text — used only for diagnostics in Layer 1d's reason logging */
   list_office_name?: string | null;
-  /** Listing-side Trestle identifiers — the canonical signal */
+  /**
+   * Phase B (agent_info normalization): the canonical MLS-ID signal is read TYPED-FIRST from
+   * these promoted columns, falling back to `agent_info` JSON only where a column is null. Kept
+   * inline (no import) to preserve this file's zero-cross-import structural defense.
+   */
+  list_office_mls_id?: string | null;
+  list_agent_mls_id?: string | null;
+  co_list_office_mls_id?: string | null;
+  co_list_agent_mls_id?: string | null;
+  /** Listing-side Trestle identifiers — the canonical signal (JSON fallback) */
   agent_info?: unknown;
   /** Distribution gates (REBNY) */
   idx_display_yn?: boolean | null;
@@ -127,10 +136,13 @@ export function evaluateMallanSyndicationEligibility(
   const compliance = asRecord(listing.compliance);
   const synd = asRecord(compliance.syndication);
 
-  const listOfficeMlsId = pickString(agentInfo, "ListOfficeMlsId");
-  const listAgentMlsId = pickString(agentInfo, "ListAgentMlsId");
-  const coListOfficeId = pickString(agentInfo, "CoListOfficeMlsId");
-  const coListAgentId = pickString(agentInfo, "CoListAgentMlsId");
+  // Phase B: TYPED-FIRST (promoted columns), JSON fallback. Inline to keep the no-import defense.
+  const typedFirst = (col: string | null | undefined, jsonKey: string): string =>
+    (col ?? "").toString().trim() || pickString(agentInfo, jsonKey);
+  const listOfficeMlsId = typedFirst(listing.list_office_mls_id, "ListOfficeMlsId");
+  const listAgentMlsId = typedFirst(listing.list_agent_mls_id, "ListAgentMlsId");
+  const coListOfficeId = typedFirst(listing.co_list_office_mls_id, "CoListOfficeMlsId");
+  const coListAgentId = typedFirst(listing.co_list_agent_mls_id, "CoListAgentMlsId");
 
   // ════════════════════════════════════════════════════════════════
   // LAYER 1 — Listing-side control via canonical IDs
