@@ -9080,11 +9080,12 @@ var SALE_FIELD_MAP = [
   { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn' },
 
   // ── Agent (hidden fields populated by initLoggedInAgent) ──
-  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgent', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId' },
-  { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName' },
-  { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail' },
-  { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone' },
-  { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName' },
+  // Phase C: typedKey is the promoted typed column read FIRST (agent_info JSON is fallback).
+  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgent', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' },
+  { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName', typedKey: 'list_agent_full_name' },
+  { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
+  { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
+  { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
   { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
 
   // ── Team ──
@@ -9617,7 +9618,9 @@ function _populateSaleFormFromApi(listing) {
         if (f.src === 'listing' && f.listingKey) {
             val = listing[f.listingKey];
         } else if (f.src === 'agentInfo' && f.agentKey) {
-            val = agentInfo[f.agentKey] || raw[f.rls];
+            // Phase C: prefer the promoted TYPED column (source of truth post-Phase-C),
+            // then agent_info JSON, then raw_data. ListOfficeKey has no typed column.
+            val = (f.typedKey ? listing[f.typedKey] : null) || agentInfo[f.agentKey] || raw[f.rls];
         } else if (f.src === 'addr') {
             val = addr[f.rls] || raw[f.rls];
         } else {
