@@ -173,12 +173,12 @@ async function main() {
     for (const p of plan) {
       const r = await prisma.listing.findUnique({
         where: { listing_id: p.listing_id },
-        select: { agent_info: true, list_agent_full_name: true, list_office_name: true },
+        select: { list_agent_full_name: true, list_office_name: true },
       });
-      const nm = (r?.agent_info && typeof r.agent_info === "object") ? (r.agent_info.ListAgentFullName || "") : "";
-      const pass = !isBlank(nm) && !isBlank(r?.list_agent_full_name);
+      // Phase C: agent_info JSON is no longer written — verify the TYPED columns.
+      const pass = !isBlank(r?.list_agent_full_name);
       ok = ok && pass;
-      console.log(`  ${pass ? "✓" : "✗"} ${p.listing_id}: agent_info.ListAgentFullName="${nm}", list_agent_full_name=${r?.list_agent_full_name ?? "(null)"}, list_office_name=${r?.list_office_name ?? "(null)"}`);
+      console.log(`  ${pass ? "✓" : "✗"} ${p.listing_id}: list_agent_full_name=${r?.list_agent_full_name ?? "(null)"}, list_office_name=${r?.list_office_name ?? "(null)"}`);
     }
     console.log(ok ? "\nVERIFY: all repaired rows now carry an agent name. ✓" : "\nVERIFY: FAILED — some rows still blank. ✗");
     if (!ok) process.exit(2);

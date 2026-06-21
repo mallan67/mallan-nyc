@@ -116,10 +116,11 @@ async function main() {
   console.log(`\n✓ Applied. ${LISTING} assigned to ${fullName} (agent_id=${agent.id.toString()}).`);
 
   if (VERIFY) {
-    const r = await prisma.listing.findUnique({ where: { listing_id: LISTING }, select: { agent_id: true, agent_info: true, list_agent_full_name: true, list_office_name: true } });
-    const nm = (r?.agent_info && typeof r.agent_info === "object") ? (r.agent_info.ListAgentFullName || "") : "";
-    const ok = r?.agent_id?.toString() === agent.id.toString() && nm === fullName && r?.list_agent_full_name === fullName;
-    console.log(`\nVERIFY: agent_id=${r?.agent_id?.toString()} name="${nm}" col="${r?.list_agent_full_name}" → ${ok ? "✓ PASS" : "✗ FAIL"}`);
+    // Phase C: agent_info JSON is no longer written — verify the TYPED columns
+    // (the source of truth post-Phase-C), not the retired agent_info JSON.
+    const r = await prisma.listing.findUnique({ where: { listing_id: LISTING }, select: { agent_id: true, list_agent_full_name: true, list_office_name: true } });
+    const ok = r?.agent_id?.toString() === agent.id.toString() && r?.list_agent_full_name === fullName;
+    console.log(`\nVERIFY: agent_id=${r?.agent_id?.toString()} list_agent_full_name="${r?.list_agent_full_name}" list_office_name="${r?.list_office_name}" → ${ok ? "✓ PASS" : "✗ FAIL"}`);
     if (!ok) process.exit(3);
   }
 }
