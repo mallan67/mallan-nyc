@@ -51,6 +51,11 @@ export async function GET(req: NextRequest) {
           features: true,
           media: true,
           agent_info: true,
+          // Phase B: typed agent columns so the portal mask resolves office TYPED-FIRST.
+          list_office_name: true, list_agent_full_name: true,
+          list_agent_email: true, list_agent_direct_phone: true,
+          list_office_mls_id: true, list_agent_mls_id: true,
+          co_list_office_mls_id: true, co_list_agent_mls_id: true,
           neighborhood: true,
           borough: true,
           property_sub_type: true,

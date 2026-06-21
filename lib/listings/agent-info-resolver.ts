@@ -29,7 +29,8 @@ export interface ResolvableListingAgent {
   list_agent_mls_id?: string | null;
   co_list_office_mls_id?: string | null;
   co_list_agent_mls_id?: string | null;
-  agent_info?: Record<string, unknown> | null;
+  /** Accepts `unknown` (the Prisma Json type) — cast internally. */
+  agent_info?: unknown;
 }
 
 export interface ResolvedAgentInfo {

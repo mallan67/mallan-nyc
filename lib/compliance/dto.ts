@@ -20,6 +20,7 @@
  */
 
 import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
+import { resolveListingAgentInfo, type ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
 
 // ─── Fields that MUST NEVER appear in portal or public responses ──────────
 
@@ -273,12 +274,11 @@ export function sanitizeForPortal(
   const result = sanitizeForVOW(listing);
 
   // Re-add agent_info as the strict allow-listed shape. Everything that
-  // isn't the brokerage attribution name is dropped here.
-  if (agentInfo) {
-    const company =
-      (agentInfo.company as string | undefined) ??
-      (agentInfo.ListOfficeName as string | undefined) ??
-      null;
+  // isn't the brokerage attribution name is dropped here. FAIL-CLOSED: only
+  // `{ company }` is ever emitted — agent email/phone never reach the portal.
+  // Phase B: company resolved TYPED-FIRST (list_office_name) with JSON fallback.
+  if (agentInfo || (listing as ResolvableListingAgent).list_office_name) {
+    const company = resolveListingAgentInfo(listing as ResolvableListingAgent).officeName;
     result.agent_info = { company };
   } else {
     result.agent_info = null;

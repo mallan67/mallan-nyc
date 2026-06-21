@@ -28,6 +28,7 @@ import {
 } from '@/lib/media/listing-media-resolver';
 
 import { normalizeStreetCase } from './normalize-street-case';
+import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -134,6 +135,17 @@ export interface DbListing {
   features: unknown;
   media: unknown;
   agent_info: unknown;
+  // Phase B (agent_info normalization): typed agent columns read TYPED-FIRST via
+  // resolveListingAgentInfo, with agent_info JSON fallback. Optional so callers that
+  // don't yet select them safely fall back to JSON (no regression).
+  list_agent_full_name?: string | null;
+  list_office_name?: string | null;
+  list_agent_email?: string | null;
+  list_agent_direct_phone?: string | null;
+  list_office_mls_id?: string | null;
+  list_agent_mls_id?: string | null;
+  co_list_office_mls_id?: string | null;
+  co_list_agent_mls_id?: string | null;
   // C1 fix (2026-05-13): ownership signals required to classify each row as
   // Mallan-authored (`agent_id` or `owner_client_id` non-null), website-only
   // commercial (`rls_eligible === false`), or third-party IDX/RLS. Without
@@ -271,6 +283,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const addr = (listing.address || {}) as DbAddress;
   const features = (listing.features || {}) as DbFeatures;
   const agentInfo = (listing.agent_info || {}) as DbAgentInfo;
+  // Phase B: typed-first agent attribution (JSON fallback). Exposure unchanged below.
+  const resolvedAgent = resolveListingAgentInfo(listing);
   const mediaArr = (Array.isArray(listing.media) ? listing.media : []) as DbMediaItem[];
 
   const streetNumber = addr.StreetNumber || '';
@@ -411,7 +425,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     // neutral "REBNY RLS" string (matches the pattern in `BuildingUnits.tsx`
     // and `SearchMap.tsx`). Mallan attribution is preserved only when the source
     // row's `agent_info.ListOfficeName` actually carries it.
-    listOfficeName: agentInfo.ListOfficeName?.trim() || 'REBNY RLS',
+    listOfficeName: resolvedAgent.officeName || 'REBNY RLS',
     media,
     photosCount: photoCount,
     publicRemarks: features.PublicRemarks || undefined,
@@ -498,7 +512,9 @@ function buildSourceAndCompliance(
   comingSoonDate: string | undefined,
 ): Pick<PublicListingDTO, '_source' | '_displayCompliance' | '_assignedAgent'> {
   const provenance = classifyDbListing(listing);
-  const officeName = agentInfo.ListOfficeName?.trim() || 'REBNY RLS';
+  // Phase B: typed-first agent attribution (JSON fallback). Exposure rules unchanged.
+  const resolved = resolveListingAgentInfo(listing);
+  const officeName = resolved.officeName || 'REBNY RLS';
 
   if (provenance === 'third-party-idx') {
     return {
@@ -526,10 +542,13 @@ function buildSourceAndCompliance(
   // contact is required attribution (§175.25), not third-party PII. Built from
   // whatever the row's agent_info carries — never invented; blank fields are
   // simply omitted so the detail page falls back to the brokerage block.
-  const assignedName = agentInfo.ListAgentFullName?.trim();
-  const assignedEmail = agentInfo.ListAgentEmail?.trim();
-  const assignedPhone = agentInfo.ListAgentDirectPhone?.trim();
-  const assignedCompany = agentInfo.ListOfficeName?.trim();
+  // Phase B: typed-first (JSON fallback). This is the GATED exclusive-card path
+  // (mallan-exclusive / website-only only) — the one place agent email/phone may
+  // surface publicly, exactly as before; third-party IDX returned above with none.
+  const assignedName = resolved.fullName ?? undefined;
+  const assignedEmail = resolved.agentEmail ?? undefined;
+  const assignedPhone = resolved.agentDirectPhone ?? undefined;
+  const assignedCompany = resolved.officeName ?? undefined;
   const assignedAgent =
     assignedName || assignedEmail || assignedPhone || assignedCompany
       ? {

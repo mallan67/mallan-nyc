@@ -358,6 +358,11 @@ export async function GET(request: Request) {
                 // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
                 agent_info: true,
+                // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
+                list_agent_full_name: true, list_office_name: true,
+                list_agent_email: true, list_agent_direct_phone: true,
+                list_office_mls_id: true, list_agent_mls_id: true,
+                co_list_office_mls_id: true, co_list_agent_mls_id: true,
                 // C1 fix (2026-05-13): provenance signals needed by the DTO
                 // to distinguish Mallan exclusives (agent_id / owner_client_id)
                 // from website-only commercial (rls_eligible=false) from
@@ -1229,6 +1234,11 @@ async function fetchExclusiveListings(
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
         agent_info: true,
+        // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
+        list_agent_full_name: true, list_office_name: true,
+        list_agent_email: true, list_agent_direct_phone: true,
+        list_office_mls_id: true, list_agent_mls_id: true,
+        co_list_office_mls_id: true, co_list_agent_mls_id: true,
         // C1 fix (2026-05-13): provenance signals for the DTO classifier.
         // Mirrors the main DB-first select above.
         agent_id: true,
