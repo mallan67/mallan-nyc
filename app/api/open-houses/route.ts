@@ -3,6 +3,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
+import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -291,6 +292,8 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             features: true,
             media: true,
             agent_info: true,
+            // Phase B: typed agent columns so office attribution resolves TYPED-FIRST.
+            ...AGENT_TYPED_SELECT,
             // Canonical gate fields — previously omitted, so local open
             // houses could leak Owner Opt-Out / Participant Only /
             // Internet-off listings and show full addresses regardless
@@ -367,9 +370,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         // REBNY IDX/VOW Compliance Checklist (Dec 2021): agent direct contact
         // info (full name, phone, email) must NOT leak on public endpoints.
         // Show office attribution only.
-        agentName: (s.listing as { agent_info?: Record<string, string> } | null)?.agent_info?.ListOfficeName
-          || (s.listing as { agent_info?: Record<string, string> } | null)?.agent_info?.company
-          || 'Mallan Real Estate Inc.',
+        agentName: resolveListingAgentInfo(s.listing).officeName || 'Mallan Real Estate Inc.',
         agentPhone: '',
         description: '',
         image: firstPhoto,

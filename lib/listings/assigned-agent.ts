@@ -18,6 +18,7 @@
  *
  * @module lib/listings/assigned-agent
  */
+import { resolveListingAgentInfo, type ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
 
 /** The Agent-record subset needed for the contact card (structural shape). */
 export interface AssignedAgentRecord {
@@ -37,6 +38,12 @@ export interface BuildAssignedAgentInput {
   agentInfo: Record<string, unknown> | null | undefined;
   /** The linked Agent row (by agent_id), or null when none / not exclusive. */
   agentRecord: AssignedAgentRecord | null | undefined;
+  /**
+   * Phase B (agent_info normalization): the listing's typed agent columns. When present they are
+   * read TYPED-FIRST (via resolveListingAgentInfo) with `agentInfo` JSON fallback. Optional so
+   * callers that don't pass them safely fall back to the JSON (no regression).
+   */
+  typed?: ResolvableListingAgent | null;
 }
 
 /** What the contact card renders. All fields optional; blanks are omitted. */
@@ -66,10 +73,12 @@ export function buildAssignedAgentDisplay(
   const ai = input.agentInfo || {};
   const ar = input.agentRecord || null;
 
-  const name = str(ai.ListAgentFullName) || str(ar?.full_name);
-  const email = str(ai.ListAgentEmail) || str(ar?.email);
-  const phone = str(ai.ListAgentDirectPhone) || str(ar?.phone);
-  const company = str(ai.ListOfficeName);
+  // Phase B: typed-first (typed columns), then agent_info JSON, then the Agent record.
+  const resolved = resolveListingAgentInfo({ ...(input.typed ?? {}), agent_info: ai });
+  const name = resolved.fullName || str(ar?.full_name);
+  const email = resolved.agentEmail || str(ar?.email);
+  const phone = resolved.agentDirectPhone || str(ar?.phone);
+  const company = resolved.officeName || "";
   const photo = str(ar?.photo);
   // §175.25 license designation — prefer the stored title, else license_type.
   const title = str(ar?.title) || str(ar?.license_type);

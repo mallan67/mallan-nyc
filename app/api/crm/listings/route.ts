@@ -11,6 +11,7 @@ import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
@@ -81,6 +82,9 @@ export async function GET(req: NextRequest) {
         features: true,
         media: true,
         agent_info: true,
+        // Phase B: typed agent columns so the CRM grid hydrates attribution TYPED-FIRST
+        // (authenticated surface — PII columns allowed here per spec §4).
+        ...AGENT_TYPED_SELECT,
         rls_eligible: true,
         commercial_sub_type: true,
         commercial_ownership: true,

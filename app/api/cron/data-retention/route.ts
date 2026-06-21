@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 
 export const maxDuration = 60;
 
@@ -209,6 +210,8 @@ export async function GET(req: NextRequest) {
       days_on_market: true,
       address: true,
       agent_info: true,
+      // Phase B: typed agent columns so the archive captures attribution TYPED-FIRST.
+      ...AGENT_TYPED_SELECT,
       raw_data: true,
       created_at: true,
     },
@@ -219,8 +222,9 @@ export async function GET(req: NextRequest) {
   for (const l of toArchive) {
     try {
       const addr = asObject(l.address);
-      const agent = asObject(l.agent_info);
       const raw = asObject(l.raw_data);
+      // Phase B: typed-first (typed columns) → agent_info JSON → raw_data, captured into the archive.
+      const resolvedAgent = resolveListingAgentInfo(l);
 
       // Assemble denormalized address_line (e.g. "123 Main St, Apt 4B")
       const streetNumber = str(addr.StreetNumber);
@@ -258,8 +262,8 @@ export async function GET(req: NextRequest) {
             city: l.city,
             postal_code: l.postal_code,
             address_line: addressLine,
-            list_agent_full_name: str(agent.ListAgentFullName) || str(raw.ListAgentFullName),
-            list_office_name: str(agent.ListOfficeName) || str(raw.ListOfficeName),
+            list_agent_full_name: resolvedAgent.fullName || str(raw.ListAgentFullName),
+            list_office_name: resolvedAgent.officeName || str(raw.ListOfficeName),
             days_on_market: l.days_on_market,
             original_created_at: l.created_at,
           },

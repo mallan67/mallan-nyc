@@ -25,6 +25,7 @@ import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
 import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-cta';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
+import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
@@ -508,6 +509,9 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     }
 
     const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
+    // Phase B: typed-first attribution (typed columns win, agent_info JSON fallback).
+    // dbListing uses `include` so all typed scalar columns are present.
+    const resolvedAgent = resolveListingAgentInfo(dbListing);
     // Mallan-exclusive assigned-agent enrichment. The headshot + license title
     // live on the AGENT record (not in agent_info JSON), so load the listing's
     // OWN linked agent to surface them on the contact card. Generic by
@@ -541,6 +545,8 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       isMallanExclusive: Boolean(isMallanExclusiveListing),
       agentInfo,
       agentRecord: assignedAgentRecord,
+      // Phase B: typed columns win over agent_info JSON for the gated exclusive card.
+      typed: dbListing,
     });
     const compliance = (dbListing.compliance as Record<string, unknown>) || {};
     // Address suppression (Codex PR #274 — respect seller opt-outs):
@@ -611,7 +617,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       livingArea: dbListing.living_area ? Number(dbListing.living_area) : null,
       lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
       yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
-      listOfficeName: agentInfo.ListOfficeName || agentInfo.company || 'Mallan Real Estate Inc.',
+      listOfficeName: resolvedAgent.officeName || 'Mallan Real Estate Inc.',
       media: mediaArr.map(m => ({
         ...m,
         url: m.url ? proxyDetailMediaUrl(m.url) : m.url,

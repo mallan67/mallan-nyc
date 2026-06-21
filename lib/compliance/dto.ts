@@ -20,6 +20,7 @@
  */
 
 import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
+import { resolveListingAgentInfo, type ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
 
 // ─── Fields that MUST NEVER appear in portal or public responses ──────────
 
@@ -45,6 +46,14 @@ const AGENT_PII_FIELDS = [
   "CoListAgentFullName",
   "BuyerAgentEmail",
   "BuyerAgentDirectPhone",
+  // Phase B (agent_info normalization): the promoted snake_case typed columns mirror the
+  // PascalCase PII above. Stripped fail-closed so a raw DB row carrying these never leaks to
+  // a portal, even if a future caller spreads it instead of using the curated DTO.
+  "list_agent_email",
+  "list_agent_direct_phone",
+  "list_agent_mls_id",
+  "list_agent_full_name",
+  "co_list_agent_mls_id",
 ] as const;
 
 /** REBNY removed fields (NAR Settlement Aug 2025) — never in any response */
@@ -63,6 +72,11 @@ const IDX_SUPPRESSED_FIELDS = [
   "ListAgentEmail",
   "ListAgentDirectPhone",
   "ListAgentKey",
+  // Phase B: snake_case typed PII columns mirror the PascalCase agent PII above —
+  // suppressed from public/IDX fail-closed.
+  "list_agent_email",
+  "list_agent_direct_phone",
+  "list_agent_mls_id",
   // ListingURL is the listing broker's website URL (e.g., bhsusa.com/listing/123).
   // Must never be shown to buyer/tenant clients — CRM/agent view only.
   "ListingURL",
@@ -273,12 +287,11 @@ export function sanitizeForPortal(
   const result = sanitizeForVOW(listing);
 
   // Re-add agent_info as the strict allow-listed shape. Everything that
-  // isn't the brokerage attribution name is dropped here.
-  if (agentInfo) {
-    const company =
-      (agentInfo.company as string | undefined) ??
-      (agentInfo.ListOfficeName as string | undefined) ??
-      null;
+  // isn't the brokerage attribution name is dropped here. FAIL-CLOSED: only
+  // `{ company }` is ever emitted — agent email/phone never reach the portal.
+  // Phase B: company resolved TYPED-FIRST (list_office_name) with JSON fallback.
+  if (agentInfo || (listing as ResolvableListingAgent).list_office_name) {
+    const company = resolveListingAgentInfo(listing as ResolvableListingAgent).officeName;
     result.agent_info = { company };
   } else {
     result.agent_info = null;
@@ -366,6 +379,10 @@ export function sanitizeListingForPortal(
     features: listing.features,
     media: listing.media,
     agent_info: listing.agent_info,
+    // Phase B: carry the typed office column so sanitizeForPortal resolves the
+    // company mask TYPED-FIRST (list_office_name) with agent_info JSON fallback.
+    // Office name only — NO agent PII columns are carried into the portal allow-list.
+    list_office_name: listing.list_office_name,
     internet_address_display_yn: listing.internet_address_display_yn,
   };
 
