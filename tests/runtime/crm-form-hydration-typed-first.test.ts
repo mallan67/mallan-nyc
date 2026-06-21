@@ -48,6 +48,15 @@ describe("Phase C — SALE form hydrates agent fields typed-first", () => {
     const loaderIdx = sale.indexOf("f.typedKey ? listing[f.typedKey] : null) || agentInfo[f.agentKey]");
     expect(loaderIdx).toBeGreaterThan(-1);
   });
+
+  // The ListAgentMlsId map entry must hydrate `saleUpdatingAgentMlsId` — the hidden field
+  // collectSaleFormData() actually SUBMITS as ListAgentMlsId — NOT the internal-id field
+  // `saleUpdatingAgent` (else a no-op edit re-sends the editor's session MLS id). (Codex #420.)
+  it("ListAgentMlsId hydrates saleUpdatingAgentMlsId (the submitted field), not saleUpdatingAgent", () => {
+    expect(sale).toContain("{ rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' }");
+    // and collectSaleFormData submits ListAgentMlsId from that same field
+    expect(sale).toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgentMlsId/);
+  });
 });
 
 describe("Phase C — RENTAL form hydrates agent fields typed-first", () => {

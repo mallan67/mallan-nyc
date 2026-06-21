@@ -9081,7 +9081,12 @@ var SALE_FIELD_MAP = [
 
   // ── Agent (hidden fields populated by initLoggedInAgent) ──
   // Phase C: typedKey is the promoted typed column read FIRST (agent_info JSON is fallback).
-  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgent', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' },
+  // ListAgentMlsId hydrates saleUpdatingAgentMlsId — the field collectSaleFormData() actually
+  // SUBMITS as ListAgentMlsId (line ~7391). The internal-id field saleUpdatingAgent is seeded
+  // separately by initLoggedInAgent; targeting it here meant the saved Cotality MLS id never
+  // reached the submitted field, so a no-op edit re-sent the editor's session MLS id and
+  // corrupted list_agent_mls_id on save. (Codex #420.)
+  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' },
   { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName', typedKey: 'list_agent_full_name' },
   { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
   { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
