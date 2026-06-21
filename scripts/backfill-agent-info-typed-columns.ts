@@ -6,26 +6,31 @@
  * forward. But the ~109K EXISTING rows still have the 6 new typed columns NULL (and the 2 old
  * ones only ~20% populated). This script fills them from the JSON they already carry.
  *
- * SAFETY (matches issue #415 Lane 1 requirements):
- *   - DEFAULT DRY-RUN. Prints per-column counts of what WOULD change. Writes nothing.
- *   - `--execute` REQUIRED to write, AND only runs after an explicit Maya approval (operator gate).
- *   - BATCH-SAFE: processes by id in chunks (default 2000) to avoid long locks / Neon timeouts.
- *   - FILL-ONLY: sets a typed column ONLY where it is currently NULL and the JSON has a value.
- *     NEVER overwrites a non-null typed column (idempotent; re-runnable).
- *   - PARITY: derives values via the SAME shared seam the producers use
- *     (lib/listings/agent-info-typed-columns.ts → typedAgentColumnsFromJson), so backfilled
- *     values match what new writes produce (PascalCase + lowercase shapes).
- *   - HOST-GUARDED: aborts unless DATABASE_URL points at the canonical cold-waterfall endpoint.
- *   - PII: email/phone are written to the typed columns (already private). Exposure stays gated by
- *     the read layer (unchanged). This script changes no reader and writes no JSON.
+ * IMPLEMENTATION: raw SQL `UPDATE ... SET col = COALESCE(col, <derived>)`. This is deliberate
+ * (Codex #416 P2 x2):
+ *   - RACE-SAFE / FILL-ONLY AT WRITE TIME: `COALESCE(col, derived)` keeps a non-null `col` even
+ *     if a concurrent idx-sync / CRM PATCH filled it between read and write. It can NEVER overwrite
+ *     a non-null typed value. (A snapshot-then-update-by-id pattern could; this cannot.)
+ *   - PRESERVES `updated_at`: raw SQL does NOT trigger Prisma `@updatedAt`, so backfilled rows are
+ *     NOT restamped as recently-modified (public/CRM lists sort by updated_at desc — must not reorder).
+ *   - PARITY with the producer seam `lib/listings/agent-info-typed-columns.ts`
+ *     (typedAgentColumnsFromJson): `NULLIF(btrim(x),'')` == cleanStr (trim, empty→null);
+ *     `COALESCE(agent_info->>'PascalKey', agent_info->>'lowerKey')` == `ai.PascalKey ?? ai.lowerKey`
+ *     (COALESCE falls through only on absent/NULL key, not on empty-string — matches `??`).
+ *
+ * SAFETY (board #415 Lane 1):
+ *   - DEFAULT DRY-RUN: counts (read-only) what WOULD fill, using the SAME expressions the UPDATE uses.
+ *   - `--execute` REQUIRED + explicit Maya approval (operator gate).
+ *   - BATCH-SAFE: UPDATE by id range in chunks (default 2000); only touches rows that need ≥1 fill.
+ *   - HOST-GUARDED: aborts unless DATABASE_URL points at canonical cold-waterfall.
+ *   - Writes no JSON, changes no reader. PII email/phone exposure stays gated by the read layer.
  *
  * USAGE:
  *   npm run ops:backfill-agent-info            # DRY-RUN (read-only counts)
  *   npm run ops:backfill-agent-info:execute    # WRITE (Maya-approved only)
  *   optional: --batch=5000
  */
-import { PrismaClient, Prisma } from "@prisma/client";
-import { typedAgentColumnsFromJson, type TypedAgentColumns } from "../lib/listings/agent-info-typed-columns";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -37,16 +42,40 @@ const BATCH = (() => {
 })();
 
 const CANONICAL_HOST = "ep-cold-waterfall-adno3ao2";
-const TYPED_KEYS: (keyof TypedAgentColumns)[] = [
-  "list_agent_full_name",
-  "list_office_name",
-  "list_agent_email",
-  "list_agent_direct_phone",
-  "list_office_mls_id",
-  "list_agent_mls_id",
-  "co_list_office_mls_id",
-  "co_list_agent_mls_id",
+
+/**
+ * Per-column SQL derive expression — mirrors typedAgentColumnsFromJson exactly.
+ * `derive` yields the value the producer seam would compute (or NULL). Exported for tests.
+ */
+export const BACKFILL_COLUMNS: { col: string; derive: string }[] = [
+  { col: "list_agent_full_name",    derive: "NULLIF(btrim(COALESCE(agent_info->>'ListAgentFullName', agent_info->>'name')), '')" },
+  { col: "list_office_name",        derive: "NULLIF(btrim(COALESCE(agent_info->>'ListOfficeName', agent_info->>'company')), '')" },
+  { col: "list_agent_email",        derive: "NULLIF(btrim(COALESCE(agent_info->>'ListAgentEmail', agent_info->>'email')), '')" },
+  { col: "list_agent_direct_phone", derive: "NULLIF(btrim(COALESCE(agent_info->>'ListAgentDirectPhone', agent_info->>'phone')), '')" },
+  { col: "list_office_mls_id",      derive: "NULLIF(btrim(agent_info->>'ListOfficeMlsId'), '')" },
+  { col: "list_agent_mls_id",       derive: "NULLIF(btrim(agent_info->>'ListAgentMlsId'), '')" },
+  { col: "co_list_office_mls_id",   derive: "NULLIF(btrim(agent_info->>'CoListOfficeMlsId'), '')" },
+  { col: "co_list_agent_mls_id",    derive: "NULLIF(btrim(agent_info->>'CoListAgentMlsId'), '')" },
 ];
+
+/** A row needs filling on a column when the column IS NULL and the derived value IS NOT NULL. */
+const needsFill = (c: { col: string; derive: string }) => `(${c.col} IS NULL AND ${c.derive} IS NOT NULL)`;
+const ANY_FILL = BACKFILL_COLUMNS.map(needsFill).join(" OR ");
+
+/** DRY-RUN count SQL: per-column + rows-with-any-fill. Read-only. Exported for tests. */
+export function buildDryRunSql(): string {
+  const perCol = BACKFILL_COLUMNS.map((c) => `count(*) FILTER (WHERE ${needsFill(c)}) AS ${c.col}`).join(",\n  ");
+  return `SELECT\n  ${perCol},\n  count(*) FILTER (WHERE ${ANY_FILL}) AS rows_any\nFROM listings`;
+}
+
+/**
+ * EXECUTE UPDATE SQL for one id-range batch. Fill-only + race-safe via COALESCE; does NOT touch
+ * updated_at. Exported for tests.
+ */
+export function buildUpdateSql(): string {
+  const sets = BACKFILL_COLUMNS.map((c) => `${c.col} = COALESCE(${c.col}, ${c.derive})`).join(",\n  ");
+  return `UPDATE listings SET\n  ${sets}\nWHERE id > $1 AND id <= $2 AND (${ANY_FILL})`;
+}
 
 function hostGuard(): void {
   const url = process.env.DATABASE_URL || "";
@@ -58,85 +87,44 @@ function hostGuard(): void {
   console.log(`HOST GUARD OK: ${host}`);
 }
 
-type Row = { id: bigint; agent_info: unknown } & Record<string, string | null>;
-
-/** Which typed columns this row would NEWLY fill (currently null + JSON has a value). */
-function fillsForRow(row: Row): Partial<Record<keyof TypedAgentColumns, string>> {
-  const derived = typedAgentColumnsFromJson(row.agent_info as Record<string, unknown>);
-  const out: Partial<Record<keyof TypedAgentColumns, string>> = {};
-  for (const k of TYPED_KEYS) {
-    const current = row[k];
-    const value = derived[k];
-    if ((current === null || current === undefined) && value != null) {
-      out[k] = value;
-    }
-  }
-  return out;
-}
-
 async function main() {
   hostGuard();
-  console.log(`MODE: ${EXECUTE ? "EXECUTE (writing)" : "DRY-RUN (read-only)"} · batch=${BATCH}`);
+  console.log(`MODE: ${EXECUTE ? "EXECUTE (writing, COALESCE fill-only, updated_at preserved)" : "DRY-RUN (read-only)"} · batch=${BATCH}`);
 
-  const total = await prisma.listing.count();
-  console.log(`Total listings: ${total}`);
-
-  const perColumnFilled: Record<string, number> = Object.fromEntries(TYPED_KEYS.map((k) => [k, 0]));
-  let rowsAffected = 0;
-  let scanned = 0;
-  let cursor: bigint | undefined = undefined;
-
-  // Keyset pagination by id (batch-safe; no OFFSET).
-  for (;;) {
-    const rows = (await prisma.listing.findMany({
-      where: cursor ? { id: { gt: cursor } } : undefined,
-      orderBy: { id: "asc" },
-      take: BATCH,
-      select: {
-        id: true,
-        agent_info: true,
-        list_agent_full_name: true,
-        list_office_name: true,
-        list_agent_email: true,
-        list_agent_direct_phone: true,
-        list_office_mls_id: true,
-        list_agent_mls_id: true,
-        co_list_office_mls_id: true,
-        co_list_agent_mls_id: true,
-      },
-    })) as unknown as Row[];
-
-    if (rows.length === 0) break;
-    cursor = rows[rows.length - 1].id;
-    scanned += rows.length;
-
-    for (const row of rows) {
-      const fills = fillsForRow(row);
-      const keys = Object.keys(fills) as (keyof TypedAgentColumns)[];
-      if (keys.length === 0) continue;
-      rowsAffected++;
-      for (const k of keys) perColumnFilled[k]++;
-
-      if (EXECUTE) {
-        await prisma.listing.update({ where: { id: row.id }, data: fills as Prisma.ListingUpdateInput });
-      }
-    }
-    if (scanned % (BATCH * 10) === 0) console.log(`  …scanned ${scanned}/${total} · rows-to-fill so far ${rowsAffected}`);
-  }
-
-  console.log("\n===== A6 BACKFILL REPORT =====");
-  console.log(`scanned: ${scanned}`);
-  console.log(`rows that ${EXECUTE ? "WERE" : "WOULD BE"} filled (≥1 column): ${rowsAffected}`);
-  console.log("per-column fills:");
-  for (const k of TYPED_KEYS) console.log(`  ${k}: ${perColumnFilled[k]}`);
+  const [dry] = await prisma.$queryRawUnsafe<Record<string, bigint>[]>(buildDryRunSql());
+  const num = (v: bigint | number) => Number(v);
+  console.log("\n===== A6 DRY-RUN COUNTS (rows that WOULD fill) =====");
+  console.log(`rows with ≥1 column to fill: ${num(dry.rows_any)}`);
+  for (const c of BACKFILL_COLUMNS) console.log(`  ${c.col}: ${num(dry[c.col])}`);
 
   if (!EXECUTE) {
     console.log("\nDRY-RUN only — nothing written. Re-run with --execute (Maya-approved) to apply.");
-  } else {
-    console.log("\nEXECUTE complete. Re-run DRY-RUN to verify rows-to-fill drops toward 0 (idempotent).");
+    return;
   }
+
+  // Batched UPDATE by id range. Only rows matching ANY_FILL are touched.
+  const [bounds] = await prisma.$queryRawUnsafe<{ lo: bigint | null; hi: bigint | null }[]>(
+    `SELECT min(id) AS lo, max(id) AS hi FROM listings`,
+  );
+  if (bounds.lo == null || bounds.hi == null) { console.log("No rows."); return; }
+  const updateSql = buildUpdateSql();
+  let lo = BigInt(bounds.lo) - 1n;
+  const hiMax = BigInt(bounds.hi);
+  let totalUpdated = 0;
+  while (lo < hiMax) {
+    const hi = lo + BigInt(BATCH);
+    const n = await prisma.$executeRawUnsafe(updateSql, lo, hi);
+    totalUpdated += n;
+    lo = hi;
+    if (totalUpdated && totalUpdated % (BATCH * 5) < BATCH) console.log(`  …updated ${totalUpdated} so far (id ≤ ${hi})`);
+  }
+  console.log(`\nEXECUTE complete: ${totalUpdated} rows updated. Re-run DRY-RUN to verify rows_any → 0 (idempotent).`);
 }
 
-main()
-  .catch((e) => { console.error("ERROR:", e instanceof Error ? e.message : String(e)); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+// Run only when invoked directly as a script (NOT when imported by a test).
+const isDirectRun = (process.argv[1] || "").includes("backfill-agent-info-typed-columns");
+if (isDirectRun) {
+  main()
+    .catch((e) => { console.error("ERROR:", e instanceof Error ? e.message : String(e)); process.exit(1); })
+    .finally(async () => { await prisma.$disconnect(); });
+}
