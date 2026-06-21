@@ -5,6 +5,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 
 export const maxDuration = 60;
 
@@ -200,7 +201,8 @@ export async function GET(request: NextRequest) {
           photoUrl,
           photosCount,
           propertyType: mapPropertyType({ CommonInterest: (l.features as Record<string, unknown>)?.CommonInterest, PropertySubType: l.property_sub_type, PropertyType: l.property_type }),
-          office: (l.agent_info as Record<string, string> | null)?.ListOfficeName || (l.agent_info as Record<string, string> | null)?.company || '',
+          // Phase B: office attribution TYPED-FIRST (list_office_name), agent_info JSON fallback.
+          office: resolveListingAgentInfo(l).officeName || '',
         };
       });
 
