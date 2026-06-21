@@ -324,10 +324,8 @@ async function main() {
             LotSizeArea: r.LotSizeArea != null ? Number(r.LotSizeArea) : null,
           },
           media: photos,
-          // Phase A: include the SELECTED email/phone in the JSON (they were in
-          // SELECT_FIELDS but previously dropped from the write), then dual-write
-          // all 8 typed agent columns from the same object.
-          agent_info: closedAgentInfo(r),
+          // Phase C: agent_info JSON is no longer persisted. Write only the 8 typed
+          // agent columns, derived in-memory from the same closedAgentInfo(r) object.
           ...typedAgentColumnsFromJson(closedAgentInfo(r)),
 
           // Closed listings: distribution gates set correctly

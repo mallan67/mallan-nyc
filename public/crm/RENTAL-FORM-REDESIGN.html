@@ -6939,12 +6939,13 @@ function _populateRentalFormFromApi(listing) {
     // Listing agreement
     setRadio('rentalListingType', raw.ListingAgreement || '');
 
-    // Agent info
+    // Agent info — Phase C: TYPED columns are the source of truth (agent_info JSON is
+    // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.
     var agentInfo = listing.agent_info || {};
-    setVal('rentalListingAgent', agentInfo.ListAgentFullName || raw.ListAgentFullName || '');
-    setVal('rentalListingCompany', agentInfo.ListOfficeName || raw.ListOfficeName || '');
-    setVal('rentalListingAgentPhone', agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '');
-    setVal('rentalListingAgentEmail', agentInfo.ListAgentEmail || raw.ListAgentEmail || '');
+    setVal('rentalListingAgent', listing.list_agent_full_name || agentInfo.ListAgentFullName || raw.ListAgentFullName || '');
+    setVal('rentalListingCompany', listing.list_office_name || agentInfo.ListOfficeName || raw.ListOfficeName || '');
+    setVal('rentalListingAgentPhone', listing.list_agent_direct_phone || agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '');
+    setVal('rentalListingAgentEmail', listing.list_agent_email || agentInfo.ListAgentEmail || raw.ListAgentEmail || '');
 
     // Co-listing
     setVal('rentalCoListingAgent', raw.CoListAgentFullName || '');

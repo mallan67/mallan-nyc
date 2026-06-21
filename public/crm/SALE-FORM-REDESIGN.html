@@ -9080,11 +9080,17 @@ var SALE_FIELD_MAP = [
   { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn' },
 
   // ── Agent (hidden fields populated by initLoggedInAgent) ──
-  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgent', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId' },
-  { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName' },
-  { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail' },
-  { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone' },
-  { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName' },
+  // Phase C: typedKey is the promoted typed column read FIRST (agent_info JSON is fallback).
+  // ListAgentMlsId hydrates saleUpdatingAgentMlsId — the field collectSaleFormData() actually
+  // SUBMITS as ListAgentMlsId (line ~7391). The internal-id field saleUpdatingAgent is seeded
+  // separately by initLoggedInAgent; targeting it here meant the saved Cotality MLS id never
+  // reached the submitted field, so a no-op edit re-sent the editor's session MLS id and
+  // corrupted list_agent_mls_id on save. (Codex #420.)
+  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' },
+  { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName', typedKey: 'list_agent_full_name' },
+  { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
+  { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
+  { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
   { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
 
   // ── Team ──
@@ -9617,7 +9623,9 @@ function _populateSaleFormFromApi(listing) {
         if (f.src === 'listing' && f.listingKey) {
             val = listing[f.listingKey];
         } else if (f.src === 'agentInfo' && f.agentKey) {
-            val = agentInfo[f.agentKey] || raw[f.rls];
+            // Phase C: prefer the promoted TYPED column (source of truth post-Phase-C),
+            // then agent_info JSON, then raw_data. ListOfficeKey has no typed column.
+            val = (f.typedKey ? listing[f.typedKey] : null) || agentInfo[f.agentKey] || raw[f.rls];
         } else if (f.src === 'addr') {
             val = addr[f.rls] || raw[f.rls];
         } else {
@@ -9773,15 +9781,18 @@ function _populateSaleFormFromApi(listing) {
 
     // ── Agent contact panel + company/agent search display ──
     // Use saved listing agent identity as a whole if present; session only when absent entirely.
-    var hasSavedAgent = !!(agentInfo.ListAgentMlsId || raw.ListAgentMlsId);
+    // Phase C: the promoted TYPED columns are the source of truth (agent_info JSON is
+    // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.
+    var hasSavedAgent = !!(listing.list_agent_mls_id || listing.list_agent_full_name || agentInfo.ListAgentMlsId || raw.ListAgentMlsId);
     var _agentId, _agentName, _agentPhone, _agentEmail, companyKey, _companyName;
     if (hasSavedAgent) {
-        _agentId = agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
-        _agentName = agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
-        _agentPhone = agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
-        _agentEmail = agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
+        _agentId = listing.list_agent_mls_id || agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
+        _agentName = listing.list_agent_full_name || agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
+        _agentPhone = listing.list_agent_direct_phone || agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
+        _agentEmail = listing.list_agent_email || agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
+        // ListOfficeKey is NOT a promoted typed column — agent_info / raw_data fallback only.
         companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || 'mallan';
-        _companyName = agentInfo.ListOfficeName || raw.ListOfficeName || 'Mallan Real Estate Inc.';
+        _companyName = listing.list_office_name || agentInfo.ListOfficeName || raw.ListOfficeName || 'Mallan Real Estate Inc.';
     } else {
         _agentId = document.getElementById('saleUpdatingAgent')?.value || '';
         _agentName = document.getElementById('saleUpdatingAgentName')?.value || '';

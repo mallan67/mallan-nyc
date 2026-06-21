@@ -124,10 +124,14 @@ export async function POST(req: NextRequest) {
           mapped.sync_status = `gated:${gates.reason}`;
         }
 
+        // Phase C: strip the legacy agent_info JSON from the create spread; the 8
+        // typed columns remain in typedOnlyMapped. mapped.agent_info stays in memory
+        // for the UPDATE branch's typed derivation below.
+        const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
         await prisma.listing.upsert({
           where: { listing_id: mapped.listing_id },
           create: {
-            ...mapped,
+            ...typedOnlyMapped,
             agent_id: agent.id,
             list_price: mapped.list_price,
             living_area: mapped.living_area,
@@ -135,7 +139,6 @@ export async function POST(req: NextRequest) {
             features: mapped.features as Prisma.InputJsonValue,
             media: mapped.media as Prisma.InputJsonValue,
             compliance: mapped.compliance as Prisma.InputJsonValue,
-            agent_info: mapped.agent_info as Prisma.InputJsonValue,
             raw_data: mapped.raw_data as Prisma.InputJsonValue,
           },
           update: {
@@ -167,8 +170,8 @@ export async function POST(req: NextRequest) {
             // CREATE above is unchanged (new row, nothing to preserve).
             ...mediaUpdatePatch(mapped.media, EXPAND_MEDIA),
             compliance: mapped.compliance as Prisma.InputJsonValue,
-            agent_info: mapped.agent_info as Prisma.InputJsonValue,
-            // Phase A: dual-write the 8 typed agent columns on UPDATE (mirror the JSON).
+            // Phase C: agent_info JSON no longer persisted; only the 8 typed columns,
+            // still derived from the in-memory mapped.agent_info.
             ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
             raw_data: mapped.raw_data as Prisma.InputJsonValue,
             modification_timestamp: mapped.modification_timestamp,

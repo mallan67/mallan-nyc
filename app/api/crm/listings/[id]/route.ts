@@ -21,6 +21,7 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -384,7 +385,28 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "ListAgentEmail", "ListAgentDirectPhone",
     "ListOfficeName", "ListOfficeKey", "ListOfficeMlsId",
   ];
-  const updatedAgentInfo = { ...existingAgentInfo };
+  // Phase C: the LIVE agent attribution is in the 8 typed columns — agent_info JSON is
+  // frozen/absent for rows created or edited after the stop-write change. Seed the merge
+  // base from the RESOLVED current attribution (typed-first, JSON fallback) so:
+  //   (a) a PATCH that does NOT touch agent fields preserves the existing typed columns
+  //       (deriving from the stale `{}` JSON would null them out — Codex blocker), and
+  //   (b) a Mallan exclusive's manual typed override is not clobbered by the Agent row
+  //       (mergeBlankOnly keeps the seeded non-blank values).
+  const resolvedCurrent = resolveListingAgentInfo(listing);
+  const seededAgentInfo: Record<string, unknown> = { ...existingAgentInfo };
+  const seed = (key: string, val: string | null) => { if (val) seededAgentInfo[key] = val; };
+  seed("ListAgentFullName", resolvedCurrent.fullName);
+  seed("ListOfficeName", resolvedCurrent.officeName);
+  seed("ListAgentEmail", resolvedCurrent.agentEmail);
+  seed("ListAgentDirectPhone", resolvedCurrent.agentDirectPhone);
+  seed("ListOfficeMlsId", resolvedCurrent.officeMlsId);
+  seed("ListAgentMlsId", resolvedCurrent.agentMlsId);
+  seed("CoListOfficeMlsId", resolvedCurrent.coListOfficeMlsId);
+  seed("CoListAgentMlsId", resolvedCurrent.coListAgentMlsId);
+
+  // Did THIS PATCH explicitly change any agent attribution field?
+  const agentFieldsChanged = agentKeys.some((k) => body[k] !== undefined);
+  const updatedAgentInfo = { ...seededAgentInfo };
   for (const k of agentKeys) {
     if (body[k] !== undefined) updatedAgentInfo[k] = body[k];
   }
@@ -410,20 +432,22 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         updatedAgentInfo,
       )
     : null;
+  // Phase C: write ONLY the 8 typed columns; never persist agent_info JSON. Only touch
+  // the typed columns when there is a reason to — otherwise a PATCH of an unrelated field
+  // would re-derive (and potentially clear) existing attribution.
   if (exclusiveAssignment) {
-    update.agent_info = exclusiveAssignment.agent_info as Prisma.InputJsonValue;
-    update.list_agent_full_name = exclusiveAssignment.list_agent_full_name;
-    update.list_office_name = exclusiveAssignment.list_office_name;
-  } else {
-    update.agent_info = updatedAgentInfo as Prisma.InputJsonValue;
+    // Mallan exclusive — re-stamp on every edit so the contact card stays populated.
+    // Seeded from the existing typed values above, so manual overrides survive
+    // (buildExclusiveAgentAssignment fills blank keys only). agent_info/agent_id excluded.
+    const { agent_id: _exAgentId, agent_info: _exAgentInfo, ...exclusiveTyped } = exclusiveAssignment;
+    Object.assign(update, exclusiveTyped);
+  } else if (agentFieldsChanged) {
+    // Non-exclusive (third-party): rewrite typed columns ONLY when this PATCH actually
+    // changed an agent field. updatedAgentInfo is seeded from the current typed values,
+    // so unchanged fields keep their existing attribution.
+    Object.assign(update, typedAgentColumnsFromJson(updatedAgentInfo));
   }
-  // Phase A: dual-write ALL 8 typed agent columns, mirroring the agent_info JSON
-  // just assigned to `update.agent_info` (exclusive assignment or merged form).
-  // Keeps the new email/phone/MLS-ID columns in lock-step with the JSON on PATCH.
-  Object.assign(
-    update,
-    typedAgentColumnsFromJson(update.agent_info as Record<string, unknown>),
-  );
+  // else: non-exclusive listing, no agent field changed → leave the typed columns untouched.
 
   // Update compliance with latest validation + eligibility classification
   update.compliance = {

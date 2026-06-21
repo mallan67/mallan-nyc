@@ -94,8 +94,8 @@ beforeEach(() => {
   process.env.IDX_ENABLED = "true";
 });
 
-describe("Phase A — reset-sync UPDATE branch persists all 8 typed agent columns", () => {
-  it("the captured UPDATE payload carries every typed column, mirroring agent_info", async () => {
+describe("Phase C — reset-sync persists all 8 typed columns but NOT agent_info JSON", () => {
+  it("the captured UPDATE payload carries every typed column and does NOT write agent_info", async () => {
     const res = await POST(makeRequest({ method: "POST", url: "http://localhost/api/crm/listings/reset-sync" }));
     const json = await readJson<{ upserted?: number }>(res);
     expect(res.status).toBe(200);
@@ -111,14 +111,16 @@ describe("Phase A — reset-sync UPDATE branch persists all 8 typed agent column
     expect(update.list_agent_mls_id).toBe("AG1");
     expect(update.co_list_office_mls_id).toBe("OFF2");
     expect(update.co_list_agent_mls_id).toBe("AG2");
-    // agent_info JSON still written (unchanged dual-write)
-    expect((update.agent_info as Record<string, unknown>).ListAgentFullName).toBe("Jane Doe");
+    // Phase C: agent_info JSON is NO LONGER written.
+    expect(update.agent_info).toBeUndefined();
   });
 
-  it("the CREATE branch also carries the typed columns (via ...mapped spread)", async () => {
+  it("the CREATE branch carries the typed columns (via ...typedOnlyMapped) and strips agent_info", async () => {
     await POST(makeRequest({ method: "POST", url: "http://localhost/api/crm/listings/reset-sync" }));
     const create = upsertCalls[0].create;
     expect(create.list_agent_email).toBe("jane@acme.com");
     expect(create.co_list_agent_mls_id).toBe("AG2");
+    // Phase C: agent_info JSON is stripped from the create spread.
+    expect(create.agent_info).toBeUndefined();
   });
 });

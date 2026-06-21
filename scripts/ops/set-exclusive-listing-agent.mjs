@@ -50,12 +50,34 @@ const isMallanExclusive = (l) => {
   return id.startsWith("SL-") || id.startsWith("RL-") || l.rls_eligible === false;
 };
 
+const clean = (v) => { const s = v == null ? "" : String(v).trim(); return s.length ? s : null; };
+
+// Typed-FIRST resolution — mirrors lib/listings/agent-info-resolver.ts (typed column wins,
+// agent_info JSON is fallback only). Phase C: the typed columns are the source of truth.
+function resolveTypedFirst(l) {
+  const j = (l.agent_info && typeof l.agent_info === "object") ? l.agent_info : {};
+  return {
+    agentMlsId: clean(l.list_agent_mls_id) ?? clean(j.ListAgentMlsId),
+    officeMlsId: clean(l.list_office_mls_id) ?? clean(j.ListOfficeMlsId),
+    coListOfficeMlsId: clean(l.co_list_office_mls_id) ?? clean(j.CoListOfficeMlsId),
+    coListAgentMlsId: clean(l.co_list_agent_mls_id) ?? clean(j.CoListAgentMlsId),
+  };
+}
+
 async function main() {
   console.log(`\n=== set-exclusive-listing-agent — ${APPLY ? "APPLY (writing)" : "DRY-RUN"} — listing=${LISTING} ===\n`);
 
   const listing = await prisma.listing.findUnique({
     where: { listing_id: LISTING },
-    select: { listing_id: true, rls_eligible: true, agent_id: true, agent_info: true, list_agent_full_name: true, list_office_name: true },
+    select: {
+      listing_id: true, rls_eligible: true, agent_id: true, agent_info: true,
+      // Phase C: all 8 typed columns — the source of truth. The reassignment overwrites the
+      // agent identity but PRESERVES the office / co-list MLS IDs (typed-first resolved).
+      list_agent_full_name: true, list_office_name: true,
+      list_agent_email: true, list_agent_direct_phone: true,
+      list_office_mls_id: true, list_agent_mls_id: true,
+      co_list_office_mls_id: true, co_list_agent_mls_id: true,
+    },
   });
   if (!listing) { console.error(`ERROR: listing ${LISTING} not found.`); process.exit(2); }
   if (!isMallanExclusive(listing)) {
@@ -67,32 +89,39 @@ async function main() {
   const where = AGENT_ID ? { id: BigInt(AGENT_ID) } : AGENT_SLUG ? { public_slug: AGENT_SLUG } : { email: EMAIL };
   const agent = await prisma.agent.findUnique({
     where,
-    select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true, public_slug: true },
+    select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true, public_slug: true, trestle_mls_id: true },
   });
   if (!agent) { console.error(`ERROR: agent not found (${JSON.stringify(where, (k, v) => (typeof v === "bigint" ? v.toString() : v))}).`); process.exit(2); }
 
   const fullName = (agent.full_name || "").trim() ||
     [agent.first_name, agent.last_name].map((p) => (p || "").trim()).filter(Boolean).join(" ").trim();
-  const existing = (listing.agent_info && typeof listing.agent_info === "object") ? listing.agent_info : {};
 
-  // Reassignment OVERWRITES the four identity fields to the new agent; other
-  // agent_info keys are preserved.
-  const newInfo = {
-    ...existing,
-    ListAgentFullName: fullName,
-    ListOfficeName: MALLAN_BROKERAGE_NAME,
-    ListAgentEmail: (agent.email || "").trim(),
-    ListAgentDirectPhone: (agent.phone || "").trim(),
+  // Phase C: resolve the existing typed identity (typed-first) so the reassignment can
+  // PRESERVE the office / co-list MLS IDs (not derivable from the Agent) instead of nulling
+  // them from a retired/empty agent_info. Mirrors lib/listings/repair-exclusive-plan.ts
+  // (planExclusiveReassignment), the unit-tested canonical source.
+  const resolved = resolveTypedFirst(listing);
+  // Intentional reassignment: overwrite agent identity from the chosen Agent; the new agent's
+  // MLS id wins when present, else preserve existing. Office / co-list MLS IDs are preserved.
+  const typed = {
+    list_agent_full_name: fullName,
+    list_office_name: MALLAN_BROKERAGE_NAME,
+    list_agent_email: clean(agent.email),
+    list_agent_direct_phone: clean(agent.phone),
+    list_agent_mls_id: clean(agent.trestle_mls_id) ?? resolved.agentMlsId,
+    list_office_mls_id: resolved.officeMlsId,
+    co_list_office_mls_id: resolved.coListOfficeMlsId,
+    co_list_agent_mls_id: resolved.coListAgentMlsId,
   };
 
   console.log("Listing (before):");
   console.log(`  agent_id=${listing.agent_id?.toString() ?? "(null)"}  list_agent_full_name=${listing.list_agent_full_name ?? "(null)"}  list_office_name=${listing.list_office_name ?? "(null)"}`);
-  console.log(`  agent_info.ListAgentFullName="${existing.ListAgentFullName ?? "(missing)"}"`);
+  console.log(`  typed MLS IDs (preserved): office=${resolved.officeMlsId ?? "(null)"} agent=${resolved.agentMlsId ?? "(null)"} coOffice=${resolved.coListOfficeMlsId ?? "(null)"} coAgent=${resolved.coListAgentMlsId ?? "(null)"}`);
   console.log("\nNew agent:");
-  console.log(`  id=${agent.id.toString()}  name="${fullName}"  email=${agent.email}  phone=${agent.phone}  slug=${agent.public_slug}`);
+  console.log(`  id=${agent.id.toString()}  name="${fullName}"  email=${agent.email}  phone=${agent.phone}  slug=${agent.public_slug}  trestle_mls_id=${agent.trestle_mls_id ?? "(null)"}`);
   console.log("\nListing (after):");
-  console.log(`  agent_id=${agent.id.toString()}  list_agent_full_name="${fullName}"  list_office_name="${MALLAN_BROKERAGE_NAME}"`);
-  console.log(`  agent_info.ListAgentFullName="${fullName}" / Email="${newInfo.ListAgentEmail}" / Phone="${newInfo.ListAgentDirectPhone}"`);
+  console.log(`  agent_id=${agent.id.toString()}  list_agent_full_name="${typed.list_agent_full_name}"  list_office_name="${typed.list_office_name}"`);
+  console.log(`  email="${typed.list_agent_email ?? "(null)"}" phone="${typed.list_agent_direct_phone ?? "(null)"}" agent_mls=${typed.list_agent_mls_id ?? "(null)"} office_mls=${typed.list_office_mls_id ?? "(null)"} (MLS preserved typed-first)`);
 
   if (!APPLY) { console.log("\nDRY-RUN only — no rows written. Re-run with --apply to write."); return; }
 
@@ -100,26 +129,19 @@ async function main() {
     where: { listing_id: LISTING },
     data: {
       agent_id: agent.id,
-      agent_info: newInfo,
-      list_agent_full_name: fullName,
-      list_office_name: MALLAN_BROKERAGE_NAME,
-      // Phase A: dual-write the 6 net-new typed columns from newInfo (the 2
-      // display columns above are kept verbatim). PII gated by the read layer.
-      list_agent_email: newInfo.ListAgentEmail || null,
-      list_agent_direct_phone: newInfo.ListAgentDirectPhone || null,
-      list_office_mls_id: newInfo.ListOfficeMlsId || null,
-      list_agent_mls_id: newInfo.ListAgentMlsId || null,
-      co_list_office_mls_id: newInfo.CoListOfficeMlsId || null,
-      co_list_agent_mls_id: newInfo.CoListAgentMlsId || null,
+      // Phase C: agent_info JSON no longer persisted. Write only the typed columns;
+      // office / co-list MLS IDs are preserved typed-first (never nulled on reassignment).
+      ...typed,
     },
   });
   console.log(`\n✓ Applied. ${LISTING} assigned to ${fullName} (agent_id=${agent.id.toString()}).`);
 
   if (VERIFY) {
-    const r = await prisma.listing.findUnique({ where: { listing_id: LISTING }, select: { agent_id: true, agent_info: true, list_agent_full_name: true, list_office_name: true } });
-    const nm = (r?.agent_info && typeof r.agent_info === "object") ? (r.agent_info.ListAgentFullName || "") : "";
-    const ok = r?.agent_id?.toString() === agent.id.toString() && nm === fullName && r?.list_agent_full_name === fullName;
-    console.log(`\nVERIFY: agent_id=${r?.agent_id?.toString()} name="${nm}" col="${r?.list_agent_full_name}" → ${ok ? "✓ PASS" : "✗ FAIL"}`);
+    // Phase C: agent_info JSON is no longer written — verify the TYPED columns
+    // (the source of truth post-Phase-C), not the retired agent_info JSON.
+    const r = await prisma.listing.findUnique({ where: { listing_id: LISTING }, select: { agent_id: true, list_agent_full_name: true, list_office_name: true } });
+    const ok = r?.agent_id?.toString() === agent.id.toString() && r?.list_agent_full_name === fullName;
+    console.log(`\nVERIFY: agent_id=${r?.agent_id?.toString()} list_agent_full_name="${r?.list_agent_full_name}" list_office_name="${r?.list_office_name}" → ${ok ? "✓ PASS" : "✗ FAIL"}`);
     if (!ok) process.exit(3);
   }
 }

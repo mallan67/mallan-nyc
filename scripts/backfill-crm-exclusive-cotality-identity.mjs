@@ -20,6 +20,24 @@
 import { readFileSync } from 'node:fs';
 import { PrismaClient } from '@prisma/client';
 
+// ── RETIRED (agent_info Phase C, 2026-06-21) ───────────────────────────────
+// This one-time identity backfill WROTE listing.agent_info JSON. As of Phase C
+// (board #415, plan docs/superpowers/plans/2026-06-21-agent-info-phase-c-stop-json-writes.md)
+// no producer may write/refill agent_info JSON. This script is retired and
+// fails fast so it can never re-introduce an agent_info write. The Cotality
+// identity it backfilled now lives in the typed columns (list_agent_mls_id,
+// list_agent_email, list_agent_full_name, list_office_name) populated by the
+// runtime producers + the A6 backfill (#416). Do NOT revive without rewriting
+// it to be typed-columns-only and removing the agent_info write.
+if (!process.env.ALLOW_RETIRED_AGENT_INFO_BACKFILL) {
+  console.error(
+    '[RETIRED] backfill-crm-exclusive-cotality-identity.mjs is retired (agent_info Phase C).\n' +
+    'It wrote the legacy agent_info JSON, which is no longer persisted. Identity now lives in\n' +
+    'the typed columns. Refusing to run. See docs/superpowers/plans/2026-06-21-agent-info-phase-c-stop-json-writes.md',
+  );
+  process.exit(2);
+}
+
 const APPLY = process.argv.includes('--apply');
 const CANONICAL_OFFICE_NAME = 'Mallan Real Estate Inc.';
 
@@ -86,8 +104,8 @@ try {
 
     if (APPLY) {
       const mergedAi = { ...ai, ...changes };
-      // Phase A: dual-write the 6 net-new typed columns, mirroring the merged
-      // agent_info JSON (the 2 display columns stay blank-only via colChanges).
+      // Phase C: agent_info JSON is never persisted (this script is retired above).
+      // Dead code retained only for historical reference; writes typed columns only.
       const typedNew = {
         list_agent_email: mergedAi.ListAgentEmail || null,
         list_agent_direct_phone: mergedAi.ListAgentDirectPhone || null,
@@ -98,7 +116,7 @@ try {
       };
       await prisma.listing.update({
         where: { listing_id: row.listing_id },
-        data: { agent_info: mergedAi, ...colChanges, ...typedNew },
+        data: { ...colChanges, ...typedNew },
       });
       console.log(`       -> written`);
     }
