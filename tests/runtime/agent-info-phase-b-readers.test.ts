@@ -7,7 +7,12 @@
  *   - the portal mask stays fail-closed ({ company } only).
  */
 import { dbListingToPublicDTO, type DbListing } from "@/lib/idx/db-to-public-dto";
-import { sanitizeForPortal } from "@/lib/compliance/dto";
+import {
+  sanitizeForPortal,
+  sanitizeForPublic,
+  sanitizeForVOW,
+  sanitizeListingForPortal,
+} from "@/lib/compliance/dto";
 
 function baseListing(extra: Partial<DbListing> = {}): DbListing {
   return {
@@ -83,5 +88,71 @@ describe("Phase B — portal PII mask stays fail-closed (typed-first company)", 
       agent_info: { ListOfficeName: "Json Office" },
     } as Record<string, unknown>, "buyer");
     expect(r.agent_info).toEqual({ company: "Json Office" });
+  });
+});
+
+describe("Phase B — sanitizeListingForPortal (production allow-list path) is typed-first + PII-safe", () => {
+  // Mirrors the favorites endpoint: this is the function the portal endpoints actually call.
+  const portalRow = (extra: Record<string, unknown>) => ({
+    id: 1, listing_id: "RLS1", status: "Active", listing_type: "sale",
+    property_type: "Residential", property_sub_type: "Condo",
+    list_price: 1000000, bedrooms_total: 2, bathrooms_full: 2, bathrooms_half: 0,
+    living_area: 1000, borough: "Manhattan", neighborhood: "Midtown",
+    address: {}, features: {}, media: [],
+    internet_address_display_yn: true, internet_entire_listing_display_yn: true,
+    participant_only: false, owner_opt_out: false,
+    ...extra,
+  });
+
+  it("company resolves TYPED-FIRST through the real allow-list (not just direct sanitizeForPortal)", () => {
+    const r = sanitizeListingForPortal(portalRow({
+      list_office_name: "Typed Office",
+      agent_info: { ListOfficeName: "Json Office", ListAgentEmail: "leak@x.com" },
+    }) as never, "buyer");
+    expect(r).not.toBeNull();
+    expect(r!.agent_info).toEqual({ company: "Typed Office" });
+    expect(JSON.stringify(r)).not.toContain("leak@x.com");
+  });
+
+  it("snake_case typed PII never survives the portal allow-list", () => {
+    const r = sanitizeListingForPortal(portalRow({
+      list_office_name: "Typed Office",
+      list_agent_email: "leak@x.com",
+      list_agent_direct_phone: "212-555-0000",
+      agent_info: {},
+    }) as never, "buyer");
+    expect(JSON.stringify(r)).not.toContain("leak@x.com");
+    expect(JSON.stringify(r)).not.toContain("212-555-0000");
+  });
+});
+
+describe("Phase B — DTO sanitizers strip snake_case typed PII FAIL-CLOSED", () => {
+  const raw = () => ({
+    listing_id: "RLS1", status: "Active",
+    list_office_name: "Office",            // public-safe, must survive
+    list_agent_email: "leak@x.com",        // PII, must be stripped
+    list_agent_direct_phone: "212-555-0000", // PII, must be stripped
+    list_agent_mls_id: "AGENT123",         // identifier, must be stripped from public/portal
+  });
+
+  it("sanitizeForPublic drops snake_case agent PII but keeps office name", () => {
+    const r = sanitizeForPublic(raw());
+    expect(r.list_agent_email).toBeUndefined();
+    expect(r.list_agent_direct_phone).toBeUndefined();
+    expect(r.list_agent_mls_id).toBeUndefined();
+    expect(r.list_office_name).toBe("Office");
+  });
+
+  it("sanitizeForVOW drops snake_case agent PII", () => {
+    const r = sanitizeForVOW(raw());
+    expect(r.list_agent_email).toBeUndefined();
+    expect(r.list_agent_direct_phone).toBeUndefined();
+  });
+
+  it("sanitizeForPortal drops snake_case agent PII (and list_agent_full_name)", () => {
+    const r = sanitizeForPortal({ ...raw(), list_agent_full_name: "Secret Agent" }, "buyer");
+    expect(JSON.stringify(r)).not.toContain("leak@x.com");
+    expect(JSON.stringify(r)).not.toContain("212-555-0000");
+    expect(JSON.stringify(r)).not.toContain("Secret Agent");
   });
 });

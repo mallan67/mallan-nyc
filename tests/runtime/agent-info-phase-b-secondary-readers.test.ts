@@ -95,3 +95,19 @@ describe("Phase B — CRM grid hydrate (data-loader.js) is typed-first", () => {
     expect(typedIdx).toBeLessThan(jsonIdx);
   });
 });
+
+describe("Phase B — public agent-page route selects typed columns (no silent no-op)", () => {
+  // The per-agent listings route maps rows through dbListingToPublicDTO (typed-first).
+  // It MUST select the typed columns, else the resolver silently always falls back to JSON
+  // and the migration becomes a no-op there (and renders stale office after Phase D).
+  const src = readFileSync(
+    join(process.cwd(), "app", "api", "agents", "[slug]", "listings", "route.ts"),
+    "utf8",
+  );
+  it("spreads AGENT_TYPED_SELECT into the DB select", () => {
+    expect(src).toContain("import { AGENT_TYPED_SELECT }");
+    expect(src).toContain("...AGENT_TYPED_SELECT");
+    // the spread appears after agent_info: true (same select block)
+    expect(src.indexOf("...AGENT_TYPED_SELECT")).toBeGreaterThan(src.indexOf("agent_info: true"));
+  });
+});

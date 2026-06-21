@@ -6,6 +6,7 @@ import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { getAccessToken } from '@/lib/idx/auth';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import type { IDXListing } from '@/lib/idx/types';
@@ -225,6 +226,9 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         },
         media: true,
         agent_info: true,
+        // Phase B: typed agent columns so dbListingToPublicDTO resolves office TYPED-FIRST
+        // (otherwise this public agent-page surface silently always falls back to agent_info JSON).
+        ...AGENT_TYPED_SELECT,
         idx_display_yn: true,
         internet_entire_listing_display_yn: true,
         internet_address_display_yn: true,
