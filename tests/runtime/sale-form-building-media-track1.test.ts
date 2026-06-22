@@ -163,18 +163,26 @@ describe('Track 1 media — keyed manager never stranded behind legacy preview',
     // media-order PATCH resolves only listing_id, so tiles must carry the
     // canonical id the GET echoes — never the numeric DB id used as a fallback.
     expect(fn).toMatch(/var actionId\s*=\s*String\(\(data && data\.listing_id\)\s*\|\|\s*listingId\s*\|\|\s*''\)/);
-    expect(fn).toMatch(/_renderMediaTile\(photoContainer, m, idx, actionId\)/);
-    expect(fn).toMatch(/_renderMediaTile\(floorContainer, m, idx, actionId\)/);
+    // P1: tiles are painted via the lane renderer (CRM lane + locked feed lane);
+    // actionId is threaded to _renderMediaLane for BOTH the photo and floor
+    // containers, which passes it on to each tile's action handlers.
+    expect(fn).toMatch(/_renderMediaLane\(photoContainer,[\s\S]*?actionId,/);
+    expect(fn).toMatch(/_renderMediaLane\(floorContainer,[\s\S]*?actionId,/);
     // actionId must NEVER fall back to the numeric fallbackId for actions, and
     // the retry must NOT rebind listingId to the numeric id.
     expect(fn).not.toMatch(/actionId\s*=[^;]*fallbackId/);
     expect(fn).not.toMatch(/listingId\s*=\s*fallbackId/);
   });
 
-  it('legacy-preview reorder also prefers the canonical listing_id (not the numeric DB id)', () => {
-    // The legacy fallback block's drag-reorder must hit /SL-0004/media-order too.
-    expect(formHtml).toMatch(/var editId = _saleEditListingId \|\| _saleEditDbId;/);
-    expect(formHtml).not.toMatch(/var editId = _saleEditDbId \|\| _saleEditListingId;/);
+  it('legacy positional preview removed; keyed reorder threads the canonical listingId', () => {
+    // P1 removed the legacy JSON positional preview (and its fragile regex
+    // reorder). The keyed manager is now the single path; its drag-reorder must
+    // persist using the canonical listingId threaded from renderServerMediaRows'
+    // actionId — never the numeric DB id.
+    expect(formHtml).not.toMatch(/var editId = _saleEditListingId \|\| _saleEditDbId;/); // legacy block gone
+    expect(formHtml).not.toMatch(/data-media-idx/); // legacy positional tiles gone
+    const drop = extractFn(formHtml, '_onMediaRowDrop');
+    expect(drop).toMatch(/_persistMediaRowOrder\(listingId,/); // canonical id threaded through
   });
 
   it('the edit-load call site passes the numeric DB id as the fallback', () => {
@@ -202,14 +210,29 @@ describe('Track 1 media — keyed manager never stranded behind legacy preview',
 
 describe('Track 1 media — behavioral: canonical id flows to tiles via a numeric-id session', () => {
   it('a numeric /crm/sale-listing?id=308773 session binds tiles to canonical SL-0004, never 308773', async () => {
-    const src = `${extractFn(formHtml, '_fetchListingMedia')}\n${extractFn(formHtml, 'renderServerMediaRows')}`;
+    // P1: render flows renderServerMediaRows → _renderMediaLane → _renderMediaTile,
+    // so the behavioral runner injects the real lane helpers and mocks only the
+    // leaf _renderMediaTile to capture the listingId each tile is bound to.
+    const src = [
+      extractFn(formHtml, '_isCrmMediaKey'),
+      extractFn(formHtml, '_refreshSalePhotoCount'),
+      extractFn(formHtml, '_renderMediaLane'),
+      extractFn(formHtml, '_fetchListingMedia'),
+      extractFn(formHtml, 'renderServerMediaRows'),
+    ].join('\n');
     const captured: string[] = [];
+    const stubEl = () => ({
+      innerHTML: '', className: '',
+      setAttribute() {}, appendChild() {},
+      querySelectorAll: () => ({ length: 0 }),
+    });
     const fakeDoc = {
       getElementById: (id: string) => {
-        if (id === 'salePhotoPreview' || id === 'saleFloorplanPreview') return { innerHTML: '' };
+        if (id === 'salePhotoPreview' || id === 'saleFloorplanPreview') return stubEl();
         if (id === 'salePhotoCount') return { textContent: '' };
         return null;
       },
+      createElement: () => stubEl(), // feed-lane header
     };
     // GET always echoes the canonical listing_id even when resolved by numeric id.
     const fetchMock = async (_url: string) => ({
