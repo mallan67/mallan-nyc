@@ -103,6 +103,8 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/listing/pricing-calc.js"></script>
+<script src="js/listing/dom-calc.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -678,8 +680,8 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
-                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount">
-                    <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount" oninput="syncTaxMonthlyToAnnual()">
+                    <p class="text-[10px] text-gray-500 mt-1">Stored as annual (×12); syncs with RE Taxes (Annual)</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -7195,23 +7197,43 @@ function selectSaleCommercial(header) {
 // ═══════════════════════════════════════════════════════════
 // TOTAL MONTHLY CALCULATOR
 // ═══════════════════════════════════════════════════════════
+// Total Monthly = Maint/CC + MONTHLY RE tax (NOT the annual amount).
+// Pure math lives in js/listing/pricing-calc.js (window.MallanPricing) so it is
+// unit-tested in node; this wrapper only reads/writes the DOM.
 function calculateSaleTotalMonthly() {
-    const maintCC = parseFloat(document.getElementById('saleMaintCC')?.value) || 0;
-    const reTaxes = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
-    const total = maintCC + reTaxes;
+    const maintCC = document.getElementById('saleMaintCC')?.value;
+    const monthlyTax = document.getElementById('saleTaxMonthly')?.value;
+    const total = MallanPricing.computeTotalMonthly(maintCC, monthlyTax);
     const totalField = document.getElementById('saleTotalMonthly');
     if (totalField) {
         totalField.value = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 }
 
-// Auto-calculate TaxMonthlyAmount from TaxAnnualAmount (Exhibit A #52)
+// Annual is the canonical stored field (TaxAnnualAmount). The monthly box is a
+// UI convenience that converts to/derives from the annual value. These two
+// helpers keep the boxes in sync. Setting .value programmatically does NOT fire
+// 'input', so there is no feedback loop between them.
+
+// RE Taxes (Annual) changed → derive monthly for display.
 function autoCalcTaxMonthly() {
     const monthlyField = document.getElementById('saleTaxMonthly');
-    if (!monthlyField || monthlyField.value) return; // Don't overwrite manual entry
-    const annual = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
-    if (annual > 0) {
-        monthlyField.value = (annual / 12).toFixed(2);
+    const annual = document.getElementById('saleRETaxes')?.value;
+    if (monthlyField) {
+        const monthly = MallanPricing.annualTaxToMonthly(annual);
+        monthlyField.value = monthly > 0 ? String(Math.round(monthly * 100) / 100) : '';
+    }
+    calculateSaleTotalMonthly();
+}
+
+// RE Taxes (Monthly) entered → convert to annual TaxAnnualAmount (the value that
+// actually persists), then recompute Total Monthly.
+function syncTaxMonthlyToAnnual() {
+    const annualField = document.getElementById('saleRETaxes');
+    const monthly = document.getElementById('saleTaxMonthly')?.value;
+    if (annualField) {
+        const annual = MallanPricing.monthlyTaxToAnnual(monthly);
+        annualField.value = annual > 0 ? String(Math.round(annual * 100) / 100) : '';
     }
     calculateSaleTotalMonthly();
 }
@@ -8658,18 +8680,34 @@ function updateStatusTracking() {
         resoEl.textContent = getResoMlsStatus(statusEl.value);
     }
 
-    // Compute DOM (days since first Active)
-    const statusVal = statusEl?.value || '';
-    if (['Active', 'BackOnMarket'].includes(statusVal) && !window._saleFirstActiveDate) {
-        window._saleFirstActiveDate = now;
-    }
-    if (window._saleFirstActiveDate) {
-        const days = Math.floor((now - window._saleFirstActiveDate) / (1000 * 60 * 60 * 24));
-        const domEl = document.getElementById('saleDaysOnMarket');
-        if (domEl) domEl.textContent = days;
-        const cdomEl = document.getElementById('saleCumulativeDaysOnMarket');
-        if (cdomEl) cdomEl.textContent = days;
-    }
+    // UCBA-compliant Days on Market — rendered from the saved/listing seed via
+    // the canonical dom-tracker mirror (js/listing/dom-calc.js). Replaces the
+    // old from-scratch counter that reset to 0 on every edit-load.
+    renderSaleDom();
+}
+
+// Render the DOM / Cumulative-DOM stat cards from window._saleDomSeed (captured
+// on hydrate from the listing's server-maintained DOM columns) combined with the
+// live form status + OnMarketDate. Pure compliance math lives in dom-calc.js.
+function renderSaleDom() {
+    if (typeof MallanDom === 'undefined') return;
+    const seed = window._saleDomSeed || {};
+    const statusEl = document.getElementById('saleStatus');
+    const dateListedEl = document.getElementById('saleDateListed');
+    const fields = {
+        status: statusEl ? statusEl.value : seed.status,
+        permissions: seed.permissions,
+        status_changed_at: seed.status_changed_at,
+        first_active_date: seed.first_active_date,
+        on_market_date: (dateListedEl && dateListedEl.value) ? dateListedEl.value : seed.on_market_date,
+        days_on_market: seed.days_on_market,
+        cumulative_days_on_market: seed.cumulative_days_on_market,
+    };
+    const dom = MallanDom.resolveEditorDom(fields);
+    const domEl = document.getElementById('saleDaysOnMarket');
+    if (domEl) domEl.textContent = dom.days;
+    const cdomEl = document.getElementById('saleCumulativeDaysOnMarket');
+    if (cdomEl) cdomEl.textContent = dom.cumulative;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -8755,7 +8793,8 @@ function updateSalePreview() {
     setText('salePreviewPrice', fmtPrice(val('salePrice')));
     const maintVal = parseFloat(val('saleMaintCC')) || 0;
     setText('salePreviewMaint', maintVal > 0 ? '$' + maintVal.toLocaleString() + '/mo' : '--');
-    const taxVal = parseFloat(val('saleRETaxes')) || 0;
+    // Preview labels taxes "/mo" — read the MONTHLY box, not the annual one.
+    const taxVal = parseFloat(val('saleTaxMonthly')) || 0;
     setText('salePreviewTaxes', taxVal > 0 ? '$' + taxVal.toLocaleString() + '/mo' : '--');
 
     // Address
@@ -9650,6 +9689,26 @@ function _populateSaleFormFromApi(listing) {
         }
     });
 
+    // ── RE Taxes: derive the (non-persisted) monthly box from the loaded annual
+    // TaxAnnualAmount, and recompute Total Monthly. Programmatic setVal above
+    // does not fire 'input', so the monthly mirror + total must be seeded here.
+    if (typeof autoCalcTaxMonthly === 'function') autoCalcTaxMonthly();
+
+    // ── Days on Market: seed the stat cards from the listing's server-maintained
+    // DOM columns (UCBA-compliant; written by lib/compliance/dom-tracker.ts on
+    // status transitions) plus OnMarketDate, then render via the canonical mirror.
+    // Fixes the old counter that reset to 0 on every edit-load.
+    window._saleDomSeed = {
+        status: listing.status,
+        permissions: listing.permissions,
+        status_changed_at: listing.status_changed_at,
+        first_active_date: listing.first_active_date,
+        on_market_date: raw.OnMarketDate || null,
+        days_on_market: listing.days_on_market,
+        cumulative_days_on_market: listing.cumulative_days_on_market,
+    };
+    if (typeof renderSaleDom === 'function') renderSaleDom();
+
     // ── Neighborhood select — dynamic-option restore (2026-05-29 hotfix) ──
     // The generic SALE_FIELD_MAP setVal above silently no-ops when the saved
     // SubdivisionName isn't a preloaded <option> (Cotality options load async;
@@ -10372,11 +10431,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (el) el.addEventListener('change', function() { generateListingUrl('sale'); });
     });
 
-    // Total Monthly calculation
+    // Total Monthly calculation. Maint/CC recomputes the total directly; the RE
+    // Taxes (Annual) input is wired inline (oninput="autoCalcTaxMonthly()") and
+    // the RE Taxes (Monthly) input inline (oninput="syncTaxMonthlyToAnnual()"),
+    // both of which call calculateSaleTotalMonthly() themselves.
     const maintCC = document.getElementById('saleMaintCC');
-    const reTaxes = document.getElementById('saleRETaxes');
     if (maintCC) maintCC.addEventListener('input', calculateSaleTotalMonthly);
-    if (reTaxes) reTaxes.addEventListener('input', calculateSaleTotalMonthly);
 
     // Status change handler
     const statusSelect = document.getElementById('saleStatus');
