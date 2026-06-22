@@ -261,6 +261,8 @@ __pycache__/
 
 # Local/operator scratch files
 scripts/__*
+!scripts/__tests__/
+!scripts/__tests__/**
 __pw-*/
 __pw-review*/
 .playwright-mcp/
