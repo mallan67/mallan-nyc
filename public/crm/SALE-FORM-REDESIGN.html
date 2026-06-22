@@ -167,6 +167,9 @@ body { font-family: Manrope, sans-serif; }
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
         </div>
         <div class="flex items-center gap-2">
+            <button onclick="refreshSaleListing()" title="Reload this listing's saved data and photos from the CRM" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
+                <i class="fas fa-sync-alt text-gray-900"></i> <span class="font-semibold text-gray-900">Refresh</span>
+            </button>
             <button onclick="showSaleMediaDocs()" class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-medium transition">
                 <i class="fas fa-images text-gray-900"></i> <span class="font-semibold text-gray-900">Media</span>
             </button>
@@ -176,8 +179,8 @@ body { font-family: Manrope, sans-serif; }
             <button onclick="manualSaveDraft('sale')" class="px-4 py-1.5 bg-brand-gold text-white rounded-lg text-xs font-semibold hover:opacity-90 transition">
                 <i class="fas fa-save mr-1"></i> Save Draft
             </button>
-            <button onclick="submitSalesListing()" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
-                Submit
+            <button onclick="publishSaleListing()" title="Validate, save, and set this listing Active (live on mallan.nyc + your agent page)" class="px-4 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition">
+                <i class="fas fa-bullhorn mr-1"></i> Publish
             </button>
             <button onclick="cancelSaleForm()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs hover:bg-gray-50 transition">
                 Cancel
@@ -3916,6 +3919,13 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
                 </div>
+                <!-- Media manager legend -->
+                <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-500">
+                    <span><i class="fas fa-arrows-alt text-gray-400 mr-1"></i>Drag a photo to reorder</span>
+                    <span><span class="inline-block bg-[#B8860B] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">★ COVER</span> = hero photo (hover a photo → “☆ Set cover”)</span>
+                    <span><i class="fas fa-lock text-gray-400 mr-1"></i>MLS-feed photos are locked (order synced from Cotality)</span>
+                    <span><i class="fas fa-times text-red-400 mr-1"></i>Hover → × to remove your photo</span>
+                </div>
                 <!-- RESO ImageOf category selector (shown per photo in preview) -->
                 <div id="salePhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
 
@@ -6770,6 +6780,10 @@ function saveSaleMedia() {
     showToast('Uploading ' + pending.length + ' file(s)...', 'info');
     uploadPendingMedia(editId).then(function(result) {
         showToast(result.uploaded + ' uploaded' + (result.failed > 0 ? ', ' + result.failed + ' failed' : ''), result.failed > 0 ? 'warning' : 'success');
+        // Drop the local previews and re-render the authoritative keyed manager so
+        // the just-uploaded photos (cover/reorder/delete-ready) appear immediately.
+        _pendingMediaFiles = _pendingMediaFiles.filter(function(m) { return !m.uploaded; });
+        renderServerMediaRows(window._saleEditListingId || String(editId), String(editId));
     });
 }
 
@@ -7752,6 +7766,67 @@ function collectSaleFormData() {
     }
 
     return data;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PUBLISH / SET ACTIVE — explicit, confirmed go-live action.
+// Draft stays the default; a listing can only go public through this button.
+// Reuses submitSalesListing()'s full validation + save + media upload + the
+// Draft→Active server transition, and adds a Featured-photo gate + confirms so
+// nothing is exposed by accident.
+// ═══════════════════════════════════════════════════════════
+function publishSaleListing() {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.isReady) {
+        showToast('Still loading your account — please try again in a moment.', 'warning');
+        return;
+    }
+    // Featured eligibility needs >= 1 usable photo: count queued uploads + saved
+    // keyed photos. Without one, the listing can still hit the agent page, so warn
+    // (informed consent) rather than hard-block.
+    var queued = _pendingMediaFiles.filter(function (m) { return m.type === 'photo' && !m._removed && !m.uploaded; }).length;
+    var savedKeyed = document.querySelectorAll('#salePhotoPreview [data-media-key]').length;
+    if ((queued + savedKeyed) === 0) {
+        if (!confirm('This listing has no photos yet.\n\nIt can still go live on your agent page, but it will NOT appear in the homepage Featured section until it has at least one photo.\n\nPublish without a photo?')) return;
+    }
+    if (!confirm('Publish this listing LIVE?\n\nIt will become Active and publicly visible on mallan.nyc and your agent page.\n(Required REBNY fields are validated first; if any are missing the publish is stopped.)')) return;
+    // Drive the proven submit path: set the workflow status to Active, sync the
+    // dependent status UI, then submit (validates required fields, saves, uploads
+    // queued media, and transitions Draft → Active server-side via /status).
+    var statusEl = document.getElementById('saleStatus');
+    if (statusEl) {
+        statusEl.value = 'Active';
+        if (typeof validateStatusChange === 'function') validateStatusChange('sale');
+        if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
+        if (typeof renderSaleDom === 'function') renderSaleDom();
+    }
+    submitSalesListing();
+}
+
+// ═══════════════════════════════════════════════════════════
+// REFRESH — reload the saved listing + photos from the CRM. Does NOT re-pull
+// Cotality/MLS (building re-pull stays a separate Building-modal action). Warns
+// first because unsaved form edits are replaced by the last saved version.
+// ═══════════════════════════════════════════════════════════
+function refreshSaleListing() {
+    var id = window._saleEditDbId || window._saleEditListingId;
+    if (!id) { showToast('Nothing to refresh yet — save the listing first.', 'info'); return; }
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.isReady) {
+        showToast('Still loading your account — please try again in a moment.', 'warning');
+        return;
+    }
+    if (!confirm('Reload this listing from the CRM?\n\nAny unsaved changes in the form will be replaced with the last saved version.\n(This does NOT re-pull Cotality/MLS data.)')) return;
+    showToast('Refreshing…', 'info');
+    MallanAPI.listings.get(id).then(function (listing) {
+        if (!listing || listing.error) {
+            showToast('Could not refresh: ' + ((listing && listing.error) || 'listing not found'), 'error');
+            return;
+        }
+        // Re-hydrates all fields AND re-renders the keyed media manager.
+        _populateSaleFormFromApi(listing);
+        showToast('Listing refreshed', 'success');
+    }).catch(function (err) {
+        showToast('Could not refresh: ' + ((err && err.message) || 'network error'), 'error');
+    });
 }
 
 function submitSalesListing() {
@@ -9903,73 +9978,13 @@ function _populateSaleFormFromApi(listing) {
         if (typeof toggleSaleAuctionFields === 'function') toggleSaleAuctionFields();
     }
 
-    // ── Render existing media previews ──
-    if (media && media.length > 0) {
-        var photoContainer = document.getElementById('salePhotoPreview');
-        var floorContainer = document.getElementById('saleFloorplanPreview');
-        var photoCount = 0;
-        media.forEach(function(m, idx) {
-            var url = m.heroUrl || m.url || m.thumbUrl || '';
-            if (!url) return;
-            var isFloor = (m.type === 'floorplan' || m.type === 'FloorPlan' || (m.caption && m.caption.toLowerCase().includes('floor')));
-            var container = isFloor ? floorContainer : photoContainer;
-            if (!container) return;
-            var div = document.createElement('div');
-            div.className = 'relative group';
-            div.draggable = true;
-            div.setAttribute('data-media-idx', String(idx));
-            div.ondragstart = function(e) { e.dataTransfer.setData('text/plain', String(idx)); };
-            div.ondragover = function(e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
-            div.ondragleave = function() { this.style.outline = ''; };
-            div.ondrop = function(e) {
-                e.preventDefault(); this.style.outline = '';
-                var fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                var toIdx = parseInt(this.getAttribute('data-media-idx'));
-                if (isNaN(fromIdx) || isNaN(toIdx) || fromIdx === toIdx) return;
-                var items = Array.from(container.children);
-                var fromEl = items[fromIdx];
-                var toEl = items[toIdx];
-                if (fromEl && toEl) {
-                    container.insertBefore(fromEl, fromIdx < toIdx ? toEl.nextSibling : toEl);
-                    // Re-index and persist order to server
-                    var reordered = Array.from(container.children);
-                    reordered.forEach(function(el, i) { el.setAttribute('data-media-idx', String(i)); el.querySelector('.group-hover\\:opacity-100')?.firstChild && (el.querySelector('.fa-grip-vertical')?.parentNode && (el.querySelector('.fa-grip-vertical').parentNode.innerHTML = '<i class="fas fa-grip-vertical"></i> ' + (i + 1))); });
-                    var orderedIds = reordered.map(function(el) { return el.querySelector('button[onclick*="removeServerMedia"]')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || ''; }).filter(Boolean);
-                    // media-order resolves ONLY listing_id — prefer the canonical
-                    // listing_id (_saleEditListingId, e.g. SL-0004) over the numeric
-                    // DB id so the legacy-preview reorder cannot 404. (Maya #295.)
-                    var editId = _saleEditListingId || _saleEditDbId;
-                    if (editId && orderedIds.length > 0 && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-                        fetch('/api/crm/listings/' + encodeURIComponent(editId) + '/media-order', {
-                            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ordered_media_ids: orderedIds }),
-                            credentials: 'include'
-                        }).then(function(r) {
-                            if (r.ok) {
-                                showToast('Photo order saved', 'success');
-                            } else {
-                                // Surface non-OK status so the user knows the
-                                // visible reorder did NOT persist server-side.
-                                showToast('Photo order NOT saved (HTTP ' + r.status + '). Reload to see actual order.', 'error');
-                            }
-                        }).catch(function(err) {
-                            showToast('Photo order NOT saved: ' + (err && err.message ? err.message : 'network error') + '. Reload to see actual order.', 'error');
-                        });
-                    }
-                }
-            };
-            var mediaId = m.id || m.media_id || m.MediaKey || '';
-            div.innerHTML = '<img src="' + url + '" class="w-full h-24 object-cover rounded-lg border">' +
-                '<div class="absolute top-0.5 left-0.5 bg-black/50 text-white text-[9px] px-1 rounded opacity-0 group-hover:opacity-100 cursor-grab"><i class="fas fa-grip-vertical"></i> ' + (idx + 1) + '</div>' +
-                '<button type="button" onclick="removeServerMedia(this,\'' + mediaId + '\')" class="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>' +
-                '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
-            container.appendChild(div);
-            if (!isFloor) photoCount++;
-        });
-        var countEl = document.getElementById('salePhotoCount');
-        if (countEl) countEl.textContent = photoCount + ' / 100 uploaded';
-    }
-
+    // ── Media: single authoritative keyed manager ──
+    // The legacy JSON-array preview path was REMOVED 2026-06-22 (P1 packet) to end
+    // the dual-render conflict: it scraped media ids via fragile regex on onclick
+    // attrs and was silently overwritten by renderServerMediaRows() anyway. The
+    // keyed manager below is now the ONE render path; the GET /media route lazily
+    // imports any legacy listing.media JSON into keyed listing_media rows, so no
+    // saved media is lost.
     // ── Render Cotality-shaped media rows (media_key-aware: cover, reorder, delete) ──
     // Replaces the legacy JSON preview above once listing_media rows exist (the
     // GET endpoint lazily imports any legacy JSON into rows, so this is the
@@ -10189,16 +10204,35 @@ function handleSaleMediaUpload(event, mediaType) {
     event.target.value = '';
 }
 
-function removeServerMedia(btn, mediaId) {
-    if (!confirm('Remove this photo?')) return;
-    var div = btn.closest('.group');
-    if (div) div.remove();
-    if (mediaId && _saleEditListingId) {
-        fetch('/api/crm/listings/' + encodeURIComponent(_saleEditListingId) + '/media/' + encodeURIComponent(mediaId), {
-            method: 'DELETE', credentials: 'same-origin'
-        }).catch(function() {});
+// Delete a saved photo — the tile is removed ONLY after the backend confirms the
+// soft-delete. On failure the tile stays and the agent is told it's still saved.
+async function removeServerMedia(btn, mediaId) {
+    if (!confirm('Remove this photo? This cannot be undone from here.')) return;
+    var div = btn ? btn.closest('.group') : null;
+    // Unsaved/local tile (no media key or no saved listing) → just drop from DOM.
+    if (!mediaId || !_saleEditListingId) {
+        if (div) div.remove();
+        _refreshSalePhotoCount();
+        return;
     }
-    showToast('Photo removed', 'success');
+    if (btn) btn.disabled = true;
+    try {
+        var resp = await fetch('/api/crm/listings/' + encodeURIComponent(_saleEditListingId) + '/media/' + encodeURIComponent(mediaId), {
+            method: 'DELETE', credentials: 'same-origin'
+        });
+        var body = await resp.json().catch(function () { return {}; });
+        if (resp.ok && body && body.deleted) {
+            if (div) div.remove();
+            _refreshSalePhotoCount();
+            showToast('Photo removed', 'success');
+        } else {
+            if (btn) btn.disabled = false;
+            showToast('Could not remove photo: ' + ((body && body.error) || ('HTTP ' + resp.status)) + '. It is still saved.', 'error');
+        }
+    } catch (e) {
+        if (btn) btn.disabled = false;
+        showToast('Could not remove photo: ' + ((e && e.message) || 'network error') + '. It is still saved.', 'error');
+    }
 }
 
 function removePendingMedia(index, btn) {
@@ -10312,40 +10346,82 @@ async function renderServerMediaRows(listingId, fallbackId) {
     // ONLY to the original (already-canonical) first arg, never to the numeric
     // fallbackId. (Codex review on #295 + Maya directive.)
     var actionId = String((data && data.listing_id) || listingId || '');
-    // Replace the legacy JSON preview with the authoritative keyed rows.
+    // Single authoritative render: clear then paint keyed rows in two lanes —
+    // CRM-uploaded (reorderable/deletable) then, only if present, MLS feed photos
+    // (locked: order is feed-owned from Cotality; not reorderable/deletable here).
     if (photoContainer) photoContainer.innerHTML = '';
     if (floorContainer) floorContainer.innerHTML = '';
     var photos = data.media.filter(function (m) { return m.media_type !== 'FloorPlan'; });
     var floors = data.media.filter(function (m) { return m.media_type === 'FloorPlan'; });
-    photos.forEach(function (m, idx) { _renderMediaTile(photoContainer, m, idx, actionId); });
-    floors.forEach(function (m, idx) { _renderMediaTile(floorContainer, m, idx, actionId); });
-    var countEl = document.getElementById('salePhotoCount');
-    if (countEl) countEl.textContent = photos.length + ' / 100 uploaded';
+    if (photoContainer) {
+        _renderMediaLane(photoContainer, photos.filter(function (m) { return _isCrmMediaKey(m.media_key); }), actionId, 'crm');
+        _renderMediaLane(photoContainer, photos.filter(function (m) { return !_isCrmMediaKey(m.media_key); }), actionId, 'feed');
+    }
+    if (floorContainer) {
+        _renderMediaLane(floorContainer, floors.filter(function (m) { return _isCrmMediaKey(m.media_key); }), actionId, 'crm');
+        _renderMediaLane(floorContainer, floors.filter(function (m) { return !_isCrmMediaKey(m.media_key); }), actionId, 'feed');
+    }
+    _refreshSalePhotoCount();
 }
 
 function _mediaCssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 
-function _renderMediaTile(container, m, idx, listingId) {
+// CRM-uploaded media keys are content-addressed and prefixed "crm:" (see
+// lib/media/crm-media.ts isCrmMediaKey). Anything else is a Trestle/Cotality
+// feed photo — feed-owned, read-only here.
+function _isCrmMediaKey(key) { return typeof key === 'string' && key.indexOf('crm:') === 0; }
+
+// Recompute the "N / 100 uploaded" badge from whatever photo tiles are present.
+function _refreshSalePhotoCount() {
+    var c = document.getElementById('salePhotoPreview');
+    var countEl = document.getElementById('salePhotoCount');
+    if (c && countEl) countEl.textContent = c.querySelectorAll('[data-media-key]').length + ' / 100 uploaded';
+}
+
+// Render one lane of tiles. The 'feed' lane gets a full-width "locked" header and
+// renders non-interactive tiles; the 'crm' lane renders the reorderable manager.
+function _renderMediaLane(container, items, listingId, lane) {
+    if (!container || !items || !items.length) return;
+    if (lane === 'feed') {
+        var hdr = document.createElement('div');
+        hdr.className = 'col-span-2 sm:col-span-4 flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 mt-3 border-t border-gray-200 pt-2';
+        hdr.innerHTML = '<i class="fas fa-lock text-gray-400"></i> From MLS feed — order is synced from Cotality and locked here';
+        container.appendChild(hdr);
+    }
+    items.forEach(function (m, idx) { _renderMediaTile(container, m, idx, listingId, lane); });
+}
+
+function _renderMediaTile(container, m, idx, listingId, lane) {
     if (!container) return;
     var isFloor = (m.media_type === 'FloorPlan');
+    var locked = (lane === 'feed');           // feed-owned photos are read-only
     var div = document.createElement('div');
-    div.className = 'relative group';
+    div.className = 'relative group' + (locked ? ' opacity-90' : '');
     div.setAttribute('data-media-key', m.media_key);
-    if (!isFloor) {
+    if (!isFloor && !locked) {
         div.draggable = true;
         div.ondragstart = function (e) { e.dataTransfer.setData('text/plain', m.media_key); };
         div.ondragover = function (e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
         div.ondragleave = function () { this.style.outline = ''; };
         div.ondrop = function (e) { e.preventDefault(); this.style.outline = ''; _onMediaRowDrop(e, this, listingId, container); };
     }
-    var topLeft = m.preferred_photo_yn
-        ? '<div class="absolute top-1 left-1 bg-[#B8860B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">★ COVER</div>'
-        : (isFloor ? '' : '<button type="button" onclick="setMainPhoto(\'' + listingId + '\',\'' + m.media_key + '\')" class="absolute top-1 left-1 bg-white/90 text-[#7a6a3a] text-[9px] font-semibold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow">☆ Set cover</button>');
+    var topLeft;
+    if (locked) {
+        topLeft = '<div class="absolute top-1 left-1 bg-gray-700/85 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow"><i class="fas fa-lock"></i> MLS</div>';
+    } else if (m.preferred_photo_yn) {
+        topLeft = '<div class="absolute top-1 left-1 bg-[#B8860B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">★ COVER</div>';
+    } else if (isFloor) {
+        topLeft = '';
+    } else {
+        topLeft = '<button type="button" onclick="setMainPhoto(\'' + listingId + '\',\'' + m.media_key + '\')" class="absolute top-1 left-1 bg-white/90 text-[#7a6a3a] text-[9px] font-semibold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow">☆ Set cover</button>';
+    }
+    var delBtn = locked ? '' :
+        '<button type="button" onclick="removeServerMedia(this,\'' + m.media_key + '\')" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>';
+    var label = isFloor ? 'Floor Plan' : (locked ? 'MLS photo' : 'Photo ' + (idx + 1));
     div.innerHTML =
-        '<img src="' + m.url + '" class="w-full h-24 object-cover rounded-lg border">' +
-        topLeft +
-        '<button type="button" onclick="removeServerMedia(this,\'' + m.media_key + '\')" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>' +
-        '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo ' + (idx + 1)) + '</p>';
+        '<img src="' + m.url + '" class="w-full h-24 object-cover rounded-lg border' + (locked ? ' border-gray-300' : '') + '">' +
+        topLeft + delBtn +
+        '<p class="text-[10px] text-gray-500 truncate mt-1">' + label + '</p>';
     container.appendChild(div);
 }
 
@@ -10356,18 +10432,42 @@ function _onMediaRowDrop(e, dropEl, listingId, container) {
     var items = Array.from(container.children);
     if (items.indexOf(fromEl) < items.indexOf(dropEl)) container.insertBefore(fromEl, dropEl.nextSibling);
     else container.insertBefore(fromEl, dropEl);
-    var orderedKeys = Array.from(container.children).map(function (el) { return el.getAttribute('data-media-key'); }).filter(Boolean);
+    // Persist ONLY CRM-uploaded keys in their new DOM order. Feed tiles (and the
+    // lane header) are excluded so we never send feed keys the server will reject.
+    var orderedKeys = Array.from(container.children)
+        .map(function (el) { return el.getAttribute('data-media-key'); })
+        .filter(function (k) { return _isCrmMediaKey(k); });
     _persistMediaRowOrder(listingId, orderedKeys);
 }
 
+// Persist photo order — success is shown ONLY after the backend confirms how
+// many rows it actually updated (rows_updated), never on bare HTTP 200.
 function _persistMediaRowOrder(listingId, orderedKeys) {
+    if (!orderedKeys || !orderedKeys.length) return;
+    var httpStatus = 0;
     fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media-order', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ordered_media_ids: orderedKeys }), credentials: 'include'
     }).then(function (r) {
-        if (r.ok) showToast('Photo order saved', 'success');
-        else showToast('Photo order NOT saved (HTTP ' + r.status + '). Reload to see actual order.', 'error');
-    }).catch(function (err) { showToast('Photo order NOT saved: ' + ((err && err.message) || 'network error'), 'error'); });
+        httpStatus = r.status;
+        return r.json().catch(function () { return {}; });
+    }).then(function (body) {
+        var rows = (body && typeof body.rows_updated === 'number') ? body.rows_updated : -1;
+        var skipped = (body && body.skipped_trestle_keys && body.skipped_trestle_keys.length) || 0;
+        if (httpStatus >= 200 && httpStatus < 300 && rows > 0) {
+            var msg = 'Photo order saved (' + rows + ' photo' + (rows === 1 ? '' : 's') + ')';
+            if (skipped) msg += ' — ' + skipped + ' MLS feed photo(s) kept in feed order';
+            showToast(msg, 'success');
+        } else if (httpStatus >= 200 && httpStatus < 300 && rows === 0) {
+            showToast('No order saved — these photos are MLS feed-owned and cannot be reordered.', 'warning');
+        } else if (httpStatus === 422) {
+            showToast((body && body.error) || 'MLS feed photos cannot be reordered.', 'error');
+        } else {
+            showToast('Photo order NOT saved (HTTP ' + httpStatus + '). Reload to see the actual order.', 'error');
+        }
+    }).catch(function (err) {
+        showToast('Photo order NOT saved: ' + ((err && err.message) || 'network error') + '. Reload to retry.', 'error');
+    });
 }
 
 function setMainPhoto(listingId, mediaKey) {
