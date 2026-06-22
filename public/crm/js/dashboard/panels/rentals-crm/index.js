@@ -1362,7 +1362,7 @@ var RentalsCRM = (function () {
   }
 
   function _createListing() { window.open('/crm/RENTAL-FORM-REDESIGN.html', '_blank'); }
-  function _viewListing() { var cl = _s.ws.client; if (cl && cl.active_rental_listing_id) window.open('/crm/RENTAL-FORM-WITH-TOOLS.html?id=' + cl.active_rental_listing_id, '_blank'); }
+  function _viewListing() { var cl = _s.ws.client; if (cl && cl.active_rental_listing_id) window.open('/crm/RENTAL-FORM-REDESIGN.html?id=' + cl.active_rental_listing_id, '_blank'); }
 
   function _uploadDoc(clientId) {
     var body = '<div class="space-y-3">' +
