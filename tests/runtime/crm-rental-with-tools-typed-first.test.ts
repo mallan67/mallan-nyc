@@ -2,19 +2,19 @@
 /**
  * Item A / Option B (board #415) — clear the Phase D `agent_info` blocker for the rentals
  * "View Listing" path WITHOUT routing into the broken REDESIGN edit hydration (23 missing
- * controls — tracked separately as A3).
+ * controls — tracked as A3).
  *
- * The reachable rentals dashboard "View Listing" button opens the WORKING
- * `RENTAL-FORM-WITH-TOOLS.html` viewer. Its agent/company hydration is now TYPED-FIRST
- * (typed column → agent_info → '') so that once Phase D drops `agent_info`, the reachable
- * viewer still renders agent/company from the typed columns.
+ * The reachable rentals "View Listing" button opens the WORKING `RENTAL-FORM-WITH-TOOLS.html`
+ * viewer. `loadRentalListingData()` renders the visible agent field (`rentalListingAgentSearch`)
+ * from the object key **`d.listingAgentName`** (line ~4530) and the company courtesy text from
+ * **`d.listingCompany`** (line ~4610). So the viewer object must populate those RENDERED keys
+ * typed-first — populating the unused `listingAgent` key is a no-op (Codex #423).
  *
- * The viewer only consumes agent NAME + OFFICE from the listing (no email/phone read), so
- * `list_agent_full_name` + `list_office_name` are the two typed columns that matter here.
+ * `apiData` is the full CRM listing row (GET /api/crm/listings/[id] → findUnique with no select
+ * → typed columns present). Fallback stays safe: typed → agent_info → ''. The viewer reads no
+ * agent email/phone from agent_info, so name+office are the only agent_info reads.
  *
- * Static source assertions: the viewer + panel JS are served as-is (NOT inlined into
- * index-built.html), so the source file IS the served file. `apiData` is the full CRM listing
- * row (GET /api/crm/listings/[id] → findUnique with no select → typed columns present).
+ * Static source assertions (viewer + panel JS are served as-is, not inlined into index-built.html).
  */
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -24,38 +24,46 @@ const withTools = readFileSync(join(CRM, "RENTAL-FORM-WITH-TOOLS.html"), "utf8")
 const rentalsPanel = readFileSync(join(CRM, "js", "dashboard", "panels", "rentals-crm", "index.js"), "utf8");
 
 describe("Item A/B — reachable rentals 'View Listing' still opens the working WITH-TOOLS viewer", () => {
-  it("_viewListing opens /crm/RENTAL-FORM-WITH-TOOLS.html?id= (route NOT repointed to broken REDESIGN)", () => {
+  it("_viewListing opens WITH-TOOLS (route NOT repointed to the broken REDESIGN)", () => {
     expect(rentalsPanel).toContain("/crm/RENTAL-FORM-WITH-TOOLS.html?id=");
     expect(rentalsPanel).not.toContain("RENTAL-FORM-REDESIGN.html?id=");
   });
 });
 
-describe("Item A/B — WITH-TOOLS hydrates agent/company TYPED-FIRST", () => {
-  it("listingAgent reads list_agent_full_name before agent_info.ListAgentFullName", () => {
-    expect(withTools).toContain(
-      "listingAgent: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName",
-    );
+describe("Item A/B — viewer object populates the RENDERED keys typed-first", () => {
+  it("the visible agent field is rendered from d.listingAgentName (the rendered key)", () => {
+    expect(withTools).toContain("viewerSetVal('rentalListingAgentSearch', d.listingAgentName)");
   });
 
-  it("listingCompany reads list_office_name before agent_info.ListOfficeName", () => {
-    expect(withTools).toContain(
-      "listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName",
-    );
-  });
-
-  it("NO bare agent_info-first agent/company read remains", () => {
-    expect(withTools).not.toMatch(/listing(?:Agent|Company):\s*\(apiData\.agent_info/);
-  });
-
-  it("both viewer blocks (2 fields x 2) hydrate typed-first AND keep the safe '' fallback", () => {
-    const typedFirst =
+  it("object sets listingAgentName typed-first in BOTH viewer blocks", () => {
+    const m =
       withTools.match(
-        /listing(?:Agent|Company): apiData\.list_\w+ \|\| \(apiData\.agent_info \|\| \{\}\)\.\w+ \|\| ''/g,
+        /listingAgentName: apiData\.list_agent_full_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListAgentFullName \|\| ''/g,
       ) || [];
-    expect(typedFirst.length).toBe(4);
+    expect(m.length).toBe(2);
   });
 
-  it("viewer does not read agent email/phone from agent_info (nothing else to make typed-first)", () => {
+  // Regression guard for Codex #423: the prior patch wrote the UNUSED `listingAgent` key,
+  // which the renderer never reads — a no-op that left the agent field blank. This must stay gone.
+  it("does NOT write the unused listingAgent key (the previous no-op)", () => {
+    expect(withTools).not.toContain("listingAgent: apiData");
+    expect(withTools).not.toMatch(/listingAgent:\s*\(apiData\.agent_info/);
+  });
+
+  it("company hydrates typed-first via the rendered d.listingCompany key (both blocks)", () => {
+    expect(withTools).toContain("courtesyCompany.textContent = d.listingCompany");
+    const m =
+      withTools.match(
+        /listingCompany: apiData\.list_office_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListOfficeName \|\| ''/g,
+      ) || [];
+    expect(m.length).toBe(2);
+  });
+
+  it("no rendered agent/company key is agent_info-first", () => {
+    expect(withTools).not.toMatch(/listing(?:AgentName|Company):\s*\(apiData\.agent_info/);
+  });
+
+  it("viewer reads no agent email/phone from agent_info (nothing else to convert)", () => {
     expect(withTools).not.toMatch(/agent_info[^;]*ListAgent(?:Email|DirectPhone)/);
   });
 });
