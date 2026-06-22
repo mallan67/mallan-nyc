@@ -64,6 +64,31 @@ describe('SALE-FORM-REDESIGN.html — save idempotency (no duplicate listings)',
     expect(body).toMatch(/function publishSaleListing\(\) \{\s*if \(_saleSaveBusy\(\)\) return;/);
   });
 
+  it('behavioral: the REAL _saleSaveBusy latch blocks a concurrent second save → one create', () => {
+    // Extract the shipped guard helper and drive it through the EXACT sequence
+    // every save path uses: `if (_saleSaveBusy()) return; _saleSaveInFlight = true;`.
+    // The flag is set synchronously BEFORE any await, so on single-threaded JS two
+    // rapid clicks (before the async first save settles) yield exactly ONE create.
+    const startIdx = html.indexOf('function _saleSaveBusy()');
+    const busyFn = html.slice(startIdx, html.indexOf('\n}', startIdx) + 2);
+    const runner = new Function('showToast', `
+      var _saleSaveInFlight = false;
+      ${busyFn}
+      var creates = 0;
+      function attemptSave() {
+        if (_saleSaveBusy()) return;   // real shipped guard
+        _saleSaveInFlight = true;      // set synchronously, exactly as the form does
+        creates++;                     // models reaching MallanAPI.listings.create()
+      }
+      attemptSave();                   // first click → proceeds
+      attemptSave();                   // second rapid click → must be blocked
+      attemptSave();                   // third rapid click → must be blocked
+      return creates;
+    `);
+    const creates = runner(() => {});
+    expect(creates).toBe(1); // three clicks, ONE create → no duplicate listings
+  });
+
   it('autosave only ever UPDATEs an existing listing (never create)', () => {
     // performAutoSave / autosave path must be gated on _saleEditMode && _saleEditDbId
     // and call update(), so it can never spawn a duplicate.
