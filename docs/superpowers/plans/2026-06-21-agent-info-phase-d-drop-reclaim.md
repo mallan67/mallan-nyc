@@ -132,10 +132,10 @@ WHERE agent_info IS NOT NULL AND agent_info::text NOT IN ('{}','null');
 --     Expect 0 after A6 + Phase C; if > 0 → STOP, A6/backfill repair is the next task.
 WITH d AS (
   SELECT
-    NULLIF(btrim(list_agent_full_name),'')    AS t_name,   COALESCE(NULLIF(btrim(agent_info->>'ListAgentFullName'),''),    NULLIF(btrim(agent_info->>'name'),''))    AS j_name,
-    NULLIF(btrim(list_office_name),'')         AS t_office, COALESCE(NULLIF(btrim(agent_info->>'ListOfficeName'),''),       NULLIF(btrim(agent_info->>'company'),'')) AS j_office,
-    NULLIF(btrim(list_agent_email),'')         AS t_email,  COALESCE(NULLIF(btrim(agent_info->>'ListAgentEmail'),''),       NULLIF(btrim(agent_info->>'email'),''))   AS j_email,
-    NULLIF(btrim(list_agent_direct_phone),'')  AS t_phone,  COALESCE(NULLIF(btrim(agent_info->>'ListAgentDirectPhone'),''), NULLIF(btrim(agent_info->>'phone'),''))  AS j_phone,
+    NULLIF(btrim(list_agent_full_name),'')    AS t_name,   NULLIF(btrim(COALESCE(agent_info->>'ListAgentFullName', agent_info->>'name')), '')    AS j_name,
+    NULLIF(btrim(list_office_name),'')         AS t_office, NULLIF(btrim(COALESCE(agent_info->>'ListOfficeName', agent_info->>'company')), '') AS j_office,
+    NULLIF(btrim(list_agent_email),'')         AS t_email,  NULLIF(btrim(COALESCE(agent_info->>'ListAgentEmail', agent_info->>'email')), '')   AS j_email,
+    NULLIF(btrim(list_agent_direct_phone),'')  AS t_phone,  NULLIF(btrim(COALESCE(agent_info->>'ListAgentDirectPhone', agent_info->>'phone')), '')  AS j_phone,
     NULLIF(btrim(list_office_mls_id),'')       AS t_offmls, NULLIF(btrim(agent_info->>'ListOfficeMlsId'),'')   AS j_offmls,
     NULLIF(btrim(list_agent_mls_id),'')        AS t_agmls,  NULLIF(btrim(agent_info->>'ListAgentMlsId'),'')    AS j_agmls,
     NULLIF(btrim(co_list_office_mls_id),'')    AS t_cooff,  NULLIF(btrim(agent_info->>'CoListOfficeMlsId'),'') AS j_cooff,
