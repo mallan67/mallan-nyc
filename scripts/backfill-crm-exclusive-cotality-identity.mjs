@@ -69,7 +69,7 @@ try {
         { agent_id: { not: null } },
       ],
     },
-    select: { listing_id: true, agent_id: true, agent_info: true, list_agent_full_name: true, list_office_name: true },
+    select: { listing_id: true, agent_id: true, list_agent_full_name: true, list_office_name: true }, // Phase D step 2: agent_info select removed (script retired/fails-fast)
   });
 
   let touched = 0;
