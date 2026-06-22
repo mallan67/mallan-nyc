@@ -50,7 +50,6 @@ export async function GET(req: NextRequest) {
           address: true,
           features: true,
           media: true,
-          agent_info: true,
           // Phase B: typed agent columns so the portal mask resolves office TYPED-FIRST.
           list_office_name: true, list_agent_full_name: true,
           list_agent_email: true, list_agent_direct_phone: true,

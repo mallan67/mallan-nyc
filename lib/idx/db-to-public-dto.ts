@@ -134,7 +134,10 @@ export interface DbListing {
   address: unknown;
   features: unknown;
   media: unknown;
-  agent_info: unknown;
+  // Phase D code-prep: agent_info is OPTIONAL — runtime readers no longer select it
+  // (typed columns are the source of truth; A6 backfill proved typed_gap_rows=0). The
+  // consumer reads `listing.agent_info || {}` (absent-safe), so a dropped column is safe.
+  agent_info?: unknown;
   // Phase B (agent_info normalization): typed agent columns read TYPED-FIRST via
   // resolveListingAgentInfo, with agent_info JSON fallback. Optional so callers that
   // don't yet select them safely fall back to JSON (no regression).

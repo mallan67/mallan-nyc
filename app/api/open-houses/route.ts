@@ -291,7 +291,6 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             property_sub_type: true,
             features: true,
             media: true,
-            agent_info: true,
             // Phase B: typed agent columns so office attribution resolves TYPED-FIRST.
             ...AGENT_TYPED_SELECT,
             // Canonical gate fields — previously omitted, so local open

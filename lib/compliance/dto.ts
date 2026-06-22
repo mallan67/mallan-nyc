@@ -320,7 +320,9 @@ export type PortalListingInput = {
   address: unknown;
   features: unknown;
   media: unknown;
-  agent_info: unknown;
+  // Phase D code-prep: OPTIONAL — runtime readers no longer select agent_info (typed-first;
+  // A6 proved typed_gap_rows=0). Consumer reads `listing.agent_info as …| undefined` (absent-safe).
+  agent_info?: unknown;
   internet_address_display_yn: boolean;
   internet_entire_listing_display_yn?: boolean;
   participant_only: boolean;

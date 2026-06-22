@@ -81,7 +81,6 @@ export async function GET(req: NextRequest) {
         address: true,
         features: true,
         media: true,
-        agent_info: true,
         // Phase B: typed agent columns so the CRM grid hydrates attribution TYPED-FIRST
         // (authenticated surface — PII columns allowed here per spec §4).
         ...AGENT_TYPED_SELECT,
