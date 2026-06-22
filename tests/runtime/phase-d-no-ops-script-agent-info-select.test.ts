@@ -13,6 +13,7 @@
  */
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, basename } from "path";
+import { spawnSync } from "child_process";
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -44,5 +45,30 @@ describe("Phase D code-prep step 2 — no operator-script agent_info: true selec
       expect(audit).toContain(col);
     }
     expect(audit).not.toContain("agent_info: true");
+  });
+});
+
+describe("Phase D — retired backfill-crm script is HARD-DISABLED (Codex #427)", () => {
+  const retired = join(process.cwd(), "scripts", "backfill-crm-exclusive-cotality-identity.mjs");
+
+  it("fails closed (exit 2) even with ALLOW_RETIRED_AGENT_INFO_BACKFILL=1 AND --apply", () => {
+    const res = spawnSync(process.execPath, [retired, "--apply"], {
+      env: { ...process.env, ALLOW_RETIRED_AGENT_INFO_BACKFILL: "1" },
+      encoding: "utf8",
+      cwd: process.cwd(),
+    });
+    expect(res.status).toBe(2);
+    expect(res.stderr).toMatch(/RETIRED.*HARD-DISABLED/s);
+  });
+
+  it("source has NO write path, NO re-enable flag, NO Prisma import, NO agent_info select", () => {
+    const src = readFileSync(retired, "utf8");
+    expect(src).not.toContain("prisma.listing.update");
+    expect(src).not.toContain("ALLOW_RETIRED_AGENT_INFO_BACKFILL");
+    expect(src).not.toContain("process.argv"); // no --apply (or any arg) is processed
+    expect(src).not.toMatch(/PrismaClient/);
+    expect(src).not.toContain("agent_info: true");
+    // It exits unconditionally (no guard around the exit).
+    expect(src).toMatch(/process\.exit\(2\);\s*$/);
   });
 });
