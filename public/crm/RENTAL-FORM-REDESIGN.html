@@ -6921,15 +6921,17 @@ function _populateRentalFormFromApi(listing) {
     // Property type
     setRadio('rentalPropertyType', raw.PropertySubType || listing.property_sub_type || '');
 
-    // Price
-    setVal('rentalListPrice', listing.list_price || raw.ListPrice || '');
+    // Price (rent). A3: real save control is rentalMonthlyRent (collectRentalFormData
+    // reads val('rentalMonthlyRent')); the old rentalListPrice id does not exist.
+    setVal('rentalMonthlyRent', listing.list_price || raw.ListPrice || '');
 
-    // Unit details
+    // Unit details. A3: baths/size/rooms renamed to the real save-read controls
+    // (rentalFullBathrooms / rentalHalfBathrooms / rentalSqFt / rentalTotalRooms).
     setVal('rentalBedrooms', listing.bedrooms_total || raw.BedroomsTotal || '');
-    setVal('rentalBathsFull', listing.bathrooms_full || raw.BathroomsFull || '');
-    setVal('rentalBathsHalf', listing.bathrooms_half || raw.BathroomsHalf || '');
-    setVal('rentalLivingArea', listing.living_area || raw.LivingArea || '');
-    setVal('rentalRooms', features.Rooms || raw.RoomsTotal || '');
+    setVal('rentalFullBathrooms', listing.bathrooms_full || raw.BathroomsFull || '');
+    setVal('rentalHalfBathrooms', listing.bathrooms_half || raw.BathroomsHalf || '');
+    setVal('rentalSqFt', listing.living_area || raw.LivingArea || '');
+    setVal('rentalTotalRooms', features.Rooms || raw.RoomsTotal || '');
 
     // Description
     setVal('rentalDescription', raw.PublicRemarks || '');
@@ -6947,17 +6949,21 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalListingAgentPhone', listing.list_agent_direct_phone || agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '');
     setVal('rentalListingAgentEmail', listing.list_agent_email || agentInfo.ListAgentEmail || raw.ListAgentEmail || '');
 
-    // Co-listing
-    setVal('rentalCoListingAgent', raw.CoListAgentFullName || '');
-    setVal('rentalCoListingCompany', raw.CoListOfficeName || '');
+    // Co-listing — A3: removed. No single co-list text control exists in REDESIGN; co-listing is a
+    // structured component (rentalCoListAgents) and collectRentalFormData reads no rentalCoListing*
+    // control, so the old co-list agent/company hydration targets were phantom writes.
+    // Edit-hydration of co-list via the structured component is a tracked follow-up (A3-followup).
 
-    // Distribution flags
-    setChecked('rentalIdxDisplayYN', listing.idx_display_yn !== false);
-    setChecked('rentalInternetDisplayYN', listing.internet_entire_listing_display_yn !== false);
-    setChecked('rentalInternetAddressYN', listing.internet_address_display_yn !== false);
+    // Distribution flags. A3: real save controls are rentalIDXEntireListingDisplayYN /
+    // rentalInternetEntireListingDisplayYN / rentalInternetAddressDisplayYN (collectRentalFormData
+    // reads checked('rental…DisplayYN')). The old rentalIdx/Internet…YN ids did not exist —
+    // editing+saving an existing rental could otherwise flip these compliance display gates.
+    setChecked('rentalIDXEntireListingDisplayYN', listing.idx_display_yn !== false);
+    setChecked('rentalInternetEntireListingDisplayYN', listing.internet_entire_listing_display_yn !== false);
+    setChecked('rentalInternetAddressDisplayYN', listing.internet_address_display_yn !== false);
 
-    // Dates
-    if (listing.listing_contract_date) setVal('rentalExpirationDate', listing.listing_contract_date.split('T')[0]);
+    // Dates. A3: expiration's real save control is rentalExclusiveExpires (val('rentalExclusiveExpires')).
+    if (listing.listing_contract_date) setVal('rentalExclusiveExpires', listing.listing_contract_date.split('T')[0]);
     if (raw.FirstShowingDate) setVal('rentalFirstShowingDate', raw.FirstShowingDate.split('T')[0]);
     if (raw.AvailabilityDate) setVal('rentalAvailableDate', raw.AvailabilityDate.split('T')[0]);
 
@@ -6991,20 +6997,19 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalAdditionalFeeDescription', raw.AdditionalFeeDescription || '');
     setVal('rentalAdditionalFeeFrequency', raw.AdditionalFeeFrequency || '');
 
-    // Features
-    if (raw.Appliances) setVal('rentalAppliances', raw.Appliances);
-    if (raw.InteriorFeatures) setVal('rentalInteriorFeatures', raw.InteriorFeatures);
-    if (raw.Heating) setVal('rentalHeating', raw.Heating);
-    if (raw.Cooling) setVal('rentalCooling', raw.Cooling);
-    if (raw.LaundryFeatures) setVal('rentalLaundry', raw.LaundryFeatures);
+    // Features — A3: appliances/interior/heating/cooling/laundry/pets are collected for SAVE via
+    // checkbox GROUPS (name="rentalHeatingYN"/"rentalCoolingYN"/"rentalPetsAllowed", individual
+    // amenity checkboxes), NOT single text controls — the old setVal('rental{Appliances,
+    // InteriorFeatures,Heating,Cooling,Laundry,Pets}') targets do not exist (phantom writes removed).
+    // rentalParking IS a real control, so it stays. Pre-checking those groups from saved values on
+    // edit is a tracked follow-up (A3-followup), not a phantom setVal.
     if (raw.ParkingFeatures) setVal('rentalParking', raw.ParkingFeatures);
-    if (raw.PetsAllowed) setVal('rentalPets', raw.PetsAllowed);
 
-    // Building
-    if (raw.BuildingName) setVal('rentalBuildingName', raw.BuildingName);
-    if (raw.YearBuilt) setVal('rentalYearBuilt', raw.YearBuilt);
-    if (raw.NumberOfUnitsTotal) setVal('rentalBuildingUnits', raw.NumberOfUnitsTotal);
-    if (raw.StoriesTotal) setVal('rentalBuildingStories', raw.StoriesTotal);
+    // Building — A3: building name/year/units/stories have no editable single control in REDESIGN
+    // (building data comes from the building association via rentalBuildingSearch / saveRentalBuilding;
+    // collectRentalFormData reads no rentalBuilding{Name,Units,Stories}/rentalYearBuilt). The old
+    // setVals were phantom writes — removed. Building-association hydration on edit is a tracked
+    // follow-up (A3-followup).
 
     // Trigger field rules
     if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
