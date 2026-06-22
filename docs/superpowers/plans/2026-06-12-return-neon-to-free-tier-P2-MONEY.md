@@ -20,6 +20,46 @@
 
 ---
 
+## 🔄 Reconciliation — 2026-06-22 (verified, no execution)
+
+> Added to correct stale status after the agent_info workstream advanced. **Nothing executed**
+> in this reconciliation: no production SQL, no migration, no DROP, no reclaim, no Neon downgrade,
+> no JSON fallback removed. Verification basis: PR states + repo grep @ `main` HEAD
+> `66120741cf08ce69c693dbca09018d09bcff0dab`. Canonical board: GitHub issue #415.
+
+**Completed since the 2026-06-12 plan (verified):**
+- **Step 1 / C6 — SETTLED.** #394 (final loop closure) + #402 "C6 SETTLED — formal closure" (merged 2026-06-15). The execution-half gate is open.
+- **Step 2 / `NEON_PROJECT_ID` — DONE.** Repo variable = `hidden-mountain-87248164` (set 2026-06-17). Housekeeping only; guard `assert-canonical-neon-target.mjs` (#371) already protected rotation.
+- **#405 archive-eligibility NULL fix — MERGED 2026-06-18, flag default-OFF (inert).** Code ready, no drain run.
+- **Archive monitoring — already mirrors #405's widened predicate** in `scripts/ops-health.js` (reads `ARCHIVE_T180_BACKLOG_ENABLED`; reports narrow vs widened; read-only).
+
+**B5 (Step 4b/5) front status — CORRECTED.** B5 is **started**, not "not started":
+- **Front 1 of 6 — `agent_info`: completed through Phase C and write-frozen.** Phase D drop/reclaim remains (report-only plan exists; NOT started).
+- **Other five fronts — `features`, `media`, `compliance`, `raw_data`, `address`: NOT started.**
+
+**agent_info phase ledger (proof = #415):**
+| Phase | What | Status | Proof |
+|---|---|---|---|
+| A1 (#412) | 6 nullable typed columns | ✅ DONE | merge `7848940f`; prod columns proven |
+| A (#413) | producers dual-write all 8 typed fields | ✅ DONE | merge `2f392835` |
+| A6 (#416) | existing-row backfill **PREP script** | ⚠️ **script merged; production execution NOT DURABLY CONFIRMED** | merge `a0203dd0`; no durable execute-proof on the board |
+| B (#417) | readers typed-first + JSON fallback | ✅ DONE | merge `fd0fdf15`; prod smoke PASS |
+| C (#420) | producers STOP writing/refilling agent_info | ✅ DONE | merge `66120741`; deployed + smoke PASS; 5 Codex findings fixed; static guard in CI |
+| D | DROP column + reclaim | ⛔ NOT STARTED | needs read-only prechecks, snapshot/backup decision, + explicit Maya approval for migration/DROP/reclaim |
+
+**A6 caveat (hard gate, do NOT soften):** earlier session chatter suggested A6 executed with zero remaining rows, but the durable board does not contain production execute-proof. **Do NOT treat A6 as complete.** The Phase D read-only precheck `typed_gap_rows = 0` is therefore a **hard data-safety gate, not a formality.** If `typed_gap_rows > 0`, Phase D stops and A6/backfill repair becomes the next task.
+
+**Free / $0 status — NOT ready:**
+- DB last known ~**1.23 GB** (≈ 2.46× the **500 MB** Free cap); may be higher after backfill/update activity.
+- `agent_info` Phase D alone reclaims only ~the agent_info footprint (~**39 MB** logical, before overhead/Neon reclaim behavior) — **will NOT solve the cap.**
+- Still required for Free: **archive drain (Step 4a, ~390 MB — the biggest lever)** + the other JSON fronts + **measured `pg_database_size` < 500 MB with margin** + **Vercel false branch-limit ticket cleared** (Step 3, still a downgrade blocker).
+
+**Archive status:** `ARCHIVE_T180_BACKLOG_ENABLED` remains **OFF**; archive drain **not run**; do NOT enable without separate approval + measurement. Archive is a large lever but **separate from agent_info Phase D.**
+
+**Next gated technical step:** *Prepare or run the read-only Phase D prechecks only after Maya approval.* They must prove: target DB = cold-waterfall / hidden-mountain · `typed_gap_rows = 0` · mismatch samples reviewed · current `agent_info` logical bytes · table/TOAST/index size · total DB size · remaining reads safe/removable · Neon-safe reclaim method selected. **Read-only — DROP/reclaim/downgrade are NOT in this step.**
+
+---
+
 ## Why this is P2-MONEY, not "optimization"
 
 The recurring infrastructure cost that is *eliminable* is exactly one line: the Neon Launch

@@ -258,3 +258,23 @@ __pycache__/
 # NOTE: rotation-history.log is intentionally force-committed by
 # .github/workflows/rotate-db-keys.yml (git add -f) as a rotation audit
 # trail and is allow-listed in scripts/ci/repo-hygiene.mjs — do NOT ignore it.
+
+# Local/operator scratch files
+scripts/__*
+!scripts/__tests__/
+!scripts/__tests__/**
+__pw-*/
+__pw-review*/
+.playwright-mcp/
+.superpowers/
+
+# Local ops/debug outputs
+/ops-health-*.json
+/branch-cleanup-*.txt
+/pr*-*.jpeg
+
+# Generated Sentinel audit run-output (CI regenerates on the runner)
+/ops/audit/
+
+# Local backup/scratch dirs
+/backups/
