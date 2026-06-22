@@ -34,25 +34,38 @@ backfilled (0 gaps). Dropping `agent_info` now would lose those two co-list MLS 
 - **Parity** with the producer seam `typedAgentColumnsFromJson`.
 - **Tests:** `tests/runtime/agent-info-backfill-sql.test.ts` — 7/7 (8-column coverage, COALESCE-never-overwrite, updated_at-absent, co-list parity).
 
-## Execution plan (each step Maya-gated; NOTHING run yet)
-1. **Dry-run (read-only):** `npm run ops:backfill-agent-info` → expect `rows_any = 1`, `co_list_office_mls_id: 1`, `co_list_agent_mls_id: 1`, all others 0 (matches the precheck).
-2. **Execute (WRITE — separate Maya approval):** `npm run ops:backfill-agent-info:execute`.
-3. **Verify idempotent:** re-run the dry-run → `rows_any = 0`.
-4. **Verify zero gaps** with the checked-in SQL below (run in a read-only session against cold-waterfall) → **`typed_gap_rows = 0`** across all 8 fields. *(The operator-local `scripts/__phase-d-…precheck.mjs --run` wraps the same SQL with a host guard + read-only txn; it is a convenience, NOT the source of truth, and is intentionally untracked.)*
-5. Only then does the A6 ambiguity resolve and Phase D code-prep may proceed (DROP itself stays separately gated: code reads removed + snapshot/backup approved + explicit Maya DROP approval).
+## A6 execution history — COMPLETED 2026-06-22 (do NOT re-run the repair)
+A6 has already been executed and verified. This is a historical record, not a pending plan.
 
-**Done 2026-06-22:** steps 1–4 executed; result `typed_gap_rows = 0`, all 8 per-field gaps = 0 (1 row updated).
+- **Precheck before repair:** `typed_gap_rows = 1`.
+- **Gap:** 1 row — co-list office MLS + co-list agent MLS (`co_list_office_mls_id` / `co_list_agent_mls_id`); the 6 primary fields had 0 gaps.
+- **Approved production write:** `npm run ops:backfill-agent-info:execute` (Maya-approved, fill-only COALESCE, host = `ep-cold-waterfall`).
+- **Result:** **1 row updated**, `updated_at` preserved.
+- **Dry-run after repair:** `rows_any = 0`.
+- **Final read-only precheck:** **`typed_gap_rows = 0`, all 8 per-field gaps = 0.**
+- **A6 status: RESOLVED by production SQL.**
+
+## Re-verification only — do NOT execute the repair again unless a NEW gap appears
+1. **Dry-run (read-only):** `npm run ops:backfill-agent-info` → **expected now: `rows_any = 0`**.
+2. **Canonical all-8-field read-only verification SQL** (below) → **expected now: `typed_gap_rows = 0`, all per-field gaps = 0**.
+
+If any gap reappears:
+- **STOP** Phase D.
+- Investigate the refill/regression source.
+- **Do NOT re-run `--execute` without NEW explicit Maya approval.**
+
+The operator-local `scripts/__phase-d-…precheck.mjs --run` wraps the same SQL with a host guard + read-only txn; it is a convenience, NOT the source of truth, and is intentionally untracked.
 
 ## Verification SQL (checked-in) — read-only; all-8-field typed_gap_rows
-Mirrors `lib/listings/agent-info-typed-columns.ts` (PascalCase ?? lowercase, `NULLIF(btrim(),'')`). Run in a **read-only** session (e.g. `BEGIN; SET TRANSACTION READ ONLY; … ; ROLLBACK;`):
+**Must stay in LOCKSTEP with the seam `lib/listings/agent-info-typed-columns.ts` (`typedAgentColumnsFromJson`) AND `scripts/backfill-agent-info-typed-columns.ts` (`BACKFILL_COLUMNS`).** The seam does `COALESCE(Pascal, lowercase)` **first** (JS `??` — fall back only on absent/NULL key, NOT on empty string), then `NULLIF(btrim(…),'')`. So an **empty** PascalCase value is "selected-and-empty" → null, and does **NOT** fall back to the lowercase key. The verifier `j_*` derivation below uses the identical `NULLIF(btrim(COALESCE(Pascal, lowercase)),'')` shape so it can never report a gap the repair would never fill (Codex #425). **If the fallback semantics change in code, change this SQL in the same PR.** Run in a **read-only** session (`BEGIN; SET TRANSACTION READ ONLY; … ; ROLLBACK;`):
 
 ```sql
 WITH d AS (
   SELECT
-    NULLIF(btrim(list_agent_full_name),'')    AS t_name,   COALESCE(NULLIF(btrim(agent_info->>'ListAgentFullName'),''),    NULLIF(btrim(agent_info->>'name'),''))    AS j_name,
-    NULLIF(btrim(list_office_name),'')         AS t_office, COALESCE(NULLIF(btrim(agent_info->>'ListOfficeName'),''),       NULLIF(btrim(agent_info->>'company'),'')) AS j_office,
-    NULLIF(btrim(list_agent_email),'')         AS t_email,  COALESCE(NULLIF(btrim(agent_info->>'ListAgentEmail'),''),       NULLIF(btrim(agent_info->>'email'),''))   AS j_email,
-    NULLIF(btrim(list_agent_direct_phone),'')  AS t_phone,  COALESCE(NULLIF(btrim(agent_info->>'ListAgentDirectPhone'),''), NULLIF(btrim(agent_info->>'phone'),''))  AS j_phone,
+    NULLIF(btrim(list_agent_full_name),'')    AS t_name,   NULLIF(btrim(COALESCE(agent_info->>'ListAgentFullName', agent_info->>'name')), '')    AS j_name,
+    NULLIF(btrim(list_office_name),'')         AS t_office, NULLIF(btrim(COALESCE(agent_info->>'ListOfficeName', agent_info->>'company')), '') AS j_office,
+    NULLIF(btrim(list_agent_email),'')         AS t_email,  NULLIF(btrim(COALESCE(agent_info->>'ListAgentEmail', agent_info->>'email')), '')   AS j_email,
+    NULLIF(btrim(list_agent_direct_phone),'')  AS t_phone,  NULLIF(btrim(COALESCE(agent_info->>'ListAgentDirectPhone', agent_info->>'phone')), '')  AS j_phone,
     NULLIF(btrim(list_office_mls_id),'')       AS t_offmls, NULLIF(btrim(agent_info->>'ListOfficeMlsId'),'')   AS j_offmls,
     NULLIF(btrim(list_agent_mls_id),'')        AS t_agmls,  NULLIF(btrim(agent_info->>'ListAgentMlsId'),'')    AS j_agmls,
     NULLIF(btrim(co_list_office_mls_id),'')    AS t_cooff,  NULLIF(btrim(agent_info->>'CoListOfficeMlsId'),'') AS j_cooff,
