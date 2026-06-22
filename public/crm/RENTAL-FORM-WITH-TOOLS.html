@@ -4369,8 +4369,8 @@ if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
                 fullBaths: apiData.bathrooms_full,
                 halfBaths: apiData.bathrooms_half,
                 description: (apiData.features || {}).PublicRemarks || '',
-                listingAgent: (apiData.agent_info || {}).ListAgentFullName || '',
-                listingCompany: (apiData.agent_info || {}).ListOfficeName || '',
+                listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
+                listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
                 photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
                 _raw: apiData,
             };
@@ -4403,8 +4403,8 @@ window.addEventListener('message', function(event) {
                 monthlyRent: apiData.list_price, sqft: apiData.living_area,
                 bedrooms: apiData.bedrooms_total, fullBaths: apiData.bathrooms_full, halfBaths: apiData.bathrooms_half,
                 description: (apiData.features || {}).PublicRemarks || '',
-                listingAgent: (apiData.agent_info || {}).ListAgentFullName || '',
-                listingCompany: (apiData.agent_info || {}).ListOfficeName || '',
+                listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
+                listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
                 photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
                 _raw: apiData,
             };
