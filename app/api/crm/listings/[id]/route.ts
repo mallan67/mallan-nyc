@@ -329,7 +329,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Update JSON columns by merging
   const existingAddress = (listing.address as Record<string, unknown>) ?? {};
   const existingFeatures = (listing.features as Record<string, unknown>) ?? {};
-  const existingAgentInfo = (listing.agent_info as Record<string, unknown>) ?? {};
+  // Phase D step 3: agent_info removed from the Prisma client. This merge base is re-seeded
+  // TYPED-FIRST from resolvedCurrent below (~lines 398-405), so an empty base is correct and
+  // loses no attribution (the 8 keys come from the typed columns; non-typed keys like
+  // ListAgentKey were never persisted post-Phase-C).
+  const existingAgentInfo: Record<string, unknown> = {};
 
   // Address bucket key allowlist. Includes both canonical RESO names AND the
   // CRM-form alias keys (CityRegion/SubdivisionName/CountyOrParish/PostalCity)

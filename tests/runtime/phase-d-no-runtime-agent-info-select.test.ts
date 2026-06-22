@@ -59,16 +59,17 @@ describe("Phase D code-prep step 1 — no EXPLICIT runtime agent_info: true sele
   });
 });
 
-describe("scope guard — this PR is step 1, it does NOT drop the column (Codex #426)", () => {
-  it("prisma/schema.prisma STILL declares agent_info (schema-field removal + DROP are later, gated steps)", () => {
-    // Implicit reads (no-select findUnique / include) keep fetching agent_info until the schema
-    // field is removed + `prisma generate`. That is step 3 of the drop sequence, NOT this PR.
-    // Asserting the field is still present documents that this PR is drop-PREP, not the DROP.
+describe("Phase D step 3 — agent_info removed from the Prisma schema/client, DB column NOT dropped", () => {
+  it("prisma/schema.prisma NO LONGER declares the agent_info model field", () => {
+    // Step 3 removes agent_info from the Prisma schema/client so Prisma stops selecting it on
+    // EVERY read -- including implicit no-`select` findUnique/findMany and `include: { listing }`.
+    // This makes the RUNTIME drop-safe BEFORE any DB ALTER. The physical DB column still exists
+    // (intentional, temporary schema<->DB drift) and is dropped only in a later, gated step.
     const schema = readFileSync(join(process.cwd(), "prisma", "schema.prisma"), "utf8");
-    expect(schema).toMatch(/^\s*agent_info\s+Json/m);
+    expect(schema).not.toMatch(/^\s*agent_info\s+Json/m);
   });
 
-  it("no DROP migration for agent_info exists in this PR's tree", () => {
+  it("no DROP migration for agent_info exists (the DB column is NOT dropped by this PR)", () => {
     const migDir = join(process.cwd(), "prisma", "migrations");
     const hasDrop = walk(migDir)
       .filter((f) => f.endsWith(".sql"))

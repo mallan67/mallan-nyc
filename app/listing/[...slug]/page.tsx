@@ -508,7 +508,9 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       }
     }
 
-    const agentInfo = (dbListing.agent_info as Record<string, string>) || {};
+    // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
+    // contact card (typed: dbListing + resolvedAgent below); the legacy JSON base is now empty.
+    const agentInfo: Record<string, string> = {};
     // Phase B: typed-first attribution (typed columns win, agent_info JSON fallback).
     // dbListing uses `include` so all typed scalar columns are present.
     const resolvedAgent = resolveListingAgentInfo(dbListing);

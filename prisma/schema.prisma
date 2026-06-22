@@ -477,7 +477,13 @@ model Listing {
   features   Json  @default("{}")
   media      Json  @default("[]")
   compliance Json  @default("{}")
-  agent_info Json  @default("{}") @map("agent_info")
+  // agent_info REMOVED from the Prisma schema/client in Phase D step 3 (board #415). The typed
+  // agent columns below are the source of truth (A6 proved typed_gap_rows = 0; runtime + ops
+  // `agent_info: true` selects removed in #426/#427). Dropping the model field makes Prisma stop
+  // selecting it on EVERY read — including implicit no-`select` findUnique/findMany and
+  // `include: { listing }`. The PHYSICAL DB column still EXISTS (intentional, temporary schema↔DB
+  // drift); the DB `ALTER TABLE listings DROP COLUMN agent_info` is a SEPARATE, snapshot-gated,
+  // explicitly-Maya-approved step that must follow a successful deploy of this change.
   raw_data   Json? @map("raw_data")
 
   // --- Media normalization (master refactor PR 2 — memory/REFACTOR-2026-04-25.md) ---
