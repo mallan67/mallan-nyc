@@ -124,12 +124,40 @@ SELECT count(*) AS agent_info_present
 FROM listings
 WHERE agent_info IS NOT NULL AND agent_info::text NOT IN ('{}','null');
 
--- P3. SAFETY: rows where agent_info has an agent name but the typed column is blank
---     (a >0 result is a DROP BLOCKER — would lose attribution). Expect 0 after A6 + Phase C.
-SELECT count(*) AS typed_gap_rows
-FROM listings
-WHERE COALESCE(NULLIF(btrim(agent_info->>'ListAgentFullName'),''), NULLIF(btrim(agent_info->>'name'),'')) IS NOT NULL
-  AND NULLIF(btrim(list_agent_full_name),'') IS NULL;
+-- P3. SAFETY GATE — typed_gap_rows across ALL 8 typed columns (NOT name-only).
+--     A row is a "gap" if agent_info holds a usable value for ANY field while the
+--     corresponding typed column is null/blank → dropping agent_info would LOSE it.
+--     Mirrors lib/listings/agent-info-typed-columns.ts AND the precheck script CHECK 1.
+--     typed_gap_rows = 0 means ZERO gaps across all 8 fields. ANY per-field gap > 0 BLOCKS the DROP.
+--     Expect 0 after A6 + Phase C; if > 0 → STOP, A6/backfill repair is the next task.
+WITH d AS (
+  SELECT
+    NULLIF(btrim(list_agent_full_name),'')    AS t_name,   COALESCE(NULLIF(btrim(agent_info->>'ListAgentFullName'),''),    NULLIF(btrim(agent_info->>'name'),''))    AS j_name,
+    NULLIF(btrim(list_office_name),'')         AS t_office, COALESCE(NULLIF(btrim(agent_info->>'ListOfficeName'),''),       NULLIF(btrim(agent_info->>'company'),'')) AS j_office,
+    NULLIF(btrim(list_agent_email),'')         AS t_email,  COALESCE(NULLIF(btrim(agent_info->>'ListAgentEmail'),''),       NULLIF(btrim(agent_info->>'email'),''))   AS j_email,
+    NULLIF(btrim(list_agent_direct_phone),'')  AS t_phone,  COALESCE(NULLIF(btrim(agent_info->>'ListAgentDirectPhone'),''), NULLIF(btrim(agent_info->>'phone'),''))  AS j_phone,
+    NULLIF(btrim(list_office_mls_id),'')       AS t_offmls, NULLIF(btrim(agent_info->>'ListOfficeMlsId'),'')   AS j_offmls,
+    NULLIF(btrim(list_agent_mls_id),'')        AS t_agmls,  NULLIF(btrim(agent_info->>'ListAgentMlsId'),'')    AS j_agmls,
+    NULLIF(btrim(co_list_office_mls_id),'')    AS t_cooff,  NULLIF(btrim(agent_info->>'CoListOfficeMlsId'),'') AS j_cooff,
+    NULLIF(btrim(co_list_agent_mls_id),'')     AS t_coag,   NULLIF(btrim(agent_info->>'CoListAgentMlsId'),'')  AS j_coag
+  FROM listings
+)
+SELECT
+  count(*) FILTER (WHERE t_name   IS NULL AND j_name   IS NOT NULL) AS gap_name,
+  count(*) FILTER (WHERE t_office IS NULL AND j_office IS NOT NULL) AS gap_office,
+  count(*) FILTER (WHERE t_email  IS NULL AND j_email  IS NOT NULL) AS gap_email,
+  count(*) FILTER (WHERE t_phone  IS NULL AND j_phone  IS NOT NULL) AS gap_phone,
+  count(*) FILTER (WHERE t_offmls IS NULL AND j_offmls IS NOT NULL) AS gap_office_mls,
+  count(*) FILTER (WHERE t_agmls  IS NULL AND j_agmls  IS NOT NULL) AS gap_agent_mls,
+  count(*) FILTER (WHERE t_cooff  IS NULL AND j_cooff  IS NOT NULL) AS gap_co_office_mls,
+  count(*) FILTER (WHERE t_coag   IS NULL AND j_coag   IS NOT NULL) AS gap_co_agent_mls,
+  count(*) FILTER (WHERE
+       (t_name IS NULL AND j_name IS NOT NULL) OR (t_office IS NULL AND j_office IS NOT NULL)
+    OR (t_email IS NULL AND j_email IS NOT NULL) OR (t_phone IS NULL AND j_phone IS NOT NULL)
+    OR (t_offmls IS NULL AND j_offmls IS NOT NULL) OR (t_agmls IS NULL AND j_agmls IS NOT NULL)
+    OR (t_cooff IS NULL AND j_cooff IS NOT NULL) OR (t_coag IS NULL AND j_coag IS NOT NULL)
+  ) AS typed_gap_rows
+FROM d;
 
 -- P4. MISMATCH sample: typed value differs from JSON-derived (audit, not necessarily a blocker)
 SELECT listing_id,
@@ -157,7 +185,7 @@ SELECT current_database(), inet_server_addr(), version();
 -- Cross-check against ASSISTANT/DATABASE_URL host = ep-cold-waterfall-adno3ao2 before trusting any result.
 ```
 
-**Decision rule:** P3 (`typed_gap_rows`) MUST be `0` before the DROP. P5–P7 size the reclaim and decide the strategy in §4.
+**Decision rule:** P3 `typed_gap_rows` MUST be `0` — meaning **zero gaps across ALL 8 typed fields**, not name-only. **Any per-field gap count (`gap_name`/`gap_office`/`gap_email`/`gap_phone`/`gap_office_mls`/`gap_agent_mls`/`gap_co_office_mls`/`gap_co_agent_mls`) > 0 BLOCKS the DROP** (dropping `agent_info` would permanently lose that attribution). If any gap > 0 → STOP; A6/backfill repair is the next task. P5–P7 size the reclaim and decide the strategy in §4.
 
 ---
 
@@ -180,8 +208,12 @@ A deployed app that references a dropped column crashes. So:
 
 **Neon-specific caveat (must verify before promising a downgrade):** Neon bills/free-caps on logical data size, and reclaimed pages may not leave the branch's storage until they age out of the **PITR retention window**. So even after a successful rewrite, the size may not drop below 500 MB until the retention window passes (and/or retention is temporarily reduced). The §3 P5–P7 numbers + a post-reclaim re-measure are required to confirm; Neon support/docs may be needed to confirm the retention-lag behavior.
 
-### 4.3 Expected reduction
-Prior session measurement (2026-06-12 audit) put the legacy JSON on `listings` at **~648 MB**, the dominant blocker to the <500 MB Free cap. Phase C froze it (no further growth) but did not shrink it. The §3 P5 measurement will confirm the *current* `agent_info` logical size; the §3 P6/P7 will confirm whether dropping+reclaiming it gets the DB under 500 MB **with margin**. **Do not promise the downgrade until P5–P7 (and a post-reclaim re-measure) prove it.**
+### 4.3 Expected reduction — agent_info is ONE slice, NOT the whole ~648 MB
+**Do not conflate `agent_info` with all legacy JSON.** Prior measurement (#415 baseline / 2026-06-12 audit):
+- **All six legacy JSON columns combined ≈ ~648–663 MB** (`raw_data` ~267 / `compliance` ~201 / `features` ~101 / `agent_info` ~39 / `address` ~34 / `media` ~6) — *this* is the dominant blocker to the <500 MB Free cap.
+- **`agent_info` ALONE ≈ ~38–39 MB logical** (before table/TOAST/rewrite/retention behavior).
+
+Therefore: **agent_info Phase D alone will NOT get the DB under the 500 MB Neon Free cap.** It only completes **front 1 of 6** of the legacy-JSON migration. Neon Free remains blocked by the **other five JSON fronts** (`raw_data`/`compliance`/`features`/`address`/`media`), the **archive/drain decision** (`ARCHIVE_T180_BACKLOG_ENABLED`, ~390 MB lever, still OFF), and a **measured total `pg_database_size` < 500 MB with margin**. **Do NOT present the agent_info DROP/rewrite as sufficient for the downgrade.** The §3 P5 measurement confirms the *current* agent_info logical size; P6/P7 + a post-reclaim re-measure confirm the *total* DB size — and the downgrade waits on the full picture, not on this one slice.
 
 ---
 
