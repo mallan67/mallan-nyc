@@ -225,7 +225,6 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
           },
         },
         media: true,
-        agent_info: true,
         // Phase B: typed agent columns so dbListingToPublicDTO resolves office TYPED-FIRST
         // (otherwise this public agent-page surface silently always falls back to agent_info JSON).
         ...AGENT_TYPED_SELECT,

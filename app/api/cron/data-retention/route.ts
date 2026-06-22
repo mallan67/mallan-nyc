@@ -209,7 +209,6 @@ export async function GET(req: NextRequest) {
       postal_code: true,
       days_on_market: true,
       address: true,
-      agent_info: true,
       // Phase B: typed agent columns so the archive captures attribution TYPED-FIRST.
       ...AGENT_TYPED_SELECT,
       raw_data: true,

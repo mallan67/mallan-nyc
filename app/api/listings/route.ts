@@ -357,7 +357,6 @@ export async function GET(request: Request) {
                 // PR 4: keep reading `media` JSON as the fallback source for
                 // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
-                agent_info: true,
                 // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
                 list_agent_full_name: true, list_office_name: true,
                 list_agent_email: true, list_agent_direct_phone: true,
@@ -1233,7 +1232,6 @@ async function fetchExclusiveListings(
         raw_data: true,
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
-        agent_info: true,
         // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
         list_agent_full_name: true, list_office_name: true,
         list_agent_email: true, list_agent_direct_phone: true,
