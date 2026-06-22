@@ -117,7 +117,7 @@ async function main() {
     where,
     select: {
       listing_id: true, agent_id: true, rls_eligible: true, status: true,
-      agent_info: true,
+      // Phase D step 2: agent_info select removed — resolveTypedFirst is typed-first + absent-safe (agent_info → {}).
       // Phase C: all 8 typed columns — the source of truth for the typed-first repair.
       list_agent_full_name: true, list_office_name: true,
       list_agent_email: true, list_agent_direct_phone: true,

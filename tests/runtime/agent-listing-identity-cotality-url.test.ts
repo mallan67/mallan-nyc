@@ -178,29 +178,30 @@ describe('detail route — canonical lowercase listing id resolves', () => {
   });
 });
 
-// ── SOURCE: backfill is safe (dry-run default, canonical office, fill-only-blank) ──
-describe('backfill script — controlled + idempotent', () => {
+// ── SOURCE: backfill-crm script is RETIRED + HARD-DISABLED (tombstone, Codex #427) ──
+// It previously dry-ran / --applied an agent_info fill. Post Phase-D step 2 it is a tombstone:
+// fails closed unconditionally, with no DB/write path and no re-enable flag. The old
+// dry-run/apply/blank-only assertions were removed (the implementation no longer exists);
+// operators are pointed to the typed-first tools instead.
+describe('backfill script — retired + hard-disabled (tombstone)', () => {
   const bf = read('scripts/backfill-crm-exclusive-cotality-identity.mjs');
 
-  it('defaults to dry run (writes only with --apply)', () => {
-    expect(bf).toMatch(/const APPLY = process\.argv\.includes\('--apply'\)/);
-    expect(bf).toMatch(/if \(APPLY\)/);
+  it('exits / fails closed unconditionally (no dry-run or apply path)', () => {
+    expect(bf).toMatch(/process\.exit\(2\);\s*$/);
   });
-  it('sources ListAgentMlsId from Agent.trestle_mls_id', () => {
-    expect(bf).toMatch(/changes\.ListAgentMlsId = agent\.trestle_mls_id/);
+  it('has NO write path / NO DB connection / NO Prisma import', () => {
+    expect(bf).not.toMatch(/PrismaClient/);
+    expect(bf).not.toContain('prisma.listing.update');
   });
-  it('uses the canonical office name constant for the ListOfficeName fill', () => {
-    expect(bf).toMatch(/CANONICAL_OFFICE_NAME = 'Mallan Real Estate Inc\.'/);
-    expect(bf).toMatch(/changes\.ListOfficeName = CANONICAL_OFFICE_NAME/);
-    // The only place "MAllan" may appear is the explanatory comment — never as
-    // a written value. Assert no string-literal assignment of the typo.
-    expect(bf).not.toMatch(/=\s*['"]MAllan/);
+  it('cannot be re-enabled — no ALLOW_RETIRED flag, no --apply arg processing', () => {
+    expect(bf).not.toContain('ALLOW_RETIRED_AGENT_INFO_BACKFILL');
+    expect(bf).not.toContain('process.argv');
   });
-  it('does NOT write ListOfficeMlsId / ListOfficeKey (unverified — left blank)', () => {
-    expect(bf).not.toMatch(/changes\.ListOfficeMlsId\s*=/);
-    expect(bf).not.toMatch(/changes\.ListOfficeKey\s*=/);
+  it('selects no agent_info JSON', () => {
+    expect(bf).not.toContain('agent_info: true');
   });
-  it('fills only blank fields (guards every assignment with blank())', () => {
-    expect(bf).toMatch(/if \(blank\(ai\.ListAgentMlsId\)/);
+  it('points operators to the typed-first tools', () => {
+    expect(bf).toMatch(/repair-exclusive-agent-assignment/);
+    expect(bf).toMatch(/set-exclusive-listing-agent/);
   });
 });

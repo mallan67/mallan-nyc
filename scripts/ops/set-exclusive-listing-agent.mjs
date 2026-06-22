@@ -70,7 +70,8 @@ async function main() {
   const listing = await prisma.listing.findUnique({
     where: { listing_id: LISTING },
     select: {
-      listing_id: true, rls_eligible: true, agent_id: true, agent_info: true,
+      listing_id: true, rls_eligible: true, agent_id: true,
+      // Phase D step 2: agent_info select removed — resolveTypedFirst is typed-first + absent-safe.
       // Phase C: all 8 typed columns — the source of truth. The reassignment overwrites the
       // agent identity but PRESERVES the office / co-list MLS IDs (typed-first resolved).
       list_agent_full_name: true, list_office_name: true,

@@ -149,9 +149,13 @@ async function main(args: CliArgs) {
     // method is touched. Pagination cap = args.limit.
     const rows = await prisma.listing.findMany({
       select: {
-        agent_info: true,
+        // Phase D step 2: read the typed MLS/name columns (source of truth post-A6), NOT agent_info JSON.
         list_office_name: true,
         list_agent_full_name: true,
+        list_office_mls_id: true,
+        list_agent_mls_id: true,
+        co_list_office_mls_id: true,
+        co_list_agent_mls_id: true,
         source: true,
         status: true,
       },
@@ -161,19 +165,17 @@ async function main(args: CliArgs) {
 
     for (const r of rows) {
       scanned++;
-      const ai = (r.agent_info ?? {}) as Record<string, unknown>;
-      const officeMlsId = typeof ai.ListOfficeMlsId === "string" ? ai.ListOfficeMlsId.trim() : "";
-      const officeName = typeof ai.ListOfficeName === "string" ? ai.ListOfficeName.trim() : "";
-      const agentMlsId = typeof ai.ListAgentMlsId === "string" ? ai.ListAgentMlsId.trim() : "";
-      const agentFullName = typeof ai.ListAgentFullName === "string" ? ai.ListAgentFullName.trim() : "";
-      const coOfficeMlsId = typeof ai.CoListOfficeMlsId === "string" ? ai.CoListOfficeMlsId.trim() : "";
-      const coAgentMlsId = typeof ai.CoListAgentMlsId === "string" ? ai.CoListAgentMlsId.trim() : "";
+      // Phase D step 2: the typed columns are the source of truth (post-A6, typed_gap_rows=0);
+      // agent_info JSON is no longer selected or read here.
+      const officeMlsId = (r.list_office_mls_id ?? "").toString().trim();
+      const officeName = (r.list_office_name ?? "").toString().trim();
+      const agentMlsId = (r.list_agent_mls_id ?? "").toString().trim();
+      const agentFullName = (r.list_agent_full_name ?? "").toString().trim();
+      const coOfficeMlsId = (r.co_list_office_mls_id ?? "").toString().trim();
+      const coAgentMlsId = (r.co_list_agent_mls_id ?? "").toString().trim();
 
-      // Prefer the agent_info JSON values; fall back to the typed
-      // columns when JSON is missing (manual-listing rows where the
-      // CRM only populated the columns).
-      const officeNameForCount = officeName || (r.list_office_name ?? "").toString().trim();
-      const agentNameForCount = agentFullName || (r.list_agent_full_name ?? "").toString().trim();
+      const officeNameForCount = officeName;
+      const agentNameForCount = agentFullName;
 
       bump(freq.byOfficeMlsId, officeMlsId);
       bump(freq.byOfficeName, officeNameForCount);
