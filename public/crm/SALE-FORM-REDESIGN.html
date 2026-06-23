@@ -10341,13 +10341,17 @@ function _moveMediaTile(listingId, mediaKey, dir) {
     if (!container) return;
     var el = container.querySelector('[data-media-key="' + _mediaCssEscape(mediaKey) + '"]');
     if (!el) return;
-    if (dir < 0) {
-        if (!el.previousElementSibling) return;       // already first
-        container.insertBefore(el, el.previousElementSibling);
-    } else {
-        if (!el.nextElementSibling) return;           // already last
-        container.insertBefore(el.nextElementSibling, el);
+    // Move only relative to KEYED server-media tiles — SKIP unsaved upload-preview tiles
+    // (handleSaleMediaUpload appends previews WITHOUT data-media-key). Otherwise an arrow could
+    // move a saved photo across a preview while the persisted order (orderedKeys filters keyless
+    // tiles out) would NOT match the visible arrangement, falsely toasting success. (Codex #433)
+    var sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+    while (sib && !sib.getAttribute('data-media-key')) {
+        sib = dir < 0 ? sib.previousElementSibling : sib.nextElementSibling;
     }
+    if (!sib) return; // already at the keyed edge
+    if (dir < 0) container.insertBefore(el, sib);     // move earlier: el before the keyed neighbor
+    else container.insertBefore(sib, el);             // move later: keyed neighbor before el
     // Renumber the "Photo N" captions to match the new order.
     Array.from(container.children).forEach(function (child, i) {
         var label = child.querySelector('p');

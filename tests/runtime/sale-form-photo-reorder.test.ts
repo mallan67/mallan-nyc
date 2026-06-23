@@ -44,9 +44,11 @@ describe('sale form — click-to-move reorder buttons (drag-free)', () => {
   it('_moveMediaTile swaps neighbors and persists via _persistMediaRowOrder', () => {
     const i = FORM.indexOf('function _moveMediaTile(');
     expect(i).toBeGreaterThan(-1);
-    const fn = FORM.slice(i, i + 1100);
+    const fn = FORM.slice(i, i + 1900);
     expect(fn).toContain('previousElementSibling'); // move earlier
     expect(fn).toContain('nextElementSibling');     // move later
+    // Codex #433: skip unsaved upload-preview tiles (no data-media-key) so visible == persisted order.
+    expect(fn).toContain("while (sib && !sib.getAttribute('data-media-key'))");
     expect(fn).toContain('_persistMediaRowOrder(listingId, orderedKeys)');
   });
 
