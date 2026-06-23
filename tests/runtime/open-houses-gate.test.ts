@@ -105,11 +105,13 @@ describe('open-houses card — times render in Eastern (was UTC on Vercel → 4P
   });
 });
 
-describe('open-houses card — primary photo resolved from Trestle Media (was image: empty)', () => {
-  it('has a proxied Trestle photo resolver and uses it on BOTH Trestle paths', () => {
+describe('open-houses card — primary photo resolved via the CANONICAL media resolver', () => {
+  it('uses resolveListingMedia (DOCUMENT/floor-plan aware + proxies), not a raw getValidPhotoMedia pick', () => {
     expect(ROUTE).toMatch(/async function resolveTrestlePrimaryPhoto\(/);
-    expect(ROUTE).toMatch(/getValidPhotoMedia\(media\)\[0\]/);
-    expect(ROUTE).toMatch(/\/api\/media\/proxy\?url=/);
+    // canonical resolver handles /Media/Property/DOCUMENT-* reclassification + proxying (Codex)
+    expect(ROUTE).toMatch(/resolveListingMedia\(media\)\.find\(\(m\) => m\.class === 'photo'/);
+    // must NOT bypass it with the raw photo-list pick
+    expect(ROUTE).not.toMatch(/getValidPhotoMedia\(media\)\[0\]/);
     const used = ROUTE.match(/await resolveTrestlePrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
     expect(used.length).toBe(2); // $expand path + flat fallback
     // the hardcoded empty image must be gone from the Trestle DTOs
@@ -127,5 +129,20 @@ describe('open-houses card — gold "Mallan Exclusive" badge (page is Mallan-onl
     expect(CARD).toMatch(/oh\.mallanExclusive &&/);
     expect(CARD).toMatch(/bg-brand-gold[\s\S]*?Mallan Exclusive/);
     expect(CARD).toMatch(/Open House/);
+  });
+
+  it('local path only surfaces/badges genuinely Mallan-owned listings (not any synced showing)', () => {
+    // gate the local path on Mallan ownership (rls_eligible=false OR SL-/RL- prefix), Codex
+    expect(ROUTE).toMatch(/function isMallanOwnedLocalListing\(/);
+    expect(ROUTE).toMatch(/l\.rls_eligible === false/);
+    expect(ROUTE).toMatch(/\^\(SL\|RL\)-/);
+    expect(ROUTE).toMatch(/gate\.displayable && isMallanOwnedLocalListing\(l\)/);
+  });
+});
+
+describe('open-houses card — photo loads via native <img> (next/image optimizer 400 on proxy URL)', () => {
+  it('the card uses a native <img>, not next/image, for the proxied photo', () => {
+    expect(CARD).not.toMatch(/from 'next\/image'/);
+    expect(CARD).toMatch(/<img\b[\s\S]*?src=\{oh\.image \|\| '\/images\/listing-placeholder\.svg'\}/);
   });
 });

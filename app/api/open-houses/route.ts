@@ -5,7 +5,6 @@ import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
-import { getValidPhotoMedia } from '@/lib/media/listing-card-media';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,29 +56,40 @@ async function fetchMallanListingRefs(token: string, base: string): Promise<{ id
   return { ids, keys };
 }
 
-// Resolve the primary card photo for a Trestle open house. Mirrors the Featured/listings path
-// (app/api/listings/route.ts): fetch Trestle Media by ResourceRecordKey (= numeric ListingKey),
-// keep only valid public photos, take the first, and proxy Cotality/CoreLogic CDN URLs through
-// /api/media/proxy (their CDN blocks cross-origin hotlinking). '' on any miss → the card shows the
-// placeholder. listingKey is the NUMERIC Property.ListingKey (NOT the RLS ListingId). (2026-06-23)
-const MEDIA_PROXY_HOSTS = ['cotality.com', 'corelogic.com'];
+// Resolve the primary card photo for a Trestle open house. Mirrors the Featured/listings path:
+// fetch Trestle Media by ResourceRecordKey (= numeric ListingKey), then run it through the CANONICAL
+// resolver (resolveListingMedia) — NOT a raw getValidPhotoMedia pick. The canonical resolver
+// reclassifies `/Media/Property/DOCUMENT-*` rows (floor plans that fetchListingMedia defaults to
+// mediaType:'Photo'), sorts photos-first, and proxies Cotality/CoreLogic CDN URLs via
+// /api/media/proxy (their CDN blocks cross-origin hotlinking). So a listing whose first/Preferred
+// media row is a DOCUMENT/floor-plan no longer becomes the card hero. (Codex 2026-06-23)
+// '' on any miss → the card shows the placeholder. listingKey is the NUMERIC Property.ListingKey
+// (NOT the RLS ListingId).
 async function resolveTrestlePrimaryPhoto(listingKey: unknown, listingId: unknown): Promise<string> {
   try {
     const key = listingKey != null ? String(listingKey) : String(listingId ?? '');
     if (!key) return '';
     const { fetchListingMedia } = await import('@/lib/idx/fetch');
+    const { resolveListingMedia } = await import('@/lib/media/listing-media-resolver');
     const media = await fetchListingMedia(key, {
       listingKeyNumeric: listingKey != null ? Number(listingKey) : undefined,
     });
-    const first = getValidPhotoMedia(media)[0];
-    if (!first || !first.url) return '';
-    const url = String(first.url);
-    return MEDIA_PROXY_HOSTS.some((h) => url.includes(h))
-      ? `/api/media/proxy?url=${encodeURIComponent(url)}`
-      : url;
+    const photo = resolveListingMedia(media).find((m) => m.class === 'photo' && m.url);
+    return photo ? photo.url : '';
   } catch {
     return '';
   }
+}
+
+// A LOCAL open house is Mallan's own only when the listing is a website-only Mallan exclusive
+// (rls_eligible=false) or carries the Mallan CRM exclusive prefix (SL-/RL-). A synced *RLS* listing
+// is NOT surfaced via the local path: Mallan's RLS open houses come from the office-scoped Cotality
+// feed, and a synced third-party RLS listing is never Mallan's. Without this, the generic
+// /api/crm/showings POST could attach a public `openhouse` showing to ANY synced listing id and it
+// would be shown — and badged "Mallan Exclusive" — on this Mallan-only page. (Codex 2026-06-23)
+function isMallanOwnedLocalListing(l: { rls_eligible?: boolean | null; listing_id?: string | null }): boolean {
+  if (l.rls_eligible === false) return true;
+  return /^(SL|RL)-/i.test(String(l.listing_id || ''));
 }
 
 interface OpenHouseDTO {
@@ -458,7 +468,8 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             });
         return { s, l, gate };
       })
-      .filter(({ gate }) => gate.displayable)
+      // Mallan-only page: keep displayable AND genuinely Mallan-owned (website-only exclusives).
+      .filter(({ gate, l }) => gate.displayable && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
       // Address is stored as JSON: { streetNumber, streetName, unitNumber, ... }
       const addrObj = (l.address || {}) as Record<string, string>;
