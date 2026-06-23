@@ -8,6 +8,13 @@ import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agen
 
 export const dynamic = 'force-dynamic';
 
+// Open-house-eligible statuses for the website-only (rls_eligible=false) bypass.
+// DISPLAYABLE_STATUSES includes 'ComingSoon', but a Coming Soon listing MUST NOT
+// have a public open house: UCBA Art. I §16 marks Coming Soon as noOpenHouses, and
+// the showing write path (/api/crm/showings) rejects Coming Soon scheduling. So we
+// narrow to the open-house-eligible subset here. (P2, 2026-06-23)
+const OPEN_HOUSE_ELIGIBLE_STATUSES = DISPLAYABLE_STATUSES.filter((s) => s !== 'ComingSoon');
+
 interface OpenHouseDTO {
   id: string;
   listingId: string;
@@ -78,7 +85,11 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // consumers would see agent-only preview times.
     const today = new Date().toISOString().split('T')[0];
     const params = new URLSearchParams();
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public'`);
+    // OpenHouseStatus eq 'Active' — exclude Cancelled/inactive open houses. Now that the property
+    // display gate fail-OPENs on REBNY-null IELD, a cancelled future Public OH on an otherwise
+    // displayable listing would surface without this. Mirrors app/api/listings/route.ts (lines
+    // ~471/~888) which already filters Active. (P1, 2026-06-23)
+    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'`);
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
@@ -177,8 +188,9 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
 
     const params = new URLSearchParams();
     // Public-only — Broker-only and Private events excluded (see rationale
-    // in fetchTrestleOpenHouses above).
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public'`);
+    // in fetchTrestleOpenHouses above). OpenHouseStatus eq 'Active' excludes
+    // cancelled/inactive open houses (P1, 2026-06-23 — see $expand path).
+    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'`);
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
@@ -338,7 +350,8 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         // dropped by the RLS internet-display gate. (2026-06-23)
         const gate = l.rls_eligible === false
           ? {
-              displayable: DISPLAYABLE_STATUSES.includes(l.status),
+              // ComingSoon excluded — no public open houses on Coming Soon (UCBA Art. I §16).
+              displayable: OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status),
               addressDisplayable: l.internet_address_display_yn !== false,
             }
           : // Canonical gate — same evaluator the main listing pipeline uses. If any gate fails

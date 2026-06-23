@@ -49,6 +49,21 @@ describe('open-houses — Trestle feed gate uses REBNY fail-OPEN (idxPlusPreFilt
 describe('open-houses — local path honors website-only (rls_eligible=false) bypass', () => {
   it('selects rls_eligible and bypasses the RLS gate for website-only Mallan exclusives', () => {
     expect(ROUTE).toMatch(/rls_eligible:\s*true,/);            // selected
-    expect(ROUTE).toMatch(/l\.rls_eligible === false[\s\S]*?DISPLAYABLE_STATUSES\.includes\(l\.status\)/);
+    expect(ROUTE).toMatch(/l\.rls_eligible === false[\s\S]*?OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/);
+  });
+});
+
+describe('open-houses — only ACTIVE Cotality open houses display (P1)', () => {
+  it('both Trestle feed filters require OpenHouseStatus eq Active (no cancelled OH)', () => {
+    const actives = ROUTE.match(/OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'/g) || [];
+    expect(actives.length).toBe(2); // $expand path + flat fallback path
+  });
+});
+
+describe('open-houses — Coming Soon never publicizes an open house (P2, UCBA Art. I §16)', () => {
+  it('website-only bypass uses an eligible set that EXCLUDES ComingSoon', () => {
+    expect(ROUTE).toMatch(/OPEN_HOUSE_ELIGIBLE_STATUSES\s*=\s*DISPLAYABLE_STATUSES\.filter\(\(s\)\s*=>\s*s\s*!==\s*'ComingSoon'\)/);
+    // the bypass must NOT reference the broad DISPLAYABLE_STATUSES.includes for status gating
+    expect(ROUTE).not.toMatch(/displayable:\s*DISPLAYABLE_STATUSES\.includes\(l\.status\)/);
   });
 });
