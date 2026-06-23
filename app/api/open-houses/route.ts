@@ -1,32 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
-import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
+// Canonical open-house SCOPE constants/helpers — single source of truth, shared with the listing-card
+// banner resolver. Do NOT redeclare these here (divergence on the Mallan office scope is a compliance
+// hazard). MALLAN_OH_OFFICE_MLS_IDS is the Mallan office filter; OPEN_HOUSE_ELIGIBLE_STATUSES is
+// Active+ActiveUnderContract (ComingSoon excluded per UCBA §16); isMallanOwnedLocalListing gates the
+// local path to genuinely Mallan-owned rows.
+import {
+  MALLAN_OH_OFFICE_MLS_IDS,
+  OPEN_HOUSE_ELIGIBLE_STATUSES,
+  isMallanOwnedLocalListing,
+} from '@/lib/open-houses/upcoming-open-houses';
 
 export const dynamic = 'force-dynamic';
-
-// Open-house-eligible statuses for the website-only (rls_eligible=false) bypass.
-// DISPLAYABLE_STATUSES includes 'ComingSoon', but a Coming Soon listing MUST NOT
-// have a public open house: UCBA Art. I §16 marks Coming Soon as noOpenHouses, and
-// the showing write path (/api/crm/showings) rejects Coming Soon scheduling. So we
-// narrow to the open-house-eligible subset here. (P2, 2026-06-23)
-const OPEN_HOUSE_ELIGIBLE_STATUSES = DISPLAYABLE_STATUSES.filter((s) => s !== 'ComingSoon');
-
-// The public /open-houses page shows MALLAN Real Estate's open houses ONLY (Maya, 2026-06-23) —
-// the brokerage's own listings, NOT the ~1,560-row city-wide REBNY RLS open-house feed. We scope
-// the Trestle feed to Mallan's office MLS id.
-//
-// This list is intentionally DISTINCT from `MALLAN_OFFICE_MLS_IDS` in lib/syndication/mallan-identity.ts
-// — do NOT consolidate. That constant is deliberately EMPTY and load-bearing for the syndication HOLD
-// (invariant I.5: empty office+agent sets block every syndication row). Populating it would un-gate
-// syndication exports, which are HELD. This constant only scopes the read-only open-house display.
-//
-// Verified live against Cotality 2026-06-23: ListOfficeMlsId '7041' = "MAllan Real Estate Inc"
-// (the office on RLS20099289 / 400 E 90th #4D, ListAgentMlsId 39361 Maya Allan).
-const MALLAN_OH_OFFICE_MLS_IDS = ['7041'] as const;
 
 // Mallan's own active listing ids/keys, for scoping the OpenHouse feed to Mallan only. Small set
 // (a handful). Returns empty on any error → the caller shows NO Trestle open houses (fail-closed to
@@ -79,17 +68,6 @@ async function resolveTrestlePrimaryPhoto(listingKey: unknown, listingId: unknow
   } catch {
     return '';
   }
-}
-
-// A LOCAL open house is Mallan's own only when the listing is a website-only Mallan exclusive
-// (rls_eligible=false) or carries the Mallan CRM exclusive prefix (SL-/RL-). A synced *RLS* listing
-// is NOT surfaced via the local path: Mallan's RLS open houses come from the office-scoped Cotality
-// feed, and a synced third-party RLS listing is never Mallan's. Without this, the generic
-// /api/crm/showings POST could attach a public `openhouse` showing to ANY synced listing id and it
-// would be shown — and badged "Mallan Exclusive" — on this Mallan-only page. (Codex 2026-06-23)
-function isMallanOwnedLocalListing(l: { rls_eligible?: boolean | null; listing_id?: string | null }): boolean {
-  if (l.rls_eligible === false) return true;
-  return /^(SL|RL)-/i.test(String(l.listing_id || ''));
 }
 
 interface OpenHouseDTO {

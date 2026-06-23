@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
+import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
@@ -552,6 +553,21 @@ export async function GET(request: Request) {
                 l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
               );
             }
+
+            // Attach the upcoming PUBLIC open house to each card (homepage Featured + search /
+            // Mallan-listings cards read this for the "Open House · Sun 12–1 PM" banner). The index is
+            // Mallan-scoped and matched by listing id OR normalized address (twin-safe: a SL-0007
+            // exclusive card matches the open house on its RLS20099289 twin). Best-effort — a Trestle
+            // hiccup never blocks or breaks the listings response. ET times, no agent contact info.
+            try {
+              const ohIndex = await getOpenHouseIndex();
+              if (ohIndex.size > 0) {
+                for (const l of annotatedListings) {
+                  const next = findNextOpenHouse(l, ohIndex);
+                  if (next) l.nextOpenHouse = next;
+                }
+              }
+            } catch { /* best-effort enrichment */ }
 
             const responseBody = {
               success: true,

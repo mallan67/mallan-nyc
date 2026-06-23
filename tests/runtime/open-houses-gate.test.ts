@@ -62,18 +62,22 @@ describe('open-houses — only ACTIVE Cotality open houses display (P1)', () => 
 });
 
 describe('open-houses — Coming Soon never publicizes an open house (P2, UCBA Art. I §16)', () => {
-  it('website-only bypass uses an eligible set that EXCLUDES ComingSoon', () => {
-    expect(ROUTE).toMatch(/OPEN_HOUSE_ELIGIBLE_STATUSES\s*=\s*DISPLAYABLE_STATUSES\.filter\(\(s\)\s*=>\s*s\s*!==\s*'ComingSoon'\)/);
+  it('website-only bypass uses the eligible set that EXCLUDES ComingSoon (defined in the resolver lib)', () => {
+    // OPEN_HOUSE_ELIGIBLE_STATUSES (ComingSoon-excluded) now lives in the resolver lib and is asserted
+    // there; the route imports it and uses it for the website-only status gate.
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?OPEN_HOUSE_ELIGIBLE_STATUSES[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
+    expect(ROUTE).toMatch(/displayable:\s*OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/);
     // the bypass must NOT reference the broad DISPLAYABLE_STATUSES.includes for status gating
     expect(ROUTE).not.toMatch(/displayable:\s*DISPLAYABLE_STATUSES\.includes\(l\.status\)/);
   });
 });
 
 describe('open-houses — page is scoped to MALLAN only (Cotality feed by office)', () => {
-  it('defines a Mallan open-house office-id list DISTINCT from the syndication-HOLD constant', () => {
-    expect(ROUTE).toMatch(/MALLAN_OH_OFFICE_MLS_IDS\s*=\s*\['7041'\]/);
-    // must NOT import the syndication HOLD constant (keeping MALLAN_OFFICE_MLS_IDS empty is load-bearing);
-    // the comment may reference it by name, but there must be no import from the syndication module.
+  it('imports the canonical Mallan office-id constant (single source of truth in the resolver lib)', () => {
+    // The constant now lives in lib/open-houses/upcoming-open-houses.ts (shared with the card banner);
+    // the route imports it rather than redeclaring it (divergence on the office scope is a hazard).
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?MALLAN_OH_OFFICE_MLS_IDS[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
+    // must NOT import the syndication HOLD constant (keeping MALLAN_OFFICE_MLS_IDS empty is load-bearing).
     expect(ROUTE).not.toMatch(/import[\s\S]*?from\s*['"]@\/lib\/syndication/);
   });
 
@@ -132,10 +136,8 @@ describe('open-houses card — gold "Mallan Exclusive" badge (page is Mallan-onl
   });
 
   it('local path only surfaces/badges genuinely Mallan-owned listings (not any synced showing)', () => {
-    // gate the local path on Mallan ownership (rls_eligible=false OR SL-/RL- prefix), Codex
-    expect(ROUTE).toMatch(/function isMallanOwnedLocalListing\(/);
-    expect(ROUTE).toMatch(/l\.rls_eligible === false/);
-    expect(ROUTE).toMatch(/\^\(SL\|RL\)-/);
+    // gate the local path on Mallan ownership; the helper is the shared one (asserted in the lib test)
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?isMallanOwnedLocalListing[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
     expect(ROUTE).toMatch(/gate\.displayable && isMallanOwnedLocalListing\(l\)/);
   });
 });

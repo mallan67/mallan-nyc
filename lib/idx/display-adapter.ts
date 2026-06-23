@@ -115,6 +115,8 @@ export interface DisplayListing {
    */
   _coListedCount?: number;
   _coListedBrokerages?: string[];
+  /** Upcoming public open house (populated server-side by /api/listings) for the card banner. */
+  nextOpenHouse?: import('@/lib/open-houses/upcoming-open-houses').NextOpenHouse;
 }
 
 /** Convert a PublicListingDTO (from IDX/Trestle path) to DisplayListing */
@@ -162,6 +164,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     // PR-FE.2 Option C — pass-through the API-layer annotation when present.
     _coListedCount: dto._coListedCount,
     _coListedBrokerages: dto._coListedBrokerages,
+    nextOpenHouse: dto.nextOpenHouse,
   };
 }
 
@@ -238,5 +241,6 @@ export function toDisplayListing(raw: any): DisplayListing {
       attributionText: `Listing courtesy of ${raw.agent?.listOfficeName?.trim() || 'REBNY RLS'}`,
       requiresAttribution: true,
     },
+    nextOpenHouse: raw.nextOpenHouse,
   };
 }

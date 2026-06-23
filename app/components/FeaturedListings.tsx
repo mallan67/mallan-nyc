@@ -5,6 +5,8 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
+import OpenHouseBanner from '@/app/components/OpenHouseBanner';
+import type { NextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 import {
@@ -69,6 +71,8 @@ interface FeaturedListing {
    */
   _coListedCount?: number;
   _coListedBrokerages?: string[];
+  /** Upcoming public open house for the card banner (populated by /api/listings). */
+  nextOpenHouse?: NextOpenHouse;
 }
 
 interface FeaturedConfig {
@@ -266,8 +270,11 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
         activationDate={listing.activationDate}
         className="absolute top-4 right-4 z-30 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[60%]"
       />
-      <Link href={featuredCardHref(listing)} className="block cursor-pointer group">
+      <Link href={featuredCardHref(listing)} className="block cursor-pointer group relative">
         <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
+        {/* Open-house banner — bottom-left of the photo, clear of the gold badge (top-left), the
+            Coming Soon badge (top-right), the title (below), and the photo counter (bottom-right). */}
+        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-30" />
       </Link>
 
       <div className="p-5 md:p-6">
