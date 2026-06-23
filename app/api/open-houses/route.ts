@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
+import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
@@ -110,7 +111,13 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     const records = (data.value || [])
       .map((r: Record<string, unknown>) => {
         const prop = (r.Property || {}) as Record<string, unknown>;
-        return { r, prop, gate: evaluateDisplayGate(prop) };
+        // idxPlusPreFiltered: this is the RAW REBNY IDX Plus feed (Property expanded off the
+        // OpenHouse entity). InternetEntireListingDisplayYN / InternetAddressDisplayYN are null on
+        // REBNY-pre-filtered rows = displayable (fail-OPEN, `!== false`), NOT affirmPermission
+        // (fail-CLOSED). Without this flag null collapsed to false and EVERY public Cotality open
+        // house was dropped — the 2026-04-30 incident shape on this surface. Matches the canonical
+        // IDX pipeline (computeGateColumns) which treats null IELD as displayable. (2026-06-23)
+        return { r, prop, gate: evaluateDisplayGate(prop, { idxPlusPreFiltered: true }) };
       })
       .filter((x: { gate: { displayable: boolean } }) => x.gate.displayable);
 
@@ -217,7 +224,9 @@ async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
     const displayableOH = ohRecords
       .map((r: Record<string, unknown>) => {
         const prop = propMap.get(r.ListingKey as string) || null;
-        const gate = prop ? evaluateDisplayGate(prop as Record<string, unknown>) : { displayable: false, addressDisplayable: false };
+        // idxPlusPreFiltered: raw REBNY IDX Plus feed — null InternetEntireListingDisplayYN =
+        // displayable (fail-OPEN), not affirmPermission (fail-CLOSED). See the $expand path above.
+        const gate = prop ? evaluateDisplayGate(prop as Record<string, unknown>, { idxPlusPreFiltered: true }) : { displayable: false, addressDisplayable: false };
         return { r, prop, gate };
       })
       .filter((x: { prop: Record<string, unknown> | null; gate: { displayable: boolean } }) => x.prop !== null && x.gate.displayable);
@@ -302,6 +311,11 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             participant_only: true,
             internet_entire_listing_display_yn: true,
             internet_address_display_yn: true,
+            // Website-only Mallan exclusives (rls_eligible=false) are NOT on RLS, so their
+            // internet_entire_listing_display_yn is false by definition — but they ARE displayable
+            // on Mallan's own surfaces (mirror filterDisplayableDbListings, db-to-public-dto.ts:269).
+            // Without selecting this, a Mallan website-only exclusive's open house is wrongly dropped.
+            rls_eligible: true,
           },
         },
         agent: {
@@ -317,16 +331,25 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
     return showings
       .map((s) => {
         const l = s.listing;
-        // Canonical gate — same evaluator the main listing pipeline uses.
-        // If any gate fails (opt-out, participant-only, internet display,
-        // terminal status, closed >24h), the open house is dropped.
-        const gate = evaluateDisplayGate({
-          status: l.status,
-          owner_opt_out: l.owner_opt_out,
-          participant_only: l.participant_only,
-          internet_entire_listing_display_yn: l.internet_entire_listing_display_yn,
-          internet_address_display_yn: l.internet_address_display_yn,
-        });
+        // Website-only Mallan exclusive bypass — mirror filterDisplayableDbListings
+        // (db-to-public-dto.ts:269): a rls_eligible=false listing is not on RLS (IELD=false by
+        // definition) but IS displayable on Mallan's own surfaces, subject only to a displayable
+        // status. Without this, a Mallan website-only exclusive's open house (e.g. SL-0007) is
+        // dropped by the RLS internet-display gate. (2026-06-23)
+        const gate = l.rls_eligible === false
+          ? {
+              displayable: DISPLAYABLE_STATUSES.includes(l.status),
+              addressDisplayable: l.internet_address_display_yn !== false,
+            }
+          : // Canonical gate — same evaluator the main listing pipeline uses. If any gate fails
+            // (opt-out, participant-only, internet display, terminal status, closed >24h), drop it.
+            evaluateDisplayGate({
+              status: l.status,
+              owner_opt_out: l.owner_opt_out,
+              participant_only: l.participant_only,
+              internet_entire_listing_display_yn: l.internet_entire_listing_display_yn,
+              internet_address_display_yn: l.internet_address_display_yn,
+            });
         return { s, l, gate };
       })
       .filter(({ gate }) => gate.displayable)
