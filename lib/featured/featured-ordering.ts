@@ -101,6 +101,32 @@ export function filterFeaturedDisplayable<T extends FeaturedDisplayable>(listing
 }
 
 /**
+ * Generic homepage Featured filters that shape THIRD-PARTY IDX curation only.
+ * They must NOT narrow the Mallan-exclusives feed — a Mallan 0-bed studio,
+ * a sub-$500k, or an outer-borough exclusive still has to headline Featured.
+ */
+const GENERIC_FEATURED_FILTER_KEYS = ['beds', 'minPrice', 'maxPrice', 'borough', 'neighborhood'] as const;
+
+/**
+ * Derive the params for the homepage Featured EXCLUSIVES fetch from the base
+ * (general) params. Mallan exclusives headline regardless of the generic
+ * bed/price/geo curation, so those keys are stripped here — while `type`,
+ * `statuses`, `sort`, and `excludeUndisclosed` are preserved.
+ *
+ * Pure + non-mutating: the input `base` is copied, so the GENERAL feed that
+ * reuses `base` still carries `beds`/minBeds (third-party studios stay excluded).
+ * The exclusives feed it produces is provably Mallan-only because
+ * `/api/listings?exclusive=mallan` restricts to SL-/RL-/website-only rows.
+ */
+export function buildExclusiveFeaturedParams(base: URLSearchParams): URLSearchParams {
+  const p = new URLSearchParams(base.toString());
+  p.set('exclusive', 'mallan');
+  p.set('limit', '12');
+  for (const k of GENERIC_FEATURED_FILTER_KEYS) p.delete(k);
+  return p;
+}
+
+/**
  * Page through a Featured feed until enough DISPLAYABLE rows are collected to
  * fill the grid.
  *

@@ -19,6 +19,7 @@ import {
   featuredBadgeFor,
   featuredCardHref,
   isPinnedFeatured,
+  buildExclusiveFeaturedParams,
 } from '@/lib/featured/featured-ordering';
 
 interface FeaturedListing {
@@ -409,18 +410,13 @@ export default function FeaturedListings() {
         // Exclusives feed (Mallan-owned) — small, single fetch, kicked off in
         // parallel; awaited before the general loop so the stop condition can
         // account for exclusive-vs-general dedupe collapse.
-        const exclParams = new URLSearchParams(params.toString());
-        exclParams.set('exclusive', 'mallan');
-        exclParams.set('limit', '12');
-        // Mallan exclusives must headline Featured regardless of the GENERIC
-        // homepage curation filters (minBeds / minPrice / borough / neighborhood).
-        // Those defaults (>=1 bed, >=$500k, Manhattan) shape third-party IDX
-        // curation only; a Mallan 0-bed studio (e.g. 400 E 90th #4D), a sub-$500k,
-        // or an outer-borough exclusive must still surface first. The exclusives
-        // feed KEEPS the type + status gates (sale, Active/ActiveUnderContract) and
-        // ALL REBNY display gates in /api/listings; it only drops the generic
-        // bed/price/geo narrowing that was silently excluding studios. (2026-06-23)
-        ['beds', 'minPrice', 'maxPrice', 'borough', 'neighborhood'].forEach((k) => exclParams.delete(k));
+        // Mallan exclusives must headline Featured regardless of the generic
+        // homepage curation filters (minBeds/minPrice/borough/neighborhood) — see
+        // buildExclusiveFeaturedParams. The GENERAL feed below KEEPS those filters,
+        // so third-party studios stay excluded; and /api/listings?exclusive=mallan
+        // restricts to true Mallan (SL-/RL-/website-only) rows, so this feed can
+        // never admit a third-party studio. (2026-06-23)
+        const exclParams = buildExclusiveFeaturedParams(params);
         const exclPromise = fetch(`/api/listings?${exclParams.toString()}`)
           .then((r) => (r.ok ? r.json() : { listings: [] }))
           .catch(() => ({ listings: [] }));
