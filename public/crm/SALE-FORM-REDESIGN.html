@@ -9036,7 +9036,11 @@ var SALE_FIELD_MAP = [
   { rls: 'ShowingInstructions', form: 'saleShowingInstructions', type: 'text', src: 'raw' },
 
   // ── Financials ──
-  { rls: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'raw' },
+  // Unit annual real-estate tax. Hydrate features-first (features.TaxAnnualAmount — the
+  // canonical bucket the public DTO + Trestle mapper write), raw_data fallback. NOT building
+  // tax (saleBldgAnnualTaxes is building-level and must never fill this unit field). The real
+  // Cotality field name `TaxAnnualAmount` is confirmed live (artifacts/metadata.xml). (2026-06-23)
+  { rls: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'features' },
   { rls: 'saleTaxDeduction', form: 'saleTaxDeduction', type: 'number', src: 'raw', fallbackRls: 'TaxDeductionPercent' }, // internal; TaxDeductionPercent not in Cotality
   { rls: 'FlipTax', form: 'saleFlipTaxAmount', type: 'text', src: 'raw' },
   { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
@@ -9628,6 +9632,15 @@ function _populateSaleFormFromApi(listing) {
             val = (f.typedKey ? listing[f.typedKey] : null) || agentInfo[f.agentKey] || raw[f.rls];
         } else if (f.src === 'addr') {
             val = addr[f.rls] || raw[f.rls];
+        } else if (f.src === 'features') {
+            // Hydrate from the `features` JSON FIRST — the canonical bucket the public
+            // DTO (lib/idx/db-to-public-dto.ts) and the Trestle mapper both write, e.g. a
+            // Cotality-synced `features.TaxAnnualAmount`. Fall back to `raw_data` for legacy
+            // rows that only persisted the value under raw_data. Unit-specific; this branch
+            // never reads building-level fields. (Tax features-first, 2026-06-23.)
+            val = (features[f.rls] !== undefined && features[f.rls] !== null && features[f.rls] !== '')
+                ? features[f.rls]
+                : raw[f.rls];
         } else {
             val = raw[f.rls];
         }
