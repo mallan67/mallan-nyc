@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
+import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import type { NextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 
 interface ListingDTO {
   id: string;
@@ -33,6 +35,8 @@ interface ListingDTO {
   status?: string | null;
   comingSoonDate?: string | null;
   activationDate?: string | null;
+  /** Upcoming public open house for the card banner (populated by /api/agents/[slug]/listings). */
+  nextOpenHouse?: NextOpenHouse;
 }
 
 function formatPrice(price: number, isRental: boolean): string {
@@ -100,6 +104,8 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
             </span>
           );
         })()}
+        {/* Open-house banner — bottom-left, clear of the status badge (top-left) and the title below. */}
+        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-2.5 left-2.5" />
       </div>
       <div className="p-3.5">
         <p className="font-display font-bold text-lg text-brand-dark leading-tight">

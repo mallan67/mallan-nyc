@@ -9,6 +9,7 @@ import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } fro
 import { AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
+import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import type { IDXListing } from '@/lib/idx/types';
 
 /**
@@ -83,6 +84,19 @@ export async function GET(
     // suppression MUST happen here, after the merge.
     const allActive = preferCrmExclusiveOverIdxDuplicate([...dbActiveNew, ...trestleResults.active]);
     const allClosed = preferCrmExclusiveOverIdxDuplicate([...dbClosedNew, ...trestleResults.closed]);
+
+    // Attach the upcoming PUBLIC open house to each ACTIVE card (agent-page "Open House" banner).
+    // Mallan-scoped index, matched by listing id OR normalized address (twin-safe). Best-effort — a
+    // Trestle hiccup never blocks the agent response. Closed listings get no upcoming open house.
+    try {
+      const ohIndex = await getOpenHouseIndex();
+      if (ohIndex.size > 0) {
+        for (const l of allActive) {
+          const next = findNextOpenHouse(l, ohIndex);
+          if (next) l.nextOpenHouse = next;
+        }
+      }
+    } catch { /* best-effort enrichment */ }
 
     // Split by listing type
     const activeSales = allActive.filter((l) => l.listingType === 'sale');

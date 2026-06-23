@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import OpenHouseRSVP from '@/app/components/OpenHouseRSVP';
 
@@ -22,6 +21,7 @@ interface OpenHouse {
   description: string;
   image: string;
   featured: boolean;
+  mallanExclusive?: boolean;
 }
 
 function formatPrice(price: number): string {
@@ -143,25 +143,34 @@ export default function OpenHousesList() {
                         key={oh.id}
                         className="glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300"
                       >
-                        {/* Image */}
+                        {/* Image — native <img> (NOT next/image): the photo is a same-origin proxy
+                            URL (/api/media/proxy?url=…cotality…) and next/image's optimizer rejects
+                            that nested-query URL with HTTP 400, leaving the card blank. This mirrors
+                            IDXImage, which uses a native <img> so listing photos load directly. */}
                         <div className="relative aspect-video bg-gray-100 overflow-hidden">
-                          <Image
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
                             src={oh.image || '/images/listing-placeholder.svg'}
                             alt={oh.address}
-                            fill
-                            className="object-cover"
+                            loading="lazy"
+                            className="absolute inset-0 h-full w-full object-cover"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.style.display = 'none';
                             }}
                           />
-                          {oh.featured && (
-                            <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded-xl">
-                              Featured
+                          {oh.mallanExclusive && (
+                            <span
+                              className="absolute top-3 left-3 z-10 px-3 py-1 bg-brand-gold text-white text-xs font-semibold uppercase tracking-wide rounded-xl shadow-sm"
+                              title="Exclusive listing by Mallan Real Estate Inc."
+                            >
+                              Mallan Exclusive
                             </span>
                           )}
+                          {/* Open-house time, Eastern (API formats in America/New_York). */}
                           <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-sm text-white text-sm rounded-xl">
-                            {oh.startTime} - {oh.endTime}
+                            <span className="font-semibold mr-1">Open House</span>
+                            {oh.startTime}{oh.endTime ? ` - ${oh.endTime}` : ''}
                           </div>
                         </div>
 

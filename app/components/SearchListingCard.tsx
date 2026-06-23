@@ -5,6 +5,7 @@ import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
+import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { type DisplayListing, listingHref, hasVirtualTour } from '@/lib/idx/display-adapter';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 import { formatBathrooms } from '@/lib/format/bathrooms';
@@ -156,6 +157,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
             )}
           </div>
         )}
+        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-10" />
       </div>
       <div className="p-4 sm:p-5">
         <p className="text-2xl font-display font-bold text-brand-dark">
@@ -266,6 +268,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         {hasVirtualTour(listing) && (
           <div className="absolute top-2 right-2 z-10"><TourBadge compact /></div>
         )}
+        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-2 left-2 z-10" />
       </div>
       <div className="p-4 flex-1 min-w-0">
         <div className="flex items-start justify-between gap-4">
@@ -407,6 +410,8 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
             {formatComingSoonBadge(listing)}
           </span>
         )}
+        {/* Open house (mutually exclusive with Coming Soon — ComingSoon is excluded from open houses). */}
+        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute top-1.5 left-1.5 z-10 !text-[9px] !px-1.5 !py-0.5" />
         <div className="absolute top-1.5 right-1.5 z-10">
           <FavoriteButton listing={listing} size="sm" />
         </div>

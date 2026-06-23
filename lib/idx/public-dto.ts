@@ -311,6 +311,14 @@ export interface PublicListingDTO {
    */
   _coListedCount?: number;
   _coListedBrokerages?: string[];
+  /**
+   * Upcoming PUBLIC open house for this listing, for the card "Open House · Sun 12–1 PM" banner.
+   * Populated at the API-route level (like _coListedCount) from the Mallan-scoped open-house index
+   * (lib/open-houses/upcoming-open-houses.ts) AFTER the DTO list is assembled — matched by listing id
+   * OR normalized address (twin-safe: SL-0007 card ↔ RLS20099289 open house). Absent when none.
+   * Only public/active/future open houses; ET times; no agent contact info.
+   */
+  nextOpenHouse?: import('@/lib/open-houses/upcoming-open-houses').NextOpenHouse;
 }
 
 /**

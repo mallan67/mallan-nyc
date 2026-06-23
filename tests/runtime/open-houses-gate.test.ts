@@ -15,6 +15,7 @@ import { resolve } from 'path';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/open-houses/route.ts'), 'utf8');
+const CARD = readFileSync(resolve(__dirname, '../../app/components/OpenHousesList.tsx'), 'utf8');
 
 describe('open-houses — Trestle feed gate uses REBNY fail-OPEN (idxPlusPreFiltered)', () => {
   it('null InternetEntireListingDisplayYN is DISPLAYABLE under idxPlusPreFiltered (REBNY pre-filter)', () => {
@@ -61,18 +62,22 @@ describe('open-houses — only ACTIVE Cotality open houses display (P1)', () => 
 });
 
 describe('open-houses — Coming Soon never publicizes an open house (P2, UCBA Art. I §16)', () => {
-  it('website-only bypass uses an eligible set that EXCLUDES ComingSoon', () => {
-    expect(ROUTE).toMatch(/OPEN_HOUSE_ELIGIBLE_STATUSES\s*=\s*DISPLAYABLE_STATUSES\.filter\(\(s\)\s*=>\s*s\s*!==\s*'ComingSoon'\)/);
+  it('website-only bypass uses the eligible set that EXCLUDES ComingSoon (defined in the resolver lib)', () => {
+    // OPEN_HOUSE_ELIGIBLE_STATUSES (ComingSoon-excluded) now lives in the resolver lib and is asserted
+    // there; the route imports it and uses it for the website-only status gate.
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?OPEN_HOUSE_ELIGIBLE_STATUSES[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
+    expect(ROUTE).toMatch(/displayable:\s*OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/);
     // the bypass must NOT reference the broad DISPLAYABLE_STATUSES.includes for status gating
     expect(ROUTE).not.toMatch(/displayable:\s*DISPLAYABLE_STATUSES\.includes\(l\.status\)/);
   });
 });
 
 describe('open-houses — page is scoped to MALLAN only (Cotality feed by office)', () => {
-  it('defines a Mallan open-house office-id list DISTINCT from the syndication-HOLD constant', () => {
-    expect(ROUTE).toMatch(/MALLAN_OH_OFFICE_MLS_IDS\s*=\s*\['7041'\]/);
-    // must NOT import the syndication HOLD constant (keeping MALLAN_OFFICE_MLS_IDS empty is load-bearing);
-    // the comment may reference it by name, but there must be no import from the syndication module.
+  it('imports the canonical Mallan office-id constant (single source of truth in the resolver lib)', () => {
+    // The constant now lives in lib/open-houses/upcoming-open-houses.ts (shared with the card banner);
+    // the route imports it rather than redeclaring it (divergence on the office scope is a hazard).
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?MALLAN_OH_OFFICE_MLS_IDS[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
+    // must NOT import the syndication HOLD constant (keeping MALLAN_OFFICE_MLS_IDS empty is load-bearing).
     expect(ROUTE).not.toMatch(/import[\s\S]*?from\s*['"]@\/lib\/syndication/);
   });
 
@@ -95,5 +100,51 @@ describe('open-houses — Property unwrapped from the OData expand ARRAY (the ha
     expect(ROUTE).toMatch(/Array\.isArray\(propRaw\)\s*\?\s*propRaw\[0\]\s*:\s*propRaw/);
     // the old object-only read must be gone
     expect(ROUTE).not.toMatch(/const prop = \(r\.Property \|\| \{\}\) as Record/);
+  });
+});
+
+describe('open-houses card — times render in Eastern (was UTC on Vercel → 4PM instead of noon)', () => {
+  it('formatTrestleTime pins timeZone America/New_York', () => {
+    expect(ROUTE).toMatch(/toLocaleTimeString\('en-US',\s*\{[^}]*timeZone:\s*'America\/New_York'/);
+  });
+});
+
+describe('open-houses card — primary photo resolved via the CANONICAL media resolver', () => {
+  it('uses resolveListingMedia (DOCUMENT/floor-plan aware + proxies), not a raw getValidPhotoMedia pick', () => {
+    expect(ROUTE).toMatch(/async function resolveTrestlePrimaryPhoto\(/);
+    // canonical resolver handles /Media/Property/DOCUMENT-* reclassification + proxying (Codex)
+    expect(ROUTE).toMatch(/resolveListingMedia\(media\)\.find\(\(m\) => m\.class === 'photo'/);
+    // must NOT bypass it with the raw photo-list pick
+    expect(ROUTE).not.toMatch(/getValidPhotoMedia\(media\)\[0\]/);
+    const used = ROUTE.match(/await resolveTrestlePrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
+    expect(used.length).toBe(2); // $expand path + flat fallback
+    // the hardcoded empty image must be gone from the Trestle DTOs
+    expect(ROUTE).not.toMatch(/image: '', \/\/ Will be filled by media proxy/);
+  });
+});
+
+describe('open-houses card — gold "Mallan Exclusive" badge (page is Mallan-only)', () => {
+  it('API flags every open house mallanExclusive: true (all 3 paths)', () => {
+    const flagged = ROUTE.match(/mallanExclusive: true/g) || [];
+    expect(flagged.length).toBe(3); // $expand, flat, local
+  });
+
+  it('card renders the gold badge from mallanExclusive and labels the time pill "Open House"', () => {
+    expect(CARD).toMatch(/oh\.mallanExclusive &&/);
+    expect(CARD).toMatch(/bg-brand-gold[\s\S]*?Mallan Exclusive/);
+    expect(CARD).toMatch(/Open House/);
+  });
+
+  it('local path only surfaces/badges genuinely Mallan-owned listings (not any synced showing)', () => {
+    // gate the local path on Mallan ownership; the helper is the shared one (asserted in the lib test)
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?isMallanOwnedLocalListing[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
+    expect(ROUTE).toMatch(/gate\.displayable && isMallanOwnedLocalListing\(l\)/);
+  });
+});
+
+describe('open-houses card — photo loads via native <img> (next/image optimizer 400 on proxy URL)', () => {
+  it('the card uses a native <img>, not next/image, for the proxied photo', () => {
+    expect(CARD).not.toMatch(/from 'next\/image'/);
+    expect(CARD).toMatch(/<img\b[\s\S]*?src=\{oh\.image \|\| '\/images\/listing-placeholder\.svg'\}/);
   });
 });
