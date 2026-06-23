@@ -82,6 +82,12 @@ describe('open-houses — page is scoped to MALLAN only (Cotality feed by office
     const scoped = ROUTE.match(/and \(\$\{listingScope\}\)/g) || [];
     expect(scoped.length).toBe(2); // $expand path + flat fallback
   });
+
+  it('Mallan listing pre-query uses the OH-eligible status set (incl ActiveUnderContract), not just Active', () => {
+    // must NOT hard-code only Active (would drop an AUC listing with a live public open house)
+    expect(ROUTE).not.toMatch(/\(\$\{officeFilter\}\) and StandardStatus eq 'Active'/);
+    expect(ROUTE).toMatch(/OPEN_HOUSE_ELIGIBLE_STATUSES\.map\(\(s\) => `StandardStatus eq '\$\{s\}'`\)/);
+  });
 });
 
 describe('open-houses — Property unwrapped from the OData expand ARRAY (the hasData=0 bug)', () => {

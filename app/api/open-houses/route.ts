@@ -33,8 +33,13 @@ const MALLAN_OH_OFFICE_MLS_IDS = ['7041'] as const;
 // "nothing" rather than leaking the city-wide feed).
 async function fetchMallanListingRefs(token: string, base: string): Promise<{ ids: string[]; keys: string[] }> {
   const officeFilter = MALLAN_OH_OFFICE_MLS_IDS.map((id) => `ListOfficeMlsId eq '${id}'`).join(' or ');
+  // Open-house-eligible statuses (Active + ActiveUnderContract; ComingSoon excluded per UCBA §16) —
+  // an ActiveUnderContract Mallan listing can still hold a live public open house, so this pre-query
+  // must not hard-code only 'Active' or it would drop the listing before the OH feed is queried.
+  // Uses the same canonical set as the rest of the route (OPEN_HOUSE_ELIGIBLE_STATUSES).
+  const statusFilter = OPEN_HOUSE_ELIGIBLE_STATUSES.map((s) => `StandardStatus eq '${s}'`).join(' or ');
   const params = new URLSearchParams();
-  params.set('$filter', `(${officeFilter}) and StandardStatus eq 'Active'`);
+  params.set('$filter', `(${officeFilter}) and (${statusFilter})`);
   params.set('$select', 'ListingId,ListingKey');
   params.set('$top', '200');
   const res = await fetch(`${base}/odata/Property?${params}`, {
