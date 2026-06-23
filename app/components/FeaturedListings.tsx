@@ -412,6 +412,15 @@ export default function FeaturedListings() {
         const exclParams = new URLSearchParams(params.toString());
         exclParams.set('exclusive', 'mallan');
         exclParams.set('limit', '12');
+        // Mallan exclusives must headline Featured regardless of the GENERIC
+        // homepage curation filters (minBeds / minPrice / borough / neighborhood).
+        // Those defaults (>=1 bed, >=$500k, Manhattan) shape third-party IDX
+        // curation only; a Mallan 0-bed studio (e.g. 400 E 90th #4D), a sub-$500k,
+        // or an outer-borough exclusive must still surface first. The exclusives
+        // feed KEEPS the type + status gates (sale, Active/ActiveUnderContract) and
+        // ALL REBNY display gates in /api/listings; it only drops the generic
+        // bed/price/geo narrowing that was silently excluding studios. (2026-06-23)
+        ['beds', 'minPrice', 'maxPrice', 'borough', 'neighborhood'].forEach((k) => exclParams.delete(k));
         const exclPromise = fetch(`/api/listings?${exclParams.toString()}`)
           .then((r) => (r.ok ? r.json() : { listings: [] }))
           .catch(() => ({ listings: [] }));
