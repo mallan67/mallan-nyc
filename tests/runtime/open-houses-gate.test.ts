@@ -67,3 +67,33 @@ describe('open-houses — Coming Soon never publicizes an open house (P2, UCBA A
     expect(ROUTE).not.toMatch(/displayable:\s*DISPLAYABLE_STATUSES\.includes\(l\.status\)/);
   });
 });
+
+describe('open-houses — page is scoped to MALLAN only (Cotality feed by office)', () => {
+  it('defines a Mallan open-house office-id list DISTINCT from the syndication-HOLD constant', () => {
+    expect(ROUTE).toMatch(/MALLAN_OH_OFFICE_MLS_IDS\s*=\s*\['7041'\]/);
+    // must NOT import the syndication HOLD constant (keeping MALLAN_OFFICE_MLS_IDS empty is load-bearing);
+    // the comment may reference it by name, but there must be no import from the syndication module.
+    expect(ROUTE).not.toMatch(/import[\s\S]*?from\s*['"]@\/lib\/syndication/);
+  });
+
+  it('resolves Mallan listing ids and scopes BOTH Trestle filters to them (no city-wide feed)', () => {
+    expect(ROUTE).toMatch(/fetchMallanListingRefs\(/);
+    expect(ROUTE).toMatch(/if \(mallanIds\.length === 0\) return \[\]/);
+    const scoped = ROUTE.match(/and \(\$\{listingScope\}\)/g) || [];
+    expect(scoped.length).toBe(2); // $expand path + flat fallback
+  });
+
+  it('Mallan listing pre-query uses the OH-eligible status set (incl ActiveUnderContract), not just Active', () => {
+    // must NOT hard-code only Active (would drop an AUC listing with a live public open house)
+    expect(ROUTE).not.toMatch(/\(\$\{officeFilter\}\) and StandardStatus eq 'Active'/);
+    expect(ROUTE).toMatch(/OPEN_HOUSE_ELIGIBLE_STATUSES\.map\(\(s\) => `StandardStatus eq '\$\{s\}'`\)/);
+  });
+});
+
+describe('open-houses — Property unwrapped from the OData expand ARRAY (the hasData=0 bug)', () => {
+  it('unwraps r.Property when it is an array (else price/address undefined → every OH dropped)', () => {
+    expect(ROUTE).toMatch(/Array\.isArray\(propRaw\)\s*\?\s*propRaw\[0\]\s*:\s*propRaw/);
+    // the old object-only read must be gone
+    expect(ROUTE).not.toMatch(/const prop = \(r\.Property \|\| \{\}\) as Record/);
+  });
+});
