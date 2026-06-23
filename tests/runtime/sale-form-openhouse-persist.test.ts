@@ -49,11 +49,22 @@ describe('sale form — open house remove + load', () => {
     expect(s).toMatch(/method: 'PATCH'[\s\S]*?status: 'cancelled'/);
   });
 
-  it('loadSaleOpenHouses GETs the openhouse showings and filters to this listing', () => {
+  it('loadSaleOpenHouses fetches BOTH open-house types and filters to this listing', () => {
     const s = fn('async function loadSaleOpenHouses(');
-    expect(s).toMatch(/\/api\/crm\/showings\?type=openhouse/);
+    // No type filter on the GET — internal brokersopen events must reload too (Codex P2).
+    expect(s).not.toMatch(/\/api\/crm\/showings\?type=openhouse/);
+    expect(s).toMatch(/\/api\/crm\/showings\?limit=200/);
+    expect(s).toMatch(/s\.type !== 'openhouse' && s\.type !== 'brokersopen'/);
     expect(s).toMatch(/s\.listing && s\.listing\.listing_id/);
     expect(s).toMatch(/s\.status === 'cancelled'/); // skip cancelled
+  });
+
+  it('persisted open-house notes + time are HTML-escaped before render (no stored XSS, Codex P2)', () => {
+    const s = fn('function _renderSaleOpenHouseCard(', 2000);
+    expect(s).toMatch(/escapeHtml\(oh\.notes\)/);
+    expect(s).toMatch(/escapeHtml\(oh\.time/);
+    // the raw, unescaped concatenation must be gone
+    expect(s).not.toMatch(/mt-1">'\s*\+\s*oh\.notes\s*\+/);
   });
 
   it('edit-load calls loadSaleOpenHouses so existing open houses render', () => {

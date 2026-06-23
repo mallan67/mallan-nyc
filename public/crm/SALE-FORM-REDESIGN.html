@@ -6497,10 +6497,13 @@ function _renderSaleOpenHouseCard(oh) {
     var html = '<div class="border rounded-lg p-4 bg-white flex items-center justify-between" id="' + rowId + '" data-showing-id="' + (oh.id || '') + '">' +
         '<div class="flex items-center gap-4">' +
         '<div class="text-center"><div class="text-lg font-bold text-gray-800">' + dateLabel + '</div>' +
-        '<div class="text-xs text-gray-500">' + (oh.time || '') + '</div></div>' +
+        '<div class="text-xs text-gray-500">' + escapeHtml(oh.time || '') + '</div></div>' +
         '<div><span class="px-2 py-1 rounded text-xs font-medium ' + (typeBadge[oh.type] || 'bg-gray-100 text-gray-700') + '">' + label + '</span>' +
         (oh.isPublic === false ? '<span class="ml-1 text-[10px] text-gray-400">(internal)</span>' : '') +
-        (oh.notes ? '<p class="text-xs text-gray-500 mt-1">' + oh.notes + '</p>' : '') +
+        // escapeHtml: notes are persisted to the DB and re-rendered via insertAdjacentHTML on
+        // edit-load, so an unescaped note would be stored XSS when the listing is reopened by an
+        // agent/broker. time is likewise persisted. (Codex P2, 2026-06-23)
+        (oh.notes ? '<p class="text-xs text-gray-500 mt-1">' + escapeHtml(oh.notes) + '</p>' : '') +
         '</div></div>' +
         '<button type="button" onclick="removeSaleOpenHouse(\'' + (oh.id || '') + '\', this)" class="text-red-600 hover:text-red-700 text-xs"><i class="fas fa-times mr-1"></i> Remove</button>' +
         '</div>';
@@ -6537,13 +6540,18 @@ async function loadSaleOpenHouses(listingId) {
     openHouseCount = 0;
     if (!listingId) return;
     try {
-        var resp = await fetch('/api/crm/showings?type=openhouse&limit=200', { credentials: 'include' });
+        // No type filter: a Broker Only / By-Appointment event persists as type='brokersopen'
+        // (internal), not 'openhouse'. Fetch all the agent's showings and keep BOTH open-house
+        // types client-side, else internal events vanish on reload and can't be cancelled here.
+        // (Codex P2, 2026-06-23)
+        var resp = await fetch('/api/crm/showings?limit=200', { credentials: 'include' });
         if (!resp.ok) return;
         var body = await resp.json();
         var rows = (body && (body.showings || body.data)) || (Array.isArray(body) ? body : []);
         if (!Array.isArray(rows)) rows = [];
         var mine = rows.filter(function (s) {
             if (s.status === 'cancelled') return false;
+            if (s.type !== 'openhouse' && s.type !== 'brokersopen') return false;
             var lid = (s.listing && s.listing.listing_id) || '';
             return String(lid) === String(listingId)
                 || String(s.listing_id) === String(typeof _saleEditDbId !== 'undefined' ? _saleEditDbId : '');
