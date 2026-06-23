@@ -1,0 +1,12 @@
+-- Phase D step 3 (board #415): agent_info was removed from the Prisma SCHEMA/CLIENT only
+-- (prisma/schema.prisma) so Prisma stops selecting it on every read -- including implicit
+-- no-select findUnique/findMany and include: { listing } -- which makes the runtime drop-safe.
+--
+-- THIS MIGRATION IS INTENTIONALLY A NO-OP. It does NOT touch the database. The physical
+-- agent_info column is DELIBERATELY RETAINED (temporary, safe schema/DB drift). Removing the
+-- physical column is a SEPARATE, snapshot-gated, explicitly Maya-approved migration that must
+-- follow a successful deploy of this schema/client change (Phase D step 4).
+--
+-- This empty checkpoint exists to satisfy the NEON.md section 1 schema/migration-coupling gate
+-- (a schema change must be paired with a migration) WITHOUT performing the deferred column drop.
+-- DO NOT add DDL to this file. The physical column removal belongs in its own approved migration.

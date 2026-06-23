@@ -87,11 +87,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate Prisma schema (non-destructive)
+        run: npx prisma validate
+
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply Prisma schema (db push)
-        run: npx prisma db push --accept-data-loss
+      - name: Apply Prisma schema to the ephemeral CI Postgres (NON-DESTRUCTIVE, no data-loss flag)
+        # Phase D safety (Codex #429): the CI Postgres is a FRESH, EMPTY, localhost-only service
+        # container (env DATABASE_URL = 127.0.0.1:5432), so this CREATES the schema with ZERO data
+        # loss. The destructive data-loss flag is intentionally OMITTED so this push can NEVER
+        # silently drop a column: it refuses a data-loss op rather than sync-away the physical
+        # agent_info column ahead of the gated, snapshot-approved DB DROP. Do NOT add that flag here.
+        run: npx prisma db push
 
       - name: Apply SQL views / constraints (if present)
         continue-on-error: true
