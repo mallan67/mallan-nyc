@@ -192,7 +192,7 @@ export interface DbListing {
 }
 
 /** RESO StandardStatus values that are publicly displayable */
-const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+export const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
 
 /** Map RESO StandardStatus to user-friendly display */
 const STATUS_DISPLAY: Record<string, string> = {
