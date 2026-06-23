@@ -69,6 +69,17 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     living_area: listing.living_area?.toString() ?? null,
   });
 
+  // Phase D step 3 safety net (Codex #429 P2): the reachable WITH-TOOLS viewers
+  // (/crm/sale-view → SALE-FORM-WITH-TOOLS.html, /crm/rental-view → RENTAL-FORM-WITH-TOOLS.html)
+  // hydrate listing agent/company attribution TYPED-FIRST now that `agent_info` is gone from the
+  // Prisma client. These typed columns already flow through the no-select findUnique +
+  // sanitizeForCRM spread above; pin them explicitly so a future `select` narrowing on
+  // findListing() cannot silently blank viewer attribution. We do NOT reintroduce or synthesize a
+  // top-level `agent_info` object, and we add NO new agent PII (email/phone) to the payload —
+  // the existing CRM-tier PII boundary in sanitizeForCRM is unchanged.
+  sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
+  sanitized.list_office_name = listing.list_office_name ?? null;
+
   return NextResponse.json(sanitized);
 }
 
