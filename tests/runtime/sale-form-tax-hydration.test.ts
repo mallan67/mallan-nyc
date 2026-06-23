@@ -69,8 +69,10 @@ describe('sale form — building annual tax must NOT populate the unit RE-Taxes 
 });
 
 describe('sale form — saved manual tax round-trips (save <-> load on the same field)', () => {
-  it('SAVE: collectSaleFormData reads saleRETaxes into TaxAnnualAmount', () => {
-    expect(FORM).toMatch(/data\.TaxAnnualAmount\s*=\s*parseFloat\(data\.saleRETaxes/);
+  it('SAVE: collectSaleFormData reads saleRETaxes into TaxAnnualAmount (zero-clobber guarded 2026-06-23)', () => {
+    // The save now reads saleRETaxes via the blank-guard var, then writes TaxAnnualAmount.
+    expect(FORM).toMatch(/_saleReTaxRaw = \([\s\S]*?data\.saleRETaxes/);
+    expect(FORM).toMatch(/data\.TaxAnnualAmount = parseFloat\(_saleReTaxRaw\)/);
   });
 
   it('LOAD: the TaxAnnualAmount field-map entry restores into saleRETaxes', () => {

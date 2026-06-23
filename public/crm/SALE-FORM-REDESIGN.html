@@ -678,7 +678,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
-                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount">
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount" oninput="syncSaleAnnualFromMonthly()">
                     <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
                 </div>
             </div>
@@ -7197,21 +7197,51 @@ function selectSaleCommercial(header) {
 // ═══════════════════════════════════════════════════════════
 function calculateSaleTotalMonthly() {
     const maintCC = parseFloat(document.getElementById('saleMaintCC')?.value) || 0;
-    const reTaxes = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
-    const total = maintCC + reTaxes;
+    // saleRETaxes holds the ANNUAL RE tax (TaxAnnualAmount); this Total is MONTHLY, so add the
+    // monthly-equivalent (annual / 12), NOT the annual figure. Before this fix, entering a
+    // monthly tax (back-filled to annual x12) made Total = annual + maint (e.g. $12,500 instead
+    // of $1,500). (Codex #432 P2, 2026-06-23)
+    const annualReTax = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
+    const total = maintCC + (annualReTax / 12);
     const totalField = document.getElementById('saleTotalMonthly');
     if (totalField) {
         totalField.value = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 }
 
-// Auto-calculate TaxMonthlyAmount from TaxAnnualAmount (Exhibit A #52)
+// Monthly RE tax is a DERIVED DISPLAY only. There is NO Cotality monthly tax field
+// (verified: artifacts/metadata.xml exposes only TaxAnnualAmount on Property); we store
+// the ANNUAL value (TaxAnnualAmount) and show monthly = annual / 12. Two-way: editing
+// either box fills the other. Programmatic `.value` sets do NOT fire `oninput`, so the
+// two handlers never loop. (2026-06-23)
 function autoCalcTaxMonthly() {
     const monthlyField = document.getElementById('saleTaxMonthly');
-    if (!monthlyField || monthlyField.value) return; // Don't overwrite manual entry
-    const annual = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
-    if (annual > 0) {
-        monthlyField.value = (annual / 12).toFixed(2);
+    const annualEl = document.getElementById('saleRETaxes');
+    if (!monthlyField || !annualEl) return;
+    const raw = (annualEl.value || '').trim();
+    if (raw === '') {
+        monthlyField.value = ''; // annual cleared -> clear the derived monthly display
+    } else {
+        const annual = parseFloat(raw);
+        monthlyField.value = (annual > 0) ? (annual / 12).toFixed(2) : '';
+    }
+    calculateSaleTotalMonthly();
+}
+
+// Two-way binding: typing the MONTHLY RE tax back-fills the canonical ANNUAL field
+// (saleRETaxes -> saved as TaxAnnualAmount) as monthly * 12, so entering monthly is no
+// longer a dead end. Monthly itself is never persisted (data-rls-ignore); only annual
+// TaxAnnualAmount is stored. A blank monthly leaves annual untouched (no zero-clobber).
+// (2026-06-23)
+function syncSaleAnnualFromMonthly() {
+    const monthlyField = document.getElementById('saleTaxMonthly');
+    const annualEl = document.getElementById('saleRETaxes');
+    if (!monthlyField || !annualEl) return;
+    const raw = (monthlyField.value || '').trim();
+    if (raw === '') return; // blank monthly -> do not touch the annual field
+    const monthly = parseFloat(raw);
+    if (monthly > 0) {
+        annualEl.value = Math.round(monthly * 12 * 100) / 100;
     }
     calculateSaleTotalMonthly();
 }
@@ -7644,7 +7674,15 @@ function collectSaleFormData() {
     // entry's fallback. No canonical Possession write here.
 
     // Financial & tax fields
-    data.TaxAnnualAmount = parseFloat(data.saleRETaxes || '0') || 0;
+    // Zero-clobber guard: only emit TaxAnnualAmount when the annual field has a real
+    // value. A BLANK box must NOT overwrite a previously-saved tax with 0 — the PATCH
+    // route merges features by `body[k] !== undefined`, so OMITTING the key preserves the
+    // stored value. (saleTaxMonthly back-fills saleRETaxes via syncSaleAnnualFromMonthly,
+    // so entering monthly also populates this annual value.) (2026-06-23)
+    var _saleReTaxRaw = (data.saleRETaxes == null ? '' : String(data.saleRETaxes)).trim();
+    if (_saleReTaxRaw !== '') {
+        data.TaxAnnualAmount = parseFloat(_saleReTaxRaw) || 0;
+    }
     // TaxDeductionPercent phantom emit removed (Cotality-clean 2026-05-30): not in
     // live $metadata. Value persists as internal saleTaxDeduction (SALE_FIELD_MAP, legacy fallback).
     data.FlipTax = data.saleFlipTaxAmount || '';
@@ -9941,6 +9979,10 @@ function _populateSaleFormFromApi(listing) {
 
     // ── Trigger calculations ──
     if (typeof calculateSaleTotalMonthly === 'function') calculateSaleTotalMonthly();
+    // Derive the monthly RE-tax display from the loaded annual value (saleTaxMonthly is
+    // data-rls-ignore and has no SALE_FIELD_MAP restore, so it would otherwise show blank
+    // on edit-load even when an annual tax exists). (2026-06-23)
+    if (typeof autoCalcTaxMonthly === 'function') autoCalcTaxMonthly();
     if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
     // Re-run status-driven field gating on edit-load. The saleStatus restore
     // above happens with _salePopulateInProgress suppressing the change event,
