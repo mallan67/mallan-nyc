@@ -30,7 +30,7 @@ export default function OpenHouseBanner({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md bg-brand-gold px-2 py-1 text-[11px] font-semibold text-white shadow-sm ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md bg-brand-slate px-2 py-1 text-[11px] font-semibold text-white shadow-sm ${className}`}
       title={label}
     >
       <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
