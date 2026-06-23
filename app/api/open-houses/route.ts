@@ -15,6 +15,42 @@ export const dynamic = 'force-dynamic';
 // narrow to the open-house-eligible subset here. (P2, 2026-06-23)
 const OPEN_HOUSE_ELIGIBLE_STATUSES = DISPLAYABLE_STATUSES.filter((s) => s !== 'ComingSoon');
 
+// The public /open-houses page shows MALLAN Real Estate's open houses ONLY (Maya, 2026-06-23) —
+// the brokerage's own listings, NOT the ~1,560-row city-wide REBNY RLS open-house feed. We scope
+// the Trestle feed to Mallan's office MLS id.
+//
+// This list is intentionally DISTINCT from `MALLAN_OFFICE_MLS_IDS` in lib/syndication/mallan-identity.ts
+// — do NOT consolidate. That constant is deliberately EMPTY and load-bearing for the syndication HOLD
+// (invariant I.5: empty office+agent sets block every syndication row). Populating it would un-gate
+// syndication exports, which are HELD. This constant only scopes the read-only open-house display.
+//
+// Verified live against Cotality 2026-06-23: ListOfficeMlsId '7041' = "MAllan Real Estate Inc"
+// (the office on RLS20099289 / 400 E 90th #4D, ListAgentMlsId 39361 Maya Allan).
+const MALLAN_OH_OFFICE_MLS_IDS = ['7041'] as const;
+
+// Mallan's own active listing ids/keys, for scoping the OpenHouse feed to Mallan only. Small set
+// (a handful). Returns empty on any error → the caller shows NO Trestle open houses (fail-closed to
+// "nothing" rather than leaking the city-wide feed).
+async function fetchMallanListingRefs(token: string, base: string): Promise<{ ids: string[]; keys: string[] }> {
+  const officeFilter = MALLAN_OH_OFFICE_MLS_IDS.map((id) => `ListOfficeMlsId eq '${id}'`).join(' or ');
+  const params = new URLSearchParams();
+  params.set('$filter', `(${officeFilter}) and StandardStatus eq 'Active'`);
+  params.set('$select', 'ListingId,ListingKey');
+  params.set('$top', '200');
+  const res = await fetch(`${base}/odata/Property?${params}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  });
+  if (!res.ok) return { ids: [], keys: [] };
+  const data = await res.json();
+  const ids: string[] = [];
+  const keys: string[] = [];
+  for (const r of (data.value || [])) {
+    if (r.ListingId) ids.push(String(r.ListingId));
+    if (r.ListingKey) keys.push(String(r.ListingKey));
+  }
+  return { ids, keys };
+}
+
 interface OpenHouseDTO {
   id: string;
   listingId: string;
@@ -78,6 +114,12 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     const token = await getAccessToken();
     const base = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
+    // Scope to MALLAN's own active listings — the open-houses page shows Mallan Real Estate's open
+    // houses only (Maya, 2026-06-23), not the city-wide feed. No Mallan listings → no Trestle OHs.
+    const { ids: mallanIds } = await fetchMallanListingRefs(token, base);
+    if (mallanIds.length === 0) return [];
+    const listingScope = mallanIds.map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`).join(' or ');
+
     // Fetch upcoming open houses from the OpenHouse entity.
     // Filter to public open houses only — Broker-only and Private events
     // are not for consumer display per REBNY UCBA Art. I §16 (open-house
@@ -89,7 +131,8 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // display gate fail-OPENs on REBNY-null IELD, a cancelled future Public OH on an otherwise
     // displayable listing would surface without this. Mirrors app/api/listings/route.ts (lines
     // ~471/~888) which already filters Active. (P1, 2026-06-23)
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'`);
+    // `(${listingScope})` restricts to Mallan's own listings (Mallan-only open-houses page).
+    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
@@ -110,8 +153,9 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     });
 
     if (!res.ok) {
-      // Fallback: try without $expand (some Trestle setups don't support it on OpenHouse)
-      return fetchTrestleOpenHousesFlat();
+      // Fallback: try without $expand (some Trestle setups don't support it on OpenHouse).
+      // Pass the already-resolved Mallan listing ids so the fallback stays Mallan-scoped too.
+      return fetchTrestleOpenHousesFlat(mallanIds);
     }
 
     const data = await res.json();
@@ -121,7 +165,12 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // was functional but a parallel implementation; now unified.
     const records = (data.value || [])
       .map((r: Record<string, unknown>) => {
-        const prop = (r.Property || {}) as Record<string, unknown>;
+        // Property is a COLLECTION-valued navigation on OpenHouse, so $expand returns it as an
+        // ARRAY (`[{…}]`), not a single object. Reading it as an object left every ListPrice/address
+        // undefined → price 0 → the hasData filter in GET() dropped EVERY Trestle open house (the
+        // page showed nothing). Unwrap the first element. (Verified live against Cotality 2026-06-23.)
+        const propRaw = r.Property;
+        const prop = ((Array.isArray(propRaw) ? propRaw[0] : propRaw) || {}) as Record<string, unknown>;
         // idxPlusPreFiltered: this is the RAW REBNY IDX Plus feed (Property expanded off the
         // OpenHouse entity). InternetEntireListingDisplayYN / InternetAddressDisplayYN are null on
         // REBNY-pre-filtered rows = displayable (fail-OPEN, `!== false`), NOT affirmPermission
@@ -179,18 +228,23 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
   }
 }
 
-// Fallback: fetch OpenHouse without $expand, then batch-fetch Property data
-async function fetchTrestleOpenHousesFlat(): Promise<OpenHouseDTO[]> {
+// Fallback: fetch OpenHouse without $expand, then batch-fetch Property data.
+// `mallanIds` are Mallan's own active ListingIds (resolved by the caller) — the feed stays
+// Mallan-scoped. Empty → nothing to show.
+async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHouseDTO[]> {
   try {
+    if (mallanIds.length === 0) return [];
     const token = await getAccessToken();
     const base = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
     const today = new Date().toISOString().split('T')[0];
+    const listingScope = mallanIds.map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`).join(' or ');
 
     const params = new URLSearchParams();
     // Public-only — Broker-only and Private events excluded (see rationale
     // in fetchTrestleOpenHouses above). OpenHouseStatus eq 'Active' excludes
     // cancelled/inactive open houses (P1, 2026-06-23 — see $expand path).
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'`);
+    // `(${listingScope})` keeps the fallback Mallan-scoped (Mallan-only open-houses page).
+    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
     params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
