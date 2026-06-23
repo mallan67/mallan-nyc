@@ -456,12 +456,28 @@ describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
 // ─── Fix 3 — /buy?exclusive=mallan ───────────────────────────────────────
 
 describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
-  it('exclusive=mallan sets `agent_id: { not: null }` on the Prisma where', () => {
+  it('exclusive=mallan restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id', () => {
+    // Updated 2026-06-23: agent_id is unsafe — syncAgentHistory stamps it onto
+    // THIRD-PARTY buyer-side Trestle rows (lib/idx/fetch.ts:427 matches
+    // BuyerAgentMlsId). Identity is now the CRM SL-/RL- prefix OR rls_eligible=false
+    // (the PR #308 signal). The homepage Featured exclusives feed drops the generic
+    // bed/price filters, so this identity check must be airtight.
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('exclusive', 'mallan');
     const { where } = buildPublicListingDbSearch(params);
-    expect(where.agent_id).toEqual({ not: null });
+    expect(where.agent_id).toBeUndefined();
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        {
+          OR: [
+            { listing_id: { startsWith: 'SL-' } },
+            { listing_id: { startsWith: 'RL-' } },
+            { rls_eligible: false },
+          ],
+        },
+      ]),
+    );
   });
 
   it('omitting exclusive leaves agent_id unconstrained', () => {

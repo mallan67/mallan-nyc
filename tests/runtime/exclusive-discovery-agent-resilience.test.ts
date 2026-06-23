@@ -43,8 +43,23 @@ function makeDbListing(overrides: Partial<DbListing> = {}): DbListing {
 describe('exclusive=mallan query includes Active website-only Mallan exclusives', () => {
   const { where } = buildPublicListingDbSearch(new URLSearchParams({ exclusive: 'mallan', type: 'sale' }));
 
-  it('restricts to Mallan-authored rows (agent_id not null) and sale type', () => {
-    expect(where.agent_id).toEqual({ not: null });
+  it('restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id, and sale type', () => {
+    // Updated 2026-06-23: agent_id is unsafe (syncAgentHistory stamps it onto
+    // third-party buyer-side Trestle rows). Identity is the CRM SL-/RL- prefix OR
+    // rls_eligible=false (PR #308). The website-only OR branch (below) is the
+    // separate DISPLAY gate and is unaffected.
+    expect(where.agent_id).toBeUndefined();
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        {
+          OR: [
+            { listing_id: { startsWith: 'SL-' } },
+            { listing_id: { startsWith: 'RL-' } },
+            { rls_eligible: false },
+          ],
+        },
+      ]),
+    );
     expect(where.listing_type).toBe('sale');
   });
 
