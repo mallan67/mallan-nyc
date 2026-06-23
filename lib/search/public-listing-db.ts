@@ -205,12 +205,25 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
 
   // `exclusive=mallan` is sourced from the `/exclusives` redirect
   // (vercel.json:55-58). UCBA Art. III §2(A) + 19 NYCRR §175.25 forbid
-  // surfacing other brokers' listings as if they were ours, so the filter
-  // restricts to rows authored through our CRM (`agent_id != null`).
-  // Currently 0 production rows match; the page legitimately renders empty
-  // until Mallan exclusives are added.
+  // surfacing other brokers' listings as if they were ours.
+  //
+  // A genuine Mallan exclusive is CRM-AUTHORED (SL-/RL- listing_id prefix) OR
+  // website-only (rls_eligible=false) — the SAME robust signal the agent page
+  // uses (PR #308, app/api/agents/[slug]/listings/route.ts:245-252). It is NOT
+  // `agent_id != null`: syncAgentHistory (lib/idx/sync.ts) stamps agent_id onto
+  // THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side
+  // (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts:427),
+  // so agent_id would mislabel third-party IDX listings as our exclusives — and
+  // the homepage Featured exclusives feed drops the generic bed/price filters,
+  // so the identity check here MUST be airtight.
   if (params.get("exclusive") === "mallan") {
-    where.agent_id = { not: null };
+    appendAnd(where, {
+      OR: [
+        { listing_id: { startsWith: "SL-" } },
+        { listing_id: { startsWith: "RL-" } },
+        { rls_eligible: false },
+      ],
+    });
   }
 
   const minPrice = intParam(params, "minPrice");

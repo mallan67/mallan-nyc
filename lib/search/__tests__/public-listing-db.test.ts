@@ -89,6 +89,39 @@ describe("buildPublicListingDbSearch", () => {
     expect(newDev.where.property_sub_type).toEqual({ in: ["NewConstruction", "New Construction"] });
     expect(newDev.orderBy).toEqual({ modification_timestamp: "desc" });
   });
+
+  it("restricts exclusive=mallan to TRUE Mallan exclusives (SL-/RL- or website-only), never agent_id", () => {
+    // Requirement: the homepage exclusives feed must be provably Mallan-only.
+    // syncAgentHistory stamps agent_id onto THIRD-PARTY (buyer-side) Trestle rows
+    // (lib/idx/fetch.ts:427 matches BuyerAgentMlsId), so agent_id != null is unsafe.
+    const { where } = buildPublicListingDbSearch(
+      new URLSearchParams("type=sale&exclusive=mallan"),
+    );
+
+    // Identity is an AND-ed OR over the robust CRM/website-only signal.
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        {
+          OR: [
+            { listing_id: { startsWith: "SL-" } },
+            { listing_id: { startsWith: "RL-" } },
+            { rls_eligible: false },
+          ],
+        },
+      ]),
+    );
+    // It must NOT fall back to agent_id (which can be set on third-party IDX rows).
+    expect(where.agent_id).toBeUndefined();
+  });
+
+  it("keeps the general-feed minBeds floor (third-party studios excluded)", () => {
+    // The general Featured feed passes beds=1 (minBeds); a 0-bed third-party
+    // studio is filtered out at the DB by bedrooms_total >= 1.
+    const { where } = buildPublicListingDbSearch(
+      new URLSearchParams("type=sale&beds=1"),
+    );
+    expect(where.bedrooms_total).toEqual({ gte: 1 });
+  });
 });
 
 describe("applyPublicListingPostFilters", () => {

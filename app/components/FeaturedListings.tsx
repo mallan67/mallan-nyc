@@ -19,6 +19,7 @@ import {
   featuredBadgeFor,
   featuredCardHref,
   isPinnedFeatured,
+  buildExclusiveFeaturedParams,
 } from '@/lib/featured/featured-ordering';
 
 interface FeaturedListing {
@@ -409,9 +410,13 @@ export default function FeaturedListings() {
         // Exclusives feed (Mallan-owned) — small, single fetch, kicked off in
         // parallel; awaited before the general loop so the stop condition can
         // account for exclusive-vs-general dedupe collapse.
-        const exclParams = new URLSearchParams(params.toString());
-        exclParams.set('exclusive', 'mallan');
-        exclParams.set('limit', '12');
+        // Mallan exclusives must headline Featured regardless of the generic
+        // homepage curation filters (minBeds/minPrice/borough/neighborhood) — see
+        // buildExclusiveFeaturedParams. The GENERAL feed below KEEPS those filters,
+        // so third-party studios stay excluded; and /api/listings?exclusive=mallan
+        // restricts to true Mallan (SL-/RL-/website-only) rows, so this feed can
+        // never admit a third-party studio. (2026-06-23)
+        const exclParams = buildExclusiveFeaturedParams(params);
         const exclPromise = fetch(`/api/listings?${exclParams.toString()}`)
           .then((r) => (r.ok ? r.json() : { listings: [] }))
           .catch(() => ({ listings: [] }));
