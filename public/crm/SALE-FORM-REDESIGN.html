@@ -7197,8 +7197,12 @@ function selectSaleCommercial(header) {
 // ═══════════════════════════════════════════════════════════
 function calculateSaleTotalMonthly() {
     const maintCC = parseFloat(document.getElementById('saleMaintCC')?.value) || 0;
-    const reTaxes = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
-    const total = maintCC + reTaxes;
+    // saleRETaxes holds the ANNUAL RE tax (TaxAnnualAmount); this Total is MONTHLY, so add the
+    // monthly-equivalent (annual / 12), NOT the annual figure. Before this fix, entering a
+    // monthly tax (back-filled to annual x12) made Total = annual + maint (e.g. $12,500 instead
+    // of $1,500). (Codex #432 P2, 2026-06-23)
+    const annualReTax = parseFloat(document.getElementById('saleRETaxes')?.value) || 0;
+    const total = maintCC + (annualReTax / 12);
     const totalField = document.getElementById('saleTotalMonthly');
     if (totalField) {
         totalField.value = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

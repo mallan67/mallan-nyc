@@ -46,6 +46,14 @@ describe('sale form — two-way monthly <-> annual RE tax', () => {
     // After the populate trigger-calc, autoCalcTaxMonthly() runs so monthly shows when annual exists.
     expect(FORM).toMatch(/calculateSaleTotalMonthly\(\);[\s\S]{0,400}?autoCalcTaxMonthly === 'function'\) autoCalcTaxMonthly\(\)/);
   });
+
+  it('Total Monthly adds the MONTHLY tax (annual/12), not the annual figure (Codex #432 P2)', () => {
+    const i = FORM.indexOf('function calculateSaleTotalMonthly()');
+    const fn = FORM.slice(i, i + 700);
+    expect(fn).toContain('annualReTax / 12');
+    // the old bug (adding the full annual tax to monthly maintenance) is gone
+    expect(fn).not.toMatch(/const total = maintCC \+ reTaxes;/);
+  });
 });
 
 describe('sale form — annual tax zero-clobber guard', () => {
