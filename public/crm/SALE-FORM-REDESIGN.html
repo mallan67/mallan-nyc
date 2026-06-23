@@ -10200,7 +10200,7 @@ function handleSaleMediaUpload(event, mediaType) {
         || (typeof _saleEditDbId !== 'undefined' && _saleEditDbId) || '';
     if (_editId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
         showToast(files.length + ' ' + mediaType + '(s) added — uploading…', 'info');
-        uploadPendingMedia(_editId).then(function (res) {
+        uploadPendingMedia(_editId, { appendAfterExisting: true }).then(function (res) {
             renderServerMediaRows(_editId); // re-render the keyed manager (reorderable tiles)
             if (res && res.uploaded > 0) showToast(res.uploaded + ' photo(s) uploaded — drag or use ◀/▶ to reorder.', 'success');
             if (res && res.failed > 0) showToast(res.failed + ' upload(s) failed.', 'warning');
@@ -10259,50 +10259,69 @@ function removePendingMedia(index, btn) {
     }
 }
 
-async function uploadPendingMedia(listingId) {
+var _uploadPendingMediaBusy = false;
+async function uploadPendingMedia(listingId, opts) {
     var pending = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; });
     if (pending.length === 0) return { uploaded: 0, failed: 0 };
+    // Re-entrancy guard (Codex #434): the saved-listing auto-upload, the manual "Save Media"
+    // button, and Save Draft/Publish all upload the SAME pending entries (uploaded=false until a
+    // request resolves). Without this, a click during an in-flight upload re-POSTs the same files
+    // and races the dedupe. A concurrent call bails instead of double-uploading. (2026-06-23)
+    if (_uploadPendingMediaBusy) {
+        showToast('Media upload already in progress — please wait.', 'info');
+        return { uploaded: 0, failed: 0, busy: true };
+    }
+    _uploadPendingMediaBusy = true;
+    try {
+        var uploaded = 0, failed = 0;
+        for (var i = 0; i < pending.length; i++) {
+            var entry = pending[i];
+            // Skip PDF files — backend validateImage only accepts image MIME types
+            var entryIsPdf = entry.file.type === 'application/pdf' || entry.file.name.toLowerCase().endsWith('.pdf');
+            if (entryIsPdf) {
+                showToast('Skipping PDF "' + entry.file.name + '" — upload as JPG/PNG image instead.', 'warning');
+                entry._removed = true;
+                continue;
+            }
+            var formData = new FormData();
+            formData.append('file', entry.file);
+            // Append-after-existing (Codex #434): for upload-on-add to a SAVED listing, OMIT the
+            // order so the route APPENDS after the listing's current max order (route.ts:198-203)
+            // instead of posting order=0 and colliding with the existing gallery. The pre-save
+            // (brand-new listing) path keeps sending the arranged _pendingMediaFiles order.
+            if (!(opts && opts.appendAfterExisting)) {
+                formData.append('order', String(entry.order));
+            }
+            formData.append('caption', entry.type === 'floorplan' ? 'Floor Plan' : '');
 
-    var uploaded = 0, failed = 0;
-    for (var i = 0; i < pending.length; i++) {
-        var entry = pending[i];
-        // Skip PDF files — backend validateImage only accepts image MIME types
-        var entryIsPdf = entry.file.type === 'application/pdf' || entry.file.name.toLowerCase().endsWith('.pdf');
-        if (entryIsPdf) {
-            showToast('Skipping PDF "' + entry.file.name + '" — upload as JPG/PNG image instead.', 'warning');
-            entry._removed = true;
-            continue;
-        }
-        var formData = new FormData();
-        formData.append('file', entry.file);
-        formData.append('order', String(entry.order));
-        formData.append('caption', entry.type === 'floorplan' ? 'Floor Plan' : '');
-
-        try {
-            var resp = await fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media/upload', {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin',
-            });
-            if (resp.ok) {
-                var result = await resp.json();
-                entry.uploaded = true;
-                entry.url = result.photo?.url || '';
-                uploaded++;
-            } else if (resp.status === 409) {
-                entry.uploaded = true;
-                uploaded++;
-            } else {
-                var errBody = await resp.json().catch(function() { return {}; });
-                showToast('Upload failed for ' + entry.file.name + ': ' + (errBody.error || resp.status), 'error');
+            try {
+                var resp = await fetch('/api/crm/listings/' + encodeURIComponent(listingId) + '/media/upload', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                });
+                if (resp.ok) {
+                    var result = await resp.json();
+                    entry.uploaded = true;
+                    entry.url = result.photo?.url || '';
+                    uploaded++;
+                } else if (resp.status === 409) {
+                    entry.uploaded = true;
+                    uploaded++;
+                } else {
+                    var errBody = await resp.json().catch(function() { return {}; });
+                    showToast('Upload failed for ' + entry.file.name + ': ' + (errBody.error || resp.status), 'error');
+                    failed++;
+                }
+            } catch (e) {
+                showToast('Upload failed for ' + entry.file.name + ': ' + e.message, 'error');
                 failed++;
             }
-        } catch (e) {
-            showToast('Upload failed for ' + entry.file.name + ': ' + e.message, 'error');
-            failed++;
         }
+        return { uploaded: uploaded, failed: failed };
+    } finally {
+        _uploadPendingMediaBusy = false;
     }
-    return { uploaded: uploaded, failed: failed };
 }
 
 // ═══════════════════════════════════════════════════════════

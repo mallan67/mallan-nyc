@@ -22,7 +22,7 @@ describe('sale form — saved listing uploads-on-add so photos are instantly reo
     const i = FORM.indexOf('function handleSaleMediaUpload(');
     const fn = FORM.slice(i, FORM.indexOf('function removePendingMedia('));
     expect(fn).toMatch(/_editId\s*=\s*\([\s\S]*?_saleEditListingId[\s\S]*?_saleEditDbId/);
-    expect(fn).toMatch(/if \(_editId[\s\S]*?uploadPendingMedia\(_editId\)/);
+    expect(fn).toMatch(/if \(_editId[\s\S]*?uploadPendingMedia\(_editId,/);
     expect(fn).toContain('renderServerMediaRows(_editId)');
   });
 });
@@ -42,5 +42,24 @@ describe('sale form — unsaved preview photos are reorderable pre-save', () => 
     expect(fn).toContain("sib.getAttribute('data-media-index') === null"); // skip keyed tiles
     expect(fn).toMatch(/_pendingMediaFiles\[parseInt\(idxAttr, 10\)\]/);
     expect(fn).toContain('entry.order = pos++');
+  });
+});
+
+describe('sale form — upload-on-add safety (Codex #434)', () => {
+  it('upload-on-add appends after existing photos (omits order) instead of posting order=0', () => {
+    // the call passes appendAfterExisting…
+    expect(FORM).toContain('uploadPendingMedia(_editId, { appendAfterExisting: true })');
+    // …and uploadPendingMedia only sends `order` when NOT appending
+    const i = FORM.indexOf('async function uploadPendingMedia(');
+    const fn = FORM.slice(i, i + 3600);
+    expect(fn).toMatch(/if \(!\(opts && opts\.appendAfterExisting\)\) \{\s*formData\.append\('order'/);
+  });
+
+  it('uploadPendingMedia has a re-entrancy lock so concurrent saves cannot double-upload', () => {
+    const i = FORM.indexOf('async function uploadPendingMedia(');
+    const fn = FORM.slice(i, i + 3600);
+    expect(fn).toContain('if (_uploadPendingMediaBusy)');
+    expect(fn).toContain('_uploadPendingMediaBusy = true');
+    expect(fn).toMatch(/finally \{\s*_uploadPendingMediaBusy = false/);
   });
 });
