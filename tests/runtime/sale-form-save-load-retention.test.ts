@@ -174,10 +174,11 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
 describe('Sale form save/load retention — PR-E populate/autosave race hardening', () => {
   // ── Test 10: populate setters do not dispatch change events during populate ──
-  // Slice bumped to 23000 (Cotality-clean sweep 2026-05-30 added syndication-restore
-  // lines, pushing populate's single applySalesFieldRules() call past the old 20000
-  // window; 23000 reaches it but stops before the NEXT function's call).
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 23000);
+  // Slice bumped to 24000 (the tax features-first branch 2026-06-23 added a few
+  // lines inside populate, pushing its single guarded applySalesFieldRules() call to
+  // +23078 chars, past the old 23000 window; the next function _offerDraftRestore
+  // begins at +24733, so 24000 reaches the real call but stops before that next call).
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 24000);
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.
