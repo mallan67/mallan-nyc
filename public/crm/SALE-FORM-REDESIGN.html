@@ -7964,6 +7964,10 @@ function submitSalesListing() {
                 if (mediaResult.failed > 0) {
                     showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
                 }
+                // Replace the non-draggable upload previews with the authoritative
+                // keyed tiles so the photos become reorderable (drag) immediately.
+                _pendingMediaFiles = _pendingMediaFiles.filter(function(m) { return !m.uploaded; });
+                await renderServerMediaRows(_saleEditListingId || String(lid), String(_saleEditDbId || lid));
             }
             // Transition status using two-layer model:
             // The form's selected CRM workflow status maps to a canonical server status.
@@ -8247,6 +8251,11 @@ async function manualSaveDraft() {
                 if (mediaResult.uploaded > 0) {
                     showToast(mediaResult.uploaded + ' file(s) uploaded successfully.' + (mediaResult.failed > 0 ? ' ' + mediaResult.failed + ' failed.' : ''), mediaResult.failed > 0 ? 'warning' : 'success');
                 }
+                // Replace the non-draggable upload previews with the authoritative
+                // keyed tiles so the photos become reorderable (drag) immediately and
+                // do not stack up as duplicate previews on repeat saves.
+                _pendingMediaFiles = _pendingMediaFiles.filter(function(m) { return !m.uploaded; });
+                await renderServerMediaRows(listingId, String(dbId || listingId));
             }
 
             // Cancel only the pre-flight autosave timer, not any newer one from edits during save

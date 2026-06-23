@@ -95,4 +95,17 @@ describe('SALE-FORM-REDESIGN.html — media manager / publish / refresh (P1)', (
   it('Draft remains the default initial status', () => {
     expect(html).toMatch(/<option value="Draft" selected>Draft<\/option>/);
   });
+
+  it('Save Draft AND Publish re-render keyed tiles after upload (so photos become draggable, not stacked previews)', () => {
+    // Both save paths must call renderServerMediaRows() right after
+    // uploadPendingMedia(), or the non-draggable upload previews persist and
+    // stack up (the "can\'t sort / triple pictures" bug).
+    const draft = html.slice(html.indexOf('async function manualSaveDraft()'));
+    const draftBody = draft.slice(0, draft.indexOf('\nfunction '));
+    expect(draftBody).toMatch(/await uploadPendingMedia\([\s\S]{0,1200}renderServerMediaRows\(/);
+
+    const submit = html.slice(html.indexOf('function submitSalesListing()'));
+    const submitBody = submit.slice(0, submit.indexOf('\nfunction validateAndNextSaleTab'));
+    expect(submitBody).toMatch(/await uploadPendingMedia\([\s\S]{0,1200}renderServerMediaRows\(/);
+  });
 });
