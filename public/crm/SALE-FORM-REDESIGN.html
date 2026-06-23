@@ -6396,7 +6396,36 @@ function addSaleOpenHouse() {
     if (form) form.style.display = 'block';
 }
 
-function saveSaleOpenHouse() {
+// "14:00" -> "2:00 PM" for the showing.time string the public feed parses ("start - end").
+function _ohTime12h(t) {
+    if (!t) return '';
+    var m = String(t).match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return t;
+    var h = parseInt(m[1], 10), min = m[2];
+    var ap = h >= 12 ? 'PM' : 'AM';
+    var h12 = (h % 12 === 0) ? 12 : (h % 12);
+    return h12 + ':' + min + ' ' + ap;
+}
+
+// Form open-house type -> showing.type + public flag. ONLY public events are publicly displayed
+// (REBNY UCBA Art. I §16): Public/Virtual -> 'openhouse' (the public /api/open-houses feed reads
+// type='openhouse'); Broker/By-Appointment -> 'brokersopen' (internal, never on the public page).
+function _ohShowingType(formType) {
+    switch (formType) {
+        case 'Public':        return { showingType: 'openhouse',   isPublic: true };
+        case 'Virtual':       return { showingType: 'openhouse',   isPublic: true };
+        case 'BrokerOnly':    return { showingType: 'brokersopen', isPublic: false };
+        case 'ByAppointment': return { showingType: 'brokersopen', isPublic: false };
+        default:              return { showingType: 'brokersopen', isPublic: false };
+    }
+}
+
+// Persist an open house as a `showing` (type='openhouse'|'brokersopen') TIED TO THE LISTING via
+// POST /api/crm/showings, so it survives save and (for Public) appears on /open-houses + the
+// listing detail "Upcoming Open House" panel. Read-only Cotality cannot be written from here, so
+// website-only/local open houses live in the showing table; RLS listings' open houses come from
+// the Cotality feed. (2026-06-23)
+async function saveSaleOpenHouse() {
     const date = document.getElementById('saleNewOHDate')?.value;
     const start = document.getElementById('saleNewOHStart')?.value;
     const end = document.getElementById('saleNewOHEnd')?.value;
@@ -6407,38 +6436,135 @@ function saveSaleOpenHouse() {
         alert('Please fill in Date, Start Time, and End Time.');
         return;
     }
+    // REBNY UCBA Art. I §16 — no showings/open houses while Coming Soon (no showings until activation).
+    var statusEl = document.getElementById('saleStatus');
+    if (statusEl && statusEl.value === 'ComingSoon') {
+        alert('Open houses cannot be scheduled while the listing is in Coming Soon status.');
+        return;
+    }
+    // Open houses attach to a SAVED listing (need its id). Save a brand-new listing first.
+    var listingId = (typeof _saleEditListingId !== 'undefined' && _saleEditListingId)
+        || (typeof _saleEditDbId !== 'undefined' && _saleEditDbId) || '';
+    if (!listingId) {
+        alert('Save the listing first (as a draft), then add open houses — they attach to the saved listing.');
+        return;
+    }
 
+    var info = _ohShowingType(type);
+    var timeStr = _ohTime12h(start) + ' - ' + _ohTime12h(end);
+    var fullNotes = '[' + type + '] ' + (notes || ''); // keep the entered type so the badge survives reload
+
+    var saveBtn = document.querySelector('#saleAddOpenHouseForm button[onclick="saveSaleOpenHouse()"]');
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+        var resp = await fetch('/api/crm/showings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ listing_id: String(listingId), date: date, time: timeStr, type: info.showingType, notes: fullNotes })
+        });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function () { return {}; });
+            showToast('Could not save open house: ' + (err.error || resp.status), 'error');
+            return;
+        }
+        var body = await resp.json();
+        var rec = (body && (body.showing || body)) || {};
+        _renderSaleOpenHouseCard({ id: rec.id || '', date: date, time: timeStr, type: type, notes: notes, isPublic: info.isPublic });
+        showToast('Open house saved' + (info.isPublic ? '' : ' (internal — not shown publicly)'), 'success');
+        document.getElementById('saleNewOHDate').value = '';
+        document.getElementById('saleNewOHStart').value = '';
+        document.getElementById('saleNewOHEnd').value = '';
+        document.getElementById('saleNewOHType').value = 'Public';
+        document.getElementById('saleNewOHNotes').value = '';
+        document.getElementById('saleAddOpenHouseForm').style.display = 'none';
+    } catch (e) {
+        showToast('Could not save open house: ' + ((e && e.message) || 'network error'), 'error');
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
+}
+
+// Render a persisted open-house card carrying the showing id (for removal).
+function _renderSaleOpenHouseCard(oh) {
     openHouseCount++;
-    const container = document.getElementById('saleOpenHouseList');
-    const empty = document.getElementById('saleOpenHouseEmpty');
+    var container = document.getElementById('saleOpenHouseList');
+    if (!container) return;
+    var empty = document.getElementById('saleOpenHouseEmpty');
     if (empty) empty.remove();
-
-    const typeBadge = {
-        'Public': 'bg-green-100 text-green-700',
-        'BrokerOnly': 'bg-blue-100 text-blue-700',
-        'ByAppointment': 'bg-yellow-100 text-yellow-700',
-        'Virtual': 'bg-purple-100 text-purple-700'
-    };
-
-    const ohHTML = '<div class="border rounded-lg p-4 bg-white flex items-center justify-between" id="saleOH' + openHouseCount + '">' +
+    var typeBadge = { 'Public': 'bg-green-100 text-green-700', 'BrokerOnly': 'bg-blue-100 text-blue-700', 'ByAppointment': 'bg-yellow-100 text-yellow-700', 'Virtual': 'bg-purple-100 text-purple-700' };
+    var label = String(oh.type || 'Public').replace('ByAppointment', 'By Appt').replace('BrokerOnly', 'Broker Only');
+    var dateLabel = new Date(oh.date + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var rowId = 'saleOH' + openHouseCount;
+    var html = '<div class="border rounded-lg p-4 bg-white flex items-center justify-between" id="' + rowId + '" data-showing-id="' + (oh.id || '') + '">' +
         '<div class="flex items-center gap-4">' +
-        '<div class="text-center"><div class="text-lg font-bold text-gray-800">' + new Date(date + 'T00:00').toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) + '</div>' +
-        '<div class="text-xs text-gray-500">' + start + ' - ' + end + '</div></div>' +
-        '<div><span class="px-2 py-1 rounded text-xs font-medium ' + (typeBadge[type] || 'bg-gray-100 text-gray-700') + '">' + type.replace('ByAppointment', 'By Appt').replace('BrokerOnly', 'Broker Only') + '</span>' +
-        (notes ? '<p class="text-xs text-gray-500 mt-1">' + notes + '</p>' : '') +
+        '<div class="text-center"><div class="text-lg font-bold text-gray-800">' + dateLabel + '</div>' +
+        '<div class="text-xs text-gray-500">' + escapeHtml(oh.time || '') + '</div></div>' +
+        '<div><span class="px-2 py-1 rounded text-xs font-medium ' + (typeBadge[oh.type] || 'bg-gray-100 text-gray-700') + '">' + label + '</span>' +
+        (oh.isPublic === false ? '<span class="ml-1 text-[10px] text-gray-400">(internal)</span>' : '') +
+        // escapeHtml: notes are persisted to the DB and re-rendered via insertAdjacentHTML on
+        // edit-load, so an unescaped note would be stored XSS when the listing is reopened by an
+        // agent/broker. time is likewise persisted. (Codex P2, 2026-06-23)
+        (oh.notes ? '<p class="text-xs text-gray-500 mt-1">' + escapeHtml(oh.notes) + '</p>' : '') +
         '</div></div>' +
-        '<button type="button" onclick="document.getElementById(\'saleOH' + openHouseCount + '\').remove()" class="text-red-600 hover:text-red-700 text-xs"><i class="fas fa-times mr-1"></i> Remove</button>' +
+        '<button type="button" onclick="removeSaleOpenHouse(\'' + (oh.id || '') + '\', this)" class="text-red-600 hover:text-red-700 text-xs"><i class="fas fa-times mr-1"></i> Remove</button>' +
         '</div>';
+    container.insertAdjacentHTML('beforeend', html);
+}
 
-    container.insertAdjacentHTML('beforeend', ohHTML);
+// Remove = cancel the showing (confirmed -> cancelled, an allowed transition); the public feed
+// filters status='cancelled' out. No hard delete (audit/retention).
+async function removeSaleOpenHouse(showingId, btn) {
+    if (!confirm('Remove this open house?')) return;
+    var row = btn.closest('[data-showing-id]');
+    if (showingId) {
+        try {
+            var resp = await fetch('/api/crm/showings/' + encodeURIComponent(showingId), {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                body: JSON.stringify({ status: 'cancelled' })
+            });
+            if (!resp.ok) { showToast('Could not remove open house (HTTP ' + resp.status + ')', 'error'); return; }
+        } catch (e) { showToast('Could not remove open house: ' + ((e && e.message) || 'network error'), 'error'); return; }
+    }
+    if (row) row.remove();
+    showToast('Open house removed', 'success');
+    var container = document.getElementById('saleOpenHouseList');
+    if (container && container.children.length === 0) {
+        container.innerHTML = '<p id="saleOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">No open houses scheduled yet. Click "Add Open House" to create one.</p>';
+    }
+}
 
-    // Reset form
-    document.getElementById('saleNewOHDate').value = '';
-    document.getElementById('saleNewOHStart').value = '';
-    document.getElementById('saleNewOHEnd').value = '';
-    document.getElementById('saleNewOHType').value = 'Public';
-    document.getElementById('saleNewOHNotes').value = '';
-    document.getElementById('saleAddOpenHouseForm').style.display = 'none';
+// Load this listing's scheduled (non-cancelled) open houses on edit-load, tied to the listing.
+async function loadSaleOpenHouses(listingId) {
+    var container = document.getElementById('saleOpenHouseList');
+    if (!container) return;
+    container.innerHTML = '<p id="saleOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">No open houses scheduled yet. Click "Add Open House" to create one.</p>';
+    openHouseCount = 0;
+    if (!listingId) return;
+    try {
+        // No type filter: a Broker Only / By-Appointment event persists as type='brokersopen'
+        // (internal), not 'openhouse'. Fetch all the agent's showings and keep BOTH open-house
+        // types client-side, else internal events vanish on reload and can't be cancelled here.
+        // (Codex P2, 2026-06-23)
+        var resp = await fetch('/api/crm/showings?limit=200', { credentials: 'include' });
+        if (!resp.ok) return;
+        var body = await resp.json();
+        var rows = (body && (body.showings || body.data)) || (Array.isArray(body) ? body : []);
+        if (!Array.isArray(rows)) rows = [];
+        var mine = rows.filter(function (s) {
+            if (s.status === 'cancelled') return false;
+            if (s.type !== 'openhouse' && s.type !== 'brokersopen') return false;
+            var lid = (s.listing && s.listing.listing_id) || '';
+            return String(lid) === String(listingId)
+                || String(s.listing_id) === String(typeof _saleEditDbId !== 'undefined' ? _saleEditDbId : '');
+        });
+        mine.forEach(function (s) {
+            var m = String(s.notes || '').match(/^\[([A-Za-z]+)\]\s*([\s\S]*)$/);
+            var t = m ? m[1] : (s.type === 'brokersopen' ? 'BrokerOnly' : 'Public');
+            _renderSaleOpenHouseCard({
+                id: s.id, date: String(s.date || '').split('T')[0], time: s.time || '',
+                type: t, notes: m ? m[2] : (s.notes || ''), isPublic: (s.type === 'openhouse')
+            });
+        });
+    } catch (e) { /* non-critical — leave the empty placeholder */ }
 }
 
 function cancelSaleOpenHouse() {
@@ -9973,6 +10099,11 @@ function _populateSaleFormFromApi(listing) {
         listing.listing_id || (listing.id != null ? String(listing.id) : ''),
         listing.id != null ? String(listing.id) : '',
     );
+
+    // ── Load this listing's scheduled open houses (tied to the listing) ──
+    if (typeof loadSaleOpenHouses === 'function') {
+        loadSaleOpenHouses(listing.listing_id || (listing.id != null ? String(listing.id) : ''));
+    }
 
     // ── Update header bar ──
     if (typeof updateListingHeaderBar === 'function') updateListingHeaderBar('sale');
