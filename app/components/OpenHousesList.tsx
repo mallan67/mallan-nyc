@@ -22,6 +22,7 @@ interface OpenHouse {
   description: string;
   image: string;
   featured: boolean;
+  mallanExclusive?: boolean;
 }
 
 function formatPrice(price: number): string {
@@ -155,13 +156,18 @@ export default function OpenHousesList() {
                               target.style.display = 'none';
                             }}
                           />
-                          {oh.featured && (
-                            <span className="absolute top-3 left-3 px-3 py-1 bg-brand-gold text-white text-xs uppercase tracking-wide rounded-xl">
-                              Featured
+                          {oh.mallanExclusive && (
+                            <span
+                              className="absolute top-3 left-3 z-10 px-3 py-1 bg-brand-gold text-white text-xs font-semibold uppercase tracking-wide rounded-xl shadow-sm"
+                              title="Exclusive listing by Mallan Real Estate Inc."
+                            >
+                              Mallan Exclusive
                             </span>
                           )}
+                          {/* Open-house time, Eastern (API formats in America/New_York). */}
                           <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-sm text-white text-sm rounded-xl">
-                            {oh.startTime} - {oh.endTime}
+                            <span className="font-semibold mr-1">Open House</span>
+                            {oh.startTime}{oh.endTime ? ` - ${oh.endTime}` : ''}
                           </div>
                         </div>
 

@@ -15,6 +15,7 @@ import { resolve } from 'path';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/open-houses/route.ts'), 'utf8');
+const CARD = readFileSync(resolve(__dirname, '../../app/components/OpenHousesList.tsx'), 'utf8');
 
 describe('open-houses — Trestle feed gate uses REBNY fail-OPEN (idxPlusPreFiltered)', () => {
   it('null InternetEntireListingDisplayYN is DISPLAYABLE under idxPlusPreFiltered (REBNY pre-filter)', () => {
@@ -95,5 +96,36 @@ describe('open-houses — Property unwrapped from the OData expand ARRAY (the ha
     expect(ROUTE).toMatch(/Array\.isArray\(propRaw\)\s*\?\s*propRaw\[0\]\s*:\s*propRaw/);
     // the old object-only read must be gone
     expect(ROUTE).not.toMatch(/const prop = \(r\.Property \|\| \{\}\) as Record/);
+  });
+});
+
+describe('open-houses card — times render in Eastern (was UTC on Vercel → 4PM instead of noon)', () => {
+  it('formatTrestleTime pins timeZone America/New_York', () => {
+    expect(ROUTE).toMatch(/toLocaleTimeString\('en-US',\s*\{[^}]*timeZone:\s*'America\/New_York'/);
+  });
+});
+
+describe('open-houses card — primary photo resolved from Trestle Media (was image: empty)', () => {
+  it('has a proxied Trestle photo resolver and uses it on BOTH Trestle paths', () => {
+    expect(ROUTE).toMatch(/async function resolveTrestlePrimaryPhoto\(/);
+    expect(ROUTE).toMatch(/getValidPhotoMedia\(media\)\[0\]/);
+    expect(ROUTE).toMatch(/\/api\/media\/proxy\?url=/);
+    const used = ROUTE.match(/await resolveTrestlePrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
+    expect(used.length).toBe(2); // $expand path + flat fallback
+    // the hardcoded empty image must be gone from the Trestle DTOs
+    expect(ROUTE).not.toMatch(/image: '', \/\/ Will be filled by media proxy/);
+  });
+});
+
+describe('open-houses card — gold "Mallan Exclusive" badge (page is Mallan-only)', () => {
+  it('API flags every open house mallanExclusive: true (all 3 paths)', () => {
+    const flagged = ROUTE.match(/mallanExclusive: true/g) || [];
+    expect(flagged.length).toBe(3); // $expand, flat, local
+  });
+
+  it('card renders the gold badge from mallanExclusive and labels the time pill "Open House"', () => {
+    expect(CARD).toMatch(/oh\.mallanExclusive &&/);
+    expect(CARD).toMatch(/bg-brand-gold[\s\S]*?Mallan Exclusive/);
+    expect(CARD).toMatch(/Open House/);
   });
 });

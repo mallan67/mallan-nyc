@@ -5,6 +5,7 @@ import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
+import { getValidPhotoMedia } from '@/lib/media/listing-card-media';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,31 @@ async function fetchMallanListingRefs(token: string, base: string): Promise<{ id
   return { ids, keys };
 }
 
+// Resolve the primary card photo for a Trestle open house. Mirrors the Featured/listings path
+// (app/api/listings/route.ts): fetch Trestle Media by ResourceRecordKey (= numeric ListingKey),
+// keep only valid public photos, take the first, and proxy Cotality/CoreLogic CDN URLs through
+// /api/media/proxy (their CDN blocks cross-origin hotlinking). '' on any miss → the card shows the
+// placeholder. listingKey is the NUMERIC Property.ListingKey (NOT the RLS ListingId). (2026-06-23)
+const MEDIA_PROXY_HOSTS = ['cotality.com', 'corelogic.com'];
+async function resolveTrestlePrimaryPhoto(listingKey: unknown, listingId: unknown): Promise<string> {
+  try {
+    const key = listingKey != null ? String(listingKey) : String(listingId ?? '');
+    if (!key) return '';
+    const { fetchListingMedia } = await import('@/lib/idx/fetch');
+    const media = await fetchListingMedia(key, {
+      listingKeyNumeric: listingKey != null ? Number(listingKey) : undefined,
+    });
+    const first = getValidPhotoMedia(media)[0];
+    if (!first || !first.url) return '';
+    const url = String(first.url);
+    return MEDIA_PROXY_HOSTS.some((h) => url.includes(h))
+      ? `/api/media/proxy?url=${encodeURIComponent(url)}`
+      : url;
+  } catch {
+    return '';
+  }
+}
+
 interface OpenHouseDTO {
   id: string;
   listingId: string;
@@ -75,6 +101,9 @@ interface OpenHouseDTO {
   description: string;
   image: string;
   featured: boolean;
+  // The /open-houses page is Mallan-only, so every card is a Mallan listing → show the gold
+  // "Mallan Exclusive" badge (matches the Featured/exclusive cards). (2026-06-23)
+  mallanExclusive: boolean;
   source: 'trestle' | 'local';
 }
 
@@ -186,7 +215,8 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
       })
       .filter((x: { gate: { displayable: boolean } }) => x.gate.displayable);
 
-    return records.map((x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
+    // Async map — each card resolves its primary Trestle photo (Mallan-only page → ≤ a handful).
+    return Promise.all(records.map(async (x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
       const { r, prop, gate } = x;
       // Address suppression — if the gate says the address isn't displayable,
       // show a neighborhood-only placeholder. Previous version always built
@@ -198,9 +228,9 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         ? `${fullStreet}${unit}`
         : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
+      // Primary card photo from Trestle Media (same mechanism as the Featured cards).
+      const image = await resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId);
 
-      // Times are formatted inline below; the standalone consts that lived
-      // here were never referenced again.
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
         listingId: (r.ListingId as string) || (r.ListingKey as string) || '',
@@ -222,11 +252,13 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         agentName: (prop.ListOfficeName as string) || 'Listing broker (REBNY RLS)',
         agentPhone: '',
         description: (prop.PublicRemarks as string) || '',
-        image: '', // Will be filled by media proxy if needed
+        image,
         featured: false,
+        // Mallan-only page → this is a Mallan listing → gold "Mallan Exclusive" badge.
+        mallanExclusive: true,
         source: 'trestle' as const,
       };
-    });
+    }));
   } catch (err) {
     console.error('[open-houses] Trestle fetch failed:', err instanceof Error ? err.message : err);
     return [];
@@ -302,7 +334,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
       })
       .filter((x: { prop: Record<string, unknown> | null; gate: { displayable: boolean } }) => x.prop !== null && x.gate.displayable);
 
-    return displayableOH.map((x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
+    return Promise.all(displayableOH.map(async (x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
       const { r, prop, gate } = x;
       const fullStreet = [prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]
         .filter(Boolean).join(' ');
@@ -311,6 +343,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         ? `${fullStreet}${unit}`
         : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
+      const image = await resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId);
 
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
@@ -333,11 +366,12 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         agentName: (prop.ListOfficeName as string) || 'Listing broker (REBNY RLS)',
         agentPhone: '',
         description: (prop.PublicRemarks as string) || '',
-        image: '',
+        image,
         featured: false,
+        mallanExclusive: true,
         source: 'trestle' as const,
       };
-    });
+    }));
   } catch {
     return [];
   }
@@ -469,6 +503,8 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         description: '',
         image: firstPhoto,
         featured: false,
+        // Local open houses are Mallan's own (CRM-entered / website-only exclusives) → gold badge.
+        mallanExclusive: true,
         source: 'local' as const,
       };
     });
@@ -480,11 +516,14 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
 
 function formatTrestleTime(time: string | null | undefined): string {
   if (!time) return '';
-  // Trestle returns ISO time like "2026-03-08T11:00:00" or just "11:00:00"
+  // Trestle returns ISO time WITH an offset, e.g. "2026-06-28T12:00:00.000-04:00" (noon Eastern).
+  // We MUST format in America/New_York — without an explicit timeZone, toLocaleTimeString uses the
+  // server's zone (UTC on Vercel), so noon-ET rendered as "4:00 PM". NYC open houses always display
+  // in Eastern. (2026-06-23)
   try {
     const d = new Date(time);
     if (!isNaN(d.getTime())) {
-      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/New_York' });
     }
     // Try parsing just time portion
     const match = time.match(/(\d{1,2}):(\d{2})/);
