@@ -10167,7 +10167,16 @@ function handleSaleMediaUpload(event, mediaType) {
                     '<p class="text-[10px] text-gray-500 truncate mt-1">' + file.name + '</p>' +
                     '<button type="button" onclick="removePendingMedia(' + (_pendingMediaFiles.length - 1) + ', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition">&times;</button>';
             } else {
-                div.innerHTML = '<img src="' + previewUrl + '" class="w-full h-24 object-cover rounded-lg">' +
+                // Pre-save reorder: ◀/▶ on unsaved photo previews (_movePendingTile). draggable="false"
+                // so the tile (not the image) is the drag source. (2026-06-23)
+                var _pendMove = mediaType === 'photo'
+                    ? '<div class="absolute bottom-6 left-1 right-1 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition z-10">' +
+                      '<button type="button" title="Move earlier" onclick="_movePendingTile(this.closest(\'[data-media-index]\'),-1)" class="bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center">&#9664;</button>' +
+                      '<button type="button" title="Move later" onclick="_movePendingTile(this.closest(\'[data-media-index]\'),1)" class="bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center">&#9654;</button>' +
+                      '</div>'
+                    : '';
+                div.innerHTML = '<img src="' + previewUrl + '" draggable="false" class="w-full h-24 object-cover rounded-lg">' +
+                    _pendMove +
                     '<p class="text-[10px] text-gray-500 truncate mt-1">' + file.name + '</p>' +
                     '<button type="button" onclick="removePendingMedia(' + (_pendingMediaFiles.length - 1) + ', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition">&times;</button>';
             }
@@ -10181,8 +10190,24 @@ function handleSaleMediaUpload(event, mediaType) {
         photoCount.textContent = count + ' / 100 uploaded';
     }
 
-    showToast(files.length + ' ' + mediaType + '(s) added. Save Draft to upload.', 'success');
     event.target.value = '';
+    // Reorder-at-any-stage: if the listing is already SAVED (has an id), upload the just-added
+    // photos NOW so they immediately become keyed, reorderable tiles (◀/▶ + drag via the keyed
+    // manager) — no separate "Save Draft" step needed before arranging. For a brand-new (unsaved)
+    // listing, keep staging; the preview tiles carry their own ◀/▶ (_movePendingTile) so pre-save
+    // photos can still be arranged. (2026-06-23)
+    var _editId = (typeof _saleEditListingId !== 'undefined' && _saleEditListingId)
+        || (typeof _saleEditDbId !== 'undefined' && _saleEditDbId) || '';
+    if (_editId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+        showToast(files.length + ' ' + mediaType + '(s) added — uploading…', 'info');
+        uploadPendingMedia(_editId).then(function (res) {
+            renderServerMediaRows(_editId); // re-render the keyed manager (reorderable tiles)
+            if (res && res.uploaded > 0) showToast(res.uploaded + ' photo(s) uploaded — drag or use ◀/▶ to reorder.', 'success');
+            if (res && res.failed > 0) showToast(res.failed + ' upload(s) failed.', 'warning');
+        }).catch(function (e) { showToast('Upload failed: ' + ((e && e.message) || 'error'), 'error'); });
+    } else {
+        showToast(files.length + ' ' + mediaType + '(s) added. Save Draft to upload, then drag or use ◀/▶ to reorder.', 'success');
+    }
 }
 
 function removeServerMedia(btn, mediaId) {
@@ -10195,6 +10220,29 @@ function removeServerMedia(btn, mediaId) {
         }).catch(function() {});
     }
     showToast('Photo removed', 'success');
+}
+
+// Reorder UNSAVED preview photos (brand-new listing, pre-first-save). Moves among pending
+// preview tiles only (data-media-index, skipping any keyed tiles) and resyncs the queued
+// _pendingMediaFiles[].order so uploadPendingMedia uploads in the arranged order. Saved
+// listings upload-on-add and reorder via the keyed _moveMediaTile instead. (2026-06-23)
+function _movePendingTile(el, dir) {
+    var container = el && el.parentElement;
+    if (!container) return;
+    var sib = dir < 0 ? el.previousElementSibling : el.nextElementSibling;
+    while (sib && sib.getAttribute('data-media-index') === null) {
+        sib = dir < 0 ? sib.previousElementSibling : sib.nextElementSibling;
+    }
+    if (!sib) return; // already at the pending edge
+    if (dir < 0) container.insertBefore(el, sib);
+    else container.insertBefore(sib, el);
+    var pos = 0;
+    Array.from(container.children).forEach(function (child) {
+        var idxAttr = child.getAttribute('data-media-index');
+        if (idxAttr === null) return; // keyed server tile — leave its order to /media-order
+        var entry = _pendingMediaFiles[parseInt(idxAttr, 10)];
+        if (entry && !entry._removed) entry.order = pos++;
+    });
 }
 
 function removePendingMedia(index, btn) {
