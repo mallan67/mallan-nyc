@@ -14,6 +14,12 @@ import {
   type ListingProjectionSource,
 } from "@/lib/search/listing-search-projection";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
+import {
+  SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
+  bufferSyncDiagnostic,
+  flushSyncDiagnostics,
+  type DiagnosticAuditWriter,
+} from "./diagnostic-recorder";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -123,6 +129,16 @@ async function recordSyncDiagnostic(
   entity_id: string,
   changes: Record<string, unknown>,
 ): Promise<void> {
+  // High-volume system diagnostics (the allowlist) are deduped + capped:
+  // buffer in-memory now (synchronous, no DB round-trip in the hot loop) and
+  // flush a capped set + one summary at end of the run (flushSyncDiagnostics).
+  // FAIL-SAFE: any action NOT on the allowlist is written through immediately
+  // below, full-retained — human / compliance / security / §2.05 / Trestle /
+  // portal audit events never reach this helper and are never deduped.
+  if (SYNC_DIAGNOSTIC_DEDUPE_ACTIONS.has(action)) {
+    bufferSyncDiagnostic(action, entity_type, entity_id, changes);
+    return;
+  }
   try {
     await prisma.auditEvent.create({
       data: {
@@ -651,6 +667,17 @@ export async function syncListings(
       },
     );
   }
+
+  // Flush this run's buffered system diagnostics: ≤ cap full rows (highest-
+  // count first, each carrying its occurrence count) + one summary row for
+  // the remainder. Prevents the per-record failure burst (see
+  // lib/idx/diagnostic-recorder.ts). Best-effort — never throws.
+  await flushSyncDiagnostics(prisma as unknown as DiagnosticAuditWriter, {
+    run_bucket: options.since ? options.since.toISOString() : "full",
+    since: options.since ? options.since.toISOString() : null,
+    full_sync: options.fullSync || false,
+    type: options.type || "all",
+  });
 
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,

@@ -593,3 +593,82 @@ describe("no out-of-scope changes (cron / schema / compliance / sync behavior)",
     expect(syncSource).not.toMatch(/TERMINAL_STATUSES\s*=/);
   });
 });
+
+// ── P3 (2026-06-24): dedupe/cap collector wiring + must-retain guard ──
+describe("diagnostic dedupe/cap — collector wiring (P3)", () => {
+  const RECORDER_PATH = path.resolve(__dirname, "../../lib/idx/diagnostic-recorder.ts");
+  let syncSource: string;
+  let recorderSource: string;
+  beforeAll(() => {
+    syncSource = readFileSync(SYNC_SOURCE_PATH, "utf8");
+    recorderSource = readFileSync(RECORDER_PATH, "utf8");
+  });
+
+  it("recordSyncDiagnostic routes allowlisted actions to the in-memory collector (no per-record DB write)", () => {
+    const helperBody = extractFunctionBody(syncSource, "async function recordSyncDiagnostic");
+    expect(helperBody).toMatch(/SYNC_DIAGNOSTIC_DEDUPE_ACTIONS\.has\(action\)/);
+    expect(helperBody).toMatch(/bufferSyncDiagnostic\(\s*action\s*,\s*entity_type\s*,\s*entity_id\s*,\s*changes\s*\)/);
+    // The buffered path returns BEFORE the immediate auditEvent.create fallback.
+    expect(helperBody).toMatch(/bufferSyncDiagnostic\([\s\S]*?\)\s*;\s*\n\s*return\s*;[\s\S]*?prisma\.auditEvent\.create/);
+  });
+
+  it("syncListings flushes the buffered diagnostics once per run", () => {
+    const body = extractFunctionBody(syncSource, "export async function syncListings");
+    expect(body).toMatch(/flushSyncDiagnostics\(/);
+  });
+
+  it("the dedupe allowlist contains ONLY the two system diagnostic actions", () => {
+    const setMatch = recorderSource.match(
+      /SYNC_DIAGNOSTIC_DEDUPE_ACTIONS[\s\S]*?new Set\(\[([\s\S]*?)\]\)/,
+    );
+    expect(setMatch).not.toBeNull();
+    const setBody = setMatch![1];
+    expect(setBody).toContain("idx_sync_listing_upsert_failure");
+    expect(setBody).toContain("idx_sync_syncstate_failure");
+    // Fail-safe: never dedupe human/compliance/security/§2.05 actions.
+    for (const forbidden of [
+      "status_change",
+      "login",
+      "impersonate",
+      "idx_display_yn_disabled",
+      "consent",
+      "trestle_access",
+    ]) {
+      expect(setBody).not.toContain(forbidden);
+    }
+  });
+
+  it("the collector writes the existing audit_events table only (no new Prisma model, no schema change)", () => {
+    expect(recorderSource).toMatch(/auditEvent\.(create|createMany)/);
+    expect(recorderSource).not.toMatch(/prisma\.(idxSync|sync)Diagnostic/);
+    // No schema edit ships with this PR.
+    const schema = readFileSync(PRISMA_SCHEMA_PATH, "utf8");
+    expect(schema).not.toMatch(/idx_sync_diagnostic_summary/);
+  });
+});
+
+describe("must-retain audit paths are NOT routed through the collector (P3 fail-safe)", () => {
+  it("logAuditEvent (human/admin/broker/security path) does not import or call the dedupe collector", () => {
+    const authSource = readFileSync(path.resolve(__dirname, "../../lib/auth/index.ts"), "utf8");
+    expect(authSource).not.toMatch(/diagnostic-recorder/);
+    expect(authSource).not.toMatch(/bufferSyncDiagnostic|flushSyncDiagnostics/);
+  });
+
+  it("the CRM status-change route (compliance/§2.05 surface) does not route through the collector", () => {
+    const statusRoute = readFileSync(
+      path.resolve(__dirname, "../../app/api/crm/listings/[id]/status/route.ts"),
+      "utf8",
+    );
+    expect(statusRoute).not.toMatch(/diagnostic-recorder/);
+    expect(statusRoute).not.toMatch(/bufferSyncDiagnostic|flushSyncDiagnostics/);
+  });
+
+  it("the §2.05 idx_display_yn_disabled writer (data-retention cron) is untouched by the collector", () => {
+    const cronSource = readFileSync(
+      path.resolve(__dirname, "../../app/api/cron/data-retention/route.ts"),
+      "utf8",
+    );
+    expect(cronSource).toMatch(/idx_display_yn_disabled/); // still written, full
+    expect(cronSource).not.toMatch(/diagnostic-recorder|bufferSyncDiagnostic/);
+  });
+});
