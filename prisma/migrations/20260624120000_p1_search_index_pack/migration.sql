@@ -27,9 +27,10 @@
 --        JOIN pg_class c ON c.oid = i.indexrelid
 --        WHERE c.relname IN ('listings_postal_code_idx','showings_type_date_idx');
 --      Proceed to step 4 ONLY if BOTH indexes return indisvalid = true AND indisready = true.
---      If an INVALID index exists: (a) STOP; (b) do NOT run `migrate resolve`; (c) `DROP INDEX
---      CONCURRENTLY "<name>";`; (d) rebuild with CREATE INDEX CONCURRENTLY (step 2); (e) re-run
---      this `pg_index` validation; (f) only then proceed.
+--      If an INVALID index exists: (a) STOP; (b) do NOT run `migrate resolve`; (c) drop the
+--      invalid index concurrently (drop-index-concurrently on "<name>"); (d) rebuild it with
+--      CREATE INDEX CONCURRENTLY (step 2); (e) re-run this `pg_index` validation; (f) only then
+--      proceed.
 --   4. ONLY AFTER successful manual creation, run (separately approved):
 --        prisma migrate resolve --applied 20260624120000_p1_search_index_pack
 --      so `migrate deploy` records this migration as applied and NEVER executes the plain
