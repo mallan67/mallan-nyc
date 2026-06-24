@@ -583,6 +583,18 @@ model Listing {
   @@index([modification_timestamp])
   @@index([agent_id])
   @@index([owner_client_id])
+  // P1 search-index pack (#415 Neon/Search Foundation). Additive only.
+  // Public-search distribution-gate composite — matches SEARCH_DISPLAY_GATE
+  // (lib/search/listing-access-decision.ts): idx_display_yn=true,
+  // internet_entire_listing_display_yn=true, owner_opt_out=false,
+  // participant_only=false, status IN(active). Predicate on every public read.
+  // (Interim: becomes redundant for /search once PR 5B moves the reader to
+  // listing_search_projection, which already has lsp_distribution_gates_idx;
+  // still used by the agent-DB-path + detail fallback. Drop post-swap to reclaim.)
+  @@index([idx_display_yn, internet_entire_listing_display_yn, owner_opt_out, participant_only, status], map: "listings_search_gate_idx")
+  // Neighborhood search resolves to postal_code IN(...) (public-listing-db.ts);
+  // also detail Strategy-2 narrows by postal_code. (Interim, see note above.)
+  @@index([postal_code], map: "listings_postal_code_idx")
   @@map("listings")
 }
 
@@ -869,6 +881,11 @@ model Showing {
   @@index([listing_id])
   @@index([agent_id])
   @@index([date])
+  // P1 search-index pack (#415). Open-houses query: type='openhouse' (eq) +
+  // date>=today (range) + status!='cancelled' (negation) — app/api/open-houses/route.ts.
+  // (type, date) serves the eq+range + orderBy date; status-negation is heap-filtered.
+  // NOT superseded by PR 5B (open-houses always reads `showings`).
+  @@index([type, date], map: "showings_type_date_idx")
   @@map("showings")
 }
 
