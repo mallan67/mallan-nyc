@@ -583,6 +583,13 @@ model Listing {
   @@index([modification_timestamp])
   @@index([agent_id])
   @@index([owner_client_id])
+  // P1 search-index pack (#415 Neon/Search Foundation). Additive only.
+  // Neighborhood search resolves to `postal_code IN(...)` (public-listing-db.ts) — read-only
+  // EXPLAIN (2026-06-24) proved postal_code was an unindexed post-bitmap Filter (~6062 cost).
+  // (Interim: PR 5B's listing_search_projection already has postal_code; drop post-swap to
+  // reclaim.) Gate composite intentionally NOT added — EXPLAIN showed existing BitmapAnd
+  // (status idx + idx_display/owner idx) already covers the gate (marginal + PR-5B supersedes).
+  @@index([postal_code], map: "listings_postal_code_idx")
   @@map("listings")
 }
 
@@ -869,6 +876,11 @@ model Showing {
   @@index([listing_id])
   @@index([agent_id])
   @@index([date])
+  // P1 search-index pack (#415). Open-houses query: type='openhouse' (eq) +
+  // date>=today (range) + status!='cancelled' (negation) — app/api/open-houses/route.ts.
+  // (type, date) serves the eq+range + orderBy date; status-negation is heap-filtered.
+  // NOT superseded by PR 5B (open-houses always reads `showings`).
+  @@index([type, date], map: "showings_type_date_idx")
   @@map("showings")
 }
 

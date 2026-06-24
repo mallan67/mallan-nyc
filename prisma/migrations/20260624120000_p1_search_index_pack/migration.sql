@@ -1,0 +1,47 @@
+-- P1 search-index pack (#415 Neon/Search Foundation) — ADDITIVE indexes only.
+-- No data change, no destructive op, no table rewrite, no reclaim, no downgrade.
+--
+-- DEPLOYABILITY (Maya decision 2026-06-24, "Option B"): PLAIN `CREATE INDEX` is kept here so
+-- normal `prisma migrate deploy` (= `npm run db:migrate`, transactional) replay stays
+-- deployable on SMALL/EMPTY fresh / staging / recovery DBs (plain build is instant there).
+-- CONCURRENTLY is intentionally NOT in this file (it cannot run in Prisma's transactional
+-- migration apply, which would break replay for every environment).
+--
+-- ⚠️ PRODUCTION (`listings` is > 10K rows ≈110K) — DO NOT run `prisma migrate deploy` against
+-- production for this migration: NEON.md:134 forbids plain CREATE INDEX on > 10K-row tables
+-- (write-blocking lock). Production must use manual CREATE INDEX CONCURRENTLY. SEPARATELY-
+-- APPROVED prod runbook (3–5 AM ET, NEON.md:135, host-guarded to cold-waterfall), IN ORDER:
+--   1. Confirm the indexes do NOT already exist (read-only):
+--        SELECT indexname FROM pg_indexes
+--        WHERE indexname IN ('listings_postal_code_idx','showings_type_date_idx');
+--   2. Run EACH index as its own standalone, NON-TRANSACTIONAL statement via `psql`
+--      (one statement per command). Do NOT use `prisma db execute --file` (it sends the whole
+--      script as a single command → the concurrent builds would fail):
+--        CREATE INDEX CONCURRENTLY "listings_postal_code_idx" ON "listings" ("postal_code");
+--        CREATE INDEX CONCURRENTLY "showings_type_date_idx"  ON "showings"  ("type", "date");
+--   3. Verify both indexes are VALID + READY — not just present. A cancelled/failed CONCURRENTLY
+--      build leaves an INVALID index that `pg_indexes` still lists but the planner cannot use.
+--      Use `pg_index` (NOT just `pg_indexes`):
+--        SELECT c.relname AS index_name, i.indisvalid, i.indisready
+--        FROM pg_index i
+--        JOIN pg_class c ON c.oid = i.indexrelid
+--        WHERE c.relname IN ('listings_postal_code_idx','showings_type_date_idx');
+--      Proceed to step 4 ONLY if BOTH indexes return indisvalid = true AND indisready = true.
+--      If an INVALID index exists: (a) STOP; (b) do NOT run `migrate resolve`; (c) drop the
+--      invalid index concurrently (drop-index-concurrently on "<name>"); (d) rebuild it with
+--      CREATE INDEX CONCURRENTLY (step 2); (e) re-run this `pg_index` validation; (f) only then
+--      proceed.
+--   4. ONLY AFTER successful manual creation, run (separately approved):
+--        prisma migrate resolve --applied 20260624120000_p1_search_index_pack
+--      so `migrate deploy` records this migration as applied and NEVER executes the plain
+--      statements below against the large prod table. (Step 4 MUST precede any prod deploy.)
+--   5. Confirm `prisma migrate status` is clean (up to date).
+-- CI is unaffected: pr-check uses bare `prisma db push` (builds indexes from schema on an
+-- ephemeral DB). `showings` is small, so its plain build is harmless anywhere.
+--
+-- listings_postal_code_idx: neighborhood search → postal_code IN(...); detail Strategy-2.
+--   (EXPLAIN 2026-06-24: postal_code was an unindexed post-bitmap Filter. Gate composite NOT
+--    added — existing BitmapAnd covers the gate; PR 5B supersedes it.)
+CREATE INDEX "listings_postal_code_idx" ON "listings" ("postal_code");
+-- showings_type_date_idx: open-houses query (type eq + date range + orderBy date).
+CREATE INDEX "showings_type_date_idx" ON "showings" ("type", "date");
