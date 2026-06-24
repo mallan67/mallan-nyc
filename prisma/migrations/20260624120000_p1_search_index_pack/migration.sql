@@ -1,13 +1,24 @@
 -- P1 search-index pack (#415 Neon/Search Foundation) — ADDITIVE indexes only.
--- No data change, no destructive operation, no table rewrite, no reclaim.
--- CREATE INDEX takes a brief SHARE lock on each table for the build duration
--- (~seconds on listings ≈110k rows; instant on showings). Apply in a low-traffic
--- window. If a zero-write-lock build is required, run these as
--- `CREATE INDEX CONCURRENTLY` manually (outside the transactional migrate runner).
+-- No data change, no destructive op, no table rewrite, no reclaim, no downgrade.
+--
+-- ⚠️ APPLY NOTE (NEON.md §4) — uses CREATE INDEX CONCURRENTLY: plain CREATE INDEX without
+-- CONCURRENTLY on tables > 10K rows is FORBIDDEN (NEON.md:134); `listings` ≈ 110K rows.
+-- CONCURRENTLY CANNOT run inside a transaction, and `prisma migrate deploy` wraps each
+-- migration in one. Therefore:
+--   * DO NOT run `prisma migrate deploy` for this migration (it would error / take a lock).
+--   * Production apply is a SEPARATELY-APPROVED, manual, NON-TRANSACTIONAL index apply
+--     (e.g. psql or `prisma db execute --file`), in the 3–5 AM ET window (NEON.md:135),
+--     host-guarded to cold-waterfall.
+--   * AFTER a successful manual apply, reconcile Prisma migration history ONLY via an
+--     explicitly-approved safe method (e.g. `prisma migrate resolve --applied …`) — never
+--     blindly.
+-- CI is unaffected: pr-check.yml uses bare `prisma db push` (ignores migration files), so the
+-- CONCURRENTLY-in-a-transaction limitation never triggers in CI.
 --
 -- listings_postal_code_idx: neighborhood search → postal_code IN(...); detail Strategy-2.
--- (EXPLAIN 2026-06-24 proved postal_code was an unindexed post-bitmap Filter. Gate composite
---  intentionally NOT added — existing BitmapAnd already covers the gate; PR 5B supersedes it.)
-CREATE INDEX "listings_postal_code_idx" ON "listings" ("postal_code");
+--   (EXPLAIN 2026-06-24 proved postal_code was an unindexed post-bitmap Filter. Gate composite
+--    intentionally NOT added — existing BitmapAnd already covers the gate; PR 5B supersedes it.)
+CREATE INDEX CONCURRENTLY "listings_postal_code_idx" ON "listings" ("postal_code");
 -- showings_type_date_idx: open-houses query (type eq + date range + orderBy date).
-CREATE INDEX "showings_type_date_idx" ON "showings" ("type", "date");
+--   CONCURRENTLY for uniformity/safety (showings is small, so plain would be allowed too).
+CREATE INDEX CONCURRENTLY "showings_type_date_idx" ON "showings" ("type", "date");
