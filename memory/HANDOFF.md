@@ -14,6 +14,8 @@
 
 ## Quick status echo — updated 2026-06-24 (Phase D STEP 4 COMPLETE — agent_info column DROPPED)
 
+> ✅ **STATUS RECONCILIATION (2026-06-24) — READ FIRST.** Phase D `agent_info` is COMPLETE through **STEP 4: the production `listings.agent_info` column is DROPPED** (#441 `3d53343a`; see the STEP 4 line above + #415). **Every statement below that says Phase D/DROP is "NOT STARTED", "do NOT drop agent_info", "do NOT run migrations", `typed_gap_rows = 1` / "A6 not complete", or describes the pre-drop prechecks/gates/snapshot is SUPERSEDED and HISTORICAL.** The ONLY Phase-D items still open are **storage reclaim** and the **Launch→Free downgrade** — each a SEPARATE gate needing its own plan + explicit Maya approval.
+>
 > ⚠️ **LOCAL-BRANCH WARNING (2026-06-23).** The local `fix/phase-d-step3-remove-agent-info-schema-field-2026-06-22` branch **diverged** from the merged PR #429 head — it was reused locally for the #430–#434 CRM-sales work (now on `main`). It does NOT contain the merged Phase D STEP 3 commits. **Do NOT force-push it** (a force-push would overwrite the PR head). Use `gh pr checkout 429` only for historical inspection. **Safe path for new work = a fresh branch off `main`** (e.g. `git fetch && git checkout -b <name> origin/main`).
 
 - **Latest completed:** **Phase D STEP 4 ✅ COMPLETE — `listings.agent_info` column DROPPED from production (#441, 2026-06-24)** · Phase D STEP 3 ✅ (#429) · Phase C ✅ (#420) · hygiene ✅ (#421) · Item A CRM blocker ✅ (#423) · A3 REDESIGN phantom-target hydration ✅ (#424). `main` HEAD `3d53343a` (Step 4 DROP migration #441).
@@ -28,7 +30,7 @@
 - **Follow-up (tracked, before DROP): operator-script selects** — `audit-mallan-listing-side-ids.ts`, `ops/repair-exclusive-agent-assignment.mjs`, `ops/set-exclusive-listing-agent.mjs`, retired `backfill-crm-…` still `select agent_info: true` + read for write-logic → focused typed-first review (not runtime). The 2 direct reads (`crm/[id]`, `page.tsx`) already absent-safe.
 - **Precheck script:** `scripts/__phase-d-agent-info-precheck-2026-06-22.mjs` (untracked `__`; `--run` = host-guarded read-only txn). RAN 2026-06-22, read-only.
 - **Precheck script:** `scripts/__phase-d-agent-info-precheck-2026-06-22.mjs` (untracked `__` operator script; default-inert/no-connect; `--run` = host-guarded read-only txn). Syntax-checked, NOT executed.
-- **Next action REQUIRES MAYA APPROVAL.** Do NOT start Phase D execution. Do NOT drop anything. Do NOT run production SQL. Do NOT downgrade Neon.
+- **Phase D execution COMPLETE (Step 4 DROP done 2026-06-24, #441).** Remaining Maya-gated items: storage **reclaim** + **Launch→Free downgrade** (separate plans). Do NOT run reclaim/downgrade or production SQL writes without explicit approval.
 - **Phase D plan (report-only, on disk):** `docs/superpowers/plans/2026-06-21-agent-info-phase-d-drop-reclaim.md`.
 - **P2-MONEY tracker (reconciled):** `docs/superpowers/plans/2026-06-12-return-neon-to-free-tier-P2-MONEY.md` (see the 2026-06-22 Reconciliation block).
 
@@ -40,9 +42,10 @@
 | A6 (#416) | existing-row backfill | ✅ **DONE — executed + verified 2026-06-22** (1 row co-list MLS filled; re-precheck `typed_gap_rows=0`, all 8 gaps 0) | merge `a0203dd0`; prod execute proof |
 | B (#417) | readers typed-first + JSON fallback | ✅ DONE | merge `fd0fdf15`; prod smoke PASS |
 | C (#420) | producers STOP writing/refilling agent_info | ✅ DONE | merge `66120741`; deployed + smoke PASS; static guard in CI |
-| D | DROP agent_info column + reclaim storage | ⛔ NOT STARTED | needs read-only prechecks, snapshot/backup decision, + explicit Maya approval for migration/DROP/reclaim |
+| D (#441) | DROP agent_info column | ✅ **DONE 2026-06-24** | `3d53343a`; `ALTER TABLE listings DROP COLUMN agent_info` via migrate deploy; col count=0; smoke PASS; rollback branch deleted; #415 proof |
+| D-reclaim | reclaim freed bytes + Launch→Free downgrade | ⛔ NOT STARTED (separate gates) | each needs its own plan + explicit Maya approval |
 
-**A6 status (measured 2026-06-22 by read-only precheck):** `typed_gap_rows = 1` — exactly the 2 co-list MLS typed columns on 1 row are blank while `agent_info` JSON has them. 6 primary fields = 0 gaps. **A6 is NOT complete** → run the backfill repair (`--execute`, Maya-gated, fill-only COALESCE) → re-run precheck → must reach `typed_gap_rows = 0` before any Phase D DROP. The 191 name mismatches are expected typed-override (frozen JSON vs current typed), NOT a blocker.
+**A6 status — ✅ RESOLVED / HISTORICAL (superseded by Step 4 DROP):** the pre-drop data-safety gate ultimately PASSED — the final read-only pre-DROP rerun (2026-06-24) showed `real_gap_rows = 0` and `unverifiable_gap_rows = 0` (the co-list typed-vs-JSON gaps were live-confirmed STALE — the live Cotality feed had dropped those co-list MLS values, so they were NOT data loss). The column was then DROPPED (#441, 2026-06-24). (The earlier 2026-06-22 `typed_gap_rows = 1` reading is historical.)
 
 ## P2-MONEY ($0 / Neon Free) status — NOT ready
 - **B5 (six-front JSON migration) is STARTED:** front 1 of 6 = `agent_info`, complete through Phase C and write-frozen; Phase D drop/reclaim remains. The other five fronts — `features`, `media`, `compliance`, `raw_data`, `address` — are **NOT started.**
@@ -83,7 +86,7 @@ Must prove (READ-ONLY; DROP/reclaim/downgrade are NOT in this step):
 **Locked sequence:** hygiene closure (#421) → CRM blocker PR → read-only DB precheck → Phase D code PR → snapshot → DROP/reclaim approval.
 
 ## Hard holds (from Maya, do NOT violate)
-Do NOT: start CRM feature work · execute Phase D · run production SQL · drop `agent_info` · remove the resolver JSON fallback · run migrations · run storage reclaim · downgrade Neon · enable archive drain. Every step is Maya-gated.
+Phase D `agent_info` is COMPLETE (Step 4 DROP done 2026-06-24, #441) — the drop/migration holds are discharged. **Still DO NOT (each Maya-gated):** run storage **reclaim** · **downgrade Neon** (Launch→Free) · enable **archive drain** (`ARCHIVE_T180_BACKLOG_ENABLED`) · run production SQL writes · remove the resolver JSON fallback · start CRM feature work. Every remaining step is Maya-gated.
 
 ## Reporting rule (every future report MUST update #415 with)
 last item completed · current active lane · exact proof · next item · blockers · and the
