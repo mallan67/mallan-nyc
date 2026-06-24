@@ -6,9 +6,11 @@
 -- CONCURRENTLY CANNOT run inside a transaction, and `prisma migrate deploy` wraps each
 -- migration in one. Therefore:
 --   * DO NOT run `prisma migrate deploy` for this migration (it would error / take a lock).
---   * Production apply is a SEPARATELY-APPROVED, manual, NON-TRANSACTIONAL index apply
---     (e.g. psql or `prisma db execute --file`), in the 3–5 AM ET window (NEON.md:135),
---     host-guarded to cold-waterfall.
+--   * Production apply is a SEPARATELY-APPROVED, manual, NON-TRANSACTIONAL apply: run EACH
+--     `CREATE INDEX CONCURRENTLY` statement INDIVIDUALLY via psql (one statement per command).
+--     Do NOT use `prisma db execute --file` — it sends the whole script as a single command,
+--     so the two CONCURRENTLY statements would run together and fail. 3–5 AM ET window
+--     (NEON.md:135), host-guarded to cold-waterfall.
 --   * AFTER a successful manual apply, reconcile Prisma migration history ONLY via an
 --     explicitly-approved safe method (e.g. `prisma migrate resolve --applied …`) — never
 --     blindly.
