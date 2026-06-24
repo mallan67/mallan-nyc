@@ -612,9 +612,19 @@ describe("diagnostic dedupe/cap — collector wiring (P3)", () => {
     expect(helperBody).toMatch(/bufferSyncDiagnostic\([\s\S]*?\)\s*;\s*\n\s*return\s*;[\s\S]*?prisma\.auditEvent\.create/);
   });
 
-  it("syncListings flushes the buffered diagnostics once per run", () => {
+  it("syncListings begins a per-run diagnostic scope and flushes it once per run", () => {
     const body = extractFunctionBody(syncSource, "export async function syncListings");
+    // Scoping fix (Codex #444): each run gets an isolated buffer, then flushes.
+    expect(body).toMatch(/beginSyncDiagnosticRun\(\)/);
     expect(body).toMatch(/flushSyncDiagnostics\(/);
+  });
+
+  it("the collector buffer is per-run scoped (AsyncLocalStorage), not a shared module global", () => {
+    expect(recorderSource).toMatch(/AsyncLocalStorage/);
+    expect(recorderSource).toMatch(/runStorage\.(enterWith|run)\(/);
+    // No bare module-level mutable buffer that concurrent runs would share.
+    expect(recorderSource).not.toMatch(/^const buffer = new Map/m);
+    expect(recorderSource).not.toMatch(/^let totalRecorded =/m);
   });
 
   it("the dedupe allowlist contains ONLY the two system diagnostic actions", () => {

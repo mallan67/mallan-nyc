@@ -16,6 +16,7 @@ import {
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
+  beginSyncDiagnosticRun,
   bufferSyncDiagnostic,
   flushSyncDiagnostics,
   type DiagnosticAuditWriter,
@@ -190,6 +191,10 @@ export interface SyncResult {
 export async function syncListings(
   options: SyncOptions = {}
 ): Promise<SyncResult> {
+  // Scope this run's diagnostic buffer to the current async context so
+  // concurrent syncListings invocations (cron + the manual /api/idx/sync
+  // route) never share state (Codex #444). Flushed at end of run.
+  beginSyncDiagnosticRun();
   const startTime = Date.now();
   const logger = createAuditEntry("fetch", "syncListings", "success");
 

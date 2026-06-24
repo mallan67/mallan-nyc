@@ -16,6 +16,7 @@ import {
   flushSyncDiagnostics,
   resetSyncDiagnostics,
   getBufferedKeyCount,
+  withSyncDiagnosticRun,
   type DiagnosticAuditWriter,
 } from "../diagnostic-recorder";
 
@@ -164,6 +165,32 @@ describe("best-effort + lifecycle", () => {
     const { writer } = makeWriter();
     await flushSyncDiagnostics(writer, {});
     expect(getBufferedKeyCount()).toBe(0);
+  });
+});
+
+describe("per-run scoping (Codex #444 — no shared module-global buffer)", () => {
+  it("isolates concurrent runs: each run's buffer sees only its own events", async () => {
+    async function scenario(prefix: string, n: number): Promise<number> {
+      return withSyncDiagnosticRun(async () => {
+        for (let i = 0; i < n; i++) {
+          bufferSyncDiagnostic("idx_sync_listing_upsert_failure", "listing", `${prefix}-${i}`, READONLY_ERR);
+        }
+        await Promise.resolve(); // yield — prove the scope survives an await
+        return getBufferedKeyCount();
+      });
+    }
+    const [a, b] = await Promise.all([scenario("A", 2), scenario("B", 5)]);
+    expect(a).toBe(2); // run A saw only its 2, not 2+5
+    expect(b).toBe(5); // run B saw only its 5
+  });
+
+  it("a scoped run does not leak into the fallback (module) buffer", async () => {
+    resetSyncDiagnostics(); // fallback starts clean
+    await withSyncDiagnosticRun(async () => {
+      bufferSyncDiagnostic("idx_sync_listing_upsert_failure", "listing", "RLS1", READONLY_ERR);
+      expect(getBufferedKeyCount()).toBe(1); // inside the scope
+    });
+    expect(getBufferedKeyCount()).toBe(0); // outside → fallback, untouched
   });
 });
 
