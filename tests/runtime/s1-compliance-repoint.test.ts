@@ -15,6 +15,7 @@
 import { readFileSync } from "fs";
 import * as path from "path";
 import { mapTrestleToPrisma } from "@/lib/idx/trestle-mapper";
+import { complianceUpdatePatch } from "@/lib/idx/sync";
 
 function buildTrestleRow(extras: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -94,6 +95,26 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
     expect(optOut.owner_opt_out).toBe(true);
     const priv = mapTrestleToPrisma(buildTrestleRow({ Permissions: "Private" }));
     expect(priv.participant_only).toBe(true);
+  });
+});
+
+describe("S1 (#445 Codex P1) — authored compliance preserved on Trestle UPDATE", () => {
+  it("complianceUpdatePatch() omits the key (returns {}) so UPDATE never stomps authored data", () => {
+    expect(complianceUpdatePatch()).toEqual({});
+  });
+  it("every Trestle UPDATE branch in sync.ts omits compliance via the patch (one per mediaUpdatePatch)", () => {
+    const sync = read("lib/idx/sync.ts");
+    const mediaPatches = (sync.match(/\.\.\.mediaUpdatePatch\(/g) || []).length;
+    const compliancePatches = (sync.match(/\.\.\.complianceUpdatePatch\(\)/g) || []).length;
+    expect(mediaPatches).toBeGreaterThanOrEqual(2);
+    expect(compliancePatches).toBe(mediaPatches);
+  });
+  it("reset-sync UPDATE omits compliance via the patch", () => {
+    expect(read("app/api/crm/listings/reset-sync/route.ts")).toMatch(/\.\.\.complianceUpdatePatch\(\)/);
+  });
+  it("CREATE branches still write the mapper's (now-empty) compliance for new rows", () => {
+    // New Trestle rows have no authored compliance → seeding {} on CREATE is correct.
+    expect(read("lib/idx/sync.ts")).toMatch(/compliance: mapped\.compliance as Prisma\.InputJsonValue/);
   });
 });
 

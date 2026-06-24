@@ -50,6 +50,25 @@ export function mediaUpdatePatch(
 }
 
 /**
+ * S1 (#445 Codex P1) — never overwrite `listings.compliance` on a Trestle UPDATE.
+ *
+ * The mapper no longer copies the redundant Trestle compliance JSON (it emits
+ * `{}` — see trestle-mapper.ts), and the column is RETAINED for CRM/syndication-
+ * authored keys (`validation_result`, approval keys) written directly by those
+ * routes. Writing the mapper's `{}` on UPDATE would STOMP those authored keys
+ * (and, before this change, the old Trestle copy stomped them too). So OMIT
+ * `compliance` on UPDATE entirely — the existing DB value (authored or legacy)
+ * is preserved. CREATE is unaffected: a new Trestle row has no authored
+ * compliance and gets the schema default `{}` (or the mapper's `{}`).
+ *
+ * Mirrors `mediaUpdatePatch`: spread the result into the UPDATE object so the
+ * compliance key is simply absent on update (existing value preserved).
+ */
+export function complianceUpdatePatch(): Record<string, never> {
+  return {};
+}
+
+/**
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
  */
@@ -356,7 +375,9 @@ export async function syncListings(
           address: mapped.address as Prisma.InputJsonValue,
           features: mapped.features as Prisma.InputJsonValue,
           ...mediaUpdatePatch(mapped.media, useExpandMedia),
-          compliance: mapped.compliance as Prisma.InputJsonValue,
+          // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
+          // keys (validation_result, approvals) are preserved — never stomped to {}.
+          ...complianceUpdatePatch(),
           // Phase C: agent_info JSON is no longer persisted. Only the 8 typed agent
           // columns are written, still derived from the in-memory mapped.agent_info.
           ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
@@ -1203,7 +1224,9 @@ export async function syncAgentHistory(
           address: mapped.address as Prisma.InputJsonValue,
           features: mapped.features as Prisma.InputJsonValue,
           ...mediaUpdatePatch(mapped.media, useExpandMedia),
-          compliance: mapped.compliance as Prisma.InputJsonValue,
+          // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
+          // keys (validation_result, approvals) are preserved — never stomped to {}.
+          ...complianceUpdatePatch(),
           // Phase C: agent_info JSON no longer persisted; only the 8 typed columns,
           // still derived from the in-memory mapped.agent_info.
           ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
