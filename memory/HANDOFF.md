@@ -12,17 +12,18 @@
 
 ---
 
-## Quick status echo — updated 2026-06-23 (Phase D STEP 3 MERGED + DEPLOYED)
+## Quick status echo — updated 2026-06-24 (Phase D STEP 4 COMPLETE — agent_info column DROPPED)
 
 > ⚠️ **LOCAL-BRANCH WARNING (2026-06-23).** The local `fix/phase-d-step3-remove-agent-info-schema-field-2026-06-22` branch **diverged** from the merged PR #429 head — it was reused locally for the #430–#434 CRM-sales work (now on `main`). It does NOT contain the merged Phase D STEP 3 commits. **Do NOT force-push it** (a force-push would overwrite the PR head). Use `gh pr checkout 429` only for historical inspection. **Safe path for new work = a fresh branch off `main`** (e.g. `git fetch && git checkout -b <name> origin/main`).
 
-- **Latest completed:** **Phase D STEP 3 ✅ MERGED + DEPLOYED (#429, 2026-06-23)** · Phase C ✅ (#420) · hygiene ✅ (#421) · Item A CRM blocker ✅ (#423) · A3 REDESIGN phantom-target hydration ✅ (#424). `main` HEAD `a5040eb5` (merge commit `a5040eb54b208995a1382e655c3247f33273c1a2`).
+- **Latest completed:** **Phase D STEP 4 ✅ COMPLETE — `listings.agent_info` column DROPPED from production (#441, 2026-06-24)** · Phase D STEP 3 ✅ (#429) · Phase C ✅ (#420) · hygiene ✅ (#421) · Item A CRM blocker ✅ (#423) · A3 REDESIGN phantom-target hydration ✅ (#424). `main` HEAD `3d53343a` (Step 4 DROP migration #441).
 - **Current lane: Lane 1B — A6 backfill EXECUTED + verified.** Read-only precheck found `typed_gap_rows = 1` (co-list MLS, 1 row) → A6 backfill **EXECUTED (Maya-approved, fill-only COALESCE, 1 row updated, updated_at preserved, host=cold-waterfall)** → re-precheck **`typed_gap_rows = 0`, all 8 per-field gaps = 0.** ✅ **A6 RESOLVED by production-SQL.** agent_info = 39 MB; DB = 1364 MB (286% of cap).
 - **A6 runbook #425 MERGED** @ `369bfc3e` — seam-correct gap SQL (`NULLIF(btrim(COALESCE(Pascal, lower)),'')`, lockstep-noted) + A6 execution history + re-verify-only checklist.
 - **Phase D code-prep (runtime) STEP 1: ✅ MERGED — PR #426** @ `2a37079a` (2026-06-22). Removed the 7 runtime `app/api` `agent_info: true` selects; made `agent_info` OPTIONAL in `DbListing`/`PortalListingInput`. (Codex #426: this is STEP 1/prerequisite, NOT alone drop-safe — implicit reads need step 3 schema-field removal.)
 - **Phase D code-prep STEP 2: ✅ MERGED — PR #427** @ `55b53bd9` (2026-06-22). Removed `agent_info: true` from the 4 operator scripts (repair/set-exclusive: select-only; **audit**: MLS-ID reads → typed columns; retired backfill **HARD-DISABLED as a tombstone** — unconditional exit(2), no PrismaClient/process.argv/ALLOW_RETIRED/write path; Codex P1+P3 fixed: tracked-only guard via `git ls-files` + isScratch, stale cotality-url test → tombstone asserts). Full runtime suite 2296/2296.
 - **Phase D STEP 3: ✅ MERGED + DEPLOYED — PR #429** (merge commit `a5040eb54b208995a1382e655c3247f33273c1a2`, squash of head `93af4017`, 2026-06-23). Removed `agent_info Json` from the Listing model in `prisma/schema.prisma` + regenerated client → Prisma stops selecting agent_info on EVERY read (incl. implicit no-select/include). Fixed the 2 direct reads (crm/[id], page.tsx → `{}`, typed-first re-seeded). **Option 1: added a NO-OP checkpoint migration** (`prisma/migrations/…_phase_d_step3_agent_info_schema_client_only_no_ddl/migration.sql` — comment-only, NO DDL) to satisfy the NEON.md §1 schema/migration-coupling BLOCKER WITHOUT dropping the column → compliance-check now 92/0 BLOCKER. **Codex #429 fix: removed `prisma db push --accept-data-loss` from `pr-check.yml`** (→ validate + generate + bare db push) + guard. **NO DDL, NO DROP, NO SQL run, NO prod migration applied — physical DB column still present (intentional drift).** type-check 0; full runtime 2308/2308; compliance-check 92/0; rls/ucba clean. **✅ MERGED 2026-06-23 + DEPLOYED** (Vercel `dpl_FVCHynY7…` state=READY, live on mallan.nyc / www.mallan.nyc, build ~156s). **Public smoke PASSED** [live probe]: `/api/health` 200; public listing page 200 with "Mallan Real Estate Inc." attribution rendered (exercises `resolveListingAgentInfo` with agent_info absent → no crash); public `/api/listings` 200 and correctly omits agent PII; `/crm/sale-view` 307 + `/api/crm/listings/[id]` 401 (auth gates, NOT 500); **zero error/fatal + zero agent_info runtime logs** post-deploy. **Physical `listings.agent_info` column STILL RETAINED (intentional schema↔DB drift).** Real DROP = Step 4 = pre-drop snapshot + explicit Maya approval — **NOT started.** **Codex P2 (2026-06-22) RESOLVED + both review threads resolved + Codex re-review "no major issues 👍":** sale viewer `SALE-FORM-WITH-TOOLS.html` (reachable `/crm/sale-view`, NOT orphaned) made typed-first + GET safety net pins typed cols; regression test added. ⚠️ **Auth-gated CRM render still needs Maya's logged-in confirmation** (typed attribution on `/crm/sale-view` + `/crm/rental-view`). See session log + #415.
-- **STEP 4 (#429 now DEPLOYED; STILL GATED — NOT started): next gate = a READ-ONLY post-deploy verification report, THEN a SEPARATELY-approved** pre-drop Neon snapshot → DB `ALTER TABLE listings DROP COLUMN agent_info` (explicit Maya approval of the exact SQL) → reclaim → re-measure → downgrade decision. No DROP until Maya explicitly approves that exact operation.
+- **STEP 4 ✅ COMPLETE (2026-06-24, Maya-approved):** `listings.agent_info` column **DROPPED from production** via the compliant Prisma migration path. PR **#441 MERGED as `3d53343a`** (DROP migration `20260623233000_drop_agent_info_column` + the `@allow-destructive`/rollback annotation; CI green; Codex 👍). Applied with `prisma migrate deploy` (cold-waterfall, host-guarded) — it applied the #429 no-op checkpoint (zero DDL) then the DROP; **only real DDL run = `ALTER TABLE "listings" DROP COLUMN "agent_info";`**. Pre-apply gates re-confirmed: `real_gap_rows=0`, `unverifiable_gap_rows=0` (the 5 co-list typed-vs-JSON gaps were live-confirmed STALE, not data loss). **Verified:** `information_schema` agent_info count = 0; `prisma migrate status` "up to date"; **production smoke PASSED** (`/api/health` 200, public listing detail 200 with "Mallan Real Estate Inc." rendered, `/api/listings` 200, `/crm/sale-view` + `/crm/rental-view` 307, `/api/crm/listings/[id]` 401 — no 500); **zero error/agent_info runtime logs**. **Pre-drop Neon rollback branch `br-wandering-moon-adl515bq` / `pre-agent-info-drop-2026-06-23` (endpoint `ep-cool-bird-adfi9kgl`) was DELETED** after smoke passed (Neon Console: 2/5000→1/5000 branches, only `main` remains). Full proof trail on #415.
+- **🛑 HARD STOP — NOT started, each requires a SEPARATE plan + explicit Maya approval:** (a) **storage reclaim** — the ~39 MB freed by the DROP still sits in the `listings` TOAST (DB still ~1368 MB / TOAST 696 MB); reclaim via pg_repack or dump→fresh-branch, **never `VACUUM FULL` on Neon**; (b) **Neon Launch→Free downgrade** — only after a post-reclaim re-measure proves DB <500 MB with margin AND the other JSON fronts + archive drain are resolved AND the Vercel false-branch-limit ticket is cleared. Do NOT start either without a separate approved plan.
 - **Corrected canonical DROP sequence (each gated):** (1) remove explicit selects [#426] → (2) remove operator-script selects [follow-up] → (3) remove `agent_info` from `prisma/schema.prisma` + `prisma generate` + DEPLOY (makes ALL reads drop-safe) → (4) pre-drop Neon snapshot → (5) `ALTER TABLE listings DROP COLUMN agent_info` → (6) reclaim → re-measure → downgrade.
 - **Follow-up (tracked, before DROP): operator-script selects** — `audit-mallan-listing-side-ids.ts`, `ops/repair-exclusive-agent-assignment.mjs`, `ops/set-exclusive-listing-agent.mjs`, retired `backfill-crm-…` still `select agent_info: true` + read for write-logic → focused typed-first review (not runtime). The 2 direct reads (`crm/[id]`, `page.tsx`) already absent-safe.
 - **Precheck script:** `scripts/__phase-d-agent-info-precheck-2026-06-22.mjs` (untracked `__`; `--run` = host-guarded read-only txn). RAN 2026-06-22, read-only.
@@ -30,6 +31,78 @@
 - **Next action REQUIRES MAYA APPROVAL.** Do NOT start Phase D execution. Do NOT drop anything. Do NOT run production SQL. Do NOT downgrade Neon.
 - **Phase D plan (report-only, on disk):** `docs/superpowers/plans/2026-06-21-agent-info-phase-d-drop-reclaim.md`.
 - **P2-MONEY tracker (reconciled):** `docs/superpowers/plans/2026-06-12-return-neon-to-free-tier-P2-MONEY.md` (see the 2026-06-22 Reconciliation block).
+
+---
+
+## 🏠 OPEN HOUSES — ✅ COMPLETE + DEPLOYED + VERIFIED on production & mobile (2026-06-23)
+
+> Separate workstream from agent_info/Phase D above. Goal (Maya): #4D (400 E 90th, a Mallan
+> exclusive) must show its open house **everywhere its listing card appears**, with a photo and a
+> banner. **All read-only to Cotality; NO SQL write / migration / DROP / reclaim / Neon change.**
+
+**Outcome:** the upcoming-open-house banner **"Open House · Sun 12:00 PM – 1:00 PM"** (brand **slate**
+`#3d4556`) now renders on **all four surfaces** — `/open-houses` page, homepage **Featured**, **agent
+page** (`/agents/maya-allan`), and **Mallan-listings / search** (`/search?exclusive=mallan`). Verified
+live on production (desktop + 390px mobile, no overflow, doesn't cover title). #4D's Cotality Public
+open house = `RLS20099289`, **2026-06-28 12:00–1:00 PM ET**.
+
+### PRs (all MERGED + DEPLOYED, every Codex finding fixed + thread resolved before merge)
+| PR | Merge | What |
+|---|---|---|
+| **#436** | `9ff09966` | `/api/open-houses` display gate: REBNY **fail-OPEN** (`{ idxPlusPreFiltered: true }`) so null-IELD Cotality OHs display (2026-04-30 incident shape on this surface); website-only Mallan-exclusive bypass (`rls_eligible===false`). Codex: `OpenHouseStatus eq 'Active'` on both feeds (no cancelled OH); exclude `ComingSoon` from the bypass (UCBA §16). |
+| **#437** | `6e45348a` | Sale form open houses **persist** to the `showing` table (was a visual-only stub). Public/Virtual→`openhouse` (public feed), Broker/Appt→`brokersopen` (internal). Codex: reload `brokersopen` on edit; **escape persisted notes/time (stored-XSS)**. |
+| **#438** | `ca8a854b` | Two reasons `/open-houses` was STILL empty: (1) `$expand=Property` returns Property as a **single-element ARRAY** — route read it as an object → price 0 → `hasData` dropped every OH (proven live: object-read FINAL=0/100, array-unwrap=86/100); (2) page pulled the **whole NYC feed (1,560)** — scoped to **Mallan office `7041`** (#4D was rank ~1,134). Codex: include `ActiveUnderContract` in the office pre-query. |
+| **#439** | `fd1cf843` | (a) `/open-houses` card: photo via **native `<img>`** (next/image optimizer 400s on the proxied URL) + canonical media resolver (no floor-plan hero) + gold "Mallan Exclusive" badge + **Eastern** time (was 4 PM = UTC on Vercel). (b) **Banner on ALL card surfaces** — see resolver below. |
+| **#440** | merged | Banner **color**: green (didn't flow) → gold (Maya said no + Codex flagged contrast 2.47:1) → **brand slate `#3d4556`** (white text ≈ 9:1, WCAG AA). Maya: "better". |
+
+### Architecture (single source of truth)
+- **`lib/open-houses/upcoming-open-houses.ts`** (NEW) — canonical resolver. `getOpenHouseIndex()` =
+  upcoming **public+active+future** Mallan OHs from BOTH sources: office-scoped **Trestle** feed (RLS)
+  + **local `showing`** table (website-only exclusives). Broker/Private/Cancelled excluded; ComingSoon
+  excluded; display gate honored; **ET** times; no agent contact. **5-min in-process TTL cache** so the
+  listings hot path pays ≤1 Trestle fetch / warm instance.
+- **TWIN-SAFE match** (`findNextOpenHouse`): #4D is `SL-0007` on cards but its OH is on the RLS twin
+  `RLS20099289` — a plain id join MISSES it. Match by **listing id OR normalized address**
+  (`normalizeAddressKey`: streetNumber+streetName+unitNumber, drops street-type/directional stopwords).
+- **Shared scope constants now live in the resolver** and are imported by `app/api/open-houses/route.ts`
+  (no divergence): `MALLAN_OH_OFFICE_MLS_IDS = ['7041']` (verified live = "MAllan Real Estate Inc";
+  **deliberately DISTINCT from the empty syndication-HOLD `MALLAN_OFFICE_MLS_IDS`** — do NOT
+  consolidate, that emptiness is invariant I.5), `OPEN_HOUSE_ELIGIBLE_STATUSES` (Active+AUC, no
+  ComingSoon), `isMallanOwnedLocalListing`, `formatEasternTime`.
+- **DTO + enrichment:** `nextOpenHouse?` added to `PublicListingDTO` (lib/idx/public-dto.ts) +
+  `DisplayListing` (lib/idx/display-adapter.ts, both adapters pass through). `/api/listings` and
+  `/api/agents/[slug]/listings` attach it at route level (like `_coListedCount`), **best-effort** (a
+  Trestle hiccup never blocks the listings response).
+- **Cards:** shared **`app/components/OpenHouseBanner.tsx`** (NEW) rendered on FeaturedListings
+  `ListingCard`, agent `ActiveListingCard`, and all 3 `SearchListingCard` variants (Grid/List/Split).
+  Bottom-left of the photo (Split = top-left, mutually exclusive with ComingSoon). Additive — the gold
+  "Mallan Exclusive" + status badges stay.
+
+### Two-path architecture Maya confirmed (future-proof)
+- **Cotality-fed (RLS) listing** → open house flows through the **office-scoped Cotality feed** (read).
+- **Website-only exclusive** → open house is **local-only** (showing table; sale-form #437).
+- Maya: "right now i cannot submit listings via cotality, but in near future this could change" → local
+  is the current write path; the read side is already wired for when Cotality write becomes available.
+
+### Tests / proof
+- `tests/runtime/open-houses-gate.test.ts`, `open-houses-resolver.test.ts` (twin/addressKey/ET/gates),
+  `open-house-card-banner.test.ts` (banner on all 3 surfaces + exclusive badge preserved),
+  `sale-form-openhouse-persist.test.ts`. Open-house suite green; type-check 0; crm 39/39; rls 0;
+  compliance 92/92 BLOCKER+STRICT; ucba 0 regr. (One unrelated heavy `sentinel-write-listing-audit`
+  test flakes on full-suite timeout; passes in isolation, imports none of these files.)
+- **Production verified** (Playwright DOM + screenshots, desktop & 390px mobile): banner bg
+  `rgb(61,69,86)` slate on every surface; width 232px, no overflow; negative case holds (SL-0004 / 333
+  E 46th has no OH → no banner).
+- **Untracked read-only probes** (gitignored `scripts/__*`): `__openhouse-cotality-probe.mjs` (found
+  #4D's OH). The route-replay / scope / media / time probes were temporary and removed.
+
+### Known follow-ups (NOT done; out of scope)
+- `/open-houses` card description renders a literal `<p>` tag (pre-existing publicRemarks-sanitization
+  quirk on `OpenHousesList`, not the banner). Offered to fix; awaiting Maya.
+- Duplicate-row situation (#4D = `SL-0007` exclusive **and** `RLS20099289` RLS twin; SL-0005/0006 + RLS
+  twins) still untouched — the twin-safe address match works around it for open houses.
+
+---
 
 ## agent_info phase ledger (proof = #415)
 | Phase | What | Status | Proof |
