@@ -9,7 +9,7 @@ import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
-import { mediaUpdatePatch } from "@/lib/idx/sync";
+import { mediaUpdatePatch, complianceUpdatePatch } from "@/lib/idx/sync";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
@@ -169,7 +169,9 @@ export async function POST(req: NextRequest) {
             // listings.media is preserved instead of being stomped to [].
             // CREATE above is unchanged (new row, nothing to preserve).
             ...mediaUpdatePatch(mapped.media, EXPAND_MEDIA),
-            compliance: mapped.compliance as Prisma.InputJsonValue,
+            // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
+            // keys (validation_result, approvals) are preserved — never stomped to {}.
+            ...complianceUpdatePatch(),
             // Phase C: agent_info JSON no longer persisted; only the 8 typed columns,
             // still derived from the in-memory mapped.agent_info.
             ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),

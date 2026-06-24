@@ -550,7 +550,13 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       // Phase B: typed columns win over agent_info JSON for the gated exclusive card.
       typed: dbListing,
     });
-    const compliance = (dbListing.compliance as Record<string, unknown>) || {};
+    // S1 (#415): PublicRemarks now reads features → raw_data. The DB `compliance`
+    // column's PublicRemarks is 100% redundant with raw_data (S1 probe:
+    // only_in_compliance = 0; raw_data is a superset), and the redundant Trestle
+    // `compliance` copy is being retired (the mapper now writes `{}`). Do NOT read
+    // the compliance column for render. (CRM/syndication-authored compliance keys
+    // are unrelated to render and are written directly by those routes.)
+    const rawData = (dbListing.raw_data as Record<string, unknown>) || {};
     // Address suppression (Codex PR #274 — respect seller opt-outs):
     // website-only listings (rls_eligible === false → isRlsBacked false; Mallan's
     // own website-only exclusives like SL-0004) show their address. RLS-backed
@@ -626,7 +632,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
       })),
       photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
-      publicRemarks: String(features.PublicRemarks || compliance.PublicRemarks || ''),
+      publicRemarks: String(features.PublicRemarks || rawData.PublicRemarks || ''),
       listingContractDate: String(features.ListingContractDate || ''),
       modificationTimestamp: String(features.ModificationTimestamp || ''),
       associationFee: features.AssociationFee ? Number(features.AssociationFee) : undefined,

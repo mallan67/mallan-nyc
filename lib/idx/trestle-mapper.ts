@@ -1087,13 +1087,18 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ...pick(raw, B30_FARE_ACT_FEES),
     ...pick(raw, B29_OTHER),
   };
-  const compliance = {
-    ...pick(raw, B3_LISTING_AGREEMENT),
-    ...pick(raw, B4_STATUS_DATES),
-    ...pick(raw, B5_PRICING),
-    ...pick(raw, B6_DISPLAY_FLAGS),
-    ...pick(raw, B7_REMARKS),
-  };
+  // S1 (#415): stop persisting the redundant Trestle `compliance` JSON copy.
+  // Every field that used to be copied here — B3 listing agreement, B4 status/
+  // dates, B5 pricing, B6 display flags, B7 remarks — is ALREADY persisted in
+  // raw_data (RAW_DATA_KEEP_FIELDS) and/or the typed columns, and the DB
+  // `compliance` column is no longer read by render (PublicRemarks now reads
+  // features/raw_data). The typed display/gate columns (idx_display_yn,
+  // internet_*_display_yn, participant_only, owner_opt_out, status) are computed
+  // separately from raw.* below and are UNCHANGED by this. The column is
+  // RETAINED for CRM/syndication-authored keys (validation_result, approval
+  // keys), which are written directly by those routes — never by this mapper.
+  // (B3–B7 constants remain referenced by the field-select list at ~line 370.)
+  const compliance: Record<string, unknown> = {};
   const agentInfo = {
     ...pick(raw, B8_LIST_AGENT),
     ...pick(raw, B9_COLIST_AGENT),
