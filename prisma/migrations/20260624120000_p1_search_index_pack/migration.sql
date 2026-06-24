@@ -19,7 +19,17 @@
 --      script as a single command → the concurrent builds would fail):
 --        CREATE INDEX CONCURRENTLY "listings_postal_code_idx" ON "listings" ("postal_code");
 --        CREATE INDEX CONCURRENTLY "showings_type_date_idx"  ON "showings"  ("type", "date");
---   3. Verify both indexes exist + are valid via `pg_indexes` (re-run the step-1 query).
+--   3. Verify both indexes are VALID + READY — not just present. A cancelled/failed CONCURRENTLY
+--      build leaves an INVALID index that `pg_indexes` still lists but the planner cannot use.
+--      Use `pg_index` (NOT just `pg_indexes`):
+--        SELECT c.relname AS index_name, i.indisvalid, i.indisready
+--        FROM pg_index i
+--        JOIN pg_class c ON c.oid = i.indexrelid
+--        WHERE c.relname IN ('listings_postal_code_idx','showings_type_date_idx');
+--      Proceed to step 4 ONLY if BOTH indexes return indisvalid = true AND indisready = true.
+--      If an INVALID index exists: (a) STOP; (b) do NOT run `migrate resolve`; (c) `DROP INDEX
+--      CONCURRENTLY "<name>";`; (d) rebuild with CREATE INDEX CONCURRENTLY (step 2); (e) re-run
+--      this `pg_index` validation; (f) only then proceed.
 --   4. ONLY AFTER successful manual creation, run (separately approved):
 --        prisma migrate resolve --applied 20260624120000_p1_search_index_pack
 --      so `migrate deploy` records this migration as applied and NEVER executes the plain
