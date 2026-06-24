@@ -59,7 +59,7 @@ describe("Phase D code-prep step 1 — no EXPLICIT runtime agent_info: true sele
   });
 });
 
-describe("Phase D step 3 — agent_info removed from the Prisma schema/client, DB column NOT dropped", () => {
+describe("Phase D step 3/4 — agent_info removed from the Prisma schema/client; step 4 DROP migration present", () => {
   it("prisma/schema.prisma NO LONGER declares the agent_info model field", () => {
     // Step 3 removes agent_info from the Prisma schema/client so Prisma stops selecting it on
     // EVERY read -- including implicit no-`select` findUnique/findMany and `include: { listing }`.
@@ -69,12 +69,23 @@ describe("Phase D step 3 — agent_info removed from the Prisma schema/client, D
     expect(schema).not.toMatch(/^\s*agent_info\s+Json/m);
   });
 
-  it("no DROP migration for agent_info exists (the DB column is NOT dropped by this PR)", () => {
+  it("the Phase D step 4 DROP migration exists and contains ONLY the intended agent_info DROP", () => {
+    // Step 4 (board #415, Maya-approved 2026-06-23): the DB column is dropped via a Prisma
+    // migration. This guard FLIPPED from "no DROP migration exists" (step 3) to "exactly one
+    // DROP migration exists and its only executable statement is the agent_info DROP" — so a
+    // stray/extra DDL in the same migration would fail this test.
     const migDir = join(process.cwd(), "prisma", "migrations");
-    const hasDrop = walk(migDir)
+    const dropFiles = walk(migDir)
       .filter((f) => f.endsWith(".sql"))
-      .some((f) => /DROP COLUMN\s+"?agent_info"?/i.test(readFileSync(f, "utf8")));
-    expect(hasDrop).toBe(false);
+      .filter((f) => /DROP COLUMN\s+"?agent_info"?/i.test(readFileSync(f, "utf8")));
+    expect(dropFiles.length).toBe(1);
+    const sql = readFileSync(dropFiles[0], "utf8");
+    const statements = sql
+      .split("\n")
+      .filter((l) => l.trim() && !l.trim().startsWith("--"))
+      .join(" ")
+      .trim();
+    expect(statements).toBe('ALTER TABLE "listings" DROP COLUMN "agent_info";');
   });
 });
 
