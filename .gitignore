@@ -278,3 +278,6 @@ __pw-review*/
 
 # Local backup/scratch dirs
 /backups/
+
+# Gate 3 terminal_since backfill touched-id logs (operational rollback artifacts, not repo history)
+artifacts/gate3-backfill-touched-*.jsonl
