@@ -17,6 +17,7 @@ import { PrismaClient } from "@prisma/client";
 import { getAccessToken } from "../lib/idx/auth";
 import { dualWriteProjectionForListingId } from "../lib/search/listing-search-projection";
 import { typedAgentColumnsFromJson } from "../lib/listings/agent-info-typed-columns";
+import { deriveTerminalSince } from "../lib/listings/terminal-since";
 
 const prisma = new PrismaClient();
 
@@ -341,6 +342,12 @@ async function main() {
           listing_contract_date: r.ListingContractDate
             ? new Date(String(r.ListingContractDate))
             : null,
+          // Archive eligibility clock (#415): closed imports are terminal on create.
+          // Derive the stable terminal-age date from the CloseDate stored in features
+          // (sanity-windowed); fall back to now if absent/invalid.
+          terminal_since:
+            deriveTerminalSince({ status: "Closed", features: { CloseDate: r.CloseDate ?? null } }) ??
+            new Date(),
         },
       });
 

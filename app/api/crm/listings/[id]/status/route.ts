@@ -17,6 +17,7 @@ import { computeGateColumns } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
+import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -228,6 +229,19 @@ export async function PATCH(
     rls_eligible: listing.rls_eligible,
   });
 
+  // Archive eligibility clock (#415): set terminal_since on non-terminal→terminal,
+  // clear on terminal→active, no change otherwise. Derived from the listing's stable
+  // source dates (raw_data.CloseDate/OffMarketDate, else transition wall-clock).
+  const terminalSincePatch = computeTerminalSincePatch({
+    previousStatus: currentStatus,
+    newStatus,
+    raw_data: existingRaw,
+    features: (listing.features as Record<string, unknown>) ?? undefined,
+    // #446: a manual Active→Expired on a CRM exclusive may have no raw_data.ExpirationDate;
+    // seed from the typed expiration_date (same date the cron + protected-period use), not wall-clock.
+    expirationDateFallback: listing.expiration_date,
+  });
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {
@@ -238,6 +252,7 @@ export async function PATCH(
       days_on_market: domUpdate.days_on_market,
       cumulative_days_on_market: domUpdate.cumulative_days_on_market,
       idx_display_yn: newGateColumns.idx_display_yn,
+      ...terminalSincePatch,
       ...(updatedRaw ? { raw_data: updatedRaw } : {}),
     },
   });

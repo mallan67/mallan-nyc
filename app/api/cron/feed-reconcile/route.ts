@@ -35,6 +35,7 @@ import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import {
   upsertListingMedia,
   updateListingMediaSummary,
@@ -373,6 +374,17 @@ export async function GET(req: NextRequest) {
             // Phase C: strip the legacy agent_info JSON from the spread; the 8 typed
             // agent columns remain in typedOnlyMapped (mapper emits them).
             const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
+            // Archive eligibility clock (#415): set terminal_since iff the orphan is created terminal.
+            const terminalSinceCreate = computeTerminalSincePatch({
+              previousStatus: undefined,
+              newStatus: mapped.status,
+              raw_data: mapped.raw_data as Record<string, unknown>,
+              features: mapped.features as Record<string, unknown>,
+              // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
+              // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+              expirationDateFallback: raw.ExpirationDate as string | undefined,
+              now,
+            });
             await prisma.$transaction([
               prisma.listing.create({
                 data: {
@@ -384,6 +396,7 @@ export async function GET(req: NextRequest) {
                   raw_data: mapped.raw_data as Prisma.InputJsonValue,
                   status_changed_at: now,
                   first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status) ? now : null,
+                  ...terminalSinceCreate,
                 },
               }),
               prisma.auditEvent.create({
@@ -489,6 +502,10 @@ export async function GET(req: NextRequest) {
               status_changed_at: now,
               idx_display_yn: false,
               modification_timestamp: now,
+              // Archive eligibility clock (#415): ghosts are sourced from status='Active'
+              // (all non-terminal) → Withdrawn is always a real non-terminal→terminal
+              // transition; no stable off-market date for a ghost → wall-clock `now`.
+              terminal_since: now,
             },
           }),
           prisma.auditEvent.create({

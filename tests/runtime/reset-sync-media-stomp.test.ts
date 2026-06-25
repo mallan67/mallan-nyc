@@ -36,6 +36,8 @@ jest.mock('@/lib/prisma', () => ({
     protectedPeriod: { deleteMany: jest.fn(async () => ({ count: 0 })) },
     listing: {
       deleteMany: jest.fn(async () => ({ count: 0 })),
+      // #446: reset-sync now fetches existing status for the terminal_since clock.
+      findUnique: jest.fn(async () => null),
       upsert: jest.fn(async (args: { create: Record<string, unknown>; update: Record<string, unknown> }) => {
         upsertCalls.push(args);
         return {};
@@ -73,6 +75,9 @@ jest.mock('@/lib/idx/fetch', () => ({
 
 jest.mock('@/lib/idx/trestle-mapper', () => ({
   __esModule: true,
+  // #446: the terminal_since helper (via reset-sync) needs the real terminal set + normalizer.
+  TERMINAL_STATUSES: jest.requireActual('@/lib/idx/trestle-mapper').TERMINAL_STATUSES,
+  normalizeStandardStatus: jest.requireActual('@/lib/idx/trestle-mapper').normalizeStandardStatus,
   validateHistoricalFields: jest.fn(() => ({ valid: true, missingFields: [] })),
   checkDistributionGates: jest.fn(() => ({ displayable: true, reason: null })),
   mapTrestleToPrisma: jest.fn(() => ({

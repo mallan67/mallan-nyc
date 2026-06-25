@@ -231,6 +231,12 @@ export async function GET(req: NextRequest) {
         status_changed_at: now,
         modification_timestamp: now,
         idx_display_yn: false,
+        // Archive eligibility clock (#415): expiring an active exclusive is a
+        // non-terminal→terminal transition. Seed terminal_since from the actual
+        // expiration_date (the stable terminal date; guaranteed non-null + <= now
+        // by the query + the guard above), NOT the cron run time — so a delayed or
+        // disabled cron doesn't push the archive clock late (Codex #446).
+        terminal_since: listing.expiration_date ?? now,
       },
     });
 

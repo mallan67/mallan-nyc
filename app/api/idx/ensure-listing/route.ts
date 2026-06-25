@@ -17,6 +17,7 @@ import { affirmPermission } from "@/lib/compliance/gates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -128,6 +129,18 @@ export async function POST(req: NextRequest) {
         // the row is terminal. Reuses the C2 canonical TERMINAL_STATUSES
         // set (lib/idx/trestle-mapper.ts is the source of truth).
         idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus),
+        // Archive Eligibility Clock (#415/#446): seed terminal_since when this minimal
+        // external record is created already-terminal (arbitrary body.status). This path
+        // has NO stable close/off-market source (raw_data/features empty), so a terminal
+        // create resolves to the wall-clock fallback inside the helper; a non-terminal
+        // create no-ops ({} spread). Same helper the live writers use → parity with the
+        // future PR-2 archive predicate.
+        ...computeTerminalSincePatch({
+          previousStatus: undefined,
+          newStatus: canonicalStatus,
+          raw_data: {},
+          features: {},
+        }),
         // Fail-CLOSED coercion — body is untrusted POST input. Was `!== false`
         // which let missing/null fields become displayable.
         internet_entire_listing_display_yn: affirmPermission(body.internet_display_yn),

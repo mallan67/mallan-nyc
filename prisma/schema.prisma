@@ -549,6 +549,10 @@ model Listing {
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
   first_active_date         DateTime? @map("first_active_date")
+  // --- Archive eligibility clock (#415) — stable terminal-age date, set once on
+  // non-terminal→terminal transition from a stable source date (CloseDate/
+  // OffMarketDate); NOT re-stamped by idx-sync like status_changed_at/modification_timestamp.
+  terminal_since            DateTime? @map("terminal_since")
   days_on_market            Int       @default(0) @map("days_on_market")
   cumulative_days_on_market Int       @default(0) @map("cumulative_days_on_market")
 
@@ -590,6 +594,9 @@ model Listing {
   // reclaim.) Gate composite intentionally NOT added — EXPLAIN showed existing BitmapAnd
   // (status idx + idx_display/owner idx) already covers the gate (marginal + PR-5B supersedes).
   @@index([postal_code], map: "listings_postal_code_idx")
+  // Archive eligibility clock (#415). Indexes the future T+180 archive predicate
+  // (terminal_since < cutoff). Additive; PR-2 repoints the predicate to it.
+  @@index([terminal_since], map: "listings_terminal_since_idx")
   @@map("listings")
 }
 
