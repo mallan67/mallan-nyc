@@ -83,10 +83,35 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   });
   it("only fills NULL terminal rows (never bumps; never touches live)", () => {
     expect(s).toMatch(/terminal_since IS NULL/);
-    expect(s).toMatch(/status IN /);
+    expect(s).toMatch(/terminalPredicate\("status"\)/); // SELECT terminal filter
   });
   it("execute UPDATE re-asserts the terminal-status predicate — cannot write to non-terminal rows (#446)", () => {
-    expect(s).toMatch(/l\.terminal_since IS NULL AND l\.\$\{STATUS_IN\}/);
+    expect(s).toMatch(/l\.terminal_since IS NULL AND \$\{terminalPredicate\("l\.status"\)\}/);
+  });
+  it("terminal predicate is case-insensitive + includes the single-L 'canceled' alias (#446)", () => {
+    // mapper persists raw.StandardStatus verbatim, so a stored 'Canceled'/'closed' must still
+    // be selected. Predicate wraps the column in lower() and lists the canonical set + alias.
+    expect(s).toMatch(/const terminalPredicate\s*=\s*\(col: string\)\s*=>\s*`lower\(\$\{col\}\) IN \(/);
+    expect(s).toMatch(/const TERMINAL_LOWER\s*=\s*\[/);
+    for (const t of ["closed", "sold", "leased", "rented", "withdrawn", "expired", "cancelled", "canceled"]) {
+      expect(s).toContain(`"${t}"`); // each terminal status (lower-case) present in TERMINAL_LOWER
+    }
+  });
+  it("'Canceled' (single-L) is treated as terminal by the backfill predicate (#446)", () => {
+    // lower('Canceled') === 'canceled', which is in TERMINAL_LOWER → matched by lower(col) IN (...)
+    expect(s).toMatch(/lower\(\$\{col\}\) IN \(/);
+    expect(s).toContain('"canceled"');
+  });
+  it("lower-case 'closed' is treated as terminal by the backfill predicate (#446)", () => {
+    // a row stored as 'closed' is folded by lower() to 'closed', which is in TERMINAL_LOWER
+    expect(s).toMatch(/lower\(\$\{col\}\) IN \(/);
+    expect(s).toContain('"closed"');
+  });
+  it("SELECT and UPDATE guard share ONE predicate builder (cannot drift) (#446)", () => {
+    // both call sites derive from the same terminalPredicate() → identical terminal set
+    expect(s).toMatch(/terminalPredicate\("status"\)/);   // SELECT (and already_set count)
+    expect(s).toMatch(/terminalPredicate\("l\.status"\)/); // --execute UPDATE guard
+    expect(s).not.toMatch(/status IN \(\$\{TERMINAL/); // old case-sensitive canonical IN removed
   });
   it("seeds Expired rows from typed expiration_date via expirationDateFallback (#446)", () => {
     expect(s).toMatch(/expiration_date::text AS exp/); // selects the typed column

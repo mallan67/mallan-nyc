@@ -31,7 +31,15 @@ if (!url.includes(HOST)) {
   process.exit(1);
 }
 
-const TERMINAL = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"];
+// Terminal-status predicate matched to RUNTIME normalization (Codex #446): case-insensitive
+// + the single-L alias 'canceled'. Sourced 1:1 from TERMINAL_STATUSES ∪ STATUS_ALIASES in
+// lib/idx/trestle-mapper.ts. The mapper persists raw.StandardStatus VERBATIM (trestle-mapper.ts
+// `status: raw.StandardStatus`), so a stored 'Canceled' (US single-L) or 'closed' (lower-case)
+// is a legitimate terminal row — a case-sensitive canonical `status IN (...)` would silently skip
+// it, leaving terminal_since NULL so it never ages for the future archive predicate. One builder
+// feeds BOTH the SELECT and the --execute UPDATE guard, so the two predicates can never drift.
+const TERMINAL_LOWER = ["closed", "sold", "leased", "rented", "withdrawn", "expired", "cancelled", "canceled"];
+const terminalPredicate = (col: string) => `lower(${col}) IN (${TERMINAL_LOWER.map((s) => `'${s}'`).join(",")})`;
 const NOW = new Date();
 const CUTOFF_180 = new Date(NOW.getTime() - 180 * 24 * 60 * 60 * 1000);
 
@@ -61,7 +69,6 @@ async function main() {
   const c = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false }, statement_timeout: 180000 });
   await c.connect();
 
-  const STATUS_IN = `status IN (${TERMINAL.map((s) => `'${s}'`).join(",")})`;
   // Page through terminal rows with NULL terminal_since, fetching only the small candidate
   // date strings (NOT full raw_data) — derivation happens in JS.
   let last = 0;
@@ -69,7 +76,7 @@ async function main() {
 
   // already_set count (informational)
   alreadySet = Number(
-    (await c.query(`SELECT count(*) n FROM listings WHERE ${STATUS_IN} AND terminal_since IS NOT NULL`)).rows[0].n,
+    (await c.query(`SELECT count(*) n FROM listings WHERE ${terminalPredicate("status")} AND terminal_since IS NOT NULL`)).rows[0].n,
   );
 
   for (;;) {
@@ -80,7 +87,7 @@ async function main() {
          raw_data->>'OffMarketDate' AS omd, raw_data->>'ExpirationDate' AS ed,
          expiration_date::text AS exp
        FROM listings
-       WHERE id > $1 AND ${STATUS_IN} AND terminal_since IS NULL
+       WHERE id > $1 AND ${terminalPredicate("status")} AND terminal_since IS NULL
        ORDER BY id LIMIT 5000`,
       [last],
     );
@@ -112,7 +119,7 @@ async function main() {
         // l.status guard prevents writing a stale terminal_since onto a now-live row.
         `UPDATE listings AS l SET terminal_since = v.ts
          FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamptz[]) AS ts) v
-         WHERE l.id = v.id AND l.terminal_since IS NULL AND l.${STATUS_IN}`,
+         WHERE l.id = v.id AND l.terminal_since IS NULL AND ${terminalPredicate("l.status")}`,
         [ids, tss],
       );
       await c.query("COMMIT");
