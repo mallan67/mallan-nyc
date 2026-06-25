@@ -75,6 +75,10 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   it("execute UPDATE re-asserts the terminal-status predicate — cannot write to non-terminal rows (#446)", () => {
     expect(s).toMatch(/l\.terminal_since IS NULL AND l\.\$\{STATUS_IN\}/);
   });
+  it("seeds Expired rows from typed expiration_date when raw_data.ExpirationDate is absent (#446)", () => {
+    expect(s).toMatch(/expiration_date::text AS exp/); // selects the typed column
+    expect(s).toMatch(/ExpirationDate:\s*r\.ed\s*\?\?\s*r\.exp/); // raw JSON first, typed expiration_date fallback
+  });
   it("derives via the shared helper (parity with the live writer, not a SQL COALESCE)", () => {
     expect(s).toMatch(/deriveTerminalSince/);
     expect(s).toMatch(/from "\.\.\/lib\/listings\/terminal-since"/);

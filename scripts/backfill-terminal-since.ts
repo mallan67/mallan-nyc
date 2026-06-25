@@ -42,10 +42,16 @@ function deriveForRow(r: {
   fcd: string | null;
   omd: string | null;
   ed: string | null;
+  exp: string | null; // typed listings.expiration_date (CRM exclusives — Codex #446)
 }): Date | null {
   return deriveTerminalSince({
     status: r.status,
-    raw_data: { CloseDate: r.cd, OffMarketDate: r.omd, ExpirationDate: r.ed },
+    // ExpirationDate fallback (Expired only, applied inside the helper): prefer the
+    // raw_data JSON value, else the typed expiration_date column — matches the
+    // expiration cron, which seeds terminal_since from listing.expiration_date. This
+    // covers CRM exclusives converted before the migration that have no JSON
+    // ExpirationDate (Codex #446) so they are no longer left terminal_since=NULL.
+    raw_data: { CloseDate: r.cd, OffMarketDate: r.omd, ExpirationDate: r.ed ?? r.exp },
     features: { CloseDate: r.fcd },
     now: NOW,
   });
@@ -71,7 +77,8 @@ async function main() {
     const { rows } = await c.query(
       `SELECT id, status,
          raw_data->>'CloseDate' AS cd, features->>'CloseDate' AS fcd,
-         raw_data->>'OffMarketDate' AS omd, raw_data->>'ExpirationDate' AS ed
+         raw_data->>'OffMarketDate' AS omd, raw_data->>'ExpirationDate' AS ed,
+         expiration_date::text AS exp
        FROM listings
        WHERE id > $1 AND ${STATUS_IN} AND terminal_since IS NULL
        ORDER BY id LIMIT 5000`,

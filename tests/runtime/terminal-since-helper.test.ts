@@ -60,6 +60,13 @@ describe("deriveTerminalSince — priority + fail-safe", () => {
   it("returns null when no valid stable date (do not fabricate)", () => {
     expect(deriveTerminalSince({ status: "Closed", raw_data: {}, now: NOW })).toBeNull();
   });
+  it("derives an Expired CRM/exclusive row from a typed expiration_date (::text format), no raw JSON date — backfill #446", () => {
+    // The backfill passes listings.expiration_date::text as the ExpirationDate candidate
+    // for Expired rows (deriveForRow: ExpirationDate = r.ed ?? r.exp). Postgres `::text`
+    // renders e.g. "2024-04-04 00:00:00"; parseStableDate must accept it.
+    const d = deriveTerminalSince({ status: "Expired", raw_data: { ExpirationDate: "2024-04-04 00:00:00" }, now: NOW });
+    expect(d?.toISOString().slice(0, 10)).toBe("2024-04-04");
+  });
 });
 
 describe("computeTerminalSincePatch — writer rule", () => {
