@@ -139,6 +139,27 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   });
 });
 
+describe("Gate 3 backfill — durable touched-id log invariant (Codex #451)", () => {
+  const s = read("scripts/backfill-terminal-since.ts");
+  it("writes the touched-id log durably (fsync) via appendDurable", () => {
+    expect(s).toMatch(/function appendDurable\([\s\S]*?fsyncSync\(fd\)/);
+  });
+  it("writes the log BEFORE COMMIT (a committed batch can never be missing from the rollback set)", () => {
+    const logIdx = s.indexOf("appendDurable(LOG_PATH");
+    const commitIdx = s.indexOf('c.query("COMMIT")');
+    expect(logIdx).toBeGreaterThan(-1);
+    expect(commitIdx).toBeGreaterThan(-1);
+    expect(logIdx).toBeLessThan(commitIdx); // log durable on disk before the COMMIT
+  });
+  it("ROLLBACKs and ABORTS the run if the log write fails (no unlogged commit)", () => {
+    expect(s).toMatch(/try\s*\{[\s\S]*?appendDurable\(LOG_PATH[\s\S]*?\}\s*catch[\s\S]*?ROLLBACK[\s\S]*?process\.exit\(1\)/);
+  });
+  it("inside the EXECUTE batch, no COMMIT precedes the log write", () => {
+    const region = s.slice(s.indexOf("if (EXECUTE && updates.length > 0)"));
+    expect(region.indexOf("appendDurable(LOG_PATH")).toBeLessThan(region.indexOf('c.query("COMMIT")'));
+  });
+});
+
 describe("archive predicate repoint (PR-2, #415)", () => {
   it("flag-ON archive eligibility ages off terminal_since; flag-OFF stays legacy status_changed_at", () => {
     const s = read("app/api/cron/data-retention/route.ts");

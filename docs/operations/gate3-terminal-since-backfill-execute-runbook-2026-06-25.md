@@ -88,6 +88,8 @@ artifacts/gate3-backfill-touched-<UTC-stamp>.jsonl
 ```
 Each line: `{ "id", "old_terminal_since": null, "new_terminal_since": "<ISO>", "source": "CloseDate|features.CloseDate|OffMarketDate|ExpirationDate|typedExpiration", "backfill_run": "<stamp>" }`. (`old` is always null because the UPDATE guards `terminal_since IS NULL`.) The log is **gitignored** (operational artifact) — preserve it until post-verify sign-off.
 
+> **Durability invariant (Codex #451):** the log is written **and fsync'd to disk BEFORE the batch COMMIT**. If the log write fails (disk full / read-only / permission), the batch is **ROLLED BACK and the run aborts** — so a committed change is **never** missing from the rollback set. The only tolerated skew is harmless *over*-reporting: if COMMIT fails *after* the log write, those ids are logged but unchanged, and the rollback `SET terminal_since = NULL` on a row that stayed NULL is a **no-op**. The log therefore never under-reports committed changes.
+
 **Targeted rollback (preferred — exact):**
 ```bash
 # extract the ids from the log and null them back out (run host-guarded to cold-waterfall)

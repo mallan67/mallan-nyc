@@ -23,7 +23,7 @@
  *   UPDATE listings SET terminal_since = NULL WHERE id IN (<ids from the log>);
  */
 import path from "node:path";
-import { mkdirSync, appendFileSync } from "node:fs";
+import { mkdirSync, openSync, writeSync, fsyncSync, closeSync } from "node:fs";
 import dotenv from "dotenv";
 dotenv.config({ path: path.resolve(".env.local"), override: true });
 import pg from "pg";
@@ -57,6 +57,18 @@ const CUTOFF_180 = new Date(NOW.getTime() - 180 * 24 * 60 * 60 * 1000);
 const STAMP = NOW.toISOString().replace(/[:.]/g, "-");
 const LOG_DIR = path.resolve("artifacts");
 const LOG_PATH = path.join(LOG_DIR, `gate3-backfill-touched-${STAMP}.jsonl`);
+
+/** Append text and fsync it to disk before returning — so the log is DURABLE before the COMMIT.
+ *  Throws (propagating to the caller's ROLLBACK+abort) if the bytes cannot be persisted. */
+function appendDurable(file: string, text: string): void {
+  const fd = openSync(file, "a");
+  try {
+    writeSync(fd, text);
+    fsyncSync(fd); // force OS buffers to disk — survives a crash between log write and COMMIT
+  } finally {
+    closeSync(fd);
+  }
+}
 
 type Row = { status: string; cd: string | null; fcd: string | null; omd: string | null; ed: string | null; exp: string | null };
 
@@ -165,11 +177,10 @@ async function main() {
          RETURNING l.id`,
         [ids, tss],
       );
-      await c.query("COMMIT");
-      batchWrites += res.rowCount ?? 0;
 
-      // Touched-id capture — write ONLY the rows the UPDATE actually changed (RETURNING id),
-      // each with old (null), new terminal_since, and the derived source. Authoritative rollback set.
+      // INVARIANT (Codex #451): write the touched-id log DURABLY (fsync) BEFORE COMMIT. A committed
+      // batch must never be missing from the rollback set. The log lists the rows the UPDATE actually
+      // changed (RETURNING id), each with old (null), new terminal_since, and the derived source.
       const tsById = new Map(updates.map((u) => [u.id, u.ts.toISOString()]));
       const srcById = new Map(rows.map((r: Row & { id: string | number }) => [Number(r.id), classifySource(r)]));
       const logLines = (res.rows as Array<{ id: string | number }>).map((row) => {
@@ -182,7 +193,24 @@ async function main() {
           backfill_run: STAMP,
         });
       });
-      if (logLines.length) appendFileSync(LOG_PATH, logLines.join("\n") + "\n");
+      try {
+        if (logLines.length) appendDurable(LOG_PATH, logLines.join("\n") + "\n");
+      } catch (logErr) {
+        // Log write failed (disk full / read-only / permission) → the batch is NOT yet committed.
+        // ROLLBACK and ABORT so we never commit rows that are absent from the rollback set.
+        await c.query("ROLLBACK").catch(() => {});
+        console.error(
+          `FATAL: touched-id log write failed at batch ${batch} — ROLLED BACK this batch's UPDATE and aborting (no unlogged commit). ` +
+          (logErr instanceof Error ? logErr.message : String(logErr)),
+        );
+        process.exit(1);
+      }
+
+      // Log is durably on disk → safe to COMMIT. If COMMIT itself fails, the rows were NOT changed
+      // but their ids are already logged: that is harmless OVER-reporting (the rollback UPDATE that
+      // nulls a row which stayed NULL is a no-op). The error propagates to main().catch and aborts.
+      await c.query("COMMIT");
+      batchWrites += res.rowCount ?? 0;
     }
     console.log(`[${EXECUTE ? "EXEC" : "DRY"}] batch ${batch}: scanned ${rows.length}; would_set so far ${wouldSet}; no_date ${noDate}`);
     if (batch > 80) { console.error("ABORT: batch cap"); break; }
