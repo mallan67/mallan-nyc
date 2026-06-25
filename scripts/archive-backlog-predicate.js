@@ -5,11 +5,11 @@
 // Canonical archive-backlog predicate for OPERATIONAL MONITORING (scripts/ops-health.js).
 //
 // It MUST mirror the data-retention archiver's eligibility predicate
-// (app/api/cron/data-retention/route.ts — the merged PR #405 fix) EXACTLY, so the
-// `archive_backlog` health metric counts the SAME population the nightly cron archives.
-// If they diverge, the 500/run cap warning becomes blind: with the flag ON, the cron
-// drains NULL-`status_changed_at` rows via `modification_timestamp` while a narrow
-// monitor would still report `archive_backlog=0` (Codex P2 on PR #405, route.ts:181).
+// (app/api/cron/data-retention/route.ts) EXACTLY, so the `archive_backlog` health metric counts
+// the SAME population the nightly cron archives. If they diverge, the 500/run cap warning becomes
+// blind. Archive Clock PR-2 (#415): with the flag ON, the cron now ages off the STABLE
+// `terminal_since` clock; a narrow legacy monitor would report a different backlog (Codex P2 on
+// PR #405, route.ts:181 — the same divergence hazard, now resolved against terminal_since).
 //
 // Reconciliation is enforced by tests/runtime/ops-health-archive-backlog.test.ts, which
 // reads the archiver source and asserts the terminal-status set here matches it.
@@ -19,8 +19,8 @@
 //     the already-resolved flag value in).
 //   * It builds a READ-ONLY Prisma `where` for prisma.listing.count() — no archive run,
 //     no UPDATE/strip, no env/Neon/Vercel/R2/cron mutation.
-//   * It uses `modification_timestamp` (Trestle source-of-truth clock, NOT NULL), NEVER
-//     `updated_at` (which is bumped by unrelated rewrites and would mis-age the backlog).
+//   * Flag ON ages off `terminal_since` (the stable Archive Clock PR-1 column); flag OFF uses the
+//     legacy `status_changed_at`. NEVER `updated_at` (bumped by unrelated rewrites → mis-ages backlog).
 
 // Mirror of app/api/cron/data-retention/route.ts:22 TERMINAL_STATUSES (kept in sync by test).
 const ARCHIVE_TERMINAL_STATUSES = [
@@ -47,16 +47,12 @@ const ARCHIVE_CUTOFF_DAYS = 180;
 function buildArchiveBacklogWhere({ flagEnabled, now }) {
   const cutoff = new Date(now.getTime() - ARCHIVE_CUTOFF_DAYS * 24 * 60 * 60 * 1000);
 
-  // flag OFF (default): narrow — only rows with a real status_changed_at older than cutoff.
-  // flag ON: also include rows where status_changed_at IS NULL but the Trestle
-  // modification_timestamp is older than cutoff (COALESCE(status_changed_at, modification_timestamp)).
+  // flag OFF (default): narrow legacy — only rows with a real status_changed_at older than cutoff.
+  // flag ON: age off the STABLE terminal_since clock (Archive Clock PR-2, #415) — mirrors the
+  // archiver exactly. terminal_since is set once on transition and never re-stamped by idx-sync;
+  // NULL terminal_since fails `{ lt }` and is never counted (intended fail-safe — no invented dates).
   const dateEligibility = flagEnabled
-    ? {
-        OR: [
-          { status_changed_at: { lt: cutoff } },
-          { status_changed_at: null, modification_timestamp: { lt: cutoff } },
-        ],
-      }
+    ? { terminal_since: { lt: cutoff } }
     : { status_changed_at: { lt: cutoff } };
 
   return {

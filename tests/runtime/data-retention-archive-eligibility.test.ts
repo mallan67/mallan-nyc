@@ -6,13 +6,11 @@
  * NULL `status_changed_at` silently fails `{ lt }` (NULL < ts is NULL), so
  * bulk-synced terminal rows are invisible to the archive forever (34 of ~91,536).
  *
- * Fix: behind a DEFAULT-OFF flag `ARCHIVE_T180_BACKLOG_ENABLED`, broaden the
- * predicate to COALESCE(status_changed_at, modification_timestamp) < cutoff
- * (Prisma OR form). modification_timestamp — NOT updated_at — because updated_at
- * is bumped by unrelated rewrites and would keep the backlog perpetually recent.
- *
- * RED on main: main has no flag/OR, so the flag-ON assertion (OR present, with a
- * modification_timestamp branch) fails. GREEN after the fix.
+ * History: PR #405 broadened the flag-ON predicate to COALESCE(status_changed_at,
+ * modification_timestamp) < cutoff. Archive Clock PR-2 (#415) SUPERSEDES that — both clocks are
+ * re-stamped by idx-sync, so the flag-ON predicate now ages off the STABLE `terminal_since` clock
+ * (set once on transition, never re-stamped). Flag-OFF stays the legacy status_changed_at predicate
+ * so merging drains nothing. NULL terminal_since can never match `{ lt }` (fail-safe — no invented dates).
  */
 
 import { makeRequest } from "./helpers";
@@ -90,28 +88,39 @@ describe("data-retention T+180 archive eligibility", () => {
     expect((where.status_changed_at as Record<string, unknown>).lt).toBeInstanceOf(Date);
   });
 
-  it("flag ON: broadens to COALESCE(status_changed_at, modification_timestamp) via an OR — NULL-dated old rows SELECTED", async () => {
+  it("flag ON (PR-2): ages off the stable terminal_since clock — single { terminal_since: { lt } }, no OR", async () => {
     process.env.ARCHIVE_T180_BACKLOG_ENABLED = "true";
     await runCron();
     const where = archiveWhere();
-    const or = where.OR as Array<Record<string, unknown>>;
-    expect(Array.isArray(or)).toBe(true);
-    expect(or).toHaveLength(2);
-    // Branch 1: non-null old status_changed_at.
-    expect(or[0].status_changed_at).toEqual({ lt: expect.any(Date) });
-    // Branch 2: NULL status_changed_at AND old modification_timestamp (the fix).
-    const nullBranch = or.find((b) => b.status_changed_at === null);
-    expect(nullBranch).toBeDefined();
-    expect((nullBranch!.modification_timestamp as Record<string, unknown>).lt).toBeInstanceOf(Date);
+    // Stable clock: a single terminal_since < cutoff date branch (no OR, no coalesce).
+    expect(where.OR).toBeUndefined();
+    expect((where.terminal_since as Record<string, unknown>).lt).toBeInstanceOf(Date);
+    // contaminated clocks are gone from the eligibility branch
+    expect(where.status_changed_at).toBeUndefined();
+    expect(where.modification_timestamp).toBeUndefined();
+    // terminal-status + archived filters preserved
+    expect(where.status).toBeDefined();
+    expect(where.sync_status).toEqual({ not: "archived" });
   });
 
-  it("anti-updated_at: the archive predicate NEVER references updated_at (flag ON)", async () => {
+  it("fail-safe: flag ON predicate is `terminal_since < cutoff` only, so NULL-clock rows can never match (no invented dates)", async () => {
+    // NULL terminal_since fails `{ lt }` in Postgres (NULL < ts → NULL), so rows whose clock has
+    // not been backfilled are excluded by construction. Proven structurally: the date branch is
+    // exactly terminal_since with NO OR / coalesce fallback that could re-include NULLs.
     process.env.ARCHIVE_T180_BACKLOG_ENABLED = "true";
     await runCron();
     const where = archiveWhere();
-    // updated_at is bumped by unrelated rewrites; ageing off it would stick the
-    // backlog forever. It must not appear anywhere in the predicate.
+    expect(Object.keys(where)).toEqual(expect.arrayContaining(["status", "sync_status", "terminal_since"]));
+    expect(where.OR).toBeUndefined();
+  });
+
+  it("anti-updated_at / anti-modification_timestamp: the archive predicate references neither (flag ON)", async () => {
+    process.env.ARCHIVE_T180_BACKLOG_ENABLED = "true";
+    await runCron();
+    const where = archiveWhere();
+    // both are re-stamped/unrelated clocks; ageing off them would stick or mis-age the backlog.
     expect(JSON.stringify(where)).not.toContain("updated_at");
+    expect(JSON.stringify(where)).not.toContain("modification_timestamp");
   });
 
   it("preserves the 500/run batch cap in BOTH flag states", async () => {

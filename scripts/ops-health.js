@@ -267,13 +267,34 @@ async function run() {
   });
   report.retention.archive_backlog = archiveEligible;
   report.retention.archive_backlog_predicate = archiveBacklogFlagEnabled
-    ? 'widened (ARCHIVE_T180_BACKLOG_ENABLED=true — includes NULL status_changed_at via modification_timestamp)'
+    ? 'stable-clock (ARCHIVE_T180_BACKLOG_ENABLED=true — terminal_since < cutoff)'
     : 'narrow (flag OFF / default — status_changed_at < cutoff only)';
   if (archiveEligible > THRESHOLDS.archive_backlog_warn) {
     report.issues.push({
       level: 'warning',
       category: 'retention',
       msg: `${archiveEligible} listings eligible for T+180d archive — cron cap (500/day) may not keep up`,
+    });
+  }
+
+  // New stable-clock gauge (Archive Clock PR-2, #415): terminal rows still missing terminal_since.
+  // These will NOT auto-archive under the flag-ON terminal_since predicate (intended fail-safe — no
+  // invented dates). A high count means the gated backfill (PR-2 Gate 3) has not yet populated the
+  // clock. READ-ONLY count. The legacy listings_missing_status_changed gauge above is kept for one
+  // release for comparison so health and cron both track the new clock without drifting.
+  const terminalMissingClock = await prisma.listing.count({
+    where: {
+      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      sync_status: { not: 'archived' },
+      terminal_since: null,
+    },
+  });
+  report.retention.listings_terminal_missing_terminal_since = terminalMissingClock;
+  if (terminalMissingClock > 0) {
+    report.issues.push({
+      level: 'warning',
+      category: 'retention',
+      msg: `${terminalMissingClock} terminal listings have NULL terminal_since — gated backfill (Archive Clock PR-2 Gate 3) not yet applied; these will not auto-archive`,
     });
   }
 
@@ -759,6 +780,7 @@ function renderHuman(r) {
 
   console.log('\n── RETENTION / COMPLIANCE ───────────────────────');
   console.log(`  Listings missing status_changed_at: ${r.retention.listings_missing_status_changed ?? 0}`);
+  console.log(`  Terminal listings missing terminal_since: ${r.retention.listings_terminal_missing_terminal_since ?? 0}`);
   console.log(`  REBNY §2.05 violations (terminal >24h, IDX on): ${r.retention.rebny_sec_2_05_violations ?? 0}`);
   console.log(`  T+180d archive backlog: ${r.retention.archive_backlog ?? 0}`);
   if (r.retention.archive_backlog_predicate) {
