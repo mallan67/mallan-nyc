@@ -231,6 +231,10 @@ export async function GET(req: NextRequest) {
         status_changed_at: now,
         modification_timestamp: now,
         idx_display_yn: false,
+        // Archive eligibility clock (#415): expiring an active exclusive is a
+        // non-terminal→terminal transition; set the stable terminal-age date (no
+        // off-market date fetched in this narrow path → transition wall-clock `now`).
+        terminal_since: now,
       },
     });
 

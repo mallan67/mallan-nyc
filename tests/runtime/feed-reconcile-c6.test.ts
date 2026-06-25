@@ -65,6 +65,12 @@ const GATED_ID = 'RLS-GATED';
 
 jest.mock('@/lib/idx/trestle-mapper', () => ({
   __esModule: true,
+  // Pass through the real terminal-status set + normalizer: the archive-clock
+  // helper (lib/listings/terminal-since.ts), now used by the reconcile writers,
+  // imports TERMINAL_STATUSES + normalizeStandardStatus from here (#415). Keeping
+  // the single source of truth (no duplicated status set in the test).
+  TERMINAL_STATUSES: jest.requireActual('@/lib/idx/trestle-mapper').TERMINAL_STATUSES,
+  normalizeStandardStatus: jest.requireActual('@/lib/idx/trestle-mapper').normalizeStandardStatus,
   validateRequiredFields: jest.fn(() => ({ valid: true, missingFields: [] })),
   checkDistributionGates: jest.fn((raw: Record<string, unknown>) =>
     String(raw.ListingId) === 'RLS-GATED'

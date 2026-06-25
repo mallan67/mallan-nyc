@@ -21,6 +21,7 @@ import {
   flushSyncDiagnostics,
   type DiagnosticAuditWriter,
 } from "./diagnostic-recorder";
+import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -327,6 +328,24 @@ export async function syncListings(
         // stays stuck and will be picked up next sync after backfill.
       }
 
+      // Archive eligibility clock (#415): set terminal_since on non-terminal→terminal,
+      // clear on terminal→active, never bump on terminal re-sync. Derived from stable
+      // source dates (raw_data.CloseDate/OffMarketDate), NOT status_changed_at/modts.
+      // CREATE: previousStatus undefined → sets terminal_since iff the new row is terminal.
+      // UPDATE: previousStatus = existing.status → set/clear/no-change.
+      const terminalSinceCreate = computeTerminalSincePatch({
+        previousStatus: undefined,
+        newStatus: mapped.status,
+        raw_data: mapped.raw_data as Record<string, unknown>,
+        features: mapped.features as Record<string, unknown>,
+      });
+      const terminalSinceUpdate = computeTerminalSincePatch({
+        previousStatus: existing?.status,
+        newStatus: mapped.status,
+        raw_data: mapped.raw_data as Record<string, unknown>,
+        features: mapped.features as Record<string, unknown>,
+      });
+
       // 4. Upsert to local DB
       // Phase C (agent_info normalization): stop persisting the legacy agent_info JSON.
       // Strip it from the spread so `create: { ...typedOnlyMapped }` no longer carries it;
@@ -351,10 +370,12 @@ export async function syncListings(
           first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
             ? new Date()
             : null,
+          ...terminalSinceCreate,
         },
         update: {
           mls_id: mapped.mls_id,
           status: mapped.status,
+          ...terminalSinceUpdate,
           listing_type: mapped.listing_type,
           property_type: mapped.property_type,
           property_sub_type: mapped.property_sub_type,
@@ -1187,6 +1208,15 @@ export async function syncAgentHistory(
       // columns remain in typedOnlyMapped. mapped.agent_info stays in memory for the
       // UPDATE branch's typed derivation below.
       const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
+      // Archive eligibility clock (#415): agent-history rows are imported terminal
+      // (closed). Set terminal_since on create from the stable source date; UPDATE
+      // omits it (no existing-status fetch here → never bump on re-sync).
+      const terminalSinceCreate = computeTerminalSincePatch({
+        previousStatus: undefined,
+        newStatus: mapped.status,
+        raw_data: mapped.raw_data as Record<string, unknown>,
+        features: mapped.features as Record<string, unknown>,
+      });
       await prisma.listing.upsert({
         where: { listing_id: mapped.listing_id },
         create: {
@@ -1199,6 +1229,7 @@ export async function syncAgentHistory(
           media: mapped.media as Prisma.InputJsonValue,
           compliance: mapped.compliance as Prisma.InputJsonValue,
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
+          ...terminalSinceCreate,
         },
         update: {
           agent_id: options.agentDbId,
