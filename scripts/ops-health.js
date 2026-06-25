@@ -282,6 +282,15 @@ async function run() {
   // invented dates). A high count means the gated backfill (PR-2 Gate 3) has not yet populated the
   // clock. READ-ONLY count. The legacy listings_missing_status_changed gauge above is kept for one
   // release for comparison so health and cron both track the new clock without drifting.
+  //
+  // CANONICAL terminal set BY DESIGN: this gauge mirrors the archive cron's terminal predicate
+  // (data-retention route + archive-backlog-predicate.js), which is canonical case-sensitive
+  // `status IN (...)`. Keeping it canonical preserves health↔cron coherence — the gauge must count
+  // exactly the population the cron can archive, NOT a broader set. The backfill is alias-aware
+  // (lower()+`canceled`), so it could populate terminal_since on a non-canonical row the cron would
+  // never archive; that backfill-vs-archiver mismatch is latent (prod blast radius 0 today) and is
+  // tracked separately in #449 — it touches §2.05/archive compliance and must be its own gated change.
+  // Do NOT make this gauge alias-aware here (it would over-report rows the cron can't drain).
   const terminalMissingClock = await prisma.listing.count({
     where: {
       status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
