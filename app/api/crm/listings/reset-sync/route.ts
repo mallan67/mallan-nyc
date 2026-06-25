@@ -10,6 +10,7 @@ import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { mediaUpdatePatch, complianceUpdatePatch } from "@/lib/idx/sync";
+import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
@@ -128,6 +129,25 @@ export async function POST(req: NextRequest) {
         // typed columns remain in typedOnlyMapped. mapped.agent_info stays in memory
         // for the UPDATE branch's typed derivation below.
         const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
+        // Archive eligibility clock (#446): set terminal_since on non-terminal→terminal,
+        // clear on terminal→active, never bump on terminal re-sync. UPDATE fetches the
+        // existing status so a re-synced row flipping into/out of terminal is captured.
+        const existingForClock = await prisma.listing.findUnique({
+          where: { listing_id: mapped.listing_id },
+          select: { status: true },
+        });
+        const terminalSinceCreate = computeTerminalSincePatch({
+          previousStatus: undefined,
+          newStatus: mapped.status,
+          raw_data: mapped.raw_data as Record<string, unknown>,
+          features: mapped.features as Record<string, unknown>,
+        });
+        const terminalSinceUpdate = computeTerminalSincePatch({
+          previousStatus: existingForClock?.status,
+          newStatus: mapped.status,
+          raw_data: mapped.raw_data as Record<string, unknown>,
+          features: mapped.features as Record<string, unknown>,
+        });
         await prisma.listing.upsert({
           where: { listing_id: mapped.listing_id },
           create: {
@@ -140,11 +160,13 @@ export async function POST(req: NextRequest) {
             media: mapped.media as Prisma.InputJsonValue,
             compliance: mapped.compliance as Prisma.InputJsonValue,
             raw_data: mapped.raw_data as Prisma.InputJsonValue,
+            ...terminalSinceCreate,
           },
           update: {
             agent_id: agent.id,
             mls_id: mapped.mls_id,
             status: mapped.status,
+            ...terminalSinceUpdate,
             listing_type: mapped.listing_type,
             property_type: mapped.property_type,
             property_sub_type: mapped.property_sub_type,

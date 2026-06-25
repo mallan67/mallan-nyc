@@ -49,6 +49,16 @@ describe("writer rule wired into every terminal-status writer", () => {
   it("import-closed sets terminal_since from the stable date", () => {
     expect(read("scripts/import-closed-from-trestle.ts")).toMatch(/deriveTerminalSince/);
   });
+  it("reset-sync uses computeTerminalSincePatch on create + update (#446)", () => {
+    const s = read("app/api/crm/listings/reset-sync/route.ts");
+    expect(s).toMatch(/computeTerminalSincePatch/);
+    expect(s).toMatch(/\.\.\.terminalSinceCreate/);
+    expect(s).toMatch(/\.\.\.terminalSinceUpdate/);
+  });
+  it("CRM DELETE (soft-delete → Withdrawn) sets terminal_since (#446)", () => {
+    const s = read("app/api/crm/listings/[id]/route.ts");
+    expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?newStatus:\s*"Withdrawn"/);
+  });
 });
 
 describe("backfill defaults to dry-run (no write without --execute)", () => {
@@ -61,6 +71,9 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   it("only fills NULL terminal rows (never bumps; never touches live)", () => {
     expect(s).toMatch(/terminal_since IS NULL/);
     expect(s).toMatch(/status IN /);
+  });
+  it("execute UPDATE re-asserts the terminal-status predicate — cannot write to non-terminal rows (#446)", () => {
+    expect(s).toMatch(/l\.terminal_since IS NULL AND l\.\$\{STATUS_IN\}/);
   });
   it("derives via the shared helper (parity with the live writer, not a SQL COALESCE)", () => {
     expect(s).toMatch(/deriveTerminalSince/);

@@ -22,6 +22,7 @@ import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosu
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
+import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -581,6 +582,15 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     data: {
       status: "Withdrawn",
       modification_timestamp: new Date(),
+      // Archive eligibility clock (#446): soft-delete is a non-terminal→terminal
+      // transition (Withdrawn). Set terminal_since (no off-market date on a CRM
+      // row → transition wall-clock); never bumped if already terminal.
+      ...computeTerminalSincePatch({
+        previousStatus: listing.status,
+        newStatus: "Withdrawn",
+        raw_data: listing.raw_data as Record<string, unknown> | null,
+        features: listing.features as Record<string, unknown> | null,
+      }),
     },
   });
 

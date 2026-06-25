@@ -100,9 +100,12 @@ async function main() {
       const ids = updates.map((u) => u.id);
       const tss = updates.map((u) => u.ts.toISOString());
       const res = await c.query(
+        // Re-assert the terminal-status predicate (Codex #446): if a row left terminal
+        // status (reactivated/back-on-market) between the SELECT and this UPDATE, the
+        // l.status guard prevents writing a stale terminal_since onto a now-live row.
         `UPDATE listings AS l SET terminal_since = v.ts
          FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamptz[]) AS ts) v
-         WHERE l.id = v.id AND l.terminal_since IS NULL`,
+         WHERE l.id = v.id AND l.terminal_since IS NULL AND l.${STATUS_IN}`,
         [ids, tss],
       );
       await c.query("COMMIT");
