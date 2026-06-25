@@ -250,6 +250,12 @@ async function run() {
             status_changed_at: now,
             idx_display_yn: false, // belt-and-suspenders — data-retention cron also handles
             modification_timestamp: now,
+            // Archive Eligibility Clock (#415/#446): ghosts are always Active→Withdrawn with
+            // no stable off-market date, so the wall-clock `now` is the correct floor — byte-
+            // identical to the wired cron twin (app/api/cron/feed-reconcile/route.ts). This
+            // CommonJS runner can't import the .ts helper; `now` matches the helper's terminal
+            // fallback exactly, so no refactor is needed.
+            terminal_since: now,
           },
         }),
         prisma.auditEvent.create({

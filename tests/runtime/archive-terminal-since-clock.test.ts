@@ -72,6 +72,17 @@ describe("writer rule wired into every terminal-status writer", () => {
     const s = read("app/api/crm/listings/[id]/route.ts");
     expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?newStatus:\s*"Withdrawn"/);
   });
+  it("idx/ensure-listing create wires computeTerminalSincePatch on arbitrary body.status (#446)", () => {
+    const s = read("app/api/idx/ensure-listing/route.ts");
+    expect(s).toMatch(/import\s*\{\s*computeTerminalSincePatch\s*\}\s*from\s*"@\/lib\/listings\/terminal-since"/);
+    // create spreads the patch with previousStatus undefined + the normalized status
+    expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?previousStatus:\s*undefined[\s\S]*?newStatus:\s*canonicalStatus/);
+  });
+  it("reconcile-ghosts.js sets terminal_since: now on ghost→Withdrawn (matches the wired cron twin) (#446)", () => {
+    const s = read("scripts/reconcile-ghosts.js");
+    // the ghost transition update sets status Withdrawn AND terminal_since: now
+    expect(s).toMatch(/status:\s*"Withdrawn",[\s\S]*?terminal_since:\s*now/);
+  });
 });
 
 describe("backfill defaults to dry-run (no write without --execute)", () => {
