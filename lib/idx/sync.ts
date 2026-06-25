@@ -1208,11 +1208,23 @@ export async function syncAgentHistory(
       // columns remain in typedOnlyMapped. mapped.agent_info stays in memory for the
       // UPDATE branch's typed derivation below.
       const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
-      // Archive eligibility clock (#415): agent-history rows are imported terminal
-      // (closed). Set terminal_since on create from the stable source date; UPDATE
-      // omits it (no existing-status fetch here → never bump on re-sync).
+      // Archive eligibility clock (#415): set terminal_since on the non-terminal→terminal
+      // transition. CREATE uses previousStatus=undefined; UPDATE fetches the existing
+      // status so a historical Closed/Expired/Withdrawn record that flips an existing
+      // (e.g. Active) row IS captured on the update branch (Codex #446) — not left NULL.
+      // Never bumped on terminal→terminal re-sync; cleared on terminal→active.
+      const existingForClock = await prisma.listing.findUnique({
+        where: { listing_id: mapped.listing_id },
+        select: { status: true },
+      });
       const terminalSinceCreate = computeTerminalSincePatch({
         previousStatus: undefined,
+        newStatus: mapped.status,
+        raw_data: mapped.raw_data as Record<string, unknown>,
+        features: mapped.features as Record<string, unknown>,
+      });
+      const terminalSinceUpdate = computeTerminalSincePatch({
+        previousStatus: existingForClock?.status,
         newStatus: mapped.status,
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
@@ -1235,6 +1247,7 @@ export async function syncAgentHistory(
           agent_id: options.agentDbId,
           mls_id: mapped.mls_id,
           status: mapped.status,
+          ...terminalSinceUpdate,
           listing_type: mapped.listing_type,
           property_type: mapped.property_type,
           property_sub_type: mapped.property_sub_type,

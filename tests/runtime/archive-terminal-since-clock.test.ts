@@ -43,8 +43,8 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/computeTerminalSincePatch/);
     expect(s).toMatch(/terminal_since:\s*now/);
   });
-  it("listing-expiration sets terminal_since on Expired", () => {
-    expect(read("app/api/cron/listing-expiration/route.ts")).toMatch(/terminal_since:\s*now/);
+  it("listing-expiration seeds terminal_since from the actual expiration_date (not cron run time)", () => {
+    expect(read("app/api/cron/listing-expiration/route.ts")).toMatch(/terminal_since:\s*listing\.expiration_date/);
   });
   it("import-closed sets terminal_since from the stable date", () => {
     expect(read("scripts/import-closed-from-trestle.ts")).toMatch(/deriveTerminalSince/);
@@ -53,14 +53,18 @@ describe("writer rule wired into every terminal-status writer", () => {
 
 describe("backfill defaults to dry-run (no write without --execute)", () => {
   const s = read("scripts/backfill-terminal-since.ts");
-  it("EXECUTE is gated behind the --execute flag", () => {
+  it("EXECUTE is gated behind the --execute flag (no write unless EXECUTE)", () => {
     expect(s).toMatch(/const EXECUTE\s*=\s*process\.argv\.includes\("--execute"\)/);
-    expect(s).toMatch(/if\s*\(\s*!EXECUTE\s*\)/); // dry-run early return
+    expect(s).toMatch(/if\s*\(\s*EXECUTE\s*&&/); // the UPDATE is gated behind EXECUTE
     expect(s).toMatch(/DRY-RUN ONLY/);
   });
   it("only fills NULL terminal rows (never bumps; never touches live)", () => {
     expect(s).toMatch(/terminal_since IS NULL/);
     expect(s).toMatch(/status IN /);
+  });
+  it("derives via the shared helper (parity with the live writer, not a SQL COALESCE)", () => {
+    expect(s).toMatch(/deriveTerminalSince/);
+    expect(s).toMatch(/from "\.\.\/lib\/listings\/terminal-since"/);
   });
   it("host-guarded to cold-waterfall", () => {
     expect(s).toMatch(/ep-cold-waterfall-adno3ao2/);
