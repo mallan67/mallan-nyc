@@ -290,11 +290,17 @@ async function run() {
     },
   });
   report.retention.listings_terminal_missing_terminal_since = terminalMissingClock;
-  if (terminalMissingClock > 0) {
+  // Gate the warning to ACTIONABILITY (Codex #448 finding A): a NULL terminal_since count is the
+  // EXPECTED pre-backfill state while ARCHIVE_T180_BACKLOG_ENABLED is OFF — emitting a warning then
+  // would make `ops:health` exit 1 right after PR-2 merge for a state no operator can remediate yet
+  // (the gated backfill is PR-2 Gate 3). Only warn once the flag is ON, i.e. when terminal_since
+  // actually gates archiving and a NULL clock is an actionable backlog. The count is ALWAYS recorded
+  // as an informational gauge above regardless of flag.
+  if (archiveBacklogFlagEnabled && terminalMissingClock > 0) {
     report.issues.push({
       level: 'warning',
       category: 'retention',
-      msg: `${terminalMissingClock} terminal listings have NULL terminal_since — gated backfill (Archive Clock PR-2 Gate 3) not yet applied; these will not auto-archive`,
+      msg: `${terminalMissingClock} terminal listings have NULL terminal_since while ARCHIVE_T180_BACKLOG_ENABLED=true — run the Archive Clock PR-2 Gate 3 backfill; these rows will NOT auto-archive until the clock is populated`,
     });
   }
 

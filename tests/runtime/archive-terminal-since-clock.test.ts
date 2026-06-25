@@ -156,7 +156,19 @@ describe("archive predicate repoint (PR-2, #415)", () => {
     expect(s).toMatch(/terminal_since:\s*\{\s*lt:\s*cutoff\s*\}/);
     expect(s).not.toMatch(/modification_timestamp/);
   });
-  it("ops:health exposes the new missing-terminal-clock gauge", () => {
-    expect(read("scripts/ops-health.js")).toMatch(/listings_terminal_missing_terminal_since/);
+  it("ops:health records the missing-terminal-clock gauge UNCONDITIONALLY but only WARNS when the flag is ON (Codex #448-A)", () => {
+    const s = read("scripts/ops-health.js");
+    // 1) the count/gauge is always recorded (informational), regardless of flag state →
+    //    flag OFF + NULL terminal_since: count present, NO warning, ops:health stays exit 0.
+    expect(s).toMatch(/report\.retention\.listings_terminal_missing_terminal_since\s*=\s*terminalMissingClock/);
+    // 2) the WARNING push is gated behind ARCHIVE_T180_BACKLOG_ENABLED being ON →
+    //    flag ON + NULL terminal_since: warning present (actionable backlog).
+    expect(s).toMatch(/if\s*\(\s*archiveBacklogFlagEnabled\s*&&\s*terminalMissingClock\s*>\s*0\s*\)\s*\{[\s\S]*?level:\s*'warning'/);
+    // 3) ordering — the gauge is recorded BEFORE (outside) the gated warning, so the count
+    //    survives even when the flag is OFF and the warning is suppressed.
+    const assignIdx = s.indexOf("report.retention.listings_terminal_missing_terminal_since");
+    const warnIdx = s.indexOf("archiveBacklogFlagEnabled && terminalMissingClock");
+    expect(assignIdx).toBeGreaterThan(-1);
+    expect(warnIdx).toBeGreaterThan(assignIdx);
   });
 });
