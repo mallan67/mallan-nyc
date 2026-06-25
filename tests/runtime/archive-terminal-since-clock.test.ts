@@ -35,6 +35,17 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/\.\.\.terminalSinceCreate/);
     expect(s).toMatch(/\.\.\.terminalSinceUpdate/);
   });
+  it("Trestle writers pass the un-stripped raw.ExpirationDate as expirationDateFallback (#446)", () => {
+    // ExpirationDate is in PRIVATE_FIELDS → stripped from mapped.raw_data; the original
+    // raw record must be fed as the Expired fallback at every Trestle call site.
+    for (const f of [
+      "lib/idx/sync.ts",
+      "app/api/cron/feed-reconcile/route.ts",
+      "app/api/crm/listings/reset-sync/route.ts",
+    ]) {
+      expect(read(f)).toMatch(/expirationDateFallback:\s*raw\.ExpirationDate/);
+    }
+  });
   it("CRM status route uses computeTerminalSincePatch + passes typed expiration_date fallback (#446)", () => {
     const s = read("app/api/crm/listings/[id]/status/route.ts");
     expect(s).toMatch(/computeTerminalSincePatch/);

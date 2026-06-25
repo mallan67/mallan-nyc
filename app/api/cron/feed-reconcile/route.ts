@@ -380,6 +380,9 @@ export async function GET(req: NextRequest) {
               newStatus: mapped.status,
               raw_data: mapped.raw_data as Record<string, unknown>,
               features: mapped.features as Record<string, unknown>,
+              // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
+              // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+              expirationDateFallback: raw.ExpirationDate as string | undefined,
               now,
             });
             await prisma.$transaction([

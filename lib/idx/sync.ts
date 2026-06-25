@@ -338,12 +338,22 @@ export async function syncListings(
         newStatus: mapped.status,
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
+        // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
+        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // its actual expiration date, not the sync wall-clock.
+        expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
       const terminalSinceUpdate = computeTerminalSincePatch({
         previousStatus: existing?.status,
         newStatus: mapped.status,
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
+        // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
+        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // its actual expiration date, not the sync wall-clock.
+        expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
 
       // 4. Upsert to local DB
@@ -1222,12 +1232,22 @@ export async function syncAgentHistory(
         newStatus: mapped.status,
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
+        // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
+        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // its actual expiration date, not the sync wall-clock.
+        expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
       const terminalSinceUpdate = computeTerminalSincePatch({
         previousStatus: existingForClock?.status,
         newStatus: mapped.status,
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
+        // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
+        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // its actual expiration date, not the sync wall-clock.
+        expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
       await prisma.listing.upsert({
         where: { listing_id: mapped.listing_id },

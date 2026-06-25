@@ -141,12 +141,18 @@ export async function POST(req: NextRequest) {
           newStatus: mapped.status,
           raw_data: mapped.raw_data as Record<string, unknown>,
           features: mapped.features as Record<string, unknown>,
+          // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
+          // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+          expirationDateFallback: raw.ExpirationDate as string | undefined,
         });
         const terminalSinceUpdate = computeTerminalSincePatch({
           previousStatus: existingForClock?.status,
           newStatus: mapped.status,
           raw_data: mapped.raw_data as Record<string, unknown>,
           features: mapped.features as Record<string, unknown>,
+          // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
+          // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+          expirationDateFallback: raw.ExpirationDate as string | undefined,
         });
         await prisma.listing.upsert({
           where: { listing_id: mapped.listing_id },

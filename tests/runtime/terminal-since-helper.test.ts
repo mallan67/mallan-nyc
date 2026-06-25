@@ -9,6 +9,7 @@ import {
   computeTerminalSincePatch,
   isTerminalStatus,
 } from "@/lib/listings/terminal-since";
+import { mapTrestleToPrisma } from "@/lib/idx/trestle-mapper";
 
 const NOW = new Date("2026-06-25T00:00:00Z");
 
@@ -88,6 +89,50 @@ describe("deriveTerminalSince — priority + fail-safe", () => {
   });
   it("an invalid expirationDateFallback (year 2814) still fails safe → null", () => {
     expect(deriveTerminalSince({ status: "Expired", raw_data: {}, expirationDateFallback: "2814-02-04", now: NOW })).toBeNull();
+  });
+});
+
+describe("Trestle Expired: ExpirationDate stripped from mapped.raw_data but raw fallback used (#446)", () => {
+  function expiredTrestleRow(): Record<string, unknown> {
+    return {
+      ListingKey: "RBNY-EXP-1", ListingId: "RBNY-EXP-1", SourceSystemKey: "RBNY",
+      StandardStatus: "Expired", MlsStatus: "Expired",
+      PropertyType: "Residential", PropertySubType: "Apartment", ListPrice: 1_000_000,
+      StreetNumber: "1", StreetName: "Main", StreetSuffix: "St", City: "New York",
+      StateOrProvince: "NY", PostalCode: "10001",
+      ModificationTimestamp: "2024-01-01T00:00:00Z",
+      ExpirationDate: "2024-03-03", // the only stable terminal date
+      Permissions: "Public", Media: [],
+    };
+  }
+  it("mapper strips ExpirationDate from raw_data, yet terminal_since derives from the raw fallback (not now)", () => {
+    const raw = expiredTrestleRow();
+    const mapped = mapTrestleToPrisma(raw);
+    // 1) confirm the mapper stripped ExpirationDate from the persisted raw_data
+    expect((mapped.raw_data as Record<string, unknown>).ExpirationDate).toBeUndefined();
+    // 2) the Trestle writer passes the original raw ExpirationDate as the fallback
+    const patch = computeTerminalSincePatch({
+      previousStatus: "Active",
+      newStatus: mapped.status,
+      raw_data: mapped.raw_data as Record<string, unknown>,
+      features: mapped.features as Record<string, unknown>,
+      expirationDateFallback: raw.ExpirationDate as string,
+      now: NOW,
+    });
+    expect(patch.terminal_since instanceof Date && (patch.terminal_since as Date).toISOString().slice(0, 10)).toBe("2024-03-03");
+    expect(patch.terminal_since).not.toEqual(NOW);
+  });
+  it("WITHOUT the fallback, the same Expired row falls to wall-clock (proves the fallback is what fixes it)", () => {
+    const raw = expiredTrestleRow();
+    const mapped = mapTrestleToPrisma(raw);
+    const patch = computeTerminalSincePatch({
+      previousStatus: "Active",
+      newStatus: mapped.status,
+      raw_data: mapped.raw_data as Record<string, unknown>,
+      features: mapped.features as Record<string, unknown>,
+      now: NOW,
+    });
+    expect(patch.terminal_since).toEqual(NOW);
   });
 });
 
