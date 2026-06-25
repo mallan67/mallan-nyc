@@ -31,13 +31,26 @@ aged. `terminal_since` (Archive Clock PR-1, #446) is the correct, stable archive
 1. **NULL `terminal_since` fails safe.** A row whose `terminal_since IS NULL` (no derivable stable
    date, or the Gate-3 backfill has not run) fails `terminal_since < cutoff` (NULL `< ts` is NULL)
    and is **NEVER auto-archived**. We do **not** invent terminal dates for NULL-clock rows.
-2. **Flipping the flag before the backfill drains NOTHING.** Until the Gate-3 backfill populates
-   `terminal_since`, the flag-ON predicate matches **0 rows** — verified pre-backfill state:
-   `terminal_since` set on 0/110,114 rows. Do not interpret a 0 drain as "nothing to archive" — it
-   means the clock is not populated yet.
+2. **Before the Gate-3 backfill, the flag-ON eligible count is NOT guaranteed to be 0 — measure it.**
+   The flag-ON predicate matches only rows whose `terminal_since` is **already** set and older than
+   the cutoff. PR-1's live writers organically seed `terminal_since` on new terminal transitions
+   (`computeTerminalSincePatch` on non-terminal→terminal; listing-expiration; etc.), so after sync /
+   expiration has run, this may be a **small, nonzero** set — **not** zero, and **not** the full
+   historical backlog. **Trust the measured flag-ON `stable-clock` count from the dry-run (§2 run B);
+   do not assume zero.** The Gate-3 backfill is what makes the *historical* terminal backlog
+   eligible. (Merge safety does **not** rely on this count: it comes from the flag being **OFF** by
+   default — see §0.6.)
 
 > The old `widened_delta = N_on − N_off` formula no longer applies. Under PR-2 the flag-ON population
 > is `terminal_since < cutoff` directly, not a widened delta over the narrow set. See §3.
+
+## 0.6 Why merging PR-2 is safe (flag-OFF, not "zero drain")
+
+Merge safety comes from `ARCHIVE_T180_BACKLOG_ENABLED` remaining **OFF by default**. With the flag
+OFF the archiver uses the **legacy** `status_changed_at < cutoff` predicate, whose current eligible
+count is **0**, so merging PR-2 drains nothing. This is independent of the flag-ON count (§0.5 #2),
+which can be a small nonzero before backfill due to organic seeding. The always-true fail-safe: rows
+with `terminal_since IS NULL` never auto-archive.
 
 ---
 
@@ -102,14 +115,15 @@ The `terminal_since` archive rollout is a multi-gate sequence. **Do not skip or 
 | Gate | Action | Drains rows? | Approval |
 |---|---|---|---|
 | **1** | **PR-2 predicate repoint** behind the default-OFF flag (this change). Flag-OFF stays legacy; flag-ON = `terminal_since < cutoff`. | No — merging drains nothing | merged |
-| **2** | **Dry-run proof** — read-only counts (§2) showing flag-ON eligible = 0 pre-backfill + the NULL-clock backlog size. | No | measurement only |
+| **2** | **Dry-run proof** — read-only counts (§2): the **measured** flag-ON `stable-clock` count (a small nonzero is expected pre-backfill from organic seeding — do not assume 0) + the NULL-clock backlog size. | No | measurement only |
 | **3** | **Backfill `terminal_since`** on the existing terminal backlog (`scripts/backfill-terminal-since.ts --execute`). Populates the clock column ONLY — **archives nothing**. | No (clock only) | **separate explicit approval** |
 | **4** | **Archive dry-run proof** — re-measure flag-ON `terminal_since < cutoff` count *after* backfill = the true drain population; compute `nights_to_drain`. | No | measurement only |
 | **5** | **Flag flip / archive drain** — set `ARCHIVE_T180_BACKLOG_ENABLED=true` + redeploy; nightly cron drains in 500/run batches. | **YES — the actual archive** | **separate explicit approval, monitored** |
 
 > **No operator may flip the flag (Gate 5) before the backfill (Gate 3) and the dry-run proofs
-> (Gates 2 & 4) are complete and approved.** Flipping early drains nothing (NULL clock) but
-> misrepresents readiness.
+> (Gates 2 & 4) are complete and approved.** Flipping early does **not** reliably drain nothing —
+> organically-seeded rows (PR-1 writers) may already be eligible — so it would archive an unmeasured,
+> unapproved set. Go by the measured `stable-clock` count, never an assumed zero.
 
 ## 2. The read-only counts
 
@@ -127,7 +141,8 @@ ARCHIVE_T180_BACKLOG_ENABLED=false npm run --silent ops:health:json > ops-health
 #    record: retention.archive_backlog   (predicate must read "narrow ...")
 
 # B) flag-ON count — stable-clock predicate (terminal_since < cutoff). Local shell env ONLY;
-#    does NOT touch Vercel/cron/production. PRE-backfill this is expected to be 0 (NULL clock).
+#    does NOT touch Vercel/cron/production. PRE-backfill this is a SMALL NONZERO (organically-seeded
+#    rows only — measure it, do not assume 0); NULL-clock rows fail safe and are excluded.
 ARCHIVE_T180_BACKLOG_ENABLED=true npm run --silent ops:health:json > ops-health-stableclock.json
 #    record: retention.archive_backlog   (predicate must read "stable-clock ...")
 ```
@@ -184,8 +199,9 @@ Remove-Item Env:\ARCHIVE_T180_BACKLOG_ENABLED
   `terminal_since IS NULL`. This is the population the Gate-3 backfill must populate before any drain;
   while the flag is OFF it is informational only (ops-health does **not** warn on it until the flag is
   ON — Codex #448-A). PRE-backfill this is large (≈ the whole terminal backlog) and run B's
-  `archive_backlog` is ≈ 0; POST-backfill this shrinks and run B's `archive_backlog` becomes the real
-  drain population.
+  `archive_backlog` is **small but not necessarily 0** (organically-seeded rows only — measure it, do
+  not assume zero); POST-backfill this shrinks and run B's `archive_backlog` becomes the real drain
+  population.
 - `listings_missing_status_changed` — legacy broad diagnostic (NULL `status_changed_at`, any status),
   retained one release for comparison. **NOT** the archive population under PR-2.
 - `listings_archived_total` — already archived (baseline).
@@ -202,8 +218,12 @@ archive_population = N_on                 # terminal_since < cutoff (0 until the
 nights_to_drain    = ceil(N_on / 500)     # full backlog at the 500/run cap, one run per night
 ```
 
-**Pre-backfill (Gate 2):** expect `N_on ≈ 0` (NULL clock fails safe). The real `N_on` is only
-meaningful **after** the Gate-3 backfill, measured again at Gate 4.
+**Pre-backfill (Gate 2):** `N_on` is **not** guaranteed to be 0 — PR-1's live writers organically seed
+`terminal_since` on new terminal transitions, so a **small nonzero** `N_on` is expected (those rows
+are genuinely old terminals). **Use the measured `stable-clock` count; do not assume zero.** Rows with
+`terminal_since IS NULL` still fail safe (never eligible). The *historical* backlog only becomes
+eligible after the Gate-3 backfill, so the operationally significant `N_on` is the one re-measured at
+Gate 4 (post-backfill).
 
 **Illustrative only — measure first.** If after backfill `N_on ≈ 90,000`, then
 `nights_to_drain ≈ 180` (~6 months). A months-long tail is likely; that is a cadence decision.
@@ -254,7 +274,10 @@ while production is draining stable-clock rows.
 2. the Gate-4 archive dry-run proof (`N_on` measured **post-backfill**, plus `nights_to_drain`) has
    been reviewed.
 
-Enabling before the backfill drains nothing (NULL clock fails safe) and misrepresents readiness.
+Enabling before the backfill is wrong because the *historical* backlog has no clock yet — but it does
+**not** mean zero drain: organically-seeded rows (PR-1 writers) can already be eligible, so enabling
+early would archive an unmeasured, unapproved set. Always go by the measured flag-ON `stable-clock`
+count, never an assumed zero. (Rows with `terminal_since IS NULL` still fail safe and never archive.)
 
 When enabling is eventually approved, the same Vercel rule applies in reverse: setting the var to
 `true` in Production Settings takes effect **only after a Production redeploy** — verify the active
