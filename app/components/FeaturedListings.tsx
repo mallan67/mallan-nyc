@@ -257,7 +257,10 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
     <div className="prop-card rounded-3xl overflow-hidden bg-white relative">
       {badge && (
         <span
-          className="absolute top-4 left-4 z-30 bg-brand-gold text-white text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm"
+          // bg-brand-slate (#3d4556) — same color as the Open House banner, white text. Replaces
+          // the gold badge (white-on-gold failed WCAG contrast ~2.5:1 per PageSpeed). The Open House
+          // banner itself is unchanged. (2026-06-25)
+          className="absolute top-4 left-4 z-30 bg-brand-slate text-white text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm"
           title={badge.title}
         >
           {badge.text}
