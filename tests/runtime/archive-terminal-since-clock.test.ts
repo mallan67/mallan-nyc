@@ -158,6 +158,17 @@ describe("Gate 3 backfill — durable touched-id log invariant (Codex #451)", ()
     const region = s.slice(s.indexOf("if (EXECUTE && updates.length > 0)"));
     expect(region.indexOf("appendDurable(LOG_PATH")).toBeLessThan(region.indexOf('c.query("COMMIT")'));
   });
+  it("stores terminal_since as ::timestamp (TZ-independent UTC wall time), not ::timestamptz (#451)", () => {
+    expect(s).toMatch(/unnest\(\$2::timestamp\[\]\)/);      // wall-time storage
+    expect(s).not.toMatch(/unnest\(\$2::timestamptz\[\]\)/); // session-TZ-dependent storage removed
+  });
+  it("documents a VALUE-GUARDED rollback (preserves later live-writer updates), not id-only (#451)", () => {
+    // value guard: clears only rows still holding the backfilled value, via ::timestamp
+    expect(s).toMatch(/l\.terminal_since\s*=\s*v\.ts/);
+    expect(s).toMatch(/'<new_terminal_since>'::timestamp/);
+    // the unsafe id-only rollback hint is gone
+    expect(s).not.toMatch(/terminal_since\s*=\s*NULL\s+WHERE\s+id\s+IN/i);
+  });
 });
 
 describe("archive predicate repoint (PR-2, #415)", () => {

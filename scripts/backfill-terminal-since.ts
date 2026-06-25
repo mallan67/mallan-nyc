@@ -19,8 +19,12 @@
  *
  * Under --execute, every actually-updated row (RETURNING id) is appended to a timestamped
  * artifacts/gate3-backfill-touched-<stamp>.jsonl log: { id, old_terminal_since:null,
- * new_terminal_since, source, backfill_run }. That log is the authoritative, exact rollback set:
- *   UPDATE listings SET terminal_since = NULL WHERE id IN (<ids from the log>);
+ * new_terminal_since, source, backfill_run }. That log is the authoritative rollback set, applied
+ * VALUE-GUARDED so a later live-writer update is never clobbered (clears only rows still holding the
+ * backfilled value; ::timestamp is TZ-independent and matches the stored value under any session):
+ *   UPDATE listings AS l SET terminal_since = NULL
+ *   FROM (VALUES (<id>, '<new_terminal_since>'::timestamp)) AS v(id, ts)
+ *   WHERE l.id = v.id AND l.terminal_since = v.ts;
  */
 import path from "node:path";
 import { mkdirSync, openSync, writeSync, fsyncSync, closeSync } from "node:fs";
@@ -171,8 +175,13 @@ async function main() {
         // status (reactivated/back-on-market) between the SELECT and this UPDATE, the
         // l.status guard prevents writing a stale terminal_since onto a now-live row.
         // RETURNING id captures the rows ACTUALLY updated (post-guard) for the touched-id log.
+        // Store as ::timestamp (NOT ::timestamptz): the ts strings are UTC ISO (…Z); ::timestamp takes
+        // the wall-time portion → UTC wall time, INDEPENDENT of the session TimeZone, and matching how
+        // the live writer (Prisma) stores into this `timestamp(3) without time zone` column. This makes
+        // the value-guarded rollback (l.terminal_since = '<logged>'::timestamp) match exactly under any
+        // session TZ (verified: ::timestamp matches under GMT and America/New_York; ::timestamptz does NOT).
         `UPDATE listings AS l SET terminal_since = v.ts
-         FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamptz[]) AS ts) v
+         FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamp[]) AS ts) v
          WHERE l.id = v.id AND l.terminal_since IS NULL AND ${terminalPredicate("l.status")}
          RETURNING l.id`,
         [ids, tss],
@@ -223,7 +232,11 @@ async function main() {
   if (EXECUTE) {
     console.log(`[EXECUTE] rows actually updated: ${batchWrites}`);
     console.log(`[EXECUTE] touched-id log written: ${LOG_PATH} (${batchWrites} lines)`);
-    console.log(`[EXECUTE] rollback: UPDATE listings SET terminal_since = NULL WHERE id IN (<ids from log>);`);
+    console.log(`[EXECUTE] VALUE-GUARDED rollback (clears ONLY rows still holding the backfilled value;`);
+    console.log(`[EXECUTE]   preserves any later live-writer update; build VALUES from the log's id + new_terminal_since):`);
+    console.log(`[EXECUTE]   UPDATE listings AS l SET terminal_since = NULL`);
+    console.log(`[EXECUTE]   FROM (VALUES (<id>, '<new_terminal_since>'::timestamp)) AS v(id, ts)`);
+    console.log(`[EXECUTE]   WHERE l.id = v.id AND l.terminal_since = v.ts;`);
   } else {
     console.log("\nDRY-RUN ONLY — no writes performed. Re-run with --execute (gated) to backfill.");
   }

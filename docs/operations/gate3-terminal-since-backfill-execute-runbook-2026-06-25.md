@@ -90,13 +90,30 @@ Each line: `{ "id", "old_terminal_since": null, "new_terminal_since": "<ISO>", "
 
 > **Durability invariant (Codex #451):** the log is written **and fsync'd to disk BEFORE the batch COMMIT**. If the log write fails (disk full / read-only / permission), the batch is **ROLLED BACK and the run aborts** — so a committed change is **never** missing from the rollback set. The only tolerated skew is harmless *over*-reporting: if COMMIT fails *after* the log write, those ids are logged but unchanged, and the rollback `SET terminal_since = NULL` on a row that stayed NULL is a **no-op**. The log therefore never under-reports committed changes.
 
-**Targeted rollback (preferred — exact):**
+**Targeted rollback (preferred — VALUE-GUARDED, exact):** clear `terminal_since` **only** for rows whose
+current value still equals the logged backfill value — so any later live-writer update (a row that
+reactivated then went terminal again and was re-clocked by the normal writer) is **preserved**, not
+clobbered. The log records `new_terminal_since` for exactly this.
 ```bash
-# extract the ids from the log and null them back out (run host-guarded to cold-waterfall)
-#   ids=$(jq -r '.id' artifacts/gate3-backfill-touched-<stamp>.jsonl | paste -sd,)
-UPDATE listings SET terminal_since = NULL WHERE id IN (<ids from the log>);
+# Build a VALUES list of (id, new_terminal_since) from the JSONL log, e.g.:
+#   jq -r '"(" + (.id|tostring) + ", \x27" + .new_terminal_since + "\x27::timestamp)"' \
+#     artifacts/gate3-backfill-touched-<stamp>.jsonl | paste -sd,
+# Then (run host-guarded to cold-waterfall):
+UPDATE listings AS l
+SET terminal_since = NULL
+FROM (VALUES
+  (<id>, '<new_terminal_since>'::timestamp)   -- … one row per log line …
+) AS v(id, ts)
+WHERE l.id = v.id
+  AND l.terminal_since = v.ts;                 -- skips rows changed since the backfill (preserved)
 ```
-This is safe and exact because the backfill only set NULL→date on those ids, and (flag OFF) nothing consumed the value meanwhile. **Fallback (heavy):** the §1 Neon branch (point-in-time, whole-branch) or Neon PITR (7-day window) — use only for a catastrophic case, since they revert unrelated writes too.
+**Why `::timestamp` (not `::timestamptz`):** `listings.terminal_since` is `timestamp(3) without time zone`,
+and the backfill stores the UTC ISO value as wall-time (`::timestamp`, TZ-independent). Verified read-only
+on cold-waterfall: `value::timestamp = value::timestamp` matches under **both** `GMT` and
+`America/New_York` sessions, whereas `value::timestamp = value::timestamptz` is **false** under a non-UTC
+session — using `::timestamptz` would silently skip valid rows. NULL rows never match `= v.ts`, so they
+stay safe. **Fallback (heavy):** the §1 Neon branch (point-in-time, whole-branch) or Neon PITR (7-day
+window) — use only for a catastrophic case, since they revert unrelated writes too.
 
 ## 8. Post-execute verification (read-only)
 
