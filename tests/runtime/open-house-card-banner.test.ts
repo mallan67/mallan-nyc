@@ -54,11 +54,12 @@ describe('routes enrich listings with nextOpenHouse (Mallan-scoped, twin-safe)',
 });
 
 describe('all three card surfaces render the banner (4th surface = the Open Houses page)', () => {
-  it('Featured homepage card renders OpenHouseBanner and KEEPS the Mallan Exclusive gold badge', () => {
+  it('Featured homepage card renders OpenHouseBanner and KEEPS the Mallan Exclusive badge (now slate)', () => {
     expect(FEATURED).toMatch(/import OpenHouseBanner from/);
     expect(FEATURED).toMatch(/<OpenHouseBanner openHouse=\{listing\.nextOpenHouse\}/);
-    // the existing gold exclusive badge must remain (not replaced by the banner)
-    expect(FEATURED).toMatch(/bg-brand-gold/);
+    // the exclusive badge must remain (not replaced by the banner), and now uses bg-brand-slate —
+    // the SAME color as the Open House banner, white text (was gold; white-on-gold failed contrast).
+    expect(FEATURED).toMatch(/className="absolute top-4 left-4 z-30 bg-brand-slate text-white/);
     expect(FEATURED).toMatch(/featuredBadgeFor\(/);
   });
 
