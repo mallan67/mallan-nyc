@@ -35,9 +35,14 @@ export function isTerminalStatus(status: unknown): boolean {
  */
 export function parseStableDate(v: unknown, now: Date = new Date()): Date | null {
   if (v == null) return null;
-  const s = String(v).trim();
-  if (!s) return null;
-  const t = Date.parse(s);
+  let t: number;
+  if (v instanceof Date) {
+    t = v.getTime();
+  } else {
+    const s = String(v).trim();
+    if (!s) return null; // blank string → absent (fall through to the next candidate)
+    t = Date.parse(s);
+  }
   if (Number.isNaN(t)) return null;
   if (t < SANITY_MIN_MS) return null;
   if (t > now.getTime() + SANITY_GRACE_MS) return null;
@@ -47,16 +52,21 @@ export function parseStableDate(v: unknown, now: Date = new Date()): Date | null
 /**
  * Derive a STABLE terminal-age date from a listing's stable source fields.
  *
- * Priority (first valid wins): `raw_data.CloseDate` → `features.CloseDate`
- * (import-closed rows store it there) → `raw_data.OffMarketDate` →
- * `raw_data.ExpirationDate` (only for Expired status). Returns null if none is
- * present/valid — callers must NOT fabricate (backfill leaves NULL; the live
- * writer falls back to the transition wall-clock — see computeTerminalSincePatch).
+ * Priority (first valid wins; each candidate is sanity-checked INDEPENDENTLY, so a
+ * blank/invalid/out-of-window candidate falls through to the next):
+ * `raw_data.CloseDate` → `features.CloseDate` (import-closed rows store it there) →
+ * `raw_data.OffMarketDate` → for Expired: `raw_data.ExpirationDate` → the typed
+ * `expirationDateFallback` (e.g. `listings.expiration_date` for CRM exclusives that
+ * have no JSON ExpirationDate — #446). Returns null if none is present/valid —
+ * callers must NOT fabricate (backfill leaves NULL; the live writer falls back to
+ * the transition wall-clock — see computeTerminalSincePatch).
  */
 export function deriveTerminalSince(input: {
   status?: unknown;
   raw_data?: Record<string, unknown> | null;
   features?: Record<string, unknown> | null;
+  /** Typed Expired fallback (e.g. listings.expiration_date) — last ExpirationDate candidate. */
+  expirationDateFallback?: Date | string | null;
   now?: Date;
 }): Date | null {
   const now = input.now ?? new Date();
@@ -64,7 +74,12 @@ export function deriveTerminalSince(input: {
   const feat = (input.features ?? {}) as Record<string, unknown>;
   const normalized = normalizeStandardStatus(input.status);
   const candidates: unknown[] = [raw.CloseDate, feat.CloseDate, raw.OffMarketDate];
-  if (normalized === "Expired") candidates.push(raw.ExpirationDate);
+  if (normalized === "Expired") {
+    // raw/feature ExpirationDate first; if blank/invalid/impossible it fails its own
+    // sanity check below and we fall through to the typed expirationDateFallback.
+    candidates.push(raw.ExpirationDate);
+    if (input.expirationDateFallback != null) candidates.push(input.expirationDateFallback);
+  }
   for (const cand of candidates) {
     const d = parseStableDate(cand, now);
     if (d) return d;
@@ -89,6 +104,8 @@ export function computeTerminalSincePatch(args: {
   newStatus: unknown;
   raw_data?: Record<string, unknown> | null;
   features?: Record<string, unknown> | null;
+  /** Typed Expired fallback (e.g. listings.expiration_date) — used when entering Expired. */
+  expirationDateFallback?: Date | string | null;
   now?: Date;
 }): { terminal_since?: Date | null } {
   const now = args.now ?? new Date();
@@ -100,6 +117,7 @@ export function computeTerminalSincePatch(args: {
       status: args.newStatus,
       raw_data: args.raw_data,
       features: args.features,
+      expirationDateFallback: args.expirationDateFallback,
       now,
     });
     return { terminal_since: stable ?? now };

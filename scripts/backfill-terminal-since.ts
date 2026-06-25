@@ -46,13 +46,13 @@ function deriveForRow(r: {
 }): Date | null {
   return deriveTerminalSince({
     status: r.status,
-    // ExpirationDate fallback (Expired only, applied inside the helper): prefer the
-    // raw_data JSON value, else the typed expiration_date column — matches the
-    // expiration cron, which seeds terminal_since from listing.expiration_date. This
-    // covers CRM exclusives converted before the migration that have no JSON
-    // ExpirationDate (Codex #446) so they are no longer left terminal_since=NULL.
-    raw_data: { CloseDate: r.cd, OffMarketDate: r.omd, ExpirationDate: r.ed ?? r.exp },
+    raw_data: { CloseDate: r.cd, OffMarketDate: r.omd, ExpirationDate: r.ed },
     features: { CloseDate: r.fcd },
+    // Typed listings.expiration_date as the Expired fallback (Codex #446). Passed via
+    // expirationDateFallback (NOT a nullish-coalesce of raw-vs-typed) so a blank/invalid
+    // raw ExpirationDate fails its own sanity check inside the helper and correctly falls
+    // through to the typed value — recovering CRM exclusives converted before the migration.
+    expirationDateFallback: r.exp,
     now: NOW,
   });
 }

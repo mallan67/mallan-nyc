@@ -237,6 +237,9 @@ export async function PATCH(
     newStatus,
     raw_data: existingRaw,
     features: (listing.features as Record<string, unknown>) ?? undefined,
+    // #446: a manual Active→Expired on a CRM exclusive may have no raw_data.ExpirationDate;
+    // seed from the typed expiration_date (same date the cron + protected-period use), not wall-clock.
+    expirationDateFallback: listing.expiration_date,
   });
 
   await prisma.listing.update({

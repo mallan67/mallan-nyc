@@ -35,8 +35,10 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/\.\.\.terminalSinceCreate/);
     expect(s).toMatch(/\.\.\.terminalSinceUpdate/);
   });
-  it("CRM status route uses computeTerminalSincePatch", () => {
-    expect(read("app/api/crm/listings/[id]/status/route.ts")).toMatch(/computeTerminalSincePatch/);
+  it("CRM status route uses computeTerminalSincePatch + passes typed expiration_date fallback (#446)", () => {
+    const s = read("app/api/crm/listings/[id]/status/route.ts");
+    expect(s).toMatch(/computeTerminalSincePatch/);
+    expect(s).toMatch(/expirationDateFallback:\s*listing\.expiration_date/);
   });
   it("feed-reconcile sets terminal_since on create + ghost→Withdrawn", () => {
     const s = read("app/api/cron/feed-reconcile/route.ts");
@@ -75,9 +77,10 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   it("execute UPDATE re-asserts the terminal-status predicate — cannot write to non-terminal rows (#446)", () => {
     expect(s).toMatch(/l\.terminal_since IS NULL AND l\.\$\{STATUS_IN\}/);
   });
-  it("seeds Expired rows from typed expiration_date when raw_data.ExpirationDate is absent (#446)", () => {
+  it("seeds Expired rows from typed expiration_date via expirationDateFallback (#446)", () => {
     expect(s).toMatch(/expiration_date::text AS exp/); // selects the typed column
-    expect(s).toMatch(/ExpirationDate:\s*r\.ed\s*\?\?\s*r\.exp/); // raw JSON first, typed expiration_date fallback
+    expect(s).toMatch(/expirationDateFallback:\s*r\.exp/); // typed value as the helper's Expired fallback
+    expect(s).not.toMatch(/r\.ed\s*\?\?\s*r\.exp/); // fragile coalesce removed (blank/invalid raw must fall through)
   });
   it("derives via the shared helper (parity with the live writer, not a SQL COALESCE)", () => {
     expect(s).toMatch(/deriveTerminalSince/);

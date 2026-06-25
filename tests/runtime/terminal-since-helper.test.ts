@@ -60,12 +60,45 @@ describe("deriveTerminalSince — priority + fail-safe", () => {
   it("returns null when no valid stable date (do not fabricate)", () => {
     expect(deriveTerminalSince({ status: "Closed", raw_data: {}, now: NOW })).toBeNull();
   });
-  it("derives an Expired CRM/exclusive row from a typed expiration_date (::text format), no raw JSON date — backfill #446", () => {
-    // The backfill passes listings.expiration_date::text as the ExpirationDate candidate
-    // for Expired rows (deriveForRow: ExpirationDate = r.ed ?? r.exp). Postgres `::text`
-    // renders e.g. "2024-04-04 00:00:00"; parseStableDate must accept it.
+  it("derives an Expired CRM/exclusive row from a typed expiration_date (::text format) — backfill #446", () => {
+    // Postgres `::text` renders e.g. "2024-04-04 00:00:00"; parseStableDate must accept it.
     const d = deriveTerminalSince({ status: "Expired", raw_data: { ExpirationDate: "2024-04-04 00:00:00" }, now: NOW });
     expect(d?.toISOString().slice(0, 10)).toBe("2024-04-04");
+  });
+
+  // ── expirationDateFallback (centralized typed-expiration fallback, #446) ──
+  it("Expired with NO raw ExpirationDate uses expirationDateFallback", () => {
+    const d = deriveTerminalSince({ status: "Expired", raw_data: {}, expirationDateFallback: "2023-07-07", now: NOW });
+    expect(d?.toISOString().slice(0, 10)).toBe("2023-07-07");
+  });
+  it("Expired with BLANK raw ExpirationDate ('') falls through to expirationDateFallback", () => {
+    const d = deriveTerminalSince({ status: "Expired", raw_data: { ExpirationDate: "" }, expirationDateFallback: "2023-07-07", now: NOW });
+    expect(d?.toISOString().slice(0, 10)).toBe("2023-07-07");
+  });
+  it("Expired with INVALID raw ExpirationDate (year 2814) falls through to expirationDateFallback", () => {
+    const d = deriveTerminalSince({ status: "Expired", raw_data: { ExpirationDate: "2814-02-04" }, expirationDateFallback: "2023-07-07", now: NOW });
+    expect(d?.toISOString().slice(0, 10)).toBe("2023-07-07");
+  });
+  it("accepts expirationDateFallback as a Date object (typed column)", () => {
+    const d = deriveTerminalSince({ status: "Expired", raw_data: {}, expirationDateFallback: new Date("2022-02-02T00:00:00Z"), now: NOW });
+    expect(d?.toISOString().slice(0, 10)).toBe("2022-02-02");
+  });
+  it("does NOT use expirationDateFallback for non-Expired status", () => {
+    expect(deriveTerminalSince({ status: "Closed", raw_data: {}, expirationDateFallback: "2023-07-07", now: NOW })).toBeNull();
+  });
+  it("an invalid expirationDateFallback (year 2814) still fails safe → null", () => {
+    expect(deriveTerminalSince({ status: "Expired", raw_data: {}, expirationDateFallback: "2814-02-04", now: NOW })).toBeNull();
+  });
+});
+
+describe("computeTerminalSincePatch — expirationDateFallback (manual Expired, #446)", () => {
+  it("Active→Expired with typed expiration_date (no raw) sets terminal_since from the typed date, not wall-clock", () => {
+    const p = computeTerminalSincePatch({
+      previousStatus: "Active", newStatus: "Expired",
+      raw_data: {}, expirationDateFallback: "2025-05-05", now: NOW,
+    });
+    expect(p.terminal_since instanceof Date && (p.terminal_since as Date).toISOString().slice(0, 10)).toBe("2025-05-05");
+    expect(p.terminal_since).not.toEqual(NOW);
   });
 });
 
