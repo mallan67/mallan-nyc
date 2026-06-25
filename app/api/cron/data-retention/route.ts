@@ -162,26 +162,24 @@ export async function GET(req: NextRequest) {
   // The archive table satisfies NY DOS 6-year recordkeeping requirements.
   const oneEightyDayCutoff = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  // Archive eligibility — default-OFF backlog flag (scope-archive-eligibility-bug-2026-06-15).
-  // The original predicate `status_changed_at < cutoff` silently excludes rows where
-  // `status_changed_at IS NULL` (NULL < ts is NULL, not true), so bulk-synced terminal rows are
-  // invisible to the archive forever (only 34 of ~91,536 ever archived). The fix broadens the
-  // predicate to COALESCE(status_changed_at, modification_timestamp) < cutoff — but ONLY when
-  // ARCHIVE_T180_BACKLOG_ENABLED is explicitly set, so merging this change drains nothing: the
-  // nightly cron keeps the current narrow behavior until Maya flips the flag (the explicit gate).
-  //   - modification_timestamp is NOT NULL (prisma/schema.prisma) and is the Trestle source-of-
-  //     truth clock — NOT updated_at, which is bumped by unrelated rewrites (idx-sync, media drain)
-  //     and would keep the backlog perpetually "recent" → stuck forever.
+  // Archive eligibility — default-OFF backlog flag (Archive Clock PR-2, #415).
+  // Flag OFF (default): UNCHANGED legacy predicate `status_changed_at < cutoff`, so merging PR-2
+  // drains ZERO new rows — the nightly cron keeps its current behavior until Maya flips the flag
+  // (the explicit gate). NULL status_changed_at stays excluded (NULL < ts is NULL).
+  // Flag ON: age off the STABLE `terminal_since` clock (Archive Clock PR-1, #446) instead of
+  // status_changed_at / modification_timestamp. Both of those are re-stamped by idx-sync on every
+  // re-emit (price/photo/modification tick), so a terminal row looks perpetually "recent" and never
+  // ages. `terminal_since` is set ONCE on the non-terminal→terminal transition from a stable
+  // sale/off-market date and is never re-stamped — the correct archive clock.
+  //   - Rows with `terminal_since IS NULL` (no derivable stable date, or the gated backfill not yet
+  //     run) fail `{ lt }` (NULL < ts is NULL) and are NEVER auto-archived. Intended fail-safe — we
+  //     do not invent terminal dates (decision Q2, 2026-06-25 PR-2 plan). Until the gated backfill
+  //     (Gate 3) populates terminal_since, the flag-ON predicate matches NOTHING.
   //   - The 500/run cap (T180_BATCH_CAP) and the archive UPDATE-strip are unchanged: this only
   //     changes WHICH rows qualify when enabled.
   const archiveBacklogEnabled = process.env.ARCHIVE_T180_BACKLOG_ENABLED === "true";
   const eligibilityWhere: Prisma.ListingWhereInput = archiveBacklogEnabled
-    ? {
-        OR: [
-          { status_changed_at: { lt: oneEightyDayCutoff } },
-          { status_changed_at: null, modification_timestamp: { lt: oneEightyDayCutoff } },
-        ],
-      }
+    ? { terminal_since: { lt: oneEightyDayCutoff } }
     : { status_changed_at: { lt: oneEightyDayCutoff } };
 
   const toArchive = await prisma.listing.findMany({

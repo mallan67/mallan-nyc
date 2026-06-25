@@ -41,30 +41,24 @@ describe("ops-health archive backlog predicate mirrors the #405 archiver", () =>
     expect(where.status_changed_at).toEqual({ lt: CUTOFF });
   });
 
-  it("flag ON: widens to include NULL status_changed_at via modification_timestamp", () => {
+  it("flag ON (PR-2): ages off the stable terminal_since clock — single terminal_since<cutoff, no OR", () => {
     const where = buildArchiveBacklogWhere({ flagEnabled: true, now: NOW });
     expect(where.status).toEqual({ in: ARCHIVE_TERMINAL_STATUSES });
     expect(where.sync_status).toEqual({ not: "archived" });
-    const or = where.OR as Array<Record<string, unknown>>;
-    expect(Array.isArray(or)).toBe(true);
-    expect(or).toHaveLength(2);
-    // Branch 1: real, old status_changed_at.
-    expect(or[0]).toEqual({ status_changed_at: { lt: CUTOFF } });
-    // Branch 2: NULL status_changed_at AND old modification_timestamp (the widened branch).
-    const nullBranch = or.find((b) => b.status_changed_at === null);
-    expect(nullBranch).toBeDefined();
-    expect((nullBranch!.modification_timestamp as Record<string, unknown>).lt).toEqual(CUTOFF);
-    // When the OR is used, status_changed_at must NOT also sit at top level (would double-filter).
+    // Stable clock: single date branch, no OR / coalesce.
+    expect(where.OR).toBeUndefined();
+    expect(where.terminal_since).toEqual({ lt: CUTOFF });
+    // contaminated clocks must not appear in the eligibility branch
     expect(where.status_changed_at).toBeUndefined();
+    expect(where.modification_timestamp).toBeUndefined();
   });
 
-  it("anti-updated_at: the predicate NEVER references updated_at in either flag state", () => {
-    expect(JSON.stringify(buildArchiveBacklogWhere({ flagEnabled: false, now: NOW }))).not.toContain(
-      "updated_at",
-    );
-    expect(JSON.stringify(buildArchiveBacklogWhere({ flagEnabled: true, now: NOW }))).not.toContain(
-      "updated_at",
-    );
+  it("anti-updated_at / anti-modification_timestamp: neither appears in either flag state", () => {
+    for (const flagEnabled of [false, true]) {
+      const json = JSON.stringify(buildArchiveBacklogWhere({ flagEnabled, now: NOW }));
+      expect(json).not.toContain("updated_at");
+      if (flagEnabled) expect(json).not.toContain("modification_timestamp");
+    }
   });
 
   it("reconciliation: monitoring terminal-status set === the archiver's route TERMINAL_STATUSES (same population)", () => {
@@ -88,7 +82,8 @@ describe("ops-health archive backlog predicate mirrors the #405 archiver", () =>
       expect(where.sync_status).toEqual({ not: "archived" });
       // Date eligibility matches the flag the cron is using.
       if (flagEnabled) {
-        expect((where.OR as unknown[]).length).toBe(2);
+        expect(where.terminal_since).toEqual({ lt: CUTOFF });
+        expect(where.OR).toBeUndefined();
       } else {
         expect(where.status_changed_at).toEqual({ lt: CUTOFF });
       }

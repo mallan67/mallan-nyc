@@ -5,8 +5,9 @@
  * Pins: schema column + index; the shared helper is wired into every terminal-status
  * writer (sync create+update, agent-history, CRM status route, feed-reconcile create +
  * ghost-withdraw, listing-expiration, import-closed); the migration is additive; the
- * backfill defaults to dry-run; and PR-1 does NOT repoint the archive predicate or
- * enable the backlog flag.
+ * backfill defaults to dry-run. PR-2 (#415) repoints the T+180 archive eligibility behind
+ * the existing flag to terminal_since (flag-OFF stays legacy; flag stays env-gated, never
+ * hardcoded true) — pinned in the "archive predicate repoint (PR-2)" block below.
  */
 import { readFileSync } from "fs";
 import * as path from "path";
@@ -138,12 +139,36 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   });
 });
 
-describe("PR-1 scope guard — clock plumbing ONLY", () => {
-  it("does NOT repoint the data-retention archive predicate to terminal_since (that is PR-2)", () => {
-    expect(read("app/api/cron/data-retention/route.ts")).not.toMatch(/terminal_since/);
+describe("archive predicate repoint (PR-2, #415)", () => {
+  it("flag-ON archive eligibility ages off terminal_since; flag-OFF stays legacy status_changed_at", () => {
+    const s = read("app/api/cron/data-retention/route.ts");
+    // flag-ON branch is the stable clock; flag-OFF default is unchanged legacy predicate
+    expect(s).toMatch(/archiveBacklogEnabled\s*\n?\s*\?\s*\{\s*terminal_since:\s*\{\s*lt:\s*oneEightyDayCutoff\s*\}\s*\}/);
+    expect(s).toMatch(/:\s*\{\s*status_changed_at:\s*\{\s*lt:\s*oneEightyDayCutoff\s*\}\s*\}/);
+    // the contaminated modification_timestamp OR-branch is gone
+    expect(s).not.toMatch(/status_changed_at:\s*null,\s*modification_timestamp/);
   });
-  it("does NOT enable ARCHIVE_T180_BACKLOG_ENABLED anywhere new", () => {
-    // the flag check exists in data-retention (PR #404); PR-1 must not set it to 'true' in code.
+  it("flag is still env-gated and NOT hardcoded to 'true' in code (merge drains nothing)", () => {
     expect(read("app/api/cron/data-retention/route.ts")).not.toMatch(/ARCHIVE_T180_BACKLOG_ENABLED\s*=\s*["']true["']/);
+  });
+  it("ops:health backlog monitor mirrors the repoint (flag-ON terminal_since, no modification_timestamp)", () => {
+    const s = read("scripts/archive-backlog-predicate.js");
+    expect(s).toMatch(/terminal_since:\s*\{\s*lt:\s*cutoff\s*\}/);
+    expect(s).not.toMatch(/modification_timestamp/);
+  });
+  it("ops:health records the missing-terminal-clock gauge UNCONDITIONALLY but only WARNS when the flag is ON (Codex #448-A)", () => {
+    const s = read("scripts/ops-health.js");
+    // 1) the count/gauge is always recorded (informational), regardless of flag state →
+    //    flag OFF + NULL terminal_since: count present, NO warning, ops:health stays exit 0.
+    expect(s).toMatch(/report\.retention\.listings_terminal_missing_terminal_since\s*=\s*terminalMissingClock/);
+    // 2) the WARNING push is gated behind ARCHIVE_T180_BACKLOG_ENABLED being ON →
+    //    flag ON + NULL terminal_since: warning present (actionable backlog).
+    expect(s).toMatch(/if\s*\(\s*archiveBacklogFlagEnabled\s*&&\s*terminalMissingClock\s*>\s*0\s*\)\s*\{[\s\S]*?level:\s*'warning'/);
+    // 3) ordering — the gauge is recorded BEFORE (outside) the gated warning, so the count
+    //    survives even when the flag is OFF and the warning is suppressed.
+    const assignIdx = s.indexOf("report.retention.listings_terminal_missing_terminal_since");
+    const warnIdx = s.indexOf("archiveBacklogFlagEnabled && terminalMissingClock");
+    expect(assignIdx).toBeGreaterThan(-1);
+    expect(warnIdx).toBeGreaterThan(assignIdx);
   });
 });

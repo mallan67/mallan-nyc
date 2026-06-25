@@ -267,13 +267,49 @@ async function run() {
   });
   report.retention.archive_backlog = archiveEligible;
   report.retention.archive_backlog_predicate = archiveBacklogFlagEnabled
-    ? 'widened (ARCHIVE_T180_BACKLOG_ENABLED=true — includes NULL status_changed_at via modification_timestamp)'
+    ? 'stable-clock (ARCHIVE_T180_BACKLOG_ENABLED=true — terminal_since < cutoff)'
     : 'narrow (flag OFF / default — status_changed_at < cutoff only)';
   if (archiveEligible > THRESHOLDS.archive_backlog_warn) {
     report.issues.push({
       level: 'warning',
       category: 'retention',
       msg: `${archiveEligible} listings eligible for T+180d archive — cron cap (500/day) may not keep up`,
+    });
+  }
+
+  // New stable-clock gauge (Archive Clock PR-2, #415): terminal rows still missing terminal_since.
+  // These will NOT auto-archive under the flag-ON terminal_since predicate (intended fail-safe — no
+  // invented dates). A high count means the gated backfill (PR-2 Gate 3) has not yet populated the
+  // clock. READ-ONLY count. The legacy listings_missing_status_changed gauge above is kept for one
+  // release for comparison so health and cron both track the new clock without drifting.
+  //
+  // CANONICAL terminal set BY DESIGN: this gauge mirrors the archive cron's terminal predicate
+  // (data-retention route + archive-backlog-predicate.js), which is canonical case-sensitive
+  // `status IN (...)`. Keeping it canonical preserves health↔cron coherence — the gauge must count
+  // exactly the population the cron can archive, NOT a broader set. The backfill is alias-aware
+  // (lower()+`canceled`), so it could populate terminal_since on a non-canonical row the cron would
+  // never archive; that backfill-vs-archiver mismatch is latent (prod blast radius 0 today) and is
+  // tracked separately in #449 — it touches §2.05/archive compliance and must be its own gated change.
+  // Do NOT make this gauge alias-aware here (it would over-report rows the cron can't drain).
+  const terminalMissingClock = await prisma.listing.count({
+    where: {
+      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      sync_status: { not: 'archived' },
+      terminal_since: null,
+    },
+  });
+  report.retention.listings_terminal_missing_terminal_since = terminalMissingClock;
+  // Gate the warning to ACTIONABILITY (Codex #448 finding A): a NULL terminal_since count is the
+  // EXPECTED pre-backfill state while ARCHIVE_T180_BACKLOG_ENABLED is OFF — emitting a warning then
+  // would make `ops:health` exit 1 right after PR-2 merge for a state no operator can remediate yet
+  // (the gated backfill is PR-2 Gate 3). Only warn once the flag is ON, i.e. when terminal_since
+  // actually gates archiving and a NULL clock is an actionable backlog. The count is ALWAYS recorded
+  // as an informational gauge above regardless of flag.
+  if (archiveBacklogFlagEnabled && terminalMissingClock > 0) {
+    report.issues.push({
+      level: 'warning',
+      category: 'retention',
+      msg: `${terminalMissingClock} terminal listings have NULL terminal_since while ARCHIVE_T180_BACKLOG_ENABLED=true — run the Archive Clock PR-2 Gate 3 backfill; these rows will NOT auto-archive until the clock is populated`,
     });
   }
 
@@ -759,6 +795,7 @@ function renderHuman(r) {
 
   console.log('\n── RETENTION / COMPLIANCE ───────────────────────');
   console.log(`  Listings missing status_changed_at: ${r.retention.listings_missing_status_changed ?? 0}`);
+  console.log(`  Terminal listings missing terminal_since: ${r.retention.listings_terminal_missing_terminal_since ?? 0}`);
   console.log(`  REBNY §2.05 violations (terminal >24h, IDX on): ${r.retention.rebny_sec_2_05_violations ?? 0}`);
   console.log(`  T+180d archive backlog: ${r.retention.archive_backlog ?? 0}`);
   if (r.retention.archive_backlog_predicate) {
