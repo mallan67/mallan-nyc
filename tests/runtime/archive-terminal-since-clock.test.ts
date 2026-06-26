@@ -172,6 +172,17 @@ describe("Gate 3 backfill — durable touched-id log invariant (Codex #451)", ()
     expect(plan).toMatch(/l\.terminal_since\s*=\s*v\.ts/); // value-guarded form present
     expect(plan).toMatch(/'<new_terminal_since>'::timestamp/);
   });
+  it("Gate-3 plan --execute snippet uses ::timestamp[] (not stale timestamptz[]), matching the script (#451 follow-up)", () => {
+    const plan = read("docs/superpowers/plans/2026-06-25-archive-clock-gate3-backfill-plan.md");
+    expect(plan).toMatch(/unnest\(\$2::timestamp\[\]\)/);     // matches the shipped script
+    expect(plan).not.toMatch(/unnest\(\$tss::timestamptz\[\]\)/); // stale snippet removed
+  });
+  it("directory fsync hardening is guarded + cross-platform safe (Windows no-op, never throws) (#451 follow-up)", () => {
+    expect(s).toMatch(/function fsyncDirIfSupported/);
+    expect(s).toMatch(/process\.platform === "win32"/);  // explicit Windows skip
+    expect(s).toMatch(/fsyncDirIfSupported\(LOG_DIR\)/);  // called at --execute startup
+    expect(s).toMatch(/closeSync\(openSync\(LOG_PATH, "a"\)\)/); // log file pre-created before dir fsync
+  });
   it("stores terminal_since as ::timestamp (TZ-independent UTC wall time), not ::timestamptz (#451)", () => {
     expect(s).toMatch(/unnest\(\$2::timestamp\[\]\)/);      // wall-time storage
     expect(s).not.toMatch(/unnest\(\$2::timestamptz\[\]\)/); // session-TZ-dependent storage removed

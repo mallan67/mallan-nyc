@@ -51,14 +51,19 @@ ORDER BY id LIMIT 5000;
 **Derivation (JS, shared helper — parity with live writers):** for each row, first VALID candidate in a sanity window (`>= 2000-01-01` and `<= now+24h`) wins, in order:
 `raw_data.CloseDate → features.CloseDate → raw_data.OffMarketDate → (Expired only) raw_data.ExpirationDate → typed expiration_date`. Invalid/out-of-window candidates are **skipped** (never abort); a row with no valid candidate → `null` → left NULL.
 
-**`--execute` UPDATE (batched unnest, lines 120-122) re-asserts the guard:**
+**`--execute` UPDATE (batched unnest) re-asserts the guard** (matches the shipped script `scripts/backfill-terminal-since.ts`):
 ```sql
 UPDATE listings AS l SET terminal_since = v.ts
-FROM (SELECT unnest($ids::bigint[]) AS id, unnest($tss::timestamptz[]) AS ts) v
+FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamp[]) AS ts) v   -- ::timestamp (NOT timestamptz)
 WHERE l.id = v.id
   AND l.terminal_since IS NULL                      -- never bump an already-set value
-  AND lower(l.status) IN (... same 8 terminal ...); -- never write onto a row that reactivated mid-run
+  AND lower(l.status) IN (... same 8 terminal ...)  -- never write onto a row that reactivated mid-run
+RETURNING l.id;                                      -- captures the actually-updated rows for the touched-id log
 ```
+> **`::timestamp` (timestamp-without-time-zone), not `::timestamptz`:** the values are UTC ISO; `::timestamp`
+> stores the UTC wall time independent of session TZ (matching how the live writer / Prisma stores into the
+> `timestamp(3) without time zone` column), and makes the value-guarded rollback's `::timestamp` comparison
+> match under any session. This is the actual shipped behavior — see runbook §0.5/§7 and the script.
 
 ---
 
