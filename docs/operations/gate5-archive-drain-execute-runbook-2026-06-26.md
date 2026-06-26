@@ -58,7 +58,7 @@ Run read-only (force `ARCHIVE_T180_BACKLOG_ENABLED=true` **locally only** for op
 1. **rows archived this run** ≈ up to 500 (cron response / audit `data_retention_run.t180d_listings_archived`).
 2. **`listings_archive` delta** = +rows archived (rose by the run amount).
 3. **`sync_status='archived'` delta** = +rows archived (matches).
-4. **flag-ON eligible delta** = −rows archived (backlog shrank by the run amount).
+4. **flag-ON eligible (TREND, not exact):** generally drops by ≈ rows archived, but the predicate is **time-relative** (`terminal_since < now−180d`), so rows age into eligibility every night. The real relation is `new_eligible = previous_eligible − archived_this_run + newly_aged_in`. Expect a **downward trend over time**, **not** exact `−archived_this_run` each night — a small positive offset from newly-aged rows is normal. (The **exact** per-run invariants are steps 2 & 3.)
 5. **no active/live rows archived:** `count(*) WHERE sync_status='archived' AND status NOT IN (terminal)` = 0; `rebny_sec_2_05_violations` not worse.
 6. **sample archived rows:** spot-check ~10 `listing_key`s present in `listings_archive` with close terms; live row `sync_status='archived'`, `raw_data`/`media`/`compliance` emptied, not publicly served.
 7. **public render/search smoke:** `/api/health` 200; public listings render; archived terminals correctly **not** displayed (they were already excluded — terminal + not public — so no visible change expected).
@@ -66,7 +66,7 @@ Run read-only (force `ARCHIVE_T180_BACKLOG_ENABLED=true` **locally only** for op
 9. **ops:health:** `ARCHIVE_T180_BACKLOG_ENABLED=true npm run ops:health` (force the flag **locally only** so the script reports the stable-clock backlog — bare `npm run ops:health` would report the legacy `status_changed_at` backlog, which is 0, and hide the drain). Confirm `archive_backlog_predicate` reads **"stable-clock"**, then check: archive_backlog dropping; `listings_archived_total` rising; sync errors 0; storage trend.
 10. **error logs:** no new `syncError` rows with resource `listings_archive_move`; Vercel runtime logs clean for `/api/cron/data-retention`.
 
-**Any failed check → STOP: set the flag OFF + redeploy before the next nightly run.**
+**Hard-stop checks (any failure → STOP: set the flag OFF + redeploy before the next nightly run):** the **exact invariants** — step 2 (`listings_archive` delta == rows archived), step 3 (`sync_status='archived'` delta == rows archived), step 5 (no active/live/non-terminal row archived; §2.05 not worse), cap not exceeded (~500/run), and steps 6/7/10 (sample integrity, public/health, error logs). **Step 4 (flag-ON eligible) is a TREND indicator, not a hard stop** — a small positive offset from newly-aged-in rows is expected. Investigate step 4 only if the trend is materially wrong: it grows unexpectedly across multiple runs, fails to trend down, or conflicts with the exact archive deltas (steps 2/3).
 
 ## 6. Archive vs reclaim vs downgrade (DISTINCT — do not conflate)
 - **Archive / drain (Gate 5, this runbook):** destructive **row-level** strip + `sync_status='archived'` + summary into `listings_archive`. **Does NOT reclaim physical storage** — the stripped bytes become **dead tuples**; logical DB size does not drop immediately.
