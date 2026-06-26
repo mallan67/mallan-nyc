@@ -96,8 +96,11 @@ reactivated then went terminal again and was re-clocked by the normal writer) is
 clobbered. The log records `new_terminal_since` for exactly this.
 ```bash
 # Build a VALUES list of (id, new_terminal_since) from the JSONL log, e.g.:
-#   jq -r '"(" + (.id|tostring) + ", \x27" + .new_terminal_since + "\x27::timestamp)"' \
+#   jq -r --arg q "'" '"(" + (.id|tostring) + ", " + $q + .new_terminal_since + $q + "::timestamp)"' \
 #     artifacts/gate3-backfill-touched-<stamp>.jsonl | paste -sd,
+#   → emits rows like:  (128464, '2025-05-01T00:00:00.000Z'::timestamp)
+# ($q carries a literal single quote via the shell --arg, avoiding jq string-escape pitfalls
+#  like the invalid \x27.)
 # Then (run host-guarded to cold-waterfall):
 UPDATE listings AS l
 SET terminal_since = NULL
