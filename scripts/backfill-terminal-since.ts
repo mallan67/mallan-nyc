@@ -82,6 +82,25 @@ function appendDurable(file: string, text: string): void {
   }
 }
 
+/** Make a directory's entries durable (POSIX): fsync(file) flushes contents but not the new dir entry,
+ *  so a power loss could otherwise leave a committed batch with no discoverable log file. Called once at
+ *  --execute start (after the log file is pre-created) so the entry is durable before any batch commits.
+ *  Cross-platform safe + NEVER throws: on Windows (where opening a directory fd is unsupported and NTFS
+ *  journals metadata) it is an explicit no-op; any other failure degrades to the Neon rollback branch +
+ *  post-verify power-loss fallback rather than aborting the run. */
+function fsyncDirIfSupported(dir: string): void {
+  if (process.platform === "win32") return; // Windows: openSync(dir) unsupported; NTFS journals metadata
+  try {
+    const dfd = openSync(dir, "r");
+    try { fsyncSync(dfd); } finally { closeSync(dfd); }
+  } catch (e) {
+    console.warn(
+      `[EXECUTE] directory fsync skipped (${dir}): ${e instanceof Error ? e.message : String(e)}. ` +
+      `Power-loss fallback = the pre-execute Neon rollback branch + post-verify.`,
+    );
+  }
+}
+
 type Row = { status: string; cd: string | null; fcd: string | null; omd: string | null; ed: string | null; exp: string | null };
 
 /** Which stable source produced the derived date — mirrors deriveTerminalSince's exact priority. */
@@ -131,6 +150,10 @@ async function main() {
 
   if (EXECUTE) {
     mkdirSync(LOG_DIR, { recursive: true });
+    // Pre-create the log file so its directory entry exists, then make that entry durable (POSIX)
+    // BEFORE any batch commits — so a committed batch can never lack a discoverable rollback log.
+    closeSync(openSync(LOG_PATH, "a"));
+    fsyncDirIfSupported(LOG_DIR);
     console.log(`[EXECUTE] touched-id capture → ${LOG_PATH}`);
   }
 
