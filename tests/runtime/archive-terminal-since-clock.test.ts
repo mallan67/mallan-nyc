@@ -139,6 +139,52 @@ describe("backfill defaults to dry-run (no write without --execute)", () => {
   });
 });
 
+describe("Gate 3 backfill — durable touched-id log invariant (Codex #451)", () => {
+  const s = read("scripts/backfill-terminal-since.ts");
+  it("writes the touched-id log durably (fsync) via appendDurable", () => {
+    expect(s).toMatch(/function appendDurable\([\s\S]*?fsyncSync\(fd\)/);
+  });
+  it("writes the log BEFORE COMMIT (a committed batch can never be missing from the rollback set)", () => {
+    const logIdx = s.indexOf("appendDurable(LOG_PATH");
+    const commitIdx = s.indexOf('c.query("COMMIT")');
+    expect(logIdx).toBeGreaterThan(-1);
+    expect(commitIdx).toBeGreaterThan(-1);
+    expect(logIdx).toBeLessThan(commitIdx); // log durable on disk before the COMMIT
+  });
+  it("ROLLBACKs and ABORTS the run if the log write fails (no unlogged commit)", () => {
+    expect(s).toMatch(/try\s*\{[\s\S]*?appendDurable\(LOG_PATH[\s\S]*?\}\s*catch[\s\S]*?ROLLBACK[\s\S]*?process\.exit\(1\)/);
+  });
+  it("inside the EXECUTE batch, no COMMIT precedes the log write", () => {
+    const region = s.slice(s.indexOf("if (EXECUTE && updates.length > 0)"));
+    expect(region.indexOf("appendDurable(LOG_PATH")).toBeLessThan(region.indexOf('c.query("COMMIT")'));
+  });
+  it("durable log write LOOPS until every byte is flushed, then fsyncs (no silent short-write) (#451)", () => {
+    // writeSync can short-write without throwing → loop until offset reaches the buffer length.
+    expect(s).toMatch(/Buffer\.from\(text,\s*"utf8"\)/);
+    expect(s).toMatch(/while\s*\(\s*off\s*<\s*buf\.length\s*\)/);
+    expect(s).toMatch(/off\s*\+=\s*writeSync\(fd,\s*buf,\s*off,\s*buf\.length\s*-\s*off\)|const n = writeSync\(fd, buf, off/);
+    expect(s).toMatch(/no progress/); // throws if a write can't advance (cannot spin forever)
+    expect(s).toMatch(/fsyncSync\(fd\)/);
+  });
+  it("Gate-3 plan doc publishes NO id-only rollback (value-guarded only) (#451)", () => {
+    const plan = read("docs/superpowers/plans/2026-06-25-archive-clock-gate3-backfill-plan.md");
+    expect(plan).not.toMatch(/terminal_since\s*=\s*NULL\s+WHERE\s+id\s+IN/i); // stale id-only removed
+    expect(plan).toMatch(/l\.terminal_since\s*=\s*v\.ts/); // value-guarded form present
+    expect(plan).toMatch(/'<new_terminal_since>'::timestamp/);
+  });
+  it("stores terminal_since as ::timestamp (TZ-independent UTC wall time), not ::timestamptz (#451)", () => {
+    expect(s).toMatch(/unnest\(\$2::timestamp\[\]\)/);      // wall-time storage
+    expect(s).not.toMatch(/unnest\(\$2::timestamptz\[\]\)/); // session-TZ-dependent storage removed
+  });
+  it("documents a VALUE-GUARDED rollback (preserves later live-writer updates), not id-only (#451)", () => {
+    // value guard: clears only rows still holding the backfilled value, via ::timestamp
+    expect(s).toMatch(/l\.terminal_since\s*=\s*v\.ts/);
+    expect(s).toMatch(/'<new_terminal_since>'::timestamp/);
+    // the unsafe id-only rollback hint is gone
+    expect(s).not.toMatch(/terminal_since\s*=\s*NULL\s+WHERE\s+id\s+IN/i);
+  });
+});
+
 describe("archive predicate repoint (PR-2, #415)", () => {
   it("flag-ON archive eligibility ages off terminal_since; flag-OFF stays legacy status_changed_at", () => {
     const s = read("app/api/cron/data-retention/route.ts");

@@ -16,12 +16,23 @@
  * Usage:
  *   npx tsx scripts/backfill-terminal-since.ts            # DRY-RUN (default, no writes)
  *   npx tsx scripts/backfill-terminal-since.ts --execute  # WRITE (gated — only when approved)
+ *
+ * Under --execute, every actually-updated row (RETURNING id) is appended to a timestamped
+ * artifacts/gate3-backfill-touched-<stamp>.jsonl log: { id, old_terminal_since:null,
+ * new_terminal_since, source, backfill_run }. That log is the authoritative rollback set, applied
+ * VALUE-GUARDED so a later live-writer update is never clobbered (clears only rows still holding the
+ * backfilled value; ::timestamp is TZ-independent and matches the stored value under any session):
+ *   UPDATE listings AS l SET terminal_since = NULL
+ *   FROM (VALUES (<id>, '<new_terminal_since>'::timestamp)) AS v(id, ts)
+ *   WHERE l.id = v.id AND l.terminal_since = v.ts;
  */
 import path from "node:path";
+import { mkdirSync, openSync, writeSync, fsyncSync, closeSync } from "node:fs";
 import dotenv from "dotenv";
 dotenv.config({ path: path.resolve(".env.local"), override: true });
 import pg from "pg";
-import { deriveTerminalSince } from "../lib/listings/terminal-since";
+import { deriveTerminalSince, parseStableDate } from "../lib/listings/terminal-since";
+import { normalizeStandardStatus } from "../lib/idx/trestle-mapper";
 
 const EXECUTE = process.argv.includes("--execute");
 const HOST = "ep-cold-waterfall-adno3ao2";
@@ -42,6 +53,55 @@ const TERMINAL_LOWER = ["closed", "sold", "leased", "rented", "withdrawn", "expi
 const terminalPredicate = (col: string) => `lower(${col}) IN (${TERMINAL_LOWER.map((s) => `'${s}'`).join(",")})`;
 const NOW = new Date();
 const CUTOFF_180 = new Date(NOW.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+// Touched-id capture (Gate 3): under --execute, every actually-updated row is appended to a
+// timestamped JSONL artifact for an exact, targeted rollback. We do NOT rely on a vague claim —
+// the log is the authoritative `WHERE id IN (...)` source. old_terminal_since is always null
+// (the UPDATE guards `terminal_since IS NULL`), so rollback is unambiguous.
+const STAMP = NOW.toISOString().replace(/[:.]/g, "-");
+const LOG_DIR = path.resolve("artifacts");
+const LOG_PATH = path.join(LOG_DIR, `gate3-backfill-touched-${STAMP}.jsonl`);
+
+/** Append text and fsync it to disk before returning — so the log is DURABLE before the COMMIT.
+ *  Loops until EVERY byte is written (writeSync may short-write without throwing), then fsyncs.
+ *  Throws (propagating to the caller's ROLLBACK+abort) if a write makes no progress or fsync fails,
+ *  so the touched-id log can never be silently truncated → never under-reports committed changes. */
+function appendDurable(file: string, text: string): void {
+  const buf = Buffer.from(text, "utf8");
+  const fd = openSync(file, "a");
+  try {
+    let off = 0;
+    while (off < buf.length) {
+      const n = writeSync(fd, buf, off, buf.length - off);
+      if (n <= 0) throw new Error(`durable log write made no progress at offset ${off}/${buf.length}`);
+      off += n;
+    }
+    fsyncSync(fd); // force OS buffers to disk — survives a crash between log write and COMMIT
+  } finally {
+    closeSync(fd);
+  }
+}
+
+type Row = { status: string; cd: string | null; fcd: string | null; omd: string | null; ed: string | null; exp: string | null };
+
+/** Which stable source produced the derived date — mirrors deriveTerminalSince's exact priority. */
+function classifySource(r: Row): string | null {
+  const ordered: Array<[string, string | null]> = [
+    ["CloseDate", r.cd],
+    ["features.CloseDate", r.fcd],
+    ["OffMarketDate", r.omd],
+  ];
+  if (normalizeStandardStatus(r.status) === "Expired") {
+    ordered.push(["ExpirationDate", r.ed]);
+    ordered.push(["typedExpiration", r.exp]);
+  }
+  for (const [label, val] of ordered) {
+    if (parseStableDate(val, NOW)) return label;
+  }
+  // No stable source → deriveTerminalSince returns null → row is left NULL (never written).
+  // The backfill has NO wall-clock fallback (unlike the live writer), so 'wallClock' never occurs here.
+  return null;
+}
 
 /** Derive terminal_since for a candidate row using the SHARED helper (full parity). */
 function deriveForRow(r: {
@@ -68,6 +128,11 @@ function deriveForRow(r: {
 async function main() {
   const c = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false }, statement_timeout: 180000 });
   await c.connect();
+
+  if (EXECUTE) {
+    mkdirSync(LOG_DIR, { recursive: true });
+    console.log(`[EXECUTE] touched-id capture → ${LOG_PATH}`);
+  }
 
   // Page through terminal rows with NULL terminal_since, fetching only the small candidate
   // date strings (NOT full raw_data) — derivation happens in JS.
@@ -117,11 +182,50 @@ async function main() {
         // Re-assert the terminal-status predicate (Codex #446): if a row left terminal
         // status (reactivated/back-on-market) between the SELECT and this UPDATE, the
         // l.status guard prevents writing a stale terminal_since onto a now-live row.
+        // RETURNING id captures the rows ACTUALLY updated (post-guard) for the touched-id log.
+        // Store as ::timestamp (NOT ::timestamptz): the ts strings are UTC ISO (…Z); ::timestamp takes
+        // the wall-time portion → UTC wall time, INDEPENDENT of the session TimeZone, and matching how
+        // the live writer (Prisma) stores into this `timestamp(3) without time zone` column. This makes
+        // the value-guarded rollback (l.terminal_since = '<logged>'::timestamp) match exactly under any
+        // session TZ (verified: ::timestamp matches under GMT and America/New_York; ::timestamptz does NOT).
         `UPDATE listings AS l SET terminal_since = v.ts
-         FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamptz[]) AS ts) v
-         WHERE l.id = v.id AND l.terminal_since IS NULL AND ${terminalPredicate("l.status")}`,
+         FROM (SELECT unnest($1::bigint[]) AS id, unnest($2::timestamp[]) AS ts) v
+         WHERE l.id = v.id AND l.terminal_since IS NULL AND ${terminalPredicate("l.status")}
+         RETURNING l.id`,
         [ids, tss],
       );
+
+      // INVARIANT (Codex #451): write the touched-id log DURABLY (fsync) BEFORE COMMIT. A committed
+      // batch must never be missing from the rollback set. The log lists the rows the UPDATE actually
+      // changed (RETURNING id), each with old (null), new terminal_since, and the derived source.
+      const tsById = new Map(updates.map((u) => [u.id, u.ts.toISOString()]));
+      const srcById = new Map(rows.map((r: Row & { id: string | number }) => [Number(r.id), classifySource(r)]));
+      const logLines = (res.rows as Array<{ id: string | number }>).map((row) => {
+        const id = Number(row.id);
+        return JSON.stringify({
+          id,
+          old_terminal_since: null,
+          new_terminal_since: tsById.get(id) ?? null,
+          source: srcById.get(id) ?? "unknown",
+          backfill_run: STAMP,
+        });
+      });
+      try {
+        if (logLines.length) appendDurable(LOG_PATH, logLines.join("\n") + "\n");
+      } catch (logErr) {
+        // Log write failed (disk full / read-only / permission) → the batch is NOT yet committed.
+        // ROLLBACK and ABORT so we never commit rows that are absent from the rollback set.
+        await c.query("ROLLBACK").catch(() => {});
+        console.error(
+          `FATAL: touched-id log write failed at batch ${batch} — ROLLED BACK this batch's UPDATE and aborting (no unlogged commit). ` +
+          (logErr instanceof Error ? logErr.message : String(logErr)),
+        );
+        process.exit(1);
+      }
+
+      // Log is durably on disk → safe to COMMIT. If COMMIT itself fails, the rows were NOT changed
+      // but their ids are already logged: that is harmless OVER-reporting (the rollback UPDATE that
+      // nulls a row which stayed NULL is a no-op). The error propagates to main().catch and aborts.
       await c.query("COMMIT");
       batchWrites += res.rowCount ?? 0;
     }
@@ -133,8 +237,17 @@ async function main() {
   console.log(`[${EXECUTE ? "EXECUTE" : "DRY-RUN"}] no valid stable date (left NULL): ${noDate}`);
   console.log(`[${EXECUTE ? "EXECUTE" : "DRY-RUN"}] of those, >180d old (future archive-eligible): ${over180}`);
   console.log(`[info] terminal rows already having terminal_since (skipped): ${alreadySet}`);
-  if (EXECUTE) console.log(`[EXECUTE] rows actually updated: ${batchWrites}`);
-  else console.log("\nDRY-RUN ONLY — no writes performed. Re-run with --execute (gated) to backfill.");
+  if (EXECUTE) {
+    console.log(`[EXECUTE] rows actually updated: ${batchWrites}`);
+    console.log(`[EXECUTE] touched-id log written: ${LOG_PATH} (${batchWrites} lines)`);
+    console.log(`[EXECUTE] VALUE-GUARDED rollback (clears ONLY rows still holding the backfilled value;`);
+    console.log(`[EXECUTE]   preserves any later live-writer update; build VALUES from the log's id + new_terminal_since):`);
+    console.log(`[EXECUTE]   UPDATE listings AS l SET terminal_since = NULL`);
+    console.log(`[EXECUTE]   FROM (VALUES (<id>, '<new_terminal_since>'::timestamp)) AS v(id, ts)`);
+    console.log(`[EXECUTE]   WHERE l.id = v.id AND l.terminal_since = v.ts;`);
+  } else {
+    console.log("\nDRY-RUN ONLY — no writes performed. Re-run with --execute (gated) to backfill.");
+  }
 
   await c.end();
 }
