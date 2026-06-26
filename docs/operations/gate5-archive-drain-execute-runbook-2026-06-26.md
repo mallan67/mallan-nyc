@@ -63,7 +63,7 @@ Run read-only (force `ARCHIVE_T180_BACKLOG_ENABLED=true` **locally only** for op
 6. **sample archived rows:** spot-check ~10 `listing_key`s present in `listings_archive` with close terms; live row `sync_status='archived'`, `raw_data`/`media`/`compliance` emptied, not publicly served.
 7. **public render/search smoke:** `/api/health` 200; public listings render; archived terminals correctly **not** displayed (they were already excluded — terminal + not public — so no visible change expected).
 8. **CRM smoke (if affected):** archived listings still resolve in CRM history/detail via `listings_archive` summary; no broken FK (PriceHistory/Showing/etc. preserved — row kept).
-9. **ops:health:** `npm run ops:health` — archive_backlog (stable-clock) dropping; `listings_archived_total` rising; sync errors 0; storage trend.
+9. **ops:health:** `ARCHIVE_T180_BACKLOG_ENABLED=true npm run ops:health` (force the flag **locally only** so the script reports the stable-clock backlog — bare `npm run ops:health` would report the legacy `status_changed_at` backlog, which is 0, and hide the drain). Confirm `archive_backlog_predicate` reads **"stable-clock"**, then check: archive_backlog dropping; `listings_archived_total` rising; sync errors 0; storage trend.
 10. **error logs:** no new `syncError` rows with resource `listings_archive_move`; Vercel runtime logs clean for `/api/cron/data-retention`.
 
 **Any failed check → STOP: set the flag OFF + redeploy before the next nightly run.**
