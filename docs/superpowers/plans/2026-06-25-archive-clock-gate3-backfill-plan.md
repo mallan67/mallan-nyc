@@ -79,14 +79,20 @@ WHERE l.id = v.id
 **Operational (pre-execute, recommend):**
 1. **Flag must be OFF** — confirm `ARCHIVE_T180_BACKLOG_ENABLED` is absent/≠true in Production (so a backfilled value cannot trigger any archive). The backfill itself never reads/sets the flag.
 2. **Pre-execute Neon rollback branch** (timestamped, like S1) for point-in-time safety, retained until post-verify sign-off.
-3. **Capture touched ids** — tee the execute run's per-batch ids to a log so a *targeted* rollback (`SET terminal_since = NULL WHERE id IN (captured)`) is possible without a full PITR. *(Minor script add — flag if you want it; otherwise PITR/branch is the fallback.)*
+3. **Capture touched ids + values** — the `--execute` run writes a durable JSONL log of every changed row (`id`, `new_terminal_since`, source) so a **value-guarded** targeted rollback is possible without a full PITR (clears only rows whose current `terminal_since` still equals the logged value — see §6 and the runbook §7). Built into the script.
 
 ---
 
 ## 6. Rollback / PITR assumptions
 
 - **Blast radius of a bad backfill while the flag is OFF = 0 production effect.** `terminal_since` feeds **only** the flag-ON archive predicate; with the flag OFF nothing reads it for archiving. So an incorrect value has *no* live consequence until Gate 5 — there is time to correct before any drain.
-- **Targeted rollback (preferred):** `UPDATE listings SET terminal_since = NULL WHERE id IN (<captured backfill ids>)`. Requires the touched-id log (§5.3). Clean because the backfill only ever sets NULL→date.
+- **Targeted rollback (preferred — VALUE-GUARDED):** clear `terminal_since` only for rows whose current value still equals the logged `new_terminal_since`, so a later live-writer update is preserved (a row that reactivated then went terminal again and was re-clocked is **not** clobbered):
+  ```sql
+  UPDATE listings AS l SET terminal_since = NULL
+  FROM (VALUES (<id>, '<new_terminal_since>'::timestamp)) AS v(id, ts)
+  WHERE l.id = v.id AND l.terminal_since = v.ts;
+  ```
+  Uses `::timestamp` (matches the `timestamp(3) without time zone` column TZ-independently — `::timestamptz` would skip valid rows under a non-UTC session). Build the VALUES list from the touched-id log (§5.3). Canonical form: runbook §7.
 - **Neon PITR (fallback, heavy):** Launch plan = **7-day** history window. PITR restores the **whole branch** (all tables) to a timestamp, so it would also revert unrelated writes (idx-sync, CRM) since the backfill — **not** suitable as a routine column rollback; use only for a catastrophic case. The pre-execute **rollback branch** (§5.2) is the lighter belt-and-suspenders.
 - **Idempotency:** re-running `--execute` is safe (NULL-guard) — it only fills rows still NULL, so a partial/interrupted run is simply resumed.
 

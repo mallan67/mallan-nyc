@@ -63,11 +63,19 @@ const LOG_DIR = path.resolve("artifacts");
 const LOG_PATH = path.join(LOG_DIR, `gate3-backfill-touched-${STAMP}.jsonl`);
 
 /** Append text and fsync it to disk before returning — so the log is DURABLE before the COMMIT.
- *  Throws (propagating to the caller's ROLLBACK+abort) if the bytes cannot be persisted. */
+ *  Loops until EVERY byte is written (writeSync may short-write without throwing), then fsyncs.
+ *  Throws (propagating to the caller's ROLLBACK+abort) if a write makes no progress or fsync fails,
+ *  so the touched-id log can never be silently truncated → never under-reports committed changes. */
 function appendDurable(file: string, text: string): void {
+  const buf = Buffer.from(text, "utf8");
   const fd = openSync(file, "a");
   try {
-    writeSync(fd, text);
+    let off = 0;
+    while (off < buf.length) {
+      const n = writeSync(fd, buf, off, buf.length - off);
+      if (n <= 0) throw new Error(`durable log write made no progress at offset ${off}/${buf.length}`);
+      off += n;
+    }
     fsyncSync(fd); // force OS buffers to disk — survives a crash between log write and COMMIT
   } finally {
     closeSync(fd);

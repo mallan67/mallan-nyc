@@ -158,6 +158,20 @@ describe("Gate 3 backfill — durable touched-id log invariant (Codex #451)", ()
     const region = s.slice(s.indexOf("if (EXECUTE && updates.length > 0)"));
     expect(region.indexOf("appendDurable(LOG_PATH")).toBeLessThan(region.indexOf('c.query("COMMIT")'));
   });
+  it("durable log write LOOPS until every byte is flushed, then fsyncs (no silent short-write) (#451)", () => {
+    // writeSync can short-write without throwing → loop until offset reaches the buffer length.
+    expect(s).toMatch(/Buffer\.from\(text,\s*"utf8"\)/);
+    expect(s).toMatch(/while\s*\(\s*off\s*<\s*buf\.length\s*\)/);
+    expect(s).toMatch(/off\s*\+=\s*writeSync\(fd,\s*buf,\s*off,\s*buf\.length\s*-\s*off\)|const n = writeSync\(fd, buf, off/);
+    expect(s).toMatch(/no progress/); // throws if a write can't advance (cannot spin forever)
+    expect(s).toMatch(/fsyncSync\(fd\)/);
+  });
+  it("Gate-3 plan doc publishes NO id-only rollback (value-guarded only) (#451)", () => {
+    const plan = read("docs/superpowers/plans/2026-06-25-archive-clock-gate3-backfill-plan.md");
+    expect(plan).not.toMatch(/terminal_since\s*=\s*NULL\s+WHERE\s+id\s+IN/i); // stale id-only removed
+    expect(plan).toMatch(/l\.terminal_since\s*=\s*v\.ts/); // value-guarded form present
+    expect(plan).toMatch(/'<new_terminal_since>'::timestamp/);
+  });
   it("stores terminal_since as ::timestamp (TZ-independent UTC wall time), not ::timestamptz (#451)", () => {
     expect(s).toMatch(/unnest\(\$2::timestamp\[\]\)/);      // wall-time storage
     expect(s).not.toMatch(/unnest\(\$2::timestamptz\[\]\)/); // session-TZ-dependent storage removed
