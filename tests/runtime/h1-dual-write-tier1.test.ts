@@ -190,19 +190,30 @@ describe("dualWriteProjectionForListingId — runtime contract", () => {
     expect(prisma.listingSearchProjection.upsert).not.toHaveBeenCalled();
   });
 
-  it("derives is_exclusive=true when the listing has an agent_id (Mallan exclusive)", async () => {
-    const prisma = makePrismaMock(
-      makeListingFixture({ agent_id: 42n, listing_type: "sale" }),
+  it("derives is_exclusive by the Mallan-exclusive rule (SL-/RL- or rls_eligible=false), NOT from agent_id (F13)", async () => {
+    // A third-party IDX row stamped with agent_id (as syncAgentHistory does)
+    // must NOT be flagged exclusive — listing_id "RLS-TEST-001", rls_eligible true.
+    const thirdParty = makePrismaMock(
+      makeListingFixture({ listing_id: "RLS-TEST-001", rls_eligible: true, agent_id: 42n, listing_type: "sale" }),
     );
-
     await dualWriteProjectionForListingId(
-      prisma as unknown as Parameters<typeof dualWriteProjectionForListingId>[0],
+      thirdParty as unknown as Parameters<typeof dualWriteProjectionForListingId>[0],
       "RLS-TEST-001",
     );
+    const thirdPartyData = thirdParty.listingSearchProjection.upsert.mock.calls[0][0].create;
+    expect(thirdPartyData.is_exclusive).toBe(false);
+    expect(thirdPartyData.is_rental).toBe(false);
 
-    const data = prisma.listingSearchProjection.upsert.mock.calls[0][0].create;
-    expect(data.is_exclusive).toBe(true);
-    expect(data.is_rental).toBe(false);
+    // A genuine CRM exclusive (SL- prefix) is exclusive even with no agent_id.
+    const exclusive = makePrismaMock(
+      makeListingFixture({ listing_id: "SL-0004", rls_eligible: true, agent_id: null, listing_type: "sale" }),
+    );
+    await dualWriteProjectionForListingId(
+      exclusive as unknown as Parameters<typeof dualWriteProjectionForListingId>[0],
+      "SL-0004",
+    );
+    const exclusiveData = exclusive.listingSearchProjection.upsert.mock.calls[0][0].create;
+    expect(exclusiveData.is_exclusive).toBe(true);
   });
 
   it("preserves null gate fields rather than coercing to true (fail-closed contract)", async () => {
