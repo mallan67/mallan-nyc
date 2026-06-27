@@ -21,6 +21,7 @@
 import { Prisma } from "@prisma/client";
 
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 
 // PropertySubType values that should classify a listing as commercial when no
 // `commercial_sub_type` column is present. Matches the existing inline
@@ -321,7 +322,14 @@ export function buildListingSearchProjectionFromListing(
     !!stringFrom(listing.commercial_sub_type) ||
     (propertySubType !== null && COMMERCIAL_SUB_TYPES.has(propertySubType));
   const isNewDevelopment = propertySubType !== null && NEW_DEVELOPMENT_SUB_TYPES.has(propertySubType);
-  const isExclusive = listing.agent_id !== null && listing.agent_id !== undefined;
+  // F13: a Mallan exclusive is identified by the SL-/RL- listing_id prefix OR
+  // rls_eligible === false (website-only) — NEVER by agent_id, which
+  // syncAgentHistory also stamps onto third-party IDX rows. Use the canonical
+  // helper so this derivation cannot drift from the exclusive-attribution path.
+  const isExclusive = isMallanExclusiveListing({
+    listing_id: listing.listing_id,
+    rls_eligible: listing.rls_eligible,
+  });
   const isRental = listing.listing_type === "rent";
 
   return {

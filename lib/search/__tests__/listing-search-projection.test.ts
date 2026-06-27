@@ -8,6 +8,7 @@ import {
   normalizeProjectionSearchText,
   type ListingProjectionSource,
 } from "@/lib/search/listing-search-projection";
+import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 
 const baseSale: ListingProjectionSource = {
   listing_id: "RLS20059088",
@@ -272,18 +273,23 @@ describe("commercial / new-development / exclusive / rental flags", () => {
     expect(row.is_new_development).toBe(true);
   });
 
-  it("flags exclusive when agent_id is set (regardless of rls_eligible)", () => {
-    const exclusive = buildListingSearchProjectionFromListing({
+  it("flags exclusive by the Mallan-exclusive rule, never by agent_id presence", () => {
+    // baseSale is a third-party RLS row (listing_id "RLS…", rls_eligible true).
+    // Stamping agent_id on it (as syncAgentHistory does for IDX rows) must NOT
+    // make it a Mallan exclusive.
+    const thirdPartyWithAgent = buildListingSearchProjectionFromListing({
       ...baseSale,
       agent_id: BigInt(42),
     });
-    expect(exclusive.is_exclusive).toBe(true);
+    expect(thirdPartyWithAgent.is_exclusive).toBe(false);
 
-    const notExclusive = buildListingSearchProjectionFromListing({
+    // A genuine Mallan exclusive (SL- prefix) is exclusive even with no agent_id.
+    const crmExclusive = buildListingSearchProjectionFromListing({
       ...baseSale,
+      listing_id: "SL-0004",
       agent_id: null,
     });
-    expect(notExclusive.is_exclusive).toBe(false);
+    expect(crmExclusive.is_exclusive).toBe(true);
   });
 
   it("flags rental purely from listing_type === 'rent'", () => {
@@ -291,6 +297,86 @@ describe("commercial / new-development / exclusive / rental flags", () => {
     expect(sale.is_rental).toBe(false);
     const rent = buildListingSearchProjectionFromListing({ ...baseSale, listing_type: "rent" });
     expect(rent.is_rental).toBe(true);
+  });
+});
+
+describe("is_exclusive derivation — canonical isMallanExclusiveListing() rule (F13)", () => {
+  // The projection's is_exclusive must mean "Mallan-authored exclusive", i.e.
+  // listing_id SL-/RL- prefix OR rls_eligible === false. It must NOT be derived
+  // from agent_id, because syncAgentHistory stamps agent_id onto third-party
+  // IDX rows — using agent_id mislabels them and (PR 5B parity) would drop the
+  // required RLS courtesy/disclaimer on third-party rows.
+
+  it("does NOT flag a third-party RLS listing as exclusive even when agent_id is set", () => {
+    const row = buildListingSearchProjectionFromListing({
+      ...baseSale, // listing_id "RLS20059088", rls_eligible: true
+      agent_id: BigInt(42),
+    });
+    expect(row.is_exclusive).toBe(false);
+  });
+
+  it("flags an SL- listing as exclusive (CRM sale exclusive)", () => {
+    const row = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      listing_id: "SL-0004",
+      agent_id: null,
+    });
+    expect(row.is_exclusive).toBe(true);
+  });
+
+  it("flags an RL- listing as exclusive (CRM rental exclusive)", () => {
+    const row = buildListingSearchProjectionFromListing({
+      ...baseRental,
+      listing_id: "RL-0012",
+      agent_id: null,
+    });
+    expect(row.is_exclusive).toBe(true);
+  });
+
+  it("flags a website-only (rls_eligible === false) manual listing as exclusive", () => {
+    const row = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      listing_id: "WEBONLY-1", // no SL-/RL- prefix
+      rls_eligible: false,
+      agent_id: null,
+    });
+    expect(row.is_exclusive).toBe(true);
+  });
+
+  it("never flags exclusive merely because agent_id is present", () => {
+    const withAgent = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      listing_id: "RLS20059088",
+      rls_eligible: true,
+      agent_id: BigInt(7),
+    });
+    const withoutAgent = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      listing_id: "RLS20059088",
+      rls_eligible: true,
+      agent_id: null,
+    });
+    expect(withAgent.is_exclusive).toBe(false);
+    expect(withoutAgent.is_exclusive).toBe(false);
+  });
+
+  it("matches isMallanExclusiveListing() for every fixture (builder parity)", () => {
+    const fixtures: ListingProjectionSource[] = [
+      { ...baseSale, listing_id: "RLS20059088", rls_eligible: true, agent_id: BigInt(42) }, // third-party + agent → false
+      { ...baseSale, listing_id: "SL-0004", agent_id: null }, // SL- → true
+      { ...baseRental, listing_id: "RL-0012", agent_id: null }, // RL- → true
+      { ...baseSale, listing_id: "WEBONLY-1", rls_eligible: false, agent_id: null }, // website-only → true
+      { ...baseSale, listing_id: "RLS20070001", rls_eligible: true, agent_id: null }, // third-party, no agent → false
+    ];
+    for (const fixture of fixtures) {
+      const row = buildListingSearchProjectionFromListing(fixture);
+      expect(row.is_exclusive).toBe(
+        isMallanExclusiveListing({
+          listing_id: fixture.listing_id,
+          rls_eligible: fixture.rls_eligible,
+        }),
+      );
+    }
   });
 });
 

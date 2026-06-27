@@ -7,7 +7,8 @@
 //
 // Semantics are grounded in the existing model:
 //   - Exclusive: a CRM-created listing is a Mallan Exclusive (the
-//     listing_search_projection sets is_exclusive = agent_id !== null). It
+//     listing_search_projection sets is_exclusive via isMallanExclusiveListing()
+//     — SL-/RL- listing_id prefix OR rls_eligible === false, never agent_id). It
 //     stays an active exclusive until it reaches a terminal status.
 //   - Featured: the homepage Featured rail only shows publicly displayable,
 //     live listings, so a listing is Featured-eligible once it is Active and
