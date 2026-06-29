@@ -59,15 +59,18 @@ Confirms host guard, prints the eligible backlog, and reports it *would* archive
 # ⛔ HELD — requires explicit per-run approval AND a fresh pre-run Neon rollback branch.
 npx tsx scripts/drain-archive-backlog.ts --execute --ack-rollback-branch --max-rows=5000
 ```
-- Writes the touched-id log to `artifacts/gate6-archive-touched-<stamp>.jsonl` (gitignored).
+- Writes the durable **pre-commit intent log** (ids only, fsynced before each strip) to `artifacts/gate6-archive-touched-<stamp>.jsonl` (gitignored). It is a SUPERSET of archived ids (also includes skipped/errored ids) — reconcile per §4, never equate its line count with the archive delta.
 - Sets `statement_timeout=30s` + `lock_timeout=5s` on a single connection; per-row transactions; 300 ms inter-chunk pause.
 - Expected wall-clock: a few minutes (no Vercel 60s ceiling).
 
 ---
 
 ## 4. Post-run verification (after every `--execute`; read-only) — mirror Gate 5 §5
-1. **archived delta == rows the run reports** (touched-id log line count == `listings_archive` delta). Reconcile any benign idempotent-upsert gap (0 dup-key/orphan/missing; safe direction).
-2. **`sync_status='archived'` delta matches** the `listings_archive` delta.
+
+> **Counts to use:** the script prints `archived N / scanned M (skipped S, errors E)`. The deltas below reconcile against the script's **`archived`** count — **NOT** the intent-log line count. The pre-commit intent log is a deliberate **SUPERSET**: `intent_lines = archived + skipped + errors` (ids are logged *before* the strip, so eligibility-drift skips and archive errors also appear). Use the intent log to enumerate exactly which ids to spot-check, then reconcile it as `archived + skipped + errors`.
+
+1. **`listings_archive` delta == the script's reported `archived` count** (not the intent-log line count). Reconcile any benign idempotent-upsert gap (0 dup-key/orphan/missing; safe direction). Confirm `intent_lines − archived == skipped + errors`.
+2. **`sync_status='archived'` delta == the script's `archived` count** (and == the `listings_archive` delta).
 3. **No non-terminal/live archived** = 0; archived rows terminal-only.
 4. **Strip proof (JSON-null semantics):** `raw_data` content = 0 (all JSON `null`), `media=[]`, `compliance={}` on the run's rows.
 5. **Backlog trends down** from the pre-run count (allow aged-in rows; the exact invariants are the two deltas).
@@ -77,13 +80,13 @@ npx tsx scripts/drain-archive-backlog.ts --execute --ack-rollback-branch --max-r
 9. **ops:health** — archive backlog ↓, archived total ↑, §2.05 = 0, sync errors = 0, dead-tuple % noted.
 10. **Vercel/prod health unaffected** — runtime logs clean; no `listings_archive_move` `sync_errors`.
 
-**Hard-stop (any → stop; do not start the next run):** archived delta exceeds the run/ceiling, any non-terminal/live row archived, §2.05 regression, `listings_archive_move` errors, public/health break, or a closed-comps render regression.
+**Hard-stop (any → stop; do not start the next run):** the `listings_archive` delta exceeds the script's `archived` count (unsafe direction) or the run/ceiling; the two deltas disagree with `archived`; `intent_lines − archived ≠ skipped + errors`; any non-terminal/live row archived; §2.05 regression; `listings_archive_move` errors; public/health break; or a closed-comps render regression. *(A high `skipped` count is eligibility drift, not a strip failure — investigate, but it is not itself a strip safety breach.)*
 
 ---
 
 ## 5. #415 proof requirement
 
-After **every** `--execute` run, post to #415 with verification-type tags (production-SQL / live-probe / ops:health): run size, deltas, strip proof, backlog trend, §2.05, errors, smoke results, and the touched-id log path + line count. No "green checks" claim stands without the measured evidence.
+After **every** `--execute` run, post to #415 with verification-type tags (production-SQL / live-probe / ops:health): run size, the script's `archived`/`skipped`/`errors` totals, the `listings_archive` + `sync_status='archived'` deltas (reconciled against `archived`), strip proof, backlog trend, §2.05, smoke results, and the **intent-log path + line count** (noting `intent_lines = archived + skipped + errors`). No "green checks" claim stands without the measured evidence.
 
 ---
 
