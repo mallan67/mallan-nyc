@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth";
-import { sanitizeListingForPortal } from "@/lib/compliance/dto";
+import { sanitizeListingForPortal, sanitizeOwnedListingForOwner } from "@/lib/compliance/dto";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
 
 export async function GET(req: NextRequest) {
@@ -35,13 +35,13 @@ export async function GET(req: NextRequest) {
       where: { owner_client_id: auth.userId },
       orderBy: { updated_at: "desc" },
     });
-    const ownedListings = owned
-      .map((listing) => {
-        const sanitized = sanitizeListingForPortal(listing, portalRole);
-        if (!sanitized) return null;
-        return { ...sanitized, reactions: {} as Record<string, boolean> };
-      })
-      .filter(Boolean);
+    // Owner-view serializer: no public-dissemination gates (so opted-out / participant-only /
+    // CRM-exclusive owned listings still appear to their owner), same field masking. Ownership was
+    // already enforced by the owner_client_id filter above.
+    const ownedListings = owned.map((listing) => ({
+      ...sanitizeOwnedListingForOwner(listing, portalRole),
+      reactions: {} as Record<string, boolean>,
+    }));
     return NextResponse.json({ listings: ownedListings });
   }
 

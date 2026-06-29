@@ -26,6 +26,7 @@ jest.mock("@/lib/auth", () => ({
 jest.mock("@/lib/compliance/dto", () => ({
   __esModule: true,
   sanitizeListingForPortal: (l: { listing_id: string; status: string }) => ({ listing_id: l.listing_id, status: l.status }),
+  sanitizeOwnedListingForOwner: (l: { listing_id: string; status: string }) => ({ listing_id: l.listing_id, status: l.status }),
 }));
 jest.mock("@/lib/search/listing-access-decision", () => ({
   __esModule: true,
