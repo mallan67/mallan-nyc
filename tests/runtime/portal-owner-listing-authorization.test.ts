@@ -7,6 +7,8 @@
  * Also fixes /api/portal/listings so sellers/landlords see their OWNED listings (not buyer actions).
  * Mirrors the already-fixed /api/portal/showings + /offers ownership pattern.
  */
+import fs from "node:fs";
+import path from "node:path";
 import { buildPrismaMock } from "./helpers";
 import { canAccessOwnerListing } from "@/lib/portal/listing-ownership";
 
@@ -15,10 +17,12 @@ const prismaMock: any = buildPrismaMock().prisma;
 jest.mock("@/lib/prisma", () => ({ __esModule: true, default: prismaMock }));
 
 const requirePortalRoleMock = jest.fn();
+const requireWorkspaceMock = jest.fn();
 const requireAuthMock = jest.fn();
 jest.mock("@/lib/auth", () => ({
   __esModule: true,
   requirePortalRole: (...a: unknown[]) => requirePortalRoleMock(...a),
+  requireWorkspace: (...a: unknown[]) => requireWorkspaceMock(...a),
   requireAuth: (...a: unknown[]) => requireAuthMock(...a),
   isAuthError: () => false,
 }));
@@ -49,6 +53,7 @@ function getReq(url: string) {
 beforeEach(() => {
   jest.clearAllMocks();
   requirePortalRoleMock.mockResolvedValue(SELLER);
+  requireWorkspaceMock.mockResolvedValue(SELLER);
   requireAuthMock.mockResolvedValue(SELLER);
 });
 
@@ -174,5 +179,16 @@ describe("/api/portal/listings — sellers see their OWNED listings (not buyer i
     expect(body.listings.map((l) => l.listing_id)).toContain("RLS-SAVED");
     expect(clientActions).toHaveBeenCalled(); // buyer path used
     expect(findMany).not.toHaveBeenCalled();  // stale roles[] ignored — NOT treated as owner
+  });
+});
+
+describe("detail routes honor workspace owners (Codex #458): price-history + marketing use requireWorkspace", () => {
+  // requirePortalRole reads only portal_role → a workspace-only owner (enabled_workspaces:['seller'],
+  // portal_role:'buyer') would 403 before the ownership check, leaving the dashboard empty. These
+  // routes must admit via requireWorkspace (workspace precedence) and enforce ownership after.
+  it.each(["price-history", "marketing"])("/api/portal/%s admits via requireWorkspace, not requirePortalRole", (r) => {
+    const src = fs.readFileSync(path.resolve(__dirname, `../../app/api/portal/${r}/route.ts`), "utf8");
+    expect(src).toMatch(/requireWorkspace\(req,\s*"seller",\s*"landlord"\)/);
+    expect(src).not.toMatch(/requirePortalRole\(/);
   });
 });
