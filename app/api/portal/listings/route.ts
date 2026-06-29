@@ -20,25 +20,11 @@ export async function GET(req: NextRequest) {
 
   const lead = await prisma.lead.findUnique({
     where: { id: auth.userId },
-    select: { 
-      portal_role: true,
-      enabled_workspaces: true,
-      roles: true,
-    },
+    select: { portal_role: true },
   });
 
   const portalRole = lead?.portal_role ?? "buyer";
-  
-  // Determine if the lead is an owner (seller/landlord) by checking:
-  // 1. Legacy portal_role field
-  // 2. Modern enabled_workspaces array (supports multi-workspace leads)
-  // 3. Fallback to roles array
-  // This ensures leads with seller/landlord workspace access are recognized
-  // even if their legacy portal_role hasn't been updated.
-  const enabledWorkspaces = lead?.enabled_workspaces || (lead?.roles?.length ? lead.roles : []);
-  const isOwnerRole = 
-    (portalRole === "seller" || portalRole === "landlord") ||
-    (enabledWorkspaces && (enabledWorkspaces.includes("seller") || enabledWorkspaces.includes("landlord")));
+  const isOwnerRole = portalRole === "seller" || portalRole === "landlord";
 
   // Sellers/landlords: their OWNED listings (owner_client_id), regardless of public-display status —
   // owners must see every listing they own (active, withdrawn, closed/sold) to track what is
