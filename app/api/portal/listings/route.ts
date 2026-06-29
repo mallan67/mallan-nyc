@@ -29,11 +29,14 @@ export async function GET(req: NextRequest) {
   // (promote/conversion flows). We serve the UNION so a lead who is BOTH a buyer and an owner keeps
   // their saved/shared buyer listings AND their owned listings on this shared endpoint — neither
   // dashboard loses data.
-  const workspaces = new Set<string>([
-    ...(lead?.enabled_workspaces ?? []),
-    ...(lead?.roles ?? []),
-  ]);
-  if (workspaces.size === 0) workspaces.add(portalRole);
+  // Precedence matches requireWorkspace / /api/auth/me: enabled_workspaces is the access allow-list
+  // when present; fall back to roles[] only when it is empty, then to the legacy portal_role. Do NOT
+  // union roles back in — a lead with enabled_workspaces:['buyer'] but stale roles:['seller'] is a
+  // buyer here (the seller portal would reject them), so they must not get owner_client_id listings.
+  const workspaceList = lead?.enabled_workspaces?.length
+    ? lead.enabled_workspaces
+    : (lead?.roles?.length ? lead.roles : [portalRole]);
+  const workspaces = new Set<string>(workspaceList);
   const isOwner = workspaces.has("seller") || workspaces.has("landlord");
   const isBuyer = workspaces.has("buyer") || workspaces.has("tenant") || workspaces.has("renter") || !isOwner;
 

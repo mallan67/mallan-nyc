@@ -71,4 +71,20 @@ describe("owner sees their own listing regardless of public-display gates", () =
     );
     expect(out.address).toBe("1 Main St");
   });
+
+  it("includes RESO direction/suffix components (Codex #458): '333 E 46th Street #2G'", () => {
+    const out = sanitizeOwnedListingForOwner(
+      { ...(optedOutExclusive as object), address: { StreetNumber: "333", StreetDirPrefix: "E", StreetName: "46th", StreetSuffix: "Street", UnitNumber: "2G" } } as unknown as Parameters<typeof sanitizeOwnedListingForOwner>[0],
+      "seller",
+    );
+    expect(out.address).toBe("333 E 46th Street #2G");
+  });
+
+  it("falls back to UnparsedAddress when discrete components are absent", () => {
+    const out = sanitizeOwnedListingForOwner(
+      { ...(optedOutExclusive as object), address: { UnparsedAddress: "5 Tudor City Pl" } } as unknown as Parameters<typeof sanitizeOwnedListingForOwner>[0],
+      "seller",
+    );
+    expect(out.address).toBe("5 Tudor City Pl");
+  });
 });

@@ -423,11 +423,17 @@ function formatOwnerAddressLine(address: unknown): string | null {
     return "";
   };
   const streetNumber = pick("streetNumber", "StreetNumber");
+  const dirPrefix = pick("streetDirPrefix", "StreetDirPrefix");
   const streetName = pick("streetName", "StreetName");
+  const suffix = pick("streetSuffix", "StreetSuffix");
+  const dirSuffix = pick("streetDirSuffix", "StreetDirSuffix");
   const unit = pick("unitNumber", "UnitNumber", "unit");
-  const line = [streetNumber, streetName].filter(Boolean).join(" ").trim();
-  const full = unit ? `${line}${line ? " " : ""}#${unit}` : line;
-  return full.length > 0 ? full : null;
+  // Full RESO street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
+  const street = [streetNumber, dirPrefix, streetName, suffix, dirSuffix].filter(Boolean).join(" ").trim();
+  const full = unit ? `${street}${street ? " " : ""}#${unit}` : street;
+  if (full.trim().length > 0) return full.trim();
+  // Fall back to a pre-formatted unparsed address when discrete components are absent.
+  return pick("unparsedAddress", "UnparsedAddress") || null;
 }
 
 export function sanitizeOwnedListingForOwner(

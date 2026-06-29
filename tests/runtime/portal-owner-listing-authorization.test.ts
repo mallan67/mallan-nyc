@@ -159,4 +159,20 @@ describe("/api/portal/listings — sellers see their OWNED listings (not buyer i
     expect(findMany).toHaveBeenCalled();
     expect(clientActions).toHaveBeenCalled();
   });
+
+  it("enabled_workspaces takes precedence over stale roles (Codex #458): ['buyer'] + roles ['seller'] => buyer, NOT owner", async () => {
+    prismaMock.lead.findUnique = jest.fn(async () => ({ portal_role: "buyer", enabled_workspaces: ["buyer"], roles: ["seller"] }));
+    const findMany = jest.fn((..._a: unknown[]) => Promise.resolve([]));
+    prismaMock.listing.findMany = findMany;
+    const clientActions = jest.fn((..._a: unknown[]) => Promise.resolve([
+      { listing_id: 9n, action: "saved", listing: { id: 9n, listing_id: "RLS-SAVED", status: "Active" } },
+    ]));
+    prismaMock.clientListingAction.findMany = clientActions;
+
+    const res = await listingsGET(getReq("http://localhost/api/portal/listings"));
+    const body = (await res.json()) as { listings: Array<{ listing_id: string }> };
+    expect(body.listings.map((l) => l.listing_id)).toContain("RLS-SAVED");
+    expect(clientActions).toHaveBeenCalled(); // buyer path used
+    expect(findMany).not.toHaveBeenCalled();  // stale roles[] ignored — NOT treated as owner
+  });
 });
