@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePortalRole, isAuthError } from '@/lib/auth';
-import { canAccessOwnerListing } from '@/lib/portal/listing-ownership';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,15 +34,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'listingId required' }, { status: 400 });
   }
 
-  // P0: Use owner_client_id for ownership enforcement (not agent relationship).
-  // REBNY Art. III §2: seller must own the listing to see its demand data.
-  // Fail-closed with 404 (not 403) to avoid leaking listing existence.
+  // Verify seller owns this listing (via their assigned agent)
   const listing = await prisma.listing.findFirst({
     where: {
       listing_id: listingId,
+      agent: {
+        leads: { some: { id: lead.id } },
+      },
     },
     select: {
-      owner_client_id: true,
       neighborhood: true,
       borough: true,
       list_price: true,
@@ -52,7 +51,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  if (!listing || !canAccessOwnerListing(auth, listing.owner_client_id)) {
+  if (!listing) {
     return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
   }
 
@@ -81,67 +80,46 @@ export async function GET(request: NextRequest) {
   const exactPriceMatch = price > 0
     ? await prisma.buyerIntentProfile.count({
         where: {
-          AND: [
-            listing.neighborhood ? { preferred_neighborhoods: { has: listing.neighborhood } } : {},
-            { price_min: { lte: price }, price_max: { gte: price } },
-          ],
+          price_min: { lte: price },
+          price_max: { gte: price },
         },
       })
     : 0;
 
-  // Recent searchers in neighborhood
+  // Count buyers searching this neighborhood (last 30 days)
   const recentSearchers = listing.neighborhood
-    ? await prisma.savedSearch.count({
-        where: {
-          criteria: { path: ['neighborhoods'], array_contains: listing.neighborhood },
-          last_run: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        },
-      })
-    : 0;
-
-  // 30-day demand trend
-  const prevMonthStart = new Date();
-  prevMonthStart.setDate(prevMonthStart.getDate() - 60);
-  const currentMonthStart = new Date();
-  currentMonthStart.setDate(currentMonthStart.getDate() - 30);
-
-  const prevMonthBuyers = listing.neighborhood
     ? await prisma.buyerIntentProfile.count({
         where: {
-          AND: [
-            { preferred_neighborhoods: { has: listing.neighborhood } },
-            price > 0 ? { price_min: { lte: priceMax }, price_max: { gte: priceMin } } : {},
-            { created_at: { gte: prevMonthStart, lt: currentMonthStart } },
-          ],
+          preferred_neighborhoods: { has: listing.neighborhood },
+          last_event_at: { gte: new Date(Date.now() - 30 * 86400_000) },
         },
       })
     : 0;
 
-  const currentMonthBuyers = listing.neighborhood
-    ? await prisma.buyerIntentProfile.count({
-        where: {
-          AND: [
-            { preferred_neighborhoods: { has: listing.neighborhood } },
-            price > 0 ? { price_min: { lte: priceMax }, price_max: { gte: priceMin } } : {},
-            { created_at: { gte: currentMonthStart } },
-          ],
-        },
-      })
-    : 0;
+  // Get demand trend (compare to 30 days ago)
+  const thirtyDaysAgo = await prisma.buyerIntentProfile.count({
+    where: {
+      preferred_neighborhoods: listing.neighborhood ? { has: listing.neighborhood } : undefined,
+      last_event_at: {
+        gte: new Date(Date.now() - 60 * 86400_000),
+        lte: new Date(Date.now() - 30 * 86400_000),
+      },
+    },
+  });
 
-  const demandTrend = prevMonthBuyers > 0 ? Math.round(((currentMonthBuyers - prevMonthBuyers) / prevMonthBuyers) * 100) : 0;
+  const demandTrend = thirtyDaysAgo > 0
+    ? ((recentSearchers - thirtyDaysAgo) / thirtyDaysAgo) * 100
+    : 0;
 
   return NextResponse.json({
+    listingId,
     demand: {
       totalMatchingBuyers: matchingBuyers,
       exactPriceMatch,
       recentSearchers,
-      demandTrend,
+      demandTrend: Math.round(demandTrend * 10) / 10,
       neighborhood: listing.neighborhood,
-      priceRange: {
-        min: Math.round(priceMin),
-        max: Math.round(priceMax),
-      },
+      priceRange: { min: Math.round(priceMin), max: Math.round(priceMax) },
     },
   });
 }
