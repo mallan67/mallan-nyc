@@ -407,6 +407,29 @@ export function sanitizeListingForPortal(
  * auth.userId` query filter or canAccessOwnerListing). This function performs NO ownership check and
  * MUST NOT be called on a listing the caller has not been proven to own.
  */
+/**
+ * Format a listing's raw address JSON into a single renderable line (e.g. "123 Main St #4B").
+ * Handles both lowercase (streetNumber/streetName/unitNumber) and PascalCase (Trestle) shapes.
+ * Owner pages type `address: string` and render it directly, so the owner DTO must emit a string.
+ */
+function formatOwnerAddressLine(address: unknown): string | null {
+  if (!address || typeof address !== "object" || Array.isArray(address)) return null;
+  const a = address as Record<string, unknown>;
+  const pick = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = a[k];
+      if (v !== null && v !== undefined && String(v).trim().length > 0) return String(v).trim();
+    }
+    return "";
+  };
+  const streetNumber = pick("streetNumber", "StreetNumber");
+  const streetName = pick("streetName", "StreetName");
+  const unit = pick("unitNumber", "UnitNumber", "unit");
+  const line = [streetNumber, streetName].filter(Boolean).join(" ").trim();
+  const full = unit ? `${line}${line ? " " : ""}#${unit}` : line;
+  return full.length > 0 ? full : null;
+}
+
 export function sanitizeOwnedListingForOwner(
   listing: PortalListingInput,
   portalRole: string
@@ -432,7 +455,12 @@ export function sanitizeOwnedListingForOwner(
     list_office_name: listing.list_office_name,
     internet_address_display_yn: listing.internet_address_display_yn,
   };
-  return sanitizeForPortal(flat, portalRole);
+  const masked = sanitizeForPortal(flat, portalRole);
+  // Owner sees their OWN address as a renderable STRING (seller/landlord pages type address:string and
+  // render it directly). Built from the raw address object; shown regardless of the public
+  // internet_address_display_yn gate (an owner viewing their own data is not public dissemination).
+  masked.address = formatOwnerAddressLine(listing.address);
+  return masked;
 }
 
 /** Fields that must NEVER appear in any API response, including CRM */

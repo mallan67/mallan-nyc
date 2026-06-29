@@ -57,4 +57,18 @@ describe("owner sees their own listing regardless of public-display gates", () =
     expect(out.portal_token).toBeUndefined();
     expect(out.raw_data).toBeUndefined();
   });
+
+  it("emits a renderable STRING address (not the raw object) — owner pages render address directly (Codex #458)", () => {
+    const out = sanitizeOwnedListingForOwner(optedOutExclusive, "seller");
+    expect(typeof out.address).toBe("string");
+    expect(out.address).toBe("1 Main St"); // from { streetNumber: "1", streetName: "Main St" }
+  });
+
+  it("owner sees their own address even when internet_address_display_yn is false (own data, not dissemination)", () => {
+    const out = sanitizeOwnedListingForOwner(
+      { ...(optedOutExclusive as object), internet_address_display_yn: false } as unknown as Parameters<typeof sanitizeOwnedListingForOwner>[0],
+      "seller",
+    );
+    expect(out.address).toBe("1 Main St");
+  });
 });

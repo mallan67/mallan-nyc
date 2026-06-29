@@ -141,4 +141,22 @@ describe("/api/portal/listings — sellers see their OWNED listings (not buyer i
     expect(findMany).toHaveBeenCalled();
     expect(clientActions).not.toHaveBeenCalled();
   });
+
+  it("dual buyer+seller lead keeps BOTH owned and buyer listings (Codex #458 — no buyer loss)", async () => {
+    prismaMock.lead.findUnique = jest.fn(async () => ({ portal_role: "buyer", enabled_workspaces: ["buyer", "seller"], roles: [] }));
+    const findMany = jest.fn((..._a: unknown[]) => Promise.resolve([{ id: 5n, listing_id: "SL-OWNED", status: "Active", owner_client_id: 200n }]));
+    prismaMock.listing.findMany = findMany;
+    const clientActions = jest.fn((..._a: unknown[]) => Promise.resolve([
+      { listing_id: 9n, action: "saved", listing: { id: 9n, listing_id: "RLS-SAVED", status: "Active" } },
+    ]));
+    prismaMock.clientListingAction.findMany = clientActions;
+
+    const res = await listingsGET(getReq("http://localhost/api/portal/listings"));
+    const body = (await res.json()) as { listings: Array<{ listing_id: string }> };
+    const ids = body.listings.map((l) => l.listing_id);
+    expect(ids).toContain("SL-OWNED"); // owned listing present
+    expect(ids).toContain("RLS-SAVED"); // buyer saved/shared listing NOT lost
+    expect(findMany).toHaveBeenCalled();
+    expect(clientActions).toHaveBeenCalled();
+  });
 });

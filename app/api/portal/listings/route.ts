@@ -24,73 +24,64 @@ export async function GET(req: NextRequest) {
   });
 
   const portalRole = lead?.portal_role ?? "buyer";
-  // Owner detection honors the multi-workspace model (Codex #458): a lead can have seller/landlord
-  // access via enabled_workspaces or roles[] even when the legacy portal_role was not flipped
-  // (promote/conversion flows). Any source granting seller/landlord routes to the owned-listings
-  // branch. That branch is still strictly filtered by `owner_client_id === auth.userId`, so
-  // broadening detection cannot expose another owner's data — only whether the lead's OWN listings load.
-  const ownerWorkspaces = new Set<string>([
+  // Multi-workspace model (Codex #458): a lead can have seller/landlord AND/OR buyer/tenant access
+  // via enabled_workspaces or roles[], even when the legacy portal_role was not flipped
+  // (promote/conversion flows). We serve the UNION so a lead who is BOTH a buyer and an owner keeps
+  // their saved/shared buyer listings AND their owned listings on this shared endpoint — neither
+  // dashboard loses data.
+  const workspaces = new Set<string>([
     ...(lead?.enabled_workspaces ?? []),
     ...(lead?.roles ?? []),
-    portalRole,
   ]);
-  const isOwnerRole = ownerWorkspaces.has("seller") || ownerWorkspaces.has("landlord");
+  if (workspaces.size === 0) workspaces.add(portalRole);
+  const isOwner = workspaces.has("seller") || workspaces.has("landlord");
+  const isBuyer = workspaces.has("buyer") || workspaces.has("tenant") || workspaces.has("renter") || !isOwner;
 
-  // Sellers/landlords: their OWNED listings (owner_client_id), regardless of public-display status —
-  // owners must see every listing they own (active, withdrawn, closed/sold) to track what is
-  // happening with their listing. Field-level masking still applies via the portal DTO; the PUBLIC
-  // IDX-display gate (isListingDisplayable) is intentionally NOT applied to an owner's own data.
-  if (isOwnerRole) {
+  const out: Record<string, unknown>[] = [];
+  const seen = new Set<string>();
+
+  // Owner set: the lead's OWNED listings (owner_client_id), regardless of public-display status —
+  // owners must see every listing they own (active, withdrawn, closed/sold). The owner serializer
+  // lifts only the public-dissemination gates (opt-out/participant/internet-display); ownership is
+  // enforced by the owner_client_id filter. The public IDX-display gate is intentionally NOT applied.
+  if (isOwner) {
     const owned = await prisma.listing.findMany({
       where: { owner_client_id: auth.userId },
       orderBy: { updated_at: "desc" },
     });
-    // Owner-view serializer: no public-dissemination gates (so opted-out / participant-only /
-    // CRM-exclusive owned listings still appear to their owner), same field masking. Ownership was
-    // already enforced by the owner_client_id filter above.
-    const ownedListings = owned.map((listing) => ({
-      ...sanitizeOwnedListingForOwner(listing, portalRole),
-      reactions: {} as Record<string, boolean>,
-    }));
-    return NextResponse.json({ listings: ownedListings });
-  }
-
-  // Buyers/tenants: listings this client has interacted with (clientListingAction).
-  const actions = await prisma.clientListingAction.findMany({
-    where: { lead_id: auth.userId },
-    include: {
-      listing: true,
-    },
-  });
-
-  // Group by listing, attach reaction status
-  const listingMap = new Map<string, {
-    listing: typeof actions[0]["listing"];
-    reactions: Record<string, boolean>;
-  }>();
-
-  for (const a of actions) {
-    const lid = a.listing_id.toString();
-    if (!listingMap.has(lid)) {
-      listingMap.set(lid, {
-        listing: a.listing,
-        reactions: {},
-      });
+    for (const listing of owned) {
+      out.push({ ...sanitizeOwnedListingForOwner(listing, portalRole), reactions: {} as Record<string, boolean> });
+      seen.add(listing.id.toString());
     }
-    listingMap.get(lid)!.reactions[a.action] = true;
   }
 
-  const listings = Array.from(listingMap.values())
-    .map(({ listing, reactions }) => {
-      if (!isListingDisplayable(listing)) return null;
+  // Buyer set: listings this client has interacted with (clientListingAction), public-display gated.
+  if (isBuyer) {
+    const actions = await prisma.clientListingAction.findMany({
+      where: { lead_id: auth.userId },
+      include: { listing: true },
+    });
+    const listingMap = new Map<string, {
+      listing: typeof actions[0]["listing"];
+      reactions: Record<string, boolean>;
+    }>();
+    for (const a of actions) {
+      const lid = a.listing_id.toString();
+      if (!listingMap.has(lid)) listingMap.set(lid, { listing: a.listing, reactions: {} });
+      listingMap.get(lid)!.reactions[a.action] = true;
+    }
+    for (const [lid, { listing, reactions }] of listingMap) {
+      if (seen.has(lid)) continue; // already included as an owned listing (owner serialization wins)
+      if (!isListingDisplayable(listing)) continue;
       // DTO sanitization (address suppression, agent masking, additional checks)
       const sanitized = sanitizeListingForPortal(listing, portalRole);
-      if (!sanitized) return null;
+      if (!sanitized) continue;
       // Gate 5: Coming Soon — display allowed but flag for badge (UCBA D3: no showings/open houses)
       const isComingSoon = listing.status === "ComingSoon";
-      return { ...sanitized, reactions, ...(isComingSoon ? { comingSoon: true, comingSoonNotice: "Coming Soon. No showings or open houses permitted until listed." } : {}) };
-    })
-    .filter(Boolean);
+      out.push({ ...sanitized, reactions, ...(isComingSoon ? { comingSoon: true, comingSoonNotice: "Coming Soon. No showings or open houses permitted until listed." } : {}) });
+      seen.add(lid);
+    }
+  }
 
-  return NextResponse.json({ listings });
+  return NextResponse.json({ listings: out });
 }
