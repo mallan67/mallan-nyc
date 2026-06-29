@@ -20,11 +20,21 @@ export async function GET(req: NextRequest) {
 
   const lead = await prisma.lead.findUnique({
     where: { id: auth.userId },
-    select: { portal_role: true },
+    select: { portal_role: true, enabled_workspaces: true, roles: true },
   });
 
   const portalRole = lead?.portal_role ?? "buyer";
-  const isOwnerRole = portalRole === "seller" || portalRole === "landlord";
+  // Owner detection honors the multi-workspace model (Codex #458): a lead can have seller/landlord
+  // access via enabled_workspaces or roles[] even when the legacy portal_role was not flipped
+  // (promote/conversion flows). Any source granting seller/landlord routes to the owned-listings
+  // branch. That branch is still strictly filtered by `owner_client_id === auth.userId`, so
+  // broadening detection cannot expose another owner's data — only whether the lead's OWN listings load.
+  const ownerWorkspaces = new Set<string>([
+    ...(lead?.enabled_workspaces ?? []),
+    ...(lead?.roles ?? []),
+    portalRole,
+  ]);
+  const isOwnerRole = ownerWorkspaces.has("seller") || ownerWorkspaces.has("landlord");
 
   // Sellers/landlords: their OWNED listings (owner_client_id), regardless of public-display status —
   // owners must see every listing they own (active, withdrawn, closed/sold) to track what is

@@ -126,4 +126,19 @@ describe("/api/portal/listings — sellers see their OWNED listings (not buyer i
     expect((findMany.mock.calls[0][0] as { where: { owner_client_id: bigint } }).where.owner_client_id).toBe(200n);
     expect(clientActions).not.toHaveBeenCalled(); // NOT the buyer clientListingAction path
   });
+
+  it("recognizes an owner via enabled_workspaces/roles even if legacy portal_role is still 'buyer' (Codex P2)", async () => {
+    // promote/conversion flows add a seller/landlord workspace without flipping legacy portal_role.
+    prismaMock.lead.findUnique = jest.fn(async () => ({ portal_role: "buyer", enabled_workspaces: ["seller"], roles: [] }));
+    const findMany = jest.fn((..._a: unknown[]) => Promise.resolve([{ id: 6n, listing_id: "SL-WS", status: "Active", owner_client_id: 200n }]));
+    prismaMock.listing.findMany = findMany;
+    const clientActions = jest.fn((..._a: unknown[]) => Promise.resolve([]));
+    prismaMock.clientListingAction.findMany = clientActions;
+
+    const res = await listingsGET(getReq("http://localhost/api/portal/listings"));
+    const body = (await res.json()) as { listings: Array<{ listing_id: string }> };
+    expect(body.listings.map((l) => l.listing_id)).toContain("SL-WS"); // owner branch reached via workspace
+    expect(findMany).toHaveBeenCalled();
+    expect(clientActions).not.toHaveBeenCalled();
+  });
 });
