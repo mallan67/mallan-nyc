@@ -172,29 +172,47 @@ export function buildArchiveSummaryCreate(l: ArchiveCandidateRow): Prisma.Listin
   };
 }
 
+export interface ArchiveOneResult {
+  /** true = the row was stripped + summarized. */
+  ok: boolean;
+  /** true = eligibility drifted between SELECT and write (e.g. reactivated/already-archived/aged-out)
+   *  → nothing was stripped and NO summary was written. Not an error. */
+  skipped?: boolean;
+  error?: string;
+}
+
 /**
- * Archive ONE listing atomically: upsert the summary into listings_archive (idempotent — `update:{}`
- * so a pre-existing listing_key no-ops) + strip the live row, in a single transaction. On failure,
- * record a `listings_archive_move` sync_error and return ok:false (caller continues — matches cron).
+ * Archive ONE listing atomically with an in-transaction eligibility RE-CHECK.
+ *
+ * The strip is destructive, so we do NOT trust the SELECT snapshot: inside the write transaction we
+ * re-assert the EXACT archive predicate (`eligibilityGuard` — terminal status ∧ not archived ∧ the
+ * T+180 clock) via a guarded `updateMany`. If the row reactivated (terminal→Active), was archived by
+ * another path, or aged out of the window between SELECT and here, the guard matches 0 rows → we strip
+ * NOTHING and write NO summary (returns skipped). Only when exactly the guarded row is stripped do we
+ * upsert its summary (idempotent — a pre-existing listing_key no-ops). On failure, a
+ * `listings_archive_move` sync_error is recorded and ok:false is returned (caller continues).
  */
 export async function archiveOneListing(
   prisma: PrismaClient,
   row: ArchiveCandidateRow,
-): Promise<{ ok: boolean; error?: string }> {
+  eligibilityGuard: Prisma.ListingWhereInput,
+): Promise<ArchiveOneResult> {
   const summary = buildArchiveSummaryCreate(row);
   try {
-    await prisma.$transaction([
-      prisma.listingsArchive.upsert({
+    const stripped = await prisma.$transaction(async (tx) => {
+      const upd = await tx.listing.updateMany({
+        where: { ...eligibilityGuard, id: row.id as bigint },
+        data: ARCHIVE_STRIP_DATA,
+      });
+      if (upd.count === 0) return false; // eligibility drift → strip nothing, write no summary
+      await tx.listingsArchive.upsert({
         where: { listing_key: summary.listing_key },
         create: summary,
-        update: {},
-      }),
-      prisma.listing.update({
-        where: { id: row.id as bigint },
-        data: ARCHIVE_STRIP_DATA,
-      }),
-    ]);
-    return { ok: true };
+        update: {}, // idempotent — pre-existing listing_key no-ops
+      });
+      return true;
+    });
+    return stripped ? { ok: true } : { ok: false, skipped: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await prisma.syncError

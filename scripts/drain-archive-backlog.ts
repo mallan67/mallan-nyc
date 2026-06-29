@@ -8,9 +8,11 @@
  * (lib/retention/archive-terminals.ts) so the two paths can NEVER drift.
  *
  * ROLLBACK REALITY: the archive strip is ONE-WAY per row (raw_data/media/compliance are destroyed).
- * The touched-id log records IDS ONLY (never the stripped payloads) — it is an audit/verification
- * record, NOT a restore source. The ONLY real rollback is the pre-run Neon rollback branch, which is
- * REQUIRED before any `--execute` (acknowledge with `--ack-rollback-branch`).
+ * The touched-id log is a durable PRE-COMMIT INTENT record of IDS ONLY (never the stripped payloads):
+ * each id is fsynced BEFORE its strip commits, so a stripped row can never be missing from the log
+ * (it may over-report ids whose strip later skipped/failed — reconcile against the DB). It is an
+ * audit/verification record, NOT a restore source. The ONLY real rollback is the pre-run Neon
+ * rollback branch, REQUIRED before any `--execute` (acknowledge with `--ack-rollback-branch`).
  *
  * Usage:
  *   npx tsx scripts/drain-archive-backlog.ts --max-rows=5000                                  # DRY-RUN (default)
@@ -127,22 +129,27 @@ async function main() {
       return rows as unknown as DrainRow[];
     };
 
+    // Stop if eligibility drift produces an unexpectedly high skip rate (signals something wrong,
+    // e.g. a predicate/clock mismatch) rather than grinding the whole run.
+    const skipThreshold = Math.max(100, Math.ceil(maxRows * 0.25));
+
     const result = await runDrain({
       selectChunk,
-      archiveRow: (row) => archiveOneListing(prisma, row as unknown as ArchiveCandidateRow),
+      archiveRow: (row) => archiveOneListing(prisma, row as unknown as ArchiveCandidateRow, baseWhere),
       recordTouched: (t) =>
         appendDurable(LOG_PATH, formatTouchedLine({ id: t.id, listing_key: t.listing_key, status: t.status, run: STAMP }) + "\n"),
       execute,
       maxRows,
       chunkSize,
+      skipThreshold,
       log: (m) => console.log(m),
       sleep: execute ? () => new Promise<void>((r) => setTimeout(r, SLEEP_MS)) : undefined,
     });
 
     console.log("──────────────────────────────────────────────────────────────");
     if (execute) {
-      console.log(`[EXECUTE] archived ${result.archived} / scanned ${result.scanned} (errors ${result.errors}).`);
-      console.log(`[EXECUTE] touched-id log: ${LOG_PATH}`);
+      console.log(`[EXECUTE] archived ${result.archived} / scanned ${result.scanned} (skipped ${result.skipped}, errors ${result.errors}).`);
+      console.log(`[EXECUTE] intent log (ids only, pre-commit): ${LOG_PATH}`);
       console.log(`[EXECUTE] storage is NOT reclaimed by this run (dead tuples; reclaim is a separate gate).`);
       console.log(`[EXECUTE] verify per the Gate 6 runbook + post proof to #415 before any further run.`);
     } else {

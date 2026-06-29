@@ -21,16 +21,37 @@ export const MAX_CHUNK_SIZE = 1000;
 /** Default keyset page / chunk size (matches the cron's proven per-run size). */
 export const DEFAULT_CHUNK_SIZE = 500;
 
-const CANONICAL_HOST = "ep-cold-waterfall-adno3ao2";
-const STALE_HOST = "ep-royal-dawn-ad6eh8t2";
+const CANONICAL_ENDPOINT = "ep-cold-waterfall-adno3ao2";
+const STALE_ENDPOINT = "ep-royal-dawn-ad6eh8t2";
+const NEON_HOST_SUFFIX = ".neon.tech";
 
-/** Refuse any connection that is not canonical cold-waterfall; refuse the stale royal-dawn outright. */
+/**
+ * Refuse any connection whose PARSED HOSTNAME is not the canonical cold-waterfall Neon endpoint.
+ * A substring check on the whole URL is unsafe — the canonical string could appear in a query param
+ * (e.g. `?application_name=ep-cold-waterfall-adno3ao2`), the password, or the path. So we parse
+ * `new URL(url)` and compare the hostname's first label (the Neon endpoint id) against the canonical
+ * direct + pooler variants, and require the `.neon.tech` suffix. Stale royal-dawn, malformed URLs,
+ * and any non-canonical hostname all fail closed.
+ */
 export function assertCanonicalHost(url: string): void {
-  if (url.includes(STALE_HOST)) {
-    throw new Error(`FATAL: refusing the STALE / do-not-serve royal-dawn host (${STALE_HOST}). Aborting.`);
+  let host: string;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    throw new Error("FATAL: DATABASE_URL is malformed / unparseable — refusing to connect. Aborting.");
   }
-  if (!url.includes(CANONICAL_HOST)) {
-    throw new Error(`FATAL: target is not canonical cold-waterfall (${CANONICAL_HOST}). Aborting.`);
+  if (!host) throw new Error("FATAL: DATABASE_URL has no host — refusing to connect. Aborting.");
+
+  const endpoint = host.split(".")[0];
+  if (endpoint === STALE_ENDPOINT) {
+    throw new Error(`FATAL: refusing the STALE / do-not-serve royal-dawn host (${STALE_ENDPOINT}). Aborting.`);
+  }
+  const endpointOk = endpoint === CANONICAL_ENDPOINT || endpoint === `${CANONICAL_ENDPOINT}-pooler`;
+  if (!endpointOk || !host.endsWith(NEON_HOST_SUFFIX)) {
+    throw new Error(
+      `FATAL: target host '${host}' is not the canonical cold-waterfall endpoint ` +
+        `(${CANONICAL_ENDPOINT}[-pooler]${NEON_HOST_SUFFIX}). Aborting.`,
+    );
   }
 }
 
@@ -109,13 +130,20 @@ export interface DrainRow {
 export interface RunDrainOpts {
   /** Fetch up to `take` eligible rows with id > lastId (keyset), ordered by id. */
   selectChunk: (lastId: unknown, take: number) => Promise<DrainRow[]>;
-  /** Archive one row (execute mode only). */
-  archiveRow: (row: DrainRow) => Promise<{ ok: boolean }>;
-  /** Durably record a touched id (execute mode only). */
+  /** Archive one row (execute mode only). Returns ok (stripped), skipped (eligibility drift), or neither (error). */
+  archiveRow: (row: DrainRow) => Promise<{ ok: boolean; skipped?: boolean }>;
+  /**
+   * Durably record a touched id as a PRE-COMMIT INTENT (execute mode only). Called BEFORE the strip
+   * commits, so a stripped row can never be missing from the audit log. MUST fsync and MUST throw on
+   * write failure (the throw aborts the run before the strip). Over-reporting (a logged id whose strip
+   * later skipped/failed) is acceptable; under-reporting an actually-stripped id is not.
+   */
   recordTouched: (t: { id: unknown; listing_key: string | null; status: string }) => void;
   execute: boolean;
   maxRows: number;
   chunkSize: number;
+  /** Stop the run if eligibility-drift skips exceed this (default Infinity → never stop on skips). */
+  skipThreshold?: number;
   log?: (msg: string) => void;
   /** Optional inter-chunk pause (let autovacuum / WAL breathe). */
   sleep?: () => Promise<void>;
@@ -124,6 +152,7 @@ export interface RunDrainOpts {
 export interface RunDrainResult {
   scanned: number;
   archived: number;
+  skipped: number;
   errors: number;
   lastId: unknown;
 }
@@ -131,15 +160,19 @@ export interface RunDrainResult {
 /**
  * Keyset-chunked drain loop. Bounded by maxRows; never requests more than chunkSize per page.
  * Dry-run (execute=false) performs ZERO writes — it only scans + asserts eligibility. Execute mode
- * archives each row and records its touched id. Any non-eligible row aborts the whole run (fail-closed).
+ * writes the durable PRE-COMMIT intent log for each row, then archives it; the strip is fail-closed
+ * (archiveOneListing re-checks eligibility atomically → skip on drift). Any non-eligible row surfaced
+ * by the query aborts the whole run (fail-closed), as does exceeding skipThreshold.
  */
 export async function runDrain(opts: RunDrainOpts): Promise<RunDrainResult> {
   const { selectChunk, archiveRow, recordTouched, execute, maxRows, chunkSize } = opts;
   const log = opts.log ?? (() => {});
+  const skipThreshold = opts.skipThreshold ?? Infinity;
 
   let lastId: unknown = 0;
   let scanned = 0;
   let archived = 0;
+  let skipped = 0;
   let errors = 0;
 
   while (scanned < maxRows) {
@@ -152,10 +185,19 @@ export async function runDrain(opts: RunDrainOpts): Promise<RunDrainResult> {
       scanned++;
       lastId = row.id;
       if (execute) {
+        // Durable PRE-COMMIT intent: record the id BEFORE the strip. A failing (throwing) log write
+        // aborts the run here — the strip never runs, so a stripped row can never be unlogged.
+        recordTouched({ id: row.id, listing_key: row.mls_id ?? row.listing_id ?? null, status: row.status });
         const r = await archiveRow(row);
-        if (r && r.ok) {
+        if (r?.skipped) {
+          skipped++;
+          if (skipped > skipThreshold) {
+            throw new Error(
+              `SAFETY STOP: ${skipped} eligibility-drift skips exceeded threshold ${skipThreshold}. Stopping.`,
+            );
+          }
+        } else if (r?.ok) {
           archived++;
-          recordTouched({ id: row.id, listing_key: row.mls_id ?? row.listing_id ?? null, status: row.status });
         } else {
           errors++;
         }
@@ -166,6 +208,6 @@ export async function runDrain(opts: RunDrainOpts): Promise<RunDrainResult> {
     if (opts.sleep) await opts.sleep();
   }
 
-  log(`[drain] execute=${execute} scanned=${scanned} archived=${archived} errors=${errors}`);
-  return { scanned, archived, errors, lastId };
+  log(`[drain] execute=${execute} scanned=${scanned} archived=${archived} skipped=${skipped} errors=${errors}`);
+  return { scanned, archived, skipped, errors, lastId };
 }

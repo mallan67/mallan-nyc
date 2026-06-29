@@ -38,8 +38,12 @@ import {
 } from "@/lib/retention/drain-core";
 
 const COLD = "postgresql://u:p@ep-cold-waterfall-adno3ao2.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require";
+const POOLER = "postgresql://u:p@ep-cold-waterfall-adno3ao2-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require";
 const ROYAL = "postgresql://u:p@ep-royal-dawn-ad6eh8t2.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require";
 const OTHER = "postgresql://u:p@ep-some-other-host.neon.tech/neondb?sslmode=require";
+const QUERY_INJECT = "postgresql://u:p@evil.example.com/neondb?application_name=ep-cold-waterfall-adno3ao2";
+const PW_INJECT = "postgresql://u:ep-cold-waterfall-adno3ao2@evil.example.com/neondb";
+const MALFORMED = "not a valid url at all";
 
 function terminalRow(id: number, over = {}): any {
   return {
@@ -108,35 +112,52 @@ describe("buildArchiveSummaryCreate — typed-first summary, key = mls_id||listi
   });
 });
 
-describe("archiveOneListing — atomic upsert+strip, error → sync_errors", () => {
-  function fakePrisma() {
-    const calls: any = { upsert: [], update: [], tx: 0, syncError: [] };
-    const prisma: any = {
+describe("archiveOneListing — guarded strip re-checks eligibility inside the write tx", () => {
+  const guard = archiveEligibilityWhere({ now: new Date("2026-06-29T00:00:00Z"), clock: "terminal_since" });
+
+  function fakePrisma(updateCount = 1) {
+    const calls: any = { updateMany: [], upsert: [], syncError: [], tx: 0 };
+    const tx: any = {
+      listing: { updateMany: (a: any) => { calls.updateMany.push(a); return Promise.resolve({ count: updateCount }); } },
       listingsArchive: { upsert: (a: any) => { calls.upsert.push(a); return Promise.resolve({}); } },
-      listing: { update: (a: any) => { calls.update.push(a); return Promise.resolve({}); } },
+    };
+    const prisma: any = {
+      $transaction: (fn: any) => { calls.tx++; return fn(tx); },
       syncError: { create: (a: any) => { calls.syncError.push(a); return Promise.resolve({}); } },
-      $transaction: (ops: Promise<unknown>[]) => { calls.tx++; return Promise.all(ops); },
     };
     return { prisma, calls };
   }
 
-  it("archives one row in a single transaction with the strip contract", async () => {
-    const { prisma, calls } = fakePrisma();
-    const res = await archiveOneListing(prisma, terminalRow(1) as any);
+  it("eligible row: guarded updateMany strips by the FULL predicate (+id), then upserts the summary", async () => {
+    const { prisma, calls } = fakePrisma(1);
+    const res = await archiveOneListing(prisma, terminalRow(1) as any, guard);
     expect(res.ok).toBe(true);
-    expect(calls.tx).toBe(1);
+    expect(res.skipped).toBeFalsy();
+    const w = calls.updateMany[0].where;
+    expect(w.id).toBe(1);
+    expect(w.status).toEqual({ in: ARCHIVE_TERMINAL_STATUSES }); // not by id alone
+    expect(w.sync_status).toEqual({ not: "archived" });
+    expect(w.terminal_since.lt).toBeInstanceOf(Date);
+    expect(calls.updateMany[0].data).toBe(ARCHIVE_STRIP_DATA);
     expect(calls.upsert[0].where).toEqual({ listing_key: "RLS1" });
-    expect(calls.upsert[0].update).toEqual({});
-    expect(calls.update[0].where).toEqual({ id: 1 });
-    expect(calls.update[0].data).toBe(ARCHIVE_STRIP_DATA);
     expect(calls.syncError).toHaveLength(0);
   });
 
-  it("on transaction failure: records a listings_archive_move sync_error and returns ok:false", async () => {
+  it("eligibility drift (0 rows updated → reactivated/already-archived/aged-out): SKIPS, writes NO summary, no error", async () => {
+    const { prisma, calls } = fakePrisma(0);
+    const res = await archiveOneListing(prisma, terminalRow(1) as any, guard);
+    expect(res.ok).toBe(false);
+    expect(res.skipped).toBe(true);
+    expect(calls.upsert).toHaveLength(0); // a row that wasn't stripped must NOT get a summary
+    expect(calls.syncError).toHaveLength(0);
+  });
+
+  it("transaction failure: records a listings_archive_move sync_error, returns ok:false (NOT skipped)", async () => {
     const { prisma, calls } = fakePrisma();
     prisma.$transaction = () => Promise.reject(new Error("boom"));
-    const res = await archiveOneListing(prisma, terminalRow(2) as any);
+    const res = await archiveOneListing(prisma, terminalRow(2) as any, guard);
     expect(res.ok).toBe(false);
+    expect(res.skipped).toBeFalsy();
     expect(calls.syncError[0].data.resource).toBe("listings_archive_move");
     expect(calls.syncError[0].data.listing_id).toBe("RLS2");
   });
@@ -169,15 +190,27 @@ describe("parseDrainArgs — bounded, no unlimited mode", () => {
   });
 });
 
-describe("assertCanonicalHost — host guard", () => {
-  it("accepts canonical cold-waterfall", () => {
+describe("assertCanonicalHost — parses + validates the hostname (not substring)", () => {
+  it("accepts canonical cold-waterfall direct host", () => {
     expect(() => assertCanonicalHost(COLD)).not.toThrow();
+  });
+  it("accepts the canonical pooler host variant", () => {
+    expect(() => assertCanonicalHost(POOLER)).not.toThrow();
   });
   it("refuses stale royal-dawn", () => {
     expect(() => assertCanonicalHost(ROYAL)).toThrow(/royal-dawn|stale/i);
   });
   it("refuses any non-canonical host", () => {
     expect(() => assertCanonicalHost(OTHER)).toThrow();
+  });
+  it("refuses a non-canonical host that only has the canonical string in a query param", () => {
+    expect(() => assertCanonicalHost(QUERY_INJECT)).toThrow(/not the canonical/i);
+  });
+  it("refuses a non-canonical host that only has the canonical string in the password", () => {
+    expect(() => assertCanonicalHost(PW_INJECT)).toThrow(/not the canonical/i);
+  });
+  it("fails closed on a malformed DATABASE_URL", () => {
+    expect(() => assertCanonicalHost(MALFORMED)).toThrow(/malformed|unparseable|host/i);
   });
 });
 
@@ -265,7 +298,7 @@ describe("runDrain — bounded, dry-run safe, execute writes", () => {
     ).rejects.toThrow(/mismatch|terminal/i);
   });
 
-  it("counts errors when a row fails to archive", async () => {
+  it("counts errors when a row fails to archive (intent still logged pre-commit)", async () => {
     const archiveRow = jest.fn(async () => ({ ok: false }));
     const recordTouched = jest.fn();
     const res = await runDrain({
@@ -274,7 +307,40 @@ describe("runDrain — bounded, dry-run safe, execute writes", () => {
     });
     expect(res.errors).toBe(2);
     expect(res.archived).toBe(0);
-    expect(recordTouched).not.toHaveBeenCalled();
+    expect(recordTouched).toHaveBeenCalledTimes(2); // intent is written BEFORE the strip attempt
+  });
+
+  it("writes the intent log BEFORE the strip — a failing intent write aborts before archiveRow", async () => {
+    const archiveRow = jest.fn(async () => ({ ok: true }));
+    const recordTouched = jest.fn(() => { throw new Error("disk full"); });
+    await expect(
+      runDrain({ selectChunk: () => Promise.resolve([terminalRow(1)]), archiveRow, recordTouched, execute: true, maxRows: 1, chunkSize: 1 }),
+    ).rejects.toThrow(/disk full/);
+    expect(archiveRow).not.toHaveBeenCalled(); // the strip never ran → no unlogged stripped row
+  });
+
+  it("a skipped row (eligibility drift) is not archived and not an error; intent still logged", async () => {
+    const archiveRow = jest.fn(async () => ({ ok: false, skipped: true }));
+    const recordTouched = jest.fn();
+    const res = await runDrain({
+      selectChunk: () => Promise.resolve([terminalRow(1), terminalRow(2)]),
+      archiveRow, recordTouched, execute: true, maxRows: 2, chunkSize: 5,
+    });
+    expect(res.skipped).toBe(2);
+    expect(res.archived).toBe(0);
+    expect(res.errors).toBe(0);
+    expect(recordTouched).toHaveBeenCalledTimes(2); // pre-commit intent over-reports on skip (acceptable)
+  });
+
+  it("stops when eligibility-drift skips exceed the safety threshold", async () => {
+    const archiveRow = jest.fn(async () => ({ ok: false, skipped: true }));
+    await expect(
+      runDrain({
+        selectChunk: (lastId: any, take: number) =>
+          Promise.resolve(Array.from({ length: take }, (_, i) => terminalRow(Number(lastId) + i + 1))),
+        archiveRow, recordTouched: jest.fn(), execute: true, maxRows: 10, chunkSize: 2, skipThreshold: 1,
+      }),
+    ).rejects.toThrow(/SAFETY STOP|threshold/i);
   });
 });
 
@@ -294,7 +360,8 @@ describe("cron route stays capped at 500 (NOT changed by Gate 6)", () => {
       "utf8",
     );
     expect(src).toMatch(/from "@\/lib\/retention\/archive-terminals"/);
-    expect(src).toMatch(/archiveOneListing\(prisma,\s*l\)/);
+    // passes the archive `where` as the in-transaction eligibility guard (3rd arg)
+    expect(src).toMatch(/archiveOneListing\(prisma,\s*l,\s*archiveWhere\)/);
   });
 });
 
@@ -317,8 +384,16 @@ describe("operator script wires the safety primitives (scripts/drain-archive-bac
     expect(src).toMatch(/clock:\s*"terminal_since"/);
   });
 
-  it("does NOT read the Vercel cron flag from the environment", () => {
-    expect(src).not.toMatch(/process\.env\.ARCHIVE_T180_BACKLOG_ENABLED/);
+  it("neither the script nor the shared core READS the Vercel cron flag from the environment", () => {
+    // (Doc/comment mentions of the flag name are fine; the safety property is no runtime env read.)
+    for (const f of [
+      "scripts/drain-archive-backlog.ts",
+      "lib/retention/drain-core.ts",
+      "lib/retention/archive-terminals.ts",
+    ]) {
+      const s = fs.readFileSync(path.resolve(__dirname, "../../", f), "utf8");
+      expect(s).not.toMatch(/process\.env\.ARCHIVE_T180_BACKLOG_ENABLED/);
+    }
   });
 
   it("touched-id log is durable (fsync) and records ids only (formatTouchedLine)", () => {

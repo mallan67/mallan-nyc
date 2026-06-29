@@ -170,23 +170,24 @@ export async function GET(req: NextRequest) {
     ? { terminal_since: { lt: oneEightyDayCutoff } }
     : { status_changed_at: { lt: oneEightyDayCutoff } };
 
+  const archiveWhere: Prisma.ListingWhereInput = {
+    status: { in: [...TERMINAL_STATUSES] },
+    sync_status: { not: "archived" },
+    ...eligibilityWhere,
+  };
   const toArchive = await prisma.listing.findMany({
-    where: {
-      status: { in: [...TERMINAL_STATUSES] },
-      sync_status: { not: "archived" },
-      ...eligibilityWhere,
-    },
+    where: archiveWhere,
     select: ARCHIVE_SELECT,
     take: T180_BATCH_CAP,
   });
 
   // Per-row archive via the shared core (lib/retention/archive-terminals.ts) — the SAME logic the
   // Gate 6 operator drain (scripts/drain-archive-backlog.ts) uses, so the nightly cron and the
-  // controlled drain can never drift. The per-row transaction, the JSON strip, and the
-  // listings_archive_move sync_error on failure all live inside archiveOneListing.
+  // controlled drain can never drift. archiveOneListing re-asserts `archiveWhere` atomically inside
+  // the write transaction (a row that reactivated between SELECT and write is skipped, not stripped).
   let archivedCount = 0;
   for (const l of toArchive) {
-    const r = await archiveOneListing(prisma, l);
+    const r = await archiveOneListing(prisma, l, archiveWhere);
     if (r.ok) archivedCount++;
   }
   results.t180d_listings_archived = archivedCount;
