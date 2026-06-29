@@ -78,6 +78,26 @@ describe("/api/portal/seller/demand — owner_client_id enforced (cross-client I
   });
 });
 
+describe("agent bypass — CRM staff retain full access (not bound by owner_client_id)", () => {
+  // requireWorkspace short-circuits userType==='agent' before any lead lookup, and canAccessOwnerListing
+  // returns true for agents; userType is server-sourced from the session, not client-controllable.
+  const AGENT = { userId: 1n, userType: "agent" as const, role: "agent" };
+
+  it("fomo: an agent gets 200 even for a listing owned by a different client", async () => {
+    requireWorkspaceMock.mockResolvedValue(AGENT);
+    prismaMock.listing.findFirst = jest.fn(async () => ({ id: 5n, owner_client_id: 999n, neighborhood: "X", list_price: 100, days_on_market: 1 })) as never;
+    const res = await fomoGET(req("fomo", "SL-ANY"));
+    expect(res.status).toBe(200);
+  });
+
+  it("demand: an agent gets 200 even for a listing with a null owner_client_id", async () => {
+    requireWorkspaceMock.mockResolvedValue(AGENT);
+    prismaMock.listing.findFirst = jest.fn(async () => ({ owner_client_id: null, neighborhood: "X", list_price: 100 })) as never;
+    const res = await demandGET(req("demand", "SL-UNASSIGNED"));
+    expect(res.status).toBe(200);
+  });
+});
+
 describe("source contract: fomo + demand use workspace auth + owner_client_id seam", () => {
   it.each(["fomo", "demand"])("/api/portal/seller/%s admits via requireWorkspace and gates with canAccessOwnerListing on owner_client_id", (r) => {
     const src = fs.readFileSync(path.resolve(__dirname, `../../app/api/portal/seller/${r}/route.ts`), "utf8");
