@@ -281,3 +281,5 @@ __pw-review*/
 
 # Gate 3 terminal_since backfill touched-id logs (operational rollback artifacts, not repo history)
 artifacts/gate3-backfill-touched-*.jsonl
+# Gate 6 archive-drain touched-id logs (operational audit artifacts, not repo history)
+artifacts/gate6-archive-touched-*.jsonl
