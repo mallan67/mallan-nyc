@@ -76,14 +76,14 @@ Model the script on `scripts/backfill-terminal-since.ts`, adapted to the archive
 | **Stale-DB refusal** | explicit refuse if host contains `ep-royal-dawn-ad6eh8t2` (or any non-canonical) | never write the stale/do-not-serve DB |
 | **Dry-run default** | no `--execute` ⇒ count + sample only, **zero writes** | proof before action |
 | **`--execute` required** | writes only with the explicit flag (+ in-script confirmation echo of target host + max-rows) | gated |
-| **Touched-id logging** | append `{ id, listing_key, status, archived_at }` durably (fsync-before-COMMIT pattern, `:65-83`) to `artifacts/gate6-archive-touched-<stamp>.jsonl` | authoritative record of exactly what was archived |
+| **Touched-id logging** | durable **pre-commit intent** log: append `{ id, listing_key, status }` (ids only) + fsync **before** each strip, to `artifacts/gate6-archive-touched-<stamp>.jsonl` | a SUPERSET of archived ids (`intent_lines = archived + skipped + errors`) — never under-reports a stripped row; reconcile per §6, do NOT equate with the archive delta |
 | **Rollback branch** | **REQUIRED pre-`--execute`**: a fresh Neon branch off canonical `main` (like the Gate-5 `br-square-silence-…`) taken immediately before the run | the archive strip is **one-way per row** (see §3.1) |
 
 ### 3.1 Rollback reality — value-guarded rollback is NOT feasible for the strip
 Unlike the `terminal_since` backfill (which sets one nullable column and can be value-guard-reverted), the archive strip **destroys data**: `raw_data`/`media`/`compliance` are overwritten with null/empty. The touched-id log records *which* rows were archived, but it **cannot restore their stripped JSON** (only a Trestle re-fetch or a point-in-time DB copy can). Therefore:
 - **Per-row un-archive is NOT provided.** Rollback = **whole-branch restore** from the pre-run Neon branch / PITR (reverts unrelated writes too — last resort).
 - This makes the **pre-run rollback branch mandatory**, and argues for **bounded runs** (5k pilot, ≤20k thereafter) so the blast radius of any mistake is one run, not the whole backlog.
-- The touched-id log's role is **audit + verification** (reconcile archived count, spot-check, prove no non-terminal row touched), not per-row reversal.
+- The intent log's role is **audit + verification** (enumerate the ids to spot-check; reconcile as `intent_lines = archived + skipped + errors`; prove no non-terminal row stripped), not per-row reversal.
 
 ### 3.2 Write-load / WAL / dead-tuple notes
 - Each archived row = 1 small insert (`listings_archive`) + 1 **full-row UPDATE** of `listings` that nulls large TOASTed JSON. That UPDATE writes a new tuple and **dead-tuples the old one + its TOAST**. Draining 80k rows will add ~80k dead tuples to `listings` (already ~13.7k dead / 11%).
@@ -123,9 +123,11 @@ Gate each run on a fresh read-only snapshot (no writes):
 
 ## 6. Verification AFTER each controlled run (mirror Gate 5 §5)
 
+> The script prints `archived N / scanned M (skipped S, errors E)`. Reconcile DB deltas against the **`archived`** count — **not** the intent-log line count. The pre-commit intent log is a **SUPERSET**: `intent_lines = archived + skipped + errors` (ids are logged before the strip, so drift-skips and errors appear too). Use it to enumerate ids to spot-check, then reconcile as a superset.
+
 Read-only, then post to #415:
-1. **Archived delta == rows the run reports updated** (touched-id log line count == archived delta); reconcile the benign idempotent-upsert gap if any (0 dup-key/orphan/missing, safe direction — as Night 3).
-2. **`sync_status='archived'` delta matches** the `listings_archive` delta.
+1. **`listings_archive` delta == the script's reported `archived` count** (NOT the intent-log line count); reconcile the benign idempotent-upsert gap if any (0 dup-key/orphan/missing, safe direction — as Night 3). Confirm `intent_lines − archived == skipped + errors`.
+2. **`sync_status='archived'` delta == the `archived` count** (and == the `listings_archive` delta).
 3. **No non-terminal/live archived** = 0; archived rows terminal-only.
 4. **Strip proof (JSON-null semantics):** `raw_data` content = 0 (all JSON `null`), `media=[]`, `compliance={}` across the run's rows.
 5. **Backlog trends down** from the pre-run count (allow aged-in rows; the exact invariants are the two deltas).
@@ -136,7 +138,7 @@ Read-only, then post to #415:
 10. **Vercel/prod health unaffected** — runtime logs clean; no `listings_archive_move` `sync_errors`.
 11. **Post #415 proof** with verification-type tags (production-SQL / Vercel-log / live-probe / ops:health).
 
-**Hard-stop (any → stop, do not start the next run):** archived delta ≠ updated count in the unsafe direction (more than reported), any non-terminal/live row archived, §2.05 regression, `sync_errors` for `listings_archive_move`, public/health break, or a closed-comps render regression.
+**Hard-stop (any → stop, do not start the next run):** the `listings_archive` delta exceeds the script's `archived` count (unsafe direction); the two deltas disagree with `archived`; `intent_lines − archived ≠ skipped + errors`; any non-terminal/live row archived; §2.05 regression; `sync_errors` for `listings_archive_move`; public/health break; or a closed-comps render regression. *(A high `skipped` count is eligibility drift — investigate, but it is not itself a strip safety breach.)*
 
 ---
 
@@ -173,7 +175,7 @@ Read-only, then post to #415:
    - **`MAX_RUN_CEILING = 25000`** — refuse `--max-rows` above it (typo guard).
    - **host guard** (cold-waterfall) + **stale-DB refusal** (royal-dawn).
    - keyset 500/page, per-row transaction via `archiveOneListing`, 250–500 ms inter-chunk sleep, `statement_timeout` per txn.
-   - **durable touched-id log** `artifacts/gate6-archive-touched-<stamp>.jsonl` (fsync-before-COMMIT).
+   - **durable pre-commit intent log** (ids only, fsync **before** each strip) `artifacts/gate6-archive-touched-<stamp>.jsonl` — a superset reconciled per §6.
    - pre-flight assertion: target host canonical; print target + max-rows + "DRY-RUN/EXECUTE" banner.
    - stop conditions from §3.
 3. **Configurable cap with a safety ceiling** — the cron keeps `T180_BATCH_CAP = 500` (unchanged); only the **operator script** takes `--max-rows` bounded by `MAX_RUN_CEILING`. (Do **not** raise the cron cap.)
