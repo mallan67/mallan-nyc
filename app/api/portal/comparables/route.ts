@@ -2,13 +2,17 @@
 // Returns comparable listings in the same building + neighborhood
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, isAuthError } from "@/lib/auth";
+import { requireWorkspace, isAuthError } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { SEARCH_DISPLAY_GATE } from "@/lib/search/listing-access-decision";
 import { canAccessOwnerListing, isOwnerLead } from "@/lib/portal/listing-ownership";
 
 export async function GET(req: NextRequest) {
-  const auth = await requirePortalRole(req, "buyer", "seller", "landlord");
+  // requireWorkspace (not requirePortalRole) with "buyer" retained: buyers get public comps, and a
+  // workspace-only owner — enabled_workspaces:['landlord'] while legacy portal_role is still 'buyer'
+  // from a tenant→landlord conversion — is admitted instead of 403'd before the ownership check
+  // below (Codex #458 round 6). requirePortalRole reads only portal_role and would deny those owners.
+  const auth = await requireWorkspace(req, "buyer", "seller", "landlord");
   if (isAuthError(auth)) return auth;
 
   const listingId = req.nextUrl.searchParams.get("listingId");

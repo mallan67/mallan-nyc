@@ -218,4 +218,14 @@ describe("detail routes honor workspace owners (Codex #458): price-history + mar
     expect(src).toMatch(/requireWorkspace\(req,\s*"seller",\s*"landlord"\)/);
     expect(src).not.toMatch(/requirePortalRole\(/);
   });
+
+  // Comparables ALSO admits buyers, so it must keep "buyer" in the workspace allow-list while moving
+  // off requirePortalRole — otherwise a workspace-only landlord (enabled_workspaces:['landlord'],
+  // legacy portal_role:'buyer' from a tenant→landlord conversion) is 403'd before the ownership check
+  // and loses comps on their OWN listing (Codex #458 round 6).
+  it("/api/portal/comparables admits via requireWorkspace incl. buyer, not requirePortalRole", () => {
+    const src = fs.readFileSync(path.resolve(__dirname, "../../app/api/portal/comparables/route.ts"), "utf8");
+    expect(src).toMatch(/requireWorkspace\(req,\s*"buyer",\s*"seller",\s*"landlord"\)/);
+    expect(src).not.toMatch(/requirePortalRole\(/);
+  });
 });
