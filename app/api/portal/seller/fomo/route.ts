@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePortalRole, isAuthError } from '@/lib/auth';
+import { canAccessOwnerListing } from '@/lib/portal/listing-ownership';
 
 function getMomentumTier(score: number): string {
   if (score >= 80) return 'hot';
@@ -19,7 +20,7 @@ export const dynamic = 'force-dynamic';
  * Seller portal auth required.
  */
 export async function GET(request: NextRequest) {
-  // C-3 fix: use session cookie auth instead of broken portal_token lookup
+  // P0: use session cookie auth with owner_client_id enforcement
   const auth = await requirePortalRole(request, "seller", "landlord");
   if (isAuthError(auth)) return auth;
 
@@ -39,16 +40,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'listingId required' }, { status: 400 });
   }
 
-  // Verify seller owns this listing (via their assigned agent)
+  // P0: Use owner_client_id for ownership enforcement (not agent relationship).
+  // REBNY Art. III §2: seller must own the listing to see its FOMO data.
+  // Fail-closed with 404 to avoid leaking listing existence.
   const listing = await prisma.listing.findFirst({
     where: {
       listing_id: listingId,
-      agent: {
-        leads: { some: { id: lead.id } },
-      },
     },
     select: {
       id: true,
+      owner_client_id: true,
       neighborhood: true,
       borough: true,
       list_price: true,
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  if (!listing) {
+  if (!listing || !canAccessOwnerListing(auth, listing.owner_client_id)) {
     return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
   }
 
@@ -99,22 +100,36 @@ export async function GET(request: NextRequest) {
   const currentBuyerMatch = currentPrice > 0
     ? await prisma.buyerIntentProfile.count({
         where: {
-          price_min: { lte: currentPrice },
-          price_max: { gte: currentPrice },
+          AND: [
+            listing.neighborhood
+              ? { preferred_neighborhoods: { has: listing.neighborhood } }
+              : {},
+            {
+              price_min: { lte: currentPrice },
+              price_max: { gte: currentPrice },
+            },
+          ],
         },
       })
     : 0;
+
   const reducedBuyerMatch = reducedPrice > 0
     ? await prisma.buyerIntentProfile.count({
         where: {
-          price_min: { lte: reducedPrice },
-          price_max: { gte: reducedPrice },
+          AND: [
+            listing.neighborhood
+              ? { preferred_neighborhoods: { has: listing.neighborhood } }
+              : {},
+            {
+              price_min: { lte: reducedPrice },
+              price_max: { gte: reducedPrice },
+            },
+          ],
         },
       })
     : 0;
 
   return NextResponse.json({
-    listingId,
     momentum: momentum
       ? {
           score: momentum.score,
@@ -146,7 +161,7 @@ export async function GET(request: NextRequest) {
       reducedPrice: Math.round(reducedPrice),
       currentBuyerMatch,
       reducedBuyerMatch,
-      additionalBuyers: reducedBuyerMatch - currentBuyerMatch,
+      additionalBuyers: Math.max(0, reducedBuyerMatch - currentBuyerMatch),
       reductionPercent: 5,
     },
   });
