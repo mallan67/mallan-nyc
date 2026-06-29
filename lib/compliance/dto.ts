@@ -391,6 +391,84 @@ export function sanitizeListingForPortal(
   return sanitizeForPortal(flat, portalRole);
 }
 
+/**
+ * Serialize a listing for ITS OWNER's portal view (seller/landlord seeing their OWN listing).
+ *
+ * Unlike sanitizeListingForPortal (public/buyer portal), this does NOT apply the public-DISSEMINATION
+ * gates — owner_opt_out (UCBA Art. I §4(A)/§5(A)), participant_only (Def. (W)), and
+ * internet_entire_listing_display_yn (RLS Gate 3). Those gates govern PUBLIC display/IDX/syndication;
+ * an owner viewing their OWN listing in their OWN authenticated portal is NOT public dissemination, so
+ * an opted-out / participant-only / CRM-exclusive (SL-/RL-, internet flag null) owned listing must
+ * still be visible to its owner. The SAME safe field allow-list + role masking (sanitizeForPortal —
+ * address suppression, agent-PII masking, CRM-field stripping) is applied, so no extra field is
+ * exposed relative to the public portal; only the listing-level visibility gate is lifted.
+ *
+ * FAIL-CLOSED CONTRACT: callers MUST have already verified ownership (e.g. an `owner_client_id ===
+ * auth.userId` query filter or canAccessOwnerListing). This function performs NO ownership check and
+ * MUST NOT be called on a listing the caller has not been proven to own.
+ */
+/**
+ * Format a listing's raw address JSON into a single renderable line (e.g. "123 Main St #4B").
+ * Handles both lowercase (streetNumber/streetName/unitNumber) and PascalCase (Trestle) shapes.
+ * Owner pages type `address: string` and render it directly, so the owner DTO must emit a string.
+ */
+function formatOwnerAddressLine(address: unknown): string | null {
+  if (!address || typeof address !== "object" || Array.isArray(address)) return null;
+  const a = address as Record<string, unknown>;
+  const pick = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = a[k];
+      if (v !== null && v !== undefined && String(v).trim().length > 0) return String(v).trim();
+    }
+    return "";
+  };
+  const streetNumber = pick("streetNumber", "StreetNumber");
+  const dirPrefix = pick("streetDirPrefix", "StreetDirPrefix");
+  const streetName = pick("streetName", "StreetName");
+  const suffix = pick("streetSuffix", "StreetSuffix");
+  const dirSuffix = pick("streetDirSuffix", "StreetDirSuffix");
+  const unit = pick("unitNumber", "UnitNumber", "unit");
+  // Full RESO street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
+  const street = [streetNumber, dirPrefix, streetName, suffix, dirSuffix].filter(Boolean).join(" ").trim();
+  const full = unit ? `${street}${street ? " " : ""}#${unit}` : street;
+  if (full.trim().length > 0) return full.trim();
+  // Fall back to a pre-formatted unparsed address when discrete components are absent.
+  return pick("unparsedAddress", "UnparsedAddress") || null;
+}
+
+export function sanitizeOwnedListingForOwner(
+  listing: PortalListingInput,
+  portalRole: string
+): Record<string, unknown> {
+  const flat: Record<string, unknown> = {
+    id: listing.id.toString(),
+    listing_id: listing.listing_id,
+    status: listing.status,
+    listing_type: listing.listing_type,
+    property_type: listing.property_type,
+    property_sub_type: listing.property_sub_type,
+    list_price: listing.list_price?.toString() ?? null,
+    bedrooms_total: listing.bedrooms_total,
+    bathrooms_full: listing.bathrooms_full,
+    bathrooms_half: listing.bathrooms_half,
+    living_area: listing.living_area?.toString() ?? null,
+    borough: listing.borough,
+    neighborhood: listing.neighborhood,
+    address: listing.address,
+    features: listing.features,
+    media: listing.media,
+    agent_info: listing.agent_info,
+    list_office_name: listing.list_office_name,
+    internet_address_display_yn: listing.internet_address_display_yn,
+  };
+  const masked = sanitizeForPortal(flat, portalRole);
+  // Owner sees their OWN address as a renderable STRING (seller/landlord pages type address:string and
+  // render it directly). Built from the raw address object; shown regardless of the public
+  // internet_address_display_yn gate (an owner viewing their own data is not public dissemination).
+  masked.address = formatOwnerAddressLine(listing.address);
+  return masked;
+}
+
 /** Fields that must NEVER appear in any API response, including CRM */
 const NEVER_EXPOSE_FIELDS = [
   // Auth credentials — must never leak even to authorized CRM users

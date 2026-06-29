@@ -6,6 +6,7 @@ import { requirePortalRole, requireAuth, isAuthError, logAuditEvent } from "@/li
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
+import { canAccessOwnerListing } from "@/lib/portal/listing-ownership";
 import { recordPortalEvent } from "@/lib/portal/events";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -27,7 +28,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
   });
-  if (!listing || !isListingDisplayable(listing)) {
+  // Owner-aware gate: the public display gate fail-closes opted-out / participant-only / internet-
+  // display-off listings, but the OWNER of a listing (and agents) must still read/post comments on
+  // their own non-displayable inventory — /api/portal/listings now surfaces exactly those rows
+  // (Codex #458 round 7). Non-owners on a non-displayable listing still 404 (no existence leak).
+  if (!listing || (!isListingDisplayable(listing) && !canAccessOwnerListing(auth, listing.owner_client_id))) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
@@ -116,7 +121,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
   });
-  if (!listing || !isListingDisplayable(listing)) {
+  // Owner-aware gate: the public display gate fail-closes opted-out / participant-only / internet-
+  // display-off listings, but the OWNER of a listing (and agents) must still read/post comments on
+  // their own non-displayable inventory — /api/portal/listings now surfaces exactly those rows
+  // (Codex #458 round 7). Non-owners on a non-displayable listing still 404 (no existence leak).
+  if (!listing || (!isListingDisplayable(listing) && !canAccessOwnerListing(auth, listing.owner_client_id))) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
