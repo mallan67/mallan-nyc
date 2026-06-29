@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { requirePortalRole, isAuthError } from '@/lib/auth';
+import { requireWorkspace, isAuthError } from '@/lib/auth';
+import { canAccessOwnerListing } from '@/lib/portal/listing-ownership';
 
 function getMomentumTier(score: number): string {
   if (score >= 80) return 'hot';
@@ -19,18 +20,11 @@ export const dynamic = 'force-dynamic';
  * Seller portal auth required.
  */
 export async function GET(request: NextRequest) {
-  // C-3 fix: use session cookie auth instead of broken portal_token lookup
-  const auth = await requirePortalRole(request, "seller", "landlord");
+  // requireWorkspace (not requirePortalRole) so a workspace-only owner — enabled_workspaces:['seller'|
+  // 'landlord'] while legacy portal_role is still 'buyer' (promotion/conversion flow) — is admitted;
+  // ownership is then enforced by canAccessOwnerListing below.
+  const auth = await requireWorkspace(request, "seller", "landlord");
   if (isAuthError(auth)) return auth;
-
-  const lead = await prisma.lead.findUnique({
-    where: { id: auth.userId },
-    select: { id: true },
-  });
-
-  if (!lead) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
 
   const { searchParams } = new URL(request.url);
   const listingId = searchParams.get('listingId');
@@ -39,16 +33,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'listingId required' }, { status: 400 });
   }
 
-  // Verify seller owns this listing (via their assigned agent)
+  // Ownership enforcement (REBNY Art. III §2): the caller must OWN this listing (owner_client_id ===
+  // their lead id; agents bypass). The previous `agent.leads.some` scoping was a cross-client IDOR —
+  // two sellers sharing a listing agent could read each other's FOMO analytics. Deny with 404 (not
+  // 403) so a non-owner cannot probe the listing's existence.
   const listing = await prisma.listing.findFirst({
-    where: {
-      listing_id: listingId,
-      agent: {
-        leads: { some: { id: lead.id } },
-      },
-    },
+    where: { listing_id: listingId },
     select: {
       id: true,
+      owner_client_id: true,
       neighborhood: true,
       borough: true,
       list_price: true,
@@ -59,7 +52,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  if (!listing) {
+  if (!listing || !canAccessOwnerListing(auth, listing.owner_client_id)) {
     return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
   }
 
