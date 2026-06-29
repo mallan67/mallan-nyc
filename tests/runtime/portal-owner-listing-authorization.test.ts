@@ -113,6 +113,33 @@ describe("/api/portal/comparables — ownership enforced for owner-roles (IDOR c
     expect(res.status).toBe(404);
     expect(findMany).not.toHaveBeenCalled();
   });
+
+  it("WORKSPACE-ONLY owner (enabled_workspaces:['seller'], portal_role:'buyer') pulling comps for an UNOWNED listing → 404 (Codex round-5 IDOR)", async () => {
+    // requirePortalRole admits this lead via the BUYER allowance; the ownership check must still fire
+    // because the workspace makes them an owner. portal_role alone ('buyer') would skip it — the bug.
+    prismaMock.lead.findUnique = jest.fn(async () => ({ portal_role: "buyer", enabled_workspaces: ["seller"], roles: [] })) as never;
+    prismaMock.listing.findFirst = jest.fn(async () => ({
+      id: 5n, listing_id: "SL-OTHER", owner_client_id: 999n,
+      address: {}, neighborhood: "X", borough: "M", list_price: 100, property_type: "Condo", bedrooms_total: 1,
+    })) as never;
+    const findMany = jest.fn(async () => []);
+    prismaMock.listing.findMany = findMany as never;
+    const res = await comparablesGET(getReq("http://localhost/api/portal/comparables?listingId=SL-OTHER"));
+    expect(res.status).toBe(404);
+    expect(findMany).not.toHaveBeenCalled(); // never pulls another owner's comps
+  });
+
+  it("a PURE buyer (no owner workspace) still gets public comps (ownership check does NOT apply)", async () => {
+    prismaMock.lead.findUnique = jest.fn(async () => ({ portal_role: "buyer", enabled_workspaces: ["buyer"], roles: [] })) as never;
+    prismaMock.listing.findFirst = jest.fn(async () => ({
+      id: 5n, listing_id: "RLS-1", owner_client_id: 999n,
+      address: {}, neighborhood: "X", borough: "M", list_price: 100, property_type: "Condo", bedrooms_total: 1,
+    })) as never;
+    const findMany = jest.fn(async () => []);
+    prismaMock.listing.findMany = findMany as never;
+    const res = await comparablesGET(getReq("http://localhost/api/portal/comparables?listingId=RLS-1"));
+    expect(res.status).toBe(200); // buyers get public comparable data unchanged
+  });
 });
 
 describe("/api/portal/listings — sellers see their OWNED listings (not buyer interactions)", () => {
