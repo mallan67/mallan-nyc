@@ -23,15 +23,35 @@ export async function GET(req: NextRequest) {
     select: { portal_role: true },
   });
 
-  // Find all listings this client has interacted with
+  const portalRole = lead?.portal_role ?? "buyer";
+  const isOwnerRole = portalRole === "seller" || portalRole === "landlord";
+
+  // Sellers/landlords: their OWNED listings (owner_client_id), regardless of public-display status —
+  // owners must see every listing they own (active, withdrawn, closed/sold) to track what is
+  // happening with their listing. Field-level masking still applies via the portal DTO; the PUBLIC
+  // IDX-display gate (isListingDisplayable) is intentionally NOT applied to an owner's own data.
+  if (isOwnerRole) {
+    const owned = await prisma.listing.findMany({
+      where: { owner_client_id: auth.userId },
+      orderBy: { updated_at: "desc" },
+    });
+    const ownedListings = owned
+      .map((listing) => {
+        const sanitized = sanitizeListingForPortal(listing, portalRole);
+        if (!sanitized) return null;
+        return { ...sanitized, reactions: {} as Record<string, boolean> };
+      })
+      .filter(Boolean);
+    return NextResponse.json({ listings: ownedListings });
+  }
+
+  // Buyers/tenants: listings this client has interacted with (clientListingAction).
   const actions = await prisma.clientListingAction.findMany({
     where: { lead_id: auth.userId },
     include: {
       listing: true,
     },
   });
-
-  const portalRole = lead?.portal_role ?? "buyer";
 
   // Group by listing, attach reaction status
   const listingMap = new Map<string, {

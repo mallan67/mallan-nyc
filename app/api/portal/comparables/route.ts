@@ -5,9 +5,10 @@ import prisma from "@/lib/prisma";
 import { requirePortalRole, isAuthError } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { SEARCH_DISPLAY_GATE } from "@/lib/search/listing-access-decision";
+import { canAccessOwnerListing } from "@/lib/portal/listing-ownership";
 
 export async function GET(req: NextRequest) {
-  const auth = await requirePortalRole(req, "buyer", "seller");
+  const auth = await requirePortalRole(req, "buyer", "seller", "landlord");
   if (isAuthError(auth)) return auth;
 
   const listingId = req.nextUrl.searchParams.get("listingId");
@@ -15,12 +16,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "listingId required" }, { status: 400 });
   }
 
-  // Find the seller's listing
+  // Find the subject listing
   const listing = await prisma.listing.findFirst({
     where: { listing_id: listingId },
   });
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  // Ownership enforcement for owner-roles (REBNY Art. III §2): a seller/landlord may only pull comps
+  // for THEIR OWN listing. Agents bypass (full CRM access); buyers get public-comp data unchanged.
+  if (auth.userType === "lead") {
+    const lead = await prisma.lead.findUnique({
+      where: { id: auth.userId },
+      select: { portal_role: true },
+    });
+    const isOwnerRole = lead?.portal_role === "seller" || lead?.portal_role === "landlord";
+    if (isOwnerRole && !canAccessOwnerListing(auth, listing.owner_client_id)) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
   }
 
   const addr = (listing.address || {}) as Record<string, string>;
