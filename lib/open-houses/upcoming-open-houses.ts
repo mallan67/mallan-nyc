@@ -87,6 +87,37 @@ export function normalizeAddressKey(parts: {
   return key;
 }
 
+/** Case-tolerant RESO street parts from a stored listing `address` JSON. CRM/local listings persist
+ *  the address in RESO **PascalCase** (`StreetNumber`/`StreetName`/`UnitNumber`…), while some legacy
+ *  rows use camelCase. Reading only one casing produced an EMPTY address for CRM listings, which the
+ *  open-house `hasData` filter then dropped — the SL-0007 P1 bug. Shared by the public open-house
+ *  route (display address) and the local banner path (address-key). Returns '' per missing part. */
+export function pickAddressParts(address: unknown): {
+  streetNumber: string;
+  streetDirPrefix: string;
+  streetName: string;
+  streetSuffix: string;
+  streetDirSuffix: string;
+  unitNumber: string;
+} {
+  const a = (address && typeof address === 'object' && !Array.isArray(address) ? address : {}) as Record<string, unknown>;
+  const pick = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = a[k];
+      if (v !== null && v !== undefined && String(v).trim().length > 0) return String(v).trim();
+    }
+    return '';
+  };
+  return {
+    streetNumber: pick('streetNumber', 'StreetNumber'),
+    streetDirPrefix: pick('streetDirPrefix', 'StreetDirPrefix'),
+    streetName: pick('streetName', 'StreetName'),
+    streetSuffix: pick('streetSuffix', 'StreetSuffix'),
+    streetDirSuffix: pick('streetDirSuffix', 'StreetDirSuffix'),
+    unitNumber: pick('unitNumber', 'UnitNumber', 'unit'),
+  };
+}
+
 // ── Public shape ───────────────────────────────────────────────────────────
 
 /** Light open-house shape attached to a listing DTO for the card banner. ET times. */
@@ -213,7 +244,7 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
               internet_address_display_yn: l.internet_address_display_yn,
             }).displayable;
       if (!displayable) continue;
-      const addr = (l.address || {}) as Record<string, string>;
+      const addr = pickAddressParts(l.address);
       const timeParts = (s.time || '').split('-').map((t) => t.trim());
       out.push({
         listingId: l.listing_id || '',
