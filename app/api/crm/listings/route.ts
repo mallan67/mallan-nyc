@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
-import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -283,6 +283,40 @@ export async function POST(req: NextRequest) {
   // 3. Normalize enum values
   // 4. Apply defaults (IDXEntireListingDisplayYN, SyndicateYN)
   const { normalized, stripped } = normalizePayload(body);
+
+  // Fair Housing applies to ALL advertising, regardless of RLS eligibility (Federal FHA, NY State
+  // HRL, NYC HRL Title 8, NYC Fair Chance for Housing Act). The RLS enforcement gate above runs only
+  // for rls_eligible listings, so commercial / website-only / InHouse creates would otherwise SKIP
+  // the content scan entirely — a real NYC HRL advertising-law exposure. Scan the NORMALIZED remarks
+  // (so accepted aliases like `description`→PublicRemarks / `privateRemarks`→PrivateRemarks are
+  // resolved first — scanning raw fields here would let an aliased payload bypass the gate) on EVERY
+  // create, before any persistence. (RLS-eligible listings are also scanned inside
+  // assertRlsCompliantPayload; the duplicate is harmless defense-in-depth.)
+  const fhRecord: Record<string, string | null | undefined> = {
+    PublicRemarks: normalized.PublicRemarks as string | null | undefined,
+    ShowingInstructions: normalized.ShowingInstructions as string | null | undefined,
+    PrivateRemarks: normalized.PrivateRemarks as string | null | undefined,
+    SyndicationRemarks: normalized.SyndicationRemarks as string | null | undefined,
+  };
+  // Also scan any RAW free-text field the normalizer does not canonicalize but which still persists
+  // (verbatim in raw_data) — the CRM forms POST camelCase remark fields like `agentRemarks`,
+  // `showingInstructions`, `webHeadline` that normalizePayload's aliasToCanonical does not map
+  // (only `description`/`privateRemarks` are aliased). Key on the field NAME so structured enums
+  // (property_sub_type, status, etc.) are NOT scanned and legit values like an "Active Adult"
+  // property type don't false-positive (Codex #460).
+  const FREE_TEXT_KEY = /(remark|description|instruction|headline|comment|note|caption)/i;
+  for (const [key, value] of Object.entries(body)) {
+    if (typeof value === "string" && FREE_TEXT_KEY.test(key)) {
+      fhRecord[`raw:${key}`] = value;
+    }
+  }
+  const fhViolations = scanRecordForFairHousing(fhRecord);
+  if (fhViolations.length > 0) {
+    return NextResponse.json(
+      { error: "Listing blocked by Fair Housing content gate", blockers: fhViolations },
+      { status: 422 }
+    );
+  }
 
   // Derive permission booleans from Permissions string
   // (forms send "OwnerOptOut"/"Private"/"RLS-Owner-OptOut"/etc. — normalizer resolves)
