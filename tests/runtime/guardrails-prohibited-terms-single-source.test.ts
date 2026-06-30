@@ -56,6 +56,26 @@ describe("guardrails prohibited-terms: single canonical source (data/)", () => {
     }
   });
 
+  it("8. guardrails derives terms from the authoritative `categories` (covers terms flatList omits)", () => {
+    // The runtime write-gate (rls-enforcement.ts) iterates `categories`; the denormalized flatList can
+    // omit category terms (e.g. `family-friendly`, `top schools`). The lint must read categories too,
+    // or content with those terms passes CI while the runtime gate blocks it (Codex #461).
+    expect(guardrailsSrc).toMatch(/data\.categories/);
+  });
+
+  it("9. content surfaced by the category terms is clean (no 'family-friendly' steering phrase)", () => {
+    const txt = fs.readFileSync(path.join(ROOT, "src/data/geography/neighborhoods.json"), "utf8").toLowerCase();
+    expect(txt).not.toContain("family-friendly");
+  });
+
+  it("10. flatList is a COMPLETE mirror of categories (no category term missing — no internal drift)", () => {
+    const data = JSON.parse(fs.readFileSync(path.join(ROOT, "data/compliance/prohibited-terms.json"), "utf8"));
+    const catTerms = [...new Set(Object.values(data.categories as Record<string, { terms: string[] }>).flatMap((c) => c.terms || []))];
+    const flat = new Set((data.flatList as string[]).map((t) => t.toLowerCase()));
+    const missing = catTerms.filter((t) => !flat.has(t.toLowerCase()));
+    expect(missing).toEqual([]);
+  });
+
   it("7. guardrails runs green end-to-end against the canonical list", () => {
     // Exits 0 (PASS). Throws on non-zero exit.
     const out = execSync("node scripts/ci/guardrails.mjs", { cwd: ROOT, encoding: "utf8" });

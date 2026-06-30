@@ -308,7 +308,14 @@ for (const p of prohibitedTermsPaths) {
   if (exists(p)) {
     try {
       const data = JSON.parse(readFile(p));
-      prohibitedTerms = data.flatList || [];
+      // Derive from the authoritative `categories` (the SAME structure the runtime Fair Housing
+      // write-gate iterates in lib/compliance/rls-enforcement.ts), deduped — NOT the denormalized
+      // flatList, which can omit category terms (e.g. `family-friendly`, `top schools`) and let
+      // content pass CI that the runtime gate blocks (Codex #461). Fall back to flatList only if
+      // `categories` is absent.
+      prohibitedTerms = data.categories
+        ? [...new Set(Object.values(data.categories).flatMap((c) => c.terms || []))]
+        : (data.flatList || []);
       prohibitedTermsSource = p;
       break;
     } catch (e) {
