@@ -37,16 +37,36 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
     expect(json.error).toMatch(/Fair Housing/i);
   });
 
-  it("source pin: the scan runs BEFORE (outside) the `if (rlsEligible)` block", () => {
+  it("alias bypass closed: a website-only create using the `description` alias is still scanned → 422", async () => {
+    // normalizePayload maps `description` → PublicRemarks (and `privateRemarks` → PrivateRemarks).
+    // Scanning raw PascalCase fields before normalization would miss these and persist the text.
+    const req = makeRequest({
+      method: "POST",
+      body: {
+        listing_type: "sale",
+        rls_eligible: false,
+        commercial_sub_type: "Office",
+        description: "Tenant must pass background check. No Section 8.", // alias for PublicRemarks
+      },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(422);
+    const json = await readJson<{ error: string }>(res);
+    expect(json.error).toMatch(/Fair Housing/i);
+  });
+
+  it("source pin: the unconditional scan consumes normalizePayload output (aliases resolved first)", () => {
     const src = require("fs").readFileSync(
       require("path").resolve(__dirname, "../../app/api/crm/listings/route.ts"),
       "utf8",
     );
     expect(src).toMatch(/scanRecordForFairHousing\(/);
+    // normalizePayload(body) MUST run before the scan, so `description`→PublicRemarks etc. are
+    // resolved before scanning. The behavioral alias test above proves the gate blocks (422) before
+    // any persistence; this pins the resolve-then-scan ordering against future refactors.
+    const normIdx = src.indexOf("normalizePayload(body)");
     const scanIdx = src.indexOf("scanRecordForFairHousing(");
-    const gateIdx = src.indexOf("if (rlsEligible)");
-    expect(scanIdx).toBeGreaterThan(0);
-    expect(gateIdx).toBeGreaterThan(0);
-    expect(scanIdx).toBeLessThan(gateIdx); // unconditional scan precedes the RLS-only block
+    expect(normIdx).toBeGreaterThan(0);
+    expect(scanIdx).toBeGreaterThan(normIdx); // scan consumes normalized output
   });
 });
