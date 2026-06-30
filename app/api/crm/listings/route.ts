@@ -298,6 +298,18 @@ export async function POST(req: NextRequest) {
     PrivateRemarks: normalized.PrivateRemarks as string | null | undefined,
     SyndicationRemarks: normalized.SyndicationRemarks as string | null | undefined,
   };
+  // Also scan any RAW free-text field the normalizer does not canonicalize but which still persists
+  // (verbatim in raw_data) — the CRM forms POST camelCase remark fields like `agentRemarks`,
+  // `showingInstructions`, `webHeadline` that normalizePayload's aliasToCanonical does not map
+  // (only `description`/`privateRemarks` are aliased). Key on the field NAME so structured enums
+  // (property_sub_type, status, etc.) are NOT scanned and legit values like an "Active Adult"
+  // property type don't false-positive (Codex #460).
+  const FREE_TEXT_KEY = /(remark|description|instruction|headline|comment|note|caption)/i;
+  for (const [key, value] of Object.entries(body)) {
+    if (typeof value === "string" && FREE_TEXT_KEY.test(key)) {
+      fhRecord[`raw:${key}`] = value;
+    }
+  }
   const fhViolations = scanRecordForFairHousing(fhRecord);
   if (fhViolations.length > 0) {
     return NextResponse.json(
