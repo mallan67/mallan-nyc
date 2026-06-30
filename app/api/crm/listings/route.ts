@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
-import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -207,6 +207,26 @@ export async function POST(req: NextRequest) {
     commercialOwnership: body.commercial_ownership as string | undefined,
   });
   const rlsEligible = eligibility.rlsEligible;
+
+  // Fair Housing applies to ALL advertising, regardless of RLS eligibility (Federal FHA, NY State
+  // HRL, NYC HRL Title 8, NYC Fair Chance for Housing Act). The RLS enforcement gate below runs only
+  // for rls_eligible listings, so commercial / website-only / InHouse creates would otherwise SKIP
+  // the content scan entirely — a real NYC HRL advertising-law exposure. Scan the free-text fields
+  // unconditionally here so every listing create is gated. (RLS-eligible listings are also scanned
+  // again inside assertRlsCompliantPayload; the duplicate is harmless defense-in-depth.)
+  const fhRecord: Record<string, string | null | undefined> = {
+    PublicRemarks: body.PublicRemarks as string | null | undefined,
+    ShowingInstructions: body.ShowingInstructions as string | null | undefined,
+    PrivateRemarks: body.PrivateRemarks as string | null | undefined,
+    SyndicationRemarks: body.SyndicationRemarks as string | null | undefined,
+  };
+  const fhViolations = scanRecordForFairHousing(fhRecord);
+  if (fhViolations.length > 0) {
+    return NextResponse.json(
+      { error: "Listing blocked by Fair Housing content gate", blockers: fhViolations },
+      { status: 422 }
+    );
+  }
 
   // Run REBNY RLS compliance validation (only for RLS-eligible listings)
   let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
