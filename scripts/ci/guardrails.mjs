@@ -294,7 +294,10 @@ for (const navFile of NAV_FILES) {
 // 11) CRITICAL: Scan for prohibited Fair Housing terms
 // ===========================================================================
 const prohibitedTermsPaths = [
-  "src/compliance/prohibited-terms.json",
+  // Canonical SINGLE source of truth — the same file the runtime Fair Housing write-gate reads
+  // (lib/compliance/rls-enforcement.ts). The former duplicate under src/ was stale (~64 terms
+  // behind, incl. all of #460's additions) and has been removed, so the CI content lint and the
+  // runtime gate can no longer drift.
   "data/compliance/prohibited-terms.json",
 ];
 
@@ -333,6 +336,7 @@ if (prohibitedTerms.length > 0) {
     /\.spec\./,
     /prohibited-terms\.json$/,
     /rls-rules\.json$/,
+    /MASTER_REGISTRY\.json$/,          // Cotality/Trestle API field-dictionary / metadata reference — documents fields (e.g. SeniorCommunityYN), not advertising copy
     /compliance\/audit\/route\.ts$/,   // compliance scanner contains patterns to DETECT prohibited terms
     /rls-enforcement\.ts$/,            // RLS enforcement scanner references terms to block them
   ];
