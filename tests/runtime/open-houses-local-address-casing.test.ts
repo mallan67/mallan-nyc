@@ -89,6 +89,19 @@ describe('pickAddressParts — case-tolerant RESO street parts', () => {
     expect(pickAddressParts(null).streetName).toBe('');
     expect(pickAddressParts({}).streetNumber).toBe('');
   });
+  it('canonical PascalCase wins over STALE legacy camelCase when both are present (Codex #463)', () => {
+    // The CRM PATCH merges new PascalCase RESO keys over the existing address JSON without deleting
+    // old camelCase keys (app/api/crm/listings/[id]/route.ts:366-368), so an edited row can carry
+    // both. The current (PascalCase) value must win, not the stale camelCase one.
+    const p = pickAddressParts({
+      streetNumber: '1', StreetNumber: '400',
+      streetName: 'Old Street', StreetName: '90th',
+      unitNumber: 'OLD', UnitNumber: '4D',
+    });
+    expect(p.streetNumber).toBe('400');
+    expect(p.streetName).toBe('90th');
+    expect(p.unitNumber).toBe('4D');
+  });
   it('banner path: normalizeAddressKey over PascalCase parts is non-empty (was empty before fix)', () => {
     const p = pickAddressParts(PASCAL_ADDR);
     const key = normalizeAddressKey({ streetNumber: p.streetNumber, streetName: p.streetName, unitNumber: p.unitNumber });

@@ -109,12 +109,16 @@ export function pickAddressParts(address: unknown): {
     return '';
   };
   return {
-    streetNumber: pick('streetNumber', 'StreetNumber'),
-    streetDirPrefix: pick('streetDirPrefix', 'StreetDirPrefix'),
-    streetName: pick('streetName', 'StreetName'),
-    streetSuffix: pick('streetSuffix', 'StreetSuffix'),
-    streetDirSuffix: pick('streetDirSuffix', 'StreetDirSuffix'),
-    unitNumber: pick('unitNumber', 'UnitNumber', 'unit'),
+    // Canonical RESO PascalCase FIRST; camelCase only as a legacy fallback. The CRM PATCH merges new
+    // PascalCase keys over the existing address JSON without deleting old camelCase keys
+    // (app/api/crm/listings/[id]/route.ts), so a mixed row can carry both — the PascalCase value is
+    // the current one. camelCase-first would surface the stale value (Codex #463).
+    streetNumber: pick('StreetNumber', 'streetNumber'),
+    streetDirPrefix: pick('StreetDirPrefix', 'streetDirPrefix'),
+    streetName: pick('StreetName', 'streetName'),
+    streetSuffix: pick('StreetSuffix', 'streetSuffix'),
+    streetDirSuffix: pick('StreetDirSuffix', 'streetDirSuffix'),
+    unitNumber: pick('UnitNumber', 'unitNumber', 'unit'),
   };
 }
 
