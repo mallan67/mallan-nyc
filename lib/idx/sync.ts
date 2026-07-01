@@ -69,6 +69,36 @@ export function complianceUpdatePatch(): Record<string, never> {
   return {};
 }
 
+/** The sync_status the T+180 archiver writes (lib/retention/archive-terminals.ts). */
+export const ARCHIVED_SYNC_STATUS = "archived";
+
+/**
+ * Gate 6 durability — archived-row rehydration guard (board #415).
+ *
+ * Once the T+180 archiver (lib/retention/archive-terminals.ts) has stripped a terminal listing
+ * (raw_data→JSON null, media→[], compliance→{}, sync_status='archived'), a later Cotality re-emit
+ * hitting the per-record UPDATE branch would re-hydrate raw_data + media and overwrite sync_status
+ * back off 'archived' — silently UN-archiving the row. Because `archiveEligibilityWhere` keys on
+ * `sync_status: { not: 'archived' }`, that un-archived row then re-enters the nightly retention drain
+ * and is re-stripped: strip → rehydrate → re-strip churn.
+ *
+ * Guard: when the EXISTING row is archived, DROP raw_data, media, and sync_status from the Cotality
+ * UPDATE payload so the archiver's one-way strip is preserved verbatim. Other columns (status /
+ * idx_display_yn / timestamps) may still update — they are not the stripped blobs and do not re-expose
+ * the row (terminal rows stay idx_display_yn=false via the mapper's terminal gate). Non-archived rows
+ * (and CREATEs, where `existing` is null) are returned unchanged — normal sync rehydration. Pure and
+ * non-mutating: returns a NEW object when guarding.
+ */
+export function guardArchivedRehydration<T extends Record<string, unknown>>(
+  update: T,
+  existing: { sync_status?: string | null } | null | undefined,
+): T {
+  if (existing?.sync_status !== ARCHIVED_SYNC_STATUS) return update;
+  // Omit the stripped columns (destructure-rest, no delete — matches the agent_info omit pattern).
+  const { raw_data: _rawData, media: _media, sync_status: _syncStatus, ...rest } = update;
+  return rest as unknown as T;
+}
+
 /**
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
@@ -296,6 +326,8 @@ export async function syncListings(
           status_changed_at: true,
           first_active_date: true,
           days_on_market: true,
+          // #415 rehydration guard: needed so an archived row is not re-hydrated on Cotality re-emit.
+          sync_status: true,
         },
       });
 
@@ -382,7 +414,10 @@ export async function syncListings(
             : null,
           ...terminalSinceCreate,
         },
-        update: {
+        // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
+        // DROPS raw_data/media/sync_status from this payload so a Cotality re-emit cannot
+        // re-hydrate the stripped blobs or un-archive the row (which would re-enter the drain).
+        update: guardArchivedRehydration({
           mls_id: mapped.mls_id,
           status: mapped.status,
           ...terminalSinceUpdate,
@@ -420,7 +455,7 @@ export async function syncListings(
           // Status-transition fields (only populated when status actually
           // changed; empty object is a no-op for Prisma).
           ...statusTransition,
-        },
+        }, existing),
       });
 
       // 5. Dual-write the search projection (master refactor PR 5B).
@@ -1225,7 +1260,8 @@ export async function syncAgentHistory(
       // Never bumped on terminal→terminal re-sync; cleared on terminal→active.
       const existingForClock = await prisma.listing.findUnique({
         where: { listing_id: mapped.listing_id },
-        select: { status: true },
+        // #415 rehydration guard: sync_status needed so an archived row is not re-hydrated here.
+        select: { status: true, sync_status: true },
       });
       const terminalSinceCreate = computeTerminalSincePatch({
         previousStatus: undefined,
@@ -1263,7 +1299,9 @@ export async function syncAgentHistory(
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           ...terminalSinceCreate,
         },
-        update: {
+        // #415 rehydration guard (see syncListings): an already-archived row must not be
+        // re-hydrated / un-archived by an agent-history re-sync either.
+        update: guardArchivedRehydration({
           agent_id: options.agentDbId,
           mls_id: mapped.mls_id,
           status: mapped.status,
@@ -1299,7 +1337,7 @@ export async function syncAgentHistory(
           listing_contract_date: mapped.listing_contract_date,
           last_synced_from_trestle: mapped.last_synced_from_trestle,
           sync_status: mapped.sync_status,
-        },
+        }, existingForClock),
       });
 
       // 4. Dual-write the search projection (master refactor PR 5B).
