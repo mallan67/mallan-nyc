@@ -13,6 +13,7 @@ import {
   MALLAN_OH_OFFICE_MLS_IDS,
   OPEN_HOUSE_ELIGIBLE_STATUSES,
   isMallanOwnedLocalListing,
+  pickAddressParts,
 } from '@/lib/open-houses/upcoming-open-houses';
 
 export const dynamic = 'force-dynamic';
@@ -449,11 +450,14 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // Mallan-only page: keep displayable AND genuinely Mallan-owned (website-only exclusives).
       .filter(({ gate, l }) => gate.displayable && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
-      // Address is stored as JSON: { streetNumber, streetName, unitNumber, ... }
-      const addrObj = (l.address || {}) as Record<string, string>;
-      const fullStreet = [addrObj.streetNumber, addrObj.streetDirPrefix, addrObj.streetName, addrObj.streetSuffix]
+      // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
+      // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which
+      // the hasData filter in GET() then dropped — the SL-0007 P1 bug. pickAddressParts reads both
+      // casings (canonical, shared with the banner path).
+      const addrParts = pickAddressParts(l.address);
+      const fullStreet = [addrParts.streetNumber, addrParts.streetDirPrefix, addrParts.streetName, addrParts.streetSuffix, addrParts.streetDirSuffix]
         .filter(Boolean).join(' ');
-      const unit = addrObj.unitNumber ? `, ${addrObj.unitNumber}` : '';
+      const unit = addrParts.unitNumber ? `, ${addrParts.unitNumber}` : '';
       // Address suppression — match the gate decision. Previously always
       // built the full street from stored JSON regardless of the
       // InternetAddressDisplayYN flag.
