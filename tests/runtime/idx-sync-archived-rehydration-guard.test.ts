@@ -112,11 +112,47 @@ describe('idx-sync source — archived-guard wiring (SUPPORTING, not the RED pro
  * rows for an archived listing. backfillEmptyMedia (which explicitly targets empty media) gets the
  * same exclusion in its SQL.
  */
-describe('archivedSafeMediaWhere — batch media-refill archived guard (behavioral / RED→GREEN)', () => {
-  it('returns a where that excludes archived rows (media write matches 0 archived rows)', () => {
-    const w = archivedSafeMediaWhere('RLS20099289') as { listing_id: string; sync_status: { not: string } };
-    expect(w.listing_id).toBe('RLS20099289');
-    expect(w.sync_status).toEqual({ not: 'archived' });
+/**
+ * Minimal evaluator for the archived-safe where shape: does it ALLOW a media write for a row with
+ * the given sync_status? Models SQL-strict semantics for `{ not }` (a `<>` comparison does NOT match
+ * NULL — `NULL <> 'archived'` is NULL, not TRUE), so this proves NULL-safety comes from an EXPLICIT
+ * null branch in the where, not from any Prisma version-specific `not`/NULL behavior.
+ */
+function whereAllows(where: Record<string, unknown>, syncStatus: string | null): boolean {
+  const branches = (where.OR as Array<Record<string, unknown>>) ?? [where];
+  return branches.some((b) => {
+    if (!('sync_status' in b)) return true; // branch with no sync_status constraint → allowed
+    const cond = (b as { sync_status: unknown }).sync_status;
+    if (cond === null) return syncStatus === null; // explicit NULL branch
+    if (cond && typeof cond === 'object' && 'not' in (cond as object)) {
+      const excluded = (cond as { not: string }).not;
+      return syncStatus !== null && syncStatus !== excluded; // SQL `<>` excludes NULL
+    }
+    if (typeof cond === 'string') return syncStatus === cond;
+    return false;
+  });
+}
+
+describe('archivedSafeMediaWhere — NULL-safe batch media guard (Codex #465 P2, RED→GREEN)', () => {
+  const w = () => archivedSafeMediaWhere('RLS20099289') as Record<string, unknown>;
+
+  it('preserves the listing_id target', () => {
+    expect((w() as { listing_id: string }).listing_id).toBe('RLS20099289');
+  });
+  it('EXCLUDES archived rows (media is not re-hydrated)', () => {
+    expect(whereAllows(w(), 'archived')).toBe(false);
+  });
+  it('ALLOWS sync_status = NULL (legacy rows must still be able to refill media)', () => {
+    expect(whereAllows(w(), null)).toBe(true);
+  });
+  it('ALLOWS a normal non-archived value (synced)', () => {
+    expect(whereAllows(w(), 'synced')).toBe(true);
+  });
+  it('ALLOWS other gated values (e.g. gated:Closed listing > 24 hours)', () => {
+    expect(whereAllows(w(), 'gated:Closed listing > 24 hours')).toBe(true);
+  });
+  it('carries an EXPLICIT null branch (does not depend on Prisma not/NULL semantics)', () => {
+    expect(JSON.stringify(w())).toContain('"sync_status":null');
   });
 });
 
