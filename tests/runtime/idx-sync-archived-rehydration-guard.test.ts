@@ -23,7 +23,7 @@ jest.mock('@/lib/prisma', () => ({ __esModule: true, default: {} }));
 
 import { readFileSync } from 'fs';
 import * as path from 'path';
-import { guardArchivedRehydration } from '@/lib/idx/sync';
+import { guardArchivedRehydration, archivedSafeMediaWhere } from '@/lib/idx/sync';
 
 // A representative Cotality UPDATE payload (the fields that matter for this guard).
 function updatePayload() {
@@ -98,5 +98,43 @@ describe('idx-sync source — archived-guard wiring (SUPPORTING, not the RED pro
   it('both existing-row selects include sync_status so the guard can see archived state', () => {
     const matches = src.match(/sync_status:\s*true/g) || [];
     expect(matches.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+/**
+ * Codex #465 follow-up — the SEPARATE post-upsert batch media refill.
+ *
+ * useExpandMedia is hard-coded false in both sync paths, so the per-record upsert OMITS media
+ * (mediaUpdatePatch) and the media is instead written later by a batch `listing.updateMany`. That
+ * writer is NOT covered by guardArchivedRehydration, so a re-emitted archived row (media=[]) would
+ * have its media re-hydrated in the same run — and retention then skips it (sync_status='archived').
+ * archivedSafeMediaWhere adds the archived exclusion at the DB filter so the media write matches 0
+ * rows for an archived listing. backfillEmptyMedia (which explicitly targets empty media) gets the
+ * same exclusion in its SQL.
+ */
+describe('archivedSafeMediaWhere — batch media-refill archived guard (behavioral / RED→GREEN)', () => {
+  it('returns a where that excludes archived rows (media write matches 0 archived rows)', () => {
+    const w = archivedSafeMediaWhere('RLS20099289') as { listing_id: string; sync_status: { not: string } };
+    expect(w.listing_id).toBe('RLS20099289');
+    expect(w.sync_status).toEqual({ not: 'archived' });
+  });
+});
+
+describe('idx-sync source — batch media-refill archived guard wiring (SUPPORTING)', () => {
+  const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
+
+  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path + backfill write)', () => {
+    const matches = src.match(/where:\s*archivedSafeMediaWhere\(/g) || [];
+    expect(matches.length).toBe(3);
+  });
+
+  it('no batch media updateMany writes media with a bare { listing_id } where (unguarded rehydration)', () => {
+    // The two sync-path + one backfill media writers must not use `where: { listing_id: ... }` with
+    // an inline media data — that is the unguarded pattern that re-hydrates archived rows.
+    expect(src).not.toMatch(/where:\s*\{\s*listing_id:\s*listingId\s*\},\s*\n\s*data:\s*\{\s*media:/);
+  });
+
+  it('backfillEmptyMedia SQL excludes archived rows so empty-media archived listings are not refilled', () => {
+    expect(src).toMatch(/sync_status IS DISTINCT FROM 'archived'/);
   });
 });

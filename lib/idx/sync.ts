@@ -100,6 +100,20 @@ export function guardArchivedRehydration<T extends Record<string, unknown>>(
 }
 
 /**
+ * Where-clause for the SEPARATE post-upsert batch media refill (#415 rehydration guard, media path).
+ *
+ * useExpandMedia is hard-coded false in both sync paths, so the per-record upsert OMITS media
+ * (mediaUpdatePatch) and media is instead written later by a batch `listing.updateMany` — which
+ * guardArchivedRehydration does NOT cover. A re-emitted archived row (media=[]) would otherwise have
+ * its media re-hydrated in the same run, and retention then skips it (sync_status='archived'). Adding
+ * the archived exclusion at the DB filter means the media write matches 0 rows for an archived
+ * listing, so its stripped media is preserved. (backfillEmptyMedia carries the same exclusion in SQL.)
+ */
+export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereInput {
+  return { listing_id: listingId, sync_status: { not: ARCHIVED_SYNC_STATUS } };
+}
+
+/**
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
  */
@@ -628,7 +642,8 @@ export async function syncListings(
             for (const [key, media] of mediaByListing) {
               const listingId = keyToIdMap.get(key) || key;
               await prisma.listing.updateMany({
-                where: { listing_id: listingId },
+                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+                where: archivedSafeMediaWhere(listingId),
                 data: { media: media as unknown as Prisma.InputJsonValue },
               });
             }
@@ -842,6 +857,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       )
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
       AND sync_status IS DISTINCT FROM 'gated:participant_only'
+      -- #415 rehydration guard: an archived row has media=[] (stripped by the T+180 archiver), so it
+      -- would otherwise match the empty-media predicate above and be re-hydrated here. Exclude it.
+      AND sync_status IS DISTINCT FROM 'archived'
     ORDER BY modification_timestamp DESC NULLS LAST
     LIMIT ${limit}
   `;
@@ -937,7 +955,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       for (const [listingId, media] of mediaByListingId) {
         try {
           await prisma.listing.updateMany({
-            where: { listing_id: listingId },
+            // #415: archived-safe filter (defense-in-depth; the SELECT above already excludes
+            // 'archived', so an archived row never reaches here — but never re-hydrate archived media).
+            where: archivedSafeMediaWhere(listingId),
             data: { media: media as unknown as Prisma.InputJsonValue },
           });
           updated++;
@@ -1467,7 +1487,8 @@ export async function syncAgentHistory(
             for (const [key, media] of mediaByKey) {
               const listingId = agentKeyToIdMap.get(key) || key;
               await prisma.listing.updateMany({
-                where: { listing_id: listingId },
+                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+                where: archivedSafeMediaWhere(listingId),
                 data: { media: media as unknown as Prisma.InputJsonValue },
               });
             }
