@@ -2,19 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import OpenHouseRSVP from '@/app/components/OpenHouseRSVP';
+import { selectListingOpenHouses, type ListingOpenHouseEntry } from '@/lib/open-houses/select-open-houses';
 
-interface OpenHouseData {
-  id: string;
-  listingId: string;
-  address: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-}
+type OpenHouseData = ListingOpenHouseEntry;
 
 interface ListingOpenHouseRSVPProps {
   listingId: string;
   listingAddress: string;
+  /** Normalized address key for the page's listing (twin-safe matching: a local SL-0007 page can
+   *  match its Cotality RLS-twin open house that /api/open-houses deduped under the RLS listingId).
+   *  Computed server-side from the listing's structured address; empty/absent when suppressed. */
+  listingAddressKey?: string;
 }
 
 /**
@@ -23,7 +21,7 @@ interface ListingOpenHouseRSVPProps {
  *
  * Matches by listingId (exact MLS ID match) — no fuzzy address matching.
  */
-export default function ListingOpenHouseRSVP({ listingId, listingAddress }: ListingOpenHouseRSVPProps) {
+export default function ListingOpenHouseRSVP({ listingId, listingAddress, listingAddressKey }: ListingOpenHouseRSVPProps) {
   const [openHouses, setOpenHouses] = useState<OpenHouseData[]>([]);
 
   useEffect(() => {
@@ -33,33 +31,12 @@ export default function ListingOpenHouseRSVP({ listingId, listingAddress }: List
       .then(res => res.json())
       .then(data => {
         const allOH = (data.openHouses || []) as OpenHouseData[];
-
-        // Exact match by listing ID (MLS ID)
-        const matching = allOH.filter(oh => oh.listingId === listingId);
-
-        // Only show upcoming open houses
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const upcoming = matching.filter(oh => {
-          const ohDate = new Date(oh.date + 'T00:00:00');
-          return ohDate >= today;
-        });
-
-        // Deduplicate by date + time (Trestle can return multiple entries for same slot)
-        const seen = new Set<string>();
-        const deduped = upcoming.filter(oh => {
-          const key = `${oh.date}|${oh.startTime}|${oh.endTime}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-
-        // Sort by date ascending and limit to 4 entries
-        deduped.sort((a, b) => a.date.localeCompare(b.date));
-        setOpenHouses(deduped.slice(0, 4));
+        // Twin-safe select: exact listingId OR shared normalized addressKey (canonical resolver),
+        // then upcoming-only, dedupe by slot, cap 4. Closes the SL-0007↔RLS20099289 dedup gap.
+        setOpenHouses(selectListingOpenHouses(allOH, { listingId, listingAddressKey }));
       })
       .catch(() => { /* silently fail — this is an enhancement */ });
-  }, [listingId]);
+  }, [listingId, listingAddressKey]);
 
   if (openHouses.length === 0) return null;
 

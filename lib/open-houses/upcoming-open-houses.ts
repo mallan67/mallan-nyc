@@ -99,6 +99,7 @@ export function pickAddressParts(address: unknown): {
   streetSuffix: string;
   streetDirSuffix: string;
   unitNumber: string;
+  postalCode: string;
 } {
   const a = (address && typeof address === 'object' && !Array.isArray(address) ? address : {}) as Record<string, unknown>;
   const pick = (...keys: string[]): string => {
@@ -119,7 +120,54 @@ export function pickAddressParts(address: unknown): {
     streetSuffix: pick('StreetSuffix', 'streetSuffix'),
     streetDirSuffix: pick('StreetDirSuffix', 'streetDirSuffix'),
     unitNumber: pick('UnitNumber', 'unitNumber', 'unit'),
+    postalCode: pick('PostalCode', 'postalCode', 'zip'),
   };
+}
+
+/** Twin-match key for OPEN HOUSES: the canonical street key PLUS the ZIP. Two physically distinct
+ *  units that normalize to the same street key — e.g. "400 E 90th #4D" vs "400 W 90th #4D" (the
+ *  directional is dropped as a stop-word by normalizeAddressKey) — must NOT collide, so the ZIP
+ *  disambiguates cross-town addresses (E 90th=10128 vs W 90th=10024). Returns '' when there is no
+ *  usable street (never a ZIP-only key → no false match). A property's two twin representations
+ *  (local SL-0007 ↔ Cotality RLS20099289) share street+unit+ZIP, so the match is preserved.
+ *  (Codex #464 — the page DTO does not expose the directional separately, so ZIP is the shared
+ *  discriminator available to both the route and the listing page.) */
+export function openHouseTwinKey(p: {
+  streetNumber?: unknown;
+  streetName?: unknown;
+  unitNumber?: unknown;
+  postalCode?: unknown;
+}): string {
+  // Require a COMPLETE, discriminating address before emitting a match key: street NUMBER + street
+  // NAME + a full 5-digit ZIP. Otherwise return '' → the panel falls back to exact listingId only.
+  // This prevents partial-key collisions: a unit-number-only key (`4d`) would collide across unrelated
+  // "#4D" units, and a missing ZIP (`40090th4d|`) would re-open the E/W collision. (Codex #464)
+  const streetNumber = String(p.streetNumber ?? '').trim();
+  const streetName = String(p.streetName ?? '').trim();
+  const zip = String(p.postalCode ?? '').replace(/\D/g, '').slice(0, 5);
+  if (!streetNumber || !streetName || zip.length < 5) return '';
+  const base = normalizeAddressKey({ streetNumber, streetName, unitNumber: p.unitNumber });
+  if (!base) return '';
+  return `${base}|${zip}`;
+}
+
+/** The address-key to expose on a listing DETAIL page for twin-safe open-house matching — non-empty
+ *  ONLY for Mallan-owned LOCAL exclusives (SL-/RL-), whose open house may be deduped under a different
+ *  (Cotality RLS-twin) listingId in the Mallan-only /api/open-houses feed. Every other page returns ''
+ *  so the address-key fallback can NEVER cross-attribute a Mallan open house onto a non-Mallan/other-
+ *  brokerage listing that merely shares the same address slug (the 3-brokerage co-listing case where
+ *  identical slugs resolve to distinct listing ids — app/listing/[...slug]/page.tsx). Mallan RLS
+ *  listings match their own feed entry by exact listingId, so they don't need (and don't get) the
+ *  address-key fallback. (Codex #464) */
+export function listingPageOpenHouseKey(listing: {
+  id?: string | null;
+  listing_id?: string | null;
+  address?: { streetNumber?: unknown; streetName?: unknown; unitNumber?: unknown; postalCode?: unknown } | null;
+}): string {
+  const listingId = String(listing.id ?? listing.listing_id ?? '');
+  if (!isMallanOwnedLocalListing({ listing_id: listingId })) return '';
+  const a = listing.address ?? {};
+  return openHouseTwinKey({ streetNumber: a.streetNumber, streetName: a.streetName, unitNumber: a.unitNumber, postalCode: a.postalCode });
 }
 
 // ── Public shape ───────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import PriceHistory from '@/app/components/PriceHistory';
 import SimilarListings from '@/app/components/SimilarListings';
 import SchoolInfo from '@/app/components/SchoolInfo';
 import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
+import { listingPageOpenHouseKey } from '@/lib/open-houses/upcoming-open-houses';
 import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-cta';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
@@ -939,6 +940,13 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   const listing = result.listing;
   const { tax, rawStreetName } = result;
+
+  // Twin-safe open-house key (street+unit+ZIP), non-empty ONLY for Mallan-owned LOCAL exclusives
+  // (SL-/RL-): lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that /api/open-houses
+  // deduped under the RLS listingId (SL-0007 ↔ RLS20099289). Restricting to Mallan local exclusives
+  // prevents cross-attributing a Mallan open house onto a non-Mallan/other-brokerage co-listing that
+  // shares the same address slug. '' when not eligible / address suppressed → panel falls back to id.
+  const listingOpenHouseAddressKey = listingPageOpenHouseKey({ id: listing.id, address: listing.address });
 
   // CANONICAL URL ENFORCEMENT — one listing, one canonical path.
   // Canonical shape: /listing/{address-slug}/{listing-id}
@@ -2088,7 +2096,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </div>
 
                 {/* Open House RSVP (shows only if upcoming open houses exist for this address) */}
-                <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} />
+                <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} listingAddressKey={listingOpenHouseAddressKey} />
 
                 {/* Inquiry Form */}
                 <div id="inquiry">
@@ -2172,7 +2180,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       {/* ═══ Mobile Open House RSVP + Inquiry Form ═══ */}
       <section className="lg:hidden px-4 py-8 bg-white border-t border-black/[0.06]">
         <div className="max-w-lg mx-auto space-y-6">
-          <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} />
+          <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} listingAddressKey={listingOpenHouseAddressKey} />
           <div id="inquiry">
             <InquiryForm
               listingId={listing.id}
