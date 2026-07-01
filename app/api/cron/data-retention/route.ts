@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
-import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
+import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 
 export const maxDuration = 60;
 
@@ -22,20 +22,8 @@ const T180_BATCH_CAP = 500;
 
 const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
 
-type JsonObject = Record<string, unknown>;
-function asObject(v: unknown): JsonObject {
-  return v && typeof v === "object" && !Array.isArray(v) ? (v as JsonObject) : {};
-}
-function str(v: unknown): string | null {
-  if (v === null || v === undefined) return null;
-  const s = String(v).trim();
-  return s.length > 0 ? s : null;
-}
-function num(v: unknown): number | null {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+// (T+180 archive summary/strip helpers moved to lib/retention/archive-terminals.ts — Gate 6,
+// shared with the controlled operator drain so the two paths cannot drift.)
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -182,113 +170,25 @@ export async function GET(req: NextRequest) {
     ? { terminal_since: { lt: oneEightyDayCutoff } }
     : { status_changed_at: { lt: oneEightyDayCutoff } };
 
+  const archiveWhere: Prisma.ListingWhereInput = {
+    status: { in: [...TERMINAL_STATUSES] },
+    sync_status: { not: "archived" },
+    ...eligibilityWhere,
+  };
   const toArchive = await prisma.listing.findMany({
-    where: {
-      status: { in: [...TERMINAL_STATUSES] },
-      sync_status: { not: "archived" },
-      ...eligibilityWhere,
-    },
-    select: {
-      id: true,
-      listing_id: true,
-      mls_id: true,
-      status: true,
-      listing_type: true,
-      property_type: true,
-      property_sub_type: true,
-      list_price: true,
-      bedrooms_total: true,
-      bathrooms_full: true,
-      bathrooms_half: true,
-      living_area: true,
-      borough: true,
-      neighborhood: true,
-      city: true,
-      postal_code: true,
-      days_on_market: true,
-      address: true,
-      // Phase B: typed agent columns so the archive captures attribution TYPED-FIRST.
-      ...AGENT_TYPED_SELECT,
-      raw_data: true,
-      created_at: true,
-    },
+    where: archiveWhere,
+    select: ARCHIVE_SELECT,
     take: T180_BATCH_CAP,
   });
 
+  // Per-row archive via the shared core (lib/retention/archive-terminals.ts) — the SAME logic the
+  // Gate 6 operator drain (scripts/drain-archive-backlog.ts) uses, so the nightly cron and the
+  // controlled drain can never drift. archiveOneListing re-asserts `archiveWhere` atomically inside
+  // the write transaction (a row that reactivated between SELECT and write is skipped, not stripped).
   let archivedCount = 0;
   for (const l of toArchive) {
-    try {
-      const addr = asObject(l.address);
-      const raw = asObject(l.raw_data);
-      // Phase B: typed-first (typed columns) → agent_info JSON → raw_data, captured into the archive.
-      const resolvedAgent = resolveListingAgentInfo(l);
-
-      // Assemble denormalized address_line (e.g. "123 Main St, Apt 4B")
-      const streetNumber = str(addr.StreetNumber);
-      const streetName = str(addr.StreetName);
-      const unit = str(addr.UnitNumber);
-      const addressLine = [
-        [streetNumber, streetName].filter(Boolean).join(" "),
-        unit ? `Apt ${unit}` : null,
-      ].filter(Boolean).join(", ") || null;
-
-      // Listing key: prefer mls_id (= ListingKey per Trestle guidance), fallback to listing_id
-      const listingKey = l.mls_id || l.listing_id;
-
-      await prisma.$transaction([
-        prisma.listingsArchive.upsert({
-          where: { listing_key: listingKey },
-          create: {
-            listing_key: listingKey,
-            listing_id: l.listing_id,
-            mls_id: l.mls_id,
-            status: l.status,
-            listing_type: l.listing_type,
-            property_type: l.property_type,
-            property_sub_type: l.property_sub_type,
-            close_price: num(raw.ClosePrice) !== null ? (num(raw.ClosePrice) as unknown as Prisma.Decimal) : null,
-            close_date: raw.CloseDate ? new Date(String(raw.CloseDate)) : null,
-            list_price: l.list_price,
-            original_list_price: num(raw.OriginalListPrice) !== null ? (num(raw.OriginalListPrice) as unknown as Prisma.Decimal) : null,
-            bedrooms_total: l.bedrooms_total,
-            bathrooms_full: l.bathrooms_full,
-            bathrooms_half: l.bathrooms_half,
-            living_area: l.living_area,
-            borough: l.borough,
-            neighborhood: l.neighborhood,
-            city: l.city,
-            postal_code: l.postal_code,
-            address_line: addressLine,
-            list_agent_full_name: resolvedAgent.fullName || str(raw.ListAgentFullName),
-            list_office_name: resolvedAgent.officeName || str(raw.ListOfficeName),
-            days_on_market: l.days_on_market,
-            original_created_at: l.created_at,
-          },
-          update: {}, // idempotent — if already archived (re-run), do nothing
-        }),
-        prisma.listing.update({
-          where: { id: l.id },
-          data: {
-            sync_status: "archived",
-            raw_data: Prisma.JsonNull,
-            media: [] as unknown as Prisma.InputJsonValue,
-            compliance: {} as unknown as Prisma.InputJsonValue,
-          },
-        }),
-      ]);
-      archivedCount++;
-    } catch (err) {
-      console.error(`[Data Retention] Archive failed for listing ${l.listing_id}:`, err);
-      await prisma.syncError.create({
-        data: {
-          resource: "listings_archive_move",
-          listing_id: l.listing_id,
-          listing_key: l.mls_id,
-          error_code: "archive",
-          error_msg: (err instanceof Error ? err.message : String(err)).slice(0, 2000),
-        },
-      }).catch(() => {});
-    }
+    const r = await archiveOneListing(prisma, l, archiveWhere);
+    if (r.ok) archivedCount++;
   }
   results.t180d_listings_archived = archivedCount;
 
