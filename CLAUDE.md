@@ -4,6 +4,8 @@
 >
 > **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
 
+> **Cross-agent constitution → `AGENTS.md`.** The shared source of truth for **Claude · Codex · ChatGPT** (invariants, non-negotiable holds, where truth lives, and the per-session handoff rule). Read it alongside this file; keep the two in sync — `AGENTS.md` is the concise cross-agent essentials, this file is the Claude-specific depth. **Live operational status → `docs/PROJECT-HEALTH-DASHBOARD.md`** — refresh its auto tier with `npm run health:probe` (read-only) before every handoff. Dated session narrative → `docs/operations/site-audit-handoff-YYYY-MM-DD.md`.
+
 > ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
 >
 > - **Canonical production data = `hidden-mountain-87248164` / "neon-green-school" / `ep-cold-waterfall-adno3ao2` / branch `main` (`br-crimson-frog-adr7g9gt`).**

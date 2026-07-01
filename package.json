@@ -69,6 +69,7 @@
         "audit:closed-24h": "npx tsx scripts/audit-closed-listing-24h.ts",
         "audit:display-compliance": "npm run audit:attribution && npm run audit:pii && npm run audit:coming-soon && npm run audit:stat-disclaimer && npm run audit:fair-housing && npm run audit:closed-24h",
         "hooks:install": "git config core.hooksPath .githooks && echo '✓ Git hooks installed from .githooks/. NEON pre-commit guard is active.'",
+        "health:probe": "tsx scripts/health/probe.ts",
         "ops:health": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js",
         "ops:health:json": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js --json",
         "ops:storage-audit": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/neon-full-audit.js",
