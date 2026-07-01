@@ -48,7 +48,16 @@
         "young professionals only",
         "senior community",
         "retiree neighborhood",
-        "empty nesters"
+        "empty nesters",
+        "adults only",
+        "adults preferred",
+        "active adult",
+        "active adult community",
+        "age restricted",
+        "age-restricted",
+        "55+",
+        "55 and older",
+        "55 plus"
       ]
     },
 
@@ -111,7 +120,32 @@
         "working professionals only",
         "employed only",
         "must have job",
-        "no government assistance"
+        "no government assistance",
+        "no cityfheps",
+        "no fheps",
+        "no dss",
+        "no hra",
+        "no housing voucher",
+        "no housing vouchers",
+        "section 8 not accepted",
+        "vouchers not accepted",
+        "no subsidies",
+        "no cash assistance"
+      ]
+    },
+
+    "criminal_history": {
+      "severity": "critical",
+      "reason": "NYC Fair Chance for Housing Act (LL 24/2023) - criminal history",
+      "terms": [
+        "must pass background check",
+        "must pass a background check",
+        "criminal background check",
+        "no felonies",
+        "no felons",
+        "no convictions",
+        "no criminal record",
+        "clean criminal record"
       ]
     },
 
@@ -171,9 +205,15 @@
     "immigrant community",
     "integrated area",
     "family-friendly neighborhood",
+    "family-friendly",
     "adult community",
     "no children",
     "perfect for families",
+    "top schools",
+    "prime school district",
+    "prime school districts",
+    "great school district",
+    "child-friendly",
     "great schools nearby",
     "top-rated schools",
     "school district rating",
@@ -241,6 +281,33 @@
     "ethnic food scene",
     "cultural enclave",
     "immigrant-friendly",
-    "speaks your language"
+    "speaks your language",
+    "adults only",
+    "adults preferred",
+    "active adult",
+    "active adult community",
+    "age restricted",
+    "age-restricted",
+    "55+",
+    "55 and older",
+    "55 plus",
+    "no cityfheps",
+    "no fheps",
+    "no dss",
+    "no hra",
+    "no housing voucher",
+    "no housing vouchers",
+    "section 8 not accepted",
+    "vouchers not accepted",
+    "no subsidies",
+    "no cash assistance",
+    "must pass background check",
+    "must pass a background check",
+    "criminal background check",
+    "no felonies",
+    "no felons",
+    "no convictions",
+    "no criminal record",
+    "clean criminal record"
   ]
 }

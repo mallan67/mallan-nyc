@@ -360,7 +360,7 @@
         "bestBlocksForParks": [
           "Flagg Place near the Greenbelt",
           "Benedict Road residential section",
-          "Four Corners Road near schools"
+          "Four Corners Road"
         ],
         "bestBlocksForNightlife": [
           "Hylan Boulevard commercial strip (adjacent)",
@@ -615,7 +615,7 @@
       "streetGuidance": {
         "description": "Great Kills is organized around Hylan Boulevard as its commercial spine, with residential streets extending east toward the waterfront and west toward the interior. Proximity to the marina and park drives premium pricing on the eastern blocks.",
         "bestBlocksForParks": [
-          "Nelson Avenue near schools and parks",
+          "Nelson Avenue near parks",
           "Lindenwood Road residential area",
           "Giffords Lane near youth sports fields"
         ],
@@ -874,7 +874,7 @@
         "bestBlocksForParks": [
           "Lafayette Avenue near Snug Harbor",
           "Castleton Avenue residential stretch",
-          "Henderson Avenue near schools"
+          "Henderson Avenue"
         ],
         "bestBlocksForNightlife": [
           "Jersey Street arts and dining district",

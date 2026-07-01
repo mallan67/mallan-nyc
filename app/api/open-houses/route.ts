@@ -13,6 +13,8 @@ import {
   MALLAN_OH_OFFICE_MLS_IDS,
   OPEN_HOUSE_ELIGIBLE_STATUSES,
   isMallanOwnedLocalListing,
+  pickAddressParts,
+  openHouseTwinKey,
 } from '@/lib/open-houses/upcoming-open-houses';
 
 export const dynamic = 'force-dynamic';
@@ -93,6 +95,11 @@ interface OpenHouseDTO {
   // "Mallan Exclusive" badge (matches the Featured/exclusive cards). (2026-06-23)
   mallanExclusive: boolean;
   source: 'trestle' | 'local';
+  // Normalized address key (streetNumber+streetName+unitNumber, directionals dropped) for TWIN-SAFE
+  // matching on the listing-detail panel: a local SL-0007 page can match its Cotality RLS-twin
+  // (RLS20099289) open house that this feed deduped under the RLS listingId. Emitted ONLY when the
+  // address is displayable (empty for suppressed listings → no suppressed-street leak, no false match).
+  addressKey: string;
 }
 
 export async function GET() {
@@ -245,6 +252,9 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         // Mallan-only page → this is a Mallan listing → gold "Mallan Exclusive" badge.
         mallanExclusive: true,
         source: 'trestle' as const,
+        addressKey: gate.addressDisplayable
+          ? openHouseTwinKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber, postalCode: prop.PostalCode })
+          : '',
       };
     }));
   } catch (err) {
@@ -358,6 +368,9 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         featured: false,
         mallanExclusive: true,
         source: 'trestle' as const,
+        addressKey: gate.addressDisplayable
+          ? openHouseTwinKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber, postalCode: prop.PostalCode })
+          : '',
       };
     }));
   } catch {
@@ -449,11 +462,14 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // Mallan-only page: keep displayable AND genuinely Mallan-owned (website-only exclusives).
       .filter(({ gate, l }) => gate.displayable && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
-      // Address is stored as JSON: { streetNumber, streetName, unitNumber, ... }
-      const addrObj = (l.address || {}) as Record<string, string>;
-      const fullStreet = [addrObj.streetNumber, addrObj.streetDirPrefix, addrObj.streetName, addrObj.streetSuffix]
+      // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
+      // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which
+      // the hasData filter in GET() then dropped — the SL-0007 P1 bug. pickAddressParts reads both
+      // casings (canonical, shared with the banner path).
+      const addrParts = pickAddressParts(l.address);
+      const fullStreet = [addrParts.streetNumber, addrParts.streetDirPrefix, addrParts.streetName, addrParts.streetSuffix, addrParts.streetDirSuffix]
         .filter(Boolean).join(' ');
-      const unit = addrObj.unitNumber ? `, ${addrObj.unitNumber}` : '';
+      const unit = addrParts.unitNumber ? `, ${addrParts.unitNumber}` : '';
       // Address suppression — match the gate decision. Previously always
       // built the full street from stored JSON regardless of the
       // InternetAddressDisplayYN flag.
@@ -495,6 +511,9 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         // Local open houses are Mallan's own (CRM-entered / website-only exclusives) → gold badge.
         mallanExclusive: true,
         source: 'local' as const,
+        addressKey: gate.addressDisplayable
+          ? openHouseTwinKey({ streetNumber: addrParts.streetNumber, streetName: addrParts.streetName, unitNumber: addrParts.unitNumber, postalCode: addrParts.postalCode })
+          : '',
       };
     });
   } catch (err) {

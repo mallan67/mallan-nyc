@@ -2,12 +2,17 @@
 // Returns comparable listings in the same building + neighborhood
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requirePortalRole, isAuthError } from "@/lib/auth";
+import { requireWorkspace, isAuthError } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { SEARCH_DISPLAY_GATE } from "@/lib/search/listing-access-decision";
+import { canAccessOwnerListing, isOwnerLead } from "@/lib/portal/listing-ownership";
 
 export async function GET(req: NextRequest) {
-  const auth = await requirePortalRole(req, "buyer", "seller");
+  // requireWorkspace (not requirePortalRole) with "buyer" retained: buyers get public comps, and a
+  // workspace-only owner — enabled_workspaces:['landlord'] while legacy portal_role is still 'buyer'
+  // from a tenant→landlord conversion — is admitted instead of 403'd before the ownership check
+  // below (Codex #458 round 6). requirePortalRole reads only portal_role and would deny those owners.
+  const auth = await requireWorkspace(req, "buyer", "seller", "landlord");
   if (isAuthError(auth)) return auth;
 
   const listingId = req.nextUrl.searchParams.get("listingId");
@@ -15,12 +20,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "listingId required" }, { status: 400 });
   }
 
-  // Find the seller's listing
+  // Find the subject listing
   const listing = await prisma.listing.findFirst({
     where: { listing_id: listingId },
   });
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  // Ownership enforcement for owner-roles (REBNY Art. III §2): a seller/landlord may only pull comps
+  // for THEIR OWN listing. Agents bypass (full CRM access); buyers get public-comp data unchanged.
+  // Owner detection uses the effective access set (enabled_workspaces → roles → portal_role) — a
+  // workspace-only owner (enabled_workspaces:['seller'], legacy portal_role:'buyer') is admitted here
+  // by the buyer allowance, so a portal_role-only check would skip enforcement (Codex #458 round 5).
+  if (auth.userType === "lead") {
+    const lead = await prisma.lead.findUnique({
+      where: { id: auth.userId },
+      select: { portal_role: true, enabled_workspaces: true, roles: true },
+    });
+    if (isOwnerLead(lead) && !canAccessOwnerListing(auth, listing.owner_client_id)) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
   }
 
   const addr = (listing.address || {}) as Record<string, string>;
