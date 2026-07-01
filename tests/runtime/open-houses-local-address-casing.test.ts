@@ -23,6 +23,14 @@ describe('openHouseTwinKey — ZIP-disambiguated twin key (Codex #464 P2)', () =
   it('no usable street → empty key even if ZIP present (no ZIP-only false match)', () => {
     expect(openHouseTwinKey({ postalCode: '10128' })).toBe('');
   });
+  it('incomplete street — unit-number only (no number+name) → empty key (Codex #464 P2b: no partial collision)', () => {
+    expect(openHouseTwinKey({ unitNumber: '4D', postalCode: '10128' })).toBe('');
+    expect(openHouseTwinKey({ streetName: '90th', unitNumber: '4D', postalCode: '10128' })).toBe(''); // no streetNumber
+  });
+  it('missing / partial ZIP → empty key (a full 5-digit ZIP is required for disambiguation)', () => {
+    expect(openHouseTwinKey({ streetNumber: '400', streetName: '90th', unitNumber: '4D' })).toBe(''); // no ZIP
+    expect(openHouseTwinKey({ streetNumber: '400', streetName: '90th', unitNumber: '4D', postalCode: '1012' })).toBe(''); // partial ZIP
+  });
 });
 
 // ── Trestle path off (so GET exercises only the local feed) ──

@@ -138,9 +138,16 @@ export function openHouseTwinKey(p: {
   unitNumber?: unknown;
   postalCode?: unknown;
 }): string {
-  const base = normalizeAddressKey({ streetNumber: p.streetNumber, streetName: p.streetName, unitNumber: p.unitNumber });
-  if (!base) return '';
+  // Require a COMPLETE, discriminating address before emitting a match key: street NUMBER + street
+  // NAME + a full 5-digit ZIP. Otherwise return '' → the panel falls back to exact listingId only.
+  // This prevents partial-key collisions: a unit-number-only key (`4d`) would collide across unrelated
+  // "#4D" units, and a missing ZIP (`40090th4d|`) would re-open the E/W collision. (Codex #464)
+  const streetNumber = String(p.streetNumber ?? '').trim();
+  const streetName = String(p.streetName ?? '').trim();
   const zip = String(p.postalCode ?? '').replace(/\D/g, '').slice(0, 5);
+  if (!streetNumber || !streetName || zip.length < 5) return '';
+  const base = normalizeAddressKey({ streetNumber, streetName, unitNumber: p.unitNumber });
+  if (!base) return '';
   return `${base}|${zip}`;
 }
 
