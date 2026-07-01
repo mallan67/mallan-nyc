@@ -143,4 +143,19 @@ describe('/api/open-houses — local PascalCase open house flows through', () =>
     expect(json.openHouses[0].address).toContain('Upper East Side');
     expect(json.openHouses[0].address).toMatch(/Available on Request/i);
   });
+
+  it('local open house includes a non-empty addressKey (twin-safe matching)', async () => {
+    const ohs = await getOpenHouses();
+    const key = (ohs[0] as Record<string, unknown>).addressKey as string;
+    expect(key.length).toBeGreaterThan(0);
+    expect(key).toContain('400');
+    expect(key).toContain('90th');
+  });
+
+  it('address-suppressed local open house emits an EMPTY addressKey (compliant — no suppressed street key)', async () => {
+    showingFindMany.mockResolvedValueOnce([localShowing({ internet_address_display_yn: false })]);
+    const res = await GET();
+    const json = (await res.json()) as { openHouses: Array<Record<string, unknown>> };
+    expect(json.openHouses[0].addressKey).toBe('');
+  });
 });

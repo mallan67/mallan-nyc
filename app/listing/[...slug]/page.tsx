@@ -22,6 +22,7 @@ import PriceHistory from '@/app/components/PriceHistory';
 import SimilarListings from '@/app/components/SimilarListings';
 import SchoolInfo from '@/app/components/SchoolInfo';
 import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
+import { normalizeAddressKey } from '@/lib/open-houses/upcoming-open-houses';
 import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-cta';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
@@ -939,6 +940,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
   const listing = result.listing;
   const { tax, rawStreetName } = result;
+
+  // Twin-safe open-house key: lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that
+  // /api/open-houses deduped under the RLS listingId (SL-0007 ↔ RLS20099289). Empty when the address
+  // is suppressed (mirrors the route's suppressed-address behavior → panel falls back to id-only).
+  const listingOpenHouseAddressKey = normalizeAddressKey({
+    streetNumber: listing.address?.streetNumber,
+    streetName: listing.address?.streetName,
+    unitNumber: listing.address?.unitNumber,
+  });
 
   // CANONICAL URL ENFORCEMENT — one listing, one canonical path.
   // Canonical shape: /listing/{address-slug}/{listing-id}
@@ -2088,7 +2098,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 </div>
 
                 {/* Open House RSVP (shows only if upcoming open houses exist for this address) */}
-                <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} />
+                <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} listingAddressKey={listingOpenHouseAddressKey} />
 
                 {/* Inquiry Form */}
                 <div id="inquiry">
@@ -2172,7 +2182,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
       {/* ═══ Mobile Open House RSVP + Inquiry Form ═══ */}
       <section className="lg:hidden px-4 py-8 bg-white border-t border-black/[0.06]">
         <div className="max-w-lg mx-auto space-y-6">
-          <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} />
+          <ListingOpenHouseRSVP listingId={listing.id} listingAddress={fullAddress} listingAddressKey={listingOpenHouseAddressKey} />
           <div id="inquiry">
             <InquiryForm
               listingId={listing.id}

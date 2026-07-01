@@ -14,6 +14,7 @@ import {
   OPEN_HOUSE_ELIGIBLE_STATUSES,
   isMallanOwnedLocalListing,
   pickAddressParts,
+  normalizeAddressKey,
 } from '@/lib/open-houses/upcoming-open-houses';
 
 export const dynamic = 'force-dynamic';
@@ -94,6 +95,11 @@ interface OpenHouseDTO {
   // "Mallan Exclusive" badge (matches the Featured/exclusive cards). (2026-06-23)
   mallanExclusive: boolean;
   source: 'trestle' | 'local';
+  // Normalized address key (streetNumber+streetName+unitNumber, directionals dropped) for TWIN-SAFE
+  // matching on the listing-detail panel: a local SL-0007 page can match its Cotality RLS-twin
+  // (RLS20099289) open house that this feed deduped under the RLS listingId. Emitted ONLY when the
+  // address is displayable (empty for suppressed listings → no suppressed-street leak, no false match).
+  addressKey: string;
 }
 
 export async function GET() {
@@ -246,6 +252,9 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         // Mallan-only page → this is a Mallan listing → gold "Mallan Exclusive" badge.
         mallanExclusive: true,
         source: 'trestle' as const,
+        addressKey: gate.addressDisplayable
+          ? normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber })
+          : '',
       };
     }));
   } catch (err) {
@@ -359,6 +368,9 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         featured: false,
         mallanExclusive: true,
         source: 'trestle' as const,
+        addressKey: gate.addressDisplayable
+          ? normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber })
+          : '',
       };
     }));
   } catch {
@@ -499,6 +511,9 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         // Local open houses are Mallan's own (CRM-entered / website-only exclusives) → gold badge.
         mallanExclusive: true,
         source: 'local' as const,
+        addressKey: gate.addressDisplayable
+          ? normalizeAddressKey({ streetNumber: addrParts.streetNumber, streetName: addrParts.streetName, unitNumber: addrParts.unitNumber })
+          : '',
       };
     });
   } catch (err) {
