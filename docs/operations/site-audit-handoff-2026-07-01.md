@@ -9,7 +9,7 @@ Team: `mallan` / `team_kZQh5NYLyrOKqffK0r9EXf4E`
 
 This file is the single handoff checkpoint for the current operating picture. Use it before starting new work, after Claude/Codex makes changes, and before any production-affecting action.
 
-The goal is to stop fragmented decisions. Future agents should update this file with what was checked, what changed, what is broken, and what is blocked.
+The goal is to stop fragmented decisions. Future agents must update this file with what was checked, what changed, what is broken, and what is blocked.
 
 ## Non-negotiable holds
 
@@ -69,11 +69,28 @@ Recent critical PRs already merged:
 Current open PR:
 
 - #465 — `fix(gate6): idx-sync archived-row rehydration guard`.
-- Status: open, mergeable, not merged.
-- Head: `f94a1b0cd4397af5bf83aa4e5bcffc7ab172af32`.
+- Status as of this handoff update: open, not merged.
+- Current head: `65b9507acde38062ac610eb30041ee0bf3f9bdc9`.
 - Changed files: `lib/idx/sync.ts`, `tests/runtime/idx-sync-archived-rehydration-guard.test.ts`.
-- Current blocker: Codex P2 says `archivedSafeMediaWhere()` must be null-safe. Current `sync_status: { not: 'archived' }` can exclude legacy `sync_status IS NULL` rows from media refill. Fix must allow NULL + non-archived, while excluding exact `archived`.
-- Do not merge #465 until this is fixed and re-reviewed.
+- Important: prior Codex P2 comment about NULL `sync_status` reviewed older commit `f94a1b0c`. Current head `65b9507a` already changed `archivedSafeMediaWhere()` to the NULL-safe form:
+  - `OR: [{ sync_status: null }, { sync_status: { not: 'archived' } }]`
+  - This allows legacy `sync_status IS NULL` rows and non-archived statuses while excluding exact `archived`.
+- Await Codex review on current head `65b9507a` before merge approval.
+- Secondary low-risk nit: `backfillEmptyMedia` may increment `updated++` even when an `updateMany` matches 0 rows. This appears to be a counter/reporting issue, not a data correctness issue. Do not expand scope unless explicitly approved.
+
+## Live Cotality/Trestle API pull — do not call this generic “IDX” only
+
+The live listing feed is the Cotality/Trestle API pull, implemented through `/api/cron/idx-sync` and `lib/idx/sync.ts`.
+
+Production cadence from `vercel.json`:
+
+- `/api/cron/idx-sync` runs every 10 minutes: `*/10 * * * *`.
+- `/api/cron/media-sync` runs every 15 minutes: `*/15 * * * *`.
+- `/api/cron/db-keepalive` runs every 15 minutes: `*/15 * * * *`.
+
+The route comment in `app/api/cron/idx-sync/route.ts` says “every 4 hours.” That comment is stale. The Vercel schedule is the source of truth unless intentionally changed. Do not “fix” the 10-minute cadence unless Maya explicitly asks; the 10–15 minute live pull rhythm is intentional.
+
+The scheduled Cotality pull is capped at 500 records per run. Recent Vercel runtime logs showed successful Cotality pulls in the last 24h, including runs fetching 148 and 159 records with zero sync errors.
 
 ## Meaning of “archive” in this system
 
@@ -94,9 +111,9 @@ The purpose is to reduce database bloat and stop old terminal listings from carr
 - No Gate 6 execute has run.
 - No production rows have been stripped by Gate 6 operator.
 - `ARCHIVE_T180_BACKLOG_ENABLED` remains OFF / absent.
-- Nightly cron remains 500-cap and flag-gated.
+- Nightly data-retention cron remains 500-cap and flag-gated.
 
-Decision: Hold Gate 6 execute until #465 rehydration guard is clean and merged.
+Decision: Hold Gate 6 execute until #465 rehydration guard is clean, reviewed on current head, and merged.
 
 ## Vercel / production runtime audit snapshot
 
@@ -109,13 +126,13 @@ Project metadata:
 
 Vercel runtime errors, last 7 days:
 
-- 12 runtime error groups found.
-- Major historical error class: IDX sync attempted writes while database transaction was read-only (`cannot execute INSERT in a read-only transaction`). Last seen 2026-06-28 on older deployment. Needs confirmation it is no longer recurring after current deployment.
+- 12 runtime error groups found in the audit pass.
+- Major historical error class: live Cotality/Trestle sync attempted writes while database transaction was read-only (`cannot execute INSERT in a read-only transaction`). Last seen 2026-06-28 on older deployment. Needs confirmation it is no longer recurring after current deployment.
 - `DB Keepalive` failures: database reachability to `ep-cold-waterfall-adno3ao2-pooler...` failed. Last seen 2026-07-01 18:00 UTC. Needs attention because it can indicate pooler/connection reliability issues.
 - `CONTACT` submission DB error: two events on 2026-06-28. Needs direct contact-form smoke test before declaring contact funnel healthy.
 - `social-proof` cron external fetch timeout. Last seen 2026-07-01 16:00 UTC. Likely external network/vendor issue, but should not log as scary unhandled error if non-critical.
 - `lead-scoring` cron database reachability error. Last seen 2026-06-28.
-- `idx-sync` has also shown successful runs in the last 24h with zero errors on specific runs, so the old read-only transaction issue may be resolved, but this must be verified over a clean 24h window after #465 and any future deploy.
+- Live Cotality/Trestle sync has also shown successful recent runs in the last 24h with zero errors on specific runs, so the old read-only transaction issue may be resolved, but this must be verified over a clean 24h window after #465 and any future deploy.
 
 Vercel runtime logs, last 24h:
 
@@ -124,13 +141,13 @@ Vercel runtime logs, last 24h:
 - `/api/cron/demand-signals` returned 200 with SODA query coordinator warning: `community_board` column not grouped.
 - `/api/cron/seller-scoring` returned 200 with SODA warning: `job_filed_date` no such column.
 - `/api/nearby-poi` repeatedly returned 200 but logged Overpass `406` warnings.
-- `/api/cron/idx-sync` had successful recent runs fetching 148/159 records with zero sync errors.
+- `/api/cron/idx-sync` had successful recent live Cotality/Trestle pulls fetching 148/159 records with zero sync errors.
 
 ## Public site smoke snapshot
 
 Homepage `https://mallan.nyc/` loads and renders public content: hero, navigation, featured listings, license/fair-housing text, footer, and REBNY/IDX disclaimer.
 
-Attention item: homepage footer says listing data last updated `February 11, 2026`. This is stale relative to the current audit date. Confirm whether this is static placeholder text or actual IDX timestamp. If static, fix because it undermines trust and compliance optics.
+Attention item: homepage footer says listing data last updated `February 11, 2026`. This is stale relative to the current audit date. Confirm whether this is static placeholder text or actual live Cotality/Trestle feed timestamp. If static, fix because it undermines trust and compliance optics.
 
 ## Current broken / needs-attention list
 
@@ -140,11 +157,10 @@ None confirmed as active site-down issues in this pass.
 
 ### P1 / High priority
 
-1. PR #465 not merge-ready due to NULL sync_status media-guard bug.
-   - Fix TDD-first.
-   - Re-run type-check, idx-sync suites, compliance validators.
-   - Request Codex re-review.
-   - Do not merge until clean.
+1. PR #465 must not be merged until Codex reviews current head `65b9507a` or Maya explicitly accepts merge risk.
+   - NULL-safe Cotality/media guard appears implemented in current head.
+   - Need current-head Codex verdict, not stale comments from older commits.
+   - Re-run or confirm: type-check, relevant idx-sync tests, rls, ucba, compliance, idx validate.
 
 2. Vercel DB reachability instability.
    - `db-keepalive` 500 on 2026-07-01.
@@ -170,15 +186,15 @@ None confirmed as active site-down issues in this pass.
    - Should degrade quietly if non-critical.
    - Add timeout/fallback logging classification if needed.
 
-7. IDX footer timestamp stale on homepage.
-   - Verify data source and display logic.
+7. Live feed/footer timestamp stale on homepage.
+   - Verify source and display logic.
 
 ### P3 / Operational hygiene
 
-8. `vercel.json` comments mismatch real cron schedule.
+8. Code comments mismatch real cron schedule.
    - `db-keepalive` route comment says every 4 minutes, but `vercel.json` schedules every 15 minutes.
    - `idx-sync` route comment says every 4 hours, but `vercel.json` schedules every 10 minutes.
-   - Not runtime-breaking, but bad for handoffs.
+   - The schedule itself is intentional. Fix comments only.
 
 9. Existing `idx:validate` baseline critical `/api/cron/media-backfill -> NOT SCHEDULED` remains pre-existing and should either be fixed or explicitly accepted in this file.
 
@@ -189,7 +205,7 @@ Run this after every meaningful Claude/Codex PR, and at least daily while active
 ### GitHub checks
 
 - List open PRs.
-- Confirm no PR is merge-ready with unresolved Codex comments.
+- Confirm no PR is merge-ready with unresolved current-head Codex comments.
 - Confirm main head SHA and latest merged PR.
 - Check changed files for any PR touching:
   - `lib/idx/sync.ts`
@@ -207,7 +223,7 @@ Run this after every meaningful Claude/Codex PR, and at least daily while active
 - Check top warning/error routes.
 - Check DB reachability failures.
 - Check contact-form errors.
-- Check IDX sync success/failure count.
+- Check live Cotality/Trestle API pull success/failure count for `/api/cron/idx-sync`.
 
 ### Repo/local gates Claude should run before PR handoff
 
@@ -240,12 +256,11 @@ Record pass/fail and timestamps here.
 
 ## Next recommended sequence
 
-1. Fix PR #465 NULL-safe media guard.
-2. Re-request Codex.
-3. Merge #465 only after clean review.
-4. Re-check Vercel runtime errors for 24h clean window or at least immediate post-deploy sanity.
-5. Only then reconsider Gate 6 5K execute.
-6. In parallel, audit and fix production warnings: contact form, DB keepalive, SODA queries, POI 406, stale IDX timestamp.
+1. Wait for Codex review on #465 current head `65b9507a`, or explicitly ask Claude to confirm current-head review status.
+2. If clean, consider merge approval for #465.
+3. Re-check Vercel runtime errors after #465 deploy.
+4. Only then reconsider Gate 6 5K execute.
+5. In parallel, audit and fix production warnings: contact form, DB keepalive, SODA queries, POI 406, stale live-feed timestamp.
 
 ## Update rule for future agents
 
