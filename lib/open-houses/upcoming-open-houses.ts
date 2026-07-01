@@ -151,6 +151,25 @@ export function openHouseTwinKey(p: {
   return `${base}|${zip}`;
 }
 
+/** The address-key to expose on a listing DETAIL page for twin-safe open-house matching — non-empty
+ *  ONLY for Mallan-owned LOCAL exclusives (SL-/RL-), whose open house may be deduped under a different
+ *  (Cotality RLS-twin) listingId in the Mallan-only /api/open-houses feed. Every other page returns ''
+ *  so the address-key fallback can NEVER cross-attribute a Mallan open house onto a non-Mallan/other-
+ *  brokerage listing that merely shares the same address slug (the 3-brokerage co-listing case where
+ *  identical slugs resolve to distinct listing ids — app/listing/[...slug]/page.tsx). Mallan RLS
+ *  listings match their own feed entry by exact listingId, so they don't need (and don't get) the
+ *  address-key fallback. (Codex #464) */
+export function listingPageOpenHouseKey(listing: {
+  id?: string | null;
+  listing_id?: string | null;
+  address?: { streetNumber?: unknown; streetName?: unknown; unitNumber?: unknown; postalCode?: unknown } | null;
+}): string {
+  const listingId = String(listing.id ?? listing.listing_id ?? '');
+  if (!isMallanOwnedLocalListing({ listing_id: listingId })) return '';
+  const a = listing.address ?? {};
+  return openHouseTwinKey({ streetNumber: a.streetNumber, streetName: a.streetName, unitNumber: a.unitNumber, postalCode: a.postalCode });
+}
+
 // ── Public shape ───────────────────────────────────────────────────────────
 
 /** Light open-house shape attached to a listing DTO for the card banner. ET times. */

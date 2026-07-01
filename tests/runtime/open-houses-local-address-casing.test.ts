@@ -6,7 +6,24 @@
  * Mallan website-only exclusive (e.g. SL-0007) with a valid open house never reached the global
  * page OR the listing-detail panel. Fix: case-tolerant address extraction (PascalCase + camelCase).
  */
-import { pickAddressParts, normalizeAddressKey, openHouseTwinKey } from '@/lib/open-houses/upcoming-open-houses';
+import { pickAddressParts, normalizeAddressKey, openHouseTwinKey, listingPageOpenHouseKey } from '@/lib/open-houses/upcoming-open-houses';
+
+describe('listingPageOpenHouseKey — address-key fallback restricted to Mallan-owned local exclusives (Codex #464)', () => {
+  const addr = { streetNumber: '400', streetName: '90th', unitNumber: '4D', postalCode: '10128' };
+  it('Mallan local exclusive (SL-/RL-) page → non-empty twin key', () => {
+    expect(listingPageOpenHouseKey({ id: 'SL-0007', address: addr }).length).toBeGreaterThan(0);
+    expect(listingPageOpenHouseKey({ id: 'RL-0003', address: addr }).length).toBeGreaterThan(0);
+  });
+  it('non-Mallan / IDX / co-listing page with the SAME address → empty key (no cross-attribution)', () => {
+    // The Mallan RLS twin matches by exact listingId instead; a co-listing from another brokerage
+    // (same address slug, distinct listingId — page.tsx 3-brokerage case) must NOT get Mallan's OH.
+    expect(listingPageOpenHouseKey({ id: 'RLS20099289', address: addr })).toBe('');
+    expect(listingPageOpenHouseKey({ id: 'OTHER-BROKERAGE-123', address: addr })).toBe('');
+  });
+  it('Mallan local but incomplete address → empty key', () => {
+    expect(listingPageOpenHouseKey({ id: 'SL-0007', address: { unitNumber: '4D', postalCode: '10128' } })).toBe('');
+  });
+});
 
 describe('openHouseTwinKey — ZIP-disambiguated twin key (Codex #464 P2)', () => {
   it('same street+unit but DIFFERENT ZIP → different keys (no E/W cross-town collision)', () => {

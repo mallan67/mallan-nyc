@@ -22,7 +22,7 @@ import PriceHistory from '@/app/components/PriceHistory';
 import SimilarListings from '@/app/components/SimilarListings';
 import SchoolInfo from '@/app/components/SchoolInfo';
 import ListingOpenHouseRSVP from '@/app/components/ListingOpenHouseRSVP';
-import { openHouseTwinKey } from '@/lib/open-houses/upcoming-open-houses';
+import { listingPageOpenHouseKey } from '@/lib/open-houses/upcoming-open-houses';
 import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-cta';
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
@@ -941,17 +941,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const listing = result.listing;
   const { tax, rawStreetName } = result;
 
-  // Twin-safe open-house key (street+unit+ZIP): lets ListingOpenHouseRSVP match a Cotality RLS-twin
-  // open house that /api/open-houses deduped under the RLS listingId (SL-0007 ↔ RLS20099289). The ZIP
-  // disambiguates cross-town same-street addresses (E/W). When the address is suppressed the DTO street
-  // fields are undisclosed → the key carries no real street tokens and matches no feed entry (which are
-  // '' when suppressed), so the panel falls back to id-only matching.
-  const listingOpenHouseAddressKey = openHouseTwinKey({
-    streetNumber: listing.address?.streetNumber,
-    streetName: listing.address?.streetName,
-    unitNumber: listing.address?.unitNumber,
-    postalCode: listing.address?.postalCode,
-  });
+  // Twin-safe open-house key (street+unit+ZIP), non-empty ONLY for Mallan-owned LOCAL exclusives
+  // (SL-/RL-): lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that /api/open-houses
+  // deduped under the RLS listingId (SL-0007 ↔ RLS20099289). Restricting to Mallan local exclusives
+  // prevents cross-attributing a Mallan open house onto a non-Mallan/other-brokerage co-listing that
+  // shares the same address slug. '' when not eligible / address suppressed → panel falls back to id.
+  const listingOpenHouseAddressKey = listingPageOpenHouseKey({ id: listing.id, address: listing.address });
 
   // CANONICAL URL ENFORCEMENT — one listing, one canonical path.
   // Canonical shape: /listing/{address-slug}/{listing-id}
