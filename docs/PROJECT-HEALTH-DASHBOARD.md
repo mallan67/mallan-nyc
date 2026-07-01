@@ -23,18 +23,18 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-01T19:30:10Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-01T19:46:07Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
 | Repo / main HEAD | 🟢 | main `10ea57c2`; probed from branch `docs/agent-health-dashboard-2026-07-01` |
-| Open PRs | 🟡 | 30 open (21 non-audit): #465, #428, #364, #362 |
+| Open PRs | 🟡 | 39 open (30 non-audit): #466, #465, #428, #364 |
 | PR #465 CI (rehydration guard) | 🟡 | 8 checks — 0 fail, 1 pending; review CURRENT HEAD before merge |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 2 branch(es) |
 | Gate 6 rollback branch | 🟢 | `pre-gate6-5k-pilot-2026-07-01` (br-winter-credit-adlh315q) ready |
 | Cron cadence (live Cotality) | 🟢 | 22 crons; idx-sync `*/10 * * * *`, media-sync `*/15 * * * *`, db-keepalive `*/15 * * * *` |
 | media-backfill schedule (idx:validate baseline) | 🟡 | NOT SCHEDULED — known idx:validate baseline critical (accepted, not this lane) |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 10m ago (cadence 10m) |
+| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 6m ago (cadence 10m) |
 | DB growth / archive state | 🟢 | 110,597 listings; 2,032 archived (sync_status='archived') |
 <!-- HEALTH:AUTO:END -->
 

@@ -17,8 +17,11 @@ import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
+import { dbGrowthCell, cotalityFreshnessCell } from "./health-status";
 
-dotenv.config({ path: path.resolve(".env.local"), override: true });
+// NO override: a shell-supplied env (the operator's explicit canonical `DATABASE_URL_UNPOOLED=… npm
+// run health:probe`) must WIN over a possibly-stale workstation .env.local (Codex #466).
+dotenv.config({ path: path.resolve(".env.local") });
 
 const NOW = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const DASH = path.resolve("docs/PROJECT-HEALTH-DASHBOARD.md");
@@ -56,7 +59,8 @@ tryProbe(() => {
 
 // ── 2. Open PRs + #465 gate state ────────────────────────────────────────────
 tryProbe(() => {
-  const prs = JSON.parse(sh("gh pr list --state open --json number,title")) as Array<{ number: number; title: string }>;
+  // --limit 200: gh defaults to 30, which would silently undercount the open-PR backlog (Codex #466).
+  const prs = JSON.parse(sh("gh pr list --state open --limit 200 --json number,title")) as Array<{ number: number; title: string }>;
   const codePrs = prs.filter((p) => !/Sentinel audit|report-only/i.test(p.title));
   add("Open PRs", prs.length > 12 ? "🟡" : "🟢",
     `${prs.length} open (${codePrs.length} non-audit): ${codePrs.slice(0, 4).map((p) => `#${p.number}`).join(", ") || "none"}`);
@@ -122,10 +126,11 @@ async function main(): Promise<void> {
         const latest = await prisma.listing.aggregate({ _max: { last_synced_from_trestle: true } });
         const last = latest._max.last_synced_from_trestle;
         const ageMin = last ? Math.round((Date.now() - new Date(last).getTime()) / 60000) : null;
-        add("Cotality ingestion freshness", ageMin === null ? "⚪" : ageMin <= 30 ? "🟢" : ageMin <= 120 ? "🟡" : "🔴",
-          last ? `last_synced_from_trestle max ${ageMin}m ago (cadence 10m)` : "no last_synced_from_trestle");
-        add("DB growth / archive state", "🟢",
-          `${total.toLocaleString()} listings; ${archived.toLocaleString()} archived (sync_status='archived')`);
+        const fresh = cotalityFreshnessCell(ageMin);
+        add("Cotality ingestion freshness", fresh.status, fresh.evidence);
+        // Gate on a sane floor — a successful read of an empty/restored branch must NOT show 🟢 (Codex #466).
+        const growth = dbGrowthCell(total, archived);
+        add("DB growth / archive state", growth.status, growth.evidence);
       } finally {
         await prisma.$disconnect();
       }
