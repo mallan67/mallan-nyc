@@ -99,6 +99,7 @@ export function pickAddressParts(address: unknown): {
   streetSuffix: string;
   streetDirSuffix: string;
   unitNumber: string;
+  postalCode: string;
 } {
   const a = (address && typeof address === 'object' && !Array.isArray(address) ? address : {}) as Record<string, unknown>;
   const pick = (...keys: string[]): string => {
@@ -119,7 +120,28 @@ export function pickAddressParts(address: unknown): {
     streetSuffix: pick('StreetSuffix', 'streetSuffix'),
     streetDirSuffix: pick('StreetDirSuffix', 'streetDirSuffix'),
     unitNumber: pick('UnitNumber', 'unitNumber', 'unit'),
+    postalCode: pick('PostalCode', 'postalCode', 'zip'),
   };
+}
+
+/** Twin-match key for OPEN HOUSES: the canonical street key PLUS the ZIP. Two physically distinct
+ *  units that normalize to the same street key — e.g. "400 E 90th #4D" vs "400 W 90th #4D" (the
+ *  directional is dropped as a stop-word by normalizeAddressKey) — must NOT collide, so the ZIP
+ *  disambiguates cross-town addresses (E 90th=10128 vs W 90th=10024). Returns '' when there is no
+ *  usable street (never a ZIP-only key → no false match). A property's two twin representations
+ *  (local SL-0007 ↔ Cotality RLS20099289) share street+unit+ZIP, so the match is preserved.
+ *  (Codex #464 — the page DTO does not expose the directional separately, so ZIP is the shared
+ *  discriminator available to both the route and the listing page.) */
+export function openHouseTwinKey(p: {
+  streetNumber?: unknown;
+  streetName?: unknown;
+  unitNumber?: unknown;
+  postalCode?: unknown;
+}): string {
+  const base = normalizeAddressKey({ streetNumber: p.streetNumber, streetName: p.streetName, unitNumber: p.unitNumber });
+  if (!base) return '';
+  const zip = String(p.postalCode ?? '').replace(/\D/g, '').slice(0, 5);
+  return `${base}|${zip}`;
 }
 
 // ── Public shape ───────────────────────────────────────────────────────────

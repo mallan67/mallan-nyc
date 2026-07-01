@@ -6,7 +6,24 @@
  * Mallan website-only exclusive (e.g. SL-0007) with a valid open house never reached the global
  * page OR the listing-detail panel. Fix: case-tolerant address extraction (PascalCase + camelCase).
  */
-import { pickAddressParts, normalizeAddressKey } from '@/lib/open-houses/upcoming-open-houses';
+import { pickAddressParts, normalizeAddressKey, openHouseTwinKey } from '@/lib/open-houses/upcoming-open-houses';
+
+describe('openHouseTwinKey — ZIP-disambiguated twin key (Codex #464 P2)', () => {
+  it('same street+unit but DIFFERENT ZIP → different keys (no E/W cross-town collision)', () => {
+    const east = openHouseTwinKey({ streetNumber: '400', streetName: '90th', unitNumber: '4D', postalCode: '10128' });
+    const west = openHouseTwinKey({ streetNumber: '400', streetName: '90th', unitNumber: '4D', postalCode: '10024' });
+    expect(east).not.toBe(west);
+  });
+  it('same unit + same ZIP (case/format variants) → SAME key (twin match preserved)', () => {
+    const a = openHouseTwinKey({ streetNumber: '400', streetName: '90th', unitNumber: '4D', postalCode: '10128' });
+    const b = openHouseTwinKey({ streetNumber: '400', streetName: '90TH', unitNumber: '4d', postalCode: '10128' });
+    expect(a).toBe(b);
+    expect(a.length).toBeGreaterThan(0);
+  });
+  it('no usable street → empty key even if ZIP present (no ZIP-only false match)', () => {
+    expect(openHouseTwinKey({ postalCode: '10128' })).toBe('');
+  });
+});
 
 // ── Trestle path off (so GET exercises only the local feed) ──
 jest.mock('@/lib/idx/auth', () => ({
@@ -29,7 +46,7 @@ import { GET } from '@/app/api/open-houses/route';
 
 const PASCAL_ADDR = {
   StreetNumber: '400', StreetDirPrefix: 'E', StreetName: '90th', StreetSuffix: 'Street',
-  UnitNumber: '4D', City: 'New York', UnparsedAddress: '400 E 90th Street',
+  UnitNumber: '4D', City: 'New York', PostalCode: '10128', UnparsedAddress: '400 E 90th Street',
 };
 
 function localShowing(overrides: Record<string, unknown> = {}) {
@@ -44,12 +61,12 @@ function localShowing(overrides: Record<string, unknown> = {}) {
       city: 'New York',
       neighborhood: 'Upper East Side',
       list_price: 560000,
-      bedrooms_total: 1,
+      bedrooms_total: 0, // SL-0007 is a studio (0 bed / 1 bath / 476 sqft / 2 rooms)
       bathrooms_full: 1,
       bathrooms_half: 0,
-      living_area: 700,
+      living_area: 476,
       property_type: 'Residential',
-      property_sub_type: null,
+      property_sub_type: 'Apartment',
       features: {},
       media: [{ url: 'https://x/p.jpg' }],
       rls_eligible: false, // website-only Mallan exclusive
@@ -150,6 +167,7 @@ describe('/api/open-houses — local PascalCase open house flows through', () =>
     expect(key.length).toBeGreaterThan(0);
     expect(key).toContain('400');
     expect(key).toContain('90th');
+    expect(key).toContain('10128'); // ZIP included for cross-town disambiguation (Codex #464 P2)
   });
 
   it('address-suppressed local open house emits an EMPTY addressKey (compliant — no suppressed street key)', async () => {

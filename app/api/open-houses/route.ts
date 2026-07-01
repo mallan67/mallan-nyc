@@ -14,7 +14,7 @@ import {
   OPEN_HOUSE_ELIGIBLE_STATUSES,
   isMallanOwnedLocalListing,
   pickAddressParts,
-  normalizeAddressKey,
+  openHouseTwinKey,
 } from '@/lib/open-houses/upcoming-open-houses';
 
 export const dynamic = 'force-dynamic';
@@ -253,7 +253,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         mallanExclusive: true,
         source: 'trestle' as const,
         addressKey: gate.addressDisplayable
-          ? normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber })
+          ? openHouseTwinKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber, postalCode: prop.PostalCode })
           : '',
       };
     }));
@@ -369,7 +369,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         mallanExclusive: true,
         source: 'trestle' as const,
         addressKey: gate.addressDisplayable
-          ? normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber })
+          ? openHouseTwinKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber, postalCode: prop.PostalCode })
           : '',
       };
     }));
@@ -512,7 +512,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         mallanExclusive: true,
         source: 'local' as const,
         addressKey: gate.addressDisplayable
-          ? normalizeAddressKey({ streetNumber: addrParts.streetNumber, streetName: addrParts.streetName, unitNumber: addrParts.unitNumber })
+          ? openHouseTwinKey({ streetNumber: addrParts.streetNumber, streetName: addrParts.streetName, unitNumber: addrParts.unitNumber, postalCode: addrParts.postalCode })
           : '',
       };
     });

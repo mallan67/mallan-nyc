@@ -19,7 +19,7 @@ const ohRecord = {
   OpenHouseType: 'Public',
   Property: [{
     StreetNumber: '400', StreetDirPrefix: 'E', StreetName: '90TH', StreetSuffix: 'Street', UnitNumber: '4D',
-    City: 'New York', ListPrice: 560000, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 700,
+    City: 'New York', PostalCode: '10128', ListPrice: 560000, BedroomsTotal: 0, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 476,
     PropertyType: 'Residential', CommonInterest: 'Condominium', ListOfficeName: 'Mallan Real Estate Inc.', PublicRemarks: '',
     InternetEntireListingDisplayYN: null, InternetAddressDisplayYN: null, StandardStatus: 'Active', MlsStatus: 'Active', CloseDate: null,
   }],

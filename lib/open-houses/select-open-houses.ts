@@ -13,8 +13,9 @@
 export interface ListingOpenHouseEntry {
   id: string;
   listingId: string;
-  /** Normalized address key (streetNumber+streetName+unitNumber, directionals dropped). Empty when
-   *  the listing's address is suppressed — an empty key never matches (no accidental '' === ''). */
+  /** Normalized twin-match key (street+unit+ZIP; directionals dropped as stop-words, ZIP added to
+   *  disambiguate cross-town E/W addresses). Matching requires BOTH sides non-empty, and the feed
+   *  emits '' for non-displayable addresses — so suppressed entries never match (no '' === ''). */
   addressKey?: string;
   address: string;
   date: string;      // "YYYY-MM-DD"
