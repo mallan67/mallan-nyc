@@ -68,7 +68,17 @@ tryProbe(() => {
 
 tryProbe(() => {
   // No --jq (single-quoted jq breaks under cmd.exe on Windows); parse the JSON in-process instead.
-  const view = JSON.parse(sh("gh pr view 465 --json statusCheckRollup")) as { statusCheckRollup?: Array<Record<string, unknown>> };
+  // #465 merged 2026-07-02 — once MERGED, report that fact instead of stale
+  // "review before merge" CI guidance (Codex #467: auto tier contradicted the
+  // assessed tier after the merge). Row auto-retires to a merged notice.
+  const view = JSON.parse(sh("gh pr view 465 --json state,statusCheckRollup,mergedAt")) as {
+    state?: string; mergedAt?: string; statusCheckRollup?: Array<Record<string, unknown>>;
+  };
+  if (view.state === "MERGED") {
+    add("PR #465 (rehydration guard)", "🟢",
+      `MERGED ${String(view.mergedAt || "").slice(0, 16)}Z — guard live; see registry RW-004 watch`);
+    return;
+  }
   const roll = view.statusCheckRollup ?? [];
   const norm = roll.map((c) => String(c.conclusion || c.state || c.status || "").toUpperCase());
   const fails = norm.filter((v) => /FAIL|ERROR|CANCEL|TIMED/.test(v)).length;
@@ -76,7 +86,7 @@ tryProbe(() => {
   const s: Status = fails ? "🔴" : pending ? "🟡" : "🟢";
   add("PR #465 CI (rehydration guard)", s,
     `${norm.length} checks — ${fails} fail, ${pending} pending; review CURRENT HEAD before merge`);
-}, () => add("PR #465 CI (rehydration guard)", "⚪", "gh checks unavailable"));
+}, () => add("PR #465 (rehydration guard)", "⚪", "gh checks unavailable"));
 
 // ── 3. Neon canonical identity + rollback branch ─────────────────────────────
 tryProbe(() => {
