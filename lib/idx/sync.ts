@@ -146,7 +146,15 @@ export function guardArchivedRehydration<T extends Record<string, unknown>>(
     terminal_since: _terminalSince,
     ...rest
   } = update;
-  return rest as unknown as T;
+  // Codex #465 r4 — force idx_display_yn:false rather than merely omitting it.
+  // Omission would PRESERVE a stale stored true (the T+180 archiver does not
+  // write this column, and the T+24h cleanup only flips rows with an old
+  // non-null status_changed_at), and the detail route gates via
+  // isListingDisplayable() which checks the display gates, not terminal
+  // status — so a stripped archived row could stay publicly reachable by
+  // direct listing_id. Writing false on every non-unarchive re-emit
+  // self-heals any such stale state. Fail closed.
+  return { ...rest, idx_display_yn: false } as unknown as T;
 }
 
 /**

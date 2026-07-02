@@ -55,10 +55,13 @@ describe('guardArchivedRehydration — archived-row rehydration guard (behaviora
     expect('sync_status' in out).toBe(false);
   });
 
-  it('existing row archived → ALSO freezes display/clock fields (status/idx_display_yn/terminal_since dropped; Codex #465 r3), watermark fields still flow', () => {
+  it('existing row archived → ALSO freezes display/clock fields (status/terminal_since dropped; Codex #465 r3) and FORCES idx_display_yn:false (r4 — self-heal stale stored true), watermark fields still flow', () => {
     const out = guardArchivedRehydration(updatePayload(), { sync_status: 'archived' });
     expect('status' in out).toBe(false);
-    expect('idx_display_yn' in out).toBe(false);
+    // r4: omitting idx_display_yn would PRESERVE a stale stored true (archiver
+    // does not write that column; T+24h cleanup can miss null-status_changed_at
+    // rows). Fail closed: force it false on every non-unarchive re-emit.
+    expect(out.idx_display_yn).toBe(false);
     expect('terminal_since' in out).toBe(false);
     // Watermark must keep flowing or the sync cursor stalls on archived re-emits.
     expect('modification_timestamp' in out).toBe(true);
@@ -138,7 +141,7 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
       expect('media' in out).toBe(false);
       expect('sync_status' in out).toBe(false);
       expect('status' in out).toBe(false);
-      expect('idx_display_yn' in out).toBe(false);
+      expect(out.idx_display_yn).toBe(false); // r4: forced false, not merely omitted
     },
   );
 
@@ -150,14 +153,14 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
       expect('media' in out).toBe(false);
       expect('sync_status' in out).toBe(false);
       expect('status' in out).toBe(false);
-      expect('idx_display_yn' in out).toBe(false);
+      expect(out.idx_display_yn).toBe(false); // r4: forced false, not merely omitted
     },
   );
 
   it('archived + Pending re-emit (non-terminal → mapper CAN set idx_display_yn=true) → display fields MUST be frozen (Codex #465 r3 direct-URL exposure)', () => {
     const p = { ...activePayload('Pending'), idx_display_yn: true };
     const out = guardArchivedRehydration(p, { sync_status: 'archived' });
-    expect('idx_display_yn' in out).toBe(false);
+    expect(out.idx_display_yn).toBe(false); // r4: forced false even when the incoming payload says true
     expect('status' in out).toBe(false);
     expect('raw_data' in out).toBe(false);
   });
