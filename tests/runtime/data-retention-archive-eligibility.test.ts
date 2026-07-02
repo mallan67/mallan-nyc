@@ -76,6 +76,17 @@ beforeEach(() => {
   archiveWheres.length = 0;
   process.env.CRON_SECRET = "test-secret";
   delete process.env.ARCHIVE_T180_BACKLOG_ENABLED;
+  // OPS-009 (2026-07-02): the archive loop is now gated under ARCHIVE_ENABLED (fail-closed
+  // OFF). These tests exercise the CLOCK-SELECTION semantics of ARCHIVE_T180_BACKLOG_ENABLED,
+  // which require the loop to run at all → put the route in MAINTENANCE state.
+  // The OFF-state behavior is covered by tests/runtime/ops009-archive-controls.test.ts.
+  process.env.ARCHIVE_ENABLED = "true";
+  delete process.env.ARCHIVE_BACKLOG_DRAIN_ENABLED;
+});
+
+afterAll(() => {
+  delete process.env.ARCHIVE_ENABLED;
+  delete process.env.ARCHIVE_T180_BACKLOG_ENABLED;
 });
 
 describe("data-retention T+180 archive eligibility", () => {
