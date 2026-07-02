@@ -22,6 +22,7 @@ import {
   type DiagnosticAuditWriter,
 } from "./diagnostic-recorder";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { ACTIVE_DISPLAY_VALUES } from "@/lib/compliance/status";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -67,6 +68,119 @@ export function mediaUpdatePatch(
  */
 export function complianceUpdatePatch(): Record<string, never> {
   return {};
+}
+
+/** The sync_status the T+180 archiver writes (lib/retention/archive-terminals.ts). */
+export const ARCHIVED_SYNC_STATUS = "archived";
+
+/**
+ * Gate 6 durability — archived-row rehydration guard (board #415).
+ *
+ * Once the T+180 archiver (lib/retention/archive-terminals.ts) has stripped a terminal listing
+ * (raw_data→JSON null, media→[], compliance→{}, sync_status='archived'), a later Cotality re-emit
+ * hitting the per-record UPDATE branch would re-hydrate raw_data + media and overwrite sync_status
+ * back off 'archived' — silently UN-archiving the row. Because `archiveEligibilityWhere` keys on
+ * `sync_status: { not: 'archived' }`, that un-archived row then re-enters the nightly retention drain
+ * and is re-stripped: strip → rehydrate → re-strip churn.
+ *
+ * Guard: when the EXISTING row is archived and the re-emit is NOT an active display status, DROP
+ * raw_data, media, and sync_status from the Cotality UPDATE payload so the archiver's one-way strip
+ * is preserved verbatim. Other columns (status / idx_display_yn / timestamps) may still update —
+ * for terminal re-emits they do not re-expose the row (terminal rows stay idx_display_yn=false via
+ * the mapper's terminal gate). Non-archived rows (and CREATEs, where `existing` is null) are
+ * returned unchanged — normal sync rehydration. Pure and non-mutating: returns a NEW object when
+ * guarding.
+ *
+ * Codex #465 follow-up (2026-07-01) — ACTIVE re-emit must UNARCHIVE, not display-while-stripped:
+ * when Cotality re-emits an archived listing with an ACTIVE display status, the mapper computes
+ * is_terminal=false → idx_display_yn can be true, and status flows through this guard. Freezing
+ * the blobs in that case produced a publicly displayable row with permanently stripped
+ * raw_data/media (archivedSafeMediaWhere then blocks the batch refill because sync_status stays
+ * 'archived'). A back-on-market listing is a GENUINE unarchive, not churn: the full update flows,
+ * sync_status leaves 'archived' (the per-record UPDATE runs before the batch media writers in the
+ * same run, so the refill's DB filter matches again) and raw_data rehydrates.
+ *
+ * Codex #465 round 2 — EXACT canonical match, not the alias-tolerant normalizer: the mapper
+ * persists the RAW StandardStatus string into `status`, and the public/projection search filters
+ * (buildSearchDisplayWhere → ACTIVE_DISPLAY_VALUES) match only the canonical DB values
+ * ('Active' / 'ActiveUnderContract' / 'ComingSoon'). Unarchiving an alias form (e.g.
+ * "Active Under Contract") would rehydrate a row that public search still hides — an
+ * unarchived-but-invisible zombie. So the unarchive verdict must equal the search-visibility
+ * verdict: exact membership in ACTIVE_DISPLAY_VALUES. (Live feed emits the canonical no-space
+ * values — verified 2026-07-01: `ComingSoon`; same lesson as the historical `Coming Soon`
+ * sitemap bug, app/sitemap.ts:88-92.)
+ *
+ * Codex #465 round 3 — the NON-unarchive branch must ALSO freeze the display/clock fields:
+ * for a non-terminal, non-canonical re-emit (Pending, alias forms, trimmed/cased variants) the
+ * mapper can compute a displayable (truthy) idx_display_yn, and the listing DETAIL page gates through
+ * isListingDisplayable() rather than the exact search filter — so letting status/idx_display_yn
+ * through would render the still-archived, blob-stripped row on a direct listing URL. When the
+ * row stays archived, the guard therefore drops status, idx_display_yn, and terminal_since too:
+ * the row keeps its stored terminal status + idx_display_yn=false (written at T+24h/archive
+ * time) and its archive clock. Watermark fields (modification_timestamp,
+ * last_synced_from_trestle) still flow — freezing them would stall the sync cursor on archived
+ * re-emits. Net semantic: an archived row is IMMUTABLE for display purposes; the ONLY exit is
+ * the exact canonical-active unarchive above, after which it re-enters archive eligibility only
+ * once terminal again for T+180 days. Fail-closed (§J.7): terminal, unknown, alias, and absent
+ * statuses keep the one-way strip.
+ */
+const UNARCHIVE_STATUSES: ReadonlySet<string> = new Set<string>(ACTIVE_DISPLAY_VALUES);
+
+export function guardArchivedRehydration<T extends Record<string, unknown>>(
+  update: T,
+  existing: { sync_status?: string | null } | null | undefined,
+): T {
+  if (existing?.sync_status !== ARCHIVED_SYNC_STATUS) return update;
+  // Explicit unarchive: the feed says the listing is back on market AND the
+  // persisted status will actually match the public search filters. Let the
+  // full update flow so the row leaves 'archived' and can rehydrate legitimately.
+  if (typeof update.status === "string" && UNARCHIVE_STATUSES.has(update.status)) return update;
+  // Staying archived: omit the stripped blobs AND the display/clock fields
+  // (destructure-rest, no delete — matches the agent_info omit pattern).
+  const {
+    raw_data: _rawData,
+    media: _media,
+    sync_status: _syncStatus,
+    status: _status,
+    idx_display_yn: _idxDisplayYn,
+    terminal_since: _terminalSince,
+    ...rest
+  } = update;
+  // Codex #465 r4 — force idx_display_yn:false rather than merely omitting it.
+  // Omission would PRESERVE a stale stored true (the T+180 archiver does not
+  // write this column, and the T+24h cleanup only flips rows with an old
+  // non-null status_changed_at), and the detail route gates via
+  // isListingDisplayable() which checks the display gates, not terminal
+  // status — so a stripped archived row could stay publicly reachable by
+  // direct listing_id. Writing false on every non-unarchive re-emit
+  // self-heals any such stale state. Fail closed.
+  return { ...rest, idx_display_yn: false } as unknown as T;
+}
+
+/**
+ * Where-clause for the SEPARATE post-upsert batch media refill (#415 rehydration guard, media path).
+ *
+ * useExpandMedia is hard-coded false in both sync paths, so the per-record upsert OMITS media
+ * (mediaUpdatePatch) and media is instead written later by a batch `listing.updateMany` — which
+ * guardArchivedRehydration does NOT cover. A re-emitted archived row (media=[]) would otherwise have
+ * its media re-hydrated in the same run, and retention then skips it (sync_status='archived'). Adding
+ * the archived exclusion at the DB filter means the media write matches 0 rows for an archived
+ * listing, so its stripped media is preserved. (backfillEmptyMedia carries the same exclusion in SQL.)
+ *
+ * NULL-safe (Codex #465 P2): `sync_status: { not: 'archived' }` alone compiles to `sync_status <> 'archived'`,
+ * which is NULL (not TRUE) for legacy rows where sync_status IS NULL — silently excluding them from a
+ * legitimate media refill. Excluding ONLY 'archived' requires an explicit NULL branch, so NULL and every
+ * non-archived value are allowed while archived stays protected. (Mirrors the SQL `IS DISTINCT FROM
+ * 'archived'` used in backfillEmptyMedia, which is already NULL-safe.)
+ */
+export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereInput {
+  return {
+    listing_id: listingId,
+    OR: [
+      { sync_status: null },
+      { sync_status: { not: ARCHIVED_SYNC_STATUS } },
+    ],
+  };
 }
 
 /**
@@ -296,6 +410,8 @@ export async function syncListings(
           status_changed_at: true,
           first_active_date: true,
           days_on_market: true,
+          // #415 rehydration guard: needed so an archived row is not re-hydrated on Cotality re-emit.
+          sync_status: true,
         },
       });
 
@@ -382,7 +498,10 @@ export async function syncListings(
             : null,
           ...terminalSinceCreate,
         },
-        update: {
+        // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
+        // DROPS raw_data/media/sync_status from this payload so a Cotality re-emit cannot
+        // re-hydrate the stripped blobs or un-archive the row (which would re-enter the drain).
+        update: guardArchivedRehydration({
           mls_id: mapped.mls_id,
           status: mapped.status,
           ...terminalSinceUpdate,
@@ -420,7 +539,7 @@ export async function syncListings(
           // Status-transition fields (only populated when status actually
           // changed; empty object is a no-op for Prisma).
           ...statusTransition,
-        },
+        }, existing),
       });
 
       // 5. Dual-write the search projection (master refactor PR 5B).
@@ -593,7 +712,8 @@ export async function syncListings(
             for (const [key, media] of mediaByListing) {
               const listingId = keyToIdMap.get(key) || key;
               await prisma.listing.updateMany({
-                where: { listing_id: listingId },
+                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+                where: archivedSafeMediaWhere(listingId),
                 data: { media: media as unknown as Prisma.InputJsonValue },
               });
             }
@@ -807,6 +927,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       )
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
       AND sync_status IS DISTINCT FROM 'gated:participant_only'
+      -- #415 rehydration guard: an archived row has media=[] (stripped by the T+180 archiver), so it
+      -- would otherwise match the empty-media predicate above and be re-hydrated here. Exclude it.
+      AND sync_status IS DISTINCT FROM 'archived'
     ORDER BY modification_timestamp DESC NULLS LAST
     LIMIT ${limit}
   `;
@@ -902,7 +1025,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       for (const [listingId, media] of mediaByListingId) {
         try {
           await prisma.listing.updateMany({
-            where: { listing_id: listingId },
+            // #415: archived-safe filter (defense-in-depth; the SELECT above already excludes
+            // 'archived', so an archived row never reaches here — but never re-hydrate archived media).
+            where: archivedSafeMediaWhere(listingId),
             data: { media: media as unknown as Prisma.InputJsonValue },
           });
           updated++;
@@ -1225,7 +1350,8 @@ export async function syncAgentHistory(
       // Never bumped on terminal→terminal re-sync; cleared on terminal→active.
       const existingForClock = await prisma.listing.findUnique({
         where: { listing_id: mapped.listing_id },
-        select: { status: true },
+        // #415 rehydration guard: sync_status needed so an archived row is not re-hydrated here.
+        select: { status: true, sync_status: true },
       });
       const terminalSinceCreate = computeTerminalSincePatch({
         previousStatus: undefined,
@@ -1263,7 +1389,9 @@ export async function syncAgentHistory(
           raw_data: mapped.raw_data as Prisma.InputJsonValue,
           ...terminalSinceCreate,
         },
-        update: {
+        // #415 rehydration guard (see syncListings): an already-archived row must not be
+        // re-hydrated / un-archived by an agent-history re-sync either.
+        update: guardArchivedRehydration({
           agent_id: options.agentDbId,
           mls_id: mapped.mls_id,
           status: mapped.status,
@@ -1299,7 +1427,7 @@ export async function syncAgentHistory(
           listing_contract_date: mapped.listing_contract_date,
           last_synced_from_trestle: mapped.last_synced_from_trestle,
           sync_status: mapped.sync_status,
-        },
+        }, existingForClock),
       });
 
       // 4. Dual-write the search projection (master refactor PR 5B).
@@ -1429,7 +1557,8 @@ export async function syncAgentHistory(
             for (const [key, media] of mediaByKey) {
               const listingId = agentKeyToIdMap.get(key) || key;
               await prisma.listing.updateMany({
-                where: { listing_id: listingId },
+                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+                where: archivedSafeMediaWhere(listingId),
                 data: { media: media as unknown as Prisma.InputJsonValue },
               });
             }
