@@ -252,7 +252,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 **Objective:** we do not want 80K+ old terminal listing records repeatedly rebuilt, rehydrated,
 rescanned, and reprocessed by Cotality sync. The goal is **data integrity and stopping
 duplication/churn — cost savings are secondary.** (Evidence basis: stripping is logical-only;
-billed storage does not drop inside the 7-day PITR window — measured in the s1 reclaim assessment.)
+billed storage does not drop inside the history-retention window — measured in the s1 reclaim assessment; window verified directly from Neon configuration 2026-07-02 as **6 hours**, not the previously documented 7 days [OPS-016].)
 
 Three invariants:
 1. **Archive must be durable.**

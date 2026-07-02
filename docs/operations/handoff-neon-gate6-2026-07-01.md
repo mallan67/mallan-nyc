@@ -82,8 +82,9 @@ Hypotheses are tracked separately (H-###). **Nothing is considered confirmed wit
 
 **Objective:** stop 80K+ old terminal records being repeatedly rebuilt/rehydrated/rescanned by
 Cotality sync. Data integrity and stopping duplication/churn — **cost savings are secondary**
-(stripping is logical-only; billed storage does not drop inside the 7-day PITR window — measured
-in the s1 reclaim assessment).
+(stripping is logical-only; billed storage does not drop inside the history-retention window —
+measured in the s1 reclaim assessment; window verified directly from Neon configuration
+2026-07-02 as **6 hours**, not the previously documented 7 days [OPS-016]).
 
 Invariants: **archive must be durable · Cotality sync must not recreate stripped data · no-op
 syncs must not rewrite unchanged rows** (registry OPS-010A).

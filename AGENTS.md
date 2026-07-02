@@ -94,6 +94,12 @@ Before ending a session or handing off:
   gaps · ≤5 verify before touching production.
 - A hypothesis mistaken for a diagnosis is a process failure; wording must make the difference
   impossible to miss across sessions and across agents.
+- **Derived-summary invariant (Maya 2026-07-02):** changing any issue requires updating every
+  derived summary in the same PR (Issue Row → Priority Table → P0/P1 Summary → Dashboard →
+  Handoff). Any stale layer = the PR is incomplete.
+- **Single-ID invariant (Maya 2026-07-02):** every issue has exactly one ID, defined in the
+  Platform Issue Registry; all other documents reference the ID instead of duplicating the
+  description.
 
 ## 6. Current status (pointer, not a copy)
 

@@ -75,8 +75,10 @@ tryProbe(() => {
     state?: string; mergedAt?: string; statusCheckRollup?: Array<Record<string, unknown>>;
   };
   if (view.state === "MERGED") {
+    // Codex #467 r3: claim ONLY what this probe verified (gh merge state).
+    // Deploy/runtime liveness is proven separately (Vercel MCP + RW-004).
     add("PR #465 (rehydration guard)", "🟢",
-      `MERGED ${String(view.mergedAt || "").slice(0, 16)}Z — guard live; see registry RW-004 watch`);
+      `MERGED ${String(view.mergedAt || "").slice(0, 16)}Z (gh merge-state only — deploy/runtime proof lives in RW-004)`);
     return;
   }
   const roll = view.statusCheckRollup ?? [];
