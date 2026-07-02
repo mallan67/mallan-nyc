@@ -107,9 +107,13 @@ tryProbe(() => {
   const cadenceOk = idx === "*/10 * * * *" && media === "*/15 * * * *" && keep === "*/15 * * * *";
   add("Cron cadence (live Cotality)", cadenceOk ? "🟢" : "🟡",
     `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\`, db-keepalive \`${keep}\``);
+  // QUAL-006/OPS-008 resolved 2026-07-02: the media-backfill route was DELETED
+  // (unscheduled since PR #176). Green = stays out of vercel.json; a schedule
+  // entry reappearing without a route is the idx:validate "SCHEDULED BUT
+  // MISSING" critical.
   const backfillScheduled = crons.some((c) => c.path === "/api/cron/media-backfill");
-  add("media-backfill schedule (idx:validate baseline)", backfillScheduled ? "🟢" : "🟡",
-    backfillScheduled ? "scheduled" : "NOT SCHEDULED — known idx:validate baseline critical (accepted, not this lane)");
+  add("media-backfill removal (QUAL-006/OPS-008)", backfillScheduled ? "🔴" : "🟢",
+    backfillScheduled ? "vercel.json schedules /api/cron/media-backfill but the route was deleted 2026-07-02" : "not scheduled; route deleted 2026-07-02 — idx:validate 0-critical baseline restored");
 }, () => add("Cron cadence (live Cotality)", "⚪", "vercel.json unreadable"));
 
 async function main(): Promise<void> {

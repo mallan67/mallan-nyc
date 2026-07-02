@@ -270,9 +270,12 @@ describe('infrastructure non-changes around PR-S.6', () => {
   it("vercel.json does NOT contain /api/cron/media-backfill — paused for 2026-05-21 P0 Neon/media incident (PR #176)", () => {
     // PR #176 (2026-05-21 P0 Neon/media incident mitigation) removed
     // the legacy /api/cron/media-backfill cron entry. The route file at
-    // app/api/cron/media-backfill/route.ts remains in the repo; only
-    // the Vercel cron schedule that invoked it was removed. Reversible
-    // by re-adding the entry to vercel.json.
+    // app/api/cron/media-backfill/route.ts was subsequently DELETED on
+    // 2026-07-02 (QUAL-006/OPS-008 — it was the only unscheduled cron
+    // route and the sole cause of the idx:validate section-10 critical).
+    // This assertion is kept so the schedule entry never reappears:
+    // with the route gone, a vercel.json entry would be idx:validate's
+    // "SCHEDULED BUT MISSING" critical.
     //
     // Context from the read-only incident audit:
     //   - media_sync_state.last_photos_change cursor was frozen at
