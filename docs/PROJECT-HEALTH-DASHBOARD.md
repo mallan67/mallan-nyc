@@ -78,11 +78,11 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 
 Canonical detail lives in [`docs/operations/site-audit-handoff-2026-07-01.md`](operations/site-audit-handoff-2026-07-01.md).
 
-- **P1** — PR #465 must not merge until Codex reviews **current HEAD `65b9507a`** (NULL-safe guard is present); re-run gates.
-- **P1** — Neon DB reachability instability (`db-keepalive` 500).
-- **P1** — Contact funnel health unproven (DB errors 2026-06-28).
-- **P2** — SODA/DOB query drift; Overpass 406; social-proof external timeout; stale homepage feed timestamp.
-- **P3** — cron route comments mismatch real schedule (fix comments, not schedules); `media-backfill` NOT SCHEDULED baseline (accept or fix).
+- ✅ RESOLVED 2026-07-02 — PR #465 merged after 4 Codex rounds on current HEAD; guard live on `858da234`; now registry **RW-004** regression watch (to 2026-07-09).
+- **P1** — Neon DB reachability instability (`db-keepalive` 500) — OPS-002 Monitoring; note OPS-015/OPS-016: compute + retention now verified directly from Neon configuration.
+- 🟡 DOWNGRADED — Contact funnel: H-001 DISPROVED live 2026-07-02; now H-004 (06-28 connectivity cluster), OPS-001 **P2 Monitoring**; zero errors since 06-28.
+- **P2** — SODA/DOB query drift; Overpass 406; social-proof external timeout. (Homepage feed timestamp RESOLVED — live capture shows current date.)
+- **P3** — cron route comments mismatch real schedule (fix comments, not schedules); `media-backfill` NOT SCHEDULED baseline (accept or fix — QUAL-006/OPS-008).
 
 ---
 
@@ -98,24 +98,30 @@ Confidence · Next verification); probably/likely/appears/root-cause are banned 
 format (AGENTS.md §5). Backend items require the 9-field evidence ledger before being reported
 as Confirmed (live).
 
-Open P0/P1 summary (2026-07-01):
+Open P0/P1 summary (refreshed 2026-07-02 — retired: OPS-006 → Fixed/RW-004; OPS-001 → P2/H-004;
+BIZ-005 → P2 after live zero-backlog count):
 
 | ID | Area | Finding | Severity | Status | Owner |
 |---|---|---|---|---|---|
-| SEO-001 | SEO | Sitemap canonical slug mismatch (10,069/10,239 listings) | P0 | Open | Claude |
+| SEO-001 | SEO | Sitemap canonical slug mismatch (10,069/10,239 listings) | P0 | Open — **Track 1 (Maya roadmap)** | Claude |
 | SEO-002 | SEO | /buy & /rent empty shells → robots-blocked /search | P0 | Open | Claude |
-| OPS-006 | Operations | Archived-row rehydration unguarded on main (PR #465 unmerged) | P0 (ops) | Blocked on #465 | Maya |
 | SEO-003 | SEO | 0/59 neighborhood guides in sitemap | P1 | Open | Claude |
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
-| OPS-001 | Operations | Contact funnel — Hypothesis H-001 (lead-upsert INSERT column omission) | P1 | **Needs Verification** | Claude |
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
-| OPS-009 | Operations | T+180 archiving NOT gated by ARCHIVE_T180_BACKLOG_ENABLED (clock-swap only) | P1 | Decision needed | Maya |
-| BIZ-005 | Business | No email/sms notification dispatcher — pending rows never sent | P1 | Blocked/Held | Maya |
+| OPS-009 | Operations | Archive controls — two-flag design DECIDED (+UCBA T+24h carve-out) | P1 | Implementation next — **Track 2** | Claude |
+| OPS-010A | Operations | Storage churn suppression (diff-before-write) | P1 | Open (sequenced after pilot) | Claude |
+| OPS-017 | Operations | **Schema drift** — schema.prisma ↔ live DB no longer identical (leads cols); full-diff audit pending | P1 | Decision needed — **Track 4 (dedicated audit)** | Maya + Claude |
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
 | QUAL-006 | Quality | idx:validate FAIL — media-backfill NOT SCHEDULED (baseline break) | P1 | Decision needed | Maya |
 | COMP-001 | Compliance | /buildings hub missing §175.25 footer identity | P1 | Open | Claude |
+
+**Execution roadmap (Maya, 2026-07-02):** Track 1 **SEO-001** (10K+ pages, small change, high ROI) →
+Track 2 **OPS-009** (archive ambiguity removed forever) → Track 3 **5K Gate-6 pilot** (only after the
+architecture is settled) → Track 4 **OPS-017 dedicated schema-drift audit**. Plus: build the
+**Platform Architecture document** (DOC-001) — full data-flow map (Cotality → sync → normalization →
+compliance → archive → search → website) incl. every cron, queue, webhook, API, and DB boundary.
 
 Full P2/P3 list + verified-PASS register (FARE 1,011/1,011 · attribution 1,011/1,011 · licensing)
 live in the registry.
