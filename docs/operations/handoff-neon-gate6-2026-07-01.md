@@ -77,7 +77,7 @@ Hypotheses are tracked separately (H-###). **Nothing is considered confirmed wit
 3. Run the health probe again (`npm run health:probe`, read-only) — last run 2026-07-02T04:04Z.
 4. Verify Vercel runtime health (note registry RW-002: the idx-sync `25006` error class must
    show 7 consecutive clean days — watch until 2026-07-05).
-5. Reconsider Gate 6 execute (inputs: #465 merged + OPS-009 flag semantics decision).
+5. Reconsider Gate 6 execute — inputs: #465 merged ✅ AND the **OPS-009 two-flag IMPLEMENTATION landed + deployed + one clean sync cycle verified** (the design decision alone is NOT sufficient — registry OPS-009 / dashboard Gate-6 sequence step 4).
 
 ## Shedding sequence (Maya directive 2026-07-01 — DO NOT EXECUTE YET)
 
