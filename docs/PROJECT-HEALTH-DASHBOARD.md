@@ -50,19 +50,19 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 
 | Area | Status | Verified (UTC) | Evidence / how to refresh |
 |------|--------|----------------|---------------------------|
-| Vercel production deploy | 🟢 | 2026-07-01 | Vercel MCP `list_deployments`: latest production `dpl_3KBgBofLKVC7G7hKSqr49e4RWHyx` READY on main@`10ea57c2` |
+| Vercel production deploy | 🟢 | 2026-07-02 | Vercel MCP: production `dpl_2o8LWxcQQmkUkYVZjfdbUxm3KNdK` READY on main@`858da234` (#465 + #466 merged); /api/health 200 post-deploy |
 | Vercel runtime errors (24h/7d) | 🟡 | 2026-07-01 | Vercel MCP `get_runtime_errors` (7d): 12 groups; 25006 read-only-txn class LAST SEEN 2026-06-28 (3 clean days); 24h window = 2 errors total (keepalive 18:00Z + social-proof ETIMEDOUT). Backlog PROD-001 |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
-| Media pipeline | 🟡 | 2026-07-01 | audit: archived-row rehydration UNGUARDED on main until #465 merges (backlog OPS-006); `media-backfill` orphaned + repair-script footgun (OPS-008) |
+| Media pipeline | 🟢 (Regression Watch) | 2026-07-02 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden on the new code, ≥2 clean cycles (registry RW-004, watch to 2026-07-09). Remaining: `media-backfill` orphaned + repair-script footgun (OPS-008) |
 | Search projection | 🟡 | 2026-07-01 | dual-write is best-effort/non-transactional (backlog OPS-011) — heal before any PR-5B reader swap; PR-5B HELD |
 | CRM | 🟡 | 2026-07-01 | `crm:test` 39/39 PASS (§G doc says 172 — QUAL-008 drift); live `/crm` load unverified |
 | Portal (buyer/seller/landlord) | 🟢 | 2026-07-01 | code audit post-#458/#459: ownership enforced on every reviewed id-param route; buyer identity masked to sellers; agent PII gated |
-| Email / notifications | 🔴 | 2026-07-01 | audit: NO dispatcher for email/sms Notifications — `status:'pending'` rows accumulate, never sent (backlog BIZ-005); unsubscribe suppression divergence (BIZ-012) |
-| Contact funnel | 🔴 | 2026-07-01 | **Hypothesis H-001** (Needs Verification): `lib/leads/lead-upsert.ts:115-138` INSERT omits required `String[]` cols → predicted fresh-insert NOT-NULL failure; matches 06-28 error signature but NOT reproduced. Verify: info_schema query (read-only) + approved live repro (registry OPS-001 evidence ledger) |
+| Email / notifications | 🟡 | 2026-07-02 | dispatcher gap real in code (BIZ-005, now **P2**) but LIVE COUNT 2026-07-02: **zero email/sms rows ever accumulated** (30 in_app/pending only — H-002 resolved). Unsubscribe suppression divergence still open (BIZ-012, P1) |
+| Contact funnel | 🟡 | 2026-07-02 | **H-001 DISPROVED live** (info_schema 2026-07-02: suspect columns nullable; all NOT-NULL cols present in the INSERT). Now Hypothesis H-004: 06-28 DB-connectivity incident cluster; zero contact errors since 06-28. Close via one approved controlled submission (registry OPS-001) |
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
 | Compliance validators | 🟡 | 2026-07-01 | full suite re-run: type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (1 HIGH warn: ethics_training_gate WS-C4) · ucba 46/46, 0 REGRESSIONS · **idx:validate FAIL 1 critical (media-backfill NOT SCHEDULED — QUAL-006)** · crm:test 39/39 · test:rls 41/41 (manual) |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
-| Neon health (compute/pooler) | 🟡 | 2026-07-01 (handoff) | `db-keepalive` 500 on pooler `ep-cold-waterfall-…-pooler` 2026-07-01 — watch reliability |
+| Neon health (compute/pooler) | 🟢 | 2026-07-02 | live neonctl reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (NOT the 7d NEON.md claims — OPS-016); billed storage 1,493 MB (14.6% of cap); 2 branches. keepalive 500s = OPS-002/OPS-015 noise |
 | Runtime SODA/DOB queries | 🟡 | 2026-07-01 (handoff) | `seller-scoring` (`job_filed_date`), `demand-signals` (`community_board` grouping) 200-with-warnings |
 | Nearby POI (Overpass) | 🟡 | 2026-07-01 (handoff) | repeated `406` warnings though HTTP 200 — feature may be degraded |
 | Homepage feed timestamp | 🟢 | 2026-07-01 | live footer capture (Playwright) shows "Updated: July 1, 2026" — timestamp is current/live |
@@ -253,17 +253,24 @@ Three invariants:
 2. **Cotality sync must not recreate stripped data.**
 3. **No-op syncs must not rewrite unchanged rows** (registry OPS-010A).
 
-**DO NOT EXECUTE SHEDDING YET. Mandatory sequence:**
-1. Merge **#466** after clean Codex review.
-2. Merge **#465** after clean Codex review (stops rehydration — OPS-006).
-3. **Verify archived-row protection after one live Cotality sync cycle** (archived row keeps
-   `sync_status='archived'`, `raw_data` null, `media` []).
-4. Decide **OPS-009** flag semantics.
-5. Then approve **only the 5K pilot execute**.
-6. Scale beyond 5K **only after proving the 5K rows stay stripped across live sync cycles**.
+**DO NOT EXECUTE SHEDDING YET. Mandatory sequence (progress as of 2026-07-02):**
+1. ✅ **#466 merged** (2026-07-02T01:33Z).
+2. ✅ **#465 merged** (2026-07-02T02:35Z, 4 Codex rounds: unarchive-on-canonical-active, exact-match,
+   display-field freeze, forced idx_display_yn:false). Production deploy `858da234` READY.
+3. 🟡 **Live verification baselined** (read-only cold-waterfall 2026-07-02): ≥2 clean cycles on the
+   new guard, 2,032/2,032 archived rows stripped+hidden, 0 archived re-emits in window — guard
+   branches not yet exercised live → **RW-004 watch** (to 2026-07-09 or first live occurrence).
+4. 🟡 **OPS-009 DECIDED** (two-flag design + UCBA T+24h carve-out; registry OPS-009) —
+   **implementation is the next code lane and MUST land + deploy + verify one clean cycle BEFORE
+   the 5K execute** (Maya directive 2026-07-02).
+5. ⏳ Then approve **only the 5K pilot execute**; monitor several hours / next sync cycles.
+6. ⏳ Scale to 20K batches **only after proving the 5K rows stay stripped across live sync cycles**.
 
-Follow-on (sequenced after #465): **OPS-010A** diff-before-write suppression — the recurring
-~750 MB+/mo churn lever, larger long-term than the one-time backlog. **OPS-015** tracks
+Reclaim note (OPS-016): live history retention is **6h** (not 7d) — post-drain billed-storage drop
+arrives ~6h after rollback-branch deletion + GC, so drain results are measurable same-day.
+
+Follow-on (sequenced after OPS-009/pilot): **OPS-010A** diff-before-write suppression — the
+recurring ~750 MB+/mo churn lever, larger long-term than the one-time backlog. **OPS-015** tracks
 db-keepalive redundancy separately (decision, not a fix now).
 
 ---
