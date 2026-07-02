@@ -58,7 +58,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | CRM | 🟡 | 2026-07-01 | `crm:test` 39/39 PASS (§G doc says 172 — QUAL-008 drift); live `/crm` load unverified |
 | Portal (buyer/seller/landlord) | 🟢 | 2026-07-01 | code audit post-#458/#459: ownership enforced on every reviewed id-param route; buyer identity masked to sellers; agent PII gated |
 | Email / notifications | 🔴 | 2026-07-01 | audit: NO dispatcher for email/sms Notifications — `status:'pending'` rows accumulate, never sent (backlog BIZ-005); unsubscribe suppression divergence (BIZ-012) |
-| Contact funnel | 🔴 | 2026-07-01 | root-cause HYPOTHESIS (Needs Verification): `lib/leads/lead-upsert.ts:115-138` INSERT omits required `String[]` cols → predicted fresh-insert NOT-NULL failure; matches 06-28 error signature but NOT reproduced. Verify: info_schema query (read-only) + approved live repro (registry OPS-001 evidence ledger) |
+| Contact funnel | 🔴 | 2026-07-01 | **Hypothesis H-001** (Needs Verification): `lib/leads/lead-upsert.ts:115-138` INSERT omits required `String[]` cols → predicted fresh-insert NOT-NULL failure; matches 06-28 error signature but NOT reproduced. Verify: info_schema query (read-only) + approved live repro (registry OPS-001 evidence ledger) |
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
 | Compliance validators | 🟡 | 2026-07-01 | full suite re-run: type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (1 HIGH warn: ethics_training_gate WS-C4) · ucba 46/46, 0 REGRESSIONS · **idx:validate FAIL 1 critical (media-backfill NOT SCHEDULED — QUAL-006)** · crm:test 39/39 · test:rls 41/41 (manual) |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
@@ -67,7 +67,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Nearby POI (Overpass) | 🟡 | 2026-07-01 (handoff) | repeated `406` warnings though HTTP 200 — feature may be degraded |
 | Homepage feed timestamp | 🟢 | 2026-07-01 | live footer capture (Playwright) shows "Updated: July 1, 2026" — timestamp is current/live |
 | Lighthouse / performance | ⚪ | — | not run this cycle (PageSpeed/media lane HELD); TTFB baseline 0.34–0.9s captured 2026-07-01 |
-| SEO | 🔴 | 2026-07-01 | Full-coverage audit: 2×P0 + 2×P1 open (sitemap slug mismatch 10,069/10,239; /buy /rent shells; 0/59 neighborhoods in sitemap; /buildings broken) — see [audit backlog](audits/audit-backlog-2026-07-01.md) |
+| SEO | 🔴 | 2026-07-01 | Full-coverage audit: 2×P0 + 2×P1 open (sitemap slug mismatch 10,069/10,239; /buy /rent shells; 0/59 neighborhoods in sitemap; /buildings broken) — see [Platform Issue Registry](PLATFORM-ISSUE-REGISTRY.md) §1 SEO |
 | Accessibility | 🟡 | 2026-07-01 | partial pass: SSR imgs have alt; 2 client-rendered gallery imgs missing alt (QUAL-003); full WCAG pass not run |
 | Mobile / responsive | 🟢 | 2026-07-01 | no horizontal overflow at 375px on home/search/listing templates (Playwright); other templates unprobed |
 | Technical debt | ⚪ | — | narrative — see handoff snapshot |
@@ -107,7 +107,7 @@ Open P0/P1 summary (2026-07-01):
 | OPS-006 | Operations | Archived-row rehydration unguarded on main (PR #465 unmerged) | P0 (ops) | Blocked on #465 | Maya |
 | SEO-003 | SEO | 0/59 neighborhood guides in sitemap | P1 | Open | Claude |
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
-| OPS-001 | Operations | Contact funnel — root-cause hypothesis (lead-upsert INSERT column omission) | P1 | **Needs Verification** | Claude |
+| OPS-001 | Operations | Contact funnel — Hypothesis H-001 (lead-upsert INSERT column omission) | P1 | **Needs Verification** | Claude |
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
 | OPS-009 | Operations | T+180 archiving NOT gated by ARCHIVE_T180_BACKLOG_ENABLED (clock-swap only) | P1 | Decision needed | Maya |
 | BIZ-005 | Business | No email/sms notification dispatcher — pending rows never sent | P1 | Blocked/Held | Maya |
