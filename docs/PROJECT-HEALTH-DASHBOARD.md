@@ -240,7 +240,31 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 - Rollback branch `pre-gate6-5k-pilot-2026-07-01` (`br-winter-credit-adlh315q`) exists; restore LSN `4/745307E0`.
 - 5K **dry-run** done (backlog 80,712; scanned 5,000; archived 0; skipped 0; errors 0). **No execute has run.**
 - `ARCHIVE_T180_BACKLOG_ENABLED` OFF. Nightly retention cron stays 500-cap, flag-gated.
-- **Decision:** hold Gate 6 execute until #465 (rehydration guard) is reviewed on current HEAD and merged.
+
+### Shedding operating rule (Maya directive 2026-07-01)
+
+**Objective:** we do not want 80K+ old terminal listing records repeatedly rebuilt, rehydrated,
+rescanned, and reprocessed by Cotality sync. The goal is **data integrity and stopping
+duplication/churn — cost savings are secondary.** (Evidence basis: stripping is logical-only;
+billed storage does not drop inside the 7-day PITR window — measured in the s1 reclaim assessment.)
+
+Three invariants:
+1. **Archive must be durable.**
+2. **Cotality sync must not recreate stripped data.**
+3. **No-op syncs must not rewrite unchanged rows** (registry OPS-010A).
+
+**DO NOT EXECUTE SHEDDING YET. Mandatory sequence:**
+1. Merge **#466** after clean Codex review.
+2. Merge **#465** after clean Codex review (stops rehydration — OPS-006).
+3. **Verify archived-row protection after one live Cotality sync cycle** (archived row keeps
+   `sync_status='archived'`, `raw_data` null, `media` []).
+4. Decide **OPS-009** flag semantics.
+5. Then approve **only the 5K pilot execute**.
+6. Scale beyond 5K **only after proving the 5K rows stay stripped across live sync cycles**.
+
+Follow-on (sequenced after #465): **OPS-010A** diff-before-write suppression — the recurring
+~750 MB+/mo churn lever, larger long-term than the one-time backlog. **OPS-015** tracks
+db-keepalive redundancy separately (decision, not a fix now).
 
 ---
 

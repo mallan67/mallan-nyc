@@ -78,6 +78,28 @@ Hypotheses are tracked separately (H-###). **Nothing is considered confirmed wit
    show 7 consecutive clean days — watch until 2026-07-05).
 5. Reconsider Gate 6 execute (inputs: #465 merged + OPS-009 flag semantics decision).
 
+## Shedding sequence (Maya directive 2026-07-01 — DO NOT EXECUTE YET)
+
+**Objective:** stop 80K+ old terminal records being repeatedly rebuilt/rehydrated/rescanned by
+Cotality sync. Data integrity and stopping duplication/churn — **cost savings are secondary**
+(stripping is logical-only; billed storage does not drop inside the 7-day PITR window — measured
+in the s1 reclaim assessment).
+
+Invariants: **archive must be durable · Cotality sync must not recreate stripped data · no-op
+syncs must not rewrite unchanged rows** (registry OPS-010A).
+
+1. Merge #466 after clean Codex review.
+2. Merge #465 after clean Codex review (stops rehydration — OPS-006).
+3. Verify archived-row protection after **one live Cotality sync cycle** (archived row keeps
+   `sync_status='archived'`, `raw_data` null, `media` []).
+4. Decide OPS-009 flag semantics.
+5. Then approve **only the 5K pilot execute**.
+6. Scale only after proving the 5K rows **stay stripped** across live sync cycles.
+
+Follow-on after #465: **OPS-010A** diff-before-write suppression (recurring ~750 MB+/mo history
+churn — a larger long-term Neon storage driver than the one-time backlog); **OPS-015**
+db-keepalive redundancy (tracked decision, not a fix now).
+
 ## Do Not (without explicit Maya approval)
 
 - Execute Gate 6
