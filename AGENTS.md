@@ -53,11 +53,25 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 |---|---|
 | Cross-agent constitution (this) | `AGENTS.md` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
+| **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |
 | Dated session snapshot | `docs/operations/site-audit-handoff-YYYY-MM-DD.md` |
 | Claude-specific command center | `CLAUDE.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
+
+### Canonical Documentation (Maya directive 2026-07-01)
+
+These files are the authoritative operational documents for this repository:
+
+1. `AGENTS.md`
+2. `docs/PROJECT-HEALTH-DASHBOARD.md`
+3. `docs/PLATFORM-ISSUE-REGISTRY.md`
+4. `docs/operations/site-audit-handoff-YYYY-MM-DD.md`
+5. `docs/operations/handoff-neon-gate6-YYYY-MM-DD.md`
+
+**Do not create parallel governance documents** (no `STATUS.md`, `NOTES.md`, `TODO.md`, or other
+competing sources of truth). Extend or update these instead.
 
 ## 4. Handoff rule (binds every agent, every session)
 
@@ -68,7 +82,20 @@ Before ending a session or handing off:
    runtime errors, unresolved blockers, what changed, exact stop point.
 4. Never mark a status 🟢 without captured proof. Never rely on chat memory alone.
 
-## 5. Current status (pointer, not a copy)
+## 5. Evidence language rule (binds every agent, every report — Maya directive 2026-07-01)
+
+- The words **"probably," "likely," "appears," "root cause"** are FORBIDDEN in any issue entry or
+  status report, EXCEPT (a) prefixed **`Hypothesis H-###`** and entered in the Hypothesis Register
+  of `docs/PLATFORM-ISSUE-REGISTRY.md` with **Observed · Evidence · Missing · Confidence · Next
+  verification**, or (b) "root cause" backed by an Evidence Score ≥ 9 on the same line.
+- Every registry item carries an **Evidence Score (0–10)** — one point per captured field
+  (endpoint · source · request · response · stack trace/log · DB query · repro · user impact ·
+  frequency/timestamps · environment) with the ✗ fields listed. 9–10 act · 6–8 act naming the
+  gaps · ≤5 verify before touching production.
+- A hypothesis mistaken for a diagnosis is a process failure; wording must make the difference
+  impossible to miss across sessions and across agents.
+
+## 6. Current status (pointer, not a copy)
 
 Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of the last
 handoff: **PR #465** (idx-sync archived-row rehydration guard) is **open, not merged**; current HEAD
