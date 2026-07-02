@@ -34,7 +34,7 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal } from '@/lib/idx/mapping';
 import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
 import { toPublicDTO, buildAuctionPublic, resolveMoveInFees, type PublicListingDTO } from '@/lib/idx/public-dto';
-import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug } from '@/lib/listing-slug';
+import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
@@ -570,7 +570,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const dtoSlug = generateListingSlug({
       address: {
         streetNumber: addr.StreetNumber || '',
-        streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
+        streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase(composeSlugStreetName(addr) || ''),
         unitNumber: addr.UnitNumber || null,
         city: addr.City || '',
         stateOrProvince: addr.StateOrProvince || 'NY',
@@ -605,7 +605,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
           }
         : {
             streetNumber: addr.StreetNumber || '',
-            streetName: normalizeStreetCase([addr.StreetDirPrefix, addr.StreetName, addr.StreetSuffix].filter(Boolean).join(' ') || ''),
+            streetName: normalizeStreetCase(composeSlugStreetName(addr) || ''),
             unitNumber: addr.UnitNumber || null,
             city: addr.City || '',
             stateOrProvince: addr.StateOrProvince || 'NY',

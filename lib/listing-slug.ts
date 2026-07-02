@@ -14,6 +14,41 @@
  */
 
 /**
+ * SEO-001 (2026-07-02) — the ONLY way to compose the street string for slug
+ * generation. Used by BOTH the listing page and app/sitemap.ts so the sitemap
+ * URL and the page canonical CANNOT diverge again.
+ *
+ * Why this exists: Cotality delivers the street in separate fields
+ * (StreetDirPrefix "W" · StreetName "20th" · StreetSuffix "Street" — verified
+ * live 2026-07-01). The sitemap previously passed StreetName ALONE into
+ * generateListingSlug while the page composed all three, so 10,069 of 10,239
+ * sitemap listing URLs (98.3%, full-population audit) omitted the street
+ * type/direction and soft-redirected. One helper = one composition = parity,
+ * locked by tests/runtime/sitemap-slug-canonical-parity.test.ts.
+ *
+ * Case-tolerant (PascalCase canonical first, camelCase legacy fallback) —
+ * same precedent as the open-house pickAddressParts reader (#463).
+ */
+export function composeSlugStreetName(addr: Record<string, unknown>): string {
+  const pick = (pascal: string, camel: string): string => {
+    // Codex #468: a trimmed-BLANK PascalCase value must fall through to the
+    // camelCase legacy key (`??` only skips null/undefined, which kept the
+    // empty string and dropped the street on mixed legacy JSON — the old
+    // sitemap `||` behavior and the pickAddressParts precedent both skip
+    // blanks). PascalCase wins only when it has real content.
+    const pv = typeof addr[pascal] === 'string' ? (addr[pascal] as string).trim() : '';
+    if (pv) return pv;
+    const cv = typeof addr[camel] === 'string' ? (addr[camel] as string).trim() : '';
+    return cv;
+  };
+  return [
+    pick('StreetDirPrefix', 'streetDirPrefix'),
+    pick('StreetName', 'streetName'),
+    pick('StreetSuffix', 'streetSuffix'),
+  ].filter(Boolean).join(' ');
+}
+
+/**
  * Generate a URL-safe slug from listing address fields.
  * Returns an MLS-ID-based fallback when address must be suppressed.
  *
