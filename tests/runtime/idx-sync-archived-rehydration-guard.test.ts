@@ -10,11 +10,20 @@
  * that un-archived row re-enters the nightly retention drain and gets re-stripped: a
  * strip → rehydrate → re-strip churn / ping-pong.
  *
- * guardArchivedRehydration is the fix: when the EXISTING row is archived, drop raw_data, media,
- * and sync_status from the Cotality UPDATE payload so the archiver's one-way strip is preserved
- * verbatim. Non-archived rows are untouched (normal sync rehydration). Other columns
- * (status / idx_display_yn / timestamps) may still update — they are not the stripped blobs and
- * do NOT re-expose the row (terminal rows stay idx_display_yn=false via the mapper's terminal gate).
+ * guardArchivedRehydration is the fix: when the EXISTING row is archived AND the re-emit is
+ * terminal (or unrecognizable — fail-closed), drop raw_data, media, and sync_status from the
+ * Cotality UPDATE payload so the archiver's one-way strip is preserved verbatim. Non-archived
+ * rows are untouched (normal sync rehydration).
+ *
+ * Codex #465 follow-up (2026-07-01): an archived row re-emitted with an ACTIVE display status
+ * (Active / ActiveUnderContract / ComingSoon) is a genuine back-on-market listing. Freezing it
+ * would let status/idx_display_yn flip the row publicly displayable while raw_data/media stay
+ * permanently stripped (and archivedSafeMediaWhere blocks refill) — a live, photoless, dataless
+ * public listing. So an active re-emit performs an EXPLICIT UNARCHIVE: the full update flows
+ * (sync_status leaves 'archived', raw_data rehydrates, and the batch media refill matches once
+ * sync_status is rewritten in the same run). Fail-closed per §J.7: only statuses that normalize
+ * into the canonical ACTIVE_DISPLAY set unarchive; terminal, unknown, or absent statuses keep
+ * the one-way strip (anti-churn).
  *
  * The behavioral helper test is the RED proof (failing-test-flips-green, §F); the source-grep
  * block is SUPPORTING context only.
@@ -84,6 +93,73 @@ describe('guardArchivedRehydration — archived-row rehydration guard (behaviora
     guardArchivedRehydration(p, { sync_status: 'archived' });
     expect('raw_data' in p).toBe(true); // original still intact
     expect(p.sync_status).toBe('synced');
+  });
+});
+
+/**
+ * Codex #465 (2026-07-01) — active re-emit must UNARCHIVE, not display-while-stripped.
+ *
+ * Repro of the gap: archived row + Cotality re-emit StandardStatus=Active. The old guard kept
+ * status/idx_display_yn flowing (row becomes publicly displayable) while freezing
+ * raw_data/media/sync_status (row stays stripped, media refill blocked) → live photoless listing.
+ */
+describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RED→GREEN)', () => {
+  function activePayload(status: string) {
+    return {
+      status,
+      idx_display_yn: true,
+      modification_timestamp: new Date('2026-07-01T00:00:00Z'),
+      raw_data: { ListPrice: 100, StandardStatus: status },
+      media: [{ MediaURL: 'https://api.cotality.com/x/1.jpg' }],
+      sync_status: 'synced',
+    };
+  }
+
+  it.each(['Active', 'ActiveUnderContract', 'ComingSoon'])(
+    'archived + re-emit status %s → FULL update flows (unarchive: raw_data/media/sync_status retained)',
+    (status) => {
+      const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
+      expect('raw_data' in out).toBe(true);
+      expect('media' in out).toBe(true);
+      expect(out.sync_status).toBe('synced'); // leaves 'archived' → media batch refill matches again
+      expect(out.status).toBe(status);
+      expect(out.idx_display_yn).toBe(true);
+    },
+  );
+
+  it('archived + re-emit with raw-feed casing ("Active Under Contract") → normalizes and unarchives', () => {
+    const out = guardArchivedRehydration(activePayload('Active Under Contract'), { sync_status: 'archived' });
+    expect('raw_data' in out).toBe(true);
+    expect('sync_status' in out).toBe(true);
+  });
+
+  it.each(['Closed', 'Expired', 'Withdrawn', 'Pending'])(
+    'archived + re-emit status %s (non-active-display) → strip preserved (no unarchive, no churn)',
+    (status) => {
+      const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
+      expect('raw_data' in out).toBe(false);
+      expect('media' in out).toBe(false);
+      expect('sync_status' in out).toBe(false);
+    },
+  );
+
+  it('archived + UNKNOWN status → fail-closed: strip preserved', () => {
+    const out = guardArchivedRehydration(activePayload('SomethingNew'), { sync_status: 'archived' });
+    expect('raw_data' in out).toBe(false);
+    expect('sync_status' in out).toBe(false);
+  });
+
+  it('archived + status ABSENT from payload → fail-closed: strip preserved', () => {
+    const p: Record<string, unknown> = { raw_data: { a: 1 }, media: [], sync_status: 'synced' };
+    const out = guardArchivedRehydration(p, { sync_status: 'archived' });
+    expect('raw_data' in out).toBe(false);
+    expect('sync_status' in out).toBe(false);
+  });
+
+  it('NOT archived + active status → unchanged (unarchive branch only applies to archived rows)', () => {
+    const p = activePayload('Active');
+    const out = guardArchivedRehydration(p, { sync_status: 'synced' });
+    expect(out).toEqual(p);
   });
 });
 

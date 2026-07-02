@@ -22,6 +22,7 @@ import {
   type DiagnosticAuditWriter,
 } from "./diagnostic-recorder";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { isActiveDisplayStatus } from "@/lib/compliance/status";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -82,18 +83,35 @@ export const ARCHIVED_SYNC_STATUS = "archived";
  * `sync_status: { not: 'archived' }`, that un-archived row then re-enters the nightly retention drain
  * and is re-stripped: strip → rehydrate → re-strip churn.
  *
- * Guard: when the EXISTING row is archived, DROP raw_data, media, and sync_status from the Cotality
- * UPDATE payload so the archiver's one-way strip is preserved verbatim. Other columns (status /
- * idx_display_yn / timestamps) may still update — they are not the stripped blobs and do not re-expose
- * the row (terminal rows stay idx_display_yn=false via the mapper's terminal gate). Non-archived rows
- * (and CREATEs, where `existing` is null) are returned unchanged — normal sync rehydration. Pure and
- * non-mutating: returns a NEW object when guarding.
+ * Guard: when the EXISTING row is archived and the re-emit is NOT an active display status, DROP
+ * raw_data, media, and sync_status from the Cotality UPDATE payload so the archiver's one-way strip
+ * is preserved verbatim. Other columns (status / idx_display_yn / timestamps) may still update —
+ * for terminal re-emits they do not re-expose the row (terminal rows stay idx_display_yn=false via
+ * the mapper's terminal gate). Non-archived rows (and CREATEs, where `existing` is null) are
+ * returned unchanged — normal sync rehydration. Pure and non-mutating: returns a NEW object when
+ * guarding.
+ *
+ * Codex #465 follow-up (2026-07-01) — ACTIVE re-emit must UNARCHIVE, not display-while-stripped:
+ * when Cotality re-emits an archived listing with a status that normalizes into the canonical
+ * ACTIVE display set (Active / ActiveUnderContract / ComingSoon — lib/compliance/status.ts), the
+ * mapper computes is_terminal=false → idx_display_yn can be true, and status flows through this
+ * guard. Freezing the blobs in that case produced a publicly displayable row with permanently
+ * stripped raw_data/media (archivedSafeMediaWhere then blocks the batch refill because
+ * sync_status stays 'archived'). A back-on-market listing is a GENUINE unarchive, not churn: the
+ * full update flows, sync_status leaves 'archived' (the per-record UPDATE runs before the batch
+ * media writers in the same run, so the refill's DB filter matches again) and raw_data rehydrates.
+ * Fail-closed (§J.7): only statuses recognized by the canonical normalizer as active-display
+ * unarchive; terminal, unknown, and absent statuses keep the one-way strip. The unarchived row
+ * re-enters archive eligibility only after it is terminal again for T+180 days.
  */
 export function guardArchivedRehydration<T extends Record<string, unknown>>(
   update: T,
   existing: { sync_status?: string | null } | null | undefined,
 ): T {
   if (existing?.sync_status !== ARCHIVED_SYNC_STATUS) return update;
+  // Explicit unarchive: the feed says the listing is back on market. Let the
+  // full update flow so the row leaves 'archived' and can rehydrate legitimately.
+  if (isActiveDisplayStatus(update.status)) return update;
   // Omit the stripped columns (destructure-rest, no delete — matches the agent_info omit pattern).
   const { raw_data: _rawData, media: _media, sync_status: _syncStatus, ...rest } = update;
   return rest as unknown as T;
