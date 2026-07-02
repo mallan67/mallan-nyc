@@ -39,6 +39,7 @@ function updatePayload() {
   return {
     status: 'Closed',
     idx_display_yn: false,
+    terminal_since: new Date('2026-01-01T00:00:00Z'),
     modification_timestamp: new Date('2026-07-01T00:00:00Z'),
     raw_data: { ListPrice: 100, StandardStatus: 'Closed' },
     media: [{ MediaURL: 'https://api.cotality.com/x/1.jpg' }],
@@ -54,10 +55,12 @@ describe('guardArchivedRehydration — archived-row rehydration guard (behaviora
     expect('sync_status' in out).toBe(false);
   });
 
-  it('existing row archived → PRESERVES the non-blob fields (status/idx_display_yn/modts still update)', () => {
+  it('existing row archived → ALSO freezes display/clock fields (status/idx_display_yn/terminal_since dropped; Codex #465 r3), watermark fields still flow', () => {
     const out = guardArchivedRehydration(updatePayload(), { sync_status: 'archived' });
-    expect(out.status).toBe('Closed');
-    expect(out.idx_display_yn).toBe(false);
+    expect('status' in out).toBe(false);
+    expect('idx_display_yn' in out).toBe(false);
+    expect('terminal_since' in out).toBe(false);
+    // Watermark must keep flowing or the sync cursor stalls on archived re-emits.
     expect('modification_timestamp' in out).toBe(true);
   });
 
@@ -81,11 +84,11 @@ describe('guardArchivedRehydration — archived-row rehydration guard (behaviora
   });
 
   it('archived + payload already OMITS media (media-stomp guard dropped it) → still strips raw_data + sync_status, no throw', () => {
-    const p = { status: 'Closed', raw_data: { a: 1 }, sync_status: 'synced' }; // no media key
+    const p = { status: 'Closed', raw_data: { a: 1 }, sync_status: 'synced', list_price: 123 }; // no media key
     const out = guardArchivedRehydration(p, { sync_status: 'archived' });
     expect('raw_data' in out).toBe(false);
     expect('sync_status' in out).toBe(false);
-    expect(out.status).toBe('Closed');
+    expect(out.list_price).toBe(123); // non-display fields still flow
   });
 
   it('does not MUTATE the caller payload (returns a new object when guarding)', () => {
@@ -128,24 +131,36 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
   );
 
   it.each(['Active Under Contract', 'Coming Soon', 'ACTIVE', 'active'])(
-    'archived + NON-canonical alias/casing "%s" → strip preserved (Codex #465 round 2: the mapper persists the RAW status string and buildSearchDisplayWhere matches only canonical values — unarchiving an alias would rehydrate a row that public search still hides)',
+    'archived + NON-canonical alias/casing "%s" → strip preserved AND display fields frozen (Codex #465 r2+r3: the mapper persists the RAW status string; search filters match only canonical values, and the detail page gates via isListingDisplayable — letting status/idx_display_yn through would render a stripped row on a direct URL)',
     (status) => {
       const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
       expect('raw_data' in out).toBe(false);
       expect('media' in out).toBe(false);
       expect('sync_status' in out).toBe(false);
+      expect('status' in out).toBe(false);
+      expect('idx_display_yn' in out).toBe(false);
     },
   );
 
   it.each(['Closed', 'Expired', 'Withdrawn', 'Pending'])(
-    'archived + re-emit status %s (non-active-display) → strip preserved (no unarchive, no churn)',
+    'archived + re-emit status %s (non-active-display) → strip preserved + display fields frozen (no unarchive, no churn, no direct-URL exposure)',
     (status) => {
       const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
       expect('raw_data' in out).toBe(false);
       expect('media' in out).toBe(false);
       expect('sync_status' in out).toBe(false);
+      expect('status' in out).toBe(false);
+      expect('idx_display_yn' in out).toBe(false);
     },
   );
+
+  it('archived + Pending re-emit (non-terminal → mapper CAN set idx_display_yn=true) → display fields MUST be frozen (Codex #465 r3 direct-URL exposure)', () => {
+    const p = { ...activePayload('Pending'), idx_display_yn: true };
+    const out = guardArchivedRehydration(p, { sync_status: 'archived' });
+    expect('idx_display_yn' in out).toBe(false);
+    expect('status' in out).toBe(false);
+    expect('raw_data' in out).toBe(false);
+  });
 
   it('archived + UNKNOWN status → fail-closed: strip preserved', () => {
     const out = guardArchivedRehydration(activePayload('SomethingNew'), { sync_status: 'archived' });

@@ -108,9 +108,21 @@ export const ARCHIVED_SYNC_STATUS = "archived";
  * unarchived-but-invisible zombie. So the unarchive verdict must equal the search-visibility
  * verdict: exact membership in ACTIVE_DISPLAY_VALUES. (Live feed emits the canonical no-space
  * values — verified 2026-07-01: `ComingSoon`; same lesson as the historical `Coming Soon`
- * sitemap bug, app/sitemap.ts:88-92.) Fail-closed (§J.7): terminal, unknown, alias, and absent
- * statuses keep the one-way strip. The unarchived row re-enters archive eligibility only after
- * it is terminal again for T+180 days.
+ * sitemap bug, app/sitemap.ts:88-92.)
+ *
+ * Codex #465 round 3 — the NON-unarchive branch must ALSO freeze the display/clock fields:
+ * for a non-terminal, non-canonical re-emit (Pending, alias forms, trimmed/cased variants) the
+ * mapper can compute a displayable (truthy) idx_display_yn, and the listing DETAIL page gates through
+ * isListingDisplayable() rather than the exact search filter — so letting status/idx_display_yn
+ * through would render the still-archived, blob-stripped row on a direct listing URL. When the
+ * row stays archived, the guard therefore drops status, idx_display_yn, and terminal_since too:
+ * the row keeps its stored terminal status + idx_display_yn=false (written at T+24h/archive
+ * time) and its archive clock. Watermark fields (modification_timestamp,
+ * last_synced_from_trestle) still flow — freezing them would stall the sync cursor on archived
+ * re-emits. Net semantic: an archived row is IMMUTABLE for display purposes; the ONLY exit is
+ * the exact canonical-active unarchive above, after which it re-enters archive eligibility only
+ * once terminal again for T+180 days. Fail-closed (§J.7): terminal, unknown, alias, and absent
+ * statuses keep the one-way strip.
  */
 const UNARCHIVE_STATUSES: ReadonlySet<string> = new Set<string>(ACTIVE_DISPLAY_VALUES);
 
@@ -123,8 +135,17 @@ export function guardArchivedRehydration<T extends Record<string, unknown>>(
   // persisted status will actually match the public search filters. Let the
   // full update flow so the row leaves 'archived' and can rehydrate legitimately.
   if (typeof update.status === "string" && UNARCHIVE_STATUSES.has(update.status)) return update;
-  // Omit the stripped columns (destructure-rest, no delete — matches the agent_info omit pattern).
-  const { raw_data: _rawData, media: _media, sync_status: _syncStatus, ...rest } = update;
+  // Staying archived: omit the stripped blobs AND the display/clock fields
+  // (destructure-rest, no delete — matches the agent_info omit pattern).
+  const {
+    raw_data: _rawData,
+    media: _media,
+    sync_status: _syncStatus,
+    status: _status,
+    idx_display_yn: _idxDisplayYn,
+    terminal_since: _terminalSince,
+    ...rest
+  } = update;
   return rest as unknown as T;
 }
 
