@@ -44,9 +44,10 @@ restore LSN `4/745307E0`. **No additional rollback branch is required before con
 
 Archived listings could be rehydrated by the live Cotality synchronization because
 `lib/idx/sync.ts` was restoring `raw_data`, `media`, and `sync_status` after archive.
-PR #465's current HEAD fixes this by protecting archived rows (NULL-safe
-`archivedSafeMediaWhere`). PR #465 is awaiting final Codex review of the current HEAD before
-merge — **#465 is now merged (2026-07-02)**; Gate 6 stays paused pending the OPS-009 two-flag implementation + RW-004 watch. (Registry: OPS-006 → Fixed/RW-004. Related decision
+**PR #465 fixed this and is MERGED (2026-07-02)** — the guard protects archived rows (one-way
+strip + display-field freeze + forced `idx_display_yn:false`; NULL-safe `archivedSafeMediaWhere`),
+deployed on `858da234` under RW-004 watch. Gate 6 stays paused pending the OPS-009 two-flag
+implementation + RW-004. (Registry: OPS-006 → Fixed/RW-004. Related decision
 input: OPS-009 — the `ARCHIVE_T180_BACKLOG_ENABLED` flag swaps the eligibility clock; it does
 NOT gate the nightly archive loop itself.)
 

@@ -140,10 +140,10 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 1 · Infrastructure
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Vercel production deploy | 🟢 | 2026-07-01 | dpl_3KBgB… READY on main@10ea57c2 | Vercel MCP list_deployments |
+| Vercel production deploy | 🟢 | 2026-07-02 | dpl_2o8LW… READY on main@858da234 (#465+#466+#468 merged) | Vercel MCP list_deployments |
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
 | Neon canonical identity | 🟢 | 2026-07-01 | auto tier (health:probe) | `npm run health:probe` |
-| Neon compute/pooler reliability | 🟡 | 2026-07-01 | keepalive 500 18:00Z (OPS-002) | runtime logs 7d window |
+| Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
 | Neon backups / PITR / restore drill | ⚪ | — | rollback branch exists (Gate 6) but no restore DRILL ever run | Neon console + drill |
 | Redis (locks/queues) | ⚪ | — | `createCronHandler` references a Redis lock but is dead code (OPS-007); live Redis usage uninventoried | code sweep + env check |
 | R2 storage (media) | ⚪ | — | cost audit 2026-06-12 exists; orphan/consistency unverified this cycle | R2 inventory vs listing_media |
@@ -246,7 +246,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 
 - Rollback branch `pre-gate6-5k-pilot-2026-07-01` (`br-winter-credit-adlh315q`) exists; restore LSN `4/745307E0`.
 - 5K **dry-run** done (backlog 80,712; scanned 5,000; archived 0; skipped 0; errors 0). **No execute has run.**
-- `ARCHIVE_T180_BACKLOG_ENABLED` OFF. Nightly retention cron stays 500-cap, flag-gated.
+- `ARCHIVE_T180_BACKLOG_ENABLED` OFF — but per OPS-009 this flag only selects the eligibility CLOCK (`terminal_since` vs `status_changed_at`, `data-retention/route.ts:168-171`); **the nightly T+180 archive loop RUNS either way (500-cap)**. A true archive gate does not exist until the OPS-009 two-flag implementation lands.
 
 ### Shedding operating rule (Maya directive 2026-07-01)
 
