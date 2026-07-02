@@ -67,7 +67,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Nearby POI (Overpass) | 🟡 | 2026-07-01 (handoff) | repeated `406` warnings though HTTP 200 — feature may be degraded |
 | Homepage feed timestamp | 🟢 | 2026-07-01 | live footer capture (Playwright) shows "Updated: July 1, 2026" — timestamp is current/live |
 | Lighthouse / performance | ⚪ | — | not run this cycle (PageSpeed/media lane HELD); TTFB baseline 0.34–0.9s captured 2026-07-01 |
-| SEO | 🔴 | 2026-07-01 | Full-coverage audit: 2×P0 + 2×P1 open (sitemap slug mismatch 10,069/10,239; /buy /rent shells; 0/59 neighborhoods in sitemap; /buildings broken) — see [Platform Issue Registry](PLATFORM-ISSUE-REGISTRY.md) §1 SEO |
+| SEO | 🟡 | 2026-07-02 | **SEO-001 Verified Fixed** (PR #468; full-population MISMATCH 10,069 → 0). Remaining open: SEO-002 (P0, /buy /rent shells), SEO-003/004 (P1) + P2/P3 set — see [Platform Issue Registry](PLATFORM-ISSUE-REGISTRY.md) §1 SEO |
 | Accessibility | 🟡 | 2026-07-01 | partial pass: SSR imgs have alt; 2 client-rendered gallery imgs missing alt (QUAL-003); full WCAG pass not run |
 | Mobile / responsive | 🟢 | 2026-07-01 | no horizontal overflow at 375px on home/search/listing templates (Playwright); other templates unprobed |
 | Technical debt | ⚪ | — | narrative — see handoff snapshot |
@@ -103,7 +103,7 @@ BIZ-005 → P2 after live zero-backlog count):
 
 | ID | Area | Finding | Severity | Status | Owner |
 |---|---|---|---|---|---|
-| SEO-001 | SEO | Sitemap canonical slug mismatch (10,069/10,239 listings) | P0 | Open — **Track 1 (Maya roadmap)** | Claude |
+| SEO-001 | SEO | Sitemap canonical slug mismatch | P0 | **Verified Fixed 2026-07-02** (PR #468; MISMATCH 10,069 → 0 full-population) | Claude |
 | SEO-002 | SEO | /buy & /rent empty shells → robots-blocked /search | P0 | Open | Claude |
 | SEO-003 | SEO | 0/59 neighborhood guides in sitemap | P1 | Open | Claude |
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
