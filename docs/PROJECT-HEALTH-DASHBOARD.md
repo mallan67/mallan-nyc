@@ -23,19 +23,19 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-02T04:04:49Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-02T20:18:20Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `858da234`; probed from branch `docs/registry-neon-verification-2026-07-02` |
-| Open PRs | 🟡 | 39 open (30 non-audit): #468, #467, #428, #364 |
+| Repo / main HEAD | 🟢 | main `7643ccb0`; probed from branch `docs/registry-neon-verification-2026-07-02` |
+| Open PRs | 🟡 | 39 open (29 non-audit): #467, #428, #364, #362 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 2 branch(es) |
 | Gate 6 rollback branch | 🟢 | `pre-gate6-5k-pilot-2026-07-01` (br-winter-credit-adlh315q) ready |
 | Cron cadence (live Cotality) | 🟢 | 22 crons; idx-sync `*/10 * * * *`, media-sync `*/15 * * * *`, db-keepalive `*/15 * * * *` |
 | media-backfill schedule (idx:validate baseline) | 🟡 | NOT SCHEDULED — known idx:validate baseline critical (accepted, not this lane) |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 4m ago (cadence 10m) |
-| DB growth / archive state | 🟢 | 110,624 listings; 2,032 archived (sync_status='archived') |
+| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 18m ago (cadence 10m) |
+| DB growth / archive state | 🟢 | 110,667 listings; 2,032 archived (sync_status='archived') |
 <!-- HEALTH:AUTO:END -->
 
 > To fill the DB rows, run with the canonical cold-waterfall connection in env (read-only), e.g.
