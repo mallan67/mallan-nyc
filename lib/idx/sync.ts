@@ -22,7 +22,7 @@ import {
   type DiagnosticAuditWriter,
 } from "./diagnostic-recorder";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
-import { isActiveDisplayStatus } from "@/lib/compliance/status";
+import { ACTIVE_DISPLAY_VALUES } from "@/lib/compliance/status";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -92,26 +92,37 @@ export const ARCHIVED_SYNC_STATUS = "archived";
  * guarding.
  *
  * Codex #465 follow-up (2026-07-01) — ACTIVE re-emit must UNARCHIVE, not display-while-stripped:
- * when Cotality re-emits an archived listing with a status that normalizes into the canonical
- * ACTIVE display set (Active / ActiveUnderContract / ComingSoon — lib/compliance/status.ts), the
- * mapper computes is_terminal=false → idx_display_yn can be true, and status flows through this
- * guard. Freezing the blobs in that case produced a publicly displayable row with permanently
- * stripped raw_data/media (archivedSafeMediaWhere then blocks the batch refill because
- * sync_status stays 'archived'). A back-on-market listing is a GENUINE unarchive, not churn: the
- * full update flows, sync_status leaves 'archived' (the per-record UPDATE runs before the batch
- * media writers in the same run, so the refill's DB filter matches again) and raw_data rehydrates.
- * Fail-closed (§J.7): only statuses recognized by the canonical normalizer as active-display
- * unarchive; terminal, unknown, and absent statuses keep the one-way strip. The unarchived row
- * re-enters archive eligibility only after it is terminal again for T+180 days.
+ * when Cotality re-emits an archived listing with an ACTIVE display status, the mapper computes
+ * is_terminal=false → idx_display_yn can be true, and status flows through this guard. Freezing
+ * the blobs in that case produced a publicly displayable row with permanently stripped
+ * raw_data/media (archivedSafeMediaWhere then blocks the batch refill because sync_status stays
+ * 'archived'). A back-on-market listing is a GENUINE unarchive, not churn: the full update flows,
+ * sync_status leaves 'archived' (the per-record UPDATE runs before the batch media writers in the
+ * same run, so the refill's DB filter matches again) and raw_data rehydrates.
+ *
+ * Codex #465 round 2 — EXACT canonical match, not the alias-tolerant normalizer: the mapper
+ * persists the RAW StandardStatus string into `status`, and the public/projection search filters
+ * (buildSearchDisplayWhere → ACTIVE_DISPLAY_VALUES) match only the canonical DB values
+ * ('Active' / 'ActiveUnderContract' / 'ComingSoon'). Unarchiving an alias form (e.g.
+ * "Active Under Contract") would rehydrate a row that public search still hides — an
+ * unarchived-but-invisible zombie. So the unarchive verdict must equal the search-visibility
+ * verdict: exact membership in ACTIVE_DISPLAY_VALUES. (Live feed emits the canonical no-space
+ * values — verified 2026-07-01: `ComingSoon`; same lesson as the historical `Coming Soon`
+ * sitemap bug, app/sitemap.ts:88-92.) Fail-closed (§J.7): terminal, unknown, alias, and absent
+ * statuses keep the one-way strip. The unarchived row re-enters archive eligibility only after
+ * it is terminal again for T+180 days.
  */
+const UNARCHIVE_STATUSES: ReadonlySet<string> = new Set<string>(ACTIVE_DISPLAY_VALUES);
+
 export function guardArchivedRehydration<T extends Record<string, unknown>>(
   update: T,
   existing: { sync_status?: string | null } | null | undefined,
 ): T {
   if (existing?.sync_status !== ARCHIVED_SYNC_STATUS) return update;
-  // Explicit unarchive: the feed says the listing is back on market. Let the
+  // Explicit unarchive: the feed says the listing is back on market AND the
+  // persisted status will actually match the public search filters. Let the
   // full update flow so the row leaves 'archived' and can rehydrate legitimately.
-  if (isActiveDisplayStatus(update.status)) return update;
+  if (typeof update.status === "string" && UNARCHIVE_STATUSES.has(update.status)) return update;
   // Omit the stripped columns (destructure-rest, no delete — matches the agent_info omit pattern).
   const { raw_data: _rawData, media: _media, sync_status: _syncStatus, ...rest } = update;
   return rest as unknown as T;

@@ -127,11 +127,15 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
     },
   );
 
-  it('archived + re-emit with raw-feed casing ("Active Under Contract") → normalizes and unarchives', () => {
-    const out = guardArchivedRehydration(activePayload('Active Under Contract'), { sync_status: 'archived' });
-    expect('raw_data' in out).toBe(true);
-    expect('sync_status' in out).toBe(true);
-  });
+  it.each(['Active Under Contract', 'Coming Soon', 'ACTIVE', 'active'])(
+    'archived + NON-canonical alias/casing "%s" → strip preserved (Codex #465 round 2: the mapper persists the RAW status string and buildSearchDisplayWhere matches only canonical values — unarchiving an alias would rehydrate a row that public search still hides)',
+    (status) => {
+      const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
+      expect('raw_data' in out).toBe(false);
+      expect('media' in out).toBe(false);
+      expect('sync_status' in out).toBe(false);
+    },
+  );
 
   it.each(['Closed', 'Expired', 'Withdrawn', 'Pending'])(
     'archived + re-emit status %s (non-active-display) → strip preserved (no unarchive, no churn)',
