@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
-import { generateListingSlug } from '@/lib/listing-slug';
+import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
@@ -112,7 +112,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const slug = generateListingSlug({
         address: {
           streetNumber: addr.StreetNumber || addr.streetNumber || '',
-          streetName: addr.StreetName || addr.streetName || '',
+          // SEO-001 (2026-07-02): compose DirPrefix + Name + Suffix via the
+          // SHARED helper — passing StreetName alone made 10,069/10,239
+          // sitemap URLs diverge from the page canonicals (full-population
+          // audit 2026-07-01; e.g. "434-20th-…" vs "434-w-20th-street-…").
+          streetName: composeSlugStreetName(addr),
           unitNumber: addr.UnitNumber || addr.unitNumber || null,
           city: addr.City || addr.city || 'New York',
           stateOrProvince: addr.StateOrProvince || addr.stateOrProvince || 'NY',
