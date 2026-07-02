@@ -1,5 +1,7 @@
 # MAllan Website — Site Audit Handoff
 
+> **2026-07-02 UPDATE (supersedes the #465/#466 directives below):** PR #466 merged 01:33Z; PR #465 merged 02:35Z after 4 Codex rounds on current HEADs (final HEAD `abc8d613`, not `65b9507a`); guard deployed `858da234`, live-baselined under registry **RW-004**. PR #468 (SEO-001) merged 19:49Z — Verified Fixed (MISMATCH 10,069→0). Gate 6 stays paused pending the **OPS-009 two-flag IMPLEMENTATION + one clean cycle** (decision alone insufficient). Live status → dashboard + Platform Issue Registry; the lines below are the 2026-07-01 snapshot kept for history.
+
 Date: 2026-07-01
 Repo: `mallan67/mallan-nyc`
 Vercel project: `mallan-nyc` / `prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW`
@@ -75,7 +77,7 @@ Current open PR:
 - Important: prior Codex P2 comment about NULL `sync_status` reviewed older commit `f94a1b0c`. Current head `65b9507a` already changed `archivedSafeMediaWhere()` to the NULL-safe form:
   - `OR: [{ sync_status: null }, { sync_status: { not: 'archived' } }]`
   - This allows legacy `sync_status IS NULL` rows and non-archived statuses while excluding exact `archived`.
-- Await Codex review on current head `65b9507a` before merge approval.
+- ~~Await Codex review on current head `65b9507a` before merge approval.~~ **[SUPERSEDED 2026-07-02: reviewed through 4 rounds; MERGED.]**
 - Secondary low-risk nit: `backfillEmptyMedia` may increment `updated++` even when an `updateMany` matches 0 rows. This appears to be a counter/reporting issue, not a data correctness issue. Do not expand scope unless explicitly approved.
 
 ## Live Cotality/Trestle API pull — do not call this generic “IDX” only
@@ -157,7 +159,7 @@ None confirmed as active site-down issues in this pass.
 
 ### P1 / High priority
 
-1. PR #465 must not be merged until Codex reviews current head `65b9507a` or Maya explicitly accepts merge risk.
+1. ~~PR #465 must not be merged until Codex reviews current head `65b9507a` or Maya explicitly accepts merge risk.~~ **[SUPERSEDED 2026-07-02: MERGED after clean round-4 review.]**
    - NULL-safe Cotality/media guard appears implemented in current head.
    - Need current-head Codex verdict, not stale comments from older commits.
    - Re-run or confirm: type-check, relevant idx-sync tests, rls, ucba, compliance, idx validate.
@@ -256,7 +258,7 @@ Record pass/fail and timestamps here.
 
 ## Next recommended sequence
 
-1. Wait for Codex review on #465 current head `65b9507a`, or explicitly ask Claude to confirm current-head review status.
+1. ~~Wait for Codex review on #465 current head `65b9507a`.~~ **[SUPERSEDED 2026-07-02: MERGED; active watch = RW-004; next gate = OPS-009 implementation.]**
 2. If clean, consider merge approval for #465.
 3. Re-check Vercel runtime errors after #465 deploy.
 4. Only then reconsider Gate 6 5K execute.
