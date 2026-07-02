@@ -31,8 +31,15 @@
  */
 export function composeSlugStreetName(addr: Record<string, unknown>): string {
   const pick = (pascal: string, camel: string): string => {
-    const v = addr[pascal] ?? addr[camel];
-    return typeof v === 'string' ? v.trim() : '';
+    // Codex #468: a trimmed-BLANK PascalCase value must fall through to the
+    // camelCase legacy key (`??` only skips null/undefined, which kept the
+    // empty string and dropped the street on mixed legacy JSON — the old
+    // sitemap `||` behavior and the pickAddressParts precedent both skip
+    // blanks). PascalCase wins only when it has real content.
+    const pv = typeof addr[pascal] === 'string' ? (addr[pascal] as string).trim() : '';
+    if (pv) return pv;
+    const cv = typeof addr[camel] === 'string' ? (addr[camel] as string).trim() : '';
+    return cv;
   };
   return [
     pick('StreetDirPrefix', 'streetDirPrefix'),

@@ -60,6 +60,12 @@ describe('composeSlugStreetName — single source of street composition (SEO-001
     expect(composeSlugStreetName({ StreetName: 'Carroll', streetName: 'STALE', StreetSuffix: 'Street' })).toBe('Carroll Street');
   });
 
+  it('BLANK PascalCase falls through to populated camelCase (Codex #468: ?? kept the empty string — mixed legacy JSON would lose the street and emit partial or listing-{id} slugs)', () => {
+    expect(composeSlugStreetName({ StreetName: '', streetName: 'Carroll', StreetSuffix: '', streetSuffix: 'Street' })).toBe('Carroll Street');
+    expect(composeSlugStreetName({ StreetName: '   ', streetName: 'Broadway' })).toBe('Broadway');
+    expect(composeSlugStreetName({ StreetDirPrefix: '', streetDirPrefix: 'W', StreetName: '20th', StreetSuffix: 'Street' })).toBe('W 20th Street');
+  });
+
   it('empty address → empty string (caller falls through to MLS-ID slug)', () => {
     expect(composeSlugStreetName({})).toBe('');
   });
