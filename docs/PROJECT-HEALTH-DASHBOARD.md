@@ -62,7 +62,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
 | Compliance validators | 🟡 | 2026-07-01 | full suite re-run: type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (1 HIGH warn: ethics_training_gate WS-C4) · ucba 46/46, 0 REGRESSIONS · **idx:validate FAIL 1 critical (media-backfill NOT SCHEDULED — QUAL-006)** · crm:test 39/39 · test:rls 41/41 (manual) |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
-| Neon health (compute/pooler) | 🟢 | 2026-07-02 | live neonctl reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (NOT the 7d NEON.md claims — OPS-016); billed storage 1,493 MB (14.6% of cap); 2 branches. keepalive 500s = OPS-002/OPS-015 noise |
+| Neon health (compute/pooler) | 🟢 | 2026-07-02 | live neonctl reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap); 2 branches. keepalive 500s = OPS-002/OPS-015 noise |
 | Runtime SODA/DOB queries | 🟡 | 2026-07-01 (handoff) | `seller-scoring` (`job_filed_date`), `demand-signals` (`community_board` grouping) 200-with-warnings |
 | Nearby POI (Overpass) | 🟡 | 2026-07-01 (handoff) | repeated `406` warnings though HTTP 200 — feature may be degraded |
 | Homepage feed timestamp | 🟢 | 2026-07-01 | live footer capture (Playwright) shows "Updated: July 1, 2026" — timestamp is current/live |
@@ -157,7 +157,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | API route auth coverage | 🟡 | 2026-07-01 | 284 routes inventoried; per-route auth only, no root middleware (PROD-004); 0 confirmed-exposed | static sweep + route probes |
 | Cron auth | 🟢(static) | 2026-07-01 | all 23 CRON_SECRET timing-safe; 12 fail-open-if-unset (PROD-005) | code + env verify |
 | Cron execution health | 🔴 | 2026-07-01 | /api/health/crons returns all-null by construction (OPS-007); no single-pane view exists | fix endpoint, then live |
-| Queues (notifications pending) | 🔴(static) | 2026-07-01 | email/sms rows written, never dispatched (BIZ-005); backlog size UNMEASURED | count query (read-only) |
+| Queues (notifications pending) | 🟡 | 2026-07-02 | dispatcher gap in code (BIZ-005, P2) — **live count: ZERO email/sms rows ever; 30 in_app/pending** (H-002 resolved) | re-count after dispatcher hold release |
 | Webhooks inventory | ⚪ | — | not audited this cycle | route sweep |
 | Retries / timeouts / external deps | 🟡 | 2026-07-01 | social-proof ETIMEDOUT (PROD-001); Overpass 406; SODA warnings | runtime logs |
 
@@ -179,14 +179,14 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Growth (listings) | 🟢 | 2026-07-01 | 110,597 rows; floor-gated cell (auto tier) | health:probe |
 | Unbounded tables | 🟡(static) | 2026-07-01 | listing_media tombstones + sync_errors (OPS-010); audit_events mixes compliance+diagnostics | row-count trend query |
 | Large JSON columns | 🟡 | 2026-06-10 | listings 893MB/677MB TOAST (r2-neon cost audit) | pg_column_size sample |
-| Schema vs migrations drift | 🔴(static) | 2026-07-01 | `seller_potential_reason`/`building_type_pref` exist only via db push, no migration (OPS-001 ledger) | info_schema vs migrations diff |
+| Schema vs migrations drift | 🔴 | 2026-07-02 | **OPS-017** (Confirmed live): schema.prisma says REQUIRED, live DB says NULLABLE for the two leads columns; extent beyond `leads` unknown | full prisma-vs-DB diff (Track 4 dedicated audit) |
 | Indexes / FKs / slow queries / orphans / duplicates | ⚪ | — | never audited | read-only pg_stat + EXPLAIN pass (needs canonical DATABASE_URL, Maya approval) |
 
 ### 5 · CRM & Business workflows
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
 | Lead capture (9 surfaces) | 🟢(static) | 2026-07-01 | chain INTACT form→route→Lead+Inquiry+consent→audit | live smoke (needs approval) |
-| Lead creation (new emails) | 🔴? | 2026-07-01 | OPS-001 Needs Verification | info_schema + repro |
+| Lead creation (new emails) | 🟡 | 2026-07-02 | H-001 DISPROVED live; now **H-004** (06-28 connectivity cluster), OPS-001 P2 Monitoring; zero errors since 06-28 | approved controlled submission |
 | Lead routing/assignment | 🟡 | 2026-07-01 | assignment writes in_app only (BIZ-013); no email path (BIZ-005) | controlled lead trace |
 | Saved searches / alerts | 🟡(static) | 2026-07-01 | gate bypass latent (BIZ-014); cron skips unsupported silently | cron run log + row audit |
 | Notifications (email/SMS) | 🔴(static) | 2026-07-01 | no dispatcher (BIZ-005) | pending-count query |

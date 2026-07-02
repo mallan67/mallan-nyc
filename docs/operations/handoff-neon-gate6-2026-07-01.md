@@ -46,16 +46,17 @@ Archived listings could be rehydrated by the live Cotality synchronization becau
 `lib/idx/sync.ts` was restoring `raw_data`, `media`, and `sync_status` after archive.
 PR #465's current HEAD fixes this by protecting archived rows (NULL-safe
 `archivedSafeMediaWhere`). PR #465 is awaiting final Codex review of the current HEAD before
-merge. **Do not execute Gate 6 until #465 is merged.** (Registry: OPS-006. Related decision
+merge — **#465 is now merged (2026-07-02)**; Gate 6 stays paused pending the OPS-009 two-flag implementation + RW-004 watch. (Registry: OPS-006 → Fixed/RW-004. Related decision
 input: OPS-009 — the `ARCHIVE_T180_BACKLOG_ENABLED` flag swaps the eligibility clock; it does
 NOT gate the nightly archive loop itself.)
 
 ## PR Status
 
-- **PR #465** — archive rehydration guard. NULL-safe implementation completed; awaiting
-  current-HEAD Codex review. **Not merged.**
+- **PR #465** — archive rehydration guard. **MERGED 2026-07-02T02:35Z** after 4 Codex review
+  rounds (unarchive-on-canonical-active · exact-match · display-field freeze · forced
+  `idx_display_yn:false`). Deployed `858da234`; live baseline verified — registry **RW-004**.
 - **PR #466** — cross-agent governance (AGENTS.md, Health Dashboard, Platform Issue Registry,
-  health probe). Codex findings addressed; awaiting latest review. **Not merged.**
+  health probe). **MERGED 2026-07-02T01:33Z.**
 
 ## Production Scheduling (intentional — do not change)
 
@@ -71,9 +72,9 @@ Hypotheses are tracked separately (H-###). **Nothing is considered confirmed wit
 
 ## Current Priorities
 
-1. Merge PR #466 after clean review.
-2. Merge PR #465 after clean review.
-3. Run the health probe again (`npm run health:probe`, read-only).
+1. ✅ DONE — PR #466 merged 2026-07-02T01:33Z.
+2. ✅ DONE — PR #465 merged 2026-07-02T02:35Z (4 Codex rounds).
+3. Run the health probe again (`npm run health:probe`, read-only) — last run 2026-07-02T04:04Z.
 4. Verify Vercel runtime health (note registry RW-002: the idx-sync `25006` error class must
    show 7 consecutive clean days — watch until 2026-07-05).
 5. Reconsider Gate 6 execute (inputs: #465 merged + OPS-009 flag semantics decision).
@@ -130,9 +131,5 @@ Fact-check of the above against same-day evidence:
   states, and the rehydration mechanism (`lib/idx/sync.ts:385-424` restoring `raw_data:415`,
   `sync_status:419`) — **all match** the dashboard auto tier, Vercel `list_deployments`
   capture, and the 2026-07-01 operations audit.
-- **Working-tree caveat:** as of 2026-07-01, `docs/PLATFORM-ISSUE-REGISTRY.md` is untracked and
-  `AGENTS.md` / `docs/PROJECT-HEALTH-DASHBOARD.md` carry uncommitted updates on branch
-  `docs/agent-health-dashboard-2026-07-01`. Until these are committed to the #466 branch and
-  merged, an agent reading `main` will NOT see the registry or today's governance rules. The
-  "Read First" list is only fully satisfiable from this branch (or after #466 merges with these
-  changes included).
+- **Working-tree caveat RESOLVED 2026-07-02:** #466 merged — the registry and all governance
+  rules are on `main`; the "Read First" list is fully satisfiable from `main`.

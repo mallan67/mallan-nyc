@@ -122,7 +122,7 @@ does, not what production is doing.
 | OPS-015 | None user-facing — ops noise + marginal compute; masks real DB incidents in error dashboard | Runtime log + prior audits | Maya (decision) + Claude | Audit (clean error dashboard post-change) |
 | OPS-011 | Latent: ALL public search results the moment PR-5B reader swap lands | Static analysis | Claude | Audit (pre-5B gate) |
 | OPS-012/013/014 | Photoless listings (edge) / ops docs / workflow hygiene | Static analysis | Claude | Audit |
-| BIZ-005 / H-002 | Every email/SMS notification ever produced (count unmeasured); all lead-assignment alerting | Static analysis | Maya (hold release) + Claude | Audit (count query + send log) |
+| BIZ-005 / H-002 | **Measured 2026-07-02: ZERO email/sms rows ever produced** (30 in_app/pending only — H-002 resolved); remaining exposure = future lead-assignment alerting once email producers fire | Static analysis + live count | Maya (hold release) + Claude | Audit (send log once dispatcher exists) |
 | BIZ-006/007/008 | All users of filtered public search + CRM IDX amenity search | Static analysis | Claude | Audit (live transcript) |
 | BIZ-009/010/011 | Lead-data quality: all duplicate-identity leads; all agent-entered contacts (consent) | Static analysis | Claude | Audit |
 | BIZ-012 | All alert-unsubscribers still receiving non-alert email (CAN-SPAM exposure; count unmeasured) | Static analysis | Claude | Audit |

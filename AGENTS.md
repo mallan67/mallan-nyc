@@ -103,7 +103,8 @@ Before ending a session or handing off:
 
 ## 6. Current status (pointer, not a copy)
 
-Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of the last
-handoff: **PR #465** (idx-sync archived-row rehydration guard) is **open, not merged**; current HEAD
-`65b9507a` already carries the NULL-safe `archivedSafeMediaWhere` — **awaiting a Codex review of the
-current HEAD** before merge. **Gate 6 has not executed** (dry-run only; rollback branch exists).
+Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
+2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
+(`858da234`); the guard is under registry **RW-004** regression watch. **Gate 6 has not executed**
+(dry-run only; rollback branch exists) — next gate is the OPS-009 two-flag implementation, then the
+5K pilot per the Maya roadmap (Track 1 SEO-001 → Track 2 OPS-009 → Track 3 pilot → Track 4 OPS-017).
