@@ -2,10 +2,13 @@
 // Daily cron job: enforce data retention policies per NY SHIELD Act + REBNY.
 // - Purge expired sessions (24h TTL)
 // - Purge audit logs older than 2 years
-// - T+24h: Flag terminal listings for IDX removal (REBNY RLS §2.05)
+// - T+24h: Flag terminal listings for IDX removal (REBNY RLS §2.05) — ALWAYS runs
+//            (OPS-009 carve-out: display compliance, not archiving)
 // - T+30d: Null media array on terminals (R2 holds images, JSON pointer safe to drop)
+//            — gated under ARCHIVE_ENABLED (OPS-009: archive-family destructive write)
 // - T+180d: Archive terminal listings — copy summary to listings_archive,
 //            strip heavy JSON, mark sync_status='archived'. Keeps row for FK integrity.
+//            — gated under ARCHIVE_ENABLED (OPS-009 fail-closed: OFF unless "true")
 // Protected by CRON_SECRET header.
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -13,6 +16,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
+import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
 
 export const maxDuration = 60;
 
@@ -33,7 +37,16 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const results: Record<string, number> = {};
+  const results: Record<string, number | string> = {};
+
+  // OPS-009 two-flag archive controls (fail-closed; Maya decision 2026-07-02).
+  // ARCHIVE_ENABLED gates every archive-family write in this cron (T+30d media-null +
+  // T+180 archive loop). Absent/empty/anything-but-"true" = OFF → those steps are skipped.
+  // It does NOT gate the T+24h off-market display removal (step 3) — see the carve-out
+  // comment there. The pre-existing ARCHIVE_T180_BACKLOG_ENABLED flag keeps its
+  // clock-selection semantics unchanged (see step 3c).
+  const archiveWrites = archiveWritesEnabled();
+  results.archive_control_state = archiveControlState();
 
   // 1. Purge expired sessions (24h TTL)
   const sessionCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -63,6 +76,10 @@ export async function GET(req: NextRequest) {
   // 3. Flag closed/terminal listings not yet marked (REBNY RLS Sec. 2.05: remove within 24h)
   // Note: filterDisplayableDbListings() already excludes non-active statuses in real-time,
   // so this is a belt-and-suspenders DB cleanup for any edge cases (direct DB queries, etc.)
+  //
+  // ⚠️ MANDATORY CARVE-OUT (OPS-009): this T+24h step runs UNCONDITIONALLY — it is REBNY
+  // UCBA Art. I §6 / RLS §2.05 display compliance (off-market removal), NOT archiving.
+  // ARCHIVE_ENABLED must NEVER gate this step. Do not move it behind `archiveWrites`.
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
@@ -121,26 +138,36 @@ export async function GET(req: NextRequest) {
   // R2 holds the actual image bytes; the listings.media JSON is just a pointer array.
   // Public search already excludes terminal statuses, so nulling media has no user impact.
   // Skips listings already archived (sync_status='archived') — Step 3c handles those.
-  const thirtyDayCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const terminalOver30d = await prisma.listing.findMany({
-    where: {
-      status: { in: [...TERMINAL_STATUSES] },
-      status_changed_at: { lt: thirtyDayCutoff },
-      sync_status: { not: "archived" },
-      // Only touch listings that still have media — cheap filter
-      NOT: { media: { equals: [] } },
-    },
-    select: { id: true },
-    take: T30_BATCH_CAP,
-  });
-
-  if (terminalOver30d.length > 0) {
-    await prisma.listing.updateMany({
-      where: { id: { in: terminalOver30d.map((l) => l.id) } },
-      data: { media: [] as unknown as Prisma.InputJsonValue },
+  //
+  // OPS-009 PLACEMENT DECISION: this step IS gated under ARCHIVE_ENABLED. It is an
+  // archive-family DESTRUCTIVE write (drops the media JSON pointer array ahead of the
+  // T+180 strip), not a display-compliance step — the T+24h removal above (step 3,
+  // unconditional) already guarantees UCBA/RLS off-market display compliance, so gating
+  // this step has zero compliance impact. Fail-closed OFF unless ARCHIVE_ENABLED="true".
+  if (archiveWrites) {
+    const thirtyDayCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const terminalOver30d = await prisma.listing.findMany({
+      where: {
+        status: { in: [...TERMINAL_STATUSES] },
+        status_changed_at: { lt: thirtyDayCutoff },
+        sync_status: { not: "archived" },
+        // Only touch listings that still have media — cheap filter
+        NOT: { media: { equals: [] } },
+      },
+      select: { id: true },
+      take: T30_BATCH_CAP,
     });
+
+    if (terminalOver30d.length > 0) {
+      await prisma.listing.updateMany({
+        where: { id: { in: terminalOver30d.map((l) => l.id) } },
+        data: { media: [] as unknown as Prisma.InputJsonValue },
+      });
+    }
+    results.t30d_media_nulled = terminalOver30d.length;
+  } else {
+    results.t30d_media_nulled = 0;
   }
-  results.t30d_media_nulled = terminalOver30d.length;
 
   // 3c. T+180d: Archive terminal listings.
   // Copy summary fields into listings_archive, then strip heavy JSON from the
@@ -148,49 +175,66 @@ export async function GET(req: NextRequest) {
   // several FKs (PriceHistory, MarketingActivity, Showing, etc.) reference it
   // and preserving referential integrity matters more than the row overhead.
   // The archive table satisfies NY DOS 6-year recordkeeping requirements.
-  const oneEightyDayCutoff = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+  //
+  // OPS-009 (Maya decision 2026-07-02): the whole loop is gated under ARCHIVE_ENABLED
+  // (fail-closed OFF). OFF → skip entirely, report archive_skipped_reason, and still
+  // write the data_retention_run audit event below. MAINTENANCE/DRAIN → run as before
+  // (500-cap unchanged). ARCHIVE_T180_BACKLOG_ENABLED below is NOT a write gate — it
+  // only selects the eligibility clock, exactly as before.
+  if (archiveWrites) {
+    const oneEightyDayCutoff = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  // Archive eligibility — default-OFF backlog flag (Archive Clock PR-2, #415).
-  // Flag OFF (default): UNCHANGED legacy predicate `status_changed_at < cutoff`, so merging PR-2
-  // drains ZERO new rows — the nightly cron keeps its current behavior until Maya flips the flag
-  // (the explicit gate). NULL status_changed_at stays excluded (NULL < ts is NULL).
-  // Flag ON: age off the STABLE `terminal_since` clock (Archive Clock PR-1, #446) instead of
-  // status_changed_at / modification_timestamp. Both of those are re-stamped by idx-sync on every
-  // re-emit (price/photo/modification tick), so a terminal row looks perpetually "recent" and never
-  // ages. `terminal_since` is set ONCE on the non-terminal→terminal transition from a stable
-  // sale/off-market date and is never re-stamped — the correct archive clock.
-  //   - Rows with `terminal_since IS NULL` (no derivable stable date, or the gated backfill not yet
-  //     run) fail `{ lt }` (NULL < ts is NULL) and are NEVER auto-archived. Intended fail-safe — we
-  //     do not invent terminal dates (decision Q2, 2026-06-25 PR-2 plan). Until the gated backfill
-  //     (Gate 3) populates terminal_since, the flag-ON predicate matches NOTHING.
-  //   - The 500/run cap (T180_BATCH_CAP) and the archive UPDATE-strip are unchanged: this only
-  //     changes WHICH rows qualify when enabled.
-  const archiveBacklogEnabled = process.env.ARCHIVE_T180_BACKLOG_ENABLED === "true";
-  const eligibilityWhere: Prisma.ListingWhereInput = archiveBacklogEnabled
-    ? { terminal_since: { lt: oneEightyDayCutoff } }
-    : { status_changed_at: { lt: oneEightyDayCutoff } };
+    // Archive eligibility — default-OFF backlog flag (Archive Clock PR-2, #415).
+    // Flag OFF (default): UNCHANGED legacy predicate `status_changed_at < cutoff`, so merging PR-2
+    // drains ZERO new rows — the nightly cron keeps its current behavior until Maya flips the flag
+    // (the explicit gate). NULL status_changed_at stays excluded (NULL < ts is NULL).
+    // Flag ON: age off the STABLE `terminal_since` clock (Archive Clock PR-1, #446) instead of
+    // status_changed_at / modification_timestamp. Both of those are re-stamped by idx-sync on every
+    // re-emit (price/photo/modification tick), so a terminal row looks perpetually "recent" and never
+    // ages. `terminal_since` is set ONCE on the non-terminal→terminal transition from a stable
+    // sale/off-market date and is never re-stamped — the correct archive clock.
+    //   - Rows with `terminal_since IS NULL` (no derivable stable date, or the gated backfill not yet
+    //     run) fail `{ lt }` (NULL < ts is NULL) and are NEVER auto-archived. Intended fail-safe — we
+    //     do not invent terminal dates (decision Q2, 2026-06-25 PR-2 plan). Until the gated backfill
+    //     (Gate 3) populates terminal_since, the flag-ON predicate matches NOTHING.
+    //   - The 500/run cap (T180_BATCH_CAP) and the archive UPDATE-strip are unchanged: this only
+    //     changes WHICH rows qualify when enabled.
+    const archiveBacklogEnabled = process.env.ARCHIVE_T180_BACKLOG_ENABLED === "true";
+    const eligibilityWhere: Prisma.ListingWhereInput = archiveBacklogEnabled
+      ? { terminal_since: { lt: oneEightyDayCutoff } }
+      : { status_changed_at: { lt: oneEightyDayCutoff } };
 
-  const archiveWhere: Prisma.ListingWhereInput = {
-    status: { in: [...TERMINAL_STATUSES] },
-    sync_status: { not: "archived" },
-    ...eligibilityWhere,
-  };
-  const toArchive = await prisma.listing.findMany({
-    where: archiveWhere,
-    select: ARCHIVE_SELECT,
-    take: T180_BATCH_CAP,
-  });
+    const archiveWhere: Prisma.ListingWhereInput = {
+      status: { in: [...TERMINAL_STATUSES] },
+      sync_status: { not: "archived" },
+      ...eligibilityWhere,
+    };
+    const toArchive = await prisma.listing.findMany({
+      where: archiveWhere,
+      select: ARCHIVE_SELECT,
+      take: T180_BATCH_CAP,
+    });
 
-  // Per-row archive via the shared core (lib/retention/archive-terminals.ts) — the SAME logic the
-  // Gate 6 operator drain (scripts/drain-archive-backlog.ts) uses, so the nightly cron and the
-  // controlled drain can never drift. archiveOneListing re-asserts `archiveWhere` atomically inside
-  // the write transaction (a row that reactivated between SELECT and write is skipped, not stripped).
-  let archivedCount = 0;
-  for (const l of toArchive) {
-    const r = await archiveOneListing(prisma, l, archiveWhere);
-    if (r.ok) archivedCount++;
+    // Per-row archive via the shared core (lib/retention/archive-terminals.ts) — the SAME logic the
+    // Gate 6 operator drain (scripts/drain-archive-backlog.ts) uses, so the nightly cron and the
+    // controlled drain can never drift. archiveOneListing re-asserts `archiveWhere` atomically inside
+    // the write transaction (a row that reactivated between SELECT and write is skipped, not stripped).
+    let archivedCount = 0;
+    for (const l of toArchive) {
+      const r = await archiveOneListing(prisma, l, archiveWhere);
+      if (r.ok) archivedCount++;
+    }
+    results.t180d_listings_archived = archivedCount;
+  } else {
+    // OFF state — nothing archives until Maya sets ARCHIVE_ENABLED=true (OPS-009).
+    results.t180d_listings_archived = 0;
+    results.archive_skipped_reason = "ARCHIVE_ENABLED off";
+    console.log(
+      "[data-retention] archive family skipped (T+30d media-null + T+180 archive loop) — " +
+        "ARCHIVE_ENABLED is not 'true' (OPS-009 fail-closed OFF state). " +
+        "T+24h display removal ran unconditionally (UCBA carve-out).",
+    );
   }
-  results.t180d_listings_archived = archivedCount;
 
   // 4. Clean up expired portal invite tokens (72h TTL)
   const tokenCutoff = new Date(now.getTime() - 72 * 60 * 60 * 1000);

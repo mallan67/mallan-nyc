@@ -38,6 +38,7 @@ import {
   MAX_RUN_CEILING,
   type DrainRow,
 } from "../lib/retention/drain-core";
+import { assertDrainExecuteAllowed, archiveControlState } from "../lib/retention/archive-controls";
 
 const SLEEP_MS = 300; // inter-chunk pause — let autovacuum / WAL breathe
 
@@ -85,6 +86,13 @@ async function main() {
     );
   }
 
+  // OPS-009 two-flag gate (2026-07-02) — execute additionally requires the DRAIN state:
+  // ARCHIVE_ENABLED="true" AND ARCHIVE_BACKLOG_DRAIN_ENABLED="true" (both fail-closed).
+  // LAYERED on top of --execute / --ack-rollback-branch / --max-rows / host guard — never a
+  // replacement. Checked early here for a clean refusal; runDrain re-asserts it as a backstop.
+  // Dry-run needs no flags. Env changes are Maya-held.
+  if (execute) assertDrainExecuteAllowed(process.env);
+
   const now = new Date();
   const baseWhere = archiveEligibilityWhere({ now, clock: "terminal_since" });
 
@@ -106,6 +114,7 @@ async function main() {
 
     console.log("──────────────────────────────────────────────────────────────");
     console.log(`Gate 6 archive drain — ${execute ? "EXECUTE (WRITES)" : "DRY-RUN (no writes)"}`);
+    console.log(`  archive-control state (OPS-009): ${archiveControlState()} — execute requires DRAIN`);
     console.log(`  host:        cold-waterfall (canonical) — guarded`);
     console.log(`  max-rows:    ${maxRows}  (hard ceiling ${MAX_RUN_CEILING})`);
     console.log(`  chunk-size:  ${chunkSize}`);

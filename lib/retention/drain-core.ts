@@ -11,8 +11,12 @@
  *  - host guard: canonical cold-waterfall only; stale royal-dawn explicitly refused.
  *  - fail-closed: any non-terminal / already-archived row surfaced by the query STOPS the run.
  *  - touched-id log records ids ONLY — never the stripped raw payloads.
+ *  - OPS-009 two-flag gate (2026-07-02): execute mode additionally requires BOTH
+ *    ARCHIVE_ENABLED="true" AND ARCHIVE_BACKLOG_DRAIN_ENABLED="true" (the DRAIN state) —
+ *    layered ON TOP of the gates above, never replacing them. Dry-run needs no flags.
  */
 import { ARCHIVE_TERMINAL_STATUSES } from "@/lib/retention/archive-terminals";
+import { assertDrainExecuteAllowed, type ArchiveControlEnv } from "@/lib/retention/archive-controls";
 
 /** Hard ceiling on a single run's --max-rows. Guards against an operator typo (e.g. 200000). */
 export const MAX_RUN_CEILING = 25000;
@@ -147,6 +151,12 @@ export interface RunDrainOpts {
   log?: (msg: string) => void;
   /** Optional inter-chunk pause (let autovacuum / WAL breathe). */
   sleep?: () => Promise<void>;
+  /**
+   * Env source for the OPS-009 two-flag gate (defaults to process.env). Injected so the
+   * fail-closed refusal is unit-testable; execute mode requires the DRAIN state
+   * (ARCHIVE_ENABLED="true" AND ARCHIVE_BACKLOG_DRAIN_ENABLED="true").
+   */
+  env?: ArchiveControlEnv;
 }
 
 export interface RunDrainResult {
@@ -168,6 +178,10 @@ export async function runDrain(opts: RunDrainOpts): Promise<RunDrainResult> {
   const { selectChunk, archiveRow, recordTouched, execute, maxRows, chunkSize } = opts;
   const log = opts.log ?? (() => {});
   const skipThreshold = opts.skipThreshold ?? Infinity;
+
+  // OPS-009 two-flag gate — execute requires the DRAIN state (BOTH flags "true"); refuses
+  // fail-closed naming every missing flag BEFORE any select/write. Dry-run is unaffected.
+  if (execute) assertDrainExecuteAllowed(opts.env ?? process.env);
 
   let lastId: unknown = 0;
   let scanned = 0;
