@@ -99,11 +99,10 @@ format (AGENTS.md §5). Backend items require the 9-field evidence ledger before
 as Confirmed (live).
 
 Open P0/P1 summary (refreshed 2026-07-02 — retired: OPS-006 → Fixed/RW-004; OPS-001 → P2/H-004;
-BIZ-005 → P2 after live zero-backlog count):
+BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR #468, MISMATCH 10,069→0) — closed items live in the registry, not this open queue):
 
 | ID | Area | Finding | Severity | Status | Owner |
 |---|---|---|---|---|---|
-| SEO-001 | SEO | Sitemap canonical slug mismatch | P0 | **Verified Fixed 2026-07-02** (PR #468; MISMATCH 10,069 → 0 full-population) | Claude |
 | SEO-002 | SEO | /buy & /rent empty shells → robots-blocked /search | P0 | Open | Claude |
 | SEO-003 | SEO | 0/59 neighborhood guides in sitemap | P1 | Open | Claude |
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
@@ -140,7 +139,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 1 · Infrastructure
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Vercel production deploy | 🟢 | 2026-07-02 | dpl_2o8LW… READY on main@858da234 (#465+#466+#468 merged) | Vercel MCP list_deployments |
+| Vercel production deploy | 🟢 | 2026-07-02 | main@7643ccb0 (#468) live — proven by regenerated production sitemap (full-street slugs, MISMATCH 0); prior build dpl_2o8LW… (#465/#466 baseline 858da234) READY | Vercel MCP + live sitemap proof |
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
 | Neon canonical identity | 🟢 | 2026-07-01 | auto tier (health:probe) | `npm run health:probe` |
 | Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
@@ -189,7 +188,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Lead creation (new emails) | 🟡 | 2026-07-02 | H-001 DISPROVED live; now **H-004** (06-28 connectivity cluster), OPS-001 P2 Monitoring; zero errors since 06-28 | approved controlled submission |
 | Lead routing/assignment | 🟡 | 2026-07-01 | assignment writes in_app only (BIZ-013); no email path (BIZ-005) | controlled lead trace |
 | Saved searches / alerts | 🟡(static) | 2026-07-01 | gate bypass latent (BIZ-014); cron skips unsupported silently | cron run log + row audit |
-| Notifications (email/SMS) | 🔴(static) | 2026-07-01 | no dispatcher (BIZ-005) | pending-count query |
+| Notifications (email/SMS) | 🟡 | 2026-07-02 | dispatcher gap in code (BIZ-005, P2) — live count 2026-07-02: ZERO email/sms rows ever (H-002 resolved) | re-count after dispatcher hold release |
 | Unsubscribe/suppression | 🔴(static) | 2026-07-01 | divergent paths (BIZ-012) | both-path test |
 | Open houses | 🟢 | 2026-07-01 | #463/#464 merged, twin verified | existing tests |
 | Portal (owner/client) | 🟢(static) | 2026-07-01 | IDOR audit clean post-#458/#459 | live owner-route smoke |
@@ -227,7 +226,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Console errors | 🟡 | 2026-07-01 | Translate CSP violation on every page (QUAL-001) | Playwright |
 | Mobile / links / broken images | 🟢 | 2026-07-01 | clean on probed templates (QUAL-005) | Playwright sweep |
 | Accessibility (WCAG 2.1 AA) | 🟡 | 2026-07-01 | partial: 2 alt gaps (QUAL-003); full pass never run | axe-core run |
-| SEO | 🔴 | 2026-07-01 | SEO-001…011 (full-coverage audit) | registry criteria |
+| SEO | 🟡 | 2026-07-02 | SEO-001 Verified Fixed (PR #468, MISMATCH 0); open: SEO-002 (P0), SEO-003/004 (P1), SEO-005…011 | registry criteria |
 
 ### 10 · Compliance
 | Component | Status | Last verified | Evidence / Registry | Verify via |
