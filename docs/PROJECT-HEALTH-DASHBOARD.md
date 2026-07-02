@@ -273,8 +273,11 @@ Three invariants:
 5. ⏳ Then approve **only the 5K pilot execute**; monitor several hours / next sync cycles.
 6. ⏳ Scale to 20K batches **only after proving the 5K rows stay stripped across live sync cycles**.
 
-Reclaim note (OPS-016): live history retention is **6h** (not 7d) — post-drain billed-storage drop
-arrives ~6h after rollback-branch deletion + GC, so drain results are measurable same-day.
+Reclaim note (OPS-016 + OPS-018): live history retention is **6h** (not 7d) — but the 6h window
+only ages HISTORY out after rollback-branch deletion; it does **NOT** imply a same-day
+billed-storage drop. The S1 measurement (OPS-018, 2026-07-02) confirmed freed TOAST space is
+reusable-not-returned — after the drain, a no-drop measurement is NORMAL, not an anomaly.
+Disposition: no compaction now; no pg_repack until after the drain, if at all; VACUUM FULL forbidden.
 
 Follow-on (sequenced after OPS-009/pilot): **OPS-010A** diff-before-write suppression — the
 recurring ~750 MB+/mo churn lever, larger long-term than the one-time backlog. **OPS-015** tracks
