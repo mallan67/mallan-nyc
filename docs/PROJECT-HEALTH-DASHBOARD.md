@@ -23,18 +23,18 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-02T03:39:10Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-02T04:04:49Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
 | Repo / main HEAD | 🟢 | main `858da234`; probed from branch `docs/registry-neon-verification-2026-07-02` |
-| Open PRs | 🟡 | 38 open (29 non-audit): #467, #428, #364, #362 |
-| PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z — guard live; see registry RW-004 watch |
+| Open PRs | 🟡 | 39 open (30 non-audit): #468, #467, #428, #364 |
+| PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 2 branch(es) |
 | Gate 6 rollback branch | 🟢 | `pre-gate6-5k-pilot-2026-07-01` (br-winter-credit-adlh315q) ready |
 | Cron cadence (live Cotality) | 🟢 | 22 crons; idx-sync `*/10 * * * *`, media-sync `*/15 * * * *`, db-keepalive `*/15 * * * *` |
 | media-backfill schedule (idx:validate baseline) | 🟡 | NOT SCHEDULED — known idx:validate baseline critical (accepted, not this lane) |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 19m ago (cadence 10m) |
+| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 4m ago (cadence 10m) |
 | DB growth / archive state | 🟢 | 110,624 listings; 2,032 archived (sync_status='archived') |
 <!-- HEALTH:AUTO:END -->
 
@@ -116,6 +116,7 @@ BIZ-005 → P2 after live zero-backlog count):
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
 | QUAL-006 | Quality | idx:validate FAIL — media-backfill NOT SCHEDULED (baseline break) | P1 | Decision needed | Maya |
 | COMP-001 | Compliance | /buildings hub missing §175.25 footer identity | P1 | Open | Claude |
+| DOC-001 | Documentation | Platform Architecture document (full pipeline + infra maps, from actual codebase) | P1 | Open — dedicated lane (Track 5) | Claude |
 
 **Execution roadmap (Maya, 2026-07-02):** Track 1 **SEO-001** (10K+ pages, small change, high ROI) →
 Track 2 **OPS-009** (archive ambiguity removed forever) → Track 3 **5K Gate-6 pilot** (only after the
@@ -170,7 +171,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Deleted/Closed timing (24h rule) | 🟢 | 2026-07-01 | all 176 off-feed ids render "Not Available" (live sweep) | full stale-id probe |
 | ComingSoon/Pending timing | 🟡 | 2026-07-01 | 8 Pending still sitemap-listed within minutes of transition (SEO-007/OPS-003) | live diff re-run |
 | Tombstones / reconciliation / drift | 🟡 | 2026-07-01 | tombstone growth unbounded (OPS-010); feed-reconcile clean-run writes no audit | table counts + audit rows |
-| Archive integrity (Gate 6) | 🔴 | 2026-07-01 | rehydration unguarded until #465 (OPS-006); flag is clock-swap only (OPS-009) | post-#465 archived-row probe |
+| Archive integrity (Gate 6) | 🟡 (Regression Watch) | 2026-07-02 | rehydration guard MERGED + deployed (OPS-006 → Fixed/RW-004; baseline 2,032/2,032 stripped+hidden); remaining: flag is clock-swap only until OPS-009 two-flag implementation lands | RW-004 queries + post-OPS-009 clean cycle |
 
 ### 4 · Database
 | Component | Status | Last verified | Evidence / Registry | Verify via |
