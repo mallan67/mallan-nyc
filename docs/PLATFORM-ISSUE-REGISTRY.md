@@ -113,7 +113,7 @@ does, not what production is doing.
 | OPS-001 / H-004 | 2 failed submissions on 06-28 (H-001 disproved — the every-new-lead blast radius is retired); zero recurrence since | Runtime log + live info_schema | Claude | Audit (approved controlled submission) |
 | OPS-017 | Future migrations + validation + every runtime assumption built on schema.prisma; drift extent beyond `leads` unknown | Live info_schema vs schema.prisma | Maya (decide source of truth) + Claude | Audit (full prisma-vs-DB diff) |
 | OPS-002 | Cron reliability signal only (no user-facing impact identified) | Runtime log | Maya (Neon plan) + Claude (audit trail) | Audit |
-| OPS-006 | All archived (Gate-6) listings — nightly strip/rehydrate churn; blocks Gate-6 scale-up | Static analysis (+ prior incident history) | Maya (merge #465) | Codex (review) + Audit (post-merge probe) |
+| OPS-006 | (Fixed 2026-07-02 — #465 merged/deployed; RW-004 watch) Was: all archived listings, nightly strip/rehydrate churn | Static analysis (+ prior incident history) | Claude (fixed) | Audit (RW-004 queries to 2026-07-09) |
 | OPS-007 | Ops visibility for all 23 crons (monitoring blind spot, not user-facing) | Static analysis | Claude | Audit |
 | OPS-008 | Legacy `listings.media` JSON lane; catastrophic only if the repair script is run | Static analysis + Validator | Maya (decision) | Audit |
 | OPS-009 | Any terminal listing >180d on the legacy clock — archived regardless of flag | Static analysis | Maya (decision) | Audit |
@@ -206,7 +206,8 @@ Fixed and merged — held open until the defined clean window is observed. Do no
 | **10/10** | SEO-001 (root cause — Evidence Score 10: full-population live join, replication 0 fails, thin-page transcripts captured, all 10 fields present) | — |
 | **9/10** | SEO-002/003/007, COMP-001, PASS-register rows, PROD-002/003, QUAL-006 | ✗ affected-users quantified (traffic impact not measured) |
 | **8/10** | SEO-004/005/006/008/009/010/011, QUAL-001/002/003, OPS-002/003, PROD-001, QUAL-007/008/009 | ✗ reproduction-after-fix baseline; ✗ user impact |
-| **6/10** | OPS-006/007/008/009/010/011/012/013, BIZ-005/006/007/008, PROD-004/005, BIZ-012 | ✗ request · ✗ response · ✗ DB query result · ✗ live repro (static-complete: source, mechanism, environment, frequency N/A) |
+| **6/10** | OPS-007/008/009/010/011/012/013, BIZ-006/007/008, PROD-004/005, BIZ-012 (OPS-006 retired from this row 2026-07-02 — Fixed/RW-004 with live baseline; BIZ-005 rescored 8/10 below after the live zero-count) | ✗ request · ✗ response · ✗ DB query result · ✗ live repro (static-complete: source, mechanism, environment, frequency N/A) |
+| **8/10** | **BIZ-005** — ✓ surface ✓ source ✓ DB query result (live zero-count 2026-07-02) ✓ magnitude quantified ✓ environment ✓ timestamps ✓ frequency N/A-counted · ✗ dispatcher send-path repro (blocked: dispatcher HELD) ✗ post-release send log | close after dispatcher hold release |
 | **5/10** | BIZ-009/010/011/013/014, PROD-007, COMP-002/003, OPS-014 | as above + partial surface coverage |
 | **7/10** | **OPS-001 / H-004** (the earlier H-001 is DISPROVED — score row retired 2026-07-02) — ✓ runtime log ✓ endpoint ✓ timestamps ✓ frequency ✓ environment ✓ DB query result (info_schema disproof of the rival mechanism) ✓ same-day incident-cluster correlation · ✗ raw error text ✗ reproduction ✗ user impact | see H-004 |
 | **9/10** | **OPS-017 schema drift** — ✓ surface (`leads` table) ✓ source (`prisma/schema.prisma` vs live `information_schema`) ✓ DB query result captured (2026-07-02, read-only) ✓ environment (prod) ✓ timestamps ✓ blast scoped ✓ frequency N/A-counted · ✗ full-schema diff (only `leads` checked — drift extent across other tables unknown) | close via complete prisma-vs-DB diff |

@@ -94,7 +94,7 @@ syncs must not rewrite unchanged rows** (registry OPS-010A).
 2. Merge #465 after clean Codex review (stops rehydration — OPS-006).
 3. Verify archived-row protection after **one live Cotality sync cycle** (archived row keeps
    `sync_status='archived'`, `raw_data` null, `media` []).
-4. Decide OPS-009 flag semantics.
+4. OPS-009: decision RECORDED (two-flag design) — now the **IMPLEMENTATION must land + deploy + verify one clean sync cycle** (decision alone is NOT sufficient).
 5. Then approve **only the 5K pilot execute**.
 6. Scale only after proving the 5K rows **stay stripped** across live sync cycles.
 
