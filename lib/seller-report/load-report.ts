@@ -70,7 +70,7 @@ export async function loadSellerReport(
   const listPrice = Number(listing.list_price.toString());
   const band = priceBandFor(listPrice);
 
-  const [totalViewCount, earliestView, viewerAgg, views7, views30, inquiryTotal, inquiryBySource, inquiry30, deviceAgg, views, inquiries, showings, actions, similarActives] = await Promise.all([
+  const [totalViewCount, earliestView, viewerAgg, views7, views30, inquiryTotal, inquiryBySource, inquiry30, inquiryWithMessage, deviceAgg, views, inquiries, showings, actions, similarActives] = await Promise.all([
     // Codex #472 r1: true DB count so total_views is exact even when the
     // detail slice is capped at MAX_ROWS.
     prisma.listingView.count({ where: { listing_id: listing.listing_id } }),
@@ -101,6 +101,8 @@ export async function loadSellerReport(
     prisma.inquiry.count({ where: { listing_id: listing.listing_id } }),
     prisma.inquiry.groupBy({ by: ['source'], where: { listing_id: listing.listing_id }, _count: { _all: true } }),
     prisma.inquiry.count({ where: { listing_id: listing.listing_id, created_at: { gte: new Date(now.getTime() - 30 * 24 * 3600_000) } } }),
+    // Codex #472 r6: exact with-message count past the cap.
+    prisma.inquiry.count({ where: { listing_id: listing.listing_id, message: { not: null } } }),
     prisma.listingView.groupBy({
       by: ['device_type'],
       where: { listing_id: listing.listing_id },
@@ -181,6 +183,7 @@ export async function loadSellerReport(
       total: inquiryTotal,
       by_source: Object.fromEntries(inquiryBySource.map((g) => [g.source, g._count._all])),
       last_30_days: inquiry30,
+      with_message: inquiryWithMessage,
     },
     viewer_aggregates: {
       unique_viewers: Number(viewerAgg[0]?.unique_viewers ?? 0),

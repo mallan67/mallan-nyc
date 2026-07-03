@@ -101,7 +101,7 @@ export interface SellerReportInput {
    * Codex #472 r5: exact inquiry aggregates (DB-side) — past the cap the
    * newest slice must not pose as all-time totals/by-source/window counts.
    */
-  inquiry_aggregates?: { total: number; by_source: Record<string, number>; last_30_days: number };
+  inquiry_aggregates?: { total: number; by_source: Record<string, number>; last_30_days: number; with_message?: number };
   viewer_aggregates?: {
     unique_viewers: number;
     known_viewers: number;
@@ -265,7 +265,8 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
     truth_level: TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC,
     total: input.inquiry_aggregates?.total ?? inquiries.length,
     by_source: input.inquiry_aggregates?.by_source ?? countBy(inquiries, (i) => i.source),
-    with_message: inquiries.filter((i) => i.has_message).length,
+    // Codex #472 r6: exact past the cap when the aggregate provides it.
+    with_message: input.inquiry_aggregates?.with_message ?? inquiries.filter((i) => i.has_message).length,
     last_30_days: input.inquiry_aggregates?.last_30_days ?? inquiries.filter((i) => nowMs - i.created_at.getTime() <= 30 * DAY_MS).length,
   };
 
@@ -274,7 +275,8 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
   const clientActions = countBy(actions, (a) => a.action);
   const engagement: SellerReport['engagement'] = {
     truth_level: TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC,
-    open_house_rsvps: inquiries.filter((i) => i.source === 'open_house_rsvp').length,
+    // Codex #472 r6: the exact by_source aggregate wins past the cap.
+    open_house_rsvps: input.inquiry_aggregates?.by_source?.['open_house_rsvp'] ?? inquiries.filter((i) => i.source === 'open_house_rsvp').length,
     showings: {
       total: showings.length,
       completed: showings.filter((s) => s.status === 'completed').length,

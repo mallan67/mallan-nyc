@@ -313,6 +313,19 @@ describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
     expect(report.exposure.device_breakdown).toEqual({ mobile: 6000, desktop: 3000 });
   });
 
+  it('with_message + engagement RSVPs come from exact aggregates past the cap (Codex #472 r6)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const inquiries = [
+      { source: 'contact_form', created_at: new Date('2026-07-01T10:00:00Z'), has_message: true },
+    ];
+    const report = buildSellerReport({
+      ...baseInput(), inquiries, now,
+      inquiry_aggregates: { total: 7500, by_source: { contact_form: 6000, open_house_rsvp: 1500 }, last_30_days: 1200, with_message: 4200 },
+    });
+    expect(report.inquiries.with_message).toBe(4200);
+    expect(report.engagement.open_house_rsvps).toBe(1500);
+  });
+
   it('inquiry metrics honor exact DB aggregates when provided (Codex #472 r5 — capped inquiry slice must not pose as totals)', () => {
     const now = new Date('2026-07-02T12:00:00Z');
     const inquiries = [
