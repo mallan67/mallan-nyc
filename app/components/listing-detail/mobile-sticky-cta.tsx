@@ -201,6 +201,7 @@ export function MobileStickyCta({
       <div className="flex items-stretch gap-2 px-4 py-3">
         <a
           data-testid="mobile-sticky-cta-call"
+          data-track-event="contact_click" // SELLER-002: tap-to-call
           href={telHref}
           aria-label="Call Mallan Real Estate"
           // min-h-12 (48 px) + min-w-12 (48 px) clears WCAG 2.5.5 (44×44).
@@ -211,6 +212,7 @@ export function MobileStickyCta({
         </a>
         <a
           data-testid="mobile-sticky-cta-contact"
+          data-track-event="contact_click" // SELLER-002: primary contact CTA
           href={contactHref}
           // Primary CTA — full-width remainder. min-h-12 = 48 px touch target.
           className="flex items-center justify-center min-h-12 flex-1 px-5 rounded-full bg-brand-dark text-white text-[15px] font-semibold hover:bg-brand-dark/90 active:bg-brand-dark/80 transition-colors"

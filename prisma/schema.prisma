@@ -411,6 +411,8 @@ model Lead {
 
   portal_events          PortalEvent[]
   listing_views          ListingView[]
+  // SELLER-002: future self-identified linkage only (server-set, never rendered to owners)
+  listing_events         ListingEvent[]
   landlord_active_leases ActiveLease[] @relation("LandlordActiveLeases")
   tenant_active_leases   ActiveLease[] @relation("TenantActiveLeases")
 
@@ -545,6 +547,8 @@ model Listing {
   marketing_activities      MarketingActivity[]
   listing_media             ListingMedia[]
   listing_search_projection ListingSearchProjection?
+  // SELLER-002 anonymous engagement events (table staged, Maya-held migration)
+  listing_events            ListingEvent[]
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
@@ -857,6 +861,55 @@ model ListingView {
   @@index([listing_id])
   @@index([lead_id, viewed_at])
   @@map("listing_views")
+}
+
+// ═══════════════════════════════════════════════════════════
+// LISTING EVENT — SELLER-002 anonymous public engagement events
+// (registry SELLER-002; Maya directive 2026-07-03)
+//
+// ⚠️ MIGRATION STAGED, NOT APPLIED (Maya-held): the production table does
+// NOT exist yet. SQL is staged at
+//   prisma/migrations-staged/20260703000000_add_listing_events/migration.sql
+// and the apply plan is docs/architecture/SELLER-002-MIGRATION-PLAN-2026-07-03.md.
+// This is SAFE because the ONLY runtime path that queries this model
+// (app/api/track/listing-event/route.ts) is fail-closed behind
+// LISTING_EVENTS_ENABLED (absent → no-op 204, zero DB calls), and Prisma
+// only fails on a missing table at query time, never at generate/build
+// time. CI is unaffected: pr-check.yml `prisma db push` creates the table
+// in the ephemeral CI Postgres.
+//
+// Privacy invariants: anonymous first-party visitor_id/session_id (opaque
+// UUIDs, NOT fingerprints); NO raw IP column by design (NY SHIELD);
+// referrer stored HOST-ONLY; metadata is PII-stripped server-side;
+// lead_id/user_id/agent_id are ONLY for future server-side self-identified
+// linkage — never client-supplied, never rendered to owners.
+// ═══════════════════════════════════════════════════════════
+model ListingEvent {
+  id           BigInt   @id @default(autoincrement())
+  listing_id   String   @map("listing_id") // FK → listings.listing_id (string key, Inquiry pattern)
+  listing      Listing  @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+  event_type   String   @map("event_type") // 11-value allowlist in lib/tracking/listing-events.ts
+  visitor_id   String   @map("visitor_id") // anonymous first-party UUID (localStorage mallan_vid)
+  session_id   String   @map("session_id") // anonymous session UUID (sessionStorage mallan_sid)
+  user_id      String?  @map("user_id") // future self-identified portal user — server-set only
+  lead_id      BigInt?  @map("lead_id") // future self-identified lead — server-set only, never rendered to owners
+  lead         Lead?    @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  agent_id     BigInt?  @map("agent_id") // future agent-authored linkage — server-set only
+  source       String?  // server-derived: agent-link | email | google | social | direct | other
+  utm_source   String?  @map("utm_source")
+  utm_medium   String?  @map("utm_medium")
+  utm_campaign String?  @map("utm_campaign")
+  referrer     String?  // HOST ONLY (e.g. "www.google.com") — never full URL (PII hygiene)
+  device_type  String?  @map("device_type") // mobile | desktop | tablet (coarse UA classification)
+  city         String?  // coarse geo from x-vercel-ip-city (city-level, not PII)
+  region       String?  // coarse geo from x-vercel-ip-country-region
+  created_at   DateTime @default(now()) @map("created_at")
+  metadata     Json?    // PII-stripped shallow scalars only (sanitizeEventMetadata)
+
+  @@index([listing_id, created_at])
+  @@index([event_type])
+  @@index([visitor_id])
+  @@map("listing_events")
 }
 
 // ═══════════════════════════════════════════════════════════

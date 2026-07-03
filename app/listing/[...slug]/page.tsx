@@ -41,6 +41,7 @@ import { cache } from 'react';
 import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
 import TrackListingView from '@/app/components/TrackListingView';
+import ListingEventTracker from '@/app/components/ListingEventTracker';
 import TrackListingSend from '@/app/components/TrackListingSend';
 
 import { getAccessToken } from '@/lib/idx/auth';
@@ -1292,6 +1293,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
       <ListingViewTracker />
       <TrackListingView listingId={listing.id} refSource={refSource} />
       <TrackListingSend listingId={listing.id} trackToken={trackToken} />
+      {/* SELLER-002: anonymous first-party engagement events — fires
+          listing_view once/session + delegated data-track-event clicks.
+          Server endpoint is fail-closed behind LISTING_EVENTS_ENABLED. */}
+      <ListingEventTracker listingId={listing.id} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
@@ -2073,6 +2078,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <div className="space-y-2.5">
                     <a
                       href={`mailto:${listing._assignedAgent?.email || 'contact@mallan.nyc'}?subject=${encodeURIComponent(`Schedule Showing: ${fullAddress}`)}`}
+                      data-track-event="showing_request_click" // SELLER-002
                       className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 font-medium text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -2080,6 +2086,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     </a>
                     <a
                       href={`mailto:${listing._assignedAgent?.email || 'contact@mallan.nyc'}?subject=${encodeURIComponent(`Inquiry: ${fullAddress}`)}`}
+                      data-track-event="email_click" // SELLER-002: mailto inquiry
                       className="btn-liquid flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-brand-gold text-white rounded-2xl hover:bg-brand-gold-deep font-medium text-sm"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -2087,6 +2094,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                     </a>
                     <a
                       href={`tel:${(listing._assignedAgent?.phone || '646-258-4460').replace(/[^\d+]/g, '')}`}
+                      data-track-event="contact_click" // SELLER-002: tap-to-call
                       className="flex items-center justify-center gap-2 w-full px-6 py-3 text-brand-dark rounded-2xl ring-1 ring-black/10 hover:bg-gray-50 font-medium text-sm transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>

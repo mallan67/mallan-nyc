@@ -227,6 +227,7 @@ export default function InquiryForm({ listingId, listingAddress, agentEmail: _ag
         <button
           type="submit"
           disabled={isSubmitting}
+          data-track-event="contact_click" // SELLER-002: inquiry submit intent
           className="w-full px-6 py-3 bg-brand-dark text-white rounded-2xl hover:bg-brand-dark/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? 'Sending...' : 'Send Inquiry'}

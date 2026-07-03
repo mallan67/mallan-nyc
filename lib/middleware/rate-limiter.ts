@@ -63,6 +63,10 @@ const limiterSpecs = {
   // to mirror the public inquiry rate but with its own quota so bursts
   // on the public form don't lock out broker workflows (and vice versa).
   agent_inquiry: { count: 30, window: "3600 s" },
+  // SELLER-002 — anonymous listing-event beacons. Generous (galleries fire
+  // bursts of photo/tab events); the capture route answers a SILENT 204 when
+  // limited (beacon semantics — never a 429 oracle).
+  listing_event: { count: 120, window: "60 s" },
 } as const satisfies Record<string, { count: number; window: `${number} s` }>;
 
 export type RouteLimiterName = keyof typeof limiterSpecs;

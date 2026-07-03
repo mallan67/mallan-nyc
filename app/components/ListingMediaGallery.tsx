@@ -109,6 +109,14 @@ export default function ListingMediaGallery({
             {availableTabs.map(tab => (
               <button
                 key={tab.key}
+                // SELLER-002: media-tab engagement events — picked up by the
+                // delegated data-track-event listener in ListingEventTracker.
+                data-track-event={
+                  tab.key === 'floorplan' ? 'floorplan_click'
+                    : tab.key === 'video' ? 'video_click'
+                    : tab.key === '3d' ? 'virtual_tour_click'
+                    : undefined
+                }
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-[11px] md:text-[13px] font-medium transition-all ${
                   activeTab === tab.key
@@ -152,6 +160,7 @@ export default function ListingMediaGallery({
                   fetchPriority="high"
                   onError={() => handleImageError(photoIdx)}
                   onClick={() => setFullscreen(true)}
+                  data-track-event="photo_gallery_open" // SELLER-002: lightbox open
                   className="absolute inset-0 w-full h-full object-cover cursor-zoom-in"
                 />
               )}

@@ -139,6 +139,8 @@ export default function SocialShareBar({ title, description }: SocialShareBarPro
                 href={link.href()}
                 target="_blank"
                 rel="noopener noreferrer"
+                // SELLER-002: email share = email_click, all others = share_click
+                data-track-event={link.name === 'Email' ? 'email_click' : 'share_click'}
                 aria-label={`Share on ${link.name}`}
                 className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-brand-gold hover:border-brand-gold transition-colors"
               >
@@ -148,6 +150,7 @@ export default function SocialShareBar({ title, description }: SocialShareBarPro
             <button
               type="button"
               onClick={handleCopy}
+              data-track-event="share_click" // SELLER-002: copy-link counts as a share
               aria-label="Copy link to clipboard"
               className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-brand-gold hover:border-brand-gold transition-colors"
             >

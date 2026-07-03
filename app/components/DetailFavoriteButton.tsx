@@ -26,6 +26,7 @@ export default function DetailFavoriteButton(props: DetailFavoriteButtonProps) {
 
   return (
     <button
+      data-track-event="save_click" // SELLER-002: save/favorite engagement
       onClick={() => {
         toggleFavorite(entry);
         window.dispatchEvent(new CustomEvent('mallan:intent', {

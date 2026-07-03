@@ -156,6 +156,8 @@ export default function ShareButton({ title, description }: ShareButtonProps) {
               href={link.getHref()}
               target="_blank"
               rel="noopener noreferrer"
+              // SELLER-002: email share = email_click, all others = share_click
+              data-track-event={link.name === 'Email' ? 'email_click' : 'share_click'}
               onClick={() => setOpen(false)}
               className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-brand-gold hover:bg-gray-50 transition-colors"
               aria-label={`Share on ${link.name}`}
@@ -166,6 +168,7 @@ export default function ShareButton({ title, description }: ShareButtonProps) {
           <button
             type="button"
             onClick={handleCopy}
+            data-track-event="share_click" // SELLER-002: copy-link counts as a share
             className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-brand-gold hover:bg-gray-50 transition-colors"
             aria-label="Copy link to clipboard"
           >
