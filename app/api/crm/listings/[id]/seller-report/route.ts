@@ -49,7 +49,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Ownership: agents see only their own listings; broker sees all.
   // Same rule as GET /api/crm/listings/[id].
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
+  // Codex #472 r4: normalize before the broker bypass — requireRole()
+  // uppercases on entry, so a legacy lowercase "broker" session would
+  // otherwise be treated as an agent and 403 on unassigned listings.
+  if (String(auth.role).toUpperCase() !== "BROKER" && listing.agent_id !== auth.userId) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 

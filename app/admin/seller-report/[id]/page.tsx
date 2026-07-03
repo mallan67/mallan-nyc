@@ -86,7 +86,12 @@ async function requireAgentOrBrokerPage(currentPath: string) {
   const token = cookieStore.get('session_token')?.value;
   const user = token ? await validateSession(token) : null;
   const role = user?.role?.toUpperCase();
-  if (!user || user.userType !== 'agent' || (role !== 'AGENT' && role !== 'BROKER')) {
+  // Codex #472 r4: /admin/login only admits BROKER sessions, so an
+  // agent-or-broker gate here made the page unreachable for agents (login
+  // bounce loop). Phase 1 scopes this /admin page to BROKER; agents consume
+  // the same data via GET /api/crm/listings/[id]/seller-report (ownership-
+  // scoped) — an agent-facing UI ships with the SELLER-001 Phase-2 portal.
+  if (!user || user.userType !== 'agent' || role !== 'BROKER') {
     redirect(`/admin/login?redirect=${encodeURIComponent(currentPath)}`);
   }
   return user!;

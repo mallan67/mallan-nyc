@@ -5,6 +5,7 @@ import { openHouseRsvpEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { createInquiry } from '@/lib/inquiries/create';
+import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
 
 /**
  * POST /api/open-houses/rsvp
@@ -112,9 +113,28 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Codex #472 r3: link the inquiry to its listing so seller reports can
+    // count RSVPs. `local-{showingId}` resolves exactly (Mallan CRM open
+    // houses); `trestle-` ids stay unlinked by design (documented). Best
+    // effort — never blocks the RSVP.
+    let rsvpListingId: string | null = null;
+    try {
+      const parsed = parseOpenHouseId(openHouseId);
+      if (parsed?.kind === 'local') {
+        const showing = await prisma.showing.findUnique({
+          where: { id: parsed.showingId },
+          select: { listing: { select: { listing_id: true } } },
+        });
+        rsvpListingId = showing?.listing?.listing_id ?? null;
+      }
+    } catch {
+      rsvpListingId = null; // best-effort only
+    }
+
     // Real Inquiry row (Workstream C1 of master refactor). Never throws.
     await createInquiry({
       source: 'open_house_rsvp',
+      listingId: rsvpListingId,
       leadId: lead.id,
       message: message ?? null,
       email: lead.email,

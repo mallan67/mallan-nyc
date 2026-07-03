@@ -70,7 +70,7 @@ export async function loadSellerReport(
   const listPrice = Number(listing.list_price.toString());
   const band = priceBandFor(listPrice);
 
-  const [totalViewCount, earliestView, views, inquiries, showings, actions, similarActives] = await Promise.all([
+  const [totalViewCount, earliestView, viewerAgg, views7, views30, deviceAgg, views, inquiries, showings, actions, similarActives] = await Promise.all([
     // Codex #472 r1: true DB count so total_views is exact even when the
     // detail slice is capped at MAX_ROWS.
     prisma.listingView.count({ where: { listing_id: listing.listing_id } }),
@@ -80,6 +80,27 @@ export async function loadSellerReport(
       where: { listing_id: listing.listing_id },
       select: { viewed_at: true },
       orderBy: { viewed_at: 'asc' },
+    }),
+    // Codex #472 r3: exact ALL-TIME viewer aggregates (read-only) so
+    // uniques/returning/devices stay truthful past the MAX_ROWS cap.
+    prisma.$queryRaw<Array<{ unique_viewers: bigint; known_viewers: bigint; returning_viewers: bigint }>>`
+      SELECT
+        count(DISTINCT coalesce(ip_hash, 'lead:' || lead_id)) AS unique_viewers,
+        count(DISTINCT lead_id) AS known_viewers,
+        (SELECT count(*) FROM (
+           SELECT 1 FROM listing_views
+           WHERE listing_id = ${listing.listing_id}
+           GROUP BY coalesce(ip_hash, 'lead:' || lead_id)
+           HAVING count(*) > 1
+         ) r) AS returning_viewers
+      FROM listing_views WHERE listing_id = ${listing.listing_id}`,
+    // Codex #472 r4: exact windowed counts so a hot week never caps at MAX_ROWS.
+    prisma.listingView.count({ where: { listing_id: listing.listing_id, viewed_at: { gte: new Date(now.getTime() - 7 * 24 * 3600_000) } } }),
+    prisma.listingView.count({ where: { listing_id: listing.listing_id, viewed_at: { gte: new Date(now.getTime() - 30 * 24 * 3600_000) } } }),
+    prisma.listingView.groupBy({
+      by: ['device_type'],
+      where: { listing_id: listing.listing_id },
+      _count: { _all: true },
     }),
     prisma.listingView.findMany({
       where: { listing_id: listing.listing_id },
@@ -151,6 +172,13 @@ export async function loadSellerReport(
     })),
     total_view_count: totalViewCount,
     earliest_view_at: earliestView?.viewed_at,
+    window_counts: { last_7_days: views7, last_30_days: views30 },
+    viewer_aggregates: {
+      unique_viewers: Number(viewerAgg[0]?.unique_viewers ?? 0),
+      known_viewers: Number(viewerAgg[0]?.known_viewers ?? 0),
+      returning_viewers: Number(viewerAgg[0]?.returning_viewers ?? 0),
+      device_breakdown: Object.fromEntries(deviceAgg.map((d) => [d.device_type ?? 'unknown', d._count._all])),
+    },
     showings: showings.map((s) => ({ type: s.type, status: s.status, date: s.date })),
     actions: actions.map((a) => ({ action: a.action, created_at: a.created_at })),
     similarActives: similarActives.map((s) => ({

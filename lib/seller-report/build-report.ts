@@ -86,6 +86,23 @@ export interface SellerReportInput {
    * 5,000. When provided, the earlier of (this, slice minimum) wins.
    */
   earliest_view_at?: Date;
+  /**
+   * Codex #472 r3: exact all-time viewer aggregates (DB-side). The capped
+   * newest-first slice cannot answer all-time uniques/returning/devices for
+   * >MAX_ROWS listings. When provided, these win; when absent AND the cap is
+   * hit, a data-gap line is appended (fail-honest).
+   */
+  /**
+   * Codex #472 r4: exact windowed counts (DB-side). Past the cap, the newest
+   * slice can still undercount a hot week (8,123 views in 7 days reads 5,000).
+   */
+  window_counts?: { last_7_days: number; last_30_days: number };
+  viewer_aggregates?: {
+    unique_viewers: number;
+    known_viewers: number;
+    returning_viewers: number;
+    device_breakdown: Record<string, number>;
+  };
   inquiries: SellerReportInquiryRow[];
   showings: SellerReportShowingRow[];
   actions: SellerReportActionRow[];
@@ -222,12 +239,12 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
   const exposure: SellerReport['exposure'] = {
     truth_level: TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC,
     total_views: Math.max(input.total_view_count ?? 0, views.length),
-    unique_viewers: uniqueKeys.size,
-    known_viewers: knownViewers,
-    returning_viewers: returningViewers,
-    views_last_7_days: views.filter((v) => nowMs - v.viewed_at.getTime() <= 7 * DAY_MS).length,
-    views_last_30_days: views.filter((v) => nowMs - v.viewed_at.getTime() <= 30 * DAY_MS).length,
-    device_breakdown: countBy(views, (v) => v.device_type ?? 'unknown'),
+    unique_viewers: input.viewer_aggregates?.unique_viewers ?? uniqueKeys.size,
+    known_viewers: input.viewer_aggregates?.known_viewers ?? knownViewers,
+    returning_viewers: input.viewer_aggregates?.returning_viewers ?? returningViewers,
+    views_last_7_days: input.window_counts?.last_7_days ?? views.filter((v) => nowMs - v.viewed_at.getTime() <= 7 * DAY_MS).length,
+    views_last_30_days: input.window_counts?.last_30_days ?? views.filter((v) => nowMs - v.viewed_at.getTime() <= 30 * DAY_MS).length,
+    device_breakdown: input.viewer_aggregates?.device_breakdown ?? countBy(views, (v) => v.device_type ?? 'unknown'),
     first_view_at: (() => {
       const sliceMin = viewTimes.length ? viewTimes[0] : null;
       const trueMin = input.earliest_view_at ? input.earliest_view_at.getTime() : null;
@@ -301,6 +318,15 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
       note: 'External presence discovery (portals, search, broker-network IDX appearances) is Phase 2 (listing_external_presence + listing_broker_network_presence — HELD, Maya approval). Broker-network rows are network exposure with third-party lead capture: inquiries on those surfaces route to the displaying broker.',
     },
     market_context: marketContext,
-    data_gaps: [...DATA_GAPS],
+    data_gaps: (() => {
+      const gaps = [...DATA_GAPS];
+      const capped = (input.total_view_count ?? 0) > views.length && views.length > 0;
+      if (capped && !input.viewer_aggregates) {
+        gaps.push(
+          `Viewer metrics (uniques/returning/devices) computed over the newest ${views.length} of ${input.total_view_count} tracked views — exact aggregates unavailable this run.`
+        );
+      }
+      return gaps;
+    })(),
   };
 }

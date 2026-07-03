@@ -276,6 +276,7 @@ describe('buildSellerReport — data gaps (honesty contract)', () => {
 
 // ── Codex #472 fixes (RED first) ─────────────────────────────────────────
 import { composeAddressDisplay } from '@/lib/seller-report/load-report';
+import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
 
 describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
   it('composeAddressDisplay reads RESO PascalCase (IDX rows) incl. DirPrefix/Suffix via canonical street composition', () => {
@@ -294,6 +295,43 @@ describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
 
   it('composeAddressDisplay falls back to the listing id when the address JSON is empty', () => {
     expect(composeAddressDisplay({}, 'RLS123')).toBe('RLS123');
+  });
+
+  it('viewer metrics honor exact DB aggregates when provided (Codex #472 r3 — capped slice must not masquerade as all-time)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const views = [
+      { lead_id: 'lead-a', ip_hash: 'ha', device_type: 'mobile', referrer: null, viewed_at: new Date('2026-07-01T10:00:00Z') },
+    ];
+    const report = buildSellerReport({
+      ...baseInput(), views, total_view_count: 9000, now,
+      viewer_aggregates: { unique_viewers: 4321, known_viewers: 210, returning_viewers: 333, device_breakdown: { mobile: 6000, desktop: 3000 } },
+    });
+    expect(report.exposure.unique_viewers).toBe(4321);
+    expect(report.exposure.known_viewers).toBe(210);
+    expect(report.exposure.returning_viewers).toBe(333);
+    expect(report.exposure.device_breakdown).toEqual({ mobile: 6000, desktop: 3000 });
+  });
+
+  it('windowed view counts honor exact DB counts when provided (Codex #472 r4 — 8,123 views in 7 days must not read 5,000)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const views = [
+      { lead_id: 'lead-a', ip_hash: 'ha', device_type: 'mobile', referrer: null, viewed_at: new Date('2026-07-02T09:00:00Z') },
+    ];
+    const report = buildSellerReport({
+      ...baseInput(), views, total_view_count: 8123, now,
+      window_counts: { last_7_days: 8123, last_30_days: 8123 },
+    });
+    expect(report.exposure.views_last_7_days).toBe(8123);
+    expect(report.exposure.views_last_30_days).toBe(8123);
+  });
+
+  it('appends a slice-limited data gap when the cap is hit WITHOUT exact aggregates (fail-honest)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const views = [
+      { lead_id: 'lead-a', ip_hash: 'ha', device_type: 'mobile', referrer: null, viewed_at: new Date('2026-07-01T10:00:00Z') },
+    ];
+    const report = buildSellerReport({ ...baseInput(), views, total_view_count: 9000, now });
+    expect(report.data_gaps.some((g) => /newest \d+ of \d+ tracked views/i.test(g))).toBe(true);
   });
 
   it('first_view_at honors the true earliest timestamp when the newest-first slice is capped (Codex #472 r2)', () => {
@@ -317,5 +355,20 @@ describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
     expect(report.exposure.total_views).toBe(8123);
     // windowed metrics still come from the (newest) slice
     expect(report.exposure.views_last_7_days).toBe(3);
+  });
+});
+
+
+describe('parseOpenHouseId — RSVP listing linkage (Codex #472 r3)', () => {
+  it("resolves local-{showingId} ids", () => {
+    expect(parseOpenHouseId('local-123')).toEqual({ kind: 'local', showingId: 123n });
+  });
+  it('classifies trestle ids as unresolvable-by-design (documented limitation)', () => {
+    expect(parseOpenHouseId('trestle-ABC123')).toEqual({ kind: 'trestle' });
+  });
+  it('returns null on garbage / absent input', () => {
+    expect(parseOpenHouseId('local-notanumber')).toBeNull();
+    expect(parseOpenHouseId('')).toBeNull();
+    expect(parseOpenHouseId(undefined)).toBeNull();
   });
 });
