@@ -22,7 +22,12 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const name = pick('StreetName', 'streetName');
   if (!num || !name) return false;
   const sub = submitted.toLowerCase();
-  if (!sub.includes(num.toLowerCase())) return false;
+  // Codex #472 r7: the street number must match as an EXACT token — substring
+  // matching accepted "1400 East 90th" for a listing at "400" (prefix hit).
+  // Tokenize on non-alphanumerics so hyphenated ranges ("400-402") still
+  // yield the "400" token; "90" must not match the "90th" token.
+  const subTokens = sub.split(/[^a-z0-9]+/).filter(Boolean);
+  if (!subTokens.includes(num.toLowerCase())) return false;
   // Meaningful tokens: contain a digit (ordinals like "90th") or are >3 chars
   // (skips "e"/"st"-style abbreviation mismatches on the LISTING side).
   const tokens = name.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t && (/\d/.test(t) || t.length > 3));

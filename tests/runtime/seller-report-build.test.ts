@@ -410,6 +410,12 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
   it('rejects a mismatched submitted address (attacker posts an arbitrary address with a real showing id)', () => {
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '123 Fake Street')).toBe(false);
   });
+
+  it('street number must match as an EXACT token — substring hits like 1400-vs-400 are rejected (Codex #472 r7)', () => {
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '1400 East 90th Street')).toBe(false);
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400-402 East 90th Street')).toBe(true); // hyphenated ranges tokenize
+    expect(rsvpAddressMatches({ StreetNumber: '90', StreetName: 'East 90th Street' }, '400 East 90th Street')).toBe(false); // "90" must not match "90th"
+  });
   it('fails CLOSED when either side is missing (no linkage rather than a wrong one)', () => {
     expect(rsvpAddressMatches({}, '400 East 90th Street')).toBe(false);
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '')).toBe(false);

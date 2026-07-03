@@ -101,8 +101,14 @@ export async function loadSellerReport(
     prisma.inquiry.count({ where: { listing_id: listing.listing_id } }),
     prisma.inquiry.groupBy({ by: ['source'], where: { listing_id: listing.listing_id }, _count: { _all: true } }),
     prisma.inquiry.count({ where: { listing_id: listing.listing_id, created_at: { gte: new Date(now.getTime() - 30 * 24 * 3600_000) } } }),
-    // Codex #472 r6: exact with-message count past the cap.
-    prisma.inquiry.count({ where: { listing_id: listing.listing_id, message: { not: null } } }),
+    // Codex #472 r6+r7: exact with-message count past the cap — the SAME
+    // trimmed non-empty predicate as the row reducer (message: {not: null}
+    // alone counted empty/whitespace-only messages and could overstate the
+    // "With a written message" metric).
+    prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT count(*) AS n FROM inquiries
+      WHERE listing_id = ${listing.listing_id}
+        AND message IS NOT NULL AND btrim(message) <> ''`,
     prisma.listingView.groupBy({
       by: ['device_type'],
       where: { listing_id: listing.listing_id },
@@ -183,7 +189,7 @@ export async function loadSellerReport(
       total: inquiryTotal,
       by_source: Object.fromEntries(inquiryBySource.map((g) => [g.source, g._count._all])),
       last_30_days: inquiry30,
-      with_message: inquiryWithMessage,
+      with_message: Number(inquiryWithMessage[0]?.n ?? 0),
     },
     viewer_aggregates: {
       unique_viewers: Number(viewerAgg[0]?.unique_viewers ?? 0),
