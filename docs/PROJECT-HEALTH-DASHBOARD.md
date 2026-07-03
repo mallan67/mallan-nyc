@@ -23,18 +23,18 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-03T16:17:35Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-03T16:36:52Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `ab56ecd8`; probed from branch `HEAD` |
+| Repo / main HEAD | 🟢 | main `ab56ecd8`; probed from branch `docs/registry-neon-verification-2026-07-02` |
 | Open PRs | 🟡 | 41 open (31 non-audit): #473, #472, #467, #428 |
-| PR #465 CI (rehydration guard) | 🟡 | 9 checks — 0 fail, 1 pending; review CURRENT HEAD before merge |
+| PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
 | Cron cadence (live Cotality) | 🟢 | 22 crons; idx-sync `*/10 * * * *`, media-sync `*/15 * * * *`, db-keepalive `*/15 * * * *` |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 16m ago (cadence 10m) |
+| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 17m ago (cadence 10m) |
 | DB growth / archive state | 🟢 | 110,707 listings; 2,032 archived (sync_status='archived') |
 <!-- HEALTH:AUTO:END -->
 
@@ -142,12 +142,12 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
 | Neon canonical identity | 🟢 | 2026-07-01 | auto tier (health:probe) | `npm run health:probe` |
 | Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
-| Neon backups / PITR / restore drill | ⚪ | — | rollback branch exists (Gate 6) but no restore DRILL ever run | Neon console + drill |
+| Neon backups / PITR / restore drill | 🔴 | 2026-07-03 | **Gate-6 rollback branch AUTO-PRUNED 2026-07-03T04:00:48Z (OPS-022)** — no rollback branch currently exists; PITR window is 6h (OPS-016); no restore DRILL ever run | recreate+protect branch (OPS-022) |
 | Redis (locks/queues) | ⚪ | — | `createCronHandler` references a Redis lock but is dead code (OPS-007); live Redis usage uninventoried | code sweep + env check |
 | R2 storage (media) | ⚪ | — | cost audit 2026-06-12 exists; orphan/consistency unverified this cycle | R2 inventory vs listing_media |
 | DNS / SSL / domains | 🟢 | 2026-07-01 | https/www/apex redirects verified live; cert valid (PROD-003) | curl probes |
 | Env vars / secrets hygiene | 🟡 | 2026-07-01 | no secret values leaked via routes (backend audit); ALLOW_DEV_LOGIN state UNKNOWN (PROD-008); CRON_SECRET fail-open pattern ×12 (PROD-005) | `vercel env ls` (names only) |
-| Rollback readiness | 🟢 | 2026-07-01 | 4 rollback-candidate production deployments; Gate-6 rollback branch ready | Vercel MCP + auto tier |
+| Rollback readiness | 🟡 | 2026-07-03 | Vercel: 4 rollback-candidate prod deployments (app-level OK). **Neon: Gate-6 rollback branch GONE (auto-pruned, OPS-022) — BLOCKER for 5K execute** | Vercel MCP + neonctl |
 
 ### 2 · Runtime (284 API routes · 23 crons)
 | Component | Status | Last verified | Evidence / Registry | Verify via |
@@ -242,7 +242,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 
 ## Gate 6 archive/drain status
 
-- Rollback branch `pre-gate6-5k-pilot-2026-07-01` (`br-winter-credit-adlh315q`) exists; restore LSN `4/745307E0`.
+- ⚠️ **Rollback branch `pre-gate6-5k-pilot-2026-07-01` was AUTO-PRUNED 2026-07-03T04:00:48Z (OPS-022)** — restore LSN `4/745307E0` no longer recoverable via that branch; a FRESH protected rollback branch must be created before any execute.
 - 5K **dry-run** done (backlog 80,712; scanned 5,000; archived 0; skipped 0; errors 0). **No execute has run.**
 - `ARCHIVE_T180_BACKLOG_ENABLED` OFF — but per OPS-009 this flag only selects the eligibility CLOCK (`terminal_since` vs `status_changed_at`, `data-retention/route.ts:168-171`); **the nightly T+180 archive loop RUNS either way (500-cap)**. A true archive gate does not exist until the OPS-009 two-flag implementation lands.
 
@@ -269,7 +269,10 @@ Three invariants:
    kill switch confirmed all four criteria (OPS-020, 2026-07-03T03:00:46Z: state OFF, skip reason,
    T+24h carve-out ran, no drain). **NOW GATING: Maya sets `ARCHIVE_ENABLED=true` (MAINTENANCE) →
    verify one clean MAINTENANCE cycle at the next 03:00 run.**
-5. ⏳ Then approve **only the 5K pilot execute**; monitor several hours / next sync cycles.
+5. ⏳ Then, before the **5K pilot execute**: (a) a FRESH pre-gate6 rollback branch exists AND is
+   protected / retention-extended so the prune cron cannot delete it before the pilot (OPS-022 —
+   the prior branch was auto-pruned), (b) Maya's explicit execute approval. Monitor several hours /
+   next sync cycles after.
 6. ⏳ Scale to 20K batches **only after proving the 5K rows stay stripped across live sync cycles**.
 
 Reclaim note (OPS-016 + OPS-018): live history retention is **6h** (not 7d) — but the 6h window

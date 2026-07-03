@@ -105,6 +105,9 @@ Before ending a session or handing off:
 
 Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
 2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
-(`858da234`); the guard is under registry **RW-004** regression watch. **Gate 6 has not executed**
-(dry-run only; rollback branch exists) — next gate is the OPS-009 two-flag implementation, then the
-5K pilot per the Maya roadmap (Track 1 SEO-001 → Track 2 OPS-009 → Track 3 pilot → Track 4 OPS-017).
+(`858da234`); the guard is under registry **RW-004** regression watch. **OPS-009 archive controls
+are IMPLEMENTED + deployed (#470) and the kill-switch proof is VERIFIED (OPS-020, 03:00:46Z).**
+**Gate 6 has NOT executed.** Next gate is Maya's `ARCHIVE_ENABLED=true` MAINTENANCE decision, then the
+5K pilot — which also requires a **FRESH rollback branch: the prior one was auto-pruned 2026-07-03
+(OPS-022), so no rollback branch currently exists.** Roadmap: SEO-001 ✅ · OPS-009 ✅ (awaiting flag) ·
+5K pilot (blocked on OPS-022 + flag) · OPS-017.

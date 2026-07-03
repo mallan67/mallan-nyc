@@ -31,7 +31,7 @@ Production health · Platform audit · SEO corrections · Runtime stability.
 ## Rollback Protection
 
 Rollback branch already exists: `pre-gate6-5k-pilot-2026-07-01` (`br-winter-credit-adlh315q`),
-restore LSN `4/745307E0`. **No additional rollback branch is required before continuing Gate 6.**
+restore LSN `4/745307E0`. **⚠️ SUPERSEDED 2026-07-03: this branch was AUTO-PRUNED (OPS-022, prune cron, 24h retention). A FRESH protected rollback branch is REQUIRED before any 5K execute — recreate + protect it (Maya-held Neon action).**
 
 ## Gate 6 Status
 
