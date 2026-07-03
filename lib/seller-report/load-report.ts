@@ -94,7 +94,8 @@ export async function loadSellerReport(
            -- buildSellerReport uses (countBy lead_id) — NOT ip_hash. Two distinct
            -- leads on one office/household IP were being fused into one "returning"
            -- group, overstating repeat interest. lead_id-only keeps the exact
-           -- aggregate identical to the capped-slice reducer (NULLs = one anon group).
+           -- aggregate identical to the capped-slice reducer. (lead_id is a required
+           -- FK — never NULL — so there is no anonymous-viewer group here.)
            GROUP BY lead_id
            HAVING count(*) > 1
          ) r) AS returning_viewers

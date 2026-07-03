@@ -453,6 +453,51 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
     expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Avenue A' }, '123 Avenue B')).toBe(false);
   });
 
+  it('does NOT cross-link different streets sharing one short token — false positives fail CLOSED (Codex #472 r11)', () => {
+    // direction must matter: an East End Ave RSVP must NOT land on a West End Ave listing
+    expect(rsvpAddressMatches({ StreetNumber: '170', StreetName: 'West End Avenue' }, '170 East End Avenue')).toBe(false);
+    // a unit/apartment letter must not satisfy an alphabet-avenue core token
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'Avenue A' }, '400 Broadway, Apt A')).toBe(false);
+    // a shared street-type word (Circle/Row/Concourse/Broadway) must not link different names
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'Oak Circle' }, '400 Pine Circle')).toBe(false);
+    expect(rsvpAddressMatches({ StreetNumber: '55', StreetName: 'Bank Row' }, '55 Park Row')).toBe(false);
+    // a shared short token in an otherwise different street name
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'West End Avenue' }, '400 Dead End Road')).toBe(false);
+    // Broadway fails closed unless exact — "West Broadway" is a different street
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'Broadway' }, '400 West Broadway')).toBe(false);
+    // same core, different street-type suffix = different street
+    expect(rsvpAddressMatches({ StreetNumber: '12', StreetName: 'Oak Street' }, '12 Oak Avenue')).toBe(false);
+  });
+
+  it('still links legitimate addresses after the r11 tightening (regression guard)', () => {
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'West End Avenue' }, '400 West End Ave')).toBe(true);
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'Broadway' }, '400 Broadway')).toBe(true);
+    expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Avenue A' }, '123 Avenue A, Apt 5')).toBe(true);
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 East 90th')).toBe(true); // suffix omitted is fine
+    expect(rsvpAddressMatches({ streetNumber: '333', streetName: 'East 46th Street' }, '333 E 46th St 2G')).toBe(true); // abbreviations + bare unit token
+  });
+
+  it('returning_viewers SQL groups on the lead-level key, not the ip_hash key (Codex #472 r10 — SQL-path guard)', () => {
+    // The returning-viewers aggregate is raw SQL in load-report.ts and cannot be
+    // executed in this jest env (no in-memory Postgres). This source-level guard
+    // locks the fix so a revert is caught: the returning subquery must GROUP BY
+    // lead_id (the same key the in-memory reducer uses), NOT the ip_hash-fused key
+    // that over-merged two leads on one office/household IP into a false "returning"
+    // viewer. Behavioural semantics are pinned separately by the 'two leads on one
+    // network' reducer test.
+    const src = require('fs').readFileSync(
+      require('path').join(__dirname, '..', '..', 'lib', 'seller-report', 'load-report.ts'),
+      'utf8',
+    ) as string;
+    const start = src.indexOf('SELECT 1 FROM listing_views');
+    const end = src.indexOf('returning_viewers', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const returningSubquery = src.slice(start, end);
+    expect(returningSubquery).toMatch(/GROUP BY lead_id/);
+    expect(returningSubquery).not.toMatch(/coalesce\(ip_hash/);
+  });
+
   it('street number must match as an EXACT token — substring hits like 1400-vs-400 are rejected (Codex #472 r7)', () => {
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '1400 East 90th Street')).toBe(false);
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400-402 East 90th Street')).toBe(true); // hyphenated ranges tokenize
