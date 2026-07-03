@@ -17,6 +17,7 @@ import {
   markViewFired,
   parseUtmParams,
   buildEventPayload,
+  shareBarTrackEvent,
 } from '@/lib/tracking/listing-events-client';
 
 function fakeStorage(initial: Record<string, string> = {}): Storage {
@@ -138,5 +139,15 @@ describe('SELLER-002 client tracking helpers', () => {
       expect(payload.session_id).toBeUndefined();
       expect(payload.referrer).toBeUndefined();
     });
+  });
+});
+
+describe('shareBarTrackEvent — SocialShareBar classification (Codex #473 r3)', () => {
+  it('Email → email_click; true shares → share_click', () => {
+    expect(shareBarTrackEvent('Email')).toBe('email_click');
+    for (const n of ['Facebook', 'X', 'LinkedIn', 'WhatsApp']) expect(shareBarTrackEvent(n)).toBe('share_click');
+  });
+  it('YouTube channel link is NOT a listing share → external_link_click (metrics must not inflate share_click)', () => {
+    expect(shareBarTrackEvent('YouTube')).toBe('external_link_click');
   });
 });

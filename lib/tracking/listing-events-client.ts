@@ -177,3 +177,16 @@ export function fireListingViewOnce(listingId: string): void {
     /* ignore */
   }
 }
+
+/**
+ * SocialShareBar link → event classification (Codex #473 r3).
+ * The bar mixes true listing shares with the Mallan YouTube CHANNEL link —
+ * the channel link does not share the listing URL, so counting it as
+ * share_click would inflate seller share metrics. It is an outbound
+ * external link: external_link_click.
+ */
+export function shareBarTrackEvent(linkName: string): 'email_click' | 'share_click' | 'external_link_click' {
+  if (linkName === 'Email') return 'email_click';
+  if (linkName === 'YouTube') return 'external_link_click';
+  return 'share_click';
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { shareBarTrackEvent } from '@/lib/tracking/listing-events-client';
 
 interface SocialShareBarProps {
   title: string;
@@ -139,8 +140,10 @@ export default function SocialShareBar({ title, description }: SocialShareBarPro
                 href={link.href()}
                 target="_blank"
                 rel="noopener noreferrer"
-                // SELLER-002: email share = email_click, all others = share_click
-                data-track-event={link.name === 'Email' ? 'email_click' : 'share_click'}
+                // SELLER-002 (Codex #473 r3): Email → email_click; the YouTube
+                // CHANNEL link is not a listing share → external_link_click;
+                // true shares → share_click.
+                data-track-event={shareBarTrackEvent(link.name)}
                 aria-label={`Share on ${link.name}`}
                 className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-brand-gold hover:border-brand-gold transition-colors"
               >
