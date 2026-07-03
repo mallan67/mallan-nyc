@@ -296,6 +296,17 @@ describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
     expect(composeAddressDisplay({}, 'RLS123')).toBe('RLS123');
   });
 
+  it('first_view_at honors the true earliest timestamp when the newest-first slice is capped (Codex #472 r2)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const views = [
+      { lead_id: 'lead-a', ip_hash: 'ha', device_type: 'mobile', referrer: null, viewed_at: new Date('2026-07-01T10:00:00Z') },
+      { lead_id: 'lead-b', ip_hash: 'hb', device_type: 'desktop', referrer: null, viewed_at: new Date('2026-07-02T09:00:00Z') },
+    ];
+    const trueFirst = new Date('2026-03-15T08:30:00Z'); // outside the capped slice
+    const report = buildSellerReport({ ...baseInput(), views, total_view_count: 9000, earliest_view_at: trueFirst, now });
+    expect(report.exposure.first_view_at).toBe(trueFirst.toISOString());
+  });
+
   it('total_views honors the true DB count when the detail slice is capped (high-traffic listing)', () => {
     const now = new Date('2026-07-02T12:00:00Z');
     const views = Array.from({ length: 3 }, (_, i) => ({

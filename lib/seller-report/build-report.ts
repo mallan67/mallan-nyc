@@ -79,6 +79,13 @@ export interface SellerReportInput {
    * windowed metrics still derive from the (newest) slice.
    */
   total_view_count?: number;
+  /**
+   * Codex #472 r2: true earliest view timestamp (DB min aggregate). With the
+   * newest-first cap, the slice no longer contains the oldest rows, so
+   * "First tracked view" would otherwise show the earliest of the newest
+   * 5,000. When provided, the earlier of (this, slice minimum) wins.
+   */
+  earliest_view_at?: Date;
   inquiries: SellerReportInquiryRow[];
   showings: SellerReportShowingRow[];
   actions: SellerReportActionRow[];
@@ -221,7 +228,12 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
     views_last_7_days: views.filter((v) => nowMs - v.viewed_at.getTime() <= 7 * DAY_MS).length,
     views_last_30_days: views.filter((v) => nowMs - v.viewed_at.getTime() <= 30 * DAY_MS).length,
     device_breakdown: countBy(views, (v) => v.device_type ?? 'unknown'),
-    first_view_at: viewTimes.length ? new Date(viewTimes[0]).toISOString() : null,
+    first_view_at: (() => {
+      const sliceMin = viewTimes.length ? viewTimes[0] : null;
+      const trueMin = input.earliest_view_at ? input.earliest_view_at.getTime() : null;
+      const min = sliceMin === null ? trueMin : trueMin === null ? sliceMin : Math.min(sliceMin, trueMin);
+      return min === null ? null : new Date(min).toISOString();
+    })(),
     last_view_at: viewTimes.length ? new Date(viewTimes[viewTimes.length - 1]).toISOString() : null,
   };
 

@@ -70,10 +70,17 @@ export async function loadSellerReport(
   const listPrice = Number(listing.list_price.toString());
   const band = priceBandFor(listPrice);
 
-  const [totalViewCount, views, inquiries, showings, actions, similarActives] = await Promise.all([
+  const [totalViewCount, earliestView, views, inquiries, showings, actions, similarActives] = await Promise.all([
     // Codex #472 r1: true DB count so total_views is exact even when the
     // detail slice is capped at MAX_ROWS.
     prisma.listingView.count({ where: { listing_id: listing.listing_id } }),
+    // Codex #472 r2: true FIRST view (min aggregate) — the newest-first cap
+    // drops the oldest rows, so the slice cannot answer "first tracked view".
+    prisma.listingView.findFirst({
+      where: { listing_id: listing.listing_id },
+      select: { viewed_at: true },
+      orderBy: { viewed_at: 'asc' },
+    }),
     prisma.listingView.findMany({
       where: { listing_id: listing.listing_id },
       select: { lead_id: true, viewed_at: true, device_type: true, ip_hash: true, referrer: true },
@@ -143,6 +150,7 @@ export async function loadSellerReport(
       has_message: Boolean(i.message && i.message.trim().length > 0),
     })),
     total_view_count: totalViewCount,
+    earliest_view_at: earliestView?.viewed_at,
     showings: showings.map((s) => ({ type: s.type, status: s.status, date: s.date })),
     actions: actions.map((a) => ({ action: a.action, created_at: a.created_at })),
     similarActives: similarActives.map((s) => ({
