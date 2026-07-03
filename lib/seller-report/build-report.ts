@@ -97,6 +97,11 @@ export interface SellerReportInput {
    * slice can still undercount a hot week (8,123 views in 7 days reads 5,000).
    */
   window_counts?: { last_7_days: number; last_30_days: number };
+  /**
+   * Codex #472 r5: exact inquiry aggregates (DB-side) — past the cap the
+   * newest slice must not pose as all-time totals/by-source/window counts.
+   */
+  inquiry_aggregates?: { total: number; by_source: Record<string, number>; last_30_days: number };
   viewer_aggregates?: {
     unique_viewers: number;
     known_viewers: number;
@@ -258,10 +263,10 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
   const { inquiries } = input;
   const inquirySection: SellerReport['inquiries'] = {
     truth_level: TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC,
-    total: inquiries.length,
-    by_source: countBy(inquiries, (i) => i.source),
+    total: input.inquiry_aggregates?.total ?? inquiries.length,
+    by_source: input.inquiry_aggregates?.by_source ?? countBy(inquiries, (i) => i.source),
     with_message: inquiries.filter((i) => i.has_message).length,
-    last_30_days: inquiries.filter((i) => nowMs - i.created_at.getTime() <= 30 * DAY_MS).length,
+    last_30_days: input.inquiry_aggregates?.last_30_days ?? inquiries.filter((i) => nowMs - i.created_at.getTime() <= 30 * DAY_MS).length,
   };
 
   // ── Engagement (verified Mallan traffic) ──

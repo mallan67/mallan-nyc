@@ -70,7 +70,7 @@ export async function loadSellerReport(
   const listPrice = Number(listing.list_price.toString());
   const band = priceBandFor(listPrice);
 
-  const [totalViewCount, earliestView, viewerAgg, views7, views30, deviceAgg, views, inquiries, showings, actions, similarActives] = await Promise.all([
+  const [totalViewCount, earliestView, viewerAgg, views7, views30, inquiryTotal, inquiryBySource, inquiry30, deviceAgg, views, inquiries, showings, actions, similarActives] = await Promise.all([
     // Codex #472 r1: true DB count so total_views is exact even when the
     // detail slice is capped at MAX_ROWS.
     prisma.listingView.count({ where: { listing_id: listing.listing_id } }),
@@ -97,6 +97,10 @@ export async function loadSellerReport(
     // Codex #472 r4: exact windowed counts so a hot week never caps at MAX_ROWS.
     prisma.listingView.count({ where: { listing_id: listing.listing_id, viewed_at: { gte: new Date(now.getTime() - 7 * 24 * 3600_000) } } }),
     prisma.listingView.count({ where: { listing_id: listing.listing_id, viewed_at: { gte: new Date(now.getTime() - 30 * 24 * 3600_000) } } }),
+    // Codex #472 r5: exact inquiry aggregates past the cap.
+    prisma.inquiry.count({ where: { listing_id: listing.listing_id } }),
+    prisma.inquiry.groupBy({ by: ['source'], where: { listing_id: listing.listing_id }, _count: { _all: true } }),
+    prisma.inquiry.count({ where: { listing_id: listing.listing_id, created_at: { gte: new Date(now.getTime() - 30 * 24 * 3600_000) } } }),
     prisma.listingView.groupBy({
       by: ['device_type'],
       where: { listing_id: listing.listing_id },
@@ -173,6 +177,11 @@ export async function loadSellerReport(
     total_view_count: totalViewCount,
     earliest_view_at: earliestView?.viewed_at,
     window_counts: { last_7_days: views7, last_30_days: views30 },
+    inquiry_aggregates: {
+      total: inquiryTotal,
+      by_source: Object.fromEntries(inquiryBySource.map((g) => [g.source, g._count._all])),
+      last_30_days: inquiry30,
+    },
     viewer_aggregates: {
       unique_viewers: Number(viewerAgg[0]?.unique_viewers ?? 0),
       known_viewers: Number(viewerAgg[0]?.known_viewers ?? 0),

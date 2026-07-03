@@ -277,6 +277,7 @@ describe('buildSellerReport — data gaps (honesty contract)', () => {
 // ── Codex #472 fixes (RED first) ─────────────────────────────────────────
 import { composeAddressDisplay } from '@/lib/seller-report/load-report';
 import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
+import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
 
 describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
   it('composeAddressDisplay reads RESO PascalCase (IDX rows) incl. DirPrefix/Suffix via canonical street composition', () => {
@@ -310,6 +311,20 @@ describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
     expect(report.exposure.known_viewers).toBe(210);
     expect(report.exposure.returning_viewers).toBe(333);
     expect(report.exposure.device_breakdown).toEqual({ mobile: 6000, desktop: 3000 });
+  });
+
+  it('inquiry metrics honor exact DB aggregates when provided (Codex #472 r5 — capped inquiry slice must not pose as totals)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const inquiries = [
+      { source: 'contact_form', created_at: new Date('2026-07-01T10:00:00Z'), has_message: true },
+    ];
+    const report = buildSellerReport({
+      ...baseInput(), inquiries, now,
+      inquiry_aggregates: { total: 7500, by_source: { contact_form: 7000, inquiry: 500 }, last_30_days: 1200 },
+    });
+    expect(report.inquiries.total).toBe(7500);
+    expect(report.inquiries.by_source).toEqual({ contact_form: 7000, inquiry: 500 });
+    expect(report.inquiries.last_30_days).toBe(1200);
   });
 
   it('windowed view counts honor exact DB counts when provided (Codex #472 r4 — 8,123 views in 7 days must not read 5,000)', () => {
@@ -370,5 +385,20 @@ describe('parseOpenHouseId — RSVP listing linkage (Codex #472 r3)', () => {
     expect(parseOpenHouseId('local-notanumber')).toBeNull();
     expect(parseOpenHouseId('')).toBeNull();
     expect(parseOpenHouseId(undefined)).toBeNull();
+  });
+});
+
+
+describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => {
+  it('matches when the submitted address contains the listing street number + a street-name token', () => {
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 East 90th Street, Unit 4D')).toBe(true);
+    expect(rsvpAddressMatches({ streetNumber: '333', streetName: 'East 46th Street' }, '333 E 46th St 2G')).toBe(true);
+  });
+  it('rejects a mismatched submitted address (attacker posts an arbitrary address with a real showing id)', () => {
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '123 Fake Street')).toBe(false);
+  });
+  it('fails CLOSED when either side is missing (no linkage rather than a wrong one)', () => {
+    expect(rsvpAddressMatches({}, '400 East 90th Street')).toBe(false);
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '')).toBe(false);
   });
 });

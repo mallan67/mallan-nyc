@@ -6,6 +6,7 @@ import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { createInquiry } from '@/lib/inquiries/create';
 import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
+import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
 
 /**
  * POST /api/open-houses/rsvp
@@ -121,11 +122,24 @@ export async function POST(request: NextRequest) {
     try {
       const parsed = parseOpenHouseId(openHouseId);
       if (parsed?.kind === 'local') {
-        const showing = await prisma.showing.findUnique({
-          where: { id: parsed.showingId },
-          select: { listing: { select: { listing_id: true } } },
+        // Codex #472 r5: openHouseId is attacker-suppliable. Link ONLY when
+        // the Showing is a real ELIGIBLE public open house (same criteria as
+        // /api/open-houses: type openhouse, upcoming, not cancelled) AND the
+        // submitted address plausibly matches the listing (fail-closed).
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const showing = await prisma.showing.findFirst({
+          where: {
+            id: parsed.showingId,
+            type: 'openhouse',
+            date: { gte: today },
+            status: { not: 'cancelled' },
+          },
+          select: { listing: { select: { listing_id: true, address: true } } },
         });
-        rsvpListingId = showing?.listing?.listing_id ?? null;
+        if (showing?.listing && rsvpAddressMatches(showing.listing.address, listingAddress)) {
+          rsvpListingId = showing.listing.listing_id;
+        }
       }
     } catch {
       rsvpListingId = null; // best-effort only
