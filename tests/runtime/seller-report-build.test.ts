@@ -1,0 +1,274 @@
+/**
+ * SELLER-001 Phase 1 — seller report aggregation (pure builder).
+ *
+ * Truth rules under test (Maya directives 2026-07-03, non-negotiable):
+ *  - Every metric section carries an explicit truth level:
+ *    VERIFIED_MALLAN_TRAFFIC / TRACKED_CAMPAIGN / PORTAL_REPORTED /
+ *    EXTERNAL_PRESENCE / MARKET_PROXY.
+ *  - Known-vs-anonymous: the report NEVER exposes viewer identity —
+ *    aggregate counts only. No lead_id, email, or name may survive
+ *    into the report payload.
+ *  - Market context uses PROXY metrics from our own DB only — never
+ *    a competitor/portal traffic claim.
+ *  - Honest data_gaps array for everything not yet tracked (Phase 2).
+ *
+ * Spec: docs/architecture/SELLER-001-SPEC-2026-07-03.md
+ */
+import {
+  buildSellerReport,
+  TRUTH_LEVELS,
+  type SellerReportInput,
+} from '@/lib/seller-report/build-report';
+
+const NOW = new Date('2026-07-03T12:00:00Z');
+
+function daysAgo(n: number): Date {
+  return new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+}
+
+function baseInput(overrides: Partial<SellerReportInput> = {}): SellerReportInput {
+  return {
+    listing: {
+      listing_id: 'SL-0007',
+      address_display: '400 East 90th Street 4D, New York, NY 10128',
+      status: 'Active',
+      listing_type: 'sale',
+      property_type: 'Residential',
+      borough: 'Manhattan',
+      list_price: 425000,
+      days_on_market: 40,
+      first_active_date: '2026-05-24T00:00:00.000Z',
+    },
+    views: [],
+    inquiries: [],
+    showings: [],
+    actions: [],
+    similarActives: [],
+    now: NOW,
+    ...overrides,
+  };
+}
+
+describe('buildSellerReport — truth-level labeling', () => {
+  test('every metric section carries its required truth level', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.exposure.truth_level).toBe(TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC);
+    expect(report.engagement.truth_level).toBe(TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC);
+    expect(report.inquiries.truth_level).toBe(TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC);
+    expect(report.campaigns.truth_level).toBe(TRUTH_LEVELS.TRACKED_CAMPAIGN);
+    expect(report.portal_reported.truth_level).toBe(TRUTH_LEVELS.PORTAL_REPORTED);
+    expect(report.external_presence.truth_level).toBe(TRUTH_LEVELS.EXTERNAL_PRESENCE);
+    expect(report.market_context.truth_level).toBe(TRUTH_LEVELS.MARKET_PROXY);
+  });
+
+  test('truth level definitions are included so the UI can render them verbatim', () => {
+    const report = buildSellerReport(baseInput());
+    for (const level of Object.values(TRUTH_LEVELS)) {
+      expect(report.truth_level_definitions[level]).toEqual(expect.any(String));
+      expect(report.truth_level_definitions[level].length).toBeGreaterThan(10);
+    }
+  });
+
+  test('not-yet-tracked sections are explicit, not silently omitted', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.campaigns.status).toBe('not_yet_tracked');
+    expect(report.portal_reported.status).toBe('not_yet_tracked');
+    expect(report.external_presence.status).toBe('not_yet_tracked');
+  });
+});
+
+describe('buildSellerReport — exposure (listing_views aggregation)', () => {
+  const views = [
+    // lead 1: 2 views, desktop, same ip hash — returning viewer
+    { lead_id: '1', viewed_at: daysAgo(2), device_type: 'desktop', ip_hash: 'aaa', referrer: 'https://mail.google.com' },
+    { lead_id: '1', viewed_at: daysAgo(1), device_type: 'desktop', ip_hash: 'aaa', referrer: null },
+    // lead 2: 1 view, mobile
+    { lead_id: '2', viewed_at: daysAgo(10), device_type: 'mobile', ip_hash: 'bbb', referrer: null },
+    // lead 3: 1 view, no device/ip captured
+    { lead_id: '3', viewed_at: daysAgo(45), device_type: null, ip_hash: null, referrer: null },
+  ];
+
+  test('counts total, unique, known and returning viewers', () => {
+    const report = buildSellerReport(baseInput({ views }));
+    expect(report.exposure.total_views).toBe(4);
+    // unique = distinct ip_hash (aaa, bbb) + 1 row without ip_hash falls back to lead key
+    expect(report.exposure.unique_viewers).toBe(3);
+    expect(report.exposure.known_viewers).toBe(3); // 3 distinct leads (all token-tracked)
+    expect(report.exposure.returning_viewers).toBe(1); // lead 1 viewed twice
+  });
+
+  test('windows views by 7 and 30 days from `now`', () => {
+    const report = buildSellerReport(baseInput({ views }));
+    expect(report.exposure.views_last_7_days).toBe(2);
+    expect(report.exposure.views_last_30_days).toBe(3);
+  });
+
+  test('aggregates device breakdown and first/last view timestamps', () => {
+    const report = buildSellerReport(baseInput({ views }));
+    expect(report.exposure.device_breakdown).toEqual({ desktop: 2, mobile: 1, unknown: 1 });
+    expect(report.exposure.first_view_at).toBe(daysAgo(45).toISOString());
+    expect(report.exposure.last_view_at).toBe(daysAgo(1).toISOString());
+  });
+
+  test('empty views produce zeros, not fabricated activity', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.exposure.total_views).toBe(0);
+    expect(report.exposure.unique_viewers).toBe(0);
+    expect(report.exposure.first_view_at).toBeNull();
+    expect(report.exposure.last_view_at).toBeNull();
+  });
+});
+
+describe('buildSellerReport — known-vs-anonymous (identity never leaks)', () => {
+  test('serialized report contains no lead ids, emails, or name fields', () => {
+    const report = buildSellerReport(
+      baseInput({
+        views: [
+          { lead_id: '9001', viewed_at: daysAgo(1), device_type: 'desktop', ip_hash: 'zzz', referrer: 'x' },
+        ],
+        inquiries: [{ source: 'contact_form', created_at: daysAgo(3), has_message: true }],
+      })
+    );
+    const json = JSON.stringify(report);
+    expect(json).not.toContain('lead_id');
+    expect(json).not.toContain('9001');
+    expect(json).not.toMatch(/"email"/i);
+    expect(json).not.toMatch(/first_name|last_name|full_name/);
+    // ip hashes are internal correlation keys — they must not leak either
+    expect(json).not.toContain('zzz');
+  });
+
+  test('report states the known-vs-anonymous policy verbatim for the UI', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.known_vs_anonymous_policy).toMatch(/self-identified/i);
+    expect(report.known_vs_anonymous_policy).toMatch(/aggregate/i);
+  });
+});
+
+describe('buildSellerReport — inquiries', () => {
+  test('counts inquiries by source and splits RSVP into engagement', () => {
+    const inquiries = [
+      { source: 'contact_form', created_at: daysAgo(1), has_message: true },
+      { source: 'inquiry', created_at: daysAgo(2), has_message: true },
+      { source: 'inquiry', created_at: daysAgo(20), has_message: false },
+      { source: 'open_house_rsvp', created_at: daysAgo(5), has_message: false },
+    ];
+    const report = buildSellerReport(baseInput({ inquiries }));
+    expect(report.inquiries.total).toBe(4);
+    expect(report.inquiries.by_source).toEqual({
+      contact_form: 1,
+      inquiry: 2,
+      open_house_rsvp: 1,
+    });
+    expect(report.inquiries.with_message).toBe(2);
+    expect(report.inquiries.last_30_days).toBe(4);
+    expect(report.engagement.open_house_rsvps).toBe(1);
+  });
+
+  test('inquiry free-text messages are never included (Fair Housing scan surface stays in CRM)', () => {
+    const report = buildSellerReport(
+      baseInput({ inquiries: [{ source: 'inquiry', created_at: daysAgo(1), has_message: true }] })
+    );
+    expect(JSON.stringify(report)).not.toMatch(/"message"/);
+  });
+});
+
+describe('buildSellerReport — engagement (showings + client actions)', () => {
+  test('aggregates showings by status and type', () => {
+    const showings = [
+      { type: 'private', status: 'completed', date: daysAgo(4) },
+      { type: 'private', status: 'requested', date: daysAgo(1) },
+      { type: 'openhouse', status: 'confirmed', date: daysAgo(2) },
+      { type: 'private', status: 'cancelled', date: daysAgo(9) },
+    ];
+    const report = buildSellerReport(baseInput({ showings }));
+    expect(report.engagement.showings.total).toBe(4);
+    expect(report.engagement.showings.completed).toBe(1);
+    expect(report.engagement.showings.upcoming_or_requested).toBe(2);
+    expect(report.engagement.showings.by_type).toEqual({ private: 3, openhouse: 1 });
+  });
+
+  test('aggregates client listing actions by action type', () => {
+    const actions = [
+      { action: 'sent', created_at: daysAgo(6) },
+      { action: 'sent', created_at: daysAgo(5) },
+      { action: 'liked', created_at: daysAgo(4) },
+      { action: 'discuss', created_at: daysAgo(3) },
+    ];
+    const report = buildSellerReport(baseInput({ actions }));
+    expect(report.engagement.client_actions).toEqual({ sent: 2, liked: 1, discuss: 1 });
+    expect(report.engagement.saves_or_likes).toBe(1);
+  });
+});
+
+describe('buildSellerReport — market context (PROXY only)', () => {
+  test('computes count, median price and median DOM from similar actives', () => {
+    const similarActives = [
+      { list_price: 400000, days_on_market: 30 },
+      { list_price: 450000, days_on_market: 50 },
+      { list_price: 500000, days_on_market: 90 },
+    ];
+    const report = buildSellerReport(baseInput({ similarActives }));
+    expect(report.market_context.similar_active_count).toBe(3);
+    expect(report.market_context.median_list_price).toBe(450000);
+    expect(report.market_context.median_days_on_market).toBe(50);
+    expect(report.market_context.subject_days_on_market).toBe(40);
+  });
+
+  test('median with an even row count averages the middle two', () => {
+    const similarActives = [
+      { list_price: 400000, days_on_market: 10 },
+      { list_price: 420000, days_on_market: 20 },
+      { list_price: 480000, days_on_market: 40 },
+      { list_price: 500000, days_on_market: 80 },
+    ];
+    const report = buildSellerReport(baseInput({ similarActives }));
+    expect(report.market_context.median_list_price).toBe(450000);
+    expect(report.market_context.median_days_on_market).toBe(30);
+  });
+
+  test('reports the ±20% price band used for comparability', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.market_context.price_band).toEqual({ min: 340000, max: 510000 });
+  });
+
+  test('empty comp set yields nulls — never fabricated market numbers', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.market_context.similar_active_count).toBe(0);
+    expect(report.market_context.median_list_price).toBeNull();
+    expect(report.market_context.median_days_on_market).toBeNull();
+  });
+
+  test('proxy disclaimer forbids competitor-traffic claims', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.market_context.disclaimer).toMatch(/own database/i);
+    expect(report.market_context.disclaimer).toMatch(/not .*(competitor|portal) traffic/i);
+  });
+});
+
+describe('buildSellerReport — data gaps (honesty contract)', () => {
+  test('data_gaps is non-empty and names the untracked Phase-2 surfaces', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.data_gaps.length).toBeGreaterThanOrEqual(3);
+    const joined = report.data_gaps.join(' | ');
+    expect(joined).toMatch(/photo.gallery/i);
+    expect(joined).toMatch(/anonymous/i);
+    expect(joined).toMatch(/Phase 2/);
+  });
+
+  test('report echoes listing identity fields needed for the header', () => {
+    const report = buildSellerReport(baseInput());
+    expect(report.listing).toEqual({
+      listing_id: 'SL-0007',
+      address_display: '400 East 90th Street 4D, New York, NY 10128',
+      status: 'Active',
+      listing_type: 'sale',
+      property_type: 'Residential',
+      borough: 'Manhattan',
+      list_price: 425000,
+      days_on_market: 40,
+      first_active_date: '2026-05-24T00:00:00.000Z',
+    });
+    expect(report.generated_at).toBe(NOW.toISOString());
+  });
+});
