@@ -23,19 +23,19 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-02T20:18:20Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-03T16:17:35Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `7643ccb0`; probed from branch `docs/registry-neon-verification-2026-07-02` |
-| Open PRs | 🟡 | 39 open (29 non-audit): #467, #428, #364, #362 |
-| PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
-| Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 2 branch(es) |
-| Gate 6 rollback branch | 🟢 | `pre-gate6-5k-pilot-2026-07-01` (br-winter-credit-adlh315q) ready |
+| Repo / main HEAD | 🟢 | main `ab56ecd8`; probed from branch `HEAD` |
+| Open PRs | 🟡 | 41 open (31 non-audit): #473, #472, #467, #428 |
+| PR #465 CI (rehydration guard) | 🟡 | 9 checks — 0 fail, 1 pending; review CURRENT HEAD before merge |
+| Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
+| Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
 | Cron cadence (live Cotality) | 🟢 | 22 crons; idx-sync `*/10 * * * *`, media-sync `*/15 * * * *`, db-keepalive `*/15 * * * *` |
-| media-backfill schedule (idx:validate baseline) | 🟡 | NOT SCHEDULED — known idx:validate baseline critical (accepted, not this lane) |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 18m ago (cadence 10m) |
-| DB growth / archive state | 🟢 | 110,667 listings; 2,032 archived (sync_status='archived') |
+| media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
+| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 16m ago (cadence 10m) |
+| DB growth / archive state | 🟢 | 110,707 listings; 2,032 archived (sync_status='archived') |
 <!-- HEALTH:AUTO:END -->
 
 > To fill the DB rows, run with the canonical cold-waterfall connection in env (read-only), e.g.
@@ -53,7 +53,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Vercel production deploy | 🟢 | 2026-07-02 | Vercel MCP: production `dpl_2o8LWxcQQmkUkYVZjfdbUxm3KNdK` READY on main@`858da234` (#465 + #466 merged); /api/health 200 post-deploy |
 | Vercel runtime errors (24h/7d) | 🟡 | 2026-07-01 | Vercel MCP `get_runtime_errors` (7d): 12 groups; 25006 read-only-txn class LAST SEEN 2026-06-28 (3 clean days); 24h window = 2 errors total (keepalive 18:00Z + social-proof ETIMEDOUT). Backlog PROD-001 |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
-| Media pipeline | 🟢 (Regression Watch) | 2026-07-02 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden on the new code, ≥2 clean cycles (registry RW-004, watch to 2026-07-09). Remaining: `media-backfill` orphaned + repair-script footgun (OPS-008) |
+| Media pipeline | 🟢 (Regression Watch) | 2026-07-03 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden, population re-verified through 07-03 03:00 run (registry RW-004, watch to 2026-07-09). OPS-008 footgun RESOLVED via #471 (route deleted; script --execute refuses; deferred tail: route-catalog regen + repo-audit-bot lines, tracked in OPS-008 row) |
 | Search projection | 🟡 | 2026-07-01 | dual-write is best-effort/non-transactional (backlog OPS-011) — heal before any PR-5B reader swap; PR-5B HELD |
 | CRM | 🟡 | 2026-07-01 | `crm:test` 39/39 PASS (§G doc says 172 — QUAL-008 drift); live `/crm` load unverified |
 | Portal (buyer/seller/landlord) | 🟢 | 2026-07-01 | code audit post-#458/#459: ownership enforced on every reviewed id-param route; buyer identity masked to sellers; agent PII gated |
@@ -107,7 +107,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | SEO-003 | SEO | 0/59 neighborhood guides in sitemap | P1 | Open | Claude |
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
-| OPS-009 | Operations | Archive controls — two-flag design DECIDED (+UCBA T+24h carve-out) | P1 | Implementation next — **Track 2** | Claude |
+| OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
 | OPS-010A | Operations | Storage churn suppression (diff-before-write) | P1 | Open (sequenced after pilot) | Claude |
 | OPS-017 | Operations | **Schema drift** — schema.prisma ↔ live DB no longer identical (leads cols); full-diff audit pending | P1 | Decision needed — **Track 4 (dedicated audit)** | Maya + Claude |
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
@@ -265,9 +265,10 @@ Three invariants:
 3. 🟡 **Live verification baselined** (read-only cold-waterfall 2026-07-02): ≥2 clean cycles on the
    new guard, 2,032/2,032 archived rows stripped+hidden, 0 archived re-emits in window — guard
    branches not yet exercised live → **RW-004 watch** (to 2026-07-09 or first live occurrence).
-4. 🟡 **OPS-009 DECIDED** (two-flag design + UCBA T+24h carve-out; registry OPS-009) —
-   **implementation is the next code lane and MUST land + deploy + verify one clean cycle BEFORE
-   the 5K execute** (Maya directive 2026-07-02).
+4. ✅ **OPS-009 IMPLEMENTED + PROOF VERIFIED** — #470 merged/deployed; first retention run on the
+   kill switch confirmed all four criteria (OPS-020, 2026-07-03T03:00:46Z: state OFF, skip reason,
+   T+24h carve-out ran, no drain). **NOW GATING: Maya sets `ARCHIVE_ENABLED=true` (MAINTENANCE) →
+   verify one clean MAINTENANCE cycle at the next 03:00 run.**
 5. ⏳ Then approve **only the 5K pilot execute**; monitor several hours / next sync cycles.
 6. ⏳ Scale to 20K batches **only after proving the 5K rows stay stripped across live sync cycles**.
 
