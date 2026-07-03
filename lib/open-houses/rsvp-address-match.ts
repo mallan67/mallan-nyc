@@ -28,19 +28,21 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   // submitted "25-10 30th Ave" — every stored number token must be present.
   const numTokens = num.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   if (numTokens.length === 0 || !numTokens.every((t) => subTokens.has(t))) return false;
-  // Codex #472 r8: require a DISTINCTIVE street token matched as an EXACT
-  // token — generic direction/suffix words (street, east, …) are too common
-  // to prove identity, so "400 Fake Street" / "400 East 91st Street" must not
-  // link to "400 East 90th Street". Distinctive = has a digit (ordinals like
-  // "90th"/"46th") or length>3 AND not a generic word. A name with no
-  // distinctive token fails CLOSED (no linkage rather than a wrong one).
+  // Codex #472 r8+r10: require a DISTINCTIVE street token matched as an EXACT
+  // token — generic direction/suffix words (street, east, ave, …) are too
+  // common to prove identity, so "400 Fake Street" / "400 East 91st Street"
+  // must not link to "400 East 90th Street". Distinctive = any token NOT in
+  // GENERIC. r10 fix: the earlier "has a digit OR length>3" gate wrongly
+  // dropped SHORT real street names — "Avenue A" → "a", "West End" → "end",
+  // "Elm" — losing valid RSVPs; GENERIC alone is the identity filter now. A
+  // name whose every token is generic fails CLOSED (no linkage, not a wrong one).
   const GENERIC = new Set([
     'street', 'st', 'avenue', 'ave', 'road', 'rd', 'boulevard', 'blvd', 'drive', 'dr',
     'lane', 'ln', 'place', 'pl', 'court', 'ct', 'terrace', 'ter', 'parkway', 'pkwy',
     'plaza', 'square', 'sq', 'way', 'walk', 'north', 'south', 'east', 'west', 'n', 's', 'e', 'w',
   ]);
   const distinctive = name.toLowerCase().split(/[^a-z0-9]+/).filter(
-    (t) => t && !GENERIC.has(t) && (/\d/.test(t) || t.length > 3)
+    (t) => t && !GENERIC.has(t)
   );
   if (distinctive.length === 0) return false;
   return distinctive.some((t) => subTokens.has(t));

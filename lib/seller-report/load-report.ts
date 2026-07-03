@@ -90,7 +90,12 @@ export async function loadSellerReport(
         (SELECT count(*) FROM (
            SELECT 1 FROM listing_views
            WHERE listing_id = ${listing.listing_id}
-           GROUP BY coalesce(ip_hash, 'lead:' || lead_id)
+           -- Codex #472 r10: group returning viewers on the SAME lead-level key
+           -- buildSellerReport uses (countBy lead_id) — NOT ip_hash. Two distinct
+           -- leads on one office/household IP were being fused into one "returning"
+           -- group, overstating repeat interest. lead_id-only keeps the exact
+           -- aggregate identical to the capped-slice reducer (NULLs = one anon group).
+           GROUP BY lead_id
            HAVING count(*) > 1
          ) r) AS returning_viewers
       FROM listing_views WHERE listing_id = ${listing.listing_id}`,

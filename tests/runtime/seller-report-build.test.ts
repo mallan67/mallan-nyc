@@ -97,6 +97,19 @@ describe('buildSellerReport — exposure (listing_views aggregation)', () => {
     expect(report.exposure.returning_viewers).toBe(1); // lead 1 viewed twice
   });
 
+  test('returning viewers key on lead_id, not shared IP — two leads on one network are NOT returning (Codex #472 r10)', () => {
+    // Office/household: two DISTINCT leads share an ip_hash, each a single view.
+    // No lead came back, so returning must be 0. This locks the lead-level
+    // contract the exact SQL aggregate (load-report.ts) must group on, so the
+    // capped-slice and exact-aggregate paths never disagree.
+    const shared = [
+      { lead_id: '10', viewed_at: daysAgo(3), device_type: 'desktop', ip_hash: 'office', referrer: null },
+      { lead_id: '11', viewed_at: daysAgo(2), device_type: 'mobile', ip_hash: 'office', referrer: null },
+    ];
+    const report = buildSellerReport(baseInput({ views: shared }));
+    expect(report.exposure.returning_viewers).toBe(0);
+  });
+
   test('windows views by 7 and 30 days from `now`', () => {
     const report = buildSellerReport(baseInput({ views }));
     expect(report.exposure.views_last_7_days).toBe(2);
@@ -425,6 +438,19 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 East 90th Street, Unit 4D')).toBe(true);
     // a name with NO distinctive token (all generic) fails closed rather than false-linking:
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'North Street' }, '400 North Avenue')).toBe(false);
+  });
+
+  it('short NON-generic street tokens are distinctive — real NYC streets still link (Codex #472 r10)', () => {
+    // "West End" — distinctive "end" (len 3) was wrongly dropped, dropping valid RSVPs:
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'West End Avenue' }, '400 West End Ave')).toBe(true);
+    // alphabet avenues — distinctive "a" (len 1):
+    expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Avenue A' }, '123 Avenue A, Apt 5')).toBe(true);
+    // short proper names (Elm) link too:
+    expect(rsvpAddressMatches({ StreetNumber: '12', StreetName: 'Elm Street' }, '12 Elm Street')).toBe(true);
+    // fail-closed PRESERVED: a genuinely different short name must NOT link:
+    expect(rsvpAddressMatches({ StreetNumber: '12', StreetName: 'Elm Street' }, '12 Oak Street')).toBe(false);
+    // distinct alphabet avenues must NOT cross-link:
+    expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Avenue A' }, '123 Avenue B')).toBe(false);
   });
 
   it('street number must match as an EXACT token — substring hits like 1400-vs-400 are rejected (Codex #472 r7)', () => {
