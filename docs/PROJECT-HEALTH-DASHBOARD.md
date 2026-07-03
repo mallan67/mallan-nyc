@@ -235,7 +235,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Licensing (§175.25) | 🟡 | 2026-07-01 | 26/27 pages (COMP-001 /buildings) | full static sweep |
 | 24h removal / display gates | 🟢 | 2026-07-01 | 176/176 off-feed render unavailable | stale probe |
 | Fair Housing terms | 🟢 | 2026-07-01 | guardrails single-source (#461); validators green | guardrails CI |
-| Validators baseline | 🟡 | 2026-07-01 | idx:validate FAIL 1 critical (QUAL-006); WS-C4 HIGH (QUAL-007) | suite re-run |
+| Validators baseline | 🟢 | 2026-07-03 | idx:validate exit 0 / 0 critical on main (QUAL-006 Verified Fixed via #471); remaining blemish: WS-C4 HIGH warn (QUAL-007) | suite re-run |
 | Privacy (TCPA/CAN-SPAM records) | 🟡(static) | 2026-07-01 | BIZ-009/010/012 | route tests |
 
 ---
