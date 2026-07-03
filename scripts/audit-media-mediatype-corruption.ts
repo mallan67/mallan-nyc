@@ -19,22 +19,27 @@
 //   - URL path containing `/floorplans/` but mediaType !== "FloorPlan"
 //   - URL path containing `/photos/` and mediaType === "FloorPlan"
 //
-// Dry-run (default): prints a structured report. Read-only.
-// Execute: clears the corrupted listings' `media` JSONB to `[]`, which causes
-//          the next `media-backfill` cron run (every 8 minutes per
-//          vercel.json) to re-fetch from Trestle through the FIXED writer
-//          and repopulate with correct classification.
+// This script is now READ-ONLY (audit/report only).
+//
+// EXECUTE MODE REMOVED (QUAL-006 / OPS-008, 2026-07-02):
+//   The old `--execute` mode cleared corrupted listings' `media` JSONB to `[]`
+//   on the assumption that "the next media-backfill cron run (every 8 minutes)"
+//   would re-fetch from Trestle and repopulate. That assumption has been false
+//   since 2026-05-21: PR #176 removed /api/cron/media-backfill from vercel.json
+//   (2026-05-21 P0 Neon/media incident mitigation), and the route itself was
+//   deleted 2026-07-02 (QUAL-006). Nothing repopulates `listings.media` after a
+//   clear — running the old execute mode would have PERMANENTLY emptied media
+//   for every affected listing (OPS-008 data-loss footgun). `--execute` is
+//   therefore refused with an error. See docs/PLATFORM-ISSUE-REGISTRY.md
+//   (OPS-008, QUAL-006) and docs/audits/lane-c-ci3-media-backfill-cron-audit-2026-06-10.md.
 //
 // Usage:
 //   npx tsx scripts/audit-media-mediatype-corruption.ts                              # dry-run, default (sale Manhattan ≥$500K, take 200)
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --ids RLS123,RLS456
-//   npx tsx scripts/audit-media-mediatype-corruption.ts --execute                    # repair default scope
-//   npx tsx scripts/audit-media-mediatype-corruption.ts --execute --ids RLS123
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --scope active-rentals       # all active rentals
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --scope active-sales         # all active sales
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --scope all-active           # all active listings
 //   npx tsx scripts/audit-media-mediatype-corruption.ts --scope active-rentals --limit 1000
-//   npx tsx scripts/audit-media-mediatype-corruption.ts --scope all-active --execute
 //
 // Scope flags (mutually exclusive with --ids):
 //   active-rentals  — { status: "Active", listing_type: "rent" }
@@ -50,7 +55,7 @@
 // Exit codes:
 //   0 — audit complete, regardless of how many listings affected
 //   1 — DB connection error or query failure
-//   2 — invalid arguments
+//   2 — invalid arguments (including the removed --execute flag)
 
 import prisma from "../lib/prisma";
 
@@ -68,12 +73,12 @@ interface ListingFinding {
   duplicate_urls: string[];
   type_path_mismatches: Array<{ url: string; mediaType: string; reason: string }>;
   type_distribution_before: Record<string, number>;
-  recommended_action: "no_change" | "clear_media_for_resync";
+  recommended_action: "no_change" | "corruption_fingerprint_found";
 }
 
 interface AuditReport {
   ran_at: string;
-  mode: "dry-run" | "execute";
+  mode: "dry-run";
   scope: { ids?: string[]; named?: Scope; default_query: boolean; limit?: number; offset?: number };
   scanned_listings: number;
   affected_listings: number;
@@ -82,18 +87,12 @@ interface AuditReport {
   total_type_path_mismatches: number;
   affected_listing_ids: string[];
   findings: ListingFinding[];
-  execute_results?: {
-    cleared: number;
-    failed: number;
-    next_cron_repopulates: string;
-  };
 }
 
 type Scope = "default" | "active-rentals" | "active-sales" | "all-active";
 const VALID_SCOPES: Scope[] = ["active-rentals", "active-sales", "all-active"];
 
 interface ParsedArgs {
-  execute: boolean;
   ids: string[] | null;
   scope: Scope;
   limit: number | null;
@@ -101,10 +100,24 @@ interface ParsedArgs {
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const out: ParsedArgs = { execute: false, ids: null, scope: "default", limit: null, offset: 0 };
+  const out: ParsedArgs = { ids: null, scope: "default", limit: null, offset: 0 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--execute") out.execute = true;
+    if (a === "--execute") {
+      // REFUSED — do not re-enable. Execute mode cleared `listings.media` to []
+      // expecting the media-backfill cron to repopulate it. That cron was
+      // unscheduled 2026-05-21 (PR #176) and the route was deleted 2026-07-02
+      // (QUAL-006). Nothing repopulates a cleared array — executing would
+      // PERMANENTLY empty media for affected listings (OPS-008 footgun).
+      console.error(
+        "[audit] --execute has been REMOVED (QUAL-006 / OPS-008, 2026-07-02).\n" +
+        "  Clearing listings.media assumed the /api/cron/media-backfill cron would\n" +
+        "  repopulate it, but that cron was unscheduled 2026-05-21 (PR #176) and the\n" +
+        "  route was deleted 2026-07-02 — clearing would PERMANENTLY empty media.\n" +
+        "  This script is read-only. See docs/PLATFORM-ISSUE-REGISTRY.md (OPS-008).",
+      );
+      process.exit(2);
+    }
     else if (a === "--ids") {
       const v = argv[++i];
       if (!v) {
@@ -134,7 +147,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       }
       out.offset = n;
     } else if (a === "--help" || a === "-h") {
-      console.log("Usage: npx tsx scripts/audit-media-mediatype-corruption.ts [--execute] [--ids RLS123,RLS456] [--scope <active-rentals|active-sales|all-active>] [--limit N] [--offset N]");
+      console.log("Usage: npx tsx scripts/audit-media-mediatype-corruption.ts [--ids RLS123,RLS456] [--scope <active-rentals|active-sales|all-active>] [--limit N] [--offset N]  (read-only; --execute removed per QUAL-006/OPS-008)");
       process.exit(0);
     }
   }
@@ -191,17 +204,16 @@ function analyseListing(listing_id: string, status: string | null, media: unknow
     duplicate_urls: [...duplicates],
     type_path_mismatches: mismatches,
     type_distribution_before,
-    recommended_action: affected ? "clear_media_for_resync" : "no_change",
+    recommended_action: affected ? "corruption_fingerprint_found" : "no_change",
   };
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const mode = args.execute ? "execute" : "dry-run";
 
   console.log("");
   console.log(
-    `[audit-media-mediatype-corruption] mode=${mode}  scope=${args.ids ? "--ids" : args.scope}  limit=${args.limit ?? (args.ids ? args.ids.length : args.scope === "default" ? 200 : 50000)}  offset=${args.offset}`,
+    `[audit-media-mediatype-corruption] mode=dry-run (read-only)  scope=${args.ids ? "--ids" : args.scope}  limit=${args.limit ?? (args.ids ? args.ids.length : args.scope === "default" ? 200 : 50000)}  offset=${args.offset}`,
   );
   console.log("");
 
@@ -250,7 +262,7 @@ async function main() {
     typeByListing.set(L.listing_id, L.listing_type);
   }
 
-  const affectedFindings = findings.filter((f) => f.recommended_action === "clear_media_for_resync");
+  const affectedFindings = findings.filter((f) => f.recommended_action === "corruption_fingerprint_found");
 
   // Tally affected by listing_type so reports can show rent vs sale split
   // when running --scope all-active.
@@ -262,7 +274,7 @@ async function main() {
 
   const report: AuditReport = {
     ran_at: new Date().toISOString(),
-    mode,
+    mode: "dry-run",
     scope: {
       ids: args.ids ?? undefined,
       named: args.ids ? undefined : args.scope,
@@ -279,33 +291,12 @@ async function main() {
     findings: args.ids ? findings : affectedFindings, // brief default mode; full when --ids
   };
 
-  if (args.execute && affectedFindings.length > 0) {
-    let cleared = 0;
-    let failed = 0;
-    for (const f of affectedFindings) {
-      try {
-        // Clearing media JSONB to empty array. The next media-backfill cron
-        // run (every 8 minutes per vercel.json) will detect the empty array
-        // and re-fetch the listing's media from Trestle. The writer is now
-        // fixed (lib/media/media-sync-service.ts:classifyTrestleMediaCategory
-        // + 4 sync sites in lib/idx/sync.ts), so the re-fetched data will
-        // carry correct mediaType values and route to correct R2 namespaces.
-        await prisma.listing.updateMany({
-          where: { listing_id: f.listing_id },
-          data: { media: [] },
-        });
-        cleared++;
-      } catch (err) {
-        failed++;
-        console.error(`[audit] failed to clear ${f.listing_id}:`, err instanceof Error ? err.message : err);
-      }
-    }
-    report.execute_results = {
-      cleared,
-      failed,
-      next_cron_repopulates: "media-backfill (every 8 minutes per vercel.json)",
-    };
-  }
+  // NOTE (QUAL-006 / OPS-008, 2026-07-02): the former execute block cleared
+  // affected listings' `media` JSONB to [] here, expecting the (now-deleted)
+  // /api/cron/media-backfill cron to repopulate from Trestle. It was removed
+  // because nothing repopulates a cleared array anymore — the clear would be
+  // permanent data loss. This script reports only; any repair must go through
+  // the live media lane (media-sync → listing_media) with Maya approval.
 
   console.log(JSON.stringify(report, null, 2));
 

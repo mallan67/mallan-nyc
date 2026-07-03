@@ -239,6 +239,19 @@ describe("formatTouchedLine — ids only, never the stripped payloads", () => {
 });
 
 describe("runDrain — bounded, dry-run safe, execute writes", () => {
+  // OPS-009 (2026-07-02): execute mode now requires the DRAIN state (ARCHIVE_ENABLED=true
+  // AND ARCHIVE_BACKLOG_DRAIN_ENABLED=true), layered on the gates under test here. Enable
+  // both so these tests keep exercising the pre-existing execute-mode contract; the
+  // flag-refusal paths are covered by tests/runtime/ops009-archive-controls.test.ts.
+  beforeEach(() => {
+    process.env.ARCHIVE_ENABLED = "true";
+    process.env.ARCHIVE_BACKLOG_DRAIN_ENABLED = "true";
+  });
+  afterAll(() => {
+    delete process.env.ARCHIVE_ENABLED;
+    delete process.env.ARCHIVE_BACKLOG_DRAIN_ENABLED;
+  });
+
   // An infinite supply of eligible terminal rows, keyset by id.
   function supply() {
     return (lastId: any, take: number) =>

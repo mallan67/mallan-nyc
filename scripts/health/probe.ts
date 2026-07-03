@@ -119,6 +119,10 @@ tryProbe(() => {
   const cadenceOk = idx === "*/10 * * * *" && media === "*/15 * * * *" && keep === "*/15 * * * *";
   add("Cron cadence (live Cotality)", cadenceOk ? "🟢" : "🟡",
     `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\`, db-keepalive \`${keep}\``);
+  // QUAL-006/OPS-008 resolved 2026-07-02: the media-backfill route was DELETED
+  // (unscheduled since PR #176). Green = stays out of vercel.json; a schedule
+  // entry reappearing without a route is the idx:validate "SCHEDULED BUT
+  // MISSING" critical.
   const backfillScheduled = crons.some((c) => c.path === "/api/cron/media-backfill");
   // Codex #471: green must verify BOTH halves of the QUAL-006 resolution —
   // no vercel.json entry AND the route file gone. If the route file
