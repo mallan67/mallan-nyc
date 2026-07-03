@@ -72,6 +72,13 @@ export interface SimilarActiveRow {
 export interface SellerReportInput {
   listing: SellerReportListingInput;
   views: SellerReportViewRow[];
+  /**
+   * Codex #472: true DB count of views. The detail rows above are capped
+   * (MAX_ROWS, newest-first) — for high-traffic listings the slice length
+   * understates the total. When provided, this wins for total_views;
+   * windowed metrics still derive from the (newest) slice.
+   */
+  total_view_count?: number;
   inquiries: SellerReportInquiryRow[];
   showings: SellerReportShowingRow[];
   actions: SellerReportActionRow[];
@@ -207,7 +214,7 @@ export function buildSellerReport(input: SellerReportInput): SellerReport {
 
   const exposure: SellerReport['exposure'] = {
     truth_level: TRUTH_LEVELS.VERIFIED_MALLAN_TRAFFIC,
-    total_views: views.length,
+    total_views: Math.max(input.total_view_count ?? 0, views.length),
     unique_viewers: uniqueKeys.size,
     known_viewers: knownViewers,
     returning_viewers: returningViewers,

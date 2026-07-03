@@ -8,6 +8,7 @@
 // validateSession + role check in the admin page). This module never returns
 // viewer identity — the builder reduces correlation keys to aggregate counts.
 import prisma from '@/lib/prisma';
+import { composeSlugStreetName } from '@/lib/listing-slug';
 import {
   buildSellerReport,
   priceBandFor,
@@ -18,21 +19,29 @@ import {
 /** Bound row fetches so a hot listing cannot balloon the report query. */
 const MAX_ROWS = 5000;
 
-type ListingAddressJson = {
-  streetNumber?: string;
-  streetName?: string;
-  unitNumber?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-};
-
-function composeAddressDisplay(address: unknown, fallback: string): string {
-  const a = (address && typeof address === 'object' ? address : {}) as ListingAddressJson;
-  const street = [a.streetNumber, a.streetName].filter(Boolean).join(' ');
-  const unit = a.unitNumber ? ` ${a.unitNumber}` : '';
-  const locality = [a.city, a.state].filter(Boolean).join(', ');
-  const line = `${street}${unit}${locality ? `, ${locality}` : ''}${a.postalCode ? ` ${a.postalCode}` : ''}`.trim();
+/**
+ * Codex #472 r1: IDX/Trestle rows store the address JSON in RESO PascalCase
+ * (StreetNumber/StreetName/UnitNumber/StateOrProvince/PostalCode); CRM/local
+ * rows may carry legacy camelCase. Read PascalCase first with camelCase
+ * fallback (pickAddressParts precedent, #463), and compose the street via
+ * the canonical composeSlugStreetName (DirPrefix + Name + Suffix — SEO-001
+ * shared helper) so IDX reports show the real address, not the listing id.
+ * Exported for tests.
+ */
+export function composeAddressDisplay(address: unknown, fallback: string): string {
+  const a = (address && typeof address === 'object' ? address : {}) as Record<string, unknown>;
+  const pick = (pascal: string, camel: string): string => {
+    const pv = typeof a[pascal] === 'string' ? (a[pascal] as string).trim() : '';
+    if (pv) return pv;
+    const cv = typeof a[camel] === 'string' ? (a[camel] as string).trim() : '';
+    return cv;
+  };
+  const street = [pick('StreetNumber', 'streetNumber'), composeSlugStreetName(a)].filter(Boolean).join(' ');
+  const unitVal = pick('UnitNumber', 'unitNumber');
+  const unit = unitVal ? ` ${unitVal}` : '';
+  const locality = [pick('City', 'city'), pick('StateOrProvince', 'state') || pick('StateOrProvince', 'stateOrProvince')].filter(Boolean).join(', ');
+  const postal = pick('PostalCode', 'postalCode');
+  const line = `${street}${unit}${locality ? `, ${locality}` : ''}${postal ? ` ${postal}` : ''}`.trim();
   return line || fallback;
 }
 
@@ -61,29 +70,34 @@ export async function loadSellerReport(
   const listPrice = Number(listing.list_price.toString());
   const band = priceBandFor(listPrice);
 
-  const [views, inquiries, showings, actions, similarActives] = await Promise.all([
+  const [totalViewCount, views, inquiries, showings, actions, similarActives] = await Promise.all([
+    // Codex #472 r1: true DB count so total_views is exact even when the
+    // detail slice is capped at MAX_ROWS.
+    prisma.listingView.count({ where: { listing_id: listing.listing_id } }),
     prisma.listingView.findMany({
       where: { listing_id: listing.listing_id },
       select: { lead_id: true, viewed_at: true, device_type: true, ip_hash: true, referrer: true },
-      orderBy: { viewed_at: 'asc' },
+      // Codex #472 r1: keep the NEWEST rows when capped — asc returned the
+      // oldest 5,000 and froze windowed metrics for high-traffic listings.
+      orderBy: { viewed_at: 'desc' },
       take: MAX_ROWS,
     }),
     prisma.inquiry.findMany({
       where: { listing_id: listing.listing_id },
       select: { source: true, created_at: true, message: true },
-      orderBy: { created_at: 'asc' },
+      orderBy: { created_at: 'desc' },
       take: MAX_ROWS,
     }),
     prisma.showing.findMany({
       where: { listing_id: listing.id },
       select: { type: true, status: true, date: true },
-      orderBy: { date: 'asc' },
+      orderBy: { date: 'desc' },
       take: MAX_ROWS,
     }),
     prisma.clientListingAction.findMany({
       where: { listing_id: listing.id },
       select: { action: true, created_at: true },
-      orderBy: { created_at: 'asc' },
+      orderBy: { created_at: 'desc' },
       take: MAX_ROWS,
     }),
     // Market proxy: similar ACTIVE listings from our own DB only — same
@@ -128,6 +142,7 @@ export async function loadSellerReport(
       created_at: i.created_at,
       has_message: Boolean(i.message && i.message.trim().length > 0),
     })),
+    total_view_count: totalViewCount,
     showings: showings.map((s) => ({ type: s.type, status: s.status, date: s.date })),
     actions: actions.map((a) => ({ action: a.action, created_at: a.created_at })),
     similarActives: similarActives.map((s) => ({

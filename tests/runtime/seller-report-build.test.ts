@@ -272,3 +272,39 @@ describe('buildSellerReport — data gaps (honesty contract)', () => {
     expect(report.generated_at).toBe(NOW.toISOString());
   });
 });
+
+
+// ── Codex #472 fixes (RED first) ─────────────────────────────────────────
+import { composeAddressDisplay } from '@/lib/seller-report/load-report';
+
+describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
+  it('composeAddressDisplay reads RESO PascalCase (IDX rows) incl. DirPrefix/Suffix via canonical street composition', () => {
+    const line = composeAddressDisplay(
+      { StreetNumber: '434', StreetDirPrefix: 'W', StreetName: '20th', StreetSuffix: 'Street', UnitNumber: '7', City: 'New York City', StateOrProvince: 'NY', PostalCode: '10011' },
+      'RLS20084568'
+    );
+    expect(line).toBe('434 W 20th Street 7, New York City, NY 10011');
+  });
+
+  it('composeAddressDisplay still reads camelCase (CRM/local rows); PascalCase wins when both present', () => {
+    expect(composeAddressDisplay({ streetNumber: '400', streetName: 'East 90th Street', unitNumber: '4D', city: 'New York', state: 'NY', postalCode: '10128' }, 'SL-0007'))
+      .toBe('400 East 90th Street 4D, New York, NY 10128');
+    expect(composeAddressDisplay({ StreetName: 'Broadway', streetName: 'STALE' }, 'X')).toContain('Broadway');
+  });
+
+  it('composeAddressDisplay falls back to the listing id when the address JSON is empty', () => {
+    expect(composeAddressDisplay({}, 'RLS123')).toBe('RLS123');
+  });
+
+  it('total_views honors the true DB count when the detail slice is capped (high-traffic listing)', () => {
+    const now = new Date('2026-07-02T12:00:00Z');
+    const views = Array.from({ length: 3 }, (_, i) => ({
+      lead_id: `lead-${i}`, ip_hash: `h${i}`, device_type: 'mobile', referrer: null,
+      viewed_at: new Date(now.getTime() - i * 3600_000),
+    }));
+    const report = buildSellerReport({ ...baseInput(), views, total_view_count: 8123, now });
+    expect(report.exposure.total_views).toBe(8123);
+    // windowed metrics still come from the (newest) slice
+    expect(report.exposure.views_last_7_days).toBe(3);
+  });
+});
