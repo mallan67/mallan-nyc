@@ -60,7 +60,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Email / notifications | 🟡 | 2026-07-02 | dispatcher gap real in code (BIZ-005, now **P2**) but LIVE COUNT 2026-07-02: **zero email/sms rows ever accumulated** (30 in_app/pending only — H-002 resolved). Unsubscribe suppression divergence still open (BIZ-012, P1) |
 | Contact funnel | 🟡 | 2026-07-02 | **H-001 DISPROVED live** (info_schema 2026-07-02: suspect columns nullable; all NOT-NULL cols present in the INSERT). Now Hypothesis H-004: 06-28 DB-connectivity incident cluster; zero contact errors since 06-28. Close via one approved controlled submission (registry OPS-001) |
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
-| Compliance validators | 🟡 | 2026-07-01 | full suite re-run: type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (1 HIGH warn: ethics_training_gate WS-C4) · ucba 46/46, 0 REGRESSIONS · **idx:validate FAIL 1 critical (media-backfill NOT SCHEDULED — QUAL-006)** · crm:test 39/39 · test:rls 41/41 (manual) |
+| Compliance validators | 🟢 | 2026-07-03 | **idx:validate exit 0 / 0 critical on main@ab56ecd8 (QUAL-006 Verified Fixed via #471 — §B baseline restored)** · type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (1 HIGH warn: ethics_training_gate WS-C4 = QUAL-007, last blemish) · ucba 46/46, 0 REGRESSIONS · crm:test 39/39 |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
 | Neon health (compute/pooler) | 🟢 | 2026-07-02 | live neonctl reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap); 2 branches. keepalive 500s = OPS-002/OPS-015 noise |
 | Runtime SODA/DOB queries | 🟡 | 2026-07-01 (handoff) | `seller-scoring` (`job_filed_date`), `demand-signals` (`community_board` grouping) 200-with-warnings |
@@ -99,7 +99,7 @@ format (AGENTS.md §5). Backend items require the 9-field evidence ledger before
 as Confirmed (live).
 
 Open P0/P1 summary (refreshed 2026-07-02 — retired: OPS-006 → Fixed/RW-004; OPS-001 → P2/H-004;
-BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR #468, MISMATCH 10,069→0) — closed items live in the registry, not this open queue):
+BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR #468, MISMATCH 10,069→0); **QUAL-006/OPS-008 → Verified Fixed** (PR #471, idx:validate exit 0 / 0 critical on main) — closed items live in the registry, not this open queue):
 
 | ID | Area | Finding | Severity | Status | Owner |
 |---|---|---|---|---|---|
@@ -113,7 +113,6 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
-| QUAL-006 | Quality | idx:validate FAIL — media-backfill NOT SCHEDULED (baseline break) | P1 | Decision needed | Maya |
 | COMP-001 | Compliance | /buildings hub missing §175.25 footer identity | P1 | Open | Claude |
 | DOC-001 | Documentation | Platform Architecture document (full pipeline + infra maps, from actual codebase) | P1 | Open — dedicated lane (Track 5) | Claude |
 
