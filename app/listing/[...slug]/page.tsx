@@ -1377,6 +1377,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
             />
             <a
               href="tel:646-258-4460"
+              // SELLER-002 (Codex #473 r4): on md–lg widths the fixed
+              // MobileStickyCta is hidden, so this bar carries the PRIMARY
+              // contact CTAs — annotate them or tablet visitors produce no
+              // contact_click at all.
+              data-track-event="contact_click"
               className="btn-liquid px-5 py-2.5 bg-brand-gold text-white text-sm font-medium rounded-full hover:bg-brand-gold-deep"
             >
               Call
@@ -1389,6 +1394,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 mailto: bypass produced none of those. */}
             <a
               href="#inquiry"
+              data-track-event="contact_click"
               className="btn-liquid px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-full hover:bg-brand-dark/90"
             >
               Inquire
