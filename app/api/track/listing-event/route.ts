@@ -54,16 +54,62 @@ function geoHeader(req: NextRequest, name: string): string | null {
   }
 }
 
+/**
+ * Codex #473 r2 — declared-length gate. Beacon senders (sendBeacon / fetch
+ * with a string body) ALWAYS carry Content-Length; absent means chunked or
+ * abnormal transfer, which this endpoint refuses BEFORE any read so the 4KB
+ * cap cannot be bypassed by omitting the header. Exported for tests.
+ */
+export function hasSaneDeclaredLength(headers: Headers): boolean {
+  const raw = headers.get('content-length');
+  if (raw === null) return false;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 && n <= MAX_BODY_BYTES;
+}
+
+/**
+ * Codex #473 r2 — incremental capped body reader. Immune to a LYING
+ * Content-Length: bytes are counted as chunks arrive and the stream is
+ * cancelled the moment the cap is exceeded, so the handler never buffers an
+ * oversized payload regardless of what the header claimed. Exported for tests.
+ */
+export async function readBodyCapped(
+  body: ReadableStream<Uint8Array> | null,
+  max: number
+): Promise<string | null> {
+  if (!body) return null;
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        received += value.byteLength;
+        if (received > max) {
+          try { await reader.cancel(); } catch { /* already errored */ }
+          return null;
+        }
+        chunks.push(value);
+      }
+    }
+  } catch {
+    return null;
+  }
+  const joined = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) { joined.set(c, offset); offset += c.byteLength; }
+  return new TextDecoder().decode(joined);
+}
+
 export async function POST(req: NextRequest) {
   // 1. Fail-closed flag — OFF → no parse-dependent work, ZERO DB calls.
   if (!listingEventsEnabled()) return noContent();
 
-  // 2. Codex #473: refuse oversized bodies BEFORE buffering — a declared
-  //    Content-Length over the cap is rejected without reading a byte.
-  //    (Beacon senders always set it; a missing/lying header is caught by
-  //    the post-read length re-check below.)
-  const declaredLength = Number(req.headers.get('content-length') ?? 0);
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return noContent();
+  // 2. Codex #473 r2: require a SANE declared length before anything else —
+  //    absent (chunked) / invalid / zero / over-cap all refuse pre-read.
+  if (!hasSaneDeclaredLength(req.headers)) return noContent();
 
   // 3. Codex #473: rate limit BEFORE reading the body (matches the public
   //    contact/inquiry handlers) so abusive clients cannot force body
@@ -77,15 +123,10 @@ export async function POST(req: NextRequest) {
     return noContent();
   }
 
-  // 4. Payload size cap — post-read re-check defends against absent/false
-  //    Content-Length headers.
-  let text: string;
-  try {
-    text = await req.text();
-  } catch {
-    return noContent();
-  }
-  if (!text || text.length > MAX_BODY_BYTES) return noContent();
+  // 4. Incremental capped read — immune to a lying Content-Length (Codex
+  //    #473 r2): the stream is cancelled the moment the cap is exceeded.
+  const text = await readBodyCapped(req.body, MAX_BODY_BYTES);
+  if (!text) return noContent();
 
   let body: unknown;
   try {

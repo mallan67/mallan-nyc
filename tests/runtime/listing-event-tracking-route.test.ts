@@ -30,7 +30,7 @@ jest.mock('@/lib/middleware/rate-limiter', () => ({
 }));
 
 // Import AFTER mocks
-import { POST } from '@/app/api/track/listing-event/route';
+import { POST, hasSaneDeclaredLength, readBodyCapped } from '@/app/api/track/listing-event/route';
 
 const validBody = {
   listing_id: 'SL-0007',
@@ -139,6 +139,37 @@ describe('POST /api/track/listing-event', () => {
     expect(req.bodyUsed).toBe(false); // body must not be buffered for limited clients
     expect(listingEventCreateMock).not.toHaveBeenCalled();
   });
+
+
+describe('body-cap helpers (Codex #473 r2 — chunked/lying-header abuse)', () => {
+  it('hasSaneDeclaredLength: ABSENT Content-Length is refused (chunked bodies never reach the reader)', () => {
+    expect(hasSaneDeclaredLength(new Headers({}))).toBe(false);
+  });
+  it('hasSaneDeclaredLength: invalid / zero / oversized declarations refused; sane accepted', () => {
+    expect(hasSaneDeclaredLength(new Headers({ 'content-length': 'abc' }))).toBe(false);
+    expect(hasSaneDeclaredLength(new Headers({ 'content-length': '0' }))).toBe(false);
+    expect(hasSaneDeclaredLength(new Headers({ 'content-length': '999999' }))).toBe(false);
+    expect(hasSaneDeclaredLength(new Headers({ 'content-length': '512' }))).toBe(true);
+  });
+  it('readBodyCapped: small stream decodes fully', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(c) { c.enqueue(new TextEncoder().encode('{"ok":true}')); c.close(); },
+    });
+    await expect(readBodyCapped(stream, 4096)).resolves.toBe('{"ok":true}');
+  });
+  it('readBodyCapped: stream exceeding the cap is ABORTED mid-read (lying Content-Length cannot force full buffering)', async () => {
+    let pulls = 0;
+    const chunk = new Uint8Array(1024).fill(65);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) { pulls++; if (pulls <= 10) c.enqueue(chunk); else c.close(); },
+    });
+    await expect(readBodyCapped(stream, 4096)).resolves.toBeNull();
+    expect(pulls).toBeLessThanOrEqual(6); // aborted well before 10KB was pulled
+  });
+  it('readBodyCapped: null body → null', async () => {
+    await expect(readBodyCapped(null, 4096)).resolves.toBeNull();
+  });
+});
 
   it('oversized Content-Length header → 204 WITHOUT reading the body (Codex #473)', async () => {
     const req = new Request('http://localhost/api/track/listing-event', {

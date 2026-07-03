@@ -32,6 +32,10 @@ export function makeRequest(opts: {
   if (body !== undefined) {
     init.body = JSON.stringify(body);
     headers['content-type'] = 'application/json';
+    // Wire-realism: real incoming requests always carry Content-Length for
+    // fixed-size bodies (undici's constructed Request does not store it).
+    // Routes with declared-length gates (Codex #473 r2) depend on it.
+    headers['content-length'] = String(Buffer.byteLength(init.body));
   }
   // NextRequest extends Request; the cast lets us bypass NextRequest-specific
   // fields the route handlers don't actually read in tests.
