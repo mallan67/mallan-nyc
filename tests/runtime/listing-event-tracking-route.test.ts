@@ -127,6 +127,31 @@ describe('POST /api/track/listing-event', () => {
     expect(listingEventCreateMock).not.toHaveBeenCalled();
   });
 
+  it('rate-limited request NEVER has its body read (Codex #473 — limit before buffering)', async () => {
+    rateLimitMock.mockResolvedValueOnce(false);
+    const req = new Request('http://localhost/api/track/listing-event', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ event_type: 'listing_view', listing_id: 'SL-0007', visitor_id: 'v1', session_id: 's1' }),
+    });
+    const res = await POST(req as never);
+    expect(res.status).toBe(204);
+    expect(req.bodyUsed).toBe(false); // body must not be buffered for limited clients
+    expect(listingEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it('oversized Content-Length header → 204 WITHOUT reading the body (Codex #473)', async () => {
+    const req = new Request('http://localhost/api/track/listing-event', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'content-length': '999999' },
+      body: JSON.stringify({ event_type: 'listing_view', listing_id: 'SL-0007', visitor_id: 'v1', session_id: 's1' }),
+    });
+    const res = await POST(req as never);
+    expect(res.status).toBe(204);
+    expect(req.bodyUsed).toBe(false);
+    expect(listingEventCreateMock).not.toHaveBeenCalled();
+  });
+
   it('rate-limited → SILENT 204 (beacon semantics, not 429), ZERO DB calls', async () => {
     process.env.LISTING_EVENTS_ENABLED = 'true';
     rateLimitMock.mockResolvedValue(false);

@@ -58,7 +58,27 @@ export async function POST(req: NextRequest) {
   // 1. Fail-closed flag — OFF → no parse-dependent work, ZERO DB calls.
   if (!listingEventsEnabled()) return noContent();
 
-  // 2. Payload size cap (beacons are tiny; anything bigger is abuse).
+  // 2. Codex #473: refuse oversized bodies BEFORE buffering — a declared
+  //    Content-Length over the cap is rejected without reading a byte.
+  //    (Beacon senders always set it; a missing/lying header is caught by
+  //    the post-read length re-check below.)
+  const declaredLength = Number(req.headers.get('content-length') ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) return noContent();
+
+  // 3. Codex #473: rate limit BEFORE reading the body (matches the public
+  //    contact/inquiry handlers) so abusive clients cannot force body
+  //    buffering. Silent 204 when limited — beacon semantics, not 429.
+  //    IP is read transiently for limiting only; it is never persisted.
+  try {
+    const ip = extractClientIp(req.headers);
+    const allowed = await checkRouteRateLimit(ip, 'listing_event', 120, 60);
+    if (!allowed) return noContent();
+  } catch {
+    return noContent();
+  }
+
+  // 4. Payload size cap — post-read re-check defends against absent/false
+  //    Content-Length headers.
   let text: string;
   try {
     text = await req.text();
@@ -74,21 +94,11 @@ export async function POST(req: NextRequest) {
     return noContent();
   }
 
-  // 3. Strict hand validation (event allowlist, id shapes, caps, PII strip).
+  // 5. Strict hand validation (event allowlist, id shapes, caps, PII strip).
   const event = validateListingEventPayload(body);
   if (!event) return noContent();
 
-  // 4. Rate limit — generous (galleries fire bursts). Silent 204 when limited.
-  //    IP is read transiently for limiting only; it is never persisted.
-  try {
-    const ip = extractClientIp(req.headers);
-    const allowed = await checkRouteRateLimit(ip, 'listing_event', 120, 60);
-    if (!allowed) return noContent();
-  } catch {
-    return noContent();
-  }
-
-  // 5. Server-derived enrichment + write. Any failure (including FK rejection
+  // 6. Server-derived enrichment + write. Any failure (including FK rejection
   //    for unknown listing_ids or a not-yet-migrated table) is log-only.
   try {
     const referrerRaw = event.referrer ?? req.headers.get('referer');
