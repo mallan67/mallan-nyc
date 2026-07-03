@@ -7,6 +7,7 @@ import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limi
 import { createInquiry } from '@/lib/inquiries/create';
 import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
 import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
+import { isLocalOpenHousePubliclyEligible } from '@/lib/open-houses/local-open-house-eligible';
 
 /**
  * POST /api/open-houses/rsvp
@@ -135,9 +136,30 @@ export async function POST(request: NextRequest) {
             date: { gte: today },
             status: { not: 'cancelled' },
           },
-          select: { listing: { select: { listing_id: true, address: true } } },
+          select: {
+            listing: {
+              select: {
+                listing_id: true,
+                address: true,
+                status: true,
+                rls_eligible: true,
+                owner_opt_out: true,
+                participant_only: true,
+                internet_entire_listing_display_yn: true,
+                internet_address_display_yn: true,
+              },
+            },
+          },
         });
-        if (showing?.listing && rsvpAddressMatches(showing.listing.address, listingAddress)) {
+        // Codex #472 r9: link ONLY when the listing is PUBLICLY ELIGIBLE by the
+        // exact same predicate the /api/open-houses feed uses (opt-out,
+        // participant-only, internet display, Mallan-owned, status) AND the
+        // submitted address matches. Fail-closed on both.
+        if (
+          showing?.listing &&
+          isLocalOpenHousePubliclyEligible(showing.listing) &&
+          rsvpAddressMatches(showing.listing.address, listingAddress)
+        ) {
           rsvpListingId = showing.listing.listing_id;
         }
       }

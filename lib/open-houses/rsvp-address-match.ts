@@ -22,11 +22,12 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const name = pick('StreetName', 'streetName');
   if (!num || !name) return false;
   const subTokens = new Set(submitted.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
-  // Codex #472 r7: the street number must match as an EXACT token — substring
-  // matching accepted "1400 East 90th" for a listing at "400" (prefix hit).
-  // Tokenize on non-alphanumerics so hyphenated ranges ("400-402") still
-  // yield the "400" token; "90" must not match the "90th" token.
-  if (!subTokens.has(num.toLowerCase())) return false;
+  // Codex #472 r7+r9: the street number must match as EXACT token(s). r7 fixed
+  // the prefix-substring hole ("1400" vs "400"); r9 tokenizes the STORED number
+  // too, so a Queens hyphenated number like "25-10" (tokens 25,10) matches a
+  // submitted "25-10 30th Ave" — every stored number token must be present.
+  const numTokens = num.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (numTokens.length === 0 || !numTokens.every((t) => subTokens.has(t))) return false;
   // Codex #472 r8: require a DISTINCTIVE street token matched as an EXACT
   // token — generic direction/suffix words (street, east, …) are too common
   // to prove identity, so "400 Fake Street" / "400 East 91st Street" must not

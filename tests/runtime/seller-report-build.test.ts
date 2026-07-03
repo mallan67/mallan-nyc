@@ -278,6 +278,7 @@ describe('buildSellerReport — data gaps (honesty contract)', () => {
 import { composeAddressDisplay } from '@/lib/seller-report/load-report';
 import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
 import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
+import { isLocalOpenHousePubliclyEligible } from '@/lib/open-houses/local-open-house-eligible';
 
 describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
   it('composeAddressDisplay reads RESO PascalCase (IDX rows) incl. DirPrefix/Suffix via canonical street composition', () => {
@@ -411,6 +412,11 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '123 Fake Street')).toBe(false);
   });
 
+  it('Queens hyphenated street numbers link — all number tokens present (Codex #472 r9)', () => {
+    expect(rsvpAddressMatches({ StreetNumber: '25-10', StreetName: '30th Avenue' }, '25-10 30th Ave, Astoria')).toBe(true);
+    expect(rsvpAddressMatches({ StreetNumber: '25-10', StreetName: '30th Avenue' }, '25 30th Ave')).toBe(false); // missing the "10" token
+  });
+
   it('requires a DISTINCTIVE street token — generic direction/suffix words do not link (Codex #472 r8)', () => {
     // listing "400 East 90th Street" must NOT link these mismatched addresses:
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 Fake Street')).toBe(false);   // only "street" overlaps
@@ -429,5 +435,27 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
   it('fails CLOSED when either side is missing (no linkage rather than a wrong one)', () => {
     expect(rsvpAddressMatches({}, '400 East 90th Street')).toBe(false);
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '')).toBe(false);
+  });
+});
+
+
+describe('isLocalOpenHousePubliclyEligible — RSVP gate == feed gate (Codex #472 r9)', () => {
+  const base = { listing_id: 'SL-0004', status: 'Active', rls_eligible: false as const,
+    owner_opt_out: false, participant_only: false,
+    internet_entire_listing_display_yn: true, internet_address_display_yn: true };
+  it('website-only Mallan exclusive, displayable status → eligible', () => {
+    expect(isLocalOpenHousePubliclyEligible(base)).toBe(true);
+  });
+  it('non-Mallan-owned local (no SL/RL, rls_eligible true) → NOT eligible', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...base, listing_id: 'X-1', rls_eligible: true })).toBe(false);
+  });
+  it('RLS-eligible local with owner opt-out → NOT eligible (feed fails closed here too)', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...base, listing_id: 'SL-9', rls_eligible: true, owner_opt_out: true })).toBe(false);
+  });
+  it('participant-only → NOT eligible', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...base, listing_id: 'RL-2', rls_eligible: true, participant_only: true })).toBe(false);
+  });
+  it('ineligible status (Closed) → NOT eligible', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...base, status: 'Closed' })).toBe(false);
   });
 });
