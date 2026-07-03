@@ -35,7 +35,10 @@ restore LSN `4/745307E0`. **⚠️ SUPERSEDED 2026-07-03: this branch was AUTO-P
 
 ## Gate 6 Status
 
-- ✅ Rollback branch created
+- ⚠️ **Rollback branch AUTO-PRUNED 2026-07-03 (OPS-022)** — `pre-gate6-5k-pilot-2026-07-01`
+  (`br-winter-credit-adlh315q`) was deleted by the `neon-branch-prune` cron (24h retention,
+  `app/api/cron/neon-branch-prune/route.ts:123`). Live branch list = **main only**. A FRESH
+  **protected** rollback branch is a HARD prerequisite before any 5K execute (Maya-held Neon action).
 - ✅ 5K dry-run completed: eligible backlog ≈ 80,712 · scanned 5,000 · archived 0 ·
   execute=false · skipped 0 · errors 0
 - **No production archive execute has ever run. Gate 6 remains paused.**
@@ -46,10 +49,16 @@ Archived listings could be rehydrated by the live Cotality synchronization becau
 `lib/idx/sync.ts` was restoring `raw_data`, `media`, and `sync_status` after archive.
 **PR #465 fixed this and is MERGED (2026-07-02)** — the guard protects archived rows (one-way
 strip + display-field freeze + forced `idx_display_yn:false`; NULL-safe `archivedSafeMediaWhere`),
-deployed on `858da234` under RW-004 watch. Gate 6 stays paused pending the OPS-009 two-flag
-implementation + RW-004. (Registry: OPS-006 → Fixed/RW-004. Related decision
-input: OPS-009 — the `ARCHIVE_T180_BACKLOG_ENABLED` flag swaps the eligibility clock; it does
-NOT gate the nightly archive loop itself.)
+deployed on `858da234` under RW-004 watch (Registry: OPS-006 → Fixed/RW-004).
+
+**Status update 2026-07-03 — the OPS-009 blocker is CLEARED; a NEW blocker (OPS-022) took its
+place.** The OPS-009 two-flag controls (`ARCHIVE_ENABLED` + `ARCHIVE_BACKLOG_DRAIN_ENABLED`) are
+**IMPLEMENTED + deployed (PR #470, merged 2026-07-03) and behaviorally VERIFIED** (OPS-020: the
+03:00:46Z retention run confirmed all four Maya criteria — state OFF, skip reason, T+24h carve-out
+ran, no drain). Gate 6 now stays paused on **two remaining prerequisites, both Maya-held**:
+(1) **OPS-022** — recreate + protect a fresh rollback branch (the prior one was auto-pruned);
+(2) set `ARCHIVE_ENABLED=true` and verify one clean MAINTENANCE cycle. Only then does the 5K
+execute become approvable.
 
 ## PR Status
 
@@ -78,7 +87,7 @@ Hypotheses are tracked separately (H-###). **Nothing is considered confirmed wit
 3. Run the health probe again (`npm run health:probe`, read-only) — last run 2026-07-02T04:04Z.
 4. Verify Vercel runtime health (note registry RW-002: the idx-sync `25006` error class must
    show 7 consecutive clean days — watch until 2026-07-05).
-5. Reconsider Gate 6 execute — inputs: #465 merged ✅ AND the **OPS-009 two-flag IMPLEMENTATION landed + deployed + one clean sync cycle verified** (the design decision alone is NOT sufficient — registry OPS-009 / dashboard Gate-6 sequence step 4).
+5. Reconsider Gate 6 execute — updated 2026-07-03: #465 merged ✅ · OPS-009 two-flag IMPLEMENTATION landed + deployed + kill-switch VERIFIED ✅ (PR #470 / OPS-020). Remaining HARD prerequisites before any 5K execute: (a) **OPS-022** — a FRESH protected rollback branch exists (the prior one was auto-pruned 2026-07-03); (b) `ARCHIVE_ENABLED=true` set + one clean MAINTENANCE cycle verified. Both are Maya-held. (Registry OPS-009 / OPS-020 / OPS-022; dashboard Gate-6 sequence.)
 
 ## Shedding sequence (Maya directive 2026-07-01 — DO NOT EXECUTE YET)
 
@@ -95,8 +104,8 @@ syncs must not rewrite unchanged rows** (registry OPS-010A).
 2. Merge #465 after clean Codex review (stops rehydration — OPS-006).
 3. Verify archived-row protection after **one live Cotality sync cycle** (archived row keeps
    `sync_status='archived'`, `raw_data` null, `media` []).
-4. OPS-009: decision RECORDED (two-flag design) — now the **IMPLEMENTATION must land + deploy + verify one clean sync cycle** (decision alone is NOT sufficient).
-5. Then approve **only the 5K pilot execute**.
+4. OPS-009: two-flag design **IMPLEMENTED + deployed + kill-switch VERIFIED** (PR #470 / OPS-020, 2026-07-03). Remaining before the pilot: **(4a)** recreate + protect a fresh rollback branch (**OPS-022** — the prior one was auto-pruned 2026-07-03); **(4b)** set `ARCHIVE_ENABLED=true` and verify one clean MAINTENANCE cycle.
+5. Then approve **only the 5K pilot execute** (requires BOTH flags + `--execute` + `--ack-rollback-branch` + `--max-rows` + the fresh rollback branch from 4a).
 6. Scale only after proving the 5K rows **stay stripped** across live sync cycles.
 
 Follow-on after #465: **OPS-010A** diff-before-write suppression (recurring ~750 MB+/mo history
