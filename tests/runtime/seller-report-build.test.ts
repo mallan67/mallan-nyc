@@ -411,6 +411,16 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '123 Fake Street')).toBe(false);
   });
 
+  it('requires a DISTINCTIVE street token — generic direction/suffix words do not link (Codex #472 r8)', () => {
+    // listing "400 East 90th Street" must NOT link these mismatched addresses:
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 Fake Street')).toBe(false);   // only "street" overlaps
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 East 91st Street')).toBe(false); // "east"+"street" overlap, 90th != 91st
+    // the real address (distinctive "90th") still links:
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400 East 90th Street, Unit 4D')).toBe(true);
+    // a name with NO distinctive token (all generic) fails closed rather than false-linking:
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'North Street' }, '400 North Avenue')).toBe(false);
+  });
+
   it('street number must match as an EXACT token — substring hits like 1400-vs-400 are rejected (Codex #472 r7)', () => {
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '1400 East 90th Street')).toBe(false);
     expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400-402 East 90th Street')).toBe(true); // hyphenated ranges tokenize
