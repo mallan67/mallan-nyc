@@ -14,7 +14,7 @@
  * maintained by an agent with the right tool (Vercel MCP, Lighthouse, manual smoke), not this probe.
  */
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 import { dbGrowthCell, cotalityFreshnessCell } from "./health-status";
@@ -107,9 +107,23 @@ tryProbe(() => {
   const cadenceOk = idx === "*/10 * * * *" && media === "*/15 * * * *" && keep === "*/15 * * * *";
   add("Cron cadence (live Cotality)", cadenceOk ? "🟢" : "🟡",
     `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\`, db-keepalive \`${keep}\``);
+  // QUAL-006/OPS-008 resolved 2026-07-02: the media-backfill route was DELETED
+  // (unscheduled since PR #176). Green = stays out of vercel.json; a schedule
+  // entry reappearing without a route is the idx:validate "SCHEDULED BUT
+  // MISSING" critical.
   const backfillScheduled = crons.some((c) => c.path === "/api/cron/media-backfill");
-  add("media-backfill schedule (idx:validate baseline)", backfillScheduled ? "🟢" : "🟡",
-    backfillScheduled ? "scheduled" : "NOT SCHEDULED — known idx:validate baseline critical (accepted, not this lane)");
+  // Codex #471: green must verify BOTH halves of the QUAL-006 resolution —
+  // no vercel.json entry AND the route file gone. If the route file
+  // reappears unscheduled, that recreates the original idx:validate
+  // NOT-SCHEDULED critical, so this cell must go red, not stay green.
+  const backfillRouteExists = existsSync(path.resolve(process.cwd(), "app/api/cron/media-backfill/route.ts"));
+  const backfillState: Status = backfillScheduled || backfillRouteExists ? "🔴" : "🟢";
+  add("media-backfill removal (QUAL-006/OPS-008)", backfillState,
+    backfillScheduled
+      ? "vercel.json schedules /api/cron/media-backfill but the route was deleted 2026-07-02"
+      : backfillRouteExists
+        ? "route file REAPPEARED without a schedule — recreates the idx:validate NOT-SCHEDULED critical (QUAL-006 regression)"
+        : "not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02");
 }, () => add("Cron cadence (live Cotality)", "⚪", "vercel.json unreadable"));
 
 async function main(): Promise<void> {
