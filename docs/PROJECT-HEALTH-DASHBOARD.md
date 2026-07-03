@@ -58,7 +58,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | CRM | 🟡 | 2026-07-01 | `crm:test` 39/39 PASS (§G doc says 172 — QUAL-008 drift); live `/crm` load unverified |
 | Portal (buyer/seller/landlord) | 🟢 | 2026-07-01 | code audit post-#458/#459: ownership enforced on every reviewed id-param route; buyer identity masked to sellers; agent PII gated |
 | Email / notifications | 🟡 | 2026-07-02 | dispatcher gap real in code (BIZ-005, now **P2**) but LIVE COUNT 2026-07-02: **zero email/sms rows ever accumulated** (30 in_app/pending only — H-002 resolved). Unsubscribe suppression divergence still open (BIZ-012, P1) |
-| Contact funnel | 🟡 | 2026-07-02 | **H-001 DISPROVED live** (info_schema 2026-07-02: suspect columns nullable; all NOT-NULL cols present in the INSERT). Now Hypothesis H-004: 06-28 DB-connectivity incident cluster; zero contact errors since 06-28. Close via one approved controlled submission (registry OPS-001) |
+| Contact funnel | 🟡 | 2026-07-03 | **H-001 DISPROVED live (2 ways):** suspect columns nullable AND a new lead+inquiry SUCCEEDED 06-28 23:01:52 (same window as the errors). H-004 (transient 06-28 connectivity blip) corroborated → Medium-High. Funnel idle since (0 submissions/5d; 51 leads ever). Close via one approved controlled submission (OPS-001) |
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
 | Compliance validators | 🟢 | 2026-07-03 | **idx:validate exit 0 / 0 critical on main@ab56ecd8 (QUAL-006 Verified Fixed via #471 — §B baseline restored)** · type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (1 HIGH warn: ethics_training_gate WS-C4 = QUAL-007, last blemish) · ucba 46/46, 0 REGRESSIONS · crm:test 39/39 |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
@@ -109,7 +109,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
 | OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
 | OPS-010A | Operations | Storage churn suppression (diff-before-write) | P1 | Open (sequenced after pilot) | Claude |
-| OPS-017 | Operations | **Schema drift** — schema.prisma ↔ live DB no longer identical (leads cols); full-diff audit pending | P1 | Decision needed — **Track 4 (dedicated audit)** | Maya + Claude |
+| OPS-017 | Operations | **Schema drift** — full diff DONE 2026-07-03: leads = false alarm; real drift = benign orphan tables/indexes + updated_at defaults | P3 | Verified — cleanup deferred (held migration) | Claude / Maya |
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
@@ -118,7 +118,8 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 
 **Execution roadmap (Maya, 2026-07-02):** Track 1 **SEO-001** (10K+ pages, small change, high ROI) →
 Track 2 **OPS-009** (archive ambiguity removed forever) → Track 3 **5K Gate-6 pilot** (only after the
-architecture is settled) → Track 4 **OPS-017 dedicated schema-drift audit**. Plus: build the
+architecture is settled) → Track 4 **OPS-017 schema-drift audit** (diff DONE 2026-07-03: leads = false
+alarm, real drift = benign orphans, cleanup deferred to a held migration). Plus: build the
 **Platform Architecture document** (DOC-001) — full data-flow map (Cotality → sync → normalization →
 compliance → archive → search → website) incl. every cron, queue, webhook, API, and DB boundary.
 
@@ -177,14 +178,14 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Growth (listings) | 🟢 | 2026-07-01 | 110,597 rows; floor-gated cell (auto tier) | health:probe |
 | Unbounded tables | 🟡(static) | 2026-07-01 | listing_media tombstones + sync_errors (OPS-010); audit_events mixes compliance+diagnostics | row-count trend query |
 | Large JSON columns | 🟡 | 2026-06-10 | listings 893MB/677MB TOAST (r2-neon cost audit) | pg_column_size sample |
-| Schema vs migrations drift | 🔴 | 2026-07-02 | **OPS-017** (Confirmed live): schema.prisma says REQUIRED, live DB says NULLABLE for the two leads columns; extent beyond `leads` unknown | full prisma-vs-DB diff (Track 4 dedicated audit) |
+| Schema vs migrations drift | 🟡 | 2026-07-03 | **OPS-017 full diff DONE** (read-only): leads "drift" was a FALSE ALARM (`String[]`→nullable is correct); real drift = 5 orphan legacy tables + 3 orphan indexes + 3 `updated_at` defaults (benign, app references none); `listing_events` = expected SELLER-002 staged. P1→P3 | cleanup needs a held migration — no action now |
 | Indexes / FKs / slow queries / orphans / duplicates | ⚪ | — | never audited | read-only pg_stat + EXPLAIN pass (needs canonical DATABASE_URL, Maya approval) |
 
 ### 5 · CRM & Business workflows
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
 | Lead capture (9 surfaces) | 🟢(static) | 2026-07-01 | chain INTACT form→route→Lead+Inquiry+consent→audit | live smoke (needs approval) |
-| Lead creation (new emails) | 🟡 | 2026-07-02 | H-001 DISPROVED live; now **H-004** (06-28 connectivity cluster), OPS-001 P2 Monitoring; zero errors since 06-28 | approved controlled submission |
+| Lead creation (new emails) | 🟡 | 2026-07-03 | H-001 DISPROVED live (2 ways: nullable cols + a successful 06-28 23:01:52 insert); **H-004** transient-blip corroborated (Medium-High), OPS-001 P2 Monitoring; funnel idle 5d (low volume) | approved controlled submission |
 | Lead routing/assignment | 🟡 | 2026-07-01 | assignment writes in_app only (BIZ-013); no email path (BIZ-005) | controlled lead trace |
 | Saved searches / alerts | 🟡(static) | 2026-07-01 | gate bypass latent (BIZ-014); cron skips unsupported silently | cron run log + row audit |
 | Notifications (email/SMS) | 🟡 | 2026-07-02 | dispatcher gap in code (BIZ-005, P2) — live count 2026-07-02: ZERO email/sms rows ever (H-002 resolved) | re-count after dispatcher hold release |
