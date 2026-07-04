@@ -608,6 +608,42 @@ describe('rsvpAddressMatches — RESO split-shape address + cross-street safety 
   });
 });
 
+describe('rsvpAddressMatches — borough/ZIP, lettered avenues, hyphenated order (Codex #472 r14)', () => {
+  // FP-1: same street name repeats across boroughs — a disagreeing ZIP/borough on the
+  // submission must fail closed (the guard otherwise threw away the only discriminator).
+  it('a disagreeing ZIP or borough fails closed; agreeing / absent is fine', () => {
+    const clintonMan = { StreetNumber: '100', StreetName: 'Clinton', StreetSuffix: 'Street', City: 'New York', PostalCode: '10002' };
+    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street, New York, NY 10002')).toBe(true);   // own zip
+    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street, Brooklyn, NY 11201')).toBe(false);  // Brooklyn zip
+    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street')).toBe(true);                        // no locality → street match only
+    // explicit stored borough vs a different submitted borough (no ZIP):
+    const oakBk = { StreetNumber: '55', StreetName: 'Oak', StreetSuffix: 'Street', City: 'Brooklyn' };
+    expect(rsvpAddressMatches(oakBk, '55 Oak Street, Queens')).toBe(false);
+    expect(rsvpAddressMatches(oakBk, '55 Oak Street, Brooklyn')).toBe(true);
+  });
+
+  // FP-2: single-letter S/N/E/W avenues must not collapse into the direction bucket.
+  it('lettered avenues (Avenue S) are identity, not a direction — not the same as South Avenue', () => {
+    const aveS = { StreetNumber: '100', StreetName: 'Avenue S' };
+    expect(rsvpAddressMatches(aveS, '100 Avenue S')).toBe(true);
+    expect(rsvpAddressMatches(aveS, '100 South Avenue')).toBe(false);
+    expect(rsvpAddressMatches(aveS, '100 Avenue N')).toBe(false);
+    const southAve = { StreetNumber: '100', StreetName: 'South', StreetSuffix: 'Avenue' };
+    expect(rsvpAddressMatches(southAve, '100 South Avenue')).toBe(true);
+    expect(rsvpAddressMatches(southAve, '100 Avenue S')).toBe(false);
+  });
+
+  // FP-3: hyphenated Queens house numbers are ordered — 25-10 and 10-25 are different
+  // buildings; a single "400" still matches a "400-402" range.
+  it('hyphenated house numbers preserve order; ranges still match a single number', () => {
+    const q = { StreetNumber: '25-10', StreetName: '30th', StreetSuffix: 'Avenue' };
+    expect(rsvpAddressMatches(q, '25-10 30th Avenue')).toBe(true);
+    expect(rsvpAddressMatches(q, '10-25 30th Avenue')).toBe(false);   // reversed = different building
+    expect(rsvpAddressMatches(q, '25 30th Avenue')).toBe(false);      // missing the "10"
+    expect(rsvpAddressMatches({ StreetNumber: '400', StreetName: 'East 90th Street' }, '400-402 East 90th Street')).toBe(true); // range still links
+  });
+});
+
 
 describe('isLocalOpenHousePubliclyEligible — RSVP gate == feed gate (Codex #472 r9)', () => {
   const base = { listing_id: 'SL-0004', status: 'Active', rls_eligible: false as const,
@@ -627,5 +663,23 @@ describe('isLocalOpenHousePubliclyEligible — RSVP gate == feed gate (Codex #47
   });
   it('ineligible status (Closed) → NOT eligible', () => {
     expect(isLocalOpenHousePubliclyEligible({ ...base, status: 'Closed' })).toBe(false);
+  });
+
+  // Codex #472 r14: the RLS branch used only evaluateDisplayGate(), which passes any
+  // non-terminal displayable status — so ComingSoon/Pending RLS listings could count
+  // RSVPs the open-house FEED never exposes (feed uses OPEN_HOUSE_ELIGIBLE_STATUSES =
+  // {Active, ActiveUnderContract}). Both branches must require that status.
+  const rlsBase = { ...base, rls_eligible: true as const };
+  it('RLS ComingSoon with display flags true → NOT eligible (feed excludes ComingSoon)', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'ComingSoon' })).toBe(false);
+  });
+  it('RLS Pending with display flags true → NOT eligible', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'Pending' })).toBe(false);
+  });
+  it('RLS Active → eligible (display gate passes)', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'Active' })).toBe(true);
+  });
+  it('RLS ActiveUnderContract → eligible (display gate passes)', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'ActiveUnderContract' })).toBe(true);
   });
 });

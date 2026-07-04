@@ -37,5 +37,14 @@ export function isLocalOpenHousePubliclyEligible(l: LocalOpenHouseListingGateInp
           internet_entire_listing_display_yn: l.internet_entire_listing_display_yn,
           internet_address_display_yn: l.internet_address_display_yn,
         });
-  return gate.displayable && isMallanOwnedLocalListing(l);
+  // Codex #472 r14: require an open-house-ELIGIBLE status on BOTH branches. The RLS
+  // branch's evaluateDisplayGate() passes any non-terminal displayable status (incl.
+  // ComingSoon/Pending), but the open-house feed only exposes OPEN_HOUSE_ELIGIBLE_
+  // STATUSES ({Active, ActiveUnderContract}) — so without this the RSVP linkage would
+  // count events the feed never publicly shows (UCBA: ComingSoon has no showings).
+  return (
+    gate.displayable &&
+    OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) &&
+    isMallanOwnedLocalListing(l)
+  );
 }

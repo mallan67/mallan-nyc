@@ -113,6 +113,12 @@ function classify(tokens: string[], exclude: Set<string>): Parts {
       else core.add('saint');                               // "St Nicholas"
       return;
     }
+    // Lettered avenue: in "Avenue S" the S is the avenue's IDENTITY, not a direction —
+    // otherwise "Avenue S" would collapse into the same {south} as "South Avenue".
+    if (/^[nsew]$/.test(raw) && i > 0 && canon(tokens[i - 1]) === 'avenue') {
+      core.add(raw);
+      return;
+    }
     const c = canon(raw);
     if (DIRECTIONS.has(c)) dir.add(c);
     else if (SUFFIXES.has(c)) suf.add(c);
@@ -158,6 +164,21 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const cutIdx = cuts.length ? Math.min(...cuts) : -1;
   const streetPart = cutIdx >= 0 ? subLower.slice(0, cutIdx) : subLower;
 
+  // FP-1 (Codex #472 r14): NYC repeats street names across boroughs at overlapping
+  // house numbers. When the submission carries a ZIP or an explicit borough that
+  // DISAGREES with the stored address, fail closed — street + number alone cannot
+  // disambiguate boroughs. (Silent when the submission omits both — the honest feed
+  // string does — so this only ADDS safety, never drops a legitimate own-address RSVP.)
+  const storedZip5 = pick('PostalCode', 'postalCode').replace(/\D/g, '').slice(0, 5);
+  const subZips = subLower.match(/\b\d{5}\b/g);
+  const subZip = subZips ? subZips[subZips.length - 1] : '';
+  if (storedZip5.length === 5 && subZip && storedZip5 !== subZip) return false;
+  const BOROUGHS = ['staten island', 'manhattan', 'brooklyn', 'queens', 'bronx'];
+  const storedCity = pick('City', 'city').toLowerCase();
+  const subBorough = BOROUGHS.find((b) => subLower.includes(b));
+  const storedBorough = BOROUGHS.find((b) => storedCity.includes(b));
+  if (subBorough && storedBorough && subBorough !== storedBorough) return false;
+
   // Drop bare unit designators ("2G") that survive without a marker.
   const streetTokens = tokenize(streetPart).filter((t) => !isBareUnit(t));
 
@@ -167,12 +188,19 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   // "…Street 4") is NOT the house number and must not satisfy the stored number.
   let hn = 0;
   while (hn < streetTokens.length && /^\d+$/.test(streetTokens[hn])) hn++;
-  const houseSet = new Set(streetTokens.slice(0, hn));
+  const houseTokens = streetTokens.slice(0, hn);
   const nameTokens = streetTokens.slice(hn);
 
-  // 1. street number: every stored number token present in the leading house run.
+  // 1. street number: the stored number tokens must be an ORDERED PREFIX of the
+  // leading house run — so hyphenated Queens numbers keep their order ("25-10" ≠
+  // "10-25", different buildings) while a single "400" still matches a "400-402"
+  // range building. (r7: "1400" ≠ "400" — the runs already differ at index 0.)
   const numTokens = tokenize(num).filter((t) => !isBareUnit(t));
-  if (numTokens.length === 0 || !numTokens.every((t) => houseSet.has(t))) return false;
+  if (
+    numTokens.length === 0 ||
+    numTokens.length > houseTokens.length ||
+    !numTokens.every((t, i) => houseTokens[i] === t)
+  ) return false;
 
   // Strip a TRAILING run of city/borough/state/ZIP tokens only — a mid-name
   // borough word ("Manhattan Avenue", "New York Avenue") is part of the street
