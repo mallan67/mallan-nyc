@@ -609,23 +609,29 @@ describe('rsvpAddressMatches — RESO split-shape address + cross-street safety 
 });
 
 describe('rsvpAddressMatches — borough/ZIP, lettered avenues, hyphenated order (Codex #472 r14)', () => {
-  // FP-1: same street name repeats across boroughs — a disagreeing ZIP/borough on the
-  // submission must fail closed (the guard otherwise threw away the only discriminator).
-  it('a disagreeing ZIP or borough fails closed; agreeing / absent is fine', () => {
+  // FP-1 (Codex #472 r16 — simplified): ZIP is the reliable cross-borough discriminator.
+  // A DISAGREEING ZIP fails closed. Borough WORDS are NOT used (too ambiguous), so a
+  // same-number cross-borough submission WITHOUT a ZIP is left to link — a bounded
+  // residual on the direct-API path only (attribution is keyed on the showingId, so a
+  // match only allows/denies the resolved listing, never redirects to another seller).
+  it('a disagreeing ZIP fails closed; without a ZIP, cross-borough is left to link (bounded)', () => {
     const clintonMan = { StreetNumber: '100', StreetName: 'Clinton', StreetSuffix: 'Street', City: 'New York', PostalCode: '10002' };
-    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street, New York, NY 10002')).toBe(true);   // own zip
-    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street, Brooklyn, NY 11201')).toBe(false);  // Brooklyn zip
-    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street')).toBe(true);                        // no locality → street match only
-    // explicit stored borough vs a different submitted borough (no ZIP):
-    const oakBk = { StreetNumber: '55', StreetName: 'Oak', StreetSuffix: 'Street', City: 'Brooklyn' };
-    expect(rsvpAddressMatches(oakBk, '55 Oak Street, Queens')).toBe(false);
-    expect(rsvpAddressMatches(oakBk, '55 Oak Street, Brooklyn')).toBe(true);
-    // Codex #472 r15: a borough word INSIDE the street name must NOT be read as the
-    // submitted borough — "Manhattan Avenue" is a real Brooklyn street:
-    const manhAveBk = { StreetNumber: '123', StreetName: 'Manhattan', StreetSuffix: 'Avenue', City: 'Brooklyn' };
-    expect(rsvpAddressMatches(manhAveBk, '123 Manhattan Avenue')).toBe(true);            // no locality → not dropped
-    expect(rsvpAddressMatches(manhAveBk, '123 Manhattan Avenue, Brooklyn')).toBe(true);  // locality borough agrees
-    expect(rsvpAddressMatches(manhAveBk, '123 Manhattan Avenue, Queens')).toBe(false);   // explicit wrong borough
+    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street, New York, NY 10002')).toBe(true);   // own ZIP
+    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street, Brooklyn, NY 11201')).toBe(false);  // DISAGREEING ZIP → fail closed
+    expect(rsvpAddressMatches(clintonMan, '100 Clinton Street')).toBe(true);                        // no locality → street match
+    // cross-borough same-number WITHOUT a ZIP: left to link (documented direct-API residual):
+    expect(rsvpAddressMatches({ StreetNumber: '55', StreetName: 'Oak', StreetSuffix: 'Street', City: 'Brooklyn' }, '55 Oak Street, Queens')).toBe(true);
+  });
+
+  it('borough WORDS are not used to drop RSVPs — "Manhattan Beach, Brooklyn" is not misread (Codex #472 r16)', () => {
+    // "Manhattan Beach" is a real Brooklyn neighborhood — the earlier substring/array borough
+    // guard read "manhattan" and wrongly dropped this legit Brooklyn RSVP (the r16 FN fix).
+    const oxfordBk = { StreetNumber: '55', StreetName: 'Oxford', StreetSuffix: 'Street', City: 'Brooklyn', PostalCode: '11235' };
+    expect(rsvpAddressMatches(oxfordBk, '55 Oxford Street, Manhattan Beach, Brooklyn, NY')).toBe(true);
+    expect(rsvpAddressMatches(oxfordBk, '55 Oxford Street, Manhattan Beach, Brooklyn, NY 11235')).toBe(true); // matching ZIP
+    expect(rsvpAddressMatches(oxfordBk, '55 Oxford Street, NY 10002')).toBe(false);                            // disagreeing ZIP still fails closed
+    // a real "Manhattan Avenue" in Brooklyn still links (kept from r15):
+    expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Manhattan', StreetSuffix: 'Avenue', City: 'Brooklyn' }, '123 Manhattan Avenue')).toBe(true);
   });
 
   // FP-2: single-letter S/N/E/W avenues must not collapse into the direction bucket.

@@ -164,24 +164,29 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const cutIdx = cuts.length ? Math.min(...cuts) : -1;
   const streetPart = cutIdx >= 0 ? subLower.slice(0, cutIdx) : subLower;
 
-  // FP-1 (Codex #472 r14): NYC repeats street names across boroughs at overlapping
-  // house numbers. When the submission carries a ZIP or an explicit borough that
-  // DISAGREES with the stored address, fail closed — street + number alone cannot
-  // disambiguate boroughs. (Silent when the submission omits both — the honest feed
-  // string does — so this only ADDS safety, never drops a legitimate own-address RSVP.)
+  // Cross-borough disambiguation (Codex #472 r16 — simplified).
+  //
+  // WHAT THIS GUARANTEES: this matcher is a pass/fail CONFIRMATION gate. Attribution is
+  // keyed on the server-resolved `showingId` (app/api/open-houses/rsvp/route.ts) — the
+  // RSVP links to `showing.listing.listing_id` or to nothing. So a match can only ALLOW
+  // or DENY the link to that ONE already-resolved listing; it can NEVER redirect an RSVP
+  // to a different seller's report.
+  //
+  // NYC repeats street names across boroughs at overlapping house numbers, and street +
+  // number alone genuinely cannot tell them apart. **ZIP is the reliable discriminator:**
+  // when the submission carries a ZIP that DISAGREES with the stored ZIP, fail closed.
+  // Borough WORDS are intentionally NOT used — they are too ambiguous to infer from
+  // address text ("Manhattan Beach" is a Brooklyn neighborhood, and Manhattan/Queens
+  // stored `City` values often carry no borough word at all), and the earlier borough
+  // guard both dropped valid "…, Manhattan Beach, Brooklyn" RSVPs and was inert for
+  // Manhattan/Queens. A same-number cross-borough submission WITHOUT a ZIP is therefore
+  // left to link — a bounded residual on the direct-API path only (the honest UI pre-
+  // fills each listing's own address, and per the guarantee above the worst case is
+  // self-inflating the showing's OWN listing, never a cross-seller transfer).
   const storedZip5 = pick('PostalCode', 'postalCode').replace(/\D/g, '').slice(0, 5);
   const subZips = subLower.match(/\b\d{5}\b/g);
   const subZip = subZips ? subZips[subZips.length - 1] : '';
   if (storedZip5.length === 5 && subZip && storedZip5 !== subZip) return false;
-  const BOROUGHS = ['staten island', 'manhattan', 'brooklyn', 'queens', 'bronx'];
-  const storedCity = pick('City', 'city').toLowerCase();
-  // Codex #472 r15: read the submitted borough ONLY from the explicit locality (after
-  // the first comma) — never from inside the street name, else a real "123 Manhattan
-  // Avenue" in Brooklyn would be misread as borough=Manhattan and wrongly dropped.
-  const localityPart = commaIdx >= 0 ? subLower.slice(commaIdx) : '';
-  const subBorough = BOROUGHS.find((b) => localityPart.includes(b));
-  const storedBorough = BOROUGHS.find((b) => storedCity.includes(b));
-  if (subBorough && storedBorough && subBorough !== storedBorough) return false;
 
   // Drop bare unit designators ("2G") that survive without a marker.
   const streetTokens = tokenize(streetPart).filter((t) => !isBareUnit(t));
