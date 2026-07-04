@@ -170,7 +170,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Deleted/Closed timing (24h rule) | 🟢 | 2026-07-01 | all 176 off-feed ids render "Not Available" (live sweep) | full stale-id probe |
 | ComingSoon/Pending timing | 🟡 | 2026-07-01 | 8 Pending still sitemap-listed within minutes of transition (SEO-007/OPS-003) | live diff re-run |
 | Tombstones / reconciliation / drift | 🟡 | 2026-07-01 | tombstone growth unbounded (OPS-010); feed-reconcile clean-run writes no audit | table counts + audit rows |
-| Archive integrity (Gate 6) | 🟡 (Regression Watch) | 2026-07-02 | rehydration guard MERGED + deployed (OPS-006 → Fixed/RW-004; baseline 2,032/2,032 stripped+hidden); remaining: flag is clock-swap only until OPS-009 two-flag implementation lands | RW-004 queries + post-OPS-009 clean cycle |
+| Archive integrity (Gate 6) | 🟡 (Regression Watch) | 2026-07-03 | rehydration guard MERGED + deployed (OPS-006 → Fixed/RW-004; baseline 2,032/2,032 stripped+hidden); OPS-009 two-flag gate IMPLEMENTED+deployed+VERIFIED (#470/OPS-020). Remaining 5K prerequisites: (1) `ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle, (2) OPS-022 fresh rollback branch | RW-004 queries + post-MAINTENANCE clean cycle |
 
 ### 4 · Database
 | Component | Status | Last verified | Evidence / Registry | Verify via |
