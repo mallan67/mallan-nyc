@@ -5,6 +5,9 @@ import { openHouseRsvpEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { createInquiry } from '@/lib/inquiries/create';
+import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
+import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
+import { isLocalOpenHousePubliclyEligible } from '@/lib/open-houses/local-open-house-eligible';
 
 /**
  * POST /api/open-houses/rsvp
@@ -112,9 +115,62 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Codex #472 r3: link the inquiry to its listing so seller reports can
+    // count RSVPs. `local-{showingId}` resolves exactly (Mallan CRM open
+    // houses); `trestle-` ids stay unlinked by design (documented). Best
+    // effort — never blocks the RSVP.
+    let rsvpListingId: string | null = null;
+    try {
+      const parsed = parseOpenHouseId(openHouseId);
+      if (parsed?.kind === 'local') {
+        // Codex #472 r5: openHouseId is attacker-suppliable. Link ONLY when
+        // the Showing is a real ELIGIBLE public open house (same criteria as
+        // /api/open-houses: type openhouse, upcoming, not cancelled) AND the
+        // submitted address plausibly matches the listing (fail-closed).
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const showing = await prisma.showing.findFirst({
+          where: {
+            id: parsed.showingId,
+            type: 'openhouse',
+            date: { gte: today },
+            status: { not: 'cancelled' },
+          },
+          select: {
+            listing: {
+              select: {
+                listing_id: true,
+                address: true,
+                status: true,
+                rls_eligible: true,
+                owner_opt_out: true,
+                participant_only: true,
+                internet_entire_listing_display_yn: true,
+                internet_address_display_yn: true,
+              },
+            },
+          },
+        });
+        // Codex #472 r9: link ONLY when the listing is PUBLICLY ELIGIBLE by the
+        // exact same predicate the /api/open-houses feed uses (opt-out,
+        // participant-only, internet display, Mallan-owned, status) AND the
+        // submitted address matches. Fail-closed on both.
+        if (
+          showing?.listing &&
+          isLocalOpenHousePubliclyEligible(showing.listing) &&
+          rsvpAddressMatches(showing.listing.address, listingAddress)
+        ) {
+          rsvpListingId = showing.listing.listing_id;
+        }
+      }
+    } catch {
+      rsvpListingId = null; // best-effort only
+    }
+
     // Real Inquiry row (Workstream C1 of master refactor). Never throws.
     await createInquiry({
       source: 'open_house_rsvp',
+      listingId: rsvpListingId,
       leadId: lead.id,
       message: message ?? null,
       email: lead.email,
