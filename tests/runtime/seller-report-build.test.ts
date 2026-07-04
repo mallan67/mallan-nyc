@@ -302,6 +302,16 @@ describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
     expect(line).toBe('434 W 20th Street 7, New York City, NY 10011');
   });
 
+  it('composeAddressDisplay includes StreetDirSuffix — "Central Park S" not "Central Park" (Codex #472 r13)', () => {
+    expect(composeAddressDisplay(
+      { StreetNumber: '160', StreetName: 'Central', StreetSuffix: 'Park', StreetDirSuffix: 'S', City: 'New York', StateOrProvince: 'NY', PostalCode: '10019' },
+      'X',
+    )).toBe('160 Central Park S, New York, NY 10019');
+    expect(composeAddressDisplay(
+      { StreetNumber: '100', StreetName: 'Park', StreetSuffix: 'Avenue', StreetDirSuffix: 'S' }, 'X',
+    )).toContain('100 Park Avenue S');
+  });
+
   it('composeAddressDisplay still reads camelCase (CRM/local rows); PascalCase wins when both present', () => {
     expect(composeAddressDisplay({ streetNumber: '400', streetName: 'East 90th Street', unitNumber: '4D', city: 'New York', state: 'NY', postalCode: '10128' }, 'SL-0007'))
       .toBe('400 East 90th Street 4D, New York, NY 10128');
@@ -585,6 +595,16 @@ describe('rsvpAddressMatches — RESO split-shape address + cross-street safety 
     // "100 Main Street 4" is #100 with floor 4 — must NOT link the #4 listing:
     expect(rsvpAddressMatches(four, '100 Main Street 4')).toBe(false);
     expect(rsvpAddressMatches(four, '100 Main Street, 4')).toBe(false);
+  });
+
+  it('a borough/locality word INSIDE the street name is kept; only a TRAILING one is stripped (Codex #472 r13)', () => {
+    // real streets whose identity contains a borough/state word — must still link:
+    expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Manhattan', StreetSuffix: 'Avenue' }, '123 Manhattan Avenue')).toBe(true);
+    expect(rsvpAddressMatches({ StreetNumber: '200', StreetName: 'New York', StreetSuffix: 'Avenue' }, '200 New York Avenue')).toBe(true);
+    // …but they must not cross-link a different avenue:
+    expect(rsvpAddressMatches({ StreetNumber: '123', StreetName: 'Manhattan', StreetSuffix: 'Avenue' }, '123 New York Avenue')).toBe(false);
+    // trailing borough/state/ZIP (no comma) is still stripped so the address links:
+    expect(rsvpAddressMatches({ StreetNumber: '558', StreetName: 'Kosciuszko', StreetSuffix: 'Street' }, '558 Kosciuszko Street Brooklyn NY 11221')).toBe(true);
   });
 });
 

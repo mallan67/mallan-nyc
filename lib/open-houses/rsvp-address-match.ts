@@ -96,9 +96,10 @@ interface Parts {
 /**
  * Classify NON-number name tokens into direction / suffix / core.
  * `exclude` holds the stored street-number tokens (already matched separately).
- * `stripLoc` drops trailing city/borough/state/zip tokens (submitted side only).
+ * Trailing locality tokens are removed by the caller (only at the END, so a real
+ * "Manhattan Avenue" / "New York Avenue" keeps its identity).
  */
-function classify(tokens: string[], exclude: Set<string>, stripLoc: boolean): Parts {
+function classify(tokens: string[], exclude: Set<string>): Parts {
   const dir = new Set<string>();
   const suf = new Set<string>();
   const core = new Set<string>();
@@ -107,7 +108,6 @@ function classify(tokens: string[], exclude: Set<string>, stripLoc: boolean): Pa
   const lastIdx = tokens.length - 1;
   tokens.forEach((raw, i) => {
     if (exclude.has(raw)) return;                       // stored street-number token
-    if (stripLoc && (LOCATION_TOKENS.has(raw) || isZip(raw))) return;
     if (raw === 'st' || raw === 'saint') {
       if (raw === 'st' && i === lastIdx) suf.add('street'); // "Main St"
       else core.add('saint');                               // "St Nicholas"
@@ -174,9 +174,15 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const numTokens = tokenize(num).filter((t) => !isBareUnit(t));
   if (numTokens.length === 0 || !numTokens.every((t) => houseSet.has(t))) return false;
 
-  // 2. street name (house number already removed from nameTokens).
-  const stored = classify(tokenize(storedFull), new Set(), false);
-  const sub = classify(nameTokens, new Set(), true);
+  // Strip a TRAILING run of city/borough/state/ZIP tokens only — a mid-name
+  // borough word ("Manhattan Avenue", "New York Avenue") is part of the street
+  // identity and must be kept; only a trailing "…Street Brooklyn NY 11221" is dropped.
+  let end = nameTokens.length;
+  while (end > 0 && (LOCATION_TOKENS.has(nameTokens[end - 1]) || isZip(nameTokens[end - 1]))) end--;
+
+  // 2. street name (house number removed; trailing locality trimmed).
+  const stored = classify(tokenize(storedFull), new Set());
+  const sub = classify(nameTokens.slice(0, end), new Set());
 
   // Direction must AGREE (East ≠ West; directionless ≠ directioned).
   if (!setEq(stored.dir, sub.dir)) return false;

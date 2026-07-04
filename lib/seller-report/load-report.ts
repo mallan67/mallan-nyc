@@ -25,8 +25,10 @@ const MAX_ROWS = 5000;
  * rows may carry legacy camelCase. Read PascalCase first with camelCase
  * fallback (pickAddressParts precedent, #463), and compose the street via
  * the canonical composeSlugStreetName (DirPrefix + Name + Suffix — SEO-001
- * shared helper) so IDX reports show the real address, not the listing id.
- * Exported for tests.
+ * shared helper) PLUS StreetDirSuffix (Codex #472 r13 — RESO shapes like
+ * "Central Park S" / "Park Avenue S" carry the direction in StreetDirSuffix;
+ * without it the report shows the wrong street) so IDX reports show the real
+ * address, not the listing id. Exported for tests.
  */
 export function composeAddressDisplay(address: unknown, fallback: string): string {
   const a = (address && typeof address === 'object' ? address : {}) as Record<string, unknown>;
@@ -36,7 +38,11 @@ export function composeAddressDisplay(address: unknown, fallback: string): strin
     const cv = typeof a[camel] === 'string' ? (a[camel] as string).trim() : '';
     return cv;
   };
-  const street = [pick('StreetNumber', 'streetNumber'), composeSlugStreetName(a)].filter(Boolean).join(' ');
+  const street = [
+    pick('StreetNumber', 'streetNumber'),
+    composeSlugStreetName(a),
+    pick('StreetDirSuffix', 'streetDirSuffix'),
+  ].filter(Boolean).join(' ');
   const unitVal = pick('UnitNumber', 'unitNumber');
   const unit = unitVal ? ` ${unitVal}` : '';
   const locality = [pick('City', 'city'), pick('StateOrProvince', 'state') || pick('StateOrProvince', 'stateOrProvince')].filter(Boolean).join(', ');
