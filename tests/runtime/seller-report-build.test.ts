@@ -294,7 +294,7 @@ import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
 import { isLocalOpenHousePubliclyEligible } from '@/lib/open-houses/local-open-house-eligible';
 
 describe('Codex #472 r1 — PascalCase address + capped-slice totals', () => {
-  it('composeAddressDisplay reads RESO PascalCase (IDX rows) incl. DirPrefix/Suffix via canonical street composition', () => {
+  it('composeAddressDisplay reads Cotality/Trestle PascalCase split fields (IDX rows) incl. DirPrefix/Suffix via canonical street composition', () => {
     const line = composeAddressDisplay(
       { StreetNumber: '434', StreetDirPrefix: 'W', StreetName: '20th', StreetSuffix: 'Street', UnitNumber: '7', City: 'New York City', StateOrProvince: 'NY', PostalCode: '10011' },
       'RLS20084568'
@@ -519,13 +519,13 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
   });
 });
 
-describe('rsvpAddressMatches — RESO split-shape address + cross-street safety (Codex #472 r12)', () => {
-  // Production stores the SPLIT shape (verified live 2026-07-03): StreetName is bare
-  // ("52nd", "30th", "Fort Washington"), with direction in StreetDirPrefix/DirSuffix
-  // and type in StreetSuffix. The matcher must compose all four and compare by core
-  // EQUALITY, so different real streets never cross-link.
+describe('rsvpAddressMatches — Cotality/Trestle split-address fields + cross-street safety (Codex #472 r12)', () => {
+  // Production stores the Cotality/Trestle SPLIT address fields (field names verified live
+  // against the DB 2026-07-03): StreetName is bare ("52nd", "30th", "Fort Washington"), with
+  // direction in StreetDirPrefix/StreetDirSuffix and type in StreetSuffix. The matcher composes
+  // all four and compares by core EQUALITY, so different real streets never cross-link.
 
-  it('composes the split RESO fields — directioned numbered streets link their own address', () => {
+  it('composes the split Cotality/Trestle fields — directioned numbered streets link their own address', () => {
     const eSt = { StreetNumber: '429', StreetDirPrefix: 'E', StreetName: '52nd', StreetSuffix: 'Street' };
     expect(rsvpAddressMatches(eSt, '429 East 52nd Street')).toBe(true);
     expect(rsvpAddressMatches(eSt, '429 East 52nd, #4D')).toBe(true);   // DTO shape (suffix omitted) + unit

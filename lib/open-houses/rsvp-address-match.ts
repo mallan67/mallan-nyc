@@ -1,34 +1,48 @@
 /**
- * RSVP listing-linkage integrity (Codex #472 r5; field-shape + cross-street fix r12).
+ * RSVP listing-linkage integrity (Codex #472 r5; field-shape fix r12; guard simplification r16).
  *
- * `openHouseId` on the public RSVP route is request-body supplied, so a caller could
- * post a REAL `local-{showingId}` with an arbitrary address and MISATTRIBUTE — or
- * inflate — another listing's RSVP counts. On a seller report, attributing one
- * seller's open-house RSVP to another seller's listing is a trust breaker, far worse
- * than missing a count, so linkage fails CLOSED on any uncertainty.
+ * CONTRACT — what this function does and does NOT do:
+ *   - It is a pass/fail CONFIRMATION gate. In app/api/open-houses/rsvp/route.ts the RSVP is
+ *     attributed to the listing resolved from the SERVER-SIDE `showingId`; this function only
+ *     ALLOWS or DENIES linking to that ONE already-resolved listing. It can NEVER redirect an
+ *     RSVP to a different seller's listing/report.
+ *   - `openHouseId` and the submitted address are request-body supplied, so this is a
+ *     plausibility/anti-abuse check on whether the submission matches the resolved listing.
+ *     It fails CLOSED on uncertainty (a missed link undercounts; it never misattributes).
  *
- * r12 (root fix): production stores the RESO/Trestle SPLIT address shape — `StreetName`
- * is bare/partial ("90th", "Central", "Fort Washington", "St Nicholas") with the
- * direction in `StreetDirPrefix`/`StreetDirSuffix` and the type in `StreetSuffix`.
- * Earlier rounds read only `StreetName`, so their direction/suffix logic was inert in
- * production. The comparison NAME is now composed from all four fields, and the core
- * (identity) tokens must match by EQUALITY — "Fort Washington Avenue" (core {fort,
- * washington}) must never link "Washington Avenue" (core {washington}), and vice versa.
+ * ADDRESS FIELDS — the stored listing address is the Cotality/Trestle SPLIT address shape
+ * (the exact field names verified live against the production DB 2026-07-03), NOT one composed
+ * string. The distinct fields:
+ *   StreetNumber · StreetDirPrefix · StreetName · StreetSuffix · StreetDirSuffix ·
+ *   UnitNumber · City · StateOrProvince · PostalCode.
+ * `StreetName` is bare/partial ("90th", "Central", "Fort Washington", "St Nicholas"); the
+ * direction lives in StreetDirPrefix/StreetDirSuffix and the type in StreetSuffix. Earlier
+ * rounds read only `StreetName`, so their direction/suffix logic was inert. The comparison NAME
+ * is composed from StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix, and the core
+ * (identity) tokens must match by EQUALITY — "Fort Washington Avenue" (core {fort,washington})
+ * never links "Washington Avenue" (core {washington}), and vice versa.
  *
  * A submission links to the resolved listing only when ALL hold:
- *   1. every stored street-NUMBER token is present in the submitted STREET portion
- *      (r7/r9: "1400" ≠ "400"; hyphenated "25-10" → 25 AND 10);
- *   2. the submitted street portion (unit/apartment tail and post-comma city/
- *      neighborhood dropped; bare unit tokens like "2G"/"4D" stripped) matches on:
- *        - DIRECTION set equality (East ≠ West; "Broadway" ≠ "West Broadway";
- *          "Park Avenue" ≠ "Park Avenue South");
- *        - street-type SUFFIX set equality when BOTH sides carry one (Street ≠ Avenue;
- *          submitters who omit "Street" are tolerated);
- *        - CORE (identity) token set EQUALITY — Fort Washington ≠ Washington, Avenue H
- *          ≠ Avenue J — OR, for a pure-suffix name like "Broadway" (empty core), an
- *          exact suffix match with no extra submitted core.
- * Abbreviation-tolerant (E/East, St/Street, Ave/Avenue); "St" is read as Saint when it
- * leads a name (St Nicholas) and Street only as a trailing type. Pure; never throws.
+ *   1. the stored street-NUMBER tokens are an ORDERED PREFIX of the submitted house run
+ *      (r7/r9: "1400" ≠ "400"; hyphenated "25-10" ≠ "10-25");
+ *   2. the submitted street portion (unit/apartment tail and post-comma city/neighborhood
+ *      dropped; bare unit tokens like "2G"/"4D" stripped) matches on:
+ *        - DIRECTION set equality (East ≠ West; "Broadway" ≠ "West Broadway");
+ *        - street-type SUFFIX set equality when BOTH carry one (Street ≠ Avenue; an omitted
+ *          suffix is tolerated);
+ *        - CORE (identity) token set EQUALITY (Fort Washington ≠ Washington; Avenue H ≠
+ *          Avenue J) — OR, for a pure-suffix name like "Broadway" (empty core), an exact
+ *          suffix match with no extra submitted core;
+ *   3. cross-area: if a submitted ZIP disagrees with the stored `PostalCode`, fail closed.
+ *
+ * BOROUGH IS NOT INFERRED. Borough is never guessed from street/neighborhood text
+ * ("Manhattan Beach" is a Brooklyn neighborhood; Manhattan/Queens `City` values often carry no
+ * borough word at all). If borough disambiguation is ever needed it must come from a VERIFIED
+ * Cotality/API field or a canonical ZIP→borough/county lookup — never free-text parsing. Today
+ * the only cross-area guard is the ZIP-mismatch check (3); ZIP is the reliable discriminator.
+ *
+ * Abbreviation-tolerant (E/East, St/Street, Ave/Avenue); "St" is read as Saint when it leads a
+ * name (St Nicholas) and Street only as a trailing type. Pure; never throws.
  */
 
 const DIRECTIONS = new Set([
@@ -145,9 +159,9 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   const name = pick('StreetName', 'streetName');
   if (!num || !name) return false;
 
-  // Compose the stored comparison name from ALL RESO address fields — StreetName
-  // alone is bare/partial in production; direction can live in either DirPrefix or
-  // DirSuffix, the type in StreetSuffix.
+  // Compose the stored comparison name from ALL Cotality/Trestle split address fields —
+  // StreetName alone is bare/partial in production; direction can live in either DirPrefix
+  // or DirSuffix, the type in StreetSuffix.
   const storedFull = [
     pick('StreetDirPrefix', 'streetDirPrefix'),
     name,
