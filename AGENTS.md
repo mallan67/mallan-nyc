@@ -101,7 +101,20 @@ Before ending a session or handing off:
   Platform Issue Registry; all other documents reference the ID instead of duplicating the
   description.
 
-## 6. Current status (pointer, not a copy)
+## 6. Review policy (binds every merge decision — Maya directive 2026-07-03)
+
+- **Codex is PREFERRED, not mandatory** — one strong reviewer, not the gatekeeper. The standard is
+  evidence-based and multi-reviewer.
+- **High-risk PRs** require EITHER a clean Codex review OR **two independent clean reviews plus a
+  written exception note.**
+- **High-risk** = migrations · env flags · cron · archive/shedding · billing/storage · public
+  compliance surfaces · contact/lead writes · seller-report attribution.
+- **Low-risk docs/read-only PRs** require: CI green · one independent review · no unrelated files ·
+  and no unresolved Codex finding if Codex is available.
+- **Any Codex finding** must be FIXED, proven PRE-EXISTING and split to its own issue, or
+  documented as future-gated / out-of-scope — never silently ignored.
+
+## 7. Current status (pointer, not a copy)
 
 Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
 2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
