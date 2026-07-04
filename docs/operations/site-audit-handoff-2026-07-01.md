@@ -1,6 +1,6 @@
 # MAllan Website — Site Audit Handoff
 
-> **2026-07-02 UPDATE (supersedes the #465/#466 directives below):** PR #466 merged 01:33Z; PR #465 merged 02:35Z after 4 Codex rounds on current HEADs (final HEAD `abc8d613`, not `65b9507a`); guard deployed `858da234`, live-baselined under registry **RW-004**. PR #468 (SEO-001) merged 19:49Z — Verified Fixed (MISMATCH 10,069→0). Gate 6 stays paused pending the **OPS-009 two-flag IMPLEMENTATION + one clean cycle** (decision alone insufficient). Live status → dashboard + Platform Issue Registry; the lines below are the 2026-07-01 snapshot kept for history.
+> **2026-07-02 UPDATE (supersedes the #465/#466 directives below):** PR #466 merged 01:33Z; PR #465 merged 02:35Z after 4 Codex rounds on current HEADs (final HEAD `abc8d613`, not `65b9507a`); guard deployed `858da234`, live-baselined under registry **RW-004**. PR #468 (SEO-001) merged 19:49Z — Verified Fixed (MISMATCH 10,069→0). Gate 6 stays paused: OPS-009 two-flag controls are now **IMPLEMENTED + deployed + kill-switch VERIFIED** (#470 / OPS-020, 2026-07-03); the remaining 5K prerequisites are **`ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle AND a fresh protected rollback branch (OPS-022 — the prior one was auto-pruned 2026-07-03)**. Live status → dashboard + Platform Issue Registry; the lines below are the 2026-07-01 snapshot kept for history.
 
 Date: 2026-07-01
 Repo: `mallan67/mallan-nyc`

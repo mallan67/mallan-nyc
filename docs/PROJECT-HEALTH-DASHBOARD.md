@@ -109,7 +109,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
 | OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
 | OPS-010A | Operations | Storage churn suppression (diff-before-write) | P1 | Open (sequenced after pilot) | Claude |
-| OPS-017 | Operations | **Schema drift** — full diff DONE 2026-07-03: leads = false alarm; real drift = benign orphan tables/indexes + updated_at defaults | P3 | Verified — cleanup deferred (held migration) | Claude / Maya |
+| OPS-022 | Operations | **Gate-6 rollback branch AUTO-PRUNED** (2026-07-03; main only) — a fresh PROTECTED rollback branch is a HARD prerequisite before the 5K execute (one-way strip, 6h PITR) | P1 | **BLOCKER for 5K — needs Maya (create + protect branch)** | Maya |
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
