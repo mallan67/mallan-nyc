@@ -245,7 +245,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 
 - ⚠️ **Rollback branch `pre-gate6-5k-pilot-2026-07-01` was AUTO-PRUNED 2026-07-03T04:00:48Z (OPS-022)** — restore LSN `4/745307E0` no longer recoverable via that branch; a FRESH protected rollback branch must be created before any execute.
 - 5K **dry-run** done (backlog 80,712; scanned 5,000; archived 0; skipped 0; errors 0). **No execute has run.**
-- `ARCHIVE_T180_BACKLOG_ENABLED` OFF — but per OPS-009 this flag only selects the eligibility CLOCK (`terminal_since` vs `status_changed_at`, `data-retention/route.ts:168-171`); **the nightly T+180 archive loop RUNS either way (500-cap)**. A true archive gate does not exist until the OPS-009 two-flag implementation lands.
+- **OPS-009 two-flag archive gate is now IMPLEMENTED + deployed + kill-switch VERIFIED** (#470 / OPS-020, 2026-07-03): `ARCHIVE_ENABLED` + `ARCHIVE_BACKLOG_DRAIN_ENABLED`, both unset → state **OFF** (fail-closed). The old `ARCHIVE_T180_BACKLOG_ENABLED` (clock-only, non-gating) flag is superseded. **Real 5K prerequisites now:** (1) `ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle, (2) **OPS-022** fresh protected rollback branch — both Maya-held. (Not an unlanded implementation step.)
 
 ### Shedding operating rule (Maya directive 2026-07-01)
 
