@@ -509,6 +509,85 @@ describe('rsvpAddressMatches — RSVP linkage integrity (Codex #472 r5)', () => 
   });
 });
 
+describe('rsvpAddressMatches — RESO split-shape address + cross-street safety (Codex #472 r12)', () => {
+  // Production stores the SPLIT shape (verified live 2026-07-03): StreetName is bare
+  // ("52nd", "30th", "Fort Washington"), with direction in StreetDirPrefix/DirSuffix
+  // and type in StreetSuffix. The matcher must compose all four and compare by core
+  // EQUALITY, so different real streets never cross-link.
+
+  it('composes the split RESO fields — directioned numbered streets link their own address', () => {
+    const eSt = { StreetNumber: '429', StreetDirPrefix: 'E', StreetName: '52nd', StreetSuffix: 'Street' };
+    expect(rsvpAddressMatches(eSt, '429 East 52nd Street')).toBe(true);
+    expect(rsvpAddressMatches(eSt, '429 East 52nd, #4D')).toBe(true);   // DTO shape (suffix omitted) + unit
+    // …but must NOT link the opposite-direction street at the same number:
+    expect(rsvpAddressMatches(eSt, '429 West 52nd Street')).toBe(false);
+    // …nor a directionless submission (can't confirm E vs W → fail closed):
+    expect(rsvpAddressMatches(eSt, '429 52nd Street')).toBe(false);
+  });
+
+  it('Fort Washington Avenue is a DIFFERENT street from Washington Avenue — core equality (Maya 2026-07-03)', () => {
+    const fortWash = { StreetNumber: '720', StreetName: 'Fort Washington', StreetSuffix: 'Avenue' };
+    const wash = { StreetNumber: '720', StreetName: 'Washington', StreetSuffix: 'Avenue' };
+    // each links its OWN address:
+    expect(rsvpAddressMatches(fortWash, '720 Fort Washington Avenue')).toBe(true);
+    expect(rsvpAddressMatches(wash, '720 Washington Avenue')).toBe(true);
+    // …but NEVER each other (the false positive r11 subset logic allowed):
+    expect(rsvpAddressMatches(wash, '720 Fort Washington Avenue')).toBe(false);
+    expect(rsvpAddressMatches(fortWash, '720 Washington Avenue')).toBe(false);
+    // same class: Little West 12th ≠ West 12th; Central Park Avenue ≠ Park Avenue
+    expect(rsvpAddressMatches({ StreetNumber: '55', StreetDirPrefix: 'W', StreetName: '12th', StreetSuffix: 'Street' }, '55 Little West 12th Street')).toBe(false);
+    expect(rsvpAddressMatches({ StreetNumber: '100', StreetName: 'Park', StreetSuffix: 'Avenue' }, '100 Central Park Avenue')).toBe(false);
+  });
+
+  it('"St" is Saint when it leads a name (St Nicholas), Street only as a trailing type', () => {
+    const stNick = { StreetNumber: '320', StreetName: 'St Nicholas', StreetSuffix: 'Avenue' };
+    expect(rsvpAddressMatches(stNick, '320 St Nicholas Avenue')).toBe(true);
+    expect(rsvpAddressMatches(stNick, '320 Saint Nicholas Avenue')).toBe(true);   // spelling drift tolerated
+    expect(rsvpAddressMatches(stNick, '320 Nicholas Avenue')).toBe(false);        // dropping "Saint" = different street
+    // trailing "St" still reads as Street:
+    expect(rsvpAddressMatches({ StreetNumber: '100', StreetName: 'Bank', StreetSuffix: 'Street' }, '100 Bank St')).toBe(true);
+  });
+
+  it('lettered avenues (Avenue H) link exactly, never a sibling letter', () => {
+    const aveH = { StreetNumber: '3220', StreetName: 'Ave H' };  // real shape: whole "Ave H" in StreetName
+    expect(rsvpAddressMatches(aveH, '3220 Avenue H')).toBe(true);
+    expect(rsvpAddressMatches(aveH, '3220 Ave H, Apt 2')).toBe(true);
+    expect(rsvpAddressMatches(aveH, '3220 Avenue J')).toBe(false);   // different avenue
+  });
+
+  it('StreetDirSuffix distinguishes Central Park South from West, and Park Ave from Park Ave South', () => {
+    const cpS = { StreetNumber: '160', StreetName: 'Central', StreetSuffix: 'Park', StreetDirSuffix: 'S' };
+    expect(rsvpAddressMatches(cpS, '160 Central Park South')).toBe(true);
+    expect(rsvpAddressMatches(cpS, '160 Central Park West')).toBe(false);   // different street (dir suffix)
+    const parkAve = { StreetNumber: '100', StreetName: 'Park', StreetSuffix: 'Avenue' };
+    expect(rsvpAddressMatches(parkAve, '100 Park Avenue')).toBe(true);
+    expect(rsvpAddressMatches(parkAve, '100 Park Avenue South')).toBe(false); // Park Ave ≠ Park Ave South
+  });
+
+  it('Queens parallel grid — 30th Avenue does not absorb 30th Road / Street at the same number', () => {
+    const q30ave = { StreetNumber: '25-10', StreetName: '30th', StreetSuffix: 'Avenue' };
+    expect(rsvpAddressMatches(q30ave, '25-10 30th Avenue, Astoria')).toBe(true);   // own listing + trailing neighborhood
+    expect(rsvpAddressMatches(q30ave, '25-10 30th Road, Astoria')).toBe(false);    // parallel street, same number
+    expect(rsvpAddressMatches(q30ave, '25-10 30th Street')).toBe(false);
+  });
+
+  it('trailing city/state/zip is tolerated; a bare unit token does not break a pure-suffix name', () => {
+    const kos = { StreetNumber: '558', StreetName: 'Kosciuszko', StreetSuffix: 'Street' };
+    expect(rsvpAddressMatches(kos, '558 Kosciuszko Street, Brooklyn, NY 11221')).toBe(true);
+    // Broadway (pure suffix) via the open-houses-list path that appends ", 4D" (no #):
+    expect(rsvpAddressMatches({ StreetNumber: '100', StreetName: 'Broadway' }, '100 Broadway, 4D')).toBe(true);
+    expect(rsvpAddressMatches({ StreetNumber: '100', StreetName: 'Broadway' }, '100 West Broadway')).toBe(false);
+  });
+
+  it('a bare trailing floor number cannot satisfy the stored house number (same-street wrong-building)', () => {
+    const four = { StreetNumber: '4', StreetName: 'Main', StreetSuffix: 'Street' };
+    expect(rsvpAddressMatches(four, '4 Main Street')).toBe(true);
+    // "100 Main Street 4" is #100 with floor 4 — must NOT link the #4 listing:
+    expect(rsvpAddressMatches(four, '100 Main Street 4')).toBe(false);
+    expect(rsvpAddressMatches(four, '100 Main Street, 4')).toBe(false);
+  });
+});
+
 
 describe('isLocalOpenHousePubliclyEligible — RSVP gate == feed gate (Codex #472 r9)', () => {
   const base = { listing_id: 'SL-0004', status: 'Active', rls_eligible: false as const,
