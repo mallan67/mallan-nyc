@@ -295,7 +295,11 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
               internet_entire_listing_display_yn: l.internet_entire_listing_display_yn,
               internet_address_display_yn: l.internet_address_display_yn,
             }).displayable;
-      if (!displayable) continue;
+      // Codex #472 r15: require an open-house-ELIGIBLE status on BOTH branches so the
+      // FEED matches the RSVP-linkage predicate (isLocalOpenHousePubliclyEligible) —
+      // otherwise the RLS branch would expose a ComingSoon/Pending open house the RSVP
+      // path (correctly) refuses to link, dropping every RSVP for that shown event.
+      if (!displayable || !OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status)) continue;
       const addr = pickAddressParts(l.address);
       const timeParts = (s.time || '').split('-').map((t) => t.trim());
       out.push({

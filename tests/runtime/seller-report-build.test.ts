@@ -620,6 +620,12 @@ describe('rsvpAddressMatches — borough/ZIP, lettered avenues, hyphenated order
     const oakBk = { StreetNumber: '55', StreetName: 'Oak', StreetSuffix: 'Street', City: 'Brooklyn' };
     expect(rsvpAddressMatches(oakBk, '55 Oak Street, Queens')).toBe(false);
     expect(rsvpAddressMatches(oakBk, '55 Oak Street, Brooklyn')).toBe(true);
+    // Codex #472 r15: a borough word INSIDE the street name must NOT be read as the
+    // submitted borough — "Manhattan Avenue" is a real Brooklyn street:
+    const manhAveBk = { StreetNumber: '123', StreetName: 'Manhattan', StreetSuffix: 'Avenue', City: 'Brooklyn' };
+    expect(rsvpAddressMatches(manhAveBk, '123 Manhattan Avenue')).toBe(true);            // no locality → not dropped
+    expect(rsvpAddressMatches(manhAveBk, '123 Manhattan Avenue, Brooklyn')).toBe(true);  // locality borough agrees
+    expect(rsvpAddressMatches(manhAveBk, '123 Manhattan Avenue, Queens')).toBe(false);   // explicit wrong borough
   });
 
   // FP-2: single-letter S/N/E/W avenues must not collapse into the direction bucket.

@@ -138,7 +138,9 @@ describe('open-houses card — gold "Mallan Exclusive" badge (page is Mallan-onl
   it('local path only surfaces/badges genuinely Mallan-owned listings (not any synced showing)', () => {
     // gate the local path on Mallan ownership; the helper is the shared one (asserted in the lib test)
     expect(ROUTE).toMatch(/import\s*\{[\s\S]*?isMallanOwnedLocalListing[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
-    expect(ROUTE).toMatch(/gate\.displayable && isMallanOwnedLocalListing\(l\)/);
+    // Codex #472 r15: the local filter also requires an open-house-ELIGIBLE status so the
+    // feed matches the RSVP-linkage predicate (no shown-but-unlinkable ComingSoon/Pending).
+    expect(ROUTE).toMatch(/gate\.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\) && isMallanOwnedLocalListing\(l\)/);
   });
 });
 

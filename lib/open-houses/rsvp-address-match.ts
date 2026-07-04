@@ -175,7 +175,11 @@ export function rsvpAddressMatches(addressJson: unknown, submitted: unknown): bo
   if (storedZip5.length === 5 && subZip && storedZip5 !== subZip) return false;
   const BOROUGHS = ['staten island', 'manhattan', 'brooklyn', 'queens', 'bronx'];
   const storedCity = pick('City', 'city').toLowerCase();
-  const subBorough = BOROUGHS.find((b) => subLower.includes(b));
+  // Codex #472 r15: read the submitted borough ONLY from the explicit locality (after
+  // the first comma) — never from inside the street name, else a real "123 Manhattan
+  // Avenue" in Brooklyn would be misread as borough=Manhattan and wrongly dropped.
+  const localityPart = commaIdx >= 0 ? subLower.slice(commaIdx) : '';
+  const subBorough = BOROUGHS.find((b) => localityPart.includes(b));
   const storedBorough = BOROUGHS.find((b) => storedCity.includes(b));
   if (subBorough && storedBorough && subBorough !== storedBorough) return false;
 
