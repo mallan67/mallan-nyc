@@ -459,8 +459,11 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             });
         return { s, l, gate };
       })
-      // Mallan-only page: keep displayable AND genuinely Mallan-owned (website-only exclusives).
-      .filter(({ gate, l }) => gate.displayable && isMallanOwnedLocalListing(l))
+      // Mallan-only page: keep displayable, an open-house-ELIGIBLE status, AND genuinely
+      // Mallan-owned. Codex #472 r15: the status check makes the feed match the RSVP-
+      // linkage predicate (isLocalOpenHousePubliclyEligible) so no ComingSoon/Pending RLS
+      // open house is shown-but-unlinkable (UCBA: ComingSoon has no showings).
+      .filter(({ gate, l }) => gate.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
       // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
       // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which
