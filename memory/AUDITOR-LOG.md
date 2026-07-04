@@ -8,6 +8,17 @@
 > silent-drift incident. Skipping it is how that incident happened.
 
 
+## SECURITY DELTA — owner-view DTO (sanitizeOwnedListingForOwner) — 2026-06-29
+
+**Branch:** `fix/portal-owner-listing-authorization` HEAD `200b0781` · **Scope:** `git diff 23c59f24..HEAD` (delta on the IDOR-fix commit I PASSED). Files: `lib/compliance/dto.ts` (+44, new `sanitizeOwnedListingForOwner`), `app/api/portal/listings/route.ts` (owner branch swap), 2 tests.
+
+**VERDICT: PASS.** No CRITICAL/HIGH/MEDIUM. Resolves the prior LOW (owned withdrawn/opted-out/CRM-exclusive listings were being fail-closed-dropped from their owner's own portal).
+
+- **Over-exposure: NONE.** The new owner DTO's `flat` allow-list is byte-identical to `sanitizeListingForPortal`'s (same 19 fields) and both call the same `sanitizeForPortal(flat, role)` masking. Curated object, not a raw-row spread → no password_hash/token/raw_data/agent-PII/owner_client_id/lead-PII. agent_info still masked to `{company}`. Address suppression still applied. Only the 3 listing-level visibility gates (owner_opt_out / participant_only / internet_entire_listing_display_yn) are lifted.
+- **Reachability: owner-only.** Sole non-test caller is the `/api/portal/listings` owner branch (`isOwnerRole`, after `userType!=="lead"`→403), querying `where:{owner_client_id: auth.userId}`. GET-only, owner_client_id not request-settable → no IDOR, no non-owner path.
+- **Compliance: COMPLIANT.** UCBA Art. I §4(A)/§5(A) opt-out, participant_only (Def. W), RLS Gate 3 all govern PUBLIC dissemination/IDX/syndication to third parties. An owner viewing their OWN listing in their OWN authenticated portal is not dissemination. No $40k MLS risk (no agent PII, no other-broker data, no IDX redistribution).
+- **No public/buyer regression:** `sanitizeListingForPortal` + buyer branch (both gates + `.filter(Boolean)`) unchanged.
+
 ## ROUND 5 — NEON STORAGE + OPS HARDENING — 2026-04-28
 
 **Verdict:** PASS — 11 PRs shipped (#71–#81); gates clean (type-check 0 errors, lint 0 warnings, 194/194 compliance tests, UCBA 46 PASS / 0 regressions, ops:health HEALTHY at 43% of 500 MB cap).
@@ -713,3 +724,26 @@ blocker for this PR.
 **LOW (pre-existing, repo-wide, NOT introduced):** orphan OData `$filter` uses inline `replace(/'/g,"''")` quote-doubling vs canonical `sanitizeOData` — correct here (server-internal RLS ids, allowlist would corrupt legit keys), tracked since RC1.
 
 **Blocking deployment:** No.
+
+---
+
+## 2026-07-01 — Full-repo pre-launch security audit (Security Agent)
+**Scope:** All 284 `app/api/**` routes, auth system (`lib/auth/**`), edge pipeline (`proxy.ts` + `lib/middleware/**`), `lib/compliance/dto.ts` + `lib/idx/*-dto`, media proxy, 23 crons, secrets/PII repo scan, public/crm client JS, security headers. Method: 5 parallel subagent sweeps + core-module read + live read-only production probes.
+**Verdict: FAIL for launch** — 1 CRITICAL + 3 HIGH open.
+
+**CRITICAL**
+- Trestle OAuth `client_id`/`client_secret` in git history commit `18e25077` (`scripts/test-trestle-geo.js`; deleted from tree, recoverable from history). Same as prior C1. Rotation at Cotality NOT verifiable from repo — confirm rotated + consider history purge (needs Maya approval; force-push hold).
+
+**HIGH**
+- Login brute-force: `lib/middleware/rate-limiter.ts:191` bypasses all rate limiting on presence of any `session_token` cookie; login route has no in-route limiter and no lockout. forgot/reset-password unthrottled (email bombing).
+- `/admin` guard fail-open: `lib/middleware/route-guards.ts:74` `undefined===undefined` when `PRIVATE_COLLECTION_PASS` unset. LIVE: `GET /admin` + `/admin/login` = HTTP 200 unauth (no redirect). Latent full admin bypass; small blast radius today (only login page).
+- `app/api/crm/commissions/route.ts:45-108` POST: `requireAgentOrBroker` (should be broker-only) + unscoped `deal_id` → cross-agent commission/1099 tampering.
+
+**MEDIUM:** 12 crons fail-open if CRON_SECRET unset (incl. tenant-nurture email); login user-enumeration via distinct errors + bcrypt timing; portal PII leaks (agent/lead email to buyer/family via external-listing comments; family/invite existing-Lead disclosure + non-consensual link; buyer requester_lead_id to seller via showings metadata); media proxy unauthenticated w/ server Trestle token (content-type-gated).
+**LOW:** 4 portal address returns skip `internet_address_display_yn` gate (REBNY §2.05); debug/media-health leaks 8-char token prefix (auth-gated); CSP `unsafe-inline`+CRM `unsafe-eval`; sessions not invalidated on password reset; `.env.local.backup-before-repoint` plaintext secrets on disk (gitignored).
+
+**Live HTTP evidence:** `/crm/index-built.html` + `/crm/data/*.json` → 307 to login (gated, NOT world-readable). `/api/crm/leads` 401 (also 401 with forged cookie). `/api/health/env` 401. cron GET 401. `/api/auth/dev-login` 404. `/admin` 200 unauth (fail-open). `/api/listings` returns clean public-DTO JSON. Root headers: CSP+nonce, HSTS preload, COOP, X-Frame DENY, Permissions-Policy — all present.
+
+**PASS areas:** No raw-MLS/PII leak on any listing route (DTO tiers + fail-closed gates verified). Auth primitives solid. CRM route auth/IDOR/mass-assignment model consistent and correct (one exception = commissions). Secrets: no NEXT_PUBLIC leaks, Trestle creds env-only in code, CRM client JS clean.
+
+**Blocking deployment:** Yes — resolve CRITICAL + 3 HIGH first.

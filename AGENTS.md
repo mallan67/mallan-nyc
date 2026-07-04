@@ -94,10 +94,33 @@ Before ending a session or handing off:
   gaps · ≤5 verify before touching production.
 - A hypothesis mistaken for a diagnosis is a process failure; wording must make the difference
   impossible to miss across sessions and across agents.
+- **Derived-summary invariant (Maya 2026-07-02):** changing any issue requires updating every
+  derived summary in the same PR (Issue Row → Priority Table → P0/P1 Summary → Dashboard →
+  Handoff). Any stale layer = the PR is incomplete.
+- **Single-ID invariant (Maya 2026-07-02):** every issue has exactly one ID, defined in the
+  Platform Issue Registry; all other documents reference the ID instead of duplicating the
+  description.
 
-## 6. Current status (pointer, not a copy)
+## 6. Review policy (binds every merge decision — Maya directive 2026-07-03)
 
-Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of the last
-handoff: **PR #465** (idx-sync archived-row rehydration guard) is **open, not merged**; current HEAD
-`65b9507a` already carries the NULL-safe `archivedSafeMediaWhere` — **awaiting a Codex review of the
-current HEAD** before merge. **Gate 6 has not executed** (dry-run only; rollback branch exists).
+- **Codex is PREFERRED, not mandatory** — one strong reviewer, not the gatekeeper. The standard is
+  evidence-based and multi-reviewer.
+- **High-risk PRs** require EITHER a clean Codex review OR **two independent clean reviews plus a
+  written exception note.**
+- **High-risk** = migrations · env flags · cron · archive/shedding · billing/storage · public
+  compliance surfaces · contact/lead writes · seller-report attribution.
+- **Low-risk docs/read-only PRs** require: CI green · one independent review · no unrelated files ·
+  and no unresolved Codex finding if Codex is available.
+- **Any Codex finding** must be FIXED, proven PRE-EXISTING and split to its own issue, or
+  documented as future-gated / out-of-scope — never silently ignored.
+
+## 7. Current status (pointer, not a copy)
+
+Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
+2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
+(`858da234`); the guard is under registry **RW-004** regression watch. **OPS-009 archive controls
+are IMPLEMENTED + deployed (#470) and the kill-switch proof is VERIFIED (OPS-020, 03:00:46Z).**
+**Gate 6 has NOT executed.** Next gate is Maya's `ARCHIVE_ENABLED=true` MAINTENANCE decision, then the
+5K pilot — which also requires a **FRESH rollback branch: the prior one was auto-pruned 2026-07-03
+(OPS-022), so no rollback branch currently exists.** Roadmap: SEO-001 ✅ · OPS-009 ✅ (awaiting flag) ·
+5K pilot (blocked on OPS-022 + flag) · OPS-017.
