@@ -108,6 +108,26 @@ tryProbe(() => {
   add("Gate 6 rollback branch", "⚪", "neonctl unavailable / not authed");
 });
 
+// ── 3b. Neon facts drift gate (OPS-016) — authoritative check = scripts/neon-verify.ts ──
+// Reuses the single source of truth; exit 0 = docs match live, 1 = DRIFT, 2 = UNVERIFIED.
+tryProbe(() => {
+  let code = 0;
+  try {
+    sh("npx tsx scripts/neon-verify.ts");
+  } catch (e) {
+    // A real drift exits 1; an unreachable/unauthed Neon exits 2. If the runner
+    // itself is missing (npx/tsx ENOENT → status undefined), treat as UNVERIFIED
+    // (2, ⚪), not a false DRIFT (🔴).
+    const st = (e as { status?: number }).status;
+    code = typeof st === "number" ? st : 2;
+  }
+  const s: Status = code === 0 ? "🟢" : code === 2 ? "⚪" : "🔴";
+  add("Neon facts drift (neon:verify)", s,
+    code === 0 ? "NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s)"
+      : code === 2 ? "UNVERIFIED — neonctl not authed/offline (run `npm run neon:verify` locally)"
+        : "DRIFT — NEON.md disagrees with live Neon; run `npm run neon:verify` for the field diff");
+}, () => add("Neon facts drift (neon:verify)", "⚪", "neon:verify unavailable"));
+
 // ── 4. Cron cadence from vercel.json (schedule = source of truth) ────────────
 tryProbe(() => {
   const vercel = JSON.parse(readFileSync(path.resolve("vercel.json"), "utf8")) as { crons?: Array<{ path: string; schedule: string }> };

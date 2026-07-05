@@ -2,9 +2,11 @@
 
 > **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc.**
 
-**Last updated:** 2026-05-17 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
+**Last updated:** 2026-07-05 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
 
-**Plan:** **Launch** (since 2026-05-17, confirmed via Maya's Vercel UI inspection). Storage cap 10 GB, compute baseline 300 CU-hr/mo, branch cap 5000 per project. See §2 for full table, §10 change log for tier-history.
+**Plan:** **Launch** (`launch_v3`, since 2026-05-17; live-verified 2026-07-05 via `neonctl projects get`). Storage cap 10 GB, compute fixed 0.25 CU, branch cap 5000 per project. See §2 for full table + the machine-checked canonical-facts block, §10 change log for tier-history.
+
+> **PITR / history retention is 6 hours (21600 s), live-verified 2026-07-05 — NOT 7 days.** Earlier revisions of this file claimed "7 days" sourced from Neon's plan documentation, never from the live setting; that was drift (OPS-016). 7-day PITR *is* available on the Launch plan but is not the current setting — see §2.1 for the verified value and the exact (Maya-gated) command to raise it.
 
 > ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
 >
@@ -45,11 +47,41 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 
 | Dimension | Launch plan baseline | Current usage | Source |
 |---|---|---|---|
-| Storage | **10 GB** (10,240 MB) — usage-billed past baseline | ~215–220 MB (~2% of cap) | `scripts/ops-health.js` THRESHOLDS |
-| Compute time | **300 CU-hours / month** baseline, overage at ~$0.16/CU-hr | well under baseline at current traffic | `scripts/ops-health.js` THRESHOLDS |
-| Branches per project | **5000** (vs. 10 on Free) | 8 on `neon-green-school` per 2026-05-17 Console read | Vercel Configure panel + Neon Console |
-| Instant-restore window (PITR / history retention) | **6 hours on THIS project** — verified directly from Neon configuration (`history_retention_seconds=21600`, project API via neonctl, 2026-07-02; NOT inferred from runtime). Why not 7 days: Neon defaults are Free = 6h, paid plans = 1 day; Launch allows **up to** 7 days as a project-level setting (Console → Settings → Instant restore). This project kept its Free-era 6h setting through the 2026-05-17 Launch upgrade — the earlier "7 days (Launch baseline)" here conflated the Launch MAXIMUM with the configured value. Consequences: point-in-time restore reaches back only ~6h (named branches pin their LSN independently and are the durable restore mechanism — e.g. the Gate-6 rollback branch); the ~6h window governs how fast HISTORY ages out after branch deletion — it does NOT mean billed storage drops: the S1 check (OPS-018, measured 2026-07-02) confirmed freed TOAST space is **reusable-not-returned** (physical size did not fall after branches were deleted + retention elapsed + autovacuum). Do not treat a missing same-day drop as an anomaly and do not escalate to compaction — disposition is no compaction now, no pg_repack until after the Gate-6 drain if at all, VACUUM FULL forbidden. Registry: OPS-016 + OPS-018 | 21,600 s | Neon config API (neonctl) 2026-07-02 + Neon docs + OPS-018 measurement |
+| Storage | **10 GB** (10,240 MB) — usage-billed past baseline | Neon synthetic (billed) storage **~1.51 GB / ~14% of cap** (incl. 6 h history/WAL); branch logical size ~1.40 GB — live `neonctl projects get` 2026-07-05. The older "~215 MB / 2%" figure was the `pg_database_size` LOGICAL measure and understated billed storage. | live `neonctl` + `scripts/ops-health.js` |
+| Compute time | **300 CU-hours / month** baseline, overage at ~$0.16/CU-hr | fixed **0.25 CU** (autoscale min=max=0.25); well under baseline | live `neonctl` + `scripts/ops-health.js` |
+| Branches per project | **5000** (vs. 10 on Free) | **1 (main only)** on `neon-green-school` — live 2026-07-05 (the Gate-6 rollback branch was auto-pruned; see OPS-022) | live `neonctl branches list` |
+| Instant-restore window (PITR / history retention) | **6 hours on THIS project** — verified directly from Neon configuration (`history_retention_seconds=21600`, project API via neonctl, 2026-07-02; NOT inferred from runtime). Why not 7 days: Neon defaults are Free = 6h, paid plans = 1 day; Launch allows **up to** 7 days as a project-level setting (Console → Settings → Instant restore). This project kept its Free-era 6h setting through the 2026-05-17 Launch upgrade — the earlier "7 days (Launch baseline)" here conflated the Launch MAXIMUM with the configured value. Consequences: point-in-time restore reaches back only ~6h (named branches pin their LSN independently and are the durable restore mechanism — e.g. the Gate-6 rollback branch); the ~6h window governs how fast HISTORY ages out after branch deletion — it does NOT mean billed storage drops: the S1 check (OPS-018, measured 2026-07-02) confirmed freed TOAST space is **reusable-not-returned** (physical size did not fall after branches were deleted + retention elapsed + autovacuum). Do not treat a missing same-day drop as an anomaly and do not escalate to compaction — disposition is no compaction now, no pg_repack until after the Gate-6 drain if at all, VACUUM FULL forbidden. Re-verified live 2026-07-05 (`history_retention_seconds=21600`, unchanged) and now machine-checked every run by `npm run neon:verify` against the §2.1 canonical-facts block. Registry: OPS-016 (RESOLVED 2026-07-05) + OPS-018 | 21,600 s | Neon config API (neonctl) 2026-07-05 + Neon docs + OPS-018 measurement |
 | Compute auto-suspend | 5 min idle (configurable; default unchanged from Free) | `db-keepalive` cron at `*/15` **mitigates, does not prevent** — see §3 Trap #3. The 15-min interval lets routine 5-min suspends happen between pings; the cron's job is preventing multi-hour idles, not 5-min suspends. | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
+
+### 2.1 Canonical facts — machine-checked (OPS-016)
+
+These are the **live-verified** canonical identity + configuration facts for the production Neon project (read-only `neonctl`, 2026-07-05). They are the single source of truth: **`npm run neon:verify` parses this exact block and fails if any value drifts from live Neon** (exit 1 = drift, exit 2 = could-not-reach-Neon/unverified). Do not hand-edit a value here to silence a drift — fix the live setting or record the real new value.
+
+<!-- NEON:FACTS:START -->
+project_id=hidden-mountain-87248164
+org_id=org-wild-king-99967357
+plan=launch_v3
+region_id=aws-us-east-1
+pg_version=17
+default_branch_id=br-crimson-frog-adr7g9gt
+endpoint_id=ep-cold-waterfall-adno3ao2
+endpoint_host=ep-cold-waterfall-adno3ao2.c-2.us-east-1.aws.neon.tech
+compute_min_cu=0.25
+compute_max_cu=0.25
+history_retention_seconds=21600
+branches_limit=5000
+<!-- NEON:FACTS:END -->
+
+**Retention is settled at 6 h — this is the current standard, not a pending item.** Raising it to 7 days is an *optional* Launch-plan lever, not a fix owed. `neonctl` (2.22.0) cannot set retention; it is a Maya-gated Neon Console/API change and **has not been applied**. The exact change, prepared for approval:
+
+- **Console:** console.neon.tech → project `hidden-mountain-87248164` → **Settings → Storage / Instant restore** → set history retention to **7 days** → Save.
+- **API (equivalent):**
+  ```bash
+  curl -s -X PATCH https://console.neon.tech/api/v2/projects/hidden-mountain-87248164 \
+    -H "Authorization: Bearer $NEON_API_KEY" -H "Content-Type: application/json" \
+    -d '{"project":{"history_retention_seconds":604800}}'
+  ```
+  If applied, update `history_retention_seconds=604800` in the block above in the same change so `neon:verify` stays green. Trade-off: a longer window increases retained history/WAL storage (billed) — weigh against the ~1.5 GB current synthetic size.
 
 ### Plan-pressure ordering, not a hard ceiling
 
@@ -331,6 +363,7 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 | 2026-06-01 | **"Branch limit exceeded" confirmed a Vercel-side false check; made non-blocking.** Live verification: Neon API reports `branches_limit=5000` (`launch_v3`) on the bound project `hidden-mountain-87248164`; actual count ~40; a fresh test deploy created Neon branch #40 which reached `ready` — proving no real exhaustion. *Update Project Connection* (metadata re-sync) did **not** clear the red check. Two integration settings changed via the Vercel Storage UI (Maya, manual): (1) **"Create Database Branch For Deployment" → Production unchecked** (Preview still checked); (2) **"Require Active Resource Before Deploy" → OFF** — makes the false check **non-blocking** so deploys reach READY and the alias / custom-domain step completes (was "Skipped" under Require=ON). Test deploy `dpl_AUCCNDFtkDAQier4WcJtPjFWEa2d` reached READY; preview + production `/api/health` 200. Red ❌ still renders and is **only removable by Vercel**. Full record: `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. No env vars / production DB / Neon branches / credentials touched. | (current) |
 | 2026-06-01 | **Tier 2 stabilization — PR-close preview-branch cleanup workflow (draft PR, HELD).** Added `.github/workflows/cleanup-neon-preview-branch.yml` (official `neondatabase/delete-branch-action@v3` + an isolation guard step) to delete `preview/<head_ref>` on PR close, complementing the daily `neon-branch-prune` cron. Uses dedicated preview-only creds `vars.NEON_PREVIEW_PROJECT_ID` (= `hidden-mountain-87248164`) + `secrets.NEON_PREVIEW_API_KEY`; hard-pinned to the preview project and refuses the legacy do-not-serve project (`morning-bread-68708332`), protected branch names, and suspicious refs. **HELD** until Maya adds the two GitHub config items + confirms a read-only key test. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. | (draft PR) |
 | 2026-06-03 | Production DB confirmed on **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` / `main` (`br-crimson-frog-adr7g9gt`)**; legacy `morning-bread`/`royal-dawn` is stale/do-not-serve. Stale Neon/Vercel docs removed; canonical facts live in the AGENT STOP box (top of this file) + `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`. `rotate-db-keys` schedule disabled (PR #321). | (current) |
+| 2026-07-05 | **OPS-016 permanent resolution.** All Neon facts live-verified read-only (`neonctl projects get` / `branches list` / `connection-string`): plan `launch_v3`, compute fixed 0.25 CU, 1 branch (main only), **history retention `21600 s` = 6 h** (NOT 7 days). Added the machine-checked §2.1 `NEON:FACTS` block + `npm run neon:verify` (`scripts/neon-verify.ts`) which fails on any docs↔live drift; corrected the stale storage (~215 MB → synthetic ~1.51 GB) and branch-count (8 → 1) figures; documented the 7-day raise as an optional Maya-gated Console/API lever (not applied). No live Neon setting, env, cron, migration, or branch changed. | (current) |
 
 ---
 

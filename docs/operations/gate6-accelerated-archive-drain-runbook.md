@@ -42,7 +42,7 @@ The strip is one-way. Before ANY `--execute`, create a fresh Neon branch off can
 - If a prior run's branch is older than ~a day, take a fresh one immediately before the next run.
 - The operator script REFUSES `--execute` unless `--ack-rollback-branch` is passed — pass it only after the branch exists.
 
-Catastrophic rollback = restore that branch / Neon PITR (7-day window). This reverts unrelated writes too — last resort.
+Catastrophic rollback = restore that branch / Neon PITR (6-hour window — verified 2026-07-05, OPS-016; NOT 7-day). This reverts unrelated writes too — last resort.
 
 ---
 
@@ -104,7 +104,7 @@ After **every** `--execute` run, post to #415 with verification-type tags (produ
 ---
 
 ## 7. Storage / reclaim / downgrade — SEPARATE gates
-- The drain strips logical payloads but **does NOT reclaim physical storage** (dead tuples; Neon billed size governed by the 7-day PITR window). Expect a temporary PITR/WAL storage bump, then settle.
+- The drain strips logical payloads but **does NOT reclaim physical storage** (dead tuples; Neon billed size governed by the 6-hour PITR/history window — verified, OPS-016). Expect a temporary PITR/WAL storage bump, then settle.
 - **Reclaim** (later, separate gate): `pg_repack` or dump→fresh-branch after the PITR window. **NEVER `VACUUM FULL` on Neon.**
 - **Downgrade** (Launch→Free) is a separate final decision, **not** unlocked by this drain alone.
 

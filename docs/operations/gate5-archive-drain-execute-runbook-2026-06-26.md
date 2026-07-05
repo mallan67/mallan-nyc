@@ -77,7 +77,7 @@ Run read-only (force `ARCHIVE_T180_BACKLOG_ENABLED=true` **locally only** for op
 
 ## 7. Rollback options & limits
 - **Stop future selection (kill-switch):** `ARCHIVE_T180_BACKLOG_ENABLED`=false (or remove) in Vercel Production **+ redeploy** (env is per-deployment). Verify the active deployment post-dates the change. Stops the next nightly batch; does **not** restore already-archived rows.
-- **Catastrophic-case point-in-time:** the §1 pre-Gate-5 Neon branch (`br-square-silence-adok1l3y`) or Neon PITR (7-day window) — whole-branch restore, reverts unrelated writes too; last resort only.
+- **Catastrophic-case point-in-time:** the §1 pre-Gate-5 Neon branch (`br-square-silence-adok1l3y`) or Neon PITR (6-hour window — verified 2026-07-05, OPS-016; NOT 7-day) — whole-branch restore, reverts unrelated writes too; last resort only.
 - **No per-row un-archive** is provided here (would require manual restore from `listings_archive` summary + a Trestle re-fetch, not guaranteed for terminal listings).
 
 ## 8. Abort conditions (stop the drain)

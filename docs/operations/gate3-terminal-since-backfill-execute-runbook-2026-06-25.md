@@ -124,7 +124,7 @@ and the backfill stores the UTC ISO value as wall-time (`::timestamp`, TZ-indepe
 on cold-waterfall: `value::timestamp = value::timestamp` matches under **both** `GMT` and
 `America/New_York` sessions, whereas `value::timestamp = value::timestamptz` is **false** under a non-UTC
 session — using `::timestamptz` would silently skip valid rows. NULL rows never match `= v.ts`, so they
-stay safe. **Fallback (heavy):** the §1 Neon branch (point-in-time, whole-branch) or Neon PITR (7-day
+stay safe. **Fallback (heavy):** the §1 Neon branch (point-in-time, whole-branch) or Neon PITR (6-hour window — verified, OPS-016; NOT 7-day
 window) — use only for a catastrophic case, since they revert unrelated writes too.
 
 ## 8. Post-execute verification (read-only)
