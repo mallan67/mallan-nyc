@@ -38,6 +38,18 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    the current HEAD already addresses it. Always check the PR's current head SHA first.
 6. **Compliance-first** — anything touching listings, IDX, syndication, CRM lead/contact, intake forms,
    display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
+7. **Cotality is the sole authority — always live, never a copy, never a spot-check** (Maya law,
+   2026-07-05). Every listing **status, field name, and picklist value** must be verified against the
+   **live Cotality API** (`api.cotality.com/trestle` `$metadata`), NOT a snapshot (`artifacts/metadata.xml`),
+   NOT a hand-copied set, NOT another agent's list. The single generated source is
+   `data/cotality-enums.live.json` (regenerate with `npm run cotality:pull`; the drift guard
+   `npm run cotality:verify` fails if it or any code set diverges from live). If a status/field value is
+   wrong in one place it is almost certainly wrong in the copies elsewhere — **verify the whole surface,
+   never one file.** Known live truths (2026-07-05): `StandardStatus` = {Active, ActiveUnderContract,
+   Canceled, Closed, ComingSoon, Delete, Expired, Hold, Incomplete, Pending, Withdrawn} (spelling is
+   **`Canceled`**, one L — never "Cancelled"); "Sold"/"Rented" exist in **no** Cotality enum;
+   `Permission` has **no** "OwnerOptOut"; `PropertyType` is camelCase (`ResidentialLease`, never
+   "Residential Lease"). Full audit: `docs/audits/cotality-status-truth-audit-2026-07-05.md`.
 
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
@@ -59,6 +71,7 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | Neon / Prisma / DB rules | `NEON.md` |
 | Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
+| **Cotality enum truth (status/field/picklist)** | `data/cotality-enums.live.json` (generated live via `npm run cotality:pull`; guarded by `npm run cotality:verify`). The live API is authority; this file is its verified mirror. |
 
 ### Canonical Documentation (Maya directive 2026-07-01)
 

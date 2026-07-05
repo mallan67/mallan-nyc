@@ -21,6 +21,7 @@ import {
 // A3 Codex fix (2026-05-20): atomic DB-side roles union — see
 // lib/leads/lead-upsert.ts header for the race scenario this closes.
 import { atomicMergeUpsertLead } from '@/lib/leads/lead-upsert';
+import { withDbRetry } from '@/lib/db/with-retry';
 
 // Re-export so the symbols are visibly part of the route module surface and
 // the source-pin test in tests/runtime/contact-form-consent.test.ts can
@@ -147,14 +148,19 @@ export async function POST(request: NextRequest) {
     // helper is still exported for use by other lead-write surfaces
     // and for the source-pin contract in the test suite, but it is
     // intentionally NOT called on this hot path.
-    const lead = await atomicMergeUpsertLead(prisma, {
-      email,
-      firstName,
-      lastName,
-      phone: phone || '',
-      incomingRoles,
-      consentCapturedAt: consentDate,
-    });
+    // Wrapped in withDbRetry: the production DB auto-suspends and a submit landing on a
+    // cold compute throws P1001 — losing the lead. The retry wakes it and re-tries so the
+    // capture survives the cold start (verified failure mode, Vercel logs 2026-06/07).
+    const lead = await withDbRetry(() =>
+      atomicMergeUpsertLead(prisma, {
+        email,
+        firstName,
+        lastName,
+        phone: phone || '',
+        incomingRoles,
+        consentCapturedAt: consentDate,
+      }),
+    );
     const mergedRoles = lead.roles;
 
     await linkBehavioralSessionToLead(behavioralSessionId, lead.id);

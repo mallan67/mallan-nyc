@@ -149,7 +149,9 @@ export async function GET(request: Request) {
       try {
         const token = await getAccessToken();
         const isRental = type === 'rent';
-        const propertyClass = isRental ? "PropertyType eq 'Residential Lease'" : "PropertyType eq 'Residential'";
+        // Cotality PropertyType is camelCase 'ResidentialLease' (no space) — the space variant
+        // matched 0 live rows, silently emptying every rental market stat (AGENTS.md §1 invariant 7).
+        const propertyClass = isRental ? "PropertyType eq 'ResidentialLease'" : "PropertyType eq 'Residential'";
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
         // $select fields verified against live Trestle $metadata (2026-04-19):
         // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT

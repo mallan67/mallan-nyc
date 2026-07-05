@@ -125,7 +125,7 @@ function ago(iso) {
     odataCount(token, 'Property'),
     odataCount(token, 'Property', `StandardStatus eq 'Active'`),
     odataCount(token, 'Property', `StandardStatus eq 'Active' and PropertyType eq 'Residential'`),
-    odataCount(token, 'Property', `StandardStatus eq 'Active' and PropertyType eq 'Residential Lease'`),
+    odataCount(token, 'Property', `StandardStatus eq 'Active' and PropertyType eq 'ResidentialLease'`),
     odataCount(token, 'Property', `StandardStatus eq 'Closed' and CloseDate ge ${new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)}`),
     odataCount(token, 'Property', `StandardStatus eq 'Active' and InternetEntireListingDisplayYN eq false`),
     odataCount(token, 'Property', `StandardStatus eq 'Active' and InternetAddressDisplayYN eq false`),

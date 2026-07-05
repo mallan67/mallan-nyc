@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { useSwipe } from '@/lib/hooks/useSwipe';
+import { toEmbedUrl } from '@/lib/media/embed-url';
 
 const PLACEHOLDER = '/images/listing-placeholder.svg';
 
@@ -256,7 +257,7 @@ export default function ListingMediaGallery({
           <div className="relative aspect-[4/3] md:aspect-[16/9] bg-black">
             {/youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(videoUrl) ? (
               <iframe
-                src={videoUrl}
+                src={toEmbedUrl(videoUrl)}
                 className="absolute inset-0 w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -279,7 +280,7 @@ export default function ListingMediaGallery({
         {activeTab === '3d' && virtualTourUrl && (
           <div className="relative aspect-[4/3] md:aspect-[16/9] bg-black">
             <iframe
-              src={virtualTourUrl}
+              src={toEmbedUrl(virtualTourUrl)}
               className="absolute inset-0 w-full h-full"
               allow="fullscreen; xr-spatial-tracking"
               allowFullScreen

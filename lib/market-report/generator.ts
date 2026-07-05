@@ -133,7 +133,7 @@ async function fetchTrestleStats(
   if (!typeFilter) return { section: null, data_failed: false };
 
   const statusFilter = listingType === "rent"
-    ? "StandardStatus eq 'Active' and PropertyType eq 'Residential Lease'"
+    ? "StandardStatus eq 'Active' and PropertyType eq 'ResidentialLease'" // camelCase live value, no space (invariant 7)
     : "StandardStatus eq 'Active' and PropertyType eq 'Residential'";
 
   let filter = `${statusFilter} and (${typeFilter})`;
