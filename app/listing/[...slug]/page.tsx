@@ -633,6 +633,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
       })),
       photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
+      // Video / virtual tour: on the live REBNY IDX Plus feed there are NO video Media
+      // rows — video is delivered as the YouTube URL in Property.VirtualTourURLUnbranded
+      // (VideosCount>0). The card/search DTO already exposes this (db-to-public-dto.ts);
+      // the detail page previously dropped it, so the Video/3D tabs were always empty.
+      virtualTourURL:
+        (typeof rawData.VirtualTourURLUnbranded === 'string' && rawData.VirtualTourURLUnbranded) ||
+        (typeof rawData.VirtualTourURLBranded === 'string' && rawData.VirtualTourURLBranded) ||
+        undefined,
       publicRemarks: String(features.PublicRemarks || rawData.PublicRemarks || ''),
       listingContractDate: String(features.ListingContractDate || ''),
       modificationTimestamp: String(features.ModificationTimestamp || ''),
