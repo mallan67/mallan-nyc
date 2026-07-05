@@ -75,7 +75,9 @@ function main(): void {
     const bparsed = JSON.parse(braw);
     branches = Array.isArray(bparsed) ? bparsed : (bparsed.branches ?? []);
     const conn = sh(`neonctl connection-string main --project-id ${projectId} --org-id ${orgId}`);
-    connHost = new URL(conn).hostname; // ep-<endpoint>.<region>.aws.neon.tech
+    // Normalize to the DIRECT (non-pooled) host so a pooled connection string
+    // (…-pooler.<region>…) can't false-drift endpoint_id / endpoint_host.
+    connHost = new URL(conn).hostname.replace(/^([^.]+)-pooler\./, "$1."); // ep-<endpoint>.<region>.aws.neon.tech
   } catch (e) {
     console.error("[neon:verify] UNVERIFIED — could not read live Neon (neonctl missing / not authed / offline).");
     console.error(`  ${e instanceof Error ? e.message.split("\n")[0] : String(e)}`);

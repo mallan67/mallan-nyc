@@ -115,7 +115,11 @@ tryProbe(() => {
   try {
     sh("npx tsx scripts/neon-verify.ts");
   } catch (e) {
-    code = (e as { status?: number }).status ?? 1;
+    // A real drift exits 1; an unreachable/unauthed Neon exits 2. If the runner
+    // itself is missing (npx/tsx ENOENT → status undefined), treat as UNVERIFIED
+    // (2, ⚪), not a false DRIFT (🔴).
+    const st = (e as { status?: number }).status;
+    code = typeof st === "number" ? st : 2;
   }
   const s: Status = code === 0 ? "🟢" : code === 2 ? "⚪" : "🔴";
   add("Neon facts drift (neon:verify)", s,
