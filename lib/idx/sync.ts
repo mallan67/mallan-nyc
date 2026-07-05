@@ -30,6 +30,27 @@ import type { Prisma } from "@prisma/client";
 const ACTIVE_SEED_STATUSES = new Set(["Active", "ActiveUnderContract", "Pending"]);
 
 /**
+ * Statuses for which we CREATE a brand-new listing row. Incremental sync returns
+ * EVERY modified record feed-wide, so without this guard the DB accumulates listings
+ * that arrive already terminal/off-market and were NEVER active on our site.
+ * Verified 2026-07-05: 88,967 of 90,280 Closed rows had first_active_date=NULL (never
+ * displayed), ~82K ingested in a single month — pure bloat that grew every sync.
+ * We only store listings we actually display + their in-flight states. An EXISTING row
+ * is never skipped, so a real Active->terminal transition still records + hides (§2.05).
+ */
+const CREATABLE_NEW_STATUSES = new Set(["Active", "ActiveUnderContract", "ComingSoon", "Pending"]);
+
+/**
+ * True when a record is a BRAND-NEW listing (not already in our DB) arriving in a
+ * non-creatable (terminal/off-market) status — we must NOT create it (feed-wide closure
+ * bloat). Existing rows always return false so their transitions still persist. Exported
+ * for unit tests.
+ */
+export function shouldSkipNewTerminalListing(existing: unknown, status: string): boolean {
+  return !existing && !CREATABLE_NEW_STATUSES.has(status);
+}
+
+/**
  * RC2 — media-stomp guard for the per-record listing UPDATE.
  *
  * The incremental idx-sync fetches Property WITHOUT expanded Media
@@ -312,6 +333,9 @@ export interface SyncResult {
   upserted: number;
   skipped_gates: number;
   skipped_validation: number;
+  /** New listings NOT created because they arrived terminal/off-market and we never
+   *  tracked them (root-cause guard against feed-wide closure bloat). */
+  skipped_new_terminal?: number;
   errors: number;
   duration_ms: number;
 }
@@ -364,6 +388,7 @@ export async function syncListings(
   let upserted = 0;
   let skippedGates = 0;
   let skippedValidation = 0;
+  let skippedNewTerminal = 0;
   let errors = 0;
 
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
@@ -478,6 +503,15 @@ export async function syncListings(
       // the 8 typed columns remain in typedOnlyMapped (mapper emits them). mapped.agent_info
       // stays in memory for the UPDATE branch's typed derivation below.
       const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;
+      // ROOT-CAUSE FIX (2026-07-05): do NOT create a brand-new row for a listing that
+      // arrives terminal/off-market and we never tracked. Incremental sync returns every
+      // feed-wide modification, so this was storing ~88,967 never-active Closed listings
+      // (first_active_date=NULL) as fat, hidden, ever-growing bloat. Existing rows still
+      // UPDATE below, so a genuine Active->Closed transition still hides via §2.05.
+      if (shouldSkipNewTerminalListing(existing, mapped.status)) {
+        skippedNewTerminal++;
+        continue;
+      }
       await prisma.listing.upsert({
         where: { listing_id: mapped.listing_id },
         create: {
@@ -861,6 +895,7 @@ export async function syncListings(
     upserted,
     skipped_gates: skippedGates,
     skipped_validation: skippedValidation,
+    skipped_new_terminal: skippedNewTerminal,
     errors,
     duration_ms: durationMs,
   };
