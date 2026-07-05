@@ -177,6 +177,23 @@ async function main(): Promise<void> {
         // Gate on a sane floor — a successful read of an empty/restored branch must NOT show 🟢 (Codex #466).
         const growth = dbGrowthCell(total, archived);
         add("DB growth / archive state", growth.status, growth.evidence);
+
+        // ── Feed-bloat invariant (Maya 2026-07-05) ──
+        // Third-party, never-active Closed listings the incremental sync must NEVER create
+        // (root-cause guard: shouldSkipNewTerminalListing in lib/idx/sync.ts). If this ever
+        // goes non-zero after a sync, the guard regressed — alert. Same hardened predicate
+        // used for the one-time cleanup (excludes any Mallan-owned/attributed row).
+        const bloatRows = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
+          `SELECT count(*)::int AS n FROM listings
+             WHERE status='Closed' AND first_active_date IS NULL AND agent_id IS NULL AND idx_display_yn=false
+               AND listing_id NOT LIKE 'SL-%' AND listing_id NOT LIKE 'RL-%'
+               AND rls_eligible IS DISTINCT FROM false AND owner_client_id IS NULL
+               AND (list_office_name IS NULL OR list_office_name NOT ILIKE '%mallan%')`);
+        const bloatN = Number(bloatRows[0]?.n ?? 0);
+        add("Feed-bloat invariant (never-active third-party Closed)", bloatN === 0 ? "🟢" : "🔴",
+          bloatN === 0
+            ? "0 rows — incremental-sync guard holding; no third-party Closed bloat"
+            : `${bloatN} never-active third-party Closed rows present — sync guard regressed OR pre-cleanup backlog remains (expected 0 after cleanup + guard)`);
       } finally {
         await prisma.$disconnect();
       }
