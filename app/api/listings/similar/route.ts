@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
     const token = await getAccessToken();
 
     const propertyClass = isRental
-      ? "PropertyType eq 'Residential Lease'"
+      ? "PropertyType eq 'ResidentialLease'" // live Cotality value is camelCase, no space (invariant 7)
       : "PropertyType eq 'Residential'";
 
     const priceFilter = `ListPrice ge ${minPrice} and ListPrice le ${maxPrice}`;
