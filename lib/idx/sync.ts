@@ -336,6 +336,9 @@ export interface SyncResult {
   /** New listings NOT created because they arrived terminal/off-market and we never
    *  tracked them (root-cause guard against feed-wide closure bloat). */
   skipped_new_terminal?: number;
+  /** Up to 25 sample listing_ids the guard prevented from being created this run — for
+   *  investigation if the invariant is ever violated. */
+  skipped_new_terminal_sample?: string[];
   errors: number;
   duration_ms: number;
 }
@@ -389,6 +392,7 @@ export async function syncListings(
   let skippedGates = 0;
   let skippedValidation = 0;
   let skippedNewTerminal = 0;
+  const skippedNewTerminalSample: string[] = [];
   let errors = 0;
 
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
@@ -510,6 +514,7 @@ export async function syncListings(
       // UPDATE below, so a genuine Active->Closed transition still hides via §2.05.
       if (shouldSkipNewTerminalListing(existing, mapped.status)) {
         skippedNewTerminal++;
+        if (skippedNewTerminalSample.length < 25) skippedNewTerminalSample.push(mapped.listing_id);
         continue;
       }
       await prisma.listing.upsert({
@@ -896,9 +901,23 @@ export async function syncListings(
     skipped_gates: skippedGates,
     skipped_validation: skippedValidation,
     skipped_new_terminal: skippedNewTerminal,
+    skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
     duration_ms: durationMs,
   };
+
+  // INVARIANT (Maya 2026-07-05): the guard PREVENTS creating never-active terminal rows.
+  // skipped_new_terminal is the count it blocked this run (expected > 0 on a live feed with
+  // closures — that is the guard working). If the guard were ever removed, these rows would
+  // be CREATED instead and the DB candidate count would grow — caught by the health:probe
+  // "Feed-bloat invariant" cell and the post-sync recount in the cleanup validation plan.
+  // Sample listing_ids are logged for investigation.
+  if (skippedNewTerminal > 0) {
+    console.warn(
+      `[IDX Sync] INVARIANT: prevented creation of ${skippedNewTerminal} never-active terminal/off-market listings ` +
+        `(feed-wide closures never active on our site). sample listing_ids: ${skippedNewTerminalSample.join(", ")}`,
+    );
+  }
 
   console.log("[IDX Sync] Complete:", result);
 
