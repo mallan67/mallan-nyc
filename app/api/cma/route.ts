@@ -5,6 +5,7 @@ import { cmaAutoResponseEmail } from '@/lib/email/templates';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { createInquiry } from '@/lib/inquiries/create';
+import { withDbRetry } from '@/lib/db/with-retry';
 
 /**
  * POST /api/cma
@@ -75,8 +76,10 @@ export async function POST(request: NextRequest) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Upsert lead — if email already exists, update; otherwise create new
-    const lead = await prisma.lead.upsert({
+    // Upsert lead — if email already exists, update; otherwise create new.
+    // withDbRetry: this upsert is idempotent (ON CONFLICT email), so a Neon
+    // cold-start P1001 is safely retried — the lead is not lost on a cold DB.
+    const lead = await withDbRetry(() => prisma.lead.upsert({
       where: { email: email.toLowerCase().trim() },
       create: {
         first_name: firstName,
@@ -94,7 +97,7 @@ export async function POST(request: NextRequest) {
         consent_captured_at: new Date(),
         updated_at: new Date(),
       },
-    });
+    }));
 
     // Log the CMA request as an audit event
     await prisma.auditEvent.create({

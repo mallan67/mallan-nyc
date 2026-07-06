@@ -26,6 +26,7 @@
  */
 import prisma from "@/lib/prisma";
 import crypto from "node:crypto";
+import { withDbRetry } from "@/lib/db/with-retry";
 
 /**
  * Source values aligned with `compliance/rules/ucba-audit-checklist.json`
@@ -99,7 +100,12 @@ export function hashIp(rawIp: string | null | undefined): string | null {
 export async function createInquiry(input: CreateInquiryInput): Promise<bigint | null> {
   try {
     const consentAt = input.consentCapturedAt ?? new Date();
-    const row = await prisma.inquiry.create({
+    // withDbRetry: retry a transient Neon cold-start (P1001) BEFORE the catch
+    // below swallows it — otherwise a cold DB silently drops the Inquiry row.
+    // The never-throws contract is unchanged: if the retries are exhausted (or
+    // the error is non-transient, e.g. P2021 table-missing) it still falls to
+    // the catch and returns null.
+    const row = await withDbRetry(() => prisma.inquiry.create({
       data: {
         source: input.source,
         listing_id: input.listingId ?? null,
@@ -121,7 +127,7 @@ export async function createInquiry(input: CreateInquiryInput): Promise<bigint |
           : {}),
       },
       select: { id: true },
-    });
+    }));
     return row.id;
   } catch (err) {
     // Common failure modes we tolerate silently (logged for operators):
