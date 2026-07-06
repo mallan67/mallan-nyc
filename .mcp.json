@@ -9,7 +9,7 @@
         "IDX_CLIENT_SECRET": "${IDX_CLIENT_SECRET}",
         "TRESTLE_API_URL": "${TRESTLE_API_URL}"
       },
-      "description": "Live Cotality field lookup — all fields/enums across the RLS resources, parsed from the multi-namespace $metadata. Auto-refreshed from $metadata every ~15 min (TRESTLE_METADATA_TTL_MS)."
+      "description": "Live Cotality field lookup — all fields/enums across the RLS resources, parsed from the multi-namespace $metadata. Auto-refreshed from $metadata every ~10 min (TRESTLE_METADATA_TTL_MS, aligned to idx-sync)."
     }
   }
 }

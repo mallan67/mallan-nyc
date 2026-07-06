@@ -4,7 +4,7 @@
  * Connects to the live Trestle API at api.cotality.com/trestle and exposes
  * 4 tools for looking up fields, picklists, and validating field names.
  *
- * The $metadata endpoint is fetched on first use and refreshed every ~15 min
+ * The $metadata endpoint is fetched on first use and refreshed every ~10 min
  * (env TRESTLE_METADATA_TTL_MS) — so field definitions, types, and picklist
  * values track the live Cotality feed closely.
  *
@@ -26,9 +26,11 @@ import { z } from 'zod';
 
 const TRESTLE_BASE = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 const METADATA_URL = `${TRESTLE_BASE}/odata/$metadata`;
-// Refresh cadence: re-read the live Cotality $metadata every 15 min (override via env).
-// (Was 24h — too stale for a field-truth authority; aligned to the ~10–15 min feed cadence.)
-const CACHE_TTL_MS = Number(process.env.TRESTLE_METADATA_TTL_MS) || 15 * 60 * 1000; // 15 minutes
+// Refresh cadence: re-read the live Cotality $metadata every 10 min (override via env).
+// Aligned to the Cotality data-replication cadence the system already runs on (idx-sync `*/10`),
+// so there is ONE consistent Cotality rhythm. (Was 24h — far too stale for a field-truth authority.
+// Cotality's own $metadata Cache-Control is max-age=10s, a CDN default, impractical for a 2 MB doc.)
+const CACHE_TTL_MS = Number(process.env.TRESTLE_METADATA_TTL_MS) || 10 * 60 * 1000; // 10 minutes
 const CACHE_TTL_MIN = Math.round(CACHE_TTL_MS / 60000);
 const LOCAL_METADATA_FALLBACK = path.resolve(__dirname, '../../artifacts/metadata.xml');
 
