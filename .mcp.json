@@ -9,7 +9,7 @@
         "IDX_CLIENT_SECRET": "${IDX_CLIENT_SECRET}",
         "TRESTLE_API_URL": "${TRESTLE_API_URL}"
       },
-      "description": "Live Trestle field lookup — 1,363 fields across 12 REBNY RLS resources. Auto-refreshed from $metadata every 24h."
+      "description": "Live Cotality field lookup — all fields/enums across the RLS resources, parsed from the multi-namespace $metadata. 10-min TTL (TRESTLE_METADATA_TTL_MS), aligned to the system's Cotality idx-sync cadence unless Cotality specifies otherwise."
     }
   }
 }

@@ -4,8 +4,10 @@
  * Connects to the live Trestle API at api.cotality.com/trestle and exposes
  * 4 tools for looking up fields, picklists, and validating field names.
  *
- * The $metadata endpoint is fetched on first use and cached for 24 hours —
- * so field definitions, types, and picklist values are always current.
+ * The $metadata endpoint is fetched on first use and refreshed on a 10-min TTL
+ * (env TRESTLE_METADATA_TTL_MS), aligned to the system's Cotality idx-sync cadence
+ * unless Cotality specifies otherwise — so field definitions, types, and picklist
+ * values track the live Cotality feed closely.
  *
  * Auth: OAuth2 client_credentials using IDX_CLIENT_ID + IDX_CLIENT_SECRET
  * (same credentials as lib/idx/auth.ts in the main project).
@@ -25,7 +27,12 @@ import { z } from 'zod';
 
 const TRESTLE_BASE = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 const METADATA_URL = `${TRESTLE_BASE}/odata/$metadata`;
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+// 10-min TTL, aligned to the SYSTEM's Cotality idx-sync cadence (`*/10`) unless Cotality specifies
+// otherwise. This is our chosen interval, NOT a Cotality-published requirement. (Was 24h — too stale
+// for a field-truth authority.) Note: Cotality's $metadata Cache-Control is max-age=10 *seconds* (a
+// CDN default from the live response), which is not a metadata-refresh instruction. Env-overridable.
+const CACHE_TTL_MS = Number(process.env.TRESTLE_METADATA_TTL_MS) || 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_MIN = Math.round(CACHE_TTL_MS / 60000);
 const LOCAL_METADATA_FALLBACK = path.resolve(__dirname, '../../artifacts/metadata.xml');
 
 // Known resources on Trestle (for validation + listing)
@@ -62,9 +69,16 @@ interface EnumValue {
   value: number;
 }
 
+interface NavInfo {
+  name: string;    // navigation property name, e.g. "Media", "Building", "Rooms"
+  target: string;  // target resource (without namespace), e.g. "Media"
+  collection: boolean; // true if a Collection(...) ($expand returns many)
+}
+
 interface ParsedMetadata {
   fields: Map<string, FieldInfo[]>;           // fieldName (lowercase) → FieldInfo[] (one per resource)
   byResource: Map<string, FieldInfo[]>;        // resourceName → FieldInfo[]
+  navigations: Map<string, NavInfo[]>;         // resourceName → subsections ($expand targets)
   enums: Map<string, EnumValue[]>;             // enumName (lowercase) → EnumValue[]
   fetchedAt: number;
 }
@@ -174,31 +188,40 @@ function parseMetadataXml(xml: string): ParsedMetadata {
     attributeNamePrefix: '@_',
     allowBooleanAttributes: true,
     parseAttributeValue: true,
-    isArray: (tagName) => ['Property', 'EnumType', 'Member', 'EntityType', 'Annotation'].includes(tagName),
+    // 'Schema' MUST be here: the live Cotality $metadata has FIVE <Schema> namespaces
+    // (RESO.DD holds EntityTypes, RESO.DD.Enums + .Enums.Multi hold EnumTypes). The prior
+    // code read a single `Schema` object, so with the multi-schema doc it saw `undefined`
+    // for EntityType/EnumType and parsed ZERO fields — every lookup wrongly returned "not found".
+    isArray: (tagName) => ['Schema', 'Property', 'NavigationProperty', 'EnumType', 'Member', 'EntityType', 'Annotation'].includes(tagName),
   });
 
   const parsed = parser.parse(xml);
-  const schema = parsed['edmx:Edmx']['edmx:DataServices']['Schema'];
+  const rawSchemas = parsed['edmx:Edmx']['edmx:DataServices']['Schema'];
+  const schemas: any[] = Array.isArray(rawSchemas) ? rawSchemas : rawSchemas ? [rawSchemas] : [];
 
   const fields = new Map<string, FieldInfo[]>();
   const byResource = new Map<string, FieldInfo[]>();
+  const navigations = new Map<string, NavInfo[]>();
   const enums = new Map<string, EnumValue[]>();
 
-  // Parse EnumTypes
-  const enumTypes: any[] = schema['EnumType'] || [];
-  for (const enumType of enumTypes) {
-    const enumName = enumType['@_Name'] as string;
-    const members: any[] = enumType['Member'] || [];
-    const values: EnumValue[] = members.map((m: any) => ({
-      name: m['@_Name'] as string,
-      value: Number(m['@_Value']),
-    }));
-    enums.set(enumName.toLowerCase(), values);
+  // Parse EnumTypes across EVERY schema namespace.
+  for (const schema of schemas) {
+    const enumTypes: any[] = schema['EnumType'] || [];
+    for (const enumType of enumTypes) {
+      const enumName = enumType['@_Name'] as string;
+      const members: any[] = enumType['Member'] || [];
+      const values: EnumValue[] = members.map((m: any) => ({
+        name: m['@_Name'] as string,
+        value: Number(m['@_Value']),
+      }));
+      enums.set(enumName.toLowerCase(), values);
+    }
   }
 
-  // Parse EntityTypes
-  const entityTypes: any[] = schema['EntityType'] || [];
-  for (const entityType of entityTypes) {
+  // Parse EntityTypes across EVERY schema namespace.
+  for (const schema of schemas) {
+    const entityTypes: any[] = schema['EntityType'] || [];
+    for (const entityType of entityTypes) {
     const resourceName = entityType['@_Name'] as string;
     const properties: any[] = entityType['Property'] || [];
     const resourceFields: FieldInfo[] = [];
@@ -249,9 +272,22 @@ function parseMetadataXml(xml: string): ParsedMetadata {
     }
 
     byResource.set(resourceName, resourceFields);
+
+    // Subsections: NavigationProperty elements are the $expand targets (Media/photos+video,
+    // Building, Rooms, UnitTypes, CustomProperty, OpenHouse, agents/offices…). The prior parser
+    // ignored these, so a resource's subsections were invisible.
+    const navProps: any[] = entityType['NavigationProperty'] || [];
+    const navs: NavInfo[] = navProps.map((n: any) => {
+      const rawType = String(n['@_Type'] || '');
+      const collection = /^Collection\(/.test(rawType);
+      const target = rawType.replace(/^Collection\(/, '').replace(/\)$/, '').split('.').pop() || rawType;
+      return { name: n['@_Name'] as string, target, collection };
+    });
+    navigations.set(resourceName, navs);
+    }
   }
 
-  return { fields, byResource, enums, fetchedAt: Date.now() };
+  return { fields, byResource, navigations, enums, fetchedAt: Date.now() };
 }
 
 async function getMetadata(): Promise<ParsedMetadata> {
@@ -406,7 +442,7 @@ server.tool(
     }
 
     const cacheAge = Math.round((Date.now() - meta.fetchedAt) / 60000);
-    lines.push(`---\n*Data from Trestle $metadata — cached ${cacheAge}m ago, refreshes every 24h*`);
+    lines.push(`---\n*Data from Trestle $metadata — cached ${cacheAge}m ago, refreshes every ${CACHE_TTL_MIN}m*`);
 
     return { content: [{ type: 'text', text: lines.join('\n') }] };
   }
@@ -418,12 +454,11 @@ server.tool(
   'trestle_list_fields',
   'List all fields available on a specific Trestle resource. Returns field names, types, and whether they are enum/picklist fields.',
   {
-    resource: z.enum([
-      'Property', 'CustomProperty', 'Member', 'Office', 'Media',
-      'PropertyUnitTypes', 'OpenHouse', 'PropertyRooms', 'Teams',
-      'TeamMembers', 'PropertyGreenVerification', 'Building',
-      'Field', 'Lookup',
-    ]).describe('Trestle resource name'),
+    // Accept ANY live Cotality resource (validated against the parsed $metadata below), rather
+    // than a hardcoded enum that drifts — the live feed currently exposes 17 resources incl.
+    // Media (photos/video), HistoryTransactional, Model, Enumeration. A static list silently
+    // dropped sections; this keeps every section reachable, including new ones Cotality adds.
+    resource: z.string().describe('Cotality resource name — e.g. Property, Media, Office, HistoryTransactional, Building. Any live resource is accepted.'),
     type_filter: z.enum(['all', 'enum', 'string', 'numeric', 'boolean', 'date']).optional()
       .describe('Optional: filter by data type'),
   },
@@ -431,13 +466,16 @@ server.tool(
     auditLog('tool_call', { tool: 'trestle_list_fields', resource, type_filter });
 
     const meta = await getMetadata();
-    let fields = meta.byResource.get(resource);
+    // Case-insensitive resolve so "media"/"Media" both work.
+    const liveResources = [...meta.byResource.keys()];
+    const resolved = liveResources.find((r) => r.toLowerCase() === resource.toLowerCase());
+    let fields = resolved ? meta.byResource.get(resolved) : undefined;
 
     if (!fields) {
       return {
         content: [{
           type: 'text',
-          text: `Resource "${resource}" not found in Trestle metadata.\n\nKnown resources: ${KNOWN_RESOURCES.join(', ')}`,
+          text: `Resource "${resource}" not found in the live Cotality $metadata.\n\nAvailable live resources (${liveResources.length}): ${liveResources.join(', ')}`,
         }],
       };
     }
@@ -457,7 +495,7 @@ server.tool(
     }
 
     const lines: string[] = [
-      `# ${resource} Fields (${fields.length}${type_filter && type_filter !== 'all' ? ` — ${type_filter} only` : ''})\n`,
+      `# ${resolved} Fields (${fields.length}${type_filter && type_filter !== 'all' ? ` — ${type_filter} only` : ''})\n`,
     ];
 
     // Group by type for readability
@@ -480,8 +518,16 @@ server.tool(
       lines.push('');
     }
 
+    // Subsections — the $expand targets (Media/photos+video, Building, Rooms, UnitTypes, etc.).
+    const navs = meta.navigations.get(resolved!) || [];
+    if (navs.length) {
+      lines.push(`## Subsections — \`$expand\` targets (${navs.length})`);
+      lines.push(navs.map(n => `- \`${n.name}\` → ${n.target}${n.collection ? ' (collection)' : ''}`).join('\n'));
+      lines.push('');
+    }
+
     const cacheAge = Math.round((Date.now() - meta.fetchedAt) / 60000);
-    lines.push(`---\n*Cached ${cacheAge}m ago — refreshes every 24h from live Trestle $metadata*`);
+    lines.push(`---\n*Cached ${cacheAge}m ago — refreshes every ${CACHE_TTL_MIN}m from live Cotality $metadata*`);
 
     return { content: [{ type: 'text', text: lines.join('\n') }] };
   }
@@ -550,7 +596,7 @@ server.tool(
     ];
 
     const cacheAge = Math.round((Date.now() - meta.fetchedAt) / 60000);
-    lines.push(`\n---\n*Cached ${cacheAge}m ago — refreshes every 24h from live Trestle $metadata*`);
+    lines.push(`\n---\n*Cached ${cacheAge}m ago — refreshes every ${CACHE_TTL_MIN}m from live Trestle $metadata*`);
 
     return { content: [{ type: 'text', text: lines.join('\n') }] };
   }
