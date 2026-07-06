@@ -2,7 +2,8 @@
 
 Live Cotality field/enum lookup for the RLS resources. Parses the **live**
 `https://api.cotality.com/trestle/odata/$metadata` (OAuth2 client_credentials, same creds as
-`lib/idx/auth.ts`), caches it for **~10 min** (`TRESTLE_METADATA_TTL_MS`), and exposes 4 tools:
+`lib/idx/auth.ts`), refreshes it on a **10-min TTL** (`TRESTLE_METADATA_TTL_MS`) — aligned to the
+system's Cotality `idx-sync` cadence unless Cotality specifies otherwise — and exposes 4 tools:
 `trestle_lookup_field`, `trestle_list_fields`, `trestle_get_picklist`, `trestle_validate_field`.
 
 Source of truth is the **live Cotality API only**. If the live fetch fails it falls back to
@@ -34,6 +35,7 @@ the code is "fixed" but the running server still uses the old build.
   `.Enums.Multi` = enums). The parser read a single `Schema`, so it saw `undefined` for
   `EntityType`/`EnumType` and parsed **0 fields** — every lookup wrongly returned "not found"
   (broke at the CoreLogic→Cotality rebrand). Fixed to iterate all schemas. Refresh cadence
-  moved 24h → 10 min (aligned to idx-sync `*/10`). `trestle_list_fields` now accepts **any live resource** (dynamic,
+  moved 24h → 10-min TTL, aligned to the system's Cotality `idx-sync` cadence unless Cotality
+  specifies otherwise. `trestle_list_fields` now accepts **any live resource** (dynamic,
   case-insensitive) instead of a hardcoded enum that silently dropped sections such as
   `Media` (photos/video), `HistoryTransactional`, `Model`, `Enumeration`.
