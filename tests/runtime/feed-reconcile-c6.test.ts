@@ -249,3 +249,49 @@ describe('P1C6 — eligible-orphan import (RED on main: Active-only diff)', () =
     expect(json.gated_skipped).toBe(1);
   });
 });
+
+// ── STATUS-TRUTH HARDENING (2026-07-06): empty/partial HTTP-200 feed floor guards ──
+// A non-200 fetch already throws (fail-closed), but an HTTP-200 EMPTY or PARTIAL feed
+// would make the whole/most of the active book look "departed" and mass-withdraw live
+// listings. These prove the floor guards abort fail-closed with ZERO withdrawals.
+describe('STATUS-TRUTH HARDENING — feed floor guards', () => {
+  const okVal = (value: unknown) => ({
+    ok: true, status: 200, json: async () => ({ value }), text: async () => '',
+  }) as unknown as Response;
+
+  it('empty HTTP-200 feed → aborts (live_feed_empty), NO withdrawals', async () => {
+    // Every Trestle page returns 200 with an empty set → liveOnMarketIds is empty.
+    global.fetch = jest.fn(async () => okVal([])) as unknown as typeof fetch;
+    const res = await call();
+    const json = await readJson<Record<string, unknown>>(res);
+    expect(res.status).toBe(503);
+    expect(json.aborted).toBe(true);
+    expect(json.reason).toBe('live_feed_empty');
+    expect(ghostTransitions).toHaveLength(0); // ← the whole point: no mass withdrawal
+  });
+
+  it('partial/collapsed HTTP-200 feed → aborts (ghost_ratio_collapse), NO withdrawals', async () => {
+    // Non-empty but the live set contains NONE of our active ids → every active row is a
+    // false ghost (2/2 = 100% > 50% ratio). Must abort, not withdraw.
+    global.fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('Pending')) return okVal([]); // no non-active on-market
+      return okVal([{ ListingId: 'RLS-UNRELATED' }]); // Active page: one unrelated id
+    }) as unknown as typeof fetch;
+    const res = await call();
+    const json = await readJson<Record<string, unknown>>(res);
+    expect(res.status).toBe(503);
+    expect(json.aborted).toBe(true);
+    expect(json.reason).toBe('ghost_ratio_collapse');
+    expect(ghostTransitions).toHaveLength(0);
+  });
+
+  it('non-200 feed still fail-closed (throws → 5xx), NO withdrawals', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false, status: 503, json: async () => ({}), text: async () => '',
+    }) as unknown as Response) as unknown as typeof fetch;
+    const res = await call();
+    expect(res.status).toBeGreaterThanOrEqual(500);
+    expect(ghostTransitions).toHaveLength(0);
+  });
+});

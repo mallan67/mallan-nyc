@@ -1,6 +1,7 @@
 /// <reference types="jest" />
 import {
   reconcileStatusDecision,
+  resolveIdxDisplay,
   ON_MARKET_STATUSES,
   DEPARTED_STATUS,
   type LiveTruth,
@@ -133,5 +134,39 @@ describe('reconcileStatusDecision — EXHAUSTIVE matrix (every dbStatus × liveT
   it('treats a terminal (Canceled/Cancelled) + absent as a no-op either spelling', () => {
     expect(reconcileStatusDecision('Canceled', absent).action).toBe('none');
     expect(reconcileStatusDecision('Cancelled', absent).action).toBe('none');
+  });
+});
+
+describe('resolveIdxDisplay — a terminal target is NEVER displayable', () => {
+  // Fail-open fix (2026-07-06): a live status that is neither on-market nor in
+  // canonical TERMINAL_STATUSES (Hold / Incomplete / Delete). The decision engine
+  // flags targetIsTerminal=true, but computeGateColumns would treat e.g. 'Hold' as
+  // non-terminal and could compute idx_display_yn=true → terminal-but-displayable.
+  // resolveIdxDisplay closes that: targetIsTerminal ⟹ not displayable, always.
+  it.each(['Hold', 'Incomplete', 'Delete'])(
+    'live non-canonical terminal %s → decision terminal, forced NOT displayable even if gate says true',
+    (status) => {
+      const d = reconcileStatusDecision('Active', { kind: 'terminal', status });
+      expect(d.targetIsTerminal).toBe(true);
+      expect(resolveIdxDisplay(d, true)).toBe(false);
+      expect(resolveIdxDisplay(d, false)).toBe(false);
+    },
+  );
+
+  it('the fail-open premise: Hold is NOT in canonical TERMINAL_STATUSES', () => {
+    expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Hold'))).toBe(false);
+  });
+
+  it('canonical terminal target (Closed) is also not displayable', () => {
+    const d = reconcileStatusDecision('Active', { kind: 'terminal', status: 'Closed' });
+    expect(d.targetIsTerminal).toBe(true);
+    expect(resolveIdxDisplay(d, true)).toBe(false);
+  });
+
+  it('non-terminal (on-market) target keeps the gate-computed display', () => {
+    const d = reconcileStatusDecision('Withdrawn', { kind: 'onmarket', status: 'Active' });
+    expect(d.targetIsTerminal).toBe(false);
+    expect(resolveIdxDisplay(d, true)).toBe(true);
+    expect(resolveIdxDisplay(d, false)).toBe(false);
   });
 });

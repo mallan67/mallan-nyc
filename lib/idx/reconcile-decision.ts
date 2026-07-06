@@ -122,3 +122,19 @@ export function reconcileStatusDecision(
   // ON-MARKET feed is expected — it was never claimed to be on the market. Never auto-withdraw.
   return { action: 'none', targetStatus: db, targetIsTerminal: false, className: 'offmarket_noop', reason: `off-market '${db}' absent from on-market feed — leave alone` };
 }
+
+/**
+ * Final `idx_display_yn` for a corrected row. A terminal target is NEVER displayable —
+ * this closes a fail-OPEN edge where a live status is terminal-by-decision but NOT in the
+ * canonical `TERMINAL_STATUSES` set (e.g. a live 'Hold' / 'Incomplete' / 'Delete'). In that
+ * case `computeGateColumns` would treat the status as non-terminal and could return
+ * `idx_display_yn=true`, leaving the row marked terminal (`terminal_since` set) yet publicly
+ * displayable. When `decision.targetIsTerminal` is true we force display off regardless of the
+ * gate; otherwise the gate-computed value stands (fail-closed on the row's other gate columns).
+ */
+export function resolveIdxDisplay(
+  decision: ReconcileDecision,
+  gateIdxDisplay: boolean,
+): boolean {
+  return decision.targetIsTerminal ? false : gateIdxDisplay;
+}
