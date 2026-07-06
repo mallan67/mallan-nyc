@@ -8,6 +8,7 @@ import { createInquiry } from '@/lib/inquiries/create';
 import { parseOpenHouseId } from '@/lib/open-houses/parse-open-house-id';
 import { rsvpAddressMatches } from '@/lib/open-houses/rsvp-address-match';
 import { isLocalOpenHousePubliclyEligible } from '@/lib/open-houses/local-open-house-eligible';
+import { withDbRetry } from '@/lib/db/with-retry';
 
 /**
  * POST /api/open-houses/rsvp
@@ -74,8 +75,10 @@ export async function POST(request: NextRequest) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Upsert lead — if email already exists, update; otherwise create new
-    const lead = await prisma.lead.upsert({
+    // Upsert lead — if email already exists, update; otherwise create new.
+    // withDbRetry: idempotent upsert (ON CONFLICT email), so a Neon cold-start
+    // P1001 is safely retried — the RSVP lead is not lost on a cold DB.
+    const lead = await withDbRetry(() => prisma.lead.upsert({
       where: { email: email.toLowerCase().trim() },
       create: {
         first_name: firstName,
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
         consent_captured_at: new Date(),
         updated_at: new Date(),
       },
-    });
+    }));
 
     // Log the RSVP as an audit event
     await prisma.auditEvent.create({
