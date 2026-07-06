@@ -12,6 +12,7 @@ import {
   extractBehavioralSessionId,
   linkBehavioralSessionToLead,
 } from '@/lib/behavioral/session-link';
+import { withDbRetry } from '@/lib/db/with-retry';
 
 const VALID_ROLES = ['buyer', 'renter', 'seller', 'landlord'];
 
@@ -114,8 +115,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for existing lead with same email
-    const existing = await prisma.lead.findUnique({ where: { email: email.trim().toLowerCase() } });
+    // Check for existing lead with same email.
+    // withDbRetry: this findUnique is the FIRST Neon touch in the handler, so a
+    // scaled-to-zero cold-start P1001 lands here — retrying it (a safe, idempotent
+    // read) wakes the compute, so the subsequent non-idempotent lead.create runs
+    // on a warm connection. Only the read is wrapped; create is intentionally not.
+    const existing = await withDbRetry(() =>
+      prisma.lead.findUnique({ where: { email: email.trim().toLowerCase() } }),
+    );
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this email already exists. Please sign in.' },
