@@ -1,0 +1,137 @@
+/// <reference types="jest" />
+import {
+  reconcileStatusDecision,
+  ON_MARKET_STATUSES,
+  DEPARTED_STATUS,
+  type LiveTruth,
+  type ReconcileClass,
+} from '@/lib/idx/reconcile-decision';
+import { normalizeStandardStatus, TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
+
+const ON_MARKET = ['Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'];
+const TERMINALS = ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'];
+const OFF_MARKET = ['Hold', 'Incomplete', 'Draft']; // non-terminal, non-on-market
+const ALL_DB = [...ON_MARKET, ...TERMINALS, ...OFF_MARKET];
+
+const onmarket = (s: string): LiveTruth => ({ kind: 'onmarket', status: s });
+const terminal = (s: string): LiveTruth => ({ kind: 'terminal', status: s });
+const absent: LiveTruth = { kind: 'absent' };
+
+const VALID_CLASSES: ReconcileClass[] = [
+  'ok', 'mislabel_suppressed', 'revived_offmarket', 'status_drift',
+  'stale_to_terminal', 'stale_to_departed', 'terminal_realign',
+  'departed_noop', 'offmarket_noop',
+];
+
+describe('reconcileStatusDecision — EXHAUSTIVE matrix (every dbStatus × liveTruth)', () => {
+  const liveTruths: Array<[string, LiveTruth]> = [
+    ...ON_MARKET.map((s) => [`onmarket:${s}`, onmarket(s)] as [string, LiveTruth]),
+    ...TERMINALS.map((s) => [`terminal:${s}`, terminal(s)] as [string, LiveTruth]),
+    ['absent', absent],
+  ];
+
+  describe('invariants hold for every cell', () => {
+    for (const db of ALL_DB) {
+      for (const [label, live] of liveTruths) {
+        it(`db=${db} × live=${label}`, () => {
+          const d = reconcileStatusDecision(db, live);
+          const dbN = normalizeStandardStatus(db);
+          expect(VALID_CLASSES).toContain(d.className);
+
+          if (live.kind === 'onmarket') {
+            const tgt = normalizeStandardStatus(live.status);
+            // SAFETY: a live on-market listing is NEVER made terminal, target is on-market
+            expect(d.targetIsTerminal).toBe(false);
+            expect(ON_MARKET_STATUSES.has(d.targetStatus)).toBe(true);
+            expect(d.targetStatus).toBe(tgt);
+            expect(d.action).toBe(dbN === tgt ? 'none' : 'update');
+          } else if (live.kind === 'terminal') {
+            const tgt = normalizeStandardStatus(live.status);
+            expect(d.targetIsTerminal).toBe(true);
+            expect(TERMINAL_STATUSES.has(d.targetStatus)).toBe(true);
+            expect(d.targetStatus).toBe(tgt);
+            expect(d.action).toBe(dbN === tgt ? 'none' : 'update');
+          } else {
+            // absent
+            if (TERMINAL_STATUSES.has(dbN)) {
+              expect(d.action).toBe('none');
+              expect(d.className).toBe('departed_noop');
+            } else if (ON_MARKET_STATUSES.has(dbN)) {
+              expect(d.action).toBe('update');
+              expect(d.targetStatus).toBe(DEPARTED_STATUS);
+              expect(d.targetIsTerminal).toBe(true);
+              expect(d.className).toBe('stale_to_departed');
+            } else {
+              expect(d.action).toBe('none');
+              expect(d.className).toBe('offmarket_noop');
+            }
+          }
+        });
+      }
+    }
+  });
+
+  it('SAFETY: a live on-market listing is NEVER marked terminal — for any db status', () => {
+    for (const db of ALL_DB) {
+      for (const s of ON_MARKET) {
+        expect(reconcileStatusDecision(db, onmarket(s)).targetIsTerminal).toBe(false);
+      }
+    }
+  });
+
+  it('IDEMPOTENT: reconcile then re-reconcile is a no-op (no oscillation across cron runs)', () => {
+    const truths: LiveTruth[] = [...ON_MARKET.map(onmarket), ...TERMINALS.map(terminal), absent];
+    for (const db of ALL_DB) {
+      for (const live of truths) {
+        const first = reconcileStatusDecision(db, live);
+        const second = reconcileStatusDecision(first.targetStatus, live);
+        expect(second.action).toBe('none');
+      }
+    }
+  });
+
+  // ── Named production census scenarios ──
+  it('un-suppresses the 6 live-Active (Withdrawn → Active)', () => {
+    expect(reconcileStatusDecision('Withdrawn', onmarket('Active'))).toMatchObject({ action: 'update', targetStatus: 'Active', targetIsTerminal: false, className: 'mislabel_suppressed' });
+  });
+  it('un-suppresses the 97 live-Pending (Withdrawn → Pending)', () => {
+    expect(reconcileStatusDecision('Withdrawn', onmarket('Pending'))).toMatchObject({ action: 'update', targetStatus: 'Pending', className: 'mislabel_suppressed' });
+  });
+  it('hides the 127 sold-but-shown (Pending → Closed)', () => {
+    expect(reconcileStatusDecision('Pending', terminal('Closed'))).toMatchObject({ action: 'update', targetStatus: 'Closed', targetIsTerminal: true, className: 'stale_to_terminal' });
+  });
+  it('hides the 218 gone-but-shown (Pending → absent → Withdrawn)', () => {
+    expect(reconcileStatusDecision('Pending', absent)).toMatchObject({ action: 'update', targetStatus: 'Withdrawn', targetIsTerminal: true, className: 'stale_to_departed' });
+  });
+  it('leaves the 4,921 departed alone (Withdrawn + absent)', () => {
+    expect(reconcileStatusDecision('Withdrawn', absent)).toMatchObject({ action: 'none', className: 'departed_noop' });
+  });
+  it('leaves the 16,438 correct alone (Active + live Active)', () => {
+    expect(reconcileStatusDecision('Active', onmarket('Active')).action).toBe('none');
+  });
+  it('corrects on-market drift (Active → Pending)', () => {
+    expect(reconcileStatusDecision('Active', onmarket('Pending'))).toMatchObject({ action: 'update', targetStatus: 'Pending', className: 'status_drift' });
+  });
+  it('realigns a Withdrawn that is actually live Closed', () => {
+    expect(reconcileStatusDecision('Withdrawn', terminal('Closed'))).toMatchObject({ action: 'update', targetStatus: 'Closed', className: 'terminal_realign' });
+  });
+
+  // ── Off-market protection (the gap the exhaustive pass surfaced) ──
+  it.each(OFF_MARKET)('never auto-withdraws an off-market %s that is absent from the on-market feed', (s) => {
+    expect(reconcileStatusDecision(s, absent)).toMatchObject({ action: 'none', className: 'offmarket_noop' });
+  });
+  it.each(OFF_MARKET)('brings an off-market %s on-market when it appears live Active', (s) => {
+    expect(reconcileStatusDecision(s, onmarket('Active'))).toMatchObject({ action: 'update', targetStatus: 'Active', targetIsTerminal: false, className: 'revived_offmarket' });
+  });
+
+  // ── Normalization edges (case / whitespace / alias) ──
+  it('normalizes case and whitespace on both sides', () => {
+    expect(reconcileStatusDecision('withdrawn', onmarket('Active')).className).toBe('mislabel_suppressed');
+    expect(reconcileStatusDecision('Active', onmarket('active')).action).toBe('none');
+    expect(reconcileStatusDecision('  Active  ', onmarket('Active')).action).toBe('none');
+  });
+  it('treats a terminal (Canceled/Cancelled) + absent as a no-op either spelling', () => {
+    expect(reconcileStatusDecision('Canceled', absent).action).toBe('none');
+    expect(reconcileStatusDecision('Cancelled', absent).action).toBe('none');
+  });
+});

@@ -121,7 +121,11 @@ async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
  */
 async function fetchTrestleEligibleNonActiveIds(token: string): Promise<Set<string>> {
   const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  const filter = "StandardStatus eq 'Pending' or StandardStatus eq 'ActiveUnderContract'";
+  // Non-active ON-MARKET set = Pending ∪ ActiveUnderContract ∪ ComingSoon. Used to extend
+  // orphan detection AND (status-truth fix 2026-07-05) to SPARE ghosts: a local-Active
+  // listing that transitioned to any of these is still live and must NOT be withdrawn.
+  const filter =
+    "StandardStatus eq 'Pending' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon'";
   const ids = new Set<string>();
   let skip = 0;
   const pageSize = 1000;
@@ -169,10 +173,11 @@ export async function GET(req: NextRequest) {
     // 1. Fetch Trestle Active set
     const token = await getAccessToken();
     const trestleIds = await fetchTrestleActiveIds(token);
-    // P1C6: orphan eligibility = Active ∪ Pending ∪ ActiveUnderContract
-    // (ACTIVE_SEED_STATUSES). Ghost detection below uses trestleIds ONLY —
-    // semantics byte-identical to main.
+    // Non-active on-market set (Pending ∪ AUC ∪ ComingSoon). Extends orphan detection AND
+    // (status-truth fix 2026-07-05) is unioned with the Active set to spare ghosts below.
     const trestleNonActiveEligible = await fetchTrestleEligibleNonActiveIds(token);
+    // Full live on-market universe — the authority for "is this listing still live".
+    const liveOnMarketIds = new Set<string>([...trestleIds, ...trestleNonActiveEligible]);
 
     // 2. Our DB Active set + full RLS ID set (both directions of diff)
     const ourActive = await prisma.listing.findMany({
@@ -192,9 +197,15 @@ export async function GET(req: NextRequest) {
     });
     const ourAllIdsSet = new Set(ourAllRls.map((r) => r.listing_id));
 
-    // 3a. Ghosts — in our Active set, not in Trestle Active
+    // 3a. Ghosts — in our Active set but NOT live on-market in ANY status.
+    // STATUS-TRUTH FIX (2026-07-05, verified by the full DB↔Cotality census in
+    // scripts/audit/reconcile-db-vs-live-cotality.mjs): the prior filter diffed ONLY the
+    // Active fetch, so a listing that transitioned Active→Pending/AUC/ComingSoon vanished
+    // from that set and was falsely marked Withdrawn — the census found 103 live rows
+    // (6 Active, 97 Pending) suppressed this exact way. Spare every id that is live
+    // on-market in ANY status; only genuinely-departed ids remain ghosts.
     const ghosts = ourActive.filter(
-      (r) => !TERMINAL_STATUSES.has(r.status) && !trestleIds.has(r.listing_id),
+      (r) => !TERMINAL_STATUSES.has(r.status) && !liveOnMarketIds.has(r.listing_id),
     );
     // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
     // missing from our DB entirely. P1C6b: archive-excluded (an archived id

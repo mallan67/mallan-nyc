@@ -15,9 +15,11 @@
  *      payload is not pagination-proven complete — never delete from it).
  *   3. mediaCount=0 → CLEAN no-media outcome: no upsert, no faked photos,
  *      counted in orphans_no_media.
- *   4. Ghost-transition semantics byte-identical: a local-Active listing
- *      absent from Trestle-ACTIVE still transitions even when present in the
- *      Pending set (the eligible set extends ORPHANS only).
+ *   4. STATUS-TRUTH FIX (2026-07-05): ghost transition now spares any local-Active
+ *      listing that is live on-market in ANY status (Active ∪ Pending ∪ AUC ∪ ComingSoon).
+ *      Only a listing absent from EVERY live on-market status is withdrawn. This reverses
+ *      the prior Active-only diff, which the full DB↔Cotality census proved was falsely
+ *      suppressing 103 live rows (6 Active, 97 Pending).
  */
 
 import { makeRequest, readJson } from './helpers';
@@ -34,9 +36,14 @@ jest.mock('@/lib/prisma', () => ({
       findMany: jest.fn(async (args: { where: Record<string, unknown> }) => {
         // First call: ourActive (status Active); second: ourAllRls
         if ((args.where as { status?: string }).status === 'Active') {
-          return [{ id: 7n, listing_id: 'RLS-GHOST', status: 'Active' }];
+          return [
+            // Active locally but present in the live Pending set → still live → MUST be spared.
+            { id: 7n, listing_id: 'RLS-GHOST', status: 'Active' },
+            // Active locally and absent from EVERY live on-market status → a real ghost.
+            { id: 8n, listing_id: 'RLS-DEPARTED', status: 'Active' },
+          ];
         }
-        return [{ listing_id: 'RLS-A1' }, { listing_id: 'RLS-GHOST' }];
+        return [{ listing_id: 'RLS-A1' }, { listing_id: 'RLS-GHOST' }, { listing_id: 'RLS-DEPARTED' }];
       }),
       create: jest.fn(async (args: { data: Record<string, unknown> }) => {
         createdListings.push(args.data);
@@ -210,11 +217,17 @@ describe('P1C6 — eligible-orphan import (RED on main: Active-only diff)', () =
     expect(json.orphan_media_errors).toBe(0);
   });
 
-  it('ghost semantics byte-identical: local-Active absent from Trestle-ACTIVE still transitions even though it sits in the Pending set', async () => {
+  it('STATUS-TRUTH FIX: a live-Pending listing is SPARED; only a genuinely-departed listing is withdrawn', async () => {
+    // RLS-GHOST is Active locally but present in the live Pending set → still a live listing →
+    // it MUST NOT be withdrawn. RLS-DEPARTED is Active locally and absent from every live
+    // on-market status → a real ghost. The prior Active-only diff withdrew BOTH; the full
+    // DB↔Cotality census (2026-07-05) proved that falsely suppressed 103 live rows (6 Active,
+    // 97 Pending). Now only the genuinely-departed listing transitions.
     await call();
     expect(ghostTransitions).toHaveLength(1);
-    const data = (ghostTransitions[0] as { data: Record<string, unknown> }).data;
-    expect(data.status).toBe('Withdrawn');
+    const t = ghostTransitions[0] as { where: { id: unknown }; data: Record<string, unknown> };
+    expect(t.data.status).toBe('Withdrawn');
+    expect(t.where.id).toBe(8n); // RLS-DEPARTED — NOT RLS-GHOST (id 7n, spared)
   });
 
   it('P1C6b: archived id in the eligible set is EXCLUDED from import and counted', async () => {
