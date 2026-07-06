@@ -61,6 +61,12 @@ import { escapeHtml as _escapeHtml } from "@/lib/sanitize";
 export const maxDuration = 300;
 
 const GHOST_ABORT_CAP = 2000;
+// Floor guard (status-truth hardening 2026-07-06): abort if the ghost set is more than this
+// FRACTION of our active book. A non-200 fetch already throws (fail-closed), but an HTTP-200
+// EMPTY or PARTIAL feed makes most of the book look "departed" — a feed failure, not reality.
+// The ratio scales with book size where the absolute cap does not (a boutique active book
+// smaller than GHOST_ABORT_CAP would never trip the cap on an empty feed).
+const GHOST_ABORT_RATIO = 0.5;
 
 // Orphan = Trestle has a ListingId we don't (eligible set: Active/Pending/
 // AUC). P1C6b: abort-all on the orphan side is REPLACED by deterministic
@@ -121,7 +127,11 @@ async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
  */
 async function fetchTrestleEligibleNonActiveIds(token: string): Promise<Set<string>> {
   const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  const filter = "StandardStatus eq 'Pending' or StandardStatus eq 'ActiveUnderContract'";
+  // Non-active ON-MARKET set = Pending ∪ ActiveUnderContract ∪ ComingSoon. Used to extend
+  // orphan detection AND (status-truth fix 2026-07-05) to SPARE ghosts: a local-Active
+  // listing that transitioned to any of these is still live and must NOT be withdrawn.
+  const filter =
+    "StandardStatus eq 'Pending' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon'";
   const ids = new Set<string>();
   let skip = 0;
   const pageSize = 1000;
@@ -169,10 +179,11 @@ export async function GET(req: NextRequest) {
     // 1. Fetch Trestle Active set
     const token = await getAccessToken();
     const trestleIds = await fetchTrestleActiveIds(token);
-    // P1C6: orphan eligibility = Active ∪ Pending ∪ ActiveUnderContract
-    // (ACTIVE_SEED_STATUSES). Ghost detection below uses trestleIds ONLY —
-    // semantics byte-identical to main.
+    // Non-active on-market set (Pending ∪ AUC ∪ ComingSoon). Extends orphan detection AND
+    // (status-truth fix 2026-07-05) is unioned with the Active set to spare ghosts below.
     const trestleNonActiveEligible = await fetchTrestleEligibleNonActiveIds(token);
+    // Full live on-market universe — the authority for "is this listing still live".
+    const liveOnMarketIds = new Set<string>([...trestleIds, ...trestleNonActiveEligible]);
 
     // 2. Our DB Active set + full RLS ID set (both directions of diff)
     const ourActive = await prisma.listing.findMany({
@@ -192,9 +203,15 @@ export async function GET(req: NextRequest) {
     });
     const ourAllIdsSet = new Set(ourAllRls.map((r) => r.listing_id));
 
-    // 3a. Ghosts — in our Active set, not in Trestle Active
+    // 3a. Ghosts — in our Active set but NOT live on-market in ANY status.
+    // STATUS-TRUTH FIX (2026-07-05, verified by the full DB↔Cotality census in
+    // scripts/audit/reconcile-db-vs-live-cotality.mjs): the prior filter diffed ONLY the
+    // Active fetch, so a listing that transitioned Active→Pending/AUC/ComingSoon vanished
+    // from that set and was falsely marked Withdrawn — the census found 103 live rows
+    // (6 Active, 97 Pending) suppressed this exact way. Spare every id that is live
+    // on-market in ANY status; only genuinely-departed ids remain ghosts.
     const ghosts = ourActive.filter(
-      (r) => !TERMINAL_STATUSES.has(r.status) && !trestleIds.has(r.listing_id),
+      (r) => !TERMINAL_STATUSES.has(r.status) && !liveOnMarketIds.has(r.listing_id),
     );
     // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
     // missing from our DB entirely. P1C6b: archive-excluded (an archived id
@@ -204,11 +221,26 @@ export async function GET(req: NextRequest) {
       (id) => !ourAllIdsSet.has(id),
     );
 
-    // 4. Safety caps — either direction aborting halts the whole run
-    if (ghosts.length > GHOST_ABORT_CAP) {
+    // 4. Safety caps + FLOOR GUARDS — either direction aborting halts the whole run.
+    // Floor (status-truth hardening 2026-07-06): a non-200 fetch already throws (fail-closed),
+    // but an HTTP-200 EMPTY or PARTIAL feed would make the whole/most of the active book look
+    // "departed" and mass-withdraw live listings. Abort fail-closed when the live on-market set
+    // is empty, OR the ghost set exceeds GHOST_ABORT_RATIO of our active book, OR the absolute
+    // GHOST_ABORT_CAP is exceeded.
+    const liveFeedEmpty = liveOnMarketIds.size === 0;
+    const ghostRatioCollapse =
+      ourActive.length > 0 && ghosts.length / ourActive.length > GHOST_ABORT_RATIO;
+    const ghostOverCap = ghosts.length > GHOST_ABORT_CAP;
+    if (liveFeedEmpty || ghostRatioCollapse || ghostOverCap) {
+      const abortReason = liveFeedEmpty
+        ? "live_feed_empty"
+        : ghostOverCap
+          ? "ghost_count_exceeds_safety_cap"
+          : "ghost_ratio_collapse";
       console.error(
-        `[feed-reconcile] ABORT — ghost count ${ghosts.length} exceeds cap ${GHOST_ABORT_CAP}. ` +
-        `Likely Trestle fetch failure (partial result). Not transitioning.`,
+        `[feed-reconcile] ABORT (${abortReason}) — ghosts=${ghosts.length} ` +
+        `live_on_market=${liveOnMarketIds.size} our_active=${ourActive.length} cap=${GHOST_ABORT_CAP}. ` +
+        `Empty/partial Trestle feed or fetch failure. Not transitioning.`,
       );
 
       // Lifecycle/Crons Tier A P0 — out-of-band broker alert.
@@ -217,7 +249,6 @@ export async function GET(req: NextRequest) {
       // during a real Trestle outage. Send a transactional email to
       // every active broker so ops sees the issue immediately.
       // Best-effort send — alert failure does NOT block the response.
-      const abortReason = "ghost_count_exceeds_safety_cap";
       let brokerAlertsSent = 0;
       let brokerAlertsFailed = 0;
       try {
@@ -238,7 +269,7 @@ export async function GET(req: NextRequest) {
           });
           const alertResult = await sendEmail(
             broker.email,
-            `[ALERT] Feed reconcile aborted — ${ghosts.length} ghosts > cap ${GHOST_ABORT_CAP}`,
+            `[ALERT] Feed reconcile aborted (${abortReason}) — ghosts=${ghosts.length}, live_on_market=${liveOnMarketIds.size}`,
             html,
             undefined,
             { channel: "company", transactional: true },
