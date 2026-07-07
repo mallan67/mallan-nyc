@@ -8,8 +8,10 @@
  * FloorPlan). The URL already reaches the cards via the API DTO, but the cards
  * surfaced no indicator. PR-C adds a "3D Tour" badge keyed on `virtualTourURL`.
  *
- * Video is intentionally NOT surfaced: IDX Plus exposes only `VideosCount` with
- * no playable URL, so the detail Video tab stays gated on a real `videoUrl`.
+ * Video: the playable video lives in the SAME `VirtualTourURL*` fields (YouTube/
+ * Vimeo), host-split into `videoUrl` by the media resolver (fix/listing-media-
+ * pipeline). Cards now surface it too — the badge gates on hasVirtualTour ||
+ * hasVideo and labels "Video" vs "3D Tour".
  */
 import { readFileSync } from 'fs';
 import * as path from 'path';
@@ -39,18 +41,18 @@ describe('SearchListingCard — 3D Tour badge wiring (source guard)', () => {
     expect(src).toMatch(/import\s*\{[^}]*hasVirtualTour[^}]*\}\s*from\s*'@\/lib\/idx\/display-adapter'/);
   });
 
-  it('renders the TourBadge gated on hasVirtualTour in all three card variants', () => {
-    // GridCard, ListCard, SplitCard each render the badge behind a
-    // `hasVirtualTour(listing) &&` gate (ListCard/SplitCard wrap the JSX in
-    // parens; GridCard renders <TourBadge /> directly).
-    const gated = src.match(/hasVirtualTour\(listing\)\s*&&/g) || [];
+  it('renders the TourBadge gated on hasVirtualTour || hasVideo in all three card variants', () => {
+    // GridCard, ListCard, SplitCard each gate the badge on
+    // `(hasVirtualTour(listing) || hasVideo(listing)) &&` so a video listing
+    // (YouTube/Vimeo host-split into videoUrl) still gets a card indicator.
+    const gated = src.match(/\(hasVirtualTour\(listing\) \|\| hasVideo\(listing\)\)\s*&&/g) || [];
     expect(gated.length).toBeGreaterThanOrEqual(3);
     expect(src).toMatch(/<TourBadge\b/);
   });
 
-  it('labels the badge "3D Tour" and never "Video" (IDX Plus has no playable video URL)', () => {
+  it('labels the badge "3D Tour" for a tour and "Video" for a video listing', () => {
     expect(src).toMatch(/3D Tour/);
-    expect(src).not.toMatch(/>\s*Video\s*</);
+    expect(src).toMatch(/'Video'/);
   });
 
   it('does NOT reference phantom media fields', () => {
@@ -104,8 +106,8 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
     expect(src).toMatch(/const virtualTourUrl\s*=\s*listing\.virtualTourURL\s*\|\|/);
   });
 
-  it('video is derived from the media array (no phantom VideoURL field)', () => {
-    expect(src).toMatch(/const videoUrl\s*=\s*videoMedia\?\.url\s*\|\|\s*null/);
-    expect(src).not.toMatch(/listing\.VideoURL|rawData\.VideoURL/);
+  it('video is derived from the DTO videoUrl (host-split from VirtualTourURL*), not a phantom field', () => {
+    expect(src).toMatch(/const videoUrl\s*=\s*listing\.videoUrl\s*\|\|/);
+    expect(src).not.toMatch(/rawData\.VideoURL/);
   });
 });

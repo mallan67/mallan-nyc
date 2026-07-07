@@ -58,6 +58,15 @@ export function hasVirtualTour(listing: Pick<DisplayListing, 'virtualTourURL'>):
   return typeof listing.virtualTourURL === 'string' && listing.virtualTourURL.trim().length > 0;
 }
 
+/**
+ * A card has a playable VIDEO when `videoUrl` (host-split out of the Trestle
+ * `VirtualTourURL*` fields — YouTube/Vimeo/etc.) is a non-empty string. Distinct
+ * from `hasVirtualTour` (3D walk-throughs like Matterport).
+ */
+export function hasVideo(listing: Pick<DisplayListing, 'videoUrl'>): boolean {
+  return typeof listing.videoUrl === 'string' && listing.videoUrl.trim().length > 0;
+}
+
 /** Slim listing type for frontend cards — no 414-line monster */
 export interface DisplayListing {
   id: string;
@@ -92,6 +101,7 @@ export interface DisplayListing {
   media: { url: string; mediaType: string; order: number }[];
   photosCount?: number;
   virtualTourURL?: string;
+  videoUrl?: string;
   publicRemarks?: string;
   petsAllowed?: string;
   availabilityDate?: string;
@@ -153,6 +163,7 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     media: dto.media,
     photosCount: dto.photosCount,
     virtualTourURL: dto.virtualTourURL,
+    videoUrl: dto.videoUrl,
     publicRemarks: dto.publicRemarks,
     petsAllowed: dto.petsAllowed,
     availabilityDate: dto.availabilityDate,
@@ -232,6 +243,7 @@ export function toDisplayListing(raw: any): DisplayListing {
     })) || [],
     photosCount: raw.media?.images?.length,
     virtualTourURL: raw.media?.virtualTourUrl,
+    videoUrl: raw.media?.videoUrl,
     publicRemarks: raw.publicRemarks,
     petsAllowed: raw.features?.pets?.allowed ? 'Yes' : undefined,
     _source: raw._source,
