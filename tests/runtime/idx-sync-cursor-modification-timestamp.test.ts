@@ -260,11 +260,11 @@ describe('infrastructure non-changes around PR-S.6', () => {
     prismaSchema = readFileSync(PRISMA_SCHEMA_PATH, 'utf8');
   });
 
-  it("vercel.json still contains the idx-sync cron at schedule */10 * * * *", () => {
+  it("vercel.json still contains the idx-sync cron at schedule */30 * * * *", () => {
     const crons = vercelJson.crons ?? [];
     const idxSyncCron = crons.find(c => c.path === '/api/cron/idx-sync');
     expect(idxSyncCron).toBeDefined();
-    expect(idxSyncCron!.schedule).toBe('*/10 * * * *');
+    expect(idxSyncCron!.schedule).toBe('*/30 * * * *');
   });
 
   it("vercel.json does NOT contain /api/cron/media-backfill — paused for 2026-05-21 P0 Neon/media incident (PR #176)", () => {
@@ -294,7 +294,7 @@ describe('infrastructure non-changes around PR-S.6', () => {
     expect(mediaBackfillCron).toBeUndefined();
   });
 
-  it("vercel.json still contains /api/cron/media-sync at schedule */15 * * * * (PR #176 — newer preferred listing_media + R2 writer remains active)", () => {
+  it("vercel.json still contains /api/cron/media-sync at schedule 0 * * * * (hourly; approved compute-reduction cadence, PR #481 2026-07-07)", () => {
     // /api/cron/media-sync is the PR-3 master-refactor path with
     // retry/cooldown/tombstone guards in listing_media (see
     // prisma/schema.prisma ListingMedia model at lines 2357-2370 and
@@ -308,7 +308,7 @@ describe('infrastructure non-changes around PR-S.6', () => {
     const crons = vercelJson.crons ?? [];
     const mediaSyncCron = crons.find(c => c.path === '/api/cron/media-sync');
     expect(mediaSyncCron).toBeDefined();
-    expect(mediaSyncCron!.schedule).toBe('*/15 * * * *');
+    expect(mediaSyncCron!.schedule).toBe('0 * * * *');
   });
 
   it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {

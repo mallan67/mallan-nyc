@@ -29,7 +29,7 @@ The mallan-nyc Neon usage shape is designed so the project **fits inside the Fre
 - A bounded set of secondary tables (audit_events, demand_signals, listing_search_projection, etc.) that grow slowly
 - A single production branch (`main`) on the canonical production project (`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`)
 - A small, prune-disciplined set of preview branches on the same Vercel-integration project (`hidden-mountain-87248164`)
-- Compute discipline: `db-keepalive` cron at `*/15` (not `*/3`), no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
+- Compute discipline: no artificial DB keepalive — the `db-keepalive` cron was **removed** and `idx-sync`/`media-sync` widened to `*/30`/hourly in the approved 2026-07 compute-reduction (PR #481) so the endpoint can autosuspend between jobs; no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
 
 ### Why this is the policy, not just an aesthetic preference
 

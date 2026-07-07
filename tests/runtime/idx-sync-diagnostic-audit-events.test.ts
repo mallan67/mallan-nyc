@@ -541,7 +541,7 @@ describe("retention — diagnostic events fall under existing 2-year audit purge
 });
 
 describe("no out-of-scope changes (cron / schema / compliance / sync behavior)", () => {
-  it("vercel.json still has the idx-sync cron at schedule */10 * * * *", () => {
+  it("vercel.json still has the idx-sync cron at schedule */30 * * * *", () => {
     const vercel = JSON.parse(readFileSync(VERCEL_JSON_PATH, "utf8")) as {
       crons?: Array<{ path: string; schedule: string }>;
     };
@@ -549,7 +549,7 @@ describe("no out-of-scope changes (cron / schema / compliance / sync behavior)",
       (c) => c.path === "/api/cron/idx-sync",
     );
     expect(idxSyncCron).toBeDefined();
-    expect(idxSyncCron!.schedule).toBe("*/10 * * * *");
+    expect(idxSyncCron!.schedule).toBe("*/30 * * * *");
   });
 
   it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {

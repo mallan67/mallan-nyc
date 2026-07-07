@@ -32,9 +32,9 @@ _Last probed (UTC): **2026-07-03T16:36:52Z** — refreshed by `npm run health:pr
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
-| Cron cadence (live Cotality) | 🟢 | 22 crons; idx-sync `*/10 * * * *`, media-sync `*/15 * * * *`, db-keepalive `*/15 * * * *` |
+| Cron cadence (live Cotality) | 🟢 | 21 crons; idx-sync `*/30 * * * *`, media-sync `0 * * * *` (hourly), db-keepalive removed — approved compute-reduction (PR #481, 2026-07-07) |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 17m ago (cadence 10m) |
+| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 17m ago (cadence 30m after PR #481) |
 | DB growth / archive state | 🟢 | 110,707 listings; 2,032 archived (sync_status='archived') |
 <!-- HEALTH:AUTO:END -->
 
