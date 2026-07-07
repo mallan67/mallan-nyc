@@ -98,11 +98,11 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       expect(idxSyncFnConfig!.maxDuration).toBe(120);
     });
 
-    it("keeps idx-sync cron schedule at '*/10 * * * *' in vercel.json", () => {
+    it("keeps idx-sync cron schedule at '*/30 * * * *' in vercel.json", () => {
       const crons = vercelJson.crons ?? [];
       const idxSyncCron = crons.find(c => c.path === '/api/cron/idx-sync');
       expect(idxSyncCron).toBeDefined();
-      expect(idxSyncCron!.schedule).toBe('*/10 * * * *');
+      expect(idxSyncCron!.schedule).toBe('*/30 * * * *');
     });
 
     it("keeps useExpandMedia = false in lib/idx/sync.ts (Trestle $expand=Media disabled by PR #127)", () => {
