@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getAccessToken } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
-import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { resolveListingMedia, pickPrimaryPhotoUrl } from "@/lib/media/listing-media-resolver";
 
 const TRESTLE_API =
   process.env.TRESTLE_API_URL ||
@@ -199,18 +199,20 @@ export async function GET(req: NextRequest) {
 
       if (response.ok) {
         const data = await response.json();
-        const byKey = new Map<string, string>();
+        // Group all Media rows per key, then pick the first PHOTO via the canonical
+        // resolver (photo-first + proxy). The prior byKey-first-URL took whatever the
+        // feed ordered first — a null-category DOCUMENT- floorplan could become the card.
+        const rawByKey = new Map<string, Array<Record<string, unknown>>>();
         for (const m of (data.value || [])) {
           const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
-          if (mkey && !byKey.has(mkey) && m.MediaURL) {
-            const rawUrl = String(m.MediaURL);
-            byKey.set(mkey, rawUrl.includes("cotality.com") || rawUrl.includes("corelogic.com")
-              ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl);
+          if (mkey && m.MediaURL) {
+            if (!rawByKey.has(mkey)) rawByKey.set(mkey, []);
+            rawByKey.get(mkey)!.push(m as Record<string, unknown>);
           }
         }
         for (const id of uncached) {
           const key = idToKey.get(id) || id;
-          const url = byKey.get(key) || null;
+          const url = pickPrimaryPhotoUrl(rawByKey.get(key) || []);
           result[id] = url;
           photoCache.set(id, { url, expiresAt: now + CACHE_TTL });
         }

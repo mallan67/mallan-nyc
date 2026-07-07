@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import { getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 
 interface ListingItem {
   id: string;
@@ -175,8 +176,7 @@ function ListingCard({ listing }: { listing: ListingItem }) {
     ? `$${listing.listPrice.toLocaleString()}/mo`
     : `$${listing.listPrice.toLocaleString()}`;
 
-  const primaryPhoto = listing.media?.find(m => !m.mediaType || m.mediaType === 'Photo');
-  const photoUrl = primaryPhoto?.url || listing.media?.[0]?.url;
+  const photoUrl = getPrimaryPhoto(listing.media)?.url;
 
   const isComingSoon = listing.status === 'ComingSoon' || listing.status === 'Coming Soon';
 

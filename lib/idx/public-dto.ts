@@ -16,7 +16,7 @@ import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
-import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
 /** Map Trestle property fields to user-friendly property type */
 export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
@@ -187,6 +187,8 @@ export interface PublicListingDTO {
   media: { url: string; thumbUrl?: string; mediaType: string; order: number }[];
   photosCount?: number;
   virtualTourURL?: string;
+  /** Playable video URL (YouTube/Vimeo/etc.) split out of the Trestle tour fields. */
+  videoUrl?: string;
   // Remarks (public only — private remarks NEVER included)
   publicRemarks?: string;
   // Dates
@@ -457,7 +459,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     // resolveListingMedia also proxies Trestle URLs (replaces local proxyMediaUrl).
     media: resolvedMedia,
     photosCount: resolvedPhotoCount,
-    virtualTourURL: listing.virtualTourURLUnbranded || listing.virtualTourURLBranded || undefined,
+    // Host-split video vs 3D, unbranded-preferred (UCBA §5(C)).
+    ...tourUrlsForDto([listing.virtualTourURLUnbranded], listing.virtualTourURLBranded),
     // Public remarks only — private remarks are NEVER on IDXListing
     publicRemarks: listing.publicRemarks,
     // Dates

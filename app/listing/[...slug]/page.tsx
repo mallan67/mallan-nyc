@@ -48,7 +48,7 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -871,7 +871,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   // conflicting canonical signals (308 to one URL, meta canonical to another).
   const canonicalPath = buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' });
   const canonicalUrl = `https://mallan.nyc${canonicalPath}`;
-  const ogImage = listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url || '/images/og-default.png';
+  const ogImage = getPrimaryPhoto(listing.media)?.url || '/images/og-default.png';
   const borough = countyToBorough(listing.address.county);
 
   return {
@@ -1222,16 +1222,15 @@ export default async function ListingPage({ params, searchParams }: Props) {
   const petsAllowed = petPolicy && !petPolicy.toLowerCase().includes('no pets') && !petPolicy.toLowerCase().includes('not allowed');
 
   // ── Separate media by type ──
-  const images = listing.media
-    .filter((m) => (m.mediaType || '').toLowerCase() === 'photo' || !(m.mediaType))
-    .sort((a, b) => a.order - b.order)
-    .map((m) => ({ url: m.url, thumbUrl: m.thumbUrl }));
-  const floorPlanMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'floorplan');
-  const floorPlanUrl = floorPlanMedia?.url || null;
-  const videoMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'video');
-  const videoUrl = videoMedia?.url || null;
-  const virtualTourMedia = listing.media.find((m) => (m.mediaType || '').toLowerCase() === 'virtualtour');
-  const virtualTourUrl = listing.virtualTourURL || virtualTourMedia?.url || null;
+  // Canonical media split via the shared resolver. Photos ONLY feed the gallery
+  // (floorplans/videos/tours are separate tabs). No `|| !mediaType` fallback — a
+  // mediaType-less item must never be assumed a photo (the floorplan-first guard).
+  const images = getPhotoGallery(listing.media).map((m) => ({ url: m.url, thumbUrl: m.thumbUrl }));
+  const floorPlanUrl = getFloorplans(listing.media)[0]?.url || null;
+  // Video + 3D from the DTO's host-split tour fields (unbranded-preferred, UCBA §5(C));
+  // fall back to any Media-resource video/tour row.
+  const videoUrl = listing.videoUrl || getVideos(listing.media)[0]?.url || null;
+  const virtualTourUrl = listing.virtualTourURL || getVirtualTours(listing.media)[0]?.url || null;
 
   // ── Price history ──
   const priceHistory: { label: string; price: number }[] = [];
@@ -1252,7 +1251,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
     description: listing.publicRemarks?.substring(0, 300) || undefined,
     datePosted: listing.onMarketDate || listing.listingContractDate,
     dateModified: listing.modificationTimestamp || undefined,
-    image: listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url || undefined,
+    image: getPrimaryPhoto(listing.media)?.url || undefined,
     offers: {
       '@type': 'Offer',
       price: listing.listPrice,
@@ -1376,7 +1375,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               listingType={isRental ? 'rent' : 'sale'}
               beds={listing.bedroomsTotal}
               baths={listing.bathroomsFull}
-              photoUrl={listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url}
+              photoUrl={getPrimaryPhoto(listing.media)?.url}
             />
             <a
               href="tel:646-258-4460"
@@ -1516,7 +1515,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                         listingType={isRental ? 'rent' : 'sale'}
                         beds={listing.bedroomsTotal}
                         baths={listing.bathroomsFull}
-                        photoUrl={listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url || listing.media[0]?.url}
+                        photoUrl={getPrimaryPhoto(listing.media)?.url}
                       />
                       <ShareButton title={`${fullAddress} | ${formatPrice(listing.listPrice, isRental)}`} />
                     </div>

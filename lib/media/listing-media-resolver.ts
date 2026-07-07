@@ -565,3 +565,126 @@ export function shouldFetchTrestleMediaFallback(
   // supplemental CRM rows → allow the live Trestle photo fallback.
   return !isCrmAuthoritative;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VIRTUAL-TOUR / VIDEO SPLIT  (fix/listing-media-pipeline)
+//
+// REBNY IDX Plus delivers "video" and "3D tour" through the SAME Property fields
+// (`VirtualTourURLBranded` / `VirtualTourURLUnbranded[2,3]`) — there is no separate
+// playable video field (`VideosCount` is a count only, no URL). A YouTube/Vimeo
+// link and a Matterport link both land in those fields. Consumers previously
+// mapped ALL of them to one `virtualTourURL` (the "3D Tour" tab), so real videos
+// (the majority — YouTube/Vimeo) were hidden and rendered as "3D".
+//
+// Split by HOST: video-hosting domains → Video section; everything else
+// (Matterport/iGuide/Kuula/…) → 3D/Virtual-Tour section. Prefer the UNBRANDED
+// URL over the branded one (UCBA Art. I §5(C): branded media may carry agent
+// name/contact and must not be shown publicly when an unbranded URL exists).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Video-hosting domains. A tour URL on one of these is a VIDEO, not a 3D walk-through. */
+const VIDEO_TOUR_HOSTS = [
+  'youtube.com', 'youtu.be', 'youtube-nocookie.com',
+  'vimeo.com', 'player.vimeo.com',
+  'wistia.com', 'wistia.net', 'wi.st',
+  'dailymotion.com', 'dai.ly',
+];
+
+/**
+ * Classify a tour URL as a playable `video` or an interactive `virtualTour` (3D).
+ * Video = a known video host or a direct video-file extension; everything else
+ * (Matterport, iGuide, Kuula, generic tour hosts) is treated as a 3D virtual tour
+ * (rendered in an iframe). Empty/invalid → 'virtualTour' (safe iframe default).
+ */
+export function classifyTourUrl(url: string | null | undefined): 'video' | 'virtualTour' {
+  const raw = (url || '').trim();
+  if (!raw) return 'virtualTour';
+  const lower = raw.toLowerCase();
+  if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(lower)) return 'video';
+  let host = '';
+  try { host = new URL(raw).hostname.toLowerCase(); } catch { host = ''; }
+  const hit = (h: string) =>
+    host === h || host.endsWith('.' + h) || (!host && lower.includes(h));
+  return VIDEO_TOUR_HOSTS.some(hit) ? 'video' : 'virtualTour';
+}
+
+/** One candidate tour URL from Trestle, tagged branded/unbranded. */
+export interface TourUrlCandidate {
+  url: string | null | undefined;
+  /** true = `VirtualTourURLBranded` (agent-branded — public-suppressed when an unbranded exists). */
+  branded?: boolean;
+}
+
+/**
+ * Split Trestle virtual-tour candidates into a single public `videoUrl` and a
+ * single public `virtualTourUrl`, preferring the UNBRANDED URL within each class
+ * (§5(C)). A listing may legitimately have BOTH (e.g. an unbranded Matterport +
+ * a YouTube video) — both are returned. Returns nulls when absent.
+ */
+export function splitTourUrls(candidates: TourUrlCandidate[]): { videoUrl: string | null; virtualTourUrl: string | null } {
+  let video: { url: string; branded: boolean } | null = null;
+  let tour: { url: string; branded: boolean } | null = null;
+  for (const c of candidates || []) {
+    const url = (c?.url || '').trim();
+    if (!url) continue;
+    const branded = !!c?.branded;
+    if (classifyTourUrl(url) === 'video') {
+      if (!video || (video.branded && !branded)) video = { url, branded };
+    } else {
+      if (!tour || (tour.branded && !branded)) tour = { url, branded };
+    }
+  }
+  return { videoUrl: video?.url ?? null, virtualTourUrl: tour?.url ?? null };
+}
+
+/**
+ * DTO-shaped convenience wrapper around {@link splitTourUrls}. Accepts the raw
+ * unbranded candidate list (`VirtualTourURLUnbranded[,2,3]`) + the branded URL,
+ * coerces unknown values, and returns the DTO field names/shape: `videoUrl` and
+ * `virtualTourURL` (capital URL), `undefined` (not null) when absent. Unbranded
+ * is preferred over branded within each class (UCBA §5(C)).
+ */
+export function tourUrlsForDto(unbranded: unknown[], branded?: unknown): { videoUrl?: string; virtualTourURL?: string } {
+  const norm = (v: unknown) => (v == null || v === '' ? undefined : String(v));
+  const s = splitTourUrls([
+    ...(unbranded || []).map((url) => ({ url: norm(url), branded: false })),
+    { url: norm(branded), branded: true },
+  ]);
+  return { videoUrl: s.videoUrl ?? undefined, virtualTourURL: s.virtualTourUrl ?? undefined };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CANONICAL GETTERS — every surface (public + backend) uses these instead of
+// re-implementing `media[0]` / `find(photo)` / its own class filter. Each runs
+// the shared classify→photo-first→dedupe pipeline. Input may be raw Trestle
+// records, DB JSONB, or pre-resolved DTO items.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Photos only, in canonical order (photo-first sort already applied). */
+export function getPhotoGallery(items: unknown): ResolvedMedia[] {
+  return resolveListingMedia(items).filter((m) => m.class === 'photo');
+}
+/** The primary (hero) PHOTO — never a floorplan/video/tour. Null if no photo exists. */
+export function getPrimaryPhoto(items: unknown): ResolvedMedia | null {
+  return getPhotoGallery(items)[0] ?? null;
+}
+/** Floorplans only, in source order. */
+export function getFloorplans(items: unknown): ResolvedMedia[] {
+  return resolveListingMedia(items).filter((m) => m.class === 'floorplan');
+}
+/** Media-resource videos only (rare — most video comes via splitTourUrls). */
+export function getVideos(items: unknown): ResolvedMedia[] {
+  return resolveListingMedia(items).filter((m) => m.class === 'video');
+}
+/** Media-resource virtual tours only (rare — most 3D comes via splitTourUrls). */
+export function getVirtualTours(items: unknown): ResolvedMedia[] {
+  return resolveListingMedia(items).filter((m) => m.class === 'virtualTour');
+}
+/**
+ * Search/card thumbnail URL — the first valid PHOTO only. Returns null when the
+ * listing has no photo, so the caller renders an explicit placeholder rather than
+ * silently heroing a floorplan. NEVER returns a floorplan/video/tour.
+ */
+export function getSearchThumbnail(items: unknown): string | null {
+  return getPrimaryPhoto(items)?.url ?? null;
+}

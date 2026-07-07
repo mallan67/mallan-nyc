@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { pickPrimaryPhotoUrl } from '@/lib/media/listing-media-resolver';
 import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import prisma from '@/lib/prisma';
@@ -487,7 +488,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
 
       // Get first photo from media JSON
       const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
-      const firstPhoto = mediaArr[0]?.url || '';
+      const firstPhoto = pickPrimaryPhotoUrl(mediaArr) || ''; // photo-only, never floorplan
 
       return {
         id: `local-${s.id.toString()}`,

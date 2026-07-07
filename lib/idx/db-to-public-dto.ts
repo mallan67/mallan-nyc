@@ -24,6 +24,7 @@ import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
   resolveListingMedia,
   resolveListingMediaFromRows,
+  tourUrlsForDto,
   type ListingMediaTableRow,
 } from '@/lib/media/listing-media-resolver';
 
@@ -470,8 +471,12 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     // Days on Market
     daysOnMarket: rawData.DaysOnMarket != null ? Number(rawData.DaysOnMarket) : undefined,
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
-    // Virtual tour
-    virtualTourURL: rawData.VirtualTourURLUnbranded ? String(rawData.VirtualTourURLUnbranded) : (rawData.VirtualTourURLBranded ? String(rawData.VirtualTourURLBranded) : undefined),
+    // Virtual tour + video — host-split (YouTube/Vimeo → video; Matterport/3D → tour),
+    // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
+    ...tourUrlsForDto(
+      [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
+      rawData.VirtualTourURLBranded,
+    ),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
     // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
