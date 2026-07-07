@@ -110,4 +110,35 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
     expect(src).toMatch(/const videoUrl\s*=\s*listing\.videoUrl\s*\|\|/);
     expect(src).not.toMatch(/rawData\.VideoURL/);
   });
+
+  it('DB-backed detail (fetchFromDB) host-splits the tour fields via tourUrlsForDto (Codex #482)', () => {
+    // The inline DB DTO must spread tourUrlsForDto so a DB-path YouTube URL lands
+    // in videoUrl (Video tab) — not the old virtualTourURL-only mapping that left
+    // the Video tab permanently absent on DB-backed pages.
+    expect(src).toMatch(/import\s*\{[^}]*tourUrlsForDto[^}]*\}\s*from\s*'@\/lib\/media\/listing-media-resolver'/);
+    expect(src).toMatch(/\.\.\.tourUrlsForDto\(\s*\[\s*rawData\.VirtualTourURLUnbranded/);
+    // The old virtualTourURL-only inline mapping must be gone from the DB DTO.
+    expect(src).not.toMatch(/virtualTourURL:\s*\r?\n?\s*\(typeof rawData\.VirtualTourURLUnbranded/);
+  });
+});
+
+describe('/api/buildings — Trestle Media expand fetches enough rows to skip a leading floorplan (Codex #482)', () => {
+  const src = readFileSync(
+    path.resolve(__dirname, '../../app/api/buildings/route.ts'),
+    'utf8',
+  );
+
+  it('does NOT limit the Media expand to $top=1 (floorplan-first would starve getPhotoUrl)', () => {
+    expect(src).not.toMatch(/Media\([^)]*\$top=1;/);
+  });
+
+  it('fetches multiple media rows so classifyMediaItem can find the first real photo', () => {
+    const m = src.match(/Media\([^)]*\$top=(\d+)[^)]*\)/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBeGreaterThanOrEqual(5);
+  });
+
+  it('getPhotoUrl has no media[0] fallback (never heroes a floorplan)', () => {
+    expect(src).not.toMatch(/\|\|\s*media\[0\]/);
+  });
 });

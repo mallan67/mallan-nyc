@@ -48,7 +48,7 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -634,13 +634,17 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       })),
       photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
       // Video / virtual tour: on the live REBNY IDX Plus feed there are NO video Media
-      // rows — video is delivered as the YouTube URL in Property.VirtualTourURLUnbranded
-      // (VideosCount>0). The card/search DTO already exposes this (db-to-public-dto.ts);
-      // the detail page previously dropped it, so the Video/3D tabs were always empty.
-      virtualTourURL:
-        (typeof rawData.VirtualTourURLUnbranded === 'string' && rawData.VirtualTourURLUnbranded) ||
-        (typeof rawData.VirtualTourURLBranded === 'string' && rawData.VirtualTourURLBranded) ||
-        undefined,
+      // rows — video is delivered as the YouTube/Vimeo URL in Property.VirtualTourURL*
+      // (VideosCount>0), while Matterport etc. is the true 3D tour. Host-split them so
+      // a video URL populates `videoUrl` (Video tab) and a 3D URL populates
+      // `virtualTourURL` (3D tab) — the SAME split the card/search DTO uses
+      // (db-to-public-dto.ts). Unbranded-preferred per UCBA Art. I §5(C). Previously
+      // this inline DB DTO set virtualTourURL only, so a DB-backed YouTube listing
+      // rendered under 3D Tour and the Video tab was always absent. (Codex #482)
+      ...tourUrlsForDto(
+        [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
+        rawData.VirtualTourURLBranded,
+      ),
       publicRemarks: String(features.PublicRemarks || rawData.PublicRemarks || ''),
       listingContractDate: String(features.ListingContractDate || ''),
       modificationTimestamp: String(features.ModificationTimestamp || ''),

@@ -408,7 +408,12 @@ export async function GET(request: NextRequest) {
       const dirFilter = dirPrefix ? ` and StreetDirPrefix eq '${dirPrefix}'` : '';
       const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${dirFilter}${zipFilter}`;
 
-      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=1;$orderby=Order)";
+      // Fetch the first 10 media rows (not 1): getPhotoUrl scans for the first
+      // real PHOTO via classifyMediaItem, and Trestle often orders a FloorPlan at
+      // Order 0. With $top=1 a floorplan-first listing returned only that row and
+      // getPhotoUrl (no media[0] fallback) yielded null — the unit lost its
+      // thumbnail. 10 rows clears any realistic run of leading floorplans. (Codex #482)
+      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)";
       const allParams = new URLSearchParams({
         $filter: addressFilter,
         $select: BUILDING_SELECT,
