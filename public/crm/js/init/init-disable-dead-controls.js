@@ -56,9 +56,10 @@
                 'input[data-field="InternetEntireListingDisplayYN"]',
 
                 // ── CRM-local fields (no Trestle correspondence) ──
-                // data-field="CRM" is a sentinel for AdvertisingAllowed /
-                // DiplomatsAllowed which exist only in CRM concepts, not in
-                // Trestle/REBNY metadata.
+                // data-field="CRM" is a sentinel for AdvertisingAllowed, a
+                // CRM-only concept with no Trestle/REBNY metadata correspondence.
+                // (A CRM checkbox that proxied national origin / citizenship /
+                // immigration status was removed 2026-07-07 for Fair Housing.)
                 'input[data-field="CRM"]',
 
                 // ── data-local-field flags (never reach API by design) ──
