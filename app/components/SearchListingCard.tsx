@@ -6,7 +6,7 @@ import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
 import OpenHouseBanner from '@/app/components/OpenHouseBanner';
-import { type DisplayListing, listingHref, hasVirtualTour } from '@/lib/idx/display-adapter';
+import { type DisplayListing, listingHref, hasVirtualTour, hasVideo } from '@/lib/idx/display-adapter';
 import { useSwipe } from '@/lib/hooks/useSwipe';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 import {
@@ -81,16 +81,16 @@ function formatComingSoonBadge(listing: DisplayListing): string | null {
 
 /** Small "3D Tour" indicator pill, rendered over the card photo. Keyed on the
  *  Property field `virtualTourURL` (see hasVirtualTour in display-adapter). */
-function TourBadge({ compact = false }: { compact?: boolean }) {
+function TourBadge({ compact = false, video = false }: { compact?: boolean; video?: boolean }) {
   return (
     <span
       className={`flex items-center gap-1 bg-black/55 backdrop-blur-sm text-white rounded-lg ${compact ? 'text-[10px] px-1.5 py-0.5' : 'text-[11px] px-2 py-1'}`}
-      aria-label="3D tour available"
+      aria-label={video ? 'Video available' : '3D tour available'}
     >
       <svg className={compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9" />
       </svg>
-      3D Tour
+      {video ? 'Video' : '3D Tour'}
     </span>
   );
 }
@@ -146,9 +146,9 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
             <FavoriteButton listing={listing} />
           </div>
         )}
-        {(photoCount > 0 || hasVirtualTour(listing)) && (
+        {(photoCount > 0 || hasVirtualTour(listing) || hasVideo(listing)) && (
           <div className="absolute top-3 right-3 flex gap-1.5 z-10">
-            {hasVirtualTour(listing) && <TourBadge />}
+            {(hasVirtualTour(listing) || hasVideo(listing)) && <TourBadge video={!hasVirtualTour(listing)} />}
             {photoCount > 0 && (
               <span className="flex items-center gap-1 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -265,8 +265,8 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
             <FavoriteButton listing={listing} />
           </div>
         )}
-        {hasVirtualTour(listing) && (
-          <div className="absolute top-2 right-2 z-10"><TourBadge compact /></div>
+        {(hasVirtualTour(listing) || hasVideo(listing)) && (
+          <div className="absolute top-2 right-2 z-10"><TourBadge compact video={!hasVirtualTour(listing)} /></div>
         )}
         <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-2 left-2 z-10" />
       </div>
@@ -421,8 +421,8 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
             {safePhotoIdx + 1}/{photos.length}
           </span>
         )}
-        {hasVirtualTour(listing) && (
-          <div className="absolute bottom-1.5 left-1.5 z-10"><TourBadge compact /></div>
+        {(hasVirtualTour(listing) || hasVideo(listing)) && (
+          <div className="absolute bottom-1.5 left-1.5 z-10"><TourBadge compact video={!hasVirtualTour(listing)} /></div>
         )}
         {/* Photo nav arrows — visible on hover */}
         {hasMultiple && hovered && (

@@ -8,8 +8,10 @@
  * FloorPlan). The URL already reaches the cards via the API DTO, but the cards
  * surfaced no indicator. PR-C adds a "3D Tour" badge keyed on `virtualTourURL`.
  *
- * Video is intentionally NOT surfaced: IDX Plus exposes only `VideosCount` with
- * no playable URL, so the detail Video tab stays gated on a real `videoUrl`.
+ * Video: the playable video lives in the SAME `VirtualTourURL*` fields (YouTube/
+ * Vimeo), host-split into `videoUrl` by the media resolver (fix/listing-media-
+ * pipeline). Cards now surface it too — the badge gates on hasVirtualTour ||
+ * hasVideo and labels "Video" vs "3D Tour".
  */
 import { readFileSync } from 'fs';
 import * as path from 'path';
@@ -39,18 +41,18 @@ describe('SearchListingCard — 3D Tour badge wiring (source guard)', () => {
     expect(src).toMatch(/import\s*\{[^}]*hasVirtualTour[^}]*\}\s*from\s*'@\/lib\/idx\/display-adapter'/);
   });
 
-  it('renders the TourBadge gated on hasVirtualTour in all three card variants', () => {
-    // GridCard, ListCard, SplitCard each render the badge behind a
-    // `hasVirtualTour(listing) &&` gate (ListCard/SplitCard wrap the JSX in
-    // parens; GridCard renders <TourBadge /> directly).
-    const gated = src.match(/hasVirtualTour\(listing\)\s*&&/g) || [];
+  it('renders the TourBadge gated on hasVirtualTour || hasVideo in all three card variants', () => {
+    // GridCard, ListCard, SplitCard each gate the badge on
+    // `(hasVirtualTour(listing) || hasVideo(listing)) &&` so a video listing
+    // (YouTube/Vimeo host-split into videoUrl) still gets a card indicator.
+    const gated = src.match(/\(hasVirtualTour\(listing\) \|\| hasVideo\(listing\)\)\s*&&/g) || [];
     expect(gated.length).toBeGreaterThanOrEqual(3);
     expect(src).toMatch(/<TourBadge\b/);
   });
 
-  it('labels the badge "3D Tour" and never "Video" (IDX Plus has no playable video URL)', () => {
+  it('labels the badge "3D Tour" for a tour and "Video" for a video listing', () => {
     expect(src).toMatch(/3D Tour/);
-    expect(src).not.toMatch(/>\s*Video\s*</);
+    expect(src).toMatch(/'Video'/);
   });
 
   it('does NOT reference phantom media fields', () => {
@@ -104,8 +106,39 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
     expect(src).toMatch(/const virtualTourUrl\s*=\s*listing\.virtualTourURL\s*\|\|/);
   });
 
-  it('video is derived from the media array (no phantom VideoURL field)', () => {
-    expect(src).toMatch(/const videoUrl\s*=\s*videoMedia\?\.url\s*\|\|\s*null/);
-    expect(src).not.toMatch(/listing\.VideoURL|rawData\.VideoURL/);
+  it('video is derived from the DTO videoUrl (host-split from VirtualTourURL*), not a phantom field', () => {
+    expect(src).toMatch(/const videoUrl\s*=\s*listing\.videoUrl\s*\|\|/);
+    expect(src).not.toMatch(/rawData\.VideoURL/);
+  });
+
+  it('DB-backed detail (fetchFromDB) host-splits the tour fields via tourUrlsForDto (Codex #482)', () => {
+    // The inline DB DTO must spread tourUrlsForDto so a DB-path YouTube URL lands
+    // in videoUrl (Video tab) — not the old virtualTourURL-only mapping that left
+    // the Video tab permanently absent on DB-backed pages.
+    expect(src).toMatch(/import\s*\{[^}]*tourUrlsForDto[^}]*\}\s*from\s*'@\/lib\/media\/listing-media-resolver'/);
+    expect(src).toMatch(/\.\.\.tourUrlsForDto\(\s*\[\s*rawData\.VirtualTourURLUnbranded/);
+    // The old virtualTourURL-only inline mapping must be gone from the DB DTO.
+    expect(src).not.toMatch(/virtualTourURL:\s*\r?\n?\s*\(typeof rawData\.VirtualTourURLUnbranded/);
+  });
+});
+
+describe('/api/buildings — Trestle Media expand fetches enough rows to skip a leading floorplan (Codex #482)', () => {
+  const src = readFileSync(
+    path.resolve(__dirname, '../../app/api/buildings/route.ts'),
+    'utf8',
+  );
+
+  it('does NOT limit the Media expand to $top=1 (floorplan-first would starve getPhotoUrl)', () => {
+    expect(src).not.toMatch(/Media\([^)]*\$top=1;/);
+  });
+
+  it('fetches multiple media rows so classifyMediaItem can find the first real photo', () => {
+    const m = src.match(/Media\([^)]*\$top=(\d+)[^)]*\)/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBeGreaterThanOrEqual(5);
+  });
+
+  it('getPhotoUrl has no media[0] fallback (never heroes a floorplan)', () => {
+    expect(src).not.toMatch(/\|\|\s*media\[0\]/);
   });
 });

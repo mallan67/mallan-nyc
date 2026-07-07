@@ -1,3 +1,5 @@
+import { classifyMediaItem } from './listing-media-resolver';
+
 export const LISTING_PLACEHOLDER_IMAGE = '/images/listing-placeholder.svg';
 
 export interface ListingPhotoMedia {
@@ -9,8 +11,6 @@ export interface ListingPhotoMedia {
 export interface ValidPhotoMedia extends ListingPhotoMedia {
   url: string;
 }
-
-const REJECTED_MEDIA_TYPES = new Set(['floorplan', 'floor plan', 'floor_plan', 'video', 'virtualtour', 'virtual tour', 'virtual_tour']);
 
 export function isValidPublicImageUrl(url: unknown): url is string {
   if (typeof url !== 'string') return false;
@@ -30,9 +30,10 @@ export function isValidPublicImageUrl(url: unknown): url is string {
 }
 
 export function isPhotoMedia(media: ListingPhotoMedia): boolean {
-  const mediaType = String(media.mediaType ?? '').trim().toLowerCase();
-  if (REJECTED_MEDIA_TYPES.has(mediaType)) return false;
-  return mediaType === '' || mediaType === 'photo' || mediaType === 'image';
+  // Delegate to the canonical classifier — this catches null/empty-category
+  // floorplans by URL shape (Trestle DOCUMENT-/.pdf), which the prior
+  // mediaType-string-only check missed (floorplan-leak guard).
+  return classifyMediaItem(media) === 'photo';
 }
 
 export function getValidPhotoMedia(media: readonly ListingPhotoMedia[] | null | undefined): ValidPhotoMedia[] {

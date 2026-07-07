@@ -9,7 +9,7 @@
 // VirtualTours no longer masquerade as card photos either (declared behavior
 // change — previously every kept record was hard-coded mediaType:'Photo').
 
-import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
+import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 
 export interface AgentCardMediaItem {
   url: string;
@@ -25,7 +25,8 @@ export function mapAgentCardMedia(
     // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
     const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
     if (!mkey || !m.MediaURL) continue;
-    if (classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined) !== "Photo") {
+    // Canonical classifier (URL-shape aware — catches null-category DOCUMENT- floorplans).
+    if (classifyMediaItem(m) !== "photo") {
       continue;
     }
     const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";

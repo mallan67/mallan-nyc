@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPrimaryPhoto, classifyMediaItem } from '@/lib/media/listing-media-resolver';
 import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
@@ -54,10 +55,9 @@ function getPhotoUrl(record: TrestleRecord): string | null {
   const media = record.Media;
   if (!media || !Array.isArray(media) || media.length === 0) return null;
   // Find first actual photo (not floor plan, video, or virtual tour)
-  const photo = media.find(m => {
-    const cat = String(m.MediaCategory || '').toLowerCase();
-    return !cat || cat === 'photo' || cat === 'photos';
-  }) || media[0]; // fallback to first item if no photos found
+  // Canonical classifier (catches null-category DOCUMENT- floorplans); no media[0]
+  // fallback — never hero a floorplan.
+  const photo = media.find(m => classifyMediaItem(m) === 'photo');
   if (!photo?.MediaURL) return null;
   // Proxy through our server to avoid exposing Trestle Bearer tokens
   return `/api/media/proxy?url=${encodeURIComponent(String(photo.MediaURL))}`;
@@ -408,7 +408,12 @@ export async function GET(request: NextRequest) {
       const dirFilter = dirPrefix ? ` and StreetDirPrefix eq '${dirPrefix}'` : '';
       const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${coreStreetNameUpper}')${dirFilter}${zipFilter}`;
 
-      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=1;$orderby=Order)";
+      // Fetch the first 10 media rows (not 1): getPhotoUrl scans for the first
+      // real PHOTO via classifyMediaItem, and Trestle often orders a FloorPlan at
+      // Order 0. With $top=1 a floorplan-first listing returned only that row and
+      // getPhotoUrl (no media[0] fallback) yielded null — the unit lost its
+      // thumbnail. 10 rows clears any realistic run of leading floorplans. (Codex #482)
+      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)";
       const allParams = new URLSearchParams({
         $filter: addressFilter,
         $select: BUILDING_SELECT,
@@ -584,10 +589,8 @@ export async function GET(request: NextRequest) {
           const media = l.media as unknown[];
           if (!Array.isArray(media) || media.length === 0) return null;
           // Find first photo (skip floor plans, videos, virtual tours)
-          const photo = (media as Record<string, unknown>[]).find(m => {
-            const mt = String(m?.mediaType || '').toLowerCase();
-            return !mt || mt === 'photo';
-          }) || media[0] as Record<string, unknown>;
+          const photo = (media as Record<string, unknown>[]).find(m => classifyMediaItem(m) === 'photo');
+          if (!photo) return null;
           const url = photo?.url || photo?.MediaURL;
           return url ? `/api/media/proxy?url=${encodeURIComponent(String(url))}` : null;
         })(),

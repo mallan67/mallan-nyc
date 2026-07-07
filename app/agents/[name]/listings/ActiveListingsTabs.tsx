@@ -7,6 +7,7 @@ import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import type { NextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
+import { getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 
 interface ListingDTO {
   id: string;
@@ -49,7 +50,7 @@ function formatPrice(price: number, isRental: boolean): string {
 }
 
 function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRental: boolean }) {
-  const photoUrl = listing.media?.[0]?.url || '/images/listing-placeholder.svg';
+  const photoUrl = getPrimaryPhoto(listing.media)?.url || '/images/listing-placeholder.svg';
   const neighborhood = listing.address.neighborhood || listing.address.city || '';
   const addr = `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`;
 

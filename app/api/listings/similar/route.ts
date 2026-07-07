@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { classifyMediaItem } from '@/lib/media/listing-media-resolver';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows, sameAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getAccessToken } from '@/lib/idx/auth';
@@ -175,14 +176,9 @@ export async function GET(request: NextRequest) {
         } else {
           const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
           const normalized = mediaArr
-            .map(m => {
-              const url = m.url || m.MediaURL || '';
-              const cat = (m.MediaCategory || m.mediaType || '').toLowerCase();
-              const isFloorPlan = cat.includes('floor plan') || cat.includes('floorplan') || cat === 'FloorPlan';
-              return { url, isPhoto: !isFloorPlan && !cat.includes('video') && !cat.includes('virtual') };
-            })
+            .map(m => ({ url: m.url || m.MediaURL || '', isPhoto: classifyMediaItem(m) === 'photo' }))
             .filter(m => m.url);
-          const firstPhoto = normalized.find(m => m.isPhoto) || normalized[0];
+          const firstPhoto = normalized.find(m => m.isPhoto); // photo-only; never floorplan
           photosCount = normalized.filter(m => m.isPhoto).length;
           photoUrl = firstPhoto?.url ? proxyUrl(firstPhoto.url) : null;
         }
