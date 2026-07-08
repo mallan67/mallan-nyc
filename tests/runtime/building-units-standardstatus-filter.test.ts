@@ -32,10 +32,12 @@ describe('/api/listings/building — StandardStatus filter (no MlsStatus 400)', 
     expect(src).toMatch(/StandardStatus eq 'Closed'/);
   });
 
-  it('address gate is FAIL-OPEN (!== false), not fail-closed (=== true) — §2.1 provider-gated field', () => {
-    // InternetAddressDisplayYN is provider-gated: null = displayable. `=== true`
-    // collapsed the common null case and hid every unit (2026-04-30 incident class).
-    expect(src).toMatch(/InternetAddressDisplayYN\s*!==\s*false/);
+  it('uses checkDistributionGates for displayability, with NO raw InternetAddressDisplayYN reader comparison', () => {
+    // Reader-side raw `!== false` is a compliance BLOCKER (fail-open); raw
+    // `=== true` (fail-closed) hid every null-address unit. Rely on the canonical
+    // checkDistributionGates, exactly like the /api/buildings sibling.
+    expect(src).toMatch(/checkDistributionGates/);
+    expect(src).not.toMatch(/InternetAddressDisplayYN\s*!==\s*false/);
     expect(src).not.toMatch(/InternetAddressDisplayYN\s*===\s*true/);
   });
 });
