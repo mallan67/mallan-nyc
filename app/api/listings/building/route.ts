@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
-import { sanitizeOData, sanitizeDocumentId } from '@/lib/sanitize';
+import { sanitizeDocumentId } from '@/lib/sanitize';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { parseBuildingAddress, buildBuildingAddressFilter } from '@/lib/buildings/building-address-filter';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -168,19 +169,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = await getAccessToken();
-    const cleanStreetNumber = sanitizeOData(streetNumber);
-    const cleanStreetName = sanitizeOData(streetName);
-    const cleanPostalCode = postalCode ? sanitizeOData(postalCode) : '';
-
-    // Validate postal code is numeric if provided
-    if (postalCode && !/^\d{5}$/.test(postalCode.trim())) {
-      // Allow but sanitize — non-numeric chars already stripped by sanitizeOData
-    }
-
-    // Build address filter with sanitized values
-    const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${cleanStreetName}')${
-      cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : ''
-    }`;
+    // Canonical Trestle address filter (shared with /api/buildings via
+    // lib/buildings/building-address-filter). Uppercases StreetName — Trestle
+    // stores it UPPERCASE and OData contains() is case-sensitive, so the prior
+    // raw mixed-case name matched ZERO rows and emptied the whole building-units
+    // panel on every detail page.
+    const addressFilter = buildBuildingAddressFilter(
+      parseBuildingAddress(streetNumber, streetName, postalCode || undefined),
+    );
 
     // 1. Active listings in the building (other units for sale/rent)
     // $select fields verified against live Trestle $metadata (2026-04-19):
@@ -190,10 +186,11 @@ export async function GET(request: NextRequest) {
     //     is the canonical master display gate.
     const distributionFields =
       'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
-    // StandardStatus (NOT MlsStatus) — MlsStatus is provider-suppressed in the
-    // REBNY IDX Plus OData $filter (Trestle returns HTTP 400), which silently
-    // emptied activeUnits so the building-units section vanished on detail pages.
-    const activeFilter = `${addressFilter} and StandardStatus eq 'Active'`;
+    // StandardStatus (NEVER MlsStatus — provider-suppressed, Trestle 400s). Use
+    // the full actively-displayable set (matches lib/compliance/status.ts
+    // ACTIVE_DISPLAY_STATUSES / isActiveDisplayStatus, which /api/buildings uses),
+    // so ComingSoon / ActiveUnderContract sibling units aren't dropped.
+    const activeFilter = `${addressFilter} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon')`;
     const activeParams = new URLSearchParams({
       $filter: activeFilter,
       $select: `ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,${distributionFields}`,
