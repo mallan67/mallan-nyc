@@ -31,4 +31,11 @@ describe('/api/listings/building — StandardStatus filter (no MlsStatus 400)', 
   it('filters closed sales on StandardStatus eq \'Closed\'', () => {
     expect(src).toMatch(/StandardStatus eq 'Closed'/);
   });
+
+  it('address gate is FAIL-OPEN (!== false), not fail-closed (=== true) — §2.1 provider-gated field', () => {
+    // InternetAddressDisplayYN is provider-gated: null = displayable. `=== true`
+    // collapsed the common null case and hid every unit (2026-04-30 incident class).
+    expect(src).toMatch(/InternetAddressDisplayYN\s*!==\s*false/);
+    expect(src).not.toMatch(/InternetAddressDisplayYN\s*===\s*true/);
+  });
 });

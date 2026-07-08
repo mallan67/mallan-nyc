@@ -223,10 +223,14 @@ export async function GET(request: NextRequest) {
     const closedData = closedRes.ok ? await closedRes.json() : { value: [] };
 
     // Distribution gate check — filter out non-displayable listings.
-    // ALSO fail-closed on InternetAddressDisplayYN: in a building view, the unit
-    // number itself is an address detail. If address-display is restricted, the
-    // listing must NOT appear at all in this surface (REBNY RLS Sec. 2.05).
-    const passesAddressGate = (r: Record<string, unknown>) => r.InternetAddressDisplayYN === true;
+    // Address gate is FAIL-OPEN, per REBNY IDX Plus §2.1: InternetAddressDisplayYN
+    // is a PROVIDER-GATED field — the feed pre-filters non-displayable rows, so
+    // NULL means "displayable" (the common case). Only an EXPLICIT `false`
+    // restricts the address, in which case the unit (its unit number is an address
+    // detail) is suppressed here (REBNY RLS §2.05). Using `=== true` was
+    // fail-CLOSED — it collapsed the common null case and hid EVERY unit in the
+    // panel (same class as the 2026-04-30 InternetAddressDisplayYN incident).
+    const passesAddressGate = (r: Record<string, unknown>) => r.InternetAddressDisplayYN !== false;
     const displayableActive = (activeData.value || []).filter(
       (r: Record<string, unknown>) => checkDistributionGates(r).displayable && passesAddressGate(r)
     );
