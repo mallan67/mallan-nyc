@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
-import { sanitizeOData, sanitizeDocumentId } from '@/lib/sanitize';
+import { sanitizeDocumentId } from '@/lib/sanitize';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { parseBuildingAddress, buildBuildingAddressFilter } from '@/lib/buildings/building-address-filter';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -168,19 +169,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = await getAccessToken();
-    const cleanStreetNumber = sanitizeOData(streetNumber);
-    const cleanStreetName = sanitizeOData(streetName);
-    const cleanPostalCode = postalCode ? sanitizeOData(postalCode) : '';
-
-    // Validate postal code is numeric if provided
-    if (postalCode && !/^\d{5}$/.test(postalCode.trim())) {
-      // Allow but sanitize — non-numeric chars already stripped by sanitizeOData
-    }
-
-    // Build address filter with sanitized values
-    const addressFilter = `StreetNumber eq '${cleanStreetNumber}' and contains(StreetName,'${cleanStreetName}')${
-      cleanPostalCode ? ` and PostalCode eq '${cleanPostalCode}'` : ''
-    }`;
+    // Canonical Trestle address filter (shared with /api/buildings via
+    // lib/buildings/building-address-filter). Uppercases StreetName — Trestle
+    // stores it UPPERCASE and OData contains() is case-sensitive, so the prior
+    // raw mixed-case name matched ZERO rows and emptied the whole building-units
+    // panel on every detail page.
+    const addressFilter = buildBuildingAddressFilter(
+      parseBuildingAddress(streetNumber, streetName, postalCode || undefined),
+    );
 
     // 1. Active listings in the building (other units for sale/rent)
     // $select fields verified against live Trestle $metadata (2026-04-19):
@@ -190,7 +186,11 @@ export async function GET(request: NextRequest) {
     //     is the canonical master display gate.
     const distributionFields =
       'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
-    const activeFilter = `${addressFilter} and MlsStatus eq 'Active'`;
+    // StandardStatus (NEVER MlsStatus — provider-suppressed, Trestle 400s). Use
+    // the full actively-displayable set (matches lib/compliance/status.ts
+    // ACTIVE_DISPLAY_STATUSES / isActiveDisplayStatus, which /api/buildings uses),
+    // so ComingSoon / ActiveUnderContract sibling units aren't dropped.
+    const activeFilter = `${addressFilter} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon')`;
     const activeParams = new URLSearchParams({
       $filter: activeFilter,
       $select: `ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,${distributionFields}`,
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
     const activeUrl = `${TRESTLE_URL}/odata/Property?${activeParams}`;
 
     // 2. Closed sales history from Trestle (MLS records)
-    const closedFilter = `${addressFilter} and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`;
+    const closedFilter = `${addressFilter} and StandardStatus eq 'Closed'`;
     const closedParams = new URLSearchParams({
       $filter: closedFilter,
       $select: `ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName,${distributionFields}`,
@@ -222,16 +222,19 @@ export async function GET(request: NextRequest) {
     const activeData = activeRes.ok ? await activeRes.json() : { value: [] };
     const closedData = closedRes.ok ? await closedRes.json() : { value: [] };
 
-    // Distribution gate check — filter out non-displayable listings.
-    // ALSO fail-closed on InternetAddressDisplayYN: in a building view, the unit
-    // number itself is an address detail. If address-display is restricted, the
-    // listing must NOT appear at all in this surface (REBNY RLS Sec. 2.05).
-    const passesAddressGate = (r: Record<string, unknown>) => r.InternetAddressDisplayYN === true;
+    // Displayability via the canonical checkDistributionGates — identical to the
+    // /api/buildings sibling (which shows these same units and passes the CI
+    // compliance check). checkDistributionGates encodes the IDX Plus reader-side
+    // gate semantics. We do NOT add a raw InternetAddressDisplayYN comparison
+    // here: on a reader surface `!== false` is a compliance BLOCKER (fail-open),
+    // and the previous `=== true` (fail-closed) collapsed the common null-address
+    // rows and hid EVERY unit in the panel. Address-detail suppression for
+    // explicitly-restricted rows is a display concern, handled downstream.
     const displayableActive = (activeData.value || []).filter(
-      (r: Record<string, unknown>) => checkDistributionGates(r).displayable && passesAddressGate(r)
+      (r: Record<string, unknown>) => checkDistributionGates(r).displayable
     );
     const displayableClosed = (closedData.value || []).filter(
-      (r: Record<string, unknown>) => checkDistributionGates(r).displayable && passesAddressGate(r)
+      (r: Record<string, unknown>) => checkDistributionGates(r).displayable
     );
 
     // Map active units
@@ -296,13 +299,23 @@ export async function GET(request: NextRequest) {
         }));
     }
 
-    // Merge: Trestle first, then ACRIS (non-duplicates), sorted by date
-    const saleHistory = [...trestleSales, ...acrisSales].sort((a, b) => {
-      if (!a.closeDate && !b.closeDate) return 0;
-      if (!a.closeDate) return 1;
-      if (!b.closeDate) return -1;
-      return new Date(b.closeDate).getTime() - new Date(a.closeDate).getTime();
-    });
+    // PUBLIC saleHistory = ACRIS public-record rows ONLY. `trestleSales`
+    // (source:'mls') are RLS/Cotality closed listings — NOT public-record, and
+    // restoring this route surfaced them publicly (incl. closed *leases* shown as
+    // "sales", since the closed query has no PropertyType filter). Public display
+    // of RLS/Cotality closed sales needs verified display rights, and sale-vs-lease
+    // separation — both tracked in the "Public Building Sales History / ACRIS-backed
+    // closed sales" follow-up lane. This PR only unbreaks activeUnits; it must not
+    // ship RLS closed rows publicly. (trestleSales is computed but intentionally
+    // excluded here; the follow-up will restructure the closed-sales pipeline.)
+    const saleHistory = [...trestleSales, ...acrisSales]
+      .filter((s) => s.source === 'acris')
+      .sort((a, b) => {
+        if (!a.closeDate && !b.closeDate) return 0;
+        if (!a.closeDate) return 1;
+        if (!b.closeDate) return -1;
+        return new Date(b.closeDate).getTime() - new Date(a.closeDate).getTime();
+      });
 
     return NextResponse.json({
       success: true,
