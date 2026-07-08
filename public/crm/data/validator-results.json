@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-05-21T00:40:20.751Z",
-  "pass": 1281,
-  "critical": 0,
-  "warning": 2,
-  "info": 37,
+  "timestamp": "2026-07-08T02:44:07.477Z",
+  "pass": 1240,
+  "critical": 1,
+  "warning": 3,
+  "info": 38,
   "sections": [
     {
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 417,
+      "pass": 373,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -27,9 +27,9 @@
       "section": 3,
       "title": "Field Count Verification",
       "category": "IDX Pipeline",
-      "pass": 22,
+      "pass": 21,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 0
     },
     {
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 150,
+      "pass": 154,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 112,
+      "pass": 113,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -90,8 +90,8 @@
       "section": 10,
       "title": "Cron Schedule Completeness",
       "category": "Cron",
-      "pass": 23,
-      "critical": 0,
+      "pass": 21,
+      "critical": 1,
       "warning": 0,
       "info": 0
     },
@@ -99,7 +99,7 @@
       "section": 11,
       "title": "Cron Secret Validation Pattern",
       "category": "Cron",
-      "pass": 23,
+      "pass": 22,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 139,
+      "pass": 140,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -117,7 +117,7 @@
       "section": 13,
       "title": "Secrets & Supply-Chain Security",
       "category": "Auth & Security",
-      "pass": 5,
+      "pass": 4,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -201,7 +201,7 @@
       "pass": 7,
       "critical": 0,
       "warning": 0,
-      "info": 12
+      "info": 13
     },
     {
       "section": 23,
@@ -216,7 +216,7 @@
       "section": 24,
       "title": "Dead Components",
       "category": "Bloat & Hygiene",
-      "pass": 97,
+      "pass": 100,
       "critical": 0,
       "warning": 0,
       "info": 1
@@ -288,7 +288,7 @@
       "section": 32,
       "title": "Run History & Trends",
       "category": "Platform",
-      "pass": 2,
+      "pass": 1,
       "critical": 0,
       "warning": 0,
       "info": 0

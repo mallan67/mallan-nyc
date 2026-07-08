@@ -190,7 +190,10 @@ export async function GET(request: NextRequest) {
     //     is the canonical master display gate.
     const distributionFields =
       'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
-    const activeFilter = `${addressFilter} and MlsStatus eq 'Active'`;
+    // StandardStatus (NOT MlsStatus) — MlsStatus is provider-suppressed in the
+    // REBNY IDX Plus OData $filter (Trestle returns HTTP 400), which silently
+    // emptied activeUnits so the building-units section vanished on detail pages.
+    const activeFilter = `${addressFilter} and StandardStatus eq 'Active'`;
     const activeParams = new URLSearchParams({
       $filter: activeFilter,
       $select: `ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,${distributionFields}`,
@@ -200,7 +203,7 @@ export async function GET(request: NextRequest) {
     const activeUrl = `${TRESTLE_URL}/odata/Property?${activeParams}`;
 
     // 2. Closed sales history from Trestle (MLS records)
-    const closedFilter = `${addressFilter} and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`;
+    const closedFilter = `${addressFilter} and StandardStatus eq 'Closed'`;
     const closedParams = new URLSearchParams({
       $filter: closedFilter,
       $select: `ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName,${distributionFields}`,
