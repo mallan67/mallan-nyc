@@ -41,15 +41,16 @@ describe('parseBuildingAddress', () => {
 });
 
 describe('buildBuildingAddressFilter', () => {
-  it('builds a StreetNumber + contains(StreetName) + PostalCode filter', () => {
+  it('builds a StreetNumber + case-insensitive contains + PostalCode filter', () => {
     const f = buildBuildingAddressFilter(parseBuildingAddress('432', 'Park Avenue', '10022'));
-    expect(f).toBe("StreetNumber eq '432' and contains(StreetName,'PARK') and PostalCode eq '10022'");
+    // tolower(StreetName) vs lowercased core — casing-independent (the bug fix).
+    expect(f).toBe("StreetNumber eq '432' and contains(tolower(StreetName),'park') and PostalCode eq '10022'");
   });
 
-  it('never emits contains(StreetName,\'\') (would match every listing)', () => {
+  it('never emits an empty contains (would match every listing)', () => {
     const f = buildBuildingAddressFilter(parseBuildingAddress('401', 'West Street', '10014'));
-    expect(f).not.toMatch(/contains\(StreetName,''\)/);
-    expect(f).toContain("contains(StreetName,'WEST STREET')");
+    expect(f).not.toMatch(/contains\(tolower\(StreetName\),''\)/);
+    expect(f).toContain("contains(tolower(StreetName),'west street')");
   });
 
   it('optionally adds StreetDirPrefix when requested', () => {

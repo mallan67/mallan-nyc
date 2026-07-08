@@ -9,7 +9,10 @@
  * COTALITY FACTS this encodes (verified against the live feed, 2026-07-08):
  *  - Trestle stores `StreetName` in UPPERCASE, and OData `contains()` is
  *    CASE-SENSITIVE. Matching a raw mixed-case name (e.g. `contains(StreetName,
- *    'Park')`) returns ZERO rows. We must uppercase.
+ *    'Park')`) returns ZERO rows. Trestle DOES support `tolower()` in `$filter`
+ *    (used in lib/idx/fetch.ts:305), so we match case-insensitively via
+ *    `contains(tolower(StreetName), '<lowercase-core>')` — robust regardless of
+ *    stored casing. The core is derived UPPERCASE internally, then lowercased.
  *  - Trestle decomposes the direction into `StreetDirPrefix`, so we strip a
  *    LEADING direction from the core (and expose it for an optional
  *    `StreetDirPrefix eq` clause) to avoid "W" vs "West" mismatches.
@@ -86,5 +89,9 @@ export function buildBuildingAddressFilter(
   const dir =
     opts?.includeDirPrefix && parts.dirPrefix ? ` and StreetDirPrefix eq '${parts.dirPrefix}'` : '';
   const zip = parts.postalCode ? ` and PostalCode eq '${parts.postalCode}'` : '';
-  return `StreetNumber eq '${parts.streetNumber}' and contains(StreetName,'${parts.coreStreetNameUpper}')${dir}${zip}`;
+  // Case-insensitive match: tolower(StreetName) vs the lowercased core (Trestle
+  // supports tolower() in $filter — see lib/idx/fetch.ts:305). StreetNumber +
+  // PostalCode keep it pinned to the one building (no unrelated-street leak).
+  const coreLower = parts.coreStreetNameUpper.toLowerCase();
+  return `StreetNumber eq '${parts.streetNumber}' and contains(tolower(StreetName),'${coreLower}')${dir}${zip}`;
 }
