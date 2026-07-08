@@ -299,13 +299,23 @@ export async function GET(request: NextRequest) {
         }));
     }
 
-    // Merge: Trestle first, then ACRIS (non-duplicates), sorted by date
-    const saleHistory = [...trestleSales, ...acrisSales].sort((a, b) => {
-      if (!a.closeDate && !b.closeDate) return 0;
-      if (!a.closeDate) return 1;
-      if (!b.closeDate) return -1;
-      return new Date(b.closeDate).getTime() - new Date(a.closeDate).getTime();
-    });
+    // PUBLIC saleHistory = ACRIS public-record rows ONLY. `trestleSales`
+    // (source:'mls') are RLS/Cotality closed listings — NOT public-record, and
+    // restoring this route surfaced them publicly (incl. closed *leases* shown as
+    // "sales", since the closed query has no PropertyType filter). Public display
+    // of RLS/Cotality closed sales needs verified display rights, and sale-vs-lease
+    // separation — both tracked in the "Public Building Sales History / ACRIS-backed
+    // closed sales" follow-up lane. This PR only unbreaks activeUnits; it must not
+    // ship RLS closed rows publicly. (trestleSales is computed but intentionally
+    // excluded here; the follow-up will restructure the closed-sales pipeline.)
+    const saleHistory = [...trestleSales, ...acrisSales]
+      .filter((s) => s.source === 'acris')
+      .sort((a, b) => {
+        if (!a.closeDate && !b.closeDate) return 0;
+        if (!a.closeDate) return 1;
+        if (!b.closeDate) return -1;
+        return new Date(b.closeDate).getTime() - new Date(a.closeDate).getTime();
+      });
 
     return NextResponse.json({
       success: true,

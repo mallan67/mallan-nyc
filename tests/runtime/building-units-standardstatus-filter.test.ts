@@ -32,6 +32,13 @@ describe('/api/listings/building — StandardStatus filter (no MlsStatus 400)', 
     expect(src).toMatch(/StandardStatus eq 'Closed'/);
   });
 
+  it('public saleHistory excludes RLS/Cotality (source:mls) closed rows — ACRIS public-record only', () => {
+    // Restoring the closed query re-surfaced RLS/Cotality closed rows (incl. closed
+    // leases shown as "sales") on a PUBLIC surface. Until display rights + sale/lease
+    // separation are handled (follow-up lane), public saleHistory = ACRIS-only.
+    expect(src).toMatch(/\.filter\(\s*\(?s\)?\s*=>\s*s\.source\s*===\s*'acris'\s*\)/);
+  });
+
   it('uses checkDistributionGates for displayability, with NO raw InternetAddressDisplayYN reader comparison', () => {
     // Reader-side raw `!== false` is a compliance BLOCKER (fail-open); raw
     // `=== true` (fail-closed) hid every null-address unit. Rely on the canonical
