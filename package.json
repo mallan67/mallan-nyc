@@ -82,6 +82,7 @@
         "ops:r2-health": "npx tsx scripts/ops-r2-health.ts",
         "ops:storage-health": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/storage-health-monitor.ts",
         "ops:storage-health:json": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/storage-health-monitor.ts --json",
+        "ops:r2-orphan-cleanup": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/r2-orphan-cleanup.ts",
         "ops:neon-audit": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-storage-audit.ts",
         "ops:neon-shed": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-shed-raw-data.ts",
         "ops:neon-shed:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-shed-raw-data.ts --execute",
