@@ -7,6 +7,8 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { upsertBuildingFromRecords } from '@/lib/buildings/upsert';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
+import { lookupBBL, fetchAcrisSales, isDuplicate, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
+import { resolveVisibility } from '@/lib/search/visibility-contract';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -658,6 +660,51 @@ export async function GET(request: NextRequest) {
         source: 'mls',
       });
     }
+
+    // ── ACRIS public-record closed sales — the ONLY closed-sale source a PUBLIC
+    // route may ship. Cotality-API/MLS closed rows (source:'mls' above) and closed
+    // rentals are withheld here by the visibility contract; they remain available
+    // to agent/internal/report surfaces (Backend-Search-6/7). ──
+    try {
+      const borough = boroughFromPostalCode(postalCode || '');
+      const bbl = await lookupBBL(cleanStreetNumber, streetName, borough);
+      if (bbl) {
+        const rawAcris = await fetchAcrisSales(bbl);
+        for (const a of rawAcris.filter((x) => !isDuplicate(x, saleHistory))) {
+          saleHistory.push({
+            id: a.id,
+            mlsId: '',
+            closePrice: a.closePrice,
+            beds: 0,
+            baths: 0,
+            sqft: 0,
+            unit: a.unit,
+            closeDate: a.closeDate,
+            propertyType: '',
+            office: 'NYC ACRIS Public Records',
+            source: 'acris',
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[/api/buildings] ACRIS fetch error:', err);
+    }
+
+    // Audience-aware visibility: this is a PUBLIC route, so ship ACRIS closed_sold
+    // ONLY. resolveVisibility blocks MLS/Cotality closed prices and closed rentals
+    // from public sale history (sold vs rented never collapsed). Agent/internal/
+    // report surfaces are unaffected.
+    const publicSaleHistory = saleHistory.filter((s) =>
+      resolveVisibility({
+        audience: 'public',
+        status: 'closed_sold',
+        transactionType: 'sale',
+        source: s.source === 'acris' ? 'acris' : 'mls',
+        usage: 'comp',
+      }).allowed,
+    );
+    saleHistory.length = 0;
+    saleHistory.push(...publicSaleHistory);
 
     // Sort by date descending
     saleHistory.sort((a, b) => {

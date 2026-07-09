@@ -37,6 +37,7 @@ import { toPublicDTO, buildAuctionPublic, resolveMoveInFees, type PublicListingD
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
+import { resolveVisibility } from '@/lib/search/visibility-contract';
 import { cache } from 'react';
 import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
@@ -1019,7 +1020,26 @@ export default async function ListingPage({ params, searchParams }: Props) {
             tax.taxBlock,
             tax.taxLot,
           ).catch(() => null),
-        ]).then(([trestleSale, acrisSale]) => trestleSale || acrisSale)
+        ]).then(([trestleSale, acrisSale]) => {
+            // Public page: show ACRIS-backed closed sales ONLY. resolveVisibility
+            // blocks Cotality-API/MLS closed prices publicly — never fall back to
+            // MLS. (Agent/internal/report surfaces keep MLS closed data elsewhere.)
+            const candidates = [acrisSale, trestleSale].filter(
+              (s): s is LastSaleInfo => s != null,
+            );
+            return (
+              candidates.find(
+                (s) =>
+                  resolveVisibility({
+                    audience: 'public',
+                    status: 'closed_sold',
+                    transactionType: 'sale',
+                    source: s.source === 'acris' ? 'acris' : 'mls',
+                    usage: 'comp',
+                  }).allowed,
+              ) ?? null
+            );
+          })
       : Promise.resolve(null),
   ]);
 
