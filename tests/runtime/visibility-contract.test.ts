@@ -15,7 +15,7 @@ import {
 } from '../../lib/search/visibility-contract';
 
 const ALL_STATUSES: LifecycleStatus[] = [
-  'active', 'pending', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'closed_sold', 'closed_rented',
+  'active', 'pending', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'closed_sold', 'closed_rented', 'unknown',
 ];
 
 const V = (audience: Audience, status: LifecycleStatus, source: Source, transactionType: 'sale' | 'rental' = 'sale') =>
@@ -112,5 +112,34 @@ describe('toLifecycleStatus — provider StandardStatus → lifecycle (sold ≠ 
     expect(toLifecycleStatus('Withdrawn', 'sale')).toBe('withdrawn');
     expect(toLifecycleStatus('Cancelled', 'sale')).toBe('canceled');
     expect(toLifecycleStatus('Expired', 'sale')).toBe('expired');
+  });
+});
+
+describe('D6-1 — unknown/unrecognized lifecycle status fails CLOSED for public', () => {
+  it('toLifecycleStatus maps a novel/blank provider status to "unknown" (not "active")', () => {
+    expect(toLifecycleStatus('SomeBrandNewCotalityStatus', 'sale')).toBe('unknown');
+    expect(toLifecycleStatus('', 'sale')).toBe('unknown');
+    // transaction type does not rescue an unrecognized status
+    expect(toLifecycleStatus('???', 'rental')).toBe('unknown');
+  });
+
+  it('public + unknown => BLOCKED (every source) — closes the latent fail-open', () => {
+    for (const src of ['acris', 'mls', 'mallan_exclusive', 'internal'] as Source[]) {
+      expect(V('public', 'unknown', src).allowed).toBe(false);
+    }
+  });
+
+  it('agent / internal_report / client + unknown => ALLOWED (private intelligence not suppressed)', () => {
+    for (const audience of ['agent', 'internal_report', 'client'] as Audience[]) {
+      expect(V(audience, 'unknown', 'mls').allowed).toBe(true);
+    }
+  });
+
+  it('a blocked public unknown carries no label requirements', () => {
+    const d = V('public', 'unknown', 'mls');
+    expect(d.allowed).toBe(false);
+    expect(d.requiresSourceLabel).toBe(false);
+    expect(d.requiresStatusLabel).toBe(false);
+    expect(d.requiresAttribution).toBe(false);
   });
 });

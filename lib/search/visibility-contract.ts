@@ -34,7 +34,11 @@ export type LifecycleStatus =
   | 'canceled'
   | 'expired'
   | 'closed_sold'
-  | 'closed_rented';
+  | 'closed_rented'
+  // Fail-closed fallback for an unrecognized/blank provider status. Blocked for
+  // the public audience; still visible to agent/internal/report so private
+  // lifecycle intelligence is never suppressed.
+  | 'unknown';
 export type TransactionType = 'sale' | 'rental';
 /** mls = Cotality API (provider MLS feed) · acris = NYC public record · mallan_exclusive/internal = company data */
 export type Source = 'acris' | 'mls' | 'mallan_exclusive' | 'internal';
@@ -106,7 +110,7 @@ export function resolveVisibility(input: VisibilityInput): VisibilityDecision {
     case 'closed_rented':
       return decide(false, input, 'public: closed rentals are not public sale history');
     default:
-      // temp_off_market | withdrawn | canceled | expired
+      // temp_off_market | withdrawn | canceled | expired | unknown
       return decide(false, input, `public: ${status} not publicly displayed`);
   }
 }
@@ -114,9 +118,9 @@ export function resolveVisibility(input: VisibilityInput): VisibilityDecision {
 /**
  * Normalize a Cotality API `StandardStatus` (+ transaction type) into a canonical
  * lifecycle bucket. `transactionType` is what keeps closed_sold ≠ closed_rented.
- * Unknown/blank status defaults to 'active' (matching the provider mapper's
- * `StandardStatus || 'Active'` convention); the public branch of resolveVisibility
- * is what enforces safety, not this normalization.
+ * Unknown/blank status maps to the fail-closed 'unknown' bucket — blocked for the
+ * public audience, still visible to agent/internal/report. This is defense-in-
+ * depth: public safety no longer depends on callers pre-selecting a safe status.
  */
 export function toLifecycleStatus(standardStatus: string, transactionType: TransactionType): LifecycleStatus {
   const s = (standardStatus || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -151,6 +155,9 @@ export function toLifecycleStatus(standardStatus: string, transactionType: Trans
     case 'rented':
       return transactionType === 'rental' ? 'closed_rented' : 'closed_sold';
     default:
-      return 'active';
+      // Unrecognized/blank status → fail-closed 'unknown' bucket. The public
+      // branch of resolveVisibility blocks it; agent/internal/report still see
+      // it. (Previously returned 'active' — a latent public fail-open.)
+      return 'unknown';
   }
 }
