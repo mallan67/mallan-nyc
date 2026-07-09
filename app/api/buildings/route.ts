@@ -7,7 +7,7 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { upsertBuildingFromRecords } from '@/lib/buildings/upsert';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
-import { lookupBBL, fetchAcrisSales, isDuplicate, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
+import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
@@ -670,7 +670,10 @@ export async function GET(request: NextRequest) {
       const bbl = await lookupBBL(cleanStreetNumber, streetName, borough);
       if (bbl) {
         const rawAcris = await fetchAcrisSales(bbl);
-        for (const a of rawAcris.filter((x) => !isDuplicate(x, saleHistory))) {
+        // No dedup against the MLS rows: public output is ACRIS-only (the MLS
+        // rows are withheld below), so deduping ACRIS against a to-be-withheld
+        // MLS twin would drop the only public-allowed record for that sale.
+        for (const a of rawAcris) {
           saleHistory.push({
             id: a.id,
             mlsId: '',

@@ -95,7 +95,9 @@ export function resolveVisibility(input: VisibilityInput): VisibilityDecision {
   // Public website — the most restricted audience.
   switch (status) {
     case 'active':
-    case 'pending':
+      // Active / ComingSoon / ActiveUnderContract (the canonical public
+      // active-display set, lib/compliance/status.ts). 'pending' (true signed-
+      // contract Pending) is NOT here → falls through to the blocked default.
       return decide(true, input, 'public: active-family displayable');
     case 'closed_sold':
       return source === 'acris'
@@ -126,6 +128,9 @@ export function toLifecycleStatus(standardStatus: string, transactionType: Trans
     case 'active under contract':
     case 'activeundercontract':
     case 'under contract':
+      // ActiveUnderContract is in the public active-display set
+      // (lib/compliance/status.ts); only true 'Pending' is hidden from public.
+      return 'active';
     case 'pending':
       return 'pending';
     case 'hold':

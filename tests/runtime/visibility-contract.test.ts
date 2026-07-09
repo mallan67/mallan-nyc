@@ -22,9 +22,11 @@ const V = (audience: Audience, status: LifecycleStatus, source: Source, transact
   resolveVisibility({ audience, status, source, transactionType, usage: 'comp' });
 
 describe('resolveVisibility — public audience', () => {
-  it('allows active + pending (active-family)', () => {
+  it('allows the active-display family (Active/ComingSoon/AUC) but BLOCKS true Pending', () => {
     expect(V('public', 'active', 'mls').allowed).toBe(true);
-    expect(V('public', 'pending', 'mls').allowed).toBe(true);
+    // ActiveUnderContract maps to the 'active' bucket (public); signed-contract
+    // 'Pending' is hidden publicly (matches lib/compliance/status.ts).
+    expect(V('public', 'pending', 'mls').allowed).toBe(false);
   });
 
   it('allows ACRIS closed_sold publicly', () => {
@@ -103,7 +105,8 @@ describe('toLifecycleStatus — provider StandardStatus → lifecycle (sold ≠ 
   it('maps the active family and off-market statuses', () => {
     expect(toLifecycleStatus('Active', 'sale')).toBe('active');
     expect(toLifecycleStatus('Coming Soon', 'sale')).toBe('active');
-    expect(toLifecycleStatus('Active Under Contract', 'sale')).toBe('pending');
+    // ActiveUnderContract → active (public-displayable); Pending stays hidden.
+    expect(toLifecycleStatus('Active Under Contract', 'sale')).toBe('active');
     expect(toLifecycleStatus('Pending', 'sale')).toBe('pending');
     expect(toLifecycleStatus('Hold', 'sale')).toBe('temp_off_market');
     expect(toLifecycleStatus('Withdrawn', 'sale')).toBe('withdrawn');
