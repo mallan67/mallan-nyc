@@ -69,15 +69,17 @@ Filters 3–5 are combined into a single DB reference set:
 | `--execute` | off | required to delete; still gated by everything below |
 | `--prefix-scope` | `listing-media` | only value accepted; rejects anything else |
 | `--older-than-days` | `30` | age safety window |
-| `--max-delete N` | — | **required for `--execute`**; hard cap |
+| `--batch-size N` | — | **required for `--execute`**; selects up to N candidates this run (oldest-first, then key asc). The planner may find far more candidates than N — only the first N are selected, so a large cleanup runs in controlled batches. |
+| `--max-delete N` | — | **required for `--execute`**; the HARD ceiling — if the selected batch exceeds N, abort. |
 | `--manifest <path>` | — | **required for `--execute`**; only reviewed keys are deleted |
 | `--confirm "DELETE LISTING MEDIA ORPHANS"` | — | **required for `--execute`**; exact phrase |
 | `--out <path>` / `--manifest-out <path>` | stdout | where to write the inventory / manifest |
 
 `deleteFromR2` is only reachable **after** the planner returns `willDelete=true`, which requires
-`--execute` **and** the exact confirm phrase **and** a manifest **and** a passing `--max-delete` **and** a
-complete R2 list **and** a loaded DB reference set **and** candidates ≤ sanity threshold. Any failure →
-0 deletions.
+`--execute` **and** the exact confirm phrase **and** a manifest **and** a valid positive `--batch-size`
+**and** a valid positive `--max-delete` (with `selected ≤ max-delete`) **and** a complete R2 list **and** a
+loaded DB reference set. The script deletes ONLY the selected batch (`plan.selected`), never the full
+candidate pool. Any failure → 0 deletions.
 
 ## 6. Execution runbook (NOT to be run without Maya's approval)
 1. **Dry-run** → produce `r2-orphan-inventory-*.md` + `r2-orphan-manifest.json`.
@@ -85,24 +87,24 @@ complete R2 list **and** a loaded DB reference set **and** candidates ≤ sanity
    confirm counts/bytes are sane; confirm no in-use asset is present in the candidate list.
 3. **Approval** — Maya explicitly authorizes; pick a conservative `--max-delete` (e.g. start at a few
    hundred).
-4. **Execute** (only then):
+4. **Execute** in controlled batches (only then). A small proof batch first:
    ```bash
    npm run ops:r2-orphan-cleanup -- --execute \
      --confirm "DELETE LISTING MEDIA ORPHANS" \
      --manifest r2-orphan-manifest.json \
-     --max-delete 500 --older-than-days 30
+     --batch-size 100 --max-delete 100 --older-than-days 30
    ```
-   The script re-verifies every manifest key still qualifies (still orphan, still old, still in scope,
-   still unreferenced) at execute time before deleting — so a row that became referenced between
-   inventory and execution is skipped.
-5. **Re-inventory** afterward to confirm counts dropped and nothing referenced was removed.
+   then, once proven, larger controlled batches (e.g. `--batch-size 50000 --max-delete 50000`), re-running
+   until candidates are exhausted. The script re-verifies every manifest key still qualifies (still orphan,
+   still old, still in scope, still unreferenced) at execute time before deleting — so a row that became
+   referenced between inventory and execution is skipped.
+5. **Re-inventory** after each batch to confirm counts dropped and nothing referenced was removed.
 
 ## 7. Abort conditions (any → delete nothing, non-zero exit under `--execute`)
 Partial R2 list · DB reference query failure · missing/incorrect confirm phrase · missing manifest ·
-missing `--max-delete` · **malformed numeric guard** (`--max-delete` / `--older-than-days` not a finite
-non-negative integer — fails closed *before* planning) · candidates over `--max-delete` · candidates over
-the 5,000 sanity threshold · `--prefix-scope` other than `listing-media` · R2 not configured · explicit
-`--dry-run` present.
+missing/invalid `--batch-size` (must be a positive integer) · missing/invalid `--max-delete` ·
+**malformed numeric guard** (fails closed *before* planning) · **selected batch exceeds `--max-delete`** ·
+`--prefix-scope` other than `listing-media` · R2 not configured · explicit `--dry-run` present.
 
 ## 8. Current status
 - Dry-run tooling + tests: **built and verified** (type-check + unit tests green).

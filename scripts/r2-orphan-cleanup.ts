@@ -11,13 +11,18 @@
  * │ • --execute                       (absent → dry-run, the default)          │
  * │ • --confirm "DELETE LISTING MEDIA ORPHANS"  (exact phrase)                  │
  * │ • --manifest <path>               (reviewed inventory; only its keys go)    │
- * │ • --max-delete N                  (hard cap; > SANITY_THRESHOLD still fails)│
+ * │ • --batch-size N                  (how many to select this run; positive int)│
+ * │ • --max-delete N                  (HARD ceiling; selected > max → abort)    │
  * │ • R2 list complete                (partial listing → abort)                 │
  * │ • DB reference query succeeded    (failure → abort)                         │
  * │ • object under listing-media prefix (photos/ floorplans/ videos/ virtualtours/) │
  * │ • object NOT referenced by r2_key / primary_photo_r2_key / media_url_cached │
  * │ • object older than --older-than-days (default 30; unknown age → keep)      │
  * └────────────────────────────────────────────────────────────────────────────┘
+ *
+ * The planner may find far more candidates than --batch-size; it selects only the
+ * first N (sorted oldest LastModified first, then key ascending) so large cleanups
+ * run in controlled batches. --max-delete is the hard ceiling on that selected batch.
  *
  * Usage:
  *   # DRY RUN (default) — inventory + manifest, no deletion:
@@ -27,7 +32,7 @@
  *   # EXECUTE (all gates required; NOT run without explicit Maya approval):
  *   npm run ops:r2-orphan-cleanup -- --execute \
  *     --confirm "DELETE LISTING MEDIA ORPHANS" \
- *     --manifest r2-orphan-manifest.json --max-delete 500 --older-than-days 30
+ *     --manifest r2-orphan-manifest.json --batch-size 100 --max-delete 100 --older-than-days 30
  *
  * SAFETY: read-only unless --execute + all gates pass. `deleteFromR2` is only
  * reachable inside the fully-gated execute block.
@@ -64,6 +69,8 @@ const manifestOut = val('--manifest-out');
 const outPath = val('--out');
 const maxDeleteRaw = val('--max-delete');
 const maxDelete = maxDeleteRaw === null ? null : Number(maxDeleteRaw);
+const batchSizeRaw = val('--batch-size');
+const batchSize = batchSizeRaw === null ? null : Number(batchSizeRaw);
 const olderThanDaysRaw = val('--older-than-days');
 const olderThanDays = olderThanDaysRaw !== null ? Number(olderThanDaysRaw) : 30;
 // --prefix-scope is fixed to listing-media; the flag exists for explicitness and
@@ -89,6 +96,10 @@ async function main() {
   // invalidate the age window.
   if (maxDeleteRaw !== null && !isValidGuardNumber(maxDelete)) {
     console.error(`[r2-orphan-cleanup] --max-delete must be a non-negative integer (got "${maxDeleteRaw}"). Aborting (nothing deleted).`);
+    process.exit(2);
+  }
+  if (batchSizeRaw !== null && (!isValidGuardNumber(batchSize) || (batchSize as number) < 1)) {
+    console.error(`[r2-orphan-cleanup] --batch-size must be a positive integer (got "${batchSizeRaw}"). Aborting (nothing deleted).`);
     process.exit(2);
   }
   if (olderThanDaysRaw !== null && !isValidGuardNumber(olderThanDays)) {
@@ -154,6 +165,7 @@ async function main() {
     confirm,
     manifestKeys,
     maxDelete,
+    batchSize,
   };
   const plan = planOrphanDeletions(input);
 
@@ -175,7 +187,8 @@ async function main() {
   md.push(`- R2 list complete: ${listComplete ? '✅ yes' : '❌ NO (fail-closed)'} · DB reference set: ${dbRefKeys ? '✅ loaded' : '❌ FAILED (fail-closed)'}`);
   md.push(`- Guards passed: ${plan.guardsPassed.map((g) => `\`${g}\``).join(' · ')}`);
   if (plan.aborted) md.push(`- **ABORT reasons:** ${plan.abortReasons.map((r) => `\`${r}\``).join(' · ')}`);
-  md.push(`- **Would delete on this run:** ${plan.willDelete ? `YES (${plan.candidates.length})` : 'NO — nothing will be deleted'}`);
+  if (execute) md.push(`- **Selected batch this run: ${plan.selected.length.toLocaleString()}** objects · ${fmtBytes(plan.selectedBytes)} (batch-size ${batchSize ?? 'unset'}, max-delete ${maxDelete ?? 'unset'}, oldest-first)`);
+  md.push(`- **Would delete on this run:** ${plan.willDelete ? `YES (${plan.selected.length})` : 'NO — nothing will be deleted'}`);
   md.push('');
   md.push('> **Out-of-scope objects are NOT deletion candidates.** Only objects under ' +
     LISTING_MEDIA_PREFIXES.join(', ') + ' are ever considered.');
@@ -233,11 +246,11 @@ async function main() {
     process.exit(plan.aborted && execute ? 1 : 0);
   }
 
-  // Reaching here means: --execute + exact confirm + manifest + within max-delete
-  // + list complete + DB loaded + candidates ≤ sanity threshold. Delete only the
-  // planner-approved keys, in batches.
-  console.error(`[r2-orphan-cleanup] EXECUTING deletion of ${plan.candidates.length} orphan objects...`);
-  const keys = plan.candidates.map((o) => o.key);
+  // Reaching here means every gate passed: --execute + exact confirm + manifest
+  // + valid --batch-size + valid --max-delete (selected ≤ max-delete) + complete
+  // R2 list + loaded DB reference set. Delete ONLY the selected batch, in chunks.
+  console.error(`[r2-orphan-cleanup] EXECUTING deletion of ${plan.selected.length} orphan objects (selected batch)...`);
+  const keys = plan.selected.map((o) => o.key);
   let deleted = 0;
   for (let i = 0; i < keys.length; i += 1000) {
     const batch = keys.slice(i, i + 1000);

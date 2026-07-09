@@ -19,14 +19,6 @@ export const LISTING_MEDIA_PREFIXES = [
 /** The exact phrase --confirm must equal before any deletion is allowed. */
 export const CONFIRM_PHRASE = 'DELETE LISTING MEDIA ORPHANS';
 
-/**
- * Hard ceiling: even with a valid --max-delete, a candidate set larger than
- * this refuses to execute and demands manual re-approval. Guards against a
- * DB-reference regression suddenly making tens of thousands of live objects
- * look orphaned.
- */
-export const SANITY_THRESHOLD = 5000;
-
 export interface R2ObjectMeta {
   key: string;
   size: number;
@@ -59,8 +51,18 @@ export interface PlanInput {
    * `null` = no manifest supplied.
    */
   manifestKeys: Set<string> | null;
-  /** Value of --max-delete (required for --execute). */
+  /**
+   * Value of --max-delete (required for --execute). The HARD safety ceiling:
+   * if the selected batch exceeds this, the run aborts.
+   */
   maxDelete: number | null;
+  /**
+   * Value of --batch-size (required for --execute). How many candidates this
+   * single run may select for deletion. The planner may find far more
+   * candidates than this; only the first `batchSize` (sorted oldest-first,
+   * then key asc) are selected. `null` = not supplied.
+   */
+  batchSize: number | null;
 }
 
 export interface PlanResult {
@@ -69,9 +71,14 @@ export interface PlanResult {
   inScope: number;
   outOfScope: number;
   dbReferenced: number;
-  /** Orphan candidates after ALL safety filters (and manifest ∩ when executing). */
+  /** Orphan candidates after ALL safety filters (and manifest ∩ when executing).
+   *  Sorted oldest LastModified first, then key ascending. */
   candidates: R2ObjectMeta[];
   candidateBytes: number;
+  /** The subset actually chosen for deletion this run (≤ batchSize, ≤ maxDelete).
+   *  Empty on dry-run or when aborted. This is the ONLY set the script deletes. */
+  selected: R2ObjectMeta[];
+  selectedBytes: number;
   /** Out-of-scope objects are reported but NEVER deletable. */
   outOfScopeSample: string[];
   /** true only if every gate passed and --execute was requested. */
@@ -147,7 +154,18 @@ export function planOrphanDeletions(input: PlanInput): PlanResult {
         });
   if (ageValid) guardsPassed.push(`age window ${input.olderThanDays}d applied (unknown-age objects excluded)`);
 
-  // ── Execute-only gates ───────────────────────────────────────────────────
+  // ── Deterministic ordering: oldest LastModified first, then key ascending ─
+  // Makes the selected batch reproducible run-to-run. (Unknown-age objects were
+  // already excluded above, so lastModified is non-null here.)
+  candidates.sort((a, b) => {
+    const ta = a.lastModified ? a.lastModified.getTime() : 0;
+    const tb = b.lastModified ? b.lastModified.getTime() : 0;
+    if (ta !== tb) return ta - tb;
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+  });
+
+  // ── Execute-only gates + batch selection ─────────────────────────────────
+  let selected: R2ObjectMeta[] = [];
   if (input.execute) {
     if (input.confirm !== CONFIRM_PHRASE) {
       abortReasons.push(`--confirm must equal exactly "${CONFIRM_PHRASE}".`);
@@ -161,24 +179,41 @@ export function planOrphanDeletions(input: PlanInput): PlanResult {
       candidates = candidates.filter((o) => input.manifestKeys!.has(o.key));
       guardsPassed.push('intersected with reviewed manifest');
     }
+
+    // --batch-size: how many candidates this run may select (positive integer).
+    const batchValid = isValidGuardNumber(input.batchSize) && (input.batchSize as number) >= 1;
+    if (input.batchSize === null) {
+      abortReasons.push('--batch-size N is required for --execute.');
+    } else if (!batchValid) {
+      abortReasons.push('--batch-size must be a positive integer.');
+    }
+
+    // --max-delete: the HARD ceiling on the selected batch (positive integer).
+    const maxValid = isValidGuardNumber(input.maxDelete) && (input.maxDelete as number) >= 1;
     if (input.maxDelete === null) {
       abortReasons.push('--max-delete N is required for --execute.');
-    } else if (!isValidGuardNumber(input.maxDelete)) {
-      abortReasons.push('--max-delete must be a finite non-negative integer.');
-    } else if (candidates.length > input.maxDelete) {
-      abortReasons.push(`candidate count ${candidates.length} exceeds --max-delete ${input.maxDelete}.`);
-    } else {
-      guardsPassed.push(`within --max-delete ${input.maxDelete}`);
+    } else if (!maxValid) {
+      abortReasons.push('--max-delete must be a positive integer.');
     }
-    if (candidates.length > SANITY_THRESHOLD) {
-      abortReasons.push(
-        `candidate count ${candidates.length} exceeds sanity threshold ${SANITY_THRESHOLD} — manual re-approval required.`,
-      );
+
+    // Select up to batch-size candidates (already sorted oldest-first, key asc).
+    // Only referenced/too-new/out-of-scope-free candidates are in `candidates`,
+    // so the selected batch inherits every safety property by construction.
+    if (batchValid) {
+      selected = candidates.slice(0, input.batchSize as number);
+      guardsPassed.push(`selected ${selected.length} of ${candidates.length} (batch-size ${input.batchSize})`);
+    }
+
+    // Hard ceiling: the selected batch must never exceed --max-delete.
+    if (maxValid && selected.length > (input.maxDelete as number)) {
+      abortReasons.push(`selected batch ${selected.length} exceeds --max-delete ${input.maxDelete}.`);
     }
   }
 
   const aborted = abortReasons.length > 0;
-  const willDelete = input.execute && !aborted && candidates.length > 0;
+  const willDelete = input.execute && !aborted && selected.length > 0;
+  // Never hand back a selection when aborting — the script deletes `selected`.
+  if (aborted) selected = [];
 
   return {
     scope: `listing-media prefixes only: ${LISTING_MEDIA_PREFIXES.join(', ')}`,
@@ -188,6 +223,8 @@ export function planOrphanDeletions(input: PlanInput): PlanResult {
     dbReferenced: dbRef.size,
     candidates,
     candidateBytes: candidates.reduce((s, o) => s + o.size, 0),
+    selected,
+    selectedBytes: selected.reduce((s, o) => s + o.size, 0),
     outOfScopeSample: outOfScopeObjs.slice(0, 25).map((o) => o.key),
     willDelete,
     aborted,
