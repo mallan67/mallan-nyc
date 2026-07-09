@@ -171,3 +171,47 @@ export function keyFromUrl(url: string): string | null {
   if (!url.startsWith(base + '/')) return null;
   return url.slice(base.length + 1);
 }
+
+/**
+ * READ-ONLY: paginate the whole bucket and return per-object metadata
+ * (key, size, lastModified). Issues only ListObjectsV2 (Class-A read) calls —
+ * no mutation. Used by the R2 orphan cleanup inventory to reason about object
+ * age (safety window) and size (bytes freed). `complete` is false if any page
+ * failed or pagination was interrupted, so callers can fail-closed and refuse
+ * to treat a partial listing as authoritative.
+ */
+export async function listR2Objects(): Promise<{
+  objects: { key: string; size: number; lastModified: Date | null }[];
+  complete: boolean;
+}> {
+  const { bucket } = getR2Config();
+  const client = createClient();
+  const objects: { key: string; size: number; lastModified: Date | null }[] = [];
+  let continuationToken: string | undefined;
+  try {
+    do {
+      const resp = await client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          ContinuationToken: continuationToken,
+          MaxKeys: 1000,
+        })
+      );
+      for (const obj of resp.Contents ?? []) {
+        if (obj.Key) {
+          objects.push({
+            key: obj.Key,
+            size: obj.Size ?? 0,
+            lastModified: obj.LastModified ?? null,
+          });
+        }
+      }
+      continuationToken = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+    } while (continuationToken);
+    return { objects, complete: true };
+  } catch {
+    // Partial/failed listing — return what we have but flag it incomplete so
+    // no destructive path can treat it as authoritative.
+    return { objects, complete: false };
+  }
+}
