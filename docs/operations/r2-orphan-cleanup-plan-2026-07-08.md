@@ -56,8 +56,18 @@ An object is a deletion candidate **only if every one holds**:
 5. key is **not** referenced by `listings.primary_photo_r2_key`
 6. the **DB reference query succeeded** (failure → abort, delete nothing)
 7. the **R2 list completed** (partial/interrupted → abort, delete nothing)
-8. candidate count does **not** exceed the sanity threshold (5,000) without manual re-approval, and does
-   not exceed `--max-delete`
+
+Any object satisfying 1–7 is a *candidate*. A large candidate pool is expected and allowed — there is
+**no fixed candidate-count cap** (the former 5,000 "sanity threshold" was removed). Instead, deletion is
+bounded per run by the explicit controls:
+- **`--batch-size N`** selects only the first **N** candidates this run (sorted oldest `LastModified`
+  first, then key ascending) — so a large cleanup runs in controlled batches.
+- **`--max-delete N`** is the **hard ceiling on the selected batch**: if `selected > N`, the run aborts and
+  deletes nothing. It no longer refers to the total candidate count.
+
+So an operator reviewing a large manifest should not rely on any automatic candidate-count fail-stop —
+the run-size guarantee comes entirely from `--batch-size` + `--max-delete` (both required, both must be
+positive integers, malformed values fail closed before planning).
 
 Filters 3–5 are combined into a single DB reference set:
 `listing_media.r2_key ∪ listings.primary_photo_r2_key ∪ keyFromUrl(listing_media.media_url_cached)`.
