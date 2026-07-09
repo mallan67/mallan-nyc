@@ -11,7 +11,7 @@
 
 These are Maya's standing constraints for this lane. Every section below obeys them; call out any place a reader thinks they are violated.
 
-1. **Cotality API is the field source of truth.** Field names, enums, and populations come from `api.cotality.com/trestle`. `data/rebny-rls-property-fields.csv` is the (legacy-named) Cotality inventory.
+1. **Cotality API is the field source of truth — always live, never a copy (AGENTS.md §7, Maya law).** Field names, enums, and populations come from the live `api.cotality.com/trestle` (`$metadata`/`$count`). The current generated authority is **`data/cotality-enums.live.json`** (regenerated live via `npm run cotality:pull`, guarded by `npm run cotality:verify`). The legacy `data/rebny-rls-property-fields.csv` and `artifacts/metadata.xml` are historical snapshots, **not** authority.
 2. **No RESO language in field-contract sections.** RESO is the standards body; Cotality is the provider. The two are not interchangeable here.
 3. **No REBNY / RLS / IDX / VOW field names introduced into field-contract sections.** Those terms appear ONLY in the compliance/syndication sub-sections where they are the actual governing rule.
 4. **ACRIS is the only public-record closed-sale-history source.** Public closed sale = ACRIS, never a raw Cotality `ClosePrice`.
@@ -28,7 +28,7 @@ Every claim below is tagged:
 - **[needs probe]** — a **Class B** live-Cotality field-truth claim (does the field exist / is it populated / is it filterable). These are **hypotheses to verify against a live `$metadata`/`$count`/`trestle:probe`**, NOT conclusions. No live Cotality query was run in this analysis.
 - **[Class-C]** — a REBNY / UCBA / FARE / DOS / Fair-Housing **policy** confirmation needed via `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` before building.
 
-The already-verified Cotality enum ground (from the PR-1 live-verification pass, 2026-07-06 — **do not re-probe**): `StandardStatus` has 11 members and the live feed carries **`Pending`, not `ActiveUnderContract`** (AUC live count = 0); sale = `Residential`, rental = `ResidentialLease` (no space); co-op = `StockCooperative` (there is **no** `Cooperative` member), condo = `Condominium`, `Condop` distinct; `MlsStatus` is **not** `$filter`-able (HTTP 400, provider-suppressed); `Permission` has no `OwnerOptOut` member.
+**Prior probe context (2026-07-06) — historical only, not authority.** Per AGENTS.md §7 (Cotality is the sole authority — always live, never a copy, never a spot-check), Backend-Search-1 **must re-verify live before locking any enum / filterability / sortability / status / field assumption** — via `npm run cotality:pull && npm run cotality:verify` (authority = `data/cotality-enums.live.json`) or live `$metadata`/`$count` probes; do not rely on copied enum/filterability sets. For context, that earlier pass observed: `StandardStatus` 11 members with the live feed carrying **`Pending`, not `ActiveUnderContract`** (AUC live count = 0); sale = `Residential`, rental = `ResidentialLease` (no space); co-op = `StockCooperative` (no `Cooperative` member), condo = `Condominium`, `Condop` distinct; `MlsStatus` **not** `$filter`-able (HTTP 400, provider-suppressed); `Permission` has no `OwnerOptOut` member. Re-confirm each live.
 
 ---
 
@@ -222,8 +222,8 @@ Guardrail: the merged Backend-Search-0 `visibility-contract.ts` is the current c
 ### The 8-bucket lifecycle (retained for agent/internal/report; restricted for public)
 `active · pending · temp_off_market · withdrawn · canceled · expired · closed_sold · closed_rented`. Public sees only the active-family + ACRIS `closed_sold`; agent/internal/report see everything; sold ≠ rented always. This is correct and locked by `visibility-contract.test.ts` (26 assertions).
 
-### D6-1 — the latent fail-open in the merged contract [E, HIGH]
-`toLifecycleStatus(standardStatus, transactionType)` (`visibility-contract.ts:153-154`) returns **`'active'` for any unknown/blank status.** Because `'active'` is the one bucket the public branch of `resolveVisibility` allows, an unrecognized Cotality status string would be **publicly displayed**. It is safe **today only because** the public callers hardcode `'closed_sold'`/ACRIS and never feed an untrusted status through this function. **Backend-Search-1 must flip the default to a blocked bucket** (e.g. a new `unknown` → treated as non-public) so the safety doesn't depend on caller discipline. This is the single most important status fix to carry into the contract.
+### D6-1 — unknown-status fail-open [RESOLVED — Backend-Search-0.1, PR #489 / squash `f1b26b28`]
+**Historical context / lesson learned — this is now fixed on `main`.** `toLifecycleStatus` previously defaulted an unrecognized/blank Cotality StandardStatus to `'active'` — the one bucket the public branch of `resolveVisibility` allows — so an untrusted status *could* have been publicly displayed (latent only because public callers hardcoded `'closed_sold'`/ACRIS). **Current behavior:** unknown/unrecognized Cotality API `StandardStatus` → **`lifecycle_status: "unknown"` → public fail-closed** (agent / internal_report / client still see it, so private intelligence is not suppressed). Backend-Search-1 **builds on this fixed behavior** — there is nothing to "flip." The lesson to carry forward: fail-closed safety must live in the contract's default, not in caller discipline.
 
 ### Other status findings [E]
 - **D6-2** — two independently-declared TERMINAL sets (`lib/compliance/status.ts:138` vs `lib/idx/trestle-mapper.ts:618`) that can drift. Contract should name **one**.
@@ -301,7 +301,7 @@ Seven files, 369 lines, **not on main.** Per-file keep / change / reject. This b
 ### 10.1 What the contract module defines (pure, testable, no I/O)
 
 1. **Canonical field registry** — every field by its **Cotality** identifier, with: public-DTO path, DB column, projection column, CRM param, capability flags (`searchable`/`sortable`/`filterable`/`alertable`/`reportable`), and attribution/compliance role. Seeded from `live-truth.ts` (§9). Fixes the "field means different things per surface" class (B-1…B-4, B-11, B-12).
-2. **Status vocabulary** — the merged 8-bucket `LifecycleStatus` as the single source; `toLifecycleStatus` **default flips to a blocked `unknown` bucket** (fixes D6-1). One TERMINAL set (fixes D6-2).
+2. **Status vocabulary** — the merged 8-bucket `LifecycleStatus` **plus the `unknown` fail-closed bucket already shipped in Backend-Search-0.1 (PR #489)** as the single source; the contract inherits and preserves that fail-closed default (no re-fix needed). Consolidate to one canonical TERMINAL set (the two-set drift noted in §6).
 3. **Transaction-type vocabulary** — `sale | rental | commercial` from `PropertyType` via `listing-class.ts`. Never collapse sold/rented downstream.
 4. **Ownership vocabulary** — `condo | coop | condop | rental_building | none` from `CommonInterest` via `ownership.ts` (fixes B-11).
 5. **Audience/source visibility** — re-export the merged `resolveVisibility`/`toLifecycleStatus` as the ONE resolver; the contract adds no second gate (fixes §1.2, §9 `display-gate.ts`).
@@ -328,7 +328,7 @@ From §Strategic, the P0 gaps that are painful to retrofit and should shape the 
 Contract is pure → every branch unit-testable, no I/O. Proposed suites:
 
 1. **Field registry** — every Cotality field resolves to exactly one canonical key; capability flags are internally consistent (nothing `alertable` that the projection can't express); public `mlsId` maps to the Cotality key not the internal id (locks B-12).
-2. **Status** — `toLifecycleStatus` unknown/blank → **blocked** bucket (locks the D6-1 fix — the failing test that flips green); AUC→active, Pending→pending; sold≠rented across sale/rental transaction types (extends the existing 26-assertion suite).
+2. **Status** — the `unknown`/blank → **fail-closed** test already ships in Backend-Search-0.1 (PR #489); Backend-Search-1 retains and extends it. Plus AUC→active, Pending→pending; sold≠rented across sale/rental transaction types (extends the existing visibility-contract suite).
 3. **Ownership** — `CommonInterest` → each bucket; `StockCooperative`→coop; no `Cooperative` member assumed (locks B-11 + live truth).
 4. **Sort** — every canonical sort key emits a stable order with `id asc` tiebreak; no client re-sort can diverge from the declared key (locks D4/D5 semantics).
 5. **Filter capability** — an unmapped/unsupported key is **rejected loudly**, never silently dropped (locks the §4 + D7 silent-drop class).
@@ -382,7 +382,7 @@ The single structural finding that dominates everything: **the current framing i
 
 ## 13. Live-verification checklist (before any build)
 
-**Already verified (PR-1 pass — do not re-probe):** `StandardStatus` 11 members / `Pending` not AUC; `Residential`/`ResidentialLease`; `StockCooperative`/`Condominium`/`Condop`; no `OwnerOptOut` member; `MlsStatus` not filterable.
+**Prior probe context (2026-07-06) — historical, re-verify live before build (NOT authority):** `StandardStatus` 11 members / `Pending` not AUC; `Residential`/`ResidentialLease`; `StockCooperative`/`Condominium`/`Condop`; no `OwnerOptOut` member; `MlsStatus` not filterable. Per AGENTS.md, rerun `npm run cotality:pull && npm run cotality:verify` (authority = `data/cotality-enums.live.json`) or live `$metadata`/`$count` before locking any enum / filterability / sortability / status / field assumption — do not rely on copied sets.
 
 **Class-B (Cotality field truth — needs `trestle:probe` / live `$metadata`/`$count`):** Media key = `ResourceRecordKey`; `ListingKey`/relist-key dedup semantics; sqft availability/reliability (PPSF); which amenity/feature fields are structured vs remarks-only; `days_on_market`/`first_active_date` backfill state; `PropertySubType`/`NewConstruction`/`Garage` filterability; `CountyOrParish` vs `CityRegion` population; ACRIS unit-lot (≥1001) vs base-lot; co-op ownership in ACRIS (LLC/stock — deed logic breaks); `Latitude`/`Longitude` population.
 
@@ -390,24 +390,25 @@ The single structural finding that dominates everything: **the current framing i
 
 ---
 
-## 14. Consolidated defect register (cross-section, ranked)
+## 14. Analysis findings / candidate work items
 
-| ID | Section | Defect | Sev | Fix home |
+> **This section is NOT the canonical platform issue registry.** The shorthand labels used throughout this analysis (`B-n`, `D-n`, `D6-n`, `D7-n`, `Attr`, `CMA`) are **analysis-local cross-reference labels, not tracked issue IDs.** Per AGENTS.md, all tracked issues / debt / risks live in `docs/PLATFORM-ISSUE-REGISTRY.md` with canonical IDs. Any finding below that is promoted to tracked implementation work **must** be registered in `docs/PLATFORM-ISSUE-REGISTRY.md` (or mapped to an existing registry ID) **before** implementation. No canonical IDs are minted here.
+
+| Finding | Section | What it is | Sev | Status / home |
 |---|---|---|---|---|
-| D6-1 | §6 | `toLifecycleStatus` unknown→`active` fail-open | HIGH | contract (§10.1-2) — flip default |
-| CMA-1 | §8 | CMA uses `list_price` for closed comps + gate excludes terminals → CMA on active asks | HIGH | comp eligibility (§10.1-13) |
-| D1 | §4 | Public DB path filters after pagination → inflated count, ragged pages | HIGH | route (downstream), spec'd by contract |
-| D2 | §4 | Amenities silent no-op on Cotality fallback (except pet-friendly) | HIGH | contract capability flag + route |
-| D7 / D7-1 / D7-2 | §7 | Saved-search drops criteria; no `criteria_version`; alert created w/o gate | HIGH | contract (§10.1-10) |
-| D5 / D8 | §5 | Sort key diverges server vs client; CRM "cheapest of 200" | HIGH | contract sort enum + route |
-| B-1 / B-2 / B-12 | §2 | roomsTotal undefined; baths diverge; public mlsId wrong | HIGH | field registry (§10.1-1) |
-| B-13 | §2 | Projection gate-column divergence (latent fail-open) | HIGH | field registry + gate |
-| D6-2 | §6 | Two TERMINAL sets can drift | MED | contract (one set) |
-| Attr-1 | §3 | Client alert emails ship without courtesy attribution | MED-[Class-C] | contract labeling + route |
-| B-15 | §2 | No PPSF / assessments / total carrying cost | HIGH-product | economics dimension (§12) |
-| D3 / multi-borough / CRM dead filters | §4 | Dead controls + silent broadening | MED | contract fail-loud + UI |
-| D9–D12 | §5 | CRM client-only sorts, filter loss on re-sort, lexical date sort | MED | route, spec'd by contract |
-| B-3…B-11, B-14, B-16, D7-3/5/6 | §2/§7 | field-resolution + serialization drift | MED/LOW | field registry + criteria schema |
+| Visibility unknown-status default | §6 | unknown/unrecognized status → public fail-open | HIGH | **RESOLVED — Backend-Search-0.1, PR #489 (`f1b26b28`)** |
+| CMA close-price valuation bug | §8 | closed comps valued on `list_price`; display gate excludes terminals | HIGH | **candidate P0** — separate reports/CMA track |
+| Public DB filter-after-pagination | §4 | 6 filters post-paginated → inflated count, ragged pages | HIGH | candidate — route, spec'd by contract |
+| Amenities no-op on Cotality fallback | §4 | all but pet-friendly silently dropped | HIGH | candidate — contract capability flag + route |
+| Saved-search criteria loss + no versioning | §7 | criteria dropped; no `criteria_version`; alert created w/o gate | HIGH | candidate — contract |
+| Sorting instability | §5 | server/client key divergence; CRM "cheapest of 200" | HIGH | candidate — contract sort enum + route |
+| Field-mapping gaps | §2 | roomsTotal undefined; baths diverge; public mlsId wrong; projection gate-column divergence | HIGH | candidate — field registry |
+| Attribution gaps | §3 | client alert emails ship without courtesy attribution | MED-[Class-C] | candidate — contract labeling + route |
+| Product data gaps | §2 | no PPSF / assessments / total carrying cost | HIGH-product | candidate — economics dimension (§12) |
+| Dead / silent controls | §4 | dead controls + multi-borough silent broadening | MED | candidate — contract fail-loud + UI |
+| CRM sort defects | §5 | client-only sorts, filter loss on re-sort, lexical date sort | MED | candidate — route, spec'd by contract |
+| Terminal-set drift | §6 | two TERMINAL sets can diverge | MED | candidate — one canonical set |
+| Field-resolution / serialization drift | §2/§7 | assorted field + criteria drift | MED/LOW | candidate — field registry + criteria schema |
 
 ---
 
