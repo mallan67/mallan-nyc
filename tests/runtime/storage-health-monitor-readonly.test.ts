@@ -76,6 +76,22 @@ describe('storage-health-monitor — read-only safety contract', () => {
     expect(src).toMatch(/not_run|unavailable/);
   });
 
+  it('scopes the orphan diff to listing-media prefixes (shared bucket safety)', () => {
+    // The bucket is shared with other subsystems; only listing-media-prefixed
+    // objects may be classified as orphans. Out-of-scope objects are counted,
+    // never flagged.
+    expect(src).toMatch(/LISTING_MEDIA_PREFIXES/);
+    expect(src).toMatch(/out_of_scope_objects/);
+    // Reference set must also include media_url_cached-derived keys.
+    expect(src).toMatch(/keyFromUrl/);
+  });
+
+  it('uses no AGENTS.md §5 forbidden evidence words in report output', () => {
+    // "probably | likely | appears | root cause" are forbidden in status reports
+    // unless registered as a Hypothesis H-###.
+    expect(src).not.toMatch(/\b(likely|probably|appears|root cause)\b/i);
+  });
+
   it('reports free-tier status separately for Neon and R2 without guessing the plan', () => {
     expect(src).toMatch(/free_tier_status/);
     expect(src).toMatch(/needs_account_confirmation/);

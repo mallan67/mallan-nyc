@@ -56,8 +56,18 @@
  * free-tier limit claim.
  */
 import prisma from '@/lib/prisma';
-import { hasR2Config, listR2ObjectKeys } from '@/lib/images/r2';
+import { hasR2Config, listR2ObjectKeys, keyFromUrl } from '@/lib/images/r2';
 import { TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
+
+// Listing-media R2 objects live ONLY under these prefixes (buildMediaR2Key in
+// lib/media/media-sync-service.ts). The shared bucket also holds objects written
+// by OTHER subsystems (e.g. broker-uploaded photos, Document.file_url), so the
+// orphan diff compares ONLY objects under these prefixes against the listing DB
+// references. Objects outside them are reported as "out of scope", never as
+// orphans — we cannot classify them from listing tables alone.
+const LISTING_MEDIA_PREFIXES = ['photos/', 'floorplans/', 'videos/', 'virtualtours/'] as const;
+const inListingMediaScope = (key: string): boolean =>
+  LISTING_MEDIA_PREFIXES.some((p) => key.startsWith(p));
 
 // ── CLI args ──────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -488,13 +498,18 @@ async function collect() {
     | { status: 'unavailable'; note: string }
     | {
         status: 'proven';
+        scope: string;
         bucket_objects: number;
         bucket_bytes: number;
+        in_scope_objects: number;
+        out_of_scope_objects: number;
         db_referenced_keys: number;
         orphans_in_r2: number;
         missing_from_r2: number;
         orphan_sample: string[];
         missing_sample: string[];
+        out_of_scope_sample: string[];
+        note: string;
       };
   let orphan: OrphanResult = {
     status: 'not_run',
@@ -502,10 +517,14 @@ async function collect() {
   };
   if (r2Orphans) {
     if (!hasR2Config()) {
-      orphan = { status: 'unavailable', note: 'R2 env vars not configured; cannot list the bucket.' };
+      orphan = { status: 'unavailable', note: 'R2 env vars not configured; cannot list the bucket. Bucket-level orphans remain UNPROVEN.' };
     } else {
       try {
         const { keys: bucketKeys, totalBytes, count } = await listR2ObjectKeys();
+        // Reference set = every listing-media R2 key we can derive from the DB:
+        // listing_media.r2_key + listings.primary_photo_r2_key + any key encoded
+        // in listing_media.media_url_cached (CRM variants can point cached at a
+        // different key than r2_key). Bounded to listing-media prefixes only.
         const dbKeyRows = await withRetry(
           'db-r2-keys',
           () => prisma.$queryRaw<{ r2_key: string }[]>`
@@ -514,24 +533,45 @@ async function collect() {
             SELECT DISTINCT primary_photo_r2_key FROM listings WHERE primary_photo_r2_key IS NOT NULL AND primary_photo_r2_key <> ''
           `,
         );
-        const dbKeySet = new Set(dbKeyRows.map((r) => r.r2_key));
-        const bucketSet = new Set(bucketKeys);
-        const orphansInR2 = bucketKeys.filter((k) => !dbKeySet.has(k));
-        const missingFromR2 = [...dbKeySet].filter((k) => !bucketSet.has(k));
+        const cachedRows = await withRetry(
+          'db-cached-urls',
+          () => prisma.$queryRaw<{ media_url_cached: string }[]>`
+            SELECT DISTINCT media_url_cached FROM listing_media WHERE media_url_cached IS NOT NULL AND media_url_cached <> ''
+          `,
+        );
+        const dbKeySet = new Set<string>(dbKeyRows.map((r) => r.r2_key));
+        for (const row of cachedRows) {
+          const k = keyFromUrl(row.media_url_cached);
+          if (k) dbKeySet.add(k);
+        }
+        // Only compare objects UNDER listing-media prefixes. Everything else in
+        // the shared bucket (agent photos, documents, etc.) is out of scope and
+        // is NEVER flagged as an orphan here.
+        const inScope = bucketKeys.filter(inListingMediaScope);
+        const outOfScope = bucketKeys.filter((k) => !inListingMediaScope(k));
+        const bucketSet = new Set(inScope);
+        const orphansInR2 = inScope.filter((k) => !dbKeySet.has(k));
+        // "missing" = a listing-media DB key with no bucket object (also scoped).
+        const missingFromR2 = [...dbKeySet].filter((k) => inListingMediaScope(k) && !bucketSet.has(k));
         orphan = {
           status: 'proven',
+          scope: `listing-media prefixes only: ${LISTING_MEDIA_PREFIXES.join(', ')}`,
           bucket_objects: count,
           bucket_bytes: totalBytes,
+          in_scope_objects: inScope.length,
+          out_of_scope_objects: outOfScope.length,
           db_referenced_keys: dbKeySet.size,
           orphans_in_r2: orphansInR2.length,
           missing_from_r2: missingFromR2.length,
           orphan_sample: orphansInR2.slice(0, 25),
           missing_sample: missingFromR2.slice(0, 25),
+          out_of_scope_sample: outOfScope.slice(0, 25),
+          note: 'Orphans/missing are scoped to listing-media prefixes. Out-of-scope objects (other subsystems) are counted, not classified — a lifecycle PR must confirm their owning table before any action. No objects deleted.',
         };
       } catch (e) {
         orphan = {
           status: 'unavailable',
-          note: `R2 list failed (likely no list permission): ${e instanceof Error ? e.message : String(e)}`,
+          note: `R2 bucket list did not complete; captured error: ${e instanceof Error ? e.message : String(e)}. Bucket-level orphans remain UNPROVEN — rerun with R2 list permission against the correct bucket to verify.`,
         };
       }
     }
@@ -740,11 +780,14 @@ function renderMarkdown(
   const o = data.orphan;
   if (o.status === 'proven') {
     L.push(`- **Status: 🟢 PROVEN** (bucket listed read-only).`);
-    L.push(`- Bucket objects: ${o.bucket_objects.toLocaleString()} · Bucket size: ${fmtBytes(o.bucket_bytes)} · DB-referenced keys: ${o.db_referenced_keys.toLocaleString()}`);
-    L.push(`- **Orphans in R2 (object with no DB reference): ${o.orphans_in_r2.toLocaleString()}** · **Missing from R2 (DB key with no object): ${o.missing_from_r2.toLocaleString()}**`);
+    L.push(`- **Scope:** ${o.scope}. Objects outside these prefixes are counted, **not** classified as orphans.`);
+    L.push(`- Bucket objects: ${o.bucket_objects.toLocaleString()} · Bucket size: ${fmtBytes(o.bucket_bytes)} → in-scope: ${o.in_scope_objects.toLocaleString()} · out-of-scope: ${o.out_of_scope_objects.toLocaleString()}`);
+    L.push(`- DB-referenced listing-media keys (r2_key + primary + cached-derived): ${o.db_referenced_keys.toLocaleString()}`);
+    L.push(`- **Orphans in R2 (in-scope object with no DB reference): ${o.orphans_in_r2.toLocaleString()}** · **Missing from R2 (in-scope DB key with no object): ${o.missing_from_r2.toLocaleString()}**`);
     if (o.orphan_sample.length) L.push(`- Orphan sample: ${o.orphan_sample.map((k) => `\`${k}\``).join(', ')}`);
     if (o.missing_sample.length) L.push(`- Missing sample: ${o.missing_sample.map((k) => `\`${k}\``).join(', ')}`);
-    L.push('- **No objects deleted.** Orphans/missing are reported for a future, separately-approved lifecycle PR.');
+    if (o.out_of_scope_sample.length) L.push(`- Out-of-scope sample (other subsystems — not evaluated): ${o.out_of_scope_sample.map((k) => `\`${k}\``).join(', ')}`);
+    L.push(`- ${o.note}`);
   } else {
     L.push(`- **Status: ❔ ${o.status.toUpperCase()} — NOT PROVEN.** ${o.note}`);
     L.push('- ⚠️ This report makes **no claim** that R2 is free of orphans. DB-level checks (§15) cannot see objects that exist in the bucket with no DB row.');

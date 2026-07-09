@@ -69,6 +69,12 @@ connects to whatever `DATABASE_URL` points at — the canonical production DB is
   (§15 #2). If that's `0`, re-uploads aren't inflating the bucket.
 - **Only `--r2-orphans` can prove there are no bucket orphans** (objects in R2 with no DB row). Without
   it the report says `r2_orphan_check_status: not_run` and makes **no** orphan claim.
+- The orphan diff is **scoped to listing-media key prefixes** (`photos/`, `floorplans/`, `videos/`,
+  `virtualtours/`). The bucket is shared with other subsystems (broker-uploaded photos,
+  `Document.file_url`, …); objects **outside** those prefixes are counted as `out_of_scope`, **never**
+  flagged as orphans — a lifecycle PR must confirm the owning table before any action. The reference
+  set is `listing_media.r2_key` + `listings.primary_photo_r2_key` + keys derived from
+  `listing_media.media_url_cached` (covers CRM variants where cached ≠ r2_key).
 - **This tool never deletes** a duplicate or orphan object. Any cleanup is a separate, Maya-approved
   lifecycle PR (roadmap step 5).
 
