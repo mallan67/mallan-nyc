@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   DeleteObjectsCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 
 function getR2Config() {
@@ -121,6 +122,43 @@ export async function existsInR2(key: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * READ-ONLY: paginate the whole bucket and return every object key plus an
+ * aggregate byte total and object count. Issues only ListObjectsV2 (Class-A
+ * read) calls — no mutation. Used by the storage-health monitor's optional
+ * orphan reconciliation (`--r2-orphans`) and to measure actual R2 storage
+ * size for the free-tier check. Throws if the token lacks list permission;
+ * callers catch and report the orphan check as "unavailable".
+ */
+export async function listR2ObjectKeys(): Promise<{
+  keys: string[];
+  totalBytes: number;
+  count: number;
+}> {
+  const { bucket } = getR2Config();
+  const client = createClient();
+  const keys: string[] = [];
+  let totalBytes = 0;
+  let continuationToken: string | undefined;
+  do {
+    const resp = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      })
+    );
+    for (const obj of resp.Contents ?? []) {
+      if (obj.Key) {
+        keys.push(obj.Key);
+        totalBytes += obj.Size ?? 0;
+      }
+    }
+    continuationToken = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+  } while (continuationToken);
+  return { keys, totalBytes, count: keys.length };
 }
 
 /**
