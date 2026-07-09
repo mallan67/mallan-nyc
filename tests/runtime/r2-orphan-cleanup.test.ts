@@ -11,6 +11,8 @@ import { readFileSync } from 'fs';
 import * as path from 'path';
 import {
   planOrphanDeletions,
+  resolveExecute,
+  isValidGuardNumber,
   CONFIRM_PHRASE,
   SANITY_THRESHOLD,
   type PlanInput,
@@ -145,6 +147,47 @@ describe('r2-orphan-plan — deletion safety filters', () => {
     expect(p.abortReasons.join(' ')).toMatch(/max-delete/i);
   });
 
+  it('P1: malformed --max-delete (NaN) fails closed, never bypasses the cap', () => {
+    const many = Array.from({ length: 5 }, (_, i) => obj(`photos/RLS/${i}.jpg`, OLD));
+    const p = planOrphanDeletions(
+      baseExecuteInput({ bucketObjects: many, manifestKeys: new Set(many.map((o) => o.key)), maxDelete: NaN }),
+    );
+    expect(p.aborted).toBe(true);
+    expect(p.willDelete).toBe(false);
+    expect(p.abortReasons.join(' ')).toMatch(/max-delete must be a finite non-negative integer/i);
+  });
+
+  it('P1: malformed --older-than-days (NaN) fails closed → zero candidates', () => {
+    const p = planOrphanDeletions(
+      baseExecuteInput({
+        bucketObjects: [obj('photos/RLS1/1.jpg', OLD)],
+        manifestKeys: new Set(['photos/RLS1/1.jpg']),
+        olderThanDays: NaN,
+      }),
+    );
+    expect(p.candidates.length).toBe(0);
+    expect(p.aborted).toBe(true);
+    expect(p.willDelete).toBe(false);
+    expect(p.abortReasons.join(' ')).toMatch(/older-than-days must be a finite non-negative integer/i);
+  });
+
+  it('P2: explicit --dry-run overrides --execute (resolveExecute)', () => {
+    expect(resolveExecute(true, false)).toBe(true); // execute, no dry-run → run
+    expect(resolveExecute(true, true)).toBe(false); // both → dry-run wins, no delete
+    expect(resolveExecute(false, false)).toBe(false); // default dry-run
+    expect(resolveExecute(false, true)).toBe(false);
+  });
+
+  it('isValidGuardNumber accepts only finite non-negative integers', () => {
+    expect(isValidGuardNumber(0)).toBe(true);
+    expect(isValidGuardNumber(500)).toBe(true);
+    expect(isValidGuardNumber(null)).toBe(false);
+    expect(isValidGuardNumber(NaN)).toBe(false);
+    expect(isValidGuardNumber(-1)).toBe(false);
+    expect(isValidGuardNumber(1.5)).toBe(false);
+    expect(isValidGuardNumber(Infinity)).toBe(false);
+  });
+
   it('extra: candidate count over the sanity threshold aborts even within max-delete', () => {
     const many = Array.from({ length: SANITY_THRESHOLD + 1 }, (_, i) => obj(`photos/RLS/${i}.jpg`, OLD));
     const p = planOrphanDeletions(
@@ -163,8 +206,9 @@ describe('r2-orphan-plan — deletion safety filters', () => {
 describe('r2-orphan-cleanup.ts — CLI source safety guard', () => {
   const src = readFileSync(path.resolve(__dirname, '../../scripts/r2-orphan-cleanup.ts'), 'utf8');
 
-  it('defaults to dry-run (execute only when --execute present)', () => {
-    expect(src).toMatch(/const execute = has\('--execute'\)/);
+  it('defaults to dry-run (execute derived via resolveExecute, not a bare --execute check)', () => {
+    expect(src).toMatch(/const execute = resolveExecute\(/);
+    expect(src).not.toMatch(/const execute = has\('--execute'\);/);
   });
 
   it('only calls deleteFromR2 after the planner authorizes willDelete', () => {
@@ -178,5 +222,15 @@ describe('r2-orphan-cleanup.ts — CLI source safety guard', () => {
 
   it('requires the exact confirmation phrase constant', () => {
     expect(src).toMatch(/CONFIRM_PHRASE/);
+  });
+
+  it('resolves execute via resolveExecute so --dry-run overrides --execute', () => {
+    expect(src).toMatch(/resolveExecute\(has\('--execute'\),\s*has\('--dry-run'\)\)/);
+  });
+
+  it('validates numeric guard flags (fails closed on malformed --max-delete/--older-than-days)', () => {
+    expect(src).toMatch(/isValidGuardNumber/);
+    expect(src).toMatch(/--max-delete must be a non-negative integer/);
+    expect(src).toMatch(/--older-than-days must be a non-negative integer/);
   });
 });

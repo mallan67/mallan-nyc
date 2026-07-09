@@ -86,6 +86,20 @@ export function inListingMediaScope(key: string): boolean {
 }
 
 /**
+ * Resolve whether a run actually executes. An explicit --dry-run ALWAYS wins,
+ * even if --execute is also present, so a belt-and-suspenders invocation can
+ * never delete. Fail-safe by construction.
+ */
+export function resolveExecute(hasExecute: boolean, hasDryRun: boolean): boolean {
+  return hasExecute && !hasDryRun;
+}
+
+/** A finite, non-negative integer — the only acceptable value for numeric guards. */
+export function isValidGuardNumber(v: number | null): v is number {
+  return v !== null && Number.isFinite(v) && Number.isInteger(v) && v >= 0;
+}
+
+/**
  * Compute the cleanup plan. Deletes nothing; only decides what *would* be
  * deleted under --execute, applying every safety filter. Dry-run (execute
  * false) always yields willDelete=false.
@@ -114,14 +128,24 @@ export function planOrphanDeletions(input: PlanInput): PlanResult {
   guardsPassed.push(`scoped to ${LISTING_MEDIA_PREFIXES.join(', ')} (out-of-scope objects are never candidates)`);
 
   // ── Candidate = in-scope AND unreferenced AND provably older than window ─
-  const cutoff = new Date(input.now.getTime() - input.olderThanDays * 86_400_000);
-  let candidates = inScopeObjs.filter((o) => {
-    if (dbRef.has(o.key)) return false; // still referenced → keep
-    if (o.lastModified === null) return false; // unknown age → fail-closed, keep
-    if (o.lastModified >= cutoff) return false; // within safety window → keep
-    return true;
-  });
-  guardsPassed.push(`age window ${input.olderThanDays}d applied (unknown-age objects excluded)`);
+  // Fail-closed on a malformed age window (NaN/negative/non-integer): produce
+  // ZERO candidates so a bad --older-than-days can never make recent objects
+  // look old.
+  const ageValid = isValidGuardNumber(input.olderThanDays);
+  if (!ageValid) {
+    abortReasons.push('--older-than-days must be a finite non-negative integer.');
+  }
+  const cutoff = ageValid ? new Date(input.now.getTime() - input.olderThanDays * 86_400_000) : null;
+  let candidates =
+    cutoff === null
+      ? []
+      : inScopeObjs.filter((o) => {
+          if (dbRef.has(o.key)) return false; // still referenced → keep
+          if (o.lastModified === null) return false; // unknown age → fail-closed, keep
+          if (o.lastModified >= cutoff) return false; // within safety window → keep
+          return true;
+        });
+  if (ageValid) guardsPassed.push(`age window ${input.olderThanDays}d applied (unknown-age objects excluded)`);
 
   // ── Execute-only gates ───────────────────────────────────────────────────
   if (input.execute) {
@@ -139,6 +163,8 @@ export function planOrphanDeletions(input: PlanInput): PlanResult {
     }
     if (input.maxDelete === null) {
       abortReasons.push('--max-delete N is required for --execute.');
+    } else if (!isValidGuardNumber(input.maxDelete)) {
+      abortReasons.push('--max-delete must be a finite non-negative integer.');
     } else if (candidates.length > input.maxDelete) {
       abortReasons.push(`candidate count ${candidates.length} exceeds --max-delete ${input.maxDelete}.`);
     } else {

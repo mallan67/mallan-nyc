@@ -36,6 +36,8 @@ import prisma from '@/lib/prisma';
 import { hasR2Config, listR2Objects, keyFromUrl, deleteFromR2 } from '@/lib/images/r2';
 import {
   planOrphanDeletions,
+  resolveExecute,
+  isValidGuardNumber,
   CONFIRM_PHRASE,
   LISTING_MEDIA_PREFIXES,
   inListingMediaScope,
@@ -53,14 +55,17 @@ const val = (f: string): string | null => {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null;
 };
 
-const execute = has('--execute'); // dry-run is the default (absence of --execute)
+// An explicit --dry-run ALWAYS overrides --execute (fail-safe): a run with both
+// flags will never delete. Dry-run is also the default when --execute is absent.
+const execute = resolveExecute(has('--execute'), has('--dry-run'));
 const confirm = val('--confirm');
 const manifestPath = val('--manifest');
 const manifestOut = val('--manifest-out');
 const outPath = val('--out');
 const maxDeleteRaw = val('--max-delete');
 const maxDelete = maxDeleteRaw === null ? null : Number(maxDeleteRaw);
-const olderThanDays = val('--older-than-days') !== null ? Number(val('--older-than-days')) : 30;
+const olderThanDaysRaw = val('--older-than-days');
+const olderThanDays = olderThanDaysRaw !== null ? Number(olderThanDaysRaw) : 30;
 // --prefix-scope is fixed to listing-media; the flag exists for explicitness and
 // rejects any other value so nobody can widen the blast radius via CLI.
 const prefixScope = val('--prefix-scope') ?? 'listing-media';
@@ -77,6 +82,17 @@ async function main() {
 
   if (prefixScope !== 'listing-media') {
     console.error(`[r2-orphan-cleanup] --prefix-scope only supports "listing-media" (got "${prefixScope}"). Aborting.`);
+    process.exit(2);
+  }
+  // Fail closed on malformed numeric guards BEFORE any listing/planning, so a
+  // typo like `--max-delete nope` can never silently bypass the hard cap or
+  // invalidate the age window.
+  if (maxDeleteRaw !== null && !isValidGuardNumber(maxDelete)) {
+    console.error(`[r2-orphan-cleanup] --max-delete must be a non-negative integer (got "${maxDeleteRaw}"). Aborting (nothing deleted).`);
+    process.exit(2);
+  }
+  if (olderThanDaysRaw !== null && !isValidGuardNumber(olderThanDays)) {
+    console.error(`[r2-orphan-cleanup] --older-than-days must be a non-negative integer (got "${olderThanDaysRaw}"). Aborting (nothing deleted).`);
     process.exit(2);
   }
   if (!hasR2Config()) {

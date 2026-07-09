@@ -65,7 +65,7 @@ Filters 3–5 are combined into a single DB reference set:
 ## 5. Cleanup script — `scripts/r2-orphan-cleanup.ts` (dry-run by default)
 | Flag | Default | Role |
 |---|---|---|
-| `--dry-run` | **on** (implicit when `--execute` absent) | inventory + manifest only; deletes nothing |
+| `--dry-run` | **on** (implicit when `--execute` absent) | inventory + manifest only; deletes nothing. **An explicit `--dry-run` overrides `--execute`** — a run with both never deletes. |
 | `--execute` | off | required to delete; still gated by everything below |
 | `--prefix-scope` | `listing-media` | only value accepted; rejects anything else |
 | `--older-than-days` | `30` | age safety window |
@@ -99,8 +99,10 @@ complete R2 list **and** a loaded DB reference set **and** candidates ≤ sanity
 
 ## 7. Abort conditions (any → delete nothing, non-zero exit under `--execute`)
 Partial R2 list · DB reference query failure · missing/incorrect confirm phrase · missing manifest ·
-missing `--max-delete` · candidates over `--max-delete` · candidates over the 5,000 sanity threshold ·
-`--prefix-scope` other than `listing-media` · R2 not configured.
+missing `--max-delete` · **malformed numeric guard** (`--max-delete` / `--older-than-days` not a finite
+non-negative integer — fails closed *before* planning) · candidates over `--max-delete` · candidates over
+the 5,000 sanity threshold · `--prefix-scope` other than `listing-media` · R2 not configured · explicit
+`--dry-run` present.
 
 ## 8. Current status
 - Dry-run tooling + tests: **built and verified** (type-check + unit tests green).
