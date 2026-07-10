@@ -20,7 +20,7 @@ import {
   // filter keys
   toCanonicalFilterKey, assertCanonicalFilterKey,
   // saved search
-  serializeCriteria, isValidSavedSearch, unalertableCriteria, CRITERIA_VERSION,
+  serializeCriteria, isValidSavedSearch, savedSearchVersionState, unalertableCriteria, CRITERIA_VERSION,
   // attribution
   resolveAttribution, courtesyLabel, attributionViolation,
   // capability
@@ -150,6 +150,12 @@ describe('7. saved-search criteria carries criteria_version', () => {
   });
   it('criteria without a version is invalid', () => {
     expect(isValidSavedSearch({ filters: {}, sort: 'price_desc' })).toBe(false);
+    expect(savedSearchVersionState({ filters: {}, sort: 'price_desc' })).toBe('invalid');
+  });
+  it('a STALE version is migration_required, never read as current', () => {
+    const stale = { criteria_version: CRITERIA_VERSION - 1, filters: {}, sort: 'price_desc' };
+    expect(savedSearchVersionState(stale)).toBe('migration_required');
+    expect(isValidSavedSearch(stale)).toBe(false); // must NOT be reinterpreted as current
   });
   it('alert-incompatible criteria are flagged (not silently saved)', () => {
     const alertable = new Set(alertableFieldKeys() as CanonicalFilterKey[]);
@@ -233,6 +239,8 @@ describe('module: filter-keys map divergent params, fail loud on unmapped', () =
     expect(toCanonicalFilterKey('q')).toBe('address');
     expect(toCanonicalFilterKey('zipCodes')).toBe('zip');
     expect(toCanonicalFilterKey('keyword')).toBe('keywords');
+    expect(toCanonicalFilterKey('propertySubType')).toBe('property_sub_types'); // singular — crm-idx-filter.ts:217
+    expect(toCanonicalFilterKey('propertySubTypes')).toBe('property_sub_types');
     expect(toCanonicalFilterKey('nope')).toBeNull();
   });
 });

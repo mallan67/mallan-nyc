@@ -27,14 +27,27 @@ export function serializeCriteria(input: { filters: Partial<Record<CanonicalFilt
   return { criteria_version: CRITERIA_VERSION, filters: { ...input.filters }, sort: input.sort };
 }
 
-/** A saved search is valid only if it carries a criteria_version and a known sort key. */
-export function isValidSavedSearch(v: unknown): v is SavedSearchCriteria {
-  if (v == null || typeof v !== 'object') return false;
+/**
+ * Version state of a stored criteria blob. Prevents SILENT REINTERPRETATION: a criteria_version
+ * that is not the current one is 'migration_required' (must be migrated, never read as current);
+ * a malformed blob is 'invalid'.
+ */
+export function savedSearchVersionState(v: unknown): 'current' | 'migration_required' | 'invalid' {
+  if (v == null || typeof v !== 'object') return 'invalid';
   const c = v as Record<string, unknown>;
-  if (typeof c.criteria_version !== 'number') return false;
-  if (!isSortKey(c.sort)) return false;
-  if (c.filters == null || typeof c.filters !== 'object') return false;
-  return true;
+  if (typeof c.criteria_version !== 'number') return 'invalid';
+  if (c.filters == null || typeof c.filters !== 'object') return 'invalid';
+  if (!isSortKey(c.sort)) return 'invalid';
+  return c.criteria_version === CRITERIA_VERSION ? 'current' : 'migration_required';
+}
+
+/**
+ * A saved search is valid to read as-is only if it carries the CURRENT criteria_version and a known
+ * sort key. A stale version is NOT valid (it must be migrated, not reinterpreted) — see
+ * savedSearchVersionState.
+ */
+export function isValidSavedSearch(v: unknown): v is SavedSearchCriteria {
+  return savedSearchVersionState(v) === 'current';
 }
 
 /**

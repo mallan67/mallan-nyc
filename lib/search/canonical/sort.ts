@@ -31,8 +31,8 @@ const PRIMARY: Readonly<Record<SortKey, SortTerm>> = Object.freeze({
   largest:         { field: 'living_area', dir: 'desc' },
   beds_desc:       { field: 'bedrooms_total', dir: 'desc' },
   neighborhood:    { field: 'neighborhood', dir: 'asc' },
-  new_development: { field: 'is_new_development', dir: 'desc' },
-  exclusives:      { field: 'is_mallan_exclusive', dir: 'desc' },
+  new_development: { field: 'is_new_development', dir: 'desc' }, // real column (schema.prisma is_new_development)
+  exclusives:      { field: 'is_exclusive', dir: 'desc' },       // real column (schema.prisma is_exclusive) — NOT is_mallan_exclusive
 });
 
 export const DEFAULT_SORT_KEY: SortKey = 'price_desc';
