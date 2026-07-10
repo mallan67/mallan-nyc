@@ -234,7 +234,8 @@ async function collectMediaHealth() {
       count(*) FILTER (WHERE COALESCE(lm.photo_rows, 0) = 0)                       AS zero_db_photos,
       count(*) FILTER (WHERE COALESCE(lm.active_rows, 0) = 0)                      AS zero_active_media_rows,
       count(*) FILTER (WHERE COALESCE(lm.active_rows, 0) > 0
-                         AND COALESCE(lm.photo_rows, 0) = 0)                       AS floorplan_only
+                         AND COALESCE(lm.photo_rows, 0) = 0
+                         AND COALESCE(lm.fp_rows, 0) > 0)                          AS floorplan_only
     FROM listings l LEFT JOIN lm ON lm.listing_id = l.listing_id
     WHERE l.idx_display_yn = true
   `);
