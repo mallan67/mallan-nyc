@@ -257,8 +257,11 @@ async function collectMediaHealth() {
       count(*) FILTER (WHERE l.media::jsonb->0->>'mediaType' = 'FloorPlan')                                        AS json_first_floorplan,
       count(*) FILTER (WHERE l.media::jsonb->0->>'mediaType' = 'FloorPlan' AND COALESCE(lm.photo_rows, 0) = 0)     AS exposed_json_path
     FROM listings l LEFT JOIN lm ON lm.listing_id = l.listing_id
-    -- Only array-shaped media has a first element / length; guard against legacy object rows (throws).
-    WHERE l.idx_display_yn = true AND jsonb_typeof(l.media::jsonb) = 'array' AND jsonb_array_length(l.media::jsonb) > 0
+    -- CASE-guard the length (a sibling `jsonb_typeof = 'array'` AND predicate does NOT reliably
+    -- short-circuit in Postgres — quals may be reordered — so jsonb_array_length must live inside
+    -- the CASE). `->0->>'mediaType'` is null-safe on a non-array, so only the length needs guarding.
+    WHERE l.idx_display_yn = true
+      AND COALESCE(CASE WHEN jsonb_typeof(l.media::jsonb) = 'array' THEN jsonb_array_length(l.media::jsonb) END, 0) > 0
   `);
   const [rows] = await withRetry('media-rows', () => prisma.$queryRaw<{ total: bigint; active: bigint }[]>`
     SELECT count(*) AS total, count(*) FILTER (WHERE status = 'active') AS active FROM listing_media
