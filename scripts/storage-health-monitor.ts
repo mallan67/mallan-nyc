@@ -93,6 +93,24 @@ const R2_FREE_TIER = {
 // the free plan — which is UNCONFIRMED; see report).
 const NEON_FREE_TIER_GIB = 0.5;
 
+// ── WARNING-ONLY thresholds (env-configurable) ──────────────────────────────
+// These ONLY color the report. They NEVER gate Cotality pulls, media ingest, R2
+// upload, or listing display. Defaults are documented references (the hardcoded
+// free-tier values above), NOT asserted provider limits — confirm each against
+// the current provider docs/dashboard before treating a default as authoritative.
+function numEnv(name: string, dflt: number): number {
+  const v = process.env[name];
+  const parsed = v == null || v.trim() === '' ? NaN : Number(v);
+  return Number.isFinite(parsed) ? parsed : dflt;
+}
+const WARN_THRESHOLDS = {
+  r2StorageGB: numEnv('R2_STORAGE_WARNING_THRESHOLD_GB', R2_FREE_TIER.storageGB),
+  r2ClassA: numEnv('R2_CLASS_A_WARNING_THRESHOLD', R2_FREE_TIER.classAOpsPerMonth),
+  r2ClassB: numEnv('R2_CLASS_B_WARNING_THRESHOLD', R2_FREE_TIER.classBOpsPerMonth),
+  neonStorageGB: numEnv('NEON_STORAGE_WARNING_THRESHOLD_GB', NEON_FREE_TIER_GIB),
+  neonComputeHours: numEnv('NEON_COMPUTE_WARNING_THRESHOLD_HOURS', 0), // 0 = unset (compute needs the Neon API)
+} as const;
+
 // ── RAG thresholds (advisory) ───────────────────────────────────────────────
 const RAG_THRESHOLDS = {
   // % of ACTIVE media rows that carry an r2_key
@@ -190,6 +208,72 @@ interface DeadTupleRow {
   dead_pct: number | null;
   last_autovacuum: Date | null;
   last_analyze: Date | null;
+}
+
+/**
+ * Public media-supply health — read-only. Answers "why does a card placeholder?" with counts,
+ * so cost/monitoring never has to be solved by suppressing images. Scoped to public
+ * (idx_display_yn=true) listings. Referenced/orphan/missing_from_r2 come from the opt-in
+ * `--r2-orphans` bucket check (data.orphan), not re-queried here.
+ */
+async function collectMediaHealth() {
+  const [supply] = await withRetry('media-supply', () => prisma.$queryRaw<{
+    public_listings: bigint; with_db_photos: bigint; zero_db_photos: bigint;
+    zero_active_media_rows: bigint; floorplan_only: bigint;
+  }[]>`
+    WITH lm AS (
+      SELECT listing_id,
+        count(*) FILTER (WHERE status = 'active' AND media_type = 'Photo')     AS photo_rows,
+        count(*) FILTER (WHERE status = 'active')                              AS active_rows,
+        count(*) FILTER (WHERE status = 'active' AND media_type = 'FloorPlan') AS fp_rows
+      FROM listing_media GROUP BY listing_id
+    )
+    SELECT
+      count(*)                                                                    AS public_listings,
+      count(*) FILTER (WHERE COALESCE(lm.photo_rows, 0) > 0)                       AS with_db_photos,
+      count(*) FILTER (WHERE COALESCE(lm.photo_rows, 0) = 0)                       AS zero_db_photos,
+      count(*) FILTER (WHERE COALESCE(lm.active_rows, 0) = 0)                      AS zero_active_media_rows,
+      count(*) FILTER (WHERE COALESCE(lm.active_rows, 0) > 0
+                         AND COALESCE(lm.photo_rows, 0) = 0)                       AS floorplan_only
+    FROM listings l LEFT JOIN lm ON lm.listing_id = l.listing_id
+    WHERE l.idx_display_yn = true
+  `);
+  const [json] = await withRetry('media-json-fallback', () => prisma.$queryRaw<{
+    empty_json: bigint; json_recoverable: bigint;
+  }[]>`
+    WITH lm AS (SELECT listing_id, count(*) FILTER (WHERE status = 'active' AND media_type = 'Photo') AS photo_rows FROM listing_media GROUP BY listing_id)
+    SELECT
+      count(*) FILTER (WHERE COALESCE(jsonb_array_length(l.media::jsonb), 0) = 0) AS empty_json,
+      count(*) FILTER (WHERE COALESCE(jsonb_array_length(l.media::jsonb), 0) > 0) AS json_recoverable
+    FROM listings l LEFT JOIN lm ON lm.listing_id = l.listing_id
+    WHERE l.idx_display_yn = true AND COALESCE(lm.photo_rows, 0) = 0
+  `);
+  const [rawFirst] = await withRetry('media-raw-first-floorplan', () => prisma.$queryRaw<{
+    json_first_floorplan: bigint; exposed_json_path: bigint;
+  }[]>`
+    WITH lm AS (SELECT listing_id, count(*) FILTER (WHERE status = 'active' AND media_type = 'Photo') AS photo_rows FROM listing_media GROUP BY listing_id)
+    SELECT
+      count(*) FILTER (WHERE l.media::jsonb->0->>'mediaType' = 'FloorPlan')                                        AS json_first_floorplan,
+      count(*) FILTER (WHERE l.media::jsonb->0->>'mediaType' = 'FloorPlan' AND COALESCE(lm.photo_rows, 0) = 0)     AS exposed_json_path
+    FROM listings l LEFT JOIN lm ON lm.listing_id = l.listing_id
+    WHERE l.idx_display_yn = true AND jsonb_array_length(l.media::jsonb) > 0
+  `);
+  const [rows] = await withRetry('media-rows', () => prisma.$queryRaw<{ total: bigint; active: bigint }[]>`
+    SELECT count(*) AS total, count(*) FILTER (WHERE status = 'active') AS active FROM listing_media
+  `);
+  return {
+    public_listings: n(supply.public_listings),
+    with_db_photos: n(supply.with_db_photos),
+    zero_db_photos: n(supply.zero_db_photos),
+    zero_active_media_rows: n(supply.zero_active_media_rows),
+    floorplan_only: n(supply.floorplan_only),
+    zero_photo_empty_json: n(json.empty_json),           // genuinely photo-less → placeholder is correct
+    zero_photo_json_recoverable: n(json.json_recoverable), // has JSON media to fall back to
+    json_first_floorplan: n(rawFirst.json_first_floorplan),
+    json_first_floorplan_exposed_json_path: n(rawFirst.exposed_json_path),
+    listing_media_rows_total: n(rows.total),
+    listing_media_rows_active: n(rows.active),
+  };
 }
 
 async function collect() {
@@ -595,6 +679,7 @@ async function collect() {
     dupSlot,
     topDupGroups,
     orphan,
+    mediaHealth: await collectMediaHealth(),
   };
 }
 
@@ -665,6 +750,40 @@ function renderMarkdown(
   L.push(`| R2 bucket orphan check | ${data.orphan.status} | ${data.orphan.status === 'proven' ? RAG_ICON['GREEN'] : '❔'} ${data.orphan.status === 'proven' ? 'PROVEN' : 'UNPROVEN'} |`);
   L.push('');
   L.push('> _Note: the overall RAG covers size, coverage, churn, broken media and duplicate **uploads**. It does **not** assert "no bucket orphans" unless the orphan check ran (`--r2-orphans`)._');
+  L.push('');
+
+  // Media health (public photo supply) — WARNING-ONLY. Explains why a card placeholders,
+  // so cost/monitoring is never solved by suppressing images. Not part of the overall RAG.
+  const mh = data.mediaHealth;
+  const orph = data.orphan as { status: string; missing_from_r2?: number; orphans_in_r2?: number };
+  const zeroPct = mh.public_listings ? (mh.zero_db_photos / mh.public_listings) * 100 : 0;
+  L.push('## Media health — public photo supply (warning-only, not gated)');
+  L.push('');
+  L.push('| Metric | Value |');
+  L.push('|---|---|');
+  L.push(`| Public listings (idx_display_yn) | ${n(mh.public_listings)} |`);
+  L.push(`| — with DB photos | ${n(mh.with_db_photos)} |`);
+  L.push(`| — **zero DB photos** (placeholder candidates) | ${n(mh.zero_db_photos)} (${zeroPct.toFixed(1)}%) |`);
+  L.push(`| ——— empty JSON too (genuinely photo-less → placeholder correct) | ${n(mh.zero_photo_empty_json)} |`);
+  L.push(`| ——— JSON media fallback available (recoverable) | ${n(mh.zero_photo_json_recoverable)} |`);
+  L.push(`| — zero active media rows / floor-plan-only | ${n(mh.zero_active_media_rows)} / ${n(mh.floorplan_only)} |`);
+  L.push(`| JSON raw-first = FloorPlan (all / exposed via JSON path) | ${n(mh.json_first_floorplan)} / ${n(mh.json_first_floorplan_exposed_json_path)} |`);
+  L.push(`| listing_media rows (total / active) | ${n(mh.listing_media_rows_total)} / ${n(mh.listing_media_rows_active)} |`);
+  if (orph.status === 'proven') {
+    L.push(`| Referenced R2 keys missing from bucket (blank-card cause) | ${n(orph.missing_from_r2 ?? 0)} |`);
+    L.push(`| R2 orphans in bucket (unreferenced) | ${n(orph.orphans_in_r2 ?? 0)} |`);
+  } else {
+    L.push('| Referenced-missing / bucket-orphans | _run with `--r2-orphans` to measure_ |');
+  }
+  L.push('');
+  L.push('> _WARNING-ONLY: these counts NEVER suppress Cotality pulls, media ingest, R2 upload, or display. A zero-photo listing correctly renders a placeholder; a floor plan is never the hero. Raw-first-FloorPlan is inert on the primary API (photo-first serialization) — the count tracks residual raw-order exposure on any surface reading `media[0]` directly._');
+  L.push('');
+  L.push(`## Warning thresholds (env-configurable, advisory — never gating)`);
+  L.push('');
+  L.push(`- R2 storage: **${WARN_THRESHOLDS.r2StorageGB} GB** (\`R2_STORAGE_WARNING_THRESHOLD_GB\`)`);
+  L.push(`- R2 Class A ops: **${WARN_THRESHOLDS.r2ClassA.toLocaleString()}** (\`R2_CLASS_A_WARNING_THRESHOLD\`) · Class B: **${WARN_THRESHOLDS.r2ClassB.toLocaleString()}** (\`R2_CLASS_B_WARNING_THRESHOLD\`) — op counts need the Cloudflare analytics API`);
+  L.push(`- Neon storage: **${WARN_THRESHOLDS.neonStorageGB} GB** (\`NEON_STORAGE_WARNING_THRESHOLD_GB\`) · Neon compute: **${WARN_THRESHOLDS.neonComputeHours || 'unset'} h** (\`NEON_COMPUTE_WARNING_THRESHOLD_HOURS\`) — compute needs the Neon API`);
+  L.push('> _Defaults are documented references, NOT asserted provider limits — confirm against current provider docs/dashboard._');
   L.push('');
 
   // 1 + 2
@@ -877,6 +996,8 @@ async function main() {
         })),
         r2_orphan_check_status: data.orphan.status === 'proven' ? 'proven' : 'unavailable',
         r2_orphan_check: data.orphan,
+        media_health: data.mediaHealth,
+        warning_thresholds: WARN_THRESHOLDS,
         free_tier_status: {
           neon: {
             measured_bytes: data.dbBytes,

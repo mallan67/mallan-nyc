@@ -57,6 +57,22 @@ describe('r2-orphan-plan — deletion safety filters', () => {
     expect(p.selected.map((c) => c.key)).toEqual(['photos/RLS1/1.jpg']);
   });
 
+  it('referenced media is NEVER a delete candidate (fail-closed protection)', () => {
+    // A key that IS in the DB reference set must be kept even under a fully-valid execute run,
+    // while a genuine unreferenced orphan is still deletable. Locks the protection PR #492 relies on.
+    const referenced = obj('photos/RLS1/1.jpg', OLD);   // in dbRefKeys
+    const orphan = obj('photos/RLS_GONE/9.jpg', OLD);   // not referenced
+    const p = planOrphanDeletions(baseExecuteInput({
+      bucketObjects: [referenced, orphan],
+      dbRefKeys: new Set([referenced.key]),
+      manifestKeys: new Set([referenced.key, orphan.key]),
+    }));
+    expect(p.candidates.map((o) => o.key)).not.toContain(referenced.key);
+    expect(p.selected.map((o) => o.key)).not.toContain(referenced.key);
+    expect(p.selected.map((o) => o.key)).toContain(orphan.key);
+    expect(p.dbReferenced).toBe(1);
+  });
+
   it('1. dry-run is the default — execute=false never deletes', () => {
     const p = planOrphanDeletions(baseExecuteInput({ execute: false }));
     expect(p.willDelete).toBe(false);

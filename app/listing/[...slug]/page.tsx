@@ -49,7 +49,7 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia, resolveListingMediaFromRows, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, resolveListingMediaFromRows, toDtoMedia, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -256,12 +256,7 @@ async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<
   try {
     const mediaItems = await fetchListingMedia(listingKey);
     if (mediaItems.length > 0) {
-      dto.media = resolveListingMedia(mediaItems, { mapUrl: proxyDetailMediaUrl }).map(m => ({
-        url: m.url,
-        thumbUrl: m.thumbUrl,
-        mediaType: m.mediaType,
-        order: m.providerOrder,
-      }));
+      dto.media = toDtoMedia(resolveListingMedia(mediaItems, { mapUrl: proxyDetailMediaUrl }));
       dto.photosCount = dto.media.filter(m => m.mediaType === 'Photo').length;
     }
   } catch {
@@ -473,15 +468,11 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
     // Widen `mediaType` to string here because the Trestle merge below mixes
     // in rows from `fetchListingMedia` which use the wider type.
-    let mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number }[] = (listingMediaRows.length > 0
-      ? resolveListingMediaFromRows(listingMediaRows)
-      : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl })
-    ).map(m => ({
-      url: m.url,
-      thumbUrl: m.thumbUrl,
-      mediaType: m.mediaType as string,
-      order: m.providerOrder,
-    }));
+    let mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
+      listingMediaRows.length > 0
+        ? resolveListingMediaFromRows(listingMediaRows)
+        : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl }),
+    );
 
     // Fetch media from Trestle when DB has NO photos (only FloorPlans/Videos/empty).
     // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.

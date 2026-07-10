@@ -16,7 +16,7 @@ import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
-import { resolveListingMedia, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { resolveListingMedia, toDtoMedia, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
 /** Map Trestle property fields to user-friendly property type */
 export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
@@ -184,7 +184,7 @@ export interface PublicListingDTO {
   // Agent — office/broker name only (REBNY: public attribution = office, not agent)
   listOfficeName: string;
   // Media
-  media: { url: string; thumbUrl?: string; mediaType: string; order: number }[];
+  media: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[];
   photosCount?: number;
   virtualTourURL?: string;
   /** Playable video URL (YouTube/Vimeo/etc.) split out of the Trestle tour fields. */
@@ -405,12 +405,8 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
   // always canonical (no space) — suppressing the REBNY §16(C) badge on
   // every Coming Soon listing.
   const isComingSoon = isComingSoonStatus(listing.standardStatus);
-  const resolvedMedia = resolveListingMedia(listing.media).map(m => ({
-    url: m.url,
-    thumbUrl: m.thumbUrl,
-    mediaType: m.mediaType,
-    order: m.providerOrder,
-  }));
+  // Photo-first serialization (order = resolved index, isPrimary = hero flag).
+  const resolvedMedia = toDtoMedia(resolveListingMedia(listing.media));
   const resolvedPhotoCount = resolvedMedia.filter(m => m.mediaType === 'Photo').length;
 
   // Generate address-based slug — respects InternetAddressDisplayYN gate

@@ -24,6 +24,7 @@ import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
   resolveListingMedia,
   resolveListingMediaFromRows,
+  toDtoMedia,
   tourUrlsForDto,
   type ListingMediaTableRow,
 } from '@/lib/media/listing-media-resolver';
@@ -348,12 +349,9 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const resolved = tableRows.length > 0
     ? resolveListingMediaFromRows(tableRows)
     : resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl });
-  const media = resolved.map((m) => ({
-    url: m.url,
-    thumbUrl: m.thumbUrl,
-    mediaType: m.mediaType,
-    order: m.providerOrder,
-  }));
+  // Photo-first serialization: `order` = resolved index, `isPrimary` = resolved hero flag,
+  // so no downstream surface can hero a FloorPlan via media[0] or an order re-sort.
+  const media = toDtoMedia(resolved);
   const photoCount = media.filter((m) => m.mediaType === 'Photo').length;
 
   return {
