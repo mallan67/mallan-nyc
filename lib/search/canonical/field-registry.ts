@@ -15,6 +15,7 @@
  */
 
 import type { AudienceVisibility, CapabilityStatus, FailureBehavior } from './capability';
+import type { CanonicalFilterKey } from './filter-keys';
 
 export type FieldCategory =
   | 'identity_source_attribution'
@@ -68,6 +69,8 @@ export interface FieldSpec {
   projectionColumn: string | null;
   /** existing CRM/search param name if one exists; null otherwise. */
   searchParam: string | null;
+  /** canonical FILTER key(s) this field powers, e.g. list_price → price_min/price_max. */
+  filterKeys?: readonly CanonicalFilterKey[];
   type: FieldType;
   visibility: AudienceVisibility;
   filterable: CapabilityStatus;
@@ -118,8 +121,8 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
   // ── address / location / building ────────────────────────────────────────
   f({ canonicalKey: 'address', uiLabel: 'Address', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'UnparsedAddress', dbColumn: 'address', searchParam: 'q', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes', failureBehavior: 'fail_closed', notes: 'Address display gated by InternetAddressDisplayYN.' }),
   f({ canonicalKey: 'unit', uiLabel: 'Unit', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'UnitNumber', searchParam: 'unit', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes' }),
-  f({ canonicalKey: 'neighborhood', uiLabel: 'Neighborhood', category: 'address_location_building', type: 'string', providerMappingStatus: 'partial', cotalityField: 'SubdivisionName', dbColumn: 'neighborhood', searchParam: 'neighborhood', visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Resolves 3 ways today (ZIP expansion vs SubdivisionName vs name) — analysis B-4.' }),
-  f({ canonicalKey: 'borough', uiLabel: 'Borough', category: 'address_location_building', type: 'string', providerMappingStatus: 'partial', cotalityField: 'CountyOrParish', dbColumn: 'borough', searchParam: 'borough', visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'CountyOrParish vs CityRegion split (analysis B-3) — needs_probe on canonical field.' }),
+  f({ canonicalKey: 'neighborhood', uiLabel: 'Neighborhood', category: 'address_location_building', type: 'string', providerMappingStatus: 'partial', cotalityField: 'SubdivisionName', dbColumn: 'neighborhood', searchParam: 'neighborhood', filterKeys: ['neighborhood'], visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Resolves 3 ways today (ZIP expansion vs SubdivisionName vs name) — analysis B-4.' }),
+  f({ canonicalKey: 'borough', uiLabel: 'Borough', category: 'address_location_building', type: 'string', providerMappingStatus: 'partial', cotalityField: 'CountyOrParish', dbColumn: 'borough', searchParam: 'borough', filterKeys: ['borough'], visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'CountyOrParish vs CityRegion split (analysis B-3) — needs_probe on canonical field.' }),
   f({ canonicalKey: 'postal_code', uiLabel: 'ZIP', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'PostalCode', dbColumn: 'postal_code', searchParam: 'zip', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes' }),
   f({ canonicalKey: 'building_name', uiLabel: 'Building', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'BuildingName', searchParam: 'buildingName', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'Building-name text works on Trestle path only (analysis §4).' }),
   f({ canonicalKey: 'geo', uiLabel: 'Map Location', category: 'address_location_building', type: 'geo', providerMappingStatus: 'partial', cotalityField: 'Latitude/Longitude', dbColumn: 'latitude/longitude', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'Lat/Lng mostly null on feed; geocoder backfills — needs_probe.' }),
@@ -129,11 +132,11 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
   f({ canonicalKey: 'commercial', uiLabel: 'Commercial', category: 'transaction', type: 'boolean', providerMappingStatus: 'partial', cotalityField: 'PropertyType', searchParam: 'commercial', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'Commercial PropertyType members exist but are 0 live in this feed.' }),
 
   // ── lifecycle / status ───────────────────────────────────────────────────
-  f({ canonicalKey: 'standard_status', uiLabel: 'Status', category: 'lifecycle_status', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'StandardStatus', dbColumn: 'status', projectionColumn: 'mls_status', searchParam: 'statuses', visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Only filterable status field (11 members). Pending is the live in-contract status; AUC 0 live.' }),
+  f({ canonicalKey: 'standard_status', uiLabel: 'Status', category: 'lifecycle_status', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'StandardStatus', dbColumn: 'status', projectionColumn: 'mls_status', searchParam: 'statuses', filterKeys: ['statuses'], visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Only filterable status field (11 members). Pending is the live in-contract status; AUC 0 live.' }),
   f({ canonicalKey: 'mls_status', uiLabel: 'MLS Status', category: 'lifecycle_status', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'MlsStatus', visibility: V_AGENT, filterable: 'unsupported', reportable: 'yes', failureBehavior: 'fail_loud', notes: 'Provider-suppressed: NOT $filter-able (HTTP 400). Readable, never a query axis — fails loud if used to filter.' }),
 
   // ── pricing ──────────────────────────────────────────────────────────────
-  f({ canonicalKey: 'list_price', uiLabel: 'Price', category: 'pricing', type: 'money', providerMappingStatus: 'mapped', cotalityField: 'ListPrice', dbColumn: 'list_price', projectionColumn: 'list_price', searchParam: 'minPrice/maxPrice', visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes' }),
+  f({ canonicalKey: 'list_price', uiLabel: 'Price', category: 'pricing', type: 'money', providerMappingStatus: 'mapped', cotalityField: 'ListPrice', dbColumn: 'list_price', projectionColumn: 'list_price', searchParam: 'minPrice/maxPrice', filterKeys: ['price_min', 'price_max'], visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes' }),
   f({ canonicalKey: 'original_list_price', uiLabel: 'Original Price', category: 'pricing', type: 'money', providerMappingStatus: 'mapped', cotalityField: 'OriginalListPrice', visibility: V_AGENT, reportable: 'yes', notes: 'Feeds price-cut intelligence (needs temporal history — reserved).' }),
   f({ canonicalKey: 'price_per_sqft', uiLabel: '$/Sqft', category: 'pricing', type: 'computed', providerMappingStatus: 'none', cotalityField: null, visibility: V_PUBLIC, filterable: 'unsupported', sortable: 'unsupported', reportable: 'needs_probe', failureBehavior: 'fail_loud', notes: 'PRODUCT GAP (analysis B-15): not computed/stored anywhere. Requires reliable LivingArea.' }),
 
@@ -149,10 +152,10 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
   f({ canonicalKey: 'first_seen_at', uiLabel: 'First Seen', category: 'dom_dates', type: 'date', providerMappingStatus: 'none', cotalityField: null, dbColumn: 'first_active_date', visibility: V_AGENT, reportable: 'needs_probe', notes: 'Our ingest time ≠ MLS list date. first_active_date exists but unwired (analysis §strategic gap 2 / reserved temporal).' }),
 
   // ── beds / baths / rooms / square feet ───────────────────────────────────
-  f({ canonicalKey: 'bedrooms', uiLabel: 'Beds', category: 'rooms_size', type: 'number', providerMappingStatus: 'mapped', cotalityField: 'BedroomsTotal', dbColumn: 'bedrooms_total', projectionColumn: 'bedrooms_total', searchParam: 'beds/maxBeds', visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes' }),
-  f({ canonicalKey: 'bathrooms', uiLabel: 'Baths', category: 'rooms_size', type: 'number', providerMappingStatus: 'partial', cotalityField: 'BathroomsFull/BathroomsHalf', dbColumn: 'bathrooms_full', searchParam: 'minBaths/maxBaths', visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Diverges by engine: BathroomsFull vs BathroomsTotalInteger (analysis B-2) — canonicalize.' }),
+  f({ canonicalKey: 'bedrooms', uiLabel: 'Beds', category: 'rooms_size', type: 'number', providerMappingStatus: 'mapped', cotalityField: 'BedroomsTotal', dbColumn: 'bedrooms_total', projectionColumn: 'bedrooms_total', searchParam: 'beds/maxBeds', filterKeys: ['beds_min', 'beds_max'], visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes' }),
+  f({ canonicalKey: 'bathrooms', uiLabel: 'Baths', category: 'rooms_size', type: 'number', providerMappingStatus: 'partial', cotalityField: 'BathroomsFull/BathroomsHalf', dbColumn: 'bathrooms_full', searchParam: 'minBaths/maxBaths', filterKeys: ['baths_min', 'baths_max'], visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Diverges by engine: BathroomsFull vs BathroomsTotalInteger (analysis B-2) — canonicalize.' }),
   f({ canonicalKey: 'rooms_total', uiLabel: 'Rooms', category: 'rooms_size', type: 'number', providerMappingStatus: 'partial', cotalityField: 'RoomsTotal', visibility: V_CLIENT, filterable: 'needs_probe', reportable: 'yes', notes: 'DTO reads features.Rooms but mapper stores RoomsTotal → always undefined today (analysis B-1).' }),
-  f({ canonicalKey: 'living_area', uiLabel: 'Square Feet', category: 'rooms_size', type: 'number', providerMappingStatus: 'mapped', cotalityField: 'LivingArea', dbColumn: 'living_area', projectionColumn: 'living_area', searchParam: 'minSqft/maxSqft', visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Reliability drives $/sqft (needs_probe on completeness).' }),
+  f({ canonicalKey: 'living_area', uiLabel: 'Square Feet', category: 'rooms_size', type: 'number', providerMappingStatus: 'mapped', cotalityField: 'LivingArea', dbColumn: 'living_area', projectionColumn: 'living_area', searchParam: 'minSqft/maxSqft', filterKeys: ['sqft_min', 'sqft_max'], visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Reliability drives $/sqft (needs_probe on completeness).' }),
 
   // ── monthly carrying costs ───────────────────────────────────────────────
   f({ canonicalKey: 'maintenance_common_charge', uiLabel: 'Maintenance / CC', category: 'carrying_costs', type: 'money', providerMappingStatus: 'mapped', cotalityField: 'AssociationFee', visibility: V_PUBLIC, filterable: 'unsupported', sortable: 'unsupported', reportable: 'needs_probe', failureBehavior: 'fail_loud', notes: 'PRODUCT GAP (analysis B-15): not filterable/sortable anywhere today.' }),
@@ -245,7 +248,16 @@ export function assertCapabilityUsable(
   return `[canonical] field "${field.canonicalKey}" is not offered for ${axis}.`;
 }
 
-/** The alert-capable canonical keys (alertable === 'yes'), for saved-search validation. */
-export function alertableFieldKeys(): string[] {
-  return FIELD_REGISTRY.filter((s) => s.alertable === 'yes').map((s) => s.canonicalKey);
+/**
+ * The alert-capable canonical FILTER keys — the union of `filterKeys` across fields with
+ * `alertable === 'yes'`. This is the correct namespace for saved-search validation:
+ * `SavedSearchCriteria.filters` is keyed by CanonicalFilterKey (price_min, beds_min, statuses…),
+ * NOT by registry field keys (list_price, bedrooms, standard_status).
+ */
+export function alertableFilterKeys(): CanonicalFilterKey[] {
+  const keys = new Set<CanonicalFilterKey>();
+  for (const s of FIELD_REGISTRY) {
+    if (s.alertable === 'yes' && s.filterKeys) for (const k of s.filterKeys) keys.add(k);
+  }
+  return [...keys];
 }

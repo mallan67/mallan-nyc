@@ -27,7 +27,7 @@ import {
   isVerified, requiresLiveProbe, isUnsupported,
   // registry
   FIELD_REGISTRY, REQUIRED_FAMILIES, missingFamilies, representedFamilies, getField,
-  assertCapabilityUsable, alertableFieldKeys,
+  assertCapabilityUsable, alertableFilterKeys,
   // live truth
   STANDARD_STATUS_MEMBERS, COMMON_INTEREST_MEMBERS, PROPERTY_TYPE_SALE, PROPERTY_TYPE_RENTAL,
   MLS_STATUS_FILTERABLE, DEAD_OR_INVALID_VALUES,
@@ -163,10 +163,11 @@ describe('7. saved-search criteria carries criteria_version', () => {
     expect(isValidSavedSearch(blob)).toBe(false);
   });
   it('alert-incompatible criteria are flagged (not silently saved)', () => {
-    const alertable = new Set(alertableFieldKeys() as CanonicalFilterKey[]);
+    const alertable = new Set(alertableFilterKeys());
     const c = serializeCriteria({ filters: { amenities: ['doorman'], price_min: 1000 }, sort: 'newest' });
     const bad = unalertableCriteria(c, alertable);
-    expect(bad).toContain('amenities'); // amenities are not alert-capable
+    expect(bad).toContain('amenities');     // amenities are NOT alert-capable
+    expect(bad).not.toContain('price_min'); // price_min IS alert-capable (list_price alertable → price_min/price_max)
   });
 });
 

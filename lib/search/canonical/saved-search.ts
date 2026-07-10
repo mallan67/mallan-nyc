@@ -58,7 +58,8 @@ export function isValidSavedSearch(v: unknown): v is SavedSearchCriteria {
  * Guard against saving an alert whose criteria the alert engine cannot honor. `alertableKeys` is
  * supplied by the caller (derived from the field registry's `alertable === 'yes'` set). Returns the
  * keys that are NOT alert-capable; a non-empty result means the caller must fail loud, not create a
- * silently-dead alert (analysis D7-2).
+ * silently-dead alert (analysis D7-2). Callers derive `alertableKeys` from `alertableFilterKeys()`
+ * (canonical FILTER keys), NOT from registry field keys.
  */
 export function unalertableCriteria(
   criteria: SavedSearchCriteria,
