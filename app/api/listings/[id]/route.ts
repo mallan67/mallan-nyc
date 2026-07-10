@@ -7,7 +7,7 @@ import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { geocodeListings } from '@/lib/geo/geocode';
 import prisma from '@/lib/prisma';
-import { resolveListingMediaFromRows, resolveListingMedia } from '@/lib/media/listing-media-resolver';
+import { resolveListingMediaFromRows, resolveListingMedia, toDtoMedia } from '@/lib/media/listing-media-resolver';
 import { normalizeListingIdCase } from '@/lib/listing-canonical-url';
 
 type Props = {
@@ -118,11 +118,7 @@ export async function GET(request: Request, { params }: Props) {
                       Array.isArray(dbRow.media) ? (dbRow.media as Record<string, unknown>[]) : [],
                     );
                 if (resolved.length > 0) {
-                  publicListing.media = resolved.map((m) => ({
-                    url: m.url,
-                    mediaType: m.mediaType,
-                    order: m.providerOrder,
-                  }));
+                  publicListing.media = toDtoMedia(resolved);
                   publicListing.photosCount = publicListing.media.filter(
                     (m) => m.mediaType === 'Photo',
                   ).length;

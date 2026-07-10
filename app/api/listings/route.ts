@@ -970,7 +970,7 @@ export async function GET(request: Request) {
           const stillEmpty = pageListings.filter(l => l.media.length === 0);
           if (stillEmpty.length > 0) {
             try {
-              const { resolveListingMediaFromRows, resolveListingMedia } = await import('@/lib/media/listing-media-resolver');
+              const { resolveListingMediaFromRows, resolveListingMedia, toDtoMedia } = await import('@/lib/media/listing-media-resolver');
               const dbListings = await prisma.listing.findMany({
                 where: {
                   listing_id: { in: stillEmpty.map(l => l.listingId) },
@@ -1005,11 +1005,7 @@ export async function GET(request: Request) {
                       Array.isArray(dbL.media) ? (dbL.media as Record<string, unknown>[]) : [],
                     );
                 if (resolved.length === 0) continue;
-                listing.media = resolved.map((m) => ({
-                  url: m.url,
-                  mediaType: m.mediaType,
-                  order: m.providerOrder,
-                })) as typeof listing.media;
+                listing.media = toDtoMedia(resolved) as typeof listing.media;
               }
             } catch { /* non-fatal — DB fallback is best-effort */ }
           }

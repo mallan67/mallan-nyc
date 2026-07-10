@@ -391,6 +391,32 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
   }));
 }
 
+/** The public DTO media shape. `order` is the RESOLVED (photo-first) index; `isPrimary` is the hero flag. */
+export interface DtoMedia {
+  url: string;
+  thumbUrl: string;
+  mediaType: string;
+  order: number;
+  isPrimary: boolean;
+}
+
+/**
+ * Serialize resolved media into the public/card DTO shape. The input is ALREADY photo-first
+ * (resolver sort), so `order` is emitted as the resolved array index — NEVER the raw
+ * `providerOrder`. This makes the raw-order fragility inert: no consumer can surface a FloorPlan
+ * first by reading `media[0]` OR by re-sorting on `order`. `isPrimary` carries the resolved
+ * photo-first hero flag explicitly for surfaces that want the hero without re-deriving it.
+ */
+export function toDtoMedia(resolved: ResolvedMedia[]): DtoMedia[] {
+  return resolved.map((m, i) => ({
+    url: m.url,
+    thumbUrl: m.thumbUrl,
+    mediaType: m.mediaType,
+    order: i,
+    isPrimary: m.isPrimary,
+  }));
+}
+
 /**
  * Pick the URL of the primary photo from a media list.
  *

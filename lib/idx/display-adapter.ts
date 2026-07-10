@@ -13,6 +13,7 @@
 import type { PublicListingDTO } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import { resolveListingMedia, toDtoMedia } from '@/lib/media/listing-media-resolver';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -98,7 +99,7 @@ export interface DisplayListing {
   associationFeeFrequency?: string;
   listOfficeName: string;
   modificationTimestamp: string;
-  media: { url: string; mediaType: string; order: number }[];
+  media: { url: string; mediaType: string; order: number; isPrimary?: boolean }[];
   photosCount?: number;
   virtualTourURL?: string;
   videoUrl?: string;
@@ -207,6 +208,9 @@ export function toDisplayListing(raw: any): DisplayListing {
     // Local listings don't have this flag — default to true (address allowed)
     internetAddressDisplayYN: true,
   });
+  // Route the local fallback through the SAME resolver as the DTO paths, so a floor plan in the
+  // local `media.images` is classified + demoted (photo-first) instead of being force-tagged 'Photo'.
+  const localMedia = toDtoMedia(resolveListingMedia(raw.media?.images ?? []));
   return {
     id: raw.id,
     mlsId: raw.mlsId || raw.id,
@@ -236,12 +240,8 @@ export function toDisplayListing(raw: any): DisplayListing {
     associationFeeFrequency: raw.nycSpecific?.maintenanceFee ? 'Monthly' : undefined,
     listOfficeName: raw.agent?.listOfficeName || '',
     modificationTimestamp: raw.listing?.modificationTimestamp || '',
-    media: raw.media?.images?.map((img: { url: string }, i: number) => ({
-      url: img.url,
-      mediaType: 'Photo',
-      order: i,
-    })) || [],
-    photosCount: raw.media?.images?.length,
+    media: localMedia,
+    photosCount: localMedia.filter((m) => m.mediaType === 'Photo').length,
     virtualTourURL: raw.media?.virtualTourUrl,
     videoUrl: raw.media?.videoUrl,
     publicRemarks: raw.publicRemarks,
