@@ -40,16 +40,16 @@ Twelve+ distinct surfaces answer "search" questions, split across **three engine
 
 | Engine | Where | Backing store | Powers |
 |---|---|---|---|
-| **A — Live Cotality (OData)** | `lib/idx/crm-idx-filter.ts` (`buildCrmIdxODataFilter`), `lib/idx/public-listing-trestle.ts` (`buildPublicListingTrestleFilter`) | `api.cotality.com/trestle` live | CRM/agent search, public Trestle fallback |
+| **A — Live Cotality (OData)** | `lib/search/crm-idx-filter.ts` (`buildCrmIdxODataFilter`), `lib/search/public-listing-trestle.ts` (`buildPublicListingTrestleFilter`) | `api.cotality.com/trestle` live | CRM/agent search, public Trestle fallback |
 | **B — Postgres projection** | `lib/search/criteria-to-prisma.ts` (`criteriaToProjectionWhere`) over `listing_search_projection` | Neon (cold-waterfall) | saved-search execute + alert cron |
-| **DB-first public** | `lib/idx/public-listing-db.ts` (`buildPublicListingDbSearch`) over `listings` | Neon | primary public `/api/listings` path |
+| **DB-first public** | `lib/search/public-listing-db.ts` (`buildPublicListingDbSearch`) over `listings` | Neon | primary public `/api/listings` path |
 
 ### Surface inventory [E]
 
 | # | Surface | Route / entry | Engine | Audience | Notes |
 |---|---|---|---|---|---|
 | A1 | Public listings | `/api/listings` → `useListings` → `app/search/page.tsx` | DB-first → Cotality fallback → exclusives | public | default sort `list_price desc` |
-| A2 | `useListings` hook | `app/hooks/useListings.ts` | (client of A1) | public | remaps params (`baths`→`minBaths`, `zip`→`zipCodes`, joins neighborhoods) |
+| A2 | `useListings` hook | `lib/hooks/useListings.ts` | (client of A1) | public | remaps params (`baths`→`minBaths`, `zip`→`zipCodes`, joins neighborhoods) |
 | A3 | Autocomplete / suggest | `/api/listings/suggest` | Cotality | public | address/neighborhood/building suggestions |
 | A4 | Similar listings | `/api/listings/similar` | Cotality | public | hardcodes `PropertyType eq 'Residential'` — **rentals get no similars** [E] |
 | A5 | Building listings | `/api/listings/building` | DB + shared ACRIS lib | public | closed sale history ACRIS-only via `.filter(s => s.source === 'acris')` |
@@ -59,7 +59,7 @@ Twelve+ distinct surfaces answer "search" questions, split across **three engine
 | A9 | Agent listings | agent-scoped listing views | Cotality | agent | |
 | A10 | Search alerts (public create) | `/api/search-alerts` | writes projection criteria | public | **no `canEnableAlertForCriteria` gate at create** [E] — see §7 D7-2 |
 | B1 | CRM IDX search | `/api/idx/search` (`buildCrmIdxODataFilter`) | Cotality | agent | all 6 display gates; richest filter vocabulary |
-| B4 | Comps | `lib/cma/fetch-comps.ts` + CMA engine | Cotality / DB | agent | see §8 — two paths, one broken |
+| B4 | Comps | `lib/comps/fetch-comps.ts` + CMA engine | Cotality / DB | agent | see §8 — two paths, one broken |
 | B5/B6 | Saved-search execute | projection engine | Cotality → projection | agent/client | Engine B |
 | B7 | Alert cron | `app/api/cron/search-alerts/route.ts` | projection engine | system→client | skips criteria the projection can't express |
 | C1 | Portal comparables | portal/comparables | weaker closed-data mechanism | client | not routed through `resolveVisibility` |
@@ -262,7 +262,7 @@ Public URL params · `useListings` remapped params · CRM `buildIdxSearchParams`
 1. **Never selects `close_price`** — the closed-comp branch uses `list_price` (`:118`). So even when closed comps are found, the CMA is built on **list** prices, not achieved prices.
 2. **Spreads `SEARCH_DISPLAY_GATE`** (`idx_display_yn: true`, `:64`) into the comp query, which **excludes terminal statuses** — so the closed-comp branch returns **~zero rows**. The CMA silently falls back to **active list prices**.
 
-Net effect: a seller CMA reflects asking prices, not sale prices — a material valuation error. `lib/cma/fetch-comps.ts` is **unaffected** (it bypasses the DB gate and queries Cotality directly) — so the two comp paths disagree.
+Net effect: a seller CMA reflects asking prices, not sale prices — a material valuation error. `lib/comps/fetch-comps.ts` is **unaffected** (it bypasses the DB gate and queries Cotality directly) — so the two comp paths disagree.
 
 ### Rental closed-comp gap [E]
 `STATUS_MAP` has no `Leased`/`Rented` → **landlord rental CMAs can't source closed rental comps at all.** Compounded by there being **no public rental sold record** (rentals need `list_rent` + optional `achieved_rent`) and **no rental-economics fields** (net effective rent, concessions, lease term, FARE fee payer) — §strategic gap 5.
