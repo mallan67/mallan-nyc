@@ -7,7 +7,8 @@
 
 ### Revision history
 - **Rev 1** (2026-07-10) — initial addendum.
-- **Rev 2** (2026-07-10) — amendment (docs-only) applying 7 review corrections: (1) split B1 → B1a read-only identity proof + B1b approval-gated identity schema/backfill; (2) fix the G2 contradiction (real coverage-manifest ingestion requires B2 **and** B3); (3) expand the source model into three separate dimensions — `SourceAuthority` (adds `nyc_dob`, renames `acris_public`→`acris`), `ObservationPlatform`, `SourceAccessMethod`; (4) split `verification_status` into `VerificationStatus` + `SupplementalLifecycleStatus`; (5) pure contract returns typed `ContractDecision`, adapters map to HTTP (no Next.js/HTTP coupling in `lib/search/canonical`); (6) relax "canonical IDs on every row" → `canonical_listing_id` + `IdentityResolutionStatus` + IDs-when-resolved; (7) redefine deterministic parity to include audience + scope + entitlements + as-of snapshot. §1.4 now reserves the complete A1 contract; Appendix A holds the reserved type signatures.
+- **Rev 2** (2026-07-10) — applied 7 review corrections: split B1→B1a/B1b; G2 requires B2+B3; separate `SourceAuthority`/`ObservationPlatform`/`SourceAccessMethod`; split `VerificationStatus`/`SupplementalLifecycleStatus`; typed `ContractDecision`; realistic per-row identity (`IdentityResolutionStatus`); parity redefined (audience+scope+entitlements+snapshot). §1.4 reserves the full A1 contract; Appendix A holds signatures.
+- **Rev 3** (2026-07-10) — 4 final corrections: (1) reorder cutover so **A6 = V2 frontend integration behind flag** (remove client filter/sort in V2 mode) precedes **G1**, then **A7 public cutover**, **A8 CRM/portal cutover**, **A9 saved-search/alert replay**; (2) add **A9** (saved-search versioning + exact alert replay) to the lane diagram and PR table; (3) `ContractDecision` is a **discriminated union** (`{ok:true} | {ok:false, code, …}`); (4) expand `SourceAccessMethod` to 7 values (`public_api`, `public_dataset`, `internal_system` added) with per-authority mappings. PR #493 description updated to match.
 
 ---
 
@@ -65,7 +66,7 @@ The canonical contract (`lib/search/canonical/*`, #491) is extended with the **c
 |---|---|---|
 | `SourceAuthority` | `cotality_rebny \| acris \| nyc_dob \| mallan_crm \| supplemental` | provenance / filter |
 | `ObservationPlatform` | `streeteasy \| zillow \| direct_broker_feed \| property_manager_feed \| owner_submitted \| manual_agent_research \| none` | attribution (separate from authority) |
-| `SourceAccessMethod` | `licensed_api \| licensed_feed \| direct_partner \| manual_agent_research` | licensing fact |
+| `SourceAccessMethod` | `licensed_api \| licensed_feed \| direct_partner \| public_api \| public_dataset \| internal_system \| manual_agent_research` | licensing/access fact |
 | `InventoryScope` | `public_inventory \| client_inventory \| agent_complete_inventory \| cotality_rebny_only \| mallan_exclusive \| supplemental_only \| missing_from_cotality \| verification_required \| source_conflicts` | filter + **audience-gated** |
 | `VerificationStatus` | `verified \| verification_required \| stale \| conflicted` | filter |
 | `SupplementalLifecycleStatus` | `active \| removed_at_source \| superseded_by_rebny \| license_blocked` | filter (supplemental only) |
@@ -79,20 +80,22 @@ The canonical contract (`lib/search/canonical/*`, #491) is extended with the **c
 | capability validation | every key declares filter/sort/alert/report/scope capability; violations → `ContractDecision` | fail-loud |
 
 ### 1.5 Pure-contract failure behavior (no HTTP inside the contract)
-The canonical package is a **pure TypeScript library** and must not depend on Next.js or return HTTP responses. Capability/scope/license/value violations return a **typed decision**; a future **route adapter** maps it to HTTP.
+The canonical package is a **pure TypeScript library** and must not depend on Next.js or return HTTP responses. Capability/scope/license/value violations return a **typed decision** as a **discriminated union** — a success carries no error fields; a failure carries a `code`. A future **route adapter** maps it to HTTP.
 
 ```ts
-interface ContractDecision {
-  ok: boolean;
-  code:
-    | "UNKNOWN_CRITERION"
-    | "UNSUPPORTED_CRITERION"
-    | "UNAUTHORIZED_SCOPE"
-    | "UNLICENSED_SOURCE"
-    | "INVALID_VALUE";
-  criterion?: string;
-  message: string;
-}
+type ContractDecision =
+  | { ok: true }
+  | {
+      ok: false;
+      code:
+        | "UNKNOWN_CRITERION"
+        | "UNSUPPORTED_CRITERION"
+        | "UNAUTHORIZED_SCOPE"
+        | "UNLICENSED_SOURCE"
+        | "INVALID_VALUE";
+      criterion?: string;
+      message: string;
+    };
 ```
 Mapping (adapter layer, **not** part of A1): `UNKNOWN_CRITERION` / `UNSUPPORTED_CRITERION` / `INVALID_VALUE` → **400**; `UNAUTHORIZED_SCOPE` → **403**; `UNLICENSED_SOURCE` → **403/422** as appropriate. The pure contract never imports HTTP or Next.js.
 
@@ -101,7 +104,7 @@ Parity is **not** "same criteria = same results." Public and broker results are 
 
 > **same canonical criteria + same audience + same inventory scope + same entitlement set + same as-of snapshot ⇒ same listing IDs and the same deterministic order.**
 
-Shadow parity (G1) is measured within a fixed (audience, scope, entitlement, as-of) tuple, never across audiences.
+Shadow parity (G1) is measured within a fixed (audience, scope, entitlement, as-of) tuple, never across audiences — and covers **both** backend result parity **and** V2 frontend rendering parity (§8 A6).
 
 ---
 
@@ -182,10 +185,10 @@ Attribution is decomposed into six independent facets (encoded by the contract a
 | **Observation platform** | `ObservationPlatform` | streeteasy, zillow, partner feed — where we observed it |
 | **Listing brokerage** | `AttributionEnvelope.listingBrokerage` | only if the record states it |
 | **Listing agent** | `AttributionEnvelope.listingAgent` | only if stated; PII rules apply |
-| **Data-access method** | `SourceAccessMethod` | licensed_api, licensed_feed, direct_partner, manual_agent_research |
+| **Data-access method** | `SourceAccessMethod` | licensed_api, licensed_feed, direct_partner, public_api, public_dataset, internal_system, manual_agent_research |
 | **Audience permission / obligation** | `AttributionEnvelope.audienceObligations` | broker/agent only; attribution/link-back required |
 
-**Rule:** StreetEasy / Zillow / any `ObservationPlatform` is **never** rendered or recorded as the *listing brokerage* or *listing agent* unless the source record **expressly** states that brokerage/agent. The observation platform is a data-access fact, not an attribution-of-representation fact. DOB Schedule A is a **`PROPERTY_FACT`** under `nyc_dob`; ACRIS is public transaction evidence under `acris`; these are distinct authorities, not "supplemental."
+**Rule:** StreetEasy / Zillow / any `ObservationPlatform` is **never** rendered or recorded as the *listing brokerage* or *listing agent* unless the source record **expressly** states that brokerage/agent. The observation platform is a data-access fact, not an attribution-of-representation fact. DOB Schedule A is a **`PROPERTY_FACT`** under `nyc_dob`; ACRIS is public transaction evidence under `acris`; these are distinct authorities, not "supplemental." Intended `SourceAccessMethod` per authority is documented in Appendix A.
 
 ---
 
@@ -231,7 +234,7 @@ Agent/broker-private (fail-closed for public/client):
 - `source_conflicts`
 
 ### 5.2 Backend audience enforcement (fail-closed, typed)
-- **Public and client audiences are blocked from all private scopes by the backend** — enforced server-side in the execution service, never by the frontend. A public/client request for a private scope returns a typed `ContractDecision{ code: "UNAUTHORIZED_SCOPE" }` (the adapter maps it to **403**), logged to `AccessAudit`.
+- **Public and client audiences are blocked from all private scopes by the backend** — enforced server-side in the execution service, never by the frontend. A public/client request for a private scope returns a typed `ContractDecision{ ok:false, code:"UNAUTHORIZED_SCOPE" }` (the adapter maps it to **403**), logged to `AccessAudit`.
 - Default scope by audience: public → `public_inventory`/`cotality_rebny_only` (+ `mallan_exclusive` where permitted); client → `client_inventory`; agent/broker → may request the private scopes explicitly.
 - **Supplemental is never assumed public.** Unknown scope or unauthorized combination → typed decision, fail-closed; never silently narrowed.
 
@@ -273,19 +276,23 @@ Comps **share canonical facts and identity** with search (§1, §4) but are **no
 
 ---
 
-## 7. Saved searches — reserved fields
+## 7. Saved searches — reserved fields (implemented by A9)
 
-Reserved (logical; migration later, additive): `criteria_version`, `canonical_criteria`, `criteria_hash`, `audience`, `inventory_scope`, `last_successful_run`, `last_failure`.
+Reserved (logical; migration later, additive): `criteria_version`, `canonical_criteria`, `criteria_hash`, `audience`, `inventory_scope`, `entitlement_reference` (snapshot/ref), `last_successful_run`, `last_failure`.
 - Saved searches persist the **exact canonical criteria** (+ `criteria_hash` for change detection).
 - **Alerts replay the identical `canonical_criteria` through the identical execution service** — no Engine A/B split, no subset re-interpretation.
-- `audience` + `inventory_scope` are stored so replay re-enforces the same visibility; a saved private-scope search owned by a broker never leaks if replayed in a lesser audience context (fail-closed, per §1.6 parity).
+- `audience` + `inventory_scope` + `entitlement_reference` are stored so replay re-enforces the same visibility; a saved private-scope search owned by a broker never leaks if replayed in a lesser audience context (fail-closed, per §1.6 parity).
+- **A9 must never silently reinterpret an older `criteria_version`** — a stale/unsupported version yields `migration_required | invalid` (fail-closed), never a best-effort re-read.
+- Alert delivery uses **per-listing delivery deduplication** (a sent-ledger, not a modified-since watermark) and carries **source attribution** in the alert output; unsupported/invalid/stale/unauthorized criteria **fail closed**.
 
 ---
 
 ## 8. Revised sequencing — three lanes with hard gates
 
 ### Lane A — Search correctness
-Canonical contract dimension reservation (A1) → projection convergence (zero drift, typed filters, identity-resolution status, `SourceAuthority`, verification/lifecycle, freshness, audience, deterministic sort, capability validation) → Search Document V2 (additive) → single execution service (flagged) → shadow parity → **public reader cutover (gated)** → thin frontend → CRM/portal onto service.
+Canonical contract dimension reservation (A1) → projection convergence (A2: zero drift, typed filters, identity-resolution status, `SourceAuthority`, verification/lifecycle, freshness, audience, deterministic sort, capability validation) → Search Document V2 (A3, additive) → single execution service (A4, flagged) → backend shadow parity (A5) → **V2 public frontend integration behind flag (A6)** — remove client-side listing filtering and sorting in V2 mode, render the service order/total verbatim, **no production cutover** → **[G1]** → **public reader cutover (A7)** → **CRM/portal cutover (A8)** → **saved-search versioning + exact alert replay (A9)**.
+
+> The public cutover (A7) happens only after backend **and** frontend together represent the final V2 behavior (A6), so React can no longer undo the authoritative server order/count.
 
 ### Lane B — Inventory completeness
 **B1a identity proof (read-only)** → **B1b identity schema + backfill (approval-gated)** → SourceLicenseProfile + legal/ToS review → private audience enforcement (scope gating + AccessAudit) → coverage-manifest ingestion → gap detection + match decisions + manual review → **supplemental persistence (gap-only, gated)** → supersession.
@@ -294,7 +301,7 @@ Canonical contract dimension reservation (A1) → projection convergence (zero d
 Comp Engine V2 subject resolution + candidate retrieval → eligibility + evidence classification → verified close-price sourcing → ranking/exclusions/adjustment grid/confidence → immutable snapshot → **broker review/override + re-verify (gated)** → paid report workflow.
 
 ### Hard gates
-- **G1 (public cutover):** No public reader cutover until **Search Document V2 + projection convergence (zero drift) + shadow parity** (per §1.6) are proven, with an **approved identity-coverage rate** and fail-closed handling of unresolved rows.
+- **G1 (public cutover):** No public reader cutover (A7) until **ALL** of: **Search Document V2**; **zero projection drift**; **approved identity coverage** (per §1.3.3, with fail-closed handling of unresolved rows); **backend shadow parity** (A5, per §1.6); **V2 frontend rendering parity** (A6 — client filtering/sorting removed in V2 mode, service order/total rendered verbatim); and a **rollback flag**.
 - **G2 (supplemental ingestion):** No **real** supplemental source ingestion or persistence until **`SourceLicenseProfile` (approved legal/ToS) AND private audience enforcement** are both implemented. A **local, non-persisted development fixture** (no external fetch, no writes) is permitted for testing without G2; any **real external fetch or any persistence** requires **both** B2 and B3.
 - **G3 (paid valuation):** No external or paid valuation issuance until **Comp Engine V2 + immutable snapshots + mandatory broker signoff** are complete.
 
@@ -305,27 +312,35 @@ Comp Engine V2 subject resolution + candidate retrieval → eligibility + eviden
 > Prior single-lane P1–P15 is superseded by this lane/gate structure. Backend-Search-0/0.1/1 (#488/#489/#491) remain merged. All PRs additive-first, flag-gated, with parity tests + monitoring + rollback. Nothing here is authorized to start beyond the noted precondition.
 
 ```
-LANE A (search correctness)                 LANE B (inventory)                    LANE C (comps/reports)
-A1 contract dims (this doc) ──┐             B1a identity proof (READ-ONLY) ──┐     C1 subject resolve+retrieval
-   │                          │                (needs A1)                    │        (needs B1b, A4)
-A2 projection convergence ────┤             B1b identity schema+backfill ◄───┤     C2 eligibility+evidence class
-   │                          │                (approval-gated; needs B1a)   │        (needs C1)
-A3 Search Doc V2 (additive) ◄─┴─ needs A1,A2,B1b                             │     C3 verified close-price
-   │                                        B2 SourceLicenseProfile           │        (ACRIS+internal; needs B1b)
-A4 execution service (flag) ◄─ needs A3        + legal/ToS review             │     C4 rank/exclude/grid/confidence
-   │                                        B3 private audience enforce ◄──────┤        (needs C2,C3)
-A5 shadow parity harness ◄─ needs A4           (scopes+AccessAudit; A1,A4)    │     C5 immutable snapshot+version
-   │   ══ G1 ══                             B4 coverage manifest ◄═ G2:B2+B3  │        (needs C4)
-A6 PUBLIC CUTOVER ◄═ G1: A3+A2+A5              (real fetch needs B2 AND B3)   │     C6 broker review+re-verify ◄═ G3
-   │                                        B5 gap detect+match+review ◄───────┤        (needs C5)
-A7 thin frontend ◄─ needs A6                   (needs B1b,B4)                  │     C7 paid report workflow ◄═ G3
-A8 CRM/portal onto service ◄─ needs A6      B6 supplemental persist ◄═ G2      │        (needs C6; fail-closed)
-                                               (gap-only; needs B2,B3,B5)      │
-                                            B7 supersession ◄─ needs B6,A4
+LANE A — search correctness            LANE B — inventory completeness        LANE C — comps & reports
+─────────────────────────────         ────────────────────────────────      ──────────────────────────
+A1 contract dims (this doc)            B1a identity proof (READ-ONLY)         C1 subject resolve+retrieval
+   ↓  needs A1                            ↓  needs A1                             needs B1b, A4
+A2 projection convergence              B1b identity schema+backfill           C2 eligibility+evidence class
+   ↓  needs A1,A2,B1b                      (approval-gated; needs B1a)            needs C1
+A3 Search Document V2 (additive)       B2 SourceLicenseProfile+legal review   C3 verified close-price
+   ↓  needs A3                         B3 private audience enforce (A1,A4)        needs B1b
+A4 execution service (flag)            B4 coverage manifest ═ G2: B2 + B3     C4 rank/exclude/grid/confidence
+   ↓  needs A4                            (real fetch needs B2 AND B3)            needs C2,C3
+A5 backend shadow parity               B5 gap detect+match+review             C5 immutable snapshot+version ═ G3
+   ↓  needs A4,A5                          needs B1b,B4                           needs C4
+A6 V2 frontend integration (flag)      B6 supplemental persist ═ G2           C6 broker review+re-verify ═ G3
+   • remove client filter/sort (V2)       (gap-only; needs B2,B3,B5)             needs C5
+   • render server order/total verbatim B7 supersession (needs B6,A4)         C7 paid report workflow ═ G3
+   • NO cutover                                                                   needs C6; fail-closed
+ ══ G1 ══ (V2 doc + zero drift + identity coverage +
+           backend parity + frontend parity + rollback flag)
+A7 PUBLIC CUTOVER  (needs A6, G1)
+   ↓
+A8 CRM & portal cutover (needs A7)
+   ↓
+A9 saved-search versioning + exact alert replay
+      needs A4 + A8 (or the final execution-service contract)
+
 DEFERRED: i18n — only after A, B, C stable.
 ```
 
-**Critical cross-lane dependency:** identity is now a two-step chain — **B1a (read-only proof) → B1b (schema+backfill) → A3 (Search Document V2 needs resolvable canonical IDs + `IdentityResolutionStatus`)**, and B1b also feeds C1/C3 (comps need cross-source identity). B1a starts alongside A1; A3 waits on B1b. Identity is foundational, not late — and its risky half (B1b) is separately approval-gated.
+**Critical cross-lane dependency:** identity is a two-step chain — **B1a (read-only proof) → B1b (schema+backfill) → A3 (Search Document V2 needs resolvable canonical IDs + `IdentityResolutionStatus`)**, and B1b also feeds C1/C3. B1a starts alongside A1; A3 waits on B1b. Identity is foundational, not late — and its risky half (B1b) is separately approval-gated.
 
 | PR | Lane | Preconditions | Gate | Schema | Prod impact |
 |---|---|---|---|---|---|
@@ -335,13 +350,14 @@ DEFERRED: i18n — only after A, B, C stable.
 | **B1b identity schema + backfill** | B | **B1a (approval-gated)** | — | **additive** | low |
 | A3 Search Document V2 (additive) | A | A1, A2, **B1b** | — | additive | low (flag) |
 | A4 execution service | A | A3 | — | none | flag off |
-| A5 shadow parity | A | A4 | **G1** | none | read-only |
-| A6 public cutover | A | A5 | **G1** | none | **high** |
-| A7 thin frontend | A | A6 | — | none | medium |
-| A8 CRM/portal onto service | A | A6 | — | none | medium |
+| A5 backend shadow parity | A | A4 | — | none | read-only |
+| **A6 V2 frontend integration (flag)** | A | A4, A5 | — | none | none (flag off) |
+| **A7 public cutover** | A | A6 | **G1** | none | **high** |
+| **A8 CRM & portal cutover** | A | A7 | — | none | medium |
+| **A9 saved-search versioning + exact alert replay** | A | A4 + A8 (or final exec contract) | — | additive | medium |
 | B2 SourceLicenseProfile + legal review | B | — | **G2** | additive | none |
 | B3 private audience enforcement | B | A1, A4 | **G2** | additive | medium |
-| **B4 coverage manifest ingest** | B | **B2 + B3** | **G2** | additive | low |
+| B4 coverage manifest ingest | B | **B2 + B3** | **G2** | additive | low |
 | B5 gap detect + match + review | B | **B1b**, B4 | — | additive | low |
 | B6 supplemental persist (gap-only) | B | B2, B3, B5 | **G2** | additive | low (private) |
 | B7 supersession | B | B6, A4 | — | additive | low |
@@ -352,6 +368,8 @@ DEFERRED: i18n — only after A, B, C stable.
 | C5 immutable snapshot+version | C | C4 | **G3** | additive | flag |
 | C6 broker review+re-verify | C | C5 | **G3** | additive | gated |
 | C7 paid report workflow | C | C6 | **G3** | additive | gated |
+
+**A9 scope (reserved):** `criteria_version`, `canonical_criteria`, `criteria_hash`, `audience`, `inventory_scope`, `entitlement_reference` (snapshot/ref), `last_successful_run`, `last_failure`; **exact replay through Search V2** (identical execution service); **per-listing alert-delivery deduplication**; **source attribution in alert output**; **fail-closed** handling of unsupported/invalid/stale/unauthorized criteria; and **no silent reinterpretation** of an older `criteria_version`.
 
 ---
 
@@ -385,7 +403,13 @@ type ObservationPlatform =
   | "manual_agent_research" | "none";
 
 type SourceAccessMethod =
-  | "licensed_api" | "licensed_feed" | "direct_partner" | "manual_agent_research";
+  | "licensed_api"
+  | "licensed_feed"
+  | "direct_partner"
+  | "public_api"
+  | "public_dataset"
+  | "internal_system"
+  | "manual_agent_research";
 
 type InventoryScope =
   | "public_inventory" | "client_inventory" | "agent_complete_inventory"
@@ -439,15 +463,26 @@ interface AttributionEnvelope {
   audienceObligations: string[]; // e.g. attribution_required, link_back_required, broker_agent_only
 }
 
-interface ContractDecision {
-  ok: boolean;
-  code:
-    | "UNKNOWN_CRITERION" | "UNSUPPORTED_CRITERION"
-    | "UNAUTHORIZED_SCOPE" | "UNLICENSED_SOURCE" | "INVALID_VALUE";
-  criterion?: string;
-  message: string;
-}
+// Discriminated union: a success carries no error fields.
+type ContractDecision =
+  | { ok: true }
+  | {
+      ok: false;
+      code:
+        | "UNKNOWN_CRITERION" | "UNSUPPORTED_CRITERION"
+        | "UNAUTHORIZED_SCOPE" | "UNLICENSED_SOURCE" | "INVALID_VALUE";
+      criterion?: string;
+      message: string;
+    };
 ```
+
+**`SourceAccessMethod` per authority (intended mappings):**
+- Cotality / REBNY → `licensed_api` or `licensed_feed`
+- ACRIS → `public_api` or `public_dataset`
+- NYC DOB → `public_api` or `public_dataset`
+- Mallan CRM → `internal_system`
+- authorized supplemental partner → `licensed_api`, `licensed_feed`, or `direct_partner`
+- manual research → `manual_agent_research`
 
 **Audience-enforcement decisions (typed, fail-closed):** a public/client request for any agent/broker-private `InventoryScope` returns `ContractDecision{ ok:false, code:"UNAUTHORIZED_SCOPE" }`; an unknown enum/criterion value returns `UNKNOWN_CRITERION` / `INVALID_VALUE`; a source use not permitted by an active `SourceLicenseProfile` returns `UNLICENSED_SOURCE`. Adapters (not A1) map these to HTTP 400/403/422.
 
