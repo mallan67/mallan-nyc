@@ -30,6 +30,8 @@ Every claim below is tagged:
 
 **Prior probe context (2026-07-06) — historical only, not authority.** Per AGENTS.md §7 (Cotality is the sole authority — always live, never a copy, never a spot-check), Backend-Search-1 **must re-verify live before locking any enum / filterability / sortability / status / field assumption** — via `npm run cotality:pull && npm run cotality:verify` (authority = `data/cotality-enums.live.json`) or live `$metadata`/`$count` probes; do not rely on copied enum/filterability sets. For context, that earlier pass observed: `StandardStatus` 11 members with the live feed carrying **`Pending`, not `ActiveUnderContract`** (AUC live count = 0); sale = `Residential`, rental = `ResidentialLease` (no space); co-op = `StockCooperative` (no `Cooperative` member), condo = `Condominium`, `Condop` distinct; `MlsStatus` **not** `$filter`-able (HTTP 400, provider-suppressed); `Permission` has no `OwnerOptOut` member. Re-confirm each live.
 
+**`[E]` staleness caveat (2026-07-09).** The `[E]` source-inventory and field-matrix findings in this document were captured by a read-only analysis pass against the tree as of 2026-07-09; code moves. Treat every `[E]` finding as **as-of that pass** and **re-verify it against current HEAD** (grep the cited file/lines) before acting on it in Backend-Search-1 — do not chase an `[E]` claim without confirming it still holds. Examples already corrected after re-verification: similar-listings **does** switch on `type=rent` (rentals get similars); the Open House filter **is** read (applied post-pagination, §4 D1).
+
 ---
 
 ## 1. Search surfaces inventory
@@ -51,7 +53,7 @@ Twelve+ distinct surfaces answer "search" questions, split across **three engine
 | A1 | Public listings | `/api/listings` → `useListings` → `app/search/page.tsx` | DB-first → Cotality fallback → exclusives | public | default sort `list_price desc` |
 | A2 | `useListings` hook | `lib/hooks/useListings.ts` | (client of A1) | public | remaps params (`baths`→`minBaths`, `zip`→`zipCodes`, joins neighborhoods) |
 | A3 | Autocomplete / suggest | `/api/listings/suggest` | Cotality | public | address/neighborhood/building suggestions |
-| A4 | Similar listings | `/api/listings/similar` | Cotality | public | hardcodes `PropertyType eq 'Residential'` — **rentals get no similars** [E] |
+| A4 | Similar listings | `/api/listings/similar` | DB-first + Cotality | public | **switches on `type=rent`** (`isRental → listing_type:'rent'`; Trestle fallback `PropertyType eq 'ResidentialLease'`) — rentals **do** get similars (`app/api/listings/similar/route.ts:71-72`, re-verified at HEAD) [E] |
 | A5 | Building listings | `/api/listings/building` | DB + shared ACRIS lib | public | closed sale history ACRIS-only via `.filter(s => s.source === 'acris')` |
 | A6 | Buildings | `/api/buildings` | ACRIS + `resolveVisibility` public | public | Backend-Search-0 output; ACRIS-only public sale history, no dedup-vs-MLS |
 | A7 | Market stats | `/api/market` | Cotality | public | borough via `CityRegion` (diverges from A-others using `CountyOrParish`) |
@@ -128,7 +130,7 @@ Because RESO/REBNY/IDX field names are barred from this section, fields below ar
 | B-3 | Borough resolves 3 ways | MED | A [E] |
 | B-4 | Neighborhood resolves ZIP vs `SubdivisionName` | MED | A [E] |
 | B-5 | `keyword` vs `keywords` param mismatch | MED | A [E] |
-| B-6 | Open House filter set by UI, no reader consumes | HIGH | A [E] |
+| B-6 | Open House filter **is** read (route queries `/odata/OpenHouse`, `app/api/listings/route.ts:456-480`) but applied **post-pagination** (see §4 D1) — not a dead control; the real issue is count/pagination semantics | MED | A [E, corrected at HEAD] |
 | B-7 | Transit filter unwired | MED | A [E] |
 | B-8 | Sort has no panel control (URL-only options) | MED | A [E] |
 | B-9 | Alert silently narrows (amenities/keywords/furnished/yearBuilt/ownership/openHouse/transit/address dropped) | HIGH | A [E] |
