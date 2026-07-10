@@ -231,7 +231,7 @@ Guardrail: the merged Backend-Search-0 `visibility-contract.ts` is the current c
 - **D6-4** — Pending vs ActiveUnderContract: **resolved** by the PR-1 live pass — the feed carries `Pending` (in-contract), AUC live count 0. `toLifecycleStatus` correctly maps AUC→`active` (public-displayable), Pending→`pending` (public-blocked). Matches `lib/compliance/status.ts`.
 
 ### Coming-Soon / pre-public nuance [Class-C]
-Coming-Soon is display-permitted **with a required badge**, max 14 days, **no DOM accrual**, no showings before `ActivationDate`. Participant-Only = `Permission = 'Private'` (confirmed — both `Permission` and `ListingPermission` carry `Private` in `data/cotality-enums.live.json`). **Owner-Opt-Out has NO live `Permission`/`ListingPermission` value** — verified against `data/cotality-enums.live.json`: neither enum has an `OwnerOptOut` member (they carry `Private`, `PhotoOptedOut`, `SyndicateOptOut`, `Officeidxoptout` — none is owner-opt-out; the only `OwnerOptOut` string in the feed is an unrelated disclosures/document-type value). The real owner-opt-out signal is therefore **unresolved**; Backend-Search-1 must **fail closed on owner-opt-out until a live Cotality field/value is confirmed** `[needs probe][Class-C]` — do not assume `Permission='OwnerOptOut'`. The flat 8-bucket enum does **not** yet encode DOM-accrual or audience-scope rules — see §strategic gap 15 and the UCBA "Off-Market" label prohibition.
+Coming-Soon is display-permitted **with a required badge**, max 14 days, **no DOM accrual**, no showings before `ActivationDate`. Participant-Only = `Permission = 'Private'` (confirmed present in `data/cotality-enums.live.json`). **Owner-Opt-Out: the live signal is UNRESOLVED — Backend-Search-1 must FAIL CLOSED on owner-opt-out until a live Cotality field/value is verified** `[needs probe][Class-C]`. Do **not** derive it from a permission enum: `data/cotality-enums.live.json` shows **no** owner-opt-out member in either `Permission` or `ListingPermission`, so `Permission='OwnerOptOut'` must never be assumed. The flat 8-bucket enum does **not** yet encode DOM-accrual or audience-scope rules — see §strategic gap 15 and the UCBA "Off-Market" label prohibition.
 
 ---
 
@@ -463,8 +463,8 @@ For each metric: **inputs needed · current data availability · method · confi
 
 | Metric | Inputs | Available now | Method (candidate) | Confidence | Safe for | Label |
 |---|---|---|---|---|---|---|
-| Likely **sale** price range | closed comps (achieved), PPSF, subject facts, active competition | **no** (CMA-1 + no PPSF) | comp regression / adjusted PPSF band | med | seller/investor/**bank w/ heavy disclaimer** | estimate |
-| Likely **rental** price range | closed+active rentals, net-effective | **no** (no rental comps/economics) | comp band on net-effective | med | landlord/investor | estimate |
+| Estimated **sale** price range | closed comps (achieved), PPSF, subject facts, active competition | **no** (CMA-1 + no PPSF) | comp regression / adjusted PPSF band | med | seller/investor/**bank w/ heavy disclaimer** | estimate |
+| Estimated **rental** price range | closed+active rentals, net-effective | **no** (no rental comps/economics) | comp band on net-effective | med | landlord/investor | estimate |
 | Days-to-sell estimate | DOM history, absorption, price-vs-comp | **no** (no DOM/absorption retention) | survival/absorption model | low-med | seller/agent internal | estimate |
 | Days-to-rent estimate | rental DOM, seasonal | **no** | same | low-med | landlord/agent | estimate |
 | Price-reduction probability | price-change events, DOM, overpricing gap | **no** (no price-event history — §12 gap 2) | classifier on event history | low | **agent internal only** | market opinion |
@@ -576,7 +576,7 @@ Luxury/high-trust presentation is a first-class requirement, not a skin. Design 
 
 **Finding:** the four output variants (PDF / email / portal / agent-internal) are the **audience/entitlement dimension expressed as presentation** — the same `resolveVisibility` + DTO-tier logic that governs data must govern report rendering. Design and the visibility contract are the same problem viewed from two ends. **Proof-first:** per §F, every disclosure/label must be verified in *rendered* output, not source presence.
 
-## §15.I — Data structures likely needed later (analyze + recommend only; DO NOT implement)
+## §15.I — Candidate future data structures (analyze + recommend only; DO NOT implement)
 
 | Candidate table | Purpose | Driven by | Priority |
 |---|---|---|---|
@@ -628,7 +628,7 @@ Backend-Search-1 remains **contract + tests only**. Part II shows the system is 
 9. **Report contract + methodology/audit-trail envelope** (`generated_reports`, `report_comps`, `report_adjustments`) — the six report products + provenance. *(schema — approval-gated)*
 10. **Campaign-segmentation contract** (`campaign_segments`, `campaign_recipients`, suppression/consent) — depends on saved-search + entitlement. *(schema — approval-gated)*
 11. **Report export/audit-trail + PDF** — true PDF, share log, retention.
-12. **Forecasting engine** — likely-price/rent, days-to-sell, demand, yield — **last**, gated behind confidence + methodology + the §J appraisal boundary; not surfaced to bank/appraisal audiences until legally cleared.
+12. **Forecasting engine** — price/rent estimates, days-to-sell, demand, yield — **last**, gated behind confidence + methodology + the §J appraisal boundary; not surfaced to bank/appraisal audiences until legally cleared.
 
 Each schema PR is a §C hold requiring explicit Maya approval and NEON.md discipline. The ordering is dependency-driven: **data-quality → temporal → economics** are the three foundations; reports, campaigns, analytics, and forecasting all sit on top.
 
