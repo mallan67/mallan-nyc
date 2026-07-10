@@ -157,6 +157,11 @@ describe('7. saved-search criteria carries criteria_version', () => {
     expect(savedSearchVersionState(stale)).toBe('migration_required');
     expect(isValidSavedSearch(stale)).toBe(false); // must NOT be reinterpreted as current
   });
+  it('a bogus/unmapped filter key fails loud (invalid), never accepted', () => {
+    const blob = { criteria_version: CRITERIA_VERSION, filters: { totallyBogus: 1 }, sort: 'price_desc' };
+    expect(savedSearchVersionState(blob)).toBe('invalid');
+    expect(isValidSavedSearch(blob)).toBe(false);
+  });
   it('alert-incompatible criteria are flagged (not silently saved)', () => {
     const alertable = new Set(alertableFieldKeys() as CanonicalFilterKey[]);
     const c = serializeCriteria({ filters: { amenities: ['doorman'], price_min: 1000 }, sort: 'newest' });
@@ -207,6 +212,24 @@ describe('module: class / ownership (exact live values)', () => {
     expect(ownershipClass('Cooperative')).toBe('unknown'); // not a live member
     expect(ownershipClassFromUiLabel('Co-op')).toBe('coop');
     expect(commonInterestFor('coop')).toEqual(['StockCooperative']);
+  });
+  it('valid live non-segmentation members → other (never silently unknown)', () => {
+    expect(ownershipClass('CommunityApartment')).toBe('other');
+    expect(ownershipClass('PlannedDevelopment')).toBe('other');
+    expect(ownershipClass('Timeshare')).toBe('other');
+    expect(ownershipClass('totally-fake-value')).toBe('unknown');
+  });
+});
+
+describe('module: status query set is CONSISTENT with classification', () => {
+  it('every off_market query status classifies back to off_market', () => {
+    for (const s of queryStatusesFor('off_market')) expect(statusGroup(s)).toBe('off_market');
+  });
+  it('Delete/Incomplete are unavailable (not real inventory) and not off_market query targets', () => {
+    expect(statusGroup('Delete')).toBe('unavailable');
+    expect(statusGroup('Incomplete')).toBe('unavailable');
+    expect(queryStatusesFor('off_market')).not.toContain('Delete');
+    expect(queryStatusesFor('off_market')).not.toContain('Incomplete');
   });
 });
 

@@ -28,7 +28,11 @@ export const QUERY_STATUSES: Readonly<Record<Exclude<StatusGroup, 'unavailable'>
   active_on_market: Object.freeze(['Active']),
   pending_contract: Object.freeze(['Pending']),
   closed_recent: Object.freeze(['Closed']), // window applied by compEligibility via CloseDate
-  off_market: Object.freeze(['Withdrawn', 'Canceled', 'Expired', 'Hold', 'Incomplete', 'Delete']),
+  // Delete (removed) and Incomplete (draft) are NOT real inventory → statusGroup() classifies them
+  // 'unavailable' (fail-closed). They are intentionally NOT off_market query targets, so
+  // queryStatusesFor('off_market') and statusGroup() stay consistent (every off_market query value
+  // classifies back to off_market: Withdrawn/Canceled/Expired → off_market, Hold → temp_off_market → off_market).
+  off_market: Object.freeze(['Withdrawn', 'Canceled', 'Expired', 'Hold']),
 });
 
 /** The one projection: merged LifecycleStatus → StatusGroup. `unknown` → 'unavailable' (fail-closed). */

@@ -17,10 +17,20 @@ const CLASSIFY: Readonly<Record<string, OwnershipClass>> = Object.freeze({
   None: 'none',
 });
 
-/** Classify a record's CommonInterest. Unknown/empty → 'unknown' (fail-closed). */
+/**
+ * Valid live CommonInterest members that aren't an NYC segmentation class. They classify as 'other'
+ * (recognized, never dropped to 'unknown'), so a valid ownership value is never silently excluded.
+ */
+const OTHER_MEMBERS: ReadonlySet<string> = new Set([
+  'BareLandCondominium', 'CommunityApartment', 'CoOwnership', 'Freehold',
+  'Leasehold', 'Other', 'PlannedDevelopment', 'Timeshare',
+]);
+
+/** Classify a record's CommonInterest. Valid non-segmentation members → 'other'; unrecognized → 'unknown'. */
 export function ownershipClass(commonInterest: unknown): OwnershipClass {
   if (typeof commonInterest !== 'string') return 'unknown';
-  return CLASSIFY[commonInterest.trim()] ?? 'unknown';
+  const v = commonInterest.trim();
+  return CLASSIFY[v] ?? (OTHER_MEMBERS.has(v) ? 'other' : 'unknown');
 }
 
 /** Exact live CommonInterest value(s) to filter for an ownership class. */

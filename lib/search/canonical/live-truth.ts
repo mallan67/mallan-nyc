@@ -43,8 +43,20 @@ export const MLS_STATUS_FILTERABLE = false;
 export const PROPERTY_TYPE_SALE = 'Residential';
 export const PROPERTY_TYPE_RENTAL = 'ResidentialLease';
 
-/** CommonInterest — live members. Co-op = StockCooperative (there is NO `Cooperative` member). */
+/**
+ * CommonInterest — ALL 13 live members (data/cotality-enums.live.json). Co-op = StockCooperative
+ * (there is NO `Cooperative` member). The first five are the NYC segmentation classes used by
+ * ownership.ts; the remaining eight are valid-but-unsegmented members — classified 'other', never
+ * silently dropped to 'unknown'.
+ */
 export const COMMON_INTEREST_MEMBERS = Object.freeze([
+  'Condominium', 'StockCooperative', 'Condop', 'RentalBuilding', 'None',
+  'BareLandCondominium', 'CommunityApartment', 'CoOwnership', 'Freehold',
+  'Leasehold', 'Other', 'PlannedDevelopment', 'Timeshare',
+] as const);
+
+/** The five CommonInterest values that map to an NYC ownership segmentation class. */
+export const COMMON_INTEREST_SEGMENTATION = Object.freeze([
   'Condominium', 'StockCooperative', 'Condop', 'RentalBuilding', 'None',
 ] as const);
 

@@ -9,7 +9,7 @@
  * separate, approval-gated migration PR — nothing here touches schema, alerts, or the projection.
  */
 
-import type { CanonicalFilterKey } from './filter-keys';
+import { isCanonicalFilterKey, type CanonicalFilterKey } from './filter-keys';
 import { isSortKey, type SortKey } from './sort';
 
 /** Bump when the canonical filter/sort vocabulary changes in a non-back-compatible way. */
@@ -38,6 +38,10 @@ export function savedSearchVersionState(v: unknown): 'current' | 'migration_requ
   if (typeof c.criteria_version !== 'number') return 'invalid';
   if (c.filters == null || typeof c.filters !== 'object') return 'invalid';
   if (!isSortKey(c.sort)) return 'invalid';
+  // Every filter key must be a canonical key — a typoed/stale key fails loud, never silently accepted.
+  for (const k of Object.keys(c.filters as Record<string, unknown>)) {
+    if (!isCanonicalFilterKey(k)) return 'invalid';
+  }
   return c.criteria_version === CRITERIA_VERSION ? 'current' : 'migration_required';
 }
 
