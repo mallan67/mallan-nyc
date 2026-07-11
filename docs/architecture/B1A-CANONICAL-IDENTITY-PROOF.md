@@ -1,23 +1,24 @@
 # B1a — Canonical Identity Proof (read-only)
 
 > **Status: READ-ONLY INVESTIGATION. NO schema, NO migration, NO backfill, NO permanent links, NO production writes, NO supplemental ingestion.** This document measures whether Mallan can safely resolve current records into canonical property/building/unit/listing identities, and proposes a B1b design. **B1b remains separately approval-gated.** External-inventory and syndication holds remain in force.
+> **Terminology discipline (Rev 2):** this analysis proves **provisional, address-derived candidate grouping** — it does **not** prove authority-verified canonical identity. "Canonical resolved" is reserved for records confirmed by an approved authority signal (BBL / Cotality `BuildingKey` / geospatial) or a validated multi-signal rule. **Authority-verified canonical identities in current data: 0.**
 > Governing architecture: `docs/architecture/SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` (Lane B). Machine-readable aggregates: `docs/architecture/b1a-identity-metrics.json`.
 
 ## 1. Executive conclusion
 
-**Recommendation: CONDITIONAL GO for B1b.**
+**Recommendation: CONDITIONAL GO for B1b DESIGN AND ADDITIVE SCHEMA ONLY.** No production backfill or automatic linking is authorized by this analysis.
 
-Address-derived canonical identity is highly feasible **today**: **97.6%** of the 22,472 listings resolve cleanly to a canonical property/building (+unit where applicable) from stored address data alone, with **0 hard normalization failures** and a small, well-characterized review tail (**~531 records, 2.4%**). `listing_id` is a clean 1:1 source key (0 duplicates).
+The existing data can generate a **strong provisional candidate graph**: **97.6%** of the 22,472 listings can be assigned to provisional address-derived property/building(+unit) candidate groups, with **0 records unkeyable** and a **minimum obvious exception queue of ~531 (2.4%)**. `listing_id` is a clean 1:1 source key (0 duplicates).
 
-**But three of the strongest identity signals are entirely unavailable in current data** and must be added by a Cotality **enrichment sync** before they can be used: **BBL (0% coverage)**, **geolocation (0% — lat/long empty everywhere)**, and **Cotality `BuildingKey` (0% synced)**. Additionally the `buildings`/`building_units` tables are **empty (0 rows)**, and the `buildings.building_key` column is an `integer` that is **type-incompatible** with Cotality's `String` `BuildingKey` — it must not be used as a canonical key.
+**It cannot yet prove canonical identity.** The strongest authority signals are entirely absent from current data: **BBL 0%**, **geolocation 0%**, **Cotality `BuildingKey` 0% synced**. Address normalization here is **syntactic (keyable), not authority-verified**. The `buildings`/`building_units` tables are **empty**, and `buildings.building_key` is an `integer` that is **type-incompatible** with Cotality's `String` `BuildingKey`. **Authority-verified canonical identity count = 0.**
 
-So B1b is GO for **address-based** canonical derivation + relisting linkage, **conditional** on (a) an additive Cotality enrichment sync for ParcelNumber/geo/BuildingKey before enabling those match tiers, (b) queuing the 531 review records rather than auto-linking, and (c) using new surrogate IDs + a nullable **text** BuildingKey reference (never the integer column).
+Therefore B1b may proceed to **schema design + enrichment preparation**, but **not** directly to automatic linking or backfill. Address+ZIP+borough is a good **candidate-generation** key, not a proven auto-link rule; the 539 relisting groups are **candidates**, not confirmed chains; the 1,943 unitless records are **likely non-unit-applicable**, not confirmed.
 
 ## 2. Data sources and exact snapshot time
 
 - **Snapshot:** 2026-07-10.
-- **Database:** canonical production Neon — project `hidden-mountain-87248164`, endpoint `ep-cold-waterfall-adno3ao2`, branch `main` (`br-crimson-frog-adr7g9gt`). Queried **read-only** (Neon MCP, `SELECT`-only, aggregate `COUNT`/`GROUP BY`; no writes, no DDL).
-- **Cotality:** live `$metadata` (trestle-fields MCP), read-only metadata verification of identity fields.
+- **Database:** canonical production Neon — project `hidden-mountain-87248164`, endpoint `ep-cold-waterfall-adno3ao2`, branch `main` (`br-crimson-frog-adr7g9gt`). Queried **read-only** (Neon MCP, `SELECT`-only, aggregate; no writes, no DDL).
+- **Cotality:** live `$metadata` (trestle-fields MCP), **metadata existence only**. See §7 for the explicit distinction between metadata existence and record-level verification.
 - **Repository:** read-only inspection of `origin/main` @ `e5d3396a` (#494).
 - **No raw production records were extracted to disk or committed.** All examples are hashed/aggregated (no address, owner, or client data).
 
@@ -28,66 +29,70 @@ So B1b is GO for **address-based** canonical derivation + relisting linkage, **c
 | Total listings | **22,472** |
 | Public listings (`idx_display_yn`) | 16,586 |
 | `listing_search_projection` rows | 22,472 |
-| Listings with street + zip + borough | 22,472 (100%) |
+| Listings **address-keyable** (street+zip+borough populated) | 22,472 (100%) |
 | Listings with a unit number | 20,455 (91.0%) |
-| Building candidates (distinct street+zip+borough) | 8,816 |
-| Unit candidates (unit-applicable) | 19,645 |
+| Provisional building candidates (distinct street+zip+borough) | 8,816 |
+| Provisional unit candidates (unit-applicable) | 19,645 |
+| **Authority-verified canonical identities** | **0** |
 
 ## 4. Current identity-model map
 
-- **`listings`** (66 cols): `listing_id` (text, = Cotality `ListingId`/RLS number, **unique, 0 dups**), `mls_id` (sparse, 5.6%), `address` jsonb (PascalCase `StreetNumber`/`StreetName`/`StreetSuffix`/`UnitNumber`), `postal_code`, `borough`, `neighborhood`, `raw_data` jsonb (full Trestle payload).
-- **`listing_search_projection`** (35 cols): has `latitude`/`longitude` columns — **both unpopulated (0 rows with geo)**.
-- **`buildings`** (84 cols, incl. `building_key int`): **0 rows** (populated only as a side-effect of building-page visits; effectively empty).
-- **`building_units`** (15 cols): **0 rows**.
-- **No canonical property/building/unit identity model exists today.** There is no `bbl`, no canonical surrogate id, and no cross-source listing linkage.
+- **`listings`** (66 cols): `listing_id` (text, = Cotality `ListingId`/RLS number, **unique, 0 dups**), `mls_id` (sparse, 5.6%), `address` jsonb (PascalCase `StreetNumber`/`StreetName`/`StreetSuffix`/`UnitNumber`), `postal_code`, `borough`, `raw_data` jsonb.
+- **`listing_search_projection`** (35 cols): `latitude`/`longitude` columns — **both unpopulated (0 rows with geo)**.
+- **`buildings`** (84 cols, incl. `building_key int`): **0 rows**. **`building_units`** (15 cols): **0 rows**.
+- **No canonical property/building/unit identity model exists today** — no `bbl`, no surrogate id, no cross-source linkage.
 
 ## 5. Address-normalization findings
 
-- **100% resolvable** to a normalized (street number + street name + suffix) + ZIP + borough key. **0 hard normalization failures.**
-- Normalization is achievable purely from `listings.address` + `postal_code` + `borough` (all 100% populated).
-- **Residual risk:** normalization is *syntactic* (string), not authority-verified. Aliases (corner addresses, "1-5 Main St" ranges, "Ave" vs "Avenue") can under-merge (a building appearing under two address keys) — a false-**negative**, quantified indirectly by the multi-zip finding (§11).
+**Accurate statement: 100% were address-keyable using the currently stored street, ZIP, and borough fields.** This is **not** proof of canonical normalization.
+
+The analysis did **not** prove correct handling of:
+- Queens **hyphenated** addresses (e.g., `34-36`),
+- street **ranges** (`1-5 Main St`),
+- **corner-address** alternatives / alternate building entrances,
+- **directional** aliases (N/S/E/W vs North/…),
+- **suffix** aliases (St/Street, Ave/Avenue),
+- **malformed unit** values,
+- ZIP/borough correctness.
+
+These are candidate-key construction successes, not validated canonical normalizations. Alias under-merge (one building under two keys) is a false-**negative** risk, partially evidenced by the multi-zip finding (§11).
 
 ## 6. BBL findings
 
-- **BBL coverage = 0%.** No `ParcelNumber` is stored in `raw_data` (0/22,472), and there is no BBL column.
-- Cotality **does** expose `Property.ParcelNumber` (`String(50)`, nullable) live — the enrichment source — but it is **not synced**. Its record-level format (whether it is a clean 10-digit BBL vs a raw parcel string) was **not** record-verified here (metadata only) and must be validated in B1b before being trusted as BBL.
-- **Consequence:** BBL-based matching (hierarchy tier 1) is **impossible today** and is a B1b enrichment prerequisite.
+- **BBL coverage = 0%.** No `ParcelNumber` stored (0/22,472); no BBL column.
+- Cotality exposes `Property.ParcelNumber` (`String(50)`, nullable) **at the metadata level** — a candidate enrichment source — but it is **not synced** and was **not record-verified** here (whether it is a valid 10-digit NYC BBL vs a raw parcel string is **unknown**).
+- **Consequence:** BBL matching is impossible today and its suitability is unproven; it is a B1b enrichment prerequisite requiring record-level validation.
 
 ## 7. BuildingKey findings
 
-- `raw_data.BuildingKey` present on **0/22,472** listings.
-- `buildings` table **empty (0 rows)** → `building_key`: populated 0, null 0, distinct 0, duplicated 0, truncated/lossy n/a.
-- **Type mismatch confirmed:** DB `buildings.building_key` is `integer`; live Cotality `BuildingKey` is `String(≤300)` on Property and `String(≤255, non-null)` on Building. An integer column cannot faithfully hold the string key → **do not use it as canonical identity**; store the Cotality key as nullable **text** in B1b.
-- **Consequence:** BuildingKey-based matching (tier 2) is **impossible today** and is a B1b enrichment prerequisite. Question 14 (integer↔string relationship) is **unanswerable from current data** — there are zero populated values to correlate.
+- `raw_data.BuildingKey` present on **0/22,472**.
+- `buildings` table **empty** → `building_key`: populated 0, null 0, distinct 0, duplicated 0.
+- **Type mismatch confirmed at schema level:** DB `buildings.building_key` is `integer`; Cotality `BuildingKey` is `String(≤300)` (Property) / `String(≤255, non-null)` (Building). **Do not use the integer column as canonical identity.**
+- **Consequence:** Question 14 (integer↔string relationship) is **unanswerable from current data** (zero populated values). Cotality `BuildingKey` **population/completeness in live records was not verified** (metadata existence only).
 
 ## 8. Building-resolution findings
 
-- **8,816 distinct building candidates** from the normalized (street+zip+borough) key (~2.5 listings/building).
-- Building resolution via address is strong; the main ambiguity is **197 street+borough combinations that span multiple ZIPs** — long streets crossing ZIP boundaries and/or ZIP data inconsistencies. Because the canonical building key **includes ZIP**, these become distinct candidates (safe), but they prove that **street+borough matching without ZIP is unsafe** (would merge distinct buildings).
-- Geospatial confirmation (tiers 4–5) is **unavailable** (geo 0%).
+- **8,816 provisional building candidates** from the normalized (street+zip+borough) key.
+- The candidate key is useful for **candidate generation**; it is **not** a proven auto-link rule. It has **not** been validated against BBL, live `BuildingKey`, geospatial evidence, known-good/known-bad samples, alias-address pairs, multi-building complexes, or street-address ranges.
+- **197 street+borough combinations span multiple ZIPs** — proving that street+borough matching **without** ZIP is unsafe, and flagging ZIP-boundary / data-quality ambiguity that even the ZIP-inclusive key does not fully resolve.
 
 ## 9. Unit-resolution findings
 
-- **Unit present on 91.0%** (20,455); **19,645** distinct unit-applicable unit candidates.
-- **2,017 listings have no unit**, split by proxy into:
-  - **1,943 genuine building/property-only** (no other unit-bearing listing at the same building address) — legitimately unit-less (townhouse/single/land). *Should not have a unit.* (Answers Q5.)
-  - **34 "unit-missing"** (a no-unit listing at a building address that also has unit-bearing listings) → likely a dropped unit → **partial** resolution (property/building only).
-- **Floor/line are not separately stored** (only `UnitNumber`), so tier-2 unit matching (building + floor/line) is limited; **unit-alias mapping** (PH/2A/Apt/Unit normalization) is needed in B1b.
+- **Unit present on 91.0%** (20,455); **19,645** provisional unit-applicable candidates.
+- **2,017 listings have no unit.** Under the current proxy (a unitless listing whose building address has **no** other unit-bearing listing), **1,943** are **likely non-unit-applicable or unit-unavailable** — **not** confirmed building/property-only. A unit can be absent because the address variant differs, unit parsing failed, the feed omitted it, only one listing is currently stored, the record is an entire building/townhouse, or the property type was mapped incorrectly. **Property type + authority evidence must validate genuine non-applicability.** The remaining **34** are unitless at multi-unit buildings → `partial_candidate`.
+- **Floor/line are not separately stored** (only `UnitNumber`) → unit-alias mapping (PH/2A/Apt) needed in B1b.
 
 ## 10. Listing and relisting findings
 
-- **`listing_id` is a clean 1:1 source key** — 22,472 distinct, **0 duplicates**; `mls_id` sparse (1,251) with 0 duplicates. **Source-identifier conflicts = 0.**
-- Cotality `ListingKey` (`String(20)`, non-null) is the stable listing key; `ListingId` (`String(255)`) is the RLS number our `listing_id` stores. `raw_data.ListingKey` is only sparsely stored (1,217) → B1b should persist `ListingKey` for durable cross-source listing identity.
-- **Relisting:** among unit-applicable candidates, **757 unit keys carry >1 listing** (1,567 listings, max 8/unit). Splitting by concurrency:
-  - **539 relisting chains** (≤1 currently-active listing at the unit over time) — legitimate re-listings, safely linkable.
-  - **218 simultaneous-active** unit keys (>1 currently-public listing at the same unit) — potential true duplicates / sale+rent / co-exclusive → **manual review**.
-  - Building-level (no-unit): 78 multi (163 listings), 18 simultaneous-active.
+- **`listing_id` is a clean 1:1 source key** — 22,472 distinct, **0 duplicates**; `mls_id` sparse (1,251), 0 dups. **Source-identifier conflicts = 0.**
+- Cotality `ListingKey` (`String(20)`, non-null, metadata) is the stable key; `ListingId` (`String(255)`) is the RLS number our `listing_id` stores. `raw_data.ListingKey` is sparsely stored (1,217); the `ListingKey`↔`ListingId` relationship was **not record-verified**.
+- **Relisting is a CANDIDATE signal only.** 757 unit keys carry >1 listing (1,567 listings, max 8/unit); **539** have ≤1 currently-active listing. These **539 are "relisting candidates," not confirmed chains** — they could be separate sale/rental events, listings years apart, different ownership periods, duplicate imports, cancelled-then-re-represented listings, sponsor vs resale units, or unrelated marketing events. **218** unit keys are simultaneous-active (review). Building-level: 78 multi, 18 simultaneous-active.
 
 ## 11. Collision taxonomy
 
 | Collision type | Reason code | Count |
 |---|---|---|
-| Address normalization failure | `missing_address`/`invalid_address` | 0 |
+| Address unkeyable | `missing_address`/`invalid_address` | 0 |
 | Missing BBL | `missing_bbl` | 22,472 (100%) |
 | BBL conflict | `bbl_conflict` | 0 (no BBL data) |
 | BuildingKey conflict | `building_key_conflict` | 0 (no data) |
@@ -97,121 +102,121 @@ So B1b is GO for **address-based** canonical derivation + relisting linkage, **c
 | Unit missing at multi-unit building | `unit_missing` | 34 |
 | Multiple building candidates for one listing | `multiple_building_candidates` | 0 |
 | Source identifier → multiple entities | `source_identifier_conflict` | 0 |
-| Possible relisting | `possible_relisting` | 539 chains |
+| Possible relisting (candidate) | `possible_relisting` | 539 |
 
-Anonymized examples (hashed unit key; no address/PII): `520e69a3d762` = 8 listings / 3 statuses over 2026-05-27→28; `edbc0290089b` = 5 listings over 2026-06-05→24 (relisting); `856252272e8b` = 4 listings over 2026-05-05→07-10. Full list in the metrics JSON.
+Anonymized examples (hashed unit key; no address/PII): `520e69a3d762` = 8 listings / 3 statuses over 2026-05-27→28; `edbc0290089b` = 5 listings over 2026-06-05→24; `856252272e8b` = 4 listings over 2026-05-05→07-10. Full list in the metrics JSON.
 
-## 12. Resolution-status distribution
+## 12. Resolution-status distribution (provisional candidate states)
 
-| Status | Count | % of 22,472 |
+**These are provisional address-derived candidate states, not canonical resolution.**
+
+| State | Count | % of 22,472 |
 |---|---|---|
-| `resolved` (unit) | 19,998 | 89.0% |
-| `resolved` (building/property-only) | 1,943 | 8.6% |
-| **resolved total** | **21,941** | **97.6%** |
-| `partial` (unit-missing) | 34 | 0.15% |
-| `ambiguous` (collision) | 497 | 2.2% |
-| `unresolved` | 0 | 0.0% |
+| `provisional_resolved_unit_candidate` | 19,998 | 89.0% |
+| `provisional_resolved_building_candidate` | 1,943 | 8.6% |
+| **provisional candidate total** | **21,941** | **97.6%** |
+| `partial_candidate` (unit-missing) | 34 | 0.15% |
+| `ambiguous_candidate` (collision) | 497 | 2.2% |
+| `insufficient_identity_evidence` (unkeyable address) | 0 | 0.0% |
+| **`insufficient_authority_evidence`** (no BBL/BuildingKey/geo → not authority-verified) | **22,472** | **100%** |
 
-**Estimated manual-review volume: ~531 (2.4%)** = ambiguous (497) + partial (34). Separately, 539 relisting chains should be surfaced for linkage confirmation but are not blockers.
+Every record currently lacks an approved authority signal → **0 authority-verified canonical identities**.
 
-## 13. Proposed match hierarchy (measured, not assumed)
+## 13. Proposed match hierarchy (measured; candidate-generation vs auto-link)
 
-**Property/building** — usable tiers today marked ✅, blocked ⛔:
-1. Exact BBL — ⛔ 0% (enrichment prerequisite)
+**Property/building** — availability today:
+1. Exact BBL — ⛔ 0% (enrichment + record validation prerequisite)
 2. Exact approved Cotality `BuildingKey` — ⛔ 0% synced (enrichment prerequisite)
-3. Exact normalized address + borough + **ZIP** — ✅ **primary, 100% available** (ZIP mandatory — see §8)
+3. Exact normalized address + borough + **ZIP** — ✅ available as a **candidate-generation** key (100% keyable). **NOT approved for automatic identity linking** until validated (§14).
 4. Normalized address + geospatial proximity — ⛔ geo 0%
 5. Address aliases + geo confirmation — ⛔ geo 0%
 6. Manual review
 
-**Unit:**
-1. Canonical building + exact normalized unit — ✅ 91% (collision risk 1.1%)
-2. Canonical building + floor/line — ⚠️ limited (floor/line not stored)
-3. Address + normalized unit — ✅ (== tier 1)
-4. Unit alias mapping — ⚠️ needed (PH/2A/Apt)
-5. Manual review
+**Unit:** (1) canonical building + exact normalized unit — candidate, 91%; (2) building + floor/line — limited (not stored); (3) address + unit — == (1); (4) unit alias mapping — needed; (5) manual review.
 
-**Listing/relisting:**
-1. Exact source `ListingKey`/`ListingId` — ✅ strong (0 dup)
-2. Same canonical unit/property + transaction type — ✅ strong (539 chains)
-3. Overlapping/sequential listing dates — ✅ strong corroboration
-4. Brokerage/agent — weak corroboration only
-5. Similar price — weak corroboration only
-6. Manual review
+**Listing/relisting:** (1) exact `ListingKey`/`ListingId` — strong (0 dup); (2) same provisional unit/property + transaction class — candidate; (3) sequential dates — corroboration; (4) brokerage/agent — weak; (5) price — weak; (6) manual review.
 
-**False-positive risks measured:** (a) address-only matching without ZIP would wrongly merge ~197 street cases; (b) simultaneous-active unit keys (218) are ambiguous and must not auto-merge; (c) alias under-merge is a false-negative, not a false-positive. **Tiers 1, 2, 4, 5 (property) cannot be evaluated for false-positive rate because their data does not exist yet.**
+**False-positive risks:** address-only without ZIP would merge ~197 street cases; simultaneous-active unit keys (218) must not auto-merge; tiers 1/2/4/5 (property) **cannot be evaluated** because their data does not exist yet.
 
-## 14. Proposed confidence and review thresholds (evidence-derived)
+## 14. Proposed confidence and review thresholds (NOT finalizable yet)
 
-Derived from observed rates, not arbitrary percentages:
-- **Auto-link property/building:** exact normalized street+ZIP+borough with a single candidate. ZIP is **required** (197 multi-zip ambiguities). Observed building-candidate ambiguity within a ZIP: ~0.
-- **Auto-link unit:** canonical building + exact normalized unit **AND ≤1 active listing** at that unit key → auto. Covers 89.0%. Observed collision rate gating this: 218/19,645 = **1.1%** simultaneous-active (sent to review, not auto).
-- **Auto-link relisting:** same unit key + **non-overlapping** active windows + compatible transaction type → auto-link chain (539). Overlapping active → review.
-- **Manual review:** all simultaneous-active collisions (497) + unit-missing (34) = **531**; plus every BBL/geo/BuildingKey-dependent match until enrichment lands.
-- **Reject/no-link:** none today (0 unresolved). **No-go:** BBL/geo/BuildingKey auto-matching until enrichment.
-- **By property type / unit applicability:** unit tiers apply only to unit-bearing property types (Residential/ResidentialLease apartments, Condominium/Cooperative/Condop); the 1,943 genuine building-only records auto-link at the property/building level with **no** unit requirement.
+**Thresholds cannot be finalized until a stratified sample is validated against approved authority evidence.** Address+ZIP+borough is downgraded from "auto-link" to **candidate generation**; it must be checked against BBL / live `BuildingKey` / geospatial evidence / known-good samples / known-bad samples / alias-address pairs / multi-building complexes / street ranges before any automatic linking is approved.
+
+**Provisional (to be validated, not enacted):**
+- Building candidate: exact normalized street+**ZIP**+borough, single candidate (ZIP mandatory — 197 multi-zip ambiguities).
+- Unit candidate: canonical building + exact normalized unit **AND ≤1 active listing** at the unit key (observed simultaneous-active collision rate 218/19,645 = **1.1%** → review, not auto).
+- Relisting **candidate** (not chain): requires **all** of — same provisional property/unit; same **transaction class** (sale/rental analyzed **separately**); compatible lifecycle sequence; non-overlapping marketing windows; reasonable temporal interval; no conflicting source identifiers; no simultaneous-active conflict.
+- Manual review: simultaneous-active collisions (497) + unit-missing (34) = **531 minimum obvious exception queue** (NOT the complete population — see §15).
+- No-go: BBL/geo/`BuildingKey` auto-matching until enrichment **and** record-level validation.
+
+**Required stratified validation sample (for B1b dry-run, anonymized):** Manhattan / Brooklyn / Queens; condos, co-ops, condops, townhouses, multifamily, land, rentals; unit-bearing and unitless; sale and rental; hyphenated Queens addresses; street ranges; multi-ZIP patterns; simultaneous-active unit groups; relisting candidates; address and unit aliases. Each cell validated against approved authority evidence (BBL/BuildingKey/geo/known-good/known-bad) before any threshold is finalized.
 
 ## 15. Manual-review population estimate
 
-**~531 records (2.4%)** for the initial pass: 497 collision + 34 unit-missing. Plus **539** relisting chains for linkage confirmation (informational, batchable). This is a tractable one-time review queue.
+- **531 = minimum obvious exception queue only** (497 collisions + 34 unit-missing).
+- **Additional review not included in 531:** the **539 relisting candidates** (validation or approved batch rules); undetected **address aliases**; the **197 multi-ZIP** street patterns; **unit-alias** variants; and **all records requiring authority confirmation** before any identity backfill (i.e., all 22,472 need authority verification before "canonical resolved").
+- **531 is NOT the complete B1b review population.**
 
 ## 16. Known limitations
 
-- **No geo, BBL, or BuildingKey in current data** — the three strongest signals require enrichment before evaluation.
-- `ParcelNumber` format **not record-verified** (metadata-only pass) — must be validated live in B1b before treating as BBL.
-- Floor/line not separately stored → unit-alias normalization needed.
-- `buildings`/`building_units` **empty** → no existing canonical rows to reconcile; identity must be built from listing address derivation.
-- "Resolved" here is **address-derived**, not authority-verified (a BBL/BuildingKey cross-check would raise confidence).
-- Relisting temporality uses `first_active_date`; full status-history depth is limited.
+- No geo, BBL, or `BuildingKey` in current data — the three strongest signals require enrichment **and** record-level validation before evaluation.
+- Cotality verification here is **metadata existence only** (§7) — not record-level population/format/suitability.
+- Floor/line not stored → unit-alias normalization needed.
+- `buildings`/`building_units` empty → no existing canonical rows to reconcile.
+- "Provisional" grouping is **syntactic string keying**, not authority-verified identity.
+- Relisting temporality uses `first_active_date`; status-history depth is limited.
 
-## 17. Proposed B1b schema (RESERVED — not created here)
+## 17. Proposed B1b schema (RESERVED — not created here; additive-only)
 
-Additive-only; **no change** to `listings`/`buildings` existing columns; `building_key` untouched:
+No change to `listings`/`buildings` existing columns; `building_key` untouched:
 - `canonical_property(id, bbl?, normalized_address, borough, zip, latitude?, longitude?, source_refs jsonb, created_at)`
 - `canonical_building(id, canonical_property_id?, normalized_street, zip, borough, building_name?, cotality_building_key text?, bbl?, latitude?, longitude?)`
 - `canonical_unit(id, canonical_building_id, normalized_unit, floor?, line?)`
 - `listing_identity(listing_id, canonical_property_id?, canonical_building_id?, canonical_unit_id?, identity_resolution_status, resolution_reason?, source_record_id, cotality_listing_key text?, relisting_chain_id?)`
-- `identity_match_audit(id, listing_id, signal, decided_by, confidence, decided_at)`; `identity_review_queue(id, listing_id, reason_code, state)`
-- **Cotality `BuildingKey` stored as nullable TEXT** (never the integer `buildings.building_key`).
+- `identity_match_audit(...)`, `identity_review_queue(...)`
+- Cotality `BuildingKey` stored as nullable **TEXT** (never the integer `buildings.building_key`).
 
-## 18. Proposed B1b backfill
+## 18. Proposed B1b backfill (SPLIT; each step separately approved)
 
-1. Compute normalized keys for all 22,472 (already proven 100%).
-2. Auto-link the **97.6%** clean set (resolved_unit + genuine building-only) to new surrogate IDs.
-3. Queue the **531** review records; do not auto-link.
-4. Link the **539** relisting chains via unit key + temporal + transaction type.
-5. Leave `bbl`/`latitude`/`longitude`/`cotality_building_key` **NULL** until a separate additive **Cotality enrichment sync** backfills them (ParcelNumber→BBL candidate, Latitude/Longitude, BuildingKey); only then enable tiers 1/2/4/5.
-6. Idempotent, resumable, chunked; deterministic (no `Date.now()` in matching).
+The first B1b PR must **not** combine schema and backfill. Sequence:
+- **B1b-1:** additive canonical identity schema **only**, no data backfill.
+- **B1b-2:** Cotality / NYC identity **enrichment ingestion behind disabled flags** (ParcelNumber→BBL candidate, Latitude/Longitude, BuildingKey), incl. record-level format validation.
+- **B1b-3:** **dry-run** candidate generation, authority reconciliation, and exception reporting (no writes to canonical tables beyond the dry-run sandbox).
+- **B1b-4:** **separately approved** controlled backfill in batches.
+- **B1b-5:** dual-read/dual-write verification before any reader dependency.
 
 ## 19. Dual-read / dual-write transition
 
-- **Dual-write:** the sync + CRM writers populate both `listings` (unchanged) and `listing_identity` (additive). A listing with no resolved identity simply has no `listing_identity` row (fail-open to current behavior).
-- **Dual-read:** readers prefer `listing_identity` when present and `identity_resolution_status='resolved'`, else fall back to today's `listings` behavior. Feature-flagged; **no reader is switched in B1b's first PR** (parity-gated, mirroring A1/PR-5B discipline).
+- **Dual-write:** sync + CRM writers populate `listings` (unchanged) and `listing_identity` (additive); no resolved identity ⇒ no row (fail-open to current behavior).
+- **Dual-read:** readers prefer `listing_identity` only when authority-confirmed; else fall back to `listings`. Feature-flagged; **no reader switched until B1b-5** (parity-gated).
 
 ## 20. Rollback plan
 
-- All B1b objects are **additive** and **droppable**; no `listings`/`buildings` column is altered and `building_key` is never written.
-- Rollback = disable the flag + (optionally) drop the additive tables; production listing behavior is unaffected because dual-read falls back to `listings`.
-- No permanent cross-source links are created without the enrichment + review gates.
+- All B1b objects additive/droppable; no `listings`/`buildings` column altered; `building_key` never written.
+- Rollback = disable flag + optionally drop additive tables; production listing behavior unaffected (dual-read falls back).
+- No permanent cross-source links without enrichment + validation + review gates.
 
 ## 21. Monitoring and audit requirements
 
-- `identity_match_audit` row per link (signal, confidence, decided_by=auto|reviewer).
-- Drift monitor: listings without a `listing_identity` row; resolved-rate over time.
-- Collision monitor: new simultaneous-active unit keys (alert if the 218 baseline grows).
-- Review-queue size + age; enrichment-coverage gauges (BBL/geo/BuildingKey % once syncing).
-- Convergence gate before any reader cutover (mirrors Search Doc V2 §1.3).
+- `identity_match_audit` row per link (signal, confidence, decided_by, authority evidence).
+- Drift monitor (listings without a confirmed identity); resolved-rate over time.
+- Collision monitor (simultaneous-active growth beyond the 218 baseline).
+- Review-queue size/age; enrichment-coverage gauges (BBL/geo/BuildingKey %).
+- Convergence gate before any reader cutover.
 
 ## 22. Explicit recommendation
 
-**CONDITIONAL GO for B1b**, conditioned on:
-1. B1b ships an **additive Cotality enrichment sync** (ParcelNumber/geo/BuildingKey) **before** enabling BBL/geo/BuildingKey match tiers — those are 0% today.
-2. The **531** manual-review records are queued, not auto-linked; the **539** relisting chains are confirmed, not blindly merged.
-3. Canonical identity uses **new surrogate IDs + nullable text `BuildingKey`**; the integer `buildings.building_key` is **not** used or written.
-4. Address auto-linking always includes **ZIP** (197 multi-zip ambiguities).
-5. First B1b PR is schema + backfill **behind a flag with no reader cutover** (parity-gated), consistent with the addendum's B1b gate.
+**CONDITIONAL GO for B1b DESIGN AND ADDITIVE SCHEMA ONLY.** Not authorized: production backfill, automatic linking, reader cutover.
 
-**No-go (until enrichment):** BBL, geospatial, and BuildingKey auto-matching.
+Conditions:
+1. B1b is split into B1b-1…B1b-5 (§18), each **separately approved**.
+2. Enrichment (ParcelNumber/geo/BuildingKey) is added behind disabled flags **with record-level validation** before any BBL/geo/BuildingKey matching.
+3. Thresholds are finalized **only** after the stratified validation sample (§14) is checked against approved authority evidence.
+4. The 531 exceptions + 539 relisting candidates are queued, not auto-linked.
+5. Canonical identity uses new surrogate IDs + nullable **text** `BuildingKey`; the integer `buildings.building_key` is never used/written.
+6. Address auto-linking is **not** approved on street+ZIP+borough alone.
+
+**Truthful bottom line:** the existing data yields a **strong provisional candidate graph** but **cannot prove canonical identities** because the strongest authority signals (BBL, geo, `BuildingKey`) are absent. B1b may proceed to schema design + enrichment preparation, **not** to automatic linking or backfill.
 
 ---
 
