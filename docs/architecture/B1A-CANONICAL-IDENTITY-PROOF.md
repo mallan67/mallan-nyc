@@ -12,7 +12,7 @@ The existing data can generate a **strong provisional candidate graph**: **97.6%
 
 **It cannot yet prove canonical identity.** The strongest authority signals are entirely absent from current data: **BBL 0%**, **geolocation 0%**, **Cotality `BuildingKey` 0% synced**. Address normalization here is **syntactic (keyable), not authority-verified**. The `buildings`/`building_units` tables are **empty**, and `buildings.building_key` is an `integer` that is **type-incompatible** with Cotality's `String` `BuildingKey`. **Authority-verified canonical identity count = 0.**
 
-Therefore B1b may proceed to **schema design + enrichment preparation**, but **not** directly to automatic linking or backfill. Address+ZIP+borough is a good **candidate-generation** key, not a proven auto-link rule; the 539 relisting groups are **candidates**, not confirmed chains; the 1,943 unitless records are **likely non-unit-applicable**, not confirmed.
+Therefore B1b may proceed to **schema design + enrichment preparation**, but **not** directly to automatic linking or backfill. Address+ZIP+borough is a good **candidate-generation** key, not a proven auto-link rule; the 539 relisting groups are **candidates**, not confirmed chains; the 1,943 unitless records are **provisionally classified as non-unit-applicable or unit-unavailable (unconfirmed)**.
 
 ## 2. Data sources and exact snapshot time
 
@@ -79,7 +79,7 @@ These are candidate-key construction successes, not validated canonical normaliz
 ## 9. Unit-resolution findings
 
 - **Unit present on 91.0%** (20,455); **19,645** provisional unit-applicable candidates.
-- **2,017 listings have no unit.** Under the current proxy (a unitless listing whose building address has **no** other unit-bearing listing), **1,943** are **likely non-unit-applicable or unit-unavailable** — **not** confirmed building/property-only. A unit can be absent because the address variant differs, unit parsing failed, the feed omitted it, only one listing is currently stored, the record is an entire building/townhouse, or the property type was mapped incorrectly. **Property type + authority evidence must validate genuine non-applicability.** The remaining **34** are unitless at multi-unit buildings → `partial_candidate`.
+- **2,017 listings have no unit** (2026-07-10 snapshot). Under the current proxy (a unitless listing whose building address has **no** other unit-bearing listing), **1,943** are **provisionally classified as non-unit-applicable or unit-unavailable; unconfirmed** — **not** confirmed building/property-only. A unit can be absent because the address variant differs, unit parsing failed, the feed omitted it, only one listing is currently stored, the record is an entire building/townhouse, or the property type was mapped incorrectly. **Property type + authority evidence must validate genuine non-applicability.** **The full unitless population reconciles as: 1,943 (provisional non-unit-applicable/unit-unavailable) + 34 (`partial_candidate`, unitless at multi-unit buildings) + 40 (unitless listings within simultaneous-active collisions) = 2,017.** The 40 are **already counted inside the 497 `ambiguous_candidate` collision population** and must **not** be double-counted in the resolution-state totals (§12).
 - **Floor/line are not separately stored** (only `UnitNumber`) → unit-alias mapping (PH/2A/Apt) needed in B1b.
 
 ## 10. Listing and relisting findings
@@ -187,7 +187,9 @@ The first B1b PR must **not** combine schema and backfill. Sequence:
 
 ## 19. Dual-read / dual-write transition
 
-- **Dual-write:** sync + CRM writers populate `listings` (unchanged) and `listing_identity` (additive); no resolved identity ⇒ no row (fail-open to current behavior).
+- **Identity-state persistence (governing rule):** once the B1b identity writer is enabled, **every listing has exactly one current `listing_identity` state row**. `resolved`, `partial`, `ambiguous`, and `unresolved` states are **all persisted**; `unresolved`/`ambiguous` rows carry a machine-readable `resolution_reason`; every row records the evaluated **source snapshot/version** and **evaluation timestamp**. **Absence of a `listing_identity` row after enablement is a writer/parity failure, not an identity status** — readers must **not** interpret a missing row as `unresolved`. Search Document V2 may depend on identity status **only after row-coverage parity is proven**.
+- **Before the writer is enabled, the legacy system continues unchanged.** This is design guidance only — it authorizes no schema creation and no writes.
+- **Dual-write:** sync + CRM writers populate `listings` (unchanged) and `listing_identity` (additive), following the persistence rule above (a row is written for every state, including `unresolved`/`ambiguous`).
 - **Dual-read:** readers prefer `listing_identity` only when authority-confirmed; else fall back to `listings`. Feature-flagged; **no reader switched until B1b-5** (parity-gated).
 
 ## 20. Rollback plan

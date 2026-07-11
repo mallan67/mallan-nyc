@@ -85,7 +85,15 @@
   "provisional_candidate_status": {
     "provisional_unit_candidates": 19998,
     "provisional_building_only_candidates": 1943,
-    "provisional_building_only_note": "likely_non_unit_applicable or unit_unavailable under the current proxy; NOT confirmed building/property-only",
+    "provisional_building_only_note": "provisionally non-unit-applicable or unit-unavailable under the current proxy; unconfirmed; NOT confirmed building/property-only",
+    "unitless_accounting": {
+      "unitless_total": 2017,
+      "provisional_non_unit_applicable_or_unavailable": 1943,
+      "partial_unit_missing": 34,
+      "unitless_within_ambiguous_collision_population": 40,
+      "note": "the 40 are already counted in ambiguous_candidate_collision (497); do NOT double-count in resolution-state totals",
+      "unitless_accounting_reconciles": true
+    },
     "provisional_candidate_total": 21941,
     "provisional_candidate_pct": 97.64,
     "partial_candidate_unit_missing": 34,
