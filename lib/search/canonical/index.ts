@@ -28,3 +28,11 @@ export * from './saved-search';
 export * from './attribution';
 export * from './field-registry';
 export * from './reserved-dimensions';
+// A1 — pure canonical dimensions (Backend-Search Lane A / A1; NOT WIRED).
+// Extensions live in the modules above: EvidenceClassification → ./comp-eligibility,
+// AttributionEnvelope → ./attribution, SourcePermissionCapabilities → ./capability.
+export * from './contract-decision';
+export * from './source-provenance';
+export * from './inventory-scope';
+export * from './record-status';
+export * from './identity';

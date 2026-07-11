@@ -15,6 +15,14 @@ import {
   type Source,
   type TransactionType,
 } from '../visibility-contract';
+import {
+  isSourceAuthority,
+  isObservationPlatform,
+  isSourceAccessMethod,
+  type SourceAuthority,
+  type ObservationPlatform,
+  type SourceAccessMethod,
+} from './source-provenance';
 
 export interface AttributionInput {
   audience: Audience;
@@ -57,4 +65,50 @@ export function attributionViolation(req: AttributionRequirement, officeName: st
     return 'attribution required (MLS-sourced) but no ListOfficeName available to attribute';
   }
   return null;
+}
+
+// --- Attribution envelope (A1) -----------------------------------------------
+/**
+ * Full provenance envelope for a fact/row. Separates the six attribution facets so
+ * they can never be conflated: factual authority, observation platform, listing
+ * brokerage, listing agent, access method, and audience obligations. An
+ * `ObservationPlatform` (StreetEasy/Zillow) is NEVER the listing brokerage/agent
+ * unless the source record expressly states it (`listingBrokerage`/`listingAgent`
+ * set). Pure data shape — no runtime reader in A1.
+ */
+export interface AttributionEnvelope {
+  factualAuthority: SourceAuthority;
+  observationPlatform: ObservationPlatform;
+  listingBrokerage?: string; // only if the record states it
+  listingAgent?: string;     // only if stated
+  accessMethod: SourceAccessMethod;
+  observedAt: string;        // ISO-8601
+  verifiedAt?: string;       // ISO-8601
+  audienceObligations: readonly string[]; // e.g. attribution_required, broker_agent_only
+}
+
+export function isAttributionEnvelope(v: unknown): v is AttributionEnvelope {
+  if (typeof v !== 'object' || v === null) return false;
+  const e = v as Record<string, unknown>;
+  if (!isSourceAuthority(e.factualAuthority)) return false;
+  if (!isObservationPlatform(e.observationPlatform)) return false;
+  if (!isSourceAccessMethod(e.accessMethod)) return false;
+  if (typeof e.observedAt !== 'string') return false;
+  if (!Array.isArray(e.audienceObligations) || !e.audienceObligations.every((o) => typeof o === 'string')) {
+    return false;
+  }
+  for (const k of ['listingBrokerage', 'listingAgent', 'verifiedAt'] as const) {
+    if (e[k] !== undefined && typeof e[k] !== 'string') return false;
+  }
+  return true;
+}
+
+/**
+ * The RLS courtesy line, ONLY for Cotality/REBNY-authoritative rows — reuses
+ * `courtesyLabel` (no reinvention). An observation platform (StreetEasy/Zillow)
+ * never produces a courtesy line. Returns null when not required / no brokerage.
+ */
+export function attributionEnvelopeCourtesy(env: AttributionEnvelope): string | null {
+  if (env.factualAuthority !== 'cotality_rebny') return null;
+  return courtesyLabel(env.listingBrokerage);
 }

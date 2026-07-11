@@ -63,3 +63,40 @@ export function compEligibility(candidate: CompCandidate, criteria: CompCriteria
       return 'excluded';
   }
 }
+
+// --- Evidence classification (A1) --------------------------------------------
+// The evidence TAXONOMY a comp candidate provides — distinct from CompEligibility
+// (the active/pending/closed/excluded axis above). Reserved for Comp Engine V2
+// (Lane C); declared here so search and comps share one vocabulary. Only ONE
+// class may drive a valuation. Internal vocabulary — no Cotality live binding.
+// NOT WIRED in A1.
+export const EVIDENCE_CLASSIFICATIONS = Object.freeze([
+  'VALUATION_EVIDENCE',
+  'ACTIVE_COMPETITION',
+  'SUPPLEMENTAL_MARKET_OBSERVATION',
+  'PROPERTY_FACT',
+  'UNVERIFIED_LEAD',
+] as const);
+export type EvidenceClassification = (typeof EVIDENCE_CLASSIFICATIONS)[number];
+
+export function isEvidenceClassification(v: unknown): v is EvidenceClassification {
+  return typeof v === 'string' && (EVIDENCE_CLASSIFICATIONS as readonly string[]).includes(v);
+}
+
+/**
+ * Only verified closed-sale VALUATION_EVIDENCE may drive a valuation; active
+ * competition is pricing context, supplemental observations are context only,
+ * property facts are descriptive, unverified leads inform discovery only.
+ * `Record` over the union → compile-time completeness.
+ */
+const EVIDENCE_DRIVES_VALUE: Readonly<Record<EvidenceClassification, boolean>> = Object.freeze({
+  VALUATION_EVIDENCE: true,
+  ACTIVE_COMPETITION: false,
+  SUPPLEMENTAL_MARKET_OBSERVATION: false,
+  PROPERTY_FACT: false,
+  UNVERIFIED_LEAD: false,
+});
+
+export function mayDriveValuation(c: EvidenceClassification): boolean {
+  return EVIDENCE_DRIVES_VALUE[c];
+}
