@@ -172,9 +172,14 @@ No change to `listings`/`buildings` existing columns; `building_key` untouched:
 - `canonical_property(id, bbl?, normalized_address, borough, zip, latitude?, longitude?, source_refs jsonb, created_at)`
 - `canonical_building(id, canonical_property_id?, normalized_street, zip, borough, building_name?, cotality_building_key text?, bbl?, latitude?, longitude?)`
 - `canonical_unit(id, canonical_building_id, normalized_unit, floor?, line?)`
-- `listing_identity(listing_id, canonical_property_id?, canonical_building_id?, canonical_unit_id?, identity_resolution_status, resolution_reason?, source_record_id, cotality_listing_key text?, relisting_chain_id?)`
+- `listing_identity(listing_id, canonical_property_id?, canonical_building_id?, canonical_unit_id?, identity_resolution_status, resolution_reason?, source_record_id, cotality_listing_key text?, relisting_chain_id?, evaluated_source_snapshot_version, identity_evaluated_at)`
 - `identity_match_audit(...)`, `identity_review_queue(...)`
 - Cotality `BuildingKey` stored as nullable **TEXT** (never the integer `buildings.building_key`).
+
+**Identity-state metadata on `listing_identity` (required by §19):**
+- `evaluated_source_snapshot_version` — identifies the source snapshot or version used for the identity decision.
+- `identity_evaluated_at` — records when the identity decision was evaluated.
+These fields are **required for freshness, auditability, and row-coverage parity** (§19). This is **schema guidance only and creates no table or column.**
 
 ## 18. Proposed B1b backfill (SPLIT; each step separately approved)
 
