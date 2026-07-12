@@ -545,6 +545,9 @@ model Listing {
   marketing_activities      MarketingActivity[]
   listing_media             ListingMedia[]
   listing_search_projection ListingSearchProjection?
+  // B1b-1 canonical identity (additive; virtual back-relation only — NO column/SQL
+  // change on `listings`). The FK lives on `listing_identity`. NOT WIRED to any reader.
+  listing_identity          ListingIdentity[]
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
@@ -2612,4 +2615,159 @@ model ListingSearchProjection {
   @@index([modified_at])
   @@index([rls_eligible, idx_display_yn, internet_entire_listing_display_yn, participant_only_yn], map: "lsp_distribution_gates_idx")
   @@map("listing_search_projection")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// B1b-1 — CANONICAL IDENTITY SCHEMA (ADDITIVE · RESERVED · NOT WIRED)
+// New empty tables only. No existing column/table is modified. The integer
+// `buildings.building_key` is untouched; the Cotality BuildingKey is stored HERE as
+// nullable TEXT (`canonical_building.cotality_building_key`). `identity_resolution_status`
+// is a constrained String per repo convention (no Postgres enum migration); its 4
+// values (resolved|partial|ambiguous|unresolved) are enforced by the canonical
+// contract's IdentityResolutionStatus (lib/search/canonical) at write time in a later
+// PR. No reader/writer imports these models in B1b-1. Backfill, enrichment, matching,
+// and reader/writer wiring are B1b-2..B1b-5, each separately approved.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model CanonicalProperty {
+  id                 BigInt   @id @default(autoincrement())
+  bbl                String?  @map("bbl")
+  normalized_address String   @map("normalized_address")
+  borough            String   @map("borough")
+  zip                String   @map("zip")
+  latitude           Decimal? @map("latitude") @db.Decimal(10, 7)
+  longitude          Decimal? @map("longitude") @db.Decimal(10, 7)
+  source_refs        Json     @default("{}") @map("source_refs")
+  created_at         DateTime @default(now()) @map("created_at")
+  updated_at         DateTime @updatedAt @map("updated_at")
+
+  canonical_buildings CanonicalBuilding[]
+  listing_identity    ListingIdentity[]
+
+  @@index([bbl])
+  @@index([borough])
+  @@index([zip])
+  @@index([normalized_address])
+  @@map("canonical_property")
+}
+
+model CanonicalBuilding {
+  id                    BigInt   @id @default(autoincrement())
+  canonical_property_id BigInt?  @map("canonical_property_id")
+  normalized_street     String   @map("normalized_street")
+  zip                   String   @map("zip")
+  borough               String   @map("borough")
+  building_name         String?  @map("building_name")
+  // Cotality BuildingKey stored as TEXT — NEVER the integer buildings.building_key.
+  cotality_building_key String?  @map("cotality_building_key")
+  bbl                   String?  @map("bbl")
+  latitude              Decimal? @map("latitude") @db.Decimal(10, 7)
+  longitude             Decimal? @map("longitude") @db.Decimal(10, 7)
+  created_at            DateTime @default(now()) @map("created_at")
+  updated_at            DateTime @updatedAt @map("updated_at")
+
+  canonical_property CanonicalProperty? @relation(fields: [canonical_property_id], references: [id], onDelete: SetNull)
+  canonical_units    CanonicalUnit[]
+  listing_identity   ListingIdentity[]
+
+  @@index([canonical_property_id])
+  @@index([normalized_street, zip, borough])
+  @@index([cotality_building_key])
+  @@index([bbl])
+  @@map("canonical_building")
+}
+
+model CanonicalUnit {
+  id                    BigInt   @id @default(autoincrement())
+  canonical_building_id BigInt   @map("canonical_building_id")
+  normalized_unit       String   @map("normalized_unit")
+  floor                 String?  @map("floor")
+  line                  String?  @map("line")
+  created_at            DateTime @default(now()) @map("created_at")
+  updated_at            DateTime @updatedAt @map("updated_at")
+
+  canonical_building CanonicalBuilding @relation(fields: [canonical_building_id], references: [id], onDelete: Cascade)
+  listing_identity   ListingIdentity[]
+
+  @@unique([canonical_building_id, normalized_unit])
+  @@index([canonical_building_id])
+  @@map("canonical_unit")
+}
+
+model ListingIdentity {
+  id                                BigInt   @id @default(autoincrement())
+  // Hard FK to Listing.id (BigInt) — one current identity row per listing; matches
+  // the PriceHistory/MarketingActivity listing-lifecycle cascade convention.
+  listing_id                        BigInt   @map("listing_id")
+  canonical_property_id             BigInt?  @map("canonical_property_id")
+  canonical_building_id             BigInt?  @map("canonical_building_id")
+  canonical_unit_id                 BigInt?  @map("canonical_unit_id")
+  identity_resolution_status        String   @map("identity_resolution_status") // resolved|partial|ambiguous|unresolved (contract-enforced)
+  resolution_reason                 String?  @map("resolution_reason")
+  source_record_id                  String   @map("source_record_id") // RLS/Cotality ListingId (text)
+  cotality_listing_key              String?  @map("cotality_listing_key") // Cotality ListingKey (text)
+  relisting_chain_id                BigInt?  @map("relisting_chain_id") // soft reference; chain table deferred
+  evaluated_source_snapshot_version String   @map("evaluated_source_snapshot_version")
+  identity_evaluated_at             DateTime @map("identity_evaluated_at")
+  created_at                        DateTime @default(now()) @map("created_at")
+  updated_at                        DateTime @updatedAt @map("updated_at")
+
+  listing            Listing            @relation(fields: [listing_id], references: [id], onDelete: Cascade)
+  canonical_property CanonicalProperty? @relation(fields: [canonical_property_id], references: [id], onDelete: SetNull)
+  canonical_building CanonicalBuilding? @relation(fields: [canonical_building_id], references: [id], onDelete: SetNull)
+  canonical_unit     CanonicalUnit?     @relation(fields: [canonical_unit_id], references: [id], onDelete: SetNull)
+
+  @@unique([listing_id])
+  @@index([identity_resolution_status])
+  @@index([canonical_property_id])
+  @@index([canonical_building_id])
+  @@index([canonical_unit_id])
+  @@index([relisting_chain_id])
+  @@index([source_record_id])
+  @@map("listing_identity")
+}
+
+model IdentityMatchAudit {
+  id                                BigInt    @id @default(autoincrement())
+  // Soft references only (append-only audit; NO FK) so audit history is never
+  // destroyed by a listing or identity deletion.
+  listing_identity_id               BigInt?   @map("listing_identity_id")
+  listing_source_record_id          String?   @map("listing_source_record_id")
+  candidate_property_id             BigInt?   @map("candidate_property_id")
+  candidate_building_id             BigInt?   @map("candidate_building_id")
+  candidate_unit_id                 BigInt?   @map("candidate_unit_id")
+  evidence                          Json      @default("{}") @map("evidence")
+  evaluated_source_snapshot_version String?   @map("evaluated_source_snapshot_version")
+  identity_evaluated_at             DateTime? @map("identity_evaluated_at")
+  decision                          String?   @map("decision")
+  reason                            String?   @map("reason")
+  matcher_version                   String?   @map("matcher_version")
+  created_at                        DateTime  @default(now()) @map("created_at")
+
+  @@index([listing_identity_id])
+  @@index([listing_source_record_id])
+  @@index([created_at])
+  @@map("identity_match_audit")
+}
+
+model IdentityReviewQueue {
+  id                       BigInt    @id @default(autoincrement())
+  // Soft reference (NO FK) so review-queue history remains auditable.
+  listing_source_record_id String    @map("listing_source_record_id")
+  listing_identity_id      BigInt?   @map("listing_identity_id")
+  resolution_status        String    @map("resolution_status")
+  reason                   String?   @map("reason")
+  candidate_payload        Json      @default("{}") @map("candidate_payload")
+  review_status            String    @default("open") @map("review_status") // open|in_review|resolved|rejected
+  priority                 Int       @default(0) @map("priority")
+  assigned_to              BigInt?   @map("assigned_to") // soft ref to agent
+  reviewed_at              DateTime? @map("reviewed_at")
+  created_at               DateTime  @default(now()) @map("created_at")
+  updated_at               DateTime  @updatedAt @map("updated_at")
+
+  @@index([review_status])
+  @@index([listing_source_record_id])
+  @@index([resolution_status])
+  @@index([created_at])
+  @@map("identity_review_queue")
 }
