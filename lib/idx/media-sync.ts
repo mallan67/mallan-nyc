@@ -1881,22 +1881,51 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // persisted, and to expose a concurrent writer clobbering our write between
   // upsert and read-back (the lost-update signal). Additive read; the cursor
   // state is unchanged by this.
-  const persisted = await getMediaSyncCursor();
-  emitCursorTelemetry("persisted", runId, {
-    computed_next_photos_change: isoOrNull(nextCursor.last_photos_change),
-    computed_next_listing_key: nextCursor.last_listing_key,
-    db_readback_photos_change: isoOrNull(persisted.last_photos_change),
-    db_readback_listing_key: persisted.last_listing_key,
-    // matched = the DB holds exactly what THIS run computed. false ⇒ a
-    // concurrent run wrote between our upsert and this read-back.
-    matched:
-      isoOrNull(persisted.last_photos_change) === isoOrNull(nextCursor.last_photos_change) &&
-      persisted.last_listing_key === nextCursor.last_listing_key,
-    // changed = the persisted cursor differs from the value we read at run start.
-    changed:
-      isoOrNull(persisted.last_photos_change) !== isoOrNull(cursor.last_photos_change) ||
-      persisted.last_listing_key !== cursor.last_listing_key,
-  });
+  //
+  // WRAPPED so a read-back failure can NEVER fail the run, skip Phase 3, or
+  // suppress the normal success/failure audit. The cursor write above has
+  // already committed; on read-back failure we only lose this one telemetry
+  // datapoint (recorded as readback_ok:false + a SAFE error class — never the
+  // message, which could carry connection/query detail).
+  let persisted: MediaSyncCursor | null = null;
+  let readbackErrorClass: string | null = null;
+  try {
+    persisted = await getMediaSyncCursor();
+  } catch (err) {
+    readbackErrorClass = err instanceof Error ? err.name : typeof err;
+  }
+  if (persisted) {
+    emitCursorTelemetry("persisted", runId, {
+      readback_ok: true,
+      computed_next_photos_change: isoOrNull(nextCursor.last_photos_change),
+      computed_next_listing_key: nextCursor.last_listing_key,
+      db_readback_photos_change: isoOrNull(persisted.last_photos_change),
+      db_readback_listing_key: persisted.last_listing_key,
+      // matched = the DB holds exactly what THIS run computed. false ⇒ a
+      // concurrent run wrote between our upsert and this read-back. NOTE:
+      // matched:true only proves no overwrite occurred BEFORE this immediate
+      // read-back — a later stale concurrent run can still overwrite the cursor.
+      matched:
+        isoOrNull(persisted.last_photos_change) === isoOrNull(nextCursor.last_photos_change) &&
+        persisted.last_listing_key === nextCursor.last_listing_key,
+      // changed = the persisted cursor differs from the value we read at run start.
+      changed:
+        isoOrNull(persisted.last_photos_change) !== isoOrNull(cursor.last_photos_change) ||
+        persisted.last_listing_key !== cursor.last_listing_key,
+    });
+  } else {
+    // Read-back failed — non-fatal. Record the gap; the run continues to Phase 3.
+    emitCursorTelemetry("persisted", runId, {
+      readback_ok: false,
+      readback_error_class: readbackErrorClass,
+      computed_next_photos_change: isoOrNull(nextCursor.last_photos_change),
+      computed_next_listing_key: nextCursor.last_listing_key,
+      db_readback_photos_change: null,
+      db_readback_listing_key: null,
+      matched: null,
+      changed: null,
+    });
+  }
 
   // ── PHASE 3: R2 enrichment backlog (parallel, concurrency = 5) ───────
   // Pattern matches lib/idx/sync.ts:694-708 (migrateMediaToR2). Trestle's
