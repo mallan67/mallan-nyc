@@ -2627,6 +2627,10 @@ model ListingSearchProjection {
 // contract's IdentityResolutionStatus (lib/search/canonical) at write time in a later
 // PR. No reader/writer imports these models in B1b-1. Backfill, enrichment, matching,
 // and reader/writer wiring are B1b-2..B1b-5, each separately approved.
+// DB-LEVEL CHECK CONSTRAINTS (identity/review states + required reasons for
+// ambiguous/unresolved) are defined in the migration SQL — Prisma does not model
+// arbitrary CHECK constraints, so they are NOT represented in this schema block.
+// Do not run `prisma db push`/`migrate dev` against prod (would drop these checks).
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model CanonicalProperty {
@@ -2702,8 +2706,8 @@ model ListingIdentity {
   canonical_property_id             BigInt?  @map("canonical_property_id")
   canonical_building_id             BigInt?  @map("canonical_building_id")
   canonical_unit_id                 BigInt?  @map("canonical_unit_id")
-  identity_resolution_status        String   @map("identity_resolution_status") // resolved|partial|ambiguous|unresolved (contract-enforced)
-  resolution_reason                 String?  @map("resolution_reason")
+  identity_resolution_status        String   @map("identity_resolution_status") // DB CHECK `listing_identity_resolution_status_check` (migration) enforces resolved|partial|ambiguous|unresolved; A1 IdentityResolutionStatus is the app-level second layer
+  resolution_reason                 String?  @map("resolution_reason") // DB CHECK `listing_identity_resolution_reason_check` (migration): non-empty required when status is ambiguous|unresolved
   source_record_id                  String   @map("source_record_id") // RLS/Cotality ListingId (text)
   cotality_listing_key              String?  @map("cotality_listing_key") // Cotality ListingKey (text)
   relisting_chain_id                BigInt?  @map("relisting_chain_id") // soft reference; chain table deferred
@@ -2755,10 +2759,10 @@ model IdentityReviewQueue {
   // Soft reference (NO FK) so review-queue history remains auditable.
   listing_source_record_id String    @map("listing_source_record_id")
   listing_identity_id      BigInt?   @map("listing_identity_id")
-  resolution_status        String    @map("resolution_status")
-  reason                   String?   @map("reason")
+  resolution_status        String    @map("resolution_status") // DB CHECK `identity_review_queue_resolution_status_check` (migration): resolved|partial|ambiguous|unresolved
+  reason                   String?   @map("reason") // DB CHECK `identity_review_queue_resolution_reason_check` (migration): non-empty required when resolution_status is ambiguous|unresolved
   candidate_payload        Json      @default("{}") @map("candidate_payload")
-  review_status            String    @default("open") @map("review_status") // open|in_review|resolved|rejected
+  review_status            String    @default("open") @map("review_status") // DB CHECK `identity_review_queue_review_status_check` (migration): open|in_review|resolved|rejected
   priority                 Int       @default(0) @map("priority")
   assigned_to              BigInt?   @map("assigned_to") // soft ref to agent
   reviewed_at              DateTime? @map("reviewed_at")

@@ -192,3 +192,27 @@ ALTER TABLE "listing_identity" ADD CONSTRAINT "listing_identity_canonical_buildi
 -- AddForeignKey
 ALTER TABLE "listing_identity" ADD CONSTRAINT "listing_identity_canonical_unit_id_fkey" FOREIGN KEY ("canonical_unit_id") REFERENCES "canonical_unit"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- CheckConstraint (B1b-1): database-level enforcement of identity/review states.
+-- Prisma does not model arbitrary CHECK constraints, so they are authored here (not
+-- in schema.prisma). Every statement below targets a NEW table only.
+ALTER TABLE "listing_identity" ADD CONSTRAINT "listing_identity_resolution_status_check"
+  CHECK ("identity_resolution_status" IN ('resolved', 'partial', 'ambiguous', 'unresolved'));
+
+ALTER TABLE "listing_identity" ADD CONSTRAINT "listing_identity_resolution_reason_check"
+  CHECK (
+    "identity_resolution_status" NOT IN ('ambiguous', 'unresolved')
+    OR NULLIF(BTRIM("resolution_reason"), '') IS NOT NULL
+  );
+
+ALTER TABLE "identity_review_queue" ADD CONSTRAINT "identity_review_queue_resolution_status_check"
+  CHECK ("resolution_status" IN ('resolved', 'partial', 'ambiguous', 'unresolved'));
+
+ALTER TABLE "identity_review_queue" ADD CONSTRAINT "identity_review_queue_review_status_check"
+  CHECK ("review_status" IN ('open', 'in_review', 'resolved', 'rejected'));
+
+ALTER TABLE "identity_review_queue" ADD CONSTRAINT "identity_review_queue_resolution_reason_check"
+  CHECK (
+    "resolution_status" NOT IN ('ambiguous', 'unresolved')
+    OR NULLIF(BTRIM("reason"), '') IS NOT NULL
+  );
+
