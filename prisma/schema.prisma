@@ -545,9 +545,11 @@ model Listing {
   marketing_activities      MarketingActivity[]
   listing_media             ListingMedia[]
   listing_search_projection ListingSearchProjection?
-  // B1b-1 canonical identity (additive; virtual back-relation only — NO column/SQL
-  // change on `listings`). The FK lives on `listing_identity`. NOT WIRED to any reader.
-  listing_identity          ListingIdentity[]
+  // B1b-1 canonical identity (additive; virtual OPTIONAL SINGULAR (1:1) back-relation
+  // — NO column/SQL change on `listings`). At most one identity row per listing
+  // (unique `listing_identity.listing_id`); existing listings have none until the B1b
+  // writer is enabled. The FK lives on `listing_identity`. NOT WIRED to any reader.
+  listing_identity          ListingIdentity?
 
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
