@@ -460,6 +460,170 @@ export function listingSendEmail(
 }
 
 /**
+ * Investor / 1031-exchange listing campaign email.
+ *
+ * Rendered PER RECIPIENT from a hydrated listing (dbListingToPublicDTO) so the
+ * primary photo comes from the floor-plan-safe resolver and the CTA uses the
+ * canonical listing URL. The editable fields (headline/intro/bullets/CTA
+ * wording/rent/lease) come from the CRM preview screen; the structured facts
+ * (price/maintenance/beds/baths/address) come from the listing record.
+ *
+ * Compliance: wrapEmail() supplies the physical-address + Fair Housing FOOTER.
+ * The signed one-click unsubscribe is carried by sendEmail()'s List-Unsubscribe
+ * header; `unsubscribeUrl` here is the visible body link (self-service form when
+ * tokenless). The 1031 disclaimer directs recipients to their own advisers.
+ */
+export interface InvestorListingEmailData {
+  address: string;
+  neighborhood?: string | null;
+  price: string;
+  beds?: number | null;
+  baths?: number | null;
+  propertyType?: string | null;
+  maintenance?: string | null;
+  currentRent?: string | null;
+  leaseExpiration?: string | null;
+  detailUrl: string;
+  primaryPhotoUrl?: string | null;
+  additionalPhotoUrls?: string[];
+  headline?: string;
+  intro?: string;
+  benefitBullets?: string[];
+  locationBlurb?: string;
+  ctaViewListing?: string;
+  ctaFinancials?: string;
+  ctaShowing?: string;
+  agentName: string;
+  agentTitle?: string | null;
+  agentPhone?: string | null;
+  agentEmail?: string | null;
+  unsubscribeUrl?: string | null;
+}
+
+export function investorListingEmail(d: InvestorListingEmailData): string {
+  const gold = BRAND_GOLD;
+  const dark = BRAND_DARK;
+  const p = (s: string) => escapeHtml(s);
+
+  // Bulletproof VML + HTML CTA button (Outlook-safe).
+  const ctaButton = (label: string, url: string) => `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 12px;">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:46px;v-text-anchor:middle;width:300px;" arcsize="13%" fillcolor="${gold}" stroke="f">
+        <w:anchorlock/><center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;">${p(label)}</center>
+      </v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-->
+      <a href="${url}" style="display:inline-block;padding:14px 36px;background-color:${gold};color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">${p(label)}</a>
+      <!--<![endif]-->
+    </td></tr></table>`;
+
+  const row = (label: string, value: string) => value
+    ? `<tr>
+        <td style="padding:6px 0;font-size:13px;color:#6b7280;font-family:Arial,Helvetica,sans-serif;width:46%;">${p(label)}</td>
+        <td style="padding:6px 0;font-size:14px;color:${dark};font-weight:700;font-family:Arial,Helvetica,sans-serif;">${p(value)}</td>
+      </tr>` : "";
+
+  const headline = d.headline || "Tenant-Occupied Manhattan Investment Opportunity";
+  const intro = d.intro ||
+    "A rare chance to acquire an income-producing Midtown residence with an established tenant already in place — a candidate replacement property for a 1031 exchange.";
+  const bullets = (d.benefitBullets && d.benefitBullets.length
+    ? d.benefitBullets
+    : [
+        "Existing rental income from the date of closing — no lease-up period",
+        "Tenant already established; lease secured through the expiration date below",
+        "Manhattan residential asset with long-term appreciation potential",
+        "May qualify as a like-kind replacement property for a 1031 exchange",
+      ]);
+  const beds = d.beds != null ? `${d.beds} BR` : null;
+  const baths = d.baths != null ? `${d.baths} BA` : null;
+  const bedBath = [beds, baths, d.propertyType].filter(Boolean).join(" · ");
+  const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
+
+  const heroHtml = d.primaryPhotoUrl
+    ? `<tr><td style="padding:0;"><img src="${p(d.primaryPhotoUrl)}" alt="${p(d.address)}" width="600" style="width:100%;max-width:600px;height:auto;display:block;"></td></tr>`
+    : "";
+
+  const extraPhotos = (d.additionalPhotoUrls || []).slice(0, 4);
+  const extraHtml = extraPhotos.length
+    ? `<tr><td style="padding:12px 0 0;"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${
+        extraPhotos.map((u) => `<td style="padding:0 4px;"><img src="${p(u)}" alt="${p(d.address)}" width="140" style="width:100%;max-width:140px;height:auto;display:block;border:1px solid #e5e7eb;"></td>`).join("")
+      }</tr></table></td></tr>`
+    : "";
+
+  return wrapEmail(`
+    <!-- Header -->
+    <p style="font-size:12px;font-weight:700;letter-spacing:1px;color:${gold};text-transform:uppercase;margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;">${p(headline)}</p>
+    <p style="font-size:22px;font-weight:800;color:${dark};margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;">${p(d.address)}</p>
+    ${d.neighborhood ? `<p style="font-size:14px;color:#6b7280;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;">${p(d.neighborhood)}</p>` : ""}
+
+    <!-- Hero + thumbnails -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border:1px solid #e5e7eb;">
+      ${heroHtml}${extraHtml}
+    </table>
+
+    <!-- Intro -->
+    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;">${p(intro)}</p>
+
+    <!-- Investment summary -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;margin:0 0 22px;">
+      <tr><td style="padding:16px 20px;">
+        <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${gold};margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;">Investment Summary</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          ${row("Asking price", d.price)}
+          ${bedBath ? row("Residence", bedBath) : ""}
+          ${row("Current monthly rent", d.currentRent || "")}
+          ${row("Lease expiration", d.leaseExpiration || "")}
+          ${row("Monthly maintenance", d.maintenance || "")}
+          ${row("Tenancy", "Existing tenant in place")}
+        </table>
+      </td></tr>
+    </table>
+
+    <!-- Why a 1031 buyer -->
+    <p style="font-size:16px;font-weight:700;color:${dark};margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;">Why this may appeal to a 1031 buyer</p>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+      ${bullets.map((b) => `<tr>
+        <td valign="top" style="padding:2px 8px 2px 0;font-size:15px;color:${gold};font-family:Arial,Helvetica,sans-serif;">&bull;</td>
+        <td style="padding:2px 0;font-size:14px;color:#374151;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">${p(b)}</td>
+      </tr>`).join("")}
+    </table>
+
+    ${d.locationBlurb ? `
+    <p style="font-size:16px;font-weight:700;color:${dark};margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;">Building &amp; location</p>
+    <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 22px;font-family:Arial,Helvetica,sans-serif;">${p(d.locationBlurb)}</p>` : ""}
+
+    <!-- CTAs -->
+    ${ctaButton(d.ctaViewListing || "View Full Listing", d.detailUrl)}
+    ${ctaButton(d.ctaFinancials || "Request Financial Details", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financial details — " + d.address)}`)}
+    ${ctaButton(d.ctaShowing || "Schedule a Private Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}
+
+    <!-- 1031 disclaimer -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 8px;"><tr>
+      <td width="3" style="background-color:${gold};"></td>
+      <td style="padding:10px 14px;background-color:#f9fafb;">
+        <p style="font-size:11px;color:#6b7280;line-height:1.5;margin:0;font-family:Arial,Helvetica,sans-serif;">
+          This message is for informational purposes only and is not tax, legal, or investment advice.
+          Whether this property qualifies as a like-kind replacement property, and all applicable
+          identification and closing deadlines, must be confirmed by the buyer's own attorney, tax
+          adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.
+        </p>
+      </td>
+    </tr></table>
+
+    <!-- Signature -->
+    <p style="font-size:14px;color:#374151;margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;">
+      ${p(d.agentName)}${d.agentTitle ? `<br><span style="color:#6b7280;font-size:13px;">${p(d.agentTitle)}</span>` : ""}
+      ${d.agentPhone ? `<br><span style="color:#6b7280;font-size:13px;">${p(d.agentPhone)}</span>` : ""}
+      ${d.agentEmail ? `<br><a href="mailto:${p(d.agentEmail)}" style="color:${gold};font-size:13px;">${p(d.agentEmail)}</a>` : ""}
+    </p>
+    <p style="font-size:11px;color:#9ca3af;margin:14px 0 0;font-family:Arial,Helvetica,sans-serif;">
+      Prefer not to receive investment opportunities? <a href="${p(unsub)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>.
+    </p>
+  `);
+}
+
+/**
  * Generic CRM email — sent from the compose email modal in Communications.
  */
 export function genericCrmEmail(
