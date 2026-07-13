@@ -440,14 +440,20 @@ describe('sendEmail() boundary check — Lead.last_unsubscribe_at suppression', 
     expect((result as { _suppressed?: boolean })._suppressed).toBeUndefined();
   });
 
-  it('proceeds to SMTP if the Lead lookup throws (DB failure should not break sending)', async () => {
+  it('FAIL-CLOSED: BLOCKS the send if the Lead suppression lookup throws (must not risk emailing an opt-out)', async () => {
     leadFindUniqueMock.mockRejectedValue(new Error('connection timeout'));
 
     const result = await realSendEmail('any@example.com', 'subj', '<p>b</p>');
 
     expect(leadFindUniqueMock).toHaveBeenCalled();
+    // Hardened contract (#502): a suppression-lookup outage BLOCKS the send — for
+    // commercial mail we cannot prove the recipient hasn't opted out, so we must
+    // not deliver. It returns EARLY (never reaching the SMTP/_devMode path) and
+    // surfaces the DISTINCT `_suppressionError` sentinel — an infra outage, NOT a
+    // verified unsubscribe (`_suppressed`). Transactional sends bypass this block.
     expect(result.success).toBe(false);
-    expect((result as { _devMode?: boolean })._devMode).toBe(true);
+    expect((result as { _suppressionError?: boolean })._suppressionError).toBe(true);
+    expect((result as { _devMode?: boolean })._devMode).toBeUndefined();
     expect((result as { _suppressed?: boolean })._suppressed).toBeUndefined();
   });
 });
