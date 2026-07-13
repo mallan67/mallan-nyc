@@ -46,7 +46,9 @@ describe('sendEmail — suppression', () => {
     mockLeadFindUnique.mockRejectedValue(new Error('prisma db timeout'));
     const r = await sendEmail('who@x.com', 'S', '<p>x</p>');
     expect(r.success).toBe(false);
-    expect(r._suppressed).toBe(true);
+    // Distinct sentinel from a VERIFIED opt-out — an infra outage, not an unsubscribe.
+    expect(r._suppressionError).toBe(true);
+    expect(r._suppressed).toBeUndefined();
     expect(mockSendMail).not.toHaveBeenCalled();
     expect(mockAuditCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'email:send_blocked_suppression_error' }) }),
@@ -88,7 +90,10 @@ describe('sendEmail — signed unsubscribe token in the link', () => {
     mockLeadFindUnique.mockResolvedValue(null);
     await sendEmail('a@b.com', 'S', '<p>x</p>');
     const mail = mockSendMail.mock.calls[0][0] as { headers?: Record<string, string> };
-    expect(String(mail.headers?.['List-Unsubscribe'])).toMatch(/[?&]token=/);
+    const luh = String(mail.headers?.['List-Unsubscribe']);
+    // RFC 8058: header must point at the API handler (not the /unsubscribe page) + carry the token.
+    expect(luh).toMatch(/\/api\/unsubscribe\?email=/);
+    expect(luh).toMatch(/[?&]token=/);
   });
 });
 
