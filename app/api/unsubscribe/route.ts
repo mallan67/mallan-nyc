@@ -60,19 +60,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let body;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    // RFC 8058 one-click POSTs the List-Unsubscribe header URL with the email +
+    // token in the QUERY STRING and a `List-Unsubscribe=One-Click` (non-JSON)
+    // body. Read the query first; fall back to a JSON body for the self-service
+    // form. Never REQUIRE a JSON body — a one-click body is not JSON.
+    let email = request.nextUrl.searchParams.get("email") || "";
+    let token = request.nextUrl.searchParams.get("token") || "";
+    if (!email) {
+      try {
+        const body = await request.json();
+        email = typeof body?.email === "string" ? body.email : "";
+        if (!token) token = typeof body?.token === "string" ? body.token : "";
+      } catch {
+        // No JSON body (one-click / form-encoded) — rely on the query params.
+      }
     }
-    const email = typeof body?.email === "string" ? body.email : "";
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
     // If a signed token is present it MUST verify — rejects a one-click request
     // whose `email` was altered. Tokenless posts are the self-service form path.
-    const token = typeof body?.token === "string" ? body.token : "";
     if (token && !verifyUnsubscribeToken(email, token)) {
       return NextResponse.json({ error: "Invalid unsubscribe link." }, { status: 403 });
     }

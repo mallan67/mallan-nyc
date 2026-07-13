@@ -21,7 +21,7 @@ jest.mock('@/lib/middleware/rate-limiter', () => ({
 }));
 
 import { NextRequest } from 'next/server';
-import { GET } from '../route';
+import { GET, POST } from '../route';
 import { makeUnsubscribeToken } from '@/lib/email/unsubscribe-token';
 
 beforeEach(() => {
@@ -31,6 +31,15 @@ beforeEach(() => {
 
 function req(qs: string): NextRequest {
   return new NextRequest(`https://mallan.nyc/api/unsubscribe?${qs}`);
+}
+function postReq(qs: string): NextRequest {
+  // RFC 8058 one-click: POST to the header URL with the payload in the query and
+  // a non-JSON `List-Unsubscribe=One-Click` body.
+  return new NextRequest(`https://mallan.nyc/api/unsubscribe?${qs}`, {
+    method: 'POST',
+    body: 'List-Unsubscribe=One-Click',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+  });
 }
 
 describe('GET /api/unsubscribe — token verification', () => {
@@ -52,5 +61,21 @@ describe('GET /api/unsubscribe — token verification', () => {
     const res = await GET(req('email=carol@example.com'));
     expect(res.status).toBe(200);
     expect(mockLeadUpdateMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('POST /api/unsubscribe — RFC 8058 one-click (query payload, non-JSON body)', () => {
+  it('valid token in the query suppresses (200), non-JSON body tolerated', async () => {
+    const token = makeUnsubscribeToken('dave@example.com')!;
+    const res = await POST(postReq(`email=dave@example.com&token=${encodeURIComponent(token)}`));
+    expect(res.status).toBe(200);
+    expect(mockLeadUpdateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('altered email in the query (token mismatch) → 403, no suppression', async () => {
+    const token = makeUnsubscribeToken('dave@example.com')!;
+    const res = await POST(postReq(`email=evil@example.com&token=${encodeURIComponent(token)}`));
+    expect(res.status).toBe(403);
+    expect(mockLeadUpdateMany).not.toHaveBeenCalled();
   });
 });

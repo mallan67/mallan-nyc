@@ -101,7 +101,7 @@ export async function sendEmail(
     /** Test-send allowlist. When non-empty, ONLY addresses in it are delivered; every other recipient is skipped (audited `send_skipped_test_mode`). */
     testAllowlist?: readonly string[];
   }
-): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean; _suppressed?: boolean; _dryRun?: boolean; _skippedTestMode?: boolean }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean; _suppressed?: boolean; _suppressionError?: boolean; _dryRun?: boolean; _skippedTestMode?: boolean }> {
   // ─── Lead-level opt-out boundary check (Email Tier A P0) ───────────
   //
   // Runs BEFORE the SMTP-configured check so suppression wins regardless
@@ -159,9 +159,13 @@ export async function sendEmail(
         "other";
       console.error(`[Email] opt-out lookup failed — BLOCKING send (fail-closed) | category=${category}`);
       await logEmailAudit("send_blocked_suppression_error", to, subject, user, { error_category: category });
+      // Distinct from `_suppressed` (a VERIFIED opt-out): this is an infrastructure
+      // outage. Callers that branch on `_suppressed` (lifecycle engine, bulk skip
+      // counting) must treat this as a FAILURE, not an unsubscribe. sendBulkEmail
+      // counts anything without `_suppressed`/`_skippedTestMode` as failed.
       return {
         success: false,
-        _suppressed: true,
+        _suppressionError: true,
         error: "Suppression check unavailable — send blocked (fail-closed)",
       };
     }
@@ -219,9 +223,13 @@ export async function sendEmail(
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
     // Signed token binds the one-click link to THIS address — editing `email` in
     // the URL invalidates it. Null when no secret is set ⇒ tokenless legacy link.
+    // RFC 8058 one-click: the List-Unsubscribe header URL MUST point at the API
+    // handler (/api/unsubscribe) that verifies the token and writes the opt-out —
+    // NOT the /unsubscribe human form page (which cannot process a one-click POST).
+    // (The visible footer link in wrapEmail stays /unsubscribe for humans.)
     const unsubToken = makeUnsubscribeToken(to);
     const unsubscribeUrl =
-      `${baseUrl}/unsubscribe?email=${encodeURIComponent(to)}` +
+      `${baseUrl}/api/unsubscribe?email=${encodeURIComponent(to)}` +
       (unsubToken ? `&token=${encodeURIComponent(unsubToken)}` : "");
     const unsubscribeMailto = `mailto:unsubscribe@mallan.nyc?subject=unsubscribe`;
 
