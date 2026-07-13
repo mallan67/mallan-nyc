@@ -42,25 +42,31 @@ function postReq(qs: string): NextRequest {
   });
 }
 
-describe('GET /api/unsubscribe — token verification', () => {
-  it('valid token suppresses the address (200 + Lead update)', async () => {
+describe('GET /api/unsubscribe — NON-MUTATING confirmation page (scanner/prefetch safe)', () => {
+  it('valid token renders an HTML confirm page and DOES NOT unsubscribe', async () => {
     const token = makeUnsubscribeToken('alice@example.com')!;
     const res = await GET(req(`email=alice@example.com&token=${encodeURIComponent(token)}`));
     expect(res.status).toBe(200);
-    expect(mockLeadUpdateMany).toHaveBeenCalledTimes(1);
+    expect(res.headers.get('content-type')).toMatch(/text\/html/);
+    const html = await res.text();
+    // The page must POST to actually unsubscribe — GET never mutates.
+    expect(html).toMatch(/method="POST"/i);
+    expect(html).toContain('alice@example.com');
+    expect(mockLeadUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('ALTERED email (token no longer matches) is rejected 403 with NO suppression', async () => {
+  it('ALTERED email (token no longer matches) is rejected 403 with NO mutation', async () => {
     const token = makeUnsubscribeToken('alice@example.com')!; // token for alice
     const res = await GET(req(`email=bob@example.com&token=${encodeURIComponent(token)}`)); // used for bob
     expect(res.status).toBe(403);
     expect(mockLeadUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('tokenless legacy link still works (rate-limited path)', async () => {
+  it('tokenless GET also renders the page without mutating (a scanner cannot opt anyone out)', async () => {
     const res = await GET(req('email=carol@example.com'));
     expect(res.status).toBe(200);
-    expect(mockLeadUpdateMany).toHaveBeenCalledTimes(1);
+    expect(res.headers.get('content-type')).toMatch(/text\/html/);
+    expect(mockLeadUpdateMany).not.toHaveBeenCalled();
   });
 });
 
