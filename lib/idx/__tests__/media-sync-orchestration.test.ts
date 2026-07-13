@@ -1551,3 +1551,69 @@ describe("runMediaSync — Phase 3 cross-invocation cooldown filter", () => {
     expect(tombstoneArgs.data.r2_last_attempt_at).toBeInstanceOf(Date);
   });
 });
+
+// ─── Observability read-back is non-fatal ────────────────────────────────
+
+describe("runMediaSync — observability read-back is non-fatal", () => {
+  it("a rejected cursor read-back does NOT reject runMediaSync, does not skip later phases, and does not alter the cursor write", async () => {
+    const T1 = "2026-07-10T18:06:15.803Z";
+    const propertyA = makeProperty({ ListingId: "RLS-A", ListingKey: "K-A", PhotosChangeTimestamp: T1 });
+    const mediaA = [makeMediaInput({ MediaKey: "MK-A", ModificationTimestamp: T1 })];
+
+    // mediaSyncState.findUnique call order inside runMediaSync:
+    //   #1 start cursor read → #2 advance's prior read → #3 the READ-BACK (rejects).
+    mockMediaSyncFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockRejectedValueOnce(new Error("simulated read-back DB failure"));
+    mockListingMediaFindUnique.mockResolvedValue(null); // create path
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaFindMany.mockResolvedValue([]); // no Phase-3 backlog
+    mockListingMediaCount.mockResolvedValue(0); // Phase-4 backlog count
+
+    const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+    // MUST resolve (not reject) despite the read-back throwing.
+    const result = await runMediaSync(
+      makeOptions({
+        fetchDeps: makeFetchDeps({
+          fetchProperties: jest.fn().mockResolvedValueOnce([propertyA]),
+          fetchMedia: jest.fn().mockResolvedValueOnce(mediaA),
+        }),
+      }),
+    );
+
+    const persistedLine = logSpy.mock.calls
+      .map((c) => {
+        try {
+          return JSON.parse(String(c[0])) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .find((o) => o !== null && o.event === "persisted") as Record<string, unknown> | undefined;
+    logSpy.mockRestore();
+
+    // (a) did NOT reject — the run completed successfully.
+    expect(result.status).toBe("ok");
+    expect(result.listings_processed).toBe(1);
+    // (b) later phases were NOT skipped — the Phase-4 backlog count ran AFTER
+    //     the (failed) read-back, proving execution continued past it.
+    expect(mockListingMediaCount).toHaveBeenCalled();
+    // (c) the cursor write is UNALTERED — the advance upsert wrote the advanced
+    //     keyset cursor exactly as it would without the read-back failure.
+    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as {
+      update: { last_listing_key: string | null; last_photos_change: Date | null };
+    };
+    expect(upsertArgs.update.last_listing_key).toBe("K-A");
+    expect((upsertArgs.update.last_photos_change as Date).toISOString()).toBe(T1);
+    // read-back failure recorded structurally + non-fatally (safe class only).
+    expect(persistedLine).toBeDefined();
+    expect(persistedLine!.readback_ok).toBe(false);
+    expect(persistedLine!.readback_error_class).toBe("Error");
+    expect(persistedLine!.db_readback_listing_key).toBeNull();
+    expect(persistedLine!.matched).toBeNull();
+    expect(persistedLine!.changed).toBeNull();
+  });
+});

@@ -148,6 +148,14 @@ export interface AdvanceMediaSyncCursorOptions {
   rowsFailed?: number;
   /** Test seam — defaults to `new Date()`. */
   now?: Date;
+  /**
+   * Observability-only: when supplied, emit a structured `media_sync_cursor`
+   * telemetry line carrying the prior/next cursor THIS call computed and
+   * whether a watermark was supplied — captured immediately BEFORE persistence.
+   * Purely additive: when omitted (all existing callers/tests), this function's
+   * behavior and DB interaction are byte-identical.
+   */
+  logContext?: MediaSyncLogContext;
 }
 
 /**
@@ -172,6 +180,57 @@ function compositeForwardMax(
   const key =
     prior.key === null || cand.last_listing_key > prior.key ? cand.last_listing_key : prior.key;
   return { ts: prior.ts, key };
+}
+
+// ─── Cursor observability (instrumentation only — no behavior change) ──────
+// Emits ONE structured JSON line per Phase-1 cursor-lifecycle event, tagged
+// `media_sync_cursor` and correlated by `run_id`, so Vercel runtime logs can be
+// filtered/joined per invocation. Payload contains ONLY the non-PII cursor keys
+// already used operationally (ListingKey, PhotosChangeTimestamp, counts) — never
+// credentials, client data, or media URLs. Best-effort: a telemetry failure can
+// never affect the sync (swallowed).
+export interface MediaSyncLogContext {
+  runId: string;
+}
+
+/** Correlation id for one runMediaSync invocation. */
+function newRunId(): string {
+  try {
+    const uuid = globalThis.crypto?.randomUUID?.();
+    if (uuid) return uuid;
+  } catch {
+    // fall through to the non-crypto fallback
+  }
+  return `run_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Safe ISO for a nullable Date (null for null/NaN — never throws). */
+function isoOrNull(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  const t = d.getTime();
+  return Number.isNaN(t) ? null : d.toISOString();
+}
+
+/** Emit one structured `media_sync_cursor` telemetry line. Never throws. */
+function emitCursorTelemetry(
+  event: string,
+  runId: string,
+  fields: Record<string, unknown>,
+): void {
+  try {
+    console.log(
+      JSON.stringify({
+        tag: "media_sync_cursor",
+        event,
+        run_id: runId,
+        deployment_id: process.env.VERCEL_DEPLOYMENT_ID ?? null,
+        commit_sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+        ...fields,
+      }),
+    );
+  } catch {
+    // observability must never break the run
+  }
 }
 
 /**
@@ -247,6 +306,19 @@ export async function advanceMediaSyncCursor(
   } else {
     nextPhotosChange = maxDate(prior.last_photos_change, batchPhotosChange);
     nextListingKey = prior.last_listing_key;
+  }
+
+  // Observability-only: capture the prior/next cursor + watermark mode BEFORE
+  // persistence. Gated on logContext (existing callers omit it ⇒ no-op); reads
+  // only locals already computed above — no extra query, no logic change.
+  if (options.logContext) {
+    emitCursorTelemetry("advance", options.logContext.runId, {
+      has_watermark: "watermark" in options && options.watermark != null,
+      prior_last_photos_change: isoOrNull(prior.last_photos_change),
+      prior_last_listing_key: prior.last_listing_key,
+      next_last_photos_change: isoOrNull(nextPhotosChange),
+      next_last_listing_key: nextListingKey,
+    });
   }
 
   await prisma.mediaSyncState.upsert({
@@ -1622,8 +1694,21 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let exitReason: RunMediaSyncResult["exit_reason"] = "completed";
   const cursorRecords: MediaSyncBatchRecord[] = [];
 
+  // ── Observability (instrumentation only): correlate every log line for this
+  // invocation via run_id; bound the invocation for overlap/lost-update
+  // detection via run_start/run_end timestamps.
+  const runId = newRunId();
+  emitCursorTelemetry("run_start", runId, {
+    started_at: new Date(now()).toISOString(),
+    listings_per_run: listingsPerRun,
+  });
+
   // ── PHASE 1: source ingest ───────────────────────────────────────────
   const cursor = await getMediaSyncCursor();
+  emitCursorTelemetry("cursor_read", runId, {
+    cursor_last_photos_change: isoOrNull(cursor.last_photos_change),
+    cursor_last_listing_key: cursor.last_listing_key,
+  });
   // RC1 keyset cursor: continue AFTER (last_photos_change, last_listing_key).
   const queryCursor: PropertyQueryCursor = {
     lastPhotosChange: cursor.last_photos_change,
@@ -1639,6 +1724,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     properties = await fetchDeps.fetchProperties(queryCursor, listingsPerRun);
   } catch (err) {
     // Source-fetch failure: do NOT advance cursor. No Phase 2/3/4.
+    emitCursorTelemetry("run_end", runId, {
+      ended_at: new Date(now()).toISOString(),
+      duration_ms: now() - startTime,
+      exit_reason: "source_error",
+      status: "error",
+    });
     return {
       status: "error",
       exit_reason: "source_error",
@@ -1657,6 +1748,16 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       duration_ms: now() - startTime,
     };
   }
+
+  const firstProp = properties[0];
+  const lastProp = properties[properties.length - 1];
+  emitCursorTelemetry("batch", runId, {
+    batch_count: properties.length,
+    first_photos_change: firstProp?.PhotosChangeTimestamp ?? null,
+    first_listing_key: firstProp?.ListingKey ?? null,
+    last_photos_change: lastProp?.PhotosChangeTimestamp ?? null,
+    last_listing_key: lastProp?.ListingKey ?? null,
+  });
 
   for (const property of properties) {
     if (remainingMs() < phase1ReserveMs) {
@@ -1755,14 +1856,76 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // to the last contiguously fully-processed listing (never past a failure);
   // a null watermark (nothing advanceable) preserves the prior cursor +
   // tie-breaker. `records` still drives last_media_modified.
-  await advanceMediaSyncCursor({
+  const watermark = pickKeysetWatermark(processed);
+  emitCursorTelemetry("checkpoint", runId, {
+    batch_count: properties.length,
+    processed: listingsProcessed,
+    skipped: listingsSkipped,
+    failed: rowsFailed,
+    ghost: ghostListingsSkipped,
+    watermark_photos_change: isoOrNull(watermark?.last_photos_change ?? null),
+    watermark_listing_key: watermark?.last_listing_key ?? null,
+    cursor_start_photos_change: isoOrNull(cursor.last_photos_change),
+    cursor_start_listing_key: cursor.last_listing_key,
+  });
+  const nextCursor = await advanceMediaSyncCursor({
     records: cursorRecords,
-    watermark: pickKeysetWatermark(processed),
+    watermark,
     status: rowsFailed > 0 ? "partial" : "ok",
     rowsChecked,
     rowsUpdated,
     rowsFailed,
+    logContext: { runId },
   });
+  // Observability-only: read the cursor back from the DB to prove what actually
+  // persisted, and to expose a concurrent writer clobbering our write between
+  // upsert and read-back (the lost-update signal). Additive read; the cursor
+  // state is unchanged by this.
+  //
+  // WRAPPED so a read-back failure can NEVER fail the run, skip Phase 3, or
+  // suppress the normal success/failure audit. The cursor write above has
+  // already committed; on read-back failure we only lose this one telemetry
+  // datapoint (recorded as readback_ok:false + a SAFE error class — never the
+  // message, which could carry connection/query detail).
+  let persisted: MediaSyncCursor | null = null;
+  let readbackErrorClass: string | null = null;
+  try {
+    persisted = await getMediaSyncCursor();
+  } catch (err) {
+    readbackErrorClass = err instanceof Error ? err.name : typeof err;
+  }
+  if (persisted) {
+    emitCursorTelemetry("persisted", runId, {
+      readback_ok: true,
+      computed_next_photos_change: isoOrNull(nextCursor.last_photos_change),
+      computed_next_listing_key: nextCursor.last_listing_key,
+      db_readback_photos_change: isoOrNull(persisted.last_photos_change),
+      db_readback_listing_key: persisted.last_listing_key,
+      // matched = the DB holds exactly what THIS run computed. false ⇒ a
+      // concurrent run wrote between our upsert and this read-back. NOTE:
+      // matched:true only proves no overwrite occurred BEFORE this immediate
+      // read-back — a later stale concurrent run can still overwrite the cursor.
+      matched:
+        isoOrNull(persisted.last_photos_change) === isoOrNull(nextCursor.last_photos_change) &&
+        persisted.last_listing_key === nextCursor.last_listing_key,
+      // changed = the persisted cursor differs from the value we read at run start.
+      changed:
+        isoOrNull(persisted.last_photos_change) !== isoOrNull(cursor.last_photos_change) ||
+        persisted.last_listing_key !== cursor.last_listing_key,
+    });
+  } else {
+    // Read-back failed — non-fatal. Record the gap; the run continues to Phase 3.
+    emitCursorTelemetry("persisted", runId, {
+      readback_ok: false,
+      readback_error_class: readbackErrorClass,
+      computed_next_photos_change: isoOrNull(nextCursor.last_photos_change),
+      computed_next_listing_key: nextCursor.last_listing_key,
+      db_readback_photos_change: null,
+      db_readback_listing_key: null,
+      matched: null,
+      changed: null,
+    });
+  }
 
   // ── PHASE 3: R2 enrichment backlog (parallel, concurrency = 5) ───────
   // Pattern matches lib/idx/sync.ts:694-708 (migrateMediaToR2). Trestle's
@@ -1885,6 +2048,13 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
   const finalStatus: RunMediaSyncResult["status"] =
     rowsFailed > 0 || r2Failed > 0 ? "partial" : "ok";
+
+  emitCursorTelemetry("run_end", runId, {
+    ended_at: new Date(now()).toISOString(),
+    duration_ms: now() - startTime,
+    exit_reason: exitReason,
+    status: finalStatus,
+  });
 
   return {
     status: finalStatus,
