@@ -22,11 +22,17 @@ const HERO_PRODUCERS = [
   'lib/idx/db-to-public-dto.ts',
   'lib/idx/public-dto.ts',
   'lib/search/crm-idx-mapper.ts',
+  'app/components/SearchMap.tsx',
+  'app/components/FavoriteButton.tsx',
+  'app/listing/[...slug]/page.tsx',
 ];
 
-// The empty-mediaType photo accept: `mediaType === 'Photo' || !<x>mediaType`.
+// The empty-mediaType photo accept, in EITHER operand order:
+//   `mediaType === 'Photo' || !mediaType`  OR  `!mediaType || mediaType === 'Photo'`
+// (Codex #500 flagged the opposite-order form in SearchMap/FavoriteButton/detail-count.)
 // Use classifyMediaItem() (URL-shape aware) instead.
-const EMPTY_TYPE_ACCEPT = /mediaType\s*===\s*['"]Photo['"]\s*\|\|\s*!\s*[\w.?]*mediaType/;
+const EMPTY_TYPE_ACCEPT =
+  /(?:[\w.?]*mediaType\s*===\s*['"]Photo['"]\s*\|\|\s*!\s*[\w.?]*mediaType)|(?:!\s*[\w.?]*mediaType\s*\|\|\s*[\w.?]*mediaType\s*===\s*['"]Photo['"])/;
 
 // Files explicitly permitted to match, each with a written justification.
 const ALLOWLIST = new Set<string>([]);
@@ -55,7 +61,9 @@ function walk(dir: string, out: string[] = []): string[] {
 describe('hero-selection guard', () => {
   it.each(HERO_PRODUCERS)('%s imports the shared media resolver', (rel) => {
     const src = readFileSync(join(ROOT, rel), 'utf8');
-    expect(src).toMatch(/listing-media-resolver/);
+    // The shared classifier is used either directly (listing-media-resolver) or via
+    // the client card wrapper (listing-card-media, which re-exports isPhotoMedia).
+    expect(src).toMatch(/listing-media-resolver|listing-card-media/);
   });
 
   it('no consumer accepts a photo by empty mediaType (null-category floor-plan leak)', () => {
