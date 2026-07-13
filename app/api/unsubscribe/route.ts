@@ -129,7 +129,10 @@ export async function POST(request: NextRequest) {
 // one-click still POSTs directly and is unaffected.
 export async function GET(request: NextRequest) {
   const ip = extractClientIp(request.headers);
-  if (!(await checkRouteRateLimit(ip, 'unsubscribe', 60, 3600))) {
+  // SEPARATE limiter from the mutating POST: the GET page is non-mutating and gets
+  // hit by scanners/prefetchers, so it uses `unsubscribe_get` (300/hr, own Redis
+  // prefix) — it must never consume the POST's `unsubscribe` (20/hr) quota.
+  if (!(await checkRouteRateLimit(ip, 'unsubscribe_get', 300, 3600))) {
     return NextResponse.json(
       { error: 'Rate limited. Please try again shortly.' },
       { status: 429, headers: { 'Retry-After': '3600' } }

@@ -47,7 +47,11 @@ const idxSyncRl = redis
 //   - rsvp:        20/hr  — open-house RSVP
 //   - guide:       15/hr  — buyer/seller guide download
 //   - alert:       10/hr  — search-alert subscribe
-//   - unsubscribe: 20/hr  — generous but not unbounded (bots could spam)
+//   - unsubscribe:     20/hr  — MUTATING POST (writes suppression state). Kept tight.
+//   - unsubscribe_get: 300/hr — NON-mutating GET confirmation page. A separate,
+//       generous bucket (own `rl:unsubscribe_get` prefix) so mailbox scanners /
+//       link prefetchers hammering the GET page can NEVER drain the POST quota and
+//       block a legitimate one-click unsubscribe (CAN-SPAM: opt-outs must succeed).
 const limiterSpecs = {
   signup:       { count: 10, window: "3600 s" },
   market:       { count: 30, window: "60 s"   },
@@ -58,7 +62,8 @@ const limiterSpecs = {
   guide:        { count: 15, window: "3600 s" },
   alert:        { count: 10, window: "3600 s" },
   identity_capture: { count: 20, window: "3600 s" },
-  unsubscribe:  { count: 20, window: "3600 s" },
+  unsubscribe:      { count: 20,  window: "3600 s" },
+  unsubscribe_get:  { count: 300, window: "3600 s" },
   // P2 — broker-initiated agent-to-agent inquiry. Capped at 30/hr/IP
   // to mirror the public inquiry rate but with its own quota so bursts
   // on the public form don't lock out broker workflows (and vice versa).

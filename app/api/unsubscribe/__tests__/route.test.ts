@@ -14,9 +14,13 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
+// Per-route limiter mock: records the route name each call used, and can be told
+// to "exhaust" a specific bucket by name via mockDenied.
+const mockDenied = new Set<string>();
+const mockCheckRoute = jest.fn(async (_ip: string, route: string) => !mockDenied.has(route));
 jest.mock('@/lib/middleware/rate-limiter', () => ({
   __esModule: true,
-  checkRouteRateLimit: async () => true,
+  checkRouteRateLimit: (ip: string, route: string) => mockCheckRoute(ip, route),
   extractClientIp: () => '203.0.113.7',
 }));
 
@@ -26,8 +30,14 @@ import { makeUnsubscribeToken } from '@/lib/email/unsubscribe-token';
 
 beforeEach(() => {
   mockLeadUpdateMany.mockClear();
+  mockSavedUpdateMany.mockClear();
   mockAuditCreate.mockClear();
+  mockCheckRoute.mockClear();
+  mockDenied.clear();
 });
+
+/** Route names passed to the limiter across all calls so far. */
+const limiterRoutesUsed = () => mockCheckRoute.mock.calls.map((c) => c[1]);
 
 function req(qs: string): NextRequest {
   return new NextRequest(`https://mallan.nyc/api/unsubscribe?${qs}`);
@@ -83,5 +93,50 @@ describe('POST /api/unsubscribe — RFC 8058 one-click (query payload, non-JSON 
     const res = await POST(postReq(`email=evil@example.com&token=${encodeURIComponent(token)}`));
     expect(res.status).toBe(403);
     expect(mockLeadUpdateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('rate-limit buckets — GET and POST use SEPARATE quotas (no collision)', () => {
+  it('GET uses the `unsubscribe_get` limiter; POST uses `unsubscribe`', async () => {
+    const token = makeUnsubscribeToken('gail@example.com')!;
+    await GET(req(`email=gail@example.com&token=${encodeURIComponent(token)}`));
+    await POST(postReq(`email=gail@example.com&token=${encodeURIComponent(token)}`));
+    expect(mockCheckRoute).toHaveBeenNthCalledWith(1, expect.any(String), 'unsubscribe_get');
+    expect(mockCheckRoute).toHaveBeenNthCalledWith(2, expect.any(String), 'unsubscribe');
+  });
+
+  it('repeated GETs never consume the POST (`unsubscribe`) bucket', async () => {
+    for (let i = 0; i < 5; i++) await GET(req('email=hank@example.com'));
+    expect(limiterRoutesUsed()).toEqual(['unsubscribe_get', 'unsubscribe_get', 'unsubscribe_get', 'unsubscribe_get', 'unsubscribe_get']);
+    expect(limiterRoutesUsed()).not.toContain('unsubscribe');
+  });
+
+  it('a POST can still succeed after the GET bucket is exhausted', async () => {
+    mockDenied.add('unsubscribe_get'); // GET bucket empty
+    const token = makeUnsubscribeToken('ivy@example.com')!;
+    const getRes = await GET(req(`email=ivy@example.com&token=${encodeURIComponent(token)}`));
+    expect(getRes.status).toBe(429);
+    // POST bucket is independent → still works and still mutates.
+    const postRes = await POST(postReq(`email=ivy@example.com&token=${encodeURIComponent(token)}`));
+    expect(postRes.status).toBe(200);
+    expect(mockLeadUpdateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('exhausting the POST bucket does NOT block viewing the GET confirmation page', async () => {
+    mockDenied.add('unsubscribe'); // POST bucket empty
+    const getRes = await GET(req('email=jan@example.com'));
+    expect(getRes.status).toBe(200);
+    expect(getRes.headers.get('content-type')).toMatch(/text\/html/);
+    expect(mockLeadUpdateMany).not.toHaveBeenCalled();
+    // POST is the one that's now rate-limited.
+    const postRes = await POST(postReq('email=jan@example.com'));
+    expect(postRes.status).toBe(429);
+  });
+
+  it('GET performs NO Lead, saved-search, or audit mutation', async () => {
+    await GET(req('email=ken@example.com'));
+    expect(mockLeadUpdateMany).not.toHaveBeenCalled();
+    expect(mockSavedUpdateMany).not.toHaveBeenCalled();
+    expect(mockAuditCreate).not.toHaveBeenCalled();
   });
 });
