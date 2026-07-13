@@ -7,6 +7,7 @@ import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { SessionUser } from "@/lib/auth/session";
+import { makeUnsubscribeToken } from "./unsubscribe-token";
 
 // ─── SMTP Configuration ──────────────────────────────────────────────
 // Three sending identities to protect deliverability:
@@ -95,8 +96,12 @@ export async function sendEmail(
     replyTo?: string;
     /** Set true to bypass CAN-SPAM opt-out suppression (transactional only: password reset, portal invite, MFA). Never true for marketing/CRM/listing-share sends. */
     transactional?: boolean;
+    /** Dry-run: perform NO SMTP delivery; record a `send_dryrun` audit row. */
+    dryRun?: boolean;
+    /** Test-send allowlist. When non-empty, ONLY addresses in it are delivered; every other recipient is skipped (audited `send_skipped_test_mode`). */
+    testAllowlist?: readonly string[];
   }
-): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean; _suppressed?: boolean }> {
+): Promise<{ success: boolean; messageId?: string; error?: string; _devMode?: boolean; _suppressed?: boolean; _dryRun?: boolean; _skippedTestMode?: boolean }> {
   // ─── Lead-level opt-out boundary check (Email Tier A P0) ───────────
   //
   // Runs BEFORE the SMTP-configured check so suppression wins regardless
@@ -124,9 +129,10 @@ export async function sendEmail(
   // The CAN-SPAM exception for transactional or relationship messages
   // (15 USC 7702(2)(B)) covers these.
   //
-  // Lookup failure (DB unavailable) falls through to send. Suppression
-  // failure under operational outage is preferable to broken sending;
-  // the existing AuditEvent trail still captures every send attempt.
+  // Lookup failure (DB unavailable) BLOCKS the send — FAIL CLOSED. For
+  // commercial/marketing email we cannot prove the recipient hasn't opted
+  // out, so we must not deliver. (Transactional sends bypass this whole
+  // block at the `transactional !== true` guard below.)
   if (opts?.transactional !== true) {
     try {
       const lead = await prisma.lead.findUnique({
@@ -144,14 +150,38 @@ export async function sendEmail(
         };
       }
     } catch (err) {
-      // Non-fatal — log a category and proceed with send.
+      // FAIL CLOSED: a suppression-lookup failure blocks the send — we cannot
+      // prove the recipient hasn't opted out, so we must not deliver.
       const cat = err instanceof Error ? err.message.toLowerCase() : "unknown";
       const category =
         cat.includes("timeout") || cat.includes("econn") ? "db_unavailable" :
         cat.includes("prisma") ? "prisma" :
         "other";
-      console.warn(`[Email] opt-out lookup failed (non-fatal) | category=${category}`);
+      console.error(`[Email] opt-out lookup failed — BLOCKING send (fail-closed) | category=${category}`);
+      await logEmailAudit("send_blocked_suppression_error", to, subject, user, { error_category: category });
+      return {
+        success: false,
+        _suppressed: true,
+        error: "Suppression check unavailable — send blocked (fail-closed)",
+      };
     }
+  }
+
+  // Test-send mode: restrict delivery to an internal allowlist. Anything not on
+  // the allowlist is skipped (never delivered) and audited. Applies to ALL sends
+  // (incl. transactional) so a test run can never escape the allowlist.
+  if (opts?.testAllowlist && opts.testAllowlist.length > 0) {
+    const allow = opts.testAllowlist.map((a) => String(a).toLowerCase().trim());
+    if (!allow.includes(to.toLowerCase().trim())) {
+      await logEmailAudit("send_skipped_test_mode", to, subject, user, {});
+      return { success: false, _skippedTestMode: true, error: "Test mode: recipient not on allowlist" };
+    }
+  }
+
+  // Dry-run: perform NO delivery; record the intent only.
+  if (opts?.dryRun === true) {
+    await logEmailAudit("send_dryrun", to, subject, user, { channel: opts?.channel ?? "company" });
+    return { success: true, _dryRun: true };
   }
 
   if (!isConfigured) {
@@ -187,7 +217,12 @@ export async function sendEmail(
     // Gmail/Yahoo 2024 sender guidelines require both List-Unsubscribe URL and mailto,
     // plus List-Unsubscribe-Post for one-click. Skip for transactional sends.
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
-    const unsubscribeUrl = `${baseUrl}/unsubscribe?email=${encodeURIComponent(to)}`;
+    // Signed token binds the one-click link to THIS address — editing `email` in
+    // the URL invalidates it. Null when no secret is set ⇒ tokenless legacy link.
+    const unsubToken = makeUnsubscribeToken(to);
+    const unsubscribeUrl =
+      `${baseUrl}/unsubscribe?email=${encodeURIComponent(to)}` +
+      (unsubToken ? `&token=${encodeURIComponent(unsubToken)}` : "");
     const unsubscribeMailto = `mailto:unsubscribe@mallan.nyc?subject=unsubscribe`;
 
     const mailOptions: nodemailer.SendMailOptions = {
@@ -238,23 +273,50 @@ export async function sendBulkEmail(
   recipients: { email: string; name: string }[],
   subject: string,
   html: string,
-  user?: SessionUser
-): Promise<{ success: boolean; sent: number; failed: number; errors: string[] }> {
+  user?: SessionUser,
+  opts?: {
+    /** Perform no SMTP delivery for any recipient (audited per recipient). */
+    dryRun?: boolean;
+    /** Only addresses in this allowlist are delivered; others are skipped. */
+    testAllowlist?: readonly string[];
+    /** Hard cap on recipients per call. Defaults to EMAIL_MAX_BATCH or 250. */
+    maxBatch?: number;
+  }
+): Promise<{ success: boolean; sent: number; failed: number; skipped: number; errors: string[] }> {
+  // Batch cap — refuse the WHOLE call when it exceeds the configured maximum, so
+  // an oversized list can never be blasted by accident. Nothing is sent.
+  const maxBatch = opts?.maxBatch ?? Number(process.env.EMAIL_MAX_BATCH || "250");
+  if (recipients.length > maxBatch) {
+    return {
+      success: false,
+      sent: 0,
+      failed: 0,
+      skipped: recipients.length,
+      errors: [`Batch of ${recipients.length} exceeds cap ${maxBatch} — nothing sent`],
+    };
+  }
+
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   const errors: string[] = [];
 
   for (const recipient of recipients) {
-    const result = await sendEmail(recipient.email, subject, html, user);
+    const result = await sendEmail(recipient.email, subject, html, user, {
+      dryRun: opts?.dryRun,
+      testAllowlist: opts?.testAllowlist,
+    });
     if (result.success) {
       sent++;
+    } else if (result._suppressed || result._skippedTestMode) {
+      skipped++;
     } else {
       failed++;
       errors.push(result.error || "send_failed");
     }
   }
 
-  return { success: failed === 0, sent, failed, errors };
+  return { success: failed === 0, sent, failed, skipped, errors };
 }
 
 /**
