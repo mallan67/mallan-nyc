@@ -168,7 +168,10 @@ export async function GET(request: NextRequest) {
         let photosCount = 0;
 
         if (backfilledMedia && backfilledMedia.length > 0) {
-          const photos = backfilledMedia.filter(m => m.mediaType === 'Photo' || !m.mediaType);
+          // URL-shape-aware photo selection (parity with the DB + Trestle branches):
+          // classifyMediaItem rejects a null/empty-mediaType DOCUMENT- floor plan by URL,
+          // which `mediaType === 'Photo' || !mediaType` did not.
+          const photos = backfilledMedia.filter(m => classifyMediaItem(m) === 'photo');
           photosCount = photos.length;
           if (photos.length > 0) {
             photoUrl = proxyUrl(photos[0].url);
@@ -305,7 +308,10 @@ export async function GET(request: NextRequest) {
         let photosCount = 0;
         try {
           const media = await fetchListingMedia(listingKey);
-          const photos = media.filter(m => m.mediaType === 'Photo' || !m.mediaType);
+          // URL-shape-aware (parity with the DB branch). fetchListingMedia classifies
+          // FloorPlan by MediaCategory/description only, so a null-category DOCUMENT- floor
+          // plan arrives as mediaType:'Photo'; classifyMediaItem rejects it by URL shape.
+          const photos = media.filter(m => classifyMediaItem(m) === 'photo');
           photosCount = photos.length;
           if (photos.length > 0) {
             photoUrl = proxyUrl(photos[0].url);
