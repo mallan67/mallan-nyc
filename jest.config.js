@@ -19,6 +19,9 @@ module.exports = {
     // media-sync-service.test.ts had been orphaned from CI. Wiring it in
     // here as part of PR-E.1.a fixes that gap.
     '<rootDir>/lib/media/jest.config.js',
+    // lib/email + /api/unsubscribe (ts-jest) — email compliance hardening:
+    // fail-closed suppression, signed HMAC unsubscribe token, dry-run/test/batch.
+    '<rootDir>/lib/email/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
     // tests/runtime — release-truth side-effect proof for high-risk routes

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
+import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe-token";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,13 @@ export async function POST(request: NextRequest) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
-    await unsubscribe(email, "form");
+    // If a signed token is present it MUST verify — rejects a one-click request
+    // whose `email` was altered. Tokenless posts are the self-service form path.
+    const token = typeof body?.token === "string" ? body.token : "";
+    if (token && !verifyUnsubscribeToken(email, token)) {
+      return NextResponse.json({ error: "Invalid unsubscribe link." }, { status: 403 });
+    }
+    await unsubscribe(email, token ? "one-click" : "form");
     return NextResponse.json({ success: true, message: "You have been unsubscribed from all Mallan Real Estate emails." });
   } catch (err) {
     console.error("[/api/unsubscribe] Error:", err);
@@ -91,6 +98,12 @@ export async function GET(request: NextRequest) {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
-  await unsubscribe(email, "one-click");
+  // If a signed token is present it MUST verify — rejects a one-click link whose
+  // `email` was tampered with. Tokenless (legacy) links use the rate-limited path.
+  const token = request.nextUrl.searchParams.get("token");
+  if (token && !verifyUnsubscribeToken(email, token)) {
+    return NextResponse.json({ error: "Invalid unsubscribe link." }, { status: 403 });
+  }
+  await unsubscribe(email, token ? "one-click" : "form");
   return NextResponse.json({ success: true, message: "You have been unsubscribed." });
 }
