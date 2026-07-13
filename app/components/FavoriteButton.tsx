@@ -4,6 +4,7 @@ import { useFavorites, type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import { useFavoriteEmailPrompt } from './FavoriteEmailProvider';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { trackMicroCommitment } from '@/lib/posthog';
+import { isPhotoMedia } from '@/lib/media/listing-card-media';
 
 interface FavoriteButtonProps {
   listing: DisplayListing;
@@ -28,7 +29,7 @@ export default function FavoriteButton({ listing, size = 'sm', className = '' }:
     listingType: listing.listingType,
     beds: listing.bedroomsTotal,
     baths: listing.bathroomsFull,
-    photoUrl: listing.media.find(m => !m.mediaType || m.mediaType === 'Photo')?.url,
+    photoUrl: listing.media.find((m) => isPhotoMedia(m))?.url,
     savedAt: '',
   };
 

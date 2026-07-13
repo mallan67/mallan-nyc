@@ -5,12 +5,15 @@ import { MapContainer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet'
 import L from 'leaflet';
 import type { DisplayListing } from '@/lib/idx/display-adapter';
 import { listingHref } from '@/lib/idx/display-adapter';
+import { isPhotoMedia } from '@/lib/media/listing-card-media';
 import 'leaflet/dist/leaflet.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 /** Get first photo URL from media array (skips floor plans, videos) */
 function heroPhotoUrl(media: { url: string; mediaType?: string }[]): string | undefined {
-  const photo = media?.find(m => !m.mediaType || m.mediaType === 'Photo');
+  // Shared card classifier (URL-shape aware) — rejects a null/empty-mediaType
+  // floor-plan URL by shape, which `!mediaType || mediaType === 'Photo'` did not.
+  const photo = media?.find((m) => isPhotoMedia(m));
   return photo?.url;
 }
 

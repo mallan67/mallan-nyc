@@ -49,7 +49,7 @@ import { soda } from '@/lib/soda';
 import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { resolveListingMedia, resolveListingMediaFromRows, toDtoMedia, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { classifyMediaItem, resolveListingMedia, resolveListingMediaFromRows, toDtoMedia, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -624,7 +624,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
         thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
       })),
-      photosCount: mediaArr.filter(m => !m.mediaType || m.mediaType === 'Photo').length,
+      photosCount: mediaArr.filter(m => classifyMediaItem(m) === 'photo').length,
       // Video / virtual tour: on the live REBNY IDX Plus feed there are NO video Media
       // rows — video is delivered as the YouTube/Vimeo URL in Property.VirtualTourURL*
       // (VideosCount>0), while Matterport etc. is the true 3D tour. Host-split them so
