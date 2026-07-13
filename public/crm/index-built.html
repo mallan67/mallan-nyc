@@ -22247,6 +22247,7 @@ function parseBudgetValue(td) {
                         ? '<button class="p-1.5 bg-purple-50 rounded cursor-not-allowed" disabled title="Coming Soon — No showings permitted until ' + escapeHtml(listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400 text-sm"></i></button>'
                         : '<button class="p-1.5 hover:bg-gray-100 rounded" title="Schedule Showing"><i class="fas fa-calendar-check text-gray-500 text-sm"></i></button>'
                     }
+                    <button onclick="openListingCampaign('${escapeHtml(String(listing.lid || listing._listingId || listing.id))}')" class="ml-auto px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-semibold flex items-center gap-1.5" title="Create an investor / 1031 email campaign from this listing"><i class="fas fa-paper-plane text-[11px]"></i> Create Email Campaign</button>
                 </div>
                 ${comingSoonShowingNotice(listing)}
 
@@ -37485,6 +37486,315 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('WARNING: These functions failed to load:\n' + missing.join('\n') + '\n\nThe main script may have an error.');
     }
 });
+
+</script>
+
+<!-- Listing email campaigns (investor / 1031) -->
+<script>
+// ═══ js/campaigns/listing-campaign.js ═══
+// ═══════════════════════════════════════════════════════════════════════════
+// LISTING EMAIL CAMPAIGN — create an investor / 1031 email FROM a listing.
+//
+// Flow (single modal, 3 steps):
+//   1. Compose + live preview   → POST /api/crm/listing-campaigns  (mode:preview)
+//   2. Recipients upload+review → POST /api/crm/listing-campaigns/recipients
+//   3. Review + send            → POST /api/crm/listing-campaigns  (dry_run/test/live)
+//
+// All compliance gating (REBNY distribution gate, Fair Housing, suppression,
+// fail-closed live send) is enforced SERVER-SIDE. This UI only composes, shows
+// the review counts, and surfaces server errors. It never sends on its own and
+// live delivery stays disabled until CAMPAIGN_LIVE_SEND_ENABLED is set.
+// ═══════════════════════════════════════════════════════════════════════════
+
+(function () {
+  'use strict';
+
+  var esc = (typeof escapeHtml === 'function')
+    ? escapeHtml
+    : function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+
+  var state = null;
+
+  function fresh(listingId) {
+    return {
+      listingId: listingId,
+      step: 1,
+      fields: {
+        subject: '', headline: '', intro: '', bullets: '', location: '',
+        maintenance: '', currentRent: '', leaseExpiration: '',
+        agentName: 'Maya Allan',
+      },
+      previewHtml: '',
+      listingSummary: null,
+      recipients: [],
+      counts: null,
+      sendResult: null,
+      busy: false,
+      error: '',
+    };
+  }
+
+  // ─── Fetch helpers (same-origin, session cookie) ──────────────────────────
+  function postJson(path, body) {
+    return fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(body),
+    }).then(readResponse);
+  }
+  function postForm(path, formData) {
+    return fetch(path, { method: 'POST', credentials: 'include', body: formData }).then(readResponse);
+  }
+  function readResponse(res) {
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (!res.ok) {
+        var msg = data.error || ('Request failed: ' + res.status);
+        if (data.gate_blocks) msg += ' [gate: ' + data.gate_blocks.join(', ') + ']';
+        if (data.fair_housing_violations) {
+          msg += ' [Fair Housing: ' + data.fair_housing_violations.map(function (v) { return v.field; }).join(', ') + ']';
+        }
+        var e = new Error(msg); e.data = data; throw e;
+      }
+      return data;
+    });
+  }
+
+  // ─── Public entry point (called from the listing detail action row) ───────
+  window.openListingCampaign = function (listingId) {
+    if (!listingId) { alert('This listing has no listing ID — cannot start a campaign.'); return; }
+    state = fresh(listingId);
+    mountModal();
+    loadPreview();
+  };
+
+  function closeCampaign() {
+    var m = document.getElementById('listingCampaignModal');
+    if (m) m.remove();
+    state = null;
+  }
+  window.closeListingCampaign = closeCampaign;
+
+  function mountModal() {
+    var existing = document.getElementById('listingCampaignModal');
+    if (existing) existing.remove();
+    var wrap = document.createElement('div');
+    wrap.id = 'listingCampaignModal';
+    wrap.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4';
+    wrap.innerHTML =
+      '<div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">' +
+        '<div class="flex items-center justify-between px-5 py-3 border-b bg-gray-50">' +
+          '<div class="flex items-center gap-2">' +
+            '<i class="fas fa-paper-plane text-amber-600"></i>' +
+            '<h2 class="font-bold text-sm">Create Email Campaign — <span class="text-gray-500">' + esc(state.listingId) + '</span></h2>' +
+          '</div>' +
+          '<button onclick="closeListingCampaign()" class="text-gray-400 hover:text-gray-700"><i class="fas fa-times"></i></button>' +
+        '</div>' +
+        '<div id="lcSteps" class="px-5 pt-3"></div>' +
+        '<div id="lcBody" class="px-5 py-4 overflow-y-auto flex-1"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    render();
+  }
+
+  function stepBar() {
+    var labels = ['1 · Compose', '2 · Recipients', '3 · Review & Send'];
+    return '<div class="flex items-center gap-2 text-[11px] font-semibold mb-1">' +
+      labels.map(function (l, i) {
+        var active = state.step === (i + 1);
+        var done = state.step > (i + 1);
+        var cls = active ? 'bg-amber-600 text-white' : (done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500');
+        return '<span class="px-2.5 py-1 rounded ' + cls + '">' + l + '</span>';
+      }).join('<span class="text-gray-300">→</span>') + '</div>';
+  }
+
+  function errorBanner() {
+    if (!state.error) return '';
+    return '<div class="mb-3 px-3 py-2 rounded bg-red-50 border border-red-200 text-red-700 text-xs">' +
+      '<i class="fas fa-exclamation-triangle mr-1"></i>' + esc(state.error) + '</div>';
+  }
+
+  function render() {
+    var steps = document.getElementById('lcSteps');
+    var body = document.getElementById('lcBody');
+    if (!steps || !body) return;
+    steps.innerHTML = stepBar();
+    if (state.step === 1) body.innerHTML = renderCompose();
+    else if (state.step === 2) body.innerHTML = renderRecipients();
+    else body.innerHTML = renderReview();
+  }
+
+  // ─── Step 1: compose + preview ────────────────────────────────────────────
+  function field(label, key, ph, type) {
+    var v = esc(state.fields[key] || '');
+    var input = (type === 'textarea')
+      ? '<textarea id="lc_' + key + '" rows="2" class="w-full border rounded px-2 py-1 text-xs" placeholder="' + esc(ph || '') + '">' + v + '</textarea>'
+      : '<input id="lc_' + key + '" value="' + v + '" class="w-full border rounded px-2 py-1 text-xs" placeholder="' + esc(ph || '') + '">';
+    return '<label class="block text-[11px] font-semibold text-gray-600 mb-0.5">' + esc(label) + '</label>' + input;
+  }
+
+  function renderCompose() {
+    var s = state.listingSummary;
+    return errorBanner() +
+      '<div class="grid grid-cols-2 gap-4">' +
+        '<div class="space-y-2">' +
+          field('Subject', 'subject', 'Investment Opportunity — …') +
+          field('Headline', 'headline', 'Tenant-Occupied Manhattan Investment Opportunity') +
+          field('Intro', 'intro', 'A rare chance to acquire an income-producing residence…', 'textarea') +
+          field('Key benefit bullets (one per line)', 'bullets', 'Existing rental income from closing\n1031-eligible replacement property', 'textarea') +
+          field('Location blurb', 'location', 'Turtle Bay / Midtown East…', 'textarea') +
+          '<div class="grid grid-cols-3 gap-2">' +
+            '<div>' + field('Maintenance', 'maintenance', '$1,748.65/mo') + '</div>' +
+            '<div>' + field('Current rent', 'currentRent', '$4,305/mo') + '</div>' +
+            '<div>' + field('Lease expires', 'leaseExpiration', 'Aug 14, 2027') + '</div>' +
+          '</div>' +
+          field('Sender name', 'agentName', 'Maya Allan') +
+          '<button onclick="window._lcUpdatePreview()" class="mt-1 px-3 py-1.5 bg-gray-800 text-white rounded text-xs"><i class="fas fa-sync mr-1"></i>Update preview</button>' +
+        '</div>' +
+        '<div class="space-y-2">' +
+          '<div class="text-[11px] font-semibold text-gray-600">Live preview' +
+            (s ? ' — <span class="text-gray-400">' + esc(s.address) + ' · ' + esc(s.price) + ' · ' + s.photoCount + ' photos</span>' : '') + '</div>' +
+          '<iframe title="preview" class="w-full border rounded bg-white" style="height:420px" srcdoc="' + esc(state.previewHtml) + '"></iframe>' +
+        '</div>' +
+      '</div>' +
+      '<div class="flex justify-end mt-4 pt-3 border-t">' +
+        '<button onclick="window._lcGoRecipients()" ' + (state.previewHtml ? '' : 'disabled') +
+          ' class="px-4 py-2 bg-amber-600 text-white rounded text-xs font-semibold disabled:opacity-40">Next: Recipients <i class="fas fa-arrow-right ml-1"></i></button>' +
+      '</div>';
+  }
+
+  function collectFields() {
+    Object.keys(state.fields).forEach(function (k) {
+      var elm = document.getElementById('lc_' + k);
+      if (elm) state.fields[k] = elm.value;
+    });
+  }
+
+  function bodyFromFields(mode) {
+    var f = state.fields;
+    var bullets = (f.bullets || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+    return {
+      listing_id: state.listingId,
+      mode: mode,
+      subject: f.subject || undefined,
+      headline: f.headline || undefined,
+      intro: f.intro || undefined,
+      benefitBullets: bullets.length ? bullets : undefined,
+      locationBlurb: f.location || undefined,
+      maintenance: f.maintenance || undefined,
+      currentRent: f.currentRent || undefined,
+      leaseExpiration: f.leaseExpiration || undefined,
+      agentName: f.agentName || undefined,
+    };
+  }
+
+  function loadPreview() {
+    if (state.step === 1) collectFields();
+    state.error = '';
+    postJson('/api/crm/listing-campaigns', bodyFromFields('preview')).then(function (data) {
+      state.previewHtml = data.html || '';
+      state.listingSummary = data.listing || null;
+      render();
+    }).catch(function (e) {
+      state.error = e.message; state.previewHtml = ''; render();
+    });
+  }
+  window._lcUpdatePreview = loadPreview;
+
+  window._lcGoRecipients = function () { collectFields(); state.step = 2; state.error = ''; render(); };
+
+  // ─── Step 2: recipients upload + review ───────────────────────────────────
+  function renderRecipients() {
+    var c = state.counts;
+    return errorBanner() +
+      '<div class="text-xs text-gray-600 mb-2">Upload a CSV or XLSX with an <b>email</b> column (optional name column). ' +
+        'Duplicates, invalid rows, and unsubscribed contacts are removed automatically.</div>' +
+      '<input type="file" id="lcFile" accept=".csv,.tsv,.txt,.xlsx" class="text-xs mb-2">' +
+      '<button onclick="window._lcUpload()" class="ml-2 px-3 py-1.5 bg-gray-800 text-white rounded text-xs"><i class="fas fa-upload mr-1"></i>Upload &amp; review</button>' +
+      (c ? countsTable(c) : '') +
+      '<div class="flex justify-between mt-4 pt-3 border-t">' +
+        '<button onclick="window._lcBack(1)" class="px-3 py-2 bg-gray-100 rounded text-xs"><i class="fas fa-arrow-left mr-1"></i>Back</button>' +
+        '<button onclick="window._lcGoReview()" ' + (c && c.deliverable > 0 ? '' : 'disabled') +
+          ' class="px-4 py-2 bg-amber-600 text-white rounded text-xs font-semibold disabled:opacity-40">Next: Review &amp; Send <i class="fas fa-arrow-right ml-1"></i></button>' +
+      '</div>';
+  }
+
+  function countsTable(c) {
+    var rows = [
+      ['Rows received', c.received], ['Valid', c.valid], ['Duplicates removed', c.duplicate],
+      ['Invalid removed', c.invalid], ['Missing email', c.missing || 0],
+      ['Unsubscribed (suppressed)', c.suppressed], ['Deliverable', c.deliverable],
+    ];
+    return '<table class="mt-3 text-xs border rounded w-full max-w-sm"><tbody>' +
+      rows.map(function (r, i) {
+        var strong = r[0] === 'Deliverable';
+        return '<tr class="' + (i % 2 ? 'bg-gray-50' : '') + (strong ? ' font-bold text-green-700' : '') + '">' +
+          '<td class="px-3 py-1 border-r">' + esc(r[0]) + '</td><td class="px-3 py-1 text-right">' + Number(r[1]) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  window._lcUpload = function () {
+    var input = document.getElementById('lcFile');
+    if (!input || !input.files || !input.files[0]) { state.error = 'Choose a file first.'; render(); return; }
+    var fd = new FormData(); fd.append('file', input.files[0]);
+    state.error = '';
+    postForm('/api/crm/listing-campaigns/recipients', fd).then(function (data) {
+      state.recipients = data.recipients || [];
+      state.counts = data.counts || null;
+      render();
+    }).catch(function (e) { state.error = e.message; render(); });
+  };
+
+  window._lcBack = function (step) { state.step = step; state.error = ''; render(); };
+  window._lcGoReview = function () { state.step = 3; state.error = ''; render(); };
+
+  // ─── Step 3: review + send ────────────────────────────────────────────────
+  function renderReview() {
+    var c = state.counts || { deliverable: 0 };
+    var r = state.sendResult;
+    return errorBanner() +
+      '<div class="px-4 py-3 rounded bg-amber-50 border border-amber-200 text-sm mb-3">' +
+        'This campaign will be sent to <b class="text-lg text-amber-700">' + Number(c.deliverable) + '</b> deliverable recipient(s) ' +
+        'for listing <b>' + esc(state.listingId) + '</b>.</div>' +
+      (r ? '<div class="px-4 py-3 rounded bg-gray-50 border text-xs mb-3">' +
+            '<b>Result (' + esc(r.mode) + '):</b> sent ' + r.result.sent + ' · failed ' + r.result.failed + ' · skipped ' + r.result.skipped +
+            (r.campaign_id ? '<div class="text-gray-400 mt-1">campaign_id: ' + esc(r.campaign_id) + '</div>' : '') + '</div>' : '') +
+      '<div class="flex flex-wrap gap-2 items-center">' +
+        '<button onclick="window._lcSend(\'dry_run\')" class="px-3 py-2 bg-gray-800 text-white rounded text-xs"><i class="fas fa-vial mr-1"></i>Dry run (no delivery)</button>' +
+        '<div class="flex items-center gap-1">' +
+          '<input id="lcTestList" class="border rounded px-2 py-1 text-xs" placeholder="test@ (comma-separated)">' +
+          '<button onclick="window._lcSend(\'test\')" class="px-3 py-2 bg-gray-800 text-white rounded text-xs"><i class="fas fa-flask mr-1"></i>Send test</button>' +
+        '</div>' +
+        '<button onclick="window._lcSend(\'live\')" class="px-3 py-2 bg-red-600 text-white rounded text-xs"><i class="fas fa-paper-plane mr-1"></i>Send live</button>' +
+      '</div>' +
+      '<div class="text-[11px] text-gray-400 mt-2">Live sending is disabled until an administrator enables it (CAMPAIGN_LIVE_SEND_ENABLED). Use Dry run / Send test meanwhile.</div>' +
+      '<div class="flex justify-between mt-4 pt-3 border-t">' +
+        '<button onclick="window._lcBack(2)" class="px-3 py-2 bg-gray-100 rounded text-xs"><i class="fas fa-arrow-left mr-1"></i>Back</button>' +
+        '<button onclick="closeListingCampaign()" class="px-3 py-2 bg-gray-100 rounded text-xs">Done</button>' +
+      '</div>';
+  }
+
+  window._lcSend = function (mode) {
+    if (state.busy) return;
+    var body = bodyFromFields(mode);
+    body.recipients = state.recipients;
+    if (mode === 'test') {
+      var listEl = document.getElementById('lcTestList');
+      body.testAllowlist = (listEl && listEl.value ? listEl.value : '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    }
+    if (mode === 'live') {
+      body.confirmedCount = state.counts ? state.counts.deliverable : 0;
+      if (!confirm('Send LIVE to ' + body.confirmedCount + ' recipients? This cannot be undone.')) return;
+    }
+    state.busy = true; state.error = '';
+    postJson('/api/crm/listing-campaigns', body).then(function (data) {
+      state.busy = false; state.sendResult = data;
+      if (data.counts) state.counts = data.counts;
+      render();
+    }).catch(function (e) { state.busy = false; state.error = e.message; render(); });
+  };
+})();
 
 </script>
 

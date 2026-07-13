@@ -130,6 +130,7 @@
                         ? '<button class="p-1.5 bg-purple-50 rounded cursor-not-allowed" disabled title="Coming Soon — No showings permitted until ' + escapeHtml(listing.comingSoonDate || 'active date') + '"><i class="fas fa-ban text-purple-400 text-sm"></i></button>'
                         : '<button class="p-1.5 hover:bg-gray-100 rounded" title="Schedule Showing"><i class="fas fa-calendar-check text-gray-500 text-sm"></i></button>'
                     }
+                    <button onclick="openListingCampaign('${escapeHtml(String(listing.lid || listing._listingId || listing.id))}')" class="ml-auto px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-semibold flex items-center gap-1.5" title="Create an investor / 1031 email campaign from this listing"><i class="fas fa-paper-plane text-[11px]"></i> Create Email Campaign</button>
                 </div>
                 ${comingSoonShowingNotice(listing)}
 
