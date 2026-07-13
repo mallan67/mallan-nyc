@@ -61,6 +61,7 @@ jest.mock('@/lib/idx/db-to-public-dto', () => ({
 }));
 
 import { NextRequest } from 'next/server';
+import { escapeHtml } from '@/lib/sanitize';
 import { POST } from '../route';
 
 const baseRow = {
@@ -100,6 +101,16 @@ describe('gate — Mallan CRM exclusive is NOT blocked by idx_display_yn', () =>
     expect(json.html).not.toContain('floor.jpg');  // floor plan never surfaced
     expect(mockSendEmail).not.toHaveBeenCalled();  // preview never delivers
     expect(mockAuditCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('output escaping — no HTML injection via agent-composed fields', () => {
+  it('escapes a <script> payload in the intro instead of rendering it raw', async () => {
+    const res = await POST(post({ listing_id: 'SL-0004', mode: 'preview', intro: '<script>alert(1)</script>' }));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.html).not.toContain('<script>alert(1)</script>');
+    expect(json.html).toContain(escapeHtml('<script>alert(1)</script>'));
   });
 });
 

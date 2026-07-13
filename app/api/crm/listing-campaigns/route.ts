@@ -38,6 +38,7 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-ma
 import { dbListingToPublicDTO, type DbListing } from "@/lib/idx/db-to-public-dto";
 import { investorListingEmail, type InvestorListingEmailData } from "@/lib/email/templates";
 import { sendEmail } from "@/lib/email/sendgrid";
+import { escapeHtml } from "@/lib/sanitize";
 import {
   filterSuppressedRecipients,
   type CampaignRecipient,
@@ -243,7 +244,10 @@ export async function POST(req: NextRequest) {
     maintenance: strOrNull(body.maintenance),
     currentRent: strOrNull(body.currentRent),
     leaseExpiration: strOrNull(body.leaseExpiration),
-    detailUrl: dto.url.startsWith("http") ? dto.url : `${BASE_URL}${dto.url}`,
+    // The investor template inserts the CTA URL RAW into an href (ctaButton),
+    // so escape it here at the boundary — every other template field is escaped
+    // internally by investorListingEmail. `&` → `&amp;` is correct href encoding.
+    detailUrl: escapeHtml(dto.url.startsWith("http") ? dto.url : `${BASE_URL}${dto.url}`),
     primaryPhotoUrl: photoUrls[0] ?? null,
     additionalPhotoUrls: photoUrls.slice(1, 4),
     headline: strOrUndef(body.headline),
