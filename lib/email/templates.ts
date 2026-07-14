@@ -544,8 +544,8 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const bullets = (d.benefitBullets && d.benefitBullets.length
     ? d.benefitBullets
     : [
-        "Lease from day one — condo rules and no board interview, so a tenant can be placed immediately within your 1031 window",
-        "Low closing costs — a co-op-style purchase avoids the mortgage-recording tax and title insurance a condo carries",
+        "Leased — tenants in place through August 14, 2027 and open to renewing",
+        "Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $4,000 less)",
       ]);
   const locationBullets = (d.locationBlurb && d.locationBlurb.trim())
     ? d.locationBlurb.split("\n").map((s) => s.trim()).filter(Boolean)
@@ -604,7 +604,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     <tr><td align="center" style="padding:26px 32px 18px;border-bottom:2px solid ${gold};">
       <img src="${logo}" alt="Mallan Real Estate" height="34" style="height:34px;width:auto;display:block;margin:0 auto 9px;">
       <p style="margin:0;font-size:17px;letter-spacing:4px;font-weight:700;color:${ink};font-family:${serif};">MALLAN REAL ESTATE</p>
-      <p style="margin:9px 0 0;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${gold};font-weight:600;font-family:${sans};">1031 Replacement Property</p>
+      <p style="margin:10px 0 0;font-size:15px;letter-spacing:2px;text-transform:uppercase;color:${gold};font-weight:700;font-family:${sans};">1031 Replacement Property</p>
     </td></tr>
 
     <!-- Hero -->
@@ -620,8 +620,8 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     <!-- Figures -->
     <tr><td style="padding:18px 32px 0;">${bandHtml}</td></tr>
     <!-- Interactive calculators on the listing page -->
-    <tr><td align="center" style="padding:12px 32px 0;">
-      <a href="${d.detailUrl}#investor-calculator" style="font-size:13px;color:${gold};font-weight:700;text-decoration:none;font-family:${sans};letter-spacing:.2px;">Run your numbers &mdash; Cash-on-Cash &amp; ROI calculator &rarr;</a>
+    <tr><td align="center" style="padding:14px 32px 0;">
+      <a href="${d.detailUrl}#investor-calculator" style="font-size:14px;color:${gold};font-weight:700;text-decoration:none;font-family:${sans};letter-spacing:.2px;">&#128200; Cash-on-Cash &nbsp;&middot;&nbsp; &#128202; ROI calculator &rarr;</a>
     </td></tr>
 
     <!-- Hook: the one-second value proposition -->
