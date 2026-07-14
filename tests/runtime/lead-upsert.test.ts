@@ -106,11 +106,17 @@ describe("atomicMergeUpsertLead — SQL contract", () => {
     // Pin every expression that the concurrency contract depends on.
     // If any of these regexes stops matching, a future refactor has
     // broken the DB-side merge and reopened the TOCTOU race.
-    expect(sql).toMatch(/INSERT INTO "Lead"/i);
+    // Must target the REAL physical table `leads` (Prisma @@map("leads")),
+    // aliased `existing` so the merge references the conflict-locked row.
+    // Regression guard: the historical `INSERT INTO "Lead"` (quoted, case-
+    // sensitive) hit a non-existent relation → 42P01 → 16 days of dropped
+    // contact leads (fixed 2026-07-14). Never let the PascalCase name back in.
+    expect(sql).toMatch(/INSERT INTO "leads" AS existing/i);
+    expect(sql).not.toMatch(/"Lead"/);
     expect(sql).toMatch(/ON CONFLICT \("email"\)/i);
     expect(sql).toMatch(/DO UPDATE SET/i);
     expect(sql).toMatch(
-      /unnest\(\s*"Lead"\."roles"\s*\|\|\s*EXCLUDED\."roles"\s*\)/i
+      /unnest\(\s*existing\."roles"\s*\|\|\s*EXCLUDED\."roles"\s*\)/i
     );
     expect(sql).toMatch(/SELECT DISTINCT/i);
     expect(sql).toMatch(/RETURNING/i);
@@ -150,7 +156,7 @@ describe("atomicMergeUpsertLead — SQL contract", () => {
       consentCapturedAt: new Date(),
     });
     expect(capturedSql).toMatch(
-      /COALESCE\(\s*NULLIF\(EXCLUDED\."phone",\s*''\),\s*"Lead"\."phone"\s*\)/i
+      /COALESCE\(\s*NULLIF\(EXCLUDED\."phone",\s*''\),\s*existing\."phone"\s*\)/i
     );
   });
 
