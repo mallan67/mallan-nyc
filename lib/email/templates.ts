@@ -505,26 +505,35 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const dark = BRAND_DARK;
   const p = (s: string) => escapeHtml(s);
 
-  // Bulletproof VML + HTML CTA button (Outlook-safe).
-  const ctaButton = (label: string, url: string) => `
-    <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:0 0 12px;">
+  const serif = "Georgia,'Times New Roman',Times,serif";
+  const sans = "Arial,Helvetica,sans-serif";
+  const line = "#e7e2d6"; // warm hairline
+
+  // Primary CTA — bulletproof VML + HTML, full width, Outlook-safe.
+  const primaryCta = (label: string, url: string) => `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td align="center" style="padding:4px 0;">
       <!--[if mso]>
-      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:46px;v-text-anchor:middle;width:300px;" arcsize="13%" fillcolor="${gold}" stroke="f">
-        <w:anchorlock/><center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;">${p(label)}</center>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:50px;v-text-anchor:middle;width:520px;" arcsize="8%" fillcolor="${dark}" stroke="f">
+        <w:anchorlock/><center style="color:#ffffff;font-family:${sans};font-size:15px;font-weight:bold;letter-spacing:.5px;">${p(label)}</center>
       </v:roundrect>
       <![endif]-->
       <!--[if !mso]><!-->
-      <a href="${url}" style="display:inline-block;padding:14px 36px;background-color:${gold};color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:6px;font-family:Arial,Helvetica,sans-serif;">${p(label)}</a>
+      <a href="${url}" style="display:block;padding:16px 24px;background-color:${dark};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.5px;text-decoration:none;border-radius:4px;font-family:${sans};text-align:center;">${p(label)}</a>
       <!--<![endif]-->
     </td></tr></table>`;
 
-  const row = (label: string, value: string) => value
+  // Secondary "ghost" button (gold outline) — used side by side.
+  const ghost = (label: string, url: string) => `
+    <a href="${url}" style="display:block;padding:13px 10px;border:1px solid ${gold};color:${dark};font-size:13px;font-weight:700;letter-spacing:.3px;text-decoration:none;border-radius:4px;font-family:${sans};text-align:center;">${p(label)}</a>`;
+
+  // Investment-summary row with a hairline divider; the price row is emphasized.
+  const row = (label: string, value: string, big?: boolean) => value
     ? `<tr>
-        <td style="padding:6px 0;font-size:13px;color:#6b7280;font-family:Arial,Helvetica,sans-serif;width:46%;">${p(label)}</td>
-        <td style="padding:6px 0;font-size:14px;color:${dark};font-weight:700;font-family:Arial,Helvetica,sans-serif;">${p(value)}</td>
+        <td style="padding:12px 0;border-top:1px solid ${line};font-size:12px;color:#8a8377;text-transform:uppercase;letter-spacing:.6px;font-family:${sans};width:52%;vertical-align:middle;">${p(label)}</td>
+        <td style="padding:12px 0;border-top:1px solid ${line};font-size:${big ? "20px" : "15px"};color:${dark};font-weight:700;font-family:${big ? serif : sans};text-align:right;vertical-align:middle;">${p(value)}</td>
       </tr>` : "";
 
-  const headline = d.headline || "Tenant-Occupied Manhattan Investment Opportunity";
+  const headline = d.headline || "Tenant-Occupied Investment · 1031 Eligible";
   const intro = d.intro ||
     "A rare chance to acquire an income-producing Midtown residence with an established tenant already in place — a candidate replacement property for a 1031 exchange.";
   const bullets = (d.benefitBullets && d.benefitBullets.length
@@ -535,74 +544,89 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
         "Manhattan residential asset with long-term appreciation potential",
         "May qualify as a like-kind replacement property for a 1031 exchange",
       ]);
-  const beds = d.beds != null ? `${d.beds} BR` : null;
-  const baths = d.baths != null ? `${d.baths} BA` : null;
-  const bedBath = [beds, baths, d.propertyType].filter(Boolean).join(" · ");
+  const beds = d.beds != null ? `${d.beds} Bed` : null;
+  const baths = d.baths != null ? `${d.baths} Bath` : null;
+  const bedBath = [beds, baths, d.propertyType].filter(Boolean).join("  ·  ");
   const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
 
   const heroHtml = d.primaryPhotoUrl
-    ? `<tr><td style="padding:0;"><img src="${p(d.primaryPhotoUrl)}" alt="${p(d.address)}" width="600" style="width:100%;max-width:600px;height:auto;display:block;"></td></tr>`
+    ? `<tr><td style="padding:0;"><img src="${p(d.primaryPhotoUrl)}" alt="${p(d.address)}" width="536" style="width:100%;max-width:536px;height:auto;display:block;"></td></tr>`
     : "";
 
-  const extraPhotos = (d.additionalPhotoUrls || []).slice(0, 4);
-  const extraHtml = extraPhotos.length
-    ? `<tr><td style="padding:12px 0 0;"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${
-        extraPhotos.map((u) => `<td style="padding:0 4px;"><img src="${p(u)}" alt="${p(d.address)}" width="140" style="width:100%;max-width:140px;height:auto;display:block;border:1px solid #e5e7eb;"></td>`).join("")
-      }</tr></table></td></tr>`
-    : "";
+  // "At a glance" band — asking price + in-place rent, the two numbers an
+  // investor reads first. Falls back to price-only when no rent is provided.
+  const glance = d.currentRent
+    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 22px;"><tr>
+         <td width="50%" style="padding:14px 16px 14px 0;border-top:2px solid ${gold};">
+           <p style="margin:0 0 3px;font-size:11px;letter-spacing:.8px;color:#8a8377;text-transform:uppercase;font-family:${sans};">Asking Price</p>
+           <p style="margin:0;font-size:26px;color:${dark};font-family:${serif};font-weight:700;">${p(d.price)}</p>
+         </td>
+         <td width="50%" style="padding:14px 0 14px 16px;border-top:2px solid ${gold};border-left:1px solid ${line};">
+           <p style="margin:0 0 3px;font-size:11px;letter-spacing:.8px;color:#8a8377;text-transform:uppercase;font-family:${sans};">In-Place Rent</p>
+           <p style="margin:0;font-size:26px;color:${dark};font-family:${serif};font-weight:700;">${p(d.currentRent)}</p>
+         </td>
+       </tr></table>`
+    : `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 22px;"><tr>
+         <td style="padding:14px 0;border-top:2px solid ${gold};">
+           <p style="margin:0 0 3px;font-size:11px;letter-spacing:.8px;color:#8a8377;text-transform:uppercase;font-family:${sans};">Asking Price</p>
+           <p style="margin:0;font-size:28px;color:${dark};font-family:${serif};font-weight:700;">${p(d.price)}</p>
+         </td>
+       </tr></table>`;
 
   return wrapEmail(`
-    <!-- Header -->
-    <p style="font-size:12px;font-weight:700;letter-spacing:1px;color:${gold};text-transform:uppercase;margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;">${p(headline)}</p>
-    <p style="font-size:22px;font-weight:800;color:${dark};margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;">${p(d.address)}</p>
-    ${d.neighborhood ? `<p style="font-size:14px;color:#6b7280;margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;">${p(d.neighborhood)}</p>` : ""}
+    <!-- Eyebrow + address -->
+    <p style="font-size:11px;font-weight:700;letter-spacing:2px;color:${gold};text-transform:uppercase;margin:0 0 10px;font-family:${sans};">${p(headline)}</p>
+    <p style="font-size:27px;line-height:1.2;font-weight:700;color:${dark};margin:0 0 4px;font-family:${serif};">${p(d.address)}</p>
+    ${d.neighborhood ? `<p style="font-size:14px;color:#8a8377;margin:0 0 4px;font-family:${sans};letter-spacing:.3px;">${p(d.neighborhood)}</p>` : ""}
+    ${bedBath ? `<p style="font-size:13px;color:#6b7280;margin:0 0 18px;font-family:${sans};">${p(bedBath)}</p>` : `<div style="height:8px;line-height:8px;">&nbsp;</div>`}
 
-    <!-- Hero + thumbnails -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;border:1px solid #e5e7eb;">
-      ${heroHtml}${extraHtml}
+    <!-- Hero -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 22px;">
+      ${heroHtml}
     </table>
 
+    <!-- At a glance -->
+    ${glance}
+
     <!-- Intro -->
-    <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;">${p(intro)}</p>
+    <p style="font-size:15px;color:#3f3f46;line-height:1.7;margin:0 0 24px;font-family:${sans};">${p(intro)}</p>
 
     <!-- Investment summary -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;margin:0 0 22px;">
-      <tr><td style="padding:16px 20px;">
-        <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${gold};margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;">Investment Summary</p>
-        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-          ${row("Asking price", d.price)}
-          ${bedBath ? row("Residence", bedBath) : ""}
-          ${row("Current monthly rent", d.currentRent || "")}
-          ${row("Lease expiration", d.leaseExpiration || "")}
-          ${row("Monthly maintenance", d.maintenance || "")}
-          ${row("Tenancy", "Existing tenant in place")}
-        </table>
-      </td></tr>
+    <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${gold};margin:0 0 2px;font-family:${sans};">Investment Summary</p>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 26px;">
+      ${row("Asking price", d.price, true)}
+      ${bedBath ? row("Residence", bedBath) : ""}
+      ${row("Current monthly rent", d.currentRent || "")}
+      ${row("Lease expiration", d.leaseExpiration || "")}
+      ${row("Monthly maintenance", d.maintenance || "")}
+      ${row("Tenancy", "Tenant in place")}
     </table>
 
     <!-- Why a 1031 buyer -->
-    <p style="font-size:16px;font-weight:700;color:${dark};margin:0 0 10px;font-family:Arial,Helvetica,sans-serif;">Why this may appeal to a 1031 buyer</p>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;">
+    <p style="font-size:18px;font-weight:700;color:${dark};margin:0 0 12px;font-family:${serif};">Why this suits a 1031 exchange</p>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 26px;">
       ${bullets.map((b) => `<tr>
-        <td valign="top" style="padding:2px 8px 2px 0;font-size:15px;color:${gold};font-family:Arial,Helvetica,sans-serif;">&bull;</td>
-        <td style="padding:2px 0;font-size:14px;color:#374151;line-height:1.5;font-family:Arial,Helvetica,sans-serif;">${p(b)}</td>
+        <td valign="top" style="padding:4px 12px 4px 0;font-size:14px;color:${gold};font-family:${sans};line-height:1.6;">&#9670;</td>
+        <td style="padding:4px 0;font-size:14px;color:#3f3f46;line-height:1.6;font-family:${sans};">${p(b)}</td>
       </tr>`).join("")}
     </table>
 
     ${d.locationBlurb ? `
-    <p style="font-size:16px;font-weight:700;color:${dark};margin:0 0 8px;font-family:Arial,Helvetica,sans-serif;">Building &amp; location</p>
-    <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 22px;font-family:Arial,Helvetica,sans-serif;">${p(d.locationBlurb)}</p>` : ""}
+    <p style="font-size:18px;font-weight:700;color:${dark};margin:0 0 10px;font-family:${serif};">Building &amp; location</p>
+    <p style="font-size:14px;color:#3f3f46;line-height:1.7;margin:0 0 26px;font-family:${sans};">${p(d.locationBlurb)}</p>` : ""}
 
-    <!-- CTAs -->
-    ${ctaButton(d.ctaViewListing || "View Full Listing", d.detailUrl)}
-    ${ctaButton(d.ctaFinancials || "Request Financial Details", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financial details — " + d.address)}`)}
-    ${ctaButton(d.ctaShowing || "Schedule a Private Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}
+    <!-- CTAs: one primary, two secondary side by side -->
+    ${primaryCta(d.ctaViewListing || "View the Full Listing", d.detailUrl)}
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:8px 0 4px;"><tr>
+      <td width="50%" style="padding:4px 6px 4px 0;">${ghost(d.ctaFinancials || "Request Financials", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financial details — " + d.address)}`)}</td>
+      <td width="50%" style="padding:4px 0 4px 6px;">${ghost(d.ctaShowing || "Schedule a Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}</td>
+    </tr></table>
 
     <!-- 1031 disclaimer -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0 8px;"><tr>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:22px 0 8px;"><tr>
       <td width="3" style="background-color:${gold};"></td>
-      <td style="padding:10px 14px;background-color:#f9fafb;">
-        <p style="font-size:11px;color:#6b7280;line-height:1.5;margin:0;font-family:Arial,Helvetica,sans-serif;">
+      <td style="padding:12px 16px;background-color:#faf8f3;">
+        <p style="font-size:11px;color:#8a8377;line-height:1.6;margin:0;font-family:${sans};">
           This message is for informational purposes only and is not tax, legal, or investment advice.
           Whether this property qualifies as a like-kind replacement property, and all applicable
           identification and closing deadlines, must be confirmed by the buyer's own attorney, tax
@@ -612,12 +636,13 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     </tr></table>
 
     <!-- Signature -->
-    <p style="font-size:14px;color:#374151;margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;">
-      ${p(d.agentName)}${d.agentTitle ? `<br><span style="color:#6b7280;font-size:13px;">${p(d.agentTitle)}</span>` : ""}
-      ${d.agentPhone ? `<br><span style="color:#6b7280;font-size:13px;">${p(d.agentPhone)}</span>` : ""}
-      ${d.agentEmail ? `<br><a href="mailto:${p(d.agentEmail)}" style="color:${gold};font-size:13px;">${p(d.agentEmail)}</a>` : ""}
-    </p>
-    <p style="font-size:11px;color:#9ca3af;margin:14px 0 0;font-family:Arial,Helvetica,sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:24px 0 0;border-top:1px solid ${line};"><tr><td style="padding:18px 0 0;">
+      <p style="font-size:15px;color:${dark};margin:0;font-family:${serif};font-weight:700;">${p(d.agentName)}</p>
+      ${d.agentTitle ? `<p style="color:#8a8377;font-size:12px;margin:2px 0 0;font-family:${sans};">${p(d.agentTitle)}</p>` : ""}
+      ${d.agentPhone ? `<p style="color:#6b7280;font-size:12px;margin:2px 0 0;font-family:${sans};">${p(d.agentPhone)}</p>` : ""}
+      ${d.agentEmail ? `<p style="margin:2px 0 0;"><a href="mailto:${p(d.agentEmail)}" style="color:${gold};font-size:12px;font-family:${sans};">${p(d.agentEmail)}</a></p>` : ""}
+    </td></tr></table>
+    <p style="font-size:11px;color:#9ca3af;margin:16px 0 0;font-family:${sans};">
       Prefer not to receive investment opportunities? <a href="${p(unsub)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>.
     </p>
   `);
