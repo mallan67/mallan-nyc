@@ -37,6 +37,7 @@ import { affirmPermission } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dbListingToPublicDTO, type DbListing } from "@/lib/idx/db-to-public-dto";
 import { investorListingEmail, type InvestorListingEmailData } from "@/lib/email/templates";
+import { computeInvestmentMetrics, parseMoney } from "@/lib/email/investment-metrics";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
 import {
@@ -232,34 +233,50 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ── Build the email data from the DTO + agent-entered investor facts ─────────
+  // ── Compute investment metrics + resolve the floor plan ─────────────────────
+  // The DTO media is photo-first via the shared resolver, so the hero is a Photo
+  // and the FloorPlan is pulled out separately for its own section (never the hero).
+  const sqft = dto.livingArea ?? null;
+  const metrics = computeInvestmentMetrics({
+    price: dto.listPrice || 0,
+    monthlyRent: parseMoney(body.currentRent),
+    monthlyMaintenance: parseMoney(body.maintenance),
+    sqft,
+  });
   const photoUrls = dto.media.filter((m) => m.mediaType === "Photo").map((m) => m.url);
+  const floorPlanUrl = dto.media.find((m) => m.mediaType === "FloorPlan")?.url ?? null;
+
   const emailData: InvestorListingEmailData = {
     address: dtoAddressLine(dto),
     neighborhood: dto.address.neighborhood ?? null,
     price: dto.listPrice ? `$${dto.listPrice.toLocaleString()}` : "Price upon request",
     beds: dto.bedroomsTotal ?? null,
     baths: dto.bathroomsFull ?? null,
+    sqft,
     propertyType: dto.propertyType ?? null,
     maintenance: strOrNull(body.maintenance),
     currentRent: strOrNull(body.currentRent),
     leaseExpiration: strOrNull(body.leaseExpiration),
-    // The investor template inserts the CTA URL RAW into an href (ctaButton),
-    // so escape it here at the boundary — every other template field is escaped
-    // internally by investorListingEmail. `&` → `&amp;` is correct href encoding.
+    // The template inserts the CTA URL RAW into an href, so escape it at the
+    // boundary — photo/floor-plan/other fields are escaped inside the template.
     detailUrl: escapeHtml(dto.url.startsWith("http") ? dto.url : `${BASE_URL}${dto.url}`),
     primaryPhotoUrl: photoUrls[0] ?? null,
-    additionalPhotoUrls: photoUrls.slice(1, 4),
+    floorPlanUrl,
+    metrics,
     headline: strOrUndef(body.headline),
     intro: strOrUndef(body.intro),
     benefitBullets: Array.isArray(body.benefitBullets)
       ? (body.benefitBullets as unknown[]).map(String)
       : undefined,
     locationBlurb: strOrUndef(body.locationBlurb),
+    logoUrl: `${BASE_URL}/images/mallan-logo.png`,
+    equalHousingLogoUrl: `${BASE_URL}/images/equal-housing-logo.svg`,
     agentName: strOrUndef(body.agentName) || "Maya Allan",
-    agentTitle: strOrNull(body.agentTitle) || "Principal Broker, Mallan Real Estate Inc.",
+    agentTitle: strOrNull(body.agentTitle) || "Principal Broker",
+    agentLicense: strOrNull(body.agentLicense) || "10311201806",
     agentPhone: strOrNull(body.agentPhone) || "646-258-4460",
-    agentEmail: strOrNull(body.agentEmail),
+    agentEmail: strOrNull(body.agentEmail) || "maya@mallan.nyc",
+    officeAddress: "400 East 90th Street, Suite 17C, New York, NY 10128",
   };
   const html = investorListingEmail(emailData);
 

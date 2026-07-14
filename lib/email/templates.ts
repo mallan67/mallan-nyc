@@ -4,6 +4,7 @@
 // COMPLIANCE: Fair Housing disclaimer + REBNY attribution included.
 
 import { escapeHtml } from "@/lib/sanitize";
+import { METHODOLOGY_NOTE, type InvestmentMetrics } from "./investment-metrics";
 
 const BRAND_GOLD = "#C4A052";
 const BRAND_DARK = "#1a1a1a";
@@ -474,18 +475,24 @@ export function listingSendEmail(
  * tokenless). The 1031 disclaimer directs recipients to their own advisers.
  */
 export interface InvestorListingEmailData {
+  // ── Listing identity ──
   address: string;
   neighborhood?: string | null;
   price: string;
   beds?: number | null;
   baths?: number | null;
+  sqft?: number | null;
   propertyType?: string | null;
   maintenance?: string | null;
   currentRent?: string | null;
   leaseExpiration?: string | null;
   detailUrl: string;
   primaryPhotoUrl?: string | null;
-  additionalPhotoUrls?: string[];
+  floorPlanUrl?: string | null;
+  // ── Computed investment metrics (headline band + snapshot table) ──
+  metrics?: InvestmentMetrics | null;
+  methodologyNote?: string | null;
+  // ── Editable copy ──
   headline?: string;
   intro?: string;
   benefitBullets?: string[];
@@ -493,159 +500,241 @@ export interface InvestorListingEmailData {
   ctaViewListing?: string;
   ctaFinancials?: string;
   ctaShowing?: string;
+  // ── Brand + full agent credentials ──
+  logoUrl?: string | null;
+  equalHousingLogoUrl?: string | null;
   agentName: string;
   agentTitle?: string | null;
+  agentLicense?: string | null;
   agentPhone?: string | null;
   agentEmail?: string | null;
+  brokerName?: string | null;
+  brokerLicense?: string | null;
+  officeAddress?: string | null;
+  officePhone?: string | null;
   unsubscribeUrl?: string | null;
 }
 
 export function investorListingEmail(d: InvestorListingEmailData): string {
   const gold = BRAND_GOLD;
-  const dark = BRAND_DARK;
-  const p = (s: string) => escapeHtml(s);
-
+  const ink = "#14161a";
+  const panel = "#111318";       // dark metric band
+  const soft = "#f7f6f3";        // light neutral card
+  const line = "#e6e4df";        // hairline
+  const muted = "#6f6a63";
   const serif = "Georgia,'Times New Roman',Times,serif";
   const sans = "Arial,Helvetica,sans-serif";
-  const line = "#e7e2d6"; // warm hairline
+  const p = (s: string) => escapeHtml(s);
+
+  const logo = d.logoUrl || `${BASE_URL}/images/mallan-logo.png`;
+  const eqLogo = d.equalHousingLogoUrl || `${BASE_URL}/images/equal-housing-logo.svg`;
+  const brokerName = d.brokerName || "Mallan Real Estate Inc.";
+  const brokerLicense = d.brokerLicense || "10991205323";
+  const officeAddress = d.officeAddress || "400 East 90th Street, Suite 17C, New York, NY 10128";
+  const officePhone = d.officePhone || "646-258-4460";
+  const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
+  const methodology = d.methodologyNote || METHODOLOGY_NOTE;
+
+  const headline = d.headline || "Tenant-Occupied Investment · 1031 Eligible";
+  const intro = d.intro ||
+    "An income-producing Manhattan residence delivered with an established tenant already in place — generating rent from the day of closing and positioned as a candidate replacement property for a 1031 exchange.";
+  const bullets = (d.benefitBullets && d.benefitBullets.length
+    ? d.benefitBullets
+    : [
+        "In-place rental income from the date of closing — no lease-up or vacancy period",
+        "Tenant established; lease secured through the expiration date shown above",
+        "Manhattan residential asset with long-term appreciation potential",
+        "Candidate like-kind replacement property for a 1031 exchange",
+      ]);
+  const beds = d.beds != null ? `${d.beds} Bed` : null;
+  const baths = d.baths != null ? `${d.baths} Bath` : null;
+  const sqftStr = d.sqft != null ? `${Math.round(d.sqft).toLocaleString("en-US")} SF` : null;
+  const specLine = [beds, baths, sqftStr, d.propertyType].filter(Boolean).join("  ·  ");
 
   // Primary CTA — bulletproof VML + HTML, full width, Outlook-safe.
   const primaryCta = (label: string, url: string) => `
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td align="center" style="padding:4px 0;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td align="center">
       <!--[if mso]>
-      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:50px;v-text-anchor:middle;width:520px;" arcsize="8%" fillcolor="${dark}" stroke="f">
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:50px;v-text-anchor:middle;width:520px;" arcsize="6%" fillcolor="${ink}" stroke="f">
         <w:anchorlock/><center style="color:#ffffff;font-family:${sans};font-size:15px;font-weight:bold;letter-spacing:.5px;">${p(label)}</center>
       </v:roundrect>
       <![endif]-->
       <!--[if !mso]><!-->
-      <a href="${url}" style="display:block;padding:16px 24px;background-color:${dark};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.5px;text-decoration:none;border-radius:4px;font-family:${sans};text-align:center;">${p(label)}</a>
+      <a href="${url}" style="display:block;padding:16px 24px;background-color:${ink};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.5px;text-decoration:none;border-radius:3px;font-family:${sans};text-align:center;">${p(label)}</a>
       <!--<![endif]-->
     </td></tr></table>`;
-
-  // Secondary "ghost" button (gold outline) — used side by side.
   const ghost = (label: string, url: string) => `
-    <a href="${url}" style="display:block;padding:13px 10px;border:1px solid ${gold};color:${dark};font-size:13px;font-weight:700;letter-spacing:.3px;text-decoration:none;border-radius:4px;font-family:${sans};text-align:center;">${p(label)}</a>`;
+    <a href="${url}" style="display:block;padding:13px 8px;border:1px solid ${ink};color:${ink};font-size:12px;font-weight:700;letter-spacing:.4px;text-decoration:none;border-radius:3px;font-family:${sans};text-align:center;">${p(label)}</a>`;
 
-  // Investment-summary row with a hairline divider; the price row is emphasized.
-  const row = (label: string, value: string, big?: boolean) => value
+  // Headline metric band (dark) — 1–4 lead numbers.
+  const bandCards = d.metrics && d.metrics.headline.length ? d.metrics.headline : [{ label: "Asking Price", value: d.price }];
+  const cardW = Math.floor(100 / bandCards.length);
+  const bandHtml = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" bgcolor="${panel}" style="background-color:${panel};"><tr>${
+    bandCards.map((c, i) => `<td width="${cardW}%" style="padding:20px 16px;${i > 0 ? "border-left:1px solid #262931;" : ""}vertical-align:top;">
+        <p style="margin:0 0 7px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${gold};font-family:${sans};">${p(c.label)}</p>
+        <p style="margin:0;font-size:22px;line-height:1.1;color:#ffffff;font-family:${serif};font-weight:700;">${p(c.value)}</p>
+      </td>`).join("")
+  }</tr></table>`;
+
+  // Financial-snapshot row (hairline divider; emphasis rows larger + serif).
+  const snapRow = (label: string, value: string, emphasis?: boolean) => value
     ? `<tr>
-        <td style="padding:12px 0;border-top:1px solid ${line};font-size:12px;color:#8a8377;text-transform:uppercase;letter-spacing:.6px;font-family:${sans};width:52%;vertical-align:middle;">${p(label)}</td>
-        <td style="padding:12px 0;border-top:1px solid ${line};font-size:${big ? "20px" : "15px"};color:${dark};font-weight:700;font-family:${big ? serif : sans};text-align:right;vertical-align:middle;">${p(value)}</td>
+        <td style="padding:11px 0;border-top:1px solid ${line};font-size:11px;color:${muted};text-transform:uppercase;letter-spacing:.6px;font-family:${sans};width:60%;vertical-align:middle;">${p(label)}</td>
+        <td style="padding:11px 0;border-top:1px solid ${line};font-size:${emphasis ? "17px" : "14px"};color:${emphasis ? ink : "#33322f"};font-weight:700;font-family:${emphasis ? serif : sans};text-align:right;vertical-align:middle;">${p(value)}</td>
       </tr>` : "";
-
-  const headline = d.headline || "Tenant-Occupied Investment · 1031 Eligible";
-  const intro = d.intro ||
-    "A rare chance to acquire an income-producing Midtown residence with an established tenant already in place — a candidate replacement property for a 1031 exchange.";
-  const bullets = (d.benefitBullets && d.benefitBullets.length
-    ? d.benefitBullets
-    : [
-        "Existing rental income from the date of closing — no lease-up period",
-        "Tenant already established; lease secured through the expiration date below",
-        "Manhattan residential asset with long-term appreciation potential",
-        "May qualify as a like-kind replacement property for a 1031 exchange",
-      ]);
-  const beds = d.beds != null ? `${d.beds} Bed` : null;
-  const baths = d.baths != null ? `${d.baths} Bath` : null;
-  const bedBath = [beds, baths, d.propertyType].filter(Boolean).join("  ·  ");
-  const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
+  const snapHtml = `${(d.metrics?.rows || [{ label: "Asking price", value: d.price, emphasis: true }]).map((r) => snapRow(r.label, r.value, r.emphasis)).join("")}
+      ${snapRow("Lease expiration", d.leaseExpiration || "")}
+      ${snapRow("Tenancy", "Tenant in place")}`;
 
   const heroHtml = d.primaryPhotoUrl
-    ? `<tr><td style="padding:0;"><img src="${p(d.primaryPhotoUrl)}" alt="${p(d.address)}" width="536" style="width:100%;max-width:536px;height:auto;display:block;"></td></tr>`
+    ? `<img src="${p(d.primaryPhotoUrl)}" alt="${p(d.address)}" width="600" style="width:100%;max-width:600px;height:auto;display:block;">`
+    : "";
+  const floorSection = d.floorPlanUrl
+    ? `<tr><td style="padding:26px 32px 0;">
+         ${sectionTitle("Floor Plan", gold, sans)}
+         <img src="${p(d.floorPlanUrl)}" alt="Floor plan — ${p(d.address)}" width="536" style="width:100%;max-width:536px;height:auto;display:block;border:1px solid ${line};">
+       </td></tr>`
     : "";
 
-  // "At a glance" band — asking price + in-place rent, the two numbers an
-  // investor reads first. Falls back to price-only when no rent is provided.
-  const glance = d.currentRent
-    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 22px;"><tr>
-         <td width="50%" style="padding:14px 16px 14px 0;border-top:2px solid ${gold};">
-           <p style="margin:0 0 3px;font-size:11px;letter-spacing:.8px;color:#8a8377;text-transform:uppercase;font-family:${sans};">Asking Price</p>
-           <p style="margin:0;font-size:26px;color:${dark};font-family:${serif};font-weight:700;">${p(d.price)}</p>
-         </td>
-         <td width="50%" style="padding:14px 0 14px 16px;border-top:2px solid ${gold};border-left:1px solid ${line};">
-           <p style="margin:0 0 3px;font-size:11px;letter-spacing:.8px;color:#8a8377;text-transform:uppercase;font-family:${sans};">In-Place Rent</p>
-           <p style="margin:0;font-size:26px;color:${dark};font-family:${serif};font-weight:700;">${p(d.currentRent)}</p>
-         </td>
-       </tr></table>`
-    : `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 22px;"><tr>
-         <td style="padding:14px 0;border-top:2px solid ${gold};">
-           <p style="margin:0 0 3px;font-size:11px;letter-spacing:.8px;color:#8a8377;text-transform:uppercase;font-family:${sans};">Asking Price</p>
-           <p style="margin:0;font-size:28px;color:${dark};font-family:${serif};font-weight:700;">${p(d.price)}</p>
-         </td>
-       </tr></table>`;
-
-  return wrapEmail(`
-    <!-- Eyebrow + address -->
-    <p style="font-size:11px;font-weight:700;letter-spacing:2px;color:${gold};text-transform:uppercase;margin:0 0 10px;font-family:${sans};">${p(headline)}</p>
-    <p style="font-size:27px;line-height:1.2;font-weight:700;color:${dark};margin:0 0 4px;font-family:${serif};">${p(d.address)}</p>
-    ${d.neighborhood ? `<p style="font-size:14px;color:#8a8377;margin:0 0 4px;font-family:${sans};letter-spacing:.3px;">${p(d.neighborhood)}</p>` : ""}
-    ${bedBath ? `<p style="font-size:13px;color:#6b7280;margin:0 0 18px;font-family:${sans};">${p(bedBath)}</p>` : `<div style="height:8px;line-height:8px;">&nbsp;</div>`}
+  const body = `
+    <!-- Header: logo + offering label -->
+    <tr><td style="padding:22px 32px;border-bottom:1px solid ${line};">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+        <td style="vertical-align:middle;"><img src="${logo}" alt="${p(brokerName)}" height="26" style="height:26px;width:auto;display:block;"></td>
+        <td align="right" style="vertical-align:middle;"><span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${gold};font-weight:700;font-family:${sans};">Investment Offering</span></td>
+      </tr></table>
+    </td></tr>
 
     <!-- Hero -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 22px;">
-      ${heroHtml}
-    </table>
+    <tr><td style="padding:0;">${heroHtml}</td></tr>
 
-    <!-- At a glance -->
-    ${glance}
+    <!-- Address block -->
+    <tr><td style="padding:26px 32px 6px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:2px;color:${gold};text-transform:uppercase;margin:0 0 10px;font-family:${sans};">${p(headline)}</p>
+      <p style="font-size:26px;line-height:1.15;font-weight:700;color:${ink};margin:0 0 5px;font-family:${serif};">${p(d.address)}</p>
+      ${d.neighborhood ? `<p style="font-size:14px;color:${muted};margin:0 0 3px;font-family:${sans};letter-spacing:.3px;">${p(d.neighborhood)}</p>` : ""}
+      ${specLine ? `<p style="font-size:12px;color:#8a857c;margin:0;font-family:${sans};letter-spacing:.5px;text-transform:uppercase;">${p(specLine)}</p>` : ""}
+    </td></tr>
 
-    <!-- Intro -->
-    <p style="font-size:15px;color:#3f3f46;line-height:1.7;margin:0 0 24px;font-family:${sans};">${p(intro)}</p>
+    <!-- Metric band -->
+    <tr><td style="padding:18px 32px 0;">${bandHtml}</td></tr>
 
-    <!-- Investment summary -->
-    <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${gold};margin:0 0 2px;font-family:${sans};">Investment Summary</p>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 26px;">
-      ${row("Asking price", d.price, true)}
-      ${bedBath ? row("Residence", bedBath) : ""}
-      ${row("Current monthly rent", d.currentRent || "")}
-      ${row("Lease expiration", d.leaseExpiration || "")}
-      ${row("Monthly maintenance", d.maintenance || "")}
-      ${row("Tenancy", "Tenant in place")}
-    </table>
+    <!-- The opportunity -->
+    <tr><td style="padding:26px 32px 0;">
+      ${sectionTitle("The Opportunity", gold, sans)}
+      <p style="font-size:15px;color:#3a3833;line-height:1.7;margin:0;font-family:${sans};">${p(intro)}</p>
+    </td></tr>
 
-    <!-- Why a 1031 buyer -->
-    <p style="font-size:18px;font-weight:700;color:${dark};margin:0 0 12px;font-family:${serif};">Why this suits a 1031 exchange</p>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0 0 26px;">
-      ${bullets.map((b) => `<tr>
-        <td valign="top" style="padding:4px 12px 4px 0;font-size:14px;color:${gold};font-family:${sans};line-height:1.6;">&#9670;</td>
-        <td style="padding:4px 0;font-size:14px;color:#3f3f46;line-height:1.6;font-family:${sans};">${p(b)}</td>
-      </tr>`).join("")}
-    </table>
+    <!-- Financial snapshot -->
+    <tr><td style="padding:26px 32px 0;">
+      ${sectionTitle("Financial Snapshot", gold, sans)}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">${snapHtml}</table>
+      <p style="font-size:10px;color:#a49e93;line-height:1.5;margin:12px 0 0;font-family:${sans};">${p(methodology)}</p>
+    </td></tr>
 
-    ${d.locationBlurb ? `
-    <p style="font-size:18px;font-weight:700;color:${dark};margin:0 0 10px;font-family:${serif};">Building &amp; location</p>
-    <p style="font-size:14px;color:#3f3f46;line-height:1.7;margin:0 0 26px;font-family:${sans};">${p(d.locationBlurb)}</p>` : ""}
+    <!-- Investment highlights -->
+    <tr><td style="padding:26px 32px 0;">
+      ${sectionTitle("Investment Highlights", gold, sans)}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+        ${bullets.map((b) => `<tr>
+          <td valign="top" style="padding:5px 12px 5px 0;font-size:13px;color:${gold};font-family:${sans};line-height:1.6;">&#9670;</td>
+          <td style="padding:5px 0;font-size:14px;color:#3a3833;line-height:1.6;font-family:${sans};">${p(b)}</td>
+        </tr>`).join("")}
+      </table>
+    </td></tr>
 
-    <!-- CTAs: one primary, two secondary side by side -->
-    ${primaryCta(d.ctaViewListing || "View the Full Listing", d.detailUrl)}
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:8px 0 4px;"><tr>
-      <td width="50%" style="padding:4px 6px 4px 0;">${ghost(d.ctaFinancials || "Request Financials", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financial details — " + d.address)}`)}</td>
-      <td width="50%" style="padding:4px 0 4px 6px;">${ghost(d.ctaShowing || "Schedule a Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}</td>
-    </tr></table>
+    ${floorSection}
 
-    <!-- 1031 disclaimer -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:22px 0 8px;"><tr>
-      <td width="3" style="background-color:${gold};"></td>
-      <td style="padding:12px 16px;background-color:#faf8f3;">
-        <p style="font-size:11px;color:#8a8377;line-height:1.6;margin:0;font-family:${sans};">
-          This message is for informational purposes only and is not tax, legal, or investment advice.
-          Whether this property qualifies as a like-kind replacement property, and all applicable
-          identification and closing deadlines, must be confirmed by the buyer's own attorney, tax
-          adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.
+    ${d.locationBlurb ? `<tr><td style="padding:26px 32px 0;">
+      ${sectionTitle("Building & Location", gold, sans)}
+      <p style="font-size:14px;color:#3a3833;line-height:1.7;margin:0;font-family:${sans};">${p(d.locationBlurb)}</p>
+    </td></tr>` : ""}
+
+    <!-- CTAs -->
+    <tr><td style="padding:28px 32px 0;">
+      ${primaryCta(d.ctaViewListing || "View the Full Listing", d.detailUrl)}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top:10px;"><tr>
+        <td width="50%" style="padding-right:6px;">${ghost(d.ctaFinancials || "Request Financials", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financials — " + d.address)}`)}</td>
+        <td width="50%" style="padding-left:6px;">${ghost(d.ctaShowing || "Schedule a Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}</td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Disclaimer -->
+    <tr><td style="padding:24px 32px 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+        <td width="3" style="background-color:${gold};"></td>
+        <td style="padding:12px 16px;background-color:${soft};">
+          <p style="font-size:11px;color:${muted};line-height:1.6;margin:0;font-family:${sans};">
+            Informational purposes only — not tax, legal, or investment advice. Financial figures are illustrative
+            estimates based on figures provided and must be independently verified. Whether this property qualifies as a
+            like-kind replacement property, and all 1031 identification and closing deadlines, must be confirmed by the
+            buyer's own attorney, tax adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.
+          </p>
+        </td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Agent contact card -->
+    <tr><td style="padding:26px 32px 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border:1px solid ${line};background-color:${soft};"><tr>
+        <td style="padding:20px 22px;">
+          <p style="font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:${gold};font-weight:700;margin:0 0 8px;font-family:${sans};">Presented By</p>
+          <p style="font-size:17px;color:${ink};margin:0;font-family:${serif};font-weight:700;">${p(d.agentName)}</p>
+          ${d.agentTitle ? `<p style="color:${muted};font-size:12px;margin:3px 0 0;font-family:${sans};">${p(d.agentTitle)}</p>` : ""}
+          ${d.agentLicense ? `<p style="color:${muted};font-size:11px;margin:2px 0 0;font-family:${sans};">NY DOS Lic. #${p(d.agentLicense)}</p>` : ""}
+          <p style="color:${muted};font-size:11px;margin:2px 0 0;font-family:${sans};">${p(brokerName)} · Licensed Real Estate Broker · NY DOS #${p(brokerLicense)}</p>
+          <p style="margin:10px 0 0;font-family:${sans};font-size:13px;color:${ink};">
+            ${d.agentPhone ? `<span style="font-weight:700;">${p(d.agentPhone)}</span>` : ""}${d.agentPhone && d.agentEmail ? `&nbsp;&nbsp;·&nbsp;&nbsp;` : ""}${d.agentEmail ? `<a href="mailto:${p(d.agentEmail)}" style="color:${gold};text-decoration:none;font-weight:700;">${p(d.agentEmail)}</a>` : ""}
+          </p>
+          <p style="color:${muted};font-size:11px;margin:4px 0 0;font-family:${sans};">${p(officeAddress)}</p>
+        </td>
+      </tr></table>
+    </td></tr>
+
+    <!-- Compliance footer -->
+    <tr><td style="padding:24px 32px 30px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-top:1px solid ${line};"><tr><td style="padding:16px 0 0;">
+        <table cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
+          <td style="vertical-align:middle;padding-right:10px;"><img src="${eqLogo}" alt="Equal Housing Opportunity" width="26" height="26" style="width:26px;height:26px;display:block;"></td>
+          <td style="vertical-align:middle;"><p style="font-size:11px;color:#9a948a;margin:0;font-family:${sans};line-height:1.5;">${p(brokerName)} &nbsp;|&nbsp; ${p(officeAddress)}<br>Licensed Real Estate Broker &nbsp;|&nbsp; NY DOS #${p(brokerLicense)} &nbsp;|&nbsp; ${p(officePhone)}</p></td>
+        </tr></table>
+        <p style="font-size:10px;color:#a8a29a;line-height:1.6;margin:12px 0 0;font-family:${sans};">
+          Mallan Real Estate Inc. is committed to compliance with the Fair Housing Act, the New York State Human Rights Law, and the
+          NYC Human Rights Law (Title 8). We do not discriminate on the basis of race, color, religion, sex, national origin, familial
+          status, disability, sexual orientation, gender identity, marital status, age, lawful source of income, or any other protected class.
         </p>
-      </td>
-    </tr></table>
+        <p style="font-size:11px;margin:12px 0 0;font-family:${sans};">
+          <a href="${BASE_URL}/fair-housing" style="color:${gold};text-decoration:underline;">Fair Housing</a> &nbsp;|&nbsp;
+          <a href="${BASE_URL}/privacy" style="color:${gold};text-decoration:underline;">Privacy</a> &nbsp;|&nbsp;
+          <a href="${p(unsub)}" style="color:#9a948a;text-decoration:underline;">Unsubscribe</a>
+        </p>
+      </td></tr></table>
+    </td></tr>`;
 
-    <!-- Signature -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:24px 0 0;border-top:1px solid ${line};"><tr><td style="padding:18px 0 0;">
-      <p style="font-size:15px;color:${dark};margin:0;font-family:${serif};font-weight:700;">${p(d.agentName)}</p>
-      ${d.agentTitle ? `<p style="color:#8a8377;font-size:12px;margin:2px 0 0;font-family:${sans};">${p(d.agentTitle)}</p>` : ""}
-      ${d.agentPhone ? `<p style="color:#6b7280;font-size:12px;margin:2px 0 0;font-family:${sans};">${p(d.agentPhone)}</p>` : ""}
-      ${d.agentEmail ? `<p style="margin:2px 0 0;"><a href="mailto:${p(d.agentEmail)}" style="color:${gold};font-size:12px;font-family:${sans};">${p(d.agentEmail)}</a></p>` : ""}
-    </td></tr></table>
-    <p style="font-size:11px;color:#9ca3af;margin:16px 0 0;font-family:${sans};">
-      Prefer not to receive investment opportunities? <a href="${p(unsub)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>.
-    </p>
-  `);
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style type="text/css">body,table,td{font-family:${sans};} img{border:0;line-height:100%;outline:none;text-decoration:none;} a{color:${gold};}</style>
+</head>
+<body style="margin:0;padding:0;background-color:#ecebe7;width:100%;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color:#ecebe7;">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="background-color:#ffffff;border:1px solid ${line};max-width:600px;width:100%;">
+      ${body}
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/** Small gold section eyebrow used across the investor email. */
+function sectionTitle(t: string, gold: string, sans: string): string {
+  return `<p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:${gold};margin:0 0 12px;font-family:${sans};">${escapeHtml(t)}</p>`;
 }
 
 /**
