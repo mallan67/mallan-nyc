@@ -236,7 +236,9 @@ export async function POST(req: NextRequest) {
   // ── Compute investment metrics + resolve the floor plan ─────────────────────
   // The DTO media is photo-first via the shared resolver, so the hero is a Photo
   // and the FloorPlan is pulled out separately for its own section (never the hero).
-  const sqft = dto.livingArea ?? null;
+  // Square footage: prefer the listing's value; allow a compose-form override so
+  // it always shows even when the listing record is missing it.
+  const sqft = parseMoney(body.sqft) ?? dto.livingArea ?? null;
   const metrics = computeInvestmentMetrics({
     price: dto.listPrice || 0,
     monthlyRent: parseMoney(body.currentRent),
@@ -271,9 +273,9 @@ export async function POST(req: NextRequest) {
     locationBlurb: strOrUndef(body.locationBlurb),
     logoUrl: `${BASE_URL}/images/mallan-logo.png`,
     equalHousingLogoUrl: `${BASE_URL}/images/equal-housing-logo.svg`,
+    agentPhotoUrl: `${BASE_URL}/images/maya-allan.jpg`,
     agentName: strOrUndef(body.agentName) || "Maya Allan",
-    agentTitle: strOrNull(body.agentTitle) || "Principal Broker",
-    agentLicense: strOrNull(body.agentLicense) || "10311201806",
+    agentTitle: strOrNull(body.agentTitle) || "Licensed Real Estate Broker",
     agentPhone: strOrNull(body.agentPhone) || "646-258-4460",
     agentEmail: strOrNull(body.agentEmail) || "maya@mallan.nyc",
     officeAddress: "400 East 90th Street, Suite 17C, New York, NY 10128",
