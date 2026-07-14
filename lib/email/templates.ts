@@ -495,6 +495,9 @@ export interface InvestorListingEmailData {
   // ── Editable copy ──
   headline?: string;
   intro?: string;
+  /** Building-specific purchase-structure note (e.g. condop / ROFR). Not a
+   *  universal default — supplied per listing so it never leaks to another. */
+  purchaseStructure?: string | null;
   benefitBullets?: string[];
   locationBlurb?: string;
   ctaViewListing?: string;
@@ -643,6 +646,12 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
         }).join("")}
       </table>
     </td></tr>
+
+    ${d.purchaseStructure ? `<!-- Purchase structure (building-specific) -->
+    <tr><td style="padding:22px 32px 0;">
+      ${sectionTitle("Purchase Structure", gold, sans)}
+      <p style="font-size:14px;color:#3a3833;line-height:1.6;margin:0;font-family:${sans};">${p(d.purchaseStructure)}</p>
+    </td></tr>` : ""}
 
     ${floorSection}
 

@@ -28,7 +28,7 @@
       step: 1,
       fields: {
         subject: '', headline: '', intro: '', bullets: '', location: '',
-        maintenance: '', currentRent: '', leaseExpiration: '',
+        maintenance: '', currentRent: '', leaseExpiration: '', purchaseStructure: '',
         agentName: 'Maya Allan',
       },
       previewHtml: '',
@@ -149,6 +149,7 @@
           field('Headline', 'headline', 'Tenant-Occupied Manhattan Investment Opportunity') +
           field('Intro', 'intro', 'A rare chance to acquire an income-producing residence…', 'textarea') +
           field('Key benefit bullets (one per line)', 'bullets', 'Existing rental income from closing\n1031-eligible replacement property', 'textarea') +
+          field('Purchase structure (building-specific — e.g. condop / Right of First Refusal)', 'purchaseStructure', 'Condop ownership with no board interview. The sale is subject to the building’s Right of First Refusal and issuance of the applicable waiver.', 'textarea') +
           field('Location blurb', 'location', 'Turtle Bay / Midtown East…', 'textarea') +
           '<div class="grid grid-cols-3 gap-2">' +
             '<div>' + field('Maintenance', 'maintenance', '$1,748.65/mo') + '</div>' +
@@ -187,6 +188,7 @@
       headline: f.headline || undefined,
       intro: f.intro || undefined,
       benefitBullets: bullets.length ? bullets : undefined,
+      purchaseStructure: f.purchaseStructure || undefined,
       locationBlurb: f.location || undefined,
       maintenance: f.maintenance || undefined,
       currentRent: f.currentRent || undefined,

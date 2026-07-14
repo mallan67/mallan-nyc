@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
       ? body.subject.trim()
       : `Investment Opportunity — ${dtoAddressLine(dto)}`;
   const fhRecord: Record<string, string | null | undefined> = { subject };
-  for (const f of ["headline", "intro", "locationBlurb"] as const) {
+  for (const f of ["headline", "intro", "locationBlurb", "purchaseStructure"] as const) {
     if (typeof body[f] === "string") fhRecord[f] = body[f] as string;
   }
   if (Array.isArray(body.benefitBullets)) {
@@ -267,6 +267,9 @@ export async function POST(req: NextRequest) {
     metrics,
     headline: strOrUndef(body.headline),
     intro: strOrUndef(body.intro),
+    // Building-specific — only rendered when the compose step supplies it, so it
+    // never carries over to another listing automatically.
+    purchaseStructure: strOrNull(body.purchaseStructure),
     benefitBullets: Array.isArray(body.benefitBullets)
       ? (body.benefitBullets as unknown[]).map(String)
       : undefined,
