@@ -365,6 +365,16 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Orchestrate the send (per-recipient audit, campaign_id, throttle) ────────
+  //
+  // COMPLIANCE POSTURE — CAN-SPAM cold commercial outreach (Maya-approved 2026-07-14).
+  // This investor campaign targets 1031/investor prospects sourced from PUBLIC
+  // RECORDS (ACRIS) / the buyer scanner — there is no prior relationship, so prior
+  // opt-in consent is NOT required for commercial EMAIL under CAN-SPAM (15 USC 7704;
+  // consent_captured_at is a TCPA rule for calls/SMS, and the warm-lead consent gate
+  // in /api/crm/email governs opted-in CRM leads — a DIFFERENT path). This path
+  // instead enforces the CAN-SPAM requirements: fail-closed opt-out suppression per
+  // recipient (via sendEmail), a signed one-click List-Unsubscribe, and the physical
+  // postal address in the footer. Recipients that have unsubscribed are never sent.
   const campaign_id = strOrUndef(body.campaign_id) || randomUUID();
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
   const sessionUser = { userId: auth.userId, userType: auth.userType } as SessionUser;

@@ -236,3 +236,32 @@ describe('Codex #505 fixes — authenticated sender + no hard-coded defaults', (
     expect(json.html).not.toContain('no board interview'); // was a baked-in default hook
   });
 });
+
+describe('SL-0004 listing profile — approved #2G copy renders end-to-end', () => {
+  const profile = {
+    intro: 'Condo rules with co-op economics — lease from day one, no board interview.',
+    benefitBullets: [
+      'Leased — tenant in place paying $4,305/month through August 14, 2027 (4% cap), and open to renewing',
+      'Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $5,000 less)',
+    ],
+    purchaseStructure: 'Condop ownership with no board interview. The sale is subject to the building’s Right of First Refusal and issuance of the applicable waiver.',
+    locationBlurb: 'Full-service building — 24-hour doorman, live-in superintendent, laundry, and a roof deck\nHeart of Midtown East — steps to the United Nations, transportation, and shopping',
+    maintenance: '$1,748.65/mo', currentRent: '$4,305/mo', leaseExpiration: 'August 14, 2027',
+  };
+  const facts = ['August 14, 2027', 'Right of First Refusal', 'no board interview', 'roof deck',
+    'Low closing costs', '$1,748.65', '$4,305', 'United Nations'];
+
+  it('preview contains every approved fact', async () => {
+    const json = await (await POST(post({ listing_id: 'SL-0004', mode: 'preview', ...profile }))).json();
+    facts.forEach((f) => expect(json.html).toContain(f));
+  });
+
+  it('dry-run renders the same approved content (and delivers nothing)', async () => {
+    const res = await POST(post({ listing_id: 'SL-0004', mode: 'dry_run', ...profile, recipients: [{ email: 'a@x.com', name: 'A' }] }));
+    const json = await res.json();
+    expect(json.result).toEqual({ sent: 0, failed: 0, skipped: 1 });
+    // the html passed to sendEmail carries the approved facts
+    const htmlSent = mockSendEmail.mock.calls[0][2] as string;
+    facts.forEach((f) => expect(htmlSent).toContain(f));
+  });
+});
