@@ -93,7 +93,7 @@
         '<div class="flex items-center justify-between px-5 py-3 border-b bg-gray-50">' +
           '<div class="flex items-center gap-2">' +
             '<i class="fas fa-paper-plane text-amber-600"></i>' +
-            '<h2 class="font-bold text-sm">Create Email Campaign — <span class="text-gray-500">' + esc(state.listingId) + '</span></h2>' +
+            '<h2 class="font-bold text-sm">Eblast Investors — <span class="text-gray-500">' + esc(state.listingId) + '</span></h2>' +
           '</div>' +
           '<button onclick="closeListingCampaign()" class="text-gray-400 hover:text-gray-700"><i class="fas fa-times"></i></button>' +
         '</div>' +
