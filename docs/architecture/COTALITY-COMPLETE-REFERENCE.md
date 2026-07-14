@@ -837,6 +837,79 @@ Required on all rental listings per NYC LL 119/2024. Covers move-in costs, ongoi
 
 ## 15. Sync Pipeline
 
+### 15.0 Canonical synchronization standard (single source of truth)
+
+> **Status: `COTALITY FRESHNESS ALIGNMENT DRIFT CONFIRMED`.** The machine-readable
+> constants live in `lib/cotality/sync-standard.ts`; the CI validator is
+> `scripts/validate-cotality-cadence.js`. Do not hardcode cadence numbers
+> elsewhere — import the constants.
+
+**Refresh vs. poll — do not conflate.**
+
+- **Refresh target (provider-side):** how fast Cotality/Trestle reflects the
+  *source MLS* in its own data. Cited verbatim — Cotality/Trestle FAQ, "How long
+  does it take for data to update in Trestle?"
+  (<https://trestle-documentation.corelogic.com/faq.html>, retrieved 2026-07-14):
+  *"listing data, agent data, etc. should be updated within 5 minutes of it being
+  changed in the source MLS, and that images should be updated within 15 minutes."*
+  This is **not** a polling interval. Cotality publishes no required polling
+  interval — only a quota-safe range ("every few minutes to every hour").
+- **Poll cadence (Mallan-side):** Cotality documents provider-side freshness
+  targets of approximately five minutes for listing/agent data and fifteen minutes
+  for images. **Mallan independently chooses five-minute Property polling and
+  fifteen-minute Media polling to limit the additional consumer-side delay to no
+  more than roughly the corresponding provider freshness window.**
+
+**Total staleness model** = source MLS → Cotality ingestion delay (the refresh
+target) + time until Mallan's next poll + Mallan sync execution time +
+application/cache propagation. Therefore **five-minute Property polling does not
+guarantee five-minute total freshness**, and **fifteen-minute Media polling does
+not guarantee fifteen-minute total freshness.**
+
+| Pipeline | Cotality refresh target (provider) | Mallan poll cadence (chosen) |
+|---|---|---|
+| Property / listing / agent | ≤ 5 min | every 5 min (`*/5 * * * *`) |
+| Media / images | ≤ 15 min | every 15 min (`*/15 * * * *`) |
+
+**Quota.** `TRESTLE_ACCOUNT_REQUEST_QUOTA_PER_HOUR = 40,000` is **Mallan's
+account-specific licensed allowance (Trestle-11371-20), not a universal public
+Cotality figure.** At an illustrative ~2 upstream requests/run, 5-min Property +
+15-min Media polling would use ≈ 32 requests/hour ≈ 0.08% of quota; **actual
+consumption must be measured** (pagination, retries and resource-specific requests
+vary per run). The quota does not justify slow polling — the real constraints are
+Neon efficiency, eliminating unchanged writes, non-overlapping jobs, and media
+throughput that keeps up.
+
+**Health thresholds — execution age is distinct from cursor lag.**
+
+| Signal | Property | Media | Meaning |
+|---|---|---|---|
+| Last successful run age | warn 15 / crit 30 min | warn 30 / crit 45 min | scheduler/job failed to complete for ~3 cycles |
+| Cursor freshness lag | warn 15 / crit 30 min | warn 45 / crit 90 min | watermark trails "now" — a job can succeed while processing too little and letting the cursor fall behind |
+
+The Media cursor threshold is intentionally looser than the run threshold: the
+current ~2-day Media lag is **critical** even though the hourly job reports success
+— a throughput failure, not a scheduler failure.
+
+**Execution rules:** delta-only (ModificationTimestamp / PhotosChangeTimestamp
+cursor); paginate only on `@odata.nextLink`; exponential backoff on 429; no
+overlapping executions; **no-op database-write suppression must ship before the
+cadence is increased** (`SUPPRESS_NOOP_WRITES_BEFORE_CADENCE`).
+
+**Enforcement is phased.** COT-1 sets `COTALITY_CADENCE_ENFORCEMENT = 'planned'`
+(the validator reports the current `vercel.json` drift but does not fail on it);
+COT-3 flips it to `'enforced'` after production is moved to `*/5` / `*/15`. There
+is no permanent exception for the drift.
+
+> **Correction note (2026-07-14):** the `*/30` Property + hourly Media cadence
+> currently in `vercel.json` is **drift** from this standard — introduced for Neon
+> compute reduction (PR #481), **not a Cotality-approved cadence.** It is corrected
+> by COT-3 after the COT-2 no-op-suppression gates are green. Historical incident
+> reports describing the old cadence are left as-is; this note prevents them from
+> being read as current policy.
+
+---
+
 **Implementation:** `lib/idx/sync.ts` → called by `/api/cron/idx-sync`
 
 ### Process

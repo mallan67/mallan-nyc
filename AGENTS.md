@@ -26,10 +26,13 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
    `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
-   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
-   `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
-   comments, never the schedule**, unless Maya explicitly asks.
+2. **Cotality/Trestle cadence — canonical standard is `docs/architecture/COTALITY-COMPLETE-REFERENCE.md`
+   §15.0 + `lib/cotality/sync-standard.json`** (import the constants; do not hardcode). **Target:
+   Property `/api/cron/idx-sync` every 5 min, Media `/api/cron/media-sync` every 15 min** (Cotality-aligned;
+   `db-keepalive` removed). **Correction note (2026-07-14):** production `vercel.json` is currently `*/30`
+   Property + hourly Media — **drift from PR #481 (Neon compute reduction), not an approved cadence**;
+   restoration to `*/5`/`*/15` is COT-3 after COT-2 no-op-write suppression ships. (The prior text here —
+   "`*/10` + `*/15` + keepalive, intentional" — was itself stale and is corrected by this note.)
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
 4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,

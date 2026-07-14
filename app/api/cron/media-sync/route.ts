@@ -1,6 +1,10 @@
 // GET /api/cron/media-sync
-// Vercel cron — runs every 15 minutes. Drives the listing_media R2 mirror
-// pipeline: cursor → Trestle Property → Media → upsert → mirror → summary.
+// Cotality/Trestle Media (image) sync cron. Canonical cadence standard:
+// docs/architecture/COTALITY-COMPLETE-REFERENCE.md §15.0 + lib/cotality/sync-standard.json
+// — target is every 15 min (Cotality image refresh target). NOTE: production
+// vercel.json is currently hourly (drift); restoration to */15 is COT-3.
+// Drives the listing_media R2 mirror pipeline:
+// cursor → Trestle Property → Media → upsert → mirror → summary.
 // Protected by CRON_SECRET (timing-safe).
 //
 // Master refactor PR 3 Checkpoint 5 (memory/REFACTOR-2026-04-25.md).

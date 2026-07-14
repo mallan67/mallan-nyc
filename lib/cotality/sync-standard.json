@@ -1,0 +1,34 @@
+{
+  "_comment": "CANONICAL Cotality synchronization facts — single source of truth. Consumed by lib/cotality/sync-standard.ts (typed re-export) and scripts/validate-cotality-cadence.js (JSON.parse). Do not duplicate these numbers elsewhere; import them. See docs/architecture/COTALITY-COMPLETE-REFERENCE.md §15.0.",
+  "_provider_source": "Cotality/Trestle FAQ, 'How long does it take for data to update in Trestle?' — https://trestle-documentation.corelogic.com/faq.html (retrieved 2026-07-14). Quota guidance: https://trestle-documentation.corelogic.com/webapi-at-scale.html",
+  "_refresh_vs_poll": "Refresh targets are PROVIDER-side (source MLS -> Trestle) and are NOT poll intervals. Poll cadence is Mallan's independent operational choice. Cotality publishes no required poll interval.",
+
+  "cotality_property_refresh_target_minutes": 5,
+  "cotality_image_refresh_target_minutes": 15,
+
+  "mallan_property_poll_minutes": 5,
+  "mallan_media_poll_minutes": 15,
+
+  "trestle_account_request_quota_per_hour": 40000,
+  "_quota_note": "Account-specific (Trestle-11371-20), NOT a universal public Cotality figure.",
+
+  "property_run_warning_minutes": 15,
+  "property_run_critical_minutes": 30,
+  "media_run_warning_minutes": 30,
+  "media_run_critical_minutes": 45,
+
+  "property_cursor_warning_minutes": 15,
+  "property_cursor_critical_minutes": 30,
+  "media_cursor_warning_minutes": 45,
+  "media_cursor_critical_minutes": 90,
+
+  "delta_only": true,
+  "paginate_on_demand": true,
+  "backoff_on_429": "exponential",
+  "no_overlap": true,
+  "suppress_noop_writes_before_cadence": true,
+
+  "cotality_cadence_enforcement": "planned",
+  "expected_property_cron": "*/5 * * * *",
+  "expected_media_cron": "*/15 * * * *"
+}

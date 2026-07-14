@@ -1,5 +1,10 @@
 // GET /api/cron/idx-sync
-// Automated IDX sync cron — runs every 4 hours.
+// Automated Cotality/Trestle Property (IDX) delta sync cron.
+// Canonical cadence standard: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §15.0
+// + lib/cotality/sync-standard.json — target is every 5 min (Cotality-aligned).
+// NOTE: production vercel.json is currently */30 (drift from PR #481); restoration
+// to */5 is COT-3, after COT-2 no-op-write suppression ships. This comment was
+// previously the stale "runs every 4 hours".
 // Fetches incremental updates from Trestle and upserts to local DB.
 // Protected by CRON_SECRET header (Vercel Cron).
 import { timingSafeEqual } from "crypto";

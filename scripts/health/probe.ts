@@ -18,6 +18,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 import { dbGrowthCell, cotalityFreshnessCell } from "./health-status";
+import { EXPECTED_PROPERTY_CRON, EXPECTED_MEDIA_CRON } from "../../lib/cotality/sync-standard";
 
 // NO override: a shell-supplied env (the operator's explicit canonical `DATABASE_URL_UNPOOLED=… npm
 // run health:probe`) must WIN over a possibly-stale workstation .env.local (Codex #466).
@@ -136,9 +137,15 @@ tryProbe(() => {
   const idx = find("/api/cron/idx-sync");
   const media = find("/api/cron/media-sync");
   const keep = find("/api/cron/db-keepalive");
-  const cadenceOk = idx === "*/10 * * * *" && media === "*/15 * * * *" && keep === "*/15 * * * *";
-  add("Cron cadence (live Cotality)", cadenceOk ? "🟢" : "🟡",
-    `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\`, db-keepalive \`${keep}\``);
+  // Cotality-aligned target (canonical source: lib/cotality/sync-standard.ts).
+  // Property */5 + Media */15. db-keepalive is not part of the target and is not
+  // required. Anything else is DRIFT (green only when aligned) — see
+  // COTALITY-COMPLETE-REFERENCE.md §15.0.
+  const cadenceOk = idx === EXPECTED_PROPERTY_CRON && media === EXPECTED_MEDIA_CRON;
+  add("Cron cadence (Cotality-aligned target)", cadenceOk ? "🟢" : "🟡",
+    cadenceOk
+      ? `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\` — Cotality-aligned (Property */5, Media */15)`
+      : `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\` — DRIFT from Cotality-aligned target (want Property \`${EXPECTED_PROPERTY_CRON}\`, Media \`${EXPECTED_MEDIA_CRON}\`); restoration = COT-3. db-keepalive \`${keep}\``);
   // QUAL-006/OPS-008 resolved 2026-07-02: the media-backfill route was DELETED
   // (unscheduled since PR #176). Green = stays out of vercel.json; a schedule
   // entry reappearing without a route is the idx:validate "SCHEDULED BUT

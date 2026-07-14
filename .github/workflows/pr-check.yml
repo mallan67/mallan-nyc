@@ -140,6 +140,17 @@ jobs:
       - name: CI compliance check
         run: node scripts/ci-compliance-check.js
 
+      # Cotality cadence & wording drift validator (COT-1). Phased: 'planned'
+      # reports the current vercel.json cadence drift without failing; COT-3
+      # flips COTALITY_CADENCE_ENFORCEMENT to 'enforced'. Hard-fails now on any
+      # doc that misstates Cotality refresh as Mallan polling or calls the
+      # */30/hourly drift "approved"/"Cotality-aligned".
+      - name: Cotality cadence standard
+        run: node scripts/validate-cotality-cadence.js
+
+      - name: Cotality cadence validator tests
+        run: node --test scripts/__tests__/validate-cotality-cadence.test.cjs
+
       # Display-compliance gates — block merge on any UCBA / Fair Housing /
       # PII regression. These six audits do NOT require Trestle credentials
       # (they parse local files only), so they are safe to run in PR CI.
