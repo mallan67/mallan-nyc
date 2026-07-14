@@ -110,9 +110,9 @@ describe('gate — Mallan CRM exclusive is NOT blocked by idx_display_yn', () =>
   it('renders computed investment metrics (cap rate, NOI, price/SF) from rent + maintenance', async () => {
     const res = await POST(post({ listing_id: 'SL-0004', mode: 'preview', currentRent: '$4,305/mo', maintenance: '$1,748.65/mo' }));
     const json = await res.json();
-    // price 765000, rent 4,305/mo, maint 1,748.65/mo, 640 SF → metric band shows:
+    // price 765000, rent 4,305/mo, maint 1,748.65/mo, 640 SF → light figures row shows:
     expect(json.html).toContain('4.0%');    // est. cap rate (NOI/price)
-    expect(json.html).toContain('$1,195');  // price / SF = 765000/640
+    expect(json.html).toContain('640 SF');  // interior square footage
   });
 });
 

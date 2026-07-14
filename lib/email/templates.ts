@@ -519,7 +519,6 @@ export interface InvestorListingEmailData {
 export function investorListingEmail(d: InvestorListingEmailData): string {
   const gold = BRAND_GOLD;
   const ink = "#14161a";
-  const panel = "#111318";       // dark metric band
   const soft = "#f7f6f3";        // light neutral card
   const line = "#e6e4df";        // hairline
   const muted = "#6f6a63";
@@ -535,18 +534,23 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const officePhone = d.officePhone || "646-258-4460";
   const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
 
-  const headline = d.headline || "1031 Replacement · Rent From Day One";
+  const headline = d.headline || "1031 Replacement · Midtown East";
   // The one-second hook.
   const hook = d.intro ||
-    "Condo rules with co-op economics — put a tenant in place from day one, at co-op closing costs.";
+    "Condo rules with co-op economics — lease from day one, no board interview.";
   // Each bullet is "Lead — detail"; the template bolds the lead.
   const bullets = (d.benefitBullets && d.benefitBullets.length
     ? d.benefitBullets
     : [
-        "Rent from day one — condo rules; no board approval to lease, so income starts immediately within your 1031 window",
+        "Lease from day one — condo rules and no board interview, so a tenant can be placed immediately within your 1031 window",
         "Co-op closing costs — no mansion tax and no mortgage-recording tax, so more of your capital stays invested",
-        "First right of refusal — a co-op-style protection, paired with condo operating freedom",
       ]);
+  const locationBullets = (d.locationBlurb && d.locationBlurb.trim())
+    ? d.locationBlurb.split("\n").map((s) => s.trim()).filter(Boolean)
+    : [
+        "Full-service building with a roof deck",
+        "Heart of Midtown East — steps to the United Nations, transportation, and shopping",
+      ];
   const beds = d.beds != null ? `${d.beds} Bed` : null;
   const baths = d.baths != null ? `${d.baths} Bath` : null;
   const sqftStr = d.sqft != null ? `${Math.round(d.sqft).toLocaleString("en-US")} SF` : null;
@@ -556,24 +560,30 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const primaryCta = (label: string, url: string) => `
     <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td align="center">
       <!--[if mso]>
-      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:50px;v-text-anchor:middle;width:520px;" arcsize="6%" fillcolor="${ink}" stroke="f">
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:50px;v-text-anchor:middle;width:520px;" arcsize="6%" fillcolor="${gold}" stroke="f">
         <w:anchorlock/><center style="color:#ffffff;font-family:${sans};font-size:15px;font-weight:bold;letter-spacing:.5px;">${p(label)}</center>
       </v:roundrect>
       <![endif]-->
       <!--[if !mso]><!-->
-      <a href="${url}" style="display:block;padding:16px 24px;background-color:${ink};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.5px;text-decoration:none;border-radius:3px;font-family:${sans};text-align:center;">${p(label)}</a>
+      <a href="${url}" style="display:block;padding:16px 24px;background-color:${gold};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.5px;text-decoration:none;border-radius:3px;font-family:${sans};text-align:center;">${p(label)}</a>
       <!--<![endif]-->
     </td></tr></table>`;
   const ghost = (label: string, url: string) => `
     <a href="${url}" style="display:block;padding:13px 8px;border:1px solid ${ink};color:${ink};font-size:12px;font-weight:700;letter-spacing:.4px;text-decoration:none;border-radius:3px;font-family:${sans};text-align:center;">${p(label)}</a>`;
 
-  // Headline metric band (dark) — 1–4 lead numbers.
-  const bandCards = d.metrics && d.metrics.headline.length ? d.metrics.headline : [{ label: "Asking Price", value: d.price }];
-  const cardW = Math.floor(100 / bandCards.length);
-  const bandHtml = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" bgcolor="${panel}" style="background-color:${panel};"><tr>${
-    bandCards.map((c, i) => `<td width="${cardW}%" style="padding:20px 16px;${i > 0 ? "border-left:1px solid #262931;" : ""}vertical-align:top;">
-        <p style="margin:0 0 7px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${gold};font-family:${sans};">${p(c.label)}</p>
-        <p style="margin:0;font-size:22px;line-height:1.1;color:#ffffff;font-family:${serif};font-weight:700;">${p(c.value)}</p>
+  // Key figures — a clean LIGHT row (no dark block): Price · Interior · Maintenance · Cap Rate.
+  const capStr = d.metrics && d.metrics.capRatePct != null ? `${d.metrics.capRatePct.toFixed(1)}%` : null;
+  const stats = [
+    { label: "Price", value: d.price },
+    { label: "Interior", value: d.sqft != null ? `${Math.round(d.sqft).toLocaleString("en-US")} SF` : null },
+    { label: "Maintenance", value: d.maintenance || null },
+    { label: "Est. Cap Rate", value: capStr },
+  ].filter((s) => !!s.value);
+  const statW = Math.floor(100 / (stats.length || 1));
+  const bandHtml = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-top:2px solid ${gold};border-bottom:1px solid ${line};"><tr>${
+    stats.map((s, i) => `<td width="${statW}%" style="padding:16px 6px;text-align:center;${i > 0 ? `border-left:1px solid ${line};` : ""}vertical-align:top;">
+        <p style="margin:0 0 5px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:${muted};font-family:${sans};">${p(s.label)}</p>
+        <p style="margin:0;font-size:19px;line-height:1.15;color:${ink};font-family:${serif};font-weight:700;">${p(String(s.value))}</p>
       </td>`).join("")
   }</tr></table>`;
 
@@ -588,12 +598,10 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     : "";
 
   const body = `
-    <!-- Header: logo + offering label -->
-    <tr><td style="padding:22px 32px;border-bottom:1px solid ${line};">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr>
-        <td style="vertical-align:middle;"><img src="${logo}" alt="${p(brokerName)}" height="26" style="height:26px;width:auto;display:block;"></td>
-        <td align="right" style="vertical-align:middle;"><span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:${gold};font-weight:700;font-family:${sans};">Investment Offering</span></td>
-      </tr></table>
+    <!-- Header: company name -->
+    <tr><td align="center" style="padding:26px 32px 18px;border-bottom:2px solid ${gold};">
+      <img src="${logo}" alt="Mallan Real Estate" height="34" style="height:34px;width:auto;display:block;margin:0 auto 9px;">
+      <p style="margin:0;font-size:17px;letter-spacing:4px;font-weight:700;color:${ink};font-family:${serif};">MALLAN REAL ESTATE</p>
     </td></tr>
 
     <!-- Hero -->
@@ -633,10 +641,21 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
 
     ${floorSection}
 
-    ${d.locationBlurb ? `<tr><td style="padding:26px 32px 0;">
+    <!-- Building & location -->
+    <tr><td style="padding:24px 32px 0;">
       ${sectionTitle("Building & Location", gold, sans)}
-      <p style="font-size:14px;color:#3a3833;line-height:1.7;margin:0;font-family:${sans};">${p(d.locationBlurb)}</p>
-    </td></tr>` : ""}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+        ${locationBullets.map((b) => {
+          const idx = String(b).indexOf(" — ");
+          const lead = idx > -1 ? String(b).slice(0, idx) : String(b);
+          const tail = idx > -1 ? String(b).slice(idx + 3) : "";
+          return `<tr>
+            <td valign="top" style="padding:6px 12px 6px 0;font-size:13px;color:${gold};font-family:${sans};line-height:1.7;">&#9670;</td>
+            <td style="padding:6px 0;font-size:14px;color:#3a3833;line-height:1.6;font-family:${sans};">${tail ? `<strong style="color:${ink};">${p(lead)}</strong> &mdash; ${p(tail)}` : p(lead)}</td>
+          </tr>`;
+        }).join("")}
+      </table>
+    </td></tr>
 
     <!-- CTAs: financials come by email, so that is the primary action -->
     <tr><td style="padding:26px 32px 0;">
