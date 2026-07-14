@@ -42,12 +42,12 @@ jest.mock('@/lib/idx/db-to-public-dto', () => ({
     listPrice: 765000,
     bedroomsTotal: 1,
     bathroomsFull: 1,
-    livingArea: 640,
+    livingArea: 860,
     propertyType: 'Condop',
     address: {
       streetNumber: '333',
       streetName: 'East 46th Street',
-      unitNumber: '5C',
+      unitNumber: '2G',
       neighborhood: 'Turtle Bay',
       city: 'New York',
     },
@@ -110,9 +110,9 @@ describe('gate — Mallan CRM exclusive is NOT blocked by idx_display_yn', () =>
   it('renders computed investment metrics (cap rate, NOI, price/SF) from rent + maintenance', async () => {
     const res = await POST(post({ listing_id: 'SL-0004', mode: 'preview', currentRent: '$4,305/mo', maintenance: '$1,748.65/mo' }));
     const json = await res.json();
-    // price 765000, rent 4,305/mo, maint 1,748.65/mo, 640 SF → light figures row shows:
+    // price 765000, rent 4,305/mo, maint 1,748.65/mo, 860 SF → light figures row shows:
     expect(json.html).toContain('4.0%');    // est. cap rate (NOI/price)
-    expect(json.html).toContain('640 SF');  // interior square footage
+    expect(json.html).toContain('860 SF');  // interior square footage (SL-0004 actual)
   });
 });
 
