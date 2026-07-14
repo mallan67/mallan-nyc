@@ -517,13 +517,16 @@ export interface InvestorListingEmailData {
 }
 
 export function investorListingEmail(d: InvestorListingEmailData): string {
-  const gold = BRAND_GOLD;
-  const ink = "#14161a";
-  const soft = "#f7f6f3";        // light neutral card
-  const line = "#e6e4df";        // hairline
-  const muted = "#6f6a63";
-  const serif = "Georgia,'Times New Roman',Times,serif";
-  const sans = "Arial,Helvetica,sans-serif";
+  // Palette + fonts match mallan.nyc: slate accent (no gold — too low-contrast),
+  // dark-slate text (no pure black), Urbanist display + Inter body. `gold`/`serif`
+  // keep their legacy names to avoid churn but now hold the site's slate + Urbanist.
+  const gold = "#3d4556";        // brand slate — accent, rules, CTA
+  const ink = "#2a2f3a";         // dark-slate text (not black)
+  const soft = "#f4f5f7";        // light neutral card
+  const line = "#e3e5e9";        // hairline
+  const muted = "#7c8290";       // muted slate
+  const serif = "'Urbanist','Helvetica Neue',Arial,sans-serif";  // site display font
+  const sans = "'Inter','Helvetica Neue',Arial,sans-serif";      // site body font
   const p = (s: string) => escapeHtml(s);
 
   const logo = d.logoUrl || `${BASE_URL}/images/mallan-logo.png`;
@@ -543,12 +546,12 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     ? d.benefitBullets
     : [
         "Lease from day one — condo rules and no board interview, so a tenant can be placed immediately within your 1031 window",
-        "Co-op closing costs — no mansion tax and no mortgage-recording tax, so more of your capital stays invested",
+        "Co-op-style economics — typically lower closing costs than a comparable condo",
       ]);
   const locationBullets = (d.locationBlurb && d.locationBlurb.trim())
     ? d.locationBlurb.split("\n").map((s) => s.trim()).filter(Boolean)
     : [
-        "Full-service building with a roof deck",
+        "Full-service building — 24-hour doorman, live-in superintendent, laundry, and a roof deck",
         "Heart of Midtown East — steps to the United Nations, transportation, and shopping",
       ];
   const beds = d.beds != null ? `${d.beds} Bed` : null;
@@ -657,12 +660,12 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
       </table>
     </td></tr>
 
-    <!-- CTAs: financials come by email, so that is the primary action -->
+    <!-- CTAs: Schedule a Showing is the primary action -->
     <tr><td style="padding:26px 32px 0;">
-      ${primaryCta(d.ctaFinancials || "Request the Financials", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financials — " + d.address)}`)}
+      ${primaryCta(d.ctaShowing || "Schedule a Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}
       <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top:10px;"><tr>
-        <td width="50%" style="padding-right:6px;">${ghost(d.ctaViewListing || "View the Listing", d.detailUrl)}</td>
-        <td width="50%" style="padding-left:6px;">${ghost(d.ctaShowing || "Schedule a Showing", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Private showing — " + d.address)}`)}</td>
+        <td width="50%" style="padding-right:6px;">${ghost(d.ctaFinancials || "Request Financials", `mailto:${p(d.agentEmail || "")}?subject=${encodeURIComponent("Financials — " + d.address)}`)}</td>
+        <td width="50%" style="padding-left:6px;">${ghost(d.ctaViewListing || "View the Listing", d.detailUrl)}</td>
       </tr></table>
     </td></tr>
 
