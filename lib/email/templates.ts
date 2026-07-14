@@ -545,7 +545,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     ? d.benefitBullets
     : [
         "Leased — tenant in place paying $4,305/month through August 14, 2027 (4% cap), and open to renewing",
-        "Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $4,000 less)",
+        "Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $5,000 less)",
       ]);
   const locationBullets = (d.locationBlurb && d.locationBlurb.trim())
     ? d.locationBlurb.split("\n").map((s) => s.trim()).filter(Boolean)
