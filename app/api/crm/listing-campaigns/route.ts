@@ -38,6 +38,17 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-ma
 import { dbListingToPublicDTO, type DbListing } from "@/lib/idx/db-to-public-dto";
 import { investorListingEmail, type InvestorListingEmailData } from "@/lib/email/templates";
 import { computeInvestmentMetrics, parseMoney } from "@/lib/email/investment-metrics";
+import { resolveListingEconomics } from "@/lib/email/listing-economics";
+import {
+  getListingCampaignProfile,
+  type CampaignType,
+} from "@/lib/email/listing-campaign-profiles";
+import {
+  economicsFingerprint,
+  validateConfirmation,
+  buildConfirmationAudit,
+  type EconomicsForConfirmation,
+} from "@/lib/email/campaign-confirmation";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
 import {
@@ -142,6 +153,22 @@ function normalizeRecipients(raw: unknown): {
   return { clean, received: arr.length, duplicate, invalid };
 }
 
+// GET /api/crm/listing-campaigns?listing_id=SL-0004
+// Returns the server-owned campaign profile the compose modal hydrates from, so
+// approved copy + economics live in one typed place — not a shipped JS map. All
+// values are editable in the UI; this is only the starting point.
+export async function GET(req: NextRequest) {
+  const auth = await requireAgentOrBroker(req);
+  if (isAuthError(auth)) return auth;
+
+  const listing_id = req.nextUrl.searchParams.get("listing_id") || "";
+  if (!listing_id) {
+    return NextResponse.json({ error: "listing_id is required" }, { status: 400 });
+  }
+  const profile = getListingCampaignProfile(listing_id);
+  return NextResponse.json({ listing_id, profile });
+}
+
 export async function POST(req: NextRequest) {
   // Read-only guard first (blocks all writes when the site is in read-only mode).
   const writeBlock = assertWriteAllowed();
@@ -165,6 +192,16 @@ export async function POST(req: NextRequest) {
   if (!MODES.includes(mode)) {
     return NextResponse.json({ error: `mode must be one of ${MODES.join(", ")}` }, { status: 400 });
   }
+
+  // Campaign type drives the whole email: investor-only content (1031 label, cap
+  // rate, rent/lease figures, calculator links, 1031 disclaimer) renders ONLY for
+  // "investor". Resolve from the body; fall back to the listing's profile default.
+  const profile = getListingCampaignProfile(listing_id);
+  const VALID_TYPES: CampaignType[] = ["investor", "buyer", "agent"];
+  const bodyType = typeof body.campaignType === "string" ? (body.campaignType as CampaignType) : null;
+  const campaignType: CampaignType =
+    bodyType && VALID_TYPES.includes(bodyType) ? bodyType : profile.campaignType;
+  const isInvestor = campaignType === "investor";
 
   // ── Hydrate the listing through the public DTO ──────────────────────────────
   const row = await prisma.listing.findUnique({
@@ -216,7 +253,7 @@ export async function POST(req: NextRequest) {
       ? body.subject.trim()
       : `Investment Opportunity — ${dtoAddressLine(dto)}`;
   const fhRecord: Record<string, string | null | undefined> = { subject };
-  for (const f of ["headline", "intro", "locationBlurb", "purchaseStructure"] as const) {
+  for (const f of ["campaignLabel", "headline", "intro", "locationBlurb", "purchaseStructure", "campaignDetails"] as const) {
     if (typeof body[f] === "string") fhRecord[f] = body[f] as string;
   }
   if (Array.isArray(body.benefitBullets)) {
@@ -239,27 +276,104 @@ export async function POST(req: NextRequest) {
   // Square footage: prefer the listing's value; allow a compose-form override so
   // it always shows even when the listing record is missing it.
   const sqft = parseMoney(body.sqft) ?? dto.livingArea ?? null;
-  const metrics = computeInvestmentMetrics({
-    price: dto.listPrice || 0,
-    monthlyRent: parseMoney(body.currentRent),
-    monthlyMaintenance: parseMoney(body.maintenance),
-    sqft,
+
+  // Temporal economics — a verified CURRENT in-place rent vs a FUTURE scheduled
+  // step-up written into the current lease. The resolver labels each correctly so
+  // a scheduled rent is never presented as "current" before its effective date.
+  const economics = resolveListingEconomics({
+    currentRent: strOrNull(body.currentRent),
+    scheduledRent: strOrNull(body.scheduledRent),
+    scheduledRentEffective: strOrNull(body.scheduledRentEffective),
+    maintenance: strOrNull(body.maintenance),
+    leaseExpiration: strOrNull(body.leaseExpiration),
   });
+
+  // Investor metrics compute on the analysis rent (current when known, else the
+  // scheduled rent — always labeled with its basis). Non-investor emails carry none.
+  const metrics = isInvestor
+    ? computeInvestmentMetrics({
+        price: dto.listPrice || 0,
+        monthlyRent: economics.analysisRent,
+        monthlyMaintenance: parseMoney(body.maintenance),
+        sqft,
+        rentBasisShort: economics.analysisRentShort,
+        rentBasisLabel: economics.analysisRentBasis ? capitalize(economics.analysisRentBasis) : null,
+      })
+    : null;
   const photoUrls = dto.media.filter((m) => m.mediaType === "Photo").map((m) => m.url);
   const floorPlanUrl = dto.media.find((m) => m.mediaType === "FloorPlan")?.url ?? null;
+
+  // ── Economics confirmation gate ─────────────────────────────────────────────
+  // Dry-run / test / live (and, in Slice 2, schedule) require the authenticated
+  // agent to confirm the figures are current against the lease + listing record.
+  // The confirmation is BOUND to the exact values via a fingerprint, so editing
+  // any economic field after confirming invalidates it (fail-closed). The checkbox
+  // is an attestation, not a data-accuracy substitute — it is captured in the audit.
+  // Preview (pure render) never requires it. Non-investor sends require it only if
+  // they actually assert economic figures.
+  const confirmEconomics: EconomicsForConfirmation = {
+    currentRent: strOrNull(body.currentRent),
+    scheduledRent: strOrNull(body.scheduledRent),
+    scheduledRentEffective: strOrNull(body.scheduledRentEffective),
+    maintenance: strOrNull(body.maintenance),
+    leaseExpiration: strOrNull(body.leaseExpiration),
+  };
+  const hasAnyEconomics = Object.values(confirmEconomics).some((v) => v != null && v !== "");
+  const requiresConfirmation = isInvestor || hasAnyEconomics;
+  const fingerprint = economicsFingerprint(listing_id, confirmEconomics);
+  let confirmationAudit: ReturnType<typeof buildConfirmationAudit> | null = null;
+  if (mode !== "preview" && requiresConfirmation) {
+    const conf = validateConfirmation(body.confirmation, fingerprint);
+    if (!conf.ok) {
+      return NextResponse.json(
+        { error: conf.message, confirmation_error: conf.code },
+        { status: 428 },
+      );
+    }
+    confirmationAudit = buildConfirmationAudit({
+      userId: String(auth.userId),
+      listingId: listing_id,
+      economics: confirmEconomics,
+      fingerprint,
+      confirmedAt: conf.confirmedAt,
+      sourceRef: conf.sourceRef,
+    });
+  }
 
   // Sender identity is derived from the AUTHENTICATED agent — never from spoofable
   // body fields — so recipients always see the agent who actually sent it.
   const agent = await prisma.agent.findUnique({
     where: { id: auth.userId },
-    select: { first_name: true, last_name: true, email: true, phone: true, title: true, role: true },
+    select: {
+      first_name: true, last_name: true, email: true, phone: true,
+      title: true, role: true, license_no: true, license_type: true, photo: true,
+    },
   });
   const agentName = (agent ? `${agent.first_name || ""} ${agent.last_name || ""}`.trim() : "") || "Mallan Real Estate Inc.";
-  const agentTitle = agent?.title || (agent?.role === "BROKER" ? "Licensed Real Estate Broker" : "Licensed Real Estate Salesperson");
+  // NY DOS 19 NYCRR §175.25 — the email must carry a LICENSED title. Derive it
+  // from license_type / role, and only honor the free-form `title` when it is
+  // already a compliant licensed title (so a CRM display title like
+  // "Principal Broker" never becomes the advertised license type).
+  const licensedTitle =
+    agent?.license_type === "broker" || agent?.role === "BROKER"
+      ? "Licensed Real Estate Broker"
+      : "Licensed Real Estate Salesperson";
+  const agentTitle =
+    agent?.title && /licensed real estate (broker|salesperson)/i.test(agent.title)
+      ? agent.title
+      : licensedTitle;
   const agentEmail = agent?.email || null;
   const agentPhone = agent?.phone || null;
+  const agentLicense = agent?.license_no || null;
+  // Headshot from the agent record; fall back to Maya's known asset until the
+  // per-agent photo library is populated. A different sender never shows a wrong face.
+  const agentPhotoUrl = agent?.photo
+    ? (agent.photo.startsWith("http") ? agent.photo : `${BASE_URL}${agent.photo}`)
+    : (agentEmail === "maya@mallan.nyc" ? `${BASE_URL}/images/maya-allan.jpg` : null);
 
   const emailData: InvestorListingEmailData = {
+    campaignType,
+    campaignLabel: strOrNull(body.campaignLabel),
     address: dtoAddressLine(dto),
     neighborhood: dto.address.neighborhood ?? null,
     price: dto.listPrice ? `$${dto.listPrice.toLocaleString()}` : "Price upon request",
@@ -268,8 +382,15 @@ export async function POST(req: NextRequest) {
     sqft,
     propertyType: dto.propertyType ?? null,
     maintenance: strOrNull(body.maintenance),
-    currentRent: strOrNull(body.currentRent),
     leaseExpiration: strOrNull(body.leaseExpiration),
+    // Pre-resolved, temporally-correct rent figures (scheduled ≠ current).
+    economics: {
+      currentRentValue: economics.currentRentValue,
+      scheduledRent: economics.scheduledRent,
+      scheduledEffectiveLabel: economics.scheduledEffectiveLabel,
+      showScheduledSeparately: economics.showScheduledSeparately,
+      analysisRentBasis: economics.analysisRentBasis,
+    },
     // The template inserts the CTA URL RAW into an href, so escape it at the
     // boundary — photo/floor-plan/other fields are escaped inside the template.
     detailUrl: escapeHtml(dto.url.startsWith("http") ? dto.url : `${BASE_URL}${dto.url}`),
@@ -278,6 +399,7 @@ export async function POST(req: NextRequest) {
     metrics,
     headline: strOrUndef(body.headline),
     intro: strOrUndef(body.intro),
+    campaignDetails: strOrNull(body.campaignDetails),
     // Building-specific — only rendered when the compose step supplies it, so it
     // never carries over to another listing automatically.
     purchaseStructure: strOrNull(body.purchaseStructure),
@@ -287,11 +409,10 @@ export async function POST(req: NextRequest) {
     locationBlurb: strOrUndef(body.locationBlurb),
     logoUrl: `${BASE_URL}/images/mallan-logo.png`,
     equalHousingLogoUrl: `${BASE_URL}/images/equal-housing-logo.svg`,
-    // Headshot only when we actually have one for this agent (no per-agent photo
-    // system yet), so a different sender never shows the wrong person's face.
-    agentPhotoUrl: agentEmail === "maya@mallan.nyc" ? `${BASE_URL}/images/maya-allan.jpg` : null,
+    agentPhotoUrl,
     agentName,
     agentTitle,
+    agentLicense,
     agentPhone,
     agentEmail,
     officeAddress: "400 East 90th Street, Suite 17C, New York, NY 10128",
@@ -311,14 +432,28 @@ export async function POST(req: NextRequest) {
   };
 
   // Preview: render + gate + FH only. No recipients required, no delivery, no audit.
+  // Returns the computed metrics + resolved economics + fingerprint so the compose
+  // screen can render the read-only Calculated Investment Summary and bind the
+  // confirmation checkbox to these exact values.
   if (mode === "preview") {
     return NextResponse.json({
       mode,
       listing_id,
       subject,
+      campaignType,
       html,
       listing: { address: emailData.address, price: emailData.price, url: emailData.detailUrl, photoCount: photoUrls.length },
       counts,
+      metrics: isInvestor ? metrics : null,
+      economics: {
+        currentRentValue: economics.currentRentValue,
+        scheduledRent: economics.scheduledRent,
+        scheduledEffectiveLabel: economics.scheduledEffectiveLabel,
+        showScheduledSeparately: economics.showScheduledSeparately,
+        analysisRentBasis: economics.analysisRentBasis,
+      },
+      economicsFingerprint: fingerprint,
+      requiresConfirmation,
     });
   }
 
@@ -387,10 +522,26 @@ export async function POST(req: NextRequest) {
       entity_id: listing_id,
       user_type: auth.userType,
       user_id: auth.userId,
-      changes: { campaign_id, mode, subject, counts } as Prisma.InputJsonValue,
+      changes: { campaign_id, mode, campaignType, subject, counts } as Prisma.InputJsonValue,
       ip_address: ipAddress ?? null,
     },
   });
+
+  // Economics-confirmation audit row — who confirmed the figures, when, which
+  // values + effective dates, and any source/document reference.
+  if (confirmationAudit) {
+    await prisma.auditEvent.create({
+      data: {
+        action: "email:economics_confirmed",
+        entity_type: "listing",
+        entity_id: listing_id,
+        user_type: auth.userType,
+        user_id: auth.userId,
+        changes: { campaign_id, mode, ...confirmationAudit } as Prisma.InputJsonValue,
+        ip_address: ipAddress ?? null,
+      },
+    });
+  }
 
   let sent = 0;
   let failed = 0;
@@ -467,4 +618,7 @@ function strOrUndef(v: unknown): string | undefined {
 }
 function strOrNull(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }

@@ -475,6 +475,12 @@ export function listingSendEmail(
  * tokenless). The 1031 disclaimer directs recipients to their own advisers.
  */
 export interface InvestorListingEmailData {
+  // ── Campaign framing ──
+  /** Audience type. Investor-only content (1031 label, cap rate, rent, lease,
+   *  calculator links, 1031 disclaimer) renders ONLY when this is "investor". */
+  campaignType?: "investor" | "buyer" | "agent";
+  /** Eyebrow label above the header (replaces the old hard-coded "1031" label). */
+  campaignLabel?: string | null;
   // ── Listing identity ──
   address: string;
   neighborhood?: string | null;
@@ -484,8 +490,15 @@ export interface InvestorListingEmailData {
   sqft?: number | null;
   propertyType?: string | null;
   maintenance?: string | null;
-  currentRent?: string | null;
   leaseExpiration?: string | null;
+  /** Pre-resolved, temporally-correct rent figures (see listing-economics.ts). */
+  economics?: {
+    currentRentValue: string | null;
+    scheduledRent: string | null;
+    scheduledEffectiveLabel: string | null;
+    showScheduledSeparately: boolean;
+    analysisRentBasis: string | null;
+  } | null;
   detailUrl: string;
   primaryPhotoUrl?: string | null;
   floorPlanUrl?: string | null;
@@ -495,6 +508,8 @@ export interface InvestorListingEmailData {
   // ── Editable copy ──
   headline?: string;
   intro?: string;
+  /** Free-text details section for buyer / agent campaigns (co-broke, showings). */
+  campaignDetails?: string | null;
   /** Building-specific purchase-structure note (e.g. condop / ROFR). Not a
    *  universal default — supplied per listing so it never leaks to another. */
   purchaseStructure?: string | null;
@@ -531,6 +546,12 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const serif = "'Urbanist','Helvetica Neue',Arial,sans-serif";  // site display font
   const sans = "'Inter','Helvetica Neue',Arial,sans-serif";      // site body font
   const p = (s: string) => escapeHtml(s);
+
+  // Audience gate — investor-only content (1031 label, cap rate, rent/lease
+  // figures, calculator links, 1031 disclaimer) renders ONLY for investor
+  // campaigns. Fail-closed: an unset type is treated as non-investor.
+  const isInvestor = d.campaignType === "investor";
+  const econ = d.economics || null;
 
   const logo = d.logoUrl || `${BASE_URL}/images/mallan-logo.png`;
   const eqLogo = d.equalHousingLogoUrl || `${BASE_URL}/images/equal-housing-logo.svg`;
@@ -570,14 +591,31 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const ghost = (label: string, url: string) => `
     <a href="${url}" style="display:block;padding:13px 8px;border:1px solid ${ink};color:${ink};font-size:12px;font-weight:700;letter-spacing:.4px;text-decoration:none;border-radius:3px;font-family:${sans};text-align:center;">${p(label)}</a>`;
 
-  // Key figures — a clean LIGHT row (no dark block): Price · Interior · Maintenance · Cap Rate.
+  // Key figures — a clean LIGHT row (no dark block). Investor: Price · Interior ·
+  // Rent · Cap Rate (the income number is surfaced, never hidden). The rent figure
+  // shows the CURRENT in-place rent when known, otherwise the SCHEDULED rent under
+  // an explicit "Scheduled Rent" label — a future rent is never called "current".
+  // Buyer / agent: Price · Interior · Beds · Baths (no economics).
   const capStr = d.metrics && d.metrics.capRatePct != null ? `${d.metrics.capRatePct.toFixed(1)}%` : null;
-  const stats = [
-    { label: "Price", value: d.price },
-    { label: "Interior", value: d.sqft != null ? `${Math.round(d.sqft).toLocaleString("en-US")} SF` : null },
-    { label: "Maintenance", value: d.maintenance || null },
-    { label: "Est. Cap Rate", value: capStr },
-  ].filter((s) => !!s.value);
+  const rentStat = isInvestor && econ
+    ? (econ.currentRentValue
+        ? { label: "Current Rent", value: econ.currentRentValue }
+        : (econ.scheduledRent ? { label: "Scheduled Rent", value: econ.scheduledRent } : { label: "", value: null }))
+    : { label: "", value: null };
+  const stats = (isInvestor
+    ? [
+        { label: "Price", value: d.price },
+        { label: "Interior", value: sqftStr },
+        rentStat,
+        { label: "Est. Cap Rate", value: capStr },
+      ]
+    : [
+        { label: "Price", value: d.price },
+        { label: "Interior", value: sqftStr },
+        { label: "Bedrooms", value: d.beds != null ? String(d.beds) : null },
+        { label: "Bathrooms", value: d.baths != null ? String(d.baths) : null },
+      ]
+  ).filter((s) => !!s.value);
   const statW = Math.floor(100 / (stats.length || 1));
   const bandHtml = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-top:2px solid ${gold};border-bottom:1px solid ${line};"><tr>${
     stats.map((s, i) => `<td width="${statW}%" style="padding:16px 6px;text-align:center;${i > 0 ? `border-left:1px solid ${line};` : ""}vertical-align:top;">
@@ -585,6 +623,35 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
         <p style="margin:0;font-size:19px;line-height:1.15;color:${ink};font-family:${serif};font-weight:700;">${p(String(s.value))}</p>
       </td>`).join("")
   }</tr></table>`;
+
+  // Investor rent/lease detail — labeled so a scheduled step-up is explicitly
+  // dated and NEVER presented as the current rent, plus the cap-rate basis note.
+  const detailRow = (label: string, value: string) =>
+    `<tr><td style="padding:5px 0;font-size:12px;color:${muted};font-family:${sans};width:56%;">${p(label)}</td>` +
+    `<td style="padding:5px 0;font-size:13px;color:${ink};font-family:${sans};font-weight:700;text-align:right;">${p(value)}</td></tr>`;
+  const rentRows: string[] = [];
+  if (isInvestor && econ) {
+    if (econ.currentRentValue) rentRows.push(detailRow("Current in-place rent", econ.currentRentValue));
+    if (econ.showScheduledSeparately && econ.scheduledRent) {
+      rentRows.push(detailRow(`Scheduled rent effective ${econ.scheduledEffectiveLabel || ""}`.trim(), econ.scheduledRent));
+    }
+  }
+  if (isInvestor && d.maintenance) rentRows.push(detailRow("Maintenance / common charges", d.maintenance));
+  if (isInvestor && d.leaseExpiration) rentRows.push(detailRow("Lease expires", d.leaseExpiration));
+  const capBasisNote =
+    isInvestor && econ && econ.analysisRentBasis && econ.analysisRentBasis.indexOf("scheduled") === 0
+      ? `Est. cap rate is illustrative, computed on the ${econ.analysisRentBasis}.`
+      : "";
+  const rentDetailHtml = rentRows.length
+    ? `<tr><td style="padding:14px 32px 0;">
+         <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border:1px solid ${line};background-color:${soft};">
+           <tr><td style="padding:12px 16px;">
+             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">${rentRows.join("")}</table>
+             ${capBasisNote ? `<p style="margin:8px 0 0;font-size:10px;color:${muted};font-family:${sans};line-height:1.5;">${p(capBasisNote)}</p>` : ""}
+           </td></tr>
+         </table>
+       </td></tr>`
+    : "";
 
   const heroHtml = d.primaryPhotoUrl
     ? `<img src="${p(d.primaryPhotoUrl)}" alt="${p(d.address)}" width="600" style="width:100%;max-width:600px;height:auto;display:block;">`
@@ -601,25 +668,27 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     <tr><td align="center" style="padding:26px 32px 18px;border-bottom:2px solid ${gold};">
       <img src="${logo}" alt="Mallan Real Estate" height="34" style="height:34px;width:auto;display:block;margin:0 auto 9px;">
       <p style="margin:0;font-size:17px;letter-spacing:4px;font-weight:700;color:${ink};font-family:${serif};">MALLAN REAL ESTATE</p>
-      <p style="margin:10px 0 0;font-size:15px;letter-spacing:2px;text-transform:uppercase;color:${gold};font-weight:700;font-family:${sans};">1031 Replacement Property</p>
+      ${d.campaignLabel ? `<p style="margin:10px 0 0;font-size:15px;letter-spacing:2px;text-transform:uppercase;color:${gold};font-weight:700;font-family:${sans};">${p(d.campaignLabel)}</p>` : ""}
     </td></tr>
 
     <!-- Hero -->
     <tr><td style="padding:0;">${heroHtml}</td></tr>
 
-    <!-- Address block -->
+    <!-- Headline + address block -->
     <tr><td style="padding:24px 32px 6px;">
-      <p style="font-size:26px;line-height:1.15;font-weight:700;color:${ink};margin:0 0 5px;font-family:${serif};">${p(d.address)}</p>
+      ${d.headline ? `<p style="font-size:25px;line-height:1.22;font-weight:700;color:${ink};margin:0 0 8px;font-family:${serif};">${p(d.headline)}</p>` : ""}
+      <p style="font-size:${d.headline ? "18px" : "26px"};line-height:1.15;font-weight:700;color:${ink};margin:0 0 5px;font-family:${serif};">${p(d.address)}</p>
       ${d.neighborhood ? `<p style="font-size:14px;color:${muted};margin:0 0 3px;font-family:${sans};letter-spacing:.3px;">${p(d.neighborhood)}</p>` : ""}
       ${specLine ? `<p style="font-size:12px;color:#8a857c;margin:0;font-family:${sans};letter-spacing:.5px;text-transform:uppercase;">${p(specLine)}</p>` : ""}
     </td></tr>
 
     <!-- Figures -->
     <tr><td style="padding:18px 32px 0;">${bandHtml}</td></tr>
-    <!-- Interactive calculators on the listing page -->
+    ${rentDetailHtml}
+    ${isInvestor ? `<!-- Interactive calculators on the listing page (investor only) -->
     <tr><td align="center" style="padding:14px 32px 0;">
       <a href="${d.detailUrl}#investor-calculator" style="font-size:14px;color:${gold};font-weight:700;text-decoration:none;font-family:${sans};letter-spacing:.2px;">&#128200; Cash-on-Cash &nbsp;&middot;&nbsp; &#128202; ROI calculator &rarr;</a>
-    </td></tr>
+    </td></tr>` : ""}
 
     ${hook ? `<!-- Hook: the one-second value proposition -->
     <tr><td style="padding:24px 32px 4px;">
@@ -645,6 +714,12 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     <tr><td style="padding:22px 32px 0;">
       ${sectionTitle("Purchase Structure", gold, sans)}
       <p style="font-size:14px;color:#3a3833;line-height:1.6;margin:0;font-family:${sans};">${p(d.purchaseStructure)}</p>
+    </td></tr>` : ""}
+
+    ${!isInvestor && d.campaignDetails ? `<!-- Buyer / agent details (co-broke, showing instructions, open houses) -->
+    <tr><td style="padding:22px 32px 0;">
+      ${sectionTitle("Details", gold, sans)}
+      <p style="font-size:14px;color:#3a3833;line-height:1.6;margin:0;font-family:${sans};white-space:pre-line;">${p(d.campaignDetails)}</p>
     </td></tr>` : ""}
 
     ${floorSection}
@@ -680,11 +755,9 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
         <td width="3" style="background-color:${gold};"></td>
         <td style="padding:12px 16px;background-color:${soft};">
           <p style="font-size:11px;color:${muted};line-height:1.6;margin:0;font-family:${sans};">
-            Full financials available on request. Informational purposes only — not tax, legal, or investment advice.
-            Financial figures are illustrative estimates based on figures provided and must be independently verified,
-            unlevered. Whether this property qualifies as a
-            like-kind replacement property, and all 1031 identification and closing deadlines, must be confirmed by the
-            buyer's own attorney, tax adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.
+            ${isInvestor
+              ? `Full financials available on request. Informational purposes only — not tax, legal, or investment advice. Financial figures are illustrative estimates based on figures provided and must be independently verified, unlevered. Whether this property qualifies as a like-kind replacement property, and all 1031 identification and closing deadlines, must be confirmed by the buyer's own attorney, tax adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.`
+              : `Informational purposes only. All figures and property details are provided as a courtesy and must be independently verified. This is not an offer of sale where prohibited. Equal Housing Opportunity.`}
           </p>
         </td>
       </tr></table>
@@ -701,6 +774,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
           <p style="font-size:17px;color:${ink};margin:0;font-family:${serif};font-weight:700;">${p(d.agentName)}</p>
           ${d.agentTitle ? `<p style="color:${muted};font-size:12px;margin:3px 0 0;font-family:${sans};">${p(d.agentTitle)}</p>` : ""}
           <p style="color:${muted};font-size:12px;margin:1px 0 0;font-family:${sans};">${p(brokerName)}</p>
+          ${d.agentLicense ? `<p style="color:${muted};font-size:11px;margin:1px 0 0;font-family:${sans};">License #${p(d.agentLicense)}</p>` : ""}
           <p style="margin:9px 0 0;font-family:${sans};font-size:13px;color:${ink};">
             ${d.agentPhone ? `<span style="font-weight:700;">${p(d.agentPhone)}</span>` : ""}${d.agentPhone && d.agentEmail ? `&nbsp;&nbsp;·&nbsp;&nbsp;` : ""}${d.agentEmail ? `<a href="mailto:${p(d.agentEmail)}" style="color:${gold};text-decoration:none;font-weight:700;">${p(d.agentEmail)}</a>` : ""}
           </p>

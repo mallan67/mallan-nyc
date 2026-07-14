@@ -13,12 +13,20 @@
 export interface MetricInput {
   /** Asking price (required). */
   price: number;
-  /** In-place monthly rent, if known. */
+  /** Monthly rent used for the illustrative math, if known. */
   monthlyRent?: number | null;
   /** Monthly maintenance / common charges, if known. */
   monthlyMaintenance?: number | null;
   /** Interior square footage, if known. */
   sqft?: number | null;
+  /**
+   * Full label for the monthly-rent row, reflecting its temporal basis
+   * (e.g. "Current in-place rent" vs "Scheduled monthly rent (eff. Aug 15, 2026)").
+   * The rent figure is NEVER labeled "in-place" when the basis is a future rent.
+   */
+  rentBasisLabel?: string | null;
+  /** Short chip label for the headline band ("In-Place Rent" | "Scheduled Rent"). */
+  rentBasisShort?: string | null;
 }
 
 export interface MetricRow {
@@ -72,15 +80,18 @@ export function computeInvestmentMetrics(input: MetricInput): InvestmentMetrics 
   const monthlyCashFlow = rent != null && maint != null ? rent - maint : null;
   const grm = annualRent != null && annualRent > 0 ? price / annualRent : null;
 
+  const rentShort = input.rentBasisShort || "In-Place Rent";
+  const rentRowLabel = input.rentBasisLabel || "In-place monthly rent";
+
   const headline: MetricRow[] = [{ label: "Asking Price", value: money0(price), emphasis: true }];
   if (capRatePct != null) headline.push({ label: "Est. Cap Rate", value: pct(capRatePct), emphasis: true });
-  if (rent != null) headline.push({ label: "In-Place Rent", value: `${money0(rent)}/mo` });
+  if (rent != null) headline.push({ label: rentShort, value: `${money0(rent)}/mo` });
   if (pricePerSqft != null) headline.push({ label: "Price / SF", value: money0(pricePerSqft) });
 
   const rows: MetricRow[] = [{ label: "Asking price", value: money0(price), emphasis: true }];
   if (sqft != null) rows.push({ label: "Interior square footage", value: `${Math.round(sqft).toLocaleString("en-US")} SF` });
   if (pricePerSqft != null) rows.push({ label: "Price per square foot", value: money0(pricePerSqft) });
-  if (rent != null) rows.push({ label: "In-place monthly rent", value: money0(rent) });
+  if (rent != null) rows.push({ label: rentRowLabel, value: money0(rent) });
   if (annualRent != null) rows.push({ label: "Annual gross rent", value: money0(annualRent) });
   if (maint != null) rows.push({ label: "Monthly maintenance", value: money2(maint) });
   if (annualMaint != null) rows.push({ label: "Annual maintenance", value: money0(annualMaint) });

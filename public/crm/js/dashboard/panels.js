@@ -9616,7 +9616,7 @@ var Panels = (function () {
             (l._fromPastDeals
               ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
-              : '<button class="btn btn-sm btn-gold" onclick="openListingCampaign(\'' + E(l.listing_id || lid) + '\')" title="Eblast investors — create the investor / 1031 marketing email from this listing"><i class="fas fa-paper-plane mr-1"></i>Eblast Investors</button>' +
+              : '<button class="btn btn-sm btn-gold" onclick="openListingCampaign(\'' + E(l.listing_id || lid) + '\')" title="Create an email eblast (investor / 1031, buyer marketing, or agent / broker) from this listing"><i class="fas fa-paper-plane mr-1"></i>Create Eblast</button>' +
                 '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
                 (!l.mls_id ? '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Withdraw Listing"><i class="fas fa-trash"></i></button>' : '')) +
