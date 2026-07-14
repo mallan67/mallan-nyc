@@ -1900,7 +1900,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
               </section>
 
               {/* ── 9. CALCULATORS (collapsed by default) ── */}
-              <section className="py-6 border-t border-black/[0.06]">
+              <section id="investor-calculator" className="py-6 border-t border-black/[0.06] scroll-mt-24">
                 {!isRental ? (
                   <InvestorCalculator
                     purchasePrice={listing.listPrice}

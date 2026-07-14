@@ -537,7 +537,6 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const officePhone = d.officePhone || "646-258-4460";
   const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
 
-  const headline = d.headline || "1031 Replacement · Midtown East";
   // The one-second hook.
   const hook = d.intro ||
     "Condo rules with co-op economics — lease from day one, no board interview.";
@@ -546,7 +545,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     ? d.benefitBullets
     : [
         "Lease from day one — condo rules and no board interview, so a tenant can be placed immediately within your 1031 window",
-        "Co-op-style economics — typically lower closing costs than a comparable condo",
+        "Low closing costs — a co-op-style purchase avoids the mortgage-recording tax and title insurance a condo carries",
       ]);
   const locationBullets = (d.locationBlurb && d.locationBlurb.trim())
     ? d.locationBlurb.split("\n").map((s) => s.trim()).filter(Boolean)
@@ -601,25 +600,29 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
     : "";
 
   const body = `
-    <!-- Header: company name -->
+    <!-- Header: company name + instant "what is this" label -->
     <tr><td align="center" style="padding:26px 32px 18px;border-bottom:2px solid ${gold};">
       <img src="${logo}" alt="Mallan Real Estate" height="34" style="height:34px;width:auto;display:block;margin:0 auto 9px;">
       <p style="margin:0;font-size:17px;letter-spacing:4px;font-weight:700;color:${ink};font-family:${serif};">MALLAN REAL ESTATE</p>
+      <p style="margin:9px 0 0;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:${gold};font-weight:600;font-family:${sans};">1031 Replacement Property</p>
     </td></tr>
 
     <!-- Hero -->
     <tr><td style="padding:0;">${heroHtml}</td></tr>
 
     <!-- Address block -->
-    <tr><td style="padding:26px 32px 6px;">
-      <p style="font-size:11px;font-weight:700;letter-spacing:2px;color:${gold};text-transform:uppercase;margin:0 0 10px;font-family:${sans};">${p(headline)}</p>
+    <tr><td style="padding:24px 32px 6px;">
       <p style="font-size:26px;line-height:1.15;font-weight:700;color:${ink};margin:0 0 5px;font-family:${serif};">${p(d.address)}</p>
       ${d.neighborhood ? `<p style="font-size:14px;color:${muted};margin:0 0 3px;font-family:${sans};letter-spacing:.3px;">${p(d.neighborhood)}</p>` : ""}
       ${specLine ? `<p style="font-size:12px;color:#8a857c;margin:0;font-family:${sans};letter-spacing:.5px;text-transform:uppercase;">${p(specLine)}</p>` : ""}
     </td></tr>
 
-    <!-- Metric band -->
+    <!-- Figures -->
     <tr><td style="padding:18px 32px 0;">${bandHtml}</td></tr>
+    <!-- Interactive calculators on the listing page -->
+    <tr><td align="center" style="padding:12px 32px 0;">
+      <a href="${d.detailUrl}#investor-calculator" style="font-size:13px;color:${gold};font-weight:700;text-decoration:none;font-family:${sans};letter-spacing:.2px;">Run your numbers &mdash; Cash-on-Cash &amp; ROI calculator &rarr;</a>
+    </td></tr>
 
     <!-- Hook: the one-second value proposition -->
     <tr><td style="padding:24px 32px 4px;">
@@ -639,7 +642,6 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
           </tr>`;
         }).join("")}
       </table>
-      <p style="font-size:11px;color:#a49e93;line-height:1.5;margin:14px 0 0;font-family:${sans};">Full financials sent on request. Estimates illustrative and unlevered; buyer to verify.</p>
     </td></tr>
 
     ${floorSection}
@@ -675,8 +677,9 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
         <td width="3" style="background-color:${gold};"></td>
         <td style="padding:12px 16px;background-color:${soft};">
           <p style="font-size:11px;color:${muted};line-height:1.6;margin:0;font-family:${sans};">
-            Informational purposes only — not tax, legal, or investment advice. Financial figures are illustrative
-            estimates based on figures provided and must be independently verified. Whether this property qualifies as a
+            Full financials available on request. Informational purposes only — not tax, legal, or investment advice.
+            Financial figures are illustrative estimates based on figures provided and must be independently verified,
+            unlevered. Whether this property qualifies as a
             like-kind replacement property, and all 1031 identification and closing deadlines, must be confirmed by the
             buyer's own attorney, tax adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.
           </p>
