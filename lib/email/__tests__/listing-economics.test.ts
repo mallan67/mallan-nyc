@@ -56,6 +56,23 @@ describe('resolveListingEconomics — temporal rent labeling (SL-0004 step-up)',
     expect(r.analysisRent).toBe(5000);
   });
 
+  it('never treats an UNDATED scheduled rent as current (fail-closed)', () => {
+    const r = resolveListingEconomics({ scheduledRent: '$4,305/mo', scheduledRentEffective: '', currentRent: '', asOf: BEFORE_STEPUP });
+    expect(r.currentRentValue).toBeNull();               // NOT promoted to current
+    expect(r.showScheduledSeparately).toBe(true);
+    expect(r.scheduledRent).toBe('$4,305/mo');
+    expect(r.scheduledEffectiveLabel).toBeNull();
+    expect(r.analysisRentShort).toBe('Scheduled Rent');
+    expect(r.analysisRentBasis).toBe('scheduled rent');
+  });
+
+  it('treats an INVALID effective date like undated (still never current)', () => {
+    const r = resolveListingEconomics({ scheduledRent: '$4,305/mo', scheduledRentEffective: 'whenever', currentRent: '', asOf: BEFORE_STEPUP });
+    expect(r.currentRentValue).toBeNull();
+    expect(r.showScheduledSeparately).toBe(true);
+    expect(r.analysisRentShort).toBe('Scheduled Rent');
+  });
+
   it('omits rent-derived analysis when neither rent is known', () => {
     const r = resolveListingEconomics({ maintenance: '$900/mo', asOf: BEFORE_STEPUP });
     expect(r.currentRentValue).toBeNull();

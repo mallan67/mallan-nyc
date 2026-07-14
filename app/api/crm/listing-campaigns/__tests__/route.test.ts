@@ -258,6 +258,16 @@ describe('economics confirmation gate — no send/schedule without it', () => {
     expect((await res.json()).confirmation_error).toBe('confirmation_stale');
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
+  it('does NOT gate a buyer/agent campaign behind the economics confirmation', async () => {
+    // Economics may linger from a type switch, but a buyer send must not be blocked.
+    const res = await POST(post({
+      listing_id: 'SL-0004', mode: 'dry_run', campaignType: 'buyer',
+      recipients: recips, headline: 'New to Market',
+    }));
+    expect(res.status).toBe(200);
+    const actions = mockAuditCreate.mock.calls.map((c) => (c[0] as { data: { action: string } }).data.action);
+    expect(actions).not.toContain('email:economics_confirmed');
+  });
   it('proceeds with a valid confirmation and audits who/when/what', async () => {
     const res = await POST(post(confirmed({ listing_id: 'SL-0004', mode: 'dry_run', recipients: recips, maintenance: '$1,748.65/mo', scheduledRent: '$4,305/mo', scheduledRentEffective: '2026-08-15', leaseExpiration: 'August 14, 2027' })));
     expect(res.status).toBe(200);

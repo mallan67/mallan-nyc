@@ -83,52 +83,56 @@ export function resolveListingEconomics(input: ListingEconomicsInput): ResolvedE
   const effLabel = eff ? formatDay(eff) : null;
   const scheduledIsEffective = eff != null && dayNumber(asOf) >= dayNumber(eff);
 
-  // A scheduled rent is shown separately ONLY while it is still in the future.
-  // Once effective, it silently becomes the current in-place rent.
-  const hasFutureScheduled = scheduledRentRaw != null && eff != null && !scheduledIsEffective;
+  // A scheduled rent becomes the CURRENT in-place rent ONLY when it is both dated
+  // AND that date has arrived. In every other case where a scheduled rent is
+  // present — future-dated, OR undated / mistyped effective date — it is "not yet
+  // current" and must NEVER be rendered as the current rent (fail-closed: a cleared
+  // or invalid effective date can't silently promote a future step-up to today's).
+  const scheduledEffectiveNow = scheduledRentRaw != null && eff != null && scheduledIsEffective;
+  const scheduledNotYetCurrent = scheduledRentRaw != null && !scheduledEffectiveNow;
 
   let currentRentValue: string | null;
   let analysisRentSource: string | null;
   let analysisRentShort: string | null;
   let analysisRentBasis: string | null;
 
-  if (hasFutureScheduled) {
-    // Future step-up: current stays whatever the agent verified (may be blank);
-    // the $X scheduled figure is NEVER presented as "current" here.
+  if (scheduledEffectiveNow) {
+    // Dated + effective — the scheduled rent is now the current in-place rent.
+    currentRentValue = scheduledRentRaw;
+    analysisRentSource = scheduledRentRaw;
+    analysisRentShort = "In-Place Rent";
+    analysisRentBasis = "current in-place rent";
+  } else if (scheduledNotYetCurrent) {
+    // Future or undated — current stays whatever the agent verified (may be blank);
+    // the scheduled figure is shown separately and NEVER as "current".
     currentRentValue = currentRentRaw;
     if (currentRentRaw != null) {
       analysisRentSource = currentRentRaw;
       analysisRentShort = "In-Place Rent";
       analysisRentBasis = "current in-place rent";
     } else {
-      // No verified current rent yet — the illustrative yield is on the scheduled
-      // rent, and it is labeled as such so nothing reads as a current figure.
+      // No verified current rent yet — illustrative yield is on the scheduled rent,
+      // labeled as such (with its date when known) so nothing reads as current.
       analysisRentSource = scheduledRentRaw;
       analysisRentShort = "Scheduled Rent";
       analysisRentBasis = effLabel ? `scheduled rent effective ${effLabel}` : "scheduled rent";
     }
-  } else if (scheduledRentRaw != null && eff != null && scheduledIsEffective) {
-    // The scheduled rent has taken effect — it is now the current in-place rent.
-    currentRentValue = scheduledRentRaw;
-    analysisRentSource = scheduledRentRaw;
-    analysisRentShort = "In-Place Rent";
-    analysisRentBasis = "current in-place rent";
   } else {
-    // No scheduled rent (or no effective date) — current rent is the basis.
-    currentRentValue = currentRentRaw ?? scheduledRentRaw;
-    analysisRentSource = currentRentValue;
-    analysisRentShort = currentRentValue != null ? "In-Place Rent" : null;
-    analysisRentBasis = currentRentValue != null ? "current in-place rent" : null;
+    // No scheduled rent at all — current rent is the sole basis.
+    currentRentValue = currentRentRaw;
+    analysisRentSource = currentRentRaw;
+    analysisRentShort = currentRentRaw != null ? "In-Place Rent" : null;
+    analysisRentBasis = currentRentRaw != null ? "current in-place rent" : null;
   }
 
   const analysisRent = parseMoney(analysisRentSource);
   return {
     currentRentValue,
-    scheduledRent: hasFutureScheduled ? scheduledRentRaw : null,
+    scheduledRent: scheduledNotYetCurrent ? scheduledRentRaw : null,
     scheduledRentEffective: eff,
     scheduledEffectiveLabel: effLabel,
     scheduledIsEffective,
-    showScheduledSeparately: hasFutureScheduled,
+    showScheduledSeparately: scheduledNotYetCurrent,
     analysisRent: analysisRent != null && analysisRent > 0 ? analysisRent : null,
     analysisRentShort: analysisRent != null && analysisRent > 0 ? analysisRentShort : null,
     analysisRentBasis: analysisRent != null && analysisRent > 0 ? analysisRentBasis : null,

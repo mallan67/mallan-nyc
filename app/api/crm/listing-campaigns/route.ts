@@ -318,8 +318,10 @@ export async function POST(req: NextRequest) {
     maintenance: strOrNull(body.maintenance),
     leaseExpiration: strOrNull(body.leaseExpiration),
   };
-  const hasAnyEconomics = Object.values(confirmEconomics).some((v) => v != null && v !== "");
-  const requiresConfirmation = isInvestor || hasAnyEconomics;
+  // Confirmation matters only for investor campaigns — non-investor templates never
+  // render economics, so a buyer/agent send is not gated behind a lease-economics
+  // checkbox even if stale economics linger in the request from a type switch.
+  const requiresConfirmation = isInvestor;
   const fingerprint = economicsFingerprint(listing_id, confirmEconomics);
   let confirmationAudit: ReturnType<typeof buildConfirmationAudit> | null = null;
   if (mode !== "preview" && requiresConfirmation) {

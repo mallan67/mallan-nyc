@@ -277,14 +277,19 @@
       purchaseStructure: f.purchaseStructure || undefined,
       locationBlurb: f.location || undefined,
       campaignDetails: f.campaignDetails || undefined,
-      currentRent: f.currentRent || undefined,
-      scheduledRent: f.scheduledRent || undefined,
-      scheduledRentEffective: f.scheduledRentEffective || undefined,
-      maintenance: f.maintenance || undefined,
-      leaseExpiration: f.leaseExpiration || undefined,
       // Sender identity is intentionally NOT sent — the server derives it from the
       // authenticated agent and ignores any body identity fields.
     };
+    // Economics only apply to investor campaigns. Omit them for buyer/agent so a
+    // type switch (which hides but does not clear the fields) never posts stale
+    // lease figures that would gate the send behind an irrelevant confirmation.
+    if ((f.campaignType || 'investor') === 'investor') {
+      body.currentRent = f.currentRent || undefined;
+      body.scheduledRent = f.scheduledRent || undefined;
+      body.scheduledRentEffective = f.scheduledRentEffective || undefined;
+      body.maintenance = f.maintenance || undefined;
+      body.leaseExpiration = f.leaseExpiration || undefined;
+    }
     if (mode === 'dry_run' || mode === 'test' || mode === 'live') {
       body.confirmation = state.confirmed
         ? { confirmed: true, fingerprint: state.economicsFingerprint, confirmedAt: state.confirmedAt, sourceRef: f.sourceRef || undefined }

@@ -633,7 +633,10 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   if (isInvestor && econ) {
     if (econ.currentRentValue) rentRows.push(detailRow("Current in-place rent", econ.currentRentValue));
     if (econ.showScheduledSeparately && econ.scheduledRent) {
-      rentRows.push(detailRow(`Scheduled rent effective ${econ.scheduledEffectiveLabel || ""}`.trim(), econ.scheduledRent));
+      const schedLabel = econ.scheduledEffectiveLabel
+        ? `Scheduled rent effective ${econ.scheduledEffectiveLabel}`
+        : "Scheduled rent (effective date to be confirmed)";
+      rentRows.push(detailRow(schedLabel, econ.scheduledRent));
     }
   }
   if (isInvestor && d.maintenance) rentRows.push(detailRow("Maintenance / common charges", d.maintenance));
