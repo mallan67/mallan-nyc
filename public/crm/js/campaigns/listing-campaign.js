@@ -22,15 +22,35 @@
 
   var state = null;
 
+  // Listing-scoped campaign profiles — approved copy loaded as ACTUAL editable
+  // values for that listing only. This is NOT a generic template default: other
+  // listings get no profile (blank, editable) and never inherit this wording.
+  var LISTING_PROFILES = {
+    'SL-0004': {
+      subject: 'Investment Opportunity — 333 East 46th Street, #2G',
+      intro: 'Condo rules with co-op economics — lease from day one, no board interview.',
+      bullets: 'Leased — tenant in place paying $4,305/month through August 14, 2027 (4% cap), and open to renewing\n'
+             + 'Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $5,000 less)',
+      purchaseStructure: 'Condop ownership with no board interview. The sale is subject to the building’s Right of First Refusal and issuance of the applicable waiver.',
+      location: 'Full-service building — 24-hour doorman, live-in superintendent, laundry, and a roof deck\n'
+              + 'Heart of Midtown East — steps to the United Nations, transportation, and shopping',
+      maintenance: '$1,748.65/mo',
+      currentRent: '$4,305/mo',
+      leaseExpiration: 'August 14, 2027',
+    },
+  };
+
   function fresh(listingId) {
+    var fields = {
+      subject: '', headline: '', intro: '', bullets: '', location: '',
+      maintenance: '', currentRent: '', leaseExpiration: '', purchaseStructure: '',
+    };
+    var profile = LISTING_PROFILES[listingId];
+    if (profile) { for (var k in profile) if (Object.prototype.hasOwnProperty.call(profile, k)) fields[k] = profile[k]; }
     return {
       listingId: listingId,
       step: 1,
-      fields: {
-        subject: '', headline: '', intro: '', bullets: '', location: '',
-        maintenance: '', currentRent: '', leaseExpiration: '', purchaseStructure: '',
-        agentName: 'Maya Allan',
-      },
+      fields: fields,
       previewHtml: '',
       listingSummary: null,
       recipients: [],
@@ -149,14 +169,14 @@
           field('Headline', 'headline', 'Tenant-Occupied Manhattan Investment Opportunity') +
           field('Intro', 'intro', 'A rare chance to acquire an income-producing residence…', 'textarea') +
           field('Key benefit bullets (one per line)', 'bullets', 'Existing rental income from closing\n1031-eligible replacement property', 'textarea') +
-          field('Purchase structure (building-specific — e.g. condop / Right of First Refusal)', 'purchaseStructure', 'Condop ownership with no board interview. The sale is subject to the building’s Right of First Refusal and issuance of the applicable waiver.', 'textarea') +
+          field('Purchase structure (building-specific)', 'purchaseStructure', 'Ownership structure, board process, Right of First Refusal / waiver terms — specific to this building', 'textarea') +
           field('Location blurb', 'location', 'Turtle Bay / Midtown East…', 'textarea') +
           '<div class="grid grid-cols-3 gap-2">' +
             '<div>' + field('Maintenance', 'maintenance', '$1,748.65/mo') + '</div>' +
             '<div>' + field('Current rent', 'currentRent', '$4,305/mo') + '</div>' +
             '<div>' + field('Lease expires', 'leaseExpiration', 'Aug 14, 2027') + '</div>' +
           '</div>' +
-          field('Sender name', 'agentName', 'Maya Allan') +
+          '<p class="text-[10px] text-gray-400 mt-1">Sender is your signed-in agent identity (from your account) — not editable here.</p>' +
           '<button onclick="window._lcUpdatePreview()" class="mt-1 px-3 py-1.5 bg-gray-800 text-white rounded text-xs"><i class="fas fa-sync mr-1"></i>Update preview</button>' +
         '</div>' +
         '<div class="space-y-2">' +
@@ -193,7 +213,8 @@
       maintenance: f.maintenance || undefined,
       currentRent: f.currentRent || undefined,
       leaseExpiration: f.leaseExpiration || undefined,
-      agentName: f.agentName || undefined,
+      // Sender identity is intentionally NOT sent — the server derives it from the
+      // authenticated agent and ignores any body identity fields.
     };
   }
 
