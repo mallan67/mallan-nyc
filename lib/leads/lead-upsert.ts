@@ -22,11 +22,13 @@
  * inserts on the same `email` serialize and each sees the other's
  * write before computing its own merge.
  *
- * The union expression:
+ * The union expression (the ON CONFLICT target is aliased `existing` so the
+ * merge references the conflict-locked row by a stable alias rather than the
+ * physical table name):
  *   ARRAY(
- *     SELECT DISTINCT e
- *     FROM unnest("Lead"."roles" || EXCLUDED."roles") AS e
- *     WHERE e <> ''
+ *     SELECT DISTINCT role
+ *     FROM unnest(existing."roles" || EXCLUDED."roles") AS role
+ *     WHERE role <> ''
  *   )
  *
  * Guarantees match `mergeRoles()` from `lib/leads/intent.ts`:
@@ -115,7 +117,7 @@ export async function atomicMergeUpsertLead(
   const rows = await prisma.$queryRaw<
     Array<{ id: bigint; roles: string[] }>
   >`
-    INSERT INTO "Lead" (
+    INSERT INTO "leads" AS existing (
       "first_name", "last_name", "email", "phone", "roles",
       "status", "source", "consent_captured_at",
       "created_at", "updated_at"
@@ -126,11 +128,11 @@ export async function atomicMergeUpsertLead(
       NOW(), NOW()
     )
     ON CONFLICT ("email") DO UPDATE SET
-      "phone" = COALESCE(NULLIF(EXCLUDED."phone", ''), "Lead"."phone"),
+      "phone" = COALESCE(NULLIF(EXCLUDED."phone", ''), existing."phone"),
       "roles" = ARRAY(
-        SELECT DISTINCT e
-        FROM unnest("Lead"."roles" || EXCLUDED."roles") AS e
-        WHERE e <> ''
+        SELECT DISTINCT role
+        FROM unnest(existing."roles" || EXCLUDED."roles") AS role
+        WHERE role <> ''
       ),
       "consent_captured_at" = EXCLUDED."consent_captured_at",
       "updated_at" = NOW()
