@@ -540,22 +540,16 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
   const officePhone = d.officePhone || "646-258-4460";
   const unsub = d.unsubscribeUrl || `${BASE_URL}/unsubscribe`;
 
-  // The one-second hook.
-  const hook = d.intro ||
-    "Condo rules with co-op economics — lease from day one, no board interview.";
+  // NO hard-coded defaults — the campaign UI is exposed on every listing row, so
+  // listing-specific copy must come from the compose step (or listing data) and
+  // NEVER a baked-in default, or a blank compose would advertise false facts for
+  // a different property. Empty content simply omits its section.
+  const hook = d.intro || "";
   // Each bullet is "Lead — detail"; the template bolds the lead.
-  const bullets = (d.benefitBullets && d.benefitBullets.length
-    ? d.benefitBullets
-    : [
-        "Leased — tenant in place paying $4,305/month through August 14, 2027 (4% cap), and open to renewing",
-        "Low closing costs — all-cash closing runs about $7,000 for this condop vs about $12,000 for a comparable condo (roughly $5,000 less)",
-      ]);
+  const bullets = (d.benefitBullets && d.benefitBullets.length) ? d.benefitBullets : [];
   const locationBullets = (d.locationBlurb && d.locationBlurb.trim())
     ? d.locationBlurb.split("\n").map((s) => s.trim()).filter(Boolean)
-    : [
-        "Full-service building — 24-hour doorman, live-in superintendent, laundry, and a roof deck",
-        "Heart of Midtown East — steps to the United Nations, transportation, and shopping",
-      ];
+    : [];
   const beds = d.beds != null ? `${d.beds} Bed` : null;
   const baths = d.baths != null ? `${d.baths} Bath` : null;
   const sqftStr = d.sqft != null ? `${Math.round(d.sqft).toLocaleString("en-US")} SF` : null;
@@ -627,12 +621,12 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
       <a href="${d.detailUrl}#investor-calculator" style="font-size:14px;color:${gold};font-weight:700;text-decoration:none;font-family:${sans};letter-spacing:.2px;">&#128200; Cash-on-Cash &nbsp;&middot;&nbsp; &#128202; ROI calculator &rarr;</a>
     </td></tr>
 
-    <!-- Hook: the one-second value proposition -->
+    ${hook ? `<!-- Hook: the one-second value proposition -->
     <tr><td style="padding:24px 32px 4px;">
       <p style="font-size:19px;line-height:1.4;color:${ink};margin:0;font-family:${serif};font-weight:700;">${p(hook)}</p>
-    </td></tr>
+    </td></tr>` : ""}
 
-    <!-- The condop advantage — three bold-lead points -->
+    ${bullets.length ? `<!-- Investment highlights — bold-lead points -->
     <tr><td style="padding:16px 32px 0;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
         ${bullets.map((b) => {
@@ -645,7 +639,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
           </tr>`;
         }).join("")}
       </table>
-    </td></tr>
+    </td></tr>` : ""}
 
     ${d.purchaseStructure ? `<!-- Purchase structure (building-specific) -->
     <tr><td style="padding:22px 32px 0;">
@@ -655,7 +649,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
 
     ${floorSection}
 
-    <!-- Building & location -->
+    ${locationBullets.length ? `<!-- Building & location -->
     <tr><td style="padding:24px 32px 0;">
       ${sectionTitle("Building & Location", gold, sans)}
       <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
@@ -669,7 +663,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
           </tr>`;
         }).join("")}
       </table>
-    </td></tr>
+    </td></tr>` : ""}
 
     <!-- CTAs: Schedule a Showing is the primary action -->
     <tr><td style="padding:26px 32px 0;">

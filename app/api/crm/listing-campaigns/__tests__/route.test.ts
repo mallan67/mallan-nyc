@@ -15,6 +15,7 @@ jest.mock('@/lib/prisma', () => ({
     listing: { findUnique: (a: unknown) => mockFindUnique(a) },
     lead: { findMany: (a: unknown) => mockLeadFindMany(a) },
     auditEvent: { create: (a: unknown) => mockAuditCreate(a) },
+    agent: { findUnique: async () => ({ first_name: 'Maya', last_name: 'Allan', email: 'maya@mallan.nyc', phone: '646-258-4460', title: 'Licensed Real Estate Broker', role: 'BROKER' }) },
   },
 }));
 jest.mock('@/lib/auth', () => ({
@@ -210,5 +211,28 @@ describe('live send is fail-closed', () => {
     }));
     expect(res.status).toBe(409);
     expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('Codex #505 fixes — authenticated sender + no hard-coded defaults', () => {
+  it('derives sender identity from the authenticated agent, ignoring spoofable body fields', async () => {
+    const res = await POST(post({
+      listing_id: 'SL-0004', mode: 'preview',
+      agentName: 'Spoofed Person', agentEmail: 'spoof@evil.com', agentPhone: '000-000-0000',
+    }));
+    const json = await res.json();
+    expect(json.html).toContain('Maya Allan');       // from the mocked authenticated agent
+    expect(json.html).toContain('maya@mallan.nyc');
+    expect(json.html).not.toContain('Spoofed Person');
+    expect(json.html).not.toContain('spoof@evil.com');
+  });
+
+  it('a blank compose injects NO hard-coded 333 E 46th facts (no false facts on other listings)', async () => {
+    const res = await POST(post({ listing_id: 'SL-0004', mode: 'preview' })); // no copy fields supplied
+    const json = await res.json();
+    expect(json.html).not.toContain('August 14, 2027');   // was a baked-in default lease date
+    expect(json.html).not.toContain('roof deck');          // was a baked-in default amenity
+    expect(json.html).not.toContain('Low closing costs');  // was a baked-in default bullet
+    expect(json.html).not.toContain('no board interview'); // was a baked-in default hook
   });
 });

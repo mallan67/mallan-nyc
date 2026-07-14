@@ -248,6 +248,17 @@ export async function POST(req: NextRequest) {
   const photoUrls = dto.media.filter((m) => m.mediaType === "Photo").map((m) => m.url);
   const floorPlanUrl = dto.media.find((m) => m.mediaType === "FloorPlan")?.url ?? null;
 
+  // Sender identity is derived from the AUTHENTICATED agent — never from spoofable
+  // body fields — so recipients always see the agent who actually sent it.
+  const agent = await prisma.agent.findUnique({
+    where: { id: auth.userId },
+    select: { first_name: true, last_name: true, email: true, phone: true, title: true, role: true },
+  });
+  const agentName = (agent ? `${agent.first_name || ""} ${agent.last_name || ""}`.trim() : "") || "Mallan Real Estate Inc.";
+  const agentTitle = agent?.title || (agent?.role === "BROKER" ? "Licensed Real Estate Broker" : "Licensed Real Estate Salesperson");
+  const agentEmail = agent?.email || null;
+  const agentPhone = agent?.phone || null;
+
   const emailData: InvestorListingEmailData = {
     address: dtoAddressLine(dto),
     neighborhood: dto.address.neighborhood ?? null,
@@ -276,11 +287,13 @@ export async function POST(req: NextRequest) {
     locationBlurb: strOrUndef(body.locationBlurb),
     logoUrl: `${BASE_URL}/images/mallan-logo.png`,
     equalHousingLogoUrl: `${BASE_URL}/images/equal-housing-logo.svg`,
-    agentPhotoUrl: `${BASE_URL}/images/maya-allan.jpg`,
-    agentName: strOrUndef(body.agentName) || "Maya Allan",
-    agentTitle: strOrNull(body.agentTitle) || "Licensed Real Estate Broker",
-    agentPhone: strOrNull(body.agentPhone) || "646-258-4460",
-    agentEmail: strOrNull(body.agentEmail) || "maya@mallan.nyc",
+    // Headshot only when we actually have one for this agent (no per-agent photo
+    // system yet), so a different sender never shows the wrong person's face.
+    agentPhotoUrl: agentEmail === "maya@mallan.nyc" ? `${BASE_URL}/images/maya-allan.jpg` : null,
+    agentName,
+    agentTitle,
+    agentPhone,
+    agentEmail,
     officeAddress: "400 East 90th Street, Suite 17C, New York, NY 10128",
   };
   const html = investorListingEmail(emailData);
@@ -377,6 +390,7 @@ export async function POST(req: NextRequest) {
   for (const r of kept) {
     const result = await sendEmail(r.email, subject, html, sessionUser, {
       channel: "listings",
+      replyTo: agentEmail || undefined,
       dryRun,
       testAllowlist,
     });
