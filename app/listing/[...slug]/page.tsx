@@ -30,27 +30,26 @@ import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
-import { fetchSingleListing, fetchListingMedia, fetchListingByAddress } from '@/lib/idx/fetch';
-import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal } from '@/lib/idx/mapping';
+// NOTE (compute repair PR #511): the public listing page renders ONLY from the
+// synchronized Neon copy (listing + listing_media). It must NEVER call the live
+// Cotality/Trestle feed (OAuth, Property, Media) during an ordinary page request —
+// that live dependency is what forced the route dynamic (no-store, cache MISS on
+// every request). Live Cotality calls live in the sync jobs and operational tools,
+// not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
 import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
-import { toPublicDTO, buildAuctionPublic, resolveMoveInFees, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { buildAuctionPublic, resolveMoveInFees, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
-import { resolveVisibility } from '@/lib/search/visibility-contract';
 import { cache } from 'react';
 import RecentlyViewedTracker from '@/app/components/RecentlyViewedTracker';
 import ListingViewTracker from '@/app/components/ListingViewTracker';
 import TrackListingView from '@/app/components/TrackListingView';
 import TrackListingSend from '@/app/components/TrackListingSend';
 
-import { getAccessToken } from '@/lib/idx/auth';
-import { soda } from '@/lib/soda';
-import { affirmPermission } from '@/lib/compliance/gates';
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { classifyMediaItem, resolveListingMedia, resolveListingMediaFromRows, toDtoMedia, shouldFetchTrestleMediaFallback, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { classifyMediaItem, resolveListingMedia, resolveListingMediaFromRows, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -64,15 +63,6 @@ function proxyDetailMediaUrl(rawUrl: string): string {
     : rawUrl;
 }
 
-/** Borough name → ACRIS borough code (1=Manhattan, 2=Bronx, 3=Brooklyn, 4=Queens, 5=SI) */
-const BOROUGH_TO_CODE: Record<string, string> = {
-  manhattan: '1', 'new york': '1',
-  bronx: '2',
-  brooklyn: '3', kings: '3',
-  queens: '4',
-  'staten island': '5', richmond: '5',
-};
-
 interface LastSaleInfo {
   closePrice: number;
   closeDate: string;
@@ -80,115 +70,13 @@ interface LastSaleInfo {
   source: 'trestle' | 'acris';
 }
 
-/** Fetch last closed sale for a specific unit from Trestle */
-async function fetchLastUnitSale(
-  streetNumber: string,
-  streetName: string,
-  unitNumber: string | null,
-  postalCode: string,
-): Promise<LastSaleInfo | null> {
-  if (!streetNumber || !streetName) return null;
-  try {
-    const token = await getAccessToken();
-    const baseUrl = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
-    const escapedStreet = streetName.replace(/'/g, "''");
-    let filter = `StreetNumber eq '${streetNumber}' and contains(StreetName,'${escapedStreet}') and PostalCode eq '${postalCode}' and (MlsStatus eq 'Closed' or StandardStatus eq 'Closed')`;
-    if (unitNumber) {
-      const escapedUnit = unitNumber.replace(/'/g, "''");
-      filter += ` and UnitNumber eq '${escapedUnit}'`;
-    }
-    const params = new URLSearchParams({
-      $filter: filter,
-      $select: 'ClosePrice,CloseDate,LivingArea,ListPrice',
-      $orderby: 'CloseDate desc',
-      $top: '1',
-    });
-    const res = await fetch(`${baseUrl}/odata/Property?${params}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const record = data?.value?.[0];
-    if (!record) return null;
-    return {
-      closePrice: Number(record.ClosePrice || record.ListPrice || 0),
-      closeDate: record.CloseDate ? String(record.CloseDate) : '',
-      sqft: Number(record.LivingArea || 0),
-      source: 'trestle' as const,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** Fetch last sale from ACRIS (NYC public records) by borough/block/lot as fallback */
-async function fetchLastSaleFromACRIS(
-  county: string,
-  taxBlock: string | null,
-  taxLot: string | null,
-): Promise<LastSaleInfo | null> {
-  if (!taxBlock || !taxLot) return null;
-
-  const boroCode = BOROUGH_TO_CODE[county.toLowerCase()];
-  if (!boroCode) return null;
-
-  // ACRIS uses separate borough, block (5-digit), lot (4-digit) columns
-  const block = taxBlock.padStart(5, '0');
-  const lot = taxLot.padStart(4, '0');
-
-  try {
-    const MASTER = process.env.SODA_DATASET_ACRIS_MASTER;
-    const REALPROP = process.env.SODA_DATASET_ACRIS_REALPROPERTY;
-    if (!MASTER || !REALPROP) return null;
-
-    // Step 1: Get document IDs for this property (borough + block + lot)
-    const docRows = await soda<{ document_id: string }>({
-      resource: REALPROP,
-      where: `borough='${boroCode}' AND block='${block}' AND lot='${lot}'`,
-      select: 'document_id',
-      order: 'document_id DESC',
-      limit: 50,
-    });
-
-    if (docRows.length === 0) return null;
-
-    // Step 2: Get transfer/deed documents with sale amounts
-    // NYC condos/co-ops use RPTT&RET (Real Property Transfer Tax), houses use DEED/DEEDO
-    const docIds = docRows.map(r => r.document_id);
-    const where = `document_id in (${docIds.map(id => `'${id}'`).join(',')}) AND doc_type in ('DEED','DEEDO','RPTT&RET') AND document_amt>'0'`;
-    const docs = await soda<{
-      document_id: string;
-      doc_type: string;
-      document_amt?: string;
-      recorded_datetime?: string;
-      good_through_date?: string;
-    }>({
-      resource: MASTER,
-      where,
-      order: 'recorded_datetime DESC',
-      limit: 5,
-    });
-
-    // Find the most recent deed with a sale amount
-    for (const doc of docs) {
-      const amount = Number(doc.document_amt || 0);
-      if (amount > 0) {
-        const date = doc.recorded_datetime || doc.good_through_date || '';
-        return {
-          closePrice: amount,
-          closeDate: date,
-          sqft: 0, // ACRIS doesn't have sqft
-          source: 'acris' as const,
-        };
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
+// Last-sale enrichment (fetchLastUnitSale via live Trestle + fetchLastSaleFromACRIS
+// via NYC ACRIS) was REMOVED in the compute repair (PR #511). On the DB-only render
+// path it produced no public output anyway: the Trestle result is blocked for the
+// public audience by resolveVisibility, and the ACRIS lookup requires tax block/lot
+// that the synchronized DB row does not carry (fetchFromDB returns tax=null). The
+// `LastSaleInfo` type is retained because the render still types `lastUnitSale`,
+// which is now always null (the "Last Sale" section stays hidden, as before).
 
 type Props = {
   // Catch-all route — params.slug can be:
@@ -225,57 +113,12 @@ interface TrestleExtraFields {
   taxLot: string | null;
 }
 
-/**
- * Resolve a raw Trestle record → PublicListingDTO with media.
- * Also extracts TaxBlock/TaxLot for ACRIS fallback.
- * Always fetches media separately (we no longer use $expand=Media).
- */
-async function rawToDTO(raw: Record<string, unknown>, debugId: string): Promise<{ dto: PublicListingDTO; tax: TrestleExtraFields } | null> {
-  const gateResult = checkDistributionGates(raw);
-  if (!gateResult.displayable) return null;
+// rawToDTO (raw Trestle record → PublicListingDTO) was REMOVED in the compute
+// repair (PR #511): it was only used by the live Trestle-direct fallback, which no
+// longer exists. The DB path (fetchFromDB) builds the DTO directly from the
+// synchronized Neon row, including the FARE move-in fee disclosure via resolveMoveInFees.
 
-  const listing = mapRESOToInternal(raw);
-  if (!listing) return null;
-
-  let dto: PublicListingDTO;
-  try {
-    dto = toPublicDTO(listing);
-  } catch {
-    return null;
-  }
-
-  // FARE Act move-in fee disclosure on the Trestle-direct path (Codex #346):
-  // toPublicDTO omits these — resolve from the raw Trestle record so the public
-  // disclosure is path-independent (canonical-first, zero-safe fallback).
-  const trestleMoveInFees = resolveMoveInFees(raw);
-  dto.moveInCostsAmount = trestleMoveInFees.moveInCostsAmount;
-  dto.moveInCostsComments = trestleMoveInFees.moveInCostsComments;
-
-  // Always fetch media from Trestle Media resource ($expand=Media removed)
-  const listingKey = String(raw.SourceSystemKey || raw.ListingId || debugId);
-  try {
-    const mediaItems = await fetchListingMedia(listingKey);
-    if (mediaItems.length > 0) {
-      dto.media = toDtoMedia(resolveListingMedia(mediaItems, { mapUrl: proxyDetailMediaUrl }));
-      dto.photosCount = dto.media.filter(m => m.mediaType === 'Photo').length;
-    }
-  } catch {
-    // Non-fatal — listing displays without photos
-  }
-
-  // Geocode moved to ListingPage — runs in parallel with last-sale lookups
-  // instead of blocking DTO creation (was adding 2-4s to every Trestle-path page load).
-
-  // Extract extra fields from raw Trestle record (not part of public DTO)
-  const tax: TrestleExtraFields = {
-    taxBlock: raw.TaxBlock ? String(raw.TaxBlock) : null,
-    taxLot: raw.TaxLot ? String(raw.TaxLot) : null,
-  };
-
-  return { dto, tax };
-}
-
-/** Combined result from Trestle fetch: DTO + extra fields for ACRIS */
+/** Combined listing result: DTO + extra fields (tax is null on the DB-only path). */
 interface ListingFetchResult {
   listing: PublicListingDTO;
   tax: TrestleExtraFields;
@@ -466,40 +309,17 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // classify→sort pipeline in `listing-media-resolver`.
     const listingMediaRows = Array.isArray(dbListing.listing_media) ? dbListing.listing_media : [];
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
-    // Widen `mediaType` to string here because the Trestle merge below mixes
-    // in rows from `fetchListingMedia` which use the wider type.
-    let mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
+    // Media is sourced ONLY from the synchronized Neon copy: prefer the relational
+    // `listing_media` rows (R2-cached URLs), else the legacy `Listing.media` JSON.
+    // The former live-Trestle "no photos in DB" fallback (fetchListingMedia) was
+    // REMOVED in the compute repair (PR #511) — DB photos are refreshed by IDX sync,
+    // so the ordinary page render never calls the live Cotality Media API. A row that
+    // is mid-sync / un-synced simply renders with whatever media the DB holds.
+    const mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
       listingMediaRows.length > 0
         ? resolveListingMediaFromRows(listingMediaRows)
         : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl }),
     );
-
-    // Fetch media from Trestle when DB has NO photos (only FloorPlans/Videos/empty).
-    // DB photos are refreshed during IDX sync — no need to re-fetch on every page load.
-    //
-    // 2026-05-30 hotfix (post-#281): do NOT fall back to a live Trestle fetch
-    // when CRM-owned `listing_media` rows exist (even if all soft-deleted) — the
-    // relational table is authoritative for CRM exclusives, and the fetch would
-    // resurrect deleted CRM photos. IDX/Trestle listings (no CRM rows) keep the
-    // fallback. Gate centralised in shouldFetchTrestleMediaFallback (tested).
-    const photoCount = mediaArr.filter(m => m.mediaType === 'Photo').length;
-    const shouldFetchMedia = shouldFetchTrestleMediaFallback(listingMediaRows, photoCount, {
-      mlsId: dbListing.mls_id,
-      listingId: dbListing.listing_id,
-    });
-    if (shouldFetchMedia && dbListing.listing_id) {
-      try {
-        const trestleMedia = await fetchListingMedia(dbListing.listing_id);
-        const trestlePhotos = trestleMedia.filter(m => m.mediaType === 'Photo');
-        if (trestlePhotos.length > 0) {
-          // Merge: Trestle photos + existing non-photo media (FloorPlans, Videos)
-          const existingNonPhotos = mediaArr.filter(m => m.mediaType !== 'Photo');
-          mediaArr = [...trestlePhotos, ...existingNonPhotos];
-        }
-      } catch {
-        // Non-fatal — listing still renders with whatever DB has
-      }
-    }
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
     // contact card (typed: dbListing + resolvedAgent below); the legacy JSON base is now empty.
@@ -694,146 +514,28 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 }
 
 /**
- * Fetch from Trestle directly (server-side). Returns null on any failure.
- */
-async function fetchFromTrestleDirect(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
-  // Strategy 1: Explicit key override (?key= param)
-  if (keyOverride) {
-    const raw = await fetchSingleListing(keyOverride);
-    if (raw) {
-      const result = await rawToDTO(raw, keyOverride);
-      if (result) return { listing: result.dto, tax: result.tax };
-    }
-  }
-
-  // Strategy 2: MLS-ID slug (e.g., "listing-RBNY-12345678")
-  if (isMlsIdSlug(slug)) {
-    const mlsId = extractMlsIdFromSlug(slug);
-    if (mlsId) {
-      const raw = await fetchSingleListing(mlsId);
-      if (raw) {
-        const result = await rawToDTO(raw, mlsId);
-        if (result) return { listing: result.dto, tax: result.tax };
-      }
-    }
-    return null;
-  }
-
-  // Strategy 2b (PR-FE.2 Option D, 2026-05-15): listing_id appended to
-  // an address slug. See `fetchFromDB` Strategy 1b above for full
-  // context — same idea here on the Trestle-direct path for the case
-  // where DB lookup missed and we fall through to live Trestle.
-  const embeddedId = extractListingIdFromSlug(slug);
-  if (embeddedId) {
-    const raw = await fetchSingleListing(embeddedId);
-    if (raw) {
-      const result = await rawToDTO(raw, embeddedId);
-      if (result) return { listing: result.dto, tax: result.tax };
-    }
-    // Intentional fall-through to Strategy 3 (address parse) if the
-    // exact id isn't found upstream — keeps old indexed URLs
-    // resolvable on shared/saved links.
-  }
-
-  // Strategy 3: Address slug → parse and search by address components
-  const parsed = parseAddressSlug(slug);
-  if (parsed && parsed.streetNumber && parsed.postalCode) {
-    const raw = await fetchListingByAddress(parsed);
-    if (raw) {
-      // COMPLIANCE — fail-closed: this strategy only runs when the URL slug IS
-      // an address (the user typed/linked to a specific street). If the listing
-      // does NOT explicitly affirm InternetAddressDisplayYN=true, the URL itself
-      // is an address-leak vector, so reject. Previous `=== false` check was
-      // fail-OPEN — null/undefined/missing all returned the page.
-      if (!affirmPermission(raw.InternetAddressDisplayYN)) return null;
-      const result = await rawToDTO(raw, slug);
-      if (result) return { listing: result.dto, tax: result.tax };
-    }
-  }
-
-  // Strategy 4: Treat slug as raw ListingId (backwards compatibility)
-  const raw = await fetchSingleListing(slug);
-  if (raw) {
-    const result = await rawToDTO(raw, slug);
-    if (result) return { listing: result.dto, tax: result.tax };
-  }
-
-  return null;
-}
-
-/**
- * Fallback: fetch from our own /api/listings/:id endpoint.
- * This has its own local JSON fallback and won't fail if Trestle is down.
- */
-async function fetchFromApiEndpoint(listingId: string): Promise<ListingFetchResult | null> {
-  try {
-    // Explicit fallback: NEXT_PUBLIC_SITE_URL preferred, else VERCEL_URL with https, else localhost
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    const vercelUrl = process.env.VERCEL_URL;
-    const baseUrl = siteUrl || (vercelUrl ? `https://${vercelUrl}` : 'http://localhost:3000');
-    const apiUrl = new URL(`/api/listings/${encodeURIComponent(listingId)}`, baseUrl).toString();
-    const res = await fetch(apiUrl, {
-      headers: { 'Accept': 'application/json' },
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.success || !data.listing) return null;
-    // The API endpoint returns either PublicListingDTO or sanitized local listing
-    // No tax fields available from API fallback
-    return { listing: data.listing as PublicListingDTO, tax: { taxBlock: null, taxLot: null } };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Fetch a single listing with multi-layer resilience.
+ * Fetch a single listing for the public page — DB-ONLY (compute repair, PR #511).
  *
- * Resolution order (DB-first for speed):
- *   1. Local DB lookup (Prisma — 20-80ms, no external dependency)
- *   2. Direct Trestle fetch (freshest data, but 2-8s and can timeout)
- *   3. Fallback to /api/listings/:id (has local JSON fallback)
+ * The listing is served EXCLUSIVELY from the synchronized Neon copy (Prisma), via
+ * fetchFromDB. There is deliberately NO live Cotality/Trestle fallback: the former
+ * Trestle-direct fetch and the /api/listings/:id proxy fallback were removed because
+ * ANY live-feed call reachable from the render path forces the route dynamic
+ * (Cache-Control: no-store, X-Vercel-Cache: MISS on every request), which kept Neon
+ * ~98% active. IDX sync (page revalidate=300) keeps the DB fresh; a listing absent
+ * from the DB is treated as not-found → 404, which the route negative-caches.
  *
- * DB-first ensures fast page loads even when Trestle is slow/down.
- * ISR revalidation (every 5 min) keeps DB data fresh from Trestle.
- *
- * COMPLIANCE: Address slugs are NEVER generated for listings where
- * InternetAddressDisplayYN=false. Those use MLS-ID slugs instead,
- * preventing address leakage through URLs.
+ * COMPLIANCE: all display gates + address suppression run inside fetchFromDB. Address
+ * slugs are NEVER generated for listings where InternetAddressDisplayYN=false (those
+ * use MLS-ID slugs), so no address leaks through the URL. `keyOverride` is retained
+ * for signature compatibility; the ?key= debug override was already removed upstream.
  */
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
-  const useIDX = process.env.IDX_ENABLED === 'true';
-
-  // Primary: local Prisma DB (fast — 20-80ms, no external dependency)
   try {
-    const dbResult = await fetchFromDB(slug, keyOverride);
-    if (dbResult) return dbResult;
+    return await fetchFromDB(slug, keyOverride);
   } catch {
-    // DB lookup failed — fall through to Trestle
+    // Fail closed to not-found rather than reaching for the live feed.
+    return null;
   }
-
-  // Fallback 1: direct Trestle fetch (slower but freshest data)
-  // 15s timeout prevents hanging when Trestle is down (individual fetches have 10s timeouts,
-  // but multiple sequential calls can compound)
-  if (useIDX) {
-    try {
-      const trestleResult = await Promise.race([
-        fetchFromTrestleDirect(slug, keyOverride),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 15_000)),
-      ]);
-      if (trestleResult) return trestleResult;
-    } catch {
-      // Trestle fetch failed — fall through to API fallback
-    }
-  }
-
-  // Fallback 2: our own API endpoint (has local JSON fallback)
-  const fallbackId = keyOverride || slug;
-  const apiResult = await fetchFromApiEndpoint(fallbackId);
-  if (apiResult) return apiResult;
-
-  return null;
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -941,7 +643,6 @@ export default async function ListingPage({ params }: Props) {
   }
 
   const listing = result.listing;
-  const { tax, rawStreetName } = result;
 
   // Twin-safe open-house key (street+unit+ZIP), non-empty ONLY for Mallan-owned LOCAL exclusives
   // (SL-/RL-): lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that /api/open-houses
@@ -984,58 +685,27 @@ export default async function ListingPage({ params }: Props) {
     ? 'Address Undisclosed'
     : `${listing.address.streetNumber} ${listing.address.streetName}`.trim() + (listing.address.unitNumber ? `, #${listing.address.unitNumber}` : '');
 
-  // Run ALL supplementary fetches in parallel (geocoding + last-sale lookups).
-  // Previously these ran sequentially after fetchListing, adding 4-8s per page.
-  // Each is wrapped in its own catch — none of these should block page render.
+  // Supplementary GEOCODE only (compute repair, PR #511). The former last-sale
+  // enrichment (live Trestle `fetchLastUnitSale` + NYC `fetchLastSaleFromACRIS`) was
+  // removed: on the DB-only render path it produced no public output (Trestle blocked
+  // for the public audience; ACRIS needs tax block/lot the DB row does not carry).
+  // Geocoding stays because lib/geo/geocode uses a CACHED fetch (next:{revalidate}),
+  // so it does not reintroduce a live-feed dependency or force the route dynamic.
   const needsGeocode = !listing.address.latitude || !listing.address.longitude;
   const hasAddress = listing.address.streetName !== 'Address Undisclosed';
 
-  const [geocodeResult, lastSaleResult] = await Promise.all([
-    // Geocode — only when address is NOT suppressed (InternetAddressDisplayYN).
-    // Suppressed listings must NOT have coordinates re-added via geocoding or ZIP
-    // centroid, as that would leak approximate location via map pins/transit/schools.
-    needsGeocode && hasAddress
-      ? geocodeListings([listing]).catch(() => { /* non-fatal */ })
-      : Promise.resolve(),
-    // Last closed sale: Trestle + ACRIS in parallel
-    hasAddress
-      ? Promise.all([
-          fetchLastUnitSale(
-            listing.address.streetNumber,
-            rawStreetName || listing.address.streetName,
-            listing.address.unitNumber,
-            listing.address.postalCode,
-          ).catch(() => null),
-          fetchLastSaleFromACRIS(
-            listing.address.county,
-            tax.taxBlock,
-            tax.taxLot,
-          ).catch(() => null),
-        ]).then(([trestleSale, acrisSale]) => {
-            // Public page: show ACRIS-backed closed sales ONLY. resolveVisibility
-            // blocks Cotality-API/MLS closed prices publicly — never fall back to
-            // MLS. (Agent/internal/report surfaces keep MLS closed data elsewhere.)
-            const candidates = [acrisSale, trestleSale].filter(
-              (s): s is LastSaleInfo => s != null,
-            );
-            return (
-              candidates.find(
-                (s) =>
-                  resolveVisibility({
-                    audience: 'public',
-                    status: 'closed_sold',
-                    transactionType: 'sale',
-                    source: s.source === 'acris' ? 'acris' : 'mls',
-                    usage: 'comp',
-                  }).allowed,
-              ) ?? null
-            );
-          })
-      : Promise.resolve(null),
-  ]);
+  // Geocode — only when address is NOT suppressed (InternetAddressDisplayYN).
+  // Suppressed listings must NOT have coordinates re-added via geocoding or ZIP
+  // centroid, as that would leak approximate location via map pins/transit/schools.
+  // Result is consumed via mutation on listing.address.
+  if (needsGeocode && hasAddress) {
+    await geocodeListings([listing]).catch(() => { /* non-fatal */ });
+  }
 
-  const lastUnitSale: LastSaleInfo | null = lastSaleResult || null;
-  void geocodeResult; // consumed via mutation on listing.address
+  // "Last Sale" section stays hidden on the public render: no live comp lookup here.
+  // The JSX below is gated on this value (unchanged), so the section simply never shows.
+  // Typed as the union (not narrowed to `null`) so the existing gated JSX still checks.
+  const lastUnitSale = null as LastSaleInfo | null;
 
   // Last-resort: if geocoding failed entirely, use ZIP centroid so neighborhood/schools/transit
   // sections still render. Without this, those 5 sections vanish on geocode failure.
