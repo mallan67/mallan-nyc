@@ -19,15 +19,17 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   reactStrictMode: true,
 
-  // Static-compatible strict CSP (P0 compute repair 2026-07-15).
-  // Subresource Integrity emits build-time `integrity` hashes on every
-  // first-party script so we can drop the per-request CSP nonce that was
-  // forcing EVERY public page to render dynamically — which disabled ISR /
-  // CDN caching and kept the Neon compute awake. See proxy.ts +
-  // lib/middleware/security-headers.ts. (Experimental, App Router only.)
-  experimental: {
-    sri: { algorithm: 'sha256' },
-  },
+  // Public CSP is the static, cache-compatible NON-NONCE approach (P0 compute repair,
+  // 2026-07-15). The per-request CSP nonce was removed to restore ISR/CDN caching — it
+  // forced every public page to render dynamically, keeping Neon compute awake.
+  //
+  // `experimental.sri` (build-time Subresource-Integrity hashes) was tested as an extra
+  // hardening layer but REMOVED (PR #511): under Next.js 16.2 + Turbopack + Vercel it
+  // produced a reproducible SRI digest mismatch that BLOCKED a first-party script in the
+  // browser (integrity attribute vs served chunk). The public site therefore relies on
+  // Next.js's documented static non-nonce CSP; revisit strict hash-based CSP once the
+  // upstream SRI defect is fixed. All CSP directives + security headers live in
+  // lib/middleware/security-headers.ts; the root layout does NOT read headers()/x-nonce.
 
   // Remote image domains for next/image optimization
   images: {

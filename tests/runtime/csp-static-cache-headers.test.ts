@@ -109,3 +109,37 @@ describe('cache policy: private no-store, public GET data APIs cacheable', () =>
     expect(headers.get('cache-control')).toMatch(/no-store/);
   });
 });
+
+describe('experimental.sri removed (Next 16.2/Turbopack browser SRI block fix)', () => {
+  // Comments are stripped so the explanatory note that mentions SRI does not trip this.
+  const cfg = read('next.config.js');
+
+  it('does not enable experimental.sri in next.config', () => {
+    expect(cfg).not.toMatch(/\bsri\b\s*:/);
+    expect(cfg).not.toMatch(/experimental\s*:\s*\{[\s\S]*?\bsri\b/);
+  });
+
+  it('does not restore a per-request nonce or headers() in the root layout', () => {
+    const layout = read('app/layout.tsx');
+    expect(layout).not.toMatch(/x-nonce/);
+    expect(layout).not.toMatch(/from ['"]next\/headers['"]/);
+  });
+});
+
+describe('all other security headers preserved on public responses', () => {
+  const { headers } = (() => {
+    const { res, headers } = fakeRes();
+    applySecurityHeaders(res, '/', 'GET');
+    return { headers };
+  })();
+
+  it('Referrer-Policy is set', () => {
+    expect(headers.get('referrer-policy')).toMatch(/strict-origin/);
+  });
+  it('Cross-Origin-Opener-Policy is same-origin', () => {
+    expect(headers.get('cross-origin-opener-policy')).toBe('same-origin');
+  });
+  it('Permissions-Policy is set', () => {
+    expect(headers.get('permissions-policy')).toMatch(/camera=\(\)/);
+  });
+});
