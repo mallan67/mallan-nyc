@@ -208,10 +208,13 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     if (!dbListing && !isMlsIdSlug(slug)) {
       const embeddedId = extractListingIdFromSlug(slug);
       if (embeddedId) {
+        // A real miss returns null (→ falls through to the address-parse strategy);
+        // a Prisma/Neon error PROPAGATES (it must not be swallowed into a not-found,
+        // which would become a cached 404 under ISR). No .catch here.
         dbListing = await prisma.listing.findUnique({
           where: { listing_id: embeddedId },
           include: LISTING_MEDIA_INCLUDE,
-        }).catch(() => null);
+        });
       }
     }
 
@@ -302,10 +305,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // (An address slug that reaches here simply won't match a listing_id either
     // way, so uppercasing is safe.) (Codex review, PR #272.)
     if (!dbListing) {
+      // A real miss returns null (→ not-found); a Prisma/Neon error PROPAGATES rather
+      // than being swallowed into a not-found (which would cache a 404 under ISR).
       dbListing = await prisma.listing.findUnique({
         where: { listing_id: slug.toUpperCase() },
         include: LISTING_MEDIA_INCLUDE,
-      }).catch(() => null);
+      });
     }
 
     if (!dbListing) return null;

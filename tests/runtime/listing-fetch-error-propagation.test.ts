@@ -68,4 +68,14 @@ describe("listing page wires the not-found-vs-error contract", () => {
       /const fetchListing = cache\(async function fetchListing\([^)]*\): Promise<ListingFetchResult \| null> \{\s*return await fetchFromDB\(slug, keyOverride\);\s*\}\);/,
     );
   });
+
+  it("no prisma.listing.findUnique lookup swallows DB errors with .catch(() => null)", () => {
+    // Both the embedded-ID and final listing-ID lookups must let Prisma/Neon errors
+    // propagate (a real miss returns null naturally). The supplementary prisma.AGENT
+    // lookup keeps its .catch — that is graceful degradation of the agent card, not the
+    // listing's existence, so it is out of scope.
+    expect(src).not.toMatch(
+      /prisma\.listing\.findUnique\(\{[\s\S]{0,240}?\}\)\s*\.catch\(\(\)\s*=>\s*null\)/,
+    );
+  });
 });

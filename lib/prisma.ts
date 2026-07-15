@@ -2,7 +2,6 @@
 import { PrismaClient } from "@prisma/client";
 import path from "node:path";
 import fs from "node:fs";
-import { resolvePrismaEnv } from "./prisma-env";
 
 // Force-load .env.local so system-level env vars don't override the project DB URL.
 // Next.js loads .env.local but does NOT override pre-existing system env vars.
@@ -18,17 +17,12 @@ try {
   // dotenv not available (e.g. edge runtime) — rely on platform env
 }
 
-// Integration-variable compatibility (PR #511): Prisma's schema reads the BARE names
-// `DATABASE_URL` / `DATABASE_URL_UNPOOLED`. On environments where only the Vercel–Neon
-// integration's PREFIXED names (`database_DATABASE_URL*`) are present (e.g. Preview),
-// map them onto the bare names Prisma expects. resolvePrismaEnv prefers the bare names,
-// so PRODUCTION is unchanged (bare wins → these assignments are no-ops there), and it
-// throws fail-closed when neither is set. No connection-string value is logged here.
-{
-  const resolved = resolvePrismaEnv();
-  process.env.DATABASE_URL = resolved.url;
-  if (resolved.directUrl) process.env.DATABASE_URL_UNPOOLED = resolved.directUrl;
-}
+// Prisma reads the BARE connection vars (`DATABASE_URL` / `DATABASE_URL_UNPOOLED`) from
+// the schema's datasource. These MUST be configured explicitly per environment. We do
+// NOT map the Vercel–Neon integration's prefixed vars (`database_DATABASE_URL*`) onto the
+// bare names: a global fallback like that would silently hand every Preview route the
+// production database. If an environment (e.g. Preview) needs DB access, set its own bare
+// DATABASE_URL explicitly.
 
 // Prevent multiple PrismaClient instances in dev mode (hot reload)
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
