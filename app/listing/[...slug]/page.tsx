@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import AgentAvatar from '@/app/components/AgentAvatar';
@@ -195,7 +196,6 @@ type Props = {
   //   ['333-east-46th-street-...-sl-0004']   (legacy hybrid — redirects)
   //   ['333-east-46th-street-...', 'sl-0004'] (canonical)
   params: Promise<{ slug: string[] }>;
-  searchParams: Promise<{ key?: string; ref?: string; t?: string }>;
 };
 
 // Canonical URL build + parse — single source of truth at
@@ -836,15 +836,14 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
   return null;
 });
 
-export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
   const id = resolveLookupKey(slugParts);
-  const { key } = await searchParams;
 
   let result: ListingFetchResult | null = null;
   try {
-    result = await fetchListing(id, key);
+    result = await fetchListing(id);
   } catch {
     // Trestle timeout / network error — return safe fallback metadata
   }
@@ -925,15 +924,14 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-export default async function ListingPage({ params, searchParams }: Props) {
+export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
   const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
   const id = resolveLookupKey(slugParts);
-  const { key, ref: refSource, t: trackToken } = await searchParams;
 
   let result: ListingFetchResult | null = null;
   try {
-    result = await fetchListing(id, key);
+    result = await fetchListing(id);
   } catch {
     // Fatal fetch error — will show notFound()
   }
@@ -958,10 +956,12 @@ export default async function ListingPage({ params, searchParams }: Props) {
   //   /listing/333-east-...-sl-0004 (legacy hybrid)             → 308 to canonical
   //   /listing/333-east-.../sl-0004 (already canonical)         → render
   // UCBA-suppressed listings have id-only canonical (slug starts with `listing-`).
-  // The ?key= branch is exempt (internal debug lookup via Trestle ListingKey).
   // Legacy IDX/RLS hybrid slugs (rls20061539 suffix) and address-only legacy
   // slugs also redirect to the new separated canonical shape for SEO consolidation.
-  if (!key) {
+  // Canonical enforcement is now UNCONDITIONAL: the former ?key= debug override
+  // (internal ListingKey lookup) was removed so the page renders statically / ISR
+  // without reading searchParams. All public URLs resolve by slug/id.
+  {
     const canonicalPath = buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' });
     const currentPath = `/listing/${slugParts.join('/')}`;
     if (currentPath !== canonicalPath) {
@@ -1312,8 +1312,10 @@ export default async function ListingPage({ params, searchParams }: Props) {
         officeName={listing.listOfficeName}
       />
       <ListingViewTracker />
-      <TrackListingView listingId={listing.id} refSource={refSource} />
-      <TrackListingSend listingId={listing.id} trackToken={trackToken} />
+      <Suspense fallback={null}>
+        <TrackListingView listingId={listing.id} />
+        <TrackListingSend listingId={listing.id} />
+      </Suspense>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}

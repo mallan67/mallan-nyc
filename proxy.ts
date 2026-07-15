@@ -67,24 +67,21 @@ export default async function middleware(req: NextRequest) {
   const guardBlock = checkRouteGuards(req, pathname);
   if (guardBlock) return guardBlock;
 
-  // ── 5. Generate per-request nonce for CSP ──
-  const nonce = crypto.randomUUID();
-
-  // Forward nonce to server components via request header
-  const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-nonce", nonce);
-
-  const response = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
+  // ── 5. Static-compatible security headers ──
+  // No per-request CSP nonce: reading it in the root layout (headers()) forced
+  // EVERY public page to render dynamically, disabling ISR/CDN caching and
+  // keeping the Neon compute awake. Script integrity is now enforced at build
+  // time via Subresource Integrity (next.config.js experimental.sri) + a static
+  // CSP, so the public shell is cacheable again.
+  const response = NextResponse.next();
 
   // CORS headers for allowed origins
   if (pathname.startsWith("/api") && isAllowedOrigin(origin)) {
     setCorsHeaders(response, origin!);
   }
 
-  // Security headers (CSP with nonce, HSTS, X-Frame-Options, etc.)
-  applySecurityHeaders(response, pathname, nonce);
+  // Security headers (static CSP, HSTS, X-Frame-Options, etc.)
+  applySecurityHeaders(response, pathname, req.method);
 
   return response;
 }

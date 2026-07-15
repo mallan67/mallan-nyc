@@ -7,23 +7,33 @@ import { NextResponse } from "next/server";
  * After Phase 3: vercel.json headers block and next.config.js headers()
  * are removed. This file is the only place headers are defined.
  *
- * CSP strategy:
- * - Public pages use nonce-based script-src. The nonce gates inline scripts
- *   while 'self' + explicit hosts cover external scripts. 'unsafe-inline' is
- *   kept as fallback for browsers that don't support nonces (very old).
+ * CSP strategy (P0 compute repair 2026-07-15 — STATIC, no per-request nonce):
+ * - The public CSP is now STATIC. The previous per-request nonce forced the root
+ *   layout to read headers(), which made EVERY public page render dynamically —
+ *   disabling ISR / CDN caching and keeping Neon awake. Script integrity is now
+ *   enforced at BUILD TIME via Subresource Integrity (next.config.js
+ *   experimental.sri), which stamps an `integrity` hash on every first-party
+ *   script bundle.
+ * - 'unsafe-inline' is retained in public script-src ONLY because Next.js App
+ *   Router streams inline hydration scripts (self.__next_f.push(...)) whose
+ *   content is not known ahead of time; without a per-request nonce (which we
+ *   are removing to restore caching) or per-build inline hashes they cannot
+ *   otherwise execute. It is NOT the sole protection: SRI integrity on all
+ *   first-party scripts + object-src 'none' + base-uri 'self' + form-action
+ *   'self' + frame-ancestors 'none' + HSTS + X-Frame-Options DENY all remain.
+ *   (JSON-LD is a non-executed data block and needs no script-src allowance.)
  * - 'strict-dynamic' is intentionally NOT used: it causes Chrome to ignore
  *   host allowlists, which breaks Google Translate and third-party scripts
  *   that load sub-resources without nonces.
  * - CRM pages keep 'unsafe-inline' + 'unsafe-eval' because the static HTML
- *   files have hundreds of inline scripts. Migration path: self-host Tailwind
- *   CSS build to drop 'unsafe-eval', then incrementally nonce CRM scripts.
+ *   files have hundreds of inline scripts, and stay no-store (never cached).
  */
 
-/** Build public CSP with a per-request nonce */
-function buildPublicCsp(nonce: string): string {
+/** Build the public CSP (static — no per-request nonce; see strategy note above). */
+function buildPublicCsp(): string {
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://translate.google.com https://translate.googleapis.com https://vercel.live https://us-assets.i.posthog.com`,
+    `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://translate.google.com https://translate.googleapis.com https://vercel.live https://us-assets.i.posthog.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com https://translate.googleapis.com https://www.gstatic.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://images.unsplash.com https://www.google-analytics.com https://www.facebook.com https://*.trestle.com https://api.cotality.com https://*.r2.dev https://images.mallan.nyc https://*.tile.openstreetmap.org https://unpkg.com https://tiles.openfreemap.org https://translate.google.com https://www.google.com https://www.gstatic.com https://fonts.gstatic.com",
@@ -54,9 +64,9 @@ const CRM_CSP = [
 
 /**
  * Apply security headers to the response.
- * @param nonce - Per-request nonce for CSP script-src (public pages only)
+ * @param method - Request method; GET public data APIs may keep their own CDN cache headers.
  */
-export function applySecurityHeaders(response: NextResponse, pathname: string, nonce: string): void {
+export function applySecurityHeaders(response: NextResponse, pathname: string, method: string = "GET"): void {
   // Universal security headers
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
@@ -73,7 +83,7 @@ export function applySecurityHeaders(response: NextResponse, pathname: string, n
   if (pathname.startsWith("/crm")) {
     response.headers.set("Content-Security-Policy", CRM_CSP);
   } else {
-    response.headers.set("Content-Security-Policy", buildPublicCsp(nonce));
+    response.headers.set("Content-Security-Policy", buildPublicCsp());
   }
 
   // Private pages: prevent indexing + prevent caching
@@ -94,9 +104,24 @@ export function applySecurityHeaders(response: NextResponse, pathname: string, n
     response.headers.set("Pragma", "no-cache");
   }
 
-  // API routes: no-store by default (unless already set above)
+  // API routes.
+  //  - Private APIs (handled above) → no-store.
+  //  - Public GET data routes that set their OWN CDN cache headers (listings,
+  //    buildings, idx watermark, media proxy) keep them. The old blanket
+  //    no-store here silently defeated their `public, s-maxage=…`, forcing every
+  //    hit to the origin/Neon — a core cause of the compute problem. We only add
+  //    noindex for these; we never overwrite their Cache-Control.
+  //  - Everything else under /api (writes, non-GET, uncacheable reads) → no-store.
   if (pathname.startsWith("/api") && !isPrivateApi) {
-    response.headers.set("Cache-Control", "no-store");
     response.headers.set("X-Robots-Tag", "noindex");
+    const isPublicCacheableApi =
+      method === "GET" &&
+      (pathname.startsWith("/api/listings") ||
+        pathname.startsWith("/api/buildings") ||
+        pathname.startsWith("/api/media/proxy") ||
+        pathname === "/api/idx/watermark");
+    if (!isPublicCacheableApi) {
+      response.headers.set("Cache-Control", "no-store");
+    }
   }
 }

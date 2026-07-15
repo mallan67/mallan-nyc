@@ -63,7 +63,11 @@ export async function GET(request: Request, { params }: Props) {
                   idxEnabled: true,
                 },
               },
-              { status: 404 }
+              // Short negative cache so a repeatedly-hammered dead/non-displayable
+              // URL is CDN-served, not re-resolved through the full pipeline each
+              // hit. Identical header to the genuine not-found below → gate failures
+              // remain indistinguishable from not-found (fail-closed).
+              { status: 404, headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
             );
           }
 
@@ -72,7 +76,7 @@ export async function GET(request: Request, { params }: Props) {
           if (!listing) {
             return NextResponse.json(
               { success: false, error: 'Listing not found' },
-              { status: 404 }
+              { status: 404, headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
             );
           }
 
@@ -200,7 +204,7 @@ export async function GET(request: Request, { params }: Props) {
             idxEnabled: useIDX,
           },
         },
-        { status: 404 }
+        { status: 404, headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
       );
     }
 

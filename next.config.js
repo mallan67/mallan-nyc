@@ -19,6 +19,16 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   reactStrictMode: true,
 
+  // Static-compatible strict CSP (P0 compute repair 2026-07-15).
+  // Subresource Integrity emits build-time `integrity` hashes on every
+  // first-party script so we can drop the per-request CSP nonce that was
+  // forcing EVERY public page to render dynamically — which disabled ISR /
+  // CDN caching and kept the Neon compute awake. See proxy.ts +
+  // lib/middleware/security-headers.ts. (Experimental, App Router only.)
+  experimental: {
+    sri: { algorithm: 'sha256' },
+  },
+
   // Remote image domains for next/image optimization
   images: {
     remotePatterns: [

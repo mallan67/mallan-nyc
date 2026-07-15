@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { headers } from 'next/headers';
 import { Urbanist, Inter } from 'next/font/google';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
@@ -345,12 +344,12 @@ const jsonLd = {
   },
 };
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
-  // CSP nonce — set by middleware on every request. Apply to inline scripts
-  // so the inline JSON-LD passes Content-Security-Policy when nonce-based CSP
-  // is enabled. Empty string is a safe no-op when CSP is permissive.
-  const nonce = (await headers()).get('x-nonce') ?? '';
-
+export default function RootLayout({ children }: { children: ReactNode }) {
+  // Static-compatible: the root layout no longer reads headers()/x-nonce, so it
+  // does NOT force every public route to render dynamically. CSP is now a static
+  // header (proxy.ts + security-headers.ts) hardened with build-time Subresource
+  // Integrity. The JSON-LD below is a non-executed data block, so it needs no
+  // nonce to satisfy CSP.
   return (
     <html lang="en" className={`${urbanist.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
@@ -362,7 +361,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link rel="dns-prefetch" href="https://api.cotality.com" />
         <script
           type="application/ld+json"
-          nonce={nonce || undefined}
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {/* Google Translate — loaded after hydration via Header component to prevent React Error #418/#300 */}
