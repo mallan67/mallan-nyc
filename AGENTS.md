@@ -130,6 +130,25 @@ Before ending a session or handing off:
 - **Any Codex finding** must be FIXED, proven PRE-EXISTING and split to its own issue, or
   documented as future-gated / out-of-scope — never silently ignored.
 
+### Current-head CI verification
+
+Before reporting a pull request workflow failure, always compare the workflow run's head SHA with the pull request's current head SHA.
+
+Every CI status report must include:
+
+* current PR head SHA;
+* workflow run head SHA;
+* whether the run is current or superseded;
+* latest conclusion for that workflow on the current head.
+
+A historical failed run retained in GitHub Actions must not be classified as a current PR failure when a newer run for the current head has passed.
+
+Use this disposition for stale failures:
+
+`RESOLVED — SUPERSEDED BY GREEN RUN ON CURRENT HEAD`
+
+Do not delete or hide historical workflow runs; preserve them as audit history.
+
 ## 7. Current status (pointer, not a copy)
 
 Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
