@@ -51,10 +51,11 @@ export default prisma;
 // time quota." Every DB path throws this uniformly.
 //
 // Routes wrap their prisma call with `isQuotaExhausted(err)`; when true,
-// they return HTTP 503 with `Retry-After` instead of a raw 500. Public IDX
-// pages additionally fall through to their existing Trestle direct-fetch
-// path (in app/listing/[id]/page.tsx and the search API) so the public
-// site stays partially live even while the CRM is down.
+// they return HTTP 503 with `Retry-After` instead of a raw 500. NOTE: the public
+// listing detail page (app/listing/[...slug]/page.tsx) no longer falls back to a
+// live Trestle direct-fetch on DB error — that live-feed fallback was removed in
+// PR #511 (DB-only render). Infra/quota errors there PROPAGATE (they are not turned
+// into a 404), so under ISR a valid cached listing is preserved rather than replaced.
 // ────────────────────────────────────────────────────────────────────────
 
 export function isQuotaExhausted(err: unknown): boolean {

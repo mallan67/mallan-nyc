@@ -70,9 +70,10 @@ export default async function middleware(req: NextRequest) {
   // ── 5. Static-compatible security headers ──
   // No per-request CSP nonce: reading it in the root layout (headers()) forced
   // EVERY public page to render dynamically, disabling ISR/CDN caching and
-  // keeping the Neon compute awake. Script integrity is now enforced at build
-  // time via Subresource Integrity (next.config.js experimental.sri) + a static
-  // CSP, so the public shell is cacheable again.
+  // keeping the Neon compute awake. The public shell now uses a STATIC CSP so it
+  // is cacheable again. (Build-time Subresource Integrity was tested but removed
+  // in PR #511 — it broke script loading under Next 16.2/Turbopack; there is no
+  // SRI on scripts today. See lib/middleware/security-headers.ts.)
   const response = NextResponse.next();
 
   // CORS headers for allowed origins

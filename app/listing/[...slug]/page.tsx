@@ -28,6 +28,7 @@ import { MobileStickyCta } from '@/app/components/listing-detail/mobile-sticky-c
 import { findNeighborhood } from '@/lib/neighborhoods/boroughs';
 import { buildAssignedAgentDisplay } from '@/lib/listings/assigned-agent';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
+import { resolveListingResult } from '@/lib/listings/listing-fetch-result';
 import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // NOTE (compute repair PR #511): the public listing page renders ONLY from the
@@ -526,8 +527,18 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       tax: { taxBlock: null, taxLot: null },
       rawStreetName: addr.StreetName || '',
     };
-  } catch {
-    return null;
+  } catch (err) {
+    // Infrastructure error (Prisma/Neon timeout, connection reset, compute-quota):
+    // PROPAGATE. Converting it to null would let the page render notFound(), and under
+    // ISR that 404 would be cached in place of a valid listing until the next good
+    // revalidation. A CONFIRMED miss and a display-gate rejection return null ABOVE via
+    // explicit `return null`; anything reaching here is an infra/unexpected error.
+    // (Log the Prisma code / error name only — never the connection string.)
+    console.error(
+      '[listing:fetchFromDB] database/infrastructure error — propagating (not a 404):',
+      (err as { code?: string })?.code ?? (err instanceof Error ? err.name : 'unknown'),
+    );
+    throw err;
   }
 }
 
@@ -546,14 +557,16 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
  * slugs are NEVER generated for listings where InternetAddressDisplayYN=false (those
  * use MLS-ID slugs), so no address leaks through the URL. `keyOverride` is retained
  * for signature compatibility; the ?key= debug override was already removed upstream.
+ *
+ * ERROR SEMANTICS: fetchFromDB returns null ONLY on a confirmed miss / display-gate
+ * rejection, and THROWS on infrastructure errors (Prisma/Neon timeout, connection,
+ * compute-quota). This function does NOT catch — infra errors propagate so a transient
+ * DB failure is never mistaken for "listing not found" (which under ISR would cache a
+ * 404 over a valid listing). The page resolves through `resolveListingResult` and only
+ * calls notFound() on a genuine null.
  */
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
-  try {
-    return await fetchFromDB(slug, keyOverride);
-  } catch {
-    // Fail closed to not-found rather than reaching for the live feed.
-    return null;
-  }
+  return await fetchFromDB(slug, keyOverride);
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -561,12 +574,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
   const id = resolveLookupKey(slugParts);
 
-  let result: ListingFetchResult | null = null;
-  try {
-    result = await fetchListing(id);
-  } catch {
-    // Trestle timeout / network error — return safe fallback metadata
-  }
+  // Infra errors propagate (see resolveListingResult): a transient DB failure must not
+  // masquerade as "not found". Only a genuine null (confirmed miss) yields the fallback.
+  const result = await resolveListingResult(() => fetchListing(id));
 
   if (!result) {
     return { title: 'Listing Not Found | Mallan Real Estate' };
@@ -649,12 +659,11 @@ export default async function ListingPage({ params }: Props) {
   const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
   const id = resolveLookupKey(slugParts);
 
-  let result: ListingFetchResult | null = null;
-  try {
-    result = await fetchListing(id);
-  } catch {
-    // Fatal fetch error — will show notFound()
-  }
+  // notFound() ONLY on a confirmed miss. Infra errors (Prisma/Neon timeout, connection,
+  // compute-quota) propagate via resolveListingResult so a transient DB failure is never
+  // turned into a 404 — which under ISR would be cached over a valid listing. A thrown
+  // error fails this render, so Next serves the last good cached page instead.
+  const result = await resolveListingResult(() => fetchListing(id));
 
   if (!result) {
     notFound();

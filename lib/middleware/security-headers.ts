@@ -8,25 +8,25 @@ import { NextResponse } from "next/server";
  * are removed. This file is the only place headers are defined.
  *
  * CSP strategy (P0 compute repair 2026-07-15 — STATIC, no per-request nonce):
- * - The public CSP is now STATIC. The previous per-request nonce forced the root
- *   layout to read headers(), which made EVERY public page render dynamically —
- *   disabling ISR / CDN caching and keeping Neon awake. Script integrity is now
- *   enforced at BUILD TIME via Subresource Integrity (next.config.js
- *   experimental.sri), which stamps an `integrity` hash on every first-party
- *   script bundle.
- * - 'unsafe-inline' is retained in public script-src ONLY because Next.js App
- *   Router streams inline hydration scripts (self.__next_f.push(...)) whose
- *   content is not known ahead of time; without a per-request nonce (which we
- *   are removing to restore caching) or per-build inline hashes they cannot
- *   otherwise execute. It is NOT the sole protection: SRI integrity on all
- *   first-party scripts + object-src 'none' + base-uri 'self' + form-action
- *   'self' + frame-ancestors 'none' + HSTS + X-Frame-Options DENY all remain.
- *   (JSON-LD is a non-executed data block and needs no script-src allowance.)
- * - 'strict-dynamic' is intentionally NOT used: it causes Chrome to ignore
- *   host allowlists, which breaks Google Translate and third-party scripts
- *   that load sub-resources without nonces.
- * - CRM pages keep 'unsafe-inline' + 'unsafe-eval' because the static HTML
- *   files have hundreds of inline scripts, and stay no-store (never cached).
+ * - The public CSP is STATIC. The previous per-request nonce forced the root layout to
+ *   read headers(), which made EVERY public page render dynamically — disabling ISR/CDN
+ *   caching and keeping Neon awake. Removing the nonce restored caching.
+ * - 'unsafe-inline' IS retained in public script-src and is a genuine relaxation, not a
+ *   no-op: Next.js App Router streams inline hydration scripts (self.__next_f.push(...))
+ *   whose content is not known ahead of time, and with the nonce removed they can only
+ *   execute via 'unsafe-inline'. (JSON-LD is a non-executed data block and needs no
+ *   allowance.) Build-time Subresource Integrity (next.config.js experimental.sri) was
+ *   tested as an extra hardening layer but was REMOVED (PR #511): under Next 16.2 +
+ *   Turbopack + Vercel it produced a reproducible integrity-digest mismatch that BLOCKED
+ *   a first-party script in the browser. There is NO SRI on scripts today; revisit strict
+ *   hash-based CSP once that upstream defect is fixed.
+ * - The remaining protections still apply and are the actual defense: object-src 'none' +
+ *   base-uri 'self' + form-action 'self' + frame-ancestors 'none' + HSTS +
+ *   X-Frame-Options DENY + nosniff + Referrer-Policy + Cross-Origin-Opener-Policy.
+ * - 'strict-dynamic' is intentionally NOT used: it causes Chrome to ignore host
+ *   allowlists, which breaks Google Translate and third-party scripts.
+ * - CRM pages keep 'unsafe-inline' + 'unsafe-eval' because the static HTML files have
+ *   hundreds of inline scripts, and stay no-store (never cached).
  */
 
 /** Build the public CSP (static — no per-request nonce; see strategy note above). */
@@ -96,7 +96,11 @@ export function applySecurityHeaders(response: NextResponse, pathname: string, m
     pathname.startsWith("/leads");
   const isPrivateApi =
     pathname.startsWith("/api/crm") ||
-    pathname.startsWith("/api/portal");
+    pathname.startsWith("/api/portal") ||
+    // Authenticated agent/broker endpoint returning internal building-profile data
+    // (requireAgentOrBroker). It sets no cache policy of its own, so it must be
+    // explicitly no-store — NOT swept up by the public `/api/buildings` exemption below.
+    pathname.startsWith("/api/buildings/search");
 
   if (isPrivatePage || isPrivateApi) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
@@ -117,7 +121,9 @@ export function applySecurityHeaders(response: NextResponse, pathname: string, m
     const isPublicCacheableApi =
       method === "GET" &&
       (pathname.startsWith("/api/listings") ||
-        pathname.startsWith("/api/buildings") ||
+        // ONLY the exact public buildings endpoint — NOT sub-routes like
+        // /api/buildings/search, which is authenticated (handled as private above).
+        pathname === "/api/buildings" ||
         pathname.startsWith("/api/media/proxy") ||
         pathname === "/api/idx/watermark");
     if (!isPublicCacheableApi) {

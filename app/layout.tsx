@@ -347,9 +347,11 @@ const jsonLd = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   // Static-compatible: the root layout no longer reads headers()/x-nonce, so it
   // does NOT force every public route to render dynamically. CSP is now a static
-  // header (proxy.ts + security-headers.ts) hardened with build-time Subresource
-  // Integrity. The JSON-LD below is a non-executed data block, so it needs no
-  // nonce to satisfy CSP.
+  // header (proxy.ts + security-headers.ts) — a non-nonce policy that relies on
+  // 'unsafe-inline' for Next's inline hydration scripts. (Build-time Subresource
+  // Integrity was tested but removed in PR #511; it broke script loading under
+  // Next 16.2/Turbopack.) The JSON-LD below is a non-executed data block, so it
+  // needs no nonce to satisfy CSP.
   return (
     <html lang="en" className={`${urbanist.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>

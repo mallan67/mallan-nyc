@@ -91,12 +91,27 @@ describe('cache policy: private no-store, public GET data APIs cacheable', () =>
     applySecurityHeaders(res, '/api/listings/RLS20100285', 'GET');
     expect(headers.get('cache-control')).toBeNull();
   });
-  it('public GET /api/buildings + /api/idx/watermark are not no-store', () => {
+  it('public GET /api/buildings (exact) + /api/idx/watermark are not no-store', () => {
     for (const p of ['/api/buildings', '/api/idx/watermark']) {
       const { res, headers } = fakeRes();
       applySecurityHeaders(res, p, 'GET');
       expect(headers.get('cache-control')).toBeNull();
     }
+  });
+  it('authenticated GET /api/buildings/search IS no-store (not swept up by the public exemption)', () => {
+    const { res, headers } = fakeRes();
+    applySecurityHeaders(res, '/api/buildings/search', 'GET');
+    expect(headers.get('cache-control')).toMatch(/no-store/);
+  });
+  it('POST /api/buildings/search IS no-store', () => {
+    const { res, headers } = fakeRes();
+    applySecurityHeaders(res, '/api/buildings/search', 'POST');
+    expect(headers.get('cache-control')).toMatch(/no-store/);
+  });
+  it('any other /api/buildings/* sub-route defaults to no-store (only the exact base is public)', () => {
+    const { res, headers } = fakeRes();
+    applySecurityHeaders(res, '/api/buildings/anything-else', 'GET');
+    expect(headers.get('cache-control')).toMatch(/no-store/);
   });
   it('POST /api/listings (write) IS no-store', () => {
     const { res, headers } = fakeRes();
