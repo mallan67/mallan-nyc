@@ -17,7 +17,14 @@ import path from 'path';
 import { applySecurityHeaders } from '@/lib/middleware/security-headers';
 
 const ROOT = path.resolve(__dirname, '../..');
-const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+/** Read a source file with comments stripped, so assertions test CODE, not the
+ *  explanatory comments (which legitimately mention headers()/x-nonce). */
+const read = (p: string) => {
+  const raw = fs.readFileSync(path.join(ROOT, p), 'utf8');
+  return raw
+    .replace(/\/\*[\s\S]*?\*\//g, '')      // block comments
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');    // line comments (skip http://)
+};
 
 /** Minimal NextResponse-shaped stub: only .headers (a real Headers) is used. */
 function fakeRes() {
