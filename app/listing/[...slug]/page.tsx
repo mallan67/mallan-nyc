@@ -53,9 +53,27 @@ import { classifyMediaItem, resolveListingMedia, resolveListingMediaFromRows, to
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
-// ISR — revalidate every 5 minutes for fresh Trestle data with edge caching
+// ISR — revalidate every 5 minutes so the synchronized Neon copy stays fresh
+// while the rendered page is CDN-cached.
 export const revalidate = 300;
 export const maxDuration = 60;
+
+// Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,
+// PR #511). Verified by controlled A/B on the Preview: dynamic-segment routes that
+// export generateStaticParams (e.g. /manhattan/[neighborhood]) render as
+// PRERENDER→HIT, while /listing/[...slug] — which had NO generateStaticParams —
+// rendered fully dynamic (Cache-Control: private,no-store; X-Vercel-Cache: MISS on
+// EVERY request) regardless of `revalidate`. That dynamic render, not the (now
+// removed) live feed, is what kept Neon ~98% active.
+//
+// We prerender NOTHING at build (return []): no build-time DB query, and no need to
+// compliance-gate a prerendered set. With dynamicParams=true (the default), each
+// listing is rendered on-demand on first request and then CDN/ISR-cached for
+// `revalidate` seconds (MISS→HIT). Display gates still run per-render in fetchFromDB.
+export const dynamicParams = true;
+export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
+  return [];
+}
 
 function proxyDetailMediaUrl(rawUrl: string): string {
   return rawUrl.includes('cotality.com') || rawUrl.includes('corelogic.com')
