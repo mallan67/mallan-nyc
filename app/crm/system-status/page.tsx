@@ -21,9 +21,13 @@ const HEALTH_COLOR: Record<Health, string> = {
 function connColor(c: ConnMode): string {
   return c === 'pooled' ? HEALTH_COLOR.healthy : c === 'direct' ? HEALTH_COLOR.warning : HEALTH_COLOR.unknown;
 }
-// ok = green, unauthorized = red (grant problem), unreachable = amber, not_configured = gray.
+// ok = green, unauthorized = red (grant problem), unreachable/data_missing = amber,
+// not_configured = gray.
 function monColor(s: MonitoringState): string {
-  return s === 'ok' ? HEALTH_COLOR.healthy : s === 'unauthorized' ? HEALTH_COLOR.critical : s === 'unreachable' ? HEALTH_COLOR.warning : HEALTH_COLOR.unknown;
+  if (s === 'ok') return HEALTH_COLOR.healthy;
+  if (s === 'unauthorized') return HEALTH_COLOR.critical;
+  if (s === 'unreachable' || s === 'data_missing') return HEALTH_COLOR.warning;
+  return HEALTH_COLOR.unknown;
 }
 
 function Badge({ text, color }: { text: string; color: string }) {
@@ -114,7 +118,9 @@ export default async function SystemStatusPage() {
             ? <><code>MONITORING_DATABASE_URL</code> (a read-only production role) is not set.</>
             : s.monitoring.state === 'unauthorized'
               ? <>The monitoring role connected but was denied SELECT on the status tables — check the grants.</>
-              : <>The monitoring database could not be reached (connection/timeout).</>}{' '}
+              : s.monitoring.state === 'data_missing'
+                ? <>The monitoring role connected, but one or both required status rows (Property / Media) are absent — the sync jobs may not have written a row yet.</>
+                : <>The monitoring database could not be reached (connection/timeout).</>}{' '}
           Live run/cursor values are hidden (only a successful read counts as available). Cadence drift below is still accurate; preview values are never substituted as production.
         </div>
       )}

@@ -25,8 +25,16 @@ still needs a working preview app DB + working MFA email.
    INSERT INTO agents (email, first_name, last_name, password_hash, role, status, updated_at)
    VALUES ('<maya-email>', 'Maya', 'Allan', '<preview-bcrypt-hash>', 'BROKER', 'active', now());
    ```
-3. **Vercel → Settings → Environment Variables (Preview scope; branch-scoped to
-   `cot-1-cotality-sync-standard` if desired). A redeploy applies them.**
+3. **Vercel → Settings → Environment Variables. A redeploy applies them.**
+
+   > **Branch-scoping is REQUIRED, not optional, for every sensitive variable below:**
+   > `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `SMTP_USER`, `SMTP_PASS`, and
+   > `MONITORING_DATABASE_URL` (Part 3) must be created as **Preview** variables
+   > **restricted to the `cot-1-cotality-sync-standard` branch specifically** (Vercel:
+   > add the var → Environment = Preview → "Git branch" = `cot-1-cotality-sync-standard`).
+   > An unscoped Preview variable is readable by EVERY preview deployment, so any other
+   > branch's preview build could read the SMTP credentials or the production monitoring
+   > connection. Do not use the plain all-Preview scope for these.
 
    Required (these gate login):
    - `DATABASE_URL` = preview branch **pooled** string.
@@ -101,19 +109,37 @@ SELECT * FROM agents LIMIT 1;                    -- permission denied
 INSERT INTO sync_state(resource) VALUES ('x');   -- permission denied
 RESET ROLE;
 ```
-Rollback:
+Rollback — revoke the **exact column-level** grants (a table-level
+`REVOKE SELECT ON public.sync_state ...` does NOT reverse column-level grants; the
+column privileges persist), then confirm none remain before dropping the role:
 ```sql
-REVOKE SELECT ON public.sync_state, public.media_sync_state FROM mallan_status_ro;
+REVOKE SELECT (resource, last_watermark, last_run_at, last_run_status)
+  ON public.sync_state FROM mallan_status_ro;
+REVOKE SELECT (resource, last_photos_change, last_run_at, last_run_status)
+  ON public.media_sync_state FROM mallan_status_ro;
+
+-- Belt-and-suspenders in case any other grant crept in:
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM mallan_status_ro;
+
+-- Verify NO column or table privileges remain for the role (expect 0 rows):
+SELECT table_name, column_name, privilege_type
+  FROM information_schema.role_column_grants WHERE grantee = 'mallan_status_ro';
+SELECT table_name, privilege_type
+  FROM information_schema.role_table_grants  WHERE grantee = 'mallan_status_ro';
+
 REVOKE USAGE ON SCHEMA public FROM mallan_status_ro;
 REVOKE CONNECT ON DATABASE <VERIFIED_DB_NAME> FROM mallan_status_ro;
-DROP ROLE mallan_status_ro;
+DROP ROLE mallan_status_ro;   -- fails if any grant remains — resolve, then re-run
 ```
 
 ## Part 3 — MONITORING_DATABASE_URL
-- Preview scope only (branch-scoped if supported); read-only **pooled** string for
-  `mallan_status_ro`; redeploy required; never `NEXT_PUBLIC_`; consumed only by
+- Preview scope, **branch-scoped to `cot-1-cotality-sync-standard`** (see the
+  branch-scoping requirement below — this is a production monitoring credential and
+  must NOT be readable by unrelated preview deployments); read-only **pooled** string
+  for `mallan_status_ro`; redeploy required; never `NEXT_PUBLIC_`; consumed only by
   `lib/cotality/monitoring-prisma.ts`. The status page only shows production values
-  when a read actually SUCCEEDS (states: not_configured / unreachable / unauthorized / ok).
+  when a read actually SUCCEEDS AND both status rows exist (states: not_configured /
+  unreachable / unauthorized / data_missing / ok).
 
 ## Part 4 — Verification (after A–C)
 1. redeploy PR #509; 2. open the immutable deployment URL; 3. Maya signs in

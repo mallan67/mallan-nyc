@@ -9,7 +9,8 @@ import {
   createSession,
   SESSION_COOKIE,
 } from "@/lib/auth";
-import { MFA_SESSION_TTL_MS, generateOtpCode, sendOtpEmail, sendOtpSms } from "@/lib/auth/mfa";
+import { MFA_SESSION_TTL_MS, generateOtpCode } from "@/lib/auth/mfa";
+import { deliverMfaCode } from "@/lib/auth/mfa-delivery";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 import {
   extractBehavioralSessionId,
@@ -86,21 +87,23 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // Send code via email (MFA_EMAIL overrides agent email to avoid M365 same-mailbox issue)
+          // Send code (MFA_EMAIL overrides agent email to avoid M365 same-mailbox
+          // issue). deliverMfaCode reports whether AT LEAST ONE channel actually
+          // delivered — it consumes sendOtpSms's resolved boolean correctly (a
+          // false resolve is NOT treated as delivered). See lib/auth/mfa-delivery.ts.
           const mfaEmail = process.env.MFA_EMAIL || agent.email;
           const agentName = agent.first_name || 'there';
-          const emailSent = await sendOtpEmail(mfaEmail, code, agentName);
-
-          // Also send via SMS if phone is set + Twilio configured.
-          let smsSent = false;
-          if (agent.phone) {
-            smsSent = await sendOtpSms(agent.phone, code).then(() => true, () => false);
-          }
+          const { delivered } = await deliverMfaCode({
+            email: mfaEmail,
+            code,
+            agentName,
+            phone: agent.phone,
+          });
 
           // Fail-closed: if NO channel delivered the code, do NOT advance to the MFA
           // screen (a broken SMTP config otherwise looked like a valid login with a
           // missing code). Discard the MFA session and surface a real 503.
-          if (!emailSent && !smsSent) {
+          if (!delivered) {
             await prisma.mfaSession.delete({ where: { token: mfaToken } }).catch(() => {});
             return NextResponse.json(
               { error: "MFA delivery unavailable. Your credentials were not rejected." },

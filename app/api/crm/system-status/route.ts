@@ -15,9 +15,13 @@ export async function GET(req: NextRequest) {
   try {
     const status = await getCotalitySystemStatus();
     return NextResponse.json(status, { headers: { 'Cache-Control': 'no-store' } });
-  } catch (err) {
+  } catch {
+    // Never return the raw exception to the client — a Prisma/connection error can
+    // carry table names, SQL, hosts, or connection details. Log only a sanitized
+    // category server-side; return an opaque error to the caller.
+    console.error('[system-status] failed', { category: 'status_snapshot_failed' });
     return NextResponse.json(
-      { error: 'status_unavailable', message: err instanceof Error ? err.message : 'unknown' },
+      { error: 'status_unavailable' },
       { status: 500, headers: { 'Cache-Control': 'no-store' } },
     );
   }

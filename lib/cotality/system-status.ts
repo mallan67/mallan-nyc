@@ -35,12 +35,35 @@ import {
 
 export type Health = 'healthy' | 'warning' | 'critical' | 'unknown';
 export type ConnMode = 'pooled' | 'direct' | 'unknown';
-export type MonitoringState = 'not_configured' | 'unreachable' | 'unauthorized' | 'ok';
+export type MonitoringState =
+  | 'not_configured'
+  | 'unreachable'
+  | 'unauthorized'
+  | 'data_missing'
+  | 'ok';
 
 /** pooled / direct / unknown — unknown when the URL env var is absent (never claim "direct"). */
-function connMode(url: string | undefined): ConnMode {
+export function connMode(url: string | undefined): ConnMode {
   if (!url) return 'unknown';
   return /-pooler\./.test(url) ? 'pooled' : 'direct';
+}
+
+/**
+ * Monitoring state machine. A successful query is NOT sufficient for `ok`: BOTH the
+ * Property and Media status rows must exist, otherwise the page would show
+ * "Production — read only" while a required status record is absent. Order:
+ *   not configured → error (unreachable/unauthorized) → row(s) missing → ok.
+ */
+export function deriveMonitoringState(opts: {
+  configured: boolean;
+  queryError?: unknown; // set only when a query threw
+  propPresent: boolean;
+  mediaPresent: boolean;
+}): MonitoringState {
+  if (!opts.configured) return 'not_configured';
+  if (opts.queryError !== undefined) return classifyDbError(opts.queryError);
+  if (!opts.propPresent || !opts.mediaPresent) return 'data_missing';
+  return 'ok';
 }
 
 function cronToMinutes(cron: string | null): number | null {
@@ -66,7 +89,7 @@ function freshness(ageMin: number | null, warn: number, crit: number): Health {
   return 'healthy';
 }
 /** Combined: the worse of status-health and age-freshness. */
-function combined(status: string | null, ageMin: number | null, warn: number, crit: number): Health {
+export function combined(status: string | null, ageMin: number | null, warn: number, crit: number): Health {
   const order: Health[] = ['unknown', 'healthy', 'warning', 'critical'];
   const s = runHealth(status, ageMin);
   const f = freshness(ageMin, warn, crit);
@@ -77,7 +100,7 @@ function combined(status: string | null, ageMin: number | null, warn: number, cr
   return order[Math.max(order.indexOf(s), order.indexOf(f))];
 }
 
-function classifyDbError(e: unknown): MonitoringState {
+export function classifyDbError(e: unknown): MonitoringState {
   const msg = e instanceof Error ? e.message || '' : String(e);
   const code = (e as { code?: string })?.code;
   if (code === 'P1000' || /password authentication|authentication failed/i.test(msg)) return 'unauthorized';
@@ -116,6 +139,7 @@ const MON_SOURCE: Record<MonitoringState, string> = {
   not_configured: 'Production monitoring unavailable — not configured',
   unreachable: 'Production monitoring unavailable — unreachable',
   unauthorized: 'Production monitoring unavailable — not authorized',
+  data_missing: 'Production monitoring degraded — status rows missing',
   ok: 'Production — read only',
 };
 
@@ -129,17 +153,19 @@ export async function getCotalitySystemStatus(): Promise<SystemStatus> {
   const appConn = connMode(process.env.DATABASE_URL);
   const monConn = connMode(process.env.MONITORING_DATABASE_URL);
 
-  // Monitoring state machine: configured -> reachable -> authorized. "available"
-  // ONLY when a query actually succeeds; errors are classified, not swallowed to ok.
-  let monState: MonitoringState = isMonitoringConfigured() ? 'unreachable' : 'not_configured';
-  let prop: { last_watermark: Date | null; last_run_at: Date | null; last_run_status: string | null } | null = null;
-  let media: { last_photos_change: Date | null; last_run_at: Date | null; last_run_status: string | null } | null = null;
+  // Monitoring state machine. A present env var / a completed query is NOT enough:
+  // `ok` requires that BOTH status rows actually exist (see deriveMonitoringState).
+  // Errors are classified, never swallowed to ok.
+  const configured = isMonitoringConfigured();
+  let rawProp: { last_watermark: Date | null; last_run_at: Date | null; last_run_status: string | null } | null = null;
+  let rawMedia: { last_photos_change: Date | null; last_run_at: Date | null; last_run_status: string | null } | null = null;
+  let queryError: unknown | undefined = undefined;
 
-  if (isMonitoringConfigured()) {
+  if (configured) {
     const mon = getMonitoringPrisma();
     if (mon) {
       try {
-        [prop, media] = await Promise.all([
+        [rawProp, rawMedia] = await Promise.all([
           mon.syncState.findUnique({
             where: { resource: 'Property' },
             select: { resource: true, last_watermark: true, last_run_at: true, last_run_status: true },
@@ -149,15 +175,26 @@ export async function getCotalitySystemStatus(): Promise<SystemStatus> {
             select: { resource: true, last_photos_change: true, last_run_at: true, last_run_status: true },
           }),
         ]);
-        monState = 'ok';
       } catch (e) {
-        monState = classifyDbError(e);
-        prop = null;
-        media = null;
+        queryError = e;
+        rawProp = null;
+        rawMedia = null;
       }
     }
   }
+
+  const monState = deriveMonitoringState({
+    configured,
+    queryError,
+    propPresent: !!rawProp,
+    mediaPresent: !!rawMedia,
+  });
   const monAvailable = monState === 'ok';
+  // Only surface run/cursor values when the monitoring read is fully OK. In any
+  // degraded state (incl. data_missing) the pipeline cards show "—"/unknown rather
+  // than a misleading partial reading.
+  const prop = monAvailable ? rawProp : null;
+  const media = monAvailable ? rawMedia : null;
 
   const now = Date.now();
   const ageMin = (d: Date | null | undefined) => (d ? Math.round((now - new Date(d).getTime()) / 60000) : null);
