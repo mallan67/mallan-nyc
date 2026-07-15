@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { validateSession } from '@/lib/auth/session';
-import { getCotalitySystemStatus, type PipelineStatus, type Health } from '@/lib/cotality/system-status';
+import { getCotalitySystemStatus, type PipelineStatus, type Health, type ConnMode, type MonitoringState } from '@/lib/cotality/system-status';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Cotality Sync — System Status', robots: { index: false, follow: false } };
@@ -16,6 +16,15 @@ const HEALTH_COLOR: Record<Health, string> = {
   critical: '#b91c1c',
   unknown: '#6b7280',
 };
+
+// pooled = green, direct = amber (a serverless app should pool), unknown = gray.
+function connColor(c: ConnMode): string {
+  return c === 'pooled' ? HEALTH_COLOR.healthy : c === 'direct' ? HEALTH_COLOR.warning : HEALTH_COLOR.unknown;
+}
+// ok = green, unauthorized = red (grant problem), unreachable = amber, not_configured = gray.
+function monColor(s: MonitoringState): string {
+  return s === 'ok' ? HEALTH_COLOR.healthy : s === 'unauthorized' ? HEALTH_COLOR.critical : s === 'unreachable' ? HEALTH_COLOR.warning : HEALTH_COLOR.unknown;
+}
 
 function Badge({ text, color }: { text: string; color: string }) {
   return (
@@ -48,10 +57,11 @@ function PipelineCard({ name, refreshMin, p }: { name: string; refreshMin: numbe
             {p.configured_poll_min != null ? `(${p.configured_poll_min} min)` : ''}{' '}
             {p.poll_drift ? <Badge text="DRIFT" color={HEALTH_COLOR.warning} /> : null}
           </td></tr>
-          <tr><td style={cellL}>Last successful run</td><td style={cellR}>
-            {fmtAge(p.last_run_age_min)} {p.last_run_status ? `· ${p.last_run_status}` : ''}{' '}
+          <tr><td style={cellL}>Last recorded run</td><td style={cellR}>
+            {fmtAge(p.last_run_age_min)} {p.last_run_status ? `· status: ${p.last_run_status}` : ''}{' '}
             <Badge text={p.run_health.toUpperCase()} color={HEALTH_COLOR[p.run_health]} />
           </td></tr>
+          <tr><td style={cellL}>Observed cadence</td><td style={cellR}>Not available — needs run history (precise interval is in Vercel cron logs)</td></tr>
           <tr><td style={cellL}>Cursor watermark</td><td style={cellR}>{p.cursor_watermark ?? '—'}</td></tr>
           <tr><td style={cellL}>Cursor lag</td><td style={cellR}>
             {fmtAge(p.cursor_lag_min)}{' '}
@@ -85,24 +95,27 @@ export default async function SystemStatusPage() {
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '12px 0 20px' }}>
         <Badge text={`APP ENV: ${s.application_environment.toUpperCase()}`} color={isProd ? '#1d4ed8' : '#6b7280'} />
-        <Badge text={`APP DB: ${s.app_db.connection.toUpperCase()}`} color={s.app_db.connection === 'pooled' ? HEALTH_COLOR.healthy : HEALTH_COLOR.warning} />
-        <Badge
-          text={`MONITORING: ${s.monitoring.available ? s.monitoring.source.toUpperCase() : 'UNAVAILABLE'}`}
-          color={s.monitoring.available ? HEALTH_COLOR.healthy : HEALTH_COLOR.critical}
-        />
-        {s.monitoring.connection && <Badge text={`MONITORING DB: ${s.monitoring.connection.toUpperCase()}`} color={s.monitoring.connection === 'pooled' ? HEALTH_COLOR.healthy : HEALTH_COLOR.warning} />}
+        <Badge text={`APP DB: ${s.app_db.connection.toUpperCase()}`} color={connColor(s.app_db.connection)} />
+        <Badge text={`MONITORING: ${s.monitoring.state.replace(/_/g, ' ').toUpperCase()}`} color={monColor(s.monitoring.state)} />
+        <Badge text={`MONITORING DB: ${s.monitoring.connection.toUpperCase()}`} color={connColor(s.monitoring.connection)} />
         <Badge text={`ENFORCEMENT: ${s.enforcement.toUpperCase()}`} color="#374151" />
       </div>
 
       <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
         <div><b>Application environment:</b> {isProd ? 'Production' : s.application_environment[0].toUpperCase() + s.application_environment.slice(1)}</div>
         <div><b>Monitoring data source:</b> {s.monitoring.source}</div>
+        <div style={{ color: '#6b7280', marginTop: 4 }}>Connection modes are booleans only (pooled / direct / unknown) — no hostnames or connection strings are shown. <code>unknown</code> = the env var is absent (never rendered as &quot;direct&quot;).</div>
       </div>
 
       {!s.monitoring.available && (
         <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 18 }}>
-          <b>Production monitoring unavailable.</b> <code>MONITORING_DATABASE_URL</code> (a read-only production role) is not configured, so live
-          run/cursor values are not shown. Target-vs-configured cadence (drift) below is still accurate. Preview values are never substituted and labeled production.
+          <b>Production monitoring unavailable — {s.monitoring.state.replace(/_/g, ' ')}.</b>{' '}
+          {s.monitoring.state === 'not_configured'
+            ? <><code>MONITORING_DATABASE_URL</code> (a read-only production role) is not set.</>
+            : s.monitoring.state === 'unauthorized'
+              ? <>The monitoring role connected but was denied SELECT on the status tables — check the grants.</>
+              : <>The monitoring database could not be reached (connection/timeout).</>}{' '}
+          Live run/cursor values are hidden (only a successful read counts as available). Cadence drift below is still accurate; preview values are never substituted as production.
         </div>
       )}
 

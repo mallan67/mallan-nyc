@@ -89,11 +89,23 @@ export async function POST(req: NextRequest) {
           // Send code via email (MFA_EMAIL overrides agent email to avoid M365 same-mailbox issue)
           const mfaEmail = process.env.MFA_EMAIL || agent.email;
           const agentName = agent.first_name || 'there';
-          await sendOtpEmail(mfaEmail, code, agentName);
+          const emailSent = await sendOtpEmail(mfaEmail, code, agentName);
 
-          // Also send via SMS if phone is set + Twilio configured
+          // Also send via SMS if phone is set + Twilio configured.
+          let smsSent = false;
           if (agent.phone) {
-            await sendOtpSms(agent.phone, code).catch(() => {});
+            smsSent = await sendOtpSms(agent.phone, code).then(() => true, () => false);
+          }
+
+          // Fail-closed: if NO channel delivered the code, do NOT advance to the MFA
+          // screen (a broken SMTP config otherwise looked like a valid login with a
+          // missing code). Discard the MFA session and surface a real 503.
+          if (!emailSent && !smsSent) {
+            await prisma.mfaSession.delete({ where: { token: mfaToken } }).catch(() => {});
+            return NextResponse.json(
+              { error: "MFA delivery unavailable. Your credentials were not rejected." },
+              { status: 503 },
+            );
           }
 
           return NextResponse.json({
