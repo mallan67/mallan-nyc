@@ -55,9 +55,10 @@ const ACTIVE_BROKER = {
 beforeEach(() => {
   jest.clearAllMocks();
   for (const k of Object.keys(calls)) delete calls[k];
+  // Only override agent.findUnique (proxy default returns null). Leave
+  // mfaSession.create/delete to the proxy's built-in fns so their call args are
+  // recorded into `calls` (a plain jest.fn override would bypass that recorder).
   (prismaMock as { agent: { findUnique: jest.Mock } }).agent.findUnique = jest.fn(async () => ACTIVE_BROKER);
-  (prismaMock as { mfaSession: { create: jest.Mock } }).mfaSession.create = jest.fn(async (args: { data: unknown }) => args.data);
-  (prismaMock as { mfaSession: { delete: jest.Mock } }).mfaSession.delete = jest.fn(async () => ({}));
 });
 
 async function callLogin(body: object) {
