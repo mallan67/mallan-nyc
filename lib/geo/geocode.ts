@@ -59,9 +59,13 @@ async function geocodeViaCensus(
       format: 'json',
     });
     const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?${params.toString()}`;
+    // Cache the geocode: an address's coordinates are effectively permanent, and an
+    // uncached fetch() here (Next 15 defaults fetch to no-store) forced every
+    // listing page that geocodes to render dynamically — defeating ISR/CDN caching.
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(2500),
+      next: { revalidate: 604800 }, // 7 days
     });
     if (!res.ok) return null;
     const data = await res.json();
