@@ -74,7 +74,7 @@ export default async function SystemStatusPage() {
   }
 
   const s = await getCotalitySystemStatus();
-  const isProd = s.environment === 'production';
+  const isProd = s.application_environment === 'production';
 
   return (
     <main style={{ maxWidth: 820, margin: '0 auto', padding: 24, fontFamily: 'Inter, Arial, sans-serif', color: '#111827' }}>
@@ -84,15 +84,25 @@ export default async function SystemStatusPage() {
       </p>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '12px 0 20px' }}>
-        <Badge text={`ENV: ${s.environment.toUpperCase()}`} color={isProd ? '#1d4ed8' : '#6b7280'} />
-        <Badge text={`NEON: ${s.neon.connection.toUpperCase()}`} color={s.neon.connection === 'pooled' ? HEALTH_COLOR.healthy : HEALTH_COLOR.warning} />
+        <Badge text={`APP ENV: ${s.application_environment.toUpperCase()}`} color={isProd ? '#1d4ed8' : '#6b7280'} />
+        <Badge text={`APP DB: ${s.app_db.connection.toUpperCase()}`} color={s.app_db.connection === 'pooled' ? HEALTH_COLOR.healthy : HEALTH_COLOR.warning} />
+        <Badge
+          text={`MONITORING: ${s.monitoring.available ? s.monitoring.source.toUpperCase() : 'UNAVAILABLE'}`}
+          color={s.monitoring.available ? HEALTH_COLOR.healthy : HEALTH_COLOR.critical}
+        />
+        {s.monitoring.connection && <Badge text={`MONITORING DB: ${s.monitoring.connection.toUpperCase()}`} color={s.monitoring.connection === 'pooled' ? HEALTH_COLOR.healthy : HEALTH_COLOR.warning} />}
         <Badge text={`ENFORCEMENT: ${s.enforcement.toUpperCase()}`} color="#374151" />
       </div>
 
-      {!isProd && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 18 }}>
-          <b>Preview environment.</b> Configured cron reflects this branch&apos;s <code>vercel.json</code>; last-run &amp; cursor values are from the
-          preview Neon branch, not canonical production. Approve wording/thresholds/drift here; verify live production values on the production deployment.
+      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
+        <div><b>Application environment:</b> {isProd ? 'Production' : s.application_environment[0].toUpperCase() + s.application_environment.slice(1)}</div>
+        <div><b>Monitoring data source:</b> {s.monitoring.source}</div>
+      </div>
+
+      {!s.monitoring.available && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 18 }}>
+          <b>Production monitoring unavailable.</b> <code>MONITORING_DATABASE_URL</code> (a read-only production role) is not configured, so live
+          run/cursor values are not shown. Target-vs-configured cadence (drift) below is still accurate. Preview values are never substituted and labeled production.
         </div>
       )}
 

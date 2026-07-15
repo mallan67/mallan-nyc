@@ -464,9 +464,12 @@
                 }
             }).catch(function (err) {
                 if (err.message === 'Unauthorized') {
+                    // Genuine 401 — credentials were actually rejected.
                     showError('Invalid email or password.');
                 } else {
-                    showError('Unable to connect. Please check your internet connection and try again.');
+                    // 500 / connectivity / server-side failure — the sign-in service
+                    // itself failed. Do NOT blame the user's password or internet.
+                    showError('The sign-in service is unavailable. Your credentials were not rejected.');
                 }
                 resetButton();
             });
