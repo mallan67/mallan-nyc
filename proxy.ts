@@ -6,9 +6,6 @@ import { checkRateLimits } from "@/lib/middleware/rate-limiter";
 import { checkCsrf } from "@/lib/middleware/csrf";
 import { checkRouteGuards } from "@/lib/middleware/route-guards";
 import { applySecurityHeaders } from "@/lib/middleware/security-headers";
-// Neon public-DB-wakeups P0: resolve public listing aliases from the durable Upstash index.
-// The alias resolver imports NO Prisma and issues NO Neon request — Upstash is its only lookup.
-import { slugPartsFromPathname, deriveAliasLookup, lookupAlias } from "@/lib/listings/alias-index";
 
 export const config = {
   matcher: [
@@ -69,39 +66,6 @@ export default async function middleware(req: NextRequest) {
   // ── 4. Route guards (auth, dev pages, CRM source files) ──
   const guardBlock = checkRouteGuards(req, pathname);
   if (guardBlock) return guardBlock;
-
-  // ── 4.5. Public listing ALIAS → canonical 308 (DB-free — Neon P0) ──
-  // Proxy runs BEFORE route rendering (Next 16 Proxy; Node.js runtime). A bare-id / hybrid /
-  // address-only /listing alias resolves to its canonical path from the durable Upstash alias
-  // index and is redirected here with a real 308 + CDN cache headers, so repeat AND never-seen
-  // aliases avoid the route render / Neon. Canonical + suppressed `listing-{id}` paths fall
-  // through to the ISR page. The alias resolution imports NO Prisma and makes NO Neon request —
-  // Upstash is its only lookup.
-  if (pathname.startsWith("/listing/")) {
-    const parts = slugPartsFromPathname(pathname);
-    const derived = parts ? deriveAliasLookup(parts) : { kind: "canonical" as const };
-    if (derived.kind === "alias") {
-      const canonical = await lookupAlias(derived.redisKey);
-      if (canonical === null) {
-        // Authoritative miss → the listing does not exist → 404 without a DB call.
-        const r = new NextResponse(null, { status: 404 });
-        r.headers.set("x-alias-index", "miss-404");
-        r.headers.set("x-neon-queried", "0");
-        applySecurityHeaders(r, pathname, req.method);
-        return r;
-      }
-      if (typeof canonical === "string") {
-        const r = NextResponse.redirect(new URL(canonical, req.nextUrl.origin), 308);
-        r.headers.set("Cache-Control", "public, max-age=0, must-revalidate");
-        r.headers.set("CDN-Cache-Control", "public, s-maxage=86400");
-        r.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=86400");
-        r.headers.set("x-alias-index", "hit");
-        r.headers.set("x-neon-queried", "0");
-        return r;
-      }
-      // canonical === undefined → Redis down / non-authoritative miss → FALL OPEN to the page.
-    }
-  }
 
   // ── 5. Static-compatible security headers ──
   // No per-request CSP nonce: reading it in the root layout (headers()) forced
