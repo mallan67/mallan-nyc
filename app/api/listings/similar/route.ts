@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { classifyMediaItem } from '@/lib/media/listing-media-resolver';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows, sameAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
-import { getSimilarityPriceBand, rankSimilarListings, type SimilarityTarget } from '@/lib/listings/similar-listing-ranking';
+import { getSimilarityPriceBand, rankSimilarListings, classifyPropertyClass, normalizePropertyClass, collapseForRental, type SimilarityTarget } from '@/lib/listings/similar-listing-ranking';
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -60,8 +60,11 @@ export async function GET(request: NextRequest) {
   const postalCode = searchParams.get('postalCode') || '';
   const excludeId = searchParams.get('excludeId') || '';
   const neighborhood = searchParams.get('neighborhood') || '';
-  // Subject ownership class (Condo/Co-op/Condop) — comps are matched to the same class.
+  // Subject property class — comps are matched like-with-like (townhouse↔townhouse, condo↔condo,
+  // house↔house…). Both the mapped display (propertyType) and the raw PropertySubType are read so
+  // rentals/townhouses/houses classify correctly.
   const propertyType = searchParams.get('propertyType') || '';
+  const propertySubType = searchParams.get('propertySubType') || '';
 
   if (!postalCode || !price) {
     return NextResponse.json({ listings: [] });
@@ -75,12 +78,18 @@ export async function GET(request: NextRequest) {
     // (lib/listings/similar-listing-ranking.ts): band = 0.7–1.3x sale / 0.75–1.25x rent;
     // ranking then orders by bedroom match + price/location proximity.
     const { min: minPrice, max: maxPrice } = getSimilarityPriceBand(price, isRental);
+    // Subject class: prefer the mapped display (encodes condo/co-op via CommonInterest), fall back to
+    // the raw sub-type (apartment/townhouse/house). Rentals collapse apartment-style to one bucket.
+    const subjectClass = collapseForRental(
+      normalizePropertyClass(propertyType) || normalizePropertyClass(propertySubType),
+      isRental,
+    );
     const target: SimilarityTarget = {
       beds,
       price,
       postalCode,
       neighborhood: neighborhood || undefined,
-      ownership: propertyType || undefined,
+      propertyClass: subjectClass || undefined,
     };
 
     // Fetch the excluded listing's address atoms BEFORE the similar query.
@@ -144,7 +153,7 @@ export async function GET(request: NextRequest) {
           price: Number(l.list_price),
           postalCode: a?.PostalCode ?? null,
           neighborhood: l.neighborhood ?? null,
-          ownership: ((l.features as Record<string, unknown>)?.CommonInterest as string) || l.property_sub_type || l.property_type || null,
+          propertyClass: collapseForRental(classifyPropertyClass((l.features as Record<string, unknown>)?.CommonInterest as string, l.property_sub_type, l.property_type), isRental) || null,
         };
       }),
       target,
@@ -318,7 +327,7 @@ export async function GET(request: NextRequest) {
       price: number;
       postalCode: string | null;
       neighborhood: string | null;
-      ownership: string | null;
+      propertyClass: string | null;
     }[] = allResults
       .filter((r: Record<string, unknown>) => {
         const id = String(r.ListingId || r.ListingKey || '');
@@ -330,7 +339,7 @@ export async function GET(request: NextRequest) {
         price: Number(r.ListPrice || 0),
         postalCode: r.PostalCode != null ? String(r.PostalCode) : null,
         neighborhood: r.CityRegion != null ? String(r.CityRegion) : null,
-        ownership: r.CommonInterest != null ? String(r.CommonInterest) : null,
+        propertyClass: collapseForRental(classifyPropertyClass(r.CommonInterest as string, r.PropertySubType as string, r.PropertyType as string), isRental) || null,
       }));
     const filtered = rankSimilarListings(trestleCandidates, target, 6).map((c) => c.row);
 

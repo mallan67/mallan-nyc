@@ -14,8 +14,10 @@ import {
   isBedroomMatch,
   similarityScore,
   rankSimilarListings,
-  normalizeOwnership,
-  isOwnershipMatch,
+  normalizePropertyClass,
+  classifyPropertyClass,
+  collapseForRental,
+  isPropertyClassMatch,
   type SimilarityTarget,
   type SimilarityCandidate,
 } from '@/lib/listings/similar-listing-ranking';
@@ -165,11 +167,15 @@ describe('GET /api/listings/similar wires the ranking helper', () => {
     expect(src).toMatch(/\$top: '50'/);
   });
 
-  it('threads ownership class through the target and BOTH candidate sets (condo↔condo)', () => {
-    expect(src).toMatch(/searchParams\.get\('propertyType'\)/); // reads subject ownership
-    expect(src).toMatch(/ownership: propertyType/);             // onto the target
-    const owned = src.match(/ownership:/g) || [];
-    expect(owned.length).toBeGreaterThanOrEqual(3);             // target + DB candidate + Cotality candidate
+  it('threads property class through the target and BOTH candidate sets (like-with-like)', () => {
+    expect(src).toMatch(/searchParams\.get\('propertyType'\)/);    // reads subject class signals
+    expect(src).toMatch(/searchParams\.get\('propertySubType'\)/);
+    expect(src).toMatch(/propertyClass: subjectClass/);            // onto the target
+    const owned = src.match(/propertyClass:/g) || [];
+    expect(owned.length).toBeGreaterThanOrEqual(3);                // target + DB candidate + Cotality candidate
+    // rentals collapse apartment-style so the classification is comp-correct for both DB + Cotality
+    const collapsed = src.match(/collapseForRental\(/g) || [];
+    expect(collapsed.length).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -222,43 +228,116 @@ describe('regression — deterministic, stable ordering on score ties', () => {
   });
 });
 
-describe('ownership class matching (condo↔condo, co-op↔co-op)', () => {
-  it('normalizeOwnership collapses the spellings', () => {
-    expect(normalizeOwnership('Condominium')).toBe('condo');
-    expect(normalizeOwnership('Condo')).toBe('condo');
-    expect(normalizeOwnership('StockCooperative')).toBe('coop');
-    expect(normalizeOwnership('Co-op')).toBe('coop');
-    expect(normalizeOwnership('Condop')).toBe('condop'); // must NOT be misread as condo
-    expect(normalizeOwnership('Residential')).toBe('');
-    expect(normalizeOwnership(null)).toBe('');
+describe('property-class matching — condo / co-op / condop / townhouse / apartment', () => {
+  it('normalizePropertyClass collapses RESO enums AND display strings, and round-trips its own output', () => {
+    expect(normalizePropertyClass('Condominium')).toBe('condo');
+    expect(normalizePropertyClass('Condo')).toBe('condo');
+    expect(normalizePropertyClass('StockCooperative')).toBe('coop');
+    expect(normalizePropertyClass('Co-op')).toBe('coop');
+    expect(normalizePropertyClass('Condop')).toBe('condop');            // NOT misread as condo
+    // NYC townhouses: the feed labels them SingleFamilyResidence / MultiFamily / Duplex(CI=None),
+    // never 'Townhouse' — all fee-simple whole-building homes fold into ONE 'townhouse' class.
+    expect(normalizePropertyClass('Townhouse')).toBe('townhouse');
+    expect(normalizePropertyClass('SingleFamilyResidence')).toBe('townhouse');
+    expect(normalizePropertyClass('Detached')).toBe('townhouse');
+    expect(normalizePropertyClass('MultiFamily')).toBe('townhouse');
+    expect(normalizePropertyClass('Triplex')).toBe('townhouse');
+    expect(normalizePropertyClass('Loft')).toBe('loft');
+    expect(normalizePropertyClass('Apartment')).toBe('apartment');
+    expect(normalizePropertyClass('Residential')).toBe('');
+    expect(normalizePropertyClass(null)).toBe('');
+    // round-trip (isPropertyClassMatch normalizes its inputs)
+    for (const c of ['condo', 'coop', 'condop', 'townhouse', 'loft', 'apartment']) {
+      expect(normalizePropertyClass(c)).toBe(c);
+    }
   });
-  it('isOwnershipMatch: same matches, different KNOWN classes do not, unknown is permissive', () => {
-    expect(isOwnershipMatch('Condominium', 'Condo')).toBe(true);
-    expect(isOwnershipMatch('Condominium', 'StockCooperative')).toBe(false);
-    expect(isOwnershipMatch('Co-op', 'Condo')).toBe(false);
-    expect(isOwnershipMatch('Condo', null)).toBe(true);
-    expect(isOwnershipMatch(null, 'Co-op')).toBe(true);
+
+  it('classifyPropertyClass: CommonInterest wins, then PropertySubType, then PropertyType', () => {
+    // a townhouse has NO CommonInterest → classified from PropertySubType
+    expect(classifyPropertyClass(null, 'Townhouse', 'Residential')).toBe('townhouse');
+    // a condo unit → CommonInterest wins even if sub-type says Apartment
+    expect(classifyPropertyClass('Condominium', 'Apartment', 'Residential')).toBe('condo');
+    // a DUPLEX condo unit is an apartment, NOT a townhouse (CommonInterest wins)
+    expect(classifyPropertyClass('Condominium', 'Duplex', 'Residential')).toBe('condo');
+    // fee-simple single-family / multi-family (CI=None) → townhouse
+    expect(classifyPropertyClass('None', 'SingleFamilyResidence', 'Residential')).toBe('townhouse');
+    expect(classifyPropertyClass('None', 'MultiFamily', 'Residential')).toBe('townhouse');
   });
-  it('similarityScore excludes an ownership mismatch (Infinity)', () => {
-    const t: SimilarityTarget = { beds: 0, price: 560_000, postalCode: '10128', ownership: 'Condominium' };
-    expect(similarityScore(t, { beds: 0, price: 560_000, postalCode: '10128', ownership: 'StockCooperative' })).toBe(Number.POSITIVE_INFINITY);
-    expect(Number.isFinite(similarityScore(t, { beds: 0, price: 560_000, postalCode: '10128', ownership: 'Condominium' }))).toBe(true);
+
+  it('isPropertyClassMatch: same matches, different KNOWN classes do not, unknown is permissive', () => {
+    expect(isPropertyClassMatch('Townhouse', 'Townhouse')).toBe(true);
+    expect(isPropertyClassMatch('SingleFamilyResidence', 'MultiFamily')).toBe(true); // both townhouses
+    expect(isPropertyClassMatch('Townhouse', 'Condominium')).toBe(false);            // townhouse ≠ condo
+    expect(isPropertyClassMatch('Condominium', 'StockCooperative')).toBe(false);
+    expect(isPropertyClassMatch('Condo', null)).toBe(true);
+    expect(isPropertyClassMatch(null, 'Townhouse')).toBe(true);
+  });
+
+  it('similarityScore excludes a property-class mismatch (Infinity)', () => {
+    const t: SimilarityTarget = { beds: 3, price: 4_000_000, postalCode: '10128', propertyClass: 'townhouse' };
+    expect(similarityScore(t, { beds: 3, price: 4_000_000, postalCode: '10128', propertyClass: 'condo' })).toBe(Number.POSITIVE_INFINITY);
+    expect(Number.isFinite(similarityScore(t, { beds: 3, price: 4_000_000, postalCode: '10128', propertyClass: 'townhouse' }))).toBe(true);
+  });
+
+  it('collapseForRental: rentals fold apartment-style into one bucket; townhouse stays distinct; sales unchanged', () => {
+    expect(collapseForRental('condo', true)).toBe('apartment');
+    expect(collapseForRental('coop', true)).toBe('apartment');
+    expect(collapseForRental('loft', true)).toBe('apartment');
+    expect(collapseForRental('townhouse', true)).toBe('townhouse'); // still distinct for rentals
+    expect(collapseForRental('condo', false)).toBe('condo');        // sales unchanged
+    expect(collapseForRental('coop', false)).toBe('coop');
   });
 });
 
 describe('regression — #4D is a CONDO: comps are condos only, no co-ops', () => {
   type C = SimilarityCandidate & { id: string };
   it('a condo studio returns only condo studios; co-op studios are excluded', () => {
-    const target: SimilarityTarget = { beds: 0, price: 560_000, postalCode: '10128', neighborhood: 'Upper East Side', ownership: 'Condo' };
+    const target: SimilarityTarget = { beds: 0, price: 560_000, postalCode: '10128', neighborhood: 'Upper East Side', propertyClass: 'condo' };
     const candidates: C[] = [
-      { id: 'condo539', beds: 0, price: 539_000, postalCode: '10128', ownership: 'Condominium' },
-      { id: 'coop479',  beds: 0, price: 479_000, postalCode: '10128', ownership: 'StockCooperative' },
-      { id: 'condo599', beds: 0, price: 599_000, postalCode: '10128', ownership: 'Condominium' },
-      { id: 'coop620',  beds: 0, price: 620_000, postalCode: '10128', ownership: 'StockCooperative' },
+      { id: 'condo539', beds: 0, price: 539_000, postalCode: '10128', propertyClass: 'condo' },
+      { id: 'coop479',  beds: 0, price: 479_000, postalCode: '10128', propertyClass: 'coop' },
+      { id: 'condo599', beds: 0, price: 599_000, postalCode: '10128', propertyClass: 'condo' },
+      { id: 'coop620',  beds: 0, price: 620_000, postalCode: '10128', propertyClass: 'coop' },
     ];
     const ids = rankSimilarListings(candidates, target).map((c) => c.id);
     expect(ids).toEqual(['condo539', 'condo599']); // closest condos; co-ops excluded entirely
     expect(ids).not.toContain('coop479');
     expect(ids).not.toContain('coop620');
+  });
+});
+
+describe('regression — TOWNHOUSE subject: comps are townhouses only (no condo/co-op apartments)', () => {
+  type C = SimilarityCandidate & { id: string };
+  it('a townhouse returns fee-simple townhouses (single- AND multi-family); condo/co-op are excluded', () => {
+    const target: SimilarityTarget = { beds: 4, price: 5_000_000, postalCode: '10021', neighborhood: 'Upper East Side', propertyClass: 'townhouse' };
+    const candidates: C[] = [
+      { id: 'sfr4.9m',  beds: 4, price: 4_900_000, postalCode: '10021', propertyClass: 'SingleFamilyResidence' }, // → townhouse
+      { id: 'condo5m',  beds: 4, price: 5_000_000, postalCode: '10021', propertyClass: 'Condominium' },
+      { id: 'multi5.1m',beds: 5, price: 5_100_000, postalCode: '10021', propertyClass: 'MultiFamily' },           // → townhouse
+      { id: 'coop4.8m', beds: 4, price: 4_800_000, postalCode: '10021', propertyClass: 'StockCooperative' },
+    ];
+    const ids = rankSimilarListings(candidates, target).map((c) => c.id);
+    // single-family + multi-family both count as townhouses and are included; apartments excluded
+    expect(ids).toContain('sfr4.9m');
+    expect(ids).toContain('multi5.1m');
+    expect(ids).not.toContain('condo5m');
+    expect(ids).not.toContain('coop4.8m');
+  });
+});
+
+describe('regression — RENTALS collapse apartment-style but keep townhouse distinct', () => {
+  type C = SimilarityCandidate & { id: string };
+  it('a rental condo apartment matches other rental apartments (condo/co-op) but NOT a rental townhouse', () => {
+    // route applies collapseForRental → target + candidates are pre-collapsed ('apartment'/'townhouse')
+    const target: SimilarityTarget = { beds: 1, price: 4_000, postalCode: '10128', propertyClass: 'apartment' };
+    const candidates: C[] = [
+      { id: 'aptA', beds: 1, price: 3_950, postalCode: '10128', propertyClass: 'apartment' }, // was a condo rental
+      { id: 'aptB', beds: 1, price: 4_100, postalCode: '10128', propertyClass: 'apartment' }, // was a co-op rental
+      { id: 'townhouseRental', beds: 1, price: 4_000, postalCode: '10128', propertyClass: 'townhouse' },
+    ];
+    const ids = rankSimilarListings(candidates, target).map((c) => c.id);
+    expect(ids).toContain('aptA');
+    expect(ids).toContain('aptB');
+    expect(ids).not.toContain('townhouseRental'); // townhouse rental excluded from apartment comps
   });
 });
