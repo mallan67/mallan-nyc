@@ -49,6 +49,9 @@ import TrackListingView from '@/app/components/TrackListingView';
 import TrackListingSend from '@/app/components/TrackListingSend';
 
 import prisma from '@/lib/prisma';
+// Neon public-DB-wakeups P0: durable per-listing detail cache (Upstash) in front of the DB.
+import { cacheGetJson, cacheSetJson } from '@/lib/cache/durable-cache';
+import { detailCacheKey } from '@/lib/cache/invalidate-listing';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
@@ -600,8 +603,28 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
  * 404 over a valid listing). The page resolves through `resolveListingResult` and only
  * calls notFound() on a genuine null.
  */
+// Sentinel stored in the durable cache for a CONFIRMED miss, so a 404 is served from cache
+// without re-querying Neon — but with a short TTL so it can't pin a real listing as missing.
+type CachedMiss = { _miss: true };
+
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
-  return await fetchFromDB(slug, keyOverride);
+  // Durable per-listing cache (Upstash) in FRONT of the DB — survives cold starts and is
+  // shared across instances, so a cold render of an already-seen listing does NOT re-query
+  // Neon (React cache() only dedupes within one request). Sync deletes this key on change.
+  // Post-middleware, the page renders canonical URLs, so `id` here is the stable listing id.
+  const key = detailCacheKey(keyOverride || slug);
+  const hit = await cacheGetJson<ListingFetchResult | CachedMiss>(key);
+  if (hit !== undefined) {
+    return hit !== null && '_miss' in hit ? null : (hit as ListingFetchResult);
+  }
+  // fetchFromDB THROWS on infrastructure errors — those propagate UNCACHED (never a cached
+  // false 404). Only a resolved result or a confirmed-miss null is written back — AWAITED
+  // (required cache work is not fire-and-forget). Positive results get a 6h SAFETY floor (the
+  // sync DELETES this key on change, so the long TTL just prevents per-cold-render Neon queries);
+  // a confirmed miss is cached only briefly so a listing that later appears isn't pinned missing.
+  const result = await fetchFromDB(slug, keyOverride);
+  await cacheSetJson(key, result === null ? ({ _miss: true } as CachedMiss) : result, result === null ? 60 : 6 * 60 * 60);
+  return result;
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
