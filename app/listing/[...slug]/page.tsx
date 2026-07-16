@@ -38,7 +38,7 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // every request). Live Cotality calls live in the sync jobs and operational tools,
 // not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
 import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
-import { buildAuctionPublic, resolveMoveInFees, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { buildAuctionPublic, resolveMoveInFees, mapPropertyTypeToDisplay, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
@@ -476,7 +476,15 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       listPrice: Number(dbListing.list_price),
       originalListPrice: Number(dbListing.list_price),
       closePrice: null,
-      propertyType: dbListing.property_sub_type || dbListing.property_type || 'Residential',
+      // Ownership-aware display type (CommonInterest-first), consistent with db-to-public-dto and the
+      // exclusive/card paths: a condo unit's PropertySubType is "Apartment", so keying off the sub-type
+      // alone mislabeled condos/co-ops as "Apartment" — which broke the co-op fee label AND made
+      // Similar Properties classify the subject as a generic apartment (emptying the section).
+      propertyType: mapPropertyTypeToDisplay(
+        features.CommonInterest as string | undefined,
+        dbListing.property_sub_type,
+        dbListing.property_type || undefined,
+      ) || 'Residential',
       propertySubType: dbListing.property_sub_type || null,
       bedroomsTotal: dbListing.bedrooms_total || 0,
       bathroomsFull: dbListing.bathrooms_full || 0,

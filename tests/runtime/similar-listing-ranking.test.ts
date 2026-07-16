@@ -341,3 +341,17 @@ describe('regression — RENTALS collapse apartment-style but keep townhouse dis
     expect(ids).not.toContain('townhouseRental'); // townhouse rental excluded from apartment comps
   });
 });
+
+describe('regression — listing-detail page feeds SimilarListings an OWNERSHIP-aware type', () => {
+  const PAGE = fs.readFileSync(path.resolve(__dirname, '../../app/listing/[...slug]/page.tsx'), 'utf8');
+  it('derives propertyType via mapPropertyTypeToDisplay (CommonInterest-first), not the raw sub-type', () => {
+    // A condo unit's PropertySubType is "Apartment"; keying off the sub-type alone classified the
+    // subject as a generic apartment and EMPTIED Similar Properties (studio condo → no condo comps).
+    expect(PAGE).toMatch(/propertyType: mapPropertyTypeToDisplay\(/);
+    expect(PAGE).not.toMatch(/propertyType: dbListing\.property_sub_type \|\| dbListing\.property_type/);
+  });
+  it('passes propertyType + propertySubType into SimilarListings', () => {
+    expect(PAGE).toMatch(/<SimilarListings[\s\S]*?propertyType=\{listing\.propertyType\}/);
+    expect(PAGE).toMatch(/<SimilarListings[\s\S]*?propertySubType=\{listing\.propertySubType\}/);
+  });
+});
