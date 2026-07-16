@@ -552,18 +552,11 @@ export interface MediaFallbackContext {
    * DB-only helpers ({@link shouldFallbackToLegacyMedia} /
    * {@link resolveDbListingMedia}) do NOT use it — a caller may omit `mls_id`. */
   mlsId?: string | null;
-  /** Listing id. `SL-`/`RL-` namespace is a REINFORCING Mallan signal (not the
-   * primary one) — third-party IDX rows use RLS keys. */
+  /** Listing id. A `SL-`/`RL-` prefix marks a Mallan-authored exclusive. */
   listingId?: string | null;
   /** Prisma `rls_eligible`. `false` ⇒ website-only Mallan listing (Mallan-owned
-   * media). Primary provenance signal. */
+   * media). One of the two authoritative Mallan-ownership signals. */
   rlsEligible?: boolean | null;
-  /** Prisma `agent_id`. Non-null ⇒ Mallan-authored exclusive (Mallan-owned
-   * media). Primary provenance signal (mirrors `classifyDbListing`). */
-  agentId?: bigint | number | string | null;
-  /** Prisma `owner_client_id`. Non-null ⇒ Mallan-authored exclusive. Primary
-   * provenance signal (mirrors `classifyDbListing`). */
-  ownerClientId?: bigint | number | string | null;
 }
 
 /**
@@ -571,20 +564,24 @@ export interface MediaFallbackContext {
  * so its `listing_media` deletions are AUTHORITATIVE and the legacy JSON must
  * NOT be resurrected. Third-party Cotality/IDX/RLS listings return `false`.
  *
- * Signals mirror `classifyDbListing` (db-to-public-dto.ts), the repo's canonical
- * provenance predicate:
+ * Signal set MIRRORS the repo's canonical `isMallanExclusiveListing`
+ * (lib/listings/exclusive-agent-assignment.ts), the single source of truth:
+ *   • `SL-`/`RL-` listing-id namespace → Mallan-authored, OR
  *   • `rls_eligible === false` → website-only (Mallan-owned).
- *   • `agent_id` or `owner_client_id` non-null → Mallan-authored exclusive.
- *   • `SL-`/`RL-` listing-id namespace → reinforcing signal.
- * `mls_id` is intentionally NOT consulted — a missing `mls_id` is not proof of
- * CRM ownership (a caller may simply not select it).
+ *
+ * `agent_id` and `owner_client_id` are DELIBERATELY NOT used: `syncAgentHistory`
+ * stamps `agent_id` onto third-party Cotality/IDX rows (buyer-side agent history),
+ * so treating `agent_id != null` as Mallan ownership mislabels third-party
+ * listings and would BLOCK their legitimate Cotality legacy-JSON fallback, leaving
+ * a placeholder (Codex review on the 2026-07-16 media P0; mirrors the
+ * `listing-search-projection` F13 rule: "NEVER by agent_id"). `mls_id` is also
+ * not consulted — a missing `mls_id` is not proof of ownership.
  */
 export function isMallanOwnedListing(ctx: MediaFallbackContext | undefined): boolean {
   if (!ctx) return false;
-  if (ctx.rlsEligible === false) return true;                 // website-only
-  if (ctx.agentId != null || ctx.ownerClientId != null) return true; // mallan-exclusive
-  if (/^(SL|RL)-/i.test(String(ctx.listingId || ''))) return true;   // reinforcing id signal
-  return false;                                                // third-party Cotality/IDX
+  if (/^(SL|RL)-/i.test(String(ctx.listingId || ''))) return true;  // Mallan CRM namespace
+  if (ctx.rlsEligible === false) return true;                       // website-only
+  return false;                                                     // third-party Cotality/IDX
 }
 
 /**
@@ -643,31 +640,35 @@ export function shouldFetchTrestleMediaFallback(
  * violation. Third-party listings' JSON is Cotality-sourced, so falling back to
  * it keeps the display Cotality-only.
  *
- * Two-tier decision:
- *   1. NO relational rows ever imported (`hadRelationalRows === false`) → fall
- *      back for EVERYONE. Nothing was deleted; the legacy JSON is the only source
- *      (keeps un-synced Cotality rows AND not-yet-migrated Mallan exclusives).
- *   2. Rows EXISTED but none active (all deleted/replaced):
- *        – Mallan-owned (exclusive / website-only) → authoritative empty, NO fallback.
- *        – third-party Cotality/IDX/RLS → fall back to the legacy Cotality JSON.
+ * Decision (fail-closed for Mallan-owned media):
+ *   • Third-party Cotality/IDX/RLS → ALWAYS fall back to the legacy JSON when the
+ *     relational path resolves empty. That JSON is Cotality-sourced, so it can
+ *     never resurrect Mallan media — safe regardless of `hadRelationalRows`.
+ *   • Mallan-owned (SL-/RL- or website-only) → fall back ONLY when we can PROVE no
+ *     relational row was ever imported (`hadRelationalRows === false`):
+ *        – `true`      → rows existed but all deleted/replaced → authoritative empty.
+ *        – `undefined` → existence UNKNOWN (an active-only caller that did not pass
+ *          an all-status signal such as `_count.listing_media`) → FAIL-CLOSED, no
+ *          fallback, so intentionally-deleted Mallan photos never resurrect.
  *
- * `hadRelationalRows` is a caller-supplied signal, NOT derived from the passed
- * rows' length, because a caller such as `/api/listings` selects only ACTIVE
- * rows and must pass an all-status existence signal (e.g. `_count.listing_media`)
- * so "no rows ever" and "rows existed but all deleted" stay distinguishable.
+ * `hadRelationalRows` is a caller-supplied ALL-STATUS existence signal, NOT
+ * derived from the passed rows' length: an active-only caller's row count reflects
+ * ACTIVE rows only, so deriving from it would read "all deleted" as "never
+ * imported" and resurrect deleted Mallan media (Codex review, 2026-07-16).
  *
  * @param hadRelationalRows did ANY `listing_media` row (any status) ever exist?
- * @param ctx               listing provenance (rls_eligible / agent_id / owner_client_id / listing_id)
+ *        `undefined` = unknown (active-only caller) → fail-closed for Mallan-owned.
+ * @param ctx               listing provenance (SL-/RL- listing_id or rls_eligible)
  */
 export function shouldFallbackToLegacyMedia(
-  hadRelationalRows: boolean,
+  hadRelationalRows: boolean | undefined,
   ctx: MediaFallbackContext,
 ): boolean {
-  // Tier 1 — never imported → legacy JSON is the only source; fall back for all.
-  if (!hadRelationalRows) return true;
-  // Tier 2 — rows existed but none active. Mallan-owned deletion is authoritative;
-  // third-party Cotality/IDX falls back to its Cotality-sourced legacy JSON.
-  return !isMallanOwnedListing(ctx);
+  // Third-party: the legacy JSON is Cotality-sourced → always safe to fall back.
+  if (!isMallanOwnedListing(ctx)) return true;
+  // Mallan-owned: fall back to its Mallan-authored legacy JSON ONLY when provably
+  // never-imported. `true` (all-deleted) and `undefined` (unknown) → no fallback.
+  return hadRelationalRows === false;
 }
 
 /**
@@ -685,11 +686,13 @@ export function shouldFallbackToLegacyMedia(
  *      `Listing.media` JSON; a Mallan-owned listing with deleted rows stays
  *      authoritatively empty.
  *
- * NEVER keys the fallback on raw `rows.length` — a listing whose only rows are
- * deleted/replaced still falls back for third-party inventory. Callers that
- * select ACTIVE rows only MUST pass `options.hadRelationalRows` (an all-status
- * existence signal such as `_count.listing_media > 0`); when omitted it derives
- * from the passed rows, which is correct only for all-status callers.
+ * NEVER keys the fallback on raw `rows.length`. Callers MUST pass an ALL-STATUS
+ * existence signal via `options.hadRelationalRows` (e.g. `_count.listing_media > 0`
+ * for active-only queries, or `rows.length > 0` when the query already fetched
+ * every status). When it is omitted, existence is treated as UNKNOWN and
+ * {@link shouldFallbackToLegacyMedia} FAILS CLOSED for Mallan-owned media — an
+ * active-only caller's row length must never be mistaken for the all-status count
+ * (that mistake resurrects deleted Mallan photos — Codex review, 2026-07-16).
  *
  * DB-ONLY: touches only the two synchronized Neon sources (the relational table
  * and the JSON column). Performs NO live Cotality call — safe on the ISR/DB-only
@@ -698,8 +701,9 @@ export function shouldFallbackToLegacyMedia(
  * @param rows        relational rows the caller fetched (all-status OR active-only)
  * @param legacyMedia the legacy `Listing.media` JSON value (array or unknown)
  * @param ctx         listing provenance for the Mallan-vs-Cotality authority test
- * @param options.hadRelationalRows all-status existence signal; REQUIRED from
- *        active-only callers (e.g. /api/listings via `_count.listing_media`).
+ * @param options.hadRelationalRows all-status existence signal; omit ⇒ unknown ⇒
+ *        fail-closed for Mallan-owned. REQUIRED from active-only callers to enable
+ *        the never-imported legacy fallback on Mallan exclusives.
  * @param options.legacyMapUrl URL mapper applied to the LEGACY branch only, so
  *        each caller preserves its own proxy convention (the detail page proxies
  *        separately downstream, so it passes identity; the card DTO passes its own).
@@ -712,9 +716,10 @@ export function resolveDbListingMedia(
 ): ResolvedMedia[] {
   const relational = resolveListingMediaFromRows(rows);
   if (relational.length > 0) return relational;
-  const hadRelationalRows =
-    options.hadRelationalRows ?? (Array.isArray(rows) && rows.length > 0);
-  if (!shouldFallbackToLegacyMedia(hadRelationalRows, ctx)) return [];
+  // Pass the all-status signal THROUGH (undefined when the caller omitted it) —
+  // do NOT coerce from `rows.length`, which for active-only callers is the active
+  // count, not existence, and would resurrect deleted Mallan media.
+  if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return [];
   return resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
 }
 

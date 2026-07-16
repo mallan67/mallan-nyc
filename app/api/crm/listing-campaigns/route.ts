@@ -105,6 +105,11 @@ const LISTING_SELECT = {
       status: true,
     },
   },
+  // All-status existence signal for the DTO's media authority (this select is
+  // ACTIVE-only). Keeps "never imported" distinct from "all deleted" so a Mallan
+  // exclusive's deleted photos are never resurrected from the legacy JSON — no
+  // extra query / no N+1 (Codex review, 2026-07-16).
+  _count: { select: { listing_media: true } },
 } satisfies Prisma.ListingSelect;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
