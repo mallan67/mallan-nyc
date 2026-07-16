@@ -986,7 +986,10 @@ export default async function ListingPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
     name: `${fullAddress} — ${displayPropertyType} ${isRental ? 'for Rent' : 'for Sale'}`,
-    url: `https://mallan.nyc/listing/${listing.slug}`,
+    // Canonical two-segment path — the SAME helper the <link rel="canonical"> and og:url use
+    // (generateMetadata), so structured data cannot advertise a non-canonical single-segment
+    // URL that 308-redirects. Was `/listing/${listing.slug}` (single segment).
+    url: `https://mallan.nyc${buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' })}`,
     description: listing.publicRemarks?.substring(0, 300) || undefined,
     datePosted: listing.onMarketDate || listing.listingContractDate,
     dateModified: listing.modificationTimestamp || undefined,
