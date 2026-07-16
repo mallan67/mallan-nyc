@@ -57,12 +57,14 @@ export default function ListingOpenHouseRSVP({ listingId, listingAddress, listin
             day: 'numeric',
           });
           const timeStr = [oh.startTime, oh.endTime].filter(Boolean).join(' - ');
+          // Keep the existing date/time layout; only append the appointment designation when present.
+          const timeLine = oh.openHouseType === 'By Appointment' ? `${timeStr} · By Appointment` : timeStr;
 
           return (
             <div key={oh.id} className="flex items-center justify-between gap-3">
               <div className="text-sm">
                 <p className="font-medium text-brand-dark">{displayDate}</p>
-                <p className="text-brand-dark/60">{timeStr}</p>
+                <p className="text-brand-dark/60">{timeLine}</p>
               </div>
               <OpenHouseRSVP
                 openHouseId={oh.id}

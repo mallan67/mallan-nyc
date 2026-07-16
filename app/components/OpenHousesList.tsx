@@ -22,6 +22,8 @@ interface OpenHouse {
   image: string;
   featured: boolean;
   mallanExclusive?: boolean;
+  // Canonical public designation from /api/open-houses: "Public" | "By Appointment".
+  openHouseType?: string;
 }
 
 function formatPrice(price: number): string {
@@ -170,7 +172,7 @@ export default function OpenHousesList() {
                           {/* Open-house time, Eastern (API formats in America/New_York). */}
                           <div className="absolute bottom-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-sm text-white text-sm rounded-xl">
                             <span className="font-semibold mr-1">Open House</span>
-                            {oh.startTime}{oh.endTime ? ` - ${oh.endTime}` : ''}
+                            {oh.startTime}{oh.endTime ? ` - ${oh.endTime}` : ''}{oh.openHouseType === 'By Appointment' ? ' · By Appointment' : ''}
                           </div>
                         </div>
 

@@ -6407,15 +6407,17 @@ function _ohTime12h(t) {
     return h12 + ':' + min + ' ' + ap;
 }
 
-// Form open-house type -> showing.type + public flag. ONLY public events are publicly displayed
-// (REBNY UCBA Art. I §16): Public/Virtual -> 'openhouse' (the public /api/open-houses feed reads
-// type='openhouse'); Broker/By-Appointment -> 'brokersopen' (internal, never on the public page).
+// Form open-house type -> showing.type + public flag. Public/Virtual/ByAppointment are PUBLIC events
+// -> 'openhouse' (the public /api/open-houses feed reads type='openhouse'). By Appointment is a public
+// open house that requires an RSVP; the `[ByAppointment]` marker saveSaleOpenHouse writes into
+// showing.notes preserves the designation so the API + card resolver render "· By Appointment".
+// Only Broker Only stays internal -> 'brokersopen' (never on the public page).
 function _ohShowingType(formType) {
     switch (formType) {
         case 'Public':        return { showingType: 'openhouse',   isPublic: true };
         case 'Virtual':       return { showingType: 'openhouse',   isPublic: true };
+        case 'ByAppointment': return { showingType: 'openhouse',   isPublic: true };
         case 'BrokerOnly':    return { showingType: 'brokersopen', isPublic: false };
-        case 'ByAppointment': return { showingType: 'brokersopen', isPublic: false };
         default:              return { showingType: 'brokersopen', isPublic: false };
     }
 }
@@ -6540,10 +6542,10 @@ async function loadSaleOpenHouses(listingId) {
     openHouseCount = 0;
     if (!listingId) return;
     try {
-        // No type filter: a Broker Only / By-Appointment event persists as type='brokersopen'
-        // (internal), not 'openhouse'. Fetch all the agent's showings and keep BOTH open-house
-        // types client-side, else internal events vanish on reload and can't be cancelled here.
-        // (Codex P2, 2026-06-23)
+        // No type filter: a Broker Only event persists as type='brokersopen' (internal), not
+        // 'openhouse'. Fetch all the agent's showings and keep BOTH open-house types client-side, else
+        // internal Broker Only events vanish on reload and can't be cancelled here. The stored
+        // `[Type]` notes marker recovers the exact form type (incl. ByAppointment). (Codex P2, 2026-06-23)
         var resp = await fetch('/api/crm/showings?limit=200', { credentials: 'include' });
         if (!resp.ok) return;
         var body = await resp.json();

@@ -27,6 +27,14 @@ describe('OpenHouseBanner component', () => {
     expect(BANNER).toMatch(/Open House/);
     expect(BANNER).toMatch(/startTime/);
   });
+
+  it('keeps the existing weekday/time format and only appends "· By Appointment" when appointment-only', () => {
+    // Existing format preserved: weekday (short) + the time range, unchanged.
+    expect(BANNER).toMatch(/weekday:\s*'short'/);
+    expect(BANNER).toMatch(/Open House\$\{day \? ` · \$\{day\}` : ''\} \$\{time\}\$\{appt\}/);
+    // Appointment suffix keyed off the canonical designation, appended (not a reformat).
+    expect(BANNER).toMatch(/openHouse\.type === 'By Appointment' \? ' · By Appointment' : ''/);
+  });
 });
 
 describe('DTO + adapter carry nextOpenHouse', () => {

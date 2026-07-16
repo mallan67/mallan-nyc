@@ -16,6 +16,7 @@ import { evaluateDisplayGate } from '@/lib/compliance/gates';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/open-houses/route.ts'), 'utf8');
 const CARD = readFileSync(resolve(__dirname, '../../app/components/OpenHousesList.tsx'), 'utf8');
+const SIDEBAR = readFileSync(resolve(__dirname, '../../app/components/ListingOpenHouseRSVP.tsx'), 'utf8');
 
 describe('open-houses — Trestle feed gate uses REBNY fail-OPEN (idxPlusPreFiltered)', () => {
   it('null InternetEntireListingDisplayYN is DISPLAYABLE under idxPlusPreFiltered (REBNY pre-filter)', () => {
@@ -148,5 +149,30 @@ describe('open-houses card — photo loads via native <img> (next/image optimize
   it('the card uses a native <img>, not next/image, for the proxied photo', () => {
     expect(CARD).not.toMatch(/from 'next\/image'/);
     expect(CARD).toMatch(/<img\b[\s\S]*?src=\{oh\.image \|\| '\/images\/listing-placeholder\.svg'\}/);
+  });
+});
+
+describe('open-houses — By Appointment designation surfaces (public API + /open-houses card + sidebar)', () => {
+  it('API selects the Cotality appointment signal AppointmentRequiredYN (both Trestle paths)', () => {
+    const sel = ROUTE.match(/AppointmentRequiredYN/g) || [];
+    expect(sel.length).toBeGreaterThanOrEqual(2); // $expand $select + flat $select (+ DTO derivations)
+  });
+  it('API derives openHouseType from the canonical resolver on all 3 paths, not the raw field', () => {
+    const derived = ROUTE.match(/openHouseType:\s*resolvePublicOpenHouseType\(/g) || [];
+    expect(derived.length).toBe(3); // $expand, flat, local
+    expect(ROUTE).toMatch(/import\s*\{[\s\S]*?resolvePublicOpenHouseType[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
+  });
+  it('dedupe preserves By Appointment (a Public Trestle twin cannot erase it)', () => {
+    expect(ROUTE).toMatch(/oh\.openHouseType === 'By Appointment' && twin\.openHouseType !== 'By Appointment'/);
+    expect(ROUTE).toMatch(/twin\.openHouseType = 'By Appointment'/);
+  });
+  it('/open-houses card appends "· By Appointment" to the existing time badge (format otherwise unchanged)', () => {
+    expect(CARD).toMatch(/oh\.openHouseType === 'By Appointment' \? ' · By Appointment' : ''/);
+    // the existing "Open House" + start/end time badge is retained
+    expect(CARD).toMatch(/<span className="font-semibold mr-1">Open House<\/span>/);
+  });
+  it('listing-detail sidebar appends "· By Appointment" to the existing time line (RSVP unchanged)', () => {
+    expect(SIDEBAR).toMatch(/oh\.openHouseType === 'By Appointment' \? `\$\{timeStr\} · By Appointment` : timeStr/);
+    expect(SIDEBAR).toMatch(/<OpenHouseRSVP/); // RSVP button retained
   });
 });

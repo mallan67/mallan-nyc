@@ -21,6 +21,8 @@ export interface ListingOpenHouseEntry {
   date: string;      // "YYYY-MM-DD"
   startTime: string;
   endTime: string;
+  /** Canonical public designation from /api/open-houses: "Public" | "By Appointment" (passthrough). */
+  openHouseType?: string;
 }
 
 /**
