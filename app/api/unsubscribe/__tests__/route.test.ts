@@ -140,3 +140,32 @@ describe('rate-limit buckets — GET and POST use SEPARATE quotas (no collision)
     expect(mockAuditCreate).not.toHaveBeenCalled();
   });
 });
+
+describe('POST /api/unsubscribe — durable suppression for NON-Lead recipients (AuditEvent ledger)', () => {
+  it('an email with NO Lead row still returns success AND writes the durable email_unsubscribed record', async () => {
+    mockLeadUpdateMany.mockResolvedValueOnce({ count: 0 }); // no Lead row matched this email
+    const token = makeUnsubscribeToken('cold@acris.com')!;
+    const res = await POST(postReq(`email=cold@acris.com&token=${encodeURIComponent(token)}`));
+    expect(res.status).toBe(200); // success does NOT depend on a Lead row existing
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'email_unsubscribed', entity_id: 'cold@acris.com' }),
+      }),
+    );
+  });
+
+  it('a secondary Lead/SavedSearch failure does NOT undo suppression (still 200; durable record stands; failure audited)', async () => {
+    mockLeadUpdateMany.mockRejectedValueOnce(new Error('Neon timeout')); // secondary step fails
+    const token = makeUnsubscribeToken('cold@acris.com')!;
+    const res = await POST(postReq(`email=cold@acris.com&token=${encodeURIComponent(token)}`));
+    expect(res.status).toBe(200);
+    // Durable record written FIRST, before the failing secondary step.
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'email_unsubscribed' }) }),
+    );
+    // The secondary failure is recorded (not silently lost) — without undoing suppression.
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'email_unsubscribe_secondary_failed' }) }),
+    );
+  });
+});
