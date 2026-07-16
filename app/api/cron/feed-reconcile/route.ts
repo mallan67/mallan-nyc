@@ -36,8 +36,6 @@ import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
-import { revalidateListingCanonical } from "@/lib/listings/revalidate-listing";
-import { CANONICAL_REDIRECT_SELECT } from "@/lib/listings/listing-canonical-target";
 import {
   upsertListingMedia,
   updateListingMediaSummary,
@@ -575,20 +573,6 @@ export async function GET(req: NextRequest) {
             `[feed-reconcile] ghost projection dual-write failed for ${g.listing_id}:`,
             projErr instanceof Error ? projErr.message : projErr,
           );
-        }
-
-        // Crawl-cache P0: the just-withdrawn listing's cached detail page must clear
-        // promptly (REBNY §2.05, not wait out the long detail-page TTL). Ghosts are few,
-        // so a targeted re-read of only the canonical fields is cheap; revalidate the
-        // canonical path so the page drops on its next request. Best-effort.
-        try {
-          const canonRow = await prisma.listing.findUnique({
-            where: { id: g.id },
-            select: CANONICAL_REDIRECT_SELECT,
-          });
-          if (canonRow) revalidateListingCanonical(canonRow);
-        } catch {
-          /* withdrawal already committed; revalidation is best-effort */
         }
 
         updated++;

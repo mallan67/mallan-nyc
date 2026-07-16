@@ -39,7 +39,7 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
 import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
 import { buildAuctionPublic, resolveMoveInFees, type PublicListingDTO } from '@/lib/idx/public-dto';
-import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
+import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
@@ -53,23 +53,10 @@ import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/lis
 import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
-// Crawl-cache P0: a shared row-finder + a MINIMAL canonical-redirect resolver so an
-// alias URL (ID-only / hybrid / address-only) resolves its redirect target with ONE
-// narrow indexed read — no listing_media join, no DTO build — instead of a full render.
-import { findListingRow } from '@/lib/listings/listing-lookup';
-import { isAliasShape, resolveCanonicalTarget } from '@/lib/listings/listing-canonical-target';
 
-// ISR — LONG safety TTL (crawl-cache P0). The old 5-minute blanket rerender meant every
-// listing went cold every 5 minutes, so crawler sweeps across the catalog turned into
-// continuous cold DB renders (each a full listing + listing_media read). This TTL is the
-// backstop; change-driven revalidation (lib/listings/revalidate-listing.ts) clears a page
-// as soon as a listing changes — currently wired ONLY to feed-reconcile ghost/terminal
-// withdrawals (the §2.05-critical path); main IDX-sync + media-sync revalidation are
-// DEFERRED (see that file's WIRING STATUS note), so delta-sync freshness rides this TTL.
-// 1 hour is well inside the REBNY §2.05 24-hour terminal-removal window, and the real-time
-// display gate still runs per render, so a stale-but-cached page cannot show a listing that
-// has become non-displayable beyond the next revalidation.
-export const revalidate = 3600;
+// ISR — revalidate every 5 minutes so the synchronized Neon copy stays fresh
+// while the rendered page is CDN-cached.
+export const revalidate = 300;
 export const maxDuration = 60;
 
 // Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,
@@ -188,19 +175,143 @@ const LISTING_MEDIA_INCLUDE = {
   },
 } satisfies Prisma.ListingInclude;
 
-/** The full row shape the render needs — all scalar columns + the listing_media join. */
-type FullListingRow = Prisma.ListingGetPayload<{ include: typeof LISTING_MEDIA_INCLUDE }>;
-
 async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
   try {
-    // Row lookup via the SHARED finder (lib/listings/listing-lookup.ts) — the exact same
-    // strategy cascade (key/MLS-ID slug → embedded Option-D id → address-parse+validate →
-    // raw id) that the minimal canonical-redirect resolver uses, here pulling the FULL row
-    // + listing_media for the render. A confirmed miss returns null; a Prisma/Neon error
-    // PROPAGATES (never swallowed into a not-found, which under ISR would cache a 404).
-    const dbListing = await findListingRow<FullListingRow>(slug, keyOverride, {
-      include: LISTING_MEDIA_INCLUDE,
-    });
+    let dbListing = null;
+
+    // Strategy 1: Key override or MLS-ID slug
+    const lookupId = keyOverride || (isMlsIdSlug(slug) ? extractMlsIdFromSlug(slug) : null);
+    if (lookupId) {
+      // Canonical URLs lowercase the listing id (e.g. /listing/.../sl-0004 and
+      // the `listing-sl-0004` MLS-ID-slug form); listing_id is stored uppercase
+      // (SL-0004) and findUnique is case-SENSITIVE. All REBNY/CRM ids are
+      // uppercase, so normalizing to upper recovers the exact id and keeps the
+      // unique-index lookup. Without this the emitted canonical URL 404s.
+      // (Codex review, PR #272.)
+      dbListing = await prisma.listing.findUnique({
+        where: { listing_id: lookupId.toUpperCase() },
+        include: LISTING_MEDIA_INCLUDE,
+      });
+    }
+
+    // Strategy 1b (PR-FE.2 Option D, 2026-05-15): listing_id appended to
+    // address slug (e.g. `400-east-90th-street-...-rls20061539`). When the
+    // address-suffixed listing_id resolves to a real DB row, use it
+    // directly — this is the path that disambiguates the 3-brokerage
+    // co-listing case where every card on Buy search uses an
+    // address-derived path but each card needs to open its own
+    // distinct listing's detail page.
+    //
+    // Falls through to Strategy 2 (address parse) when the extracted id
+    // isn't in the DB — guards against typos in shared URLs and
+    // preserves the existing address-fallback semantics.
+    if (!dbListing && !isMlsIdSlug(slug)) {
+      const embeddedId = extractListingIdFromSlug(slug);
+      if (embeddedId) {
+        // A real miss returns null (→ falls through to the address-parse strategy);
+        // a Prisma/Neon error PROPAGATES (it must not be swallowed into a not-found,
+        // which would become a cached 404 under ISR). No .catch here.
+        dbListing = await prisma.listing.findUnique({
+          where: { listing_id: embeddedId },
+          include: LISTING_MEDIA_INCLUDE,
+        });
+      }
+    }
+
+    // Strategy 2: Address slug → query by address components
+    if (!dbListing && !isMlsIdSlug(slug)) {
+      const parsed = parseAddressSlug(slug);
+      if (parsed && parsed.streetNumber && parsed.postalCode) {
+        // First try: exact match on StreetNumber + PostalCode
+        const candidates = await prisma.listing.findMany({
+          where: {
+            postal_code: parsed.postalCode,
+            address: {
+              path: ['StreetNumber'],
+              equals: parsed.streetNumber,
+            },
+          },
+          take: 50,
+          include: LISTING_MEDIA_INCLUDE,
+        });
+
+        // Single validator used for BOTH the narrow candidate set and the
+        // broad postal-code fallback. NEVER short-circuit on candidate.length
+        // === 1 — Maya's audit: "even one candidate must pass parsed
+        // StreetDirPrefix/StreetName/UnitNumber when provided." Returning the
+        // sole candidate without validation would render the wrong listing
+        // if a different unit at the same address number lived alone in the
+        // result set.
+        const matchesParsedAddress = (c: { address: unknown }): boolean => {
+          const addr = c.address as Record<string, string> | null;
+          if (!addr) return false;
+          const dbSn = (addr.StreetNumber || '').toLowerCase();
+          const dbStreetName = (addr.StreetName || '').toLowerCase();
+          const dbDirPrefix = (addr.StreetDirPrefix || '').toLowerCase();
+          const dbUnit = (addr.UnitNumber || '').toLowerCase().replace(/[\s-]/g, '');
+          const parsedSn = parsed.streetNumber.toLowerCase();
+          const parsedStreet = (parsed.streetName || '').toLowerCase();
+          const parsedDir = (parsed.streetDirPrefix || '').toLowerCase();
+          const parsedUnit = (parsed.unitNumber || '').toLowerCase().replace(/[\s-]/g, '');
+
+          // StreetNumber must exactly match.
+          if (dbSn !== parsedSn) return false;
+
+          // StreetDirPrefix must match (either separate column OR baked into
+          // StreetName as "E 46th"). Skip when parsed slug has no direction.
+          if (parsedDir) {
+            const dirMatch = dbDirPrefix === parsedDir
+              || dbStreetName.startsWith(parsedDir + ' ');
+            if (!dirMatch) return false;
+          }
+
+          // StreetName fuzzy match: either direction-bidirectional inclusion
+          // or composite match. Skip when slug has no street name (rare).
+          if (parsedStreet) {
+            const composite = [dbDirPrefix, dbStreetName].filter(Boolean).join(' ');
+            const streetMatch = dbStreetName.includes(parsedStreet)
+              || parsedStreet.includes(dbStreetName)
+              || composite.includes(parsedStreet);
+            if (!streetMatch) return false;
+          }
+
+          // UnitNumber must match when the parsed slug has a unit. Same-
+          // address, different-unit listings would otherwise collide.
+          if (parsedUnit && dbUnit !== parsedUnit) return false;
+
+          return true;
+        };
+
+        // Apply validator to the narrow candidate set (including length === 1).
+        dbListing = candidates.find(matchesParsedAddress) || null;
+
+        // Broad fallback: drop the JSON StreetNumber filter, scan all rows in
+        // the postal code, and re-apply the SAME validator. This catches rows
+        // where the address JSON uses an unexpected casing/shape.
+        if (!dbListing && parsed.streetName) {
+          const broadCandidates = await prisma.listing.findMany({
+            where: { postal_code: parsed.postalCode },
+            take: 50,
+            include: LISTING_MEDIA_INCLUDE,
+          });
+          dbListing = broadCandidates.find(matchesParsedAddress) || null;
+        }
+      }
+    }
+
+    // Strategy 3: Treat slug as listing_id. The canonical two-segment URL
+    // passes the lowercased id as the trailing segment (e.g. `.../sl-0004`),
+    // so normalize to uppercase to match the case-sensitive stored listing_id.
+    // (An address slug that reaches here simply won't match a listing_id either
+    // way, so uppercasing is safe.) (Codex review, PR #272.)
+    if (!dbListing) {
+      // A real miss returns null (→ not-found); a Prisma/Neon error PROPAGATES rather
+      // than being swallowed into a not-found (which would cache a 404 under ISR).
+      dbListing = await prisma.listing.findUnique({
+        where: { listing_id: slug.toUpperCase() },
+        include: LISTING_MEDIA_INCLUDE,
+      });
+    }
 
     if (!dbListing) return null;
 
@@ -490,24 +601,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
   const id = resolveLookupKey(slugParts);
 
-  // CRAWL-CACHE P0: an alias URL (bare id / hybrid / address-only) 308-redirects in the
-  // page below — do NOT run the full detail fetch here just to build metadata for a page
-  // a crawler will never index. Resolve the canonical target with the shared MINIMAL query
-  // (no listing_media join; deduped with the page render via cache()) and emit only the
-  // canonical link + noindex. Infra errors still propagate via resolveListingResult.
-  if (isAliasShape(slugParts)) {
-    const target = await resolveListingResult(() => resolveCanonicalTarget(id));
-    if (!target) return { title: 'Listing Not Found | Mallan Real Estate' };
-    return {
-      title: 'Mallan Real Estate',
-      alternates: { canonical: `https://mallan.nyc${target.canonicalPath}` },
-      robots: { index: false, follow: true },
-    };
-  }
-
-  // Canonical path — full metadata. Infra errors propagate (see resolveListingResult): a
-  // transient DB failure must not masquerade as "not found". Only a genuine null (confirmed
-  // miss) yields the fallback.
+  // Infra errors propagate (see resolveListingResult): a transient DB failure must not
+  // masquerade as "not found". Only a genuine null (confirmed miss) yields the fallback.
   const result = await resolveListingResult(() => fetchListing(id));
 
   if (!result) {
@@ -590,24 +685,6 @@ export default async function ListingPage({ params }: Props) {
   const { slug } = await params;
   const slugParts = Array.isArray(slug) ? slug : (slug ? [slug as unknown as string] : []);
   const id = resolveLookupKey(slugParts);
-
-  // CRAWL-CACHE P0 — alias fast path. A bare-id / hybrid / address-only URL resolves its
-  // canonical target with ONE narrow indexed read (no listing_media join, no DTO build)
-  // and 308-redirects BEFORE the full detail fetch. This is what stops crawler sweeps
-  // across alias URLs from turning every hit into a full cold render — the Neon compute
-  // driver. Canonical two-segment / `listing-{id}` URLs are NOT alias shapes: they skip
-  // this and render below (the late canonical-enforcement block still catches a stale
-  // address slug on those). notFound() only on a confirmed miss; infra errors propagate.
-  if (isAliasShape(slugParts)) {
-    const target = await resolveListingResult(() => resolveCanonicalTarget(id));
-    if (!target) notFound();
-    const currentPath = `/listing/${slugParts.join('/')}`;
-    if (target.canonicalPath !== currentPath) {
-      redirect(target.canonicalPath);
-    }
-    // An alias whose canonical equals the current path does not occur for these shapes
-    // (canonical is always 2-segment or `listing-{id}`); fall through to render defensively.
-  }
 
   // notFound() ONLY on a confirmed miss. Infra errors (Prisma/Neon timeout, connection,
   // compute-quota) propagate via resolveListingResult so a transient DB failure is never
@@ -909,10 +986,7 @@ export default async function ListingPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
     name: `${fullAddress} — ${displayPropertyType} ${isRental ? 'for Rent' : 'for Sale'}`,
-    // Canonical 2-segment path (crawl-cache P0) — was `/listing/${listing.slug}` (single
-    // segment), which pointed crawlers at a NON-canonical URL that 308-redirects. Emit the
-    // same canonical the <link rel="canonical"> / og:url use so structured data agrees.
-    url: `https://mallan.nyc${buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' })}`,
+    url: `https://mallan.nyc/listing/${listing.slug}`,
     description: listing.publicRemarks?.substring(0, 300) || undefined,
     datePosted: listing.onMarketDate || listing.listingContractDate,
     dateModified: listing.modificationTimestamp || undefined,
