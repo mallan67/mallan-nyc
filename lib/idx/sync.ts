@@ -23,6 +23,7 @@ import {
 } from "./diagnostic-recorder";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { ACTIVE_DISPLAY_VALUES } from "@/lib/compliance/status";
+import { refreshListingCaches, bumpListingsCacheVersion } from "@/lib/cache/invalidate-listing";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -622,6 +623,9 @@ export async function syncListings(
       await prisma.listingSearchProjection.upsert(projectionPayload);
 
       upserted++;
+      // Neon public-DB-wakeups P0: drop this listing's durable detail cache + refresh its
+      // alias-index entries so edge redirects + the detail page reflect the change. Best-effort.
+      void refreshListingCaches(mapped);
     } catch (err) {
       errors++;
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
@@ -894,6 +898,13 @@ export async function syncListings(
     full_sync: options.fullSync || false,
     type: options.type || "all",
   });
+
+  // Neon public-DB-wakeups P0: ONE namespace-version bump per run retires the /api/listings +
+  // search caches so they reflect this run's changes (invalidate-only-on-change, not a blanket
+  // TTL as the primary guard). Per-listing detail + alias entries were refreshed in the loop.
+  if (upserted > 0) {
+    await bumpListingsCacheVersion();
+  }
 
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,
@@ -1524,6 +1535,7 @@ export async function syncAgentHistory(
 
       upserted++;
       agentMatched++;
+      void refreshListingCaches(mapped);
     } catch (err) {
       errors++;
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");

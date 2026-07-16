@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { getAccessToken } from '@/lib/idx/auth';
+// Neon public-DB-wakeups P0: durable (Upstash, cross-instance) cache in front of the
+// process-local Map so a cold lambda / a second instance does NOT re-query Neon.
+import { cacheGetJson, cacheSetJson, listingsCacheVersion } from '@/lib/cache/durable-cache';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
@@ -294,12 +297,22 @@ export async function GET(request: Request) {
     // Falls through to live Trestle if DB has no synced listings.
     // ═══════════════════════════════════════════════════════════
     if (useIDX) {
-      // Cache key from all query params
-      const cacheKey = `listings:${searchParams.toString()}`;
-      const cached = getCached(cacheKey);
+      // Cache key from all query params, namespaced by the invalidation VERSION so a sync
+      // bump (bumpListingsCacheVersion) atomically retires the whole space — the
+      // "invalidate only changed data" primitive without enumerating keys.
+      const cacheVer = await listingsCacheVersion();
+      const cacheKey = `listings:v${cacheVer}:${searchParams.toString()}`;
+      // Durable (Upstash) cache FIRST — survives cold starts + shared across instances, so a
+      // cold lambda does NOT re-query Neon. Falls back to the process-local Map, then DB.
+      const durableHit = await cacheGetJson(cacheKey);
+      const cached = durableHit ?? getCached(cacheKey);
       if (cached) {
         return NextResponse.json(cached, {
-          headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+          headers: {
+            'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+            'x-listing-cache': durableHit !== undefined ? 'durable-hit' : 'local-hit',
+            'x-neon-queried': '0',
+          },
         });
       }
 
@@ -586,9 +599,17 @@ export async function GET(request: Request) {
             };
 
             setCache(cacheKey, responseBody);
+            // Durable, cross-instance write (best-effort) so the next cold lambda serves this
+            // without a Neon query. TTL matches the HTTP s-maxage; a listing change bumps the
+            // namespace version (retiring this key) well before expiry.
+            void cacheSetJson(cacheKey, responseBody, 60);
 
             return NextResponse.json(responseBody, {
-              headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+              headers: {
+                'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+                'x-listing-cache': 'miss',
+                'x-neon-queried': '1',
+              },
             });
           }
 
