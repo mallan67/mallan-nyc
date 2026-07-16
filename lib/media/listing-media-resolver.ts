@@ -547,6 +547,11 @@ export interface MediaFallbackContext {
   mlsId?: string | null;
   /** Listing id. CRM exclusives use the `SL-`/`RL-` namespace; IDX rows use RLS keys. */
   listingId?: string | null;
+  /** Prisma `rls_eligible`. `false` ⇒ website-only Mallan listing (commercial /
+   * non-RLS exclusive) whose media is Mallan-owned. Optional; when omitted the
+   * mls_id + SL-/RL- signals decide. Mirrors `isMallanExclusiveListing` in the
+   * detail page (SL-/RL- id OR rls_eligible === false). */
+  rlsEligible?: boolean | null;
 }
 
 /**
@@ -590,6 +595,96 @@ export function shouldFetchTrestleMediaFallback(
   // CRM-exclusive → suppress (authoritative table). IDX/RLS-backed with merely
   // supplemental CRM rows → allow the live Trestle photo fallback.
   return !isCrmAuthoritative;
+}
+
+/**
+ * Whether a DB-only render may fall back to the legacy `Listing.media` JSON when
+ * the relational `listing_media` rows resolve to ZERO usable (active) media.
+ *
+ * This is the DB-ONLY sibling of {@link shouldFetchTrestleMediaFallback} — it
+ * gates the legacy **JSON column**, never a live Cotality/Trestle call (the
+ * public detail render is DB-only per PR #511). It answers a DIFFERENT question,
+ * so the authority signal differs deliberately:
+ *
+ *   • The live-fetch gate keys CRM-ownership on the per-row `crm:` media_key
+ *     prefix, because a live Cotality fetch would only ever resurrect
+ *     Cotality-sourced photos — CRM rows are the thing to protect.
+ *   • The legacy-JSON gate keys on the LISTING TYPE, because a CRM exclusive's
+ *     `Listing.media` JSON is itself Mallan-owned media (the pre-`listing_media`
+ *     upload store). Resurrecting THAT after the agent deleted the relational
+ *     rows is the "deleted CRM photos must not resurrect" violation. media_key
+ *     is the wrong signal here — the deleted rows may predate CRM-key minting.
+ *
+ * Two-tier decision (mirrors the LISTING_MEDIA_INCLUDE intent):
+ *   1. NO relational rows at all (never imported) → fall back for EVERYONE.
+ *      Nothing was deleted; the legacy JSON is the only media source. This keeps
+ *      un-synced IDX rows AND not-yet-migrated CRM exclusives rendering.
+ *   2. Rows EXIST but none active (all deleted/replaced):
+ *        – CRM exclusive (Mallan-owned) → authoritative empty, NO fallback.
+ *        – third-party IDX/RLS → fall back to the legacy (Cotality-sourced) JSON.
+ *
+ * CRM-exclusive detection mirrors the detail page's `isMallanExclusiveListing`:
+ * `SL-`/`RL-` listing-id namespace, OR no Trestle `mls_id` (isCrmCreated), OR
+ * `rls_eligible === false` (website-only). Passing an IDX/RLS listing's context
+ * (real mls_id, RLS id) yields `true` → the reported 372 Fifth Ave P0.
+ *
+ * @param rows listing_media rows fetched alongside the listing (ANY status)
+ * @param ctx  listing context (mls_id / listing_id / rls_eligible)
+ */
+export function shouldFallbackToLegacyMedia(
+  rows: ReadonlyArray<unknown>,
+  ctx: MediaFallbackContext,
+): boolean {
+  // Tier 1 — no relational rows were ever imported → legacy JSON is the only
+  // source; fall back regardless of listing type (nothing was deleted).
+  if (!Array.isArray(rows) || rows.length === 0) return true;
+  // Tier 2 — rows exist but the caller found zero active/usable media (all
+  // deleted or replaced). A CRM exclusive's deletion is authoritative.
+  const listingId = String(ctx?.listingId || '');
+  const isCrmExclusive =
+    !ctx?.mlsId || /^(SL|RL)-/i.test(listingId) || ctx?.rlsEligible === false;
+  return !isCrmExclusive;
+}
+
+/**
+ * SHARED DB-only media selection — the single policy both the public detail page
+ * and the card/search DTO use so a listing can never show photos on the card and
+ * a gray placeholder on its detail page (the 2026-07-16 card/detail P0).
+ *
+ * Order of precedence:
+ *   1. Resolve the relational `listing_media` rows first (active-only, photo-first,
+ *      deduped) via {@link resolveListingMediaFromRows}. When that yields ANY
+ *      usable media, it wins — R2-cached URLs, authoritative ordering.
+ *   2. Only when the relational path resolves to ZERO usable media do we consult
+ *      {@link shouldFallbackToLegacyMedia}: third-party IDX/RLS (and un-synced /
+ *      not-yet-migrated) listings fall back to the legacy `Listing.media` JSON;
+ *      a CRM exclusive with deleted rows stays authoritatively empty.
+ *
+ * Crucially this NEVER keys the decision on raw `rows.length` — a listing whose
+ * only rows are deleted/replaced still falls back for third-party inventory.
+ *
+ * DB-ONLY: this touches only the two synchronized Neon sources (the relational
+ * table and the JSON column). It performs NO live Cotality/Trestle call and is
+ * safe on the ISR/DB-only render path (PR #511).
+ *
+ * @param rows        relational rows fetched with ANY status (deleted/replaced included)
+ * @param legacyMedia the legacy `Listing.media` JSON value (array or unknown)
+ * @param ctx         listing context used only for the CRM-vs-IDX authority test
+ * @param options.legacyMapUrl URL mapper applied to the LEGACY branch only, so
+ *        each caller preserves its own proxy convention (the detail page proxies
+ *        separately downstream, so it passes identity; the card DTO passes its
+ *        own proxy). The relational branch already maps URLs internally.
+ */
+export function resolveDbListingMedia(
+  rows: ListingMediaTableRow[],
+  legacyMedia: unknown,
+  ctx: MediaFallbackContext,
+  options: { legacyMapUrl?: (rawUrl: string) => string } = {},
+): ResolvedMedia[] {
+  const relational = resolveListingMediaFromRows(rows);
+  if (relational.length > 0) return relational;
+  if (!shouldFallbackToLegacyMedia(rows, ctx)) return [];
+  return resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

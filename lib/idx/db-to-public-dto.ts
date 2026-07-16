@@ -22,8 +22,7 @@ import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
-  resolveListingMedia,
-  resolveListingMediaFromRows,
+  resolveDbListingMedia,
   toDtoMedia,
   tourUrlsForDto,
   type ListingMediaTableRow,
@@ -345,10 +344,21 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // Fallback: when `listing_media` is empty (un-synced listing, mid-sync
   // race, or caller didn't include the relation), read the legacy
   // `Listing.media` JSON column so no listing renders blank.
+  // SHARED DB-only policy (2026-07-16 card/detail P0): resolve the relational
+  // rows first; fall back to the legacy JSON ONLY when they yield zero usable
+  // media AND the listing is not a CRM exclusive with authoritative deletions.
+  // Keying on `tableRows.length > 0` (the prior code) committed to the relational
+  // path whenever ANY row existed — so a listing whose rows were all
+  // deleted/replaced resolved to [] with no fallback, showing a placeholder on
+  // detail while the card (active-only query) still fell back to the JSON. Both
+  // surfaces now share `resolveDbListingMedia`. CRM-exclusive deletion authority
+  // is preserved (SL-/RL- / no mls_id / rls_eligible === false → no fallback).
   const tableRows = Array.isArray(listing.listing_media) ? listing.listing_media : [];
-  const resolved = tableRows.length > 0
-    ? resolveListingMediaFromRows(tableRows)
-    : resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl });
+  const resolved = resolveDbListingMedia(tableRows, mediaArr, {
+    mlsId: listing.mls_id,
+    listingId: listing.listing_id,
+    rlsEligible: listing.rls_eligible,
+  }, { legacyMapUrl: proxyDbMediaUrl });
   // Photo-first serialization: `order` = resolved index, `isPrimary` = resolved hero flag,
   // so no downstream surface can hero a FloorPlan via media[0] or an order re-sort.
   const media = toDtoMedia(resolved);

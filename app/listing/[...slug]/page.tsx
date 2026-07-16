@@ -50,7 +50,7 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 
 import prisma from '@/lib/prisma';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { classifyMediaItem, resolveListingMedia, resolveListingMediaFromRows, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -333,16 +333,33 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // classify→sort pipeline in `listing-media-resolver`.
     const listingMediaRows = Array.isArray(dbListing.listing_media) ? dbListing.listing_media : [];
     const rawMedia = Array.isArray(dbListing.media) ? (dbListing.media as Record<string, unknown>[]) : [];
-    // Media is sourced ONLY from the synchronized Neon copy: prefer the relational
-    // `listing_media` rows (R2-cached URLs), else the legacy `Listing.media` JSON.
-    // The former live-Trestle "no photos in DB" fallback (fetchListingMedia) was
-    // REMOVED in the compute repair (PR #511) — DB photos are refreshed by IDX sync,
-    // so the ordinary page render never calls the live Cotality Media API. A row that
-    // is mid-sync / un-synced simply renders with whatever media the DB holds.
+    // Media is sourced ONLY from the synchronized Neon copy via the SHARED DB-only
+    // policy `resolveDbListingMedia`: resolve the relational `listing_media` rows
+    // (R2-cached URLs) first, and fall back to the legacy `Listing.media` JSON ONLY
+    // when they yield zero USABLE media. The fallback is keyed on the RESOLVED
+    // active-media count + listing type — NOT on raw `rows.length`. That closes the
+    // 2026-07-16 card/detail P0: a third-party IDX/RLS listing whose relational rows
+    // are all deleted/replaced (so they resolve to []) now falls back to its
+    // Cotality-sourced JSON photos, exactly as the card does — instead of stranding
+    // on the gray placeholder. CRM-exclusive deletion stays authoritative (SL-/RL- /
+    // no mls_id / rls_eligible === false → no JSON resurrection).
+    //
+    // Still DB-ONLY: the former live-Cotality "no photos in DB" fallback
+    // (fetchListingMedia) was REMOVED in the compute repair (PR #511) and is NOT
+    // reintroduced here — `resolveDbListingMedia` touches only the two synchronized
+    // Neon sources. `legacyMapUrl` is identity because proxyDetailMediaUrl is applied
+    // downstream (below) so legacy Cotality URLs are proxied exactly once.
     const mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
-      listingMediaRows.length > 0
-        ? resolveListingMediaFromRows(listingMediaRows)
-        : resolveListingMedia(rawMedia, { mapUrl: rawUrl => rawUrl }),
+      resolveDbListingMedia(
+        listingMediaRows,
+        rawMedia,
+        {
+          mlsId: dbListing.mls_id,
+          listingId: dbListing.listing_id,
+          rlsEligible: dbListing.rls_eligible,
+        },
+        { legacyMapUrl: rawUrl => rawUrl },
+      ),
     );
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
