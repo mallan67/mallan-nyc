@@ -3,10 +3,16 @@
 // Change-driven ISR invalidation for the public listing detail page (crawl-cache P0).
 //
 // The detail route uses a LONG safety TTL (see app/listing/[...slug]/page.tsx `revalidate`)
-// instead of the old blanket 5-minute rerender. To keep listings fresh without that
-// short TTL, the sync/reconcile jobs call this after a listing actually changes: it
-// revalidates ONLY that listing's canonical path, so exactly the changed page is
-// re-rendered on its next request (not the whole catalog, and not on a timer).
+// instead of the old blanket 5-minute rerender. This helper revalidates ONLY one listing's
+// canonical path so exactly the changed page is re-rendered on its next request (not the
+// whole catalog, not on a timer).
+//
+// WIRING STATUS (crawl-cache P0, honest scope): currently called ONLY from feed-reconcile
+// on a ghost/terminal withdrawal (the §2.05-critical path). Change-driven revalidation from
+// the MAIN IDX sync (lib/idx/sync.ts) and the MEDIA sync (lib/idx/media-sync.ts) is DEFERRED
+// to a follow-up: those seams only have the mapped Cotality record, which does not carry
+// rls_eligible, so revalidating from it would require an assumption — the correct fix reads
+// the persisted row. Until then, delta-sync freshness relies on the safety TTL.
 //
 // BEST-EFFORT: revalidation must NEVER break the DB write that preceded it. If
 // `revalidatePath` is unavailable (e.g. invoked outside a request context, such as a CLI

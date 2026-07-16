@@ -61,12 +61,14 @@ import { isAliasShape, resolveCanonicalTarget } from '@/lib/listings/listing-can
 
 // ISR — LONG safety TTL (crawl-cache P0). The old 5-minute blanket rerender meant every
 // listing went cold every 5 minutes, so crawler sweeps across the catalog turned into
-// continuous cold DB renders (each a full listing + listing_media read). Freshness now
-// comes primarily from CHANGE-DRIVEN revalidation (lib/listings/revalidate-listing.ts,
-// called by IDX/media sync + feed-reconcile when a listing actually changes); this TTL is
-// only the backstop. 1 hour is well inside the REBNY §2.05 24-hour terminal-removal window,
-// and the real-time display gate still runs per render, so a stale-but-cached page cannot
-// show a listing that has become non-displayable beyond the next revalidation.
+// continuous cold DB renders (each a full listing + listing_media read). This TTL is the
+// backstop; change-driven revalidation (lib/listings/revalidate-listing.ts) clears a page
+// as soon as a listing changes — currently wired ONLY to feed-reconcile ghost/terminal
+// withdrawals (the §2.05-critical path); main IDX-sync + media-sync revalidation are
+// DEFERRED (see that file's WIRING STATUS note), so delta-sync freshness rides this TTL.
+// 1 hour is well inside the REBNY §2.05 24-hour terminal-removal window, and the real-time
+// display gate still runs per render, so a stale-but-cached page cannot show a listing that
+// has become non-displayable beyond the next revalidation.
 export const revalidate = 3600;
 export const maxDuration = 60;
 
