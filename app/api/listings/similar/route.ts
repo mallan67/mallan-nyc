@@ -6,6 +6,7 @@ import { getSimilarityPriceBand, rankSimilarListings, classifyPropertyClass, nor
 import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { isAddressDisplayable } from '@/lib/compliance/gates';
 import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 
@@ -221,11 +222,16 @@ export async function GET(request: NextRequest) {
           beds: l.bedrooms_total ?? 0,
           baths: l.bathrooms_full ?? 0,
           sqft: l.living_area ? Number(l.living_area) : 0,
-          address: maskAddressIfRestricted(fullAddress, l.internet_address_display_yn),
+          // Stored DB rows stay FAIL-CLOSED via the canonical isAddressDisplayable (no idxPlusPreFiltered):
+          // a null/undefined internet_address_display_yn remains masked — DB null is NOT the raw-feed
+          // pre-filtered null. Only an explicitly-true flag shows the address.
+          address: maskAddressIfRestricted(fullAddress, isAddressDisplayable(l)),
           neighborhood: l.neighborhood || '',
           photoUrl,
           photosCount,
-          propertyType: mapPropertyType({ CommonInterest: (l.features as Record<string, unknown>)?.CommonInterest, PropertySubType: l.property_sub_type, PropertyType: l.property_type }),
+          // Rental inventory must be identifiable: mapPropertyType returns '' for an "Apartment" sub-type,
+          // so fall back to 'Rental' for rentals only (sales are unchanged).
+          propertyType: mapPropertyType({ CommonInterest: (l.features as Record<string, unknown>)?.CommonInterest, PropertySubType: l.property_sub_type, PropertyType: l.property_type }) || (isRental ? 'Rental' : ''),
           // Phase B: office attribution TYPED-FIRST (list_office_name), agent_info JSON fallback.
           office: resolveListingAgentInfo(l).officeName || '',
         };
@@ -367,9 +373,13 @@ export async function GET(request: NextRequest) {
           }
         } catch { /* non-fatal */ }
 
-        // REBNY RLS Sec. 2.05: mask address when InternetAddressDisplayYN is false/null (fail-closed).
+        // Address visibility for RAW Cotality/IDX Plus records: the canonical isAddressDisplayable with
+        // idxPlusPreFiltered — null/undefined InternetAddressDisplayYN is displayable (REBNY upstream
+        // pre-filter), an EXPLICIT false still masks. This is the SAME rule the main listings/search
+        // pages use for the feed; the old `=== true` fail-closed over-masked the common-null rows.
+        // (Raw feed ONLY — the DB branch stays fail-closed; the shared masker is unchanged.)
         const fullAddress = `${streetNum} ${streetName}${unit}`;
-        const addressDisplayYN = r.InternetAddressDisplayYN === true;
+        const addressDisplayYN = isAddressDisplayable(r, { idxPlusPreFiltered: true });
 
         return {
           id: String(r.ListingKey || r.ListingId),
@@ -383,7 +393,9 @@ export async function GET(request: NextRequest) {
           neighborhood: String(r.CityRegion || ''),
           photoUrl,
           photosCount,
-          propertyType: mapPropertyType(r),
+          // Rental inventory must be identifiable (mapPropertyType returns '' for "Apartment"); fall
+          // back to 'Rental' for rentals only — sales unchanged.
+          propertyType: mapPropertyType(r) || (isRental ? 'Rental' : ''),
           office: String(r.ListOfficeName || ''),
         };
       })
