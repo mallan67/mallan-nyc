@@ -34,6 +34,11 @@ interface SimilarListingsProps {
   postalCode: string;
   neighborhood?: string;
   currentListingId: string;
+  /** Subject property class signals — comps are matched like-with-like (townhouse↔townhouse,
+   *  condo↔condo, house↔house…). propertyType is the mapped display; propertySubType is the raw RESO
+   *  sub-type used to classify rentals/townhouses/houses the display can't. */
+  propertyType?: string;
+  propertySubType?: string | null;
 }
 
 function formatPrice(price: number, isRental: boolean): string {
@@ -116,6 +121,8 @@ export default function SimilarListings({
   postalCode,
   neighborhood,
   currentListingId,
+  propertyType,
+  propertySubType,
 }: SimilarListingsProps) {
   const [listings, setListings] = useState<SimilarListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,6 +137,8 @@ export default function SimilarListings({
       excludeId: currentListingId,
     });
     if (neighborhood) params.set('neighborhood', neighborhood);
+    if (propertyType) params.set('propertyType', propertyType);
+    if (propertySubType) params.set('propertySubType', propertySubType);
 
     fetch(`/api/listings/similar?${params}`)
       .then((r) => r.json())
@@ -138,7 +147,7 @@ export default function SimilarListings({
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [listingType, beds, listPrice, postalCode, neighborhood, currentListingId]);
+  }, [listingType, beds, listPrice, postalCode, neighborhood, currentListingId, propertyType, propertySubType]);
 
   const scrollBy = useCallback((direction: 'left' | 'right') => {
     if (!scrollRef.current) return;

@@ -1764,6 +1764,8 @@ export default async function ListingPage({ params }: Props) {
                   postalCode={listing.address.postalCode}
                   neighborhood={neighborhood}
                   currentListingId={listing.id}
+                  propertyType={listing.propertyType}
+                  propertySubType={listing.propertySubType}
                 />
               </section>
             </div>
