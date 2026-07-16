@@ -963,14 +963,24 @@ export async function GET(request: Request) {
           } catch (e) { console.warn('[Photos] Phase 1 error:', e instanceof Error ? e.message : e); }
           // Remaining empty listings fall through to DB phase
 
-          // Phase 2: For listings STILL empty, check DB. PR 4 reads from the
-          // relational `listing_media` table first (preferred — R2 URLs
-          // bypass the Trestle proxy entirely) and falls back to the legacy
-          // `media` JSON for un-synced rows.
+          // Phase 2: For listings STILL empty, check DB via the SHARED DB-only
+          // policy `resolveDbListingMedia` — parity with the detail page.
+          //
+          // This query selects only ACTIVE `listing_media` rows (the card never
+          // needs deleted rows in its payload), so it CANNOT tell "no rows ever
+          // imported" from "rows existed but were intentionally deleted" by row
+          // count alone. `_count: { select: { listing_media: true } }` supplies
+          // the all-status existence signal in the SAME batched query (a Prisma
+          // aggregate subquery — NOT a per-listing round-trip, no N+1). Provenance
+          // (rls_eligible / agent_id / owner_client_id, SL-/RL- reinforcing;
+          // never mls_id) lets a Mallan-owned listing's intentional deletion stay
+          // authoritative (no legacy-JSON resurrection) while a third-party
+          // Cotality listing with all-inactive rows falls back to its
+          // Cotality-sourced JSON — matching the detail page exactly.
           const stillEmpty = pageListings.filter(l => l.media.length === 0);
           if (stillEmpty.length > 0) {
             try {
-              const { resolveListingMediaFromRows, resolveListingMedia, toDtoMedia } = await import('@/lib/media/listing-media-resolver');
+              const { resolveDbListingMedia, toDtoMedia } = await import('@/lib/media/listing-media-resolver');
               const dbListings = await prisma.listing.findMany({
                 where: {
                   listing_id: { in: stillEmpty.map(l => l.listingId) },
@@ -978,6 +988,10 @@ export async function GET(request: Request) {
                 select: {
                   listing_id: true,
                   media: true,
+                  rls_eligible: true,
+                  agent_id: true,
+                  owner_client_id: true,
+                  _count: { select: { listing_media: true } },
                   listing_media: {
                     where: { status: 'active' },
                     orderBy: [{ order: 'asc' }, { id: 'asc' }],
@@ -997,13 +1011,18 @@ export async function GET(request: Request) {
               for (const dbL of dbListings) {
                 const listing = stillEmpty.find(l => l.listingId === dbL.listing_id);
                 if (!listing) continue;
-                // Prefer relational listing_media; fall back to JSON.
                 const tableRows = Array.isArray(dbL.listing_media) ? dbL.listing_media : [];
-                const resolved = tableRows.length > 0
-                  ? resolveListingMediaFromRows(tableRows)
-                  : resolveListingMedia(
-                      Array.isArray(dbL.media) ? (dbL.media as Record<string, unknown>[]) : [],
-                    );
+                const resolved = resolveDbListingMedia(
+                  tableRows,
+                  Array.isArray(dbL.media) ? (dbL.media as Record<string, unknown>[]) : [],
+                  {
+                    listingId: dbL.listing_id,
+                    rlsEligible: dbL.rls_eligible,
+                    agentId: dbL.agent_id,
+                    ownerClientId: dbL.owner_client_id,
+                  },
+                  { hadRelationalRows: (dbL._count?.listing_media ?? 0) > 0 },
+                );
                 if (resolved.length === 0) continue;
                 listing.media = toDtoMedia(resolved) as typeof listing.media;
               }

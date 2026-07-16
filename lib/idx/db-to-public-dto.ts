@@ -22,8 +22,7 @@ import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
-  resolveListingMedia,
-  resolveListingMediaFromRows,
+  resolveDbListingMedia,
   toDtoMedia,
   tourUrlsForDto,
   type ListingMediaTableRow,
@@ -191,6 +190,13 @@ export interface DbListing {
   // Both paths flow through the same classify→sort pipeline so the public
   // DTO shape is identical.
   listing_media?: ListingMediaTableRow[];
+  // All-status existence signal (Prisma `_count`). Callers that select only
+  // ACTIVE `listing_media` rows (e.g. /api/listings) include
+  // `_count: { select: { listing_media: true } }` so the resolver can tell
+  // "no rows ever imported" from "rows existed but all deleted" WITHOUT loading
+  // every deleted row. Optional; when absent, existence derives from the passed
+  // (all-status) rows.
+  _count?: { listing_media?: number } | null;
 }
 
 /** RESO StandardStatus values that are publicly displayable */
@@ -345,10 +351,25 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // Fallback: when `listing_media` is empty (un-synced listing, mid-sync
   // race, or caller didn't include the relation), read the legacy
   // `Listing.media` JSON column so no listing renders blank.
+  // SHARED DB-only policy (2026-07-16 card/detail P0): resolve the relational
+  // rows first; fall back to the legacy Cotality JSON ONLY when they yield zero
+  // usable media AND the listing is not Mallan-owned with authoritative
+  // deletions. Provenance mirrors `classifyDbListing` (rls_eligible / agent_id /
+  // owner_client_id, SL-/RL- reinforcing) — NOT mls_id. `hadRelationalRows`
+  // prefers the all-status `_count` when the caller selected active-only rows,
+  // so "no rows ever" and "rows existed but all deleted" stay distinguishable
+  // without loading every deleted row.
   const tableRows = Array.isArray(listing.listing_media) ? listing.listing_media : [];
-  const resolved = tableRows.length > 0
-    ? resolveListingMediaFromRows(tableRows)
-    : resolveListingMedia(mediaArr, { mapUrl: proxyDbMediaUrl });
+  const hadRelationalRows =
+    typeof listing._count?.listing_media === 'number'
+      ? listing._count.listing_media > 0
+      : tableRows.length > 0;
+  const resolved = resolveDbListingMedia(tableRows, mediaArr, {
+    listingId: listing.listing_id,
+    rlsEligible: listing.rls_eligible,
+    agentId: listing.agent_id,
+    ownerClientId: listing.owner_client_id,
+  }, { hadRelationalRows, legacyMapUrl: proxyDbMediaUrl });
   // Photo-first serialization: `order` = resolved index, `isPrimary` = resolved hero flag,
   // so no downstream surface can hero a FloorPlan via media[0] or an order re-sort.
   const media = toDtoMedia(resolved);
