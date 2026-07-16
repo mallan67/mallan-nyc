@@ -66,10 +66,19 @@ export async function GET(req: NextRequest) {
   // Prior behavior only COUNTED — fixed to actually delete per the 2-year compliance boundary.
   // Trestle/IDX access logs (`trestle_access`, `trestle_data_access`) have a 12-month floor
   // but are safe to retain for 2 years under the broader audit policy.
+  //
+  // EXEMPTION — `email_unsubscribed` is NEVER purged: it is the DURABLE commercial-email
+  // suppression ledger (lib/email/suppression.ts), especially for NON-Lead recipients who
+  // have no Lead.last_unsubscribe_at. Purging it after 2 years would silently make an
+  // opted-out recipient emailable again — a CAN-SPAM violation. Opt-outs must outlive the
+  // 2-year audit floor.
   const auditCutoff = new Date();
   auditCutoff.setFullYear(auditCutoff.getFullYear() - 2);
   const purgedAudit = await prisma.auditEvent.deleteMany({
-    where: { created_at: { lt: auditCutoff } },
+    where: {
+      created_at: { lt: auditCutoff },
+      action: { not: "email_unsubscribed" },
+    },
   });
   results.audit_events_purged_over_2yr = purgedAudit.count;
 

@@ -14,37 +14,89 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe-token";
+import { recordEmailUnsubscribe, normalizeEmail } from "@/lib/email/suppression";
+import { escapeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 
+// Non-mutating confirmation page rendered on GET. A GET on the List-Unsubscribe
+// URL must NEVER unsubscribe: mailbox security scanners and link prefetchers
+// issue GET on header/body URLs, and mutating here would opt a recipient out
+// before they act. The actual unsubscribe happens only on POST — either the
+// RFC 8058 one-click POST from the mail client, or this page's confirm button.
+function confirmationPage(email: string, token: string): string {
+  const e = escapeHtml(email);
+  const qs =
+    `email=${encodeURIComponent(email)}` +
+    (token ? `&token=${encodeURIComponent(token)}` : "");
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Unsubscribe · Mallan Real Estate</title>
+<style>body{font-family:Arial,Helvetica,sans-serif;background:#f5f5f5;color:#1a1a1a;margin:0;padding:40px 16px}
+.card{max-width:440px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:28px}
+h1{font-size:18px;margin:0 0 10px}p{font-size:14px;color:#374151;line-height:1.6}
+button{margin-top:16px;padding:12px 24px;background:#C4A052;color:#fff;border:0;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer}
+.foot{margin-top:20px;font-size:11px;color:#9ca3af}</style></head>
+<body><div class="card">
+<h1>Confirm unsubscribe</h1>
+<p>Click below to stop receiving marketing emails from Mallan Real Estate at <strong>${e}</strong>.</p>
+<form method="POST" action="/api/unsubscribe?${qs}">
+<button type="submit">Unsubscribe me</button>
+</form>
+<p class="foot">Mallan Real Estate Inc. · 400 East 90th Street, Suite 17C, New York, NY 10128 · NY DOS #10991205323</p>
+</div></body></html>`;
+}
+
 async function unsubscribe(email: string, source: "form" | "one-click" | "mailto") {
-  const sanitized = email.toLowerCase().trim();
+  const sanitized = normalizeEmail(email);
 
-  // NOTE: Lead.email_opt_out / email_opt_out_at writes are disabled until the
-  // corresponding migration lands (blocked by Neon compute quota). For now the
-  // only durable effect is disabling the recipient's saved-search alerts + an
-  // AuditEvent row — same behavior as the prior /api/search-alerts/unsubscribe.
-  // Restore the Lead update + opt-out timestamp once the schema is deployed.
-  await prisma.lead.updateMany({
-    where: { email: sanitized },
-    data: { last_unsubscribe_at: new Date() },
-  });
+  // 1. DURABLE suppression record FIRST. The AuditEvent keyed by the normalized email
+  //    (lib/email/suppression.ts) is the source of truth: it keeps a NON-Lead recipient
+  //    — e.g. a cold ACRIS/1031 email with no Lead row — suppressed for every future
+  //    commercial send, with no new table or Neon migration. If this throws, the POST
+  //    handler returns an error: we must never report a successful unsubscribe that was
+  //    not durably recorded. Success does NOT depend on a Lead row existing.
+  await recordEmailUnsubscribe(sanitized, source);
 
-  await prisma.savedSearch.updateMany({
-    where: { alert_email: sanitized },
-    data: { alert_enabled: false },
-  });
-
-  await prisma.auditEvent.create({
-    data: {
-      action: "email_unsubscribed",
-      entity_type: "lead",
-      entity_id: sanitized,
-      user_type: "public",
-      user_id: null,
-      changes: { email: sanitized, source },
-    },
-  });
+  // 2 + 3. Secondary best-effort updates (Lead opt-out timestamp + saved-search alerts).
+  //    The recipient is ALREADY suppressed by the durable record above, so a failure here
+  //    must NOT undo suppression or permit a future commercial send — audit the failure
+  //    and swallow it (the durable AuditEvent stands). (Lead.email_opt_out / email_opt_out_at
+  //    writes remain disabled until that migration lands; last_unsubscribe_at is deployed.)
+  try {
+    await prisma.lead.updateMany({
+      where: { email: sanitized },
+      data: { last_unsubscribe_at: new Date() },
+    });
+    await prisma.savedSearch.updateMany({
+      where: { alert_email: sanitized },
+      data: { alert_enabled: false },
+    });
+  } catch (secondaryErr) {
+    console.error(
+      "[/api/unsubscribe] secondary Lead/SavedSearch update failed (recipient already durably suppressed):",
+      secondaryErr,
+    );
+    await prisma.auditEvent
+      .create({
+        data: {
+          action: "email_unsubscribe_secondary_failed",
+          entity_type: "lead",
+          entity_id: sanitized,
+          user_type: "public",
+          user_id: null,
+          changes: {
+            email: sanitized,
+            source,
+            error: secondaryErr instanceof Error ? secondaryErr.message : "unknown",
+          },
+        },
+      })
+      .catch(() => {
+        /* durable suppression already stands — nothing else to do */
+      });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -91,11 +143,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// RFC 8058 requires One-Click to be a POST, but many legacy clients send GET.
-// Accept both so Gmail/Yahoo one-click compliance works regardless of client behavior.
+// GET is NON-MUTATING by design. RFC 8058 one-click is a POST; the List-Unsubscribe
+// HTTPS URL is also fetched with GET by mailbox security scanners and link
+// prefetchers, so performing the unsubscribe here would produce false opt-outs
+// before the recipient ever clicks. Instead GET renders a confirmation page whose
+// button POSTs (carrying email + token) to actually unsubscribe. Gmail/Yahoo
+// one-click still POSTs directly and is unaffected.
 export async function GET(request: NextRequest) {
   const ip = extractClientIp(request.headers);
-  if (!(await checkRouteRateLimit(ip, 'unsubscribe', 20, 3600))) {
+  // SEPARATE limiter from the mutating POST: the GET page is non-mutating and gets
+  // hit by scanners/prefetchers, so it uses `unsubscribe_get` (300/hr, own Redis
+  // prefix) — it must never consume the POST's `unsubscribe` (20/hr) quota.
+  if (!(await checkRouteRateLimit(ip, 'unsubscribe_get', 300, 3600))) {
     return NextResponse.json(
       { error: 'Rate limited. Please try again shortly.' },
       { status: 429, headers: { 'Retry-After': '3600' } }
@@ -105,12 +164,14 @@ export async function GET(request: NextRequest) {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
-  // If a signed token is present it MUST verify — rejects a one-click link whose
-  // `email` was tampered with. Tokenless (legacy) links use the rate-limited path.
-  const token = request.nextUrl.searchParams.get("token");
+  // If a signed token is present it MUST verify — rejects a link whose `email`
+  // was tampered with — but we still do NOT mutate on GET either way.
+  const token = request.nextUrl.searchParams.get("token") || "";
   if (token && !verifyUnsubscribeToken(email, token)) {
     return NextResponse.json({ error: "Invalid unsubscribe link." }, { status: 403 });
   }
-  await unsubscribe(email, token ? "one-click" : "form");
-  return NextResponse.json({ success: true, message: "You have been unsubscribed." });
+  return new NextResponse(confirmationPage(email, token), {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" },
+  });
 }

@@ -31,6 +31,8 @@ const protectedPeriodUpdateMock = jest.fn<Promise<unknown>, unknown[]>(async () 
 const protectedPeriodCreateMock = jest.fn<Promise<unknown>, unknown[]>(async () => ({}));
 const agentFindManyMock = jest.fn<Promise<unknown[]>, unknown[]>(async () => []);
 const auditEventCreateMock = jest.fn<Promise<{ id: bigint }>, unknown[]>(async () => ({ id: 1n }));
+// findEmailSuppression (lib/email/suppression.ts) also reads the AuditEvent opt-out ledger.
+const auditEventFindFirstMock = jest.fn<Promise<unknown>, unknown[]>(async () => null);
 const leadFindUniqueMock = jest.fn<Promise<unknown>, unknown[]>(async () => null);
 
 jest.mock('@/lib/prisma', () => ({
@@ -43,7 +45,7 @@ jest.mock('@/lib/prisma', () => ({
       create: protectedPeriodCreateMock,
     },
     agent: { findMany: agentFindManyMock },
-    auditEvent: { create: auditEventCreateMock },
+    auditEvent: { create: auditEventCreateMock, findFirst: auditEventFindFirstMock },
     lead: { findUnique: leadFindUniqueMock },
   },
 }));
@@ -89,6 +91,7 @@ beforeEach(() => {
   sendEmailRouteSpy.mockReset();
   sendEmailRouteSpy.mockResolvedValue({ success: true, messageId: 'm-1' });
   leadFindUniqueMock.mockReset();
+  auditEventFindFirstMock.mockClear(); // keeps the default (resolves null = no AuditEvent opt-out)
 });
 
 const ORIGINAL_CRON_SECRET = process.env.CRON_SECRET;

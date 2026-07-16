@@ -22,6 +22,9 @@ module.exports = {
     // lib/email + /api/unsubscribe (ts-jest) — email compliance hardening:
     // fail-closed suppression, signed HMAC unsubscribe token, dry-run/test/batch.
     '<rootDir>/lib/email/jest.config.js',
+    // lib/middleware (ts-jest) — rate-limiter bucket separation (unsubscribe GET
+    // vs POST quotas so scanner GET traffic can't drain the POST unsubscribe quota).
+    '<rootDir>/lib/middleware/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
     // tests/runtime — release-truth side-effect proof for high-risk routes

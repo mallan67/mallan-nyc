@@ -110,9 +110,15 @@ describe("Email Tier A P0 — static source guards", () => {
   describe("Fix #2 — Lead-level opt-out boundary check present", () => {
     const sendgridSrc = readFile("lib/email/sendgrid.ts");
 
-    it("sendEmail() looks up Lead.last_unsubscribe_at by recipient email", () => {
-      expect(sendgridSrc).toMatch(/prisma\.lead\.findUnique/);
-      expect(sendgridSrc).toMatch(/last_unsubscribe_at/);
+    it("sendEmail() checks opt-out via the shared suppression helper (Lead + AuditEvent)", () => {
+      // The Lead lookup moved into lib/email/suppression.ts (findEmailSuppression), which
+      // now suppresses on EITHER Lead.last_unsubscribe_at OR the email_unsubscribed
+      // AuditEvent — so non-Lead recipients (e.g. cold ACRIS emails) are suppressed too.
+      expect(sendgridSrc).toMatch(/findEmailSuppression\(/);
+      const suppressionSrc = readFile("lib/email/suppression.ts");
+      expect(suppressionSrc).toMatch(/lead\.findUnique/);
+      expect(suppressionSrc).toMatch(/last_unsubscribe_at/);
+      expect(suppressionSrc).toMatch(/email_unsubscribed/);
     });
 
     it("the boundary check is gated by the transactional flag", () => {
@@ -123,7 +129,9 @@ describe("Email Tier A P0 — static source guards", () => {
     });
 
     it("recipient email is normalized (lowercase + trim) before lookup", () => {
-      expect(sendgridSrc).toMatch(/to\.toLowerCase\(\)\.trim\(\)/);
+      // Normalization moved into normalizeEmail() in the shared suppression module.
+      const suppressionSrc = readFile("lib/email/suppression.ts");
+      expect(suppressionSrc).toMatch(/toLowerCase\(\)\.trim\(\)/);
     });
 
     it("suppressed return shape includes _suppressed: true", () => {
