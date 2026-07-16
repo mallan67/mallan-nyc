@@ -40,6 +40,11 @@ export async function GET(request: Request, { params }: Props) {
     // (2026-06-02 sitewide P0 fix.) Non-id values pass through untouched.
     const id = normalizeListingIdCase(rawId);
     const useIDX = process.env.IDX_ENABLED === 'true';
+    // Track whether the live IDX (Cotality) lookup THREW (an outage) as opposed to
+    // returning no record (a genuine miss). An outage must NOT become a cached 404 —
+    // that would publicly cache "listing not found" for a real listing during a Cotality
+    // outage. On outage + no local fallback we return a non-cacheable 503 instead.
+    let idxErrored = false;
 
     // ═══════════════════════════════════════════════════════════
     // IDX PATH: Fetch single listing from Trestle by ListingKey
@@ -63,7 +68,11 @@ export async function GET(request: Request, { params }: Props) {
                   idxEnabled: true,
                 },
               },
-              { status: 404 }
+              // Short negative cache so a repeatedly-hammered dead/non-displayable
+              // URL is CDN-served, not re-resolved through the full pipeline each
+              // hit. Identical header to the genuine not-found below → gate failures
+              // remain indistinguishable from not-found (fail-closed).
+              { status: 404, headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
             );
           }
 
@@ -72,7 +81,7 @@ export async function GET(request: Request, { params }: Props) {
           if (!listing) {
             return NextResponse.json(
               { success: false, error: 'Listing not found' },
-              { status: 404 }
+              { status: 404, headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
             );
           }
 
@@ -180,7 +189,10 @@ export async function GET(request: Request, { params }: Props) {
         }
         // raw is null — listing not found in Trestle, fall through to local
       } catch (idxError) {
-        // IDX fetch failed — fall through to local data for resilience
+        // IDX (Cotality) EXCEPTION — an outage, NOT a confirmed miss. Fall through to
+        // the local fallback; if that also misses, we return a non-cacheable 503 below
+        // (never a cached 404, which would hide a real listing during the outage).
+        idxErrored = true;
         console.error(`[/api/listings/${id}] IDX fetch failed, falling back to local data:`, idxError);
       }
     }
@@ -191,6 +203,19 @@ export async function GET(request: Request, { params }: Props) {
     const listing = (listingsData.listings as unknown as import('@/lib/types/listing').Listing[]).find((l) => l.id === id);
 
     if (!listing) {
+      // IDX outage with no local fallback → non-cacheable 503 (transient; client/CDN
+      // should retry, never cache). A CONFIRMED miss (IDX returned no record, or IDX
+      // disabled) → short cached 404.
+      if (idxErrored) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Listing temporarily unavailable',
+            _compliance: { source: 'idx', idxEnabled: useIDX },
+          },
+          { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '30' } }
+        );
+      }
       return NextResponse.json(
         {
           success: false,
@@ -200,7 +225,7 @@ export async function GET(request: Request, { params }: Props) {
             idxEnabled: useIDX,
           },
         },
-        { status: 404 }
+        { status: 404, headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' } }
       );
     }
 

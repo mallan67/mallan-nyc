@@ -17,6 +17,13 @@ try {
   // dotenv not available (e.g. edge runtime) — rely on platform env
 }
 
+// Prisma reads the BARE connection vars (`DATABASE_URL` / `DATABASE_URL_UNPOOLED`) from
+// the schema's datasource. These MUST be configured explicitly per environment. We do
+// NOT map the Vercel–Neon integration's prefixed vars (`database_DATABASE_URL*`) onto the
+// bare names: a global fallback like that would silently hand every Preview route the
+// production database. If an environment (e.g. Preview) needs DB access, set its own bare
+// DATABASE_URL explicitly.
+
 // Prevent multiple PrismaClient instances in dev mode (hot reload)
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -38,10 +45,11 @@ export default prisma;
 // time quota." Every DB path throws this uniformly.
 //
 // Routes wrap their prisma call with `isQuotaExhausted(err)`; when true,
-// they return HTTP 503 with `Retry-After` instead of a raw 500. Public IDX
-// pages additionally fall through to their existing Trestle direct-fetch
-// path (in app/listing/[id]/page.tsx and the search API) so the public
-// site stays partially live even while the CRM is down.
+// they return HTTP 503 with `Retry-After` instead of a raw 500. NOTE: the public
+// listing detail page (app/listing/[...slug]/page.tsx) no longer falls back to a
+// live Trestle direct-fetch on DB error — that live-feed fallback was removed in
+// PR #511 (DB-only render). Infra/quota errors there PROPAGATE (they are not turned
+// into a 404), so under ISR a valid cached listing is preserved rather than replaced.
 // ────────────────────────────────────────────────────────────────────────
 
 export function isQuotaExhausted(err: unknown): boolean {

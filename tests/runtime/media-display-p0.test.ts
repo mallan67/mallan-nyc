@@ -339,12 +339,14 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// Post-#281 hotfix — close the SECOND resurrection path (Codex): when all CRM
-// listing_media rows are soft-deleted, the detail page's photoCount===0 branch
+// Post-#281 hotfix — the SECOND resurrection path (Codex): when all CRM
+// listing_media rows are soft-deleted, the detail page's old photoCount===0 branch
 // called fetchListingMedia(listing_id) and live Trestle/Cotality photos could
-// reappear. The relational table is authoritative for CRM exclusives — no
-// Trestle fallback when CRM rows exist (even if all deleted). IDX listings
-// (Trestle rows / no rows) keep the fallback.
+// reappear. shouldFetchTrestleMediaFallback was the gate that suppressed it for CRM
+// exclusives. NOTE: PR #511 (DB-only render) removed the live-Trestle media fallback
+// from the detail page ENTIRELY — there is no live fetch to resurrect anything now.
+// The resolver-gate unit tests below stay (they lock shouldFetchTrestleMediaFallback's
+// behavior for any caller); the page-wiring test asserts the stronger new invariant.
 // ════════════════════════════════════════════════════════════════════════════
 describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 hotfix)', () => {
   const detailPage = read('app/listing/[...slug]/page.tsx');
@@ -392,12 +394,14 @@ describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 ho
     expect(shouldFetchTrestleMediaFallback([], 0, { mlsId: 'RLS20093870', listingId: 'RLS20093870' })).toBe(true);
   });
 
-  // ── Wiring: detail page uses the gate (with listing context) + selects media_key ──
-  it('detail page gates the Trestle fallback via shouldFetchTrestleMediaFallback with listing context', () => {
-    expect(detailPage).toMatch(/shouldFetchTrestleMediaFallback\(listingMediaRows,\s*photoCount,/);
-    expect(detailPage).toMatch(/mlsId:\s*dbListing\.mls_id/);
-    expect(detailPage).toMatch(/listingId:\s*dbListing\.listing_id/);
-    expect(detailPage).not.toMatch(/const shouldFetchMedia\s*=\s*photoCount === 0;/); // old unconditional gate gone
+  // ── Wiring: detail page performs NO live Trestle media fetch/fallback at all ──
+  it('detail page performs NO live Trestle media fetch or fallback gate (DB-only render, PR #511)', () => {
+    // Strip comments so the assertion tests CODE, not the note explaining the removal.
+    const code = detailPage
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    expect(code).not.toMatch(/shouldFetchTrestleMediaFallback\s*\(/);
+    expect(code).not.toMatch(/fetchListingMedia\s*\(/);
   });
 
   it('detail page LISTING_MEDIA_INCLUDE selects media_key (to detect crm: rows)', () => {

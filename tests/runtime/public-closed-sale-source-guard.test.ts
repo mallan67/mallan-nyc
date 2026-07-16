@@ -2,10 +2,16 @@
 /**
  * Backend-Search-0 — public closed-sale SOURCE guard.
  *
- * Locks that every PUBLIC closed-sale surface ships ACRIS public-record sales
- * only, routed through the visibility contract — never a raw MLS/Cotality
- * ClosePrice. Agent/internal/report surfaces are NOT restricted by this PR
- * (verified behaviorally in visibility-contract.test.ts). (2026-07-09)
+ * Locks that every PUBLIC closed-sale surface ships ACRIS public-record sales only,
+ * routed through the visibility contract — never a raw MLS/Cotality ClosePrice.
+ * Agent/internal/report surfaces are NOT restricted by this PR (verified behaviorally
+ * in visibility-contract.test.ts). (2026-07-09)
+ *
+ * UPDATE (PR #511): the LISTING DETAIL page no longer renders ANY closed-sale comp —
+ * the live Trestle last-sale + the ACRIS lookup were removed with the DB-only render.
+ * With nothing shown, a raw MLS ClosePrice can never reach the public listing page (a
+ * stronger guarantee than gating). The building routes still ship ACRIS-only via the
+ * contract and keep their guards below.
  */
 import { readFileSync } from 'fs';
 import * as path from 'path';
@@ -34,13 +40,22 @@ describe('/api/buildings — public sale history is ACRIS-only via the contract'
   });
 });
 
-describe('listing-detail Last Sale — does not prefer MLS over ACRIS publicly', () => {
-  it('removed the "trestleSale || acrisSale" MLS-first fallback', () => {
-    expect(listingDetail).not.toMatch(/trestleSale\s*\|\|\s*acrisSale/);
+describe('listing-detail Last Sale — no public MLS closed-sale (removed in PR #511)', () => {
+  // Strip comments so the assertions test CODE, not the notes that mention the removed
+  // symbols by name.
+  const code = listingDetail
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+  it('has no MLS-first "trestleSale || acrisSale" fallback', () => {
+    expect(code).not.toMatch(/trestleSale\s*\|\|\s*acrisSale/);
   });
-  it('gates the shown sale through resolveVisibility (public audience)', () => {
-    expect(listingDetail).toMatch(/resolveVisibility/);
-    expect(listingDetail).toMatch(/audience:\s*'public'/);
+  it('performs NO live closed-sale lookup on the public page (Trestle + ACRIS removed)', () => {
+    // The public listing page renders no closed-sale comp at all, so a raw MLS/Cotality
+    // ClosePrice can never reach it — a stronger guarantee than the old public gate.
+    expect(code).not.toMatch(/fetchLastUnitSale\s*\(/);
+    expect(code).not.toMatch(/fetchLastSaleFromACRIS\s*\(/);
+    expect(code).not.toMatch(/resolveVisibility\s*\(/);
   });
 });
 
@@ -55,9 +70,11 @@ describe('/api/listings/building — precedent preserved + shared ACRIS lib', ()
   });
 });
 
-describe('all three public surfaces import the single visibility contract module', () => {
-  it('buildings + listing-detail import from lib/search/visibility-contract', () => {
+describe('public closed-sale surfaces import the single visibility contract module', () => {
+  it('buildings imports lib/search/visibility-contract; listing-detail no longer needs it', () => {
     expect(buildings).toMatch(/from '@\/lib\/search\/visibility-contract'/);
-    expect(listingDetail).toMatch(/from '@\/lib\/search\/visibility-contract'/);
+    // listing-detail's closed-sale block was removed in PR #511 (DB-only render), so it
+    // no longer imports (or needs) the visibility contract — nothing public to gate there.
+    expect(listingDetail).not.toMatch(/from '@\/lib\/search\/visibility-contract'/);
   });
 });

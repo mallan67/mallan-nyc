@@ -1,9 +1,18 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-/** Fires tracked view API when trackToken is present. Silent on failure. Renders nothing. */
-export default function TrackListingSend({ listingId, trackToken }: { listingId: string; trackToken?: string }) {
+/**
+ * Fires the tracked-view API when a ?t= token is present. Reads the token
+ * CLIENT-SIDE (useSearchParams) so the listing page no longer needs to read
+ * searchParams on the server — which had forced dynamic rendering and blocked
+ * ISR/CDN caching. Silent on failure. Renders nothing. Must be wrapped in
+ * <Suspense> by the caller.
+ */
+export default function TrackListingSend({ listingId }: { listingId: string }) {
+  const trackToken = useSearchParams().get('t') ?? undefined;
+
   useEffect(() => {
     if (!trackToken) return;
 
