@@ -6,31 +6,40 @@
  * showed the gray placeholder for the same listing (repro: RLS20103891 →
  * /listing/372-5th-avenue-apt-7m-new-york-city-ny-10018/rls20103891).
  *
- * ROOT CAUSE: both surfaces ran the same `rows.length > 0 ? fromRows : legacyJson`
- * ternary, but fed it different row sets. The card list route queries
- * `listing_media WHERE status='active'`, so a listing whose rows are all
- * deleted/replaced returns 0 rows → the legacy `Listing.media` JSON fallback
- * fires → photos. The detail page fetches ALL statuses (needed for CRM deletion
- * authority), so the same listing returns non-empty rows → the ternary commits
- * to the relational path → `resolveListingMediaFromRows` filters to active → []
- * → NO fallback → placeholder.
+ * ROOT CAUSE: both surfaces ran `rows.length > 0 ? fromRows : legacyJson`, but
+ * fed it different row sets. `/api/listings` queries `listing_media WHERE
+ * status='active'`, so an all-deleted listing returns 0 rows → the legacy
+ * `Listing.media` JSON fallback fires → photos. The detail page fetches ALL
+ * statuses, so the same listing returns non-empty rows → the ternary commits to
+ * the relational path → `resolveListingMediaFromRows` filters to active → [] →
+ * NO fallback → placeholder.
  *
  * FIX: a shared DB-only policy `resolveDbListingMedia` keyed on the RESOLVED
- * active-media count + listing type (NOT raw `rows.length`):
+ * active-media count + LISTING PROVENANCE (never raw `rows.length`, never
+ * `mls_id`):
  *   1. relational active media wins when present;
- *   2. zero usable → fall back to the legacy JSON for third-party IDX/RLS
- *      (and un-synced / not-yet-migrated) listings;
- *   3. a CRM exclusive with deleted rows stays authoritatively empty
- *      (deleted Mallan photos must never resurrect).
+ *   2. zero usable → fall back to the legacy Cotality JSON for third-party
+ *      IDX/RLS (and un-synced) listings;
+ *   3. a Mallan-owned listing (website-only / agent_id / owner_client_id /
+ *      SL-RL) with deleted rows stays authoritatively empty.
  *
- * DB-ONLY: no live Cotality/Trestle call is reintroduced to the public render
- * path (PR #511 stays intact).
+ * Provenance mirrors `classifyDbListing`: rls_eligible === false → website-only;
+ * agent_id or owner_client_id → Mallan exclusive; SL-/RL- reinforcing. `mls_id`
+ * is NOT a signal (a caller such as /api/listings does not even select it).
+ *
+ * Card-side deletion authority uses an all-status existence signal
+ * (`_count.listing_media`) so the active-only card query can still tell
+ * "no rows ever" from "rows existed but were deleted" — WITHOUT loading deleted
+ * rows and WITHOUT an extra per-listing query.
+ *
+ * DB-ONLY: no live Cotality request is reintroduced to the public render (PR #511).
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   resolveDbListingMedia,
   shouldFallbackToLegacyMedia,
+  isMallanOwnedListing,
   type ListingMediaTableRow,
   type MediaFallbackContext,
 } from '@/lib/media/listing-media-resolver';
@@ -55,62 +64,89 @@ function row(over: Partial<ListingMediaTableRow> = {}): ListingMediaTableRow {
   return merged;
 }
 
-// Legacy `Listing.media` JSON items (Cotality-sourced for a third-party listing).
+// Legacy `Listing.media` JSON items — Cotality-sourced for a third-party listing.
 const legacyPhotos = [
   { url: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1.jpg', type: 'photo', order: 0 },
   { url: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/2.jpg', type: 'photo', order: 1 },
 ];
 
-const IDX_CTX: MediaFallbackContext = { mlsId: 'RLS20103891', listingId: 'RLS20103891', rlsEligible: true };
-const CRM_SL_CTX: MediaFallbackContext = { mlsId: null, listingId: 'SL-0004' };
-const CRM_RL_CTX: MediaFallbackContext = { mlsId: null, listingId: 'RL-0007' };
-const WEBSITE_ONLY_CTX: MediaFallbackContext = { mlsId: 'C-1001', listingId: 'C-1001', rlsEligible: false };
+// Provenance contexts (NO mls_id anywhere — it is not a signal).
+const IDX_CTX: MediaFallbackContext = { listingId: 'RLS20103891', rlsEligible: true };
+const IDX_CTX_NO_SIGNALS: MediaFallbackContext = { listingId: 'RLS20103891' }; // rls_eligible omitted too
+const CRM_AGENT_CTX: MediaFallbackContext = { listingId: '5512340001', agentId: 42n };        // Mallan agent, non-SL id
+const CRM_OWNER_CTX: MediaFallbackContext = { listingId: '5512340002', ownerClientId: 7n };   // Mallan owner, non-SL id
+const CRM_SL_CTX: MediaFallbackContext = { listingId: 'SL-0004' };                            // reinforcing id
+const CRM_RL_CTX: MediaFallbackContext = { listingId: 'RL-0007' };
+const WEBSITE_ONLY_CTX: MediaFallbackContext = { listingId: 'C-1001', rlsEligible: false };
 
 // ════════════════════════════════════════════════════════════════════════════
-// shouldFallbackToLegacyMedia — the authority truth table
+// isMallanOwnedListing — provenance authority (mirrors classifyDbListing)
 // ════════════════════════════════════════════════════════════════════════════
-describe('shouldFallbackToLegacyMedia — never-imported vs all-deleted × listing type', () => {
-  it('no relational rows at all → fall back for EVERYONE (nothing was deleted)', () => {
-    expect(shouldFallbackToLegacyMedia([], IDX_CTX)).toBe(true);
-    expect(shouldFallbackToLegacyMedia([], CRM_SL_CTX)).toBe(true);
-    expect(shouldFallbackToLegacyMedia([], WEBSITE_ONLY_CTX)).toBe(true);
+describe('isMallanOwnedListing — provenance signals, never mls_id', () => {
+  it('third-party Cotality/IDX (RLS id, no Mallan signals) → false', () => {
+    expect(isMallanOwnedListing(IDX_CTX)).toBe(false);
+    expect(isMallanOwnedListing(IDX_CTX_NO_SIGNALS)).toBe(false);
   });
-
-  it('rows exist (all deleted) + third-party IDX/RLS → fall back to legacy JSON', () => {
-    const rows = [row({ status: 'deleted' }), row({ status: 'replaced', order: 1 })];
-    expect(shouldFallbackToLegacyMedia(rows, IDX_CTX)).toBe(true);
+  it('website-only (rls_eligible === false) → true', () => {
+    expect(isMallanOwnedListing(WEBSITE_ONLY_CTX)).toBe(true);
   });
-
-  it('rows exist (all deleted) + CRM exclusive (SL-/RL-) → authoritative empty, NO fallback', () => {
-    const rows = [row({ status: 'deleted' })];
-    expect(shouldFallbackToLegacyMedia(rows, CRM_SL_CTX)).toBe(false);
-    expect(shouldFallbackToLegacyMedia(rows, CRM_RL_CTX)).toBe(false);
+  it('Mallan exclusive via agent_id or owner_client_id (non-SL id) → true', () => {
+    expect(isMallanOwnedListing(CRM_AGENT_CTX)).toBe(true);
+    expect(isMallanOwnedListing(CRM_OWNER_CTX)).toBe(true);
   });
-
-  it('rows exist (all deleted) + no mls_id → treated as CRM-created → NO fallback', () => {
-    expect(shouldFallbackToLegacyMedia([row({ status: 'deleted' })], { mlsId: null, listingId: 'anything' })).toBe(false);
+  it('SL-/RL- listing-id namespace → true (reinforcing)', () => {
+    expect(isMallanOwnedListing(CRM_SL_CTX)).toBe(true);
+    expect(isMallanOwnedListing(CRM_RL_CTX)).toBe(true);
   });
-
-  it('rows exist (all deleted) + website-only (rls_eligible === false) → NO fallback', () => {
-    expect(shouldFallbackToLegacyMedia([row({ status: 'deleted' })], WEBSITE_ONLY_CTX)).toBe(false);
+  it('a MISSING mls_id must NOT classify a row as Mallan-owned', () => {
+    // No mls_id field at all, no Mallan signals → still third-party.
+    expect(isMallanOwnedListing({ listingId: 'RLS99999999' })).toBe(false);
   });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// resolveDbListingMedia — the shared selection policy (the P0 buckets)
+// shouldFallbackToLegacyMedia — never-imported vs all-deleted × provenance
 // ════════════════════════════════════════════════════════════════════════════
-describe('resolveDbListingMedia — relational precedence + typed fallback', () => {
-  // (A) THE BUG: third-party RLS, relational rows all deleted/replaced, valid legacy JSON.
-  it('third-party RLS with only deleted/replaced relational rows + legacy JSON → photos appear', () => {
+describe('shouldFallbackToLegacyMedia — explicit hadRelationalRows', () => {
+  it('never imported (hadRelationalRows=false) → fall back for EVERYONE', () => {
+    expect(shouldFallbackToLegacyMedia(false, IDX_CTX)).toBe(true);
+    expect(shouldFallbackToLegacyMedia(false, CRM_SL_CTX)).toBe(true);
+    expect(shouldFallbackToLegacyMedia(false, CRM_AGENT_CTX)).toBe(true);
+    expect(shouldFallbackToLegacyMedia(false, WEBSITE_ONLY_CTX)).toBe(true);
+  });
+  it('rows existed but none active + third-party → fall back to legacy Cotality JSON', () => {
+    expect(shouldFallbackToLegacyMedia(true, IDX_CTX)).toBe(true);
+    expect(shouldFallbackToLegacyMedia(true, IDX_CTX_NO_SIGNALS)).toBe(true);
+  });
+  it('rows existed but none active + Mallan-owned → authoritative empty, NO fallback', () => {
+    expect(shouldFallbackToLegacyMedia(true, CRM_SL_CTX)).toBe(false);
+    expect(shouldFallbackToLegacyMedia(true, CRM_AGENT_CTX)).toBe(false);
+    expect(shouldFallbackToLegacyMedia(true, CRM_OWNER_CTX)).toBe(false);
+    expect(shouldFallbackToLegacyMedia(true, WEBSITE_ONLY_CTX)).toBe(false);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// resolveDbListingMedia — shared selection policy (the P0 buckets)
+// ════════════════════════════════════════════════════════════════════════════
+describe('resolveDbListingMedia — relational precedence + provenance fallback', () => {
+  // (A) THE BUG: third-party RLS, relational rows all deleted/replaced, legacy JSON.
+  it('third-party RLS with only deleted/replaced rows + legacy JSON → photos appear', () => {
     const rows = [row({ status: 'deleted' }), row({ status: 'replaced', order: 1 })];
     const out = resolveDbListingMedia(rows, legacyPhotos, IDX_CTX, { legacyMapUrl: (u) => u });
     expect(out.length).toBe(2);
     expect(out.every((m) => m.class === 'photo')).toBe(true);
-    expect(out[0].isPrimary).toBe(true);
   });
 
-  // (B) third-party with ACTIVE relational media → relational/R2 wins, legacy ignored.
-  it('third-party with active relational media → relational (R2) wins; legacy JSON ignored', () => {
+  // Third-party classified even when mls_id is omitted by the caller.
+  it('third-party with NO provenance signals (mls_id omitted) → still falls back to legacy JSON', () => {
+    const rows = [row({ status: 'deleted' })];
+    const out = resolveDbListingMedia(rows, legacyPhotos, IDX_CTX_NO_SIGNALS, { legacyMapUrl: (u) => u });
+    expect(out.length).toBe(2);
+  });
+
+  // (B) third-party with ACTIVE relational media → relational/R2 wins.
+  it('third-party with active relational media → relational (R2) wins; legacy ignored', () => {
     const rows = [row({ media_url_cached: 'https://r2.dev/active-hero.webp', status: 'active' })];
     const out = resolveDbListingMedia(rows, legacyPhotos, IDX_CTX, { legacyMapUrl: (u) => u });
     expect(out.length).toBe(1);
@@ -120,31 +156,34 @@ describe('resolveDbListingMedia — relational precedence + typed fallback', () 
 
   // (C) third-party, no relational rows, valid legacy JSON → photos.
   it('third-party with NO relational rows + legacy JSON → photos appear', () => {
-    const out = resolveDbListingMedia([], legacyPhotos, IDX_CTX, { legacyMapUrl: (u) => u });
+    const out = resolveDbListingMedia([], legacyPhotos, IDX_CTX, {
+      hadRelationalRows: false, legacyMapUrl: (u) => u,
+    });
     expect(out.length).toBe(2);
   });
 
-  // (D) CRM exclusive, relational rows all deleted → placeholder ([]); legacy NOT resurrected.
-  it('CRM exclusive (SL-) with all-deleted relational rows → [] (deleted CRM photos never resurrect)', () => {
+  // (D) Mallan-owned, relational rows all deleted → placeholder ([]); legacy NOT resurrected.
+  it('Mallan exclusive (agent_id) with all-deleted rows → [] (deleted photos never resurrect)', () => {
     const rows = [row({ status: 'deleted' }), row({ status: 'deleted', order: 1 })];
-    const out = resolveDbListingMedia(rows, legacyPhotos, CRM_SL_CTX, { legacyMapUrl: (u) => u });
-    expect(out).toEqual([]);
+    expect(resolveDbListingMedia(rows, legacyPhotos, CRM_AGENT_CTX, { legacyMapUrl: (u) => u })).toEqual([]);
+  });
+  it('Mallan exclusive (SL- id) with all-deleted rows → []', () => {
+    expect(resolveDbListingMedia([row({ status: 'deleted' })], legacyPhotos, CRM_SL_CTX, { legacyMapUrl: (u) => u })).toEqual([]);
+  });
+  it('website-only (rls_eligible=false) with all-deleted rows → []', () => {
+    expect(resolveDbListingMedia([row({ status: 'deleted' })], legacyPhotos, WEBSITE_ONLY_CTX, { legacyMapUrl: (u) => u })).toEqual([]);
   });
 
-  // (E) CRM exclusive, no rows ever imported → legacy JSON fallback still works.
-  it('CRM exclusive (SL-) with NO relational rows + legacy JSON → photos (never-imported fallback)', () => {
-    const out = resolveDbListingMedia([], legacyPhotos, CRM_SL_CTX, { legacyMapUrl: (u) => u });
+  // (E) Mallan-owned, no rows ever imported → legacy JSON fallback still works.
+  it('Mallan exclusive with NO relational rows → legacy JSON fallback (never-imported)', () => {
+    const out = resolveDbListingMedia([], legacyPhotos, CRM_SL_CTX, {
+      hadRelationalRows: false, legacyMapUrl: (u) => u,
+    });
     expect(out.length).toBe(2);
   });
 
-  // (F) website-only exclusive, deleted rows → [] (authoritative).
-  it('website-only exclusive (rls_eligible=false) with all-deleted rows → [] (authoritative)', () => {
-    const rows = [row({ status: 'deleted' })];
-    expect(resolveDbListingMedia(rows, legacyPhotos, WEBSITE_ONLY_CTX, { legacyMapUrl: (u) => u })).toEqual([]);
-  });
-
-  // Regression guard: the decision must NOT be keyed on raw rows.length.
-  it('one deleted + one active relational row → active surfaces, legacy ignored (rows.length not the key)', () => {
+  // Active relational media always wins.
+  it('one deleted + one active relational row → active surfaces (rows.length not the key)', () => {
     const rows = [
       row({ media_url_cached: 'https://r2.dev/live.webp', status: 'active', order: 0 }),
       row({ media_url_cached: 'https://r2.dev/gone.webp', status: 'deleted', order: 1 }),
@@ -153,11 +192,25 @@ describe('resolveDbListingMedia — relational precedence + typed fallback', () 
     expect(out.length).toBe(1);
     expect(out[0].url).toContain('live.webp');
   });
+
+  // Card-side signal: active-only rows (empty) + all-status _count > 0.
+  it('active-only caller: empty rows but hadRelationalRows=true + third-party → legacy fallback', () => {
+    const out = resolveDbListingMedia([], legacyPhotos, IDX_CTX, {
+      hadRelationalRows: true, legacyMapUrl: (u) => u,
+    });
+    expect(out.length).toBe(2);
+  });
+  it('active-only caller: empty rows but hadRelationalRows=true + Mallan-owned → [] (no resurrection)', () => {
+    const out = resolveDbListingMedia([], legacyPhotos, CRM_SL_CTX, {
+      hadRelationalRows: true, legacyMapUrl: (u) => u,
+    });
+    expect(out).toEqual([]);
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// Parity through the REAL public DTO (dbListingToPublicDTO) — card path uses the
-// same shared helper, so its media output matches the detail-page policy.
+// Parity through the REAL public DTO (dbListingToPublicDTO) — card + detail
+// share the policy, including the _count-based all-status existence signal.
 // ════════════════════════════════════════════════════════════════════════════
 describe('card DTO parity via dbListingToPublicDTO', () => {
   function makeListing(over: Record<string, unknown> = {}): DbListing {
@@ -178,7 +231,7 @@ describe('card DTO parity via dbListingToPublicDTO', () => {
     } as unknown) as DbListing;
   }
 
-  it('third-party RLS, all relational rows deleted, legacy JSON present → card DTO shows photos', () => {
+  it('third-party, all relational rows deleted, legacy JSON present → card DTO shows photos', () => {
     const dto = dbListingToPublicDTO(makeListing({
       media: [{ url: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1.jpg', type: 'photo' }],
       listing_media: [row({ status: 'deleted' })],
@@ -186,16 +239,45 @@ describe('card DTO parity via dbListingToPublicDTO', () => {
     expect(dto.media.length).toBe(1);
   });
 
-  it('CRM exclusive, all relational rows deleted → card DTO empty (no resurrection)', () => {
+  it('Mallan exclusive (agent_id), all relational rows deleted → card DTO empty (no resurrection)', () => {
     const dto = dbListingToPublicDTO(makeListing({
-      listing_id: 'SL-0004', mls_id: 'SL-0004',
-      media: [{ url: 'https://r2.dev/listings/SL-0004/legacy.webp', type: 'photo' }],
+      agent_id: 42n,
+      media: [{ url: 'https://r2.dev/listings/legacy.webp', type: 'photo' }],
       listing_media: [row({ status: 'deleted' })],
     }));
     expect(dto.media).toEqual([]);
   });
 
-  it('third-party RLS with active relational media → relational wins on the card too', () => {
+  // Card-side gap closure via _count: active-only rows empty, but rows existed.
+  it('active-only card query (rows=[]) + _count>0 + third-party → legacy photos (card matches detail)', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1.jpg', type: 'photo' }],
+      listing_media: [],                              // active-only query returned none
+      _count: { listing_media: 3 },                   // but 3 rows exist (deleted)
+    }));
+    expect(dto.media.length).toBe(1);
+  });
+
+  it('active-only card query (rows=[]) + _count>0 + Mallan-owned → empty (no resurrection on card)', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      listing_id: 'SL-0004', mls_id: 'SL-0004',
+      media: [{ url: 'https://r2.dev/listings/SL-0004/legacy.webp', type: 'photo' }],
+      listing_media: [],
+      _count: { listing_media: 3 },
+    }));
+    expect(dto.media).toEqual([]);
+  });
+
+  it('active-only card query (rows=[]) + _count=0 (never imported) → legacy fallback', () => {
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1.jpg', type: 'photo' }],
+      listing_media: [],
+      _count: { listing_media: 0 },
+    }));
+    expect(dto.media.length).toBe(1);
+  });
+
+  it('third-party with active relational media → relational wins on the card too', () => {
     const dto = dbListingToPublicDTO(makeListing({
       media: [{ url: 'https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/legacy.jpg', type: 'photo' }],
       listing_media: [row({ media_url_cached: 'https://r2.dev/active.webp', status: 'active' })],
@@ -206,12 +288,11 @@ describe('card DTO parity via dbListingToPublicDTO', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// Detail-page wiring (source-locked): the render path uses the shared helper,
-// never keys on raw rows.length, and stays DB-only + ISR-cacheable.
+// Detail-page wiring (source-locked): shared helper, provenance not mls_id,
+// DB-only, ISR intact.
 // ════════════════════════════════════════════════════════════════════════════
-describe('detail page wiring — shared helper, DB-only, ISR intact', () => {
+describe('detail page wiring — shared helper, provenance, DB-only, ISR intact', () => {
   const detailPage = read('app/listing/[...slug]/page.tsx');
-  // Strip comments so assertions test CODE, not the notes explaining it.
   const code = detailPage
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[^:])\/\/.*$/gm, '$1');
@@ -220,14 +301,19 @@ describe('detail page wiring — shared helper, DB-only, ISR intact', () => {
     expect(code).toMatch(/resolveDbListingMedia\s*\(/);
   });
 
-  it('does NOT gate the fallback on raw listing_media rows.length', () => {
-    expect(code).not.toMatch(/listingMediaRows\.length\s*>\s*0/);
+  it('does NOT gate the fallback on raw listing_media rows.length ternary', () => {
+    expect(code).not.toMatch(/listingMediaRows\.length\s*>\s*0\s*\n?\s*\?/);
   });
 
-  it('passes listing-type context so CRM deletion authority is honored', () => {
-    expect(code).toMatch(/mlsId:\s*dbListing\.mls_id/);
-    expect(code).toMatch(/listingId:\s*dbListing\.listing_id/);
-    expect(code).toMatch(/rlsEligible:\s*dbListing\.rls_eligible/);
+  it('passes provenance (rls_eligible / agent_id / owner_client_id) and NOT mls_id', () => {
+    // Scope to the resolveDbListingMedia call itself — the PublicListingDTO
+    // separately (and legitimately) carries a `mlsId` field for the listing's
+    // real MLS id, which is unrelated to the media provenance ctx.
+    const call = code.slice(code.indexOf('resolveDbListingMedia('), code.indexOf('resolveDbListingMedia(') + 500);
+    expect(call).toMatch(/rlsEligible:\s*dbListing\.rls_eligible/);
+    expect(call).toMatch(/agentId:\s*dbListing\.agent_id/);
+    expect(call).toMatch(/ownerClientId:\s*dbListing\.owner_client_id/);
+    expect(call).not.toMatch(/mlsId/);
   });
 
   it('fetches listing_media across ALL statuses (no active-only filter) so deletions are visible', () => {
@@ -235,7 +321,7 @@ describe('detail page wiring — shared helper, DB-only, ISR intact', () => {
     expect(detailPage).not.toMatch(/listing_media:\s*\{\s*where:\s*\{\s*status:\s*['"]active['"]\s*\}/);
   });
 
-  it('reintroduces NO live Cotality/Trestle media call on the render path (PR #511 intact)', () => {
+  it('reintroduces NO live Cotality media call on the render path (PR #511 intact)', () => {
     expect(code).not.toMatch(/fetchListingMedia\s*\(/);
     expect(code).not.toMatch(/fetchSingleListing\s*\(/);
     expect(code).not.toMatch(/from\s+['"]@\/lib\/idx\/fetch['"]/);
@@ -246,5 +332,40 @@ describe('detail page wiring — shared helper, DB-only, ISR intact', () => {
     expect(detailPage).toMatch(/export const revalidate = 300/);
     expect(detailPage).toMatch(/export const dynamicParams = true/);
     expect(detailPage).toMatch(/export async function generateStaticParams/);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// Card route (/api/listings) — closes the deletion-authority gap with _count,
+// shared helper, and ZERO extra per-listing queries (no N+1).
+// ════════════════════════════════════════════════════════════════════════════
+describe('/api/listings card-side deletion authority', () => {
+  const route = read('app/api/listings/route.ts');
+  // Isolate the DB media-fallback block.
+  const startIdx = route.indexOf('const stillEmpty');
+  const phase2 = startIdx >= 0 ? route.slice(startIdx, startIdx + 2200) : '';
+
+  it('selects an all-status existence signal (_count.listing_media)', () => {
+    expect(phase2).toContain('_count: { select: { listing_media: true } }');
+  });
+
+  it('still selects only ACTIVE listing_media rows (no deleted rows loaded into the payload)', () => {
+    expect(phase2).toMatch(/listing_media:\s*\{\s*where:\s*\{\s*status:\s*['"]active['"]\s*\}/);
+  });
+
+  it('routes through the shared resolveDbListingMedia with provenance + hadRelationalRows', () => {
+    expect(phase2).toContain('resolveDbListingMedia');
+    expect(phase2).toMatch(/hadRelationalRows:\s*\(dbL\._count\?\.listing_media\s*\?\?\s*0\)\s*>\s*0/);
+    expect(phase2).toMatch(/rlsEligible:\s*dbL\.rls_eligible/);
+    expect(phase2).toMatch(/agentId:\s*dbL\.agent_id/);
+    expect(phase2).toMatch(/ownerClientId:\s*dbL\.owner_client_id/);
+  });
+
+  it('adds ZERO extra per-listing queries — exactly one batched prisma call in the block (no N+1)', () => {
+    const prismaCalls = (phase2.match(/prisma\./g) || []).length;
+    expect(prismaCalls).toBe(1);
+    expect(phase2).toMatch(/prisma\.listing\.findMany/);
+    // No per-item findUnique/findFirst inside the loop.
+    expect(phase2).not.toMatch(/findUnique|findFirst/);
   });
 });

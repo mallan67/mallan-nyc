@@ -349,16 +349,21 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // reintroduced here — `resolveDbListingMedia` touches only the two synchronized
     // Neon sources. `legacyMapUrl` is identity because proxyDetailMediaUrl is applied
     // downstream (below) so legacy Cotality URLs are proxied exactly once.
+    // Provenance follows `classifyDbListing` (rls_eligible / agent_id /
+    // owner_client_id, SL-/RL- reinforcing) — NOT mls_id. This page fetches ALL
+    // statuses (LISTING_MEDIA_INCLUDE has no active-only filter), so the fetched
+    // rows are themselves the all-status existence signal.
     const mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
       resolveDbListingMedia(
         listingMediaRows,
         rawMedia,
         {
-          mlsId: dbListing.mls_id,
           listingId: dbListing.listing_id,
           rlsEligible: dbListing.rls_eligible,
+          agentId: dbListing.agent_id,
+          ownerClientId: dbListing.owner_client_id,
         },
-        { legacyMapUrl: rawUrl => rawUrl },
+        { hadRelationalRows: listingMediaRows.length > 0, legacyMapUrl: rawUrl => rawUrl },
       ),
     );
 

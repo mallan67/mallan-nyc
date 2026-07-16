@@ -43,32 +43,39 @@ Neither path re-imports at the relational level, and the legacy `listings.media`
 
 New shared policy in `lib/media/listing-media-resolver.ts`:
 
-- **`shouldFallbackToLegacyMedia(rows, ctx)`** — two-tier authority:
-  - *No relational rows at all* (never imported) → fall back for everyone (nothing was deleted).
-  - *Rows exist but none active* → **CRM exclusive** (`SL-`/`RL-` id, or no `mls_id`, or `rls_eligible===false`) is authoritative-empty (deleted Mallan photos never resurrect); **third-party IDX/RLS** falls back to the legacy Cotality-sourced JSON.
-- **`resolveDbListingMedia(rows, legacyMedia, ctx, {legacyMapUrl})`** — resolve relational active media first; only on **zero usable** media consult the authority gate. **Never keys on raw `rows.length`.** Touches only the two synchronized Neon sources — **no live Cotality call**.
+- **`isMallanOwnedListing(ctx)`** — provenance authority mirroring the repo's canonical `classifyDbListing`: `rls_eligible === false` → website-only; `agent_id` **or** `owner_client_id` non-null → Mallan exclusive; `SL-`/`RL-` id namespace → reinforcing. **`mls_id` is NOT a signal** — a caller (e.g. `/api/listings`) may not even select it, so a missing `mls_id` must never classify a row as Mallan-owned.
+- **`shouldFallbackToLegacyMedia(hadRelationalRows, ctx)`** — two-tier authority:
+  - *`hadRelationalRows === false`* (never imported) → fall back for everyone (nothing was deleted).
+  - *rows existed but none active* → **Mallan-owned** listing is authoritative-empty (deleted photos never resurrect); **third-party Cotality/IDX/RLS** falls back to the legacy Cotality-sourced JSON.
+- **`resolveDbListingMedia(rows, legacyMedia, ctx, {hadRelationalRows, legacyMapUrl})`** — resolve relational active media first (**always wins**); only on **zero usable** media consult the authority gate. **Never keys on raw `rows.length`.** `hadRelationalRows` is a caller-supplied all-status existence signal (not derived from the passed rows), so active-only callers stay correct. Touches only the two synchronized Neon sources — **no live Cotality call**.
 
 Wired into:
-- `app/listing/[...slug]/page.tsx` (`fetchFromDB`) — the P0 render path.
-- `lib/idx/db-to-public-dto.ts` (card/search DTO) — same policy → card/detail **parity**.
+- `app/listing/[...slug]/page.tsx` (`fetchFromDB`) — the P0 render path. Fetches ALL statuses, so `hadRelationalRows = listingMediaRows.length > 0`.
+- `lib/idx/db-to-public-dto.ts` (card/search DTO) — same policy; prefers `_count.listing_media` for `hadRelationalRows` when present.
+- `app/api/listings/route.ts` (card list route, Phase-2 DB fallback) — **closes the card-side deletion-authority gap**: it selects only ACTIVE rows, so it now also selects **`_count: { select: { listing_media: true } }`** in the SAME batched `findMany` (a Prisma aggregate subquery — **no N+1, zero extra per-listing queries**) to supply the all-status existence signal, plus `rls_eligible`/`agent_id`/`owner_client_id` for provenance. Result: an all-deleted **Mallan** exclusive no longer resurrects its legacy JSON on the card, while a third-party Cotality listing falls back to its Cotality JSON — matching the detail page exactly.
 
-Preserved: `revalidate=300`, `dynamicParams`, `generateStaticParams`, DB-only render, address suppression, attribution, distribution gates, photo-first ordering. The orphaned live-fetch gate `shouldFetchTrestleMediaFallback` and its tests are left untouched (not on any render path post-#511).
+Preserved: `revalidate=300`, `dynamicParams`, `generateStaticParams`, DB-only render, address suppression, attribution, distribution gates, photo-first ordering. The orphaned live-fetch gate `shouldFetchTrestleMediaFallback` and its tests are left untouched (no broad legacy renames in this P0).
 
-**Not changed (deliberate):** `app/api/listings/[id]/route.ts` and the `/api/listings` list route query `status='active'` and have their own (live-allowed) fallbacks — their `length` already reflects the active count, so they are not the reported bug. See §6 for the one latent CRM-resurrection follow-up in the card list route.
+**Not changed (deliberate):** `app/api/listings/[id]/route.ts` queries `status='active'` and has its own (live-allowed) API fallback — not the DB-only render path, not the reported bug.
 
 ### Tests (`tests/runtime/detail-media-consistency-p0.test.ts`)
-Third-party deleted-rows+JSON → photos; third-party active relational → relational/R2 wins; no rows+JSON → photos; CRM exclusive deleted → `[]`; website-only deleted → `[]`; `rows.length` not the key; card-DTO parity via `dbListingToPublicDTO`; detail-page source-lock (uses `resolveDbListingMedia`, no `rows.length>0` key, no live-feed import/call, `revalidate=300`/`generateStaticParams` intact). **RED→GREEN:** the parity test returns `[]` under the old ternary and the legacy photo under the fix.
+`isMallanOwnedListing` provenance (incl. **missing `mls_id` → still third-party**, and `agent_id`/`owner_client_id` → Mallan); third-party deleted-rows+JSON → photos; active relational always wins; no rows+JSON → photos; Mallan-owned (agent_id / SL- / website-only) deleted → `[]`; `_count`-based `hadRelationalRows` for active-only callers (card gap); card-DTO parity via `dbListingToPublicDTO`; detail-page source-lock (provenance not `mls_id`, no `rows.length>0` ternary, no live-feed import/call, ISR intact); **`/api/listings` source-lock: selects `_count.listing_media`, active-only rows, one batched `prisma` call — zero N+1**. The `lib/search` detail-gallery source-lock was updated to the shared getters (`getPhotoGallery`/`getFloorplans`).
 
-## 4. Verification
+## 4. Verification — full CI chain (all `pr-check.yml` gates)
 
 | Check | Result |
 |---|---|
 | `type-check` | exit 0 |
-| new + `media-display-p0` jest | 87 passed |
+| **`jest --ci` (ALL 285 suites)** | **4825 passed, 0 failed** |
 | `rls:validate` | 0 errors, exit 0 |
-| `compliance-check` | 93 pass, 0 BLOCKER+STRICT, exit 0 |
-| `ucba:audit` | 46/46 PASS, **0 REGRESSIONS** |
-| `idx:validate` | exit 1 — **pre-existing** critical `db-keepalive → NOT SCHEDULED` (validator trend: "Critical issues unchanged (1)"; tied to the `rotate-db-keys`/`db-keepalive` Neon hold, **not** this change) |
+| `ucba:audit` | 46/46 PASS, **0 REGRESSIONS**, exit 0 |
+| `crm:test` | 39/39, exit 0 |
+| `validate:form-rls` | exit 0 |
+| `ci-compliance-check` | 93 pass, 0 BLOCKER+STRICT, exit 0 |
+| `audit:display-compliance` | 11/11 gated, exit 0 |
+| `build` | exit 0 |
+
+> `idx:validate` is **not** part of `pr-check.yml`, so its 1 **pre-existing** critical (`db-keepalive → NOT SCHEDULED`; trend "unchanged (1)"; the documented `rotate-db-keys`/`db-keepalive` Neon hold) does not gate CI. The prior CI red (run #1079) was a Jest failure — a brittle source-lock in `lib/search/__tests__/media-display-p0.test.ts` asserting the detail page string-contains `"resolveListingMedia"`; the call-site rename to `resolveDbListingMedia` broke the literal match. Fixed by asserting the shared getters the gallery actually uses.
 
 ---
 
@@ -174,6 +181,7 @@ WHERE status IN ('deleted','replaced') AND media_key NOT LIKE 'crm:%';
 1. Scope from **Q2** (affected third-party IDs). Estimated write volume = `Σ legacy_count` over the affected set (≈ rows to re-materialize). Report the exact count from the audit before proposing execution.
 2. For each affected third-party listing, re-fetch the current Cotality Media set (operational tool / sync job — **never** the public render path) and re-`upsert` active `listing_media` rows, re-mirroring to R2. Idempotent on `media_key`; reuse the existing importer's restore-on-soft-deleted path.
 3. Guardrail candidates (separate PRs): don't tombstone-vanish on an **empty** Media fetch unless corroborated by a Property-level `PhotosCount=0`/`PhotosChangeTimestamp`; treat R2 404-exhaustion as "needs re-fetch of source URL," not permanent death.
-4. Card-path parity follow-up: the `/api/listings` list route queries `status='active'`, so an all-deleted **CRM exclusive** would fall to its legacy JSON on the card (latent resurrection). Low incidence; fix by having that route honor the same `resolveDbListingMedia` authority (needs all-status fetch — weigh against the #511 compute budget).
+
+> Card-path parity — **now fixed in this PR** (was a follow-up): `/api/listings` selects only active rows, so an all-deleted **Mallan** exclusive previously would have fallen to its legacy JSON on the card. Closed via `_count.listing_media` (all-status existence signal, no N+1) + provenance through the shared `resolveDbListingMedia`.
 
 All Phase-3 items require explicit Maya authorization and a separate reviewed change before any production write.

@@ -115,7 +115,12 @@ describe("Media Display P0", () => {
 
   it("listing detail gallery separates photos and floorplans through the shared resolver", () => {
     const detailSource = source("app/listing/[...slug]/page.tsx");
-    expect(detailSource).toContain("resolveListingMedia");
+    // Photo/floorplan separation goes through the shared resolver's canonical
+    // getters (the media SELECTION is now the shared `resolveDbListingMedia`
+    // DB-only policy; the gallery split still uses getPhotoGallery/getFloorplans).
+    expect(detailSource).toContain("@/lib/media/listing-media-resolver");
+    expect(detailSource).toContain("getPhotoGallery");
+    expect(detailSource).toContain("getFloorplans");
 
     const media = resolveListingMedia([
       { MediaURL: "https://cdn.example.com/fp.jpg", MediaCategory: "floor_plan", Order: 1 },
