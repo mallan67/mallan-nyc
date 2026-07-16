@@ -136,4 +136,64 @@ describe('GET /api/listings/similar wires the ranking helper', () => {
     expect(src).toMatch(/getSimilarityPriceBand\(price, isRental\)/);
     expect(src).not.toMatch(/price \* 0\.3|price \* 1\.7/);
   });
+
+  it('excludes the SUBJECT listing on BOTH the DB and Cotality paths', () => {
+    expect(src).toMatch(/listing_id: \{ not: excludeId \}/); // DB path
+    expect(src).toMatch(/id !== excludeId/);                 // Cotality path
+  });
+
+  it('preserves display/compliance + address-suppression gates on both paths', () => {
+    expect(src).toMatch(/SEARCH_DISPLAY_GATE/);                       // DB display gate
+    expect(src).toMatch(/checkDistributionGates\(r\)\.displayable/);  // Cotality RLS gate
+    expect(src).toMatch(/maskAddressIfRestricted/);                   // address suppression
+  });
+});
+
+describe('regression — #4D case (400 E 90th St, Apt 4D): studio never returns 2-bedroom comps', () => {
+  const studioTarget: SimilarityTarget = { beds: 0, price: 560_000, postalCode: '10128', neighborhood: 'Upper East Side' };
+  type C = SimilarityCandidate & { id: string };
+
+  it('a ~$560K studio ranks above $925K–$950K 2-bedrooms — and the 2-beds are EXCLUDED, not just ranked lower', () => {
+    const candidates: C[] = [
+      { id: 'twoBed925', beds: 2, price: 925_000, postalCode: '10021', neighborhood: 'Upper East Side' },
+      { id: 'studio555', beds: 0, price: 555_000, postalCode: '10128', neighborhood: 'Upper East Side' },
+      { id: 'twoBed950', beds: 2, price: 950_000, postalCode: '10128', neighborhood: 'Upper East Side' },
+      { id: 'oneBed575', beds: 1, price: 575_000, postalCode: '10128', neighborhood: 'Upper East Side' },
+    ];
+    const ids = rankSimilarListings(candidates, studioTarget).map((c) => c.id);
+    expect(ids).not.toContain('twoBed925'); // bedroom-incompatible → dropped
+    expect(ids).not.toContain('twoBed950'); // bedroom-incompatible → dropped
+    expect(ids[0]).toBe('studio555');       // closest studio ranks first
+    expect(ids).toContain('oneBed575');     // a 1-bed is an allowed studio neighbor
+  });
+
+  it('the $560K sale price band excludes $925K–$950K entirely (second line of defense)', () => {
+    const { min, max } = getSimilarityPriceBand(560_000, false); // 392,000 – 728,000
+    expect(925_000).toBeGreaterThan(max);
+    expect(950_000).toBeGreaterThan(max);
+    expect(555_000).toBeGreaterThanOrEqual(min);
+    expect(555_000).toBeLessThanOrEqual(max);
+  });
+});
+
+describe('regression — price-band boundaries are inclusive', () => {
+  it('sale: exactly 0.7x and 1.3x are the boundaries', () => {
+    expect(getSimilarityPriceBand(1_000_000, false)).toEqual({ min: 700_000, max: 1_300_000 });
+  });
+  it('rental: exactly 0.75x and 1.25x are the boundaries', () => {
+    expect(getSimilarityPriceBand(4_000, true)).toEqual({ min: 3_000, max: 5_000 });
+  });
+});
+
+describe('regression — deterministic, stable ordering on score ties', () => {
+  const target: SimilarityTarget = { beds: 2, price: 1_000_000, postalCode: '10011', neighborhood: 'Chelsea' };
+  type C = SimilarityCandidate & { id: string };
+  it('identical-score candidates keep their input order (stable sort → deterministic output)', () => {
+    const tied: C[] = [
+      { id: 'a', beds: 2, price: 1_000_000, postalCode: '10011', neighborhood: 'Chelsea' },
+      { id: 'b', beds: 2, price: 1_000_000, postalCode: '10011', neighborhood: 'Chelsea' },
+      { id: 'c', beds: 2, price: 1_000_000, postalCode: '10011', neighborhood: 'Chelsea' },
+    ];
+    expect(rankSimilarListings(tied, target).map((c) => c.id)).toEqual(['a', 'b', 'c']);
+  });
 });
