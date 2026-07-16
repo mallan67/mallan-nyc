@@ -62,11 +62,17 @@ describe("listing page wires the not-found-vs-error contract", () => {
     expect(src).toMatch(/resolveListingResult\(/);
   });
 
-  it("fetchListing delegates straight to fetchFromDB without a swallowing try/catch", () => {
-    // Pin the exact post-fix body so a future try/catch swallow can't silently return.
-    expect(src).toMatch(
-      /const fetchListing = cache\(async function fetchListing\([^)]*\): Promise<ListingFetchResult \| null> \{\s*return await fetchFromDB\(slug, keyOverride\);\s*\}\);/,
-    );
+  it("fetchListing calls fetchFromDB without a swallowing try/catch (errors propagate uncached)", () => {
+    // The durable per-listing cache (Neon P0) wraps fetchFromDB but MUST NOT catch: a thrown
+    // infra error propagates (cacheSetJson runs ONLY after fetchFromDB returns), so a transient
+    // DB failure can never become a cached false-404. Assert on the fetchListing body: it
+    // awaits fetchFromDB, has no try/catch, and only caches the RESULT (after the call).
+    const m = src.match(/const fetchListing = cache\([\s\S]*?\n\}\);/);
+    expect(m).not.toBeNull();
+    const body = m![0];
+    expect(body).toMatch(/const result = await fetchFromDB\(slug, keyOverride\);/);
+    expect(body).not.toMatch(/try\s*\{/); // no swallowing try/catch inside fetchListing
+    expect(body).toMatch(/await fetchFromDB\(slug, keyOverride\);[\s\S]*cacheSetJson\(/); // cache AFTER the call
   });
 
   it("no prisma.listing.findUnique lookup swallows DB errors with .catch(() => null)", () => {
