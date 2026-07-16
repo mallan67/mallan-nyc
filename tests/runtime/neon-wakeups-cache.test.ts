@@ -128,13 +128,15 @@ describe('durable cache + changed-listing invalidation', () => {
 });
 
 describe('architectural guarantees (source) — aliases are DB-free; no false-404 caching', () => {
-  it('middleware.ts + alias-index.ts NEVER import Prisma', () => {
-    expect(read('middleware.ts')).not.toMatch(/@\/lib\/prisma|from ['"].*prisma/);
+  it('proxy.ts (edge) + alias-index.ts NEVER import Prisma', () => {
+    // The alias path runs in the edge proxy (Next 16's middleware) — Prisma can't load there,
+    // and alias-index does the resolution with only Upstash + pure slug helpers.
+    expect(read('proxy.ts')).not.toMatch(/@\/lib\/prisma|from ['"].*prisma/);
     expect(read('lib/listings/alias-index.ts')).not.toMatch(/@\/lib\/prisma|from ['"].*prisma/);
   });
-  it('middleware emits a real 308 (NextResponse.redirect) with CDN cache headers — not a Server-Component redirect()', () => {
-    const mw = read('middleware.ts');
-    expect(mw).toMatch(/NextResponse\.redirect\([^)]*,\s*308\)/);
+  it('proxy emits a real 308 (NextResponse.redirect) with CDN cache headers — not a Server-Component redirect()', () => {
+    const mw = read('proxy.ts');
+    expect(mw).toMatch(/NextResponse\.redirect\([\s\S]*?,\s*308\s*\)/);
     expect(mw).toMatch(/CDN-Cache-Control/);
     expect(mw).not.toMatch(/from ['"]next\/navigation['"]/); // no redirect() from next/navigation
   });
