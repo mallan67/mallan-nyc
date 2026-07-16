@@ -8,6 +8,7 @@ import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { SessionUser } from "@/lib/auth/session";
 import { makeUnsubscribeToken } from "./unsubscribe-token";
+import { findEmailSuppression } from "./suppression";
 
 // ─── SMTP Configuration ──────────────────────────────────────────────
 // Three sending identities to protect deliverability:
@@ -135,13 +136,15 @@ export async function sendEmail(
   // block at the `transactional !== true` guard below.)
   if (opts?.transactional !== true) {
     try {
-      const lead = await prisma.lead.findUnique({
-        where: { email: to.toLowerCase().trim() },
-        select: { last_unsubscribe_at: true },
-      });
-      if (lead?.last_unsubscribe_at) {
+      // Suppress on EITHER a Lead opt-out (last_unsubscribe_at) OR an AuditEvent
+      // suppression record (email_unsubscribed) — the latter covers NON-Lead recipients
+      // (e.g. cold ACRIS/1031 emails) that have no Lead row. Single source of truth in
+      // lib/email/suppression.ts. This lookup THROWS on DB error → fail-closed below.
+      const suppression = await findEmailSuppression(to);
+      if (suppression.suppressed) {
         await logEmailAudit("send_suppressed_unsubscribed", to, subject, user, {
-          unsubscribed_at: lead.last_unsubscribe_at,
+          unsubscribed_at: suppression.at,
+          suppression_source: suppression.source, // 'lead' | 'audit_event' | 'both'
         });
         return {
           success: false,

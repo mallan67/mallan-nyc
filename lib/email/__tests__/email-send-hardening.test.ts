@@ -9,13 +9,18 @@ process.env.UNSUBSCRIBE_SECRET = 'test-secret';
 
 const mockLeadFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 const mockAuditCreate = jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue(undefined);
+// findEmailSuppression (lib/email/suppression.ts) also reads the AuditEvent ledger.
+const mockAuditFindFirst = jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue(null);
 const mockSendMail = jest.fn<Promise<{ messageId: string }>, [unknown]>();
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     lead: { findUnique: (a: unknown) => mockLeadFindUnique(a) },
-    auditEvent: { create: (a: unknown) => mockAuditCreate(a) },
+    auditEvent: {
+      create: (a: unknown) => mockAuditCreate(a),
+      findFirst: (a: unknown) => mockAuditFindFirst(a),
+    },
   },
 }));
 
@@ -28,18 +33,45 @@ jest.mock('nodemailer', () => ({
 const { sendEmail, sendBulkEmail } = require('../sendgrid') as typeof import('../sendgrid');
 
 beforeEach(() => {
-  mockLeadFindUnique.mockReset();
+  mockLeadFindUnique.mockReset().mockResolvedValue(null);
+  mockAuditFindFirst.mockReset().mockResolvedValue(null);
   mockAuditCreate.mockClear();
   mockSendMail.mockReset().mockResolvedValue({ messageId: 'mid-1' });
 });
 
 describe('sendEmail — suppression', () => {
-  it('skips an unsubscribed recipient (no SMTP)', async () => {
+  it('skips a Lead-opt-out recipient (no SMTP)', async () => {
     mockLeadFindUnique.mockResolvedValue({ last_unsubscribe_at: new Date() });
     const r = await sendEmail('opted@out.com', 'S', '<p>x</p>');
     expect(r.success).toBe(false);
     expect(r._suppressed).toBe(true);
     expect(mockSendMail).not.toHaveBeenCalled();
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'email:send_suppressed_unsubscribed', changes: expect.objectContaining({ suppression_source: 'lead' }) }) }),
+    );
+  });
+
+  it('blocks a NON-Lead recipient using the AuditEvent ledger ALONE (no SMTP)', async () => {
+    mockLeadFindUnique.mockResolvedValue(null); // no Lead row
+    mockAuditFindFirst.mockResolvedValue({ created_at: new Date() }); // opted out via AuditEvent
+    const r = await sendEmail('cold@acris.com', 'S', '<p>x</p>');
+    expect(r.success).toBe(false);
+    expect(r._suppressed).toBe(true);
+    expect(mockSendMail).not.toHaveBeenCalled();
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'email:send_suppressed_unsubscribed', changes: expect.objectContaining({ suppression_source: 'audit_event' }) }) }),
+    );
+  });
+
+  it('when BOTH sources prove opt-out, still suppressed once (source=both, no duplicate send)', async () => {
+    mockLeadFindUnique.mockResolvedValue({ last_unsubscribe_at: new Date() });
+    mockAuditFindFirst.mockResolvedValue({ created_at: new Date() });
+    const r = await sendEmail('opted@out.com', 'S', '<p>x</p>');
+    expect(r._suppressed).toBe(true);
+    expect(mockSendMail).not.toHaveBeenCalled();
+    expect(mockAuditCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ changes: expect.objectContaining({ suppression_source: 'both' }) }) }),
+    );
   });
 
   it('FAIL-CLOSED: a suppression-lookup failure BLOCKS the send (no SMTP)', async () => {

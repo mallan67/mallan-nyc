@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribe-token";
+import { recordEmailUnsubscribe, normalizeEmail } from "@/lib/email/suppression";
 import { escapeHtml } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
@@ -48,33 +49,54 @@ button{margin-top:16px;padding:12px 24px;background:#C4A052;color:#fff;border:0;
 }
 
 async function unsubscribe(email: string, source: "form" | "one-click" | "mailto") {
-  const sanitized = email.toLowerCase().trim();
+  const sanitized = normalizeEmail(email);
 
-  // NOTE: Lead.email_opt_out / email_opt_out_at writes are disabled until the
-  // corresponding migration lands (blocked by Neon compute quota). For now the
-  // only durable effect is disabling the recipient's saved-search alerts + an
-  // AuditEvent row — same behavior as the prior /api/search-alerts/unsubscribe.
-  // Restore the Lead update + opt-out timestamp once the schema is deployed.
-  await prisma.lead.updateMany({
-    where: { email: sanitized },
-    data: { last_unsubscribe_at: new Date() },
-  });
+  // 1. DURABLE suppression record FIRST. The AuditEvent keyed by the normalized email
+  //    (lib/email/suppression.ts) is the source of truth: it keeps a NON-Lead recipient
+  //    — e.g. a cold ACRIS/1031 email with no Lead row — suppressed for every future
+  //    commercial send, with no new table or Neon migration. If this throws, the POST
+  //    handler returns an error: we must never report a successful unsubscribe that was
+  //    not durably recorded. Success does NOT depend on a Lead row existing.
+  await recordEmailUnsubscribe(sanitized, source);
 
-  await prisma.savedSearch.updateMany({
-    where: { alert_email: sanitized },
-    data: { alert_enabled: false },
-  });
-
-  await prisma.auditEvent.create({
-    data: {
-      action: "email_unsubscribed",
-      entity_type: "lead",
-      entity_id: sanitized,
-      user_type: "public",
-      user_id: null,
-      changes: { email: sanitized, source },
-    },
-  });
+  // 2 + 3. Secondary best-effort updates (Lead opt-out timestamp + saved-search alerts).
+  //    The recipient is ALREADY suppressed by the durable record above, so a failure here
+  //    must NOT undo suppression or permit a future commercial send — audit the failure
+  //    and swallow it (the durable AuditEvent stands). (Lead.email_opt_out / email_opt_out_at
+  //    writes remain disabled until that migration lands; last_unsubscribe_at is deployed.)
+  try {
+    await prisma.lead.updateMany({
+      where: { email: sanitized },
+      data: { last_unsubscribe_at: new Date() },
+    });
+    await prisma.savedSearch.updateMany({
+      where: { alert_email: sanitized },
+      data: { alert_enabled: false },
+    });
+  } catch (secondaryErr) {
+    console.error(
+      "[/api/unsubscribe] secondary Lead/SavedSearch update failed (recipient already durably suppressed):",
+      secondaryErr,
+    );
+    await prisma.auditEvent
+      .create({
+        data: {
+          action: "email_unsubscribe_secondary_failed",
+          entity_type: "lead",
+          entity_id: sanitized,
+          user_type: "public",
+          user_id: null,
+          changes: {
+            email: sanitized,
+            source,
+            error: secondaryErr instanceof Error ? secondaryErr.message : "unknown",
+          },
+        },
+      })
+      .catch(() => {
+        /* durable suppression already stands — nothing else to do */
+      });
+  }
 }
 
 export async function POST(request: NextRequest) {
