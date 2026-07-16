@@ -10,8 +10,10 @@
 // (2) is what makes non-Lead recipients — e.g. the ~236 cold ACRIS/1031 emails that
 // have no Lead row — durably suppressable WITHOUT a new table or Neon migration: the
 // unsubscribe route already writes that AuditEvent keyed by the normalized email.
-// We deliberately do NOT filter on `entity_type` when reading historical rows, because
-// existing rows use entity_type = 'lead' even when no Lead row exists.
+// Reads scope `entity_type = 'lead'` (see UNSUBSCRIBE_ENTITY_TYPE below): the writer
+// stamps every opt-out row with that entity_type EVEN when no Lead row exists, so
+// scoping to it hits the existing (entity_type, entity_id) index while still matching
+// non-Lead opt-outs — it does NOT narrow the match to real Lead rows.
 //
 // FAIL-CLOSED: every lookup here PROPAGATES database errors. Commercial callers MUST
 // treat a lookup failure as "block the send" — never as "not suppressed".
