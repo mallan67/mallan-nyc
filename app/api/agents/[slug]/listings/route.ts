@@ -238,6 +238,13 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
             status: true,
           },
         },
+        // All-status existence signal for dbListingToPublicDTO's media authority:
+        // this query selects ACTIVE rows only, so without _count a Mallan exclusive
+        // whose relational photos were all deleted would look "never imported" and
+        // resurrect deleted photos from the legacy JSON. _count keeps "never
+        // imported" vs "all deleted" distinguishable with no extra query / no N+1
+        // (Codex review, 2026-07-16).
+        _count: { select: { listing_media: true } },
         media: true,
         // Phase B: typed agent columns so dbListingToPublicDTO resolves office TYPED-FIRST
         // (otherwise this public agent-page surface silently always falls back to agent_info JSON).

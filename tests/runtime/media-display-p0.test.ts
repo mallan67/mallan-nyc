@@ -273,12 +273,26 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
     expect(dto.media.length).toBe(0);
   });
 
-  it('no rows ever imported (listing_media empty) → legacy JSON fallback still works', () => {
+  it('no rows ever imported (PROVABLY, via _count=0) → legacy JSON fallback still works', () => {
+    // Codex #1 hardening: a Mallan exclusive (SL-0004) falls back to its legacy
+    // JSON only when existence is PROVABLY zero. The caller supplies that via the
+    // all-status `_count` signal; without it, existence is unknown and the DTO
+    // fails closed (no resurrection) — see the companion assertion below.
+    const dto = dbListingToPublicDTO(makeListing({
+      media: [{ url: 'https://r2.dev/listings/SL-0004/legacy.webp', type: 'photo' }],
+      listing_media: [],
+      _count: { listing_media: 0 },
+    }));
+    expect(dto.media.length).toBe(1);
+  });
+
+  it('no _count + empty active rows on a Mallan exclusive → FAIL-CLOSED (no legacy resurrection)', () => {
+    // The active-only caller that forgets _count must NOT resurrect deleted media.
     const dto = dbListingToPublicDTO(makeListing({
       media: [{ url: 'https://r2.dev/listings/SL-0004/legacy.webp', type: 'photo' }],
       listing_media: [],
     }));
-    expect(dto.media.length).toBe(1);
+    expect(dto.media).toEqual([]);
   });
 
   it('one active + one deleted row → only the active surfaces (no deleted leak)', () => {
