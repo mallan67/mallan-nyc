@@ -25,9 +25,10 @@ function makeDb(opts: { lead?: LeadRow; audit?: AuditRow } = {}): SuppressionDb 
   const createCalls: unknown[] = [];
   return {
     createCalls,
-    lead: { findUnique: async () => opts.lead ?? null },
+    lead: { findUnique: async () => opts.lead ?? null, findMany: async () => [] },
     auditEvent: {
       findFirst: async () => opts.audit ?? null,
+      findMany: async () => [],
       create: async (a: unknown) => {
         createCalls.push(a);
         return {};
@@ -78,59 +79,63 @@ describe('findEmailSuppression — both sources', () => {
 describe('findEmailSuppression — FAIL CLOSED (propagates DB errors)', () => {
   it('a Lead lookup failure propagates (never returns "not suppressed")', async () => {
     const db: SuppressionDb = {
-      lead: { findUnique: async () => { throw new Error('Neon timeout'); } },
-      auditEvent: { findFirst: async () => null, create: async () => ({}) },
+      lead: { findUnique: async () => { throw new Error('Neon timeout'); }, findMany: async () => [] },
+      auditEvent: { findFirst: async () => null, findMany: async () => [], create: async () => ({}) },
     };
     await expect(findEmailSuppression('a@x.com', db)).rejects.toThrow(/timeout/i);
   });
 
   it('an AuditEvent lookup failure propagates', async () => {
     const db: SuppressionDb = {
-      lead: { findUnique: async () => null },
-      auditEvent: { findFirst: async () => { throw new Error('prisma down'); }, create: async () => ({}) },
+      lead: { findUnique: async () => null, findMany: async () => [] },
+      auditEvent: { findFirst: async () => { throw new Error('prisma down'); }, findMany: async () => [], create: async () => ({}) },
     };
     await expect(findEmailSuppression('a@x.com', db)).rejects.toThrow(/prisma/i);
   });
 });
 
-describe('filterSuppressedEmails', () => {
-  it('partitions non-Lead (AuditEvent-only) recipients into suppressed[]', async () => {
-    // suppress only cold@acris.com via an AuditEvent; safe@x.com passes.
+describe('filterSuppressedEmails — TWO batch queries, correct partition', () => {
+  it('partitions Lead-only, AuditEvent-only, and BOTH-source opt-outs; passes the rest (deduped/normalized)', async () => {
+    const leadFindMany = jest.fn(async () => [
+      { email: 'leadonly@x.com', last_unsubscribe_at: T1 },
+      { email: 'both@x.com', last_unsubscribe_at: T1 },
+    ]);
+    const auditFindMany = jest.fn(async () => [
+      { entity_id: 'auditonly@x.com', created_at: T2 }, // NON-Lead opt-out
+      { entity_id: 'both@x.com', created_at: T2 },
+    ]);
     const db: SuppressionDb = {
-      lead: { findUnique: async () => null },
-      auditEvent: {
-        findFirst: async (args: unknown) => {
-          const where = (args as { where?: { entity_id?: string } }).where;
-          return where?.entity_id === 'cold@acris.com' ? { created_at: T2 } : null;
-        },
-        create: async () => ({}),
-      },
+      lead: { findUnique: async () => null, findMany: leadFindMany },
+      auditEvent: { findFirst: async () => null, findMany: auditFindMany, create: async () => ({}) },
     };
     const { allowed, suppressed } = await filterSuppressedEmails(
-      ['Cold@ACRIS.com', 'safe@x.com', 'cold@acris.com'], // dup + mixed case
+      ['LeadOnly@x.com', 'AuditOnly@x.com', 'both@x.com', 'safe@x.com', 'safe@x.com'], // mixed case + dup
       db,
     );
-    expect(suppressed).toEqual(['cold@acris.com']); // deduped + normalized
+    expect([...suppressed].sort()).toEqual(['auditonly@x.com', 'both@x.com', 'leadonly@x.com']);
     expect(allowed).toEqual(['safe@x.com']);
+    // EXACTLY two batch reads — one lead.findMany + one auditEvent.findMany.
+    expect(leadFindMany).toHaveBeenCalledTimes(1);
+    expect(auditFindMany).toHaveBeenCalledTimes(1);
   });
 
-  it('removes Lead-based opt-outs too', async () => {
+  it('a 236-address list performs EXACTLY two suppression reads (no N+1 burst)', async () => {
+    const leadFindMany = jest.fn(async () => []);
+    const auditFindMany = jest.fn(async () => []);
     const db: SuppressionDb = {
-      lead: { findUnique: async (args: unknown) => {
-        const where = (args as { where?: { email?: string } }).where;
-        return where?.email === 'gone@x.com' ? { last_unsubscribe_at: T1 } : null;
-      } },
-      auditEvent: { findFirst: async () => null, create: async () => ({}) },
+      lead: { findUnique: async () => null, findMany: leadFindMany },
+      auditEvent: { findFirst: async () => null, findMany: auditFindMany, create: async () => ({}) },
     };
-    const { allowed, suppressed } = await filterSuppressedEmails(['gone@x.com', 'ok@x.com'], db);
-    expect(suppressed).toEqual(['gone@x.com']);
-    expect(allowed).toEqual(['ok@x.com']);
+    const emails = Array.from({ length: 236 }, (_, i) => `r${i}@acris.com`);
+    await filterSuppressedEmails(emails, db);
+    expect(leadFindMany).toHaveBeenCalledTimes(1);
+    expect(auditFindMany).toHaveBeenCalledTimes(1);
   });
 
-  it('FAILS CLOSED: a lookup failure blocks the whole dry-run (rejects, not "all safe")', async () => {
+  it('FAILS CLOSED: a batch-lookup failure blocks the dry-run (rejects, not "all safe")', async () => {
     const db: SuppressionDb = {
-      lead: { findUnique: async () => { throw new Error('Neon unavailable'); } },
-      auditEvent: { findFirst: async () => null, create: async () => ({}) },
+      lead: { findUnique: async () => null, findMany: async () => { throw new Error('Neon unavailable'); } },
+      auditEvent: { findFirst: async () => null, findMany: async () => [], create: async () => ({}) },
     };
     await expect(filterSuppressedEmails(['a@x.com', 'b@x.com'], db)).rejects.toThrow(/unavailable/i);
   });

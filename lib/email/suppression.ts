@@ -32,12 +32,20 @@ export interface EmailSuppression {
 export interface SuppressionDb {
   lead: {
     findUnique(args: unknown): Promise<{ last_unsubscribe_at: Date | null } | null>;
+    findMany(args: unknown): Promise<{ email: string; last_unsubscribe_at: Date | null }[]>;
   };
   auditEvent: {
     findFirst(args: unknown): Promise<{ created_at: Date | null } | null>;
+    findMany(args: unknown): Promise<{ entity_id: string; created_at: Date | null }[]>;
     create(args: unknown): Promise<unknown>;
   };
 }
+
+// All email_unsubscribed rows are written with entity_type = 'lead' (even when no Lead
+// row exists), so scoping reads to it lets the lookups hit the EXISTING AuditEvent index
+// on (entity_type, entity_id) — instead of scanning by (action, entity_id), which has no
+// index — while still matching non-Lead opt-outs.
+const UNSUBSCRIBE_ENTITY_TYPE = "lead";
 
 const defaultDb = prisma as unknown as SuppressionDb;
 
@@ -60,8 +68,9 @@ export async function findEmailSuppression(
   const [lead, audit] = await Promise.all([
     db.lead.findUnique({ where: { email: e }, select: { last_unsubscribe_at: true } }),
     db.auditEvent.findFirst({
-      // No entity_type filter — historical rows use 'lead' even for non-Lead emails.
-      where: { action: "email_unsubscribed", entity_id: e },
+      // entity_type scoped to hit the (entity_type, entity_id) index; the writer always
+      // uses 'lead' even for non-Lead emails, so this still matches non-Lead opt-outs.
+      where: { action: "email_unsubscribed", entity_type: UNSUBSCRIBE_ENTITY_TYPE, entity_id: e },
       orderBy: { created_at: "desc" },
       select: { created_at: true },
     }),
@@ -86,20 +95,43 @@ export async function isEmailSuppressed(email: string, db: SuppressionDb = defau
 
 /**
  * Partition a list of emails into `allowed` vs `suppressed` (deduped + normalized).
- * THROWS on any DB error — a suppression-lookup failure must block campaign
- * preparation, never return every recipient as safe.
+ *
+ * Uses exactly TWO batch queries total — one `lead.findMany` + one `auditEvent.findMany`
+ * over the whole normalized list — never one lookup per recipient. (A per-recipient
+ * approach would fire ~2×N queries — ~472 for a 236-address campaign — the exact Neon
+ * activity we're eliminating.) THROWS on any DB error: a suppression-lookup failure must
+ * BLOCK campaign preparation, never return every recipient as safe.
  */
 export async function filterSuppressedEmails(
   emails: string[],
   db: SuppressionDb = defaultDb,
 ): Promise<{ allowed: string[]; suppressed: string[] }> {
   const unique = Array.from(new Set(emails.map(normalizeEmail).filter(Boolean)));
-  const resolved = await Promise.all(
-    unique.map(async (e) => ({ email: e, hit: await findEmailSuppression(e, db) })),
-  );
+  if (unique.length === 0) return { allowed: [], suppressed: [] };
+
+  // Two batch reads; a rejection propagates so the whole dry-run fails closed.
+  const [leadOptOuts, auditOptOuts] = await Promise.all([
+    db.lead.findMany({
+      where: { email: { in: unique }, last_unsubscribe_at: { not: null } },
+      select: { email: true, last_unsubscribe_at: true },
+    }),
+    db.auditEvent.findMany({
+      where: {
+        action: "email_unsubscribed",
+        entity_type: UNSUBSCRIBE_ENTITY_TYPE, // indexed (entity_type, entity_id)
+        entity_id: { in: unique },
+      },
+      select: { entity_id: true, created_at: true },
+    }),
+  ]);
+
+  const suppressedSet = new Set<string>();
+  for (const l of leadOptOuts) if (l.last_unsubscribe_at) suppressedSet.add(normalizeEmail(l.email));
+  for (const a of auditOptOuts) suppressedSet.add(normalizeEmail(a.entity_id));
+
   const allowed: string[] = [];
   const suppressed: string[] = [];
-  for (const { email, hit } of resolved) (hit.suppressed ? suppressed : allowed).push(email);
+  for (const e of unique) (suppressedSet.has(e) ? suppressed : allowed).push(e);
   return { allowed, suppressed };
 }
 
