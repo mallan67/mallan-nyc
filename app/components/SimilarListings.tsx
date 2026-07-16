@@ -34,6 +34,8 @@ interface SimilarListingsProps {
   postalCode: string;
   neighborhood?: string;
   currentListingId: string;
+  /** Subject ownership class (Condo/Co-op/Condop) — comps are matched to the same class. */
+  propertyType?: string;
 }
 
 function formatPrice(price: number, isRental: boolean): string {
@@ -116,6 +118,7 @@ export default function SimilarListings({
   postalCode,
   neighborhood,
   currentListingId,
+  propertyType,
 }: SimilarListingsProps) {
   const [listings, setListings] = useState<SimilarListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,6 +133,7 @@ export default function SimilarListings({
       excludeId: currentListingId,
     });
     if (neighborhood) params.set('neighborhood', neighborhood);
+    if (propertyType) params.set('propertyType', propertyType);
 
     fetch(`/api/listings/similar?${params}`)
       .then((r) => r.json())
@@ -138,7 +142,7 @@ export default function SimilarListings({
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [listingType, beds, listPrice, postalCode, neighborhood, currentListingId]);
+  }, [listingType, beds, listPrice, postalCode, neighborhood, currentListingId, propertyType]);
 
   const scrollBy = useCallback((direction: 'left' | 'right') => {
     if (!scrollRef.current) return;

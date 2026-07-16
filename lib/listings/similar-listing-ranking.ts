@@ -3,6 +3,8 @@ export interface SimilarityTarget {
   price: number;
   postalCode: string;
   neighborhood?: string;
+  /** Ownership class of the subject (Condo/Co-op/Condop, raw or mapped). Comps must match it. */
+  ownership?: string | null;
 }
 
 export interface SimilarityCandidate {
@@ -10,10 +12,32 @@ export interface SimilarityCandidate {
   price: number;
   postalCode?: string | null;
   neighborhood?: string | null;
+  /** Candidate ownership class (raw CommonInterest / mapped propertyType). */
+  ownership?: string | null;
 }
 
 function normalize(value: string | null | undefined): string {
   return (value || '').trim().toLowerCase();
+}
+
+/** Collapse the many ownership spellings to a canonical class. Compare a condo to condos, a co-op to
+ *  co-ops — they are different ownership/financing structures and are NOT interchangeable comps. */
+export function normalizeOwnership(value: string | null | undefined): '' | 'condo' | 'coop' | 'condop' {
+  const v = normalize(value);
+  if (!v) return '';
+  if (v.includes('condop')) return 'condop';            // must precede 'condo' (condop contains "condo")
+  if (v.includes('coop') || v.includes('co-op') || v.includes('cooperative')) return 'coop';
+  if (v.includes('condo') || v.includes('condominium')) return 'condo';
+  return '';
+}
+
+/** True when ownership classes are compatible. Unknown on EITHER side → permissive (never drop a
+ *  candidate just because its type is unlabeled); two KNOWN, differing classes → not a match. */
+export function isOwnershipMatch(target: string | null | undefined, candidate: string | null | undefined): boolean {
+  const t = normalizeOwnership(target);
+  const c = normalizeOwnership(candidate);
+  if (!t || !c) return true;
+  return t === c;
 }
 
 export function getSimilarityPriceBand(price: number, isRental: boolean): { min: number; max: number } {
@@ -33,6 +57,8 @@ export function isBedroomMatch(targetBeds: number, candidateBeds: number | null)
 
 export function similarityScore(target: SimilarityTarget, candidate: SimilarityCandidate): number {
   if (!isBedroomMatch(target.beds, candidate.beds)) return Number.POSITIVE_INFINITY;
+  // Ownership class is a HARD gate (condo↔condo, co-op↔co-op) — excluded, not merely down-ranked.
+  if (!isOwnershipMatch(target.ownership, candidate.ownership)) return Number.POSITIVE_INFINITY;
   if (!Number.isFinite(candidate.price) || candidate.price <= 0 || target.price <= 0) {
     return Number.POSITIVE_INFINITY;
   }

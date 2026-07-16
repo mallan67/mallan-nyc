@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
   const postalCode = searchParams.get('postalCode') || '';
   const excludeId = searchParams.get('excludeId') || '';
   const neighborhood = searchParams.get('neighborhood') || '';
+  // Subject ownership class (Condo/Co-op/Condop) — comps are matched to the same class.
+  const propertyType = searchParams.get('propertyType') || '';
 
   if (!postalCode || !price) {
     return NextResponse.json({ listings: [] });
@@ -78,6 +80,7 @@ export async function GET(request: NextRequest) {
       price,
       postalCode,
       neighborhood: neighborhood || undefined,
+      ownership: propertyType || undefined,
     };
 
     // Fetch the excluded listing's address atoms BEFORE the similar query.
@@ -141,6 +144,7 @@ export async function GET(request: NextRequest) {
           price: Number(l.list_price),
           postalCode: a?.PostalCode ?? null,
           neighborhood: l.neighborhood ?? null,
+          ownership: ((l.features as Record<string, unknown>)?.CommonInterest as string) || l.property_sub_type || l.property_type || null,
         };
       }),
       target,
@@ -237,13 +241,19 @@ export async function GET(request: NextRequest) {
     // Build filter: same ZIP, similar price, active, same type
     // Do NOT use $expand=Media — Trestle often rejects it with 400.
     // Instead, fetch media separately per listing after getting property results.
-    const zipFilter = `PostalCode eq '${postalCode}' and MlsStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
+    // Status filter MUST be StandardStatus, NOT MlsStatus: Cotality/RLS suppresses MlsStatus at the
+    // provider level for $filter/$orderby ("field 'MlsStatus' cannot be used for filtering or ordering
+    // queries" → HTTP 400), which silently killed this entire live-feed path (verified live 2026-07-16).
+    const zipFilter = `PostalCode eq '${postalCode}' and StandardStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
 
     const params = new URLSearchParams({
       $filter: zipFilter,
       $select: selectFields,
-      $orderby: 'ListPrice desc',
-      $top: '7',
+      // Fetch the FULL in-band candidate pool (not just the 7 most expensive) so rankSimilarListings
+      // can pick the closest bedroom-matched comps. With $top: 7 + ListPrice desc the query only
+      // returned the priciest in-band units, starving the ranker of the nearby-priced studios.
+      $orderby: 'ListPrice asc',
+      $top: '50',
     });
 
     const zipAbort = new AbortController();
@@ -266,12 +276,12 @@ export async function GET(request: NextRequest) {
     // If ZIP-based search returned fewer than 4 results, widen to neighborhood
     if (allResults.length < 4 && neighborhood) {
       const escapedNeighborhood = neighborhood.replace(/'/g, "''");
-      const neighborhoodFilter = `CityRegion eq '${escapedNeighborhood}' and MlsStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
+      const neighborhoodFilter = `CityRegion eq '${escapedNeighborhood}' and StandardStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
       const nhParams = new URLSearchParams({
         $filter: neighborhoodFilter,
         $select: selectFields,
-        $orderby: 'ListPrice desc',
-        $top: '10',
+        $orderby: 'ListPrice asc',
+        $top: '50',
       });
       try {
         const nhAbort = new AbortController();
@@ -308,6 +318,7 @@ export async function GET(request: NextRequest) {
       price: number;
       postalCode: string | null;
       neighborhood: string | null;
+      ownership: string | null;
     }[] = allResults
       .filter((r: Record<string, unknown>) => {
         const id = String(r.ListingId || r.ListingKey || '');
@@ -319,6 +330,7 @@ export async function GET(request: NextRequest) {
         price: Number(r.ListPrice || 0),
         postalCode: r.PostalCode != null ? String(r.PostalCode) : null,
         neighborhood: r.CityRegion != null ? String(r.CityRegion) : null,
+        ownership: r.CommonInterest != null ? String(r.CommonInterest) : null,
       }));
     const filtered = rankSimilarListings(trestleCandidates, target, 6).map((c) => c.row);
 

@@ -14,6 +14,8 @@ import {
   isBedroomMatch,
   similarityScore,
   rankSimilarListings,
+  normalizeOwnership,
+  isOwnershipMatch,
   type SimilarityTarget,
   type SimilarityCandidate,
 } from '@/lib/listings/similar-listing-ranking';
@@ -147,6 +149,28 @@ describe('GET /api/listings/similar wires the ranking helper', () => {
     expect(src).toMatch(/checkDistributionGates\(r\)\.displayable/);  // Cotality RLS gate
     expect(src).toMatch(/maskAddressIfRestricted/);                   // address suppression
   });
+
+  it('filters Cotality by StandardStatus, NOT the provider-suppressed MlsStatus (which 400s the feed)', () => {
+    // MlsStatus is suppressed at the RLS provider level for $filter/$orderby → HTTP 400, which
+    // silently killed the whole live-feed path. Both Cotality query sites must use StandardStatus.
+    const std = src.match(/StandardStatus eq 'Active'/g) || [];
+    expect(std.length).toBeGreaterThanOrEqual(2); // ZIP query + neighborhood-widening query
+    expect(src).not.toMatch(/MlsStatus eq 'Active'/); // never filter on MlsStatus
+  });
+
+  it('fetches a WIDE in-band Cotality candidate pool so the ranker can reach nearby-priced comps', () => {
+    // $top: 7 + ListPrice desc only returned the priciest in-band units, starving the ranker of the
+    // closer/cheaper studios. Fetch the full band and let rankSimilarListings pick the closest.
+    expect(src).not.toMatch(/\$top: '7'/);
+    expect(src).toMatch(/\$top: '50'/);
+  });
+
+  it('threads ownership class through the target and BOTH candidate sets (condo↔condo)', () => {
+    expect(src).toMatch(/searchParams\.get\('propertyType'\)/); // reads subject ownership
+    expect(src).toMatch(/ownership: propertyType/);             // onto the target
+    const owned = src.match(/ownership:/g) || [];
+    expect(owned.length).toBeGreaterThanOrEqual(3);             // target + DB candidate + Cotality candidate
+  });
 });
 
 describe('regression — #4D case (400 E 90th St, Apt 4D): studio never returns 2-bedroom comps', () => {
@@ -195,5 +219,46 @@ describe('regression — deterministic, stable ordering on score ties', () => {
       { id: 'c', beds: 2, price: 1_000_000, postalCode: '10011', neighborhood: 'Chelsea' },
     ];
     expect(rankSimilarListings(tied, target).map((c) => c.id)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('ownership class matching (condo↔condo, co-op↔co-op)', () => {
+  it('normalizeOwnership collapses the spellings', () => {
+    expect(normalizeOwnership('Condominium')).toBe('condo');
+    expect(normalizeOwnership('Condo')).toBe('condo');
+    expect(normalizeOwnership('StockCooperative')).toBe('coop');
+    expect(normalizeOwnership('Co-op')).toBe('coop');
+    expect(normalizeOwnership('Condop')).toBe('condop'); // must NOT be misread as condo
+    expect(normalizeOwnership('Residential')).toBe('');
+    expect(normalizeOwnership(null)).toBe('');
+  });
+  it('isOwnershipMatch: same matches, different KNOWN classes do not, unknown is permissive', () => {
+    expect(isOwnershipMatch('Condominium', 'Condo')).toBe(true);
+    expect(isOwnershipMatch('Condominium', 'StockCooperative')).toBe(false);
+    expect(isOwnershipMatch('Co-op', 'Condo')).toBe(false);
+    expect(isOwnershipMatch('Condo', null)).toBe(true);
+    expect(isOwnershipMatch(null, 'Co-op')).toBe(true);
+  });
+  it('similarityScore excludes an ownership mismatch (Infinity)', () => {
+    const t: SimilarityTarget = { beds: 0, price: 560_000, postalCode: '10128', ownership: 'Condominium' };
+    expect(similarityScore(t, { beds: 0, price: 560_000, postalCode: '10128', ownership: 'StockCooperative' })).toBe(Number.POSITIVE_INFINITY);
+    expect(Number.isFinite(similarityScore(t, { beds: 0, price: 560_000, postalCode: '10128', ownership: 'Condominium' }))).toBe(true);
+  });
+});
+
+describe('regression — #4D is a CONDO: comps are condos only, no co-ops', () => {
+  type C = SimilarityCandidate & { id: string };
+  it('a condo studio returns only condo studios; co-op studios are excluded', () => {
+    const target: SimilarityTarget = { beds: 0, price: 560_000, postalCode: '10128', neighborhood: 'Upper East Side', ownership: 'Condo' };
+    const candidates: C[] = [
+      { id: 'condo539', beds: 0, price: 539_000, postalCode: '10128', ownership: 'Condominium' },
+      { id: 'coop479',  beds: 0, price: 479_000, postalCode: '10128', ownership: 'StockCooperative' },
+      { id: 'condo599', beds: 0, price: 599_000, postalCode: '10128', ownership: 'Condominium' },
+      { id: 'coop620',  beds: 0, price: 620_000, postalCode: '10128', ownership: 'StockCooperative' },
+    ];
+    const ids = rankSimilarListings(candidates, target).map((c) => c.id);
+    expect(ids).toEqual(['condo539', 'condo599']); // closest condos; co-ops excluded entirely
+    expect(ids).not.toContain('coop479');
+    expect(ids).not.toContain('coop620');
   });
 });
