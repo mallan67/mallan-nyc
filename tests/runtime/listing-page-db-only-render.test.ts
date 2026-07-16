@@ -62,14 +62,24 @@ describe('listing page cannot reach the live Cotality/Trestle feed', () => {
 
 describe('listing page renders from the synchronized Neon copy as ISR', () => {
   const src = read(PAGE);
+  // Crawl-cache P0: the listing row read moved into the shared finder (lib/listings/
+  // listing-lookup.ts), used by BOTH the full render and the minimal canonical-redirect
+  // resolver. Still a Prisma/synced-DB read — pin it in its new home.
+  const lookupSrc = read('lib/listings/listing-lookup.ts');
 
   it('reads the listing from Prisma (the synced DB)', () => {
+    // The page still imports Prisma (exclusive-agent lookup) and drives the listing read
+    // through the shared finder; the finder issues the prisma.listing DB read.
     expect(src).toMatch(/from ['"]@\/lib\/prisma['"]/);
-    expect(src).toMatch(/prisma\.listing\.(findUnique|findFirst|findMany)/);
+    expect(src).toMatch(/findListingRow/);
+    expect(lookupSrc).toMatch(/prisma\.listing\.(findUnique|findFirst|findMany)/);
   });
 
-  it('keeps ISR revalidation enabled (so the CDN can cache the page)', () => {
-    expect(src).toMatch(/export const revalidate = 300/);
+  it('keeps ISR revalidation enabled with a long safety TTL (crawl-cache P0)', () => {
+    // Was 300 (5 min); crawl-cache P0 lengthened it to 3600 (1 h) — a listing’s cache no
+    // longer expires every 5 min, and change-driven revalidation keeps it fresh. Still
+    // well inside the REBNY §2.05 24-hour terminal-removal window.
+    expect(src).toMatch(/export const revalidate = 3600/);
   });
 
   it('exports generateStaticParams so the dynamic route enters the ISR pipeline', () => {

@@ -351,6 +351,14 @@ describe('detail page hardening (source-pin) — Maya audit follow-ups', () => {
     path.resolve(__dirname, '../../app/listing/[...slug]/page.tsx'),
     'utf8',
   );
+  // Crawl-cache P0: the row-lookup strategy cascade + address validator moved verbatim
+  // out of page.tsx into the shared finder so the minimal canonical-redirect resolver and
+  // the full render use ONE matching implementation. The address-matching guards below now
+  // pin that shared module (same logic, new home — not silenced).
+  const LOOKUP = fs.readFileSync(
+    path.resolve(__dirname, '../../lib/listings/listing-lookup.ts'),
+    'utf8',
+  );
 
   test('generateMetadata canonical URL uses buildCanonicalListingPath (not raw listing.slug)', () => {
     // The og:url, twitter URL, and alternates.canonical must match the
@@ -361,25 +369,25 @@ describe('detail page hardening (source-pin) — Maya audit follow-ups', () => {
     expect(PAGE).not.toMatch(/canonicalUrl = `https:\/\/mallan\.nyc\/listing\/\$\{listing\.slug\}`/);
   });
 
-  test('fetchFromDB Strategy 2 does NOT short-circuit on candidates.length === 1', () => {
+  test('listing lookup Strategy 2 does NOT short-circuit on candidates.length === 1', () => {
     // The legacy `if (candidates.length === 1) dbListing = candidates[0];`
     // shortcut bypassed unit/direction matching. Must be replaced by a
     // validator that applies to every candidate, including the single-
-    // candidate case.
-    expect(PAGE).not.toMatch(/if\s*\(\s*candidates\.length\s*===\s*1\s*\)\s*\{[\s\S]{0,60}?dbListing\s*=\s*candidates\[0\]/);
-    expect(PAGE).toMatch(/matchesParsedAddress/);
+    // candidate case. (Now in the shared finder.)
+    expect(LOOKUP).not.toMatch(/if\s*\(\s*candidates\.length\s*===\s*1\s*\)\s*\{[\s\S]{0,60}?dbListing\s*=\s*candidates\[0\]/);
+    expect(LOOKUP).toMatch(/matchesParsedAddress/);
   });
 
-  test('fetchFromDB validator enforces UnitNumber match when slug has unit', () => {
-    expect(PAGE).toMatch(/if \(parsedUnit && dbUnit !== parsedUnit\) return false;/);
+  test('listing lookup validator enforces UnitNumber match when slug has unit', () => {
+    expect(LOOKUP).toMatch(/if \(parsedUnit && dbUnit !== parsedUnit\) return false;/);
   });
 
-  test('fetchFromDB validator enforces StreetDirPrefix match when slug has direction', () => {
-    expect(PAGE).toMatch(/if \(parsedDir\)[\s\S]{0,300}?if \(!dirMatch\) return false;/);
+  test('listing lookup validator enforces StreetDirPrefix match when slug has direction', () => {
+    expect(LOOKUP).toMatch(/if \(parsedDir\)[\s\S]{0,300}?if \(!dirMatch\) return false;/);
   });
 
-  test('fetchFromDB broad fallback also uses the same validator (includes unit check)', () => {
-    expect(PAGE).toMatch(/broadCandidates\.find\(matchesParsedAddress\)/);
+  test('listing lookup broad fallback also uses the same validator (includes unit check)', () => {
+    expect(LOOKUP).toMatch(/broadCandidates\.find\(\(c\) => matchesParsedAddress\(parsed, c\)\)/);
   });
 });
 
