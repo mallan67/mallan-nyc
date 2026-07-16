@@ -5,9 +5,10 @@
  * save and never reached the public /open-houses page or the listing detail banner.
  *
  * Fix: open houses are stored as `showing` rows tied to the listing via POST /api/crm/showings,
- * loaded on edit (GET), and removed via PATCH status='cancelled'. Only PUBLIC events display
- * publicly (type='openhouse'); Broker/By-Appointment are internal (type='brokersopen'). Coming
- * Soon blocks scheduling (REBNY UCBA Art. I §16). Source-structure assertions (no jsdom).
+ * loaded on edit (GET), and removed via PATCH status='cancelled'. PUBLIC events display publicly
+ * (type='openhouse') — Public, Virtual, AND By Appointment (a public open house that requires an
+ * RSVP, 2026-07-16); only Broker Only is internal (type='brokersopen'). Coming Soon blocks
+ * scheduling (REBNY UCBA Art. I §16). Source-structure assertions (no jsdom).
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -34,11 +35,21 @@ describe('sale form — open house PERSISTS via the showing table', () => {
     expect(s).toMatch(/Save the listing first/);
   });
 
-  it('only PUBLIC events map to the public showing type (openhouse); Broker/Appt are internal', () => {
+  it('Public/Virtual/ByAppointment map to the public showing type (openhouse); only BrokerOnly is internal', () => {
     const s = fn('function _ohShowingType(');
     expect(s).toMatch(/case 'Public':\s*return \{ showingType: 'openhouse',\s*isPublic: true/);
+    expect(s).toMatch(/case 'Virtual':\s*return \{ showingType: 'openhouse',\s*isPublic: true/);
+    // By Appointment is a PUBLIC open house that requires an RSVP (2026-07-16) — no longer internal.
+    expect(s).toMatch(/case 'ByAppointment':\s*return \{ showingType: 'openhouse',\s*isPublic: true/);
+    // Broker Only remains the ONLY internal type.
     expect(s).toMatch(/case 'BrokerOnly':\s*return \{ showingType: 'brokersopen',\s*isPublic: false/);
-    expect(s).toMatch(/case 'ByAppointment':\s*return \{ showingType: 'brokersopen',\s*isPublic: false/);
+  });
+
+  it('saveSaleOpenHouse persists the form type as a [Type] notes marker (recovers By Appointment)', () => {
+    const s = fn('async function saveSaleOpenHouse()');
+    // fullNotes = '[' + type + '] ' + notes  → e.g. "[ByAppointment] ..." — the designation survives
+    // reload and is what the public API + card resolver key off of for the "· By Appointment" label.
+    expect(s).toMatch(/\[' \+ type \+ '\]/);
   });
 });
 

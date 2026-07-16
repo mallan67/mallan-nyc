@@ -65,6 +65,64 @@ export function formatEasternTime(time: string | null | undefined): string {
   return time;
 }
 
+// ── Canonical appointment-type resolver (single source of truth) ─────────────
+// One helper decides the consumer-facing PUBLIC open-house designation, so the API, the shared card
+// resolver, the /open-houses cards and the listing sidebar all agree. Appointment-only is detected
+// from the ACTUAL production data contract (verified live against Cotality 2026-07-16):
+//   - local sale-form showings persist a `[ByAppointment]` marker at the START of showing.notes
+//     (saveSaleOpenHouse in public/crm/SALE-FORM-REDESIGN.html);
+//   - Cotality OpenHouse rows are OpenHouseType='Public' WITH the boolean AppointmentRequiredYN=true
+//     (NOT OpenHouseType='Private'); OpenHouseRemarks free-text is a defensive fallback.
+// Broker/Office/Private events are excluded UPSTREAM (feed `OpenHouseType eq 'Public'` filter + the
+// local `type='openhouse'` gate), so this only ever chooses between the two PUBLIC designations.
+export type PublicOpenHouseType = 'Public' | 'By Appointment';
+
+/** True when the raw open-house signals mark an appointment-only (but still public) event. */
+export function isByAppointment(input: {
+  notes?: string | null;
+  appointmentRequired?: boolean | null;
+  remarks?: string | null;
+}): boolean {
+  if (input.appointmentRequired === true) return true;
+  if (/^\s*\[ByAppointment\]/i.test(String(input.notes || ''))) return true;
+  if (/\bby\s+appoint?ment\b|\bby\s+appt\b/i.test(String(input.remarks || ''))) return true;
+  return false;
+}
+
+/** Canonical public open-house designation: 'By Appointment' or 'Public'. */
+export function resolvePublicOpenHouseType(input: {
+  notes?: string | null;
+  appointmentRequired?: boolean | null;
+  remarks?: string | null;
+}): PublicOpenHouseType {
+  return isByAppointment(input) ? 'By Appointment' : 'Public';
+}
+
+/** Parse "h:mm AM/PM" (Eastern, as produced by formatEasternTime) to minutes-since-midnight for
+ *  chronological tie-breaking within a day. Unparseable → end-of-day so a missing time never sorts
+ *  BEFORE a real one. */
+export function parseTimeToMinutes(t: string | null | undefined): number {
+  const m = String(t || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!m) return 24 * 60;
+  let h = parseInt(m[1], 10) % 12;
+  if (/pm/i.test(m[3] || '')) h += 12;
+  return h * 60 + parseInt(m[2], 10);
+}
+
+/** Chronological comparator for open houses: earliest calendar date first (YYYY-MM-DD is
+ *  lexicographically sortable and timezone-safe), then earliest start time. On an exact same-slot
+ *  tie, prefer the 'By Appointment' designation so a generic 'Public' twin can never erase it.
+ *  Negative → `a` is earlier/preferred. */
+export function compareChronological(a: NextOpenHouse, b: NextOpenHouse): number {
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+  const am = parseTimeToMinutes(a.startTime);
+  const bm = parseTimeToMinutes(b.startTime);
+  if (am !== bm) return am - bm;
+  const aAppt = a.type === 'By Appointment' ? 0 : 1;
+  const bAppt = b.type === 'By Appointment' ? 0 : 1;
+  return aAppt - bAppt;
+}
+
 /** Normalized address key for twin-safe matching: streetNumber+streetName+unitNumber, lowercased,
  *  alphanumeric only, with street-type words (street/ave/…) and directionals dropped so
  *  "400 E 90TH Street #4D" and "400 90th St, 4D" collapse to the same key. Empty string if no usable
@@ -177,7 +235,7 @@ export interface NextOpenHouse {
   date: string;       // "2026-06-28"
   startTime: string;  // "12:00 PM" (Eastern)
   endTime: string;    // "1:00 PM" (Eastern)
-  type: string;       // "Public" (only public events are ever surfaced)
+  type: string;       // canonical public designation: "Public" | "By Appointment" (never Broker/Private)
 }
 
 interface UpcomingEntry extends NextOpenHouse {
@@ -221,7 +279,10 @@ async function fetchTrestleUpcoming(): Promise<UpcomingEntry[]> {
 
     const params = new URLSearchParams();
     params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
-    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType');
+    // AppointmentRequiredYN + OpenHouseRemarks carry the "By Appointment" signal (see
+    // resolvePublicOpenHouseType). Verified live: appt-only Mallan open houses are Public with
+    // AppointmentRequiredYN=true, not a distinct OpenHouseType.
+    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,AppointmentRequiredYN,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '50');
     // Property expand: gate fields + address for the twin-safe address key.
@@ -246,7 +307,10 @@ async function fetchTrestleUpcoming(): Promise<UpcomingEntry[]> {
         date: String(r.OpenHouseDate || '').split('T')[0],
         startTime: formatEasternTime(r.OpenHouseStartTime as string),
         endTime: formatEasternTime(r.OpenHouseEndTime as string),
-        type: 'Public',
+        type: resolvePublicOpenHouseType({
+          appointmentRequired: r.AppointmentRequiredYN as boolean | null,
+          remarks: r.OpenHouseRemarks as string | null,
+        }),
         source: 'trestle',
       });
     }
@@ -308,7 +372,9 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
         date: s.date.toISOString().split('T')[0],
         startTime: timeParts[0] || '',
         endTime: timeParts[1] || '',
-        type: 'Public',
+        // Sale-form By-Appointment events persist as type='openhouse' with a `[ByAppointment]` notes
+        // marker (saveSaleOpenHouse); resolve that marker to the public designation.
+        type: resolvePublicOpenHouseType({ notes: s.notes }),
         source: 'local',
       });
     }
@@ -333,9 +399,9 @@ async function getEntries(): Promise<UpcomingEntry[]> {
 }
 
 function earlier(a: NextOpenHouse, b: NextOpenHouse): NextOpenHouse {
-  // Compare by date, then a rough start-time ordering (string compare on "h:mm AM/PM" is unreliable,
-  // but date is the dominant key; ties keep the first seen, which is acceptable for "next").
-  return a.date <= b.date ? a : b;
+  // Earliest by date, then start time; on an exact same-slot tie, By Appointment is preferred so the
+  // designation is preserved when a Public twin occupies the same slot (compareChronological).
+  return compareChronological(a, b) <= 0 ? a : b;
 }
 
 /** Build a per-request index of upcoming Mallan open houses, keyed by listing id AND address key.
@@ -359,7 +425,14 @@ export async function getOpenHouseIndex(): Promise<OpenHouseIndex> {
 }
 
 /** Match a listing to its next open house via id OR normalized address (twin-safe). Returns null when
- *  there is none. `address` accepts the structured shape used by the listing DTOs. */
+ *  there is none. `address` accepts the structured shape used by the listing DTOs.
+ *
+ *  #4D bug (400 E 90th): the listing-id map and the address-key map can each resolve a DIFFERENT
+ *  event for the same property — the local Wednesday walk-in under the SL-0007 listing-id, and the
+ *  earlier Cotality Sunday By-Appointment under the shared address key. This previously RETURNED the
+ *  first id match (Wednesday) without ever comparing the address twin. We now collect BOTH candidates
+ *  and return the chronologically earliest (compareChronological: date → start time → prefer By
+ *  Appointment on a tie), so Sunday correctly wins. */
 export function findNextOpenHouse(
   listing: {
     id?: string | null;
@@ -371,12 +444,19 @@ export function findNextOpenHouse(
   index: OpenHouseIndex,
 ): NextOpenHouse | null {
   if (index.size === 0) return null;
+  const candidates: NextOpenHouse[] = [];
   for (const id of [listing.id, listing.listing_id, listing.listingId, listing.mlsId]) {
-    if (id && index.byListingId.has(String(id))) return index.byListingId.get(String(id)) || null;
+    if (!id) continue;
+    const hit = index.byListingId.get(String(id));
+    if (hit) candidates.push(hit);
   }
   if (listing.address) {
     const key = normalizeAddressKey(listing.address);
-    if (key && index.byAddressKey.has(key)) return index.byAddressKey.get(key) || null;
+    if (key) {
+      const hit = index.byAddressKey.get(key);
+      if (hit) candidates.push(hit);
+    }
   }
-  return null;
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, c) => (compareChronological(c, best) < 0 ? c : best));
 }

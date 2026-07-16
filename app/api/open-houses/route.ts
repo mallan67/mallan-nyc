@@ -16,6 +16,7 @@ import {
   isMallanOwnedLocalListing,
   pickAddressParts,
   openHouseTwinKey,
+  resolvePublicOpenHouseType,
 } from '@/lib/open-houses/upcoming-open-houses';
 
 export const dynamic = 'force-dynamic';
@@ -86,7 +87,7 @@ interface OpenHouseDTO {
   baths: number;
   sqft: number;
   type: string;
-  openHouseType: string; // "Public" | "Broker" | "Private"
+  openHouseType: string; // canonical public designation: "Public" | "By Appointment"
   agentName: string;
   agentPhone: string;
   description: string;
@@ -110,13 +111,20 @@ export async function GET() {
       fetchLocalOpenHouses(),
     ]);
 
-    // Dedupe: if same address + date + startTime exists in both, prefer Trestle
-    const trestleKeys = new Set(
-      trestleOH.map(oh => `${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase())
-    );
-    const uniqueLocal = localOH.filter(
-      oh => !trestleKeys.has(`${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase())
-    );
+    // Dedupe: if same address + date + startTime exists in both, prefer the Trestle record — BUT
+    // preserve a 'By Appointment' designation, so a generic Public Cotality twin can never erase the
+    // appointment label a local sale-form event carried for the same slot.
+    const slotKey = (oh: OpenHouseDTO) => `${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase();
+    const trestleBySlot = new Map<string, OpenHouseDTO>();
+    for (const oh of trestleOH) trestleBySlot.set(slotKey(oh), oh);
+    const uniqueLocal = localOH.filter((oh) => {
+      const twin = trestleBySlot.get(slotKey(oh));
+      if (!twin) return true; // no Trestle duplicate → keep the local event
+      if (oh.openHouseType === 'By Appointment' && twin.openHouseType !== 'By Appointment') {
+        twin.openHouseType = 'By Appointment';
+      }
+      return false; // deduped into the Trestle twin
+    });
 
     // Filter out open houses with no meaningful property data
     // (empty address, $0 price = Trestle records where Property expand failed)
@@ -163,7 +171,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // ~471/~888) which already filters Active. (P1, 2026-06-23)
     // `(${listingScope})` restricts to Mallan's own listings (Mallan-only open-houses page).
     params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
-    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
+    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,AppointmentRequiredYN,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
     // Do NOT select agent direct-contact fields. This is a public endpoint; agent
@@ -240,7 +248,12 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         baths: totalBaths,
         sqft: (prop.LivingArea as number) || 0,
         type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
-        openHouseType: (r.OpenHouseType as string) || 'Public',
+        // Canonical designation from the appointment signal (AppointmentRequiredYN / remarks), not
+        // the raw OpenHouseType (already filtered to 'Public'). Preserves "By Appointment".
+        openHouseType: resolvePublicOpenHouseType({
+          appointmentRequired: r.AppointmentRequiredYN as boolean | null,
+          remarks: r.OpenHouseRemarks as string | null,
+        }),
         // Attribution fallback — NEVER default to our brokerage for listings
         // we don't own. Per REBNY UCBA Art. III §2(C), "Listing Courtesy of
         // [Exclusive Broker]" must identify the actual listing broker. If we
@@ -281,7 +294,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
     // cancelled/inactive open houses (P1, 2026-06-23 — see $expand path).
     // `(${listingScope})` keeps the fallback Mallan-scoped (Mallan-only open-houses page).
     params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
-    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,OpenHouseRemarks');
+    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,AppointmentRequiredYN,OpenHouseRemarks');
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
 
@@ -357,7 +370,12 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         baths: totalBaths,
         sqft: (prop.LivingArea as number) || 0,
         type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
-        openHouseType: (r.OpenHouseType as string) || 'Public',
+        // Canonical designation from the appointment signal (AppointmentRequiredYN / remarks), not
+        // the raw OpenHouseType (already filtered to 'Public'). Preserves "By Appointment".
+        openHouseType: resolvePublicOpenHouseType({
+          appointmentRequired: r.AppointmentRequiredYN as boolean | null,
+          remarks: r.OpenHouseRemarks as string | null,
+        }),
         // Attribution fallback — NEVER default to our brokerage for listings
         // we don't own. Per REBNY UCBA Art. III §2(C), "Listing Courtesy of
         // [Exclusive Broker]" must identify the actual listing broker. If we
@@ -503,7 +521,8 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         baths: totalBaths,
         sqft: l.living_area ? Number(l.living_area) : 0,
         type: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || 'Residential'),
-        openHouseType: 'Public',
+        // Sale-form By-Appointment persists as type='openhouse' with a `[ByAppointment]` notes marker.
+        openHouseType: resolvePublicOpenHouseType({ notes: s.notes }),
         // REBNY IDX/VOW Compliance Checklist (Dec 2021): agent direct contact
         // info (full name, phone, email) must NOT leak on public endpoints.
         // Show office attribution only.

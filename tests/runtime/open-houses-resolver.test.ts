@@ -15,6 +15,10 @@ import {
   formatEasternTime,
   normalizeAddressKey,
   findNextOpenHouse,
+  isByAppointment,
+  resolvePublicOpenHouseType,
+  parseTimeToMinutes,
+  compareChronological,
   type OpenHouseIndex,
   type NextOpenHouse,
 } from '@/lib/open-houses/upcoming-open-houses';
@@ -94,5 +98,73 @@ describe('open-house resolver — findNextOpenHouse (id OR address twin match)',
 
   it('returns null when the index is empty (fast path)', () => {
     expect(findNextOpenHouse({ id: 'RLS20099289' }, { byListingId: new Map(), byAddressKey: new Map(), size: 0 })).toBeNull();
+  });
+});
+
+describe('open-house resolver — resolvePublicOpenHouseType / isByAppointment (canonical label)', () => {
+  it('local sale-form [ByAppointment] notes marker → By Appointment', () => {
+    expect(resolvePublicOpenHouseType({ notes: '[ByAppointment] private viewing' })).toBe('By Appointment');
+    expect(isByAppointment({ notes: '[ByAppointment]' })).toBe(true);
+  });
+  it('Cotality AppointmentRequiredYN=true → By Appointment (verified live: appt events are Public-typed)', () => {
+    expect(resolvePublicOpenHouseType({ appointmentRequired: true })).toBe('By Appointment');
+  });
+  it('Cotality OpenHouseRemarks free-text "by appointment" → By Appointment (defensive fallback)', () => {
+    expect(resolvePublicOpenHouseType({ remarks: 'Showings by appointment only' })).toBe('By Appointment');
+  });
+  it('ordinary public event → Public', () => {
+    expect(resolvePublicOpenHouseType({ notes: '[Public] stop by' })).toBe('Public');
+    expect(resolvePublicOpenHouseType({ appointmentRequired: false })).toBe('Public');
+    expect(resolvePublicOpenHouseType({})).toBe('Public');
+  });
+  it('a [Public]/plain marker is NOT mistaken for appointment', () => {
+    expect(isByAppointment({ notes: '[Public] not by appointment mention here' })).toBe(false);
+  });
+});
+
+describe('open-house resolver — parseTimeToMinutes / compareChronological', () => {
+  it('parses 12h Eastern times to minutes (noon=720, 5 PM=1020)', () => {
+    expect(parseTimeToMinutes('12:00 PM')).toBe(720);
+    expect(parseTimeToMinutes('5:00 PM')).toBe(1020);
+    expect(parseTimeToMinutes('12:00 AM')).toBe(0);
+  });
+  it('orders by date first, then start time; same slot prefers By Appointment', () => {
+    const sun: NextOpenHouse = { date: '2026-07-19', startTime: '12:00 PM', endTime: '1:00 PM', type: 'By Appointment' };
+    const wed: NextOpenHouse = { date: '2026-07-22', startTime: '5:00 PM', endTime: '6:00 PM', type: 'Public' };
+    expect(compareChronological(sun, wed)).toBeLessThan(0); // Sunday earlier
+    const publicSlot: NextOpenHouse = { ...sun, type: 'Public' };
+    expect(compareChronological(publicSlot, sun)).toBeGreaterThan(0); // same slot → By Appointment preferred
+  });
+});
+
+describe('open-house resolver — findNextOpenHouse picks the EARLIEST across id + twin (400 E 90th #4D bug)', () => {
+  // The #4D production bug: Wednesday matches the local SL-0007 listing-id, the earlier Sunday
+  // By-Appointment matches via the shared address twin. The resolver must return Sunday, not the
+  // first id match (Wednesday), and preserve the By Appointment designation.
+  const sunday: NextOpenHouse = { date: '2026-07-19', startTime: '12:00 PM', endTime: '1:00 PM', type: 'By Appointment' };
+  const wednesday: NextOpenHouse = { date: '2026-07-22', startTime: '5:00 PM', endTime: '6:00 PM', type: 'Public' };
+  const addrKey = normalizeAddressKey({ streetNumber: '400', streetName: 'E 90th Street', unitNumber: '4D' });
+  const index: OpenHouseIndex = {
+    byListingId: new Map([['SL-0007', wednesday]]),          // id-match resolves the LATER Wednesday
+    byAddressKey: new Map([[addrKey, sunday]]),               // twin address resolves the EARLIER Sunday
+    size: 2,
+  };
+
+  it('returns Sunday (earliest) even though the exact id match is Wednesday', () => {
+    const slListing = { id: 'SL-0007', listing_id: 'SL-0007', address: { streetNumber: '400', streetName: 'E 90th Street', unitNumber: '4D' } };
+    const next = findNextOpenHouse(slListing, index);
+    expect(next).toEqual(sunday);
+    expect(next?.type).toBe('By Appointment'); // designation preserved on the selected event
+  });
+
+  it('a Public twin at the same slot cannot erase By Appointment (dedupe tie-break)', () => {
+    const publicSameSlot: NextOpenHouse = { ...sunday, type: 'Public' };
+    const idx: OpenHouseIndex = {
+      byListingId: new Map([['SL-0007', publicSameSlot]]),
+      byAddressKey: new Map([[addrKey, sunday]]),
+      size: 2,
+    };
+    const next = findNextOpenHouse({ id: 'SL-0007', address: { streetNumber: '400', streetName: 'E 90th Street', unitNumber: '4D' } }, idx);
+    expect(next?.type).toBe('By Appointment');
   });
 });

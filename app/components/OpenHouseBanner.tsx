@@ -26,7 +26,9 @@ export default function OpenHouseBanner({
   const time = openHouse.endTime
     ? `${openHouse.startTime} – ${openHouse.endTime}`
     : openHouse.startTime;
-  const label = `Open House${day ? ` · ${day}` : ''} ${time}`;
+  // Existing weekday/time format is unchanged; only append the appointment designation when present.
+  const appt = openHouse.type === 'By Appointment' ? ' · By Appointment' : '';
+  const label = `Open House${day ? ` · ${day}` : ''} ${time}${appt}`;
 
   return (
     <span
