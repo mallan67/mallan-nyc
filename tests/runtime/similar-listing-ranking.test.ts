@@ -148,13 +148,13 @@ describe('GET /api/listings/similar wires the ranking helper', () => {
 
   it('preserves display/compliance + address-suppression gates on both paths', () => {
     expect(src).toMatch(/SEARCH_DISPLAY_GATE/);                       // DB display gate
-    expect(src).toMatch(/checkDistributionGates\(r\)\.displayable/);  // Cotality RLS gate
+    expect(src).toMatch(/checkDistributionGates\(r\)\.displayable/);  // Cotality display gate
     expect(src).toMatch(/maskAddressIfRestricted/);                   // address suppression
   });
 
   it('filters Cotality by StandardStatus, NOT the provider-suppressed MlsStatus (which 400s the feed)', () => {
-    // MlsStatus is suppressed at the RLS provider level for $filter/$orderby → HTTP 400, which
-    // silently killed the whole live-feed path. Both Cotality query sites must use StandardStatus.
+    // The Cotality API rejects filtering/ordering on MlsStatus (→ HTTP 400), which silently killed the
+    // whole live-feed path. Both Cotality query sites must use StandardStatus.
     const std = src.match(/StandardStatus eq 'Active'/g) || [];
     expect(std.length).toBeGreaterThanOrEqual(2); // ZIP query + neighborhood-widening query
     expect(src).not.toMatch(/MlsStatus eq 'Active'/); // never filter on MlsStatus

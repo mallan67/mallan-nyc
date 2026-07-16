@@ -29,9 +29,9 @@ export type PropertyClass = '' | 'condo' | 'coop' | 'condop' | 'townhouse' | 'lo
  *  Handles raw feed values (Condominium, StockCooperative, SingleFamilyResidence, MultiFamily,
  *  Duplex…) and our mapped labels (Condo, Co-op…). Round-trips its own output.
  *
- *  NYC townhouse reality (verified live against RLS 2026-07-16): the feed does NOT use the 'Townhouse'
- *  sub-type — townhouses appear as SingleFamilyResidence, MultiFamily, or Duplex with CommonInterest=
- *  None. So all fee-simple / whole-building homes (single- AND multi-family brownstones) fold into ONE
+ *  NYC townhouse reality (verified live on the Cotality API 2026-07-16): the feed does NOT use the
+ *  'Townhouse' sub-type — townhouses appear as SingleFamilyResidence, MultiFamily, or Duplex with
+ *  CommonInterest=None. So all fee-simple / whole-building homes (single- AND multi-family) fold into ONE
  *  'townhouse' class — a townhouse compares to townhouses, never to condo/co-op apartments. A duplex/
  *  unit that carries a condo/co-op CommonInterest is an APARTMENT and is caught earlier via
  *  classifyPropertyClass (CommonInterest first), so only CI=None fee-simple homes reach here. */

@@ -250,9 +250,9 @@ export async function GET(request: NextRequest) {
     // Build filter: same ZIP, similar price, active, same type
     // Do NOT use $expand=Media — Trestle often rejects it with 400.
     // Instead, fetch media separately per listing after getting property results.
-    // Status filter MUST be StandardStatus, NOT MlsStatus: Cotality/RLS suppresses MlsStatus at the
-    // provider level for $filter/$orderby ("field 'MlsStatus' cannot be used for filtering or ordering
-    // queries" → HTTP 400), which silently killed this entire live-feed path (verified live 2026-07-16).
+    // Status filter MUST be StandardStatus, NOT MlsStatus: the Cotality API rejects filtering/ordering
+    // on MlsStatus ("field 'MlsStatus' cannot be used for filtering or ordering queries" → HTTP 400),
+    // which silently killed this entire live-feed path (verified live on Cotality 2026-07-16).
     const zipFilter = `PostalCode eq '${postalCode}' and StandardStatus eq 'Active' and ${propertyClass} and ${priceFilter}`;
 
     const params = new URLSearchParams({
