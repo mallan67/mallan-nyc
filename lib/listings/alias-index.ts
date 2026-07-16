@@ -4,9 +4,10 @@
 //
 // A public alias request (bare id, Option-D hybrid, or legacy address-only slug) must
 // resolve to its canonical /listing/{address}/{id} WITHOUT touching Prisma/Neon. This
-// module is the edge-safe read/write surface over that index, stored in the EXISTING
-// Upstash Redis (lib/redis.ts — no new env). It imports NO Prisma and only pure slug
-// helpers, so it is safe to use from `middleware.ts` (edge runtime).
+// module is the read/write surface over that index, stored in the EXISTING Upstash Redis
+// (lib/redis.ts — no new env). It imports NO Prisma and issues NO Neon request — its only
+// lookup is Upstash — so the resolver `proxy.ts` calls (Next 16's Proxy runs BEFORE route
+// rendering; Node.js runtime) resolves aliases with a single Redis GET and nothing else.
 //
 // KEYS (one listing writes several):
 //   idx:alias:id:{LISTING_ID_UPPER}   → canonical path   (covers id-only + hybrid)
@@ -108,6 +109,11 @@ export function aliasKeysForListing(listingId: string, addressSlug: string | nul
  * the DB write that preceded it. `addressSlug` is the render's address slug (may be the
  * suppressed `listing-{id}` form, in which case only the id key is written — no address key,
  * so a suppressed address never enters the index).
+ *
+ * KEY LIFETIME: entries are PERSISTENT (no TTL). There is no periodic full rebuild that is
+ * guaranteed to run before a TTL, so an expiring key would silently drop a valid alias and
+ * push it back to the DB. Freshness is CHANGE-DRIVEN: the sync rewrites the entry whenever
+ * the listing changes, and `removeAliasEntries` tombstones it on withdrawal/deletion.
  */
 export async function writeAliasEntries(
   listingId: string,
@@ -117,8 +123,23 @@ export async function writeAliasEntries(
   if (!redis) return;
   try {
     const keys = aliasKeysForListing(listingId, addressSlug);
-    // 30-day TTL as a self-healing floor; the sync refreshes long before expiry.
-    await Promise.all(keys.map((k) => redis!.set(k, canonicalPath, { ex: 60 * 60 * 24 * 30 })));
+    await Promise.all(keys.map((k) => redis!.set(k, canonicalPath))); // persistent — change-driven
+  } catch {
+    /* best-effort */
+  }
+}
+
+/**
+ * Tombstone (remove) a listing's alias entries — called when a listing is withdrawn/deleted
+ * so a stale alias cannot outlive the listing. With the id key gone, an authoritative index
+ * returns a DB-free 404 for that alias. (If only the id is known — e.g. a feed-reconcile
+ * ghost row that doesn't carry the address — the id key is removed; the address key, if any,
+ * is corrected on the next full backfill/rebuild.) Best-effort; never throws.
+ */
+export async function removeAliasEntries(listingId: string, addressSlug: string | null): Promise<void> {
+  if (!redis) return;
+  try {
+    await redis.del(...aliasKeysForListing(listingId, addressSlug));
   } catch {
     /* best-effort */
   }

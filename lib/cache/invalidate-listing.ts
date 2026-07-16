@@ -80,3 +80,30 @@ export async function refreshListingCaches(l: ListingCacheIdentity): Promise<voi
     /* best-effort */
   }
 }
+
+/**
+ * Apply ALL cache invalidations for a completed sync run — AWAITED (not fire-and-forget) so
+ * the run never finishes while required Redis writes are still outstanding. Per changed
+ * listing: drop its detail cache + refresh its alias entries, at bounded concurrency. Then
+ * ONE list-cache namespace bump — but ONLY when ≥1 listing actually changed, so an UNCHANGED
+ * run (the incremental sync fetches only records modified past the watermark; nothing changed
+ * → empty `changed` here) performs ZERO detail deletes, ZERO alias writes, and ZERO bumps.
+ * Returns the counts so the caller/tests can assert the behavior.
+ */
+export async function applySyncInvalidations(
+  changed: ListingCacheIdentity[],
+  concurrency = 10,
+): Promise<{ detailInvalidations: number; aliasRefreshes: number; versionBumps: number }> {
+  if (changed.length === 0) {
+    return { detailInvalidations: 0, aliasRefreshes: 0, versionBumps: 0 };
+  }
+  let i = 0;
+  const worker = async () => {
+    while (i < changed.length) {
+      await refreshListingCaches(changed[i++]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, changed.length) }, worker));
+  await bumpListingsCacheVersion();
+  return { detailInvalidations: changed.length, aliasRefreshes: changed.length, versionBumps: 1 };
+}

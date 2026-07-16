@@ -599,10 +599,13 @@ export async function GET(request: Request) {
             };
 
             setCache(cacheKey, responseBody);
-            // Durable, cross-instance write (best-effort) so the next cold lambda serves this
-            // without a Neon query. TTL matches the HTTP s-maxage; a listing change bumps the
-            // namespace version (retiring this key) well before expiry.
-            void cacheSetJson(cacheKey, responseBody, 60);
+            // Durable cross-instance write, AWAITED (required cache work is never fire-and-forget)
+            // so the next cold lambda / another instance serves this WITHOUT a Neon query. The TTL
+            // is a long 6-HOUR SAFETY floor, NOT the freshness mechanism: the namespace VERSION
+            // bump on any listing change (sync) is the primary invalidation, so a stale variation
+            // cannot persist past the next sync. The long floor is what prevents one Neon query per
+            // query-variation per minute (a 60s TTL would have re-queried every variation each minute).
+            await cacheSetJson(cacheKey, responseBody, 6 * 60 * 60);
 
             return NextResponse.json(responseBody, {
               headers: {

@@ -618,9 +618,12 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
     return hit !== null && '_miss' in hit ? null : (hit as ListingFetchResult);
   }
   // fetchFromDB THROWS on infrastructure errors — those propagate UNCACHED (never a cached
-  // false 404). Only a resolved result or a confirmed-miss null is written back.
+  // false 404). Only a resolved result or a confirmed-miss null is written back — AWAITED
+  // (required cache work is not fire-and-forget). Positive results get a 6h SAFETY floor (the
+  // sync DELETES this key on change, so the long TTL just prevents per-cold-render Neon queries);
+  // a confirmed miss is cached only briefly so a listing that later appears isn't pinned missing.
   const result = await fetchFromDB(slug, keyOverride);
-  void cacheSetJson(key, result === null ? ({ _miss: true } as CachedMiss) : result, result === null ? 30 : 300);
+  await cacheSetJson(key, result === null ? ({ _miss: true } as CachedMiss) : result, result === null ? 60 : 6 * 60 * 60);
   return result;
 });
 

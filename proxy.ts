@@ -6,8 +6,8 @@ import { checkRateLimits } from "@/lib/middleware/rate-limiter";
 import { checkCsrf } from "@/lib/middleware/csrf";
 import { checkRouteGuards } from "@/lib/middleware/route-guards";
 import { applySecurityHeaders } from "@/lib/middleware/security-headers";
-// Neon public-DB-wakeups P0: resolve public listing aliases at the edge from the durable
-// Upstash index — NO Prisma/Neon (alias-index is Prisma-free and this file is edge runtime).
+// Neon public-DB-wakeups P0: resolve public listing aliases from the durable Upstash index.
+// The alias resolver imports NO Prisma and issues NO Neon request — Upstash is its only lookup.
 import { slugPartsFromPathname, deriveAliasLookup, lookupAlias } from "@/lib/listings/alias-index";
 
 export const config = {
@@ -70,11 +70,13 @@ export default async function middleware(req: NextRequest) {
   const guardBlock = checkRouteGuards(req, pathname);
   if (guardBlock) return guardBlock;
 
-  // ── 4.5. Public listing ALIAS → canonical 308 (edge, DB-free — Neon P0) ──
-  // A bare-id / hybrid / address-only /listing alias resolves to its canonical path from the
-  // durable Upstash alias index and is redirected here with a real 308 + CDN cache headers, so
-  // repeat AND never-seen aliases avoid the function/Neon. Canonical + suppressed `listing-{id}`
-  // paths fall through to the ISR page. NEVER touches Prisma (this file runs on the edge).
+  // ── 4.5. Public listing ALIAS → canonical 308 (DB-free — Neon P0) ──
+  // Proxy runs BEFORE route rendering (Next 16 Proxy; Node.js runtime). A bare-id / hybrid /
+  // address-only /listing alias resolves to its canonical path from the durable Upstash alias
+  // index and is redirected here with a real 308 + CDN cache headers, so repeat AND never-seen
+  // aliases avoid the route render / Neon. Canonical + suppressed `listing-{id}` paths fall
+  // through to the ISR page. The alias resolution imports NO Prisma and makes NO Neon request —
+  // Upstash is its only lookup.
   if (pathname.startsWith("/listing/")) {
     const parts = slugPartsFromPathname(pathname);
     const derived = parts ? deriveAliasLookup(parts) : { kind: "canonical" as const };

@@ -27,7 +27,12 @@ import {
 import {
   cacheGetJson, cacheSetJson, cacheDel, listingsCacheVersion, bumpListingsCacheVersion,
 } from '@/lib/cache/durable-cache';
-import { refreshListingCaches, canonicalForListing, detailCacheKey } from '@/lib/cache/invalidate-listing';
+import {
+  refreshListingCaches, applySyncInvalidations, canonicalForListing, detailCacheKey,
+} from '@/lib/cache/invalidate-listing';
+import redisMock from '@/lib/redis';
+
+const rmock = redisMock as unknown as { get: jest.Mock; set: jest.Mock; del: jest.Mock; incr: jest.Mock };
 
 const ROOT = path.resolve(__dirname, '../..');
 const read = (p: string) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -119,18 +124,44 @@ describe('durable cache + changed-listing invalidation', () => {
     const k = deriveAliasLookup(['rls20088635']);
     expect(k.kind === 'alias' ? await lookupAlias(k.redisKey) : null).toContain('/rls20088635'); // alias refreshed
   });
-  it('list-cache version bump retires the namespace (unchanged run performs no bump)', async () => {
+  it('list-cache version bump changes the namespace (v0 → v1)', async () => {
     expect(await listingsCacheVersion()).toBe(0); // unset default
     await bumpListingsCacheVersion();
-    expect(await listingsCacheVersion()).toBe(1); // first bump changes the namespace (v0 → v1)
-    // "unchanged sync run" gate is in sync.ts source (asserted below).
+    expect(await listingsCacheVersion()).toBe(1); // first bump changes the namespace
+  });
+});
+
+describe('unchanged-sync invalidation TRUTH (behavioral, not a regex)', () => {
+  // `applySyncInvalidations` is what sync.ts awaits with the run's ACTUALLY-changed listings
+  // (the incremental sync fetches only records modified past the watermark). So an unchanged run
+  // passes an empty list. This proves the required behavior directly.
+  it('an UNCHANGED run (0 changed listings) → ZERO detail deletes, ZERO alias writes, ZERO bumps', async () => {
+    rmock.del.mockClear(); rmock.set.mockClear(); rmock.incr.mockClear();
+    const counts = await applySyncInvalidations([]);
+    expect(counts).toEqual({ detailInvalidations: 0, aliasRefreshes: 0, versionBumps: 0 });
+    expect(rmock.del).not.toHaveBeenCalled();
+    expect(rmock.set).not.toHaveBeenCalled();
+    expect(rmock.incr).not.toHaveBeenCalled();
+  });
+  it('ONE changed listing → one detail invalidation, one alias refresh, one namespace bump', async () => {
+    rmock.del.mockClear(); rmock.set.mockClear(); rmock.incr.mockClear();
+    const counts = await applySyncInvalidations([displayable]);
+    expect(counts).toEqual({ detailInvalidations: 1, aliasRefreshes: 1, versionBumps: 1 });
+    expect(rmock.del).toHaveBeenCalledTimes(1);   // exactly one detail-cache delete
+    expect(rmock.incr).toHaveBeenCalledTimes(1);  // exactly one list-cache namespace bump
+    expect(rmock.set).toHaveBeenCalled();         // alias entries (id + addr) written
+  });
+  it('applySyncInvalidations is AWAITED in sync.ts (required Redis work is not fire-and-forget)', () => {
+    const sync = read('lib/idx/sync.ts');
+    expect(sync).toMatch(/await applySyncInvalidations\(changedListings\)/);
+    expect(sync).not.toMatch(/void refreshListingCaches/); // no fire-and-forget left
   });
 });
 
 describe('architectural guarantees (source) — aliases are DB-free; no false-404 caching', () => {
-  it('proxy.ts (edge) + alias-index.ts NEVER import Prisma', () => {
-    // The alias path runs in the edge proxy (Next 16's middleware) — Prisma can't load there,
-    // and alias-index does the resolution with only Upstash + pure slug helpers.
+  it('proxy.ts + alias-index.ts NEVER import Prisma (alias resolution is DB-free by design)', () => {
+    // Next 16 Proxy runs BEFORE route rendering on the Node runtime; the DB-free guarantee is
+    // architectural — the alias resolver imports NO Prisma and its only lookup is Upstash.
     expect(read('proxy.ts')).not.toMatch(/@\/lib\/prisma|from ['"].*prisma/);
     expect(read('lib/listings/alias-index.ts')).not.toMatch(/@\/lib\/prisma|from ['"].*prisma/);
   });
@@ -140,8 +171,17 @@ describe('architectural guarantees (source) — aliases are DB-free; no false-40
     expect(mw).toMatch(/CDN-Cache-Control/);
     expect(mw).not.toMatch(/from ['"]next\/navigation['"]/); // no redirect() from next/navigation
   });
-  it('sync.ts bumps the list-cache version ONLY when a listing changed (no unnecessary invalidation)', () => {
-    expect(read('lib/idx/sync.ts')).toMatch(/if \(upserted > 0\) \{\s*await bumpListingsCacheVersion\(\)/);
+  it('the /api/listings durable cache uses a LONG safety TTL (6h), not 60s — version bump is the real invalidation', () => {
+    const route = read('app/api/listings/route.ts');
+    // Awaited durable write with a 6-hour floor; the per-minute re-query a 60s TTL caused is gone.
+    expect(route).toMatch(/await cacheSetJson\(cacheKey, responseBody, 6 \* 60 \* 60\)/);
+    expect(route).not.toMatch(/cacheSetJson\(cacheKey, responseBody, 60\)/);
+  });
+  it('alias index entries are PERSISTENT (no TTL) — change-driven, with a tombstone remover', () => {
+    const idx = read('lib/listings/alias-index.ts');
+    expect(idx).toMatch(/redis!\.set\(k, canonicalPath\)\)/); // no { ex: ... } TTL
+    expect(idx).not.toMatch(/ex:\s*60 \* 60 \* 24 \* 30/); // the old 30-day TTL is gone
+    expect(idx).toMatch(/export async function removeAliasEntries/); // tombstone exists
   });
   it('the detail cache caches a RESOLVED result/miss but NEVER a thrown infra error (no false-404 cache)', () => {
     const page = read('app/listing/[...slug]/page.tsx');

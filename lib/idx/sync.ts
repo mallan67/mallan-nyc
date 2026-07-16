@@ -23,7 +23,7 @@ import {
 } from "./diagnostic-recorder";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { ACTIVE_DISPLAY_VALUES } from "@/lib/compliance/status";
-import { refreshListingCaches, bumpListingsCacheVersion } from "@/lib/cache/invalidate-listing";
+import { applySyncInvalidations, type ListingCacheIdentity } from "@/lib/cache/invalidate-listing";
 import type { Prisma } from "@prisma/client";
 
 // Set of statuses treated as "actively listed" for first_active_date seeding.
@@ -394,6 +394,9 @@ export async function syncListings(
   let skippedValidation = 0;
   let skippedNewTerminal = 0;
   const skippedNewTerminalSample: string[] = [];
+  // Neon P0: listings actually changed this run (incremental sync only fetches records
+  // modified past the watermark). Invalidation is AWAITED once after the run.
+  const changedListings: ListingCacheIdentity[] = [];
   let errors = 0;
 
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
@@ -623,9 +626,9 @@ export async function syncListings(
       await prisma.listingSearchProjection.upsert(projectionPayload);
 
       upserted++;
-      // Neon public-DB-wakeups P0: drop this listing's durable detail cache + refresh its
-      // alias-index entries so edge redirects + the detail page reflect the change. Best-effort.
-      void refreshListingCaches(mapped);
+      // Neon public-DB-wakeups P0: record this changed listing; its detail cache + alias
+      // entries are invalidated by an AWAITED applySyncInvalidations after the run (below).
+      changedListings.push(mapped as ListingCacheIdentity);
     } catch (err) {
       errors++;
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
@@ -899,12 +902,11 @@ export async function syncListings(
     type: options.type || "all",
   });
 
-  // Neon public-DB-wakeups P0: ONE namespace-version bump per run retires the /api/listings +
-  // search caches so they reflect this run's changes (invalidate-only-on-change, not a blanket
-  // TTL as the primary guard). Per-listing detail + alias entries were refreshed in the loop.
-  if (upserted > 0) {
-    await bumpListingsCacheVersion();
-  }
+  // Neon public-DB-wakeups P0: AWAIT all cache invalidations before the run returns — never
+  // fire-and-forget. Per changed listing: detail-cache delete + alias refresh (bounded
+  // concurrency); then ONE list-cache namespace bump — and ONLY if ≥1 listing changed, so an
+  // unchanged run (0 records fetched past the watermark) performs ZERO invalidation.
+  await applySyncInvalidations(changedListings);
 
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,
@@ -1379,6 +1381,7 @@ export async function syncAgentHistory(
   let skippedValidation = 0;
   let errors = 0;
   let agentMatched = 0;
+  const changedListings: ListingCacheIdentity[] = []; // Neon P0: awaited invalidation post-run
 
   for (const raw of fetchResult.records) {
     try {
@@ -1535,7 +1538,7 @@ export async function syncAgentHistory(
 
       upserted++;
       agentMatched++;
-      void refreshListingCaches(mapped);
+      changedListings.push(mapped as ListingCacheIdentity);
     } catch (err) {
       errors++;
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
@@ -1674,6 +1677,9 @@ export async function syncAgentHistory(
   } catch (err) {
     console.error("[IDX Agent History] Failed to log audit event:", err);
   }
+
+  // Neon P0: await invalidation for the listings this agent-history run changed.
+  await applySyncInvalidations(changedListings);
 
   const result: AgentHistorySyncResult = {
     total_fetched: fetchResult.totalFetched,
