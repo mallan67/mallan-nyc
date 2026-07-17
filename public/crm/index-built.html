@@ -16369,8 +16369,9 @@ function manageShowToast(msg) {
 
   /**
    * Map a CRM search status token (top-level token or MlsStatus sub-status) to the
-   * live Trestle StandardStatus to query. Returns null for unknown tokens so the
-   * caller can decide the fallback.
+   * live Trestle StandardStatus to query. Returns null for unknown tokens — null is
+   * the explicit "unrecognized" signal consumed by mapSearchStatuses() below; it must
+   * never be silently swallowed by a caller.
    */
   function mapSearchStatusToStandardStatus(token) {
     if (token == null) return null;
@@ -16381,23 +16382,45 @@ function manageShowToast(msg) {
   }
 
   /**
-   * Map a list of CRM search status tokens to a de-duplicated list of live
-   * StandardStatus values. Unknown tokens are dropped (they return 0 live and a
-   * bad OData token risks an HTTP 400).
+   * Fail-closed list mapper (Maya review 2026-07-16). Maps CRM search status
+   * tokens to a de-duplicated list of live StandardStatus values.
+   *
+   * Returns exactly one of:
+   *   { ok: true,  statuses: ['Pending', ...] }        — every token recognized
+   *   { ok: false, statuses: [], unknown: ['X', ...] } — ≥1 token unrecognized
+   *
+   * Unknown tokens are NEVER silently dropped. The previous API
+   * (mapSearchStatusesToStandardStatuses) dropped them, and the caller then
+   * OMITTED the status filter when the mapped list came back empty — so a
+   * search for an unknown status ran BROADER than the user requested
+   * (fail-open). Callers MUST abort the search request and surface a visible
+   * validation failure when ok === false; the whole selection is rejected,
+   * never just the unknown portion.
+   *
+   * An empty/absent token list is a valid, intentionally unfiltered search:
+   * it returns { ok: true, statuses: [] }.
    */
-  function mapSearchStatusesToStandardStatuses(tokens) {
-    var out = [];
-    for (var i = 0; i < (tokens || []).length; i++) {
-      var mapped = mapSearchStatusToStandardStatus(tokens[i]);
-      if (mapped && out.indexOf(mapped) === -1) out.push(mapped);
+  function mapSearchStatuses(tokens) {
+    var statuses = [];
+    var unknown = [];
+    var list = tokens || [];
+    for (var i = 0; i < list.length; i++) {
+      var mapped = mapSearchStatusToStandardStatus(list[i]);
+      if (mapped === null) {
+        var raw = String(list[i]);
+        if (unknown.indexOf(raw) === -1) unknown.push(raw);
+      } else if (statuses.indexOf(mapped) === -1) {
+        statuses.push(mapped);
+      }
     }
-    return out;
+    if (unknown.length > 0) return { ok: false, statuses: [], unknown: unknown };
+    return { ok: true, statuses: statuses };
   }
 
   var api = {
     SEARCH_STATUS_TO_STANDARD_STATUS: SEARCH_STATUS_TO_STANDARD_STATUS,
     mapSearchStatusToStandardStatus: mapSearchStatusToStandardStatus,
-    mapSearchStatusesToStandardStatuses: mapSearchStatusesToStandardStatuses,
+    mapSearchStatuses: mapSearchStatuses,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -16575,6 +16598,27 @@ function manageShowToast(msg) {
                 if (typeof searchResultsState === 'undefined' || !searchResultsState) {
                     showToast('Error: Search state not initialized. Please refresh the page.', 'error');
                     return;
+                }
+
+                // ── Fail-closed status validation (Maya review 2026-07-16) ──
+                // If ANY selected status token is unrecognized by
+                // SearchStatusMap (js/search/search-status-map.js), reject the
+                // WHOLE selection and do not run the search at all. Silently
+                // dropping the unknown portion would omit the status param and
+                // run a BROADER query than the user asked for. Selecting no
+                // status at all remains a valid, intentionally unfiltered
+                // search — only a nonempty selection is validated here.
+                if (activeSearchCriteria && activeSearchCriteria.statuses && activeSearchCriteria.statuses.length > 0) {
+                    var _statusCheck = SearchStatusMap.mapSearchStatuses(activeSearchCriteria.statuses);
+                    if (!_statusCheck.ok) {
+                        showToast(
+                            'Search not run — unrecognized status selection: ' +
+                            _statusCheck.unknown.join(', ') +
+                            '. Clear or re-select the status filter and try again.',
+                            'error'
+                        );
+                        return;
+                    }
                 }
 
                 // ── P1 multi-borough advisory ─────────────────────────────
@@ -16765,8 +16809,21 @@ function manageShowToast(msg) {
             // 'ActiveUnderContract', which the feed never populates — the prior bug that
             // returned 0 of the ~6,455 live Pending listings).
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var resoStatuses = SearchStatusMap.mapSearchStatusesToStandardStatuses(criteria.statuses);
-                if (resoStatuses.length > 0) params.status = resoStatuses.join(',');
+                var statusResult = SearchStatusMap.mapSearchStatuses(criteria.statuses);
+                if (!statusResult.ok) {
+                    // Fail closed (Maya review 2026-07-16): an unrecognized
+                    // status token must never silently broaden the query.
+                    // The prior code dropped unknown tokens and, when the
+                    // mapped list came back empty, OMITTED the status param
+                    // entirely — running an unfiltered (broader) search than
+                    // the user requested. Throw so no request params are
+                    // built at all. performSearch() pre-validates and shows
+                    // the user-facing toast before this point; the throw is
+                    // the backstop for programmatic callers (init-tracker.js
+                    // wraps this call in try/catch and issues no request).
+                    throw new Error('Unrecognized status selection: ' + statusResult.unknown.join(', '));
+                }
+                if (statusResult.statuses.length > 0) params.status = statusResult.statuses.join(',');
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData

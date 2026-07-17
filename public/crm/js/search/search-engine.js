@@ -168,6 +168,27 @@
                     return;
                 }
 
+                // ── Fail-closed status validation (Maya review 2026-07-16) ──
+                // If ANY selected status token is unrecognized by
+                // SearchStatusMap (js/search/search-status-map.js), reject the
+                // WHOLE selection and do not run the search at all. Silently
+                // dropping the unknown portion would omit the status param and
+                // run a BROADER query than the user asked for. Selecting no
+                // status at all remains a valid, intentionally unfiltered
+                // search — only a nonempty selection is validated here.
+                if (activeSearchCriteria && activeSearchCriteria.statuses && activeSearchCriteria.statuses.length > 0) {
+                    var _statusCheck = SearchStatusMap.mapSearchStatuses(activeSearchCriteria.statuses);
+                    if (!_statusCheck.ok) {
+                        showToast(
+                            'Search not run — unrecognized status selection: ' +
+                            _statusCheck.unknown.join(', ') +
+                            '. Clear or re-select the status filter and try again.',
+                            'error'
+                        );
+                        return;
+                    }
+                }
+
                 // ── P1 multi-borough advisory ─────────────────────────────
                 // collectSearchCriteria() at search-engine.js:880-895
                 // intentionally leaves criteria.borough unset when 2+
@@ -356,8 +377,21 @@
             // 'ActiveUnderContract', which the feed never populates — the prior bug that
             // returned 0 of the ~6,455 live Pending listings).
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var resoStatuses = SearchStatusMap.mapSearchStatusesToStandardStatuses(criteria.statuses);
-                if (resoStatuses.length > 0) params.status = resoStatuses.join(',');
+                var statusResult = SearchStatusMap.mapSearchStatuses(criteria.statuses);
+                if (!statusResult.ok) {
+                    // Fail closed (Maya review 2026-07-16): an unrecognized
+                    // status token must never silently broaden the query.
+                    // The prior code dropped unknown tokens and, when the
+                    // mapped list came back empty, OMITTED the status param
+                    // entirely — running an unfiltered (broader) search than
+                    // the user requested. Throw so no request params are
+                    // built at all. performSearch() pre-validates and shows
+                    // the user-facing toast before this point; the throw is
+                    // the backstop for programmatic callers (init-tracker.js
+                    // wraps this call in try/catch and issues no request).
+                    throw new Error('Unrecognized status selection: ' + statusResult.unknown.join(', '));
+                }
+                if (statusResult.statuses.length > 0) params.status = statusResult.statuses.join(',');
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData

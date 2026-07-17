@@ -94,8 +94,9 @@
 
   /**
    * Map a CRM search status token (top-level token or MlsStatus sub-status) to the
-   * live Trestle StandardStatus to query. Returns null for unknown tokens so the
-   * caller can decide the fallback.
+   * live Trestle StandardStatus to query. Returns null for unknown tokens — null is
+   * the explicit "unrecognized" signal consumed by mapSearchStatuses() below; it must
+   * never be silently swallowed by a caller.
    */
   function mapSearchStatusToStandardStatus(token) {
     if (token == null) return null;
@@ -106,23 +107,45 @@
   }
 
   /**
-   * Map a list of CRM search status tokens to a de-duplicated list of live
-   * StandardStatus values. Unknown tokens are dropped (they return 0 live and a
-   * bad OData token risks an HTTP 400).
+   * Fail-closed list mapper (Maya review 2026-07-16). Maps CRM search status
+   * tokens to a de-duplicated list of live StandardStatus values.
+   *
+   * Returns exactly one of:
+   *   { ok: true,  statuses: ['Pending', ...] }        — every token recognized
+   *   { ok: false, statuses: [], unknown: ['X', ...] } — ≥1 token unrecognized
+   *
+   * Unknown tokens are NEVER silently dropped. The previous API
+   * (mapSearchStatusesToStandardStatuses) dropped them, and the caller then
+   * OMITTED the status filter when the mapped list came back empty — so a
+   * search for an unknown status ran BROADER than the user requested
+   * (fail-open). Callers MUST abort the search request and surface a visible
+   * validation failure when ok === false; the whole selection is rejected,
+   * never just the unknown portion.
+   *
+   * An empty/absent token list is a valid, intentionally unfiltered search:
+   * it returns { ok: true, statuses: [] }.
    */
-  function mapSearchStatusesToStandardStatuses(tokens) {
-    var out = [];
-    for (var i = 0; i < (tokens || []).length; i++) {
-      var mapped = mapSearchStatusToStandardStatus(tokens[i]);
-      if (mapped && out.indexOf(mapped) === -1) out.push(mapped);
+  function mapSearchStatuses(tokens) {
+    var statuses = [];
+    var unknown = [];
+    var list = tokens || [];
+    for (var i = 0; i < list.length; i++) {
+      var mapped = mapSearchStatusToStandardStatus(list[i]);
+      if (mapped === null) {
+        var raw = String(list[i]);
+        if (unknown.indexOf(raw) === -1) unknown.push(raw);
+      } else if (statuses.indexOf(mapped) === -1) {
+        statuses.push(mapped);
+      }
     }
-    return out;
+    if (unknown.length > 0) return { ok: false, statuses: [], unknown: unknown };
+    return { ok: true, statuses: statuses };
   }
 
   var api = {
     SEARCH_STATUS_TO_STANDARD_STATUS: SEARCH_STATUS_TO_STANDARD_STATUS,
     mapSearchStatusToStandardStatus: mapSearchStatusToStandardStatus,
-    mapSearchStatusesToStandardStatuses: mapSearchStatusesToStandardStatuses,
+    mapSearchStatuses: mapSearchStatuses,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
