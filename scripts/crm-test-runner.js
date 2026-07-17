@@ -18,6 +18,7 @@
 
 const descCompliance = require('./crm-tests/cases-description-compliance');
 const formValidators = require('./crm-tests/cases-form-validators');
+const searchStatusMap = require('./crm-tests/cases-search-status-map');
 const { loadFixtures } = require('./crm-tests/fixtures');
 
 function colorize(text, code) {
@@ -44,6 +45,7 @@ function main() {
     ...runFixturesCheck().map((r) => ({ ...r, suite: 'fixtures' })),
     ...descCompliance.run().map((r) => ({ ...r, suite: 'description-compliance' })),
     ...formValidators.run().map((r) => ({ ...r, suite: 'form-validators' })),
+    ...searchStatusMap.run().map((r) => ({ ...r, suite: 'search-status-map' })),
   ];
 
   const passed = all.filter((r) => r.pass).length;

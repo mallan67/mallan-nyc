@@ -349,11 +349,15 @@
             if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
             if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
-            // Status: CRM uppercase -> RESO PascalCase
+            // Status: CRM token / MlsStatus sub-status -> live Trestle StandardStatus.
+            // Single source of truth: SearchStatusMap (js/search/search-status-map.js).
+            // The REBNY IDX Plus feed only returns Active/Pending/ComingSoon/Closed, so
+            // every in-contract sub-status collapses to StandardStatus 'Pending' (NOT
+            // 'ActiveUnderContract', which the feed never populates — the prior bug that
+            // returned 0 of the ~6,455 live Pending listings).
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
-                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
-                params.status = resoStatuses.join(',');
+                var resoStatuses = SearchStatusMap.mapSearchStatusesToStandardStatuses(criteria.statuses);
+                if (resoStatuses.length > 0) params.status = resoStatuses.join(',');
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData
