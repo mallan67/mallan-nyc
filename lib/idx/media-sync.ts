@@ -514,7 +514,31 @@ export interface UpsertListingMediaResult {
   skippedUnchanged: number;
   /** Input rows rejected before any DB write (no MediaKey, non-Public Permission, no MediaURL). */
   skippedInvalid: number;
-  /** DB rows whose `status` flipped from active to deleted (explicit MediaStatus='Deleted' OR vanished from input when tombstoneVanished=true). */
+  /**
+   * INPUT rows carrying `MediaStatus === "Deleted"` — counted per input row,
+   * INCLUDING duplicates that later collapse into one `media_key` in the
+   * delete Set, and including signals for rows that don't exist / are already
+   * deleted (which then affect zero DB rows).
+   */
+  deleteSignalsReceived: number;
+  /** DB rows tombstoned by the explicit-delete updateMany (affected-row count). */
+  tombstonedExplicit: number;
+  /** DB rows tombstoned by the vanished-media updateMany (affected-row count) — these have NO corresponding input row. */
+  tombstonedVanished: number;
+  /**
+   * DB rows whose `status` flipped active→deleted:
+   * `tombstoned = tombstonedExplicit + tombstonedVanished`.
+   * This is a DATABASE-ROW OUTCOME, NOT an input-row disposition — duplicate
+   * delete inputs collapse, unmatched delete signals affect zero rows, and
+   * vanished tombstones have no input row. The accounting invariants are:
+   *
+   *   input rows      ≡ inserted + updatedChanged + skippedUnchanged
+   *                     + skippedInvalid + deleteSignalsReceived
+   *   physical writes ≡ inserted + updatedChanged
+   *                     + tombstonedExplicit + tombstonedVanished
+   *
+   * The five business counters alone do NOT partition the input.
+   */
   tombstoned: number;
 }
 
@@ -646,6 +670,7 @@ export async function upsertListingMedia(
   const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
 
   let skippedInvalid = 0;
+  let deleteSignalsReceived = 0;
   const explicitDeleteKeys = new Set<string>();
   const mapped: MappedMediaRow[] = [];
 
@@ -657,6 +682,9 @@ export async function upsertListingMedia(
     }
 
     if (raw.MediaStatus === "Deleted") {
+      // Counted per INPUT row (duplicates included) — the Set below dedupes
+      // for the write, so deleteSignalsReceived ≥ affected rows by design.
+      deleteSignalsReceived++;
       explicitDeleteKeys.add(mediaKey);
       continue;
     }
@@ -766,7 +794,8 @@ export async function upsertListingMedia(
     }
   }
 
-  let tombstoned = 0;
+  let tombstonedExplicit = 0;
+  let tombstonedVanished = 0;
 
   if (explicitDeleteKeys.size > 0) {
     const res = await prisma.listingMedia.updateMany({
@@ -777,7 +806,7 @@ export async function upsertListingMedia(
       },
       data: { status: "deleted" },
     });
-    tombstoned += res.count;
+    tombstonedExplicit += res.count;
   }
 
   if (options.tombstoneVanished === true) {
@@ -808,10 +837,19 @@ export async function upsertListingMedia(
       where,
       data: { status: "deleted" },
     });
-    tombstoned += res.count;
+    tombstonedVanished += res.count;
   }
 
-  return { inserted, updatedChanged, skippedUnchanged, skippedInvalid, tombstoned };
+  return {
+    inserted,
+    updatedChanged,
+    skippedUnchanged,
+    skippedInvalid,
+    deleteSignalsReceived,
+    tombstonedExplicit,
+    tombstonedVanished,
+    tombstoned: tombstonedExplicit + tombstonedVanished,
+  };
 }
 
 /** Coerce Trestle's `Order` field (number | string | null) to a finite int, default 0. */
@@ -1482,11 +1520,26 @@ export interface RunMediaSyncResult {
    * on every run because every existing row was rewritten unconditionally.
    */
   rows_updated: number;
-  /** N1 counters — per-outcome truth (see UpsertListingMediaResult). */
+  /**
+   * N1 counters — per-outcome truth (see UpsertListingMediaResult).
+   * Accounting invariants (per fully-processed listing batch):
+   *   rows_checked   ≡ rows_inserted + rows_updated_changed
+   *                    + rows_skipped_unchanged + rows_skipped_invalid
+   *                    + delete_signals_received
+   *   physical writes ≡ rows_inserted + rows_updated_changed
+   *                    + tombstoned_explicit + tombstoned_vanished
+   * `rows_tombstoned` (= explicit + vanished) is a DB-ROW outcome, not an
+   * input disposition — the five business counters alone do NOT partition
+   * rows_checked. (On budget/failure exits, rows_checked counts every fetched
+   * row while the per-outcome counters only cover fully-processed listings.)
+   */
   rows_inserted: number;
   rows_updated_changed: number;
   rows_skipped_unchanged: number;
   rows_skipped_invalid: number;
+  delete_signals_received: number;
+  tombstoned_explicit: number;
+  tombstoned_vanished: number;
   rows_tombstoned: number;
   rows_failed: number;
   listings_processed: number;
@@ -1812,6 +1865,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let rowsUpdatedChanged = 0;
   let rowsSkippedUnchanged = 0;
   let rowsSkippedInvalid = 0;
+  let deleteSignalsReceived = 0;
+  let tombstonedExplicit = 0;
+  let tombstonedVanished = 0;
   let rowsTombstoned = 0;
   let rowsFailed = 0;
   let listingsProcessed = 0;
@@ -1871,6 +1927,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       rows_updated_changed: 0,
       rows_skipped_unchanged: 0,
       rows_skipped_invalid: 0,
+      delete_signals_received: 0,
+      tombstoned_explicit: 0,
+      tombstoned_vanished: 0,
       rows_tombstoned: 0,
       rows_failed: 0,
       listings_processed: 0,
@@ -1968,6 +2027,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       rowsUpdatedChanged += upsertResult.updatedChanged;
       rowsSkippedUnchanged += upsertResult.skippedUnchanged;
       rowsSkippedInvalid += upsertResult.skippedInvalid;
+      deleteSignalsReceived += upsertResult.deleteSignalsReceived;
+      tombstonedExplicit += upsertResult.tombstonedExplicit;
+      tombstonedVanished += upsertResult.tombstonedVanished;
       rowsTombstoned += upsertResult.tombstoned;
       // Legacy aggregate (kept for dashboard/audit continuity).
       rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged;
@@ -2207,6 +2269,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     rows_updated_changed: rowsUpdatedChanged,
     rows_skipped_unchanged: rowsSkippedUnchanged,
     rows_skipped_invalid: rowsSkippedInvalid,
+    delete_signals_received: deleteSignalsReceived,
+    tombstoned_explicit: tombstonedExplicit,
+    tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,

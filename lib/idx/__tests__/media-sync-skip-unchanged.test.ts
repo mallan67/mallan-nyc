@@ -7,6 +7,15 @@
  * `mediaRowUnchanged` and skips the UPDATE when nothing the update would
  * write actually differs.
  *
+ * COUNTER MODEL under test (input events vs database-row outcomes are
+ * distinct — the five business counters alone do NOT partition the input):
+ *
+ *   input rows      ≡ inserted + updatedChanged + skippedUnchanged
+ *                     + skippedInvalid + deleteSignalsReceived
+ *   physical writes ≡ inserted + updatedChanged
+ *                     + tombstonedExplicit + tombstonedVanished
+ *   tombstoned      ≡ tombstonedExplicit + tombstonedVanished   (DB rows)
+ *
  * Mocks `@/lib/prisma` (same convention as media-sync-upsert.test.ts) —
  * assertions are on CALL COUNTS and payloads, which is exactly the contract:
  * "identical complete input causes zero listingMedia.update calls."
@@ -50,8 +59,35 @@ jest.mock("@/lib/prisma", () => ({
 }));
 
 import { upsertListingMedia, mediaRowUnchanged } from "../media-sync";
+import type { UpsertListingMediaResult } from "../media-sync";
 
 const LISTING_ID = "RLS20012345";
+
+/** All-zero result shape — spread and override per case. */
+const ZERO: UpsertListingMediaResult = {
+  inserted: 0,
+  updatedChanged: 0,
+  skippedUnchanged: 0,
+  skippedInvalid: 0,
+  deleteSignalsReceived: 0,
+  tombstonedExplicit: 0,
+  tombstonedVanished: 0,
+  tombstoned: 0,
+};
+
+function physicalWrites(r: UpsertListingMediaResult): number {
+  return r.inserted + r.updatedChanged + r.tombstonedExplicit + r.tombstonedVanished;
+}
+
+function inputAccounted(r: UpsertListingMediaResult): number {
+  return (
+    r.inserted +
+    r.updatedChanged +
+    r.skippedUnchanged +
+    r.skippedInvalid +
+    r.deleteSignalsReceived
+  );
+}
 
 beforeEach(() => {
   mockFindUnique.mockReset();
@@ -114,28 +150,24 @@ describe("N1 — identical complete input causes ZERO update calls", () => {
 
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      inserted: 0,
-      updatedChanged: 0,
-      skippedUnchanged: 2,
-      skippedInvalid: 0,
-      tombstoned: 0,
-    });
+    expect(result).toEqual({ ...ZERO, skippedUnchanged: 2 });
+    expect(physicalWrites(result)).toBe(0);
   });
 
   it("two-pass idempotency: pass 1 creates, pass 2 (same input) writes nothing", async () => {
     // Pass 1 — row does not exist yet.
     mockFindUnique.mockResolvedValue(null);
     const r1 = await upsertListingMedia(LISTING_ID, [makeRow()]);
-    expect(r1).toEqual({ inserted: 1, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
+    expect(r1).toEqual({ ...ZERO, inserted: 1 });
     expect(mockCreate).toHaveBeenCalledTimes(1);
 
     // Pass 2 — the row now exists exactly as written.
     mockFindUnique.mockResolvedValue(makeExisting());
     const r2 = await upsertListingMedia(LISTING_ID, [makeRow()]);
-    expect(r2).toEqual({ inserted: 0, updatedChanged: 0, skippedUnchanged: 1, skippedInvalid: 0, tombstoned: 0 });
+    expect(r2).toEqual({ ...ZERO, skippedUnchanged: 1 });
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockCreate).toHaveBeenCalledTimes(1); // still only pass 1's create
+    expect(physicalWrites(r2)).toBe(0);
   });
 });
 
@@ -177,8 +209,8 @@ describe("N1 — each changed field causes exactly one update", () => {
 
 describe("N1 — timestamps compare by epoch, never by Date identity", () => {
   it("equal instants in different representations do NOT cause a write", async () => {
-    // Existing row holds a distinct Date object; input uses a +00:00 offset
-    // string of the same instants. Object identity would fail; epoch must pass.
+    // Existing row holds distinct Date objects; input uses +00:00 offset
+    // strings of the same instants. Object identity would fail; epoch must pass.
     mockFindUnique.mockResolvedValue(
       makeExisting({
         media_modification_ts: new Date(Date.UTC(2026, 4, 8, 11, 0, 0)),
@@ -261,19 +293,78 @@ describe("N1 — snapshot-only difference does not rewrite the row", () => {
   });
 });
 
-// ─── 5. Invalid input, tombstones, CRM protection — unchanged behavior ───
+// ─── 5. Input-event vs DB-row accounting (delete signals + tombstones) ───
 
-describe("N1 — non-update paths keep their exact pre-N1 behavior", () => {
-  it("invalid rows count as skippedInvalid (no MediaKey / no URL)", async () => {
+describe("N1 — delete signals are input events; tombstones are DB-row outcomes", () => {
+  it("unmatched explicit delete: signal counted, zero rows tombstoned", async () => {
+    // The row doesn't exist (or is already deleted) — updateMany matches 0.
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+
     const result = await upsertListingMedia(LISTING_ID, [
-      makeRow({ MediaKey: null }),
-      makeRow({ MediaKey: "MK-2", MediaURL: null }),
+      makeRow({ MediaKey: "MK-GONE", MediaStatus: "Deleted" }),
     ]);
-    expect(result.skippedInvalid).toBe(2);
-    expect(mockFindUnique).not.toHaveBeenCalled();
+
+    expect(result).toEqual({ ...ZERO, deleteSignalsReceived: 1 });
+    expect(result.tombstonedExplicit).toBe(0);
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+    expect(physicalWrites(result)).toBe(0);
+    expect(inputAccounted(result)).toBe(1); // 1 input row fully accounted
   });
 
-  it("explicit Deleted rows still tombstone via updateMany even when all other rows are skipped-unchanged", async () => {
+  it("duplicate explicit deletes: both inputs counted, at most one row changed", async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+
+    const result = await upsertListingMedia(LISTING_ID, [
+      makeRow({ MediaKey: "MK-DEAD", MediaStatus: "Deleted" }),
+      makeRow({ MediaKey: "MK-DEAD", MediaStatus: "Deleted" }), // duplicate signal
+    ]);
+
+    expect(result.deleteSignalsReceived).toBe(2); // input truth
+    expect(result.tombstonedExplicit).toBe(1); // DB truth — Set collapsed the key
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+    expect(mockUpdateMany.mock.calls[0][0].where).toEqual(
+      expect.objectContaining({ media_key: { in: ["MK-DEAD"] } }),
+    );
+    expect(inputAccounted(result)).toBe(2);
+    expect(physicalWrites(result)).toBe(1);
+  });
+
+  it("vanished-only tombstone: zero input rows, tombstonedVanished > 0", async () => {
+    mockUpdateMany.mockResolvedValue({ count: 3 });
+
+    const result = await upsertListingMedia(LISTING_ID, [], { tombstoneVanished: true });
+
+    expect(result).toEqual({ ...ZERO, tombstonedVanished: 3, tombstoned: 3 });
+    expect(inputAccounted(result)).toBe(0); // rows_checked was 0 — no input rows
+    expect(physicalWrites(result)).toBe(3); // yet 3 DB rows changed
+    // Empty-input branch still shields CRM media and has no notIn clause.
+    const where = mockUpdateMany.mock.calls[0][0].where as Record<string, unknown>;
+    expect(where.media_key).toBeUndefined();
+    expect(where.NOT).toEqual({ media_key: { startsWith: "crm:" } });
+  });
+
+  it("aggregate reconciliation: tombstoned = tombstonedExplicit + tombstonedVanished", async () => {
+    mockFindUnique.mockResolvedValue(makeExisting());
+    mockUpdateMany
+      .mockResolvedValueOnce({ count: 1 }) // explicit
+      .mockResolvedValueOnce({ count: 2 }); // vanished
+
+    const result = await upsertListingMedia(
+      LISTING_ID,
+      [makeRow(), makeRow({ MediaKey: "MK-DEAD", MediaStatus: "Deleted" })],
+      { tombstoneVanished: true },
+    );
+
+    expect(result.tombstonedExplicit).toBe(1);
+    expect(result.tombstonedVanished).toBe(2);
+    expect(result.tombstoned).toBe(3);
+    expect(result.tombstoned).toBe(result.tombstonedExplicit + result.tombstonedVanished);
+    // The skipped-unchanged key MUST still be in the vanished seen-set.
+    const where = mockUpdateMany.mock.calls[1][0].where as Record<string, unknown>;
+    expect(where.media_key).toEqual({ notIn: ["MK-1", "MK-DEAD"] });
+  });
+
+  it("explicit Deleted rows still tombstone even when all other rows are skipped-unchanged", async () => {
     mockFindUnique.mockResolvedValue(makeExisting());
     mockUpdateMany.mockResolvedValue({ count: 1 });
 
@@ -283,7 +374,8 @@ describe("N1 — non-update paths keep their exact pre-N1 behavior", () => {
     ]);
 
     expect(result.skippedUnchanged).toBe(1);
-    expect(result.tombstoned).toBe(1);
+    expect(result.deleteSignalsReceived).toBe(1);
+    expect(result.tombstonedExplicit).toBe(1);
     expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ media_key: { in: ["MK-DEAD"] }, status: "active" }),
@@ -291,52 +383,52 @@ describe("N1 — non-update paths keep their exact pre-N1 behavior", () => {
       }),
     );
   });
+});
 
-  it("vanished-row tombstoning still fires with skipped-unchanged rows counted as seen, and still shields crm: media", async () => {
-    mockFindUnique.mockResolvedValue(makeExisting());
-    mockUpdateMany.mockResolvedValue({ count: 2 });
+// ─── 6. Invalid input + full mixed reconciliation ────────────────────────
 
-    const result = await upsertListingMedia(LISTING_ID, [makeRow()], {
-      tombstoneVanished: true,
-    });
-
-    expect(result.skippedUnchanged).toBe(1);
-    expect(result.tombstoned).toBe(2);
-    const where = mockUpdateMany.mock.calls[0][0].where as Record<string, unknown>;
-    // The skipped-unchanged key MUST still be in the seen-set (notIn) so an
-    // unchanged row is never tombstoned as "vanished".
-    expect(where.media_key).toEqual({ notIn: ["MK-1"] });
-    // CRM-owned uploads stay excluded from vanish-tombstoning.
-    expect(where.NOT).toEqual({ media_key: { startsWith: "crm:" } });
+describe("N1 — accounting invariants across mixed input", () => {
+  it("invalid rows count as skippedInvalid (no MediaKey / no URL)", async () => {
+    const result = await upsertListingMedia(LISTING_ID, [
+      makeRow({ MediaKey: null }),
+      makeRow({ MediaKey: "MK-2", MediaURL: null }),
+    ]);
+    expect(result.skippedInvalid).toBe(2);
+    expect(mockFindUnique).not.toHaveBeenCalled();
   });
 
-  it("run-total reconciliation: every input row lands in exactly one counter", async () => {
+  it("input invariant holds across inserts, changes, unchanged, invalid and delete signals", async () => {
     mockFindUnique
       .mockResolvedValueOnce(makeExisting()) // MK-1 unchanged
-      .mockResolvedValueOnce(null); // MK-3 new
-    mockUpdateMany.mockResolvedValue({ count: 1 });
+      .mockResolvedValueOnce(null) // MK-3 new
+      .mockResolvedValueOnce(makeExisting({ order: 7 })); // MK-4 changed (order differs)
+    mockUpdateMany.mockResolvedValue({ count: 1 }); // explicit delete affects 1 row
 
-    const result = await upsertListingMedia(LISTING_ID, [
+    const input = [
       makeRow(), // → skippedUnchanged
       makeRow({ MediaKey: null }), // → skippedInvalid
       makeRow({ MediaKey: "MK-3" }), // → inserted
-      makeRow({ MediaKey: "MK-DEAD", MediaStatus: "Deleted" }), // → tombstoned
-    ]);
+      makeRow({ MediaKey: "MK-4", Order: 1 }), // → updatedChanged (existing order 7 ≠ 1)
+      makeRow({ MediaKey: "MK-DEAD", MediaStatus: "Deleted" }), // → delete signal
+      makeRow({ MediaKey: "MK-DEAD", MediaStatus: "Deleted" }), // → duplicate delete signal
+    ];
+    const result = await upsertListingMedia(LISTING_ID, input);
 
     expect(result).toEqual({
       inserted: 1,
-      updatedChanged: 0,
+      updatedChanged: 1,
       skippedUnchanged: 1,
       skippedInvalid: 1,
+      deleteSignalsReceived: 2,
+      tombstonedExplicit: 1,
+      tombstonedVanished: 0,
       tombstoned: 1,
     });
-    // 4 inputs = 1 inserted + 0 updated + 1 skippedUnchanged + 1 skippedInvalid + 1 tombstoned
-    const accounted =
-      result.inserted +
-      result.updatedChanged +
-      result.skippedUnchanged +
-      result.skippedInvalid +
-      result.tombstoned;
-    expect(accounted).toBe(4);
+    // INPUT accounting: 6 input rows ≡ 1+1+1+1+2.
+    expect(inputAccounted(result)).toBe(input.length);
+    // DB-WRITE accounting: 1 insert + 1 update + 1 explicit tombstone = 3.
+    expect(physicalWrites(result)).toBe(3);
+    // And the two ledgers are intentionally DIFFERENT numbers (6 vs 3):
+    expect(inputAccounted(result)).not.toBe(physicalWrites(result));
   });
 });

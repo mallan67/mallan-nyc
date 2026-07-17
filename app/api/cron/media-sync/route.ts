@@ -89,6 +89,12 @@ export async function GET(req: NextRequest) {
           rows_updated_changed: result.rows_updated_changed,
           rows_skipped_unchanged: result.rows_skipped_unchanged,
           rows_skipped_invalid: result.rows_skipped_invalid,
+          // Input-vs-DB-row accounting (rows_tombstoned = explicit + vanished
+          // is a DB-row outcome; delete_signals_received is the input-side
+          // disposition — see RunMediaSyncResult invariants):
+          delete_signals_received: result.delete_signals_received,
+          tombstoned_explicit: result.tombstoned_explicit,
+          tombstoned_vanished: result.tombstoned_vanished,
           rows_tombstoned: result.rows_tombstoned,
           rows_failed: result.rows_failed,
           listings_processed: result.listings_processed,
