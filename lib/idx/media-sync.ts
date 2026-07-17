@@ -499,10 +499,21 @@ export interface UpsertListingMediaOptions {
 export interface UpsertListingMediaResult {
   /** Rows that did not exist in DB and were inserted as active. */
   inserted: number;
-  /** Rows that already existed in DB and had their fields refreshed. */
-  updated: number;
-  /** Input rows that were rejected before any DB write (no MediaKey, non-Public Permission, no MediaURL). */
-  skipped: number;
+  /**
+   * N1: rows that already existed AND had at least one compared source field
+   * differ — rewritten. (Before N1 this counter was `updated` and every
+   * existing row landed here unconditionally.)
+   */
+  updatedChanged: number;
+  /**
+   * N1: rows that already existed with EVERY compared field identical
+   * (see `mediaRowUnchanged`) — no UPDATE is issued at all: no `updated_at`
+   * bump, no WAL, no dead tuple. This is the production instrument for the
+   * previously-unverified "unchanged fraction" of Cotality media re-deliveries.
+   */
+  skippedUnchanged: number;
+  /** Input rows rejected before any DB write (no MediaKey, non-Public Permission, no MediaURL). */
+  skippedInvalid: number;
   /** DB rows whose `status` flipped from active to deleted (explicit MediaStatus='Deleted' OR vanished from input when tombstoneVanished=true). */
   tombstoned: number;
 }
@@ -527,6 +538,81 @@ interface MappedMediaRow {
 }
 
 /**
+ * N1: the columns the UPDATE branch writes, read back for comparison.
+ * Structural subset of the Prisma `listing_media` row.
+ */
+interface MediaRowCompareSnapshot {
+  listing_id: string | null;
+  resource_record_key: string | null;
+  resource_record_id: string | null;
+  media_url_original: string | null;
+  media_type: string | null;
+  media_category: string | null;
+  media_classification: string | null;
+  order: number | null;
+  preferred_photo_yn: boolean | null;
+  media_modification_ts: Date | null;
+  modification_ts: Date | null;
+  status: string | null;
+}
+
+/**
+ * N1: epoch-normalized nullable-timestamp equality. NEVER compares Date
+ * objects by identity — two distinct Date instances at the same epoch
+ * millisecond are equal; null equals only null.
+ */
+function tsEqual(a: Date | null, b: Date | null): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  return a.getTime() === b.getTime();
+}
+
+/**
+ * N1 comparison contract — a row is "unchanged" iff EVERY field the UPDATE
+ * branch would write is already equal on the existing row, INCLUDING
+ * `status === 'active'` (a tombstoned row re-delivered active must be
+ * reactivated, so it always compares as changed) and the row-level
+ * provenance timestamps (`media_modification_ts`, `modification_ts`).
+ *
+ * `photos_change_ts_snapshot` is deliberately NOT compared and NOT written
+ * for unchanged rows. Ownership model (reviewed contract, 2026-07-17):
+ *   - Cotality re-stamps the Property-level `PhotosChangeTimestamp` without
+ *     media-row content changes; comparing or rewriting the snapshot would
+ *     force a full-row rewrite of every media row on every re-delivery and
+ *     defeat write suppression entirely.
+ *   - The LATEST Property-level snapshot is durably retained at the
+ *     sync-state level: `media_sync_state.last_photos_change` (the keyset
+ *     cursor) advances every run, and per-run first/last PhotosChange values
+ *     are logged via cursor telemetry. No provenance is lost.
+ *   - The row-level `photos_change_ts_snapshot` field remains meaningful with
+ *     narrowed semantics: "the Property-level snapshot at this row's last
+ *     CONTENT write" (inserts and changed-row updates still write it).
+ *     Retiring the column, if ever desired, is a separate reviewed change.
+ *
+ * Exported for direct unit tests.
+ */
+export function mediaRowUnchanged(
+  existing: MediaRowCompareSnapshot,
+  row: MappedMediaRow,
+  listingId: string,
+): boolean {
+  return (
+    existing.status === "active" &&
+    existing.listing_id === listingId &&
+    existing.resource_record_key === row.resourceRecordKey &&
+    existing.resource_record_id === row.resourceRecordID &&
+    existing.media_url_original === row.mediaUrlOriginal &&
+    existing.media_type === row.mediaType &&
+    existing.media_category === row.mediaCategory &&
+    existing.media_classification === row.mediaClassification &&
+    existing.order === row.order &&
+    existing.preferred_photo_yn === row.preferredPhotoYN &&
+    tsEqual(existing.media_modification_ts, row.mediaModificationTs) &&
+    tsEqual(existing.modification_ts, row.modificationTs)
+  );
+}
+
+/**
  * Upsert a complete Trestle Media batch for a single listing.
  *
  * Behavior per row:
@@ -536,17 +622,21 @@ interface MappedMediaRow {
  *   - `Permission` set and not `"Public"` ⟹ skipped (defensive — Trestle's
  *     IDX Plus license pre-filters at the edge but we double-check).
  *   - No `MediaURL` ⟹ skipped (we have nothing to mirror).
- *   - Otherwise: upsert by `media_key`. Inserts seed `created_at`; updates
- *     refresh all source-provenance fields (URL, type, order, preferred,
- *     timestamps). The `r2_key` and `media_url_cached` fields are NEVER
- *     touched here — those land in Checkpoint 4 (R2 upload path).
+ *   - Otherwise: upsert by `media_key`. Inserts seed `created_at`. Updates
+ *     execute ONLY when at least one compared field differs from the existing
+ *     row (`mediaRowUnchanged` — N1); an unchanged row produces zero writes
+ *     and counts as `skippedUnchanged`. The `r2_key` and `media_url_cached`
+ *     fields are NEVER touched here — those land in Checkpoint 4 (R2 upload
+ *     path).
  *
  * `tombstoneVanished` (default false): when true, rows currently
  * `status='active'` for `listingId` that aren't in the input batch are
  * also tombstoned. Caller must guarantee the input batch is complete.
  *
- * Idempotent: running this twice with identical input produces no DB
- * churn beyond `updated_at` bumps (which Prisma's `@updatedAt` enforces).
+ * Idempotent AND write-suppressing (N1): running this twice with identical
+ * input produces ZERO row writes on the second pass — no `updated_at` bump,
+ * no WAL, no dead tuple. (Pre-N1 this doc claimed idempotency while every
+ * pass still rewrote every existing row.)
  */
 export async function upsertListingMedia(
   listingId: string,
@@ -555,14 +645,14 @@ export async function upsertListingMedia(
 ): Promise<UpsertListingMediaResult> {
   const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
 
-  let skipped = 0;
+  let skippedInvalid = 0;
   const explicitDeleteKeys = new Set<string>();
   const mapped: MappedMediaRow[] = [];
 
   for (const raw of mediaRows) {
     const mediaKey = raw.MediaKey ? String(raw.MediaKey) : null;
     if (!mediaKey) {
-      skipped++;
+      skippedInvalid++;
       continue;
     }
 
@@ -572,13 +662,13 @@ export async function upsertListingMedia(
     }
 
     if (raw.Permission != null && String(raw.Permission) !== "Public") {
-      skipped++;
+      skippedInvalid++;
       continue;
     }
 
     const url = raw.MediaURL ? String(raw.MediaURL) : null;
     if (!url) {
-      skipped++;
+      skippedInvalid++;
       continue;
     }
 
@@ -599,16 +689,41 @@ export async function upsertListingMedia(
   }
 
   let inserted = 0;
-  let updated = 0;
+  let updatedChanged = 0;
+  let skippedUnchanged = 0;
 
   // Upsert each surviving row. We use findUnique + create/update rather than
-  // Prisma's upsert() so we can return precise inserted/updated counts.
+  // Prisma's upsert() so we can (a) return precise per-outcome counts and
+  // (b) N1: compare the existing row's written fields and SKIP the UPDATE
+  // entirely when nothing changed. The lookup stays the same unique-index
+  // point read (`listing_media_media_key_key`) — only the select widens.
   for (const row of mapped) {
     const existing = await prisma.listingMedia.findUnique({
       where: { media_key: row.mediaKey },
-      select: { id: true, listing_id: true },
+      select: {
+        id: true,
+        listing_id: true,
+        resource_record_key: true,
+        resource_record_id: true,
+        media_url_original: true,
+        media_type: true,
+        media_category: true,
+        media_classification: true,
+        order: true,
+        preferred_photo_yn: true,
+        media_modification_ts: true,
+        modification_ts: true,
+        status: true,
+      },
     });
     if (existing) {
+      // N1: unchanged content ⇒ zero writes. `photos_change_ts_snapshot` is
+      // intentionally outside the comparison AND outside the skip-path write
+      // set — see the `mediaRowUnchanged` contract above.
+      if (mediaRowUnchanged(existing, row, listingId)) {
+        skippedUnchanged++;
+        continue;
+      }
       await prisma.listingMedia.update({
         where: { media_key: row.mediaKey },
         data: {
@@ -627,7 +742,7 @@ export async function upsertListingMedia(
           status: "active",
         },
       });
-      updated++;
+      updatedChanged++;
     } else {
       await prisma.listingMedia.create({
         data: {
@@ -696,7 +811,7 @@ export async function upsertListingMedia(
     tombstoned += res.count;
   }
 
-  return { inserted, updated, skipped, tombstoned };
+  return { inserted, updatedChanged, skippedUnchanged, skippedInvalid, tombstoned };
 }
 
 /** Coerce Trestle's `Order` field (number | string | null) to a finite int, default 0. */
@@ -1361,7 +1476,18 @@ export interface RunMediaSyncResult {
    */
   exit_reason: "completed" | "budget_phase1" | "budget_phase2" | "source_error";
   rows_checked: number;
+  /**
+   * LEGACY aggregate kept for dashboard/audit continuity:
+   * `rows_inserted + rows_updated_changed`. Pre-N1 this equalled rows_checked
+   * on every run because every existing row was rewritten unconditionally.
+   */
   rows_updated: number;
+  /** N1 counters — per-outcome truth (see UpsertListingMediaResult). */
+  rows_inserted: number;
+  rows_updated_changed: number;
+  rows_skipped_unchanged: number;
+  rows_skipped_invalid: number;
+  rows_tombstoned: number;
   rows_failed: number;
   listings_processed: number;
   listings_skipped: number;
@@ -1682,6 +1808,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
   let rowsChecked = 0;
   let rowsUpdated = 0;
+  let rowsInserted = 0;
+  let rowsUpdatedChanged = 0;
+  let rowsSkippedUnchanged = 0;
+  let rowsSkippedInvalid = 0;
+  let rowsTombstoned = 0;
   let rowsFailed = 0;
   let listingsProcessed = 0;
   let listingsSkipped = 0;
@@ -1736,6 +1867,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       error: err instanceof Error ? err.message : String(err),
       rows_checked: 0,
       rows_updated: 0,
+      rows_inserted: 0,
+      rows_updated_changed: 0,
+      rows_skipped_unchanged: 0,
+      rows_skipped_invalid: 0,
+      rows_tombstoned: 0,
       rows_failed: 0,
       listings_processed: 0,
       listings_skipped: 0,
@@ -1828,7 +1964,13 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         // An empty COMPLETE set tombstones every active row for the listing.
         tombstoneVanished: true,
       });
-      rowsUpdated += upsertResult.inserted + upsertResult.updated;
+      rowsInserted += upsertResult.inserted;
+      rowsUpdatedChanged += upsertResult.updatedChanged;
+      rowsSkippedUnchanged += upsertResult.skippedUnchanged;
+      rowsSkippedInvalid += upsertResult.skippedInvalid;
+      rowsTombstoned += upsertResult.tombstoned;
+      // Legacy aggregate (kept for dashboard/audit continuity).
+      rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged;
 
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).
@@ -2061,6 +2203,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     exit_reason: exitReason,
     rows_checked: rowsChecked,
     rows_updated: rowsUpdated,
+    rows_inserted: rowsInserted,
+    rows_updated_changed: rowsUpdatedChanged,
+    rows_skipped_unchanged: rowsSkippedUnchanged,
+    rows_skipped_invalid: rowsSkippedInvalid,
+    rows_tombstoned: rowsTombstoned,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,
     listings_skipped: listingsSkipped,

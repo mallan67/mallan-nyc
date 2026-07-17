@@ -73,6 +73,11 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     exit_reason: "completed",
     rows_checked: 0,
     rows_updated: 0,
+    rows_inserted: 0,
+    rows_updated_changed: 0,
+    rows_skipped_unchanged: 0,
+    rows_skipped_invalid: 0,
+    rows_tombstoned: 0,
     rows_failed: 0,
     listings_processed: 0,
     listings_skipped: 0,
@@ -275,6 +280,8 @@ describe("GET /api/cron/media-sync — happy path", () => {
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
+      "rows_inserted", "rows_updated_changed", "rows_skipped_unchanged",
+      "rows_skipped_invalid", "rows_tombstoned",
       "listings_processed", "listings_skipped",
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",

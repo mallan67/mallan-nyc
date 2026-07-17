@@ -67,7 +67,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: undefined }),
       makeRow({ MediaKey: "" }),
     ]);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 3, tombstoned: 0 });
+    expect(result).toEqual({ inserted: 0, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 3, tombstoned: 0 });
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-B", Permission: "VOW" }),
       makeRow({ MediaKey: "MK-C", Permission: "Private" }),
     ]);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 3, tombstoned: 0 });
+    expect(result).toEqual({ inserted: 0, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 3, tombstoned: 0 });
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -90,7 +90,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", Permission: "Public" }),
     ]);
     expect(result.inserted).toBe(1);
-    expect(result.skipped).toBe(0);
+    expect(result.skippedInvalid).toBe(0);
   });
 
   it("accepts Permission=null (Trestle's IDX Plus license-edge default — already filtered upstream)", async () => {
@@ -100,7 +100,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", Permission: null }),
     ]);
     expect(result.inserted).toBe(1);
-    expect(result.skipped).toBe(0);
+    expect(result.skippedInvalid).toBe(0);
   });
 
   it("skips rows without MediaURL", async () => {
@@ -108,7 +108,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", MediaURL: null }),
       makeRow({ MediaKey: "MK-B", MediaURL: "" }),
     ]);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 2, tombstoned: 0 });
+    expect(result).toEqual({ inserted: 0, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 2, tombstoned: 0 });
   });
 
   // ─── Insert path ──────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-2", Order: 2 }),
     ]);
 
-    expect(result).toEqual({ inserted: 2, updated: 0, skipped: 0, tombstoned: 0 });
+    expect(result).toEqual({ inserted: 2, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
     expect(mockCreate).toHaveBeenCalledTimes(2);
     const firstCall = mockCreate.mock.calls[0][0];
     expect(firstCall.data.listing_id).toBe("RLS20012345");
@@ -165,7 +165,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-1", Order: 5 }),
     ]);
 
-    expect(result).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0 });
+    expect(result).toEqual({ inserted: 0, updatedChanged: 1, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
     expect(mockCreate).not.toHaveBeenCalled();
     const args = mockUpdate.mock.calls[0][0];
     expect(args.where).toEqual({ media_key: "MK-1" });
@@ -191,19 +191,19 @@ describe("upsertListingMedia — Checkpoint 2", () => {
     mockFindUnique.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce(undefined);
     const r1 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r1).toEqual({ inserted: 1, updated: 0, skipped: 0, tombstoned: 0 });
+    expect(r1).toEqual({ inserted: 1, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
 
     // Second run — same row, now exists.
     mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
     mockUpdate.mockResolvedValueOnce(undefined);
     const r2 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r2).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0 });
+    expect(r2).toEqual({ inserted: 0, updatedChanged: 1, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
 
     // Third run — still exists.
     mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
     mockUpdate.mockResolvedValueOnce(undefined);
     const r3 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r3).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0 });
+    expect(r3).toEqual({ inserted: 0, updatedChanged: 1, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
 
     // No duplicate creates.
     expect(mockCreate).toHaveBeenCalledTimes(1);
@@ -306,7 +306,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       { tombstoneVanished: true },
     );
 
-    expect(result).toEqual({ inserted: 1, updated: 0, skipped: 0, tombstoned: 4 });
+    expect(result).toEqual({ inserted: 1, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 4 });
     // Vanished `notIn` clause should include BOTH live and explicitly-deleted keys.
     expect(mockUpdateMany.mock.calls[1][0].where).toEqual({
       listing_id: "RLS20012345",
@@ -371,7 +371,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
 
   it("on empty input with no options — performs zero DB calls", async () => {
     const result = await upsertListingMedia("RLS20012345", []);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 0, tombstoned: 0 });
+    expect(result).toEqual({ inserted: 0, updatedChanged: 0, skippedUnchanged: 0, skippedInvalid: 0, tombstoned: 0 });
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
