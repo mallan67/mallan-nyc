@@ -4,7 +4,7 @@
  * Background — A3 Codex feedback on PR #171 (2026-05-20).
  *
  * The original A3 implementation used a read-then-write pattern:
- *   1. SELECT roles FROM "Lead" WHERE email = $1
+ *   1. SELECT roles FROM "leads" WHERE email = $1
  *   2. mergedRoles = JS-side mergeRoles(existing, incoming)
  *   3. INSERT ... ON CONFLICT (email) DO UPDATE SET roles = <jsValue>
  *
@@ -22,12 +22,13 @@
  * inserts on the same `email` serialize and each sees the other's
  * write before computing its own merge.
  *
- * The union expression (the ON CONFLICT target is aliased `existing` so the
- * merge references the conflict-locked row by a stable alias rather than the
- * physical table name):
+ * The union expression (the DO UPDATE clause references the conflict-locked
+ * row by the physical table name per the 2026-07-17 SQL contract: the literal
+ * strings INSERT INTO "leads" and "leads"."roles" must appear, and the
+ * historical PascalCase relation name must never reappear):
  *   ARRAY(
  *     SELECT DISTINCT role
- *     FROM unnest(existing."roles" || EXCLUDED."roles") AS role
+ *     FROM unnest("leads"."roles" || EXCLUDED."roles") AS role
  *     WHERE role <> ''
  *   )
  *
@@ -117,7 +118,7 @@ export async function atomicMergeUpsertLead(
   const rows = await prisma.$queryRaw<
     Array<{ id: bigint; roles: string[] }>
   >`
-    INSERT INTO "leads" AS existing (
+    INSERT INTO "leads" (
       "first_name", "last_name", "email", "phone", "roles",
       "status", "source", "consent_captured_at",
       "created_at", "updated_at"
@@ -128,10 +129,10 @@ export async function atomicMergeUpsertLead(
       NOW(), NOW()
     )
     ON CONFLICT ("email") DO UPDATE SET
-      "phone" = COALESCE(NULLIF(EXCLUDED."phone", ''), existing."phone"),
+      "phone" = COALESCE(NULLIF(EXCLUDED."phone", ''), "leads"."phone"),
       "roles" = ARRAY(
         SELECT DISTINCT role
-        FROM unnest(existing."roles" || EXCLUDED."roles") AS role
+        FROM unnest("leads"."roles" || EXCLUDED."roles") AS role
         WHERE role <> ''
       ),
       "consent_captured_at" = EXCLUDED."consent_captured_at",
