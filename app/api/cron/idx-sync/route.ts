@@ -79,7 +79,13 @@ export async function GET(req: NextRequest) {
       fullSync: forceFull || !since, // Full sync if forced or no previous sync
     });
 
-    // Log audit
+    // Log audit. The `...result` spread carries the full SyncResult,
+    // including the N2 write-suppression ledger added 2026-07-18
+    // (listings_checked / listings_changed / listings_skipped_unchanged and
+    // the projection_* triple; invariant per path: checked ≡ changed +
+    // skipped_unchanged). `upserted` remains the legacy aggregate (records
+    // that completed the write stage). VALIDITY RULE: the ledger is
+    // authoritative for reconciliation ONLY when errors === 0.
     await prisma.auditEvent.create({
       data: {
         action: "idx_sync_cron",

@@ -90,6 +90,14 @@ export async function GET(req: NextRequest) {
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,
           backlog_remaining: result.backlog_remaining,
+          // N2 summary-write suppression ledger (additive keys; invariant
+          // summary_checked ≡ summary_changed + summary_skipped_unchanged).
+          // VALIDITY RULE: authoritative for reconciliation ONLY when
+          // rows_failed === 0 (a mid-listing failure exits before the
+          // summary stage, so partial-run counters undercount).
+          summary_checked: result.summary_checked,
+          summary_changed: result.summary_changed,
+          summary_skipped_unchanged: result.summary_skipped_unchanged,
           duration_ms: result.duration_ms,
           ...(result.error ? { error: result.error } : {}),
         },

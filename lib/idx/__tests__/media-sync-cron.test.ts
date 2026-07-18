@@ -80,6 +80,10 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     r2_failed: 0,
     r2_skipped: 0,
     backlog_remaining: 0,
+    // N2 summary-write suppression ledger.
+    summary_checked: 0,
+    summary_changed: 0,
+    summary_skipped_unchanged: 0,
     duration_ms: 100,
     ...overrides,
   };
@@ -244,6 +248,9 @@ describe("GET /api/cron/media-sync — happy path", () => {
         r2_failed: 4,
         r2_skipped: 0,
         backlog_remaining: 1102,
+        summary_checked: 50,
+        summary_changed: 12,
+        summary_skipped_unchanged: 38,
         duration_ms: 88424,
       }),
     );
@@ -272,11 +279,21 @@ describe("GET /api/cron/media-sync — happy path", () => {
     expect(ch.r2_skipped).toBe(0);
     expect(ch.backlog_remaining).toBe(1102);
 
+    // N2: summary-write suppression ledger must be present and reconcile
+    // (checked ≡ changed + skipped_unchanged).
+    expect(ch.summary_checked).toBe(50);
+    expect(ch.summary_changed).toBe(12);
+    expect(ch.summary_skipped_unchanged).toBe(38);
+    expect(ch.summary_checked).toBe(
+      (ch.summary_changed as number) + (ch.summary_skipped_unchanged as number),
+    );
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
       "listings_processed", "listings_skipped",
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
+      "summary_checked", "summary_changed", "summary_skipped_unchanged",
       "duration_ms", "error",
     ]);
     for (const key of Object.keys(ch)) {

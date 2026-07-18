@@ -813,23 +813,87 @@ export function computeListingMediaSummary(
 }
 
 /**
+ * N2: existing values of the 4 Listing summary columns, read back for
+ * comparison before the summary write. `photo_count` is nullable in the
+ * schema (never backfilled rows) — null compares as different from 0, so a
+ * first-ever summary write still lands.
+ */
+export interface ListingMediaSummarySnapshot {
+  primary_photo_url: string | null;
+  primary_photo_r2_key: string | null;
+  photo_count: number | null;
+  photos_change_timestamp: Date | null;
+}
+
+/**
+ * N2: epoch-normalized nullable-timestamp equality for the summary
+ * comparison. Never compares Date objects by identity; null equals only
+ * null. (Named distinctly from N1's `tsEqual` to keep the N1→N2 merge
+ * sequence conflict-light — both live in this module.)
+ */
+function summaryTsEqual(a: Date | null, b: Date | null): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  return a.getTime() === b.getTime();
+}
+
+/**
+ * N2 comparison contract — the summary write is skipped iff EVERY one of
+ * the 4 columns it would set is already equal on the listing row:
+ * strings strict null-safe, `photo_count` strict (DB null ≠ computed 0),
+ * `photos_change_timestamp` by epoch. Exported for direct unit tests.
+ */
+export function mediaSummaryUnchanged(
+  existing: ListingMediaSummarySnapshot,
+  summary: ListingMediaSummary,
+): boolean {
+  return (
+    existing.primary_photo_url === summary.primary_photo_url &&
+    existing.primary_photo_r2_key === summary.primary_photo_r2_key &&
+    existing.photo_count === summary.photo_count &&
+    summaryTsEqual(existing.photos_change_timestamp, summary.photos_change_timestamp)
+  );
+}
+
+/** Return shape of `updateListingMediaSummary` (N2: adds the write outcome). */
+export interface UpdateListingMediaSummaryResult {
+  /** The summary now in effect for the listing (persisted or confirmed). */
+  summary: ListingMediaSummary;
+  /**
+   * true  — a `Listing.update()` was issued (values differed or the
+   *          existing row could not be read-compared);
+   * false — every summary column was already identical: ZERO writes issued,
+   *          no `updated_at` bump, no WAL, no dead tuple (N2).
+   */
+  changed: boolean;
+}
+
+/**
  * Re-derive and persist the 4 Listing summary columns from the current
  * `listing_media` rows for `listingId`.
  *
  * Reads all `listing_media` rows for the listing (active + deleted; the
  * filter happens in-JS via `computeListingMediaSummary`), computes the
- * summary, and writes it via a single `Listing.update()` call. Writes only
- * the 4 columns; never touches the legacy `Listing.media` JSON column or
- * any other field.
+ * summary, and writes it via a single `Listing.update()` call — ONLY when
+ * at least one of the 4 columns differs from what the listing row already
+ * holds (N2; root cause: this write ran unconditionally per processed
+ * listing, ~1,215 no-op listing rewrites/day at T1). Writes only the 4
+ * columns; never touches the legacy `Listing.media` JSON column or any
+ * other field.
  *
- * Idempotent: running twice with no underlying media change writes the
- * same values both times.
+ * Idempotent AND write-suppressing (N2): running twice with no underlying
+ * media change issues ZERO writes on the second pass.
  *
- * Returns the summary that was persisted.
+ * Fail-loud contract preserved: if the listing row is missing, the
+ * comparison read returns null and the unconditional `Listing.update()`
+ * still runs and throws P2025 — the caller's ok:false watermark-halt
+ * semantics are unchanged.
+ *
+ * Returns the summary plus whether a write was issued.
  */
 export async function updateListingMediaSummary(
   listingId: string,
-): Promise<ListingMediaSummary> {
+): Promise<UpdateListingMediaSummaryResult> {
   const rows = await prisma.listingMedia.findMany({
     where: { listing_id: listingId },
     select: {
@@ -846,6 +910,21 @@ export async function updateListingMediaSummary(
 
   const summary = computeListingMediaSummary(rows);
 
+  // N2: point-read the 4 existing summary columns and skip identical writes.
+  const existing = (await prisma.listing.findUnique({
+    where: { listing_id: listingId },
+    select: {
+      primary_photo_url: true,
+      primary_photo_r2_key: true,
+      photo_count: true,
+      photos_change_timestamp: true,
+    },
+  })) as ListingMediaSummarySnapshot | null;
+
+  if (existing && mediaSummaryUnchanged(existing, summary)) {
+    return { summary, changed: false };
+  }
+
   await prisma.listing.update({
     where: { listing_id: listingId },
     data: {
@@ -856,7 +935,7 @@ export async function updateListingMediaSummary(
     },
   });
 
-  return summary;
+  return { summary, changed: true };
 }
 
 // ─── Checkpoint 4 — R2 upload + reuse behavior ──────────────────────────
@@ -1385,6 +1464,14 @@ export interface RunMediaSyncResult {
    * after Phase 3 completes (or budget exits). null if the count query failed.
    */
   backlog_remaining: number | null;
+  // ── N2 summary-write suppression counters (additive; invariant:
+  //    summary_checked ≡ summary_changed + summary_skipped_unchanged) ────
+  /** Listings whose summary recompute completed this run. */
+  summary_checked: number;
+  /** Summary writes actually issued (at least one of the 4 columns differed). */
+  summary_changed: number;
+  /** Summary recomputes where all 4 columns were identical — zero writes issued. */
+  summary_skipped_unchanged: number;
   duration_ms: number;
   /** Set when `status === "error"`. */
   error?: string;
@@ -1690,6 +1777,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2Mirrored = 0;
   let r2Failed = 0;
   let r2Skipped = 0;
+  // N2: summary-write suppression ledger (checked ≡ changed + skipped_unchanged).
+  let summaryChecked = 0;
+  let summaryChanged = 0;
+  let summarySkippedUnchanged = 0;
   let backlogRemaining: number | null = null;
   let exitReason: RunMediaSyncResult["exit_reason"] = "completed";
   const cursorRecords: MediaSyncBatchRecord[] = [];
@@ -1745,6 +1836,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_failed: 0,
       r2_skipped: 0,
       backlog_remaining: null,
+      summary_checked: 0,
+      summary_changed: 0,
+      summary_skipped_unchanged: 0,
       duration_ms: now() - startTime,
     };
   }
@@ -1832,7 +1926,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).
-      await updateListingMediaSummary(listingId);
+      // N2: the summary write is suppressed when all 4 columns are identical;
+      // the ledger records checked/changed/skipped per listing.
+      const summaryResult = await updateListingMediaSummary(listingId);
+      summaryChecked++;
+      if (summaryResult.changed) summaryChanged++;
+      else summarySkippedUnchanged++;
 
       cursorRecords.push({
         PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
@@ -2070,6 +2169,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_failed: r2Failed,
     r2_skipped: r2Skipped,
     backlog_remaining: backlogRemaining,
+    summary_checked: summaryChecked,
+    summary_changed: summaryChanged,
+    summary_skipped_unchanged: summarySkippedUnchanged,
     duration_ms: now() - startTime,
   };
 }

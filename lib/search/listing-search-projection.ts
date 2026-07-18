@@ -448,6 +448,185 @@ export function buildProjectionUpsertPayload(
   };
 }
 
+// ── N2 write suppression — projection comparator ───────────────────────
+//
+// Root cause (T1 forensic, 2026-07-18): the sync dual-write called
+// `listingSearchProjection.upsert()` unconditionally for EVERY processed
+// record, rewriting identical rows (~3,856/day) — part of the 97%-unchanged
+// UPDATE churn measured on Neon. N2 contract: the caller reads the existing
+// projection row (PROJECTION_COMPARE_SELECT), compares EVERY column the
+// upsert would write (`projectionRowUnchanged`), and SKIPS the upsert
+// entirely when nothing differs — no `updated_at` bump, no WAL, no dead
+// tuple. Any single-column difference still writes the full row exactly as
+// before. Same doctrine as N1's `mediaRowUnchanged` in lib/idx/media-sync.ts.
+
+/**
+ * Prisma `select` for the existing-row read that feeds
+ * `projectionRowUnchanged`. Mirrors the exact field list
+ * `buildProjectionUpsertPayload` writes (minus `listing_id`, which is the
+ * lookup key and can never differ). Keep the two in lock-step: a field
+ * written but not selected/compared here would always read as "changed"
+ * (fail-open to writing — correctness-safe, but defeats suppression).
+ */
+export const PROJECTION_COMPARE_SELECT = {
+  listing_key: true,
+  source_system: true,
+  mls_status: true,
+  listing_type: true,
+  property_type: true,
+  property_sub_type: true,
+  borough: true,
+  neighborhood: true,
+  postal_code: true,
+  city: true,
+  state: true,
+  list_price: true,
+  bedrooms: true,
+  bathrooms: true,
+  living_area: true,
+  year_built: true,
+  latitude: true,
+  longitude: true,
+  is_commercial: true,
+  is_new_development: true,
+  is_exclusive: true,
+  is_rental: true,
+  rls_eligible: true,
+  idx_display_yn: true,
+  internet_entire_listing_display_yn: true,
+  internet_address_display_yn: true,
+  participant_only_yn: true,
+  searchable_text: true,
+  amenity_keys: true,
+  feature_flags: true,
+  modified_at: true,
+} as const;
+
+/**
+ * Existing `listing_search_projection` row as returned by a Prisma
+ * `findUnique({ select: PROJECTION_COMPARE_SELECT })`. JSON columns come
+ * back as parsed values (`unknown` here); `list_price` is a JS bigint.
+ */
+export type ListingSearchProjectionCompareSnapshot = {
+  [K in keyof typeof PROJECTION_COMPARE_SELECT]: K extends "amenity_keys" | "feature_flags"
+    ? unknown
+    : K extends "list_price"
+      ? bigint | null
+      : K extends "modified_at"
+        ? Date | null
+        : K extends "bedrooms" | "bathrooms" | "living_area" | "year_built" | "latitude" | "longitude"
+          ? number | null
+          : K extends
+                | "is_commercial"
+                | "is_new_development"
+                | "is_exclusive"
+                | "is_rental"
+                | "rls_eligible"
+            ? boolean
+            : K extends
+                  | "idx_display_yn"
+                  | "internet_entire_listing_display_yn"
+                  | "internet_address_display_yn"
+                  | "participant_only_yn"
+              ? boolean | null
+              : string | null;
+};
+
+/**
+ * Epoch-normalized nullable-timestamp equality (never Date identity): two
+ * distinct Date instances at the same millisecond are equal; null equals
+ * only null. Same rule as N1's `tsEqual` in lib/idx/media-sync.ts.
+ */
+function projectionTsEqual(a: Date | null, b: Date | null): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  return a.getTime() === b.getTime();
+}
+
+/**
+ * Deterministic JSON serialization: object keys sorted recursively so two
+ * semantically-equal values stringify identically regardless of key order
+ * (Postgres jsonb does not preserve object key order). Arrays keep their
+ * order — element order is meaningful for `amenity_keys`.
+ */
+function stableJsonStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
+  if (Array.isArray(value)) return `[${value.map((v) => stableJsonStringify(v)).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJsonStringify(obj[k])}`).join(",")}}`;
+}
+
+/**
+ * Deep equality on normalized JSON — compares the value Prisma would store:
+ * a JSON round-trip drops `undefined` members (undefined-vs-absent treated
+ * consistently) and serializes Dates, then a stable stringify compares.
+ * null equals only null.
+ */
+function projectionJsonEqual(existing: unknown, next: unknown): boolean {
+  if (existing === null || existing === undefined) return next === null || next === undefined;
+  if (next === null || next === undefined) return false;
+  const normExisting: unknown = JSON.parse(JSON.stringify(existing));
+  const normNext: unknown = JSON.parse(JSON.stringify(next));
+  return stableJsonStringify(normExisting) === stableJsonStringify(normNext);
+}
+
+/**
+ * N2 comparison contract — the projection row is "unchanged" iff EVERY
+ * column `buildProjectionUpsertPayload` would write is already equal on the
+ * existing row:
+ *   - strings / booleans / numbers / bigint (`list_price`): strict `===`
+ *     with null-safe handling (JS bigint compares by value);
+ *   - `modified_at`: epoch equality, never Date identity;
+ *   - `amenity_keys` / `feature_flags` (Json): deep equality on normalized
+ *     JSON (the ROW value, before the `Prisma.JsonNull` sentinel mapping in
+ *     `buildProjectionUpsertPayload` — DB null compares equal to row null).
+ *
+ * There are NO excluded bookkeeping columns on this table: `updated_at` is
+ * Prisma-managed (never written explicitly, and not bumped when the upsert
+ * is skipped) and `created_at`/`id` are insert-only.
+ *
+ * Exported for direct unit tests and for the caller in lib/idx/sync.ts.
+ */
+export function projectionRowUnchanged(
+  existing: ListingSearchProjectionCompareSnapshot,
+  projection: ListingSearchProjectionRow,
+): boolean {
+  return (
+    existing.listing_key === projection.listing_key &&
+    existing.source_system === projection.source_system &&
+    existing.mls_status === projection.mls_status &&
+    existing.listing_type === projection.listing_type &&
+    existing.property_type === projection.property_type &&
+    existing.property_sub_type === projection.property_sub_type &&
+    existing.borough === projection.borough &&
+    existing.neighborhood === projection.neighborhood &&
+    existing.postal_code === projection.postal_code &&
+    existing.city === projection.city &&
+    existing.state === projection.state &&
+    existing.list_price === projection.list_price &&
+    existing.bedrooms === projection.bedrooms &&
+    existing.bathrooms === projection.bathrooms &&
+    existing.living_area === projection.living_area &&
+    existing.year_built === projection.year_built &&
+    existing.latitude === projection.latitude &&
+    existing.longitude === projection.longitude &&
+    existing.is_commercial === projection.is_commercial &&
+    existing.is_new_development === projection.is_new_development &&
+    existing.is_exclusive === projection.is_exclusive &&
+    existing.is_rental === projection.is_rental &&
+    existing.rls_eligible === projection.rls_eligible &&
+    existing.idx_display_yn === projection.idx_display_yn &&
+    existing.internet_entire_listing_display_yn === projection.internet_entire_listing_display_yn &&
+    existing.internet_address_display_yn === projection.internet_address_display_yn &&
+    existing.participant_only_yn === projection.participant_only_yn &&
+    existing.searchable_text === projection.searchable_text &&
+    projectionJsonEqual(existing.amenity_keys, projection.amenity_keys) &&
+    projectionJsonEqual(existing.feature_flags, projection.feature_flags) &&
+    projectionTsEqual(existing.modified_at, projection.modified_at)
+  );
+}
+
 // ── H1 Tier-1 dual-write helper ────────────────────────────────────────
 
 /**

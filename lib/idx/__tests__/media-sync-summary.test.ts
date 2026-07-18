@@ -24,6 +24,10 @@ import {
 
 const mockFindMany = jest.fn<Promise<SummarySourceRow[]>, [unknown]>();
 const mockListingUpdate = jest.fn<Promise<unknown>, [unknown]>();
+// N2: the summary path now point-reads the 4 existing summary columns to
+// suppress identical writes. Default (set in beforeEach): no row found →
+// the write always runs (pre-N2 behavior preserved for these tests).
+const mockListingFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
@@ -33,15 +37,18 @@ jest.mock("@/lib/prisma", () => ({
     },
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
+      findUnique: (args: unknown) => mockListingFindUnique(args),
     },
   },
 }));
 
-import { updateListingMediaSummary } from "../media-sync";
+import { updateListingMediaSummary, mediaSummaryUnchanged } from "../media-sync";
 
 beforeEach(() => {
   mockFindMany.mockReset();
   mockListingUpdate.mockReset();
+  mockListingFindUnique.mockReset();
+  mockListingFindUnique.mockResolvedValue(null);
 });
 
 // Helper to build a SummarySourceRow with sensible defaults.
@@ -221,8 +228,9 @@ describe("updateListingMediaSummary (DB-backed)", () => {
     ]);
     mockListingUpdate.mockResolvedValueOnce(undefined);
 
-    const summary = await updateListingMediaSummary("RLS20012345");
+    const { summary, changed } = await updateListingMediaSummary("RLS20012345");
 
+    expect(changed).toBe(true);
     expect(summary).toEqual({
       primary_photo_url: "https://example.com/p.jpg",
       primary_photo_r2_key: "photos/RLS-1/1.jpg",
@@ -255,7 +263,7 @@ describe("updateListingMediaSummary (DB-backed)", () => {
     ]);
     mockListingUpdate.mockResolvedValueOnce(undefined);
 
-    const summary = await updateListingMediaSummary("RLS20012345");
+    const { summary } = await updateListingMediaSummary("RLS20012345");
 
     expect(summary.primary_photo_url).toBeNull();
     expect(summary.primary_photo_r2_key).toBeNull();
@@ -300,13 +308,159 @@ describe("updateListingMediaSummary (DB-backed)", () => {
     expect(firstPayload).toEqual(secondPayload);
   });
 
-  it("makes exactly one findMany and one listing.update per call", async () => {
+  it("makes exactly one findMany, one comparison findUnique, and one listing.update per call", async () => {
     mockFindMany.mockResolvedValueOnce([row()]);
     mockListingUpdate.mockResolvedValueOnce(undefined);
 
     await updateListingMediaSummary("RLS20012345");
 
     expect(mockFindMany).toHaveBeenCalledTimes(1);
+    expect(mockListingFindUnique).toHaveBeenCalledTimes(1);
     expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── N2 — summary write suppression ──────────────────────────────────────
+
+describe("updateListingMediaSummary — N2 write suppression", () => {
+  const TS = new Date("2026-06-15T00:00:00Z");
+
+  it("skips the write entirely when all 4 summary columns are identical", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      row({
+        media_url_original: "https://example.com/p.jpg",
+        order: 1,
+        r2_key: "photos/RLS-1/1.jpg",
+        media_modification_ts: TS,
+      }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce({
+      primary_photo_url: "https://example.com/p.jpg",
+      primary_photo_r2_key: "photos/RLS-1/1.jpg",
+      photo_count: 1,
+      // Distinct Date instance at the same epoch — MUST compare equal (never
+      // Date identity).
+      photos_change_timestamp: new Date(TS.getTime()),
+    });
+
+    const { summary, changed } = await updateListingMediaSummary("RLS20012345");
+
+    expect(changed).toBe(false);
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+    // The confirmed summary is still returned to the caller.
+    expect(summary.primary_photo_url).toBe("https://example.com/p.jpg");
+  });
+
+  it("identical second run issues ZERO listing.update calls", async () => {
+    const fixture = [
+      row({ media_url_original: "https://example.com/p.jpg", order: 1, media_modification_ts: TS }),
+    ];
+
+    // Run 1: no summary columns yet (nulls) → write happens.
+    mockFindMany.mockResolvedValueOnce(fixture);
+    mockListingFindUnique.mockResolvedValueOnce({
+      primary_photo_url: null,
+      primary_photo_r2_key: null,
+      photo_count: null,
+      photos_change_timestamp: null,
+    });
+    mockListingUpdate.mockResolvedValueOnce(undefined);
+    const first = await updateListingMediaSummary("RLS20012345");
+    expect(first.changed).toBe(true);
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+    const written = (mockListingUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+
+    // Run 2: DB now holds exactly what run 1 wrote → zero writes.
+    mockFindMany.mockResolvedValueOnce(fixture);
+    mockListingFindUnique.mockResolvedValueOnce({ ...written });
+    const second = await updateListingMediaSummary("RLS20012345");
+    expect(second.changed).toBe(false);
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1); // still 1 — no new write
+  });
+
+  it("a summary value change (photo_count) issues exactly one update", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      row({ media_url_original: "https://example.com/p.jpg", order: 1, media_modification_ts: TS }),
+      row({ media_url_original: "https://example.com/p2.jpg", order: 2, media_modification_ts: TS }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce({
+      primary_photo_url: "https://example.com/p.jpg",
+      primary_photo_r2_key: null,
+      photo_count: 1, // now 2 photos
+      photos_change_timestamp: new Date(TS.getTime()),
+    });
+    mockListingUpdate.mockResolvedValueOnce(undefined);
+
+    const { changed } = await updateListingMediaSummary("RLS20012345");
+
+    expect(changed).toBe(true);
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+    const updateArgs = mockListingUpdate.mock.calls[0][0] as { data: Record<string, unknown> };
+    expect(updateArgs.data.photo_count).toBe(2);
+  });
+
+  it("DB photo_count=null (never backfilled) vs computed 0 still writes (null !== 0)", async () => {
+    mockFindMany.mockResolvedValueOnce([]);
+    mockListingFindUnique.mockResolvedValueOnce({
+      primary_photo_url: null,
+      primary_photo_r2_key: null,
+      photo_count: null,
+      photos_change_timestamp: null,
+    });
+    mockListingUpdate.mockResolvedValueOnce(undefined);
+
+    const { changed } = await updateListingMediaSummary("RLS20012345");
+
+    expect(changed).toBe(true);
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("missing listing row (findUnique null) preserves fail-loud: update still runs and its throw propagates", async () => {
+    mockFindMany.mockResolvedValueOnce([row()]);
+    mockListingFindUnique.mockResolvedValueOnce(null);
+    const p2025 = Object.assign(new Error("Record not found"), { code: "P2025" });
+    mockListingUpdate.mockRejectedValueOnce(p2025);
+
+    await expect(updateListingMediaSummary("GHOST-1")).rejects.toThrow("Record not found");
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("mediaSummaryUnchanged (pure comparator)", () => {
+  const base = {
+    primary_photo_url: "https://example.com/p.jpg",
+    primary_photo_r2_key: "photos/RLS-1/1.jpg",
+    photo_count: 3,
+    photos_change_timestamp: new Date("2026-06-15T00:00:00Z"),
+  };
+
+  it("equal snapshot (distinct Date instances, same epoch) → unchanged", () => {
+    expect(
+      mediaSummaryUnchanged(
+        { ...base, photos_change_timestamp: new Date("2026-06-15T00:00:00Z") },
+        { ...base, photos_change_timestamp: new Date("2026-06-15T00:00:00.000Z") },
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["primary_photo_url", { primary_photo_url: "https://example.com/other.jpg" }],
+    ["primary_photo_r2_key", { primary_photo_r2_key: null }],
+    ["photo_count", { photo_count: 4 }],
+    ["photos_change_timestamp", { photos_change_timestamp: new Date("2026-06-16T00:00:00Z") }],
+  ])("%s difference → changed", (_field, override) => {
+    expect(mediaSummaryUnchanged({ ...base, ...override }, base)).toBe(false);
+  });
+
+  it("null timestamp equals only null", () => {
+    expect(
+      mediaSummaryUnchanged({ ...base, photos_change_timestamp: null }, base),
+    ).toBe(false);
+    expect(
+      mediaSummaryUnchanged(
+        { ...base, photos_change_timestamp: null },
+        { ...base, photos_change_timestamp: null },
+      ),
+    ).toBe(true);
   });
 });

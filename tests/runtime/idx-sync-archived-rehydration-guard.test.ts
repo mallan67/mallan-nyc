@@ -189,8 +189,18 @@ describe('idx-sync source — archived-guard wiring (SUPPORTING, not the RED pro
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
   it('both UPDATE branches wrap the payload in guardArchivedRehydration(...)', () => {
-    const matches = src.match(/update:\s*guardArchivedRehydration\(/g) || [];
-    expect(matches.length).toBe(2);
+    // N2 (2026-07-18): syncListings hoists the guarded payload into
+    // `const listingUpdate = guardArchivedRehydration(...)` so the
+    // unchanged-row comparator inspects the SAME object the upsert writes;
+    // syncAgentHistory still wraps inline at `update:`. Both branches must
+    // route through the guard, whichever shape they use.
+    const inlineMatches = src.match(/update:\s*guardArchivedRehydration\(/g) || [];
+    const hoistedMatches = src.match(/const listingUpdate = guardArchivedRehydration\(/g) || [];
+    expect(inlineMatches.length + hoistedMatches.length).toBe(2);
+    // And the hoisted payload must actually be what the upsert writes.
+    if (hoistedMatches.length > 0) {
+      expect(src).toMatch(/update:\s*listingUpdate,/);
+    }
   });
 
   it('both existing-row selects include sync_status so the guard can see archived state', () => {

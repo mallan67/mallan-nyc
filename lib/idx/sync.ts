@@ -11,7 +11,10 @@ import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import {
   buildListingSearchProjectionFromListing,
   buildProjectionUpsertPayload,
+  projectionRowUnchanged,
+  PROJECTION_COMPARE_SELECT,
   type ListingProjectionSource,
+  type ListingSearchProjectionCompareSnapshot,
 } from "@/lib/search/listing-search-projection";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
@@ -93,6 +96,226 @@ export function complianceUpdatePatch(): Record<string, never> {
 
 /** The sync_status the T+180 archiver writes (lib/retention/archive-terminals.ts). */
 export const ARCHIVED_SYNC_STATUS = "archived";
+
+// ── N2 write suppression — listing-row comparator ───────────────────────
+//
+// Root cause (T1 forensic, 2026-07-18): the per-record `prisma.listing.upsert`
+// update-arm rewrote EVERY column (including `raw_data`) unconditionally on
+// every incremental pass — ~3,856 unchanged listing rewrites/day, part of the
+// 97%-of-all-UPDATEs churn measured on Neon. N2 contract: compare every field
+// the update-arm would write against the existing row and SKIP the upsert
+// entirely when nothing differs — no `updated_at` bump, no WAL, no dead tuple.
+// Any single business-field difference (one raw_data byte, price, status, a
+// gate column, address/features/media JSON) still writes exactly as before.
+// Same doctrine as N1's `mediaRowUnchanged` (lib/idx/media-sync.ts).
+
+/**
+ * Bookkeeping fields excluded from the N2 comparison AND not written on
+ * skipped rows. Ownership contract (mirrors N1's `photos_change_ts_snapshot`
+ * doctrine):
+ *   - `last_synced_from_trestle` is stamped `new Date()` by the mapper on
+ *     every fetch — comparing it would mark every row "changed" and defeat
+ *     suppression entirely. The sync watermark/cursor authority lives in
+ *     `sync_state` (SyncState upsert at end of run) and the incremental
+ *     cursor reads `MAX(modification_timestamp)` (see getLastSyncTimestamp),
+ *     NOT this column. Its narrowed semantics under N2: "local receipt time
+ *     of this row's last CONTENT write" (creates and changed-row updates
+ *     still write it).
+ *   - `sync_status` is derived from the SAME raw record fields that ARE
+ *     compared (distribution gates → `gated:*`, default `synced`), so an
+ *     identical record cannot produce a different verdict; rewriting it on
+ *     unchanged rows is pure churn. Archived-row protection does not rely on
+ *     this write (guardArchivedRehydration drops `sync_status` for archived
+ *     rows independently).
+ */
+export const LISTING_SYNC_BOOKKEEPING_FIELDS: ReadonlySet<string> = new Set([
+  "last_synced_from_trestle",
+  "sync_status",
+]);
+
+/** Update-arm fields compared as nullable timestamps (epoch, never identity). */
+const LISTING_DATE_FIELDS: ReadonlySet<string> = new Set([
+  "modification_timestamp",
+  "listing_contract_date",
+  "status_changed_at",
+  "first_active_date",
+  "terminal_since",
+]);
+
+/** Update-arm fields stored as Prisma Decimal — compared numerically. */
+const LISTING_DECIMAL_FIELDS: ReadonlySet<string> = new Set(["list_price", "living_area"]);
+
+/** Update-arm JSON columns — compared by deep equality on normalized JSON. */
+const LISTING_JSON_FIELDS: ReadonlySet<string> = new Set([
+  "address",
+  "features",
+  "media",
+  "raw_data",
+  "compliance",
+]);
+
+/**
+ * Epoch-normalized nullable-timestamp equality. NEVER compares Date objects
+ * by identity — two distinct Date instances at the same millisecond are
+ * equal; null equals only null. Tolerates DB values arriving as ISO strings.
+ */
+function listingTsEqual(a: unknown, b: unknown): boolean {
+  const aNull = a === null || a === undefined;
+  const bNull = b === null || b === undefined;
+  if (aNull || bNull) return aNull && bNull;
+  const ta = a instanceof Date ? a.getTime() : new Date(String(a)).getTime();
+  const tb = b instanceof Date ? b.getTime() : new Date(String(b)).getTime();
+  return !Number.isNaN(ta) && ta === tb;
+}
+
+/**
+ * Numeric equality across the Decimal representations in play: the DB side
+ * is a Prisma Decimal object, the mapper side a numeric string (e.g.
+ * `"395000"` vs Decimal `395000.00`). Null equals only null. Values that do
+ * not parse as numbers fall back to strict string equality (never treat two
+ * unparseable values as equal unless their text matches).
+ */
+function listingDecimalEqual(a: unknown, b: unknown): boolean {
+  const aNull = a === null || a === undefined;
+  const bNull = b === null || b === undefined;
+  if (aNull || bNull) return aNull && bNull;
+  const na = Number(String(a));
+  const nb = Number(String(b));
+  if (Number.isNaN(na) || Number.isNaN(nb)) return String(a) === String(b);
+  return na === nb;
+}
+
+/**
+ * Deterministic JSON serialization: object keys sorted recursively so two
+ * semantically-equal values stringify identically regardless of key order
+ * (Postgres jsonb does not preserve object key order). Array order is
+ * preserved (meaningful for media arrays).
+ */
+function stableJsonStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
+  if (Array.isArray(value)) return `[${value.map((v) => stableJsonStringify(v)).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableJsonStringify(obj[k])}`).join(",")}}`;
+}
+
+/**
+ * Deep equality on normalized JSON — compares the value Prisma would store:
+ * a JSON round-trip drops `undefined` members (undefined-vs-absent treated
+ * consistently) and serializes Dates to ISO strings, then a stable
+ * (sorted-key) stringify compares. null equals only null.
+ */
+function listingJsonEqual(a: unknown, b: unknown): boolean {
+  const aNull = a === null || a === undefined;
+  const bNull = b === null || b === undefined;
+  if (aNull || bNull) return aNull && bNull;
+  return (
+    stableJsonStringify(JSON.parse(JSON.stringify(a))) ===
+    stableJsonStringify(JSON.parse(JSON.stringify(b)))
+  );
+}
+
+/**
+ * N2 comparison contract for the per-record listing UPDATE.
+ *
+ * Iterates the ACTUAL update payload (post-`guardArchivedRehydration`, so
+ * whatever the guard dropped is naturally not compared) and returns true iff
+ * every field it would write is already equal on the existing row:
+ *   - `LISTING_SYNC_BOOKKEEPING_FIELDS` are skipped (not compared, not
+ *     written on skipped rows — see the ownership contract above);
+ *   - `undefined` payload values are skipped (Prisma treats them as absent);
+ *   - dates by epoch, Decimals numerically, JSON columns by normalized deep
+ *     equality, everything else strict `===` with null-safe handling.
+ *
+ * Fail-open to writing: a payload field MISSING from the existing-row select
+ * (`existing[field] === undefined` while the payload value is non-undefined)
+ * compares as changed, so a select/payload drift can only cause an extra
+ * write, never a swallowed change. `existing` null/undefined (no row) is
+ * always "changed" (the create path).
+ *
+ * Note on `media`: the incremental sync runs with `useExpandMedia=false`, so
+ * `mediaUpdatePatch` OMITS `media` from the payload and it is neither
+ * compared nor at risk — the batch-media path owns the refill. If media IS
+ * fetched (payload carries it), a media difference compares as changed.
+ * `compliance` is likewise omitted on UPDATE (S1/#445) and never compared.
+ *
+ * Exported for unit tests.
+ */
+export function listingUpdateUnchanged(
+  existing: Record<string, unknown> | null | undefined,
+  update: Record<string, unknown>,
+): boolean {
+  if (!existing) return false;
+  for (const field of Object.keys(update)) {
+    if (LISTING_SYNC_BOOKKEEPING_FIELDS.has(field)) continue;
+    const next = update[field];
+    if (next === undefined) continue; // Prisma treats undefined as "not written"
+    const prev = existing[field];
+    if (LISTING_DATE_FIELDS.has(field)) {
+      if (!listingTsEqual(prev, next)) return false;
+    } else if (LISTING_DECIMAL_FIELDS.has(field)) {
+      if (!listingDecimalEqual(prev, next)) return false;
+    } else if (LISTING_JSON_FIELDS.has(field)) {
+      if (!listingJsonEqual(prev, next)) return false;
+    } else {
+      const prevNorm = prev === undefined ? undefined : prev;
+      if (prevNorm !== next && !(prevNorm === null && next === null)) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Select for the per-record existing-row read, widened for N2: every field
+ * the update-arm can write (and the comparator checks) plus the fields the
+ * pre-existing status-transition / rehydration logic needs. `media` and
+ * `compliance` are intentionally NOT selected — both are omitted from the
+ * update payload today (mediaUpdatePatch with useExpandMedia=false;
+ * complianceUpdatePatch), and if a future change re-adds them the
+ * comparator fails open to writing (see listingUpdateUnchanged).
+ */
+export const LISTING_SYNC_COMPARE_SELECT = {
+  // Pre-N2 status-transition / guard fields
+  status: true,
+  status_changed_at: true,
+  first_active_date: true,
+  days_on_market: true,
+  sync_status: true,
+  // N2 compared fields
+  mls_id: true,
+  listing_type: true,
+  property_type: true,
+  property_sub_type: true,
+  list_price: true,
+  bedrooms_total: true,
+  bathrooms_full: true,
+  bathrooms_half: true,
+  living_area: true,
+  borough: true,
+  neighborhood: true,
+  city: true,
+  postal_code: true,
+  idx_display_yn: true,
+  internet_entire_listing_display_yn: true,
+  internet_address_display_yn: true,
+  participant_only: true,
+  owner_opt_out: true,
+  address: true,
+  features: true,
+  raw_data: true,
+  modification_timestamp: true,
+  listing_contract_date: true,
+  terminal_since: true,
+  cumulative_days_on_market: true,
+  list_agent_full_name: true,
+  list_office_name: true,
+  list_agent_email: true,
+  list_agent_direct_phone: true,
+  list_office_mls_id: true,
+  list_agent_mls_id: true,
+  co_list_office_mls_id: true,
+  co_list_agent_mls_id: true,
+} as const;
 
 /**
  * Gate 6 durability — archived-row rehydration guard (board #415).
@@ -330,9 +553,29 @@ export interface SyncOptions {
 
 export interface SyncResult {
   total_fetched: number;
+  /**
+   * LEGACY AGGREGATE (kept for continuity of dashboards / audit history):
+   * records that completed the write stage this run, whether or not any row
+   * was physically written. Under N2, `upserted ≡ listings_checked` — the
+   * physical-write split lives in listings_changed / listings_skipped_unchanged.
+   */
   upserted: number;
   skipped_gates: number;
   skipped_validation: number;
+  // ── N2 write-suppression counters (additive; per path:
+  //    checked ≡ changed + skipped_unchanged) ──────────────────────────
+  /** Records that reached the listing write stage (create or compare). */
+  listings_checked: number;
+  /** Listing rows physically written (creates + changed-row updates). */
+  listings_changed: number;
+  /** Listing rows with EVERY compared field identical — zero writes issued. */
+  listings_skipped_unchanged: number;
+  /** Records that reached the projection write stage. */
+  projection_checked: number;
+  /** Projection rows physically written (creates + changed-row updates). */
+  projection_changed: number;
+  /** Projection rows with every compared column identical — zero writes issued. */
+  projection_skipped_unchanged: number;
   /** New listings NOT created because they arrived terminal/off-market and we never
    *  tracked them (root-cause guard against feed-wide closure bloat). */
   skipped_new_terminal?: number;
@@ -394,6 +637,13 @@ export async function syncListings(
   let skippedNewTerminal = 0;
   const skippedNewTerminalSample: string[] = [];
   let errors = 0;
+  // N2 write-suppression counters — per path, checked ≡ changed + skipped_unchanged.
+  let listingsChecked = 0;
+  let listingsChanged = 0;
+  let listingsSkippedUnchanged = 0;
+  let projectionChecked = 0;
+  let projectionChanged = 0;
+  let projectionSkippedUnchanged = 0;
 
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
     try {
@@ -432,16 +682,13 @@ export async function syncListings(
       // Permissions, and freezing on Sold/Rented. `computeDomTransition` in
       // lib/compliance/dom-tracker.ts encodes all of that; we delegate to it
       // whenever status changes so history is correct.
+      // N2: select widened from the original 5 status-transition/guard fields
+      // to every field the update-arm writes, so the unchanged-row comparator
+      // can suppress no-op rewrites (LISTING_SYNC_COMPARE_SELECT). Still one
+      // unique-index point read per record.
       const existing = await prisma.listing.findUnique({
         where: { listing_id: mapped.listing_id },
-        select: {
-          status: true,
-          status_changed_at: true,
-          first_active_date: true,
-          days_on_market: true,
-          // #415 rehydration guard: needed so an archived row is not re-hydrated on Cotality re-emit.
-          sync_status: true,
-        },
+        select: LISTING_SYNC_COMPARE_SELECT,
       });
 
       const newPermissions = readTrestlePermissions(raw);
@@ -517,69 +764,88 @@ export async function syncListings(
         if (skippedNewTerminalSample.length < 25) skippedNewTerminalSample.push(mapped.listing_id);
         continue;
       }
-      await prisma.listing.upsert({
-        where: { listing_id: mapped.listing_id },
-        create: {
-          ...typedOnlyMapped,
-          list_price: mapped.list_price,
-          living_area: mapped.living_area,
-          address: mapped.address as Prisma.InputJsonValue,
-          features: mapped.features as Prisma.InputJsonValue,
-          media: mapped.media as Prisma.InputJsonValue,
-          compliance: mapped.compliance as Prisma.InputJsonValue,
-          raw_data: mapped.raw_data as Prisma.InputJsonValue,
-          // Seed status_changed_at on create so new listings are immediately
-          // eligible for retention-cron age checks. first_active_date seeds
-          // only when the initial status is one that would accrue DOM.
-          status_changed_at: new Date(),
-          first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
-            ? new Date()
-            : null,
-          ...terminalSinceCreate,
-        },
-        // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
-        // DROPS raw_data/media/sync_status from this payload so a Cotality re-emit cannot
-        // re-hydrate the stripped blobs or un-archive the row (which would re-enter the drain).
-        update: guardArchivedRehydration({
-          mls_id: mapped.mls_id,
-          status: mapped.status,
-          ...terminalSinceUpdate,
-          listing_type: mapped.listing_type,
-          property_type: mapped.property_type,
-          property_sub_type: mapped.property_sub_type,
-          list_price: mapped.list_price,
-          bedrooms_total: mapped.bedrooms_total,
-          bathrooms_full: mapped.bathrooms_full,
-          bathrooms_half: mapped.bathrooms_half,
-          living_area: mapped.living_area,
-          borough: mapped.borough,
-          neighborhood: mapped.neighborhood,
-          city: mapped.city,
-          postal_code: mapped.postal_code,
-          idx_display_yn: mapped.idx_display_yn,
-          internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
-          internet_address_display_yn: mapped.internet_address_display_yn,
-          participant_only: mapped.participant_only,
-          owner_opt_out: mapped.owner_opt_out,
-          address: mapped.address as Prisma.InputJsonValue,
-          features: mapped.features as Prisma.InputJsonValue,
-          ...mediaUpdatePatch(mapped.media, useExpandMedia),
-          // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
-          // keys (validation_result, approvals) are preserved — never stomped to {}.
-          ...complianceUpdatePatch(),
-          // Phase C: agent_info JSON is no longer persisted. Only the 8 typed agent
-          // columns are written, still derived from the in-memory mapped.agent_info.
-          ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
-          raw_data: mapped.raw_data as Prisma.InputJsonValue,
-          modification_timestamp: mapped.modification_timestamp,
-          listing_contract_date: mapped.listing_contract_date,
-          last_synced_from_trestle: mapped.last_synced_from_trestle,
-          sync_status: mapped.sync_status,
-          // Status-transition fields (only populated when status actually
-          // changed; empty object is a no-op for Prisma).
-          ...statusTransition,
-        }, existing),
-      });
+      // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
+      // DROPS raw_data/media/sync_status from this payload so a Cotality re-emit cannot
+      // re-hydrate the stripped blobs or un-archive the row (which would re-enter the drain).
+      const listingUpdate = guardArchivedRehydration({
+        mls_id: mapped.mls_id,
+        status: mapped.status,
+        ...terminalSinceUpdate,
+        listing_type: mapped.listing_type,
+        property_type: mapped.property_type,
+        property_sub_type: mapped.property_sub_type,
+        list_price: mapped.list_price,
+        bedrooms_total: mapped.bedrooms_total,
+        bathrooms_full: mapped.bathrooms_full,
+        bathrooms_half: mapped.bathrooms_half,
+        living_area: mapped.living_area,
+        borough: mapped.borough,
+        neighborhood: mapped.neighborhood,
+        city: mapped.city,
+        postal_code: mapped.postal_code,
+        idx_display_yn: mapped.idx_display_yn,
+        internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
+        internet_address_display_yn: mapped.internet_address_display_yn,
+        participant_only: mapped.participant_only,
+        owner_opt_out: mapped.owner_opt_out,
+        address: mapped.address as Prisma.InputJsonValue,
+        features: mapped.features as Prisma.InputJsonValue,
+        ...mediaUpdatePatch(mapped.media, useExpandMedia),
+        // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
+        // keys (validation_result, approvals) are preserved — never stomped to {}.
+        ...complianceUpdatePatch(),
+        // Phase C: agent_info JSON is no longer persisted. Only the 8 typed agent
+        // columns are written, still derived from the in-memory mapped.agent_info.
+        ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
+        raw_data: mapped.raw_data as Prisma.InputJsonValue,
+        modification_timestamp: mapped.modification_timestamp,
+        listing_contract_date: mapped.listing_contract_date,
+        last_synced_from_trestle: mapped.last_synced_from_trestle,
+        sync_status: mapped.sync_status,
+        // Status-transition fields (only populated when status actually
+        // changed; empty object is a no-op for Prisma).
+        ...statusTransition,
+      }, existing);
+
+      // N2: when the existing row already carries every value this update
+      // would write (bookkeeping fields excluded — see
+      // LISTING_SYNC_BOOKKEEPING_FIELDS), SKIP the write entirely. Genuine
+      // changes (any compared field, including a single raw_data byte) and
+      // creates still write exactly as before. Counters increment AFTER the
+      // outcome is known so `checked ≡ changed + skipped_unchanged` holds
+      // even when a write throws (errored records count in neither).
+      if (
+        existing &&
+        listingUpdateUnchanged(existing as unknown as Record<string, unknown>, listingUpdate)
+      ) {
+        listingsChecked++;
+        listingsSkippedUnchanged++;
+      } else {
+        await prisma.listing.upsert({
+          where: { listing_id: mapped.listing_id },
+          create: {
+            ...typedOnlyMapped,
+            list_price: mapped.list_price,
+            living_area: mapped.living_area,
+            address: mapped.address as Prisma.InputJsonValue,
+            features: mapped.features as Prisma.InputJsonValue,
+            media: mapped.media as Prisma.InputJsonValue,
+            compliance: mapped.compliance as Prisma.InputJsonValue,
+            raw_data: mapped.raw_data as Prisma.InputJsonValue,
+            // Seed status_changed_at on create so new listings are immediately
+            // eligible for retention-cron age checks. first_active_date seeds
+            // only when the initial status is one that would accrue DOM.
+            status_changed_at: new Date(),
+            first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
+              ? new Date()
+              : null,
+            ...terminalSinceCreate,
+          },
+          update: listingUpdate,
+        });
+        listingsChecked++;
+        listingsChanged++;
+      }
 
       // 5. Dual-write the search projection (master refactor PR 5B).
       // Sequential write — matches the existing per-listing upsert pattern.
@@ -618,8 +884,22 @@ export async function syncListings(
         media: mapped.media as unknown[],
       };
       const projection = buildListingSearchProjectionFromListing(projectionInput);
-      const projectionPayload = buildProjectionUpsertPayload(projection);
-      await prisma.listingSearchProjection.upsert(projectionPayload);
+      // N2: read-compare-skip on the projection dual-write, mirroring the
+      // listing path above. One unique-index point read; the upsert only runs
+      // when a compared column differs or the projection row doesn't exist.
+      const existingProjection = (await prisma.listingSearchProjection.findUnique({
+        where: { listing_id: mapped.listing_id },
+        select: PROJECTION_COMPARE_SELECT,
+      })) as ListingSearchProjectionCompareSnapshot | null;
+      if (existingProjection && projectionRowUnchanged(existingProjection, projection)) {
+        projectionChecked++;
+        projectionSkippedUnchanged++;
+      } else {
+        const projectionPayload = buildProjectionUpsertPayload(projection);
+        await prisma.listingSearchProjection.upsert(projectionPayload);
+        projectionChecked++;
+        projectionChanged++;
+      }
 
       upserted++;
     } catch (err) {
@@ -790,9 +1070,21 @@ export async function syncListings(
           type: options.type || "all",
           fullSync: options.fullSync || false,
           total_fetched: fetchResult.totalFetched,
+          // `upserted` = legacy aggregate (records that completed the write
+          // stage); the N2 physical-write split is in the counters below.
           upserted,
           skipped_gates: skippedGates,
           skipped_validation: skippedValidation,
+          // N2 write-suppression ledger. VALIDITY RULE: these counters (and
+          // the derived skip ratio) are authoritative for reconciliation
+          // ONLY when errors === 0 — an errored record exits its per-record
+          // try block between stages, so partial-run counters undercount.
+          listings_checked: listingsChecked,
+          listings_changed: listingsChanged,
+          listings_skipped_unchanged: listingsSkippedUnchanged,
+          projection_checked: projectionChecked,
+          projection_changed: projectionChanged,
+          projection_skipped_unchanged: projectionSkippedUnchanged,
           errors,
           duration_ms: durationMs,
         },
@@ -900,6 +1192,12 @@ export async function syncListings(
     upserted,
     skipped_gates: skippedGates,
     skipped_validation: skippedValidation,
+    listings_checked: listingsChecked,
+    listings_changed: listingsChanged,
+    listings_skipped_unchanged: listingsSkippedUnchanged,
+    projection_checked: projectionChecked,
+    projection_changed: projectionChanged,
+    projection_skipped_unchanged: projectionSkippedUnchanged,
     skipped_new_terminal: skippedNewTerminal,
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
@@ -1669,6 +1967,16 @@ export async function syncAgentHistory(
     agent_matched: agentMatched,
     skipped_gates: skippedGates,
     skipped_validation: skippedValidation,
+    // N2 NOTE: agent-history sync is a manual, low-volume path and is NOT
+    // write-suppressed (out of N2 scope — the T1-measured churn came from the
+    // scheduled idx-sync + media-sync crons). Every processed record here
+    // still physically writes, so checked ≡ changed and skipped_unchanged ≡ 0.
+    listings_checked: upserted,
+    listings_changed: upserted,
+    listings_skipped_unchanged: 0,
+    projection_checked: upserted,
+    projection_changed: upserted,
+    projection_skipped_unchanged: 0,
     errors,
     duration_ms: durationMs,
   };
