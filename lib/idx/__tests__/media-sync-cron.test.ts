@@ -84,7 +84,12 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     rows_failed: 0,
     listings_processed: 0,
     listings_skipped: 0,
+    // R2-1 mirror-admission counters (additive; legacy r2_* keys retained).
+    mirror_allowed: 0,
+    mirror_rejected_policy: 0,
     r2_mirrored: 0,
+    r2_uploaded: 0,
+    r2_reused: 0,
     r2_failed: 0,
     r2_skipped: 0,
     backlog_remaining: 0,
@@ -248,7 +253,11 @@ describe("GET /api/cron/media-sync — happy path", () => {
         rows_failed: 0,
         listings_processed: 50,
         listings_skipped: 0,
+        mirror_allowed: 15,
+        mirror_rejected_policy: 37,
         r2_mirrored: 11,
+        r2_uploaded: 7,
+        r2_reused: 4,
         r2_failed: 4,
         r2_skipped: 0,
         backlog_remaining: 1102,
@@ -280,6 +289,14 @@ describe("GET /api/cron/media-sync — happy path", () => {
     expect(ch.r2_skipped).toBe(0);
     expect(ch.backlog_remaining).toBe(1102);
 
+    // R2-1: mirror-admission counters must land in the audit payload so the
+    // policy's effect (allowed vs rejected, uploaded vs reused) is verifiable
+    // from audit alone.
+    expect(ch.mirror_allowed).toBe(15);
+    expect(ch.mirror_rejected_policy).toBe(37);
+    expect(ch.r2_uploaded).toBe(7);
+    expect(ch.r2_reused).toBe(4);
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
@@ -287,7 +304,9 @@ describe("GET /api/cron/media-sync — happy path", () => {
       "rows_skipped_invalid", "delete_signals_received",
       "tombstoned_explicit", "tombstoned_vanished", "rows_tombstoned",
       "listings_processed", "listings_skipped",
-      "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
+      "mirror_allowed", "mirror_rejected_policy",
+      "r2_mirrored", "r2_uploaded", "r2_reused",
+      "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
     ]);
     for (const key of Object.keys(ch)) {

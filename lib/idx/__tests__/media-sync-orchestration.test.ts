@@ -50,7 +50,38 @@ jest.mock("@/lib/prisma", () => ({
       create: (args: unknown) => mockListingMediaCreate(args),
       update: (args: unknown) => mockListingMediaUpdate(args),
       updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
-      findMany: (args: unknown) => mockListingMediaFindMany(args),
+      // R2-1 harness shim: this file's Phase-3 backlog fixtures predate the
+      // mirror-admission policy and carry no `listing` relation. The policy is
+      // FAIL-CLOSED (no listing ⇒ scope "none"), so without this shim every
+      // pre-R2-1 orchestration proof would silently stop exercising the mirror
+      // path. Attach a Mallan-owned listing stub (scope "all_active" — the
+      // unchanged "as today" branch) to backlog-query rows that don't specify
+      // their own `listing`. The admission policy itself is proven separately
+      // in media-sync-r21-mirror-policy.test.ts — this file keeps proving the
+      // ORCHESTRATION (batching, attempt tracking, budget, counters).
+      findMany: async (args: unknown) => {
+        const rows = await mockListingMediaFindMany(args);
+        const a = args as { where?: { status?: string; OR?: unknown[] } };
+        const isBacklogQuery =
+          a?.where?.status === "active" && Array.isArray(a.where.OR);
+        if (!isBacklogQuery || !Array.isArray(rows)) return rows;
+        return (rows as Record<string, unknown>[]).map((r) =>
+          r && typeof r === "object" && !("listing" in r)
+            ? {
+                ...r,
+                listing: {
+                  listing_id: "SL-LEGACY-FIXTURE",
+                  rls_eligible: false,
+                  status: "Active",
+                  idx_display_yn: true,
+                  owner_opt_out: false,
+                  participant_only: false,
+                  internet_entire_listing_display_yn: true,
+                },
+              }
+            : r,
+        );
+      },
       count: (args: unknown) => mockListingMediaCount(args),
     },
     listing: {

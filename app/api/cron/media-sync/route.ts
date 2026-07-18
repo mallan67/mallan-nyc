@@ -99,7 +99,18 @@ export async function GET(req: NextRequest) {
           rows_failed: result.rows_failed,
           listings_processed: result.listings_processed,
           listings_skipped: result.listings_skipped,
+          // R2-1 mirror-admission counters (additive; legacy keys retained):
+          //   mirror_allowed          — Phase-3 candidates admitted by the
+          //                             mirror policy (= r2_uploaded + r2_reused
+          //                             + r2_failed + r2_skipped)
+          //   mirror_rejected_policy  — candidates rejected by the policy
+          //                             (never fetched/uploaded)
+          //   r2_uploaded / r2_reused — split of the legacy r2_mirrored aggregate
+          mirror_allowed: result.mirror_allowed,
+          mirror_rejected_policy: result.mirror_rejected_policy,
           r2_mirrored: result.r2_mirrored,
+          r2_uploaded: result.r2_uploaded,
+          r2_reused: result.r2_reused,
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,
           backlog_remaining: result.backlog_remaining,

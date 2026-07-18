@@ -40,6 +40,22 @@ import {
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
 import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";
+// R2-1 mirror-admission policy — canonical helpers ONLY (no local re-derivation):
+//   - Ownership: `isMallanExclusiveListing` (SL-/RL- listing_id prefix OR
+//     rls_eligible === false). NEVER agent_id / owner_client_id — per the
+//     2026-05-13 C1 mis-classification incident, agent linkage is NOT an
+//     ownership signal for policy decisions.
+//   - Display eligibility: `isListingDisplayable` (fail-closed REBNY gate
+//     cascade over the DB gate columns) + `buildSearchDisplayWhere` (the
+//     production search Prisma where-shape for the same gates + active statuses).
+import {
+  isMallanExclusiveListing,
+  MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES,
+} from "@/lib/listings/exclusive-agent-assignment";
+import {
+  buildSearchDisplayWhere,
+  isListingDisplayable,
+} from "@/lib/search/listing-access-decision";
 
 /** Resource-key constant for the media-sync state row. */
 export const RESOURCE_MEDIA = "Media" as const;
@@ -922,15 +938,45 @@ export interface SummarySourceRow {
  * Used directly by `updateListingMediaSummary()` and by tests so we can
  * verify the selection logic without DB round-trips.
  */
-export function computeListingMediaSummary(
-  rows: readonly SummarySourceRow[],
-): ListingMediaSummary {
-  const photos = rows.filter(
+/**
+ * Minimal row shape hero selection needs — structural subset of
+ * `SummarySourceRow` (and of any `listing_media` select that carries these
+ * four columns). Generic so callers keep their richer row type.
+ */
+export interface HeroPhotoCandidate {
+  media_type: string;
+  status: string;
+  preferred_photo_yn: boolean;
+  order: number;
+}
+
+/** Active-Photo eligibility filter shared by hero selection and photo_count. */
+function filterActivePhotoRows<T extends HeroPhotoCandidate>(rows: readonly T[]): T[] {
+  return rows.filter(
     (r) =>
       String(r.status).toLowerCase() === "active" &&
       String(r.media_type).toLowerCase() === "photo",
   );
+}
 
+/**
+ * THE production hero-photo resolver, extracted (R2-1) from
+ * `computeListingMediaSummary()` so the R2 mirror-admission policy reuses the
+ * EXACT logic that populates `Listing.primary_photo_url` /
+ * `primary_photo_r2_key` (the columns the public detail/card surfaces render).
+ * No divergent duplicate exists — `computeListingMediaSummary` calls this.
+ *
+ * Selection rules (unchanged from Checkpoint 3):
+ *   1. Only `media_type='Photo'` (case-insensitive) AND `status='active'`
+ *      rows are eligible. FloorPlans/Videos/VirtualTours are NEVER hero.
+ *   2. Among eligible Photos: `preferred_photo_yn=true` wins, then lowest
+ *      `order`, then first-encountered (stable indexed sort).
+ * Returns null when no eligible Photo exists.
+ */
+export function selectHeroPhoto<T extends HeroPhotoCandidate>(
+  rows: readonly T[],
+): T | null {
+  const photos = filterActivePhotoRows(rows);
   // Hero selection: preferred → order ASC → first-encountered.
   // Stable sort with explicit indexed compare so identical rows preserve
   // input order for the "first-encountered" tiebreak.
@@ -942,8 +988,17 @@ export function computeListingMediaSummary(
     if (a.row.order !== b.row.order) return a.row.order - b.row.order;
     return a.idx - b.idx;
   });
+  return indexedPhotos[0]?.row ?? null;
+}
 
-  const hero = indexedPhotos[0]?.row ?? null;
+export function computeListingMediaSummary(
+  rows: readonly SummarySourceRow[],
+): ListingMediaSummary {
+  const photos = filterActivePhotoRows(rows);
+
+  // Hero selection delegates to the shared production resolver (see
+  // `selectHeroPhoto` — extracted in R2-1, semantics unchanged).
+  const hero = selectHeroPhoto(rows);
 
   // photos_change_timestamp = max across ALL active rows, photo or otherwise.
   const activeRows = rows.filter((r) => String(r.status).toLowerCase() === "active");
@@ -1074,15 +1129,153 @@ export const R2_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
  */
 export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
 
+// ─── R2-1 — mirror admission policy (approved by Maya, R2-0, 2026-07) ─────
+//
+// ROOT CAUSE: the pre-R2-1 Phase-3 backlog SELECT mirrored EVERY active
+// `listing_media` row missing its R2 copy — the entire IDX feed's galleries,
+// floor plans, videos and virtual tours — growing the R2 bucket to 135.8 GiB
+// at ~0.63 GB/day with no admission scope. The binding policy (R2-0):
+//
+//   1. Mallan-owned listings → retain COMPLETE active photos + floor plans
+//      (mirror everything active, as today).
+//   2. Third-party displayable listings → mirror the CANONICAL HERO PHOTO ONLY.
+//   3. Third-party galleries / floor plans / videos / virtual tours → NOT
+//      mirrored; they serve through the existing `/api/media/proxy` fallback
+//      (`lib/media/listing-media-resolver.ts` proxies `media_url_original`
+//      when `media_url_cached` is null — proven by media-sync-rc3.test.ts).
+//   4. Non-displayable / terminal third-party media → NOT admitted at all.
+//      (Deletion of already-mirrored objects is R2-2 — NOT this change.)
+//
+// Ownership signal: `isMallanExclusiveListing` ONLY (SL-/RL- prefix OR
+// rls_eligible === false). NEVER agent_id / owner_client_id.
+// Display signal: `isListingDisplayable` (canonical fail-closed gate cascade).
+// Hero signal: `selectHeroPhoto` (THE production hero resolver — the same
+// function that derives `Listing.primary_photo_url`).
+
+/**
+ * Maximum photos the mirror may retain in R2 for a third-party (feed)
+ * displayable listing: the canonical hero ONLY. This is the approved R2-0
+ * ceiling — raising it is a policy change requiring Maya's approval.
+ */
+export const MAX_FEED_MIRROR_PHOTOS_PER_LISTING = 1;
+
+/**
+ * Structural listing shape the mirror-admission policy reads. Matches the
+ * Phase-3 backlog SELECT's `listing` sub-select. All fields besides
+ * `listing_id` are nullable so partial/legacy fixtures fail CLOSED.
+ */
+export interface MirrorPolicyListing {
+  listing_id: string | null;
+  rls_eligible: boolean | null;
+  status: string | null;
+  idx_display_yn: boolean | null;
+  owner_opt_out: boolean | null;
+  participant_only: boolean | null;
+  internet_entire_listing_display_yn: boolean | null;
+}
+
+/**
+ * What the R2 mirror may retain for a listing:
+ *   - `all_active` — Mallan-owned: every active media row (photos, floor
+ *     plans, …) as today.
+ *   - `hero_only`  — third-party displayable: ONLY the canonical hero photo
+ *     (`selectHeroPhoto` over the listing's rows), max
+ *     `MAX_FEED_MIRROR_PHOTOS_PER_LISTING` (=1).
+ *   - `none`       — third-party non-displayable or terminal (or unknown
+ *     listing): nothing is admitted to the mirror backlog.
+ */
+export type MirrorAdmissionScope = "all_active" | "hero_only" | "none";
+
+/**
+ * Decide the mirror-admission scope for one listing. Pure; fail-closed.
+ *
+ * Notes:
+ *   - Ownership check delegates to the canonical `isMallanExclusiveListing`
+ *     (SL-/RL- listing_id prefix OR rls_eligible === false). agent_id /
+ *     owner_client_id are deliberately NOT read — agent linkage is not an
+ *     ownership signal here.
+ *   - Displayability delegates to the canonical `isListingDisplayable` over
+ *     the DB gate columns + status. `close_date` is deliberately NOT passed:
+ *     the display layer grants terminal listings a 24h post-close grace
+ *     window, but mirror ADMISSION treats every terminal status as
+ *     non-admissible (R2-0 rule 4 — mirroring bytes for a listing already
+ *     off-market is pure waste). Display grace ≠ mirror admission.
+ */
+export function decideMirrorAdmissionScope(
+  listing: MirrorPolicyListing | null | undefined,
+): MirrorAdmissionScope {
+  if (!listing) return "none"; // fail-closed: unknown listing ⇒ nothing admitted
+  if (isMallanExclusiveListing(listing)) return "all_active";
+  const displayable = isListingDisplayable({
+    idx_display_yn: listing.idx_display_yn,
+    owner_opt_out: listing.owner_opt_out,
+    participant_only: listing.participant_only,
+    internet_entire_listing_display_yn: listing.internet_entire_listing_display_yn,
+    status: listing.status,
+  });
+  return displayable ? "hero_only" : "none";
+}
+
+/**
+ * DB-side ownership predicate — the Prisma where-shape of
+ * `isMallanExclusiveListing`. Branches are DERIVED from the same exported
+ * prefix list the canonical helper uses, so the two cannot drift silently.
+ */
+export function buildMallanOwnedListingWhere(): Prisma.ListingWhereInput {
+  return {
+    OR: [
+      ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({
+        listing_id: { startsWith: p },
+      })),
+      { rls_eligible: false },
+    ],
+  };
+}
+
+/**
+ * R2-1 admission control — the CHEAP (DB-side) part of the mirror policy,
+ * applied inside `buildR2BacklogWhere` so disallowed media never even enters
+ * the candidate SELECT:
+ *   - Branch 1: media of Mallan-owned listings (any media_type — complete
+ *     active set retained).
+ *   - Branch 2: `media_type='Photo'` rows of third-party DISPLAYABLE
+ *     listings (`buildSearchDisplayWhere()` = the production search display
+ *     gate + active statuses). Third-party floor plans / videos / virtual
+ *     tours are excluded here outright.
+ * Media of non-displayable / terminal third-party listings match NEITHER
+ * branch ⇒ never admitted to the backlog (R2-0 rule 4).
+ *
+ * The EXPENSIVE part — "is this Photo the canonical hero?" — cannot be
+ * expressed in a Prisma where-clause (hero identity requires per-listing
+ * ordering across ALL of the listing's rows: preferred_photo_yn, then min
+ * `order`, then first-encountered). That refinement happens post-fetch in
+ * `runMediaSync` Phase 3 via `selectHeroPhoto` + `decideMirrorAdmissionScope`.
+ */
+export function buildR2MirrorPolicyMediaWhere(): Prisma.ListingMediaWhereInput {
+  return {
+    OR: [
+      { listing: buildMallanOwnedListingWhere() },
+      { media_type: "Photo", listing: buildSearchDisplayWhere() },
+    ],
+  };
+}
+
 /**
  * Build the Phase-3 R2 backlog SELECT `where`. Exported + pure so the RC3
  * retry-exhausted exclusion is unit-testable without a live DB. A row is eligible
  * when it is active, still missing its R2 copy (`r2_key` OR `media_url_cached`
- * null), past the 6h cooldown, not already attempted this invocation, AND not
- * retry-exhausted. `r2_attempts` null (never failed) stays eligible; `>=`
- * threshold is parked. Permanent 404/410 rows are already gone (tombstoned at 3),
- * so any active row at/above the exhaustion threshold is non-permanent by
- * construction — parking it (not deleting it) is the safe stop.
+ * null), past the 6h cooldown, not already attempted this invocation, NOT
+ * retry-exhausted, AND (R2-1) admissible under the mirror policy's DB-side
+ * filter (`buildR2MirrorPolicyMediaWhere`). `r2_attempts` null (never failed)
+ * stays eligible; `>=` threshold is parked. Permanent 404/410 rows are already
+ * gone (tombstoned at 3), so any active row at/above the exhaustion threshold
+ * is non-permanent by construction — parking it (not deleting it) is the safe
+ * stop.
+ *
+ * R2-1: the pre-R2-1 form of this where (bare `OR r2_key IS NULL` with no
+ * listing scope) was the unscoped feed-wide mirror that grew the bucket to
+ * 135.8 GiB. It is intentionally NOT reachable anymore — every backlog SELECT
+ * goes through this function, which always ANDs the policy filter.
  */
 export function buildR2BacklogWhere(
   cooldownThreshold: Date,
@@ -1111,6 +1304,9 @@ export function buildR2BacklogWhere(
           { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
         ],
       },
+      // R2-1 admission control (cheap DB-side part — see
+      // buildR2MirrorPolicyMediaWhere; hero-only refinement happens in code).
+      buildR2MirrorPolicyMediaWhere(),
     ],
   };
 }
@@ -1553,8 +1749,25 @@ export interface RunMediaSyncResult {
   ghost_listings_skipped: number;
   /** RC5: ListingIds of the skipped ghosts (capped at GHOST_ID_LOG_CAP). */
   ghost_listing_ids: string[];
-  /** R2 mirror successes (uploaded + reused) in Phase 3. */
+  /**
+   * R2-1: Phase-3 backlog candidates ADMITTED by the mirror policy this
+   * invocation (i.e. handed to `mirrorMediaToR2`). Accounting invariant:
+   *   mirror_allowed ≡ r2_uploaded + r2_reused + r2_failed + r2_skipped
+   */
+  mirror_allowed: number;
+  /**
+   * R2-1: Phase-3 backlog candidates REJECTED by the mirror admission policy
+   * (non-hero photo of a displayable third-party listing, or — defensively —
+   * media of a non-admissible/unknown listing that slipped past the DB-side
+   * filter). Never mirrored; no Trestle fetch, no R2 write.
+   */
+  mirror_rejected_policy: number;
+  /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
+  /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
+  r2_uploaded: number;
+  /** R2-1 split of `r2_mirrored`: object already existed in R2 — reused, no upload. */
+  r2_reused: number;
   /** R2 mirror failures in Phase 3 — row stays in backlog for retry. */
   r2_failed: number;
   /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
@@ -1874,7 +2087,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let listingsSkipped = 0;
   let ghostListingsSkipped = 0;
   const ghostListingIds: string[] = [];
+  let mirrorAllowed = 0;
+  let mirrorRejectedPolicy = 0;
   let r2Mirrored = 0;
+  let r2Uploaded = 0;
+  let r2Reused = 0;
   let r2Failed = 0;
   let r2Skipped = 0;
   let backlogRemaining: number | null = null;
@@ -1936,7 +2153,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       listings_skipped: 0,
       ghost_listings_skipped: 0,
       ghost_listing_ids: [],
+      mirror_allowed: 0,
+      mirror_rejected_policy: 0,
       r2_mirrored: 0,
+      r2_uploaded: 0,
+      r2_reused: 0,
       r2_failed: 0,
       r2_skipped: 0,
       backlog_remaining: null,
@@ -2161,13 +2382,18 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   //   See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` E8 probe.
   const attemptedBacklogIds = new Set<bigint>();
   const cooldownThreshold = new Date(now() - R2_RETRY_COOLDOWN_MS);
+  // R2-1: per-invocation cache of each hero_only listing's canonical hero
+  // media_key (null = no eligible hero / lookup failed ⇒ fail-closed: admit
+  // nothing for that listing this invocation).
+  const heroKeyCache = new Map<string, string | null>();
 
   while (remainingMs() > phase2ReserveMs) {
     const backlogRows = await prisma.listingMedia.findMany({
       // RC3: backlog `where` is built by the pure `buildR2BacklogWhere` so the
       // retry-exhausted exclusion (park non-permanent rows at >= threshold) is
       // unit-testable. Eligibility = active + missing-R2 + past-cooldown +
-      // not-attempted-this-invocation + not-retry-exhausted.
+      // not-attempted-this-invocation + not-retry-exhausted + (R2-1) policy-
+      // admissible at the listing level (buildR2MirrorPolicyMediaWhere).
       where: buildR2BacklogWhere(cooldownThreshold, [...attemptedBacklogIds]),
       orderBy: { created_at: "asc" },
       take: R2_MIRROR_CONCURRENCY,
@@ -2183,6 +2409,21 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         media_url_cached: true,
         // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
         r2_attempts: true,
+        // R2-1: the policy fields `decideMirrorAdmissionScope` reads. The
+        // DB-side where already excludes non-admissible listings; this select
+        // lets the in-code filter re-verify FAIL-CLOSED (a drifted where can
+        // never widen the mirror set) and decide all_active vs hero_only.
+        listing: {
+          select: {
+            listing_id: true,
+            rls_eligible: true,
+            status: true,
+            idx_display_yn: true,
+            owner_opt_out: true,
+            participant_only: true,
+            internet_entire_listing_display_yn: true,
+          },
+        },
       },
     });
 
@@ -2195,8 +2436,68 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       attemptedBacklogIds.add(row.id);
     }
 
+    // ── R2-1 post-fetch admission filter ─────────────────────────────────
+    // Hero identity CANNOT live in the SQL where: it needs per-listing
+    // ordering over ALL of the listing's rows (preferred_photo_yn → min
+    // `order` → first-encountered), so it is decided here in code with the
+    // production hero resolver (`selectHeroPhoto` — the same function that
+    // derives Listing.primary_photo_url). Rejected rows are already in
+    // `attemptedBacklogIds`, so they cost nothing further this invocation;
+    // their DB state is untouched (no cooldown write — policy rejection is
+    // not a failure).
+    const admittedRows: typeof backlogRows = [];
+    for (const row of backlogRows) {
+      const scope = decideMirrorAdmissionScope(row.listing);
+      if (scope === "all_active") {
+        // Mallan-owned: complete active set retained (as today).
+        admittedRows.push(row);
+        continue;
+      }
+      if (scope === "none") {
+        // Fail-closed: non-displayable / terminal / unknown listing.
+        mirrorRejectedPolicy++;
+        continue;
+      }
+      // hero_only — third-party displayable listing: admit ONLY the canonical
+      // hero photo (max MAX_FEED_MIRROR_PHOTOS_PER_LISTING = 1 per listing).
+      let heroKey: string | null;
+      if (heroKeyCache.has(row.listing_id)) {
+        heroKey = heroKeyCache.get(row.listing_id) ?? null;
+      } else {
+        try {
+          // Same read population as updateListingMediaSummary (all rows for
+          // the listing; selectHeroPhoto filters active Photos) so the hero
+          // decided here is IDENTICAL to the one the summary/reader surfaces.
+          const listingRows = await prisma.listingMedia.findMany({
+            where: { listing_id: row.listing_id },
+            select: {
+              media_key: true,
+              media_type: true,
+              status: true,
+              preferred_photo_yn: true,
+              order: true,
+            },
+          });
+          heroKey = selectHeroPhoto(listingRows)?.media_key ?? null;
+        } catch {
+          // Fail-closed: unknown hero ⇒ admit nothing for this listing now.
+          // The rows stay in the backlog and are re-evaluated next firing.
+          heroKey = null;
+        }
+        heroKeyCache.set(row.listing_id, heroKey);
+      }
+      if (heroKey !== null && row.media_key === heroKey) {
+        admittedRows.push(row);
+      } else {
+        mirrorRejectedPolicy++;
+      }
+    }
+
+    mirrorAllowed += admittedRows.length;
+    if (admittedRows.length === 0) continue;
+
     const results = await Promise.allSettled(
-      backlogRows.map((row) => {
+      admittedRows.map((row) => {
         if (!row.media_key) {
           return Promise.resolve({
             status: "skipped" as const,
@@ -2222,8 +2523,13 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     for (const r of results) {
       if (r.status === "fulfilled") {
         const v = r.value;
-        if (v.status === "uploaded" || v.status === "reused") r2Mirrored++;
-        else if (v.status === "skipped") r2Skipped++;
+        if (v.status === "uploaded") {
+          r2Uploaded++;
+          r2Mirrored++; // legacy aggregate = uploaded + reused
+        } else if (v.status === "reused") {
+          r2Reused++;
+          r2Mirrored++;
+        } else if (v.status === "skipped") r2Skipped++;
         else if (v.status === "failed") r2Failed++;
       } else {
         // Promise itself rejected (mirrorMediaToR2 contract returns structured
@@ -2244,6 +2550,13 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         status: "active",
         media_url_original: { not: null },
         OR: [{ r2_key: null }, { media_url_cached: null }],
+        // R2-1: count only the policy-admissible universe — an unscoped count
+        // would report the entire feed's never-to-be-mirrored media as
+        // "backlog" forever. NOTE: this is an UPPER BOUND — non-hero photos
+        // of displayable third-party listings still match the cheap DB-side
+        // filter and are only rejected per-row in Phase 3; they inflate this
+        // count until R2-2 parks/cleans them.
+        AND: [buildR2MirrorPolicyMediaWhere()],
       },
     });
   } catch {
@@ -2278,7 +2591,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     listings_skipped: listingsSkipped,
     ghost_listings_skipped: ghostListingsSkipped,
     ghost_listing_ids: ghostListingIds,
+    mirror_allowed: mirrorAllowed,
+    mirror_rejected_policy: mirrorRejectedPolicy,
     r2_mirrored: r2Mirrored,
+    r2_uploaded: r2Uploaded,
+    r2_reused: r2Reused,
     r2_failed: r2Failed,
     r2_skipped: r2Skipped,
     backlog_remaining: backlogRemaining,
