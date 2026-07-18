@@ -22,6 +22,14 @@
  *       owner_client_id.
  *   V5. Hero identity comes from the shared production resolver
  *       (`selectHeroPhoto`, the function `computeListingMediaSummary` uses).
+ *   V6. (Blocker-1a/1b) Media-type scope is IN-QUERY: feed candidates are
+ *       Photo-only in the where; Mallan candidates are EXACTLY
+ *       Photo + FloorPlan (videos / virtual tours never admitted).
+ *   V7. (Blocker-1) Policy rejection MUST write parking state — no
+ *       select-all-then-reject-without-state: deterministic rejections are
+ *       parked with `r2_attempts = R2_POLICY_PARKED_ATTEMPTS` (9, above the
+ *       RC3 exhaustion threshold 8) so the existing backlog predicate
+ *       permanently excludes them.
  *
  * Runs automatically in CI via the root jest projects list
  * (tests/runtime/jest.config.js — `npx jest --ci` in pr-check.yml).
@@ -34,7 +42,11 @@ import * as path from 'path';
 import {
   buildR2BacklogWhere,
   buildR2MirrorPolicyMediaWhere,
+  FEED_MIRROR_MEDIA_TYPES,
+  MALLAN_MIRROR_MEDIA_TYPES,
   MAX_FEED_MIRROR_PHOTOS_PER_LISTING,
+  R2_POLICY_PARKED_ATTEMPTS,
+  R2_RETRY_EXHAUSTED_THRESHOLD,
 } from '@/lib/idx/media-sync';
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -160,6 +172,81 @@ describe('R2 lifecycle validator — V4 ownership signal is canonical (never age
       expect(`${f}: ${code.includes('agentId')}`).toBe(`${f}: false`);
       expect(`${f}: ${code.includes('owner_client_id')}`).toBe(`${f}: false`);
     }
+  });
+});
+
+describe('R2 lifecycle validator — V6 media-type scope is IN-QUERY (Blocker-1a/1b)', () => {
+  it('feed candidates are Photo-ONLY in the where (floorplans/videos/tours of feed listings are NEVER candidates)', () => {
+    expect(FEED_MIRROR_MEDIA_TYPES).toEqual(['Photo']);
+    const where = buildR2MirrorPolicyMediaWhere() as {
+      OR: Array<{ media_type?: { in?: string[] }; listing?: unknown }>;
+    };
+    expect(where.OR).toHaveLength(2);
+    const feedBranch = where.OR[1];
+    expect(feedBranch.media_type).toEqual({ in: ['Photo'] });
+  });
+
+  it('Mallan candidates are EXACTLY Photo + FloorPlan — videos / virtual tours are never silently admitted', () => {
+    expect([...MALLAN_MIRROR_MEDIA_TYPES].sort()).toEqual(['FloorPlan', 'Photo']);
+    const where = buildR2MirrorPolicyMediaWhere() as {
+      OR: Array<{ media_type?: { in?: string[] } }>;
+    };
+    const mallanBranch = where.OR[0];
+    expect([...(mallanBranch.media_type?.in ?? [])].sort()).toEqual(['FloorPlan', 'Photo']);
+    expect(mallanBranch.media_type?.in).not.toContain('Video');
+    expect(mallanBranch.media_type?.in).not.toContain('VirtualTour');
+  });
+
+  it('BOTH policy branches carry a media_type restriction (no any-type branch remains)', () => {
+    const where = buildR2MirrorPolicyMediaWhere() as {
+      OR: Array<Record<string, unknown>>;
+    };
+    for (const branch of where.OR) {
+      expect(branch).toHaveProperty('media_type');
+      expect(branch).toHaveProperty('listing');
+    }
+  });
+});
+
+describe('R2 lifecycle validator — V7 rejection MUST write parking state (Blocker-1)', () => {
+  it('R2_POLICY_PARKED_ATTEMPTS is the literal 9 — above AND distinct from the RC3 exhaustion threshold (8)', () => {
+    expect(R2_POLICY_PARKED_ATTEMPTS).toBe(9);
+    expect(R2_RETRY_EXHAUSTED_THRESHOLD).toBe(8);
+    expect(R2_POLICY_PARKED_ATTEMPTS).toBeGreaterThan(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(mediaSyncCode).toMatch(/export const R2_POLICY_PARKED_ATTEMPTS = 9;/);
+  });
+
+  it('a parked row is permanently excluded by the EXISTING backlog attempts predicate', () => {
+    // 9 < 8 is false ⇒ a parked row fails { r2_attempts: { lt: 8 } } and its
+    // r2_attempts is non-null ⇒ it can never match the backlog where again.
+    expect(R2_POLICY_PARKED_ATTEMPTS < R2_RETRY_EXHAUSTED_THRESHOLD).toBe(false);
+    const where = buildR2BacklogWhere(new Date(), []) as {
+      AND: Array<{ OR?: Array<Record<string, unknown>> }>;
+    };
+    const attemptsMember = where.AND.find(
+      (m) => Array.isArray(m.OR) && m.OR.some((o) => 'r2_attempts' in o),
+    );
+    expect(attemptsMember?.OR).toEqual([
+      { r2_attempts: null },
+      { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
+    ]);
+  });
+
+  it('the Phase-3 rejection branches reference the parking collector (no stateless select-all-then-reject)', () => {
+    // Deterministic rejections must collect the row id for parking. Two
+    // sites: the media-type mismatch and the non-hero rejection.
+    const parkPushes = mediaSyncCode.match(/policyParkIds\.push\(row\.id\)/g) ?? [];
+    expect(parkPushes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('the parking flush writes the sentinel via ONE batched updateMany over the collected ids', () => {
+    expect(mediaSyncCode).toMatch(
+      /updateMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*policyParkIds\s*\}\s*\},\s*data:\s*\{\s*r2_attempts:\s*R2_POLICY_PARKED_ATTEMPTS,\s*r2_last_attempt_at:/,
+    );
+  });
+
+  it('the parked outcome is surfaced as a counter (mirror_rejected_policy_parked) for audit', () => {
+    expect(mediaSyncCode).toMatch(/mirror_rejected_policy_parked:\s*mirrorRejectedPolicyParked/);
   });
 });
 

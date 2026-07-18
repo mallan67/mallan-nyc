@@ -87,6 +87,7 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     // R2-1 mirror-admission counters (additive; legacy r2_* keys retained).
     mirror_allowed: 0,
     mirror_rejected_policy: 0,
+    mirror_rejected_policy_parked: 0,
     r2_mirrored: 0,
     r2_uploaded: 0,
     r2_reused: 0,
@@ -255,6 +256,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
         listings_skipped: 0,
         mirror_allowed: 15,
         mirror_rejected_policy: 37,
+        mirror_rejected_policy_parked: 22,
         r2_mirrored: 11,
         r2_uploaded: 7,
         r2_reused: 4,
@@ -294,6 +296,9 @@ describe("GET /api/cron/media-sync — happy path", () => {
     // from audit alone.
     expect(ch.mirror_allowed).toBe(15);
     expect(ch.mirror_rejected_policy).toBe(37);
+    // Blocker-1: parked subset must be auditable per run (policy-parked rows
+    // carry r2_attempts=9 and permanently leave the backlog SELECT).
+    expect(ch.mirror_rejected_policy_parked).toBe(22);
     expect(ch.r2_uploaded).toBe(7);
     expect(ch.r2_reused).toBe(4);
 
@@ -304,7 +309,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       "rows_skipped_invalid", "delete_signals_received",
       "tombstoned_explicit", "tombstoned_vanished", "rows_tombstoned",
       "listings_processed", "listings_skipped",
-      "mirror_allowed", "mirror_rejected_policy",
+      "mirror_allowed", "mirror_rejected_policy", "mirror_rejected_policy_parked",
       "r2_mirrored", "r2_uploaded", "r2_reused",
       "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
