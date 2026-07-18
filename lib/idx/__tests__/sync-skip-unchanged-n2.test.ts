@@ -26,6 +26,7 @@
 // ─── Mock Prisma ──────────────────────────────────────────────────────────
 
 const mockListingFindUnique = jest.fn<Promise<unknown>, [unknown]>();
+const mockListingFindMany = jest.fn<Promise<unknown>, [unknown]>();
 const mockListingUpsert = jest.fn<Promise<unknown>, [unknown]>();
 const mockListingUpdateMany = jest.fn<Promise<unknown>, [unknown]>();
 const mockProjectionFindUnique = jest.fn<Promise<unknown>, [unknown]>();
@@ -38,6 +39,7 @@ jest.mock("@/lib/prisma", () => ({
   default: {
     listing: {
       findUnique: (args: unknown) => mockListingFindUnique(args),
+      findMany: (args: unknown) => mockListingFindMany(args),
       upsert: (args: unknown) => mockListingUpsert(args),
       updateMany: (args: unknown) => mockListingUpdateMany(args),
     },
@@ -83,7 +85,21 @@ jest.mock("../diagnostic-recorder", () => ({
   flushSyncDiagnostics: async () => undefined,
 }));
 
-import { syncListings, listingUpdateUnchanged, LISTING_SYNC_COMPARE_SELECT } from "../sync";
+// The batch-media refill dynamically imports ./auth for the Trestle token —
+// jest.mock intercepts dynamic import too. Trestle Media HTTP calls go
+// through global.fetch, mocked per test (mockMediaFetch below).
+jest.mock("../auth", () => ({
+  __esModule: true,
+  getAccessToken: async () => "test-token",
+  hasCredentials: () => true,
+}));
+
+import {
+  syncListings,
+  listingUpdateUnchanged,
+  mediaRefillRowUnchanged,
+  LISTING_SYNC_COMPARE_SELECT,
+} from "../sync";
 import { mapTrestleToPrisma } from "../trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import {
@@ -208,6 +224,8 @@ function primeMocks(opts: {
   records: Record<string, unknown>[];
   existingListing?: Record<string, unknown> | null;
   existingProjection?: Record<string, unknown> | null;
+  /** Rows the batch-media refill's bounded select returns ({listing_id, media, sync_status}). */
+  storedMediaRows?: Record<string, unknown>[];
 }) {
   mockFetchFromTrestle.mockResolvedValue({
     records: opts.records,
@@ -215,6 +233,7 @@ function primeMocks(opts: {
   });
   mockListingFindUnique.mockResolvedValue(opts.existingListing ?? null);
   mockProjectionFindUnique.mockResolvedValue(opts.existingProjection ?? null);
+  mockListingFindMany.mockResolvedValue(opts.storedMediaRows ?? []);
   mockListingUpsert.mockResolvedValue(undefined);
   mockProjectionUpsert.mockResolvedValue(undefined);
   mockListingUpdateMany.mockResolvedValue({ count: 0 });
@@ -222,8 +241,26 @@ function primeMocks(opts: {
   mockAuditCreate.mockResolvedValue(undefined);
 }
 
+// ─── Global fetch mock (Trestle Media endpoint in the batch refill) ──────
+
+const mockMediaFetch = jest.fn<Promise<unknown>, [unknown, unknown?]>();
+const realFetch = global.fetch;
+
+/** One Trestle /odata/Media response for every batch the refill requests. */
+function primeMediaEndpoint(rows: Record<string, unknown>[]) {
+  mockMediaFetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({ value: rows }),
+  });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
+  global.fetch = mockMediaFetch as unknown as typeof fetch;
+});
+
+afterAll(() => {
+  global.fetch = realFetch;
 });
 
 // ─── Headline proof ──────────────────────────────────────────────────────
@@ -551,5 +588,276 @@ describe("listingUpdateUnchanged (pure comparator)", () => {
         (LISTING_SYNC_COMPARE_SELECT as Record<string, boolean>)[field],
       ).toBe(true);
     }
+  });
+});
+
+// ─── Batch-media refill (Maya blocker on PR #535) ────────────────────────
+//
+// The batch-media path (post-upsert refill when useExpandMedia=false) must
+// not be unconditional: candidacy is per listing (stored media missing OR
+// listing row physically written this run — NOT the legacy `upserted`
+// aggregate), and any fetched media is compared against stored media
+// before the updateMany is issued.
+
+describe("Maya blocker (PR #535) — batch-media refill compare-before-write", () => {
+  /** Record WITHOUT inline media, so the batch-media path is in play. */
+  const noMediaRaw = (overrides: Record<string, unknown> = {}) =>
+    rawRecord({ Media: [], ...overrides });
+
+  /** Normalized DB shape the refill would write for TRESTLE_MEDIA_ROW. */
+  const STORED_MEDIA = [
+    { url: "https://cdn.example.com/p1.jpg", mediaType: "Photo", order: 1 },
+  ];
+  const TRESTLE_MEDIA_ROW = {
+    ResourceRecordKey: "1099900001",
+    MediaURL: "https://cdn.example.com/p1.jpg",
+    MediaCategory: "Photo",
+    Order: 1,
+  };
+
+  it("HEADLINE: identical second run performs ZERO listing writes across BOTH paths (per-record AND batch-media)", async () => {
+    const raw = noMediaRaw();
+    primeMocks({
+      records: [raw],
+      existingListing: dbListingRowFor(raw),
+      existingProjection: dbProjectionRowFor(raw),
+      // Stored media intact from the prior run.
+      storedMediaRows: [
+        { listing_id: "RLS-N2-0001", media: STORED_MEDIA, sync_status: "synced" },
+      ],
+    });
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.errors).toBe(0);
+    // ZERO listing writes of ANY kind on the second identical run:
+    // no upsert (create or update-arm) AND no batch-media updateMany.
+    expect(mockListingUpsert).not.toHaveBeenCalled();
+    expect(mockListingUpdateMany).not.toHaveBeenCalled();
+    expect(mockProjectionUpsert).not.toHaveBeenCalled();
+    // Stronger still: an unchanged record with intact stored media induces
+    // NO batch-media work at all — the Trestle Media endpoint is never hit.
+    expect(mockMediaFetch).not.toHaveBeenCalled();
+    // The candidate read is the bounded select of just this run's listings.
+    expect(mockListingFindMany).toHaveBeenCalledTimes(1);
+    const fmArgs = mockListingFindMany.mock.calls[0][0] as {
+      where: { listing_id: { in: string[] } };
+      select: Record<string, boolean>;
+    };
+    expect(fmArgs.where.listing_id.in).toEqual(["RLS-N2-0001"]);
+    expect(fmArgs.select).toEqual({ listing_id: true, media: true, sync_status: true });
+    // Ledgers — per-record AND media-refill.
+    expect(result.listings_skipped_unchanged).toBe(1);
+    expect(result.media_refill_checked).toBe(1);
+    expect(result.media_refill_changed).toBe(0);
+    expect(result.media_refill_skipped_unchanged).toBe(1);
+  });
+
+  it("media-missing listing still gets refilled — exactly one updateMany, listing row untouched", async () => {
+    const raw = noMediaRaw();
+    primeMocks({
+      records: [raw],
+      existingListing: dbListingRowFor(raw), // row unchanged → per-record path skips
+      existingProjection: dbProjectionRowFor(raw),
+      storedMediaRows: [
+        { listing_id: "RLS-N2-0001", media: [], sync_status: "synced" },
+      ],
+    });
+    primeMediaEndpoint([TRESTLE_MEDIA_ROW]);
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.errors).toBe(0);
+    expect(mockListingUpsert).not.toHaveBeenCalled();
+    expect(mockListingUpdateMany).toHaveBeenCalledTimes(1);
+    const call = mockListingUpdateMany.mock.calls[0][0] as {
+      where: { listing_id: string };
+      data: { media: unknown };
+    };
+    expect(call.where.listing_id).toBe("RLS-N2-0001");
+    expect(call.data.media).toEqual(STORED_MEDIA);
+    expect(result.media_refill_checked).toBe(1);
+    expect(result.media_refill_changed).toBe(1);
+    expect(result.media_refill_skipped_unchanged).toBe(0);
+  });
+
+  it("media-changed listing gets exactly one media write (fetched genuinely differs from stored)", async () => {
+    // PhotosChangeTimestamp advanced → raw_data differs → the listing row is
+    // physically written (media candidacy signal) and the fetched media
+    // genuinely differs from stored → one updateMany.
+    const raw = noMediaRaw({ PhotosChangeTimestamp: "2026-07-02T09:00:00Z" });
+    const staleRaw = noMediaRaw({ PhotosChangeTimestamp: "2026-06-01T00:00:00Z" });
+    primeMocks({
+      records: [raw],
+      existingListing: dbListingRowFor(staleRaw),
+      existingProjection: dbProjectionRowFor(raw), // projection unaffected by raw_data
+      storedMediaRows: [
+        {
+          listing_id: "RLS-N2-0001",
+          media: [{ url: "https://cdn.example.com/OLD.jpg", mediaType: "Photo", order: 1 }],
+          sync_status: "synced",
+        },
+      ],
+    });
+    primeMediaEndpoint([TRESTLE_MEDIA_ROW]);
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.errors).toBe(0);
+    expect(mockListingUpsert).toHaveBeenCalledTimes(1); // genuine row change
+    expect(mockListingUpdateMany).toHaveBeenCalledTimes(1); // genuine media change
+    const call = mockListingUpdateMany.mock.calls[0][0] as { data: { media: unknown } };
+    expect(call.data.media).toEqual(STORED_MEDIA);
+    expect(result.media_refill_checked).toBe(1);
+    expect(result.media_refill_changed).toBe(1);
+    expect(result.media_refill_skipped_unchanged).toBe(0);
+  });
+
+  it("media-identical listing gets ZERO media writes even when its row changed (compare-before-write)", async () => {
+    // Row changes for a non-media reason (price) → the listing IS a fetch
+    // candidate — but the fetched media compares equal to stored, so no
+    // media write is issued.
+    const raw = noMediaRaw();
+    const staleExisting = dbListingRowFor(raw);
+    staleExisting.list_price = "500000"; // price moved → row write
+    primeMocks({
+      records: [raw],
+      existingListing: staleExisting,
+      existingProjection: dbProjectionRowFor(raw),
+      storedMediaRows: [
+        { listing_id: "RLS-N2-0001", media: STORED_MEDIA, sync_status: "synced" },
+      ],
+    });
+    primeMediaEndpoint([TRESTLE_MEDIA_ROW]);
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.errors).toBe(0);
+    expect(mockListingUpsert).toHaveBeenCalledTimes(1); // the price write
+    expect(mockListingUpdateMany).not.toHaveBeenCalled(); // NO media write
+    expect(mockMediaFetch).toHaveBeenCalledTimes(1); // fetched, then compared equal
+    expect(result.media_refill_checked).toBe(1);
+    expect(result.media_refill_changed).toBe(0);
+    expect(result.media_refill_skipped_unchanged).toBe(1);
+  });
+
+  it("candidate selection: an unchanged listing with intact media is never fetched; ledger invariant holds on a mixed run", async () => {
+    const unchangedRaw = noMediaRaw(); // RLS-N2-0001 / key 1099900001
+    const missingMediaRaw = noMediaRaw({ ListingId: "RLS-N2-0002", ListingKey: "1099900002" });
+
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [unchangedRaw, missingMediaRaw],
+      totalFetched: 2,
+    });
+    mockListingFindUnique.mockImplementation(async (args) => {
+      const where = (args as { where: { listing_id: string } }).where;
+      return where.listing_id === "RLS-N2-0001"
+        ? dbListingRowFor(unchangedRaw)
+        : dbListingRowFor(missingMediaRaw);
+    });
+    mockProjectionFindUnique.mockImplementation(async (args) => {
+      const where = (args as { where: { listing_id: string } }).where;
+      return where.listing_id === "RLS-N2-0001"
+        ? dbProjectionRowFor(unchangedRaw)
+        : dbProjectionRowFor(missingMediaRaw);
+    });
+    mockListingFindMany.mockResolvedValue([
+      { listing_id: "RLS-N2-0001", media: STORED_MEDIA, sync_status: "synced" },
+      { listing_id: "RLS-N2-0002", media: [], sync_status: "synced" },
+    ]);
+    mockListingUpsert.mockResolvedValue(undefined);
+    mockProjectionUpsert.mockResolvedValue(undefined);
+    mockListingUpdateMany.mockResolvedValue({ count: 1 });
+    mockSyncStateUpsert.mockResolvedValue(undefined);
+    mockAuditCreate.mockResolvedValue(undefined);
+    primeMediaEndpoint([
+      { ...TRESTLE_MEDIA_ROW, ResourceRecordKey: "1099900002" },
+    ]);
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.errors).toBe(0);
+    // Only the missing-media listing is in the Trestle Media $filter.
+    expect(mockMediaFetch).toHaveBeenCalledTimes(1);
+    const mediaUrl = String(mockMediaFetch.mock.calls[0][0]);
+    expect(mediaUrl).toContain("1099900002");
+    expect(mediaUrl).not.toContain("1099900001");
+    // One media write, for the missing-media listing only.
+    expect(mockListingUpdateMany).toHaveBeenCalledTimes(1);
+    expect(
+      (mockListingUpdateMany.mock.calls[0][0] as { where: { listing_id: string } }).where
+        .listing_id,
+    ).toBe("RLS-N2-0002");
+    // Invariant: checked ≡ changed + skipped_unchanged.
+    expect(result.media_refill_checked).toBe(2);
+    expect(result.media_refill_changed).toBe(1);
+    expect(result.media_refill_skipped_unchanged).toBe(1);
+    expect(result.media_refill_checked).toBe(
+      result.media_refill_changed + result.media_refill_skipped_unchanged,
+    );
+  });
+
+  it("#415 continuity: an archived row is excluded from refill entirely (no fetch, no write, not counted)", async () => {
+    const raw = noMediaRaw();
+    primeMocks({
+      records: [raw],
+      existingListing: dbListingRowFor(raw),
+      existingProjection: dbProjectionRowFor(raw),
+      storedMediaRows: [
+        { listing_id: "RLS-N2-0001", media: [], sync_status: "archived" },
+      ],
+    });
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(mockMediaFetch).not.toHaveBeenCalled();
+    expect(mockListingUpdateMany).not.toHaveBeenCalled();
+    expect(result.media_refill_checked).toBe(0);
+    expect(result.media_refill_changed).toBe(0);
+    expect(result.media_refill_skipped_unchanged).toBe(0);
+  });
+});
+
+// ─── mediaRefillRowUnchanged (pure comparator) ───────────────────────────
+
+describe("mediaRefillRowUnchanged", () => {
+  const fetched = [{ url: "a.jpg", mediaType: "Photo", order: 1 }];
+
+  it("missing/empty/malformed stored media always compares as changed (fail-open to writing)", () => {
+    expect(mediaRefillRowUnchanged(null, fetched)).toBe(false);
+    expect(mediaRefillRowUnchanged(undefined, fetched)).toBe(false);
+    expect(mediaRefillRowUnchanged([], fetched)).toBe(false);
+    expect(mediaRefillRowUnchanged({ PhotosCount: 3 }, fetched)).toBe(false);
+    expect(mediaRefillRowUnchanged("[]", fetched)).toBe(false);
+  });
+
+  it("normalized deep equality — object key order irrelevant, array order significant", () => {
+    expect(
+      mediaRefillRowUnchanged([{ order: 1, mediaType: "Photo", url: "a.jpg" }], fetched),
+    ).toBe(true);
+    expect(
+      mediaRefillRowUnchanged(
+        [
+          { url: "b.jpg", mediaType: "Photo", order: 2 },
+          { url: "a.jpg", mediaType: "Photo", order: 1 },
+        ],
+        [
+          { url: "a.jpg", mediaType: "Photo", order: 1 },
+          { url: "b.jpg", mediaType: "Photo", order: 2 },
+        ],
+      ),
+    ).toBe(false);
+  });
+
+  it("any genuine difference (url, mediaType, order, count) compares as changed", () => {
+    expect(mediaRefillRowUnchanged([{ url: "b.jpg", mediaType: "Photo", order: 1 }], fetched)).toBe(false);
+    expect(mediaRefillRowUnchanged([{ url: "a.jpg", mediaType: "FloorPlan", order: 1 }], fetched)).toBe(false);
+    expect(mediaRefillRowUnchanged([{ url: "a.jpg", mediaType: "Photo", order: 2 }], fetched)).toBe(false);
+    expect(
+      mediaRefillRowUnchanged(
+        [{ url: "a.jpg", mediaType: "Photo", order: 1 }, { url: "b.jpg", mediaType: "Photo", order: 2 }],
+        fetched,
+      ),
+    ).toBe(false);
   });
 });

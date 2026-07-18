@@ -69,13 +69,17 @@ describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', (
     expect(src).toContain('status_changed_at: new Date()');
   });
 
-  it('the batch-media loops are UNCHANGED from main — no deleted-at-source clearing in RC2', () => {
-    // RC2 deliberately does NOT touch the batch-media write loops (the
-    // clear-on-delete increment was reverted; it needs @odata.nextLink
-    // pagination = RC1). Lock that: the original Map-iterating loops remain, and
-    // no clearing helper / completeness gate leaked into RC2.
+  it('the batch-media write loop carries no deleted-at-source clearing (RC2 scope pin)', () => {
+    // RC2 deliberately did NOT add clear-on-delete to the batch-media write
+    // loop (the clear-on-delete increment was reverted; it needs
+    // @odata.nextLink pagination = RC1). N2 follow-up (Maya blocker on PR
+    // #535, 2026-07-18) later consolidated the two duplicated batch blocks
+    // into the shared refillBatchMedia() helper and added
+    // compare-before-write — so there is now ONE Map-iterating write loop,
+    // used by both sync paths. The RC2 pin itself is unchanged: no clearing
+    // helper / completeness gate is present.
     expect(src).toContain('for (const [key, media] of mediaByListing) {');
-    expect(src).toContain('for (const [key, media] of mediaByKey) {');
+    expect(src).toContain('async function refillBatchMedia(');
     expect(src).not.toContain('resolveBatchMediaWrites');
     expect(src).not.toContain('mediaResponseComplete');
   });

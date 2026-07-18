@@ -427,6 +427,248 @@ export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereIn
   };
 }
 
+// ── N2 follow-up (Maya blocker on PR #535) — batch-media refill discipline ──
+//
+// The blocker: the post-upsert batch-media refill was UNCONDITIONAL. Its
+// trigger was the legacy `upserted` counter (which under N2 increments even
+// for fully-skipped unchanged records), its candidate set was "every record
+// fetched without inline media" (= every record, since useExpandMedia is
+// hard-coded false), and its write was an unguarded per-listing
+// `listing.updateMany({ data: { media } })`. Net effect: an identical
+// second run — zero listing/projection writes on the per-record path —
+// still rewrote the media JSON of every listing in the batch.
+//
+// Correction, both ways Maya listed:
+//   (a) CANDIDATE SELECTION — a listing is fetched from the Trestle Media
+//       endpoint only when its STORED media is missing/empty/malformed OR
+//       its listing row was physically written this run. The second signal
+//       is sound because `PhotosChangeTimestamp` is fetched ($select in
+//       lib/idx/card-fields.ts), kept by slimRawData
+//       (lib/compliance/raw-data-keep-fields.ts:176) and therefore part of
+//       the persisted `raw_data` the N2 comparator checks: an unchanged row
+//       means Trestle's media-change trigger did not advance, so stored
+//       media cannot be stale relative to the feed. (Independent healing
+//       paths remain: the media-sync cron's PhotosChangeTimestamp keyset
+//       cursor in lib/idx/media-sync.ts and backfillEmptyMedia below.)
+//   (b) COMPARE-BEFORE-WRITE — for listings that ARE fetched, the stored
+//       media (bounded select of listing_id+media for just the run's
+//       listings) is compared against the normalized fetched media using
+//       the same stable-stringify convention as the N2 row comparator
+//       (listingJsonEqual). The updateMany is issued ONLY when stored media
+//       is missing or genuinely different.
+//
+// Rows absent from the DB are not refill targets (updateMany can never
+// match them) and archived rows stay excluded per #415
+// (archivedSafeMediaWhere would match 0 rows; skipping them pre-fetch is
+// semantics-identical and saves the round trip). Neither is counted.
+//
+// LEDGER (additive, run result + idx_sync/idx_sync_cron audit payloads):
+// media_refill_checked ≡ media_refill_changed +
+// media_refill_skipped_unchanged. Counters increment only once a listing's
+// outcome is known (skip decided, or write issued), so a failed Trestle
+// Media batch — swallowed non-fatally, NOT part of `errors` — leaves its
+// listings uncounted and the invariant intact. VALIDITY RULE: like the N2
+// listing/projection ledger, these counters are authoritative for
+// reconciliation only on runs with errors === 0 and no media-batch
+// failures (watch for the per-batch console.warn).
+export interface MediaRefillCounters {
+  /** Listings whose refill decision completed this run (skipped or written). */
+  media_refill_checked: number;
+  /** Listings whose stored media was missing or genuinely different — one updateMany issued. */
+  media_refill_changed: number;
+  /** Listings whose stored media already matches — zero writes issued. */
+  media_refill_skipped_unchanged: number;
+}
+
+function emptyMediaRefillCounters(): MediaRefillCounters {
+  return {
+    media_refill_checked: 0,
+    media_refill_changed: 0,
+    media_refill_skipped_unchanged: 0,
+  };
+}
+
+/**
+ * Compare-before-write verdict for one listing's batch-media refill.
+ * `stored` is the DB `listings.media` jsonb; `fetched` is the normalized
+ * media array the refill would write. Missing/empty/malformed stored media
+ * always compares as changed (fail-open to writing — the refill is the
+ * repair path for exactly that state). Otherwise normalized deep equality
+ * via the same stable-stringify convention as the N2 comparator; array
+ * order is significant (display order).
+ *
+ * Exported for unit tests.
+ */
+export function mediaRefillRowUnchanged(
+  stored: unknown,
+  fetched: { url: string; mediaType: string; order: number }[],
+): boolean {
+  if (!Array.isArray(stored) || stored.length === 0) return false;
+  return listingJsonEqual(stored, fetched);
+}
+
+/**
+ * The batch-media refill shared by syncListings and syncAgentHistory —
+ * see the doctrine comment above MediaRefillCounters. Non-fatal by
+ * contract: any thrown error is swallowed with a console.warn (as the
+ * inline blocks it replaces always did) and the counters collected so far
+ * are returned.
+ */
+async function refillBatchMedia(opts: {
+  /** The run's fetched Trestle Property records. */
+  records: Record<string, unknown>[];
+  /**
+   * listing_ids whose listing row was physically written this run
+   * (creates + changed-row updates). The per-listing media-staleness
+   * signal — NOT the legacy `upserted` aggregate, which counts unchanged
+   * skipped records too.
+   */
+  writtenListingIds: ReadonlySet<string>;
+  /** Log prefix, e.g. "[IDX Sync]" / "[IDX Agent History]". */
+  logPrefix: string;
+}): Promise<MediaRefillCounters> {
+  const { records, writtenListingIds, logPrefix } = opts;
+  const counters = emptyMediaRefillCounters();
+  try {
+    // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+    // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
+    const listingsNeedMediaRaw = records.filter(
+      (r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0,
+    );
+    const keyToIdMap = new Map<string, string>();
+    const runKeys: string[] = [];
+    for (const r of listingsNeedMediaRaw) {
+      const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
+      const listingId = String(r.ListingId || listingKey);
+      if (listingKey) {
+        keyToIdMap.set(listingKey, listingId);
+        runKeys.push(listingKey);
+      } else if (listingId) {
+        keyToIdMap.set(listingId, listingId);
+        runKeys.push(listingId);
+      }
+    }
+    if (runKeys.length === 0) return counters;
+
+    // Bounded read of the CURRENT stored media for just this run's listings
+    // — listing_id + media (+ sync_status for the #415 archived exclusion).
+    const runListingIds = [...new Set(keyToIdMap.values())].filter(Boolean);
+    const storedRows = await prisma.listing.findMany({
+      where: { listing_id: { in: runListingIds } },
+      select: { listing_id: true, media: true, sync_status: true },
+    });
+    const storedByListingId = new Map(storedRows.map((row) => [row.listing_id, row]));
+
+    // (a) Candidate selection — fetch from the Trestle Media endpoint ONLY
+    // for listings whose stored media is missing/empty OR whose listing row
+    // physically changed this run. Unchanged records with intact stored
+    // media induce ZERO batch-media work (no fetch, no write).
+    const fetchKeys: string[] = [];
+    for (const key of runKeys) {
+      const listingId = keyToIdMap.get(key) || key;
+      const stored = storedByListingId.get(listingId);
+      // Row absent (errored create / skipped-new-terminal): updateMany could
+      // never match it — not a refill target, not counted.
+      if (!stored) continue;
+      // #415: archived rows are excluded from refill entirely; the write-side
+      // archivedSafeMediaWhere would match 0 rows anyway. Not counted.
+      if (stored.sync_status === ARCHIVED_SYNC_STATUS) continue;
+      const storedMediaMissing =
+        !Array.isArray(stored.media) || (stored.media as unknown[]).length === 0;
+      if (!storedMediaMissing && !writtenListingIds.has(listingId)) {
+        counters.media_refill_checked++;
+        counters.media_refill_skipped_unchanged++;
+        continue;
+      }
+      fetchKeys.push(key);
+    }
+    if (fetchKeys.length === 0) return counters;
+
+    console.log(`${logPrefix} Batch-fetching media for ${fetchKeys.length} listings`);
+    const { getAccessToken } = await import("./auth");
+    const token = await getAccessToken();
+    const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+    // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
+    // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+    // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
+    // the media-backfill cron was returning 0 updates despite the cron
+    // firing successfully — every batch silently 400'd.
+    const BATCH_SIZE = 15;
+
+    for (let i = 0; i < fetchKeys.length; i += BATCH_SIZE) {
+      const batch = fetchKeys.slice(i, i + BATCH_SIZE).filter(Boolean);
+      if (batch.length === 0) continue;
+
+      const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
+      // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+      const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
+      const mediaParams = new URLSearchParams();
+      mediaParams.set("$filter", mediaFilter);
+      mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
+      mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
+      mediaParams.set("$top", String(batch.length * 30));
+
+      try {
+        const _mc = new AbortController();
+        const _mt = setTimeout(() => _mc.abort(), 15_000);
+        let res: Response;
+        try {
+          res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+            signal: _mc.signal,
+          });
+        } finally { clearTimeout(_mt); }
+        if (!res.ok) continue;
+        const data = await res.json();
+
+        // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
+        const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+        for (const m of data.value || []) {
+          const lid = String(m.ResourceRecordKey || "");
+          if (!lid || !m.MediaURL) continue;
+          if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
+          // Use shared classifier — see classifyTrestleMediaCategory in
+          // lib/media/media-sync-service.ts for the floor-plan-as-photo
+          // bug this replaces.
+          const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
+          const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+          mediaByListing.get(lid)!.push({
+            url: String(m.MediaURL),
+            mediaType,
+            order: isPreferred ? -1 : Number(m.Order ?? 0),
+          });
+        }
+
+        // (b) Compare-before-write — convert ResourceRecordKey back to
+        // listing_id, then write ONLY when stored media is missing or
+        // genuinely different from the normalized fetched media.
+        for (const [key, media] of mediaByListing) {
+          const listingId = keyToIdMap.get(key) || key;
+          const stored = storedByListingId.get(listingId);
+          if (mediaRefillRowUnchanged(stored?.media, media)) {
+            counters.media_refill_checked++;
+            counters.media_refill_skipped_unchanged++;
+            continue;
+          }
+          await prisma.listing.updateMany({
+            // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+            where: archivedSafeMediaWhere(listingId),
+            data: { media: media as unknown as Prisma.InputJsonValue },
+          });
+          counters.media_refill_checked++;
+          counters.media_refill_changed++;
+        }
+      } catch (mediaErr) {
+        console.warn(`${logPrefix} Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
+      }
+    }
+    console.log(`${logPrefix} Media batch-fetch complete`);
+  } catch (mediaSyncErr) {
+    console.warn(`${logPrefix} Media sync failed (non-fatal):`, mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
+  }
+  return counters;
+}
+
 /**
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
@@ -576,6 +818,14 @@ export interface SyncResult {
   projection_changed: number;
   /** Projection rows with every compared column identical — zero writes issued. */
   projection_skipped_unchanged: number;
+  // ── Batch-media refill ledger (Maya blocker on PR #535; additive:
+  //    checked ≡ changed + skipped_unchanged — see MediaRefillCounters) ──
+  /** Listings whose batch-media refill decision completed this run. */
+  media_refill_checked: number;
+  /** Listings whose stored media was missing or genuinely different — one updateMany issued. */
+  media_refill_changed: number;
+  /** Listings whose stored media already matches — zero media writes issued. */
+  media_refill_skipped_unchanged: number;
   /** New listings NOT created because they arrived terminal/off-market and we never
    *  tracked them (root-cause guard against feed-wide closure bloat). */
   skipped_new_terminal?: number;
@@ -620,7 +870,8 @@ export async function syncListings(
   // (`maxRecords <= 200`) was a workaround for what was originally framed
   // as a "timeout for large batches" issue, but production logs show even
   // small batches 400 the same way. Media is fetched separately by the
-  // `if (!useExpandMedia && upserted > 0)` batch-media block further down.
+  // refillBatchMedia() call further down (compare-before-write; candidates
+  // limited to missing-media / physically-written listings).
   const useExpandMedia = false;
 
   const fetchResult = await fetchFromTrestle({
@@ -644,6 +895,11 @@ export async function syncListings(
   let projectionChecked = 0;
   let projectionChanged = 0;
   let projectionSkippedUnchanged = 0;
+  // listing_ids physically written this run (creates + changed-row updates).
+  // Feeds the batch-media refill's candidate selection — a listing whose row
+  // was NOT written (N2 skip ⇒ raw_data incl. PhotosChangeTimestamp is
+  // identical) and whose stored media is intact needs no media work at all.
+  const writtenListingIds = new Set<string>();
 
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
     try {
@@ -845,6 +1101,7 @@ export async function syncListings(
         });
         listingsChecked++;
         listingsChanged++;
+        writtenListingIds.add(mapped.listing_id);
       }
 
       // 5. Dual-write the search projection (master refactor PR 5B).
@@ -946,105 +1203,22 @@ export async function syncListings(
     }
   }
 
-  // ── Batch-fetch media for listings that didn't get inline media ──
-  // When $expand=Media was disabled (large syncs), fetch photos separately
-  // and update DB records. Uses Trestle Media endpoint (separate quota: 18K req/hr).
-  if (!useExpandMedia && upserted > 0) {
-    try {
-      // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
-      // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
-      const listingsNeedMediaRaw = fetchResult.records
-        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
-      const keyToIdMap = new Map<string, string>();
-      const listingsNeedMedia: string[] = [];
-      for (const r of listingsNeedMediaRaw) {
-        const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
-        const listingId = String(r.ListingId || listingKey);
-        if (listingKey) {
-          keyToIdMap.set(listingKey, listingId);
-          listingsNeedMedia.push(listingKey);
-        } else if (listingId) {
-          keyToIdMap.set(listingId, listingId);
-          listingsNeedMedia.push(listingId);
-        }
-      }
-
-      if (listingsNeedMedia.length > 0) {
-        console.log(`[IDX Sync] Batch-fetching media for ${listingsNeedMedia.length} listings`);
-        const { getAccessToken } = await import("./auth");
-        const token = await getAccessToken();
-        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
-        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
-        // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
-        // the media-backfill cron was returning 0 updates despite the cron
-        // firing successfully — every batch silently 400'd.
-        const BATCH_SIZE = 15;
-
-        for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
-          const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
-          if (batch.length === 0) continue;
-
-          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
-          const mediaParams = new URLSearchParams();
-          mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 30));
-
-          try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
-
-            // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
-            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordKey || "");
-              if (!lid || !m.MediaURL) continue;
-              if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-              // Use shared classifier — replaces the broken
-              // `cat.includes("floor plan")` (with space) check that
-              // mis-classified Trestle's actual "FloorPlan" enum value as
-              // "Photo". See lib/media/media-sync-service.ts for the full
-              // history of this bug.
-              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByListing.get(lid)!.push({
-                url: String(m.MediaURL),
-                mediaType,
-                order: isPreferred ? -1 : Number(m.Order ?? 0),
-              });
-            }
-
-            // Update DB records — convert ResourceRecordKey back to listing_id via map
-            for (const [key, media] of mediaByListing) {
-              const listingId = keyToIdMap.get(key) || key;
-              await prisma.listing.updateMany({
-                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
-                where: archivedSafeMediaWhere(listingId),
-                data: { media: media as unknown as Prisma.InputJsonValue },
-              });
-            }
-          } catch (mediaErr) {
-            console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
-          }
-        }
-        console.log("[IDX Sync] Media batch-fetch complete");
-      }
-    } catch (mediaSyncErr) {
-      console.warn("[IDX Sync] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
-    }
+  // ── Batch-media refill (compare-before-write + candidate selection) ──
+  // When $expand=Media is disabled, photos are fetched separately from the
+  // Trestle Media endpoint (separate quota: 18K req/hr) and written back —
+  // but ONLY for listings whose stored media is missing/empty or genuinely
+  // different (see refillBatchMedia). Maya blocker on PR #535: the trigger
+  // is deliberately NOT the legacy `upserted` aggregate (which under N2
+  // counts unchanged skipped records) — candidacy is decided per listing
+  // from stored-media state + this run's physical writes, so an identical
+  // second run performs zero media fetches and zero media writes.
+  let mediaRefill = emptyMediaRefillCounters();
+  if (!useExpandMedia && fetchResult.records.length > 0) {
+    mediaRefill = await refillBatchMedia({
+      records: fetchResult.records,
+      writtenListingIds,
+      logPrefix: "[IDX Sync]",
+    });
   }
 
   const durationMs = Date.now() - startTime;
@@ -1085,6 +1259,12 @@ export async function syncListings(
           projection_checked: projectionChecked,
           projection_changed: projectionChanged,
           projection_skipped_unchanged: projectionSkippedUnchanged,
+          // Batch-media refill ledger (same checked ≡ changed + skipped
+          // invariant; counters increment only once an outcome is known, so
+          // a failed media batch — non-fatal, NOT in `errors` — leaves its
+          // listings uncounted). Authoritative for reconciliation only when
+          // errors === 0 and no media-batch warning fired.
+          ...mediaRefill,
           errors,
           duration_ms: durationMs,
         },
@@ -1198,6 +1378,7 @@ export async function syncListings(
     projection_checked: projectionChecked,
     projection_changed: projectionChanged,
     projection_skipped_unchanged: projectionSkippedUnchanged,
+    ...mediaRefill,
     skipped_new_terminal: skippedNewTerminal,
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
@@ -1666,6 +1847,12 @@ export async function syncAgentHistory(
   let skippedValidation = 0;
   let errors = 0;
   let agentMatched = 0;
+  // listing_ids whose listing row was physically written this run — feeds the
+  // batch-media refill's candidate selection. Agent-history is not N2
+  // write-suppressed, so every successfully upserted record lands here; the
+  // refill still applies compare-before-write, so re-running an agent import
+  // with unchanged Trestle media performs zero media writes.
+  const writtenListingIds = new Set<string>();
 
   for (const raw of fetchResult.records) {
     try {
@@ -1781,6 +1968,7 @@ export async function syncAgentHistory(
           sync_status: mapped.sync_status,
         }, existingForClock),
       });
+      writtenListingIds.add(mapped.listing_id);
 
       // 4. Dual-write the search projection (master refactor PR 5B).
       // Same sequential pattern as syncListings(); per-listing try/catch
@@ -1829,100 +2017,15 @@ export async function syncAgentHistory(
     }
   }
 
-  // ── Batch-fetch media for listings without inline media ──
-  if (!useExpandMedia && upserted > 0) {
-    try {
-      // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
-      // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
-      const listingsNeedMediaRaw = fetchResult.records
-        .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
-      const agentKeyToIdMap = new Map<string, string>();
-      const listingsNeedMedia: string[] = [];
-      for (const r of listingsNeedMediaRaw) {
-        const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
-        const listingId = String(r.ListingId || listingKey);
-        if (listingKey) {
-          agentKeyToIdMap.set(listingKey, listingId);
-          listingsNeedMedia.push(listingKey);
-        } else if (listingId) {
-          agentKeyToIdMap.set(listingId, listingId);
-          listingsNeedMedia.push(listingId);
-        }
-      }
-
-      if (listingsNeedMedia.length > 0) {
-        console.log(`[IDX Agent History] Batch-fetching media for ${listingsNeedMedia.length} listings`);
-        const { getAccessToken } = await import("./auth");
-        const token = await getAccessToken();
-        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
-        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
-        // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
-        // the media-backfill cron was returning 0 updates despite the cron
-        // firing successfully — every batch silently 400'd.
-        const BATCH_SIZE = 15;
-
-        for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
-          const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
-          if (batch.length === 0) continue;
-
-          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
-          const mediaParams = new URLSearchParams();
-          mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 30));
-
-          try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
-
-            const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordKey || "");
-              if (!lid || !m.MediaURL) continue;
-              if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
-              // Use shared classifier — see classifyTrestleMediaCategory in
-              // lib/media/media-sync-service.ts for the floor-plan-as-photo
-              // bug this replaces.
-              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByKey.get(lid)!.push({
-                url: String(m.MediaURL),
-                mediaType,
-                order: isPreferred ? -1 : Number(m.Order ?? 0),
-              });
-            }
-
-            // Convert ResourceRecordKey back to listing_id via map
-            for (const [key, media] of mediaByKey) {
-              const listingId = agentKeyToIdMap.get(key) || key;
-              await prisma.listing.updateMany({
-                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
-                where: archivedSafeMediaWhere(listingId),
-                data: { media: media as unknown as Prisma.InputJsonValue },
-              });
-            }
-          } catch (mediaErr) {
-            console.warn(`[IDX Agent History] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
-          }
-        }
-        console.log("[IDX Agent History] Media batch-fetch complete");
-      }
-    } catch (mediaSyncErr) {
-      console.warn("[IDX Agent History] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
-    }
+  // ── Batch-media refill (shared helper; compare-before-write + candidate
+  // selection — see refillBatchMedia and the Maya-blocker doctrine above it).
+  let mediaRefill = emptyMediaRefillCounters();
+  if (!useExpandMedia && fetchResult.records.length > 0) {
+    mediaRefill = await refillBatchMedia({
+      records: fetchResult.records,
+      writtenListingIds,
+      logPrefix: "[IDX Agent History]",
+    });
   }
 
   const durationMs = Date.now() - startTime;
@@ -1952,6 +2055,9 @@ export async function syncAgentHistory(
           agent_matched: agentMatched,
           skipped_gates: skippedGates,
           skipped_validation: skippedValidation,
+          // Batch-media refill ledger (checked ≡ changed + skipped_unchanged;
+          // authoritative only when errors === 0 and no media-batch warning).
+          ...mediaRefill,
           errors,
           duration_ms: durationMs,
         },
@@ -1977,6 +2083,9 @@ export async function syncAgentHistory(
     projection_checked: upserted,
     projection_changed: upserted,
     projection_skipped_unchanged: 0,
+    // The media refill IS suppressed here too (shared helper): re-running an
+    // agent import with unchanged Trestle media performs zero media writes.
+    ...mediaRefill,
     errors,
     duration_ms: durationMs,
   };

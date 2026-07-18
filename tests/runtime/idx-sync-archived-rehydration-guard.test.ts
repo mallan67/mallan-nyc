@@ -267,9 +267,16 @@ describe('archivedSafeMediaWhere — NULL-safe batch media guard (Codex #465 P2,
 describe('idx-sync source — batch media-refill archived guard wiring (SUPPORTING)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
-  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path + backfill write)', () => {
+  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (shared refill + backfill write)', () => {
+    // N2 follow-up (Maya blocker on PR #535, 2026-07-18): the two duplicated
+    // sync-path batch blocks were consolidated into the shared
+    // refillBatchMedia() helper, so the guarded writers are now the helper's
+    // single updateMany plus backfillEmptyMedia's — 2 sites, not 3.
     const matches = src.match(/where:\s*archivedSafeMediaWhere\(/g) || [];
-    expect(matches.length).toBe(3);
+    expect(matches.length).toBe(2);
+    // Both sync paths route through the shared (guarded) helper.
+    const helperCalls = src.match(/await refillBatchMedia\(\{/g) || [];
+    expect(helperCalls.length).toBe(2);
   });
 
   it('no batch media updateMany writes media with a bare { listing_id } where (unguarded rehydration)', () => {
