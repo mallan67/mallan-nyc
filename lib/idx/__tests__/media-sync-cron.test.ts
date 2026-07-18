@@ -80,6 +80,9 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     r2_failed: 0,
     r2_skipped: 0,
     backlog_remaining: 0,
+    backlog_candidate_count: 0,
+    backlog_processed_count: 0,
+    backlog_query_count: 0,
     duration_ms: 100,
     ...overrides,
   };
@@ -244,6 +247,9 @@ describe("GET /api/cron/media-sync — happy path", () => {
         r2_failed: 4,
         r2_skipped: 0,
         backlog_remaining: 1102,
+        backlog_candidate_count: 250,
+        backlog_processed_count: 15,
+        backlog_query_count: 1,
         duration_ms: 88424,
       }),
     );
@@ -272,11 +278,17 @@ describe("GET /api/cron/media-sync — happy path", () => {
     expect(ch.r2_skipped).toBe(0);
     expect(ch.backlog_remaining).toBe(1102);
 
+    // N3: single-bounded-fetch counters must flow through to the audit payload.
+    expect(ch.backlog_candidate_count).toBe(250);
+    expect(ch.backlog_processed_count).toBe(15);
+    expect(ch.backlog_query_count).toBe(1);
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
       "listings_processed", "listings_skipped",
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
+      "backlog_candidate_count", "backlog_processed_count", "backlog_query_count",
       "duration_ms", "error",
     ]);
     for (const key of Object.keys(ch)) {

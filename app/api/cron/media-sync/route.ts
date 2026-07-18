@@ -68,6 +68,14 @@ export async function GET(req: NextRequest) {
     //   - r2_failed         — R2 mirror failures (separate from source rows_failed)
     //   - r2_skipped        — rows skipped by mirror (e.g., no media_url_original)
     //   - backlog_remaining — listing_media rows still missing r2_key/cached
+    // N3 (2026-07-18) additive counters — prove the single-bounded-fetch
+    // contract from the audit log alone:
+    //   - backlog_candidate_count — rows returned by the ONE Phase-3 fetch
+    //   - backlog_processed_count — candidates actually attempted (≤ fetched)
+    //   - backlog_query_count     — Phase-3 candidate findMany count; MUST be
+    //     1 when Phase 3 ran, 0 when budget-skipped/source_error. (The Phase-4
+    //     backlog_remaining COUNT query is separate pre-existing behavior and
+    //     is not included.)
     // Required so external observers (the 48h PR-4 observation clock, ops
     // dashboards, retro analyses) can verify Phase 1/2/3 health from audit
     // alone without ad-hoc DB queries.
@@ -90,6 +98,9 @@ export async function GET(req: NextRequest) {
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,
           backlog_remaining: result.backlog_remaining,
+          backlog_candidate_count: result.backlog_candidate_count,
+          backlog_processed_count: result.backlog_processed_count,
+          backlog_query_count: result.backlog_query_count,
           duration_ms: result.duration_ms,
           ...(result.error ? { error: result.error } : {}),
         },

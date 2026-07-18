@@ -1385,6 +1385,26 @@ export interface RunMediaSyncResult {
    * after Phase 3 completes (or budget exits). null if the count query failed.
    */
   backlog_remaining: number | null;
+  /**
+   * N3: number of backlog candidate rows returned by the single bounded
+   * Phase-3 fetch (0 when Phase 3 was budget-skipped or on source_error).
+   * Capped at MAX_R2_CANDIDATES_PER_RUN.
+   */
+  backlog_candidate_count: number;
+  /**
+   * N3: number of fetched candidates actually attempted (handed to the
+   * concurrency-5 mirror waves) this run. Always ≤ backlog_candidate_count;
+   * lower only when the Phase-2 time budget exits mid-set.
+   */
+  backlog_processed_count: number;
+  /**
+   * N3: number of Phase-3 backlog candidate `findMany` queries issued against
+   * `listing_media` this run. MUST be exactly 1 whenever Phase 3 ran (0 when
+   * budget-skipped or on source_error) — the whole point of N3. NOTE: the
+   * Phase-4 `backlog_remaining` COUNT query is pre-existing separate behavior
+   * and is NOT included in this counter.
+   */
+  backlog_query_count: number;
   duration_ms: number;
   /** Set when `status === "error"`. */
   error?: string;
@@ -1420,6 +1440,30 @@ export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
  * 128K+ photos without incident.
  */
 export const R2_MIRROR_CONCURRENCY = 5;
+
+/**
+ * N3 (2026-07-18) — upper bound on Phase-3 backlog candidates fetched per run.
+ *
+ * Phase 3 now issues exactly ONE bounded `findMany` per invocation instead of
+ * one full-table-scan query per 5-row wave (the T1-measured hot spot: ~45
+ * backlog scans/run average, ~1,077 seq scans and ~108M tuples read per day on
+ * `listing_media`). The cap is sized so the bounded fetch NEVER reduces per-run
+ * throughput versus the old loop:
+ *
+ *   - Phase 3's wall-clock ceiling is ~43s (DEFAULT_BUDGET_MS 100s − Phase 1
+ *     up to ~45s − DEFAULT_PHASE2_RESERVE_MS 12s).
+ *   - The old loop averaged ~45 waves/run (T1 pg_stat evidence) at
+ *     R2_MIRROR_CONCURRENCY=5 rows per wave → ~225 rows attempted per run at
+ *     the observed maximum.
+ *   - 250 = that observed ceiling rounded up with headroom (50 waves), so the
+ *     time budget — not this cap — remains the binding constraint on a normal
+ *     run, while the DB now pays for ONE scan instead of ~45.
+ *
+ * Rows beyond the cap are untouched this run and remain in the DB backlog for
+ * the next cron firing (96 firings/day), exactly like rows beyond the old
+ * loop's time budget. NOT a schema/index change — index design is N4.
+ */
+export const MAX_R2_CANDIDATES_PER_RUN = 250;
 
 /**
  * Build the OData query params for the Property page fetch. Exported for
@@ -1606,14 +1650,17 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
  *     kill during Phase 3 cannot undo Phase 1 progress.
  *
  *   Phase 3 — R2 enrichment backlog (parallel-5):
- *     Queries `listing_media` rows where `r2_key IS NULL OR
- *     media_url_cached IS NULL` (oldest first). Processes them with
- *     `Promise.allSettled` and concurrency 5 — matching the proven-
- *     production pattern in `lib/idx/sync.ts:694-708` (`migrateMediaToR2`),
- *     and within Trestle's 480/min Media URL ceiling
+ *     N3 (2026-07-18): fetches ONE bounded candidate set per run — a single
+ *     `findMany` of `listing_media` rows where `r2_key IS NULL OR
+ *     media_url_cached IS NULL` (oldest first, stable `id` tiebreak, capped
+ *     at `MAX_R2_CANDIDATES_PER_RUN`) — and NEVER re-queries mid-run.
+ *     Processes the in-memory set in waves of 5 with `Promise.allSettled` —
+ *     matching the proven-production pattern in `lib/idx/sync.ts:694-708`
+ *     (`migrateMediaToR2`), and within Trestle's 480/min Media URL ceiling
  *     (per `data/RLS-FIELD-REGISTRY.md:307-310`). Stops when remaining
- *     time < `phase2ReserveMs`. R2 failures count in `r2_failed` (separate
- *     from source `rows_failed`); the row stays in the backlog for retry.
+ *     time < `phase2ReserveMs` OR the candidate set is exhausted. R2
+ *     failures count in `r2_failed` (separate from source `rows_failed`);
+ *     the row stays in the DB backlog for the next firing.
  *
  *   Phase 4 — Finalize + return:
  *     Counts remaining backlog, computes final status, returns the result.
@@ -1745,6 +1792,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_failed: 0,
       r2_skipped: 0,
       backlog_remaining: null,
+      backlog_candidate_count: 0,
+      backlog_processed_count: 0,
+      backlog_query_count: 0,
       duration_ms: now() - startTime,
     };
   }
@@ -1932,20 +1982,21 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // 480/min Media URL ceiling allows 8/sec sustained; concurrency-5 peaks
   // ~5/sec → comfortably within bandwidth, regression-safe.
   //
-  // Per-invocation attempt tracking (PR #97 Codex review fix):
-  //   The backlog query selects rows where `r2_key IS NULL OR
+  // Per-invocation attempt tracking (PR #97 Codex review fix; N3 in-memory):
+  //   The backlog eligibility selects rows where `r2_key IS NULL OR
   //   media_url_cached IS NULL`. If a row's mirror fails (e.g., Trestle
   //   404 on media_url_original, R2 head/upload error), its DB state is
-  //   unchanged — same row keeps matching the same query. Without
+  //   unchanged — same row keeps matching the same eligibility. Without
   //   tracking, a persistent bad row at the head of the queue would be
-  //   re-selected every iteration of this while-loop and starve newer
-  //   backlog rows of any Phase 3 budget.
+  //   re-attempted repeatedly and starve newer backlog rows of any
+  //   Phase 3 budget.
   //
-  //   Fix: track every row id we've attempted in this invocation in a
-  //   local Set, and exclude those ids from subsequent backlog queries
-  //   via `id: { notIn: [...attempted] }`. Failed rows still stay in the
-  //   DB backlog — they're eligible on the NEXT cron firing (the Set is
-  //   recreated on each `runMediaSync` call).
+  //   Fix (N3 form): track every row id we've attempted in this invocation
+  //   in a local Set while iterating the SINGLE bounded candidate set fetched
+  //   below (the pre-N3 form re-queried with `id: { notIn: [...attempted] }`
+  //   before every wave — the T1-measured seq-scan hot spot). Failed rows
+  //   still stay in the DB backlog — they're eligible on the NEXT cron firing
+  //   (the Set is recreated on each `runMediaSync` call).
   //
   // Cross-invocation cooldown (added 2026-05-10):
   //   The per-invocation Set above stops re-selection within ONE cron
@@ -1958,38 +2009,89 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   const attemptedBacklogIds = new Set<bigint>();
   const cooldownThreshold = new Date(now() - R2_RETRY_COOLDOWN_MS);
 
+  // N3 (2026-07-18): ONE bounded candidate fetch per run — the loop below
+  // NEVER re-queries listing_media. The old shape re-ran the eligibility
+  // findMany (a Parallel Seq Scan over ~300K rows — no covering index) before
+  // EVERY 5-row wave, with a per-invocation `id notIn [...attempted]` list
+  // growing each pass: T1 measured ~45 scans/run average, ~1,077 seq scans and
+  // ~108M tuples read per day on listing_media from this loop plus the
+  // once-per-run Phase-4 count. Now the eligibility `where` is identical
+  // (buildR2BacklogWhere with an EMPTY attempted set — nothing has been
+  // attempted at fetch time), ordered by created_at asc with a stable `id`
+  // tiebreak, capped at MAX_R2_CANDIDATES_PER_RUN. The per-invocation
+  // attempted-row tracking (PR #97) becomes an in-memory iteration over this
+  // fixed set: the Set still guarantees no row is attempted twice within one
+  // run, and failed rows remain eligible on the NEXT cron firing exactly as
+  // before (their DB state is untouched by the fetch).
+  //
+  // Preserved exactly: cross-invocation 6h cooldown (r2_last_attempt_at is
+  // still written only by Cp4 failure paths), RC3 retry-exhausted parking
+  // (r2_attempts >= 8 excluded by the same where), tombstone-on-3rd-4xx
+  // (Cp4, untouched), success/failure DB writes (Cp4, untouched), and the
+  // budget semantics (one time-budget check per wave; budget_phase2 when time
+  // runs out with candidates remaining).
+  let backlogCandidates: Array<{
+    id: bigint;
+    listing_id: string;
+    media_key: string | null;
+    media_type: string;
+    order: number;
+    media_url_original: string | null;
+    r2_key: string | null;
+    media_url_cached: string | null;
+    r2_attempts: number | null;
+  }> = [];
+  let backlogQueryCount = 0;
+  let backlogProcessedCount = 0;
+  let candidateIdx = 0;
+
   while (remainingMs() > phase2ReserveMs) {
-    const backlogRows = await prisma.listingMedia.findMany({
-      // RC3: backlog `where` is built by the pure `buildR2BacklogWhere` so the
-      // retry-exhausted exclusion (park non-permanent rows at >= threshold) is
-      // unit-testable. Eligibility = active + missing-R2 + past-cooldown +
-      // not-attempted-this-invocation + not-retry-exhausted.
-      where: buildR2BacklogWhere(cooldownThreshold, [...attemptedBacklogIds]),
-      orderBy: { created_at: "asc" },
-      take: R2_MIRROR_CONCURRENCY,
-      select: {
-        // `id` is required for attempt tracking — never passed to mirrorMediaToR2.
-        id: true,
-        listing_id: true,
-        media_key: true,
-        media_type: true,
-        order: true,
-        media_url_original: true,
-        r2_key: true,
-        media_url_cached: true,
-        // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
-        r2_attempts: true,
-      },
-    });
+    if (backlogQueryCount === 0) {
+      // The single bounded fetch — executed lazily on the first wave iteration
+      // so a run whose budget is already exhausted at Phase-3 entry issues NO
+      // backlog query at all (same as the old loop's entry condition).
+      backlogCandidates = await prisma.listingMedia.findMany({
+        // RC3: backlog `where` is built by the pure `buildR2BacklogWhere` so the
+        // retry-exhausted exclusion (park non-permanent rows at >= threshold) is
+        // unit-testable. Eligibility = active + missing-R2 + past-cooldown +
+        // not-retry-exhausted. The attempted set is EMPTY at fetch time (N3:
+        // within-run re-attempt exclusion is now in-memory, below).
+        where: buildR2BacklogWhere(cooldownThreshold, []),
+        orderBy: [{ created_at: "asc" }, { id: "asc" }],
+        take: MAX_R2_CANDIDATES_PER_RUN,
+        select: {
+          // `id` is required for attempt tracking — never passed to mirrorMediaToR2.
+          id: true,
+          listing_id: true,
+          media_key: true,
+          media_type: true,
+          order: true,
+          media_url_original: true,
+          r2_key: true,
+          media_url_cached: true,
+          // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
+          r2_attempts: true,
+        },
+      });
+      backlogQueryCount = 1;
+    }
 
-    if (backlogRows.length === 0) break;
-
+    // Assemble the next concurrency-5 wave from the in-memory candidate set.
     // Mark every selected row as attempted BEFORE the mirror runs. Even
     // if Promise.allSettled isolates a per-row throw or the mirror returns
-    // `failed`/`skipped`, the row will not be re-selected this invocation.
-    for (const row of backlogRows) {
+    // `failed`/`skipped`, the row will not be re-attempted this invocation.
+    // (A single primary-keyed findMany cannot return duplicate ids, so the
+    // Set membership check is a defensive invariant, not a filter.)
+    const backlogRows: typeof backlogCandidates = [];
+    while (candidateIdx < backlogCandidates.length && backlogRows.length < R2_MIRROR_CONCURRENCY) {
+      const row = backlogCandidates[candidateIdx++];
+      if (attemptedBacklogIds.has(row.id)) continue;
       attemptedBacklogIds.add(row.id);
+      backlogRows.push(row);
     }
+
+    if (backlogRows.length === 0) break;
+    backlogProcessedCount += backlogRows.length;
 
     const results = await Promise.allSettled(
       backlogRows.map((row) => {
@@ -2070,6 +2172,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_failed: r2Failed,
     r2_skipped: r2Skipped,
     backlog_remaining: backlogRemaining,
+    backlog_candidate_count: backlogCandidates.length,
+    backlog_processed_count: backlogProcessedCount,
+    backlog_query_count: backlogQueryCount,
     duration_ms: now() - startTime,
   };
 }
