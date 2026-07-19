@@ -25,8 +25,23 @@ describe('release-safety P2 — workflow wiring pins', () => {
   test('live-site-cron propagates failure (no silent-green hourly runs)', () => {
     const cron = read('.github/workflows/live-site-cron.yml');
     expect(cron).toContain('Propagate failure');
-    // The propagate step must be able to fail the run:
-    expect(cron).toMatch(/fails != '0'[\s\S]*exit 1/);
+    // The propagate step must fail on nonzero exit, invalid JSON, or fails>0:
+    expect(cron).toMatch(/rc != '0' \|\| steps\.validator\.outputs\.json_ok != '1' \|\| steps\.validator\.outputs\.fails != '0'/);
+    expect(cron).toMatch(/exit 1/);
+  });
+
+  test('live-site-cron runs the validator exactly ONCE (no double production probing)', () => {
+    const cron = read('.github/workflows/live-site-cron.yml');
+    const invocations = cron.match(/node scripts\/validate-live-site\.js/g) || [];
+    expect(invocations).toHaveLength(1);
+    // stderr preserved, JSON validity enforced:
+    expect(cron).toContain('live-site.stderr');
+    expect(cron).toContain('json_ok');
+  });
+
+  test('live-site-cron does not claim BLOCKED/UNVERIFIED results as fully clean', () => {
+    const cron = read('.github/workflows/live-site-cron.yml');
+    expect(cron).toContain('PASS-WITH-GAPS');
   });
 
   test('live-site-cron does NOT run the five-probe listing smoke hourly (Neon cost boundary)', () => {

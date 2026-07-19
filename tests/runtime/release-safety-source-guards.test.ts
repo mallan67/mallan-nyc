@@ -1,32 +1,30 @@
 /**
- * Release-safety P2 — controls 1 + 2 (source guards).
+ * Release-safety P2 — controls 1 + 2 (source guards), FAIL-CLOSED.
  *
  * Control 1 — forbidden cache/Redis import guard. Roots: EVERY
- * app/**\/page.{ts,tsx} and app/**\/layout.{ts,tsx} — NOT just files that
- * declare `revalidate` (a layout or a parent segment can make a route ISR
- * without the file itself declaring it, and today's non-ISR page can become
- * ISR tomorrow). Forbidden modules (explicit, per the approved scope):
- *   - @upstash/redis            (external — performs no-store fetches
- *                                internally; the PR #523 E132 trigger)
- *   - lib/redis                 (repo Redis client)
- *   - lib/cache/durable-cache   (the module the incident page imported;
- *                                currently absent from main — the guard
- *                                must trip the moment it is reintroduced)
- *   - lib/middleware/rate-limiter (additional protection, NOT a substitute
- *                                for durable-cache)
+ * app/**\/page.{ts,tsx} and app/**\/layout.{ts,tsx}. Forbidden modules:
+ * @upstash/redis, lib/redis, lib/cache/durable-cache (the incident module —
+ * currently absent from main; the guard trips the moment it is
+ * reintroduced), plus lib/middleware/rate-limiter as additional protection.
  *
- * Control 2 — revalidate/no-store contract. Roots: only the files that
- * declare `export const revalidate` (incl. app/sitemap.ts): no server file
- * in their transitive closure may carry an ISR-relevant `cache: 'no-store'`
- * fetch. Exemptions are SOURCE-CLASSIFIED (derived from the source itself,
- * not from runtime observation): 'use client' components fetch in the
- * browser; a no-store whose SAME options object declares a non-GET method
- * never joins the ISR data cache.
+ * Control 2 — revalidate/no-store contract. Roots: files declaring
+ * `export const revalidate` (incl. app/sitemap.ts). NO blanket exemptions:
+ * the ONLY allowlisted no-store fetches are
+ *   - app/components/IDXDisclaimer.tsx, AST-proven inside a useEffect
+ *     callback (browser-side effect fetch);
+ *   - lib/idx/auth.ts, AST-proven non-GET (the OAuth client-credentials
+ *     token POST).
+ * Both allowlists are SOURCE-CLASSIFIED (facts derived from the AST) —
+ * never "production-proven". Any other no-store fetch in an ISR closure
+ * fails, including other 'use client' files and other non-GET requests.
  *
- * The graph is built with the TypeScript compiler API and tsconfig-path
- * aliases (scripts/release-safety/import-graph.js) — never regex imports.
- * Fixture tests prove the guard actually detects violations (a guard that
- * only ever passes proves nothing).
+ * Fail-closed graph rules (asserted here):
+ *   - read/parse errors fail the guard;
+ *   - unresolved relative imports fail the guard;
+ *   - unresolved tsconfig-alias imports fail the guard;
+ *   - computed import()/require() callsites must match the EXACT reviewed
+ *     baseline below (currently EMPTY — main has zero computed imports in
+ *     any page/layout closure; adding one requires review here).
  */
 import * as fs from 'fs';
 import * as os from 'os';
@@ -39,8 +37,7 @@ const {
   findForbiddenReached,
   findFilesByBasename,
   declaresRevalidate,
-  countNoStoreProperties,
-  isClientComponent,
+  analyzeNoStoreProperties,
 } = require('../../scripts/release-safety/import-graph.js');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -51,6 +48,20 @@ const FORBIDDEN_REPO_MODULES = [
   'lib/cache/durable-cache',
   'lib/middleware/rate-limiter',
 ];
+
+/** EXACT reviewed baseline of files allowed to contain computed
+ *  import()/require() specifiers inside page/layout closures.
+ *  Verified EMPTY on main @ 94eef36b (2026-07-19 probe). */
+const COMPUTED_IMPORT_ALLOWLIST: Record<string, number> = {};
+
+/** SOURCE-CLASSIFIED no-store allowlist: repo-relative file -> predicate
+ *  the AST facts of EVERY match in that file must satisfy. */
+const NO_STORE_ALLOWLIST: Record<string, (m: { nonGetMethod: boolean; insideUseEffect: boolean }) => boolean> = {
+  // Client watermark fetch — allowed ONLY while it stays inside useEffect:
+  'app/components/IDXDisclaimer.tsx': (m) => m.insideUseEffect === true,
+  // OAuth token request — allowed ONLY while it stays non-GET:
+  'lib/idx/auth.ts': (m) => m.nonGetMethod === true,
+};
 
 interface Entry {
   rel: string;
@@ -81,7 +92,7 @@ function collectRevalidateEntries(roots: Entry[]): Entry[] {
   });
 }
 
-describe('release-safety P2 — source guards (repo scan)', () => {
+describe('release-safety P2 — source guards (repo scan, fail-closed)', () => {
   const aliases = readTsconfigAliases(ROOT);
   const allRoots = collectPageLayoutRoots();
   const revalidateEntries = collectRevalidateEntries(allRoots);
@@ -92,21 +103,45 @@ describe('release-safety P2 — source guards (repo scan)', () => {
     }
     return graphs.get(e.rel)!;
   };
+  const relOf = (abs: string) => path.relative(ROOT, abs).replace(/\\/g, '/');
 
   test('sanity: every page/layout is a guard root, and the incident surface is present', () => {
     const rels = allRoots.map((e) => e.rel);
     expect(rels).toContain('app/listing/[...slug]/page.tsx');
     expect(rels).toContain('app/layout.tsx');
     expect(allRoots.length).toBeGreaterThan(10);
-    // The revalidate subset is strictly smaller and includes the incident page:
     expect(revalidateEntries.map((e) => e.rel)).toContain('app/listing/[...slug]/page.tsx');
     expect(revalidateEntries.length).toBeGreaterThan(0);
-    expect(revalidateEntries.length).toBeLessThan(allRoots.length + 1);
   });
 
-  test('sanity: graphs are non-trivial (the guard is actually traversing imports)', () => {
-    const listingGraph = graphFor(allRoots.find((e) => e.rel === 'app/listing/[...slug]/page.tsx')!);
-    expect(listingGraph.files.size).toBeGreaterThan(5);
+  test('fail-closed: zero read/parse errors across every page/layout closure', () => {
+    const all: string[] = [];
+    for (const entry of allRoots) {
+      for (const e of graphFor(entry).errors) all.push(`${entry.rel}: ${relOf(e.file)} — ${e.error}`);
+    }
+    expect(all).toEqual([]);
+  });
+
+  test('fail-closed: zero unresolved relative or alias imports across every closure', () => {
+    const all: string[] = [];
+    for (const entry of allRoots) {
+      for (const u of graphFor(entry).unresolved) {
+        all.push(`${entry.rel}: ${relOf(u.file)} -> '${u.spec}' (${u.kind})`);
+      }
+    }
+    expect(all).toEqual([]);
+  });
+
+  test('fail-closed: computed imports match the EXACT reviewed baseline (currently empty)', () => {
+    const counts = new Map<string, number>();
+    for (const entry of allRoots) {
+      for (const d of graphFor(entry).dynamicUnresolved) {
+        const rel = relOf(d.file);
+        counts.set(rel, (counts.get(rel) || 0) + 1);
+      }
+    }
+    const observed = Object.fromEntries([...counts.entries()].sort());
+    expect(observed).toEqual(COMPUTED_IMPORT_ALLOWLIST);
   });
 
   test('control 1: NO page or layout transitively imports a forbidden cache/Redis module', () => {
@@ -122,37 +157,42 @@ describe('release-safety P2 — source guards (repo scan)', () => {
     expect(violations).toEqual([]);
   });
 
-  test("control 2: no server file in a revalidate-declaring entry's closure has an ISR-relevant no-store fetch", () => {
-    // Exemptions are SOURCE-CLASSIFIED (see header): 'use client' files and
-    // no-store paired with a non-GET method in the same options object
-    // (e.g. the lib/idx/auth.ts POST token fetch).
+  test('control 2: every no-store fetch in a revalidate closure is on the exact source-classified allowlist', () => {
     const violations: string[] = [];
-    const clientCache = new Map<string, boolean>();
+    const analyzed = new Map<string, ReturnType<typeof analyzeNoStoreProperties>>();
     for (const entry of revalidateEntries) {
       const graph = graphFor(entry);
       for (const file of graph.files) {
-        if (!clientCache.has(file)) clientCache.set(file, isClientComponent(file));
-        if (clientCache.get(file)) continue;
-        const { isrRelevant } = countNoStoreProperties(file);
-        if (isrRelevant > 0) {
-          violations.push(
-            `${entry.rel} closure includes server file ${path.relative(ROOT, file).replace(/\\/g, '/')} with ${isrRelevant} ISR-relevant no-store fetch(es)`
-          );
+        const rel = relOf(file);
+        if (rel.endsWith('.css') || rel.endsWith('.json')) continue;
+        if (!analyzed.has(rel)) analyzed.set(rel, analyzeNoStoreProperties(file));
+        const result = analyzed.get(rel)!;
+        if (result.error) {
+          violations.push(`${entry.rel}: ${rel} — analysis error: ${result.error}`);
+          continue;
+        }
+        const predicate = NO_STORE_ALLOWLIST[rel];
+        for (const m of result.matches) {
+          if (!predicate || !predicate(m)) {
+            violations.push(
+              `${entry.rel}: ${rel} — no-store fetch not on the allowlist (nonGetMethod=${m.nonGetMethod}, insideUseEffect=${m.insideUseEffect})`
+            );
+          }
         }
       }
     }
     expect(violations).toEqual([]);
   });
 
-  test('coverage limit is explicit: computed import specifiers are counted, not hidden', () => {
-    let dynamicCount = 0;
-    for (const entry of allRoots) {
-      dynamicCount += graphFor(entry).dynamicUnresolved.length;
-    }
-    // Not an assertion of zero — static analysis cannot follow computed
-    // specifiers. The count is pinned so a jump is visible in review;
-    // the post-deploy listing smoke is the runtime backstop.
-    expect(dynamicCount).toBeLessThan(120);
+  test('the allowlisted files still satisfy their AST predicates directly', () => {
+    const idx = analyzeNoStoreProperties(path.join(ROOT, 'app/components/IDXDisclaimer.tsx'));
+    expect(idx.error).toBeNull();
+    expect(idx.matches.length).toBe(1);
+    expect(idx.matches[0].insideUseEffect).toBe(true);
+    const auth = analyzeNoStoreProperties(path.join(ROOT, 'lib/idx/auth.ts'));
+    expect(auth.error).toBeNull();
+    expect(auth.matches.length).toBe(1);
+    expect(auth.matches[0].nonGetMethod).toBe(true);
   });
 });
 
@@ -169,9 +209,7 @@ describe('release-safety P2 — source-guard fixtures (the guard detects real vi
 
   beforeAll(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'p2-guard-fixtures-'));
-    // Forbidden repo module target:
     write('lib/cache/durable-cache.ts', "export const cacheGetJson = async () => null;\n");
-    // Index-resolution target:
     write('lib/util/index.ts', "export const util = 1;\n");
   });
 
@@ -188,8 +226,7 @@ describe('release-safety P2 — source-guard fixtures (the guard detects real vi
       'app/plain/page.tsx',
       "import { helper } from './helpers';\nexport default function Page() { return null; }\n"
     );
-    const hits = guard(page);
-    expect(hits.some((h: string) => h.includes('lib/cache/durable-cache'))).toBe(true);
+    expect(guard(page).some((h: string) => h.includes('lib/cache/durable-cache'))).toBe(true);
   });
 
   test('fixture 2: a layout WITHOUT revalidate transitively reaching @upstash/redis FAILS', () => {
@@ -198,17 +235,19 @@ describe('release-safety P2 — source-guard fixtures (the guard detects real vi
       'app/section/layout.tsx',
       "import { r } from './client';\nexport default function Layout() { return null; }\n"
     );
-    const hits = guard(layout);
-    expect(hits.some((h: string) => h.includes('@upstash/redis'))).toBe(true);
+    expect(guard(layout).some((h: string) => h.includes('@upstash/redis'))).toBe(true);
   });
 
-  test('fixture 3: a clean page/layout graph PASSES', () => {
+  test('fixture 3: a clean page/layout graph PASSES with zero errors/unresolved', () => {
     write('app/clean/data.ts', "export const data = { ok: true };\n");
     const page = write(
       'app/clean/page.tsx',
       "import { data } from './data';\nexport default function Page() { return data.ok ? null : null; }\n"
     );
+    const graph = buildImportGraph(page, { rootDir: tmp, aliases });
     expect(guard(page)).toEqual([]);
+    expect(graph.errors).toEqual([]);
+    expect(graph.unresolved).toEqual([]);
   });
 
   test('fixture 4: index-file and @/-alias resolution both traverse correctly', () => {
@@ -219,7 +258,6 @@ describe('release-safety P2 — source-guard fixtures (the guard detects real vi
     const graph = buildImportGraph(page, { rootDir: tmp, aliases });
     const rels = [...graph.files].map((f: string) => path.relative(tmp, f).replace(/\\/g, '/'));
     expect(rels).toContain('lib/util/index.ts');
-    // durable-cache reached via index shape is also caught:
     write('lib/cache2/durable-cache/index.ts', "export const x = 1;\n");
     const page2 = write(
       'app/alias2/page.tsx',
@@ -231,5 +269,50 @@ describe('release-safety P2 — source-guard fixtures (the guard detects real vi
       forbiddenRepoModules: ['lib/cache2/durable-cache'],
     });
     expect(hits).toEqual(["repo module 'lib/cache2/durable-cache'"]);
+  });
+
+  test('fixture 5 (fail-closed): a parse failure is RETURNED as an error, never swallowed', () => {
+    write('app/broken/garbage.ts', "import { from\nexport const = ;;;\n");
+    const page = write(
+      'app/broken/page.tsx',
+      "import './garbage';\nexport default function Page() { return null; }\n"
+    );
+    const graph = buildImportGraph(page, { rootDir: tmp, aliases });
+    expect(graph.errors.length).toBeGreaterThan(0);
+    expect(graph.errors[0].error).toContain('parse diagnostics');
+  });
+
+  test('fixture 6 (fail-closed): an unresolved RELATIVE import is recorded', () => {
+    const page = write(
+      'app/missing-rel/page.tsx',
+      "import { x } from './does-not-exist';\nexport default function Page() { return null; }\n"
+    );
+    const graph = buildImportGraph(page, { rootDir: tmp, aliases });
+    expect(graph.unresolved).toEqual([
+      expect.objectContaining({ spec: './does-not-exist', kind: 'relative' }),
+    ]);
+  });
+
+  test('fixture 7 (fail-closed): an unresolved ALIAS import is recorded', () => {
+    const page = write(
+      'app/missing-alias/page.tsx',
+      "import { x } from '@/lib/no-such-module';\nexport default function Page() { return null; }\n"
+    );
+    const graph = buildImportGraph(page, { rootDir: tmp, aliases });
+    expect(graph.unresolved).toEqual([
+      expect.objectContaining({ spec: '@/lib/no-such-module', kind: 'alias' }),
+    ]);
+  });
+
+  test('fixture 8 (fail-closed): an unauthorized computed import violates the empty baseline', () => {
+    const page = write(
+      'app/computed/page.tsx',
+      "const mod = 'x' + 'y';\nconst p = import(mod);\nexport default function Page() { return null; }\n"
+    );
+    const graph = buildImportGraph(page, { rootDir: tmp, aliases });
+    expect(graph.dynamicUnresolved.length).toBe(1);
+    // The repo-scan test compares observed counts to COMPUTED_IMPORT_ALLOWLIST
+    // (empty) — a callsite like this one in the real tree would fail there.
+    expect(Object.keys(COMPUTED_IMPORT_ALLOWLIST)).toHaveLength(0);
   });
 });

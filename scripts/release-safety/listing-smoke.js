@@ -6,13 +6,28 @@
  * every monitoring layer (the hourly validate-live-site.js has ZERO
  * /listing/* probes — the outage ran undetected):
  *
- *   1. GET /api/listings?limit=5            (discovery — API contract)
+ *   1. GET /api/listings?limit=5            (discovery — requires
+ *                                            success === true + a valid
+ *                                            listing DTO)
  *   2. GET <listing.url>                    (canonical detail page — the URL
  *                                            comes from the API response
  *                                            VERBATIM; never synthesized)
- *   3. GET /listing/<id>                    (ID-only alias contract)
- *   4. GET /api/listings/similar?...       (similar-properties API)
- *   5. GET /api/open-houses                (open-houses API)
+ *   3. GET /listing/<id>                    (ID-only alias — must END at the
+ *                                            expected canonical URL, by
+ *                                            redirect target or rendered
+ *                                            canonical link)
+ *   4. GET /api/listings/similar?...       (query derived from the SAME
+ *                                            listing's real values; response
+ *                                            must carry listings[] AND a
+ *                                            recognized _compliance.source —
+ *                                            the empty short-circuit has
+ *                                            neither)
+ *   5. GET /api/open-houses                (HTTP/JSON-CONTRACT-PROVEN only:
+ *                                            the route returns
+ *                                            { openHouses: [] } even when its
+ *                                            backends degrade, so backend
+ *                                            Neon/Cotality health remains
+ *                                            UNVERIFIED by this probe)
  *
  * Execution policy (per the approved P2 plan):
  *   - Runbook post-deploy step + workflow_dispatch ONLY. NOT wired into the
@@ -24,8 +39,15 @@
  *   - GET-only (enforced — the fetch wrapper rejects any other method).
  *   - Bounded: per-request timeout (default 15 s), max 1 retry per probe,
  *     retry only on TIMEOUT / NETWORK / HTTP 5xx. A 404 on a *discovered*
- *     listing triggers one fresh-discovery retry (the listing may have gone
- *     off-market between calls) before failing.
+ *     listing triggers one fresh-discovery retry before failing.
+ *   - Failure-text matching is CASE-INSENSITIVE.
+ *
+ * Output is FACTUAL EVIDENCE ONLY — no proof-tier label is emitted:
+ *   { passed, observed_at, base_url, expected_sha, deployment_id,
+ *     listing: { id, canonical_url }, probes: [...] }
+ * expected_sha / deployment_id are recorded verbatim from the caller
+ * (--expected-sha / --deployment-id) so the evidence can be bound to a
+ * specific verified deployment; they are null when not supplied.
  *
  * Failure classes: DISCOVERY_EMPTY | HTTP_STATUS | FAILURE_TEXT | TIMEOUT |
  *                  NETWORK | BAD_CONTRACT
@@ -36,7 +58,8 @@
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 1;
 
-/** Body substrings that mean the page/route is broken even when HTTP 200. */
+/** Body substrings (matched case-insensitively) that mean the page/route is
+ *  broken even when HTTP 200. */
 const FAILURE_STRINGS = [
   'app-static-to-dynamic-error', // Next E132 — the exact PR #523 signature
   'E132',
@@ -48,6 +71,12 @@ const FAILURE_STRINGS = [
   'Internal Server Error',
   '__NEXT_ERROR__',
 ];
+const FAILURE_STRINGS_LOWER = FAILURE_STRINGS.map((s) => s.toLowerCase());
+
+/** _compliance.source values that prove the similar route's meaningful
+ *  (DB/Cotality) path executed. The empty short-circuit response carries no
+ *  _compliance at all. */
+const RECOGNIZED_SIMILAR_SOURCES = ['idx'];
 
 class SmokeHttpError extends Error {
   constructor(failureClass, message) {
@@ -78,7 +107,7 @@ async function boundedGet(url, { fetchImpl, timeoutMs }) {
   }
 }
 
-/** One probe attempt. Returns {ok, status, failureClass, detail}. */
+/** One probe attempt. Returns {ok, status, finalUrl, failureClass, detail}. */
 async function probeOnce(url, { fetchImpl, timeoutMs, expectJson, checkFailureText }) {
   let res;
   try {
@@ -86,25 +115,27 @@ async function probeOnce(url, { fetchImpl, timeoutMs, expectJson, checkFailureTe
   } catch (err) {
     return { ok: false, status: null, failureClass: err.failureClass || 'NETWORK', detail: err.message };
   }
+  const finalUrl = typeof res.url === 'string' && res.url ? res.url : null;
   if (res.status !== 200) {
-    return { ok: false, status: res.status, failureClass: 'HTTP_STATUS', detail: `HTTP ${res.status}: ${url}` };
+    return { ok: false, status: res.status, finalUrl, failureClass: 'HTTP_STATUS', detail: `HTTP ${res.status}: ${url}` };
   }
   const body = await res.text();
   if (expectJson) {
     try {
-      return { ok: true, status: 200, json: JSON.parse(body), body };
+      return { ok: true, status: 200, finalUrl, json: JSON.parse(body), body };
     } catch {
-      return { ok: false, status: 200, failureClass: 'BAD_CONTRACT', detail: `non-JSON body: ${url}` };
+      return { ok: false, status: 200, finalUrl, failureClass: 'BAD_CONTRACT', detail: `non-JSON body: ${url}` };
     }
   }
   if (checkFailureText) {
-    for (const s of FAILURE_STRINGS) {
-      if (body.includes(s)) {
-        return { ok: false, status: 200, failureClass: 'FAILURE_TEXT', detail: `body contains "${s}": ${url}` };
+    const lower = body.toLowerCase();
+    for (let i = 0; i < FAILURE_STRINGS_LOWER.length; i += 1) {
+      if (lower.includes(FAILURE_STRINGS_LOWER[i])) {
+        return { ok: false, status: 200, finalUrl, failureClass: 'FAILURE_TEXT', detail: `body contains "${FAILURE_STRINGS[i]}" (case-insensitive): ${url}` };
       }
     }
   }
-  return { ok: true, status: 200, body };
+  return { ok: true, status: 200, finalUrl, body };
 }
 
 /** Probe with bounded retry (TIMEOUT / NETWORK / 5xx only). */
@@ -122,6 +153,17 @@ async function probeWithRetry(name, url, ctx, opts) {
     if (!retryable) break;
   }
   return { name, url, attempts: attempt, ...last };
+}
+
+/** Is this a usable listing DTO for probing? */
+function isValidListingDto(l) {
+  return (
+    !!l &&
+    typeof l.url === 'string' &&
+    l.url.startsWith('/listing/') &&
+    typeof l.id === 'string' &&
+    l.id.length > 0
+  );
 }
 
 /**
@@ -168,56 +210,106 @@ function buildSimilarQueryFromListing(listing) {
   return { ok: true, qs };
 }
 
+/** Validate the similar route's response body: it must prove the meaningful
+ *  path ran (listings[] + recognized _compliance.source). */
+function validateSimilarResponse(json) {
+  if (!json || typeof json !== 'object') return 'response is not an object';
+  if (json.error) return `route returned an error payload: ${String(json.error).slice(0, 80)}`;
+  if (!Array.isArray(json.listings)) return 'response has no listings array';
+  const source = json._compliance && json._compliance.source;
+  if (typeof source !== 'string' || !RECOGNIZED_SIMILAR_SOURCES.includes(source)) {
+    return `response lacks a recognized _compliance.source (got ${JSON.stringify(source)}) — the meaningful DB/Cotality path did NOT run (empty short-circuit responses omit _compliance)`;
+  }
+  return null;
+}
+
 /** Discover a probe-eligible listing from the API. Uses the API-returned
- *  `url` verbatim (the canonical-URL contract) — never synthesizes one. */
+ *  `url` verbatim (the canonical-URL contract) — never synthesizes one.
+ *  Requires the documented response contract: success === true + listings[]. */
 async function discoverListing(baseUrl, ctx) {
   const discovery = await probeWithRetry('discovery', `${baseUrl}/api/listings?limit=5`, ctx, {
     expectJson: true,
   });
   if (!discovery.ok) return { discovery, listing: null };
-  const listings = Array.isArray(discovery.json && discovery.json.listings)
-    ? discovery.json.listings
-    : null;
-  if (!listings) {
+  const json = discovery.json;
+  if (!json || json.success !== true) {
+    return {
+      discovery: { ...discovery, ok: false, failureClass: 'BAD_CONTRACT', detail: 'response success !== true' },
+      listing: null,
+    };
+  }
+  if (!Array.isArray(json.listings)) {
     return {
       discovery: { ...discovery, ok: false, failureClass: 'BAD_CONTRACT', detail: 'response has no `listings` array' },
       listing: null,
     };
   }
-  const eligible = listings.find(
-    (l) =>
-      l &&
-      typeof l.url === 'string' &&
-      l.url.startsWith('/listing/') &&
-      typeof l.id === 'string' &&
-      l.id.length > 0
-  );
+  const eligible = json.listings.find(isValidListingDto);
   if (!eligible) {
     return {
       discovery: {
         ...discovery,
         ok: false,
         failureClass: 'DISCOVERY_EMPTY',
-        detail: `no eligible listing among ${listings.length} returned (need string url starting with /listing/ and non-empty id)`,
+        detail: `no eligible listing among ${json.listings.length} returned (need string url starting with /listing/ and non-empty id)`,
       },
       listing: null,
     };
   }
-  return { discovery, listing: eligible };
+  return { discovery, listing: eligible, listings: json.listings };
+}
+
+/** Does the alias probe provably END at the expected canonical URL?
+ *  Accepts either a followed redirect whose final pathname equals the
+ *  canonical path, or a directly-rendered page whose body contains the
+ *  canonical path (rendered canonical link). */
+function aliasEndsAtCanonical(aliasResult, canonicalPath) {
+  if (aliasResult.finalUrl) {
+    try {
+      const finalPath = new URL(aliasResult.finalUrl).pathname;
+      if (finalPath === canonicalPath) return true;
+      if (decodeURIComponent(finalPath) === canonicalPath) return true;
+      // finalUrl still on the alias path => fall through to body check
+      if (!canonicalPath.startsWith(finalPath)) {
+        // an unrelated final path is only acceptable if the body proves the
+        // canonical link — checked below
+      }
+    } catch {
+      /* unparseable finalUrl -> body check */
+    }
+  }
+  return typeof aliasResult.body === 'string' && aliasResult.body.includes(canonicalPath);
 }
 
 /**
  * Run the full five-probe smoke.
  * @param {object} opts
  * @param {string} opts.baseUrl        e.g. https://mallan.nyc (required)
- * @param {string} [opts.listingId]    optional pin: skip discovery-based
- *                                     canonical probe target selection
+ * @param {string} [opts.listingId]    stable pin: the probe target MUST be
+ *                                     this exact listing (found by exact-id
+ *                                     match in discovery, or supplied
+ *                                     directly with listingUrl). Never
+ *                                     silently substituted.
+ * @param {string} [opts.listingUrl]   canonical URL for the pinned listing
+ *                                     (used with listingId when the pin may
+ *                                     not appear in discovery)
+ * @param {string} [opts.expectedSha]  recorded verbatim in the evidence
+ * @param {string} [opts.deploymentId] recorded verbatim in the evidence
  * @param {function} [opts.fetchImpl]  injectable fetch (tests)
+ * @param {function} [opts.now]        injectable clock (tests)
  * @param {number} [opts.timeoutMs]
- * @returns {Promise<{passed:boolean, probes:Array, tier:string}>}
  */
 async function runListingSmoke(opts) {
-  const { baseUrl, listingId, fetchImpl = globalThis.fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = opts || {};
+  const {
+    baseUrl,
+    listingId,
+    listingUrl,
+    expectedSha = null,
+    deploymentId = null,
+    fetchImpl = globalThis.fetch,
+    now = () => new Date().toISOString(),
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = opts || {};
   if (!baseUrl || typeof baseUrl !== 'string' || !/^https?:\/\//.test(baseUrl)) {
     throw new Error('runListingSmoke: baseUrl (http/https) is required');
   }
@@ -225,96 +317,135 @@ async function runListingSmoke(opts) {
   const ctx = { fetchImpl, timeoutMs };
   const probes = [];
 
-  // Probe 1 — discovery (also supplies the canonical URL + id)
-  let { discovery, listing } = await discoverListing(base, ctx);
-  probes.push(discovery);
+  // Probe 1 — discovery (also supplies/validates the probe target)
+  const first = await discoverListing(base, ctx);
+  probes.push(first.discovery);
 
-  let canonicalUrl = null;
-  let idForAlias = null;
+  // Resolve ONE exact target listing for canonical + alias + similar.
+  let target = null;
   if (listingId) {
-    idForAlias = listingId;
-    // A pinned listing still uses the API's URL when the pin appears in
-    // discovery; otherwise only the alias contract is probed for the pin.
-    const pinned = listing && listing.id === listingId ? listing : null;
-    canonicalUrl = pinned ? pinned.url : null;
-    if (!canonicalUrl && listing) canonicalUrl = listing.url; // fall back to discovered listing for canonical coverage
-  } else if (listing) {
-    canonicalUrl = listing.url;
-    idForAlias = listing.id;
+    const pinned = (first.listings || []).find((l) => isValidListingDto(l) && l.id === listingId);
+    if (pinned) {
+      target = pinned;
+    } else if (listingUrl && listingUrl.startsWith('/listing/')) {
+      // Exact pin supplied out-of-band (ID + canonical URL): usable even when
+      // not among the first discovery results. Similar-query fields are
+      // unavailable on this path, so the similar probe will report
+      // BAD_CONTRACT unless the pin appears in discovery.
+      target = { id: listingId, url: listingUrl };
+    } else {
+      probes.push({
+        name: 'pin-resolution',
+        ok: false,
+        failureClass: 'BAD_CONTRACT',
+        detail: `pinned listing '${listingId}' is not among the discovery results and no --listing-url was supplied — refusing to substitute an unrelated listing`,
+      });
+    }
+  } else if (first.listing) {
+    target = first.listing;
   }
 
-  // Probe 2 — canonical detail page (API-returned URL, verbatim)
-  if (canonicalUrl) {
-    let canonical = await probeWithRetry('canonical-detail', `${base}${canonicalUrl}`, ctx, {
+  // Probe 2 — canonical detail page (API/pin URL, verbatim)
+  let canonicalPath = target ? target.url : null;
+  if (canonicalPath) {
+    let canonical = await probeWithRetry('canonical-detail', `${base}${canonicalPath}`, ctx, {
       checkFailureText: true,
     });
     if (!canonical.ok && canonical.status === 404 && !listingId) {
       // Discovered listing may have gone off-market between calls —
-      // INCONCLUSIVE: one fresh discovery, then final verdict.
+      // one fresh discovery, then final verdict (same-listing 404 stays FAIL).
       const second = await discoverListing(base, ctx);
       if (second.listing) {
-        listing = second.listing;
-        idForAlias = second.listing.id;
-        canonical = await probeWithRetry('canonical-detail(rediscovered)', `${base}${second.listing.url}`, ctx, {
+        target = second.listing;
+        canonicalPath = second.listing.url;
+        canonical = await probeWithRetry('canonical-detail(rediscovered)', `${base}${canonicalPath}`, ctx, {
           checkFailureText: true,
         });
       }
     }
     probes.push(canonical);
   } else {
-    probes.push({ name: 'canonical-detail', ok: false, failureClass: 'DISCOVERY_EMPTY', detail: 'no canonical URL available (discovery failed and no pin)' });
+    probes.push({ name: 'canonical-detail', ok: false, failureClass: 'DISCOVERY_EMPTY', detail: 'no probe target resolved (discovery failed or pin unresolvable)' });
   }
 
-  // Probe 3 — ID-only alias contract
-  if (idForAlias) {
-    probes.push(
-      await probeWithRetry('id-alias', `${base}/listing/${encodeURIComponent(idForAlias)}`, ctx, {
-        checkFailureText: true,
-      })
-    );
+  // Probe 3 — ID-only alias: must resolve AND provably end at the SAME
+  // listing's canonical URL (redirect target or rendered canonical link).
+  if (target) {
+    const alias = await probeWithRetry('id-alias', `${base}/listing/${encodeURIComponent(target.id)}`, ctx, {
+      checkFailureText: true,
+    });
+    if (alias.ok && !aliasEndsAtCanonical(alias, canonicalPath)) {
+      alias.ok = false;
+      alias.failureClass = 'BAD_CONTRACT';
+      alias.detail = `alias /listing/${target.id} did not provably end at the expected canonical URL ${canonicalPath} (no matching redirect target or canonical link in the body)`;
+    }
+    delete alias.body;
+    probes.push(alias);
   } else {
-    probes.push({ name: 'id-alias', ok: false, failureClass: 'DISCOVERY_EMPTY', detail: 'no listing id available' });
+    probes.push({ name: 'id-alias', ok: false, failureClass: 'DISCOVERY_EMPTY', detail: 'no probe target resolved' });
   }
 
   // Probe 4 — similar-properties API. The route provably short-circuits to an
-  // empty 200 without `postalCode` AND `price` (app/api/listings/similar/
-  // route.ts), so placeholder params would "pass" without exercising the
-  // DB/Cotality path. The query is therefore derived from the DISCOVERED
-  // listing's real values — and if discovery cannot supply them, that is a
-  // BAD_CONTRACT failure, never a superficial request.
-  const similarParams = buildSimilarQueryFromListing(listing);
+  // empty 200 without `postalCode` AND `price`, so the query is derived from
+  // the target listing's REAL values, and the response must prove the
+  // meaningful path ran (listings[] + recognized _compliance.source).
+  const similarParams = buildSimilarQueryFromListing(target);
   if (!similarParams.ok) {
     probes.push({
       name: 'similar-api',
       ok: false,
-      failureClass: listing ? 'BAD_CONTRACT' : 'DISCOVERY_EMPTY',
+      failureClass: target ? 'BAD_CONTRACT' : 'DISCOVERY_EMPTY',
       detail: similarParams.detail,
     });
   } else {
-    probes.push(
-      await probeWithRetry('similar-api', `${base}/api/listings/similar?${similarParams.qs.toString()}`, ctx, {
-        expectJson: true,
-      })
-    );
+    const similar = await probeWithRetry('similar-api', `${base}/api/listings/similar?${similarParams.qs.toString()}`, ctx, {
+      expectJson: true,
+    });
+    if (similar.ok) {
+      const contractError = validateSimilarResponse(similar.json);
+      if (contractError) {
+        similar.ok = false;
+        similar.failureClass = 'BAD_CONTRACT';
+        similar.detail = contractError;
+      }
+    }
+    probes.push(similar);
   }
 
-  // Probe 5 — open-houses API
-  probes.push(await probeWithRetry('open-houses-api', `${base}/api/open-houses`, ctx, { expectJson: true }));
+  // Probe 5 — open-houses API. HTTP/JSON-CONTRACT-PROVEN ONLY: the route
+  // degrades to { openHouses: [] } on backend failure, so this probe cannot
+  // verify Neon/Cotality health (stated on the probe, not hidden).
+  const openHouses = await probeWithRetry('open-houses-api', `${base}/api/open-houses`, ctx, { expectJson: true });
+  if (openHouses.ok && !(openHouses.json && Array.isArray(openHouses.json.openHouses))) {
+    openHouses.ok = false;
+    openHouses.failureClass = 'BAD_CONTRACT';
+    openHouses.detail = 'response has no openHouses array';
+  }
+  openHouses.proof = 'HTTP/JSON-CONTRACT-PROVEN';
+  openHouses.note = 'backend Neon/Cotality health UNVERIFIED — the route returns an empty array on internal failure under the current contract';
+  probes.push(openHouses);
 
   const passed = probes.every((p) => p.ok);
   return {
     passed,
+    observed_at: now(),
+    base_url: base,
+    expected_sha: expectedSha,
+    deployment_id: deploymentId,
+    listing: target ? { id: target.id, canonical_url: canonicalPath } : null,
     probes: probes.map(({ json, body, ...rest }) => rest), // strip payloads from the report
-    tier: passed ? 'PRODUCTION-PROVEN(at-run-time)' : 'FAILED',
   };
 }
 
 module.exports = {
   runListingSmoke,
   FAILURE_STRINGS,
+  RECOGNIZED_SIMILAR_SOURCES,
   boundedGet,
   probeWithRetry,
   buildSimilarQueryFromListing,
+  validateSimilarResponse,
+  aliasEndsAtCanonical,
 };
 
 // ── CLI ──────────────────────────────────────────────────────────────────
@@ -325,12 +456,17 @@ if (require.main === module) {
     return i >= 0 ? args[i + 1] : null;
   };
   const baseUrl = flag('--base-url');
-  const listingId = flag('--listing-id') || process.env.SMOKE_LISTING_ID || undefined;
   if (!baseUrl) {
-    console.error('Usage: node scripts/release-safety/listing-smoke.js --base-url https://mallan.nyc [--listing-id <id>]');
+    console.error('Usage: node scripts/release-safety/listing-smoke.js --base-url https://mallan.nyc [--listing-id <id> [--listing-url </listing/...>]] [--expected-sha <sha>] [--deployment-id <dpl_...>]');
     process.exit(2);
   }
-  runListingSmoke({ baseUrl, listingId })
+  runListingSmoke({
+    baseUrl,
+    listingId: flag('--listing-id') || process.env.SMOKE_LISTING_ID || undefined,
+    listingUrl: flag('--listing-url') || process.env.SMOKE_LISTING_URL || undefined,
+    expectedSha: flag('--expected-sha') || undefined,
+    deploymentId: flag('--deployment-id') || undefined,
+  })
     .then((result) => {
       console.log(JSON.stringify(result, null, 2));
       process.exit(result.passed ? 0 : 1);

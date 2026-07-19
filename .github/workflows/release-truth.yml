@@ -89,28 +89,62 @@ jobs:
 
       - name: Run release-truth aggregator
         id: aggregator
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set +e
-          # P2: optional hard gate. OFF until the repo variable
-          # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is set to 'true' (Maya's
-          # decision — creating the variable is the enable switch).
+          # P2 production hard gate — OFF until the repo variable
+          # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is 'true' (Maya's decision).
+          # When ON, and ONLY for non-PR targets (push to main / dispatched
+          # production audits), the gate:
+          #   1. runs the alias-aware production verifier
+          #      (scripts/release-safety/verify-deployment-sha.js): mallan.nyc
+          #      must be served by a READY deployment built from the target
+          #      SHA, with alias ownership proven — the gate FAILS otherwise;
+          #   2. feeds that proof to the aggregator (--deploy-proof), whose
+          #      verdict stays honest: PROD_PROVEN additionally requires
+          #      runtime smoke evidence (--smoke-evidence, runbook-supplied),
+          #      so the advisory verdict here reads UNVERIFIED until then.
+          # PR events are NEVER production-gated (advisory only, and cap at
+          # PREVIEW_PROVEN by design).
           extra=""
-          if [ "${{ vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF }}" = "true" ]; then
-            extra="--require-deploy-proof"
+          gate_rc=0
+          if [ "${{ vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF }}" = "true" ] && [ "${{ github.event_name }}" != "pull_request" ]; then
+            node scripts/release-safety/verify-deployment-sha.js --expected-sha "${{ steps.target.outputs.sha }}" > deploy-proof.json
+            gate_rc=$?
+            extra="--deploy-proof deploy-proof.json"
           fi
-          # Capture verdict + full JSON for the status post + summary
-          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} $extra --json > release-truth.json 2>/dev/null
+          # Single aggregator execution: one JSON, stderr preserved. Logs,
+          # status, and summary all render from this SAME JSON.
+          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} $extra --json > release-truth.json 2> release-truth.stderr
           rc=$?
-          verdict=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).verdict")
-          reasons=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).reasons.join(' | ')")
-          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
-          echo "reasons=$reasons" >> "$GITHUB_OUTPUT"
+          cat release-truth.stderr >&2
+          node -e '
+            const fs = require("fs");
+            let d;
+            try { d = JSON.parse(fs.readFileSync("release-truth.json", "utf8")); }
+            catch (e) { console.error("release-truth.json missing/invalid: " + e.message); process.exit(1); }
+            const known = ["PROD_PROVEN","PREVIEW_PROVEN","CODE_VALID","PARTIAL","UNVERIFIED","REGRESSION","DEPLOY_INVALID","CLAIM_OVERSTATED"];
+            if (!known.includes(d.verdict)) { console.error("unknown verdict: " + d.verdict); process.exit(1); }
+            fs.writeFileSync("release-truth-verdict.txt", d.verdict);
+            fs.writeFileSync("release-truth-reasons.txt", (d.reasons || []).join(" | ") || "(no reasons)");
+            console.log("Verdict: " + d.verdict);
+            for (const r of d.reasons || []) console.log("  - " + r);
+            for (const [k, v] of Object.entries(d.layers || {})) console.log("  layer " + k + ": " + JSON.stringify(v).slice(0, 300));
+          '
+          parse_rc=$?
+          if [ $parse_rc -ne 0 ]; then
+            # Invalid/missing JSON or unrecognized verdict => the run FAILS and
+            # the status step (always()) posts a failure/error status.
+            echo "verdict=ERROR" >> "$GITHUB_OUTPUT"
+            echo "aggregator output invalid or verdict unrecognized" > release-truth-reasons.txt
+            exit 1
+          fi
+          echo "verdict=$(cat release-truth-verdict.txt)" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
-          # Print human-readable to log
-          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} $extra
-          if [ -n "$extra" ]; then
-            # Hard-gate mode: the aggregator's exit code IS the workflow result.
-            exit $rc
+          if [ $gate_rc -ne 0 ]; then
+            echo "Production alias verification FAILED (exit $gate_rc) — failing the gated run" >&2
+            exit $gate_rc
           fi
           exit 0  # Advisory mode: the commit status carries the verdict
 
@@ -123,17 +157,23 @@ jobs:
         if: (github.event_name == 'push' || github.event_name == 'pull_request') && always()
         run: |
           # P2 fail-closed default: an empty/unrecognized verdict posts
-          # "pending", never "success" (the pre-P2 default was success).
-          state="pending"
-          case "${{ steps.aggregator.outputs.verdict }}" in
-            PROD_PROVEN|CODE_VALID) state="success" ;;
+          # "error", never "success". Reasons are read from the file the
+          # aggregator step wrote — NEVER interpolated through ${{ }} shell
+          # quoting (reason text is arbitrary and must not touch the shell
+          # as code).
+          verdict="${{ steps.aggregator.outputs.verdict }}"
+          state="error"
+          case "$verdict" in
+            PROD_PROVEN|PREVIEW_PROVEN|CODE_VALID) state="success" ;;
             PARTIAL|UNVERIFIED) state="pending" ;;
             DEPLOY_INVALID|REGRESSION|CLAIM_OVERSTATED) state="failure" ;;
+            ERROR|'') verdict="ERROR"; state="error" ;;
           esac
+          reasons="$(head -c 120 release-truth-reasons.txt 2>/dev/null || echo 'no reasons captured')"
           gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.target.outputs.sha }}" \
             -f state="$state" \
             -f context="release-truth" \
-            -f description="${{ steps.aggregator.outputs.verdict }}: $(echo '${{ steps.aggregator.outputs.reasons }}' | head -c 130)" \
+            -f description="$verdict: $reasons" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Comment on PR
@@ -170,11 +210,11 @@ jobs:
           {
             echo "## Release Truth — ${{ steps.target.outputs.label }}"
             echo ""
-            echo "**Verdict:** \`${{ steps.aggregator.outputs.verdict }}\`"
+            echo "**Verdict:** \`${{ steps.aggregator.outputs.verdict || 'ERROR' }}\`"
             echo ""
-            echo "**Reasons:** ${{ steps.aggregator.outputs.reasons }}"
+            echo "**Reasons:** $(cat release-truth-reasons.txt 2>/dev/null || echo 'no reasons captured')"
             echo ""
             echo '```json'
-            cat release-truth.json | jq '.layers' || echo '{}'
+            jq '.layers' release-truth.json 2>/dev/null || echo '{}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

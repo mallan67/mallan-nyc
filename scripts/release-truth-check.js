@@ -162,6 +162,52 @@ if (!shouldSkip('deploy') && (prNum || sha)) {
   };
 }
 
+// Layer 4b — production-alias deploy proof (P2). --deploy-proof <file> takes
+// the JSON output of scripts/release-safety/verify-deployment-sha.js. Only a
+// MATCH verdict upgrades the deploy layer to DEPLOY_PROD_PROVEN; anything
+// else (missing file, invalid JSON, non-MATCH) degrades it fail-closed.
+if (argFlag('--deploy-proof')) {
+  const proofPath = argFlag('--deploy-proof');
+  let proof = null;
+  try {
+    proof = JSON.parse(fs.readFileSync(proofPath, 'utf-8'));
+  } catch {
+    proof = null;
+  }
+  if (proof && proof.verdict === 'MATCH') {
+    layers.deploy = {
+      exit_code: 0,
+      verdict: 'DEPLOY_PROD_PROVEN',
+      source: 'verify-deployment-sha (production alias)',
+      aliases: proof.aliases || [],
+      deployedSha: proof.deployedSha || null,
+    };
+  } else {
+    layers.deploy = {
+      exit_code: 1,
+      verdict: 'DEPLOY_UNKNOWN',
+      source: 'verify-deployment-sha (production alias)',
+      note: proof ? `alias verifier verdict ${proof.verdict}: ${proof.reason || ''}` : `deploy-proof file unreadable: ${proofPath}`,
+    };
+  }
+}
+
+// Layer 7b — runtime smoke evidence (P2). --smoke-evidence <file> takes the
+// JSON output of scripts/release-safety/listing-smoke.js. PROD_PROVEN is
+// unreachable without it (see release-safety/release-truth-verdict.js).
+if (argFlag('--smoke-evidence')) {
+  const smokePath = argFlag('--smoke-evidence');
+  let smoke = null;
+  try {
+    smoke = JSON.parse(fs.readFileSync(smokePath, 'utf-8'));
+  } catch {
+    smoke = null;
+  }
+  layers.smoke = smoke && typeof smoke.passed === 'boolean'
+    ? { passed: smoke.passed, observed_at: smoke.observed_at || null, expected_sha: smoke.expected_sha || null, deployment_id: smoke.deployment_id || null }
+    : { passed: false, reason: `smoke-evidence file missing/invalid: ${smokePath}` };
+}
+
 // Layer 7 — Live site smoke (Phase 4)
 if (!shouldSkip('live-site') && has('--live-site')) {
   const liveArgs = [];

@@ -103,45 +103,75 @@ function parseSourceFile(absPath) {
   return ts.createSourceFile(absPath, text, ts.ScriptTarget.Latest, /*setParentNodes*/ true, kind);
 }
 
+/** Non-code assets: included in the graph as leaves, never parsed/traversed. */
+const ASSET_EXTENSIONS = ['.css', '.scss', '.sass', '.less', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.json', '.woff', '.woff2', '.txt', '.md'];
+function isAssetFile(p) {
+  const lower = p.toLowerCase();
+  return ASSET_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
 /**
- * Build the transitive static import closure of `entryAbs`.
+ * Build the transitive static import closure of `entryAbs`. FAIL-CLOSED:
+ * read/parse errors and unresolved repo imports are RETURNED, not swallowed —
+ * callers must treat non-empty `errors`/`unresolved` as guard failures.
  * Returns:
  *   files             Set<string> repo files reached (absolute, normalized)
  *   externals         Set<string> bare module specifiers reached (e.g. '@upstash/redis')
  *   dynamicUnresolved Array<{file, kind}> computed specifiers that could NOT be followed
+ *   errors            Array<{file, error}> read failures + parse diagnostics
+ *   unresolved        Array<{file, spec, kind:'relative'|'alias'}> repo imports
+ *                     that failed to resolve to an existing file
  */
 function buildImportGraph(entryAbs, { rootDir, aliases }) {
   const files = new Set();
   const externals = new Set();
   const dynamicUnresolved = [];
+  const errors = [];
+  const unresolved = [];
   const queue = [path.normalize(entryAbs)];
 
   while (queue.length > 0) {
     const current = queue.pop();
     if (files.has(current)) continue;
     files.add(current);
+    if (isAssetFile(current)) continue; // leaf: no code to traverse
 
     let parsed;
     try {
       parsed = parseSourceFile(current);
-    } catch {
-      continue; // unreadable file: leave it in `files`, nothing to follow
+    } catch (err) {
+      errors.push({ file: current, error: `read/parse failure: ${err && err.message}` });
+      continue;
+    }
+    // TS's parser is lenient; surface real syntax errors instead of silently
+    // analyzing a half-parsed file.
+    const diags = parsed.parseDiagnostics || [];
+    if (diags.length > 0) {
+      const first = diags[0];
+      errors.push({
+        file: current,
+        error: `parse diagnostics (${diags.length}): ${ts.flattenDiagnosticMessageText(first.messageText, ' ')}`,
+      });
+      continue;
     }
     const { specifiers, dynamic } = extractSpecifiers(parsed);
     for (const d of dynamic) dynamicUnresolved.push({ file: current, kind: d.kind });
 
     for (const spec of specifiers) {
       let candidate = null;
+      let kind = null;
       if (spec.startsWith('.')) {
+        kind = 'relative';
         candidate = path.resolve(path.dirname(current), spec);
       } else {
         const alias = (aliases || []).find((a) => spec.startsWith(a.prefix));
         if (alias) {
+          kind = 'alias';
           const rest = spec.slice(alias.prefix.length);
           for (const target of alias.targets) {
-            const resolved = resolveFileCandidate(path.resolve(rootDir, target, rest));
-            if (resolved) {
-              candidate = path.resolve(rootDir, target, rest);
+            const probe = path.resolve(rootDir, target, rest);
+            if (resolveFileCandidate(probe)) {
+              candidate = probe;
               break;
             }
           }
@@ -155,13 +185,15 @@ function buildImportGraph(entryAbs, { rootDir, aliases }) {
       if (resolved) {
         const norm = path.normalize(resolved);
         if (!files.has(norm)) queue.push(norm);
+      } else {
+        // FAIL-CLOSED: an unresolvable repo import means the graph is
+        // incomplete — recorded for the caller to fail on.
+        unresolved.push({ file: current, spec, kind });
       }
-      // Unresolvable repo-ish path: ignore (e.g. type-only virtual modules);
-      // forbidden-module checks run on `externals` + resolved `files`.
     }
   }
 
-  return { files, externals, dynamicUnresolved };
+  return { files, externals, dynamicUnresolved, errors, unresolved };
 }
 
 /** Recursively list files under `dir` matching one of `basenames`. */
@@ -229,27 +261,40 @@ function isClientComponent(absPath) {
 }
 
 /**
- * Find `cache: 'no-store'` property assignments that can affect ISR:
- * a no-store on a fetch whose SAME options object declares a non-GET
- * `method` is exempt (non-GET fetches never join the ISR data cache —
- * e.g. the lib/idx/auth.ts POST token request — a source-classified
- * exemption: the classification derives from the source itself, not
- * from runtime observation).
- * Returns { total, isrRelevant } counts.
+ * AST analysis of every `cache: 'no-store'` property assignment in a file.
+ * NO exemption decisions are made here — this returns FACTS per match:
+ *   nonGetMethod    the SAME options object declares a non-GET `method`
+ *   insideUseEffect the match is lexically inside a useEffect(...) callback
+ * The caller (source-guards test) applies its explicit per-file allowlists.
+ * FAIL-CLOSED: a read/parse failure is returned as { error }, never as
+ * "no matches".
  */
-function countNoStoreProperties(absPath) {
+function analyzeNoStoreProperties(absPath) {
   let sf;
   try {
     sf = parseSourceFile(absPath);
-  } catch {
-    return { total: 0, isrRelevant: 0 };
+  } catch (err) {
+    return { error: `read/parse failure: ${err && err.message}`, matches: [] };
   }
-  let total = 0;
-  let isrRelevant = 0;
+  const matches = [];
   const propName = (p) =>
     ts.isPropertyAssignment(p) && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))
       ? p.name.text
       : null;
+  const isInsideUseEffect = (node) => {
+    let n = node.parent;
+    while (n) {
+      if (
+        ts.isCallExpression(n) &&
+        ts.isIdentifier(n.expression) &&
+        n.expression.text === 'useEffect'
+      ) {
+        return true;
+      }
+      n = n.parent;
+    }
+    return false;
+  };
   const visit = (node) => {
     if (
       ts.isPropertyAssignment(node) &&
@@ -257,8 +302,7 @@ function countNoStoreProperties(absPath) {
       ts.isStringLiteralLike(node.initializer) &&
       node.initializer.text === 'no-store'
     ) {
-      total += 1;
-      let nonGet = false;
+      let nonGetMethod = false;
       if (node.parent && ts.isObjectLiteralExpression(node.parent)) {
         for (const sibling of node.parent.properties) {
           if (
@@ -267,16 +311,16 @@ function countNoStoreProperties(absPath) {
             ts.isStringLiteralLike(sibling.initializer) &&
             sibling.initializer.text.toUpperCase() !== 'GET'
           ) {
-            nonGet = true;
+            nonGetMethod = true;
           }
         }
       }
-      if (!nonGet) isrRelevant += 1;
+      matches.push({ nonGetMethod, insideUseEffect: isInsideUseEffect(node) });
     }
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return { total, isrRelevant };
+  return { error: null, matches };
 }
 
 /**
@@ -316,7 +360,8 @@ module.exports = {
   buildImportGraph,
   findFilesByBasename,
   declaresRevalidate,
-  countNoStoreProperties,
+  analyzeNoStoreProperties,
   isClientComponent,
+  isAssetFile,
   resolveFileCandidate,
 };

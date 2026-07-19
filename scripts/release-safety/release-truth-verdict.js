@@ -61,11 +61,41 @@ function aggregate(layers) {
     return { verdict: 'PARTIAL', reasons: [`live-site failures: ${layers.live_site.summary.fail}`] };
   }
 
-  // PROD_PROVEN — deploy passed AND code is valid
+  // Failed smoke evidence blocks everything downstream
+  if (layers.smoke && layers.smoke.passed === false) {
+    return { verdict: 'PARTIAL', reasons: [`listing smoke failed: ${layers.smoke.reason || 'see smoke evidence'}`] };
+  }
+
+  // PROD_PROVEN — ONLY production-alias proof (verify-deployment-sha MATCH on
+  // mallan.nyc) PLUS successful runtime smoke evidence. Nothing else reaches
+  // PROD_PROVEN — green CI checks and preview deployments never do.
+  if (layers.deploy?.verdict === 'DEPLOY_PROD_PROVEN') {
+    if (layers.smoke?.passed === true) {
+      return {
+        verdict: 'PROD_PROVEN',
+        reasons: ['production alias serves the expected SHA (verified) + listing smoke passed'],
+      };
+    }
+    return {
+      verdict: 'UNVERIFIED',
+      reasons: ['production alias proof present but runtime smoke evidence missing — fail-closed'],
+    };
+  }
+
+  // PREVIEW_PROVEN — a PR target whose checks + preview deployment are green.
+  // Explicitly NOT production proof (P2: Preview readiness was previously
+  // conflated with deployment proof).
+  if (layers.deploy?.verdict === 'DEPLOY_PREVIEW') {
+    return { verdict: 'PREVIEW_PROVEN', reasons: ['PR checks + preview deployment green — production NOT proven'] };
+  }
+
+  // DEPLOY_PASS (checks-green on a push/sha target, but no production-alias
+  // proof): fail-closed to UNVERIFIED — green checks are not production.
   if (layers.deploy?.verdict === 'DEPLOY_PASS') {
-    const passReasons = ['code valid + deploy passed'];
-    if (layers.live_site?.summary?.pass > 0) passReasons.push(`live-site: ${layers.live_site.summary.pass} pass`);
-    return { verdict: 'PROD_PROVEN', reasons: passReasons };
+    return {
+      verdict: 'UNVERIFIED',
+      reasons: ['CI checks green but production-alias proof missing (was PROD_PROVEN before P2 — fail-closed now)'],
+    };
   }
 
   // P2 HARDENING (fail-closed): a deploy target whose runtime proof is
@@ -104,7 +134,8 @@ function decideExitCode(verdict, { strict = false, requireDeployProof = false } 
       case 'CLAIM_OVERSTATED':
         return 3;
       default:
-        return 4; // UNVERIFIED, CODE_VALID-without-deploy-proof, anything new
+        // UNVERIFIED, CODE_VALID, PREVIEW_PROVEN (not production), anything new
+        return 4;
     }
   }
   switch (verdict) {
@@ -118,7 +149,7 @@ function decideExitCode(verdict, { strict = false, requireDeployProof = false } 
     case 'UNVERIFIED':
       return strict ? 4 : 0;
     default:
-      return 0;
+      return 0; // PROD_PROVEN, PREVIEW_PROVEN, CODE_VALID — advisory-clean
   }
 }
 
