@@ -7,8 +7,10 @@
 const {
   runListingSmoke,
   FAILURE_STRINGS,
+  LISTING_UNAVAILABLE_TEXT,
   buildSimilarQueryFromListing,
   validateSimilarResponse,
+  assessListingPageBody,
 } = require('../../scripts/release-safety/listing-smoke.js');
 
 const BASE = 'https://smoke.example';
@@ -57,6 +59,16 @@ const GOOD_SIMILAR = JSON.stringify({
   _compliance: { source: 'idx', attribution: 'REBNY RLS' },
 });
 
+/** Mirrors the REAL production canonical-page HTML shape (characterized
+ *  2026-07-19): canonical link + listing identity + the DORMANT serialized
+ *  notFound template inside escaped RSC flight data. */
+const HEALTHY_CANONICAL_BODY =
+  `<html><head><link rel="canonical" href="https://smoke.example${CANONICAL}">` +
+  `<title>217 W 57th Street, #127/128 | Mallan Real Estate</title></head>` +
+  `<body><h1>217 W 57th Street</h1><div>rls111</div>` +
+  `<script>self.__next_f.push([1,"{\\"className\\":\\"text-3xl\\",\\"children\\":\\"Listing Not Available\\"}"])</script>` +
+  `</body></html>`;
+
 function healthyRoutes(overrides: Record<string, MockResponse> = {}): Route {
   return (url: string) => {
     for (const [k, v] of Object.entries(overrides)) {
@@ -65,7 +77,7 @@ function healthyRoutes(overrides: Record<string, MockResponse> = {}): Route {
     if (url.includes('/api/listings/similar')) return { status: 200, body: GOOD_SIMILAR };
     if (url.includes('/api/listings?limit=5')) return { status: 200, body: GOOD_LISTINGS };
     if (url.includes('/api/open-houses')) return { status: 200, body: '{"openHouses":[]}' };
-    if (url.includes('/listing/foo-bar-slug/rls111')) return { status: 200, body: '<html>217 W 57th listing page</html>' };
+    if (url.includes('/listing/foo-bar-slug/rls111')) return { status: 200, body: HEALTHY_CANONICAL_BODY };
     // Alias page renders with the canonical link in the body (no redirect):
     if (url.includes('/listing/rls111')) return { status: 200, body: `<html><link rel="canonical" href="${CANONICAL}">alias page</html>` };
     return undefined;
@@ -155,6 +167,62 @@ describe('release-safety P2 — listing smoke', () => {
     const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
     expect(canonical.ok).toBe(false);
     expect(canonical.failureClass).toBe('FAILURE_TEXT');
+  });
+
+  test('an ACTUAL "Listing Not Available" page (rendered text node) fails as FAILURE_TEXT', async () => {
+    const { fetchImpl } = makeFetch(
+      healthyRoutes({ 'foo-bar-slug': { status: 200, body: '<html><h1>Listing Not Available</h1></html>' } })
+    );
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT');
+    expect(canonical.detail).toContain('ACTIVE page result');
+  });
+
+  test('a DORMANT serialized notFound template in otherwise-valid listing HTML PASSES (production shape)', async () => {
+    // The default healthy fixture carries the dormant escaped-flight
+    // template exactly as production does — this pins the tolerance and
+    // checks the honest note.
+    const { fetchImpl } = makeFetch(healthyRoutes());
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    expect(result.passed).toBe(true);
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(true);
+    expect(canonical.note).toContain('dormant serialized notFound template');
+  });
+
+  test('the unavailable phrase WITHOUT listing identity fails even in non-rendered form', async () => {
+    const sneaky =
+      `<html><script>self.__next_f.push([1,"\\"children\\":\\"Listing Not Available\\""])</script>no listing here</html>`;
+    const { fetchImpl } = makeFetch(healthyRoutes({ 'foo-bar-slug': { status: 200, body: sneaky } }));
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT');
+    expect(canonical.detail).toContain('lacks the expected listing identity');
+  });
+
+  test('canonical identity mismatch fails as BAD_CONTRACT (page does not represent the listing)', async () => {
+    const wrongPage = '<html><link rel="canonical" href="/listing/other-slug/rls999"><h1>Another listing</h1>rls999</html>';
+    const { fetchImpl } = makeFetch(healthyRoutes({ 'foo-bar-slug': { status: 200, body: wrongPage } }));
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('BAD_CONTRACT');
+    expect(canonical.detail).toContain('does not represent the discovered listing');
+  });
+
+  test('unit: assessListingPageBody distinguishes active vs dormant vs missing identity', () => {
+    const dormant = `<link rel="canonical" href="https://x${CANONICAL}"> rls111 <script>"\\"children\\":\\"Listing Not Available\\""</script>`;
+    expect(assessListingPageBody(dormant, CANONICAL, 'rls111').ok).toBe(true);
+    expect(assessListingPageBody('<h1>Listing Not Available</h1>', CANONICAL, 'rls111').ok).toBe(false);
+    expect(assessListingPageBody('<h2>  listing not available  </h2>', CANONICAL, 'rls111').ok).toBe(false);
+    const noIdentity = assessListingPageBody('<html>healthy-looking but wrong page</html>', CANONICAL, 'rls111');
+    expect(noIdentity.ok).toBe(false);
+    expect(noIdentity.failureClass).toBe('BAD_CONTRACT');
+    expect(LISTING_UNAVAILABLE_TEXT).toBe('Listing Not Available');
+    expect(FAILURE_STRINGS).not.toContain('Listing Not Available'); // no longer a blanket signature
   });
 
   test('E550 and "no-store fetch" texts fail as FAILURE_TEXT', async () => {
@@ -272,7 +340,7 @@ describe('release-safety P2 — listing smoke', () => {
   test('a pin WITH --listing-url probes exactly that listing for canonical + alias', async () => {
     const pinCanonical = '/listing/pinned-slug/rls777';
     const { fetchImpl, calls } = makeFetch((url) => {
-      if (url.includes(pinCanonical)) return { status: 200, body: '<html>pinned page</html>' };
+      if (url.includes(pinCanonical)) return { status: 200, body: `<html><link rel="canonical" href="https://smoke.example${pinCanonical}"><h1>Pinned</h1>rls777</html>` };
       if (url === `${BASE}/listing/rls777`) return { status: 200, body: `<html><link rel="canonical" href="${pinCanonical}"></html>` };
       return healthyRoutes()(url);
     });
