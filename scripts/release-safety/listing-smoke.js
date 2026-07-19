@@ -59,19 +59,38 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 1;
 
 /** Body substrings (matched case-insensitively) that mean the page/route is
- *  broken even when HTTP 200. */
+ *  broken even when HTTP 200 — HARD signatures: their presence ANYWHERE in
+ *  the body is a failure. */
 const FAILURE_STRINGS = [
   'app-static-to-dynamic-error', // Next E132 — the exact PR #523 signature
   'E132',
   'E550',
   'no-store fetch', // the E132/E550 error text names the offending fetch
-  'Listing Not Available', // a known-valid listing rendering the fallback IS a failure
   'DYNAMIC_SERVER_USAGE',
   'Application error: a client-side exception',
   'Internal Server Error',
   '__NEXT_ERROR__',
 ];
 const FAILURE_STRINGS_LOWER = FAILURE_STRINGS.map((s) => s.toLowerCase());
+
+/**
+ * CONTEXT-SENSITIVE signature: "Listing Not Available".
+ *
+ * Production-characterized 2026-07-19 (dpl_4fWoEo7… @ 5cdee59b…): a HEALTHY
+ * canonical listing page's raw Next.js HTML contains this phrase exactly
+ * once — DORMANT, inside the serialized notFound template in escaped RSC
+ * flight data (`\"children\":\"Listing Not Available\"`), never as rendered
+ * markup. An ACTIVE unavailable page renders it as a real HTML text node
+ * (`<h1 …>Listing Not Available</h1>` ⇒ `>Listing Not Available<`).
+ *
+ * The phrase therefore fails a probe ONLY when it is the active page
+ * result: (a) it appears in rendered `>…<` form, or (b) the page lacks the
+ * positive listing identity (canonical URL + listing id) that every healthy
+ * render carries. A dormant serialized occurrence in otherwise-valid
+ * listing HTML passes (recorded on the probe as a note, not hidden).
+ */
+const LISTING_UNAVAILABLE_TEXT = 'Listing Not Available';
+const ACTIVE_UNAVAILABLE_RE = />\s*listing not available\s*</i;
 
 /** _compliance.source values that prove the similar route's meaningful
  *  (DB/Cotality) path executed. The empty short-circuit response carries no
@@ -259,6 +278,45 @@ async function discoverListing(baseUrl, ctx) {
   return { discovery, listing: eligible, listings: json.listings };
 }
 
+/**
+ * Assess a listing PAGE body (canonical or alias-resolved) for the
+ * context-sensitive unavailable state and the positive listing identity.
+ * A page passes only when the expected canonical URL AND the expected
+ * listing id are present, and "Listing Not Available" is not the ACTIVE
+ * page result. Returns { ok, failureClass?, detail?, note? }.
+ */
+function assessListingPageBody(body, canonicalPath, listingId) {
+  const text = typeof body === 'string' ? body : '';
+  const lower = text.toLowerCase();
+  const phrasePresent = lower.includes(LISTING_UNAVAILABLE_TEXT.toLowerCase());
+  if (ACTIVE_UNAVAILABLE_RE.test(text)) {
+    return {
+      ok: false,
+      failureClass: 'FAILURE_TEXT',
+      detail: `"${LISTING_UNAVAILABLE_TEXT}" is the ACTIVE page result (rendered as an HTML text node)`,
+    };
+  }
+  const hasCanonical = !!canonicalPath && text.includes(canonicalPath);
+  const hasIdentity = !!listingId && lower.includes(String(listingId).toLowerCase());
+  if (!hasCanonical || !hasIdentity) {
+    // Also catches an active unavailable page whose markup shape evades the
+    // rendered-form regex: a healthy render always carries its identity.
+    return {
+      ok: false,
+      failureClass: phrasePresent ? 'FAILURE_TEXT' : 'BAD_CONTRACT',
+      detail: phrasePresent
+        ? `"${LISTING_UNAVAILABLE_TEXT}" present and the page lacks the expected listing identity (canonical URL present=${hasCanonical}, listing id present=${hasIdentity}) — treating as the active page result`
+        : `page does not represent the discovered listing (canonical URL present=${hasCanonical}, listing id present=${hasIdentity})`,
+    };
+  }
+  return {
+    ok: true,
+    note: phrasePresent
+      ? 'dormant serialized notFound template present in flight data (expected on healthy Next.js renders) — identity verified, not an active failure'
+      : undefined,
+  };
+}
+
 /** Does the alias probe provably END at the expected canonical URL?
  *  Accepts either a followed redirect whose final pathname equals the
  *  canonical path, or a directly-rendered page whose body contains the
@@ -363,6 +421,21 @@ async function runListingSmoke(opts) {
         });
       }
     }
+    // Context-sensitive assessment: the page must REPRESENT the discovered
+    // listing (canonical URL + id present) and "Listing Not Available" must
+    // not be the active result — a dormant serialized notFound template in
+    // otherwise-valid listing HTML passes (see assessListingPageBody).
+    if (canonical.ok) {
+      const assessment = assessListingPageBody(canonical.body, canonicalPath, target && target.id);
+      if (!assessment.ok) {
+        canonical.ok = false;
+        canonical.failureClass = assessment.failureClass;
+        canonical.detail = assessment.detail;
+      } else if (assessment.note) {
+        canonical.note = assessment.note;
+      }
+    }
+    delete canonical.body;
     probes.push(canonical);
   } else {
     probes.push({ name: 'canonical-detail', ok: false, failureClass: 'DISCOVERY_EMPTY', detail: 'no probe target resolved (discovery failed or pin unresolvable)' });
@@ -374,7 +447,11 @@ async function runListingSmoke(opts) {
     const alias = await probeWithRetry('id-alias', `${base}/listing/${encodeURIComponent(target.id)}`, ctx, {
       checkFailureText: true,
     });
-    if (alias.ok && !aliasEndsAtCanonical(alias, canonicalPath)) {
+    if (alias.ok && ACTIVE_UNAVAILABLE_RE.test(alias.body || '')) {
+      alias.ok = false;
+      alias.failureClass = 'FAILURE_TEXT';
+      alias.detail = `alias page: "${LISTING_UNAVAILABLE_TEXT}" is the ACTIVE page result (rendered as an HTML text node)`;
+    } else if (alias.ok && !aliasEndsAtCanonical(alias, canonicalPath)) {
       alias.ok = false;
       alias.failureClass = 'BAD_CONTRACT';
       alias.detail = `alias /listing/${target.id} did not provably end at the expected canonical URL ${canonicalPath} (no matching redirect target or canonical link in the body)`;
@@ -440,12 +517,15 @@ async function runListingSmoke(opts) {
 module.exports = {
   runListingSmoke,
   FAILURE_STRINGS,
+  LISTING_UNAVAILABLE_TEXT,
+  ACTIVE_UNAVAILABLE_RE,
   RECOGNIZED_SIMILAR_SOURCES,
   boundedGet,
   probeWithRetry,
   buildSimilarQueryFromListing,
   validateSimilarResponse,
   aliasEndsAtCanonical,
+  assessListingPageBody,
 };
 
 // ── CLI ──────────────────────────────────────────────────────────────────
