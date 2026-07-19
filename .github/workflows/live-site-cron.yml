@@ -13,10 +13,11 @@ name: Live Site Smoke (cron)
 #
 # P2 (release-safety): a FAIL now also FAILS the workflow run itself (red
 # run + GitHub notification) — previously every run exited 0 and failures
-# were visible only inside the issue. The expensive five-probe listing
-# smoke (scripts/release-safety/listing-smoke.js) is deliberately NOT run
-# here: hourly listing probes would keep the Neon endpoint permanently
-# awake (see docs/operations/release-safety-runbook.md — post-deploy only).
+# were visible only inside the issue. The five-probe listing smoke
+# (scripts/release-safety/listing-smoke.js) is deliberately NOT run here:
+# repeated probes increase Neon wake frequency, and actual active time and
+# CU consumption require production measurement — so it stays a post-deploy
+# step (see docs/operations/release-safety-runbook.md).
 
 on:
   schedule:

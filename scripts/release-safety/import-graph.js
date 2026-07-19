@@ -232,7 +232,9 @@ function isClientComponent(absPath) {
  * Find `cache: 'no-store'` property assignments that can affect ISR:
  * a no-store on a fetch whose SAME options object declares a non-GET
  * `method` is exempt (non-GET fetches never join the ISR data cache —
- * e.g. the lib/idx/auth.ts POST token request, production-proven benign).
+ * e.g. the lib/idx/auth.ts POST token request — a source-classified
+ * exemption: the classification derives from the source itself, not
+ * from runtime observation).
  * Returns { total, isrRelevant } counts.
  */
 function countNoStoreProperties(absPath) {
@@ -277,8 +279,40 @@ function countNoStoreProperties(absPath) {
   return { total, isrRelevant };
 }
 
+/**
+ * Which forbidden modules does a built graph reach?
+ * - forbiddenExternals: bare specifiers (exact or subpath, e.g. '@upstash/redis/x')
+ * - forbiddenRepoModules: root-relative module ids WITHOUT extension
+ *   (e.g. 'lib/cache/durable-cache' matches lib/cache/durable-cache.ts and
+ *   lib/cache/durable-cache/index.ts) — so the guard trips the moment a
+ *   forbidden module is (re)introduced under any resolvable shape.
+ * Returns a list of human-readable hit descriptions (empty = clean).
+ */
+function findForbiddenReached(graph, { rootDir, forbiddenExternals = [], forbiddenRepoModules = [] }) {
+  const hits = [];
+  for (const ext of forbiddenExternals) {
+    for (const spec of graph.externals) {
+      if (spec === ext || spec.startsWith(ext + '/')) {
+        hits.push(`external '${spec}'`);
+      }
+    }
+  }
+  const relFiles = [...graph.files].map((f) =>
+    path.relative(rootDir, f).replace(/\\/g, '/').replace(/\.(tsx?|jsx?|mjs|cjs)$/, '')
+  );
+  for (const mod of forbiddenRepoModules) {
+    for (const rel of relFiles) {
+      if (rel === mod || rel === mod + '/index') {
+        hits.push(`repo module '${mod}'`);
+      }
+    }
+  }
+  return [...new Set(hits)];
+}
+
 module.exports = {
   readTsconfigAliases,
+  findForbiddenReached,
   buildImportGraph,
   findFilesByBasename,
   declaresRevalidate,

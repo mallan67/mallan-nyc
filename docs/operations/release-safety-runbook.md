@@ -44,20 +44,27 @@ node scripts/release-safety/listing-smoke.js --base-url https://mallan.nyc
 node scripts/release-safety/record-known-good.js --expected-sha <merged-sha> --verified-by "<name>"
 ```
 
-If step 1 or 2 fails: **instant alias rollback to the last entry in
-`docs/operations/known-good-deployments.jsonl`** (the proven PR #523 recovery
-path), then investigate. Rollback itself is a manual Vercel action — none of
-these scripts can promote, alias, or delete anything.
+**If verification fails (step 1 or 2): stop the release process, preserve the
+evidence (script output, run URLs, the failing probe report), notify Maya, and
+obtain Maya's explicit written authorization before any manual rollback or
+alias change.** The last entry in `docs/operations/known-good-deployments.jsonl`
+identifies the recorded rollback candidate for that decision — the record
+informs the decision; it does not authorize the action.
+
+**This PR authorizes no rollback, promotion, alias change, deployment
+deletion, or Vercel settings change.** None of these scripts can perform any
+of those actions (read-only GET + a local ledger append only).
 
 ## Why the listing smoke is NOT in the hourly cron
 
-Measured in the 2026-07-19 preflight: one full run ≈ 6+ HTTP requests,
+Code-traced in the 2026-07-19 preflight: one full run ≈ 6+ HTTP requests,
 ~7–15 Neon queries, up to 1 Neon audit write (`trestle_access`), 2–6 Cotality
-requests. Hourly, the guaranteed Neon wake + ~5-minute suspend tail ≈ up to
-~15–19 CU-h/month — that alone consumes the Neon Free-plan headroom and
-undermines the Neon closure program. Per release it is negligible. If
-continuous listing monitoring is ever wanted, the decision (4×/day, HEAD-style
-probes, etc.) is Maya's, with the cost stated first.
+requests — negligible per release. Repeated probes increase Neon wake
+frequency; actual active time and CU consumption require production
+measurement. Per the Neon closure program, cadence/monitoring decisions stay
+with Maya, with measured cost stated first — so the smoke ships as a
+post-deploy step only, and any continuous-monitoring cadence (4×/day,
+HEAD-style probes, etc.) is a separate decision.
 
 ## Enabling the hard deploy-proof gate (Maya's switch — not enabled by P2)
 

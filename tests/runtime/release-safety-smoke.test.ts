@@ -4,7 +4,11 @@
  */
 
 /* eslint-disable @typescript-eslint/no-var-requires */
-const { runListingSmoke, FAILURE_STRINGS } = require('../../scripts/release-safety/listing-smoke.js');
+const {
+  runListingSmoke,
+  FAILURE_STRINGS,
+  buildSimilarQueryFromListing,
+} = require('../../scripts/release-safety/listing-smoke.js');
 
 const BASE = 'https://smoke.example';
 
@@ -24,11 +28,23 @@ function makeFetch(route: Route) {
   return { fetchImpl, calls };
 }
 
+const LISTING_A = {
+  id: 'rls111',
+  url: '/listing/foo-bar-slug/rls111',
+  status: 'Active',
+  listingType: 'sale',
+  listPrice: 1250000,
+  bedroomsTotal: 2,
+  propertyType: 'Condo',
+  propertySubType: 'Apartment',
+  address: { postalCode: '10019' },
+};
+
 const GOOD_LISTINGS = JSON.stringify({
   total: 2,
   listings: [
-    { id: 'rls111', url: '/listing/foo-bar-slug/rls111', status: 'Active' },
-    { id: 'rls222', url: '/listing/baz-slug/rls222', status: 'Active' },
+    LISTING_A,
+    { ...LISTING_A, id: 'rls222', url: '/listing/baz-slug/rls222' },
   ],
 });
 
@@ -144,5 +160,80 @@ describe('release-safety P2 — listing smoke', () => {
   test('rejects a missing/invalid baseUrl (usage contract)', async () => {
     await expect(runListingSmoke({ baseUrl: '' })).rejects.toThrow(/baseUrl/);
     await expect(runListingSmoke({ baseUrl: 'ftp://x' })).rejects.toThrow(/baseUrl/);
+  });
+
+  test('E550 in a 200 body fails as FAILURE_TEXT', async () => {
+    const { fetchImpl } = makeFetch(
+      healthyRoutes({ 'foo-bar-slug': { status: 200, body: '<html>Error: E550 static generation failed</html>' } })
+    );
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT');
+  });
+
+  test('"no-store fetch" error text in a 200 body fails as FAILURE_TEXT', async () => {
+    const { fetchImpl } = makeFetch(
+      healthyRoutes({ 'foo-bar-slug': { status: 200, body: '<html>caused by a no-store fetch in render</html>' } })
+    );
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT');
+  });
+
+  test('a known-valid canonical page rendering "Listing Not Available" fails as FAILURE_TEXT', async () => {
+    const { fetchImpl } = makeFetch(
+      healthyRoutes({ 'foo-bar-slug': { status: 200, body: '<html><h1>Listing Not Available</h1></html>' } })
+    );
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT');
+  });
+
+  test('the similar URL carries the DISCOVERED postal code, price, beds, type and excludeId', async () => {
+    const { fetchImpl, calls } = makeFetch(healthyRoutes());
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    expect(result.passed).toBe(true);
+    const similarCall = calls.find((c) => c.url.includes('/api/listings/similar'));
+    expect(similarCall).toBeDefined();
+    const qs = new URL(similarCall!.url).searchParams;
+    expect(qs.get('postalCode')).toBe('10019');
+    expect(qs.get('price')).toBe('1250000');
+    expect(qs.get('beds')).toBe('2');
+    expect(qs.get('type')).toBe('sale');
+    expect(qs.get('excludeId')).toBe('rls111');
+    expect(qs.get('propertyType')).toBe('Condo');
+    expect(qs.get('propertySubType')).toBe('Apartment');
+  });
+
+  test('missing postal code or price => BAD_CONTRACT, and NO similar request is issued', async () => {
+    const degraded = {
+      total: 1,
+      listings: [{ ...LISTING_A, listPrice: 0, address: { postalCode: '' } }],
+    };
+    const { fetchImpl, calls } = makeFetch(
+      healthyRoutes({ '/api/listings?limit=5': { status: 200, body: JSON.stringify(degraded) } })
+    );
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    expect(result.passed).toBe(false);
+    const similar = result.probes.find((p: { name: string }) => p.name === 'similar-api');
+    expect(similar.failureClass).toBe('BAD_CONTRACT');
+    expect(similar.detail).toContain('listPrice');
+    expect(similar.detail).toContain('address.postalCode');
+    expect(calls.some((c) => c.url.includes('/api/listings/similar'))).toBe(false);
+  });
+
+  test('buildSimilarQueryFromListing exercises the meaningful query contract (unit)', () => {
+    const ok = buildSimilarQueryFromListing(LISTING_A);
+    expect(ok.ok).toBe(true);
+    expect(ok.qs.get('postalCode')).toBe('10019');
+    expect(ok.qs.get('price')).toBe('1250000');
+    // The route short-circuits without postalCode+price — so their absence
+    // must be a refusal, never a request:
+    expect(buildSimilarQueryFromListing(null).ok).toBe(false);
+    expect(buildSimilarQueryFromListing({ ...LISTING_A, listingType: 'weird' }).ok).toBe(false);
+    expect(buildSimilarQueryFromListing({ ...LISTING_A, bedroomsTotal: undefined }).ok).toBe(false);
   });
 });

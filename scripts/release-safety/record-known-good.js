@@ -16,19 +16,29 @@
 
 const fs = require('fs');
 const path = require('path');
-const { fetchLatestProductionDeployment, decideDeploymentVerdict } = require('./verify-deployment-sha.js');
+const {
+  fetchDeploymentServingAlias,
+  aliasHostname,
+  DEFAULT_PRODUCTION_ALIAS,
+} = require('./verify-deployment-sha.js');
 
 const DEFAULT_LEDGER = path.resolve(__dirname, '../../docs/operations/known-good-deployments.jsonl');
 
 /**
- * Record the current production deployment as known-good.
- * Refuses to record when the deployment is not READY, or when
- * `expectedSha` is provided and does not match (never record an unproven
- * deployment as known-good).
+ * Record the deployment CURRENTLY SERVING the production alias as
+ * known-good. Identity is alias-proven (GET /v13/deployments/{alias}) —
+ * never "newest production-target deployment", which may differ.
+ *
+ * Refuses to record when:
+ *   - the deployment is not READY;
+ *   - the SHA does not match `expectedSha` (when provided);
+ *   - the required alias (mallan.nyc by default) is not among the
+ *     deployment's proven aliases;
+ *   - alias ownership cannot be proven (no alias metadata).
  */
 async function recordKnownGood({
   token,
-  projectId,
+  aliasHost = DEFAULT_PRODUCTION_ALIAS,
   teamId,
   expectedSha,
   verifiedBy,
@@ -36,25 +46,30 @@ async function recordKnownGood({
   fetchImpl = globalThis.fetch,
   now = () => new Date().toISOString(),
 }) {
-  const deployment = await fetchLatestProductionDeployment({ token, projectId, teamId, fetchImpl });
+  const deployment = await fetchDeploymentServingAlias({ token, aliasHost, teamId, fetchImpl });
   if (!deployment) {
-    return { recorded: false, reason: 'no production deployment found' };
+    return { recorded: false, reason: `no deployment resolves for alias '${aliasHost}'` };
   }
   const state = deployment.readyState || deployment.state || null;
   if (state !== 'READY') {
     return { recorded: false, reason: `deployment state=${state || 'unknown'} — only READY deployments can be known-good` };
   }
+  if (!Array.isArray(deployment.alias) || deployment.alias.length === 0) {
+    return { recorded: false, reason: `alias ownership cannot be proven — deployment carries no alias metadata (required: ${aliasHost})` };
+  }
+  const aliases = deployment.alias.map(aliasHostname).filter(Boolean);
+  if (!aliases.includes(aliasHost.toLowerCase())) {
+    return { recorded: false, reason: `refusing to record: '${aliasHost}' is not among the proven aliases [${aliases.join(', ')}]` };
+  }
   const sha = (deployment.meta && (deployment.meta.githubCommitSha || deployment.meta.gitCommitSha)) || null;
-  if (expectedSha) {
-    const verdict = decideDeploymentVerdict(expectedSha, deployment);
-    if (verdict.verdict !== 'MATCH') {
-      return { recorded: false, reason: `refusing to record: ${verdict.verdict} — ${verdict.reason}` };
-    }
+  if (expectedSha && (!sha || sha.toLowerCase() !== expectedSha.toLowerCase())) {
+    return { recorded: false, reason: `refusing to record: SHA_MISMATCH — deployment built from ${sha || 'unknown'}, expected ${expectedSha}` };
   }
   const entry = {
     recorded_at: now(),
-    deployment_id: deployment.uid || null,
+    deployment_id: deployment.uid || deployment.id || null,
     sha,
+    aliases,
     url: deployment.url || null,
     verified_by: verifiedBy || 'manual',
   };
@@ -74,7 +89,7 @@ if (require.main === module) {
   };
   recordKnownGood({
     token: process.env.VERCEL_TOKEN,
-    projectId: process.env.VERCEL_PROJECT_ID,
+    aliasHost: flag('--alias') || process.env.PRODUCTION_ALIAS || undefined,
     teamId: process.env.VERCEL_TEAM_ID || undefined,
     expectedSha: flag('--expected-sha') || undefined,
     verifiedBy: flag('--verified-by') || 'manual',

@@ -2,23 +2,30 @@
 /**
  * Release-safety P2 — control 4: deployment-SHA verifier (read-only).
  *
- * Answers ONE question with fail-closed semantics: "is the CURRENT production
- * deployment built from the commit SHA I expect?" — the check whose absence
- * let the PR #523 revert-merge sit undeployed while everyone assumed
- * production was fixed.
+ * Answers ONE question with fail-closed semantics: "is the deployment that
+ * is ACTUALLY SERVING the production alias (mallan.nyc) built from the
+ * commit SHA I expect?" — the check whose absence let the PR #523
+ * revert-merge sit undeployed while everyone assumed production was fixed.
  *
- * Vercel usage is strictly read-only (GET /v6/deployments). No promotion,
- * rollback, alias change, deletion, or settings call exists in this file.
- * The token is sent in a header and is NEVER printed; error output is
- * redacted to status codes.
+ * IMPORTANT identity rule: "newest production-target deployment" and
+ * "deployment currently serving the production alias" are NOT the same
+ * thing (aliases can still point at an older deployment). This module
+ * therefore resolves the deployment BY THE ALIAS ITSELF — a read-only
+ * GET /v13/deployments/{aliasHost} — and additionally requires the alias
+ * to appear in the deployment's own alias list before any MATCH.
+ *
+ * Vercel usage is strictly read-only (GET). No promotion, rollback, alias
+ * change, deletion, or settings call exists in this file. The token is sent
+ * in a header and is NEVER printed; error output is redacted to status codes.
  *
  * Verdicts (decideDeploymentVerdict — pure, unit-tested):
- *   MATCH         current production deployment is READY and its commit SHA
- *                 equals the expected SHA
- *   SHA_MISMATCH  a READY production deployment exists but was built from a
- *                 different commit
- *   NOT_READY     newest production deployment is not in READY state
- *   UNKNOWN       missing/undecodable data — fail-closed (never "assume ok")
+ *   MATCH         alias-serving deployment is READY, provably owns the
+ *                 required alias, and its commit SHA equals the expected SHA
+ *   SHA_MISMATCH  alias-serving READY deployment was built from a different
+ *                 commit
+ *   NOT_READY     alias-serving deployment is not in READY state
+ *   UNKNOWN       missing/undecodable data OR alias ownership cannot be
+ *                 proven — fail-closed (never "assume ok")
  *
  * Exit codes (CLI): 0 MATCH · 2 SHA_MISMATCH · 3 NOT_READY (after bounded
  * polling) · 4 UNKNOWN or credential/usage error. NEVER exit 0 on anything
@@ -32,18 +39,43 @@ const VERCEL_API = 'https://api.vercel.com';
 const DEFAULT_MAX_ATTEMPTS = 10;
 const DEFAULT_INTERVAL_MS = 30_000;
 const REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_PRODUCTION_ALIAS = 'mallan.nyc';
 
-/** Pure verdict decision — the unit-tested core. */
-function decideDeploymentVerdict(expectedSha, deployment) {
+/** Normalize an alias entry (string or {alias} object) to a bare hostname. */
+function aliasHostname(entry) {
+  const raw = typeof entry === 'string' ? entry : (entry && entry.alias) || '';
+  return raw.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+}
+
+/** Pure verdict decision — the unit-tested core.
+ *  `requiredAlias`: the deployment must PROVABLY own this alias (it must
+ *  appear in the deployment's own alias list) or the verdict is UNKNOWN. */
+function decideDeploymentVerdict(expectedSha, deployment, { requiredAlias } = {}) {
   if (!expectedSha || typeof expectedSha !== 'string') {
     return { verdict: 'UNKNOWN', reason: 'no expected SHA provided' };
   }
   if (!deployment || typeof deployment !== 'object') {
-    return { verdict: 'UNKNOWN', reason: 'no production deployment data' };
+    return { verdict: 'UNKNOWN', reason: 'no deployment data for the production alias' };
   }
   const state = deployment.readyState || deployment.state || null;
   if (state !== 'READY') {
-    return { verdict: 'NOT_READY', reason: `newest production deployment state=${state || 'unknown'}` };
+    return { verdict: 'NOT_READY', reason: `alias-serving deployment state=${state || 'unknown'}` };
+  }
+  let aliases = [];
+  if (requiredAlias) {
+    if (!Array.isArray(deployment.alias) || deployment.alias.length === 0) {
+      return {
+        verdict: 'UNKNOWN',
+        reason: `alias ownership cannot be proven — deployment carries no alias metadata (required: ${requiredAlias})`,
+      };
+    }
+    aliases = deployment.alias.map(aliasHostname).filter(Boolean);
+    if (!aliases.includes(requiredAlias.toLowerCase())) {
+      return {
+        verdict: 'UNKNOWN',
+        reason: `alias ownership cannot be proven — '${requiredAlias}' is not among the deployment's aliases [${aliases.join(', ')}]`,
+      };
+    }
   }
   const deployedSha =
     (deployment.meta && (deployment.meta.githubCommitSha || deployment.meta.gitCommitSha)) || null;
@@ -51,27 +83,38 @@ function decideDeploymentVerdict(expectedSha, deployment) {
     return { verdict: 'UNKNOWN', reason: 'deployment has no commit SHA metadata — cannot prove provenance' };
   }
   if (deployedSha.toLowerCase() === expectedSha.toLowerCase()) {
-    return { verdict: 'MATCH', reason: `production deployment ${deployment.uid || ''} built from ${deployedSha}`, deployedSha };
+    return {
+      verdict: 'MATCH',
+      reason: `alias-serving deployment ${deployment.uid || deployment.id || ''} built from ${deployedSha}`,
+      deployedSha,
+      aliases,
+    };
   }
   return {
     verdict: 'SHA_MISMATCH',
-    reason: `production deployment built from ${deployedSha}, expected ${expectedSha}`,
+    reason: `alias-serving deployment built from ${deployedSha}, expected ${expectedSha}`,
     deployedSha,
+    aliases,
   };
 }
 
-/** Read-only fetch of the newest production deployment. */
-async function fetchLatestProductionDeployment({ token, projectId, teamId, fetchImpl = globalThis.fetch }) {
-  if (!token || !projectId) {
-    throw new Error('VERCEL_TOKEN and VERCEL_PROJECT_ID are required (read-only inspection)');
+/**
+ * Read-only fetch of the deployment CURRENTLY SERVING an alias host.
+ * GET /v13/deployments/{aliasHost} resolves a domain to the deployment
+ * behind it — the alias-ownership proof, not "newest production-target".
+ */
+async function fetchDeploymentServingAlias({ token, aliasHost = DEFAULT_PRODUCTION_ALIAS, teamId, fetchImpl = globalThis.fetch }) {
+  if (!token) {
+    throw new Error('VERCEL_TOKEN is required (read-only inspection)');
   }
-  const qs = new URLSearchParams({ projectId, target: 'production', limit: '1' });
+  const qs = new URLSearchParams();
   if (teamId) qs.set('teamId', teamId);
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let res;
   try {
-    res = await fetchImpl(`${VERCEL_API}/v6/deployments?${qs.toString()}`, {
+    res = await fetchImpl(`${VERCEL_API}/v13/deployments/${encodeURIComponent(aliasHost)}${suffix}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -81,13 +124,15 @@ async function fetchLatestProductionDeployment({ token, projectId, teamId, fetch
   } finally {
     clearTimeout(timer);
   }
+  if (res.status === 404) {
+    return null; // no deployment resolves for this alias
+  }
   if (res.status !== 200) {
     // Redacted: status only — never echo request/response details that could
     // carry credentials.
     throw new Error(`Vercel API HTTP ${res.status}`);
   }
-  const data = await res.json();
-  return (data && Array.isArray(data.deployments) && data.deployments[0]) || null;
+  return await res.json();
 }
 
 /**
@@ -98,7 +143,7 @@ async function fetchLatestProductionDeployment({ token, projectId, teamId, fetch
 async function pollForMatch({
   expectedSha,
   token,
-  projectId,
+  aliasHost = DEFAULT_PRODUCTION_ALIAS,
   teamId,
   maxAttempts = DEFAULT_MAX_ATTEMPTS,
   intervalMs = DEFAULT_INTERVAL_MS,
@@ -109,8 +154,8 @@ async function pollForMatch({
   let last = { verdict: 'UNKNOWN', reason: 'no attempts executed' };
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const deployment = await fetchLatestProductionDeployment({ token, projectId, teamId, fetchImpl });
-      last = decideDeploymentVerdict(expectedSha, deployment);
+      const deployment = await fetchDeploymentServingAlias({ token, aliasHost, teamId, fetchImpl });
+      last = decideDeploymentVerdict(expectedSha, deployment, { requiredAlias: aliasHost });
     } catch (err) {
       last = { verdict: 'UNKNOWN', reason: err.message };
     }
@@ -137,9 +182,11 @@ function exitCodeForVerdict(verdict) {
 
 module.exports = {
   decideDeploymentVerdict,
-  fetchLatestProductionDeployment,
+  fetchDeploymentServingAlias,
+  aliasHostname,
   pollForMatch,
   exitCodeForVerdict,
+  DEFAULT_PRODUCTION_ALIAS,
 };
 
 // ── CLI ──────────────────────────────────────────────────────────────────
@@ -151,13 +198,13 @@ if (require.main === module) {
   };
   const expectedSha = flag('--expected-sha');
   if (!expectedSha) {
-    console.error('Usage: node scripts/release-safety/verify-deployment-sha.js --expected-sha <sha> [--max-attempts N] [--interval-ms MS]');
+    console.error('Usage: node scripts/release-safety/verify-deployment-sha.js --expected-sha <sha> [--alias mallan.nyc] [--max-attempts N] [--interval-ms MS]');
     process.exit(4);
   }
   pollForMatch({
     expectedSha,
     token: process.env.VERCEL_TOKEN,
-    projectId: process.env.VERCEL_PROJECT_ID,
+    aliasHost: flag('--alias') || process.env.PRODUCTION_ALIAS || DEFAULT_PRODUCTION_ALIAS,
     teamId: process.env.VERCEL_TEAM_ID || undefined,
     maxAttempts: Number(flag('--max-attempts')) || DEFAULT_MAX_ATTEMPTS,
     intervalMs: Number(flag('--interval-ms')) || DEFAULT_INTERVAL_MS,

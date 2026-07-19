@@ -17,9 +17,10 @@
  * Execution policy (per the approved P2 plan):
  *   - Runbook post-deploy step + workflow_dispatch ONLY. NOT wired into the
  *     hourly cron: a full run costs ~7–15 Neon queries, up to 1 Neon audit
- *     write, and 2–6 Cotality requests — negligible per release, but hourly
- *     it would keep the Neon endpoint permanently awake and undermine the
- *     Neon remediation program (preflight §3 calculation, 2026-07-19).
+ *     write, and 2–6 Cotality requests — negligible per release. Repeated
+ *     probes increase Neon wake frequency; actual active time and CU
+ *     consumption require production measurement (which is why cadence
+ *     decisions stay with Maya, cost stated first).
  *   - GET-only (enforced — the fetch wrapper rejects any other method).
  *   - Bounded: per-request timeout (default 15 s), max 1 retry per probe,
  *     retry only on TIMEOUT / NETWORK / HTTP 5xx. A 404 on a *discovered*
@@ -38,10 +39,13 @@ const MAX_RETRIES = 1;
 /** Body substrings that mean the page/route is broken even when HTTP 200. */
 const FAILURE_STRINGS = [
   'app-static-to-dynamic-error', // Next E132 — the exact PR #523 signature
+  'E132',
+  'E550',
+  'no-store fetch', // the E132/E550 error text names the offending fetch
+  'Listing Not Available', // a known-valid listing rendering the fallback IS a failure
   'DYNAMIC_SERVER_USAGE',
   'Application error: a client-side exception',
   'Internal Server Error',
-  'E132',
   '__NEXT_ERROR__',
 ];
 
@@ -118,6 +122,50 @@ async function probeWithRetry(name, url, ctx, opts) {
     if (!retryable) break;
   }
   return { name, url, attempts: attempt, ...last };
+}
+
+/**
+ * Build the similar-properties query from a DISCOVERED listing's real values:
+ * required — listPrice (> 0), address.postalCode (non-empty), listingType
+ * ('sale'|'rent'), bedroomsTotal (numeric); optional — propertyType,
+ * propertySubType. Missing required fields => {ok:false} (BAD_CONTRACT).
+ */
+function buildSimilarQueryFromListing(listing) {
+  if (!listing) {
+    return { ok: false, detail: 'no discovered listing to derive the similar query from' };
+  }
+  const price = Number(listing.listPrice);
+  const postalCode =
+    listing.address && typeof listing.address.postalCode === 'string'
+      ? listing.address.postalCode.trim()
+      : '';
+  const type = listing.listingType;
+  const beds = listing.bedroomsTotal;
+  const missing = [];
+  if (!(price > 0)) missing.push('listPrice');
+  if (!postalCode) missing.push('address.postalCode');
+  if (type !== 'sale' && type !== 'rent') missing.push('listingType');
+  if (typeof beds !== 'number' || Number.isNaN(beds)) missing.push('bedroomsTotal');
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      detail: `discovered listing ${listing.id || '?'} lacks required similar-query fields: ${missing.join(', ')} — refusing a superficial request`,
+    };
+  }
+  const qs = new URLSearchParams({
+    type,
+    beds: String(beds),
+    price: String(price),
+    postalCode,
+    excludeId: String(listing.id),
+  });
+  if (typeof listing.propertyType === 'string' && listing.propertyType) {
+    qs.set('propertyType', listing.propertyType);
+  }
+  if (typeof listing.propertySubType === 'string' && listing.propertySubType) {
+    qs.set('propertySubType', listing.propertySubType);
+  }
+  return { ok: true, qs };
 }
 
 /** Discover a probe-eligible listing from the API. Uses the API-returned
@@ -228,14 +276,27 @@ async function runListingSmoke(opts) {
     probes.push({ name: 'id-alias', ok: false, failureClass: 'DISCOVERY_EMPTY', detail: 'no listing id available' });
   }
 
-  // Probe 4 — similar-properties API (bounded static params + excludeId)
-  const similarQs = new URLSearchParams({ type: 'sale', beds: '2', price: '1500000' });
-  if (idForAlias) similarQs.set('excludeId', idForAlias);
-  probes.push(
-    await probeWithRetry('similar-api', `${base}/api/listings/similar?${similarQs.toString()}`, ctx, {
-      expectJson: true,
-    })
-  );
+  // Probe 4 — similar-properties API. The route provably short-circuits to an
+  // empty 200 without `postalCode` AND `price` (app/api/listings/similar/
+  // route.ts), so placeholder params would "pass" without exercising the
+  // DB/Cotality path. The query is therefore derived from the DISCOVERED
+  // listing's real values — and if discovery cannot supply them, that is a
+  // BAD_CONTRACT failure, never a superficial request.
+  const similarParams = buildSimilarQueryFromListing(listing);
+  if (!similarParams.ok) {
+    probes.push({
+      name: 'similar-api',
+      ok: false,
+      failureClass: listing ? 'BAD_CONTRACT' : 'DISCOVERY_EMPTY',
+      detail: similarParams.detail,
+    });
+  } else {
+    probes.push(
+      await probeWithRetry('similar-api', `${base}/api/listings/similar?${similarParams.qs.toString()}`, ctx, {
+        expectJson: true,
+      })
+    );
+  }
 
   // Probe 5 — open-houses API
   probes.push(await probeWithRetry('open-houses-api', `${base}/api/open-houses`, ctx, { expectJson: true }));
@@ -248,7 +309,13 @@ async function runListingSmoke(opts) {
   };
 }
 
-module.exports = { runListingSmoke, FAILURE_STRINGS, boundedGet, probeWithRetry };
+module.exports = {
+  runListingSmoke,
+  FAILURE_STRINGS,
+  boundedGet,
+  probeWithRetry,
+  buildSimilarQueryFromListing,
+};
 
 // ── CLI ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
