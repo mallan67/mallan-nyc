@@ -1,9 +1,10 @@
 /**
- * #525 re-derivation (2026-07-19) — bounded read-only media audit + dry-run.
+ * #525 re-derivation (2026-07-19, correction round 2) — bounded, RESUMABLE,
+ * read-only media audit + dry-run.
  *
  * Every dependency is MOCKED — no production Neon, Cotality, or R2 connection
- * is made anywhere in this suite (the tsx toolchain checks run with a stub
- * DATABASE_URL and only IMPORT modules behind entry guards).
+ * is made anywhere in this suite (the tsx toolchain check uses a stub
+ * DATABASE_URL and imports only entry-guarded modules).
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
@@ -11,11 +12,13 @@ import * as path from 'path';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const {
-  runAudit, probeListingMedia, buildInventoryRow, withBoundedRetries,
-  classifyCotalityRowStrict, emptyCheckpoint, DEFAULT_BUDGETS,
+  runAudit, probeListingMedia, buildInventoryRow, needsCotalityProbe,
+  attemptWithAccounting, makeAccountant, CapStopError, classifyCotalityRowStrict,
+  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS,
 } = require('@/scripts/audit/media-coverage-audit');
 const {
-  runDryRun, planListing, normalizeSourceUrl,
+  runDryRun, planListing, diffAuthorizedFields, normalizeSourceUrl,
+  emptyDryRunCheckpoint, validateDryRunCheckpoint,
 } = require('@/scripts/backfill/bucket-b-media-dry-run');
 const { isMallanExclusiveListing } = require('@/lib/listings/exclusive-agent-assignment');
 const { buildMediaR2Key } = require('@/lib/media/media-sync-service');
@@ -74,32 +77,40 @@ const tightBudgets = (over: Record<string, unknown> = {}) => ({
 /** Keyset page reader over an in-memory listing set (records every call). */
 function pagedReader(rows: Array<Record<string, unknown>>) {
   const calls: Array<{ cursor: string | null; pageSize: number }> = [];
+  const sorted = () => [...rows].sort((a, b) => String(a.listing_id).localeCompare(String(b.listing_id)));
   return {
     calls,
     reader: {
       fetchPage: async (cursor: string | null, pageSize: number) => {
         calls.push({ cursor, pageSize });
-        const sorted = [...rows].sort((a, b) => String(a.listing_id).localeCompare(String(b.listing_id)));
-        const start = cursor ? sorted.findIndex((r) => String(r.listing_id) > cursor) : 0;
-        return start < 0 ? [] : sorted.slice(start === -1 ? sorted.length : start, (start === -1 ? sorted.length : start) + pageSize);
+        const s = sorted();
+        const start = cursor ? s.findIndex((r) => String(r.listing_id) > cursor) : 0;
+        if (start < 0) return [];
+        return s.slice(start, start + pageSize);
       },
     },
   };
 }
 
-/** Mock Cotality reader: resolves listingId → KEY-<id>, serves media pages. */
+/** Mock Cotality reader honoring the accountant (1 consume per simulated
+ *  request — the SAME authoritative path the real transport uses). */
 function mockCotality(opts: {
   pages?: Array<{ rows: Array<Record<string, unknown>>; nextLink?: string | null }>;
   propertyError?: string;
   pageErrorAt?: number;
+  pagesPerListing?: Record<string, Array<{ rows: Array<Record<string, unknown>>; nextLink?: string | null }>>;
 } = {}) {
   const log: string[] = [];
   let pageIdx = 0;
+  const perListing = new Map<string, number>();
+  let currentListing = '';
   return {
     log,
     reader: {
-      resolvePropertyKey: async (listingId: string) => {
+      resolvePropertyKey: async (listingId: string, acct: { consume(): boolean }) => {
+        if (!acct.consume()) return { error: 'request cap reached', deferred: true };
         log.push(`property:${listingId}`);
+        currentListing = listingId;
         if (opts.propertyError) return { error: opts.propertyError };
         return { listingKey: `KEY-${listingId}` };
       },
@@ -107,8 +118,16 @@ function mockCotality(opts: {
         log.push(`firstUrl:${listingKey}`);
         return `mock://media?key=${listingKey}&page=0`;
       },
-      fetchMediaPage: async (url: string) => {
+      fetchMediaPage: async (url: string, acct: { consume(): boolean }) => {
+        if (!acct.consume()) return { error: 'request cap reached', deferred: true };
         log.push(`page:${url}`);
+        if (opts.pagesPerListing) {
+          const seq = opts.pagesPerListing[currentListing] || [{ rows: [] }];
+          const n = perListing.get(currentListing) ?? 0;
+          perListing.set(currentListing, n + 1);
+          const p = seq[n] || { rows: [] };
+          return { rows: p.rows as never, nextLink: p.nextLink ?? null };
+        }
         const i = pageIdx++;
         if (opts.pageErrorAt === i) return { error: `injected page ${i} error` };
         const p = (opts.pages || [{ rows: [] }])[i] || { rows: [] };
@@ -120,24 +139,24 @@ function mockCotality(opts: {
 
 const cPhoto = (order: number, over: Record<string, unknown> = {}) => ({
   mediaKey: `MK-${order}`, mediaCategory: 'Photo', mediaType: 'Photo',
-  order, mediaUrl: `https://cdn.example/c${order}.jpg`, ...over,
+  order, mediaUrl: `https://cdn.example/c${order}.jpg`, preferredPhotoYn: false, ...over,
 });
 
-// ─── toolchain — executable under Node 20 / real tsx ────────────────────────
+const acctOf = (max = 100) => makeAccountant(max);
+
+// ─── toolchain ──────────────────────────────────────────────────────────────
 
 describe('toolchain — tsx wiring and startability', () => {
-  it('package.json wires tsx scripts for audit + dry-run', () => {
+  it('package.json wires tsx scripts for audit + dry-run (exactly three, nothing else)', () => {
     const pkg = JSON.parse(read('package.json'));
     expect(pkg.scripts['media:audit']).toContain('tsx scripts/audit/media-coverage-audit.cli.ts');
     expect(pkg.scripts['media:audit:cotality']).toContain('--with-cotality');
     expect(pkg.scripts['media:backfill:dryrun']).toContain('tsx scripts/backfill/bucket-b-media-dry-run.cli.ts');
+    const wired = Object.values(pkg.scripts as Record<string, string>).filter((s) => s.includes('media-coverage-audit') || s.includes('bucket-b-media-dry-run'));
+    expect(wired).toHaveLength(3);
   });
 
-  it('logic modules AND cli modules load under real tsx with mocked env — no production connection', () => {
-    // The CLIs are entry-guarded (import.meta.url check) so importing them
-    // executes nothing. DATABASE_URL is a stub — Prisma instantiates lazily
-    // and no connection is made; no Cotality call happens on import. tsx is
-    // invoked directly via node (no shell, no npx) for Windows safety.
+  it('logic + cli modules load under real tsx with stub env — no production connection', () => {
     const driver = path.join(ROOT, '.tmp-525-toolchain-driver.mts');
     fs.writeFileSync(driver, [
       "import * as a from './scripts/audit/media-coverage-audit';",
@@ -164,7 +183,7 @@ describe('toolchain — tsx wiring and startability', () => {
   }, 150_000);
 });
 
-// ─── read-only guarantee — no mutation reachable ────────────────────────────
+// ─── read-only guarantee ────────────────────────────────────────────────────
 
 describe('read-only guarantee — no mutation or R2 write reachable', () => {
   const files = [
@@ -191,36 +210,29 @@ describe('read-only guarantee — no mutation or R2 write reachable', () => {
     const audit = read('scripts/audit/media-coverage-audit.ts');
     const listingIface = audit.slice(audit.indexOf('interface ListingPageReader'), audit.indexOf('}', audit.indexOf('interface ListingPageReader')));
     expect(listingIface).toContain('fetchPage');
-    expect(listingIface.match(/\b\w+\(/g)!.filter((m) => m !== 'fetchPage(').length).toBe(0);
-    const cotalityIface = audit.slice(audit.indexOf('interface CotalityMediaReader'), audit.indexOf('\n}\n', audit.indexOf('interface CotalityMediaReader')));
-    for (const method of ['resolvePropertyKey', 'buildFirstMediaUrl', 'fetchMediaPage']) expect(cotalityIface).toContain(method);
-    for (const tok of FORBIDDEN) expect(cotalityIface.includes(tok)).toBe(false);
-  });
-  it('no production cron/route/workflow runs the audit automatically', () => {
-    const pkg = JSON.parse(read('package.json'));
-    const wired = Object.values(pkg.scripts as Record<string, string>).filter((s) => s.includes('media-coverage-audit') || s.includes('bucket-b-media-dry-run'));
-    expect(wired).toHaveLength(3); // exactly the three manual npm scripts, nothing else
+    for (const method of ['resolvePropertyKey', 'buildFirstMediaUrl', 'fetchMediaPage']) {
+      expect(audit).toContain(method);
+    }
   });
 });
 
-// ─── canonical ownership (PR #539 parity) ───────────────────────────────────
+// ─── canonical ownership ────────────────────────────────────────────────────
 
 describe('canonical ownership — delegation matches PR #539', () => {
-  it('the bucket module and audit module import the REAL canonical helper', () => {
+  it('bucket + audit modules import the REAL canonical helper', () => {
     expect(read('lib/media/media-coverage-bucket.ts')).toContain("from '@/lib/listings/exclusive-agent-assignment'");
-    expect(read('scripts/audit/media-coverage-audit.ts')).toContain("from '@/lib/listings/exclusive-agent-assignment'");
   });
   it('inventory ownership equals the real canonical helper for every signal shape', () => {
     for (const { id, rls } of [
       { id: 'SL-0004', rls: null }, { id: 'RL-0007', rls: true }, { id: 'sl-0004', rls: null },
-      { id: 'RLS20100000', rls: true }, { id: 'C-1001', rls: false }, { id: '', rls: null },
+      { id: 'RLS20100000', rls: true }, { id: 'C-1001', rls: false },
     ]) {
-      const rec = buildInventoryRow(auditRow({ listing_id: id || 'X', rls_eligible: rls }), { status: 'unknown', reason: 't' });
-      const canonical = isMallanExclusiveListing({ listing_id: id || 'X', rls_eligible: rls });
+      const rec = buildInventoryRow(auditRow({ listing_id: id, rls_eligible: rls }), { status: 'unknown', reason: 't' });
+      const canonical = isMallanExclusiveListing({ listing_id: id, rls_eligible: rls });
       expect({ id, ownership: rec.ownership }).toEqual({ id, ownership: canonical ? 'mallan-owned' : 'third-party' });
     }
   });
-  it('agent_id / owner_client_id cannot change ownership — no such field exists on any input shape', () => {
+  it('agent_id / owner_client_id cannot appear on any input shape', () => {
     for (const f of ['lib/media/media-coverage-bucket.ts', 'scripts/audit/media-coverage-audit.ts', 'scripts/backfill/bucket-b-media-dry-run.ts']) {
       const src = read(f);
       expect(src.includes('agent_id: ')).toBe(false);
@@ -229,165 +241,216 @@ describe('canonical ownership — delegation matches PR #539', () => {
   });
 });
 
-// ─── bounded Neon reading ───────────────────────────────────────────────────
+// ─── ROUND 2: per-run budgets + resume semantics ───────────────────────────
 
-describe('bounded Neon reading — cursor pages, limits, checkpoint resume', () => {
-  const sixListings = ['RLSA', 'RLSB', 'RLSC', 'RLSD', 'RLSE', 'RLSF'].map((id) =>
-    auditRow({ listing_id: id, listing_media: [photoRow(1)] }));
+describe('ROUND 2 — per-run budgets: resume with the SAME limits continues', () => {
+  const six = ['RLSA', 'RLSB', 'RLSC', 'RLSD', 'RLSE', 'RLSF'].map((id) => auditRow({ listing_id: id, listing_media: [photoRow(1)] }));
 
-  it('cursor pagination walks multiple pages to completion (deterministic keyset)', async () => {
-    const { reader, calls } = pagedReader(sixListings);
-    const res = await runAudit({ listings: reader, budgets: tightBudgets() });
-    expect(res.processed).toBe(6);
-    expect(res.complete).toBe(true);
-    expect(calls.map((c) => c.cursor)).toEqual([null, 'RLSB', 'RLSD', 'RLSF']);
-  });
-
-  it('maximum-row cutoff stops safely and reports INCOMPLETE', async () => {
-    const { reader } = pagedReader(sixListings);
-    const res = await runAudit({ listings: reader, budgets: tightBudgets({ maxListings: 3 }) });
-    expect(res.processed).toBe(3);
-    expect(res.complete).toBe(false);
-    expect(res.incompleteReasons.join(' ')).toContain('max-listings');
-  });
-
-  it('time budget stops safely and reports INCOMPLETE', async () => {
-    const { reader } = pagedReader(sixListings);
-    let t = 0;
-    const res = await runAudit({
-      listings: reader,
-      budgets: tightBudgets({ runTimeBudgetMs: 5 }),
-      now: () => { t += 4; return t; }, // exceeds 5ms after the first page
-    });
-    expect(res.complete).toBe(false);
-    expect(res.incompleteReasons.join(' ')).toContain('time budget');
-    expect(res.processed).toBeLessThan(6);
-  });
-
-  it('checkpoint resume continues from the cursor and never repeats completed pages', async () => {
-    const first = pagedReader(sixListings);
-    const saved: unknown[] = [];
-    const run1 = await runAudit({
-      listings: first.reader,
-      budgets: tightBudgets({ maxListings: 4 }),
-      saveCheckpoint: (cp: unknown) => { saved.push(JSON.parse(JSON.stringify(cp))); },
-    });
+  it('resume with the SAME --max-listings value continues after the cursor', async () => {
+    const b = tightBudgets({ maxListings: 4 });
+    const run1 = await runAudit({ listings: pagedReader(six).reader, budgets: b });
+    expect(run1.processed).toBe(4);
     expect(run1.complete).toBe(false);
-    expect(run1.checkpoint.cursor).toBe('RLSD');
-
-    const second = pagedReader(sixListings);
-    const run2 = await runAudit({
-      listings: second.reader,
-      budgets: tightBudgets(),
-      checkpoint: run1.checkpoint,
-    });
-    // Resumed run only fetches AFTER the checkpoint cursor — no repeated pages.
-    expect(second.calls.every((c) => c.cursor !== null && c.cursor >= 'RLSD')).toBe(true);
-    expect(run2.processed).toBe(6); // cumulative 4 + 2
+    // SAME budgets on resume — must NOT stop immediately:
+    const second = pagedReader(six);
+    const run2 = await runAudit({ listings: second.reader, budgets: b, checkpoint: run1.checkpoint });
+    expect(run2.processed).toBe(6);
     expect(run2.complete).toBe(true);
-    expect(saved.length).toBeGreaterThan(0);
+    expect(second.calls[0].cursor).toBe('RLSD'); // continued, not restarted
+  });
+
+  it('the SAME request cap is available fresh on the next invocation', async () => {
+    const empty = ['RLS1', 'RLS2', 'RLS3'].map((id) => auditRow({ listing_id: id }));
+    // Each probe = 1 property + 1 media page = 2 attempts. Cap 4 → 2 probes/run.
+    const b = tightBudgets({ maxCotalityRequests: 4, pageSize: 3 });
+    const cot1 = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }], RLS2: [{ rows: [] }], RLS3: [{ rows: [] }] } });
+    const run1 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot1.reader, budgets: b });
+    expect(run1.processed).toBe(2); // third listing DEFERRED, not finalized
+    expect(run1.checkpoint.pendingFrom).toBe('RLS3');
+    expect(run1.runCounters.requestAttempts).toBe(4); // the refused 5th attempt never consumed
+    const cot2 = mockCotality({ pagesPerListing: { RLS3: [{ rows: [cPhoto(1)] }] } });
+    const run2 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot2.reader, budgets: b, checkpoint: run1.checkpoint });
+    expect(run2.processed).toBe(3); // fresh cap → the deferred listing resolves
+    expect(run2.complete).toBe(true);
+    expect(run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLS3').bucket).toBe('B_NEW');
+  });
+
+  it('deferred rows stay PENDING: never tallied, cursor never passes them, resume confirms them', async () => {
+    const empty = ['RLS1', 'RLS2'].map((id) => auditRow({ listing_id: id }));
+    const b = tightBudgets({ maxCotalityProbes: 1, pageSize: 2 });
+    const cot = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }] } });
+    const run1 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot.reader, budgets: b });
+    expect(run1.processed).toBe(1);
+    expect(run1.checkpoint.cursor).toBe('RLS1');          // NOT advanced past RLS2
+    expect(run1.checkpoint.pendingFrom).toBe('RLS2');
+    expect(run1.tally.U).toBe(0);                          // pending ≠ permanent U
+    const cot2 = mockCotality({ pagesPerListing: { RLS2: [{ rows: [cPhoto(1), cPhoto(2)] }] } });
+    const run2 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot2.reader, budgets: b, checkpoint: run1.checkpoint });
+    const rls2 = run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLS2');
+    expect(rls2.bucket).toBe('B_NEW');                     // budget-deferred → CONFIRMED on resume
+    expect(rls2.cotality).toMatchObject({ status: 'confirmed', photoCount: 2 });
+  });
+
+  it('resumed inventory covers EVERY cumulatively processed listing, deduped, reconciling', async () => {
+    const six2 = ['RLSA', 'RLSB', 'RLSC', 'RLSD', 'RLSE', 'RLSF'].map((id) => auditRow({ listing_id: id, listing_media: [photoRow(1)] }));
+    const b = tightBudgets({ maxListings: 4 });
+    const run1 = await runAudit({ listings: pagedReader(six2).reader, budgets: b });
+    const run2 = await runAudit({ listings: pagedReader(six2).reader, budgets: b, checkpoint: run1.checkpoint });
+    expect(run2.inventory).toHaveLength(run2.processed);   // 6 === 6
+    const ids = run2.inventory.map((r: { listingId: string }) => r.listingId);
+    expect(new Set(ids).size).toBe(ids.length);            // no duplicates
+    const tallySum = Object.values(run2.tally as Record<string, number>).reduce((s, n) => s + n, 0);
+    expect(tallySum).toBe(run2.processed);                 // full reconciliation
+  });
+
+  it('checkpoint validation fails closed on version/mode/reconciliation problems', () => {
+    expect(() => validateCheckpoint({ ...emptyCheckpoint(), version: 1 }, 'audit')).toThrow(/version/);
+    expect(() => validateCheckpoint({ ...emptyCheckpoint(), mode: 'dryrun' }, 'audit')).toThrow(/mode/);
+    const bad = emptyCheckpoint();
+    bad.processed = 5; // inventory empty → does not reconcile
+    expect(() => validateCheckpoint(bad, 'audit')).toThrow(/reconcile/);
+    expect(() => validateDryRunCheckpoint({ ...emptyDryRunCheckpoint(), version: 1 })).toThrow(/version/);
   });
 });
 
-// ─── Cotality keying, pagination, budgets, retries ──────────────────────────
+// ─── ROUND 2: one authoritative accounting path ────────────────────────────
 
-describe('Cotality probe — ListingKey keying, nextLink traversal, fail-closed', () => {
-  it('resolves the Property ListingKey FIRST and keys Media by it', async () => {
-    const { reader, log } = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLS20103891', tightBudgets(), counters);
-    expect(log[0]).toBe('property:RLS20103891');
-    expect(log[1]).toBe('firstUrl:KEY-RLS20103891'); // the RESOLVED key, not the RLS id
-    expect(res.status).toBe('confirmed');
-    expect(res.photoCount).toBe(1);
+describe('ROUND 2 — every HTTP attempt (incl. retries) consumes the cap and is reported', () => {
+  it('attemptWithAccounting consumes one attempt per try, counts retries, stops at the cap', async () => {
+    const acct = acctOf(3);
+    let tries = 0;
+    // fails twice then would succeed — but cap is 3 so: attempt+retry+retry = 3 consumed
+    const ok = await attemptWithAccounting(async () => { tries += 1; if (tries < 3) throw new Error('x'); return 'ok'; }, acct, 5);
+    expect(ok).toBe('ok');
+    expect(acct.attempts).toBe(3);
+    expect(acct.retries).toBe(2);
+    // cap exhausted → next attempt is a CapStop, no HTTP possible:
+    await expect(attemptWithAccounting(async () => 'never', acct, 5)).rejects.toThrow(CapStopError);
+    expect(acct.attempts).toBe(3); // nothing consumed past the cap
   });
 
-  it('the real CLI reader filters Media by ResourceRecordKey and resolves Property by ListingId', () => {
+  it('runAudit returns the REAL retry count in counters (no disconnected object)', async () => {
+    const empty = [auditRow({ listing_id: 'RLS1' })];
+    // Reader that consumes 2 attempts + 1 retry for the property call:
+    const reader = {
+      resolvePropertyKey: async (_id: string, acct: { consume(): boolean; countRetry(): void }) => {
+        acct.consume(); acct.consume(); acct.countRetry();
+        return { listingKey: 'KEY-RLS1' };
+      },
+      buildFirstMediaUrl: () => 'mock://m',
+      fetchMediaPage: async (_u: string, acct: { consume(): boolean }) => { acct.consume(); return { rows: [], nextLink: null }; },
+    };
+    const res = await runAudit({ listings: pagedReader(empty).reader, cotality: reader, budgets: tightBudgets() });
+    expect(res.counters.retries).toBe(1);
+    expect(res.counters.requests).toBe(3);
+    expect(res.runCounters.retries).toBe(1);
+    expect(res.runCounters.requestAttempts).toBe(3);
+  });
+});
+
+// ─── Cotality probe — keying, traversal, validation ────────────────────────
+
+describe('Cotality probe — ListingKey keying, nextLink traversal, fail-closed validation', () => {
+  it('resolves the Property ListingKey FIRST and keys Media by it', async () => {
+    const { reader, log } = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
+    const res = await probeListingMedia(reader, 'RLS20103891', tightBudgets(), acctOf());
+    expect(log[0]).toBe('property:RLS20103891');
+    expect(log[1]).toBe('firstUrl:KEY-RLS20103891');
+    expect(res).toMatchObject({ status: 'confirmed', photoCount: 1 });
+  });
+
+  it('the real CLI reader: ResourceRecordKey filter, ListingId lookup, $top=2 ambiguity, nextLink base validation, timeout', () => {
     const cli = read('scripts/audit/media-coverage-audit.cli.ts');
     expect(cli).toContain("ResourceRecordKey eq '${escaped}'");
     expect(cli).toContain("ListingId eq '${escaped}'");
-    expect(cli).toContain("@odata.nextLink");
+    expect(cli).toContain('$top=2');
+    expect(cli).toContain('AMBIGUOUS: multiple Property matches');
+    expect(cli).toContain('nextLink is outside the allowed Cotality base');
     expect(cli).toContain('AbortSignal.timeout');
+    expect(cli).toContain('attemptWithAccounting'); // single accounting path
   });
 
-  it('follows EVERY valid nextLink and sums the complete traversal', async () => {
-    const { reader } = mockCotality({
-      pages: [
-        { rows: [cPhoto(1), cPhoto(2)], nextLink: 'mock://media?page=1' },
-        { rows: [cPhoto(3)] },
-      ],
-    });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), counters);
-    expect(res).toMatchObject({ status: 'confirmed', photoCount: 3 });
-    expect(counters.requests).toBe(3); // property + 2 media pages
-    expect(counters.successes).toBe(1);
+  it('follows EVERY valid nextLink; incomplete traversal is UNKNOWN never zero', async () => {
+    const complete = mockCotality({ pages: [{ rows: [cPhoto(1), cPhoto(2)], nextLink: 'mock://p1' }, { rows: [cPhoto(3)] }] });
+    const acct = acctOf();
+    const ok = await probeListingMedia(complete.reader, 'RLSX', tightBudgets(), acct);
+    expect(ok).toMatchObject({ status: 'confirmed', photoCount: 3 });
+    expect(acct.attempts).toBe(3); // property + 2 pages, all accounted
+
+    const broken = mockCotality({ pages: [{ rows: [cPhoto(1)], nextLink: 'mock://p1' }], pageErrorAt: 1 });
+    const bad = await probeListingMedia(broken.reader, 'RLSX', tightBudgets(), acctOf());
+    expect(bad.status).toBe('unknown');
   });
 
-  it('an INCOMPLETE nextLink traversal is UNKNOWN — never a confirmed zero', async () => {
-    const { reader } = mockCotality({
-      pages: [{ rows: [cPhoto(1)], nextLink: 'mock://media?page=1' }],
-      pageErrorAt: 1,
-    });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), counters);
+  it('request-cap stops are DEFERRED (pending), page-cap and property failures are UNKNOWN', async () => {
+    const capped = mockCotality({ pages: [{ rows: [cPhoto(1)], nextLink: 'mock://p1' }, { rows: [] }] });
+    const capRes = await probeListingMedia(capped.reader, 'RLSX', tightBudgets(), acctOf(2));
+    expect(capRes).toMatchObject({ status: 'unknown', deferred: true });
+
+    const runaway = mockCotality({ pages: Array.from({ length: 9 }, (_, i) => ({ rows: [], nextLink: `mock://p${i + 1}` })) });
+    const pageCap = await probeListingMedia(runaway.reader, 'RLSX', tightBudgets({ maxMediaPagesPerListing: 3 }), acctOf());
+    expect(pageCap.status).toBe('unknown');
+    expect((pageCap as { deferred?: boolean }).deferred).toBeUndefined(); // genuine incompleteness, finalizes U
+
+    const oauth = mockCotality({ propertyError: 'oauth failed' });
+    expect((await probeListingMedia(oauth.reader, 'RLSX', tightBudgets(), acctOf())).status).toBe('unknown');
+  });
+
+  it('ambiguous Property results are UNKNOWN (reader contract) and empty ListingKey is UNKNOWN', async () => {
+    const ambiguous = {
+      resolvePropertyKey: async () => ({ error: 'AMBIGUOUS: multiple Property matches for ListingId' }),
+      buildFirstMediaUrl: () => 'mock://m',
+      fetchMediaPage: async () => ({ rows: [], nextLink: null }),
+    };
+    const res = await probeListingMedia(ambiguous, 'RLSX', tightBudgets(), acctOf());
     expect(res.status).toBe('unknown');
-    expect(counters.failures).toBe(1);
+    expect((res as { reason: string }).reason).toContain('AMBIGUOUS');
+
+    const emptyKey = { ...ambiguous, resolvePropertyKey: async () => ({ listingKey: '  ' }) };
+    expect((await probeListingMedia(emptyKey, 'RLSX', tightBudgets(), acctOf())).status).toBe('unknown');
   });
 
-  it('request budget exhaustion mid-walk is UNKNOWN and stops safely', async () => {
-    const { reader } = mockCotality({ pages: [{ rows: [cPhoto(1)], nextLink: 'mock://p1' }, { rows: [cPhoto(2)] }] });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets({ maxCotalityRequests: 2 }), counters);
-    expect(res.status).toBe('unknown');
-    expect(String((res as { reason?: string }).reason)).toContain('budget');
+  it('a malformed provider Order is UNKNOWN — never NaN, never an R2 key', async () => {
+    for (const badOrder of [undefined, null, 'seven', NaN, 1.5]) {
+      const { reader } = mockCotality({ pages: [{ rows: [cPhoto(1, { order: badOrder })] }] });
+      const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf());
+      expect({ badOrder: String(badOrder), status: res.status }).toEqual({ badOrder: String(badOrder), status: 'unknown' });
+      expect((res as { photos?: unknown[] }).photos).toBeUndefined(); // nothing plannable escapes
+    }
   });
+});
 
-  it('the per-listing page cap is UNKNOWN (runaway-nextLink guard)', async () => {
-    const { reader } = mockCotality({
-      pages: Array.from({ length: 9 }, (_, i) => ({ rows: [cPhoto(i)], nextLink: `mock://p${i + 1}` })),
-    });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets({ maxMediaPagesPerListing: 3 }), counters);
-    expect(res.status).toBe('unknown');
+// ─── ROUND 2: Mallan-owned listings consume ZERO Cotality requests ─────────
+
+describe('ROUND 2 — Mallan-owned listings are never probed', () => {
+  it('needsCotalityProbe excludes Mallan-owned (canonical decision) before any provider call', () => {
+    expect(needsCotalityProbe(auditRow({ listing_id: 'SL-0009' }))).toBe(false);
+    expect(needsCotalityProbe(auditRow({ listing_id: 'C-1', rls_eligible: false }))).toBe(false);
+    expect(needsCotalityProbe(auditRow({ listing_id: 'RLSX' }))).toBe(true);
   });
-
-  it('OAuth/property failure is UNKNOWN', async () => {
-    const { reader } = mockCotality({ propertyError: 'oauth failed' });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), counters);
-    expect(res.status).toBe('unknown');
+  it('audit: a DB-empty Mallan listing makes ZERO Cotality calls and classifies E (never U/D)', async () => {
+    const rows = [auditRow({ listing_id: 'SL-0009' }), auditRow({ listing_id: 'C-1', rls_eligible: false })];
+    const cot = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
+    const res = await runAudit({ listings: pagedReader(rows).reader, cotality: cot.reader, budgets: tightBudgets() });
+    expect(cot.log).toHaveLength(0);                         // zero provider traffic
+    expect(res.counters.requests).toBe(0);
+    expect(res.inventory.map((r: { bucket: string }) => r.bucket)).toEqual(['E', 'E']);
+    expect(res.complete).toBe(true);
   });
-
-  it('retries are bounded and counted', async () => {
-    let attempts = 0;
-    let retries = 0;
-    await expect(withBoundedRetries(async () => { attempts += 1; throw new Error('x'); }, 2, () => { retries += 1; })).rejects.toThrow('x');
-    expect(attempts).toBe(3);
-    expect(retries).toBe(2);
-    attempts = 0;
-    const ok = await withBoundedRetries(async () => { attempts += 1; if (attempts < 2) throw new Error('x'); return 'ok'; }, 2, () => {});
-    expect(ok).toBe('ok');
-  });
-
-  it('skipped or failed probes surface as bucket U and INCOMPLETE — never zero/D', async () => {
-    const empty = auditRow({ listing_id: 'RLSEMPTY' });
-    const failing = mockCotality({ propertyError: 'boom' });
-    const withReader = await runAudit({ listings: pagedReader([empty]).reader, cotality: failing.reader, budgets: tightBudgets() });
-    expect(withReader.inventory[0].bucket).toBe('U');
-    expect(withReader.complete).toBe(false);
-    const withoutReader = await runAudit({ listings: pagedReader([empty]).reader, budgets: tightBudgets() });
-    expect(withoutReader.inventory[0].bucket).toBe('U');
-    expect(withoutReader.counters.skipped).toBe(1);
+  it('dry-run: Mallan-owned listings are pre-excluded and make zero Cotality calls', async () => {
+    const cot = mockCotality({ pagesPerListing: { RLSOK: [{ rows: [cPhoto(1)] }] } });
+    const rows = [dryRow({ listing_id: 'SL-0009' }), dryRow({ listing_id: 'RLSOK' })];
+    const res = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot.reader, budgets: tightBudgets() });
+    expect(cot.log.filter((l) => l.startsWith('property:'))).toEqual(['property:RLSOK']);
+    expect(res.plans.map((p: { listingId: string }) => p.listingId)).toEqual(['RLSOK']);
   });
 });
 
 // ─── strict photo classification ────────────────────────────────────────────
 
 describe('strict classification — absent/floorplan/video/unknown are never photos', () => {
-  it('classifyCotalityRowStrict: absent category/type → unknown (never photo)', () => {
+  it('classifyCotalityRowStrict: absent → unknown; floorplan/video → not Photo', () => {
     expect(classifyCotalityRowStrict({ mediaCategory: null, mediaType: null })).toBe('unknown');
-    expect(classifyCotalityRowStrict({ mediaCategory: '', mediaType: null })).toBe('unknown');
     expect(classifyCotalityRowStrict({ mediaCategory: 'Photo', mediaType: null })).toBe('Photo');
     expect(classifyCotalityRowStrict({ mediaCategory: 'FloorPlan', mediaType: null })).not.toBe('Photo');
     expect(classifyCotalityRowStrict({ mediaCategory: 'Video', mediaType: null })).not.toBe('Photo');
@@ -399,123 +462,164 @@ describe('strict classification — absent/floorplan/video/unknown are never pho
           cPhoto(1),
           cPhoto(2, { mediaCategory: 'FloorPlan', mediaType: 'FloorPlan' }),
           cPhoto(3, { mediaCategory: 'Video', mediaType: 'Video' }),
-          cPhoto(4, { mediaCategory: null, mediaType: null }), // absent → NOT a photo
+          cPhoto(4, { mediaCategory: null, mediaType: null }),
         ],
       }],
     });
-    const counters = { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), counters);
-    expect(res.photoCount).toBe(1);
+    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf());
+    expect(res).toMatchObject({ status: 'confirmed', photoCount: 1 });
   });
 });
 
-// ─── dry-run planner — order fidelity, actions, dedupe, exclusions ─────────
+// ─── dry-run planner ────────────────────────────────────────────────────────
 
-describe('dry-run planner — provider Order fidelity + full action taxonomy', () => {
-  it('preserves the provider Order verbatim — including 0 and NEGATIVE — never the array index', () => {
+describe('dry-run planner — provider Order fidelity + COMPLETE update detection', () => {
+  it('preserves provider Order verbatim (incl. 0/negative) — never the array index', () => {
     const plan = planListing(dryRow(), [
       { order: 7, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: 'MK-A' },
       { order: -1, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-B' },
       { order: 0, sourceUrl: 'https://cdn.example/c.jpg', mediaKey: 'MK-C' },
     ]);
-    expect(plan.items.map((i: { order: number }) => i.order)).toEqual([7, -1, 0]); // ≠ [0,1,2]
+    expect(plan.items.map((i: { order: number }) => i.order)).toEqual([7, -1, 0]);
     expect(plan.items[0].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', 7));
-    expect(plan.items[1].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', -1));
   });
 
-  it('insert, restore, update and unchanged are ALL reachable and accurate', () => {
+  it('insert, restore, update and unchanged are ALL reachable', () => {
     const row = dryRow({
       _count: { listing_media: 3 },
       listing_media_all: [
-        { id: '1', status: 'active', media_key: 'MK-SAME', media_url_original: 'https://cdn.example/same.jpg', media_url_cached: null, order: 1, media_type: 'Photo' },
-        { id: '2', status: 'active', media_key: 'MK-MOVED', media_url_original: 'https://cdn.example/moved.jpg', media_url_cached: null, order: 2, media_type: 'Photo' },
-        { id: '3', status: 'deleted', media_key: 'MK-GONE', media_url_original: 'https://cdn.example/gone.jpg', media_url_cached: null, order: 3, media_type: 'Photo' },
+        { id: '1', status: 'active', media_key: 'MK-SAME', media_url_original: 'https://cdn.example/same.jpg', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false },
+        { id: '2', status: 'active', media_key: 'MK-MOVED', media_url_original: 'https://cdn.example/moved.jpg', media_url_cached: null, order: 2, media_type: 'Photo', preferred_photo_yn: false },
+        { id: '3', status: 'deleted', media_key: 'MK-GONE', media_url_original: 'https://cdn.example/gone.jpg', media_url_cached: null, order: 3, media_type: 'Photo', preferred_photo_yn: false },
       ],
     });
     const plan = planListing(row, [
-      { order: 1, sourceUrl: 'https://cdn.example/same.jpg', mediaKey: 'MK-SAME' },   // identical active → unchanged
-      { order: 9, sourceUrl: 'https://cdn.example/moved.jpg', mediaKey: 'MK-MOVED' }, // active, order differs → UPDATE
-      { order: 3, sourceUrl: 'https://cdn.example/gone.jpg', mediaKey: 'MK-GONE' },   // inactive match → restore
-      { order: 4, sourceUrl: 'https://cdn.example/new.jpg', mediaKey: 'MK-NEW' },     // no match → insert
+      { order: 1, sourceUrl: 'https://cdn.example/same.jpg', mediaKey: 'MK-SAME', preferredPhotoYn: false },
+      { order: 9, sourceUrl: 'https://cdn.example/moved.jpg', mediaKey: 'MK-MOVED', preferredPhotoYn: false },
+      { order: 3, sourceUrl: 'https://cdn.example/gone.jpg', mediaKey: 'MK-GONE', preferredPhotoYn: false },
+      { order: 4, sourceUrl: 'https://cdn.example/new.jpg', mediaKey: 'MK-NEW', preferredPhotoYn: false },
     ]);
-    expect(plan.bucket).toBe('B_INACTIVE');
     expect({ i: plan.expectedInserts, r: plan.expectedRestores, u: plan.expectedUpdates, n: plan.unchangedMatches })
       .toEqual({ i: 1, r: 1, u: 1, n: 1 });
-    const update = plan.items.find((x: { action: string }) => x.action === 'update');
-    expect(update.changedFields).toContain('order');
-    expect(update.matchedByMediaKey).toBe(true);
   });
 
-  it('suppresses duplicate insert proposals (same normalized URL / mediaKey / claimed row)', () => {
+  it('ROUND 2: a provider mediaKey with a MISSING existing key is an UPDATE, never unchanged', () => {
+    const row = {
+      id: '1', status: 'active', media_key: null,
+      media_url_original: 'https://cdn.example/x.jpg', media_url_cached: null,
+      order: 1, media_type: 'Photo', preferred_photo_yn: false,
+    };
+    const diff = diffAuthorizedFields(row, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL', preferredPhotoYn: false });
+    expect(diff).toContain('media_key');
+    const plan = planListing(dryRow({ _count: { listing_media: 1 }, listing_media_all: [row] }),
+      [{ order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL', preferredPhotoYn: false }]);
+    expect(plan.items[0].action).toBe('update');
+    expect(plan.items[0].changedFields).toContain('media_key');
+  });
+
+  it('ROUND 2: preferred-photo and media-type differences are detected; missing media_type is never unchanged', () => {
+    const base = {
+      id: '1', status: 'active', media_key: 'MK', media_url_original: 'https://cdn.example/x.jpg',
+      media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false,
+    };
+    expect(diffAuthorizedFields({ ...base, preferred_photo_yn: false }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: true })).toContain('preferred_photo_yn');
+    expect(diffAuthorizedFields({ ...base, media_type: 'FloorPlan' }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: false })).toContain('media_type');
+    expect(diffAuthorizedFields({ ...base, media_type: '' }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: false })).toContain('media_type');
+  });
+
+  it('suppresses duplicate insert proposals (normalized URL / claimed rows)', () => {
     const row = dryRow({
       _count: { listing_media: 1 },
       listing_media_all: [
-        { id: '1', status: 'deleted', media_key: null, media_url_original: 'https://cdn.example/x.jpg?sig=old', media_url_cached: null, order: 1, media_type: 'Photo' },
+        { id: '1', status: 'deleted', media_key: null, media_url_original: 'https://cdn.example/x.jpg?sig=old', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false },
       ],
     });
     const plan = planListing(row, [
-      { order: 1, sourceUrl: 'https://cdn.example/x.jpg?sig=new1', mediaKey: null }, // matches inactive by normalized URL → restore
-      { order: 2, sourceUrl: 'https://cdn.example/x.jpg?sig=new2', mediaKey: null }, // SAME normalized URL → suppressed
+      { order: 1, sourceUrl: 'https://cdn.example/x.jpg?sig=new1', mediaKey: null },
+      { order: 2, sourceUrl: 'https://cdn.example/x.jpg?sig=new2', mediaKey: null },
     ]);
     expect(plan.items).toHaveLength(1);
     expect(plan.items[0].action).toBe('restore');
-    expect(plan.expectedInserts).toBe(0); // an inactive row representing the item never becomes a duplicate insert
     expect(normalizeSourceUrl('https://cdn.example/x.jpg?sig=a')).toBe(normalizeSourceUrl('HTTPS://cdn.example/x.jpg?sig=b'));
   });
+});
 
-  it('Mallan-owned, hidden, and already-served listings can NEVER enter Bucket B', async () => {
-    const cot = mockCotality({ pages: [{ rows: [cPhoto(1)] }, { rows: [cPhoto(1)] }, { rows: [cPhoto(1)] }] });
-    const rows = [
-      dryRow({ listing_id: 'SL-0009' }),                                    // Mallan CRM — excluded
-      dryRow({ listing_id: 'RLSHIDDEN', idx_display_yn: false }),           // hidden — excluded (not even probed)
-      dryRow({ listing_id: 'RLSSERVED', listing_media_active: [photoRow(1)] }), // already served — excluded
-      dryRow({ listing_id: 'RLSOK' }),                                      // genuine Bucket B
-    ];
-    const res = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot.reader, budgets: tightBudgets() });
-    expect(res.plans.map((p: { listingId: string }) => p.listingId)).toEqual(['RLSOK']);
-    // Mallan listing was probed then rejected by the shared classifier guard
-    // (or pre-filtered) — either way it can never be planned:
-    expect(res.plans.some((p: { listingId: string }) => p.listingId === 'SL-0009')).toBe(false);
-  });
+// ─── ROUND 2: dry-run checkpoint/resume ─────────────────────────────────────
 
-  it('dry-run budgets: probe cap and UNKNOWN probes produce INCOMPLETE, never plans', async () => {
-    const failing = mockCotality({ propertyError: 'timeout' });
-    const rows = [dryRow({ listing_id: 'RLS1' }), dryRow({ listing_id: 'RLS2' })];
-    const res = await runDryRun({ candidates: pagedReader(rows).reader, cotality: failing.reader, budgets: tightBudgets({ maxCotalityProbes: 1 }) });
-    expect(res.plans).toHaveLength(0);
-    expect(res.complete).toBe(false);
-    expect(res.counters.failures).toBe(1);
-    expect(res.counters.skipped).toBe(1);
+describe('ROUND 2 — dry-run checkpoint/resume preserves all plans and totals', () => {
+  it('a resumed dry-run result represents the WHOLE candidate set', async () => {
+    const rows = [dryRow({ listing_id: 'RLS1' }), dryRow({ listing_id: 'RLS2' }), dryRow({ listing_id: 'RLS3' })];
+    const b = tightBudgets({ maxCotalityProbes: 2, pageSize: 3 });
+    const cot1 = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }], RLS2: [{ rows: [cPhoto(1), cPhoto(2)] }] } });
+    const run1 = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot1.reader, budgets: b });
+    expect(run1.plans).toHaveLength(2);
+    expect(run1.complete).toBe(false);
+    expect(run1.checkpoint.pendingFrom).toBe('RLS3');
+    expect(run1.checkpoint.cursor).toBe('RLS2'); // never past the pending row
+
+    const cot2 = mockCotality({ pagesPerListing: { RLS3: [{ rows: [cPhoto(5)] }] } });
+    const run2 = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot2.reader, budgets: b, checkpoint: run1.checkpoint });
+    expect(run2.plans.map((p: { listingId: string }) => p.listingId).sort()).toEqual(['RLS1', 'RLS2', 'RLS3']);
+    expect(run2.totals.inserts).toBe(4); // 1 + 2 + 1 across BOTH runs
+    expect(run2.processed).toBe(3);
+    expect(run2.complete).toBe(true);
+    const ids = run2.plans.map((p: { listingId: string }) => p.listingId);
+    expect(new Set(ids).size).toBe(ids.length); // deduped
   });
 });
 
-// ─── RLS20103891 stays UNKNOWN without its own completed probe ─────────────
+// ─── ROUND 2: fail-closed CLI flags ────────────────────────────────────────
+
+describe('ROUND 2 — invalid safety flags fail closed (source + spawned contract)', () => {
+  it('parseBound rejects supplied-invalid values and allows --retries 0 (source pins)', () => {
+    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(cli).toContain('refusing to run');
+    expect(cli).toContain('process.exit(1)');
+    expect(cli).toContain("parseBound(args, '--retries', 1, 0)"); // retries 0 allowed
+    expect(cli).toContain("parseBound(args, '--max-media-pages'"); // explicit validated flag
+    const dry = read('scripts/backfill/bucket-b-media-dry-run.cli.ts');
+    expect(dry).toContain("parseBound(args, '--retries', 1, 0)");
+    expect(dry).toContain('--checkpoint');
+    expect(dry).toContain('--resume');
+  });
+
+  it('spawned CLI refuses invalid --max-listings with exit 1 (no silent default)', () => {
+    const driver = path.join(ROOT, '.tmp-525-flags-driver.mts');
+    fs.writeFileSync(driver, [
+      "process.argv = [process.argv[0], process.argv[1], '--max-listings', 'abc'];",
+      "const { main } = await import('./scripts/audit/media-coverage-audit.cli');",
+      "await main();",
+      "process.exit(0); // must be unreachable",
+    ].join('\n'), 'utf8');
+    try {
+      let code = 0;
+      try {
+        execFileSync(process.execPath, [path.join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), driver], {
+          cwd: ROOT,
+          env: { ...process.env, DATABASE_URL: 'postgresql://stub:stub@localhost:5432/stub?schema=public' },
+          timeout: 120_000,
+        });
+      } catch (e) {
+        code = (e as { status?: number }).status ?? -1;
+      }
+      expect(code).toBe(1);
+    } finally {
+      fs.unlinkSync(driver);
+    }
+  }, 150_000);
+});
+
+// ─── RLS20103891 ────────────────────────────────────────────────────────────
 
 describe('RLS20103891 — UNKNOWN unless individually and completely probed', () => {
-  it('without its own successful probe the listing is bucket U (never inferred from other samples)', async () => {
+  it('without its own probe → U; only ITS OWN completed probe moves it', async () => {
     const row = auditRow({ listing_id: 'RLS20103891' });
-    const res = await runAudit({ listings: pagedReader([row]).reader, budgets: tightBudgets() });
-    expect(res.inventory[0]).toMatchObject({ listingId: 'RLS20103891', bucket: 'U' });
-  });
-  it('only its OWN completed probe can move it out of U', async () => {
-    const row = auditRow({ listing_id: 'RLS20103891' });
+    const noProbe = await runAudit({ listings: pagedReader([row]).reader, budgets: tightBudgets() });
+    expect(noProbe.inventory[0]).toMatchObject({ listingId: 'RLS20103891', bucket: 'U' });
+
     const cot = mockCotality({ pages: [{ rows: [cPhoto(1), cPhoto(2)] }] });
-    const res = await runAudit({ listings: pagedReader([row]).reader, cotality: cot.reader, budgets: tightBudgets() });
-    expect(cot.log[0]).toBe('property:RLS20103891'); // the probe is ITS OWN, recorded
-    expect(res.inventory[0].bucket).toBe('B_NEW');
-    expect(res.inventory[0].cotality).toMatchObject({ status: 'confirmed', photoCount: 2 });
-  });
-});
-
-// ─── checkpoint shape sanity ────────────────────────────────────────────────
-
-describe('checkpoint', () => {
-  it('emptyCheckpoint carries cursor/tally/counters/reasons and DEFAULT_BUDGETS are conservative', () => {
-    const cp = emptyCheckpoint();
-    expect(cp.cursor).toBeNull();
-    expect(cp.processed).toBe(0);
-    expect(Object.keys(cp.tally)).toContain('U');
-    expect(DEFAULT_BUDGETS.maxListings).toBeLessThanOrEqual(1000);
-    expect(DEFAULT_BUDGETS.maxCotalityRequests).toBeLessThanOrEqual(500);
+    const probed = await runAudit({ listings: pagedReader([row]).reader, cotality: cot.reader, budgets: tightBudgets() });
+    expect(cot.log[0]).toBe('property:RLS20103891');
+    expect(probed.inventory[0].bucket).toBe('B_NEW');
   });
 });

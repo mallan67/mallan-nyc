@@ -49,6 +49,14 @@ describe('classifyMediaCoverage — buckets incl. tri-state Cotality', () => {
     expect(classifyMediaCoverage(base({ cotality: confirmed(0) }))).toBe('D');
   });
 
+  it('ROUND 2: Mallan-owned can NEVER be U or D — even never-imported, even probe-less', () => {
+    // Mallan media is never Cotality-sourced, so an unperformed probe must not
+    // put a Mallan listing into U, and a confirmed-zero must not put it in D.
+    expect(classifyMediaCoverage(base({ listingId: 'SL-0004', allStatusRowCount: 0, cotality: UNKNOWN }))).toBe('E');
+    expect(classifyMediaCoverage(base({ listingId: 'RL-0007', allStatusRowCount: 0, cotality: confirmed(0) }))).toBe('E');
+    expect(classifyMediaCoverage(base({ rlsEligible: false, allStatusRowCount: 0, cotality: UNKNOWN }))).toBe('E');
+  });
+
   it('a Cotality error/timeout is UNKNOWN → U, NEVER coerced to D', () => {
     expect(classifyMediaCoverage(base({ cotality: { status: 'unknown', reason: 'HTTP 503' } }))).toBe('U');
   });

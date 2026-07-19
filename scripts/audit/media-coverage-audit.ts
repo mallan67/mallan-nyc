@@ -1,46 +1,51 @@
 // scripts/audit/media-coverage-audit.ts
 //
 // READ-ONLY media-coverage audit LOGIC (re-derived + hardened 2026-07-19 on
-// post-#539 main; reference: old PR #525 @ d7303a2f). Pure, injectable,
-// testable — the tsx entry point is media-coverage-audit.cli.ts.
+// post-#539 main; reference: old PR #525 @ d7303a2f; correction round 2 per
+// Maya's #540 review). Pure, injectable, testable — the tsx entry point is
+// media-coverage-audit.cli.ts.
 //
-// HARDENING vs the 2026-07-16 original (Maya's #525 re-derivation order):
-//   • BOUNDED NEON READING — no unbounded findMany. Keyset cursor pagination
-//     (listing_id asc, deterministic), explicit page size, explicit maximum
-//     listings, overall time budget, resumable checkpoint, and an INCOMPLETE
-//     result whenever any limit stops the run (never silently "full audit").
-//   • BOUNDED COTALITY READING — configurable max probes, max total requests,
-//     bounded concurrency, per-request timeout + bounded retries (in the CLI
-//     reader), overall runtime budget, full request/success/failure/retry/skip
-//     accounting. OAuth failure, timeout, provider error, pagination failure,
-//     skipped probe, budget exhaustion, or an interrupted run stays UNKNOWN —
-//     NEVER coerced to a zero count (that would mislabel Bucket B as D).
-//   • COTALITY KEYING — the proven production model: resolve the Property
-//     record FIRST, take its actual ListingKey, query Media with
-//     ResourceRecordKey eq '<ListingKey>', preserve the provider's actual
-//     Order value, follow every valid @odata.nextLink, and classify an
-//     incomplete traversal as UNKNOWN.
-//   • STRICT PHOTO CLASSIFICATION — a Cotality Media row counts as a photo
-//     ONLY when its category/type is PRESENT and canonically classifies to
-//     Photo. This deliberately DIVERGES from the lenient production ingest
-//     default (classifyTrestleMediaCategory(null) → "Photo") because audit
-//     counting must be conservative: an absent category is 'unknown', never
-//     a photo. Floorplans, videos, virtual tours and unknown records are
-//     never counted as photos.
-//   • READ-ONLY GUARANTEE — logic modules receive injected READ-ONLY reader
-//     interfaces (ListingPageReader / CotalityMediaReader) that expose no
-//     create/update/upsert/delete/raw/R2 method at the type level.
+// PROOF-INTEGRITY MODEL (the round-2 corrections):
+//   • PER-RUN budgets vs CUMULATIVE checkpoint totals are SEPARATE. Every
+//     invocation gets fresh per-run counters (listings, probes, HTTP request
+//     attempts, retries, elapsed time); the checkpoint accumulates totals.
+//     Resuming with the SAME --max-listings / --max-requests continues after
+//     the prior cursor instead of stopping immediately.
+//   • PENDING rows are never finalized by a budget stop. When the probe /
+//     request / time budget runs out at row i, rows [0..i-1] finalize, the
+//     cursor stops at row i-1, and row i (and everything after) stays
+//     PENDING — a resumed run re-fetches it first and can turn it into a
+//     confirmed classification. The cursor NEVER advances past an unresolved
+//     row. (Genuine provider ERRORS still finalize as U with an incomplete
+//     reason — only budget stops defer.)
+//   • The checkpoint carries the CUMULATIVE deduplicated inventory (schema
+//     version + mode + cursor), validated before resume; processed == tally
+//     sum == inventory length always reconcile.
+//   • ONE authoritative Cotality accounting path: a RequestAccountant is the
+//     only way an HTTP attempt happens — EVERY attempt (including every
+//     retry) consumes the per-run request cap and is counted in the returned
+//     counters. The transport cannot exceed the cap.
+//
+// Plus round-1 rules: canonical ownership (isMallanExclusiveListing — and
+// Mallan-owned listings are excluded BEFORE any probe, consuming ZERO
+// Cotality requests, classifying E, never U/D) · canonical display gate ·
+// production media classifier for DB counts · STRICT probe classification
+// (absent category/type is never a photo) · Property → ACTUAL ListingKey →
+// Media by ResourceRecordKey with full nextLink traversal (ambiguous or
+// zero Property matches ⇒ UNKNOWN; malformed provider Order ⇒ UNKNOWN,
+// never NaN) · fail-closed everywhere.
 //
 // ZERO writes. There is no apply flag of any kind.
 
 import { isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
 import { resolveListingMediaFromRows, getPhotoGallery, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
 import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 import {
-  classifyMediaCoverage, emptyTally,
+  classifyMediaCoverage, emptyTally, isMallanOwnedCoverage,
   type BucketTally, type ListingCoverageInput, type CotalityProbe, type MediaCoverageBucket,
 } from '@/lib/media/media-coverage-bucket';
+
+export const CHECKPOINT_VERSION = 2;
 
 // ─── Read-only injected interfaces ──────────────────────────────────────────
 
@@ -62,7 +67,7 @@ export interface AuditListingRow {
 
 /** READ-ONLY Neon page reader. The ONLY database capability the audit logic
  *  can reach — no mutation method exists on this type. `cursor` is the last
- *  processed listing_id (exclusive); ordering MUST be listing_id asc. */
+ *  FINALIZED listing_id (exclusive); ordering MUST be listing_id asc. */
 export interface ListingPageReader {
   fetchPage(cursor: string | null, pageSize: number): Promise<AuditListingRow[]>;
 }
@@ -72,45 +77,70 @@ export interface CotalityMediaRow {
   mediaKey: string | null;
   mediaCategory: string | null;
   mediaType?: string | null;
-  /** The provider's ACTUAL Order value — preserved verbatim (may be 0, >0, or
-   *  negative). NEVER manufactured from an array index. */
-  order: number;
+  /** The provider's ACTUAL Order value — preserved verbatim. May arrive
+   *  malformed; the probe REJECTS non-finite/non-integer values as UNKNOWN. */
+  order: unknown;
   mediaUrl: string;
   preferredPhotoYn?: boolean | null;
   mediaStatus?: string | null;
 }
 
-/** READ-ONLY Cotality reader (the CLI wires the real authenticated GETs with
- *  per-request timeout + bounded retries; tests inject mocks). No method on
- *  this type can mutate anything anywhere. */
-export interface CotalityMediaReader {
-  /** Resolve the Property record for an RLS listing id and return its ACTUAL
-   *  ListingKey. Errors are returned, never thrown. */
-  resolvePropertyKey(listingId: string): Promise<{ listingKey: string } | { error: string }>;
-  /** The first Media page URL for a resolved ListingKey — the implementation
-   *  MUST filter `ResourceRecordKey eq '<listingKey>'`. */
-  buildFirstMediaUrl(listingKey: string): string;
-  /** Fetch one Media page (first URL or a returned @odata.nextLink). Errors
-   *  are returned, never thrown. */
-  fetchMediaPage(url: string): Promise<{ rows: CotalityMediaRow[]; nextLink: string | null } | { error: string }>;
+/**
+ * The ONLY authoritative Cotality request-accounting path. Every actual HTTP
+ * attempt — including every retry — MUST go through consume(); when it
+ * returns false the cap is reached and NO request may be made.
+ */
+export interface RequestAccountant {
+  /** Try to consume one HTTP attempt from the per-run cap. */
+  consume(): boolean;
+  /** Record that the attempt just consumed was a RETRY. */
+  countRetry(): void;
+  readonly attempts: number;
+  readonly retries: number;
 }
 
-// ─── Budgets, counters, checkpoint ──────────────────────────────────────────
+export function makeAccountant(maxAttempts: number): RequestAccountant {
+  let attempts = 0;
+  let retries = 0;
+  return {
+    consume() {
+      if (attempts >= maxAttempts) return false;
+      attempts += 1;
+      return true;
+    },
+    countRetry() { retries += 1; },
+    get attempts() { return attempts; },
+    get retries() { return retries; },
+  };
+}
+
+/** READ-ONLY Cotality reader. Implementations receive the accountant and MUST
+ *  route every HTTP attempt (incl. retries) through it. Errors are returned,
+ *  never thrown. A cap-stop is returned as { deferred: true }. */
+export interface CotalityMediaReader {
+  resolvePropertyKey(listingId: string, acct: RequestAccountant):
+    Promise<{ listingKey: string } | { error: string; deferred?: boolean }>;
+  buildFirstMediaUrl(listingKey: string): string;
+  fetchMediaPage(url: string, acct: RequestAccountant):
+    Promise<{ rows: CotalityMediaRow[]; nextLink: string | null } | { error: string; deferred?: boolean }>;
+}
+
+// ─── Budgets (ALL per-run) ──────────────────────────────────────────────────
 
 export interface AuditBudgets {
   /** Neon keyset page size (rows per fetchPage call). */
   pageSize: number;
-  /** Maximum listings processed this run — reaching it ⇒ INCOMPLETE. */
+  /** Maximum listings FINALIZED this run — reaching it defers the rest. */
   maxListings: number;
-  /** Maximum listings probed against Cotality this run. */
+  /** Maximum probes attempted this run. */
   maxCotalityProbes: number;
-  /** Maximum TOTAL Cotality requests (property lookups + media pages). */
+  /** Maximum TOTAL Cotality HTTP attempts this run (lookups + pages + RETRIES). */
   maxCotalityRequests: number;
   /** Bounded probe concurrency (wave size). */
   cotalityConcurrency: number;
   /** Hard cap on media pages traversed per listing (runaway-nextLink guard). */
   maxMediaPagesPerListing: number;
-  /** Overall run time budget in ms — exceeding it ⇒ INCOMPLETE. */
+  /** Overall run time budget in ms — exceeding it defers the rest. */
   runTimeBudgetMs: number;
 }
 
@@ -124,30 +154,63 @@ export const DEFAULT_BUDGETS: AuditBudgets = {
   runTimeBudgetMs: 10 * 60 * 1000,
 };
 
+// ─── Cumulative counters + checkpoint ───────────────────────────────────────
+
 export interface CotalityCounters {
-  requests: number;
-  successes: number; // completed probes (confirmed count, pagination complete)
-  failures: number;  // probes that ended UNKNOWN from an error/incomplete page walk
-  retries: number;   // transport retries (reported by the CLI reader via onRetry)
-  skipped: number;   // probes not attempted (budget exhausted / no reader)
+  requests: number;  // cumulative HTTP attempts (incl. retries)
+  successes: number; // completed probes
+  failures: number;  // probes finalized UNKNOWN from a genuine error
+  retries: number;   // cumulative transport retries
+  skipped: number;   // probes finalized UNKNOWN because no reader was supplied
 }
 
 export function emptyCounters(): CotalityCounters {
   return { requests: 0, successes: 0, failures: 0, retries: 0, skipped: 0 };
 }
 
-/** Resumable checkpoint — everything needed to continue WITHOUT repeating
- *  completed pages. Persisted by the CLI between runs (opaque to this module). */
+export interface InventoryRow {
+  listingId: string;
+  displayable: boolean;
+  ownership: 'mallan-owned' | 'third-party';
+  activeUsablePhotoCount: number;
+  allStatusRowCount: number;
+  legacyUsablePhotoCount: number;
+  cotality: CotalityProbe;
+  bucket: MediaCoverageBucket;
+}
+
+/** Resumable checkpoint: cumulative totals + the FULL deduplicated inventory.
+ *  Validated (version/mode/reconciliation) before any resume. */
 export interface AuditCheckpoint {
-  cursor: string | null; // last processed listing_id (exclusive)
-  processed: number;
-  tally: BucketTally;
-  counters: CotalityCounters;
-  incompleteReasons: string[];
+  version: number;
+  mode: 'audit';
+  cursor: string | null;   // last FINALIZED listing_id (exclusive)
+  processed: number;       // cumulative finalized listings
+  tally: BucketTally;      // cumulative
+  counters: CotalityCounters; // cumulative
+  inventory: InventoryRow[];  // cumulative, deduped by listingId
+  /** First listing left pending by the last run's budget stop (reporting only —
+   *  resume re-fetches it via the cursor). */
+  pendingFrom: string | null;
 }
 
 export function emptyCheckpoint(): AuditCheckpoint {
-  return { cursor: null, processed: 0, tally: emptyTally(), counters: emptyCounters(), incompleteReasons: [] };
+  return {
+    version: CHECKPOINT_VERSION, mode: 'audit', cursor: null, processed: 0,
+    tally: emptyTally(), counters: emptyCounters(), inventory: [], pendingFrom: null,
+  };
+}
+
+/** Fail-closed checkpoint validation before resume: schema version, mode, and
+ *  processed == inventory length == tally sum must all reconcile. Throws. */
+export function validateCheckpoint(cp: AuditCheckpoint, mode: 'audit'): void {
+  if (!cp || cp.version !== CHECKPOINT_VERSION) throw new Error(`checkpoint version mismatch (want ${CHECKPOINT_VERSION})`);
+  if (cp.mode !== mode) throw new Error(`checkpoint mode '${cp.mode}' is not '${mode}'`);
+  const tallySum = Object.values(cp.tally).reduce((s, n) => s + n, 0);
+  const ids = new Set(cp.inventory.map((r) => r.listingId));
+  if (cp.processed !== cp.inventory.length || cp.processed !== tallySum || ids.size !== cp.inventory.length) {
+    throw new Error(`checkpoint does not reconcile: processed=${cp.processed} inventory=${cp.inventory.length} tallySum=${tallySum} uniqueIds=${ids.size}`);
+  }
 }
 
 // ─── Strict audit-side photo classification ────────────────────────────────
@@ -165,89 +228,67 @@ export function classifyCotalityRowStrict(row: Pick<CotalityMediaRow, 'mediaCate
   return classifyTrestleMediaCategory(String(source));
 }
 
-// ─── Bounded Cotality probe (Property → ListingKey → Media, nextLink-safe) ──
+// ─── Bounded Cotality probe ────────────────────────────────────────────────
 
-export interface ProbeResultPhotos extends Array<{ order: number; sourceUrl: string; mediaKey: string | null }> {}
+export interface CotalityPhotoItem { order: number; sourceUrl: string; mediaKey: string | null; preferredPhotoYn: boolean | null; }
 
-export type ProbeOutcome = (CotalityProbe & { photos?: ProbeResultPhotos });
+export type ProbeOutcome =
+  | { status: 'confirmed'; photoCount: number; photos: CotalityPhotoItem[] }
+  | { status: 'unknown'; reason: string; deferred?: boolean };
 
 /**
  * Probe ONE listing's media against live Cotality, fail-closed:
- *   1. Property lookup by ListingId → ACTUAL ListingKey (1 request).
- *   2. Media pages by ResourceRecordKey eq '<ListingKey>' following EVERY
- *      valid @odata.nextLink (1 request per page, capped).
- * ANY error, an exhausted request budget mid-walk, or a page cap hit ⇒
- * { status: 'unknown' } — an incomplete traversal is NEVER a confirmed zero.
+ *   Property lookup (ambiguous/zero matches ⇒ UNKNOWN) → ACTUAL ListingKey →
+ *   Media pages by ResourceRecordKey following EVERY valid nextLink.
+ * A cap/budget stop is returned as deferred (the caller keeps the listing
+ * PENDING); any genuine error or malformed provider Order ⇒ UNKNOWN — an
+ * incomplete traversal is NEVER a confirmed zero and NaN never propagates.
  */
 export async function probeListingMedia(
   reader: CotalityMediaReader,
   listingId: string,
   budgets: AuditBudgets,
-  counters: CotalityCounters,
+  acct: RequestAccountant,
 ): Promise<ProbeOutcome> {
-  if (counters.requests >= budgets.maxCotalityRequests) {
-    counters.skipped += 1;
-    return { status: 'unknown', reason: 'cotality request budget exhausted before probe' };
-  }
-  counters.requests += 1;
-  const keyRes = await reader.resolvePropertyKey(listingId);
+  const keyRes = await reader.resolvePropertyKey(listingId, acct);
   if ('error' in keyRes) {
-    counters.failures += 1;
-    return { status: 'unknown', reason: `property lookup failed: ${keyRes.error}` };
+    return { status: 'unknown', reason: `property lookup: ${keyRes.error}`, deferred: keyRes.deferred };
+  }
+  if (!keyRes.listingKey || String(keyRes.listingKey).trim() === '') {
+    return { status: 'unknown', reason: 'property lookup returned an empty ListingKey' };
   }
 
-  const photos: ProbeResultPhotos = [];
-  let nonPhotoRows = 0;
+  const photos: CotalityPhotoItem[] = [];
   let url: string | null = reader.buildFirstMediaUrl(keyRes.listingKey);
   let pages = 0;
   while (url) {
     if (pages >= budgets.maxMediaPagesPerListing) {
-      counters.failures += 1;
       return { status: 'unknown', reason: `media pagination exceeded ${budgets.maxMediaPagesPerListing} pages — incomplete, not zero` };
     }
-    if (counters.requests >= budgets.maxCotalityRequests) {
-      counters.failures += 1;
-      return { status: 'unknown', reason: 'cotality request budget exhausted mid-pagination — incomplete, not zero' };
-    }
-    counters.requests += 1;
     pages += 1;
-    const page = await reader.fetchMediaPage(url);
+    const page = await reader.fetchMediaPage(url, acct);
     if ('error' in page) {
-      counters.failures += 1;
-      return { status: 'unknown', reason: `media page fetch failed: ${page.error}` };
+      return { status: 'unknown', reason: `media page: ${page.error}`, deferred: page.deferred };
     }
     for (const row of page.rows) {
-      if (classifyCotalityRowStrict(row) === 'Photo') {
-        // Provider Order preserved VERBATIM — never the array index.
-        photos.push({ order: row.order, sourceUrl: row.mediaUrl, mediaKey: row.mediaKey ?? null });
-      } else {
-        nonPhotoRows += 1;
+      if (classifyCotalityRowStrict(row) !== 'Photo') continue;
+      // Provider Order must be a finite integer — malformed Order is UNKNOWN
+      // and can never reach a plan or an R2 key.
+      if (typeof row.order !== 'number' || !Number.isFinite(row.order) || !Number.isInteger(row.order)) {
+        return { status: 'unknown', reason: `malformed provider Order (${String(row.order)}) — cannot trust the media set` };
       }
+      photos.push({ order: row.order, sourceUrl: row.mediaUrl, mediaKey: row.mediaKey ?? null, preferredPhotoYn: row.preferredPhotoYn ?? null });
     }
     url = page.nextLink;
   }
-  void nonPhotoRows; // tracked for future reporting; photos are the audit signal
-  counters.successes += 1;
   return { status: 'confirmed', photoCount: photos.length, photos };
 }
 
-// ─── Inventory construction (canonical gates + production classifier) ──────
-
-export interface InventoryRow {
-  listingId: string;
-  displayable: boolean;
-  ownership: 'mallan-owned' | 'third-party';
-  activeUsablePhotoCount: number;
-  allStatusRowCount: number;
-  legacyUsablePhotoCount: number;
-  cotality: CotalityProbe;
-  bucket: MediaCoverageBucket;
-}
+// ─── Inventory construction ────────────────────────────────────────────────
 
 /** PURE: build the classifier input + inventory record from one DB row + probe.
- *  Uses the CANONICAL display gate and the PRODUCTION media classifier. The
- *  ownership label comes from the SAME classifier module that delegates to the
- *  canonical isMallanExclusiveListing (PR #539 parity). */
+ *  Uses the CANONICAL display gate and the PRODUCTION media classifier; the
+ *  ownership label is the REAL canonical helper (PR #539 parity). */
 export function buildInventoryRow(row: AuditListingRow, cotality: CotalityProbe): InventoryRow {
   const displayable = isListingDisplayable({
     idx_display_yn: row.idx_display_yn,
@@ -270,48 +311,58 @@ export function buildInventoryRow(row: AuditListingRow, cotality: CotalityProbe)
     legacyUsablePhotoCount,
     cotality,
   };
-  const bucket = classifyMediaCoverage(input);
   return {
     listingId: row.listing_id,
     displayable,
-    // Ownership label = the REAL canonical helper, called directly (PR #539
-    // parity) — never a duplicated or approximated formula. agent_id /
-    // owner_client_id do not exist on this row shape and can never matter.
-    ownership: isMallanExclusiveListing({ listing_id: row.listing_id, rls_eligible: row.rls_eligible })
-      ? 'mallan-owned' : 'third-party',
+    ownership: isMallanOwnedCoverage(input) ? 'mallan-owned' : 'third-party',
     activeUsablePhotoCount,
     allStatusRowCount: input.allStatusRowCount,
     legacyUsablePhotoCount,
     cotality,
-    bucket,
+    bucket: classifyMediaCoverage(input),
   };
+}
+
+/** Does this row need a live probe? Mallan-owned listings NEVER do — they
+ *  classify E without a probe and must consume zero Cotality requests. */
+export function needsCotalityProbe(row: AuditListingRow): boolean {
+  const provisional = buildInventoryRow(row, { status: 'unknown', reason: 'pre-check' });
+  if (!provisional.displayable) return false;
+  if (provisional.activeUsablePhotoCount > 0 || provisional.legacyUsablePhotoCount > 0) return false;
+  if (isMallanOwnedCoverage({ listingId: row.listing_id, rlsEligible: row.rls_eligible })) return false;
+  return true;
 }
 
 // ─── The bounded, resumable audit ──────────────────────────────────────────
 
+export interface RunCounters {
+  listingsFinalized: number;
+  probesAttempted: number;
+  requestAttempts: number;
+  retries: number;
+  elapsedMs: number;
+}
+
 export interface AuditDeps {
   listings: ListingPageReader;
-  /** LIVE read-only Cotality reader. Present ⇒ --with-cotality. Absent ⇒ probes
-   *  are skipped and DB-empty listings become UNKNOWN (never B/D). */
   cotality?: CotalityMediaReader;
   budgets?: Partial<AuditBudgets>;
-  /** Resume from a prior run's checkpoint (completed pages are NOT repeated). */
   checkpoint?: AuditCheckpoint;
-  /** Called after every completed page with the up-to-date checkpoint. */
   saveCheckpoint?: (cp: AuditCheckpoint) => void | Promise<void>;
-  /** Injectable clock for the time budget (tests). */
   now?: () => number;
 }
 
 export interface AuditResult {
-  /** true ⇔ the WHOLE candidate set was processed within every budget. */
+  /** true ⇔ the whole candidate set is finalized AND no probe ever errored. */
   complete: boolean;
-  /** Why the run stopped early / cannot be treated as a full audit. */
   incompleteReasons: string[];
+  /** CUMULATIVE (checkpoint-carried) values — inventory covers EVERY
+   *  cumulatively processed listing, deduped, reconciling with processed. */
   processed: number;
   tally: BucketTally;
   inventory: InventoryRow[];
   counters: CotalityCounters;
+  runCounters: RunCounters;
   checkpoint: AuditCheckpoint;
 }
 
@@ -320,99 +371,133 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   const now = deps.now ?? (() => Date.now());
   const startedAt = now();
   const cp: AuditCheckpoint = deps.checkpoint
-    ? { ...deps.checkpoint, tally: { ...deps.checkpoint.tally }, counters: { ...deps.checkpoint.counters }, incompleteReasons: [...deps.checkpoint.incompleteReasons] }
+    ? JSON.parse(JSON.stringify(deps.checkpoint)) as AuditCheckpoint
     : emptyCheckpoint();
-  const inventory: InventoryRow[] = [];
-  // Budget-stop reasons from a PRIOR run are not inherited — a resumed run
-  // that finishes the remainder is cumulatively complete. Counter-derived
-  // reasons (probe failures/skips) are re-derived below from the cumulative
-  // counters the checkpoint carries.
+  if (deps.checkpoint) validateCheckpoint(cp, 'audit');
+  const seen = new Set(cp.inventory.map((r) => r.listingId));
   const reasons = new Set<string>();
-  let probesAttempted = 0;
+  const acct = makeAccountant(budgets.maxCotalityRequests); // PER-RUN cap
+  const run: RunCounters = { listingsFinalized: 0, probesAttempted: 0, requestAttempts: 0, retries: 0, elapsedMs: 0 };
+  cp.pendingFrom = null;
 
   const overTime = () => now() - startedAt > budgets.runTimeBudgetMs;
+  const finalize = (row: AuditListingRow, probe: CotalityProbe) => {
+    if (seen.has(row.listing_id)) return; // dedupe guard — never double-counted
+    const rec = buildInventoryRow(row, probe);
+    cp.inventory.push(rec);
+    seen.add(row.listing_id);
+    cp.tally[rec.bucket] += 1;
+    cp.processed += 1;
+    run.listingsFinalized += 1;
+    cp.cursor = row.listing_id;
+  };
 
-  pageLoop:
-  while (true) {
-    if (cp.processed >= budgets.maxListings) { reasons.add('max-listings reached'); break; }
+  let stopped = false;
+  while (!stopped) {
+    if (run.listingsFinalized >= budgets.maxListings) { reasons.add('max-listings reached (per-run)'); break; }
     if (overTime()) { reasons.add('run time budget exceeded'); break; }
-
-    const remaining = budgets.maxListings - cp.processed;
-    const take = Math.min(budgets.pageSize, remaining);
+    const take = Math.min(budgets.pageSize, budgets.maxListings - run.listingsFinalized);
     const page = await deps.listings.fetchPage(cp.cursor, take);
-    if (page.length === 0) break; // candidate set exhausted → complete
+    if (page.length === 0) break; // candidate set exhausted
 
-    // Pre-classify with a skipped-probe placeholder; collect DB-empty rows.
-    const provisional = page.map((row) => buildInventoryRow(row, { status: 'unknown', reason: 'probe skipped' }));
-    const needsProbe: number[] = [];
-    for (let i = 0; i < page.length; i += 1) {
-      const p = provisional[i];
-      if (p.displayable && p.activeUsablePhotoCount === 0 && p.legacyUsablePhotoCount === 0) needsProbe.push(i);
-    }
-
-    // Bounded-concurrency probe waves.
-    if (deps.cotality) {
-      for (let w = 0; w < needsProbe.length; w += budgets.cotalityConcurrency) {
-        if (overTime()) { reasons.add('run time budget exceeded'); break; }
-        const wave = needsProbe.slice(w, w + budgets.cotalityConcurrency).filter((i) => {
-          if (probesAttempted >= budgets.maxCotalityProbes) {
-            cp.counters.skipped += 1;
-            reasons.add('cotality probe budget exhausted');
-            return false;
-          }
-          probesAttempted += 1;
-          return true;
-        });
-        const outcomes = await Promise.all(
-          wave.map((i) => probeListingMedia(deps.cotality as CotalityMediaReader, page[i].listing_id, budgets, cp.counters))
-        );
-        wave.forEach((i, j) => { provisional[i] = buildInventoryRow(page[i], outcomes[j]); });
+    // Rows are finalized STRICTLY IN ORDER. A budget stop at row i leaves
+    // rows [i..] pending: not tallied, not counted, cursor NOT advanced.
+    let i = 0;
+    while (i < page.length) {
+      if (overTime()) { reasons.add('run time budget exceeded'); cp.pendingFrom = page[i].listing_id; stopped = true; break; }
+      const row = page[i];
+      if (!deps.cotality || !needsCotalityProbe(row)) {
+        if (deps.cotality === undefined && needsCotalityProbe(row)) cp.counters.skipped += 1;
+        finalize(row, { status: 'unknown', reason: deps.cotality ? 'probe not needed' : 'probe skipped (no --with-cotality)' });
+        i += 1;
+        continue;
       }
-    } else {
-      cp.counters.skipped += needsProbe.length;
+      // Wave of consecutive probe-needing rows, bounded by concurrency AND the
+      // per-run probe budget.
+      const wave: number[] = [];
+      let j = i;
+      while (j < page.length && wave.length < budgets.cotalityConcurrency && needsCotalityProbe(page[j])) {
+        if (run.probesAttempted + wave.length >= budgets.maxCotalityProbes) break;
+        wave.push(j);
+        j += 1;
+      }
+      if (wave.length === 0) {
+        // Probe budget exhausted BEFORE this row → the row stays PENDING.
+        reasons.add('cotality probe budget exhausted (per-run) — remaining listings pending');
+        cp.pendingFrom = row.listing_id;
+        stopped = true;
+        break;
+      }
+      run.probesAttempted += wave.length;
+      const outcomes = await Promise.all(
+        wave.map((k) => probeListingMedia(deps.cotality as CotalityMediaReader, page[k].listing_id, budgets, acct))
+      );
+      // Finalize in order until the first DEFERRED outcome (cap/budget stop).
+      let deferredAt = -1;
+      for (let w = 0; w < wave.length; w += 1) {
+        const out = outcomes[w];
+        if (out.status === 'unknown' && out.deferred) { deferredAt = w; break; }
+        if (out.status === 'unknown') cp.counters.failures += 1;
+        else cp.counters.successes += 1;
+        finalize(page[wave[w]], out.status === 'confirmed' ? { status: 'confirmed', photoCount: out.photoCount } : { status: 'unknown', reason: out.reason });
+      }
+      if (deferredAt >= 0) {
+        reasons.add('cotality request budget exhausted (per-run) — remaining listings pending');
+        cp.pendingFrom = page[wave[deferredAt]].listing_id;
+        stopped = true;
+        break;
+      }
+      i = wave[wave.length - 1] + 1;
     }
 
-    for (const rec of provisional) {
-      inventory.push(rec);
-      cp.tally[rec.bucket] += 1;
-      cp.processed += 1;
-    }
-    cp.cursor = page[page.length - 1].listing_id;
-    cp.incompleteReasons = [...reasons];
+    cp.counters.requests += acct.attempts - (run.requestAttempts);
+    cp.counters.retries += acct.retries - run.retries;
+    run.requestAttempts = acct.attempts;
+    run.retries = acct.retries;
     if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
-    if (reasons.has('run time budget exceeded')) break pageLoop;
+    if (stopped) break;
   }
 
-  // A run with UNKNOWN probes (failed OR skipped for budget) is not a full audit.
-  if (cp.counters.failures > 0) reasons.add(`${cp.counters.failures} cotality probe(s) UNKNOWN (errors/incomplete pagination)`);
-  if (deps.cotality && cp.counters.skipped > 0) reasons.add(`${cp.counters.skipped} probe(s) skipped (budget)`);
+  run.elapsedMs = now() - startedAt;
+  // Cumulative genuine-error UNKNOWNs keep the audit honest-incomplete; budget
+  // deferrals are per-run reasons already recorded (pending rows remain).
+  if (cp.counters.failures > 0) reasons.add(`${cp.counters.failures} cotality probe(s) UNKNOWN (errors)`);
 
-  cp.incompleteReasons = [...reasons];
+  if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
   return {
     complete: reasons.size === 0,
     incompleteReasons: [...reasons],
     processed: cp.processed,
     tally: cp.tally,
-    inventory,
+    inventory: cp.inventory,
     counters: cp.counters,
+    runCounters: run,
     checkpoint: cp,
   };
 }
 
-/** Bounded retry helper for the CLI's transport layer (tested in isolation).
- *  Retries at most `maxRetries` times; every retry is counted. */
-export async function withBoundedRetries<T>(
+/**
+ * Bounded-retry transport helper — the ONLY sanctioned way the CLI reader
+ * makes HTTP attempts. EVERY attempt (first + each retry) consumes the
+ * accountant; when the cap is hit the error carries `capStop` so the probe
+ * returns DEFERRED (pending), never a false UNKNOWN-error.
+ */
+export class CapStopError extends Error {
+  capStop = true;
+}
+export async function attemptWithAccounting<T>(
   attempt: () => Promise<T>,
+  acct: RequestAccountant,
   maxRetries: number,
-  onRetry: () => void,
 ): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i <= maxRetries; i += 1) {
+    if (!acct.consume()) throw new CapStopError('cotality request cap reached');
+    if (i > 0) acct.countRetry();
     try {
       return await attempt();
     } catch (e) {
       lastErr = e;
-      if (i < maxRetries) onRetry();
     }
   }
   throw lastErr;

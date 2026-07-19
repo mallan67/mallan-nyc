@@ -32,7 +32,7 @@ export const BUCKET_LABEL: Record<MediaCoverageBucket, string> = {
   B_INACTIVE: 'third-party, inactive/deleted relational rows, Cotality HAS photos → restores/updates',
   C: 'legacy JSON has usable photos → render fix already serves it',
   D: 'no media in DB and Cotality CONFIRMED zero',
-  E: 'Mallan-owned authoritative deletion (rows existed, none active) — never backfill',
+  E: 'Mallan-owned authoritative state (deleted or never-imported) — never Cotality-sourced, never backfilled',
   F: 'hidden / withdrawn / non-displayable',
   U: 'UNKNOWN — Cotality probe not run/errored; cannot classify B vs D',
 };
@@ -66,8 +66,15 @@ export interface ListingCoverageInput {
   cotality: CotalityProbe;
 }
 
-function isMallanOwned(input: ListingCoverageInput): boolean {
+/** Canonical Mallan-ownership decision for coverage inputs — EXPORTED so the
+ *  audit/dry-run can exclude Mallan-owned listings BEFORE spending any
+ *  Cotality request (one implementation; delegates to the canonical helper). */
+export function isMallanOwnedCoverage(input: Pick<ListingCoverageInput, 'listingId' | 'rlsEligible'>): boolean {
   return isMallanExclusiveListing({ listing_id: input.listingId, rls_eligible: input.rlsEligible });
+}
+
+function isMallanOwned(input: ListingCoverageInput): boolean {
+  return isMallanOwnedCoverage(input);
 }
 
 /**
@@ -77,6 +84,9 @@ function isMallanOwned(input: ListingCoverageInput): boolean {
  *   A  active usable photos > 0
  *   E  Mallan-owned AND relational rows existed (any status) → authoritative deletion
  *   C  legacy JSON usable photos > 0 → render fix serves it
+ *   E  Mallan-owned (even never-imported) → NEVER Cotality-sourced; a Mallan
+ *      listing can never be U or D because of an unperformed Cotality probe,
+ *      and the audit/dry-run never spend a Cotality request on one
  *   U  DB-empty AND Cotality UNKNOWN (probe skipped/errored) → cannot decide
  *   B_NEW / B_INACTIVE  DB-empty, third-party, Cotality CONFIRMED photos > 0
  *   D  DB-empty, Cotality CONFIRMED zero
@@ -90,10 +100,14 @@ export function classifyMediaCoverage(input: ListingCoverageInput): MediaCoverag
 
   if (input.legacyUsablePhotoCount > 0) return 'C';            // render fix serves legacy
 
-  // DB has no usable media (0 active photos, 0 legacy usable photos).
+  // Mallan-owned media is NEVER Cotality-sourced: even a never-imported Mallan
+  // listing is E (its media authority is Mallan), so no probe is ever needed
+  // and it can never fall into U or D.
+  if (mallan) return 'E';
+
+  // DB has no usable media (0 active photos, 0 legacy usable photos) — third-party.
   if (input.cotality.status === 'unknown') return 'U';        // NEVER coerce to D
   if (input.cotality.photoCount > 0) {
-    if (mallan) return 'E';                                   // never pull Cotality onto a Mallan listing
     return input.allStatusRowCount === 0 ? 'B_NEW' : 'B_INACTIVE';
   }
   return 'D';                                                 // Cotality CONFIRMED zero
