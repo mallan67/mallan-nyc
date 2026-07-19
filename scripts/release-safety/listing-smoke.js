@@ -278,14 +278,71 @@ async function discoverListing(baseUrl, ctx) {
   return { discovery, listing: eligible, listings: json.listings };
 }
 
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * INDEPENDENT listing-render identity — evidence the URL alone can never
+ * satisfy (Codex review of PR #537: the canonical href itself contains the
+ * listing id, so a whole-body substring match is NOT independent proof; a
+ * soft-404 that echoes the requested canonical link would have passed).
+ *
+ * Accepted markers (characterized on the live page, 2026-07-19: healthy
+ * renders carry `"listingId":"RLS…"` ×8 and `"currentListingId":"RLS…"` ×2
+ * in flight data; URLs only ever carry the id as a lowercase path segment):
+ *   - structured component/data property, plain or flight-escaped:
+ *     "listingId":"<ID>" · "currentListingId":"<ID>" · "mlsId":"<ID>"
+ *   - rendered MLS number text: MLS #<ID> / MLS: <ID>
+ * A quoted property VALUE or rendered MLS text cannot be produced by an
+ * href/src/og:url/router path, so URL occurrences never count.
+ */
+function hasIndependentListingIdentity(body, listingId) {
+  if (!listingId || typeof body !== 'string') return false;
+  const id = escapeRegExp(String(listingId));
+  const structuredProp = new RegExp(
+    `(?:currentListingId|listingId|mlsId)\\\\?["']\\s*:\\s*\\\\?["']${id}\\\\?["']`,
+    'i'
+  );
+  const renderedMls = new RegExp(`MLS\\s*#?\\s*:?\\s*${id}(?![\\w-])`, 'i');
+  return structuredProp.test(body) || renderedMls.test(body);
+}
+
+/**
+ * Does the page's <title> represent the discovered listing's address?
+ * Returns true/false, or null when the discovery DTO carries no displayable
+ * street address (suppressed/undisclosed addresses, out-of-band pins) — in
+ * that case the structured-id marker above is the deciding identity signal.
+ */
+function titleRepresentsListing(body, address) {
+  if (!address || typeof address !== 'object') return null;
+  const streetNumber = typeof address.streetNumber === 'string' ? address.streetNumber.trim() : '';
+  const streetName = typeof address.streetName === 'string' ? address.streetName.trim() : '';
+  if (!streetNumber || !streetName || /undisclosed/i.test(streetName)) return null;
+  const m = /<title>([^<]*)/i.exec(body);
+  const title = (m ? m[1] : '').toLowerCase();
+  if (!title) return false;
+  const nameTokens = streetName.toLowerCase().split(/\s+/).filter((t) => t.length >= 3);
+  const tokensOk = nameTokens.length === 0 || nameTokens.some((t) => title.includes(t));
+  return title.includes(streetNumber.toLowerCase()) && tokensOk;
+}
+
 /**
  * Assess a listing PAGE body (canonical or alias-resolved) for the
  * context-sensitive unavailable state and the positive listing identity.
- * A page passes only when the expected canonical URL AND the expected
- * listing id are present, and "Listing Not Available" is not the ACTIVE
- * page result. Returns { ok, failureClass?, detail?, note? }.
+ *
+ * Canonical-URL verification and listing-identity verification are kept
+ * SEPARATE (the canonical href contains the listing id, so it can never
+ * double as identity proof). A page passes only when ALL hold:
+ *   - the expected canonical URL is present (canonical verification);
+ *   - an INDEPENDENT listing-render identity marker is present
+ *     (hasIndependentListingIdentity — URL occurrences never count);
+ *   - the title/address metadata represents the discovered listing
+ *     (when the DTO carries a displayable address);
+ *   - "Listing Not Available" is not the ACTIVE page result.
+ * Returns { ok, failureClass?, detail?, note? }.
  */
-function assessListingPageBody(body, canonicalPath, listingId) {
+function assessListingPageBody(body, canonicalPath, listingId, { address } = {}) {
   const text = typeof body === 'string' ? body : '';
   const lower = text.toLowerCase();
   const phrasePresent = lower.includes(LISTING_UNAVAILABLE_TEXT.toLowerCase());
@@ -297,22 +354,40 @@ function assessListingPageBody(body, canonicalPath, listingId) {
     };
   }
   const hasCanonical = !!canonicalPath && text.includes(canonicalPath);
-  const hasIdentity = !!listingId && lower.includes(String(listingId).toLowerCase());
-  if (!hasCanonical || !hasIdentity) {
-    // Also catches an active unavailable page whose markup shape evades the
-    // rendered-form regex: a healthy render always carries its identity.
+  if (!hasCanonical) {
     return {
       ok: false,
       failureClass: phrasePresent ? 'FAILURE_TEXT' : 'BAD_CONTRACT',
       detail: phrasePresent
-        ? `"${LISTING_UNAVAILABLE_TEXT}" present and the page lacks the expected listing identity (canonical URL present=${hasCanonical}, listing id present=${hasIdentity}) — treating as the active page result`
-        : `page does not represent the discovered listing (canonical URL present=${hasCanonical}, listing id present=${hasIdentity})`,
+        ? `"${LISTING_UNAVAILABLE_TEXT}" present and the expected canonical URL is missing — treating as the active page result`
+        : 'page does not carry the expected canonical URL',
+    };
+  }
+  const independent = hasIndependentListingIdentity(text, listingId);
+  if (!independent) {
+    // The canonical href alone is NOT identity (it contains the id by
+    // construction). A soft-404/fallback echoing the requested link lands
+    // here and fails.
+    return {
+      ok: false,
+      failureClass: phrasePresent ? 'FAILURE_TEXT' : 'BAD_CONTRACT',
+      detail: phrasePresent
+        ? `"${LISTING_UNAVAILABLE_TEXT}" present and NO independent listing-render identity found (structured listingId/currentListingId/mlsId property or rendered MLS number) — canonical href alone is not identity; treating as the active/soft-404 page result`
+        : 'page carries the canonical URL but NO independent listing-render identity (structured listingId/currentListingId/mlsId property or rendered MLS number)',
+    };
+  }
+  const metadata = titleRepresentsListing(text, address);
+  if (metadata === false) {
+    return {
+      ok: false,
+      failureClass: 'BAD_CONTRACT',
+      detail: 'page title/address metadata does not represent the discovered listing',
     };
   }
   return {
     ok: true,
     note: phrasePresent
-      ? 'dormant serialized notFound template present in flight data (expected on healthy Next.js renders) — identity verified, not an active failure'
+      ? 'dormant serialized notFound template present in flight data (expected on healthy Next.js renders) — independent listing identity verified, not an active failure'
       : undefined,
   };
 }
@@ -426,7 +501,9 @@ async function runListingSmoke(opts) {
     // not be the active result — a dormant serialized notFound template in
     // otherwise-valid listing HTML passes (see assessListingPageBody).
     if (canonical.ok) {
-      const assessment = assessListingPageBody(canonical.body, canonicalPath, target && target.id);
+      const assessment = assessListingPageBody(canonical.body, canonicalPath, target && target.id, {
+        address: target && target.address,
+      });
       if (!assessment.ok) {
         canonical.ok = false;
         canonical.failureClass = assessment.failureClass;
@@ -526,6 +603,8 @@ module.exports = {
   validateSimilarResponse,
   aliasEndsAtCanonical,
   assessListingPageBody,
+  hasIndependentListingIdentity,
+  titleRepresentsListing,
 };
 
 // ── CLI ──────────────────────────────────────────────────────────────────
