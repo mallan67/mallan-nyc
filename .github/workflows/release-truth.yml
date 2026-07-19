@@ -158,9 +158,9 @@ jobs:
         run: |
           # P2 fail-closed default: an empty/unrecognized verdict posts
           # "error", never "success". Reasons are read from the file the
-          # aggregator step wrote — NEVER interpolated through ${{ }} shell
-          # quoting (reason text is arbitrary and must not touch the shell
-          # as code).
+          # aggregator step wrote — NEVER passed through GitHub expression
+          # interpolation into shell quoting (reason text is arbitrary and
+          # must not touch the shell as code).
           verdict="${{ steps.aggregator.outputs.verdict }}"
           state="error"
           case "$verdict" in
