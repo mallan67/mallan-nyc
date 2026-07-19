@@ -76,6 +76,44 @@ describe('isMallanOwnedListing — SL-/RL- OR rls_eligible===false, never agent_
   it('website-only (rls_eligible === false) → true', () => {
     expect(isMallanOwnedListing(WEBSITE_ONLY_CTX)).toBe(true);
   });
+  it('EQUIVALENCE: isMallanOwnedListing delegates to the REAL canonical isMallanExclusiveListing', () => {
+    // Single-source-of-truth proof (Maya, 2026-07-19): both REAL functions are
+    // called on every row — the expected formula is never duplicated here, so
+    // any future canonical-rule change is automatically covered. Includes the
+    // casing behavior: the canonical rule is a case-SENSITIVE SL-/RL- prefix.
+    /* eslint-disable @typescript-eslint/no-var-requires */
+    const { isMallanExclusiveListing } = require('@/lib/listings/exclusive-agent-assignment');
+    const table: Array<{ label: string; listingId?: string | null; rlsEligible?: boolean | null }> = [
+      { label: 'SL- uppercase', listingId: 'SL-0004' },
+      { label: 'RL- uppercase', listingId: 'RL-0007' },
+      { label: 'lowercase sl-', listingId: 'sl-0004' },
+      { label: 'lowercase rl-', listingId: 'rl-0007' },
+      { label: 'RLS third-party', listingId: 'RLS20103891', rlsEligible: true },
+      { label: 'rls_eligible false', listingId: 'C-1001', rlsEligible: false },
+      { label: 'rls_eligible true', listingId: 'RLS20103891', rlsEligible: true },
+      { label: 'missing id + null rls', listingId: null, rlsEligible: null },
+      { label: 'undefined everything' },
+      { label: 'empty id', listingId: '' },
+      { label: 'SL- with rls_eligible true', listingId: 'SL-0009', rlsEligible: true },
+    ];
+    for (const row of table) {
+      const media = isMallanOwnedListing({ listingId: row.listingId, rlsEligible: row.rlsEligible });
+      const canonical = isMallanExclusiveListing({
+        listing_id: row.listingId ?? null,
+        rls_eligible: row.rlsEligible ?? null,
+      });
+      expect({ label: row.label, result: media }).toEqual({ label: row.label, result: canonical });
+    }
+    // Unrelated agent/owner values cannot affect the result: the media context
+    // cannot even carry them (excess-property type error), and passing a ctx
+    // for a third-party listing that HAS agent_id in the DB stays false:
+    expect(isMallanOwnedListing({ listingId: 'RLS20103891', rlsEligible: true })).toBe(false);
+    // Casing behavior explicitly matches the canonical helper on both sides:
+    expect(isMallanOwnedListing({ listingId: 'sl-0004' })).toBe(
+      isMallanExclusiveListing({ listing_id: 'sl-0004' })
+    );
+  });
+
   it('the MediaFallbackContext type carries NO agent_id/owner_client_id signal', () => {
     // Codex #2: syncAgentHistory stamps agent_id onto third-party IDX rows, so it
     // must not reach the media-ownership gate. The context type intentionally has

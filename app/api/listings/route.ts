@@ -977,9 +977,11 @@ export async function GET(request: Request) {
           // imported" from "rows existed but were intentionally deleted" by row
           // count alone. `_count: { select: { listing_media: true } }` supplies
           // the all-status existence signal in the SAME batched query (a Prisma
-          // aggregate subquery — NOT a per-listing round-trip, no N+1). Provenance
-          // (rls_eligible / agent_id / owner_client_id, SL-/RL- reinforcing;
-          // never mls_id) lets a Mallan-owned listing's intentional deletion stay
+          // aggregate subquery — NOT a per-listing round-trip, no N+1). Media
+          // ownership follows the canonical isMallanExclusiveListing rule
+          // (SL-/RL- listing_id OR rls_eligible === false; NEVER agent_id or
+          // owner_client_id, and never mls_id), which lets a Mallan-owned
+          // listing's intentional deletion stay
           // authoritative (no legacy-JSON resurrection) while a third-party
           // Cotality listing with all-inactive rows falls back to its
           // Cotality-sourced JSON — matching the detail page exactly.

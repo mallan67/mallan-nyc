@@ -35,6 +35,8 @@
 // lib/compliance/gates.ts. This module deals only with which media item to
 // show first; it does NOT decide whether the listing is displayable at all.
 
+import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
+
 export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
 
 const CLASS_PRIORITY: Record<MediaClass, number> = {
@@ -564,8 +566,12 @@ export interface MediaFallbackContext {
  * so its `listing_media` deletions are AUTHORITATIVE and the legacy JSON must
  * NOT be resurrected. Third-party Cotality/IDX/RLS listings return `false`.
  *
- * Signal set MIRRORS the repo's canonical `isMallanExclusiveListing`
- * (lib/listings/exclusive-agent-assignment.ts), the single source of truth:
+ * DELEGATES to the repo's canonical `isMallanExclusiveListing`
+ * (lib/listings/exclusive-agent-assignment.ts) — the single source of truth —
+ * rather than reimplementing the rule, so the media read path, the R2
+ * admission path, and every other consumer can never disagree about
+ * Mallan-ownership (including prefix casing: the canonical rule is a
+ * case-sensitive `SL-`/`RL-` `startsWith`):
  *   • `SL-`/`RL-` listing-id namespace → Mallan-authored, OR
  *   • `rls_eligible === false` → website-only (Mallan-owned).
  *
@@ -579,9 +585,10 @@ export interface MediaFallbackContext {
  */
 export function isMallanOwnedListing(ctx: MediaFallbackContext | undefined): boolean {
   if (!ctx) return false;
-  if (/^(SL|RL)-/i.test(String(ctx.listingId || ''))) return true;  // Mallan CRM namespace
-  if (ctx.rlsEligible === false) return true;                       // website-only
-  return false;                                                     // third-party Cotality/IDX
+  return isMallanExclusiveListing({
+    listing_id: ctx.listingId ?? null,
+    rls_eligible: ctx.rlsEligible ?? null,
+  });
 }
 
 /**
