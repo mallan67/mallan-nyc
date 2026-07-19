@@ -86,6 +86,30 @@ async function recordKnownGood({
   if (!smoke.deployment_id || smoke.deployment_id !== deploymentId) {
     return { recorded: false, reason: `smoke evidence is bound to deployment '${smoke.deployment_id || 'none'}', not '${deploymentId}' — refusing to record` };
   }
+  // The smoke must actually have TARGETED the production alias host — a
+  // passing run against a preview URL proves nothing about mallan.nyc.
+  let smokeHost = null;
+  try {
+    smokeHost = new URL(smoke.base_url).hostname.toLowerCase();
+  } catch {
+    smokeHost = null;
+  }
+  if (!smokeHost || smokeHost !== aliasHost.toLowerCase()) {
+    return { recorded: false, reason: `smoke base_url host '${smokeHost || 'none'}' is not the alias host '${aliasHost}' — refusing to record` };
+  }
+  // Fabricated/incomplete passed:true evidence is refused: the required
+  // listing probes and the probed listing identity must be present.
+  const probes = Array.isArray(smoke.probes) ? smoke.probes : [];
+  const probeOk = (name) =>
+    probes.some((p) => p && (p.name === name || (name === 'canonical-detail' && typeof p.name === 'string' && p.name.startsWith('canonical-detail'))) && p.ok === true);
+  const requiredProbes = ['discovery', 'canonical-detail', 'id-alias', 'similar-api'];
+  const missingProbes = requiredProbes.filter((n) => !probeOk(n));
+  if (missingProbes.length > 0) {
+    return { recorded: false, reason: `smoke evidence lacks successful required probes: ${missingProbes.join(', ')} — refusing to record` };
+  }
+  if (!smoke.listing || !smoke.listing.id || !smoke.listing.canonical_url) {
+    return { recorded: false, reason: 'smoke evidence has no probed listing identity (listing.id + listing.canonical_url) — refusing to record' };
+  }
 
   // Post-smoke RECONFIRMATION of alias ownership + identity.
   const deployment = await fetchDeploymentServingAlias({ token, aliasHost, teamId, fetchImpl });

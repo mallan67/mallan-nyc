@@ -38,10 +38,24 @@ function v13Response(dep: unknown, status = 200) {
 describe('release-safety P2 — decideDeploymentVerdict (fail-closed, alias-proven)', () => {
   const opts = { requiredAlias: ALIAS };
 
-  test('READY + alias proven + matching SHA (case-insensitive) => MATCH', () => {
+  test('READY + alias proven + matching SHA (case-insensitive) => MATCH with the FULL structured identity', () => {
     const r = decideDeploymentVerdict(SHA.toUpperCase(), deployment(), opts);
     expect(r.verdict).toBe('MATCH');
+    // Machine contract — no field lives only inside the reason string:
+    expect(r.expected_sha).toBe(SHA.toUpperCase());
+    expect(r.deployed_sha).toBe(SHA);
+    expect(r.deployment_id).toBe('dpl_test123');
+    expect(r.deployment_url).toBe('mallan-abc123.vercel.app');
+    expect(r.alias_host).toBe('mallan.nyc');
     expect(r.aliases).toContain('mallan.nyc');
+  });
+
+  test('a deployment WITHOUT a nonempty id can never be MATCH (=> UNKNOWN)', () => {
+    for (const patch of [{ id: undefined }, { id: '' }]) {
+      const r = decideDeploymentVerdict(SHA, deployment(patch), opts);
+      expect(r.verdict).toBe('UNKNOWN');
+      expect(r.reason).toContain('no id');
+    }
   });
 
   test('READY + alias proven + different SHA => SHA_MISMATCH', () => {
@@ -102,9 +116,18 @@ describe('release-safety P2 — pollForMatch (bounded, alias-addressed)', () => 
       return v13Response(deployment());
     });
     const sleep = jest.fn();
-    const result = await pollForMatch({ expectedSha: SHA, ...creds, fetchImpl, sleep, maxAttempts: 5 });
+    const result = await pollForMatch({
+      expectedSha: SHA,
+      ...creds,
+      fetchImpl,
+      sleep,
+      maxAttempts: 5,
+      now: () => '2026-07-19T12:00:00.000Z',
+    });
     expect(result.verdict).toBe('MATCH');
     expect(result.attempts).toBe(1);
+    expect(result.deployment_id).toBe('dpl_test123');
+    expect(result.observed_at).toBe('2026-07-19T12:00:00.000Z');
     expect(urls[0]).toContain('/v13/deployments/mallan.nyc');
     expect(sleep).not.toHaveBeenCalled();
   });

@@ -65,22 +65,75 @@ describe('release-safety P2 — Release-Truth aggregate (fail-closed)', () => {
     expect(r.reasons.join(' ')).toContain('production-alias proof missing');
   });
 
-  test('PROD_PROVEN requires BOTH production-alias proof AND passing smoke evidence', () => {
-    const both = aggregate({
-      ...cleanStatic,
-      deploy: { verdict: 'DEPLOY_PROD_PROVEN' },
-      smoke: { passed: true },
-    });
+  const SHA_A = 'a'.repeat(40);
+  const SHA_B = 'b'.repeat(40);
+  const boundProof = {
+    verdict: 'DEPLOY_PROD_PROVEN',
+    deployed_sha: SHA_A,
+    deployment_id: 'dpl_prod1',
+    alias_host: 'mallan.nyc',
+  };
+  const boundSmoke = {
+    passed: true,
+    expected_sha: SHA_A,
+    deployment_id: 'dpl_prod1',
+    base_url: 'https://mallan.nyc',
+    observed_at: '2026-07-19T12:00:00.000Z',
+    required_probes_ok: true,
+  };
+
+  test('PROD_PROVEN requires production-alias proof AND smoke evidence BOUND to the same deployment', () => {
+    const both = aggregate({ ...cleanStatic, deploy: boundProof, smoke: boundSmoke });
     expect(both.verdict).toBe('PROD_PROVEN');
-    const proofOnly = aggregate({ ...cleanStatic, deploy: { verdict: 'DEPLOY_PROD_PROVEN' } });
+    const proofOnly = aggregate({ ...cleanStatic, deploy: boundProof });
     expect(proofOnly.verdict).toBe('UNVERIFIED');
     expect(proofOnly.reasons.join(' ')).toContain('smoke evidence missing');
     const failedSmoke = aggregate({
       ...cleanStatic,
-      deploy: { verdict: 'DEPLOY_PROD_PROVEN' },
-      smoke: { passed: false, reason: 'canonical 500' },
+      deploy: boundProof,
+      smoke: { ...boundSmoke, passed: false, reason: 'canonical 500' },
     });
     expect(failedSmoke.verdict).toBe('PARTIAL');
+  });
+
+  test('binding: OLD smoke (different SHA) + new deployment proof can NEVER produce PROD_PROVEN', () => {
+    const r = aggregate({
+      ...cleanStatic,
+      deploy: boundProof,
+      smoke: { ...boundSmoke, expected_sha: SHA_B },
+    });
+    expect(r.verdict).toBe('UNVERIFIED');
+    expect(r.reasons.join(' ')).toContain('identity mismatch');
+    expect(r.reasons.join(' ')).toContain('does not equal the proven deployed sha');
+  });
+
+  test('binding: matching SHA but DIFFERENT deployment id can NEVER produce PROD_PROVEN', () => {
+    const r = aggregate({
+      ...cleanStatic,
+      deploy: boundProof,
+      smoke: { ...boundSmoke, deployment_id: 'dpl_other' },
+    });
+    expect(r.verdict).toBe('UNVERIFIED');
+    expect(r.reasons.join(' ')).toContain('does not equal the proven deployment');
+  });
+
+  test('binding: smoke against a Preview URL cannot prove mallan.nyc', () => {
+    const r = aggregate({
+      ...cleanStatic,
+      deploy: boundProof,
+      smoke: { ...boundSmoke, base_url: 'https://mallan-abc123-preview.vercel.app' },
+    });
+    expect(r.verdict).toBe('UNVERIFIED');
+    expect(r.reasons.join(' ')).toContain('is not the proven alias host');
+  });
+
+  test('binding: missing observed_at or unproven required probes block PROD_PROVEN', () => {
+    expect(
+      aggregate({ ...cleanStatic, deploy: boundProof, smoke: { ...boundSmoke, observed_at: undefined } }).verdict
+    ).toBe('UNVERIFIED');
+    expect(
+      aggregate({ ...cleanStatic, deploy: boundProof, smoke: { ...boundSmoke, required_probes_ok: false } }).verdict
+    ).toBe('UNVERIFIED');
   });
 
   test('regressions, partials and overstated claims still dominate (unchanged)', () => {
@@ -152,15 +205,16 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     // the aggregator's stderr is preserved to a file (never sent to /dev/null):
     expect(workflow).toMatch(/release-truth-check\.js[^\n]*2> release-truth\.stderr/);
     expect(workflow).not.toMatch(/release-truth-check\.js[^\n]*2>\/dev\/null/);
-    // PR events never production-gated (step-level if guard):
-    expect(workflow).toContain("github.event_name != 'pull_request'");
+    // strict proof validation lives in the gated step:
+    expect(workflow).toContain('proof rejected');
+    expect(workflow).toContain('deployed_sha mismatch');
   });
 
-  test('VERCEL_TOKEN is scoped to the guarded non-PR verification step ONLY', () => {
+  test('VERCEL_TOKEN is reachable ONLY on push to refs/heads/main (not PRs, not dispatch)', () => {
     // Exactly ONE secret reference in the whole workflow file …
     const secretRefs = workflow.match(/secrets\.VERCEL_TOKEN/g) || [];
     expect(secretRefs).toHaveLength(1);
-    // … inside the prodverify step, which is guarded against PR events:
+    // … inside the prodverify step:
     const prodverifyStart = workflow.indexOf('id: prodverify');
     const aggregatorStart = workflow.indexOf('id: aggregator');
     const secretPos = workflow.indexOf('secrets.VERCEL_TOKEN');
@@ -169,10 +223,20 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(secretPos).toBeLessThan(aggregatorStart);
     // … and NOTHING from the aggregator step onward carries the token:
     expect(workflow.slice(aggregatorStart)).not.toContain('VERCEL_TOKEN');
-    // The guard sits between the step id and its env block:
-    const guardPos = workflow.indexOf("if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name != 'pull_request'");
+    // The ONLY path to the secret-bearing step is push to refs/heads/main:
+    // pull_request events fail `event_name == 'push'`; workflow_dispatch runs
+    // (with arbitrary inputs.sha or inputs.pr checkouts) also fail it — so
+    // neither can ever receive the token.
+    const guard = "if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'";
+    const guardPos = workflow.indexOf(guard);
     expect(guardPos).toBeGreaterThan(prodverifyStart);
     expect(guardPos).toBeLessThan(secretPos);
+    // No alternative guard mentions the secret step; the old broad guard is gone:
+    expect(workflow).not.toContain("github.event_name != 'pull_request'");
+    // The token env assignment is bound to the SAME step as the guard
+    // (no other env block between guard and secret):
+    const between = workflow.slice(guardPos, secretPos);
+    expect(between.match(/- name:/g)).toBeNull();
   });
 
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {

@@ -19,6 +19,43 @@
  *           not enabled in CI until Maya turns the repo variable on).
  */
 
+/**
+ * Identity binding between the production-alias deploy proof and the smoke
+ * evidence. PROD_PROVEN requires the smoke to have targeted the SAME
+ * deployment: matching SHA, matching deployment id, a base_url whose
+ * hostname is the proven alias host, an observation timestamp, and all
+ * required listing probes present and successful (the open-houses probe
+ * stays HTTP/JSON-CONTRACT-PROVEN only and is covered by `passed`).
+ * Returns a list of mismatch descriptions (empty = fully bound).
+ */
+function smokeIdentityMismatches(proof, smoke) {
+  const mismatches = [];
+  const proofSha = (proof.deployed_sha || '').toLowerCase();
+  const smokeSha = (smoke.expected_sha || '').toLowerCase();
+  if (!proofSha || !smokeSha || proofSha !== smokeSha) {
+    mismatches.push(`smoke sha '${smoke.expected_sha || 'none'}' does not equal the proven deployed sha '${proof.deployed_sha || 'none'}'`);
+  }
+  if (!proof.deployment_id || !smoke.deployment_id || proof.deployment_id !== smoke.deployment_id) {
+    mismatches.push(`smoke deployment '${smoke.deployment_id || 'none'}' does not equal the proven deployment '${proof.deployment_id || 'none'}'`);
+  }
+  let smokeHost = null;
+  try {
+    smokeHost = new URL(smoke.base_url).hostname.toLowerCase();
+  } catch {
+    smokeHost = null;
+  }
+  if (!proof.alias_host || !smokeHost || smokeHost !== proof.alias_host.toLowerCase()) {
+    mismatches.push(`smoke base_url host '${smokeHost || 'none'}' is not the proven alias host '${proof.alias_host || 'none'}'`);
+  }
+  if (!smoke.observed_at) {
+    mismatches.push('smoke evidence has no observed_at timestamp');
+  }
+  if (smoke.required_probes_ok !== true) {
+    mismatches.push('required listing probes (discovery, canonical-detail, id-alias, similar-api) are not all present and successful');
+  }
+  return mismatches;
+}
+
 /** Aggregate validator layers into a single verdict. Pure function. */
 function aggregate(layers) {
   const reasons = [];
@@ -67,18 +104,28 @@ function aggregate(layers) {
   }
 
   // PROD_PROVEN — ONLY production-alias proof (verify-deployment-sha MATCH on
-  // mallan.nyc) PLUS successful runtime smoke evidence. Nothing else reaches
-  // PROD_PROVEN — green CI checks and preview deployments never do.
+  // mallan.nyc) PLUS successful runtime smoke evidence BOUND TO THAT EXACT
+  // DEPLOYMENT. Nothing else reaches PROD_PROVEN — green CI checks, preview
+  // deployments, and smoke evidence from a different deployment never do.
   if (layers.deploy?.verdict === 'DEPLOY_PROD_PROVEN') {
-    if (layers.smoke?.passed === true) {
+    if (layers.smoke?.passed !== true) {
       return {
-        verdict: 'PROD_PROVEN',
-        reasons: ['production alias serves the expected SHA (verified) + listing smoke passed'],
+        verdict: 'UNVERIFIED',
+        reasons: ['production alias proof present but runtime smoke evidence missing — fail-closed'],
+      };
+    }
+    const mismatches = smokeIdentityMismatches(layers.deploy, layers.smoke);
+    if (mismatches.length > 0) {
+      return {
+        verdict: 'UNVERIFIED',
+        reasons: mismatches.map((m) => `smoke evidence identity mismatch: ${m}`),
       };
     }
     return {
-      verdict: 'UNVERIFIED',
-      reasons: ['production alias proof present but runtime smoke evidence missing — fail-closed'],
+      verdict: 'PROD_PROVEN',
+      reasons: [
+        `production alias serves the expected SHA (deployment ${layers.deploy.deployment_id}) + listing smoke bound to that exact deployment passed`,
+      ],
     };
   }
 
@@ -153,4 +200,4 @@ function decideExitCode(verdict, { strict = false, requireDeployProof = false } 
   }
 }
 
-module.exports = { aggregate, decideExitCode };
+module.exports = { aggregate, decideExitCode, smokeIdentityMismatches };

@@ -82,19 +82,33 @@ function decideDeploymentVerdict(expectedSha, deployment, { requiredAlias } = {}
   if (!deployedSha) {
     return { verdict: 'UNKNOWN', reason: 'deployment has no commit SHA metadata — cannot prove provenance' };
   }
+  // Structured machine identity: a deployment without a nonempty id can
+  // never be a MATCH — downstream consumers (known-good recorder, smoke
+  // binding) require the exact deployment id as a field, never parsed out
+  // of the human-readable reason.
+  const deploymentId = deployment.uid || deployment.id || null;
+  if (!deploymentId || typeof deploymentId !== 'string') {
+    return { verdict: 'UNKNOWN', reason: 'deployment has no id — cannot establish machine identity' };
+  }
+  const identity = {
+    expected_sha: expectedSha,
+    deployed_sha: deployedSha,
+    deployment_id: deploymentId,
+    deployment_url: deployment.url || null,
+    alias_host: requiredAlias ? requiredAlias.toLowerCase() : null,
+    aliases,
+  };
   if (deployedSha.toLowerCase() === expectedSha.toLowerCase()) {
     return {
       verdict: 'MATCH',
-      reason: `alias-serving deployment ${deployment.uid || deployment.id || ''} built from ${deployedSha}`,
-      deployedSha,
-      aliases,
+      reason: `alias-serving deployment ${deploymentId} built from ${deployedSha}`,
+      ...identity,
     };
   }
   return {
     verdict: 'SHA_MISMATCH',
-    reason: `alias-serving deployment built from ${deployedSha}, expected ${expectedSha}`,
-    deployedSha,
-    aliases,
+    reason: `alias-serving deployment ${deploymentId} built from ${deployedSha}, expected ${expectedSha}`,
+    ...identity,
   };
 }
 
@@ -150,6 +164,7 @@ async function pollForMatch({
   fetchImpl = globalThis.fetch,
   sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
   log = () => {},
+  now = () => new Date().toISOString(),
 }) {
   let last = { verdict: 'UNKNOWN', reason: 'no attempts executed' };
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -160,10 +175,10 @@ async function pollForMatch({
       last = { verdict: 'UNKNOWN', reason: err.message };
     }
     log(`attempt ${attempt}/${maxAttempts}: ${last.verdict} — ${last.reason}`);
-    if (last.verdict === 'MATCH') return { ...last, attempts: attempt };
+    if (last.verdict === 'MATCH') return { ...last, attempts: attempt, observed_at: now() };
     if (attempt < maxAttempts) await sleep(intervalMs);
   }
-  return { ...last, attempts: maxAttempts };
+  return { ...last, attempts: maxAttempts, observed_at: now() };
 }
 
 /** Map a final verdict to the fail-closed exit code. */

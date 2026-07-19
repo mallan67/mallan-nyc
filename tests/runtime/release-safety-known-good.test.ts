@@ -40,6 +40,15 @@ const goodSmoke = {
   observed_at: '2026-07-19T11:59:00.000Z',
   expected_sha: SHA,
   deployment_id: DPL,
+  base_url: 'https://mallan.nyc',
+  listing: { id: 'rls111', canonical_url: '/listing/foo-bar-slug/rls111' },
+  probes: [
+    { name: 'discovery', ok: true },
+    { name: 'canonical-detail', ok: true },
+    { name: 'id-alias', ok: true },
+    { name: 'similar-api', ok: true },
+    { name: 'open-houses-api', ok: true, proof: 'HTTP/JSON-CONTRACT-PROVEN' },
+  ],
 };
 
 const baseOpts = () => ({
@@ -186,5 +195,49 @@ describe('release-safety P2 — record-known-good (full identity chain)', () => 
     const result = await recordKnownGood({ ...baseOpts(), fetchImpl: vercelFetch({}, 404), ledgerPath: tmpLedger() });
     expect(result.recorded).toBe(false);
     expect(result.reason).toContain("no deployment resolves for alias 'mallan.nyc'");
+  });
+
+  test('smoke that targeted a NON-alias host (e.g. a preview URL) is refused', async () => {
+    const ledgerPath = tmpLedger();
+    for (const base_url of ['https://mallan-abc123-preview.vercel.app', 'not-a-url', undefined]) {
+      const result = await recordKnownGood({
+        ...baseOpts(),
+        ledgerPath,
+        smokeEvidence: { ...goodSmoke, base_url },
+      });
+      expect(result.recorded).toBe(false);
+      expect(result.reason).toContain('is not the alias host');
+    }
+    expect(fs.existsSync(ledgerPath)).toBe(false);
+  });
+
+  test('fabricated passed:true evidence without successful required probes is refused', async () => {
+    const ledgerPath = tmpLedger();
+    const cases = [
+      { ...goodSmoke, probes: undefined },
+      { ...goodSmoke, probes: [] },
+      { ...goodSmoke, probes: goodSmoke.probes.filter((p: { name: string }) => p.name !== 'similar-api') },
+      { ...goodSmoke, probes: goodSmoke.probes.map((p: { name: string }) => (p.name === 'id-alias' ? { ...p, ok: false } : p)) },
+    ];
+    for (const smokeEvidence of cases) {
+      const result = await recordKnownGood({ ...baseOpts(), ledgerPath, smokeEvidence });
+      expect(result.recorded).toBe(false);
+      expect(result.reason).toContain('required probes');
+    }
+    expect(fs.existsSync(ledgerPath)).toBe(false);
+  });
+
+  test('smoke without the probed listing identity is refused', async () => {
+    const ledgerPath = tmpLedger();
+    for (const listing of [undefined, null, { id: '', canonical_url: '' }, { id: 'rls111' }]) {
+      const result = await recordKnownGood({
+        ...baseOpts(),
+        ledgerPath,
+        smokeEvidence: { ...goodSmoke, listing },
+      });
+      expect(result.recorded).toBe(false);
+      expect(result.reason).toContain('listing identity');
+    }
+    expect(fs.existsSync(ledgerPath)).toBe(false);
   });
 });

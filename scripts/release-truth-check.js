@@ -179,8 +179,13 @@ if (argFlag('--deploy-proof')) {
       exit_code: 0,
       verdict: 'DEPLOY_PROD_PROVEN',
       source: 'verify-deployment-sha (production alias)',
+      // Full structured identity — the verdict module BINDS the smoke
+      // evidence to these exact fields before PROD_PROVEN is reachable.
+      deployed_sha: proof.deployed_sha || null,
+      deployment_id: proof.deployment_id || null,
+      alias_host: proof.alias_host || null,
       aliases: proof.aliases || [],
-      deployedSha: proof.deployedSha || null,
+      observed_at: proof.observed_at || null,
     };
   } else {
     layers.deploy = {
@@ -203,9 +208,27 @@ if (argFlag('--smoke-evidence')) {
   } catch {
     smoke = null;
   }
-  layers.smoke = smoke && typeof smoke.passed === 'boolean'
-    ? { passed: smoke.passed, observed_at: smoke.observed_at || null, expected_sha: smoke.expected_sha || null, deployment_id: smoke.deployment_id || null }
-    : { passed: false, reason: `smoke-evidence file missing/invalid: ${smokePath}` };
+  if (smoke && typeof smoke.passed === 'boolean') {
+    // Required listing probes (discovery, canonical-detail incl. the
+    // rediscovered variant, id-alias, similar-api) must each be present and
+    // ok. The open-houses probe stays HTTP/JSON-CONTRACT-PROVEN only and is
+    // covered by the overall `passed` flag.
+    const probes = Array.isArray(smoke.probes) ? smoke.probes : [];
+    const probeOk = (name) =>
+      probes.some((p) => p && (p.name === name || (name === 'canonical-detail' && typeof p.name === 'string' && p.name.startsWith('canonical-detail'))) && p.ok === true);
+    const requiredProbesOk = ['discovery', 'canonical-detail', 'id-alias', 'similar-api'].every(probeOk);
+    layers.smoke = {
+      passed: smoke.passed,
+      observed_at: smoke.observed_at || null,
+      expected_sha: smoke.expected_sha || null,
+      deployment_id: smoke.deployment_id || null,
+      base_url: smoke.base_url || null,
+      listing: smoke.listing || null,
+      required_probes_ok: requiredProbesOk,
+    };
+  } else {
+    layers.smoke = { passed: false, reason: `smoke-evidence file missing/invalid: ${smokePath}` };
+  }
 }
 
 // Layer 7 — Live site smoke (Phase 4)

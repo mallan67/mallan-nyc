@@ -42,8 +42,11 @@ node scripts/release-safety/verify-deployment-sha.js \
   --expected-sha <merged-sha> \
   --json > verifier-output.json 2> verifier-progress.stderr
 # exit 0 = MATCH · 2 = SHA_MISMATCH · 3 = NOT_READY · 4 = UNKNOWN/alias unproven
-# The deployment id is in verifier-output.json ("reason" names it; the MATCH
-# entry carries deployedSha + aliases) — it binds the next two steps.
+# A MATCH is a STRUCTURED identity document — read fields, never the reason
+# string: { verdict, expected_sha, deployed_sha, deployment_id,
+#           deployment_url, alias_host, aliases, attempts, observed_at }
+# Its deployment_id binds the next two steps. A deployment without a
+# nonempty id can never be MATCH (it returns UNKNOWN).
 
 # 2. Prove the listing surfaces actually serve, binding the evidence to the
 #    verified deployment:
@@ -103,10 +106,19 @@ Release-Truth workflow, on non-PR events only:
    via the runbook — `PROD_PROVEN` is never claimed without it.
 Without the variable, everything is advisory. PR events are never
 production-gated, evaluate via `--pr` (the DEPLOY_PREVIEW path), and cap at
-`PREVIEW_PROVEN`. **Secret scoping:** `VERCEL_TOKEN` exists only inside the
-guarded non-PR verification step — the general aggregator step (which
-executes checked-out code, including PR heads on PR events) never receives
-the token. Note: `main` currently has
+`PREVIEW_PROVEN`. **Secret scoping (strict):** `VERCEL_TOKEN` exists only
+inside the verification step, which runs ONLY on `push` to
+`refs/heads/main` — pull_request events and **manual `workflow_dispatch`
+runs (which may check out an arbitrary `inputs.sha`/`inputs.pr` revision)
+are token-free and advisory**; non-main code is never executed with the
+token. The gate additionally validates the proof strictly (verifier exit 0,
+verdict MATCH, nonempty `deployment_id`, `expected_sha` and `deployed_sha`
+both equal to the target SHA, `alias_host` = mallan.nyc, `aliases`
+containing mallan.nyc) — anything else discards the proof and fails the
+gate. `PROD_PROVEN` further requires the smoke evidence to be **bound to
+that exact deployment** (same SHA, same deployment id, `base_url` host =
+the proven alias host, all required listing probes successful). Note:
+`main` currently has
 **no branch protection**, so even a red check blocks nothing mechanically —
 merge discipline remains procedural until branch protection is configured
 (a separate, Maya-gated settings change).
