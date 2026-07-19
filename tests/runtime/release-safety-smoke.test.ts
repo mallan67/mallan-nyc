@@ -42,7 +42,7 @@ const LISTING_A = {
   bedroomsTotal: 2,
   propertyType: 'Condo',
   propertySubType: 'Apartment',
-  address: { postalCode: '10019' },
+  address: { postalCode: '10019', streetNumber: '217', streetName: 'W 57th Street' },
 };
 
 const GOOD_LISTINGS = JSON.stringify({
@@ -60,13 +60,26 @@ const GOOD_SIMILAR = JSON.stringify({
 });
 
 /** Mirrors the REAL production canonical-page HTML shape (characterized
- *  2026-07-19): canonical link + listing identity + the DORMANT serialized
+ *  2026-07-19): canonical link + INDEPENDENT structured listing identity
+ *  (flight-escaped `"listingId":"…"` / `"currentListingId":"…"` props, as
+ *  the live page carries ×8/×2) + address title + the DORMANT serialized
  *  notFound template inside escaped RSC flight data. */
 const HEALTHY_CANONICAL_BODY =
   `<html><head><link rel="canonical" href="https://smoke.example${CANONICAL}">` +
   `<title>217 W 57th Street, #127/128 | Mallan Real Estate</title></head>` +
-  `<body><h1>217 W 57th Street</h1><div>rls111</div>` +
+  `<body><h1>217 W 57th Street</h1>` +
+  `<script>self.__next_f.push([1,"{\\"listingId\\":\\"rls111\\",\\"currentListingId\\":\\"rls111\\"}"])</script>` +
   `<script>self.__next_f.push([1,"{\\"className\\":\\"text-3xl\\",\\"children\\":\\"Listing Not Available\\"}"])</script>` +
+  `</body></html>`;
+
+/** The Codex soft-404 shape: echoes the requested canonical link (which
+ *  CONTAINS the listing id) + dormant template, but has NO independent
+ *  listing-render identity and no listing metadata. Must FAIL. */
+const SOFT_404_BODY =
+  `<html><head><link rel="canonical" href="https://smoke.example${CANONICAL}">` +
+  `<title>Mallan Real Estate | New York City Homes</title></head>` +
+  `<body><div>Browse other homes</div>` +
+  `<script>self.__next_f.push([1,"{\\"children\\":\\"Listing Not Available\\"}"])</script>` +
   `</body></html>`;
 
 function healthyRoutes(overrides: Record<string, MockResponse> = {}): Route {
@@ -200,7 +213,7 @@ describe('release-safety P2 — listing smoke', () => {
     const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
     expect(canonical.ok).toBe(false);
     expect(canonical.failureClass).toBe('FAILURE_TEXT');
-    expect(canonical.detail).toContain('lacks the expected listing identity');
+    expect(canonical.detail).toContain('canonical URL is missing');
   });
 
   test('canonical identity mismatch fails as BAD_CONTRACT (page does not represent the listing)', async () => {
@@ -210,17 +223,81 @@ describe('release-safety P2 — listing smoke', () => {
     const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
     expect(canonical.ok).toBe(false);
     expect(canonical.failureClass).toBe('BAD_CONTRACT');
-    expect(canonical.detail).toContain('does not represent the discovered listing');
+    expect(canonical.detail).toContain('does not carry the expected canonical URL');
   });
 
-  test('unit: assessListingPageBody distinguishes active vs dormant vs missing identity', () => {
-    const dormant = `<link rel="canonical" href="https://x${CANONICAL}"> rls111 <script>"\\"children\\":\\"Listing Not Available\\""</script>`;
-    expect(assessListingPageBody(dormant, CANONICAL, 'rls111').ok).toBe(true);
+  test('CODEX REGRESSION: soft-404 echoing the canonical link (which contains the id) + dormant template MUST FAIL', async () => {
+    // 1. canonical href contains the listing id; 2. dormant serialized
+    // template present; 3. NO independent rendered/structured identity.
+    const { fetchImpl } = makeFetch(healthyRoutes({ 'foo-bar-slug': { status: 200, body: SOFT_404_BODY } }));
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    expect(result.passed).toBe(false);
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT');
+    expect(canonical.detail).toContain('NO independent listing-render identity');
+    expect(canonical.note).toBeUndefined(); // never tolerated as dormant
+  });
+
+  test('wrong independent listing id fails (structured marker for a DIFFERENT listing)', async () => {
+    // Rewrite ONLY the structured markers to a different listing (the
+    // canonical href keeps the real id — that alone must not count). Case-
+    // insensitive so the capital-L tail of currentListingId rewrites too:
+    const wrongId = HEALTHY_CANONICAL_BODY.replace(/(listingId\\":\\")rls111/gi, '$1rls999');
+    expect(wrongId).toContain('rls999'); // the transform actually applied
+    expect(wrongId).not.toMatch(/listingId\\":\\"rls111/i); // no real marker left
+    expect(wrongId).toContain(CANONICAL); // canonical href untouched
+    const { fetchImpl } = makeFetch(healthyRoutes({ 'foo-bar-slug': { status: 200, body: wrongId } }));
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('FAILURE_TEXT'); // dormant phrase + no matching independent identity
+  });
+
+  test('title/address metadata must represent the discovered listing', async () => {
+    const wrongTitle = HEALTHY_CANONICAL_BODY.replace(
+      /<title>[^<]*<\/title>/,
+      '<title>999 Different Avenue | Mallan Real Estate</title>'
+    );
+    const { fetchImpl } = makeFetch(healthyRoutes({ 'foo-bar-slug': { status: 200, body: wrongTitle } }));
+    const result = await runListingSmoke({ baseUrl: BASE, fetchImpl, timeoutMs: 500 });
+    const canonical = result.probes.find((p: { name: string }) => p.name === 'canonical-detail');
+    expect(canonical.ok).toBe(false);
+    expect(canonical.failureClass).toBe('BAD_CONTRACT');
+    expect(canonical.detail).toContain('metadata does not represent');
+  });
+
+  test('unit: assessListingPageBody — independence, active/dormant, metadata', () => {
+    const marker = '<script>"{\\"listingId\\":\\"rls111\\"}"</script>';
+    const dormantValid =
+      `<link rel="canonical" href="https://x${CANONICAL}"><title>217 W 57th Street</title>${marker}` +
+      `<script>"\\"children\\":\\"Listing Not Available\\""</script>`;
+    const addr = { streetNumber: '217', streetName: 'W 57th Street' };
+    // valid: canonical + independent identity + metadata + dormant template => pass
+    const ok = assessListingPageBody(dormantValid, CANONICAL, 'rls111', { address: addr });
+    expect(ok.ok).toBe(true);
+    expect(ok.note).toContain('independent listing identity verified');
+    // the canonical href ALONE (which contains the id) is NOT identity:
+    const hrefOnly = `<link rel="canonical" href="https://x${CANONICAL}"><title>217 W 57th Street</title>`;
+    const notIndependent = assessListingPageBody(hrefOnly, CANONICAL, 'rls111', { address: addr });
+    expect(notIndependent.ok).toBe(false);
+    expect(notIndependent.failureClass).toBe('BAD_CONTRACT');
+    expect(notIndependent.detail).toContain('NO independent listing-render identity');
+    // rendered MLS number is accepted independent evidence:
+    const mls = `<link rel="canonical" href="https://x${CANONICAL}"><title>217 W 57th Street</title><span>MLS # rls111</span>`;
+    expect(assessListingPageBody(mls, CANONICAL, 'rls111', { address: addr }).ok).toBe(true);
+    // active rendered unavailable still fails:
     expect(assessListingPageBody('<h1>Listing Not Available</h1>', CANONICAL, 'rls111').ok).toBe(false);
     expect(assessListingPageBody('<h2>  listing not available  </h2>', CANONICAL, 'rls111').ok).toBe(false);
-    const noIdentity = assessListingPageBody('<html>healthy-looking but wrong page</html>', CANONICAL, 'rls111');
-    expect(noIdentity.ok).toBe(false);
-    expect(noIdentity.failureClass).toBe('BAD_CONTRACT');
+    // canonical missing fails:
+    const noCanonical = assessListingPageBody(`<html>${marker}</html>`, CANONICAL, 'rls111');
+    expect(noCanonical.ok).toBe(false);
+    expect(noCanonical.failureClass).toBe('BAD_CONTRACT');
+    // suppressed/absent address => metadata not applicable, structured id decides:
+    const suppressed = assessListingPageBody(`${hrefOnly}${marker}`, CANONICAL, 'rls111', {
+      address: { streetNumber: '', streetName: 'Address Undisclosed' },
+    });
+    expect(suppressed.ok).toBe(true);
     expect(LISTING_UNAVAILABLE_TEXT).toBe('Listing Not Available');
     expect(FAILURE_STRINGS).not.toContain('Listing Not Available'); // no longer a blanket signature
   });
@@ -340,7 +417,7 @@ describe('release-safety P2 — listing smoke', () => {
   test('a pin WITH --listing-url probes exactly that listing for canonical + alias', async () => {
     const pinCanonical = '/listing/pinned-slug/rls777';
     const { fetchImpl, calls } = makeFetch((url) => {
-      if (url.includes(pinCanonical)) return { status: 200, body: `<html><link rel="canonical" href="https://smoke.example${pinCanonical}"><h1>Pinned</h1>rls777</html>` };
+      if (url.includes(pinCanonical)) return { status: 200, body: `<html><link rel="canonical" href="https://smoke.example${pinCanonical}"><h1>Pinned</h1><script>self.__next_f.push([1,"{\\"listingId\\":\\"rls777\\"}"])</script></html>` };
       if (url === `${BASE}/listing/rls777`) return { status: 200, body: `<html><link rel="canonical" href="${pinCanonical}"></html>` };
       return healthyRoutes()(url);
     });
