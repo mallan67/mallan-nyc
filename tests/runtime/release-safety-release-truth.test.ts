@@ -144,14 +144,41 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
   test('the workflow invokes the alias-aware verifier for the production gate and runs the aggregator ONCE', () => {
     expect(workflow).toContain('verify-deployment-sha.js');
     expect(workflow).toContain('--deploy-proof deploy-proof.json');
+    // the verifier runs in --json machine mode with stderr preserved:
+    expect(workflow).toMatch(/verify-deployment-sha\.js[^\n]*--json > deploy-proof\.json 2> deploy-proof\.stderr/);
     // exactly ONE aggregator execution (single JSON source of truth):
     const invocations = workflow.match(/node scripts\/release-truth-check\.js/g) || [];
     expect(invocations).toHaveLength(1);
     // the aggregator's stderr is preserved to a file (never sent to /dev/null):
     expect(workflow).toMatch(/release-truth-check\.js[^\n]*2> release-truth\.stderr/);
     expect(workflow).not.toMatch(/release-truth-check\.js[^\n]*2>\/dev\/null/);
-    // PR events never production-gated:
-    expect(workflow).toContain(`github.event_name }}" != "pull_request"`);
+    // PR events never production-gated (step-level if guard):
+    expect(workflow).toContain("github.event_name != 'pull_request'");
+  });
+
+  test('VERCEL_TOKEN is scoped to the guarded non-PR verification step ONLY', () => {
+    // Exactly ONE secret reference in the whole workflow file …
+    const secretRefs = workflow.match(/secrets\.VERCEL_TOKEN/g) || [];
+    expect(secretRefs).toHaveLength(1);
+    // … inside the prodverify step, which is guarded against PR events:
+    const prodverifyStart = workflow.indexOf('id: prodverify');
+    const aggregatorStart = workflow.indexOf('id: aggregator');
+    const secretPos = workflow.indexOf('secrets.VERCEL_TOKEN');
+    expect(prodverifyStart).toBeGreaterThan(-1);
+    expect(secretPos).toBeGreaterThan(prodverifyStart);
+    expect(secretPos).toBeLessThan(aggregatorStart);
+    // … and NOTHING from the aggregator step onward carries the token:
+    expect(workflow.slice(aggregatorStart)).not.toContain('VERCEL_TOKEN');
+    // The guard sits between the step id and its env block:
+    const guardPos = workflow.indexOf("if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name != 'pull_request'");
+    expect(guardPos).toBeGreaterThan(prodverifyStart);
+    expect(guardPos).toBeLessThan(secretPos);
+  });
+
+  test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {
+    // The PR branch of Resolve target pairs the head SHA (checkout/status)
+    // with a --pr aggregator invocation on the SAME line:
+    expect(workflow).toMatch(/pull_request\.head\.sha \}\}"; args="--pr \$\{\{ github\.event\.pull_request\.number \}\}"/);
   });
 
   test('release-truth-check.js accepts the P2 proof/evidence layers', () => {

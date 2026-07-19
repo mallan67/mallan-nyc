@@ -197,10 +197,19 @@ if (require.main === module) {
     return i >= 0 ? args[i + 1] : null;
   };
   const expectedSha = flag('--expected-sha');
+  // --json: machine-output mode. stdout carries EXACTLY one JSON document
+  // (no human prefix, no attempt log); ALL progress goes to stderr — so
+  // `... --json > out.json 2> progress.log` always yields parseable JSON.
+  const jsonMode = args.includes('--json');
   if (!expectedSha) {
-    console.error('Usage: node scripts/release-safety/verify-deployment-sha.js --expected-sha <sha> [--alias mallan.nyc] [--max-attempts N] [--interval-ms MS]');
+    console.error('Usage: node scripts/release-safety/verify-deployment-sha.js --expected-sha <sha> [--json] [--alias mallan.nyc] [--max-attempts N] [--interval-ms MS]');
     process.exit(4);
   }
+  const logLine = (m) => {
+    const line = `[verify-deployment-sha] ${m}`;
+    if (jsonMode) console.error(line);
+    else console.log(line);
+  };
   pollForMatch({
     expectedSha,
     token: process.env.VERCEL_TOKEN,
@@ -208,13 +217,20 @@ if (require.main === module) {
     teamId: process.env.VERCEL_TEAM_ID || undefined,
     maxAttempts: Number(flag('--max-attempts')) || DEFAULT_MAX_ATTEMPTS,
     intervalMs: Number(flag('--interval-ms')) || DEFAULT_INTERVAL_MS,
-    log: (m) => console.log(`[verify-deployment-sha] ${m}`),
+    log: logLine,
   })
     .then((result) => {
-      console.log(JSON.stringify(result, null, 2));
-      process.exit(exitCodeForVerdict(result.verdict));
+      if (jsonMode) {
+        process.stdout.write(JSON.stringify(result) + '\n');
+      } else {
+        console.log(JSON.stringify(result, null, 2));
+      }
+      process.exit(exitCodeForVerdict(result.verdict)); // only MATCH exits 0
     })
     .catch((err) => {
+      if (jsonMode) {
+        process.stdout.write(JSON.stringify({ verdict: 'UNKNOWN', reason: `fatal: ${err.message}` }) + '\n');
+      }
       console.error(`[verify-deployment-sha] fatal: ${err.message}`);
       process.exit(4);
     });

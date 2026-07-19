@@ -36,9 +36,14 @@ the token.
 
 ```bash
 # 1. Prove mallan.nyc is served by a READY deployment built from the merge SHA.
-node scripts/release-safety/verify-deployment-sha.js --expected-sha <merged-sha>
+#    --json: stdout is EXACTLY one machine-readable JSON document; all
+#    progress/attempt logs go to stderr — redirect them separately.
+node scripts/release-safety/verify-deployment-sha.js \
+  --expected-sha <merged-sha> \
+  --json > verifier-output.json 2> verifier-progress.stderr
 # exit 0 = MATCH · 2 = SHA_MISMATCH · 3 = NOT_READY · 4 = UNKNOWN/alias unproven
-# Note the deployment id from the MATCH output — it binds the next two steps.
+# The deployment id is in verifier-output.json ("reason" names it; the MATCH
+# entry carries deployedSha + aliases) — it binds the next two steps.
 
 # 2. Prove the listing surfaces actually serve, binding the evidence to the
 #    verified deployment:
@@ -52,9 +57,10 @@ node scripts/release-safety/listing-smoke.js --base-url https://mallan.nyc \
 node scripts/release-safety/record-known-good.js --expected-sha <merged-sha> \
   --deployment-id <dpl_from_step_1> --smoke-evidence smoke.json --verified-by "<name>"
 
-# 4. (Optional) A PROD_PROVEN release-truth verdict now becomes reachable:
+# 4. (Optional) A PROD_PROVEN release-truth verdict now becomes reachable,
+#    consuming the exact file from step 1:
 node scripts/release-truth-check.js --sha <merged-sha> \
-  --deploy-proof <verifier-output.json> --smoke-evidence smoke.json
+  --deploy-proof verifier-output.json --smoke-evidence smoke.json
 ```
 
 **If verification fails (step 1 or 2): stop the release process, preserve the
@@ -96,7 +102,11 @@ Release-Truth workflow, on non-PR events only:
    reads UNVERIFIED (status pending) until runtime smoke evidence is supplied
    via the runbook — `PROD_PROVEN` is never claimed without it.
 Without the variable, everything is advisory. PR events are never
-production-gated and cap at `PREVIEW_PROVEN`. Note: `main` currently has
+production-gated, evaluate via `--pr` (the DEPLOY_PREVIEW path), and cap at
+`PREVIEW_PROVEN`. **Secret scoping:** `VERCEL_TOKEN` exists only inside the
+guarded non-PR verification step — the general aggregator step (which
+executes checked-out code, including PR heads on PR events) never receives
+the token. Note: `main` currently has
 **no branch protection**, so even a red check blocks nothing mechanically —
 merge discipline remains procedural until branch protection is configured
 (a separate, Maya-gated settings change).

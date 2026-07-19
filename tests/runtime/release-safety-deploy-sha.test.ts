@@ -169,3 +169,31 @@ describe('release-safety P2 — pollForMatch (bounded, alias-addressed)', () => 
     expect(methods).toEqual(['GET']);
   });
 });
+
+describe('release-safety P2 — verifier CLI --json machine mode (spawned end-to-end)', () => {
+  test('redirected stdout is EXACTLY one parseable JSON document; progress goes to stderr; exit is fail-closed', () => {
+    /* eslint-disable @typescript-eslint/no-var-requires */
+    const { spawnSync } = require('child_process');
+    const path = require('path');
+    const script = path.resolve(__dirname, '../../scripts/release-safety/verify-deployment-sha.js');
+    // No VERCEL_TOKEN in the child env => the poll ends UNKNOWN without any
+    // network call, exercising the full real CLI pipeline.
+    const env = { ...process.env };
+    delete env.VERCEL_TOKEN;
+    const r = spawnSync(process.execPath, [script, '--expected-sha', 'abc123', '--json', '--max-attempts', '1', '--interval-ms', '1'], {
+      env,
+      encoding: 'utf8',
+      timeout: 30_000,
+    });
+    // stdout: exactly one JSON document with the expected verdict, no prefix:
+    const parsed = JSON.parse(r.stdout); // throws on any non-JSON prefix/suffix
+    expect(parsed.verdict).toBe('UNKNOWN');
+    expect(r.stdout.trim().startsWith('{')).toBe(true);
+    expect(r.stdout).not.toContain('[verify-deployment-sha]');
+    // stderr: the attempt/progress log lives here:
+    expect(r.stderr).toContain('[verify-deployment-sha]');
+    expect(r.stderr).toContain('attempt 1/1');
+    // only MATCH exits 0 — UNKNOWN is 4:
+    expect(r.status).toBe(4);
+  });
+});

@@ -62,7 +62,11 @@ jobs:
             sha=$(gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq '.head.sha')
             args="--pr ${{ inputs.pr }}"; label="PR #${{ inputs.pr }}"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            sha="${{ github.event.pull_request.head.sha }}"; args="--sha $sha"; label="SHA $sha"
+            # P2: checkout + status publication use the PR HEAD sha, but the
+            # aggregator is invoked with --pr so the deploy validator takes
+            # the DEPLOY_PREVIEW path (a PR's Vercel deployment is a preview;
+            # PREVIEW_PROVEN is its cap — it can never become PROD_PROVEN).
+            sha="${{ github.event.pull_request.head.sha }}"; args="--pr ${{ github.event.pull_request.number }}"; label="PR #${{ github.event.pull_request.number }}"
           else
             sha="${{ github.sha }}"; args="--sha $sha"; label="SHA $sha"
           fi
@@ -87,31 +91,53 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: Run release-truth aggregator
-        id: aggregator
+      # P2 production hard gate — OFF until the repo variable
+      # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is 'true' (Maya's decision).
+      # SECRET SCOPING: VERCEL_TOKEN exists ONLY in this step, and this step
+      # can NEVER run on pull_request events — so PR-head code is never
+      # executed with the Vercel token in its environment. The general
+      # aggregator step below receives no token.
+      - name: Verify production alias deployment (gated, non-PR only)
+        id: prodverify
+        if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name != 'pull_request'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set +e
-          # P2 production hard gate — OFF until the repo variable
-          # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is 'true' (Maya's decision).
-          # When ON, and ONLY for non-PR targets (push to main / dispatched
-          # production audits), the gate:
-          #   1. runs the alias-aware production verifier
-          #      (scripts/release-safety/verify-deployment-sha.js): mallan.nyc
-          #      must be served by a READY deployment built from the target
-          #      SHA, with alias ownership proven — the gate FAILS otherwise;
-          #   2. feeds that proof to the aggregator (--deploy-proof), whose
-          #      verdict stays honest: PROD_PROVEN additionally requires
-          #      runtime smoke evidence (--smoke-evidence, runbook-supplied),
-          #      so the advisory verdict here reads UNVERIFIED until then.
-          # PR events are NEVER production-gated (advisory only, and cap at
-          # PREVIEW_PROVEN by design).
+          # --json: stdout is EXACTLY one JSON document; progress goes to
+          # stderr (preserved below). mallan.nyc must be served by a READY
+          # deployment built from the target SHA with proven alias ownership.
+          node scripts/release-safety/verify-deployment-sha.js --expected-sha "${{ steps.target.outputs.sha }}" --json > deploy-proof.json 2> deploy-proof.stderr
+          rc=$?
+          cat deploy-proof.stderr >&2
+          node -e '
+            const fs = require("fs");
+            const d = JSON.parse(fs.readFileSync("deploy-proof.json", "utf8"));
+            if (typeof d.verdict !== "string") { throw new Error("deploy-proof.json has no verdict"); }
+            console.log("alias verifier verdict: " + d.verdict + " — " + (d.reason || ""));
+          '
+          if [ $? -ne 0 ]; then
+            echo "deploy-proof.json is not valid JSON — discarding it and treating the gate as failed" >&2
+            rm -f deploy-proof.json
+            rc=4
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # Gate enforcement happens in the final step so the aggregator,
+          # status post, and summary still run and stay honest.
+          exit 0
+
+      - name: Run release-truth aggregator
+        id: aggregator
+        run: |
+          set +e
+          # When the gated step above produced a VALIDATED deploy-proof.json,
+          # feed it to the aggregator; the verdict stays honest either way:
+          # PROD_PROVEN additionally requires runtime smoke evidence
+          # (--smoke-evidence, runbook-supplied), so the advisory verdict here
+          # reads UNVERIFIED until then. PR events are NEVER production-gated
+          # (advisory only; they evaluate via --pr and cap at PREVIEW_PROVEN).
           extra=""
-          gate_rc=0
-          if [ "${{ vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF }}" = "true" ] && [ "${{ github.event_name }}" != "pull_request" ]; then
-            node scripts/release-safety/verify-deployment-sha.js --expected-sha "${{ steps.target.outputs.sha }}" > deploy-proof.json
-            gate_rc=$?
+          if [ -f deploy-proof.json ]; then
             extra="--deploy-proof deploy-proof.json"
           fi
           # Single aggregator execution: one JSON, stderr preserved. Logs,
@@ -142,11 +168,8 @@ jobs:
           fi
           echo "verdict=$(cat release-truth-verdict.txt)" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
-          if [ $gate_rc -ne 0 ]; then
-            echo "Production alias verification FAILED (exit $gate_rc) — failing the gated run" >&2
-            exit $gate_rc
-          fi
-          exit 0  # Advisory mode: the commit status carries the verdict
+          exit 0  # Advisory mode: the commit status carries the verdict;
+                  # the production gate (if armed) is enforced in the final step
 
       - name: Post commit status
         # Posts the advisory release-truth verdict as a commit status
@@ -218,3 +241,12 @@ jobs:
             jq '.layers' release-truth.json 2>/dev/null || echo '{}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce production gate
+        # Runs LAST so the aggregator verdict, commit status, and summary are
+        # always published first. Fails the run when the gated alias
+        # verification step ran and did not end in MATCH.
+        if: steps.prodverify.outputs.rc != '' && steps.prodverify.outputs.rc != '0'
+        run: |
+          echo "Production alias verification FAILED (verifier exit ${{ steps.prodverify.outputs.rc }}) — failing the gated run"
+          exit 1

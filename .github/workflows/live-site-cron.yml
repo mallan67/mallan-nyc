@@ -69,13 +69,21 @@ jobs:
             try { d = JSON.parse(fs.readFileSync("live-site.json", "utf8")); }
             catch (e) { console.error("live-site.json missing/invalid: " + e.message); process.exit(1); }
             const s = d && d.summary;
-            if (!s || typeof s.fail !== "number") { console.error("summary absent/invalid"); process.exit(1); }
+            // FAIL-CLOSED summary contract: pass/fail/blocked/unverified must
+            // ALL be finite nonnegative numbers and checks must be an array.
+            // Malformed evidence is NEVER defaulted to zero / labeled clean.
+            const isCount = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+            if (!s || !isCount(s.pass) || !isCount(s.fail) || !isCount(s.blocked) || !isCount(s.unverified)) {
+              console.error("summary absent or pass/fail/blocked/unverified not finite nonnegative numbers: " + JSON.stringify(s));
+              process.exit(1);
+            }
+            if (!Array.isArray(d.checks)) { console.error("checks is not an array"); process.exit(1); }
             const out = process.env.GITHUB_OUTPUT;
             fs.appendFileSync(out, "fails=" + s.fail + "\n");
-            fs.appendFileSync(out, "blocked=" + (s.blocked || 0) + "\n");
-            fs.appendFileSync(out, "unverified=" + (s.unverified || 0) + "\n");
+            fs.appendFileSync(out, "blocked=" + s.blocked + "\n");
+            fs.appendFileSync(out, "unverified=" + s.unverified + "\n");
             fs.appendFileSync(out, "json_ok=1\n");
-            for (const c of d.checks || []) console.log((c.verdict || "?").padEnd(11) + (c.check || "?") + (c.reason ? " — " + c.reason : ""));
+            for (const c of d.checks) console.log((c.verdict || "?").padEnd(11) + (c.check || "?") + (c.reason ? " — " + c.reason : ""));
             console.log("summary: " + JSON.stringify(s));
           '
           parse_rc=$?

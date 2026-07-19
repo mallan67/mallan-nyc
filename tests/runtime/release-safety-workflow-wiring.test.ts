@@ -39,6 +39,16 @@ describe('release-safety P2 — workflow wiring pins', () => {
     expect(cron).toContain('json_ok');
   });
 
+  test('live-site summary validation is strict: all four counters must be finite nonnegative numbers, checks an array', () => {
+    const cron = read('.github/workflows/live-site-cron.yml');
+    expect(cron).toContain('Number.isFinite');
+    expect(cron).toMatch(/isCount\(s\.pass\).*isCount\(s\.fail\).*isCount\(s\.blocked\).*isCount\(s\.unverified\)/s);
+    expect(cron).toContain('Array.isArray(d.checks)');
+    // malformed blocked/unverified are never defaulted to zero:
+    expect(cron).not.toContain('s.blocked || 0');
+    expect(cron).not.toContain('s.unverified || 0');
+  });
+
   test('live-site-cron does not claim BLOCKED/UNVERIFIED results as fully clean', () => {
     const cron = read('.github/workflows/live-site-cron.yml');
     expect(cron).toContain('PASS-WITH-GAPS');
