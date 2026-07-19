@@ -91,8 +91,15 @@ jobs:
         id: aggregator
         run: |
           set +e
+          # P2: optional hard gate. OFF until the repo variable
+          # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is set to 'true' (Maya's
+          # decision — creating the variable is the enable switch).
+          extra=""
+          if [ "${{ vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF }}" = "true" ]; then
+            extra="--require-deploy-proof"
+          fi
           # Capture verdict + full JSON for the status post + summary
-          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} --json > release-truth.json 2>/dev/null
+          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} $extra --json > release-truth.json 2>/dev/null
           rc=$?
           verdict=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).verdict")
           reasons=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).reasons.join(' | ')")
@@ -100,8 +107,12 @@ jobs:
           echo "reasons=$reasons" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           # Print human-readable to log
-          node scripts/release-truth-check.js ${{ steps.target.outputs.args }}
-          exit 0  # Don't fail the workflow itself; the commit status carries the verdict
+          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} $extra
+          if [ -n "$extra" ]; then
+            # Hard-gate mode: the aggregator's exit code IS the workflow result.
+            exit $rc
+          fi
+          exit 0  # Advisory mode: the commit status carries the verdict
 
       - name: Post commit status
         # Posts the advisory release-truth verdict as a commit status
@@ -109,9 +120,11 @@ jobs:
         # (the PR HEAD sha, so it is visible ON the PR). No PR comment / email.
         # The workflow never fails on the verdict — the aggregator exits 0; this
         # step only sets a status (PARTIAL/UNVERIFIED => pending, advisory).
-        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        if: (github.event_name == 'push' || github.event_name == 'pull_request') && always()
         run: |
-          state="success"
+          # P2 fail-closed default: an empty/unrecognized verdict posts
+          # "pending", never "success" (the pre-P2 default was success).
+          state="pending"
           case "${{ steps.aggregator.outputs.verdict }}" in
             PROD_PROVEN|CODE_VALID) state="success" ;;
             PARTIAL|UNVERIFIED) state="pending" ;;

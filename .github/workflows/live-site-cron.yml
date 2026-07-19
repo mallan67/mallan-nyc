@@ -10,6 +10,13 @@ name: Live Site Smoke (cron)
 # When a check FAILs, the workflow opens an issue (creating one per
 # distinct failure pattern, deduping when an issue is already open).
 # Manual dispatch supported for ad-hoc smoke runs.
+#
+# P2 (release-safety): a FAIL now also FAILS the workflow run itself (red
+# run + GitHub notification) — previously every run exited 0 and failures
+# were visible only inside the issue. The expensive five-probe listing
+# smoke (scripts/release-safety/listing-smoke.js) is deliberately NOT run
+# here: hourly listing probes would keep the Neon endpoint permanently
+# awake (see docs/operations/release-safety-runbook.md — post-deploy only).
 
 on:
   schedule:
@@ -111,3 +118,12 @@ jobs:
             echo "- BLOCKED: ${{ steps.validator.outputs.blocked }}"
             echo "- UNVERIFIED: ${{ steps.validator.outputs.unverified }}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Propagate failure (P2 — no more silent-green runs)
+        # Runs LAST so issue automation + summary always complete first.
+        # An empty `fails` output (validator crash) also lands here — a
+        # crashed validator must never look like a clean run.
+        if: steps.validator.outputs.fails != '0'
+        run: |
+          echo "live-site validator reported FAIL='${{ steps.validator.outputs.fails }}' — failing the workflow run"
+          exit 1
