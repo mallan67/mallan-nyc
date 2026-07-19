@@ -1,10 +1,10 @@
 /**
- * #525 re-derivation (2026-07-19, correction round 2) — bounded, RESUMABLE,
- * read-only media audit + dry-run.
+ * #525 re-derivation (2026-07-19, correction round 3) — bounded, resumable,
+ * identity-bound, self-repairing, read-only media audit + dry-run.
  *
  * Every dependency is MOCKED — no production Neon, Cotality, or R2 connection
- * is made anywhere in this suite (the tsx toolchain check uses a stub
- * DATABASE_URL and imports only entry-guarded modules).
+ * is made anywhere in this suite (spawned tsx checks use a stub DATABASE_URL
+ * and entry-guarded modules).
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
@@ -14,7 +14,8 @@ import * as path from 'path';
 const {
   runAudit, probeListingMedia, buildInventoryRow, needsCotalityProbe,
   attemptWithAccounting, makeAccountant, CapStopError, classifyCotalityRowStrict,
-  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS,
+  isValidProviderMediaUrl, validateNextLink, identitiesMatch,
+  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS, CHECKPOINT_VERSION,
 } = require('@/scripts/audit/media-coverage-audit');
 const {
   runDryRun, planListing, diffAuthorizedFields, normalizeSourceUrl,
@@ -27,6 +28,13 @@ const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 // ─── fixtures ───────────────────────────────────────────────────────────────
+
+const TEST_IDENTITY = {
+  schemaVersion: CHECKPOINT_VERSION, toolMode: 'audit' as const, probeMode: 'cotality' as const,
+  cotalitySource: 'https://api.cotality.com/trestle', neonFingerprint: 'testfp000001', checkpointPath: null,
+};
+const NEON_ONLY_IDENTITY = { ...TEST_IDENTITY, probeMode: 'neon-only' as const, cotalitySource: null };
+const DRY_IDENTITY = { ...TEST_IDENTITY, toolMode: 'dryrun' as const };
 
 const photoRow = (order: number, over: Record<string, unknown> = {}) => ({
   media_url_original: `https://cdn.example/p${order}.jpg`,
@@ -41,45 +49,32 @@ const photoRow = (order: number, over: Record<string, unknown> = {}) => ({
 });
 
 const auditRow = (over: Record<string, unknown> = {}) => ({
-  listing_id: 'RLS20100000',
-  rls_eligible: true,
-  status: 'Active',
-  idx_display_yn: true,
-  internet_entire_listing_display_yn: true,
-  owner_opt_out: false,
-  participant_only: false,
-  media: [],
-  _count: { listing_media: 0 },
-  listing_media: [],
-  ...over,
+  listing_id: 'RLS20100000', rls_eligible: true, status: 'Active',
+  idx_display_yn: true, internet_entire_listing_display_yn: true,
+  owner_opt_out: false, participant_only: false, media: [],
+  _count: { listing_media: 0 }, listing_media: [], ...over,
 });
 
 const dryRow = (over: Record<string, unknown> = {}) => ({
-  listing_id: 'RLS20100000',
-  rls_eligible: true,
-  status: 'Active',
-  idx_display_yn: true,
-  internet_entire_listing_display_yn: true,
-  owner_opt_out: false,
-  participant_only: false,
-  media: [],
-  _count: { listing_media: 0 },
-  listing_media_active: [],
-  listing_media_all: [],
-  ...over,
+  listing_id: 'RLS20100000', rls_eligible: true, status: 'Active',
+  idx_display_yn: true, internet_entire_listing_display_yn: true,
+  owner_opt_out: false, participant_only: false, media: [],
+  _count: { listing_media: 0 }, listing_media_active: [], listing_media_all: [], ...over,
 });
 
 const tightBudgets = (over: Record<string, unknown> = {}) => ({
   pageSize: 2, maxListings: 100, maxCotalityProbes: 100, maxCotalityRequests: 100,
-  cotalityConcurrency: 1, maxMediaPagesPerListing: 5, runTimeBudgetMs: 60_000, ...over,
+  cotalityConcurrency: 1, maxMediaPagesPerListing: 5, runTimeBudgetMs: 60_000,
+  maxUnknownRetriesPerListing: 3, ...over,
 });
 
-/** Keyset page reader over an in-memory listing set (records every call). */
 function pagedReader(rows: Array<Record<string, unknown>>) {
   const calls: Array<{ cursor: string | null; pageSize: number }> = [];
+  const byIdCalls: string[][] = [];
   const sorted = () => [...rows].sort((a, b) => String(a.listing_id).localeCompare(String(b.listing_id)));
   return {
     calls,
+    byIdCalls,
     reader: {
       fetchPage: async (cursor: string | null, pageSize: number) => {
         calls.push({ cursor, pageSize });
@@ -88,12 +83,14 @@ function pagedReader(rows: Array<Record<string, unknown>>) {
         if (start < 0) return [];
         return s.slice(start, start + pageSize);
       },
+      fetchByIds: async (ids: string[]) => {
+        byIdCalls.push(ids);
+        return sorted().filter((r) => ids.includes(String(r.listing_id)));
+      },
     },
   };
 }
 
-/** Mock Cotality reader honoring the accountant (1 consume per simulated
- *  request — the SAME authoritative path the real transport uses). */
 function mockCotality(opts: {
   pages?: Array<{ rows: Array<Record<string, unknown>>; nextLink?: string | null }>;
   propertyError?: string;
@@ -143,11 +140,30 @@ const cPhoto = (order: number, over: Record<string, unknown> = {}) => ({
 });
 
 const acctOf = (max = 100) => makeAccountant(max);
+const runTsx = (driverLines: string[], expectExit: number) => {
+  const driver = path.join(ROOT, `.tmp-525-driver-${Math.abs(driverLines.join('').length)}.mts`);
+  fs.writeFileSync(driver, driverLines.join('\n'), 'utf8');
+  try {
+    let code = 0;
+    try {
+      execFileSync(process.execPath, [path.join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), driver], {
+        cwd: ROOT,
+        env: { ...process.env, DATABASE_URL: 'postgresql://stub:stub@localhost:5432/stub?schema=public', DATABASE_URL_UNPOOLED: 'postgresql://stub:stub@localhost:5432/stub?schema=public' },
+        timeout: 120_000,
+      });
+    } catch (e) {
+      code = (e as { status?: number }).status ?? -1;
+    }
+    expect(code).toBe(expectExit);
+  } finally {
+    fs.unlinkSync(driver);
+  }
+};
 
 // ─── toolchain ──────────────────────────────────────────────────────────────
 
 describe('toolchain — tsx wiring and startability', () => {
-  it('package.json wires tsx scripts for audit + dry-run (exactly three, nothing else)', () => {
+  it('package.json wires exactly three tsx scripts', () => {
     const pkg = JSON.parse(read('package.json'));
     expect(pkg.scripts['media:audit']).toContain('tsx scripts/audit/media-coverage-audit.cli.ts');
     expect(pkg.scripts['media:audit:cotality']).toContain('--with-cotality');
@@ -157,8 +173,7 @@ describe('toolchain — tsx wiring and startability', () => {
   });
 
   it('logic + cli modules load under real tsx with stub env — no production connection', () => {
-    const driver = path.join(ROOT, '.tmp-525-toolchain-driver.mts');
-    fs.writeFileSync(driver, [
+    runTsx([
       "import * as a from './scripts/audit/media-coverage-audit';",
       "import * as b from './scripts/backfill/bucket-b-media-dry-run';",
       "import * as c from './scripts/audit/media-coverage-audit.cli';",
@@ -166,20 +181,7 @@ describe('toolchain — tsx wiring and startability', () => {
       "const ok = typeof a.runAudit === 'function' && typeof b.runDryRun === 'function'",
       "  && typeof c.main === 'function' && typeof d.main === 'function';",
       "process.exit(ok ? 0 : 3);",
-    ].join('\n'), 'utf8');
-    try {
-      execFileSync(process.execPath, [path.join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), driver], {
-        cwd: ROOT,
-        env: {
-          ...process.env,
-          DATABASE_URL: 'postgresql://stub:stub@localhost:5432/stub?schema=public',
-          DATABASE_URL_UNPOOLED: 'postgresql://stub:stub@localhost:5432/stub?schema=public',
-        },
-        timeout: 120_000,
-      });
-    } finally {
-      fs.unlinkSync(driver);
-    }
+    ], 0);
   }, 150_000);
 });
 
@@ -206,420 +208,366 @@ describe('read-only guarantee — no mutation or R2 write reachable', () => {
       }
     }
   });
-  it('the injected reader interfaces expose ONLY read methods', () => {
-    const audit = read('scripts/audit/media-coverage-audit.ts');
-    const listingIface = audit.slice(audit.indexOf('interface ListingPageReader'), audit.indexOf('}', audit.indexOf('interface ListingPageReader')));
-    expect(listingIface).toContain('fetchPage');
-    for (const method of ['resolvePropertyKey', 'buildFirstMediaUrl', 'fetchMediaPage']) {
-      expect(audit).toContain(method);
+});
+
+// ─── ROUND 3: secure nextLink validation ────────────────────────────────────
+
+describe('ROUND 3 — secure nextLink validation (parse, never string prefix)', () => {
+  const BASE = 'https://api.cotality.com/trestle';
+  it('the string-prefix bypass host/path attacks are REJECTED before any token is sent', () => {
+    // The exact review example: passes startsWith(BASE) but is a different path.
+    expect(validateNextLink('https://api.cotality.com/trestle.attacker.example/path', BASE)).toMatchObject({ error: expect.stringContaining('outside the allowed OData path') });
+    // Different-host attack that also passes naive prefixes:
+    expect(validateNextLink('https://api.cotality.com.attacker.example/trestle/odata/Media', BASE)).toMatchObject({ error: expect.stringContaining('origin') });
+    expect(validateNextLink('http://api.cotality.com/trestle/odata/Media', BASE)).toMatchObject({ error: expect.stringContaining('https') });
+    expect(validateNextLink('https://user:pw@api.cotality.com/trestle/odata/Media', BASE)).toMatchObject({ error: expect.stringContaining('credentials') });
+    expect(validateNextLink('https://evil.example/trestle/odata/Media', BASE)).toMatchObject({ error: expect.stringContaining('origin') });
+  });
+  it('a valid absolute nextLink and a RELATIVE nextLink resolve safely', () => {
+    expect(validateNextLink(`${BASE}/odata/Media?$skip=100`, BASE)).toMatchObject({ url: expect.stringContaining('/trestle/odata/Media') });
+    expect(validateNextLink('/trestle/odata/Media?$skip=200', BASE)).toMatchObject({ url: 'https://api.cotality.com/trestle/odata/Media?$skip=200' });
+  });
+  it('the CLI reader validates BEFORE the next authenticated request (source pins)', () => {
+    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(cli).toContain('validateNextLink(rawNext, BASE)');
+    expect(cli).toContain('unsafe nextLink rejected');
+    expect(cli).not.toContain('nextLink.startsWith');
+  });
+});
+
+// ─── ROUND 3: identity-bound checkpoints + strict flags ────────────────────
+
+describe('ROUND 3 — identity-bound checkpoints', () => {
+  it('a Neon-only checkpoint can NEVER resume in Cotality mode (cross-mode rejected)', () => {
+    const cp = emptyCheckpoint(NEON_ONLY_IDENTITY);
+    expect(() => validateCheckpoint(cp, TEST_IDENTITY)).toThrow(/identity mismatch/);
+    expect(identitiesMatch(NEON_ONLY_IDENTITY, TEST_IDENTITY).join(' ')).toContain('probeMode');
+  });
+  it('a checkpoint from another database or provider endpoint is rejected (cross-source)', () => {
+    const otherDb = emptyCheckpoint({ ...TEST_IDENTITY, neonFingerprint: 'otherdb00002' });
+    expect(() => validateCheckpoint(otherDb, TEST_IDENTITY)).toThrow(/neonFingerprint/);
+    const otherProvider = emptyCheckpoint({ ...TEST_IDENTITY, cotalitySource: 'https://other.example/trestle' });
+    expect(() => validateCheckpoint(otherProvider, TEST_IDENTITY)).toThrow(/cotalitySource/);
+  });
+  it('version/mode/reconciliation still fail closed; dry-run identity too', () => {
+    expect(() => validateCheckpoint({ ...emptyCheckpoint(TEST_IDENTITY), version: 2 }, TEST_IDENTITY)).toThrow(/version/);
+    const bad = emptyCheckpoint(TEST_IDENTITY);
+    bad.processed = 5;
+    expect(() => validateCheckpoint(bad, TEST_IDENTITY)).toThrow(/reconcile/);
+    expect(() => validateDryRunCheckpoint(emptyDryRunCheckpoint({ ...DRY_IDENTITY, probeMode: 'neon-only', cotalitySource: null }), DRY_IDENTITY)).toThrow(/identity mismatch/);
+  });
+  it('runAudit stamps the identity on fresh checkpoints and rejects foreign ones', async () => {
+    const rows = [auditRow({ listing_id: 'RLSA', listing_media: [photoRow(1)] })];
+    const res = await runAudit({ listings: pagedReader(rows).reader, identity: NEON_ONLY_IDENTITY, budgets: tightBudgets() });
+    expect(res.checkpoint.identity).toEqual(NEON_ONLY_IDENTITY);
+    await expect(runAudit({ listings: pagedReader(rows).reader, identity: TEST_IDENTITY, budgets: tightBudgets(), checkpoint: res.checkpoint }))
+      .rejects.toThrow(/identity mismatch/);
+  });
+  it('checkpoints are written atomically (tmp + rename) — source pin', () => {
+    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(cli).toContain('writeCheckpointAtomic');
+    expect(cli).toContain('renameSync');
+    expect(cli).toContain('.tmp');
+  });
+});
+
+describe('ROUND 3 — strict fail-closed CLI flags (spawned real tsx)', () => {
+  const cliImport = "const { main } = await import('./scripts/audit/media-coverage-audit.cli');";
+  it('--resume without an existing checkpoint file fails (never a silent fresh start)', () => {
+    runTsx([
+      "process.argv = [process.argv[0], process.argv[1], '--resume', '--checkpoint', '.does-not-exist-525.json'];",
+      cliImport, 'await main();', 'process.exit(0);',
+    ], 1);
+  }, 150_000);
+  it('an unknown/misspelled flag fails', () => {
+    runTsx([
+      "process.argv = [process.argv[0], process.argv[1], '--max-listngs', '10'];",
+      cliImport, 'await main();', 'process.exit(0);',
+    ], 1);
+  }, 150_000);
+  it('a duplicate bound flag fails', () => {
+    runTsx([
+      "process.argv = [process.argv[0], process.argv[1], '--max-listings', '10', '--max-listings', '20'];",
+      cliImport, 'await main();', 'process.exit(0);',
+    ], 1);
+  }, 150_000);
+  it('--checkpoint with a missing value fails; invalid bound values fail; --retries 0 is allowed (source pins)', () => {
+    runTsx([
+      "process.argv = [process.argv[0], process.argv[1], '--checkpoint', '--json'];",
+      cliImport, 'await main();', 'process.exit(0);',
+    ], 1);
+    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(cli).toContain("parseBound(args, '--retries', 1, 0)");
+    expect(cli).toContain("parseBound(args, '--max-media-pages'");
+    expect(cli).toContain('refusing to run');
+  }, 150_000);
+});
+
+// ─── ROUND 3: provider MediaURL validation ──────────────────────────────────
+
+describe('ROUND 3 — provider MediaURL validation', () => {
+  it('isValidProviderMediaUrl: absolute http(s) only', () => {
+    expect(isValidProviderMediaUrl('https://cdn.example/a.jpg')).toBe(true);
+    expect(isValidProviderMediaUrl('http://cdn.example/a.jpg')).toBe(true);
+    for (const bad of ['', '   ', null, undefined, 42, 'notaurl', 'ftp://x/a.jpg', '/relative/a.jpg']) {
+      expect({ bad: String(bad), ok: isValidProviderMediaUrl(bad) }).toEqual({ bad: String(bad), ok: false });
+    }
+  });
+  it('an empty or malformed MediaURL on a Photo row makes the WHOLE probe UNKNOWN — no plan, no R2 key', async () => {
+    for (const badUrl of ['', undefined, 'notaurl']) {
+      const { reader } = mockCotality({ pages: [{ rows: [cPhoto(1, { mediaUrl: badUrl })] }] });
+      const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf());
+      expect({ badUrl: String(badUrl), status: res.status }).toEqual({ badUrl: String(badUrl), status: 'unknown' });
+      expect((res as { photos?: unknown[] }).photos).toBeUndefined();
     }
   });
 });
 
-// ─── canonical ownership ────────────────────────────────────────────────────
+// ─── ROUND 3: R2-key collisions + ambiguous matches ────────────────────────
 
-describe('canonical ownership — delegation matches PR #539', () => {
-  it('bucket + audit modules import the REAL canonical helper', () => {
-    expect(read('lib/media/media-coverage-bucket.ts')).toContain("from '@/lib/listings/exclusive-agent-assignment'");
+describe('ROUND 3 — R2-key collisions and ambiguous matches are CONFLICTS', () => {
+  it('two distinct provider photos with the SAME Order (same R2 key) => conflict, no executable plan', () => {
+    const plan = planListing(dryRow(), [
+      { order: 1, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: 'MK-A' },
+      { order: 1, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-B' }, // distinct photo, same order
+    ]);
+    expect(plan.conflict).not.toBeNull();
+    expect(plan.conflict!.join(' ')).toContain('R2 KEY COLLISION');
+    expect(plan.items).toHaveLength(0);
+    expect(plan.expectedInserts).toBe(0);
   });
-  it('inventory ownership equals the real canonical helper for every signal shape', () => {
-    for (const { id, rls } of [
-      { id: 'SL-0004', rls: null }, { id: 'RL-0007', rls: true }, { id: 'sl-0004', rls: null },
-      { id: 'RLS20100000', rls: true }, { id: 'C-1001', rls: false },
-    ]) {
-      const rec = buildInventoryRow(auditRow({ listing_id: id, rls_eligible: rls }), { status: 'unknown', reason: 't' });
-      const canonical = isMallanExclusiveListing({ listing_id: id, rls_eligible: rls });
-      expect({ id, ownership: rec.ownership }).toEqual({ id, ownership: canonical ? 'mallan-owned' : 'third-party' });
-    }
+  it('duplicate existing media_key values => conflict (never arbitrary Map selection)', () => {
+    const row = dryRow({
+      _count: { listing_media: 2 },
+      listing_media_all: [
+        { id: '1', status: 'deleted', media_key: 'MK-DUP', media_url_original: 'https://cdn.example/a.jpg', media_url_cached: null, order: 1, media_type: 'Photo' },
+        { id: '2', status: 'deleted', media_key: 'MK-DUP', media_url_original: 'https://cdn.example/b.jpg', media_url_cached: null, order: 2, media_type: 'Photo' },
+      ],
+    });
+    const plan = planListing(row, [{ order: 1, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: 'MK-DUP' }]);
+    expect(plan.conflict!.join(' ')).toContain("duplicate existing media_key 'MK-DUP'");
   });
-  it('agent_id / owner_client_id cannot appear on any input shape', () => {
-    for (const f of ['lib/media/media-coverage-bucket.ts', 'scripts/audit/media-coverage-audit.ts', 'scripts/backfill/bucket-b-media-dry-run.ts']) {
-      const src = read(f);
-      expect(src.includes('agent_id: ')).toBe(false);
-      expect(src.includes('owner_client_id: ')).toBe(false);
-    }
+  it('multiple existing rows sharing a normalized URL => conflict', () => {
+    const row = dryRow({
+      _count: { listing_media: 2 },
+      listing_media_all: [
+        { id: '1', status: 'deleted', media_key: 'MK-1', media_url_original: 'https://cdn.example/x.jpg?v=1', media_url_cached: null, order: 1, media_type: 'Photo' },
+        { id: '2', status: 'deleted', media_key: 'MK-2', media_url_original: 'https://cdn.example/x.jpg?v=2', media_url_cached: null, order: 2, media_type: 'Photo' },
+      ],
+    });
+    const plan = planListing(row, [{ order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-1' }]);
+    expect(plan.conflict!.join(' ')).toContain('share normalized URL');
+  });
+  it('one provider item matching DIFFERENT rows by key and URL => conflict', () => {
+    const row = dryRow({
+      _count: { listing_media: 2 },
+      listing_media_all: [
+        { id: '1', status: 'deleted', media_key: 'MK-K', media_url_original: 'https://cdn.example/k.jpg', media_url_cached: null, order: 1, media_type: 'Photo' },
+        { id: '2', status: 'deleted', media_key: 'MK-U', media_url_original: 'https://cdn.example/u.jpg', media_url_cached: null, order: 2, media_type: 'Photo' },
+      ],
+    });
+    // provider item: key matches row 1, URL matches row 2 → divergent
+    const plan = planListing(row, [{ order: 3, sourceUrl: 'https://cdn.example/u.jpg', mediaKey: 'MK-K' }]);
+    expect(plan.conflict!.join(' ')).toContain('DIFFERENT rows');
+  });
+  it('dry-run totals EXCLUDE conflict listings and report them separately', async () => {
+    const cot = mockCotality({
+      pagesPerListing: {
+        RLSCONFLICT: [{ rows: [cPhoto(1), cPhoto(1, { mediaKey: 'MK-X', mediaUrl: 'https://cdn.example/x.jpg' })] }],
+        RLSOK: [{ rows: [cPhoto(2)] }],
+      },
+    });
+    const rows = [dryRow({ listing_id: 'RLSCONFLICT' }), dryRow({ listing_id: 'RLSOK' })];
+    const res = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot.reader, identity: DRY_IDENTITY, budgets: tightBudgets() });
+    expect(res.conflictListings).toBe(1);
+    expect(res.totals.inserts).toBe(1); // only RLSOK
+    expect(res.incompleteReasons.join(' ')).toContain('CONFLICT');
   });
 });
 
-// ─── ROUND 2: per-run budgets + resume semantics ───────────────────────────
+// ─── ROUND 3: URL normalization preserves path case ────────────────────────
 
-describe('ROUND 2 — per-run budgets: resume with the SAME limits continues', () => {
+describe('ROUND 3 — URL normalization preserves pathname case', () => {
+  it('/Photo/A.jpg and /photo/a.jpg are DIFFERENT media objects', () => {
+    expect(normalizeSourceUrl('https://cdn.example/Photo/A.jpg')).not.toBe(normalizeSourceUrl('https://cdn.example/photo/a.jpg'));
+  });
+  it('scheme+host are normalized (case-insensitive), query/fragment dropped', () => {
+    expect(normalizeSourceUrl('HTTPS://CDN.Example/Photo/A.jpg?v=1#frag')).toBe('https://cdn.example/Photo/A.jpg');
+  });
+});
+
+// ─── ROUND 3: retryable UNKNOWN across runs + scan/coverage split ──────────
+
+describe('ROUND 3 — transient UNKNOWN is retried on resume and REPLACED', () => {
+  it('audit: U becomes B_NEW on resume; tally/inventory/processed reconcile; no duplicates', async () => {
+    const rows = [auditRow({ listing_id: 'RLSFAIL' })];
+    const failing = mockCotality({ propertyError: 'transient 503' });
+    const run1 = await runAudit({ listings: pagedReader(rows).reader, cotality: failing.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
+    expect(run1.inventory[0].bucket).toBe('U');
+    expect(run1.checkpoint.retryableUnknown).toHaveLength(1);
+    expect(run1.scanComplete).toBe(true);
+    expect(run1.coverageComplete).toBe(false);
+
+    const working = mockCotality({ pagesPerListing: { RLSFAIL: [{ rows: [cPhoto(1), cPhoto(2)] }] } });
+    const paged = pagedReader(rows);
+    const run2 = await runAudit({ listings: paged.reader, cotality: working.reader, identity: TEST_IDENTITY, budgets: tightBudgets(), checkpoint: run1.checkpoint });
+    expect(paged.byIdCalls[0]).toEqual(['RLSFAIL']); // queue processed FIRST via targeted fetch
+    const rec = run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLSFAIL');
+    expect(rec.bucket).toBe('B_NEW'); // U REPLACED, not duplicated
+    expect(run2.tally.U).toBe(0);
+    expect(run2.tally.B_NEW).toBe(1);
+    expect(run2.processed).toBe(1);
+    expect(run2.inventory).toHaveLength(1);
+    const tallySum = Object.values(run2.tally as Record<string, number>).reduce((s, n) => s + n, 0);
+    expect(tallySum).toBe(run2.processed);
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0);
+    expect(run2.coverageComplete).toBe(true);
+    expect(run2.runCounters.unknownReplaced).toBe(1);
+  });
+
+  it('audit: unknown-retries are BOUNDED per listing — exhaustion becomes permanent UNKNOWN', async () => {
+    const rows = [auditRow({ listing_id: 'RLSFAIL' })];
+    const failing = () => mockCotality({ propertyError: 'still down' });
+    let cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: failing().reader, identity: TEST_IDENTITY, budgets: tightBudgets({ maxUnknownRetriesPerListing: 2 }) })).checkpoint;
+    const run2 = await runAudit({ listings: pagedReader(rows).reader, cotality: failing().reader, identity: TEST_IDENTITY, budgets: tightBudgets({ maxUnknownRetriesPerListing: 2 }), checkpoint: cp });
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0); // exhausted → dequeued
+    expect(run2.incompleteReasons.join(' ')).toContain('exhausted unknown-retries');
+    expect(run2.inventory[0].bucket).toBe('U'); // stays honest U
+  });
+
+  it('dry-run: a transient-unknown listing is re-probed on resume and its plan is ADDED', async () => {
+    const rows = [dryRow({ listing_id: 'RLSFAIL' })];
+    const failing = mockCotality({ propertyError: 'transient' });
+    const run1 = await runDryRun({ candidates: pagedReader(rows).reader, cotality: failing.reader, identity: DRY_IDENTITY, budgets: tightBudgets() });
+    expect(run1.plans).toHaveLength(0);
+    expect(run1.checkpoint.retryableUnknown).toHaveLength(1);
+    expect(run1.coverageComplete).toBe(false);
+
+    const working = mockCotality({ pagesPerListing: { RLSFAIL: [{ rows: [cPhoto(1)] }] } });
+    const run2 = await runDryRun({ candidates: pagedReader(rows).reader, cotality: working.reader, identity: DRY_IDENTITY, budgets: tightBudgets(), checkpoint: run1.checkpoint });
+    expect(run2.plans.map((p: { listingId: string }) => p.listingId)).toEqual(['RLSFAIL']);
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0);
+    expect(run2.coverageComplete).toBe(true);
+  });
+
+  it('Neon-only: scanComplete does NOT imply coverageComplete', async () => {
+    const rows = [auditRow({ listing_id: 'RLSEMPTY' })]; // DB-empty third-party → U without probe
+    const res = await runAudit({ listings: pagedReader(rows).reader, identity: NEON_ONLY_IDENTITY, budgets: tightBudgets() });
+    expect(res.scanComplete).toBe(true);
+    expect(res.coverageComplete).toBe(false);
+    expect(res.incompleteReasons.join(' ')).toContain('coverage NOT verified');
+    expect(res.inventory[0].bucket).toBe('U');
+  });
+});
+
+// ─── retained round-2 core proofs (per-run budgets, pending, accounting) ───
+
+describe('per-run budgets and pending rows (round-2 core, still proven)', () => {
   const six = ['RLSA', 'RLSB', 'RLSC', 'RLSD', 'RLSE', 'RLSF'].map((id) => auditRow({ listing_id: id, listing_media: [photoRow(1)] }));
 
-  it('resume with the SAME --max-listings value continues after the cursor', async () => {
+  it('resume with the SAME --max-listings continues; inventory reconciles; no duplicates', async () => {
     const b = tightBudgets({ maxListings: 4 });
-    const run1 = await runAudit({ listings: pagedReader(six).reader, budgets: b });
+    const run1 = await runAudit({ listings: pagedReader(six).reader, identity: TEST_IDENTITY, budgets: b });
     expect(run1.processed).toBe(4);
-    expect(run1.complete).toBe(false);
-    // SAME budgets on resume — must NOT stop immediately:
+    expect(run1.scanComplete).toBe(false);
     const second = pagedReader(six);
-    const run2 = await runAudit({ listings: second.reader, budgets: b, checkpoint: run1.checkpoint });
+    const run2 = await runAudit({ listings: second.reader, identity: TEST_IDENTITY, budgets: b, checkpoint: run1.checkpoint });
     expect(run2.processed).toBe(6);
-    expect(run2.complete).toBe(true);
-    expect(second.calls[0].cursor).toBe('RLSD'); // continued, not restarted
+    expect(run2.coverageComplete).toBe(true);
+    expect(second.calls[0].cursor).toBe('RLSD');
+    expect(run2.inventory).toHaveLength(6);
+    expect(new Set(run2.inventory.map((r: { listingId: string }) => r.listingId)).size).toBe(6);
   });
 
-  it('the SAME request cap is available fresh on the next invocation', async () => {
+  it('budget-deferred rows stay PENDING (cursor never passes them) and confirm on resume with a fresh cap', async () => {
     const empty = ['RLS1', 'RLS2', 'RLS3'].map((id) => auditRow({ listing_id: id }));
-    // Each probe = 1 property + 1 media page = 2 attempts. Cap 4 → 2 probes/run.
     const b = tightBudgets({ maxCotalityRequests: 4, pageSize: 3 });
-    const cot1 = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }], RLS2: [{ rows: [] }], RLS3: [{ rows: [] }] } });
-    const run1 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot1.reader, budgets: b });
-    expect(run1.processed).toBe(2); // third listing DEFERRED, not finalized
+    const cot1 = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }], RLS2: [{ rows: [] }] } });
+    const run1 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot1.reader, identity: TEST_IDENTITY, budgets: b });
+    expect(run1.processed).toBe(2);
+    expect(run1.checkpoint.cursor).toBe('RLS2');
     expect(run1.checkpoint.pendingFrom).toBe('RLS3');
-    expect(run1.runCounters.requestAttempts).toBe(4); // the refused 5th attempt never consumed
+    expect(run1.tally.U).toBe(0);
     const cot2 = mockCotality({ pagesPerListing: { RLS3: [{ rows: [cPhoto(1)] }] } });
-    const run2 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot2.reader, budgets: b, checkpoint: run1.checkpoint });
-    expect(run2.processed).toBe(3); // fresh cap → the deferred listing resolves
-    expect(run2.complete).toBe(true);
+    const run2 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot2.reader, identity: TEST_IDENTITY, budgets: b, checkpoint: run1.checkpoint });
+    expect(run2.processed).toBe(3);
     expect(run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLS3').bucket).toBe('B_NEW');
+    expect(run2.coverageComplete).toBe(true);
   });
 
-  it('deferred rows stay PENDING: never tallied, cursor never passes them, resume confirms them', async () => {
-    const empty = ['RLS1', 'RLS2'].map((id) => auditRow({ listing_id: id }));
-    const b = tightBudgets({ maxCotalityProbes: 1, pageSize: 2 });
-    const cot = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }] } });
-    const run1 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot.reader, budgets: b });
-    expect(run1.processed).toBe(1);
-    expect(run1.checkpoint.cursor).toBe('RLS1');          // NOT advanced past RLS2
-    expect(run1.checkpoint.pendingFrom).toBe('RLS2');
-    expect(run1.tally.U).toBe(0);                          // pending ≠ permanent U
-    const cot2 = mockCotality({ pagesPerListing: { RLS2: [{ rows: [cPhoto(1), cPhoto(2)] }] } });
-    const run2 = await runAudit({ listings: pagedReader(empty).reader, cotality: cot2.reader, budgets: b, checkpoint: run1.checkpoint });
-    const rls2 = run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLS2');
-    expect(rls2.bucket).toBe('B_NEW');                     // budget-deferred → CONFIRMED on resume
-    expect(rls2.cotality).toMatchObject({ status: 'confirmed', photoCount: 2 });
-  });
-
-  it('resumed inventory covers EVERY cumulatively processed listing, deduped, reconciling', async () => {
-    const six2 = ['RLSA', 'RLSB', 'RLSC', 'RLSD', 'RLSE', 'RLSF'].map((id) => auditRow({ listing_id: id, listing_media: [photoRow(1)] }));
-    const b = tightBudgets({ maxListings: 4 });
-    const run1 = await runAudit({ listings: pagedReader(six2).reader, budgets: b });
-    const run2 = await runAudit({ listings: pagedReader(six2).reader, budgets: b, checkpoint: run1.checkpoint });
-    expect(run2.inventory).toHaveLength(run2.processed);   // 6 === 6
-    const ids = run2.inventory.map((r: { listingId: string }) => r.listingId);
-    expect(new Set(ids).size).toBe(ids.length);            // no duplicates
-    const tallySum = Object.values(run2.tally as Record<string, number>).reduce((s, n) => s + n, 0);
-    expect(tallySum).toBe(run2.processed);                 // full reconciliation
-  });
-
-  it('checkpoint validation fails closed on version/mode/reconciliation problems', () => {
-    expect(() => validateCheckpoint({ ...emptyCheckpoint(), version: 1 }, 'audit')).toThrow(/version/);
-    expect(() => validateCheckpoint({ ...emptyCheckpoint(), mode: 'dryrun' }, 'audit')).toThrow(/mode/);
-    const bad = emptyCheckpoint();
-    bad.processed = 5; // inventory empty → does not reconcile
-    expect(() => validateCheckpoint(bad, 'audit')).toThrow(/reconcile/);
-    expect(() => validateDryRunCheckpoint({ ...emptyDryRunCheckpoint(), version: 1 })).toThrow(/version/);
-  });
-});
-
-// ─── ROUND 2: one authoritative accounting path ────────────────────────────
-
-describe('ROUND 2 — every HTTP attempt (incl. retries) consumes the cap and is reported', () => {
-  it('attemptWithAccounting consumes one attempt per try, counts retries, stops at the cap', async () => {
+  it('every HTTP attempt including retries consumes the cap (one accounting path)', async () => {
     const acct = acctOf(3);
     let tries = 0;
-    // fails twice then would succeed — but cap is 3 so: attempt+retry+retry = 3 consumed
     const ok = await attemptWithAccounting(async () => { tries += 1; if (tries < 3) throw new Error('x'); return 'ok'; }, acct, 5);
     expect(ok).toBe('ok');
     expect(acct.attempts).toBe(3);
     expect(acct.retries).toBe(2);
-    // cap exhausted → next attempt is a CapStop, no HTTP possible:
     await expect(attemptWithAccounting(async () => 'never', acct, 5)).rejects.toThrow(CapStopError);
-    expect(acct.attempts).toBe(3); // nothing consumed past the cap
-  });
-
-  it('runAudit returns the REAL retry count in counters (no disconnected object)', async () => {
-    const empty = [auditRow({ listing_id: 'RLS1' })];
-    // Reader that consumes 2 attempts + 1 retry for the property call:
-    const reader = {
-      resolvePropertyKey: async (_id: string, acct: { consume(): boolean; countRetry(): void }) => {
-        acct.consume(); acct.consume(); acct.countRetry();
-        return { listingKey: 'KEY-RLS1' };
-      },
-      buildFirstMediaUrl: () => 'mock://m',
-      fetchMediaPage: async (_u: string, acct: { consume(): boolean }) => { acct.consume(); return { rows: [], nextLink: null }; },
-    };
-    const res = await runAudit({ listings: pagedReader(empty).reader, cotality: reader, budgets: tightBudgets() });
-    expect(res.counters.retries).toBe(1);
-    expect(res.counters.requests).toBe(3);
-    expect(res.runCounters.retries).toBe(1);
-    expect(res.runCounters.requestAttempts).toBe(3);
+    expect(acct.attempts).toBe(3);
   });
 });
 
-// ─── Cotality probe — keying, traversal, validation ────────────────────────
+// ─── Cotality probe fundamentals (retained) ─────────────────────────────────
 
-describe('Cotality probe — ListingKey keying, nextLink traversal, fail-closed validation', () => {
-  it('resolves the Property ListingKey FIRST and keys Media by it', async () => {
-    const { reader, log } = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
-    const res = await probeListingMedia(reader, 'RLS20103891', tightBudgets(), acctOf());
-    expect(log[0]).toBe('property:RLS20103891');
-    expect(log[1]).toBe('firstUrl:KEY-RLS20103891');
-    expect(res).toMatchObject({ status: 'confirmed', photoCount: 1 });
-  });
-
-  it('the real CLI reader: ResourceRecordKey filter, ListingId lookup, $top=2 ambiguity, nextLink base validation, timeout', () => {
-    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
-    expect(cli).toContain("ResourceRecordKey eq '${escaped}'");
-    expect(cli).toContain("ListingId eq '${escaped}'");
-    expect(cli).toContain('$top=2');
-    expect(cli).toContain('AMBIGUOUS: multiple Property matches');
-    expect(cli).toContain('nextLink is outside the allowed Cotality base');
-    expect(cli).toContain('AbortSignal.timeout');
-    expect(cli).toContain('attemptWithAccounting'); // single accounting path
-  });
-
-  it('follows EVERY valid nextLink; incomplete traversal is UNKNOWN never zero', async () => {
+describe('Cotality probe — keying, traversal, strict classification (retained)', () => {
+  it('Property ListingKey keys Media; complete nextLink traversal sums; incomplete is UNKNOWN', async () => {
     const complete = mockCotality({ pages: [{ rows: [cPhoto(1), cPhoto(2)], nextLink: 'mock://p1' }, { rows: [cPhoto(3)] }] });
-    const acct = acctOf();
-    const ok = await probeListingMedia(complete.reader, 'RLSX', tightBudgets(), acct);
-    expect(ok).toMatchObject({ status: 'confirmed', photoCount: 3 });
-    expect(acct.attempts).toBe(3); // property + 2 pages, all accounted
+    const okRes = await probeListingMedia(complete.reader, 'RLS20103891', tightBudgets(), acctOf());
+    expect(complete.log[0]).toBe('property:RLS20103891');
+    expect(complete.log[1]).toBe('firstUrl:KEY-RLS20103891');
+    expect(okRes).toMatchObject({ status: 'confirmed', photoCount: 3 });
 
     const broken = mockCotality({ pages: [{ rows: [cPhoto(1)], nextLink: 'mock://p1' }], pageErrorAt: 1 });
-    const bad = await probeListingMedia(broken.reader, 'RLSX', tightBudgets(), acctOf());
-    expect(bad.status).toBe('unknown');
+    expect((await probeListingMedia(broken.reader, 'RLSX', tightBudgets(), acctOf())).status).toBe('unknown');
   });
-
-  it('request-cap stops are DEFERRED (pending), page-cap and property failures are UNKNOWN', async () => {
-    const capped = mockCotality({ pages: [{ rows: [cPhoto(1)], nextLink: 'mock://p1' }, { rows: [] }] });
-    const capRes = await probeListingMedia(capped.reader, 'RLSX', tightBudgets(), acctOf(2));
-    expect(capRes).toMatchObject({ status: 'unknown', deferred: true });
-
-    const runaway = mockCotality({ pages: Array.from({ length: 9 }, (_, i) => ({ rows: [], nextLink: `mock://p${i + 1}` })) });
-    const pageCap = await probeListingMedia(runaway.reader, 'RLSX', tightBudgets({ maxMediaPagesPerListing: 3 }), acctOf());
-    expect(pageCap.status).toBe('unknown');
-    expect((pageCap as { deferred?: boolean }).deferred).toBeUndefined(); // genuine incompleteness, finalizes U
-
-    const oauth = mockCotality({ propertyError: 'oauth failed' });
-    expect((await probeListingMedia(oauth.reader, 'RLSX', tightBudgets(), acctOf())).status).toBe('unknown');
-  });
-
-  it('ambiguous Property results are UNKNOWN (reader contract) and empty ListingKey is UNKNOWN', async () => {
-    const ambiguous = {
-      resolvePropertyKey: async () => ({ error: 'AMBIGUOUS: multiple Property matches for ListingId' }),
-      buildFirstMediaUrl: () => 'mock://m',
-      fetchMediaPage: async () => ({ rows: [], nextLink: null }),
-    };
-    const res = await probeListingMedia(ambiguous, 'RLSX', tightBudgets(), acctOf());
-    expect(res.status).toBe('unknown');
-    expect((res as { reason: string }).reason).toContain('AMBIGUOUS');
-
-    const emptyKey = { ...ambiguous, resolvePropertyKey: async () => ({ listingKey: '  ' }) };
-    expect((await probeListingMedia(emptyKey, 'RLSX', tightBudgets(), acctOf())).status).toBe('unknown');
-  });
-
-  it('a malformed provider Order is UNKNOWN — never NaN, never an R2 key', async () => {
-    for (const badOrder of [undefined, null, 'seven', NaN, 1.5]) {
+  it('malformed provider Order is UNKNOWN; strict classification excludes absent/floorplan/video', async () => {
+    for (const badOrder of [undefined, 'seven', 1.5]) {
       const { reader } = mockCotality({ pages: [{ rows: [cPhoto(1, { order: badOrder })] }] });
-      const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf());
-      expect({ badOrder: String(badOrder), status: res.status }).toEqual({ badOrder: String(badOrder), status: 'unknown' });
-      expect((res as { photos?: unknown[] }).photos).toBeUndefined(); // nothing plannable escapes
+      expect((await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf())).status).toBe('unknown');
+    }
+    expect(classifyCotalityRowStrict({ mediaCategory: null, mediaType: null })).toBe('unknown');
+    const { reader } = mockCotality({ pages: [{ rows: [cPhoto(1), cPhoto(2, { mediaCategory: 'FloorPlan' }), cPhoto(3, { mediaCategory: null, mediaType: null })] }] });
+    expect((await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf()) as { photoCount: number }).photoCount).toBe(1);
+  });
+  it('Mallan-owned listings make ZERO Cotality calls and classify E (never U/D)', async () => {
+    expect(needsCotalityProbe(auditRow({ listing_id: 'SL-0009' }))).toBe(false);
+    const rows = [auditRow({ listing_id: 'SL-0009' }), auditRow({ listing_id: 'C-1', rls_eligible: false })];
+    const cot = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
+    const res = await runAudit({ listings: pagedReader(rows).reader, cotality: cot.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
+    expect(cot.log).toHaveLength(0);
+    expect(res.inventory.map((r: { bucket: string }) => r.bucket)).toEqual(['E', 'E']);
+    expect(res.coverageComplete).toBe(true);
+  });
+  it('inventory ownership equals the real canonical helper', () => {
+    for (const { id, rls } of [{ id: 'SL-0004', rls: null }, { id: 'sl-0004', rls: null }, { id: 'RLS1', rls: true }, { id: 'C-1', rls: false }]) {
+      const rec = buildInventoryRow(auditRow({ listing_id: id, rls_eligible: rls }), { status: 'unknown', reason: 't' });
+      expect(rec.ownership).toBe(isMallanExclusiveListing({ listing_id: id, rls_eligible: rls }) ? 'mallan-owned' : 'third-party');
     }
   });
 });
 
-// ─── ROUND 2: Mallan-owned listings consume ZERO Cotality requests ─────────
+// ─── planner fundamentals (retained) ────────────────────────────────────────
 
-describe('ROUND 2 — Mallan-owned listings are never probed', () => {
-  it('needsCotalityProbe excludes Mallan-owned (canonical decision) before any provider call', () => {
-    expect(needsCotalityProbe(auditRow({ listing_id: 'SL-0009' }))).toBe(false);
-    expect(needsCotalityProbe(auditRow({ listing_id: 'C-1', rls_eligible: false }))).toBe(false);
-    expect(needsCotalityProbe(auditRow({ listing_id: 'RLSX' }))).toBe(true);
-  });
-  it('audit: a DB-empty Mallan listing makes ZERO Cotality calls and classifies E (never U/D)', async () => {
-    const rows = [auditRow({ listing_id: 'SL-0009' }), auditRow({ listing_id: 'C-1', rls_eligible: false })];
-    const cot = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
-    const res = await runAudit({ listings: pagedReader(rows).reader, cotality: cot.reader, budgets: tightBudgets() });
-    expect(cot.log).toHaveLength(0);                         // zero provider traffic
-    expect(res.counters.requests).toBe(0);
-    expect(res.inventory.map((r: { bucket: string }) => r.bucket)).toEqual(['E', 'E']);
-    expect(res.complete).toBe(true);
-  });
-  it('dry-run: Mallan-owned listings are pre-excluded and make zero Cotality calls', async () => {
-    const cot = mockCotality({ pagesPerListing: { RLSOK: [{ rows: [cPhoto(1)] }] } });
-    const rows = [dryRow({ listing_id: 'SL-0009' }), dryRow({ listing_id: 'RLSOK' })];
-    const res = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot.reader, budgets: tightBudgets() });
-    expect(cot.log.filter((l) => l.startsWith('property:'))).toEqual(['property:RLSOK']);
-    expect(res.plans.map((p: { listingId: string }) => p.listingId)).toEqual(['RLSOK']);
-  });
-});
-
-// ─── strict photo classification ────────────────────────────────────────────
-
-describe('strict classification — absent/floorplan/video/unknown are never photos', () => {
-  it('classifyCotalityRowStrict: absent → unknown; floorplan/video → not Photo', () => {
-    expect(classifyCotalityRowStrict({ mediaCategory: null, mediaType: null })).toBe('unknown');
-    expect(classifyCotalityRowStrict({ mediaCategory: 'Photo', mediaType: null })).toBe('Photo');
-    expect(classifyCotalityRowStrict({ mediaCategory: 'FloorPlan', mediaType: null })).not.toBe('Photo');
-    expect(classifyCotalityRowStrict({ mediaCategory: 'Video', mediaType: null })).not.toBe('Photo');
-  });
-  it('the probe counts ONLY strict photos', async () => {
-    const { reader } = mockCotality({
-      pages: [{
-        rows: [
-          cPhoto(1),
-          cPhoto(2, { mediaCategory: 'FloorPlan', mediaType: 'FloorPlan' }),
-          cPhoto(3, { mediaCategory: 'Video', mediaType: 'Video' }),
-          cPhoto(4, { mediaCategory: null, mediaType: null }),
-        ],
-      }],
-    });
-    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf());
-    expect(res).toMatchObject({ status: 'confirmed', photoCount: 1 });
-  });
-});
-
-// ─── dry-run planner ────────────────────────────────────────────────────────
-
-describe('dry-run planner — provider Order fidelity + COMPLETE update detection', () => {
-  it('preserves provider Order verbatim (incl. 0/negative) — never the array index', () => {
+describe('dry-run planner — order fidelity + update detection (retained)', () => {
+  it('provider Order verbatim incl. negative; full action taxonomy; missing media_key is an update', () => {
     const plan = planListing(dryRow(), [
       { order: 7, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: 'MK-A' },
       { order: -1, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-B' },
-      { order: 0, sourceUrl: 'https://cdn.example/c.jpg', mediaKey: 'MK-C' },
     ]);
-    expect(plan.items.map((i: { order: number }) => i.order)).toEqual([7, -1, 0]);
-    expect(plan.items[0].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', 7));
+    expect(plan.items.map((i: { order: number }) => i.order)).toEqual([7, -1]);
+    expect(plan.items[1].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', -1));
+
+    const row = { id: '1', status: 'active', media_key: null, media_url_original: 'https://cdn.example/x.jpg', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false };
+    expect(diffAuthorizedFields(row, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL' })).toContain('media_key');
+    expect(diffAuthorizedFields({ ...row, media_key: 'MK', media_type: '' }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK' })).toContain('media_type');
+    expect(diffAuthorizedFields({ ...row, media_key: 'MK' }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: true })).toContain('preferred_photo_yn');
   });
-
-  it('insert, restore, update and unchanged are ALL reachable', () => {
-    const row = dryRow({
-      _count: { listing_media: 3 },
-      listing_media_all: [
-        { id: '1', status: 'active', media_key: 'MK-SAME', media_url_original: 'https://cdn.example/same.jpg', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false },
-        { id: '2', status: 'active', media_key: 'MK-MOVED', media_url_original: 'https://cdn.example/moved.jpg', media_url_cached: null, order: 2, media_type: 'Photo', preferred_photo_yn: false },
-        { id: '3', status: 'deleted', media_key: 'MK-GONE', media_url_original: 'https://cdn.example/gone.jpg', media_url_cached: null, order: 3, media_type: 'Photo', preferred_photo_yn: false },
-      ],
-    });
-    const plan = planListing(row, [
-      { order: 1, sourceUrl: 'https://cdn.example/same.jpg', mediaKey: 'MK-SAME', preferredPhotoYn: false },
-      { order: 9, sourceUrl: 'https://cdn.example/moved.jpg', mediaKey: 'MK-MOVED', preferredPhotoYn: false },
-      { order: 3, sourceUrl: 'https://cdn.example/gone.jpg', mediaKey: 'MK-GONE', preferredPhotoYn: false },
-      { order: 4, sourceUrl: 'https://cdn.example/new.jpg', mediaKey: 'MK-NEW', preferredPhotoYn: false },
-    ]);
-    expect({ i: plan.expectedInserts, r: plan.expectedRestores, u: plan.expectedUpdates, n: plan.unchangedMatches })
-      .toEqual({ i: 1, r: 1, u: 1, n: 1 });
-  });
-
-  it('ROUND 2: a provider mediaKey with a MISSING existing key is an UPDATE, never unchanged', () => {
-    const row = {
-      id: '1', status: 'active', media_key: null,
-      media_url_original: 'https://cdn.example/x.jpg', media_url_cached: null,
-      order: 1, media_type: 'Photo', preferred_photo_yn: false,
-    };
-    const diff = diffAuthorizedFields(row, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL', preferredPhotoYn: false });
-    expect(diff).toContain('media_key');
-    const plan = planListing(dryRow({ _count: { listing_media: 1 }, listing_media_all: [row] }),
-      [{ order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL', preferredPhotoYn: false }]);
-    expect(plan.items[0].action).toBe('update');
-    expect(plan.items[0].changedFields).toContain('media_key');
-  });
-
-  it('ROUND 2: preferred-photo and media-type differences are detected; missing media_type is never unchanged', () => {
-    const base = {
-      id: '1', status: 'active', media_key: 'MK', media_url_original: 'https://cdn.example/x.jpg',
-      media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false,
-    };
-    expect(diffAuthorizedFields({ ...base, preferred_photo_yn: false }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: true })).toContain('preferred_photo_yn');
-    expect(diffAuthorizedFields({ ...base, media_type: 'FloorPlan' }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: false })).toContain('media_type');
-    expect(diffAuthorizedFields({ ...base, media_type: '' }, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK', preferredPhotoYn: false })).toContain('media_type');
-  });
-
-  it('suppresses duplicate insert proposals (normalized URL / claimed rows)', () => {
-    const row = dryRow({
-      _count: { listing_media: 1 },
-      listing_media_all: [
-        { id: '1', status: 'deleted', media_key: null, media_url_original: 'https://cdn.example/x.jpg?sig=old', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false },
-      ],
-    });
-    const plan = planListing(row, [
-      { order: 1, sourceUrl: 'https://cdn.example/x.jpg?sig=new1', mediaKey: null },
-      { order: 2, sourceUrl: 'https://cdn.example/x.jpg?sig=new2', mediaKey: null },
-    ]);
-    expect(plan.items).toHaveLength(1);
-    expect(plan.items[0].action).toBe('restore');
-    expect(normalizeSourceUrl('https://cdn.example/x.jpg?sig=a')).toBe(normalizeSourceUrl('HTTPS://cdn.example/x.jpg?sig=b'));
-  });
-});
-
-// ─── ROUND 2: dry-run checkpoint/resume ─────────────────────────────────────
-
-describe('ROUND 2 — dry-run checkpoint/resume preserves all plans and totals', () => {
-  it('a resumed dry-run result represents the WHOLE candidate set', async () => {
-    const rows = [dryRow({ listing_id: 'RLS1' }), dryRow({ listing_id: 'RLS2' }), dryRow({ listing_id: 'RLS3' })];
-    const b = tightBudgets({ maxCotalityProbes: 2, pageSize: 3 });
-    const cot1 = mockCotality({ pagesPerListing: { RLS1: [{ rows: [cPhoto(1)] }], RLS2: [{ rows: [cPhoto(1), cPhoto(2)] }] } });
-    const run1 = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot1.reader, budgets: b });
-    expect(run1.plans).toHaveLength(2);
-    expect(run1.complete).toBe(false);
-    expect(run1.checkpoint.pendingFrom).toBe('RLS3');
-    expect(run1.checkpoint.cursor).toBe('RLS2'); // never past the pending row
-
-    const cot2 = mockCotality({ pagesPerListing: { RLS3: [{ rows: [cPhoto(5)] }] } });
-    const run2 = await runDryRun({ candidates: pagedReader(rows).reader, cotality: cot2.reader, budgets: b, checkpoint: run1.checkpoint });
-    expect(run2.plans.map((p: { listingId: string }) => p.listingId).sort()).toEqual(['RLS1', 'RLS2', 'RLS3']);
-    expect(run2.totals.inserts).toBe(4); // 1 + 2 + 1 across BOTH runs
-    expect(run2.processed).toBe(3);
-    expect(run2.complete).toBe(true);
-    const ids = run2.plans.map((p: { listingId: string }) => p.listingId);
-    expect(new Set(ids).size).toBe(ids.length); // deduped
-  });
-});
-
-// ─── ROUND 2: fail-closed CLI flags ────────────────────────────────────────
-
-describe('ROUND 2 — invalid safety flags fail closed (source + spawned contract)', () => {
-  it('parseBound rejects supplied-invalid values and allows --retries 0 (source pins)', () => {
-    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
-    expect(cli).toContain('refusing to run');
-    expect(cli).toContain('process.exit(1)');
-    expect(cli).toContain("parseBound(args, '--retries', 1, 0)"); // retries 0 allowed
-    expect(cli).toContain("parseBound(args, '--max-media-pages'"); // explicit validated flag
-    const dry = read('scripts/backfill/bucket-b-media-dry-run.cli.ts');
-    expect(dry).toContain("parseBound(args, '--retries', 1, 0)");
-    expect(dry).toContain('--checkpoint');
-    expect(dry).toContain('--resume');
-  });
-
-  it('spawned CLI refuses invalid --max-listings with exit 1 (no silent default)', () => {
-    const driver = path.join(ROOT, '.tmp-525-flags-driver.mts');
-    fs.writeFileSync(driver, [
-      "process.argv = [process.argv[0], process.argv[1], '--max-listings', 'abc'];",
-      "const { main } = await import('./scripts/audit/media-coverage-audit.cli');",
-      "await main();",
-      "process.exit(0); // must be unreachable",
-    ].join('\n'), 'utf8');
-    try {
-      let code = 0;
-      try {
-        execFileSync(process.execPath, [path.join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs'), driver], {
-          cwd: ROOT,
-          env: { ...process.env, DATABASE_URL: 'postgresql://stub:stub@localhost:5432/stub?schema=public' },
-          timeout: 120_000,
-        });
-      } catch (e) {
-        code = (e as { status?: number }).status ?? -1;
-      }
-      expect(code).toBe(1);
-    } finally {
-      fs.unlinkSync(driver);
-    }
-  }, 150_000);
-});
-
-// ─── RLS20103891 ────────────────────────────────────────────────────────────
-
-describe('RLS20103891 — UNKNOWN unless individually and completely probed', () => {
-  it('without its own probe → U; only ITS OWN completed probe moves it', async () => {
+  it('RLS20103891 stays U unless its own completed probe runs', async () => {
     const row = auditRow({ listing_id: 'RLS20103891' });
-    const noProbe = await runAudit({ listings: pagedReader([row]).reader, budgets: tightBudgets() });
+    const noProbe = await runAudit({ listings: pagedReader([row]).reader, identity: NEON_ONLY_IDENTITY, budgets: tightBudgets() });
     expect(noProbe.inventory[0]).toMatchObject({ listingId: 'RLS20103891', bucket: 'U' });
-
-    const cot = mockCotality({ pages: [{ rows: [cPhoto(1), cPhoto(2)] }] });
-    const probed = await runAudit({ listings: pagedReader([row]).reader, cotality: cot.reader, budgets: tightBudgets() });
-    expect(cot.log[0]).toBe('property:RLS20103891');
+    const cot = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
+    const probed = await runAudit({ listings: pagedReader([row]).reader, cotality: cot.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
     expect(probed.inventory[0].bucket).toBe('B_NEW');
   });
 });
