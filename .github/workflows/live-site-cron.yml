@@ -10,6 +10,14 @@ name: Live Site Smoke (cron)
 # When a check FAILs, the workflow opens an issue (creating one per
 # distinct failure pattern, deduping when an issue is already open).
 # Manual dispatch supported for ad-hoc smoke runs.
+#
+# P2 (release-safety): a FAIL now also FAILS the workflow run itself (red
+# run + GitHub notification) — previously every run exited 0 and failures
+# were visible only inside the issue. The five-probe listing smoke
+# (scripts/release-safety/listing-smoke.js) is deliberately NOT run here:
+# repeated probes increase Neon wake frequency, and actual active time and
+# CU consumption require production measurement — so it stays a post-deploy
+# step (see docs/operations/release-safety-runbook.md).
 
 on:
   schedule:
@@ -47,20 +55,47 @@ jobs:
         run: |
           set +e
           base="${{ inputs.base_url || 'https://mallan.nyc' }}"
-          node scripts/validate-live-site.js --base-url "$base" --json > live-site.json 2>&1
+          # P2: run the validator ONCE. All decisions, logs, the issue body,
+          # and the job summary derive from this single execution's JSON —
+          # production is never probed a second time for a pretty log.
+          node scripts/validate-live-site.js --base-url "$base" --json > live-site.json 2> live-site.stderr
           rc=$?
-          fails=$(node -p "JSON.parse(require('fs').readFileSync('live-site.json','utf-8')).summary.fail")
-          blocked=$(node -p "JSON.parse(require('fs').readFileSync('live-site.json','utf-8')).summary.blocked || 0")
-          unverified=$(node -p "JSON.parse(require('fs').readFileSync('live-site.json','utf-8')).summary.unverified || 0")
-          echo "fails=$fails" >> "$GITHUB_OUTPUT"
-          echo "blocked=$blocked" >> "$GITHUB_OUTPUT"
-          echo "unverified=$unverified" >> "$GITHUB_OUTPUT"
-          # Human-readable echo
-          node scripts/validate-live-site.js --base-url "$base"
-          exit 0
+          cat live-site.stderr >&2
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # Parse + validate the JSON; render the human-readable log from it.
+          node -e '
+            const fs = require("fs");
+            let d;
+            try { d = JSON.parse(fs.readFileSync("live-site.json", "utf8")); }
+            catch (e) { console.error("live-site.json missing/invalid: " + e.message); process.exit(1); }
+            const s = d && d.summary;
+            // FAIL-CLOSED summary contract: pass/fail/blocked/unverified must
+            // ALL be finite nonnegative numbers and checks must be an array.
+            // Malformed evidence is NEVER defaulted to zero / labeled clean.
+            const isCount = (v) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+            if (!s || !isCount(s.pass) || !isCount(s.fail) || !isCount(s.blocked) || !isCount(s.unverified)) {
+              console.error("summary absent or pass/fail/blocked/unverified not finite nonnegative numbers: " + JSON.stringify(s));
+              process.exit(1);
+            }
+            if (!Array.isArray(d.checks)) { console.error("checks is not an array"); process.exit(1); }
+            const out = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(out, "fails=" + s.fail + "\n");
+            fs.appendFileSync(out, "blocked=" + s.blocked + "\n");
+            fs.appendFileSync(out, "unverified=" + s.unverified + "\n");
+            fs.appendFileSync(out, "json_ok=1\n");
+            for (const c of d.checks) console.log((c.verdict || "?").padEnd(11) + (c.check || "?") + (c.reason ? " — " + c.reason : ""));
+            console.log("summary: " + JSON.stringify(s));
+          '
+          parse_rc=$?
+          if [ $parse_rc -ne 0 ]; then
+            echo "json_ok=0" >> "$GITHUB_OUTPUT"
+            echo "fails=invalid" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0  # verdicts are enforced by the final propagate step so the
+                  # issue automation below always gets a chance to run
 
       - name: Open or update issue on FAIL
-        if: steps.validator.outputs.fails != '0'
+        if: steps.validator.outputs.json_ok == '1' && steps.validator.outputs.fails != '0'
         run: |
           # Build a compact failure summary
           summary=$(node -e "
@@ -92,7 +127,7 @@ jobs:
           fi
 
       - name: Auto-close on clean run
-        if: steps.validator.outputs.fails == '0'
+        if: steps.validator.outputs.json_ok == '1' && steps.validator.outputs.fails == '0' && steps.validator.outputs.rc == '0'
         run: |
           # Close any open auto-issues since we're back to clean
           for n in $(gh issue list --label live-site-smoke --state open --json number --jq '.[].number'); do
@@ -107,7 +142,33 @@ jobs:
             echo ""
             echo "Target: \`${{ inputs.base_url || 'https://mallan.nyc' }}\`"
             echo ""
+            echo "- validator exit: ${{ steps.validator.outputs.rc }}"
+            echo "- JSON valid: ${{ steps.validator.outputs.json_ok }}"
             echo "- FAIL: ${{ steps.validator.outputs.fails }}"
             echo "- BLOCKED: ${{ steps.validator.outputs.blocked }}"
             echo "- UNVERIFIED: ${{ steps.validator.outputs.unverified }}"
+            if [ "${{ steps.validator.outputs.json_ok }}" = "1" ] && [ "${{ steps.validator.outputs.fails }}" = "0" ] && [ "${{ steps.validator.outputs.rc }}" = "0" ]; then
+              if [ "${{ steps.validator.outputs.blocked }}" = "0" ] && [ "${{ steps.validator.outputs.unverified }}" = "0" ]; then
+                echo ""
+                echo "Result: CLEAN (0 fail / 0 blocked / 0 unverified)"
+              else
+                echo ""
+                echo "Result: PASS-WITH-GAPS — blocked/unverified checks are NOT proven clean; only the failing-check count is zero."
+              fi
+            else
+              echo ""
+              echo "Result: FAILED (see propagate step)"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Propagate failure (P2 — no more silent-green runs)
+        # Runs LAST so issue automation + summary always complete first.
+        # Fails the run when ANY of these hold (fail-closed):
+        #   - the validator process exited nonzero;
+        #   - its JSON was missing/invalid or the summary absent (json_ok!=1,
+        #     including a crashed validator with empty outputs);
+        #   - summary.fail > 0.
+        if: steps.validator.outputs.rc != '0' || steps.validator.outputs.json_ok != '1' || steps.validator.outputs.fails != '0'
+        run: |
+          echo "live-site verdict: rc='${{ steps.validator.outputs.rc }}' json_ok='${{ steps.validator.outputs.json_ok }}' fails='${{ steps.validator.outputs.fails }}' — failing the workflow run"
+          exit 1

@@ -19,10 +19,13 @@
  *   PROD_PROVEN        code valid + deploy pass + no blocking rule fails
  *                      + no workflow gaps + (live-site clean if checked)
  *                      + no claim overstated
- *   CODE_VALID         code structure sound, deploy/live proof missing
+ *   CODE_VALID         code structure sound AND no deploy target requested
+ *                      (static-only claim; P2: a pending/unknown deploy is
+ *                      UNVERIFIED, never CODE_VALID)
  *   PARTIAL            some surfaces implemented, others missing
  *   DEPLOY_INVALID     merged code exists but deploy failed
- *   UNVERIFIED         not enough runtime/prod evidence
+ *   UNVERIFIED         not enough runtime/prod evidence (incl. deploy
+ *                      pending/unknown for a requested target — fail-closed)
  *   CLAIM_OVERSTATED   PR claims more than evidence supports
  *   REGRESSION         previously-passing rule broke
  *
@@ -40,6 +43,9 @@
  *   2  PARTIAL (some required surfaces missing)
  *   3  CLAIM_OVERSTATED
  *   4  UNVERIFIED in --strict mode
+ *
+ * --require-deploy-proof (P2): exit 0 ONLY on PROD_PROVEN; every unproven
+ * verdict (incl. CODE_VALID and UNVERIFIED) exits nonzero. Off by default.
  */
 
 const fs = require('fs');
@@ -60,6 +66,9 @@ const prNum = argFlag('--pr');
 const sha = argFlag('--sha');
 const jsonOutput = has('--json');
 const strict = has('--strict');
+// P2 hardening: with --require-deploy-proof, ONLY PROD_PROVEN exits 0 —
+// every unproven verdict (incl. CODE_VALID without deploy proof) is nonzero.
+const requireDeployProof = has('--require-deploy-proof');
 const skipList = (argFlag('--skip') || '').split(',').map((s) => s.trim()).filter(Boolean);
 const perMerge = has('--per-merge');
 const fromSha = argFlag('--from-sha');
@@ -153,6 +162,75 @@ if (!shouldSkip('deploy') && (prNum || sha)) {
   };
 }
 
+// Layer 4b — production-alias deploy proof (P2). --deploy-proof <file> takes
+// the JSON output of scripts/release-safety/verify-deployment-sha.js. Only a
+// MATCH verdict upgrades the deploy layer to DEPLOY_PROD_PROVEN; anything
+// else (missing file, invalid JSON, non-MATCH) degrades it fail-closed.
+if (argFlag('--deploy-proof')) {
+  const proofPath = argFlag('--deploy-proof');
+  let proof = null;
+  try {
+    proof = JSON.parse(fs.readFileSync(proofPath, 'utf-8'));
+  } catch {
+    proof = null;
+  }
+  if (proof && proof.verdict === 'MATCH') {
+    layers.deploy = {
+      exit_code: 0,
+      verdict: 'DEPLOY_PROD_PROVEN',
+      source: 'verify-deployment-sha (production alias)',
+      // Full structured identity — the verdict module BINDS the smoke
+      // evidence to these exact fields before PROD_PROVEN is reachable.
+      deployed_sha: proof.deployed_sha || null,
+      deployment_id: proof.deployment_id || null,
+      alias_host: proof.alias_host || null,
+      aliases: proof.aliases || [],
+      observed_at: proof.observed_at || null,
+    };
+  } else {
+    layers.deploy = {
+      exit_code: 1,
+      verdict: 'DEPLOY_UNKNOWN',
+      source: 'verify-deployment-sha (production alias)',
+      note: proof ? `alias verifier verdict ${proof.verdict}: ${proof.reason || ''}` : `deploy-proof file unreadable: ${proofPath}`,
+    };
+  }
+}
+
+// Layer 7b — runtime smoke evidence (P2). --smoke-evidence <file> takes the
+// JSON output of scripts/release-safety/listing-smoke.js. PROD_PROVEN is
+// unreachable without it (see release-safety/release-truth-verdict.js).
+if (argFlag('--smoke-evidence')) {
+  const smokePath = argFlag('--smoke-evidence');
+  let smoke = null;
+  try {
+    smoke = JSON.parse(fs.readFileSync(smokePath, 'utf-8'));
+  } catch {
+    smoke = null;
+  }
+  if (smoke && typeof smoke.passed === 'boolean') {
+    // Required listing probes (discovery, canonical-detail incl. the
+    // rediscovered variant, id-alias, similar-api) must each be present and
+    // ok. The open-houses probe stays HTTP/JSON-CONTRACT-PROVEN only and is
+    // covered by the overall `passed` flag.
+    const probes = Array.isArray(smoke.probes) ? smoke.probes : [];
+    const probeOk = (name) =>
+      probes.some((p) => p && (p.name === name || (name === 'canonical-detail' && typeof p.name === 'string' && p.name.startsWith('canonical-detail'))) && p.ok === true);
+    const requiredProbesOk = ['discovery', 'canonical-detail', 'id-alias', 'similar-api'].every(probeOk);
+    layers.smoke = {
+      passed: smoke.passed,
+      observed_at: smoke.observed_at || null,
+      expected_sha: smoke.expected_sha || null,
+      deployment_id: smoke.deployment_id || null,
+      base_url: smoke.base_url || null,
+      listing: smoke.listing || null,
+      required_probes_ok: requiredProbesOk,
+    };
+  } else {
+    layers.smoke = { passed: false, reason: `smoke-evidence file missing/invalid: ${smokePath}` };
+  }
+}
+
 // Layer 7 — Live site smoke (Phase 4)
 if (!shouldSkip('live-site') && has('--live-site')) {
   const liveArgs = [];
@@ -170,64 +248,11 @@ if (!shouldSkip('claim') && prNum) {
 }
 
 // ─── Aggregate to a single verdict ───────────────────────────────────────
-function aggregate(layers) {
-  const reasons = [];
-
-  // REGRESSION first — anything that was passing and broke
-  if ((layers.ucba?.regressions || 0) > 0) {
-    return { verdict: 'REGRESSION', reasons: [`UCBA regression count: ${layers.ucba.regressions}`] };
-  }
-
-  // DEPLOY_INVALID — merge or PR with failed deploy
-  if (layers.deploy?.verdict === 'DEPLOY_FAIL') {
-    return { verdict: 'DEPLOY_INVALID', reasons: ['deploy validator reports DEPLOY_FAIL'] };
-  }
-
-  // CLAIM_OVERSTATED — UCBA reports overstatement OR claim verifier flags it
-  if ((layers.ucba?.claim_overstated || 0) > 0) {
-    reasons.push(`UCBA claim_overstated count: ${layers.ucba.claim_overstated}`);
-    return { verdict: 'CLAIM_OVERSTATED', reasons };
-  }
-  if (layers.claim?.verdict === 'CLAIM_OVERSTATED') {
-    return { verdict: 'CLAIM_OVERSTATED', reasons: layers.claim.reasons || ['PR claim verifier flagged overstatement'] };
-  }
-
-  // PARTIAL — workflow blocking failures, UCBA blocking failures, or migration FAIL
-  if ((layers.workflows?.blocking_failures || 0) > 0) {
-    reasons.push(`workflow blocking failures: ${layers.workflows.blocking_failures}`);
-  }
-  if ((layers.ucba?.blocking_failures || 0) > 0) {
-    reasons.push(`UCBA blocking failures: ${layers.ucba.blocking_failures}`);
-  }
-  if ((layers.migration?.summary?.fail || 0) > 0) {
-    reasons.push(`migration discipline FAIL: ${layers.migration.summary.fail}`);
-  }
-  if (reasons.length > 0) {
-    return { verdict: 'PARTIAL', reasons };
-  }
-
-  // Live-site failures block PROD_PROVEN even when deploy passed
-  if ((layers.live_site?.summary?.fail || 0) > 0) {
-    return { verdict: 'PARTIAL', reasons: [`live-site failures: ${layers.live_site.summary.fail}`] };
-  }
-
-  // PROD_PROVEN — deploy passed AND code is valid
-  if (layers.deploy?.verdict === 'DEPLOY_PASS') {
-    const reasons = ['code valid + deploy passed'];
-    if (layers.live_site?.summary?.pass > 0) reasons.push(`live-site: ${layers.live_site.summary.pass} pass`);
-    return { verdict: 'PROD_PROVEN', reasons };
-  }
-
-  // CODE_VALID — no failures, but deploy proof missing or unverified
-  if (layers.deploy?.verdict === 'DEPLOY_PENDING' || layers.deploy?.verdict === 'DEPLOY_UNKNOWN') {
-    return { verdict: 'CODE_VALID', reasons: [`deploy ${layers.deploy.verdict.toLowerCase()} — code is sound but deploy not proven`] };
-  }
-  if (!layers.deploy) {
-    return { verdict: 'CODE_VALID', reasons: ['no deploy target specified — code valid by static layers'] };
-  }
-
-  return { verdict: 'CODE_VALID', reasons };
-}
+// P2 hardening: the verdict core lives in release-safety/release-truth-verdict.js
+// (pure + unit-tested). Key change vs the pre-P2 inline version: a deploy
+// target with DEPLOY_PENDING / DEPLOY_UNKNOWN aggregates to UNVERIFIED —
+// never "CODE_VALID / clean enough to ship" (the PR #523 lesson).
+const { aggregate, decideExitCode } = require('./release-safety/release-truth-verdict.js');
 
 // PR claim verifier — extracts claim phrases AND maps each specific claim to
 // specific evidence. A claim "closes C15" requires C15's UCBA validator to
@@ -505,11 +530,4 @@ if (jsonOutput) {
   console.log('');
 }
 
-const exitCode =
-  final.verdict === 'REGRESSION' ? 1 :
-  final.verdict === 'DEPLOY_INVALID' ? 1 :
-  final.verdict === 'PARTIAL' ? 2 :
-  final.verdict === 'CLAIM_OVERSTATED' ? 3 :
-  final.verdict === 'UNVERIFIED' ? (strict ? 4 : 0) :
-  0;
-process.exit(exitCode);
+process.exit(decideExitCode(final.verdict, { strict, requireDeployProof }));

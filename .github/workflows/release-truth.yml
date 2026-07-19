@@ -62,7 +62,11 @@ jobs:
             sha=$(gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq '.head.sha')
             args="--pr ${{ inputs.pr }}"; label="PR #${{ inputs.pr }}"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            sha="${{ github.event.pull_request.head.sha }}"; args="--sha $sha"; label="SHA $sha"
+            # P2: checkout + status publication use the PR HEAD sha, but the
+            # aggregator is invoked with --pr so the deploy validator takes
+            # the DEPLOY_PREVIEW path (a PR's Vercel deployment is a preview;
+            # PREVIEW_PROVEN is its cap — it can never become PROD_PROVEN).
+            sha="${{ github.event.pull_request.head.sha }}"; args="--pr ${{ github.event.pull_request.number }}"; label="PR #${{ github.event.pull_request.number }}"
           else
             sha="${{ github.sha }}"; args="--sha $sha"; label="SHA $sha"
           fi
@@ -87,21 +91,100 @@ jobs:
       - name: npm ci
         run: npm ci
 
+      # P2 production hard gate — OFF until the repo variable
+      # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is 'true' (Maya's decision).
+      # SECRET SCOPING (strict): VERCEL_TOKEN exists ONLY in this step, and
+      # this step runs ONLY on push to refs/heads/main. It can NEVER run on
+      # pull_request events, and workflow_dispatch runs (which may check out
+      # an arbitrary inputs.sha / inputs.pr revision) NEVER receive the
+      # token either — manual dispatch stays advisory and token-free, so
+      # non-main code is never executed with the Vercel token.
+      - name: Verify production alias deployment (gated, push-to-main only)
+        id: prodverify
+        if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set +e
+          # --json: stdout is EXACTLY one JSON document; progress goes to
+          # stderr (preserved below). mallan.nyc must be served by a READY
+          # deployment built from the target SHA with proven alias ownership.
+          node scripts/release-safety/verify-deployment-sha.js --expected-sha "$TARGET_SHA" --json > deploy-proof.json 2> deploy-proof.stderr
+          rc=$?
+          cat deploy-proof.stderr >&2
+          # STRICT proof validation — the gate accepts the file only when the
+          # verifier exited 0 AND every identity field checks out; anything
+          # else discards the proof and fails the gate (rc=4).
+          node -e '
+            const fs = require("fs");
+            const target = (process.env.TARGET_SHA || "").toLowerCase();
+            const d = JSON.parse(fs.readFileSync("deploy-proof.json", "utf8"));
+            const problems = [];
+            if (d.verdict !== "MATCH") problems.push("verdict=" + d.verdict);
+            if (!d.deployment_id || typeof d.deployment_id !== "string") problems.push("deployment_id missing");
+            if ((d.expected_sha || "").toLowerCase() !== target) problems.push("expected_sha mismatch");
+            if ((d.deployed_sha || "").toLowerCase() !== target) problems.push("deployed_sha mismatch");
+            if (d.alias_host !== "mallan.nyc") problems.push("alias_host=" + d.alias_host);
+            if (!Array.isArray(d.aliases) || !d.aliases.includes("mallan.nyc")) problems.push("aliases lack mallan.nyc");
+            if (problems.length > 0) { console.error("proof rejected: " + problems.join("; ")); process.exit(1); }
+            console.log("alias verifier proof accepted: " + d.deployment_id + " @ " + d.deployed_sha);
+          '
+          check_rc=$?
+          if [ $rc -ne 0 ] || [ $check_rc -ne 0 ]; then
+            echo "deploy proof invalid or verifier failed (verifier rc=$rc, proof check rc=$check_rc) — discarding deploy-proof.json" >&2
+            rm -f deploy-proof.json
+            [ $rc -eq 0 ] && rc=4
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          # Gate enforcement happens in the final step so the aggregator,
+          # status post, and summary still run and stay honest.
+          exit 0
+
       - name: Run release-truth aggregator
         id: aggregator
         run: |
           set +e
-          # Capture verdict + full JSON for the status post + summary
-          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} --json > release-truth.json 2>/dev/null
+          # When the gated step above produced a VALIDATED deploy-proof.json,
+          # feed it to the aggregator; the verdict stays honest either way:
+          # PROD_PROVEN additionally requires runtime smoke evidence
+          # (--smoke-evidence, runbook-supplied), so the advisory verdict here
+          # reads UNVERIFIED until then. PR events are NEVER production-gated
+          # (advisory only; they evaluate via --pr and cap at PREVIEW_PROVEN).
+          extra=""
+          if [ -f deploy-proof.json ]; then
+            extra="--deploy-proof deploy-proof.json"
+          fi
+          # Single aggregator execution: one JSON, stderr preserved. Logs,
+          # status, and summary all render from this SAME JSON.
+          node scripts/release-truth-check.js ${{ steps.target.outputs.args }} $extra --json > release-truth.json 2> release-truth.stderr
           rc=$?
-          verdict=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).verdict")
-          reasons=$(node -p "JSON.parse(require('fs').readFileSync('release-truth.json','utf-8')).reasons.join(' | ')")
-          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
-          echo "reasons=$reasons" >> "$GITHUB_OUTPUT"
+          cat release-truth.stderr >&2
+          node -e '
+            const fs = require("fs");
+            let d;
+            try { d = JSON.parse(fs.readFileSync("release-truth.json", "utf8")); }
+            catch (e) { console.error("release-truth.json missing/invalid: " + e.message); process.exit(1); }
+            const known = ["PROD_PROVEN","PREVIEW_PROVEN","CODE_VALID","PARTIAL","UNVERIFIED","REGRESSION","DEPLOY_INVALID","CLAIM_OVERSTATED"];
+            if (!known.includes(d.verdict)) { console.error("unknown verdict: " + d.verdict); process.exit(1); }
+            fs.writeFileSync("release-truth-verdict.txt", d.verdict);
+            fs.writeFileSync("release-truth-reasons.txt", (d.reasons || []).join(" | ") || "(no reasons)");
+            console.log("Verdict: " + d.verdict);
+            for (const r of d.reasons || []) console.log("  - " + r);
+            for (const [k, v] of Object.entries(d.layers || {})) console.log("  layer " + k + ": " + JSON.stringify(v).slice(0, 300));
+          '
+          parse_rc=$?
+          if [ $parse_rc -ne 0 ]; then
+            # Invalid/missing JSON or unrecognized verdict => the run FAILS and
+            # the status step (always()) posts a failure/error status.
+            echo "verdict=ERROR" >> "$GITHUB_OUTPUT"
+            echo "aggregator output invalid or verdict unrecognized" > release-truth-reasons.txt
+            exit 1
+          fi
+          echo "verdict=$(cat release-truth-verdict.txt)" >> "$GITHUB_OUTPUT"
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
-          # Print human-readable to log
-          node scripts/release-truth-check.js ${{ steps.target.outputs.args }}
-          exit 0  # Don't fail the workflow itself; the commit status carries the verdict
+          exit 0  # Advisory mode: the commit status carries the verdict;
+                  # the production gate (if armed) is enforced in the final step
 
       - name: Post commit status
         # Posts the advisory release-truth verdict as a commit status
@@ -109,18 +192,26 @@ jobs:
         # (the PR HEAD sha, so it is visible ON the PR). No PR comment / email.
         # The workflow never fails on the verdict — the aggregator exits 0; this
         # step only sets a status (PARTIAL/UNVERIFIED => pending, advisory).
-        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        if: (github.event_name == 'push' || github.event_name == 'pull_request') && always()
         run: |
-          state="success"
-          case "${{ steps.aggregator.outputs.verdict }}" in
-            PROD_PROVEN|CODE_VALID) state="success" ;;
+          # P2 fail-closed default: an empty/unrecognized verdict posts
+          # "error", never "success". Reasons are read from the file the
+          # aggregator step wrote — NEVER passed through GitHub expression
+          # interpolation into shell quoting (reason text is arbitrary and
+          # must not touch the shell as code).
+          verdict="${{ steps.aggregator.outputs.verdict }}"
+          state="error"
+          case "$verdict" in
+            PROD_PROVEN|PREVIEW_PROVEN|CODE_VALID) state="success" ;;
             PARTIAL|UNVERIFIED) state="pending" ;;
             DEPLOY_INVALID|REGRESSION|CLAIM_OVERSTATED) state="failure" ;;
+            ERROR|'') verdict="ERROR"; state="error" ;;
           esac
+          reasons="$(head -c 120 release-truth-reasons.txt 2>/dev/null || echo 'no reasons captured')"
           gh api -X POST "repos/${{ github.repository }}/statuses/${{ steps.target.outputs.sha }}" \
             -f state="$state" \
             -f context="release-truth" \
-            -f description="${{ steps.aggregator.outputs.verdict }}: $(echo '${{ steps.aggregator.outputs.reasons }}' | head -c 130)" \
+            -f description="$verdict: $reasons" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Comment on PR
@@ -157,11 +248,20 @@ jobs:
           {
             echo "## Release Truth — ${{ steps.target.outputs.label }}"
             echo ""
-            echo "**Verdict:** \`${{ steps.aggregator.outputs.verdict }}\`"
+            echo "**Verdict:** \`${{ steps.aggregator.outputs.verdict || 'ERROR' }}\`"
             echo ""
-            echo "**Reasons:** ${{ steps.aggregator.outputs.reasons }}"
+            echo "**Reasons:** $(cat release-truth-reasons.txt 2>/dev/null || echo 'no reasons captured')"
             echo ""
             echo '```json'
-            cat release-truth.json | jq '.layers' || echo '{}'
+            jq '.layers' release-truth.json 2>/dev/null || echo '{}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce production gate
+        # Runs LAST so the aggregator verdict, commit status, and summary are
+        # always published first. Fails the run when the gated alias
+        # verification step ran and did not end in MATCH.
+        if: steps.prodverify.outputs.rc != '' && steps.prodverify.outputs.rc != '0'
+        run: |
+          echo "Production alias verification FAILED (verifier exit ${{ steps.prodverify.outputs.rc }}) — failing the gated run"
+          exit 1

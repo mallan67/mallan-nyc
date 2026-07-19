@@ -5,25 +5,28 @@
  * Catches the "merged commit but deploy failed" class of mistakes — the
  * one that bit #47 and #55 in this session's earlier work.
  *
- * Resolves a commit SHA, queries GitHub combined status + check runs,
- * and reports DEPLOY_PASS / DEPLOY_FAIL / DEPLOY_PENDING / DEPLOY_UNKNOWN.
+ * Resolves a commit SHA, queries GitHub combined status + check runs, and
+ * reports DEPLOY_PASS / DEPLOY_PREVIEW / DEPLOY_FAIL / DEPLOY_PENDING /
+ * DEPLOY_UNKNOWN.
  *
- * Required check policy (configurable via CLI):
- *   - Vercel must be present and pass (legacy commit-status OR check-run)
- *   - Other check runs (claude-review, guardrails, pr-check) must pass
- *     when present.
- *
- * Note on the recurring Vercel commit-status webhook lag observed during
- * this session: this validator treats `Vercel Preview Comments: SUCCESS`
- * as evidence the deploy completed even when the legacy `Vercel: pending`
- * status hangs. Tunable via --strict-vercel.
+ * Required check policy (P2 fail-closed):
+ *   - The Vercel commit-status must itself be success — "Vercel Preview
+ *     Comments" success is PREVIEW evidence only and is never accepted as
+ *     deployment proof (the pre-P2 acceptance is removed).
+ *   - Required check runs (pr-check, guardrails, claude-review) must ALL be
+ *     present, completed, and successful. A check that has not appeared yet
+ *     counts as PENDING, never as pass.
+ *   - A PR target caps at DEPLOY_PREVIEW (its Vercel deployment is a
+ *     preview). DEPLOY_PASS on a push/sha target means checks-complete —
+ *     it is still NOT production-alias proof; that upgrade only comes from
+ *     scripts/release-safety/verify-deployment-sha.js.
  *
  * Usage:
  *   node scripts/validate-release-status.js --sha abc123
  *   node scripts/validate-release-status.js --sha HEAD
  *   node scripts/validate-release-status.js --pr 63
  *   node scripts/validate-release-status.js --json
- *   node scripts/validate-release-status.js --strict-vercel    # require legacy status pass too
+ *   node scripts/validate-release-status.js --strict-vercel    # deprecated (P2): strict is now the only behavior
  */
 
 const { execSync } = require('child_process');
@@ -39,7 +42,11 @@ const has = (name) => args.includes(name);
 const sha = argFlag('--sha');
 const prNum = argFlag('--pr');
 const jsonOutput = has('--json');
+// P2: --strict-vercel is deprecated — strict is now the only behavior
+// (Preview Comments success is never deployment proof). Parsed for
+// backward compatibility only.
 const strictVercel = has('--strict-vercel');
+void strictVercel;
 
 if (!sha && !prNum) {
   console.error('Usage: node scripts/validate-release-status.js --sha <SHA> | --pr <N>');
@@ -175,13 +182,17 @@ if (vercelStatus?.state === 'success') {
     state: 'success',
     url: vercelStatus.target_url,
   };
-} else if (!strictVercel && vercelPreviewComments?.conclusion === 'success') {
+} else if (vercelPreviewComments?.conclusion === 'success') {
+  // P2 correction: a successful "Vercel Preview Comments" check-run proves a
+  // PREVIEW deployment commented on the PR — it is NEVER deployment proof.
+  // state 'preview-only' cannot satisfy the success branch of the verdict.
   evaluation.evaluation.deploy_proof = {
-    source: 'Vercel Preview Comments check-run (legacy commit-status webhook lag)',
-    state: 'success',
+    source: 'Vercel Preview Comments check-run',
+    state: 'preview-only',
     url: vercelPreviewComments.url,
-    note: 'Legacy Vercel commit-status was pending but Preview Comments check ran and passed → deploy completed. Use --strict-vercel to require commit-status too.',
+    note: 'Preview Comments success proves a preview commented on the PR — NOT that any deployment completed. (Pre-P2 this was accepted as deploy proof.)',
   };
+  evaluation.evaluation.pending.push('Vercel');
 } else if (vercelStatus?.state === 'pending') {
   evaluation.evaluation.deploy_proof = { source: 'Vercel commit-status', state: 'pending', url: vercelStatus.target_url };
   evaluation.evaluation.pending.push('Vercel');
@@ -197,7 +208,10 @@ const REQUIRED_CHECK_NAMES = ['pr-check', 'guardrails', 'claude-review'];
 for (const name of REQUIRED_CHECK_NAMES) {
   const cr = checkRuns.find((c) => c.name === name);
   if (!cr) {
+    // P2 correction (fail-closed): a required check that has not appeared yet
+    // is PENDING evidence — its absence must never contribute to DEPLOY_PASS.
     evaluation.evaluation.required_checks.push({ name, present: false, state: 'absent' });
+    evaluation.evaluation.pending.push(name);
     continue;
   }
   evaluation.evaluation.required_checks.push({
@@ -216,11 +230,15 @@ for (const name of REQUIRED_CHECK_NAMES) {
 }
 
 // 3. Final verdict
+// P2: a PR target caps at DEPLOY_PREVIEW — its "Vercel" success status is a
+// PREVIEW deployment. DEPLOY_PASS (checks-complete on a push/sha target) is
+// still NOT production-alias proof; that upgrade only comes from
+// scripts/release-safety/verify-deployment-sha.js via --deploy-proof.
 let verdict;
 if (evaluation.evaluation.blocking_failures.length > 0) {
   verdict = 'DEPLOY_FAIL';
 } else if (evaluation.evaluation.deploy_proof?.state === 'success' && evaluation.evaluation.pending.length === 0) {
-  verdict = 'DEPLOY_PASS';
+  verdict = prNum ? 'DEPLOY_PREVIEW' : 'DEPLOY_PASS';
 } else if (evaluation.evaluation.pending.length > 0) {
   verdict = 'DEPLOY_PENDING';
 } else if (evaluation.evaluation.deploy_proof?.state === 'unknown') {
@@ -237,6 +255,7 @@ if (jsonOutput) {
 } else {
   const verdictColor = {
     DEPLOY_PASS: '\x1b[32m',
+    DEPLOY_PREVIEW: '\x1b[32m',
     DEPLOY_FAIL: '\x1b[31m',
     DEPLOY_PENDING: '\x1b[33m',
     DEPLOY_UNKNOWN: '\x1b[36m',
@@ -295,6 +314,7 @@ if (jsonOutput) {
 // Exit codes
 const exitCode = {
   DEPLOY_PASS: 0,
+  DEPLOY_PREVIEW: 0,    // preview evidence only — never production proof
   DEPLOY_PENDING: 0,    // not a failure — caller decides whether to wait
   DEPLOY_UNKNOWN: 0,    // not a failure — caller decides whether to require evidence
   DEPLOY_FAIL: 1,
