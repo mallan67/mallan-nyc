@@ -398,6 +398,12 @@ export async function GET(request: Request) {
                     status: true,
                   },
                 },
+                // All-status existence signal for the DTO's media authority (this
+                // select is ACTIVE-only). Without it, a Mallan exclusive whose
+                // relational photos were all deleted would read as "never imported"
+                // and resurrect deleted photos from the legacy JSON. Same batched
+                // query — no N+1 (Codex review, 2026-07-16).
+                _count: { select: { listing_media: true } },
               },
             }),
             prisma.listing.count({ where: dbWhere }),
@@ -971,9 +977,11 @@ export async function GET(request: Request) {
           // imported" from "rows existed but were intentionally deleted" by row
           // count alone. `_count: { select: { listing_media: true } }` supplies
           // the all-status existence signal in the SAME batched query (a Prisma
-          // aggregate subquery — NOT a per-listing round-trip, no N+1). Provenance
-          // (rls_eligible / agent_id / owner_client_id, SL-/RL- reinforcing;
-          // never mls_id) lets a Mallan-owned listing's intentional deletion stay
+          // aggregate subquery — NOT a per-listing round-trip, no N+1). Media
+          // ownership follows the canonical isMallanExclusiveListing rule
+          // (SL-/RL- listing_id OR rls_eligible === false; NEVER agent_id or
+          // owner_client_id, and never mls_id), which lets a Mallan-owned
+          // listing's intentional deletion stay
           // authoritative (no legacy-JSON resurrection) while a third-party
           // Cotality listing with all-inactive rows falls back to its
           // Cotality-sourced JSON — matching the detail page exactly.
@@ -989,8 +997,6 @@ export async function GET(request: Request) {
                   listing_id: true,
                   media: true,
                   rls_eligible: true,
-                  agent_id: true,
-                  owner_client_id: true,
                   _count: { select: { listing_media: true } },
                   listing_media: {
                     where: { status: 'active' },
@@ -1018,8 +1024,6 @@ export async function GET(request: Request) {
                   {
                     listingId: dbL.listing_id,
                     rlsEligible: dbL.rls_eligible,
-                    agentId: dbL.agent_id,
-                    ownerClientId: dbL.owner_client_id,
                   },
                   { hadRelationalRows: (dbL._count?.listing_media ?? 0) > 0 },
                 );
@@ -1297,6 +1301,11 @@ async function fetchExclusiveListings(
             status: true,
           },
         },
+        // All-status existence signal (this select is ACTIVE-only) so the DTO's
+        // media authority can tell "never imported" from "all deleted" and never
+        // resurrects deleted Mallan photos. Same batched query — no N+1 (Codex
+        // review, 2026-07-16).
+        _count: { select: { listing_media: true } },
       },
     });
 
