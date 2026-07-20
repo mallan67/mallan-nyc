@@ -83,6 +83,19 @@ export async function GET(req: NextRequest) {
           exit_reason: result.exit_reason,
           rows_checked: result.rows_checked,
           rows_updated: result.rows_updated,
+          // #530 detailed outcome ledger (JSON payload only — NO schema column).
+          // Lets a retro prove suppression is REAL: distinguish a genuine drop in
+          // rows_updated (rows_skipped_unchanged up) from lower feed volume,
+          // invalid rows, delete signals, vanished rows, or failures. Authoritative
+          // only on runs where rows_failed === 0 (see RunMediaSyncResult).
+          rows_inserted: result.rows_inserted,
+          rows_updated_changed: result.rows_updated_changed,
+          rows_skipped_unchanged: result.rows_skipped_unchanged,
+          rows_skipped_invalid: result.rows_skipped_invalid,
+          delete_signals_received: result.delete_signals_received,
+          tombstoned_explicit: result.tombstoned_explicit,
+          tombstoned_vanished: result.tombstoned_vanished,
+          rows_tombstoned: result.rows_tombstoned,
           rows_failed: result.rows_failed,
           listings_processed: result.listings_processed,
           listings_skipped: result.listings_skipped,
