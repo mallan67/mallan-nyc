@@ -30,7 +30,7 @@ import { isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { resolveListingMediaFromRows, getPhotoGallery, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
 import {
   probeListingMedia, emptyCounters, makeAccountant, identitiesMatch, classifyCotalityMedia,
-  DEFAULT_BUDGETS, CHECKPOINT_VERSION,
+  DEFAULT_BUDGETS, CHECKPOINT_VERSION, MAX_UNKNOWN_RETRIES,
   type AuditBudgets, type CotalityCounters, type CotalityMediaReader, type RunCounters,
   type RunIdentity, type RetryableUnknownEntry,
 } from '../audit/media-coverage-audit';
@@ -77,6 +77,7 @@ export interface PlannedItem {
   order: number;
   sourceUrl: string;
   mediaKey: string | null;
+  preferredPhotoYn: boolean;
   action: PlannedAction;
   matchedRowId: string | null;
   matchedByMediaKey: boolean;
@@ -202,6 +203,7 @@ export function planListing(row: DryRunListingRow, cotalityPhotos: CotalityPhoto
       order: p.order,
       sourceUrl: p.sourceUrl,
       mediaKey: p.mediaKey ?? null,
+      preferredPhotoYn: Boolean(p.preferredPhotoYn),
       action,
       matchedRowId: matched?.id ?? null,
       matchedByMediaKey: Boolean(keyMatch),
@@ -210,6 +212,13 @@ export function planListing(row: DryRunListingRow, cotalityPhotos: CotalityPhoto
     });
   }
   if (conflicts.length > 0) return conflicted(conflicts);
+
+  // PHOTO-FIRST / HERO-FIRST: preferred photo leads, then ascending provider
+  // Order. (All items are already photos — non-photos never enter the plan.)
+  items.sort((a, b) => {
+    if (a.preferredPhotoYn !== b.preferredPhotoYn) return a.preferredPhotoYn ? -1 : 1;
+    return a.order - b.order;
+  });
 
   return {
     listingId: row.listing_id,
@@ -234,11 +243,14 @@ export interface DryRunCheckpoint {
   plans: ListingPlan[];
   counters: CotalityCounters;
   retryableUnknown: RetryableUnknownEntry[];
+  /** Listings that EXHAUSTED the retry policy — cumulative, unique. Blocks
+   *  coverageComplete AND planComplete while non-empty. */
+  permanentUnknown: RetryableUnknownEntry[];
   pendingFrom: string | null;
 }
 
 export function emptyDryRunCheckpoint(identity: RunIdentity): DryRunCheckpoint {
-  return { version: CHECKPOINT_VERSION, mode: 'dryrun', identity, cursor: null, processed: 0, plans: [], counters: emptyCounters(), retryableUnknown: [], pendingFrom: null };
+  return { version: CHECKPOINT_VERSION, mode: 'dryrun', identity, cursor: null, processed: 0, plans: [], counters: emptyCounters(), retryableUnknown: [], permanentUnknown: [], pendingFrom: null };
 }
 
 export function validateDryRunCheckpoint(cp: DryRunCheckpoint, expectedIdentity: RunIdentity): void {
@@ -254,8 +266,16 @@ export function validateDryRunCheckpoint(cp: DryRunCheckpoint, expectedIdentity:
   for (const e of cp.retryableUnknown) {
     if (qids.has(e.listingId)) throw new Error(`retryableUnknown has duplicate id ${e.listingId}`);
     qids.add(e.listingId);
-    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > 100) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
     if (ids.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH planned and retryable-unknown — inconsistent`);
+  }
+  const pset = new Set<string>();
+  for (const e of cp.permanentUnknown || []) {
+    if (pset.has(e.listingId)) throw new Error(`permanentUnknown duplicate id ${e.listingId}`);
+    pset.add(e.listingId);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES) throw new Error(`permanentUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (qids.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH retryable and permanent unknown`);
+    if (ids.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH planned and permanent-unknown — inconsistent`);
   }
 }
 
@@ -279,8 +299,11 @@ export interface DryRunResult {
    *  CLI exit nonzero — 'manual review required' NEVER looks like success. */
   planComplete: boolean;
   incompleteReasons: string[];
+  /** Non-blocking notices (e.g. source-missing) — never make a run incomplete. */
+  warnings: string[];
   plans: ListingPlan[];
   conflictListings: number;
+  permanentUnknownCount: number;
   totals: { inserts: number; restores: number; updates: number; unchanged: number };
   counters: CotalityCounters;
   runCounters: RunCounters;
@@ -311,6 +334,11 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
   if (deps.checkpoint) validateDryRunCheckpoint(cp, deps.identity);
   const planned = new Set(cp.plans.map((p) => p.listingId));
   const reasons = new Set<string>();
+  const warnings = new Set<string>(); // non-blocking (source-missing)
+  const upsertPermanent = (e: RetryableUnknownEntry) => {
+    const i = cp.permanentUnknown.findIndex((x) => x.listingId === e.listingId);
+    if (i >= 0) cp.permanentUnknown[i] = e; else cp.permanentUnknown.push(e);
+  };
   const acct = makeAccountant(budgets.maxCotalityRequests);
   const run: RunCounters = { listingsFinalized: 0, probesAttempted: 0, requestAttempts: 0, retries: 0, elapsedMs: 0, unknownRetriesAttempted: 0, unknownReplaced: 0, sourceMissing: 0 };
   cp.pendingFrom = null;
@@ -346,36 +374,41 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
   // rowSignals recomputed, and if it no longer needs a probe (gained media,
   // went hidden, became Mallan-owned) it is DEQUEUED with ZERO Cotality
   // calls; a listing gone from Neon is DEQUEUED (source-missing, reported).
+  const dropResolved = (id: string) => { const pi = cp.permanentUnknown.findIndex((x) => x.listingId === id); if (pi >= 0) cp.permanentUnknown.splice(pi, 1); };
   if (cp.retryableUnknown.length > 0) {
-    const stillQueued: RetryableUnknownEntry[] = [];
     const queue = [...cp.retryableUnknown];
-    const rows = await deps.candidates.fetchByIds(queue.map((q) => q.listingId));
-    const byId = new Map(rows.map((r) => [r.listing_id, r]));
-    for (const entry of queue) {
-      const row = byId.get(entry.listingId);
+    const stillQueued: RetryableUnknownEntry[] = [];
+    let qi = 0;
+    let budgetStopped = false;
+    for (; qi < queue.length; qi += 1) {
+      const entry = queue[qi];
+      if (run.listingsFinalized >= budgets.maxListings) { reasons.add('max-listings reached (per-run, retry phase)'); budgetStopped = true; break; }
+      if (overTime()) { reasons.add('run time budget exceeded (retry phase)'); budgetStopped = true; break; }
+      const rows = await deps.candidates.fetchByIds([entry.listingId]); // chunked single-id read
+      const row = rows[0];
+      run.listingsFinalized += 1; // every EXAMINED retry consumes the budget
       if (!row) {
         run.sourceMissing += 1;
-        reasons.add(`listing ${entry.listingId} removed from Neon since last run — dropped from retry queue (source-missing)`);
+        warnings.add(`listing ${entry.listingId} removed from Neon since last run — dropped from retry queue (source-missing)`);
         continue;
       }
       const signals = rowSignals(row);
-      if (!signals.needsProbe) {
-        // No longer a Bucket-B candidate → dequeue, no plan, ZERO Cotality.
-        continue;
-      }
-      if (overTime() || run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); continue; }
+      if (!signals.needsProbe) { dropResolved(entry.listingId); continue; } // ZERO Cotality
+      if (run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); run.listingsFinalized -= 1; continue; }
       run.probesAttempted += 1;
       run.unknownRetriesAttempted += 1;
       const outcome = await probeAndMaybePlan(row, signals);
-      if (outcome === 'deferred') { stillQueued.push(entry); continue; }
+      if (outcome === 'deferred') { stillQueued.push(entry); run.listingsFinalized -= 1; continue; }
       if (outcome === 'unknown') {
         const attempts = entry.attempts + 1;
         if (attempts < budgets.maxUnknownRetriesPerListing) stillQueued.push({ listingId: entry.listingId, attempts, lastReason: 'probe unknown' });
-        else reasons.add(`listing ${entry.listingId} exhausted unknown-retries (${attempts}) — permanent UNKNOWN`);
+        else upsertPermanent({ listingId: entry.listingId, attempts, lastReason: 'probe unknown' });
         continue;
       }
       if (outcome === 'planned') run.unknownReplaced += 1;
+      dropResolved(entry.listingId);
     }
+    if (budgetStopped) for (; qi < queue.length; qi += 1) stillQueued.push(queue[qi]);
     cp.retryableUnknown = stillQueued;
     syncAcct();
     if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
@@ -420,10 +453,11 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
 
   run.elapsedMs = now() - startedAt;
   const scanComplete = ![...reasons].some((r) => r.includes('pending') || r.includes('max-listings') || r.includes('time budget'));
-  const coverageComplete = scanComplete && cp.retryableUnknown.length === 0;
   if (cp.retryableUnknown.length > 0) reasons.add(`${cp.retryableUnknown.length} listing(s) queued as retryable UNKNOWN (resume to re-probe)`);
+  if (cp.permanentUnknown.length > 0) reasons.add(`${cp.permanentUnknown.length} listing(s) PERMANENT UNKNOWN (retry policy exhausted)`);
   const conflictListings = cp.plans.filter((p) => p.conflict && p.conflict.length > 0).length;
   if (conflictListings > 0) reasons.add(`${conflictListings} listing(s) in CONFLICT — manual review required, no executable plan emitted`);
+  const coverageComplete = scanComplete && cp.retryableUnknown.length === 0 && cp.permanentUnknown.length === 0;
   const planComplete = coverageComplete && conflictListings === 0;
   if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
 
@@ -439,8 +473,10 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
     coverageComplete,
     planComplete,
     incompleteReasons: [...reasons],
+    warnings: [...warnings],
     plans: cp.plans,
     conflictListings,
+    permanentUnknownCount: cp.permanentUnknown.length,
     totals,
     counters: cp.counters,
     runCounters: run,

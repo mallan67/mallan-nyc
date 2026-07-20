@@ -37,7 +37,7 @@ import { pathToFileURL } from 'node:url';
 import prisma from '@/lib/prisma';
 import {
   runAudit, attemptWithAccounting, validateNextLink, CapStopError, validateCheckpoint,
-  DEFAULT_BUDGETS, CHECKPOINT_VERSION, TOOL_VERSION,
+  DEFAULT_BUDGETS, CHECKPOINT_VERSION, TOOL_VERSION, MAX_UNKNOWN_RETRIES,
   type AuditDeps, type AuditListingRow, type AuditBudgets, type AuditCheckpoint,
   type CotalityMediaReader, type CotalityMediaRow, type RequestAccountant, type RunIdentity,
 } from './media-coverage-audit';
@@ -117,7 +117,8 @@ export function neonFingerprint(): string {
   return sha256Hex(sanitized).slice(0, 16);
 }
 
-export function buildIdentity(toolMode: 'audit' | 'dryrun', withCotality: boolean, base: string | null, checkpointPath: string | null): RunIdentity {
+export function buildIdentity(toolMode: 'audit' | 'dryrun', withCotality: boolean, base: string | null, checkpointPath: string | null, maxUnknownRetries: number): RunIdentity {
+  if (withCotality && base) assertValidBase(base); // approved-endpoint allowlist BEFORE any token/identity commit
   return {
     schemaVersion: CHECKPOINT_VERSION,
     toolVersion: TOOL_VERSION,
@@ -126,6 +127,7 @@ export function buildIdentity(toolMode: 'audit' | 'dryrun', withCotality: boolea
     cotalitySource: withCotality && base ? cotalitySourceOf(base) : null,
     cotalityClientFingerprint: withCotality ? cotalityClientFingerprint() : null,
     neonFingerprint: neonFingerprint(),
+    maxUnknownRetries,
     checkpointPath,
   };
 }
@@ -166,15 +168,29 @@ export function writeCheckpointAtomic(path: string, data: unknown): void {
 
 export const COTALITY_BASE = () => (process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle').replace(/\/$/, '');
 
-/** Validate the configured base BEFORE any request: https, no embedded
- *  credentials, no query/fragment, a normalizable API path. Throws. */
+/** EXPLICIT approved Cotality endpoint allowlist. The base — and therefore the
+ *  token endpoint the shared getAccessToken derives from it — MUST match one of
+ *  these exactly (normalized origin+path). An arbitrary HTTPS host, the correct
+ *  host with a wrong path, a subdomain/suffix lookalike, or an alternate port
+ *  are all rejected BEFORE getAccessToken can be imported or called, so the
+ *  OAuth client credentials can never be posted to an unapproved host. Any
+ *  additional endpoint must be added here explicitly and justified. */
+export const APPROVED_COTALITY_ENDPOINTS = [
+  'https://api.cotality.com/trestle',
+] as const;
+
+/** Validate the configured base against the approved allowlist BEFORE any
+ *  request or token acquisition. Throws on any mismatch. */
 export function assertValidBase(base: string): void {
   let u: URL;
   try { u = new URL(base); } catch { throw new Error(`COTALITY base '${base}' is not a valid URL`); }
   if (u.protocol !== 'https:') throw new Error(`COTALITY base must be https (got '${u.protocol}')`);
   if (u.username || u.password) throw new Error('COTALITY base must not embed credentials');
   if (u.search || u.hash) throw new Error('COTALITY base must not carry a query or fragment');
-  if (!u.pathname || u.pathname === '/') throw new Error('COTALITY base must include the API path');
+  const normalized = u.origin.toLowerCase() + u.pathname.replace(/\/$/, '');
+  if (!APPROVED_COTALITY_ENDPOINTS.includes(normalized as typeof APPROVED_COTALITY_ENDPOINTS[number])) {
+    throw new Error(`COTALITY base '${normalized}' is not on the approved endpoint allowlist [${APPROVED_COTALITY_ENDPOINTS.join(', ')}] — refusing to acquire a token`);
+  }
 }
 
 /**
@@ -291,13 +307,14 @@ export async function main(): Promise<void> {
     cotalityConcurrency: parseBound(args, '--concurrency', DEFAULT_BUDGETS.cotalityConcurrency),
     maxMediaPagesPerListing: parseBound(args, '--max-media-pages', DEFAULT_BUDGETS.maxMediaPagesPerListing),
     runTimeBudgetMs: parseBound(args, '--time-budget-ms', DEFAULT_BUDGETS.runTimeBudgetMs),
-    maxUnknownRetriesPerListing: parseBound(args, '--max-unknown-retries', DEFAULT_BUDGETS.maxUnknownRetriesPerListing),
+    maxUnknownRetriesPerListing: parseBound(args, '--max-unknown-retries', DEFAULT_BUDGETS.maxUnknownRetriesPerListing, 1),
   };
+  if (budgets.maxUnknownRetriesPerListing > MAX_UNKNOWN_RETRIES) { console.error(`--max-unknown-retries ${budgets.maxUnknownRetriesPerListing} exceeds the maximum ${MAX_UNKNOWN_RETRIES} — refusing to run`); process.exit(1); }
   const timeoutMs = parseBound(args, '--timeout-ms', 15_000);
   const maxRetries = parseBound(args, '--retries', 1, 0);
   const checkpointPath = strFlagStrict(args, '--checkpoint');
   const resume = args.includes('--resume');
-  const identity = buildIdentity('audit', withCotality, withCotality ? COTALITY_BASE() : null, checkpointPath);
+  const identity = buildIdentity('audit', withCotality, withCotality ? COTALITY_BASE() : null, checkpointPath, budgets.maxUnknownRetriesPerListing);
 
   let checkpoint: AuditCheckpoint | undefined;
   if (resume) {
@@ -312,23 +329,26 @@ export async function main(): Promise<void> {
 
   const lockPath = checkpointPath ? acquireCheckpointLock(checkpointPath) : null;
 
-  const listings = {
-    fetchPage: (cursor: string | null, pageSize: number) => prisma.listing.findMany({
-      where: cursor ? { listing_id: { gt: cursor } } : undefined,
-      orderBy: { listing_id: 'asc' }, take: pageSize, select: AUDIT_SELECT,
-    }) as unknown as Promise<AuditListingRow[]>,
-    fetchByIds: (listingIds: string[]) => prisma.listing.findMany({
-      where: { listing_id: { in: listingIds } }, orderBy: { listing_id: 'asc' }, select: AUDIT_SELECT,
-    }) as unknown as Promise<AuditListingRow[]>,
-  };
-
-  const deps: AuditDeps = {
-    listings, identity, budgets, checkpoint,
-    ...(checkpointPath ? { saveCheckpoint: (cp: AuditCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
-  };
-  if (withCotality) deps.cotality = buildCotalityReader({ timeoutMs, maxRetries });
-
+  // The try/finally begins IMMEDIATELY after lock acquisition so ANY
+  // post-acquisition failure (reader construction, dependency wiring, run,
+  // output, disconnect) still releases the lock — no orphaned .lock file.
   try {
+    const listings = {
+      fetchPage: (cursor: string | null, pageSize: number) => prisma.listing.findMany({
+        where: cursor ? { listing_id: { gt: cursor } } : undefined,
+        orderBy: { listing_id: 'asc' }, take: pageSize, select: AUDIT_SELECT,
+      }) as unknown as Promise<AuditListingRow[]>,
+      fetchByIds: (listingIds: string[]) => prisma.listing.findMany({
+        where: { listing_id: { in: listingIds } }, orderBy: { listing_id: 'asc' }, select: AUDIT_SELECT,
+      }) as unknown as Promise<AuditListingRow[]>,
+    };
+
+    const deps: AuditDeps = {
+      listings, identity, budgets, checkpoint,
+      ...(checkpointPath ? { saveCheckpoint: (cp: AuditCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
+    };
+    if (withCotality) deps.cotality = buildCotalityReader({ timeoutMs, maxRetries });
+
     const res = await runAudit(deps);
     if (asJson) {
       console.log(JSON.stringify({ mode: 'READ-ONLY audit — no writes', withCotality, budgets, ...res }, null, 2));

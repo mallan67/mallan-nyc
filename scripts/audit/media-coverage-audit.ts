@@ -43,7 +43,12 @@ import {
   type BucketTally, type ListingCoverageInput, type CotalityProbe, type MediaCoverageBucket,
 } from '@/lib/media/media-coverage-bucket';
 
-export const CHECKPOINT_VERSION = 4;
+export const CHECKPOINT_VERSION = 5;
+
+/** The single shared upper bound on the cumulative unknown-retry policy. A
+ *  --max-unknown-retries value above this is rejected so the tool never
+ *  produces a checkpoint it would later reject itself. */
+export const MAX_UNKNOWN_RETRIES = 100;
 
 // ─── Run identity (non-secret) ──────────────────────────────────────────────
 
@@ -63,13 +68,16 @@ export interface RunIdentity {
   /** Non-secret Neon fingerprint of the sanitized connection identity
    *  (host+port+db+user+schema) — never the password. */
   neonFingerprint: string;
+  /** The cumulative unknown-retry policy this checkpoint was created under.
+   *  A resume with a different policy is rejected. */
+  maxUnknownRetries: number;
   /** The checkpoint/output path this identity is bound to (null = in-memory). */
   checkpointPath: string | null;
 }
 
 /** The current classifier/semantics revision. BUMP when audit classification
  *  or bucket semantics change so older checkpoints are rejected on resume. */
-export const TOOL_VERSION = 'media-coverage-audit@2026-07-20-r4';
+export const TOOL_VERSION = 'media-coverage-audit@2026-07-20-r5';
 
 export function identitiesMatch(a: RunIdentity, b: RunIdentity): string[] {
   const problems: string[] = [];
@@ -80,6 +88,7 @@ export function identitiesMatch(a: RunIdentity, b: RunIdentity): string[] {
   if (a.cotalitySource !== b.cotalitySource) problems.push('cotalitySource differs');
   if (a.cotalityClientFingerprint !== b.cotalityClientFingerprint) problems.push('cotalityClientFingerprint differs');
   if (a.neonFingerprint !== b.neonFingerprint) problems.push('neonFingerprint differs');
+  if (a.maxUnknownRetries !== b.maxUnknownRetries) problems.push(`maxUnknownRetries ${a.maxUnknownRetries} != ${b.maxUnknownRetries}`);
   if (a.checkpointPath !== b.checkpointPath) problems.push('checkpointPath differs');
   return problems;
 }
@@ -234,13 +243,17 @@ export interface AuditCheckpoint {
   inventory: InventoryRow[];
   /** Genuine-error UNKNOWNs eligible for bounded re-probing on resume. */
   retryableUnknown: RetryableUnknownEntry[];
+  /** Listings that EXHAUSTED the retry policy — cumulative, unique. While
+   *  non-empty, coverage is NOT complete. Removed only when a later authorized
+   *  re-evaluation resolves the listing. */
+  permanentUnknown: RetryableUnknownEntry[];
   pendingFrom: string | null;
 }
 
 export function emptyCheckpoint(identity: RunIdentity): AuditCheckpoint {
   return {
     version: CHECKPOINT_VERSION, mode: 'audit', identity, cursor: null, processed: 0,
-    tally: emptyTally(), counters: emptyCounters(), inventory: [], retryableUnknown: [], pendingFrom: null,
+    tally: emptyTally(), counters: emptyCounters(), inventory: [], retryableUnknown: [], permanentUnknown: [], pendingFrom: null,
   };
 }
 
@@ -258,6 +271,15 @@ export function validateCheckpoint(cp: AuditCheckpoint, expectedIdentity: RunIde
     throw new Error(`checkpoint does not reconcile: processed=${cp.processed} inventory=${cp.inventory.length} tallySum=${tallySum} uniqueIds=${ids.size}`);
   }
   validateRetryQueue(cp.retryableUnknown, cp.inventory);
+  // permanentUnknown: unique ids, bounded attempts, and disjoint from retryable.
+  const rset = new Set(cp.retryableUnknown.map((e) => e.listingId));
+  const pset = new Set<string>();
+  for (const e of cp.permanentUnknown || []) {
+    if (pset.has(e.listingId)) throw new Error(`permanentUnknown duplicate id ${e.listingId}`);
+    pset.add(e.listingId);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES) throw new Error(`permanentUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (rset.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH retryable and permanent unknown`);
+  }
 }
 
 /** Validate the retryable-unknown queue: unique ids, positive bounded attempt
@@ -465,6 +487,8 @@ export interface AuditResult {
    *  while probe-requiring listings exist. */
   coverageComplete: boolean;
   incompleteReasons: string[];
+  /** Non-blocking notices (e.g. source-missing) — never make a run incomplete. */
+  warnings: string[];
   processed: number;
   tally: BucketTally;
   inventory: InventoryRow[];
@@ -492,6 +516,7 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   if (deps.checkpoint) validateCheckpoint(cp, deps.identity);
   const seen = new Set(cp.inventory.map((r) => r.listingId));
   const reasons = new Set<string>();
+  const warnings = new Set<string>(); // non-blocking (e.g. source-missing) — NEVER pollute incompleteReasons
   const acct = makeAccountant(budgets.maxCotalityRequests);
   const run: RunCounters = { listingsFinalized: 0, probesAttempted: 0, requestAttempts: 0, retries: 0, elapsedMs: 0, unknownRetriesAttempted: 0, unknownReplaced: 0, sourceMissing: 0 };
   cp.pendingFrom = null;
@@ -513,6 +538,22 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
     run.listingsFinalized += 1;
     cp.cursor = cp.cursor && cp.cursor > row.listing_id ? cp.cursor : row.listing_id;
   };
+  const finishAudit = (): AuditResult => {
+    const scanComplete = ![...reasons].some((r) => r.includes('pending') || r.includes('max-listings') || r.includes('time budget'));
+    const unresolvedU = cp.inventory.filter((r) => r.cotality.status === 'unknown' && r.bucket === 'U').length;
+    if (cp.retryableUnknown.length > 0) reasons.add(`${cp.retryableUnknown.length} listing(s) queued as retryable UNKNOWN (resume to re-probe)`);
+    if (cp.permanentUnknown.length > 0) reasons.add(`${cp.permanentUnknown.length} listing(s) PERMANENT UNKNOWN (retry policy exhausted)`);
+    if (unresolvedU > 0 && !deps.cotality) reasons.add(`${unresolvedU} listing(s) UNVERIFIED (Neon-only run — coverage NOT verified)`);
+    // coverageComplete requires: scan complete, no U rows, and BOTH queues empty.
+    const coverageComplete = scanComplete && unresolvedU === 0 && cp.retryableUnknown.length === 0 && cp.permanentUnknown.length === 0;
+    return {
+      scanComplete, coverageComplete,
+      incompleteReasons: [...reasons],
+      warnings: [...warnings],
+      processed: cp.processed, tally: cp.tally, inventory: cp.inventory,
+      counters: cp.counters, runCounters: run, checkpoint: cp,
+    };
+  };
 
   // ── Phase 0: retryable-unknown queue (RESUME REPAIR) — before any pages ──
   // Each queued listing is RE-EVALUATED against CURRENT Neon state first: if
@@ -523,16 +564,25 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   // forever-queued "not re-fetchable". Only genuinely still-probe-needing
   // listings hit Cotality.
   if (deps.cotality && cp.retryableUnknown.length > 0) {
-    const stillQueued: RetryableUnknownEntry[] = [];
     const queue = [...cp.retryableUnknown];
-    const rows = await deps.listings.fetchByIds(queue.map((q) => q.listingId));
-    const byId = new Map(rows.map((r) => [r.listing_id, r]));
-    for (const entry of queue) {
-      const row = byId.get(entry.listingId);
+    const stillQueued: RetryableUnknownEntry[] = [];
+    const upsertPermanent = (e: RetryableUnknownEntry) => {
+      const i = cp.permanentUnknown.findIndex((p) => p.listingId === e.listingId);
+      if (i >= 0) cp.permanentUnknown[i] = e; else cp.permanentUnknown.push(e);
+    };
+    let qi = 0;
+    let budgetStopped = false;
+    for (; qi < queue.length; qi += 1) {
+      const entry = queue[qi];
+      // Per-run listing + time budget gate BEFORE any targeted read.
+      if (run.listingsFinalized >= budgets.maxListings) { reasons.add('max-listings reached (per-run, retry phase)'); budgetStopped = true; break; }
+      if (overTime()) { reasons.add('run time budget exceeded (retry phase)'); budgetStopped = true; break; }
+      // Chunked single-id targeted read — never one unbounded IN(...) over the
+      // whole cumulative queue.
+      const rows = await deps.listings.fetchByIds([entry.listingId]);
+      const row = rows[0];
+      run.listingsFinalized += 1; // EVERY examined retry consumes the budget
       if (!row) {
-        // Listing removed from Neon between runs — deterministic policy:
-        // drop its stale inventory record + tally slot and dequeue. Counted
-        // separately as source-missing.
         const idx = cp.inventory.findIndex((r) => r.listingId === entry.listingId);
         if (idx >= 0) {
           cp.tally[cp.inventory[idx].bucket] -= 1;
@@ -542,38 +592,38 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
           for (const r of cp.inventory) seen.add(r.listingId);
         }
         run.sourceMissing += 1;
-        reasons.add(`listing ${entry.listingId} removed from Neon since last run — dropped (source-missing)`);
+        warnings.add(`listing ${entry.listingId} removed from Neon since last run — dropped (source-missing)`);
         continue;
       }
-      // RE-EVALUATE: does it still need a provider probe at all?
       if (!needsCotalityProbe(row)) {
         replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: 'no longer needs a Cotality probe (Neon state changed)' }));
         run.unknownReplaced += 1;
         continue; // ZERO Cotality requests
       }
-      if (overTime() || run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); continue; }
+      if (run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); run.listingsFinalized -= 1; continue; }
       run.probesAttempted += 1;
       run.unknownRetriesAttempted += 1;
       const probe = await probeListingMedia(deps.cotality, row.listing_id, budgets, acct);
-      if (probe.status === 'unknown' && probe.deferred) { stillQueued.push(entry); continue; } // cap — try next run
+      if (probe.status === 'unknown' && probe.deferred) { stillQueued.push(entry); run.listingsFinalized -= 1; continue; } // cap
       if (probe.status === 'unknown') {
         const attempts = entry.attempts + 1;
-        if (attempts < budgets.maxUnknownRetriesPerListing) {
-          stillQueued.push({ listingId: entry.listingId, attempts, lastReason: probe.reason });
-        } else {
-          reasons.add(`listing ${entry.listingId} exhausted unknown-retries (${attempts}) — permanent UNKNOWN`);
-        }
         cp.counters.failures += 1;
         replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: probe.reason }));
+        if (attempts < budgets.maxUnknownRetriesPerListing) stillQueued.push({ listingId: entry.listingId, attempts, lastReason: probe.reason });
+        else upsertPermanent({ listingId: entry.listingId, attempts, lastReason: probe.reason });
         continue;
       }
       cp.counters.successes += 1;
       run.unknownReplaced += 1;
       replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'confirmed', photoCount: probe.photoCount }));
+      const pi = cp.permanentUnknown.findIndex((p) => p.listingId === entry.listingId);
+      if (pi >= 0) cp.permanentUnknown.splice(pi, 1); // resolved → leaves permanentUnknown too
     }
+    if (budgetStopped) for (; qi < queue.length; qi += 1) stillQueued.push(queue[qi]); // persist untouched tail
     cp.retryableUnknown = stillQueued;
     syncAcct();
     if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
+    if (budgetStopped) { run.elapsedMs = now() - startedAt; return finishAudit(); }
   }
 
   // ── Phase 1: cursor pages ────────────────────────────────────────────────
@@ -640,27 +690,8 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   }
 
   run.elapsedMs = now() - startedAt;
-  const scanComplete = reasons.size === 0 || ![...reasons].some((r) => r.includes('pending') || r.includes('max-listings') || r.includes('time budget'));
-  const unresolvedU = cp.inventory.filter((r) => r.cotality.status === 'unknown' && r.bucket === 'U').length;
-  const coverageComplete = scanComplete && unresolvedU === 0 && cp.retryableUnknown.length === 0;
-  // (source-missing drops are surfaced in incompleteReasons; they reduce the
-  //  candidate set rather than leaving coverage unverified.)
-  if (cp.retryableUnknown.length > 0) reasons.add(`${cp.retryableUnknown.length} listing(s) queued as retryable UNKNOWN (resume to re-probe)`);
-  if (unresolvedU > 0 && !deps.cotality) reasons.add(`${unresolvedU} listing(s) UNVERIFIED (Neon-only run — coverage NOT verified)`);
-  else if (unresolvedU > cp.retryableUnknown.length) reasons.add(`${unresolvedU - cp.retryableUnknown.length} listing(s) remain permanent UNKNOWN`);
-
   if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
-  return {
-    scanComplete,
-    coverageComplete,
-    incompleteReasons: [...reasons],
-    processed: cp.processed,
-    tally: cp.tally,
-    inventory: cp.inventory,
-    counters: cp.counters,
-    runCounters: run,
-    checkpoint: cp,
-  };
+  return finishAudit();
 }
 
 // ─── Transport helper (ONE accounting path) ────────────────────────────────

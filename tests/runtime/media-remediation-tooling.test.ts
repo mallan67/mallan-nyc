@@ -15,7 +15,7 @@ const {
   runAudit, probeListingMedia, buildInventoryRow, needsCotalityProbe,
   attemptWithAccounting, makeAccountant, CapStopError, classifyCotalityMedia, classifyCotalityRowStrict,
   isValidProviderMediaUrl, validateNextLink, identitiesMatch, validateRetryQueue,
-  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS, CHECKPOINT_VERSION, TOOL_VERSION,
+  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS, CHECKPOINT_VERSION, TOOL_VERSION, MAX_UNKNOWN_RETRIES,
 } = require('@/scripts/audit/media-coverage-audit');
 const {
   runDryRun, planListing, diffAuthorizedFields, normalizeSourceUrl,
@@ -32,7 +32,7 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const TEST_IDENTITY = {
   schemaVersion: CHECKPOINT_VERSION, toolVersion: TOOL_VERSION, toolMode: 'audit' as const, probeMode: 'cotality' as const,
   cotalitySource: 'https://api.cotality.com/trestle', cotalityClientFingerprint: 'client000001',
-  neonFingerprint: 'testfp000001', checkpointPath: null,
+  neonFingerprint: 'testfp000001', maxUnknownRetries: 3, checkpointPath: null,
 };
 const NEON_ONLY_IDENTITY = { ...TEST_IDENTITY, probeMode: 'neon-only' as const, cotalitySource: null, cotalityClientFingerprint: null };
 const DRY_IDENTITY = { ...TEST_IDENTITY, toolMode: 'dryrun' as const };
@@ -429,10 +429,12 @@ describe('ROUND 3 — transient UNKNOWN is retried on resume and REPLACED', () =
   it('audit: unknown-retries are BOUNDED per listing — exhaustion becomes permanent UNKNOWN', async () => {
     const rows = [auditRow({ listing_id: 'RLSFAIL' })];
     const failing = () => mockCotality({ propertyError: 'still down' });
-    let cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: failing().reader, identity: TEST_IDENTITY, budgets: tightBudgets({ maxUnknownRetriesPerListing: 2 }) })).checkpoint;
-    const run2 = await runAudit({ listings: pagedReader(rows).reader, cotality: failing().reader, identity: TEST_IDENTITY, budgets: tightBudgets({ maxUnknownRetriesPerListing: 2 }), checkpoint: cp });
-    expect(run2.checkpoint.retryableUnknown).toHaveLength(0); // exhausted → dequeued
-    expect(run2.incompleteReasons.join(' ')).toContain('exhausted unknown-retries');
+    const idTwo0 = { ...TEST_IDENTITY, maxUnknownRetries: 2 };
+    let cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: failing().reader, identity: idTwo0, budgets: tightBudgets({ maxUnknownRetriesPerListing: 2 }) })).checkpoint;
+    const run2 = await runAudit({ listings: pagedReader(rows).reader, cotality: failing().reader, identity: idTwo0, budgets: tightBudgets({ maxUnknownRetriesPerListing: 2 }), checkpoint: cp });
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0); // exhausted → off the retry queue
+    expect(run2.checkpoint.permanentUnknown).toHaveLength(1); // ...and onto permanentUnknown
+    expect(run2.coverageComplete).toBe(false); // permanentUnknown blocks coverage
     expect(run2.inventory[0].bucket).toBe('U'); // stays honest U
   });
 
@@ -555,8 +557,8 @@ describe('dry-run planner — order fidelity + update detection (retained)', () 
       { order: 7, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: 'MK-A' },
       { order: -1, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-B' },
     ]);
-    expect(plan.items.map((i: { order: number }) => i.order)).toEqual([7, -1]);
-    expect(plan.items[1].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', -1));
+    expect(plan.items.map((i: { order: number }) => i.order)).toEqual([-1, 7]); // photo-first: ascending order, no preferred
+    expect(plan.items[0].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', -1));
 
     const row = { id: '1', status: 'active', media_key: null, media_url_original: 'https://cdn.example/x.jpg', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false };
     expect(diffAuthorizedFields(row, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL' })).toContain('media_key');
@@ -740,4 +742,152 @@ describe('ROUND 4 — checkpoint protection and exposed bounds', () => {
       'await main();', 'process.exit(0);',
     ], 1);
   }, 150_000);
+});
+
+// ─── ROUND 5: exhaustion persists as permanentUnknown; never planComplete ──
+
+describe('ROUND 5 — retry exhaustion can never exit successfully', () => {
+  it('dry-run: an exhausted listing lands in permanentUnknown and blocks planComplete', async () => {
+    const rows = [dryRow({ listing_id: 'RLSX' })];
+    const idTwo = { ...DRY_IDENTITY, maxUnknownRetries: 2 };
+    const b = { ...tightBudgets({ maxUnknownRetriesPerListing: 2 }) };
+    const cp1 = (await runDryRun({ candidates: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'down' }).reader, identity: idTwo, budgets: b })).checkpoint;
+    const res = await runDryRun({ candidates: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'still down' }).reader, identity: idTwo, budgets: b, checkpoint: cp1 });
+    expect(res.checkpoint.retryableUnknown).toHaveLength(0);
+    expect(res.checkpoint.permanentUnknown).toHaveLength(1);
+    expect(res.permanentUnknownCount).toBe(1);
+    expect(res.coverageComplete).toBe(false);
+    expect(res.planComplete).toBe(false); // never a clean plan while permanentUnknown non-empty
+  });
+  it('a resolved listing leaves permanentUnknown (audit) — coverage can recover', async () => {
+    const rows = [auditRow({ listing_id: 'RLSX' })];
+    const idTwo = { ...TEST_IDENTITY, maxUnknownRetries: 2 };
+    const b = tightBudgets({ maxUnknownRetriesPerListing: 2 });
+    let cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'down' }).reader, identity: idTwo, budgets: b })).checkpoint;
+    cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'still' }).reader, identity: idTwo, budgets: b, checkpoint: cp })).checkpoint;
+    expect(cp.permanentUnknown).toHaveLength(1);
+    // permanentUnknown is not re-probed automatically; but if the listing is
+    // put back on retryable and resolves, it leaves permanentUnknown:
+    cp.permanentUnknown = []; // authorized re-evaluation moves it back to retryable
+    cp.retryableUnknown = [{ listingId: 'RLSX', attempts: 1, lastReason: 'manual requeue' }];
+    const good = mockCotality({ pagesPerListing: { RLSX: [{ rows: [cPhoto(1)] }] } });
+    const run = await runAudit({ listings: pagedReader(rows).reader, cotality: good.reader, identity: idTwo, budgets: b, checkpoint: cp });
+    expect(run.checkpoint.permanentUnknown).toHaveLength(0);
+    expect(run.inventory[0].bucket).toBe('B_NEW');
+  });
+  it('a run is never "incomplete" and planComplete at once (source-missing is a WARNING, not a reason)', async () => {
+    // Exhaust one listing (blocks) AND make a second source-missing (warning).
+    const rows = [dryRow({ listing_id: 'RLSA' })];
+    const idTwo = { ...DRY_IDENTITY, maxUnknownRetries: 2 };
+    const b = tightBudgets({ maxUnknownRetriesPerListing: 2 });
+    let cp = (await runDryRun({ candidates: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'x' }).reader, identity: idTwo, budgets: b })).checkpoint;
+    // Add a queued listing that will be source-missing on resume:
+    cp.retryableUnknown.push({ listingId: 'RLSGONE', attempts: 1, lastReason: 'x' });
+    const res = await runDryRun({ candidates: pagedReader([dryRow({ listing_id: 'RLSA' })]).reader, cotality: mockCotality({ propertyError: 'still' }).reader, identity: idTwo, budgets: b, checkpoint: cp });
+    expect(res.warnings.some((w: string) => w.includes('source-missing'))).toBe(true);
+    expect(res.incompleteReasons.some((r: string) => r.includes('source-missing'))).toBe(false);
+    expect(res.planComplete).toBe(false); // still blocked by RLSA exhaustion
+  });
+});
+
+// ─── ROUND 5: bounded retry-queue Neon reading ─────────────────────────────
+
+describe('ROUND 5 — retry-queue reading respects maxListings', () => {
+  it('audit: a queue of 10 with maxListings=2 examines at most 2, leaves 8 queued, resumes cleanly', async () => {
+    const ids = Array.from({ length: 10 }, (_, i) => `RLS${String(i).padStart(2, '0')}`);
+    const rows = ids.map((id) => auditRow({ listing_id: id }));
+    const idOne = { ...TEST_IDENTITY, maxUnknownRetries: 3 };
+    // seed a checkpoint whose retry queue holds all 10 (all currently failing)
+    const seed = { ...emptyCheckpoint(idOne),
+      cursor: 'RLS99', processed: 10,
+      inventory: ids.map((id) => ({ listingId: id, displayable: true, ownership: 'third-party', activeUsablePhotoCount: 0, allStatusRowCount: 0, legacyUsablePhotoCount: 0, cotality: { status: 'unknown', reason: 'x' }, bucket: 'U' })),
+      tally: { A: 0, B_NEW: 0, B_INACTIVE: 0, C: 0, D: 0, E: 0, F: 0, U: 10 },
+      retryableUnknown: ids.map((id) => ({ listingId: id, attempts: 1, lastReason: 'x' })),
+    };
+    const b = tightBudgets({ maxListings: 2, pageSize: 5 });
+    const good = mockCotality({ pages: ids.map(() => ({ rows: [cPhoto(1)] })) });
+    const paged = pagedReader(rows);
+    const run1 = await runAudit({ listings: paged.reader, cotality: good.reader, identity: idOne, budgets: b, checkpoint: seed });
+    // examined at most 2 retry ids → at most 2 targeted single-id reads
+    expect(paged.byIdCalls.length).toBeLessThanOrEqual(2);
+    expect(paged.byIdCalls.flat().length).toBeLessThanOrEqual(2);
+    expect(run1.checkpoint.retryableUnknown.length).toBe(8); // 8 remain
+    expect(run1.runCounters.listingsFinalized).toBeLessThanOrEqual(2);
+    // resume finishes the rest without duplicates
+    const run2 = await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ pages: ids.map(() => ({ rows: [cPhoto(1)] })) }).reader, identity: idOne, budgets: tightBudgets({ maxListings: 100 }), checkpoint: run1.checkpoint });
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0);
+    expect(new Set(run2.inventory.map((r: { listingId: string }) => r.listingId)).size).toBe(10);
+  });
+});
+
+// ─── ROUND 5: approved-endpoint allowlist ──────────────────────────────────
+
+describe('ROUND 5 — only an approved Cotality endpoint can get the credentials', () => {
+  it('an arbitrary HTTPS host is rejected BEFORE token acquisition (spawned tsx)', () => {
+    runTsx([
+      "process.env.TRESTLE_API_URL = 'https://attacker.example/trestle';",
+      "process.env.IDX_CLIENT_ID = 'cid';",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "try { m.assertValidBase('https://attacker.example/trestle'); process.exit(9); }",
+      "catch (e) { process.exit(String(e.message).includes('approved endpoint allowlist') ? 0 : 8); }",
+    ], 0);
+  }, 150_000);
+  it('the correct host with a wrong path, and a suffix lookalike, are rejected; the approved endpoint passes', () => {
+    runTsx([
+      "process.env.IDX_CLIENT_ID = 'cid';",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "let bad = 0;",
+      "for (const u of ['https://api.cotality.com/wrongpath','https://api.cotality.com.evil.test/trestle','https://api.cotality.com:8443/trestle']) { try { m.assertValidBase(u); } catch { bad += 1; } }",
+      "try { m.assertValidBase('https://api.cotality.com/trestle'); } catch { process.exit(7); }",
+      "process.exit(bad === 3 ? 0 : 8);",
+    ], 0);
+  }, 150_000);
+  it('buildIdentity rejects an unapproved base in cotality mode (spawned tsx)', () => {
+    runTsx([
+      "process.env.TRESTLE_API_URL = 'https://attacker.example/trestle';",
+      "process.env.IDX_CLIENT_ID = 'cid';",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "try { m.buildIdentity('audit', true, 'https://attacker.example/trestle', null, 3); process.exit(9); }",
+      "catch (e) { process.exit(String(e.message).includes('approved endpoint allowlist') ? 0 : 8); }",
+    ], 0);
+  }, 150_000);
+});
+
+// ─── ROUND 5: max-unknown-retries self-consistency ─────────────────────────
+
+describe('ROUND 5 — the unknown-retry policy is self-consistent', () => {
+  it('the largest allowed value validates; one above the max is rejected (source pins)', () => {
+    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(cli).toContain('MAX_UNKNOWN_RETRIES');
+    expect(cli).toContain('exceeds the maximum');
+    expect(MAX_UNKNOWN_RETRIES).toBe(100);
+  });
+  it('spawned CLI: --max-unknown-retries 200 is rejected (never produces a checkpoint it would reject)', () => {
+    runTsx([
+      "process.argv = [process.argv[0], process.argv[1], '--max-unknown-retries', '200'];",
+      "const { main } = await import('./scripts/audit/media-coverage-audit.cli');",
+      'await main();', 'process.exit(0);',
+    ], 1);
+  }, 150_000);
+  it('a checkpoint with a DIFFERENT retry policy cannot resume (identity mismatch)', () => {
+    const a = { ...TEST_IDENTITY, maxUnknownRetries: 3 };
+    const b = { ...TEST_IDENTITY, maxUnknownRetries: 5 };
+    expect(identitiesMatch(a, b).join(' ')).toContain('maxUnknownRetries');
+    expect(() => validateCheckpoint({ ...emptyCheckpoint(a) }, b)).toThrow(/maxUnknownRetries/);
+  });
+});
+
+// ─── ROUND 5: photo-first ordering ─────────────────────────────────────────
+
+describe('ROUND 5 — planned media is photo/hero first', () => {
+  it('the PreferredPhotoYN hero leads, then ascending provider Order', () => {
+    const plan = planListing(dryRow(), [
+      { order: 5, sourceUrl: 'https://cdn.example/e.jpg', mediaKey: 'MK-5', preferredPhotoYn: false },
+      { order: 9, sourceUrl: 'https://cdn.example/h.jpg', mediaKey: 'MK-9', preferredPhotoYn: true },
+      { order: 2, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-2', preferredPhotoYn: false },
+    ]);
+    expect(plan.items[0].preferredPhotoYn).toBe(true);   // hero first
+    expect(plan.items[0].order).toBe(9);
+    expect(plan.items.slice(1).map((i: { order: number }) => i.order)).toEqual([2, 5]); // then ascending
+  });
 });

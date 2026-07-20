@@ -24,7 +24,7 @@ import {
   runDryRun, ROLLBACK_NOTE, validateDryRunCheckpoint,
   type DryRunDeps, type DryRunListingRow, type AllStatusRow, type DryRunCheckpoint,
 } from './bucket-b-media-dry-run';
-import { DEFAULT_BUDGETS, type AuditBudgets } from '../audit/media-coverage-audit';
+import { DEFAULT_BUDGETS, MAX_UNKNOWN_RETRIES, type AuditBudgets } from '../audit/media-coverage-audit';
 import {
   buildCotalityReader, parseBound, strFlagStrict, validateArgs, buildIdentity,
   writeCheckpointAtomic, acquireCheckpointLock, releaseCheckpointLock, COTALITY_BASE,
@@ -73,13 +73,14 @@ export async function main(): Promise<void> {
     cotalityConcurrency: 1, // dry-run probing is sequential
     maxMediaPagesPerListing: parseBound(args, '--max-media-pages', DEFAULT_BUDGETS.maxMediaPagesPerListing),
     runTimeBudgetMs: parseBound(args, '--time-budget-ms', DEFAULT_BUDGETS.runTimeBudgetMs),
-    maxUnknownRetriesPerListing: parseBound(args, '--max-unknown-retries', DEFAULT_BUDGETS.maxUnknownRetriesPerListing),
+    maxUnknownRetriesPerListing: parseBound(args, '--max-unknown-retries', DEFAULT_BUDGETS.maxUnknownRetriesPerListing, 1),
   };
+  if (budgets.maxUnknownRetriesPerListing > MAX_UNKNOWN_RETRIES) { console.error(`--max-unknown-retries ${budgets.maxUnknownRetriesPerListing} exceeds the maximum ${MAX_UNKNOWN_RETRIES} — refusing to run`); process.exit(1); }
   const timeoutMs = parseBound(args, '--timeout-ms', 15_000);
   const maxRetries = parseBound(args, '--retries', 1, 0);
   const checkpointPath = strFlagStrict(args, '--checkpoint');
   const resume = args.includes('--resume');
-  const identity = buildIdentity('dryrun', true, COTALITY_BASE(), checkpointPath);
+  const identity = buildIdentity('dryrun', true, COTALITY_BASE(), checkpointPath, budgets.maxUnknownRetriesPerListing);
 
   let checkpoint: DryRunCheckpoint | undefined;
   if (resume) {
@@ -94,22 +95,24 @@ export async function main(): Promise<void> {
 
   const lockPath = checkpointPath ? acquireCheckpointLock(checkpointPath) : null;
 
-  const deps: DryRunDeps = {
-    candidates: {
-      fetchPage: (cursor, pageSize) => prisma.listing.findMany({
-        where: cursor ? { listing_id: { gt: cursor } } : undefined,
-        orderBy: { listing_id: 'asc' }, take: pageSize, select: DRYRUN_SELECT,
-      }).then(mapRows),
-      fetchByIds: (listingIds) => prisma.listing.findMany({
-        where: { listing_id: { in: listingIds } }, orderBy: { listing_id: 'asc' }, select: DRYRUN_SELECT,
-      }).then(mapRows),
-    },
-    cotality: buildCotalityReader({ timeoutMs, maxRetries }),
-    identity, budgets, checkpoint,
-    ...(checkpointPath ? { saveCheckpoint: (cp: DryRunCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
-  };
-
+  // try/finally begins IMMEDIATELY after lock acquisition — any setup failure
+  // (reader construction, wiring) still releases the lock.
   try {
+    const deps: DryRunDeps = {
+      candidates: {
+        fetchPage: (cursor, pageSize) => prisma.listing.findMany({
+          where: cursor ? { listing_id: { gt: cursor } } : undefined,
+          orderBy: { listing_id: 'asc' }, take: pageSize, select: DRYRUN_SELECT,
+        }).then(mapRows),
+        fetchByIds: (listingIds) => prisma.listing.findMany({
+          where: { listing_id: { in: listingIds } }, orderBy: { listing_id: 'asc' }, select: DRYRUN_SELECT,
+        }).then(mapRows),
+      },
+      cotality: buildCotalityReader({ timeoutMs, maxRetries }),
+      identity, budgets, checkpoint,
+      ...(checkpointPath ? { saveCheckpoint: (cp: DryRunCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
+    };
+
     const res = await runDryRun(deps);
     if (asJson) {
       console.log(JSON.stringify({ mode: 'DRY-RUN — nothing written', budgets, ...res, rollback: ROLLBACK_NOTE }, null, 2));
