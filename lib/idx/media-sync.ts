@@ -499,8 +499,15 @@ export interface UpsertListingMediaOptions {
 export interface UpsertListingMediaResult {
   /** Rows that did not exist in DB and were inserted as active. */
   inserted: number;
-  /** Rows that already existed in DB and had their fields refreshed. */
+  /** Rows that already existed in DB and had their fields refreshed (a real change). */
   updated: number;
+  /**
+   * Rows that already existed and were BYTE-IDENTICAL to the incoming feed row
+   * (same source-provenance fields AND already `status='active'`): the `update`
+   * is skipped entirely — no write, no `@updatedAt` churn. This is the #530
+   * compute reduction. (`updated + unchanged` = total matched existing rows.)
+   */
+  unchanged: number;
   /** Input rows that were rejected before any DB write (no MediaKey, non-Public Permission, no MediaURL). */
   skipped: number;
   /** DB rows whose `status` flipped from active to deleted (explicit MediaStatus='Deleted' OR vanished from input when tombstoneVanished=true). */
@@ -511,7 +518,7 @@ export interface UpsertListingMediaResult {
  * Internal row-shape we hand to Prisma — every field nullable except the
  * NOT NULL columns the schema enforces.
  */
-interface MappedMediaRow {
+export interface MappedMediaRow {
   mediaKey: string;
   resourceRecordKey: string | null;
   resourceRecordID: string | null;
@@ -524,6 +531,69 @@ interface MappedMediaRow {
   mediaModificationTs: Date | null;
   modificationTs: Date | null;
   photosChangeTsSnapshot: Date | null;
+}
+
+/**
+ * The existing-row projection the no-op guard compares against — exactly the
+ * source-provenance columns the `update` payload writes (see `upsertListingMedia`)
+ * MINUS `photos_change_ts_snapshot`. That snapshot is intentionally EXCLUDED:
+ * it is a per-fetch Property-event correlation timestamp that is never read
+ * anywhere (write-only provenance — verified 2026-07-20), so including it would
+ * bump on every re-fetch and defeat suppression. `r2_key`/`media_url_cached`
+ * are also excluded — the upsert never touches them (Checkpoint 4 owns them).
+ */
+export interface ExistingMediaRowForCompare {
+  listing_id: string;
+  resource_record_key: string | null;
+  resource_record_id: string | null;
+  media_url_original: string | null;
+  media_type: string;
+  media_category: string | null;
+  media_classification: string | null;
+  order: number;
+  preferred_photo_yn: boolean;
+  media_modification_ts: Date | null;
+  modification_ts: Date | null;
+  status: string;
+}
+
+/** Date equality that treats null==null and compares by instant otherwise. */
+function sameInstant(a: Date | null, b: Date | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.getTime() === b.getTime();
+}
+
+/**
+ * #530 no-op guard: is the stored row already byte-identical to the incoming
+ * feed row, so the `update` would only bump `@updatedAt`?
+ *
+ * TRUE only when the row is already `status='active'`, still belongs to the
+ * SAME listing, and every source-provenance field matches. A `deleted`/
+ * `replaced` row that reappears identically is therefore NOT "unchanged"
+ * (status must flip back to active — resurrect-on-reappear is preserved), and
+ * any real change (URL, type, category, classification, order, preferred flag,
+ * or either source timestamp) forces the write. `photos_change_ts_snapshot` is
+ * excluded by design (see `ExistingMediaRowForCompare`).
+ */
+export function listingMediaRowUnchanged(
+  existing: ExistingMediaRowForCompare,
+  row: MappedMediaRow,
+  listingId: string,
+): boolean {
+  return (
+    existing.status === "active" &&
+    existing.listing_id === listingId &&
+    existing.resource_record_key === row.resourceRecordKey &&
+    existing.resource_record_id === row.resourceRecordID &&
+    existing.media_url_original === row.mediaUrlOriginal &&
+    existing.media_type === row.mediaType &&
+    existing.media_category === row.mediaCategory &&
+    existing.media_classification === row.mediaClassification &&
+    existing.order === row.order &&
+    existing.preferred_photo_yn === row.preferredPhotoYN &&
+    sameInstant(existing.media_modification_ts, row.mediaModificationTs) &&
+    sameInstant(existing.modification_ts, row.modificationTs)
+  );
 }
 
 /**
@@ -540,13 +610,19 @@ interface MappedMediaRow {
  *     refresh all source-provenance fields (URL, type, order, preferred,
  *     timestamps). The `r2_key` and `media_url_cached` fields are NEVER
  *     touched here — those land in Checkpoint 4 (R2 upload path).
+ *   - #530 no-op guard: if the stored row is ALREADY `status='active'` and
+ *     byte-identical to the incoming feed row (`listingMediaRowUnchanged`),
+ *     the `update` is skipped entirely (counted as `unchanged`, no write, no
+ *     `@updatedAt` bump). Any real change — including a `deleted`/`replaced`
+ *     row reappearing (status must flip back to active) — still writes.
  *
  * `tombstoneVanished` (default false): when true, rows currently
  * `status='active'` for `listingId` that aren't in the input batch are
  * also tombstoned. Caller must guarantee the input batch is complete.
  *
- * Idempotent: running this twice with identical input produces no DB
- * churn beyond `updated_at` bumps (which Prisma's `@updatedAt` enforces).
+ * Idempotent AND write-free on a no-op: running this twice with identical
+ * input produces ZERO DB writes on the second run (every matched row is
+ * `unchanged`) — not even an `@updatedAt` bump (#530).
  */
 export async function upsertListingMedia(
   listingId: string,
@@ -600,15 +676,38 @@ export async function upsertListingMedia(
 
   let inserted = 0;
   let updated = 0;
+  let unchanged = 0;
 
   // Upsert each surviving row. We use findUnique + create/update rather than
-  // Prisma's upsert() so we can return precise inserted/updated counts.
+  // Prisma's upsert() so we can return precise inserted/updated/unchanged counts
+  // AND skip the write entirely when the stored row is already byte-identical
+  // (#530 — prevents ~18k/day no-op media rewrites and their `@updatedAt` churn;
+  // mirrors the existing r2_key/media_url_cached no-op guard in mirrorMediaToR2).
+  // The findUnique now projects the source-provenance columns the update writes
+  // so the no-op guard can compare without a second read.
   for (const row of mapped) {
     const existing = await prisma.listingMedia.findUnique({
       where: { media_key: row.mediaKey },
-      select: { id: true, listing_id: true },
+      select: {
+        listing_id: true,
+        resource_record_key: true,
+        resource_record_id: true,
+        media_url_original: true,
+        media_type: true,
+        media_category: true,
+        media_classification: true,
+        order: true,
+        preferred_photo_yn: true,
+        media_modification_ts: true,
+        modification_ts: true,
+        status: true,
+      },
     });
     if (existing) {
+      if (listingMediaRowUnchanged(existing, row, listingId)) {
+        unchanged++;
+        continue; // byte-identical active row → skip the no-op write
+      }
       await prisma.listingMedia.update({
         where: { media_key: row.mediaKey },
         data: {
@@ -696,7 +795,7 @@ export async function upsertListingMedia(
     tombstoned += res.count;
   }
 
-  return { inserted, updated, skipped, tombstoned };
+  return { inserted, updated, unchanged, skipped, tombstoned };
 }
 
 /** Coerce Trestle's `Order` field (number | string | null) to a finite int, default 0. */
