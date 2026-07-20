@@ -53,7 +53,23 @@ import {
   listingMediaRowUnchanged,
   type ExistingMediaRowForCompare,
   type MappedMediaRow,
+  type UpsertListingMediaResult,
 } from "../media-sync";
+
+// Build a full 8-field outcome ledger; unspecified counters default to 0.
+function res(over: Partial<UpsertListingMediaResult> = {}): UpsertListingMediaResult {
+  return {
+    inserted: 0,
+    updatedChanged: 0,
+    skippedUnchanged: 0,
+    skippedInvalid: 0,
+    deleteSignalsReceived: 0,
+    tombstonedExplicit: 0,
+    tombstonedVanished: 0,
+    tombstoned: 0,
+    ...over,
+  };
+}
 
 beforeEach(() => {
   mockFindUnique.mockReset();
@@ -87,7 +103,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: undefined }),
       makeRow({ MediaKey: "" }),
     ]);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 3, tombstoned: 0, unchanged: 0 });
+    expect(result).toEqual(res({ skippedInvalid: 3 }));
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -99,7 +115,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-B", Permission: "VOW" }),
       makeRow({ MediaKey: "MK-C", Permission: "Private" }),
     ]);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 3, tombstoned: 0, unchanged: 0 });
+    expect(result).toEqual(res({ skippedInvalid: 3 }));
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -110,7 +126,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", Permission: "Public" }),
     ]);
     expect(result.inserted).toBe(1);
-    expect(result.skipped).toBe(0);
+    expect(result.skippedInvalid).toBe(0);
   });
 
   it("accepts Permission=null (Trestle's IDX Plus license-edge default — already filtered upstream)", async () => {
@@ -120,7 +136,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", Permission: null }),
     ]);
     expect(result.inserted).toBe(1);
-    expect(result.skipped).toBe(0);
+    expect(result.skippedInvalid).toBe(0);
   });
 
   it("skips rows without MediaURL", async () => {
@@ -128,7 +144,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", MediaURL: null }),
       makeRow({ MediaKey: "MK-B", MediaURL: "" }),
     ]);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 2, tombstoned: 0, unchanged: 0 });
+    expect(result).toEqual(res({ skippedInvalid: 2 }));
   });
 
   // ─── Insert path ──────────────────────────────────────────────────────
@@ -142,7 +158,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-2", Order: 2 }),
     ]);
 
-    expect(result).toEqual({ inserted: 2, updated: 0, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(result).toEqual(res({ inserted: 2 }));
     expect(mockCreate).toHaveBeenCalledTimes(2);
     const firstCall = mockCreate.mock.calls[0][0];
     expect(firstCall.data.listing_id).toBe("RLS20012345");
@@ -185,7 +201,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-1", Order: 5 }),
     ]);
 
-    expect(result).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(result).toEqual(res({ updatedChanged: 1 }));
     expect(mockCreate).not.toHaveBeenCalled();
     const args = mockUpdate.mock.calls[0][0];
     expect(args.where).toEqual({ media_key: "MK-1" });
@@ -211,19 +227,19 @@ describe("upsertListingMedia — Checkpoint 2", () => {
     mockFindUnique.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce(undefined);
     const r1 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r1).toEqual({ inserted: 1, updated: 0, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(r1).toEqual(res({ inserted: 1 }));
 
     // Second run — same row, now exists.
     mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
     mockUpdate.mockResolvedValueOnce(undefined);
     const r2 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r2).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(r2).toEqual(res({ updatedChanged: 1 }));
 
     // Third run — still exists.
     mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
     mockUpdate.mockResolvedValueOnce(undefined);
     const r3 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r3).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(r3).toEqual(res({ updatedChanged: 1 }));
 
     // No duplicate creates.
     expect(mockCreate).toHaveBeenCalledTimes(1);
@@ -326,7 +342,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       { tombstoneVanished: true },
     );
 
-    expect(result).toEqual({ inserted: 1, updated: 0, skipped: 0, tombstoned: 4, unchanged: 0 });
+    expect(result).toEqual(res({ inserted: 1, deleteSignalsReceived: 1, tombstonedExplicit: 1, tombstonedVanished: 3, tombstoned: 4 }));
     // Vanished `notIn` clause should include BOTH live and explicitly-deleted keys.
     expect(mockUpdateMany.mock.calls[1][0].where).toEqual({
       listing_id: "RLS20012345",
@@ -391,7 +407,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
 
   it("on empty input with no options — performs zero DB calls", async () => {
     const result = await upsertListingMedia("RLS20012345", []);
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(result).toEqual(res({}));
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -431,18 +447,18 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
     // The core #530 guarantee: NO write for a no-op.
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(result).toEqual({ inserted: 0, updated: 0, skipped: 0, tombstoned: 0, unchanged: 1 });
+    expect(result).toEqual(res({ skippedUnchanged: 1 }));
   });
 
   it("running twice with identical input produces 1 insert then 0 writes (true no-op resume)", async () => {
     mockFindUnique.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce(undefined);
     const r1 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r1).toEqual({ inserted: 1, updated: 0, skipped: 0, tombstoned: 0, unchanged: 0 });
+    expect(r1).toEqual(res({ inserted: 1 }));
 
     mockFindUnique.mockResolvedValueOnce(existingMatching());
     const r2 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r2).toEqual({ inserted: 0, updated: 0, skipped: 0, tombstoned: 0, unchanged: 1 });
+    expect(r2).toEqual(res({ skippedUnchanged: 1 }));
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
@@ -471,7 +487,7 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
       expect(mockUpdate).toHaveBeenCalledTimes(1);
       // The update always re-asserts status='active' (resurrect-on-reappear).
       expect(mockUpdate.mock.calls[0][0].data.status).toBe("active");
-      expect(result).toEqual({ inserted: 0, updated: 1, skipped: 0, tombstoned: 0, unchanged: 0 });
+      expect(result).toEqual(res({ updatedChanged: 1 }));
     });
   }
 
@@ -489,7 +505,7 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
       makeRow({ MediaKey: "MK-3" }),
     ]);
 
-    expect(result).toEqual({ inserted: 1, updated: 1, skipped: 0, tombstoned: 0, unchanged: 1 });
+    expect(result).toEqual(res({ inserted: 1, updatedChanged: 1, skippedUnchanged: 1 }));
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
@@ -559,5 +575,98 @@ describe("listingMediaRowUnchanged — pure predicate", () => {
     for (const over of fields) {
       expect(listingMediaRowUnchanged({ ...base, ...over }, mapped, "RLS20012345")).toBe(false);
     }
+  });
+});
+
+// ─── #530 — outcome accounting (INPUT ledger vs PHYSICAL writes) ───────────
+describe("upsertListingMedia — #530 outcome accounting", () => {
+  it("unmatched explicit delete: deleteSignalsReceived=1 but tombstonedExplicit=0 (zero DB rows flipped)", async () => {
+    mockUpdateMany.mockResolvedValueOnce({ count: 0 }); // no active row matches the deleted key
+    const result = await upsertListingMedia("RLS20012345", [
+      makeRow({ MediaKey: "MK-GHOST", MediaStatus: "Deleted" }),
+    ]);
+    expect(result.deleteSignalsReceived).toBe(1);
+    expect(result.tombstonedExplicit).toBe(0);
+    expect(result.tombstoned).toBe(0);
+    // input ledger accounts for the single delete-signal row.
+    const inputLedger = result.inserted + result.updatedChanged + result.skippedUnchanged + result.skippedInvalid + result.deleteSignalsReceived;
+    expect(inputLedger).toBe(1);
+  });
+
+  it("duplicate explicit deletes: deleteSignalsReceived=2 but at most ONE DB row tombstoned (deduped media_key)", async () => {
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 });
+    const result = await upsertListingMedia("RLS20012345", [
+      makeRow({ MediaKey: "MK-DUP", MediaStatus: "Deleted" }),
+      makeRow({ MediaKey: "MK-DUP", MediaStatus: "Deleted" }),
+    ]);
+    expect(result.deleteSignalsReceived).toBe(2);
+    expect(result.tombstonedExplicit).toBe(1);
+    // The physical write set is a DEDUPED media_key list (one write, not two).
+    expect(mockUpdateMany.mock.calls[0][0].where.media_key).toEqual({ in: ["MK-DUP"] });
+  });
+
+  it("vanished-only batch: zero input rows; tombstonedVanished reflects affected DB rows; invariant holds", async () => {
+    mockUpdateMany.mockResolvedValueOnce({ count: 5 });
+    const result = await upsertListingMedia("RLS20012345", [], { tombstoneVanished: true });
+    expect(result.deleteSignalsReceived).toBe(0);
+    expect(result.tombstonedExplicit).toBe(0);
+    expect(result.tombstonedVanished).toBe(5);
+    expect(result.tombstoned).toBe(result.tombstonedExplicit + result.tombstonedVanished);
+    expect(result.inserted).toBe(0);
+  });
+
+  it("tombstoned ALWAYS equals tombstonedExplicit + tombstonedVanished (explicit + vanished together)", async () => {
+    mockFindUnique.mockResolvedValueOnce(null);
+    mockCreate.mockResolvedValueOnce(undefined);
+    mockUpdateMany.mockResolvedValueOnce({ count: 2 }); // explicit
+    mockUpdateMany.mockResolvedValueOnce({ count: 4 }); // vanished
+    const result = await upsertListingMedia(
+      "RLS20012345",
+      [makeRow({ MediaKey: "MK-LIVE" }), makeRow({ MediaKey: "MK-D", MediaStatus: "Deleted" })],
+      { tombstoneVanished: true },
+    );
+    expect(result.tombstonedExplicit).toBe(2);
+    expect(result.tombstonedVanished).toBe(4);
+    expect(result.tombstoned).toBe(6);
+    expect(result.tombstoned).toBe(result.tombstonedExplicit + result.tombstonedVanished);
+  });
+
+  it("mixed batch reconciles the INPUT ledger exactly and the PHYSICAL-write ledger", async () => {
+    // MK-1 identical (skip) · MK-2 changed (update) · MK-3 new (insert) ·
+    // MK-4 no MediaURL (invalid) · MK-DEL delete-signal.
+    mockFindUnique
+      .mockResolvedValueOnce(existingMatching()) // MK-1 unchanged
+      .mockResolvedValueOnce(existingMatching({ order: 7 })) // MK-2 changed
+      .mockResolvedValueOnce(null); // MK-3 insert
+    mockUpdate.mockResolvedValueOnce(undefined);
+    mockCreate.mockResolvedValueOnce(undefined);
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 }); // explicit delete
+
+    const input = [
+      makeRow({ MediaKey: "MK-1" }),
+      makeRow({ MediaKey: "MK-2" }),
+      makeRow({ MediaKey: "MK-3" }),
+      makeRow({ MediaKey: "MK-4", MediaURL: null }),
+      makeRow({ MediaKey: "MK-DEL", MediaStatus: "Deleted" }),
+    ];
+    const result = await upsertListingMedia("RLS20012345", input);
+
+    expect(result).toEqual(res({
+      inserted: 1,
+      updatedChanged: 1,
+      skippedUnchanged: 1,
+      skippedInvalid: 1,
+      deleteSignalsReceived: 1,
+      tombstonedExplicit: 1,
+      tombstoned: 1,
+    }));
+    // INPUT ledger === number of incoming rows.
+    const inputLedger = result.inserted + result.updatedChanged + result.skippedUnchanged + result.skippedInvalid + result.deleteSignalsReceived;
+    expect(inputLedger).toBe(input.length);
+    // PHYSICAL writes === inserts + updates + tombstones.
+    const physical = result.inserted + result.updatedChanged + result.tombstonedExplicit + result.tombstonedVanished;
+    expect(physical).toBe(3);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });

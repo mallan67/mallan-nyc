@@ -73,6 +73,14 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     exit_reason: "completed",
     rows_checked: 0,
     rows_updated: 0,
+    rows_inserted: 0,
+    rows_updated_changed: 0,
+    rows_skipped_unchanged: 0,
+    rows_skipped_invalid: 0,
+    delete_signals_received: 0,
+    tombstoned_explicit: 0,
+    tombstoned_vanished: 0,
+    rows_tombstoned: 0,
     rows_failed: 0,
     listings_processed: 0,
     listings_skipped: 0,
@@ -272,10 +280,21 @@ describe("GET /api/cron/media-sync — happy path", () => {
     expect(ch.r2_skipped).toBe(0);
     expect(ch.backlog_remaining).toBe(1102);
 
+    // #530: every detailed outcome counter is persisted in the audit JSON.
+    const detailedCounters = [
+      "rows_inserted", "rows_updated_changed", "rows_skipped_unchanged",
+      "rows_skipped_invalid", "delete_signals_received", "tombstoned_explicit",
+      "tombstoned_vanished", "rows_tombstoned",
+    ];
+    for (const k of detailedCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
       "listings_processed", "listings_skipped",
+      ...detailedCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
     ]);

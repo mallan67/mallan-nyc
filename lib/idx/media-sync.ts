@@ -496,21 +496,45 @@ export interface UpsertListingMediaOptions {
   tombstoneVanished?: boolean;
 }
 
+/**
+ * Explicit per-listing outcome ledger. It separates the INPUT ledger (how each
+ * incoming feed row was classified) from PHYSICAL database writes, so the #530
+ * suppression is measurable and reconcilable rather than hidden inside a single
+ * aggregate.
+ *
+ * Input ledger (every incoming `mediaRows` row lands in exactly one bucket) —
+ * for a fully-successful listing:
+ *   `mediaRows.length` = inserted + updatedChanged + skippedUnchanged
+ *                        + skippedInvalid + deleteSignalsReceived
+ *
+ * Physical DB-row writes:
+ *   physical_writes = inserted + updatedChanged + tombstonedExplicit
+ *                     + tombstonedVanished
+ *
+ * The two ledgers are deliberately NOT equal: duplicate explicit-delete inputs
+ * collapse onto one media_key write, an unmatched delete signal writes zero
+ * rows, and a vanished tombstone has no corresponding input row.
+ */
 export interface UpsertListingMediaResult {
-  /** Rows that did not exist in DB and were inserted as active. */
+  /** Rows that did not exist in DB and were inserted as active (input + write). */
   inserted: number;
-  /** Rows that already existed in DB and had their fields refreshed (a real change). */
-  updated: number;
+  /** Existing rows whose source fields genuinely differed and were updated (input + write). */
+  updatedChanged: number;
   /**
-   * Rows that already existed and were BYTE-IDENTICAL to the incoming feed row
-   * (same source-provenance fields AND already `status='active'`): the `update`
-   * is skipped entirely — no write, no `@updatedAt` churn. This is the #530
-   * compute reduction. (`updated + unchanged` = total matched existing rows.)
+   * Existing rows BYTE-IDENTICAL to the incoming feed row (same source fields
+   * AND already `status='active'`): the `update` is skipped — no write, no
+   * `@updatedAt` churn. This is the #530 compute reduction (input, zero write).
    */
-  unchanged: number;
-  /** Input rows that were rejected before any DB write (no MediaKey, non-Public Permission, no MediaURL). */
-  skipped: number;
-  /** DB rows whose `status` flipped from active to deleted (explicit MediaStatus='Deleted' OR vanished from input when tombstoneVanished=true). */
+  skippedUnchanged: number;
+  /** Input rows rejected before any DB work (no MediaKey, non-Public Permission, no MediaURL). */
+  skippedInvalid: number;
+  /** Incoming rows carrying `MediaStatus='Deleted'` — counted per INPUT row (duplicates included; not yet a write). */
+  deleteSignalsReceived: number;
+  /** DB rows actually flipped to `deleted` by the explicit-delete `updateMany` (deduped media_keys; unmatched signals flip zero). */
+  tombstonedExplicit: number;
+  /** DB rows flipped to `deleted` because they vanished from a COMPLETE input set (tombstoneVanished=true); no input row. */
+  tombstonedVanished: number;
+  /** Total DB rows tombstoned. INVARIANT: tombstoned === tombstonedExplicit + tombstonedVanished. */
   tombstoned: number;
 }
 
@@ -631,30 +655,32 @@ export async function upsertListingMedia(
 ): Promise<UpsertListingMediaResult> {
   const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
 
-  let skipped = 0;
+  let skippedInvalid = 0;
+  let deleteSignalsReceived = 0;
   const explicitDeleteKeys = new Set<string>();
   const mapped: MappedMediaRow[] = [];
 
   for (const raw of mediaRows) {
     const mediaKey = raw.MediaKey ? String(raw.MediaKey) : null;
     if (!mediaKey) {
-      skipped++;
+      skippedInvalid++;
       continue;
     }
 
     if (raw.MediaStatus === "Deleted") {
+      deleteSignalsReceived++; // per INPUT row (duplicates counted); dedup happens in the Set below
       explicitDeleteKeys.add(mediaKey);
       continue;
     }
 
     if (raw.Permission != null && String(raw.Permission) !== "Public") {
-      skipped++;
+      skippedInvalid++;
       continue;
     }
 
     const url = raw.MediaURL ? String(raw.MediaURL) : null;
     if (!url) {
-      skipped++;
+      skippedInvalid++;
       continue;
     }
 
@@ -675,8 +701,8 @@ export async function upsertListingMedia(
   }
 
   let inserted = 0;
-  let updated = 0;
-  let unchanged = 0;
+  let updatedChanged = 0;
+  let skippedUnchanged = 0;
 
   // Upsert each surviving row. We use findUnique + create/update rather than
   // Prisma's upsert() so we can return precise inserted/updated/unchanged counts
@@ -705,7 +731,7 @@ export async function upsertListingMedia(
     });
     if (existing) {
       if (listingMediaRowUnchanged(existing, row, listingId)) {
-        unchanged++;
+        skippedUnchanged++;
         continue; // byte-identical active row → skip the no-op write
       }
       await prisma.listingMedia.update({
@@ -726,7 +752,7 @@ export async function upsertListingMedia(
           status: "active",
         },
       });
-      updated++;
+      updatedChanged++;
     } else {
       await prisma.listingMedia.create({
         data: {
@@ -750,7 +776,8 @@ export async function upsertListingMedia(
     }
   }
 
-  let tombstoned = 0;
+  let tombstonedExplicit = 0;
+  let tombstonedVanished = 0;
 
   if (explicitDeleteKeys.size > 0) {
     const res = await prisma.listingMedia.updateMany({
@@ -761,7 +788,7 @@ export async function upsertListingMedia(
       },
       data: { status: "deleted" },
     });
-    tombstoned += res.count;
+    tombstonedExplicit = res.count;
   }
 
   if (options.tombstoneVanished === true) {
@@ -792,10 +819,19 @@ export async function upsertListingMedia(
       where,
       data: { status: "deleted" },
     });
-    tombstoned += res.count;
+    tombstonedVanished = res.count;
   }
 
-  return { inserted, updated, unchanged, skipped, tombstoned };
+  return {
+    inserted,
+    updatedChanged,
+    skippedUnchanged,
+    skippedInvalid,
+    deleteSignalsReceived,
+    tombstonedExplicit,
+    tombstonedVanished,
+    tombstoned: tombstonedExplicit + tombstonedVanished,
+  };
 }
 
 /** Coerce Trestle's `Order` field (number | string | null) to a finite int, default 0. */
@@ -1460,7 +1496,24 @@ export interface RunMediaSyncResult {
    */
   exit_reason: "completed" | "budget_phase1" | "budget_phase2" | "source_error";
   rows_checked: number;
+  /**
+   * LEGACY aggregate retained for dashboard continuity:
+   * `rows_updated === rows_inserted + rows_updated_changed`.
+   */
   rows_updated: number;
+  // ── #530 detailed cumulative outcome ledger (summed across all listings this
+  // run). Input/write reconciliation is authoritative ONLY when rows_failed===0
+  // (rows_checked increments after a complete Media fetch, so a mid-upsert
+  // failure can leave fetched/partial work outside these detailed counters).
+  rows_inserted: number;
+  rows_updated_changed: number;
+  rows_skipped_unchanged: number;
+  rows_skipped_invalid: number;
+  delete_signals_received: number;
+  tombstoned_explicit: number;
+  tombstoned_vanished: number;
+  /** INVARIANT: rows_tombstoned === tombstoned_explicit + tombstoned_vanished. */
+  rows_tombstoned: number;
   rows_failed: number;
   listings_processed: number;
   listings_skipped: number;
@@ -1780,7 +1833,16 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   const remainingMs = (): number => budgetMs - (now() - startTime);
 
   let rowsChecked = 0;
-  let rowsUpdated = 0;
+  let rowsUpdated = 0; // legacy aggregate = rowsInserted + rowsUpdatedChanged
+  // #530 detailed cumulative ledger (aggregated only after a successful upsert).
+  let rowsInserted = 0;
+  let rowsUpdatedChanged = 0;
+  let rowsSkippedUnchanged = 0;
+  let rowsSkippedInvalid = 0;
+  let deleteSignalsReceived = 0;
+  let tombstonedExplicit = 0;
+  let tombstonedVanished = 0;
+  let rowsTombstoned = 0;
   let rowsFailed = 0;
   let listingsProcessed = 0;
   let listingsSkipped = 0;
@@ -1835,6 +1897,14 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       error: err instanceof Error ? err.message : String(err),
       rows_checked: 0,
       rows_updated: 0,
+      rows_inserted: 0,
+      rows_updated_changed: 0,
+      rows_skipped_unchanged: 0,
+      rows_skipped_invalid: 0,
+      delete_signals_received: 0,
+      tombstoned_explicit: 0,
+      tombstoned_vanished: 0,
+      rows_tombstoned: 0,
       rows_failed: 0,
       listings_processed: 0,
       listings_skipped: 0,
@@ -1927,7 +1997,18 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         // An empty COMPLETE set tombstones every active row for the listing.
         tombstoneVanished: true,
       });
-      rowsUpdated += upsertResult.inserted + upsertResult.updated;
+      // Aggregate the detailed ledger AFTER a successful upsert (a later summary
+      // throw still marks the listing failed → detailed reconciliation is only
+      // authoritative when rows_failed===0).
+      rowsInserted += upsertResult.inserted;
+      rowsUpdatedChanged += upsertResult.updatedChanged;
+      rowsSkippedUnchanged += upsertResult.skippedUnchanged;
+      rowsSkippedInvalid += upsertResult.skippedInvalid;
+      deleteSignalsReceived += upsertResult.deleteSignalsReceived;
+      tombstonedExplicit += upsertResult.tombstonedExplicit;
+      tombstonedVanished += upsertResult.tombstonedVanished;
+      rowsTombstoned += upsertResult.tombstoned;
+      rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged; // legacy aggregate retained
 
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).
@@ -2160,6 +2241,14 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     exit_reason: exitReason,
     rows_checked: rowsChecked,
     rows_updated: rowsUpdated,
+    rows_inserted: rowsInserted,
+    rows_updated_changed: rowsUpdatedChanged,
+    rows_skipped_unchanged: rowsSkippedUnchanged,
+    rows_skipped_invalid: rowsSkippedInvalid,
+    delete_signals_received: deleteSignalsReceived,
+    tombstoned_explicit: tombstonedExplicit,
+    tombstoned_vanished: tombstonedVanished,
+    rows_tombstoned: rowsTombstoned,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,
     listings_skipped: listingsSkipped,

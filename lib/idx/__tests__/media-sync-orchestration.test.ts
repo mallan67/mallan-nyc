@@ -1617,3 +1617,92 @@ describe("runMediaSync — observability read-back is non-fatal", () => {
     expect(persistedLine!.changed).toBeNull();
   });
 });
+
+// ─── #530 — detailed outcome counters propagate through runMediaSync ───────
+
+describe("runMediaSync — #530 detailed outcome accounting", () => {
+  it("aggregates the detailed ledger; rows_updated stays inserted + changed; input reconciles when rows_failed=0", async () => {
+    mockMediaSyncFindUnique.mockResolvedValueOnce({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    // MK-1 new → insert; MK-2 byte-identical to stored → skippedUnchanged.
+    mockListingMediaFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        listing_id: "RLS20012345",
+        resource_record_key: "1159000001",
+        resource_record_id: "RLS20012345",
+        media_url_original: "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1/1/abc",
+        media_type: "Photo",
+        media_category: "Photo",
+        media_classification: null,
+        order: 1,
+        preferred_photo_yn: false,
+        media_modification_ts: null,
+        modification_ts: new Date("2026-05-08T12:00:00Z"),
+        status: "active",
+      });
+    mockListingMediaCreate.mockResolvedValueOnce(undefined);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS20012345", ListingKey: "1159000001" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValueOnce([
+        makeMediaInput({ MediaKey: "MK-1" }),
+        makeMediaInput({ MediaKey: "MK-2" }),
+      ]),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+
+    expect(result.rows_failed).toBe(0);
+    expect(result.rows_inserted).toBe(1);
+    expect(result.rows_skipped_unchanged).toBe(1);
+    expect(result.rows_updated_changed).toBe(0);
+    // legacy aggregate retained
+    expect(result.rows_updated).toBe(result.rows_inserted + result.rows_updated_changed);
+    // invariant
+    expect(result.rows_tombstoned).toBe(result.tombstoned_explicit + result.tombstoned_vanished);
+    // only MK-1 physically written; MK-2 suppressed
+    expect(mockListingMediaCreate).toHaveBeenCalledTimes(1);
+    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    // input ledger reconciles on a clean run (rows_failed=0)
+    expect(result.rows_checked).toBe(
+      result.rows_inserted +
+        result.rows_updated_changed +
+        result.rows_skipped_unchanged +
+        result.rows_skipped_invalid +
+        result.delete_signals_received,
+    );
+  });
+
+  it("source_error initializes every detailed counter to zero", async () => {
+    mockMediaSyncFindUnique.mockResolvedValueOnce({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockRejectedValue(new Error("Property fetch failed: HTTP 503")),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+
+    expect(result.exit_reason).toBe("source_error");
+    const counters = [
+      "rows_inserted",
+      "rows_updated_changed",
+      "rows_skipped_unchanged",
+      "rows_skipped_invalid",
+      "delete_signals_received",
+      "tombstoned_explicit",
+      "tombstoned_vanished",
+      "rows_tombstoned",
+    ] as const;
+    for (const k of counters) {
+      expect(result[k]).toBe(0);
+    }
+    expect(result.rows_updated).toBe(0);
+  });
+});
