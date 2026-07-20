@@ -296,9 +296,11 @@ const AUDIT_SELECT = {
 
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  validateArgs(args, AUDIT_VALUE_FLAGS, ['--json', '--with-cotality', '--resume']);
+  validateArgs(args, AUDIT_VALUE_FLAGS, ['--json', '--with-cotality', '--resume', '--recheck-permanent']);
   const asJson = args.includes('--json');
   const withCotality = args.includes('--with-cotality');
+  const recheckPermanent = args.includes('--recheck-permanent');
+  if (recheckPermanent && !withCotality) { console.error('--recheck-permanent re-probes Cotality and requires --with-cotality — refusing to run'); process.exit(1); }
   const budgets: AuditBudgets = {
     pageSize: parseBound(args, '--page-size', DEFAULT_BUDGETS.pageSize),
     maxListings: parseBound(args, '--max-listings', DEFAULT_BUDGETS.maxListings),
@@ -344,7 +346,7 @@ export async function main(): Promise<void> {
     };
 
     const deps: AuditDeps = {
-      listings, identity, budgets, checkpoint,
+      listings, identity, budgets, checkpoint, recheckPermanent,
       ...(checkpointPath ? { saveCheckpoint: (cp: AuditCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
     };
     if (withCotality) deps.cotality = buildCotalityReader({ timeoutMs, maxRetries });

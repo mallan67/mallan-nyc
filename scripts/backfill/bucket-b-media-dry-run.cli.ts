@@ -63,8 +63,9 @@ function mapRows(ls: Array<Record<string, unknown>>): DryRunListingRow[] {
 
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  validateArgs(args, DRYRUN_VALUE_FLAGS, ['--json', '--resume']);
+  validateArgs(args, DRYRUN_VALUE_FLAGS, ['--json', '--resume', '--recheck-permanent']);
   const asJson = args.includes('--json');
+  const recheckPermanent = args.includes('--recheck-permanent');
   const budgets: AuditBudgets = {
     pageSize: parseBound(args, '--page-size', DEFAULT_BUDGETS.pageSize),
     maxListings: parseBound(args, '--max-listings', DEFAULT_BUDGETS.maxListings),
@@ -109,7 +110,7 @@ export async function main(): Promise<void> {
         }).then(mapRows),
       },
       cotality: buildCotalityReader({ timeoutMs, maxRetries }),
-      identity, budgets, checkpoint,
+      identity, budgets, checkpoint, recheckPermanent,
       ...(checkpointPath ? { saveCheckpoint: (cp: DryRunCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
     };
 

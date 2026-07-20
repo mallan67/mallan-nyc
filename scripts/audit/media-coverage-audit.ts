@@ -270,29 +270,57 @@ export function validateCheckpoint(cp: AuditCheckpoint, expectedIdentity: RunIde
   if (cp.processed !== cp.inventory.length || cp.processed !== tallySum || ids.size !== cp.inventory.length) {
     throw new Error(`checkpoint does not reconcile: processed=${cp.processed} inventory=${cp.inventory.length} tallySum=${tallySum} uniqueIds=${ids.size}`);
   }
-  validateRetryQueue(cp.retryableUnknown, cp.inventory);
-  // permanentUnknown: unique ids, bounded attempts, and disjoint from retryable.
+  // Both queues are validated against the ONE shared ceiling (MAX_UNKNOWN_RETRIES)
+  // AND, more strictly, the retry policy this checkpoint's identity was created
+  // under — no entry may carry more attempts than the selected policy allows.
+  const policy = expectedIdentity.maxUnknownRetries;
+  validateRetryQueue(cp.retryableUnknown, cp.inventory, policy);
+  // permanentUnknown: unique ids, bounded attempts, disjoint from retryable, and
+  // (like retryable) each backed by a U inventory record so an authorized
+  // recheck can replace it in place.
   const rset = new Set(cp.retryableUnknown.map((e) => e.listingId));
+  const pById = new Map(cp.inventory.map((r) => [r.listingId, r]));
   const pset = new Set<string>();
   for (const e of cp.permanentUnknown || []) {
     if (pset.has(e.listingId)) throw new Error(`permanentUnknown duplicate id ${e.listingId}`);
     pset.add(e.listingId);
-    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES) throw new Error(`permanentUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES || e.attempts > policy) throw new Error(`permanentUnknown ${e.listingId} has invalid attempts ${e.attempts} (policy ${policy})`);
     if (rset.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH retryable and permanent unknown`);
+    const rec = pById.get(e.listingId);
+    if (!rec || rec.bucket !== 'U' || rec.cotality.status !== 'unknown') throw new Error(`permanentUnknown ${e.listingId} lacks a matching U inventory record`);
   }
 }
 
 /** Validate the retryable-unknown queue: unique ids, positive bounded attempt
- *  counts, and each queued id has a corresponding U inventory record. */
-export function validateRetryQueue(queue: RetryableUnknownEntry[], inventory: InventoryRow[]): void {
+ *  counts (never above the shared MAX_UNKNOWN_RETRIES ceiling, and — when a
+ *  policy is supplied — never above the checkpoint identity's selected policy),
+ *  and each queued id has a corresponding U inventory record. */
+export function validateRetryQueue(queue: RetryableUnknownEntry[], inventory: InventoryRow[], maxAttempts: number = MAX_UNKNOWN_RETRIES): void {
+  const ceiling = Math.min(maxAttempts, MAX_UNKNOWN_RETRIES);
   const qids = new Set<string>();
   const uById = new Map(inventory.map((r) => [r.listingId, r]));
   for (const e of queue) {
     if (qids.has(e.listingId)) throw new Error(`retryableUnknown has duplicate id ${e.listingId}`);
     qids.add(e.listingId);
-    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > 100) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > ceiling) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
     const rec = uById.get(e.listingId);
     if (!rec || rec.bucket !== 'U' || rec.cotality.status !== 'unknown') throw new Error(`retryableUnknown ${e.listingId} lacks a matching U inventory record`);
+  }
+}
+
+/** ONE retry policy at the logic boundary. The runtime budget and the identity
+ *  the checkpoint is bound to MUST agree on the unknown-retry policy, and that
+ *  value must be an integer in [1, MAX_UNKNOWN_RETRIES]. A direct programmatic
+ *  caller can therefore never run an identity policy of N against a runtime
+ *  budget policy of M, nor mint a checkpoint the tool would later reject. Throws
+ *  BEFORE any Neon or Cotality access. */
+export function assertRetryPolicy(budgets: AuditBudgets, identity: RunIdentity): void {
+  const p = budgets.maxUnknownRetriesPerListing;
+  if (!Number.isInteger(p) || p < 1 || p > MAX_UNKNOWN_RETRIES) {
+    throw new Error(`maxUnknownRetriesPerListing ${p} must be an integer in [1, ${MAX_UNKNOWN_RETRIES}] — refusing to run`);
+  }
+  if (p !== identity.maxUnknownRetries) {
+    throw new Error(`retry policy mismatch: budgets.maxUnknownRetriesPerListing=${p} != identity.maxUnknownRetries=${identity.maxUnknownRetries} — refusing to run`);
   }
 }
 
@@ -477,6 +505,11 @@ export interface AuditDeps {
   checkpoint?: AuditCheckpoint;
   saveCheckpoint?: (cp: AuditCheckpoint) => void | Promise<void>;
   now?: () => number;
+  /** EXPLICIT opt-in (CLI --recheck-permanent). When true, the permanent
+   *  UNKNOWN queue is re-evaluated (fresh Neon read first, then a bounded
+   *  re-probe) BEFORE the retryable queue, under the SAME per-run budgets. Off
+   *  by default: permanentUnknown stays blocking and is never auto-probed. */
+  recheckPermanent?: boolean;
 }
 
 export interface AuditResult {
@@ -497,6 +530,94 @@ export interface AuditResult {
   checkpoint: AuditCheckpoint;
 }
 
+// ─── Shared bounded unknown-queue walker ───────────────────────────────────
+//
+// ONE control-flow path drives BOTH the retryable-unknown queue and the
+// (opt-in) permanent-unknown recheck, in BOTH the audit and the dry-run, so
+// their bounded-stop semantics can never diverge:
+//   • every EXAMINED (fetched) retry listing consumes one maxListings unit and
+//     is NEVER refunded;
+//   • when the probe budget is already spent, the phase STOPS before fetching
+//     the next id (no wasted read) — current entry + untouched tail preserved;
+//   • when a probe returns `deferred` (request cap), the phase STOPS after that
+//     one fetch/probe — the current entry (already examined) plus the untouched
+//     tail are preserved for a safe resume; no further retry ids are fetched.
+// The engine-specific resolution (replace inventory vs. add plan) is delegated
+// to callbacks; the walker owns only the budgets, gates, fetch, and stops.
+
+export interface UnknownQueueCallbacks<Row> {
+  /** Chunked single-id read — NEVER an unbounded IN(...) over the whole queue. */
+  fetchByIds(ids: string[]): Promise<Row[]>;
+  needsProbe(row: Row): boolean;
+  /** The bounded Cotality probe (accountant already wired by the caller). */
+  probe(row: Row): Promise<ProbeOutcome>;
+  /** The listing vanished from Neon since it was queued. */
+  onSourceMissing(entry: RetryableUnknownEntry): void;
+  /** ZERO Cotality: the listing no longer needs a probe (Neon state changed). */
+  onNeonResolved(entry: RetryableUnknownEntry, row: Row): void;
+  /** A genuine provider UNKNOWN (NOT a cap deferral). Return the entry to
+   *  RE-QUEUE in the SAME queue, or null to drop it (the caller has already
+   *  routed it elsewhere, e.g. onto the permanent queue). */
+  onProbeUnknown(entry: RetryableUnknownEntry, row: Row, reason: string): RetryableUnknownEntry | null;
+  /** A confirmed probe — resolve (replace inventory / add plan) and drop. */
+  onProbeSuccess(entry: RetryableUnknownEntry, row: Row, photoCount: number, photos: CotalityPhotoItem[]): void;
+}
+
+export interface UnknownQueueWalkResult {
+  /** The queue to persist as the phase's remaining work (current + tail on a
+   *  stop; only genuinely-still-unknown entries otherwise). */
+  stillQueued: RetryableUnknownEntry[];
+  /** A budget / time / probe-cap / request-cap stop occurred — the caller must
+   *  persist and RETURN (do not advance to later phases this run). */
+  stopped: boolean;
+}
+
+export async function walkUnknownQueue<Row>(
+  input: RetryableUnknownEntry[],
+  budgets: AuditBudgets,
+  run: RunCounters,
+  overTime: () => boolean,
+  reasons: Set<string>,
+  phaseLabel: string,
+  cb: UnknownQueueCallbacks<Row>,
+): Promise<UnknownQueueWalkResult> {
+  const queue = [...input];
+  const stillQueued: RetryableUnknownEntry[] = [];
+  let qi = 0;
+  let stopped = false;
+  for (; qi < queue.length; qi += 1) {
+    const entry = queue[qi];
+    if (run.listingsFinalized >= budgets.maxListings) { reasons.add(`max-listings reached (per-run, ${phaseLabel})`); stopped = true; break; }
+    if (overTime()) { reasons.add(`run time budget exceeded (${phaseLabel})`); stopped = true; break; }
+    // Probe budget already spent → no probe-needing entry can make progress.
+    // STOP before fetching the next id: current entry + untouched tail kept.
+    if (run.probesAttempted >= budgets.maxCotalityProbes) { reasons.add(`cotality probe budget exhausted (per-run, ${phaseLabel}) — remaining listings pending`); stopped = true; break; }
+    const rows = await cb.fetchByIds([entry.listingId]);
+    const row = rows[0];
+    run.listingsFinalized += 1; // EVERY examined retry consumes the budget — never refunded
+    if (!row) { cb.onSourceMissing(entry); continue; }
+    if (!cb.needsProbe(row)) { cb.onNeonResolved(entry, row); continue; } // ZERO Cotality
+    run.probesAttempted += 1;
+    run.unknownRetriesAttempted += 1;
+    const probe = await cb.probe(row);
+    if (probe.status === 'unknown' && probe.deferred) {
+      // Request cap hit mid-probe: this entry WAS examined (kept counted); stop
+      // the phase and preserve it + the untouched tail via the post-loop push.
+      reasons.add(`cotality request budget exhausted (per-run, ${phaseLabel}) — remaining listings pending`);
+      stopped = true;
+      break;
+    }
+    if (probe.status === 'unknown') {
+      const requeue = cb.onProbeUnknown(entry, row, probe.reason);
+      if (requeue) stillQueued.push(requeue);
+      continue;
+    }
+    cb.onProbeSuccess(entry, row, probe.photoCount, probe.photos);
+  }
+  if (stopped) for (; qi < queue.length; qi += 1) stillQueued.push(queue[qi]); // current entry + untouched tail
+  return { stillQueued, stopped };
+}
+
 /** Replace an existing inventory record (tally-adjusted, no duplicates). */
 function replaceInventoryRecord(cp: AuditCheckpoint, rec: InventoryRow): void {
   const idx = cp.inventory.findIndex((r) => r.listingId === rec.listingId);
@@ -508,6 +629,7 @@ function replaceInventoryRecord(cp: AuditCheckpoint, rec: InventoryRow): void {
 
 export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   const budgets: AuditBudgets = { ...DEFAULT_BUDGETS, ...(deps.budgets || {}) };
+  assertRetryPolicy(budgets, deps.identity); // ONE policy, BEFORE any Neon/Cotality access
   const now = deps.now ?? (() => Date.now());
   const startedAt = now();
   const cp: AuditCheckpoint = deps.checkpoint
@@ -555,75 +677,90 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
     };
   };
 
-  // ── Phase 0: retryable-unknown queue (RESUME REPAIR) — before any pages ──
-  // Each queued listing is RE-EVALUATED against CURRENT Neon state first: if
-  // it no longer needs a Cotality probe (gained active/legacy media, went
-  // hidden, became Mallan-owned) its inventory is rebuilt from Neon with ZERO
-  // provider calls; if it vanished from Neon it becomes a reported
-  // SOURCE_MISSING state (removed from inventory + tally, dequeued) — never a
-  // forever-queued "not re-fetchable". Only genuinely still-probe-needing
-  // listings hit Cotality.
-  if (deps.cotality && cp.retryableUnknown.length > 0) {
-    const queue = [...cp.retryableUnknown];
-    const stillQueued: RetryableUnknownEntry[] = [];
-    const upsertPermanent = (e: RetryableUnknownEntry) => {
-      const i = cp.permanentUnknown.findIndex((p) => p.listingId === e.listingId);
-      if (i >= 0) cp.permanentUnknown[i] = e; else cp.permanentUnknown.push(e);
-    };
-    let qi = 0;
-    let budgetStopped = false;
-    for (; qi < queue.length; qi += 1) {
-      const entry = queue[qi];
-      // Per-run listing + time budget gate BEFORE any targeted read.
-      if (run.listingsFinalized >= budgets.maxListings) { reasons.add('max-listings reached (per-run, retry phase)'); budgetStopped = true; break; }
-      if (overTime()) { reasons.add('run time budget exceeded (retry phase)'); budgetStopped = true; break; }
-      // Chunked single-id targeted read — never one unbounded IN(...) over the
-      // whole cumulative queue.
-      const rows = await deps.listings.fetchByIds([entry.listingId]);
-      const row = rows[0];
-      run.listingsFinalized += 1; // EVERY examined retry consumes the budget
-      if (!row) {
-        const idx = cp.inventory.findIndex((r) => r.listingId === entry.listingId);
-        if (idx >= 0) {
-          cp.tally[cp.inventory[idx].bucket] -= 1;
-          cp.inventory.splice(idx, 1);
-          cp.processed -= 1;
-          seen.clear();
-          for (const r of cp.inventory) seen.add(r.listingId);
-        }
-        run.sourceMissing += 1;
-        warnings.add(`listing ${entry.listingId} removed from Neon since last run — dropped (source-missing)`);
-        continue;
-      }
-      if (!needsCotalityProbe(row)) {
-        replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: 'no longer needs a Cotality probe (Neon state changed)' }));
-        run.unknownReplaced += 1;
-        continue; // ZERO Cotality requests
-      }
-      if (run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); run.listingsFinalized -= 1; continue; }
-      run.probesAttempted += 1;
-      run.unknownRetriesAttempted += 1;
-      const probe = await probeListingMedia(deps.cotality, row.listing_id, budgets, acct);
-      if (probe.status === 'unknown' && probe.deferred) { stillQueued.push(entry); run.listingsFinalized -= 1; continue; } // cap
-      if (probe.status === 'unknown') {
-        const attempts = entry.attempts + 1;
-        cp.counters.failures += 1;
-        replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: probe.reason }));
-        if (attempts < budgets.maxUnknownRetriesPerListing) stillQueued.push({ listingId: entry.listingId, attempts, lastReason: probe.reason });
-        else upsertPermanent({ listingId: entry.listingId, attempts, lastReason: probe.reason });
-        continue;
-      }
+  // ── Shared unknown-queue resolution closures ─────────────────────────────
+  const removeInventory = (id: string) => {
+    const idx = cp.inventory.findIndex((r) => r.listingId === id);
+    if (idx < 0) return;
+    cp.tally[cp.inventory[idx].bucket] -= 1;
+    cp.inventory.splice(idx, 1);
+    cp.processed -= 1;
+    seen.clear();
+    for (const r of cp.inventory) seen.add(r.listingId);
+  };
+  const upsertPermanent = (e: RetryableUnknownEntry) => {
+    const i = cp.permanentUnknown.findIndex((p) => p.listingId === e.listingId);
+    if (i >= 0) cp.permanentUnknown[i] = e; else cp.permanentUnknown.push(e);
+  };
+  const dropPermanent = (id: string) => {
+    const i = cp.permanentUnknown.findIndex((p) => p.listingId === id);
+    if (i >= 0) cp.permanentUnknown.splice(i, 1);
+  };
+  const commonCallbacks = {
+    fetchByIds: (ids: string[]) => deps.listings.fetchByIds(ids),
+    needsProbe: (row: AuditListingRow) => needsCotalityProbe(row),
+    probe: (row: AuditListingRow) => probeListingMedia(deps.cotality as CotalityMediaReader, row.listing_id, budgets, acct),
+    onSourceMissing: (entry: RetryableUnknownEntry) => {
+      removeInventory(entry.listingId);
+      run.sourceMissing += 1;
+      warnings.add(`listing ${entry.listingId} removed from Neon since last run — dropped (source-missing)`);
+    },
+    onNeonResolved: (_entry: RetryableUnknownEntry, row: AuditListingRow) => {
+      replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: 'no longer needs a Cotality probe (Neon state changed)' }));
+      run.unknownReplaced += 1;
+    },
+    onProbeSuccess: (entry: RetryableUnknownEntry, row: AuditListingRow, photoCount: number) => {
       cp.counters.successes += 1;
       run.unknownReplaced += 1;
-      replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'confirmed', photoCount: probe.photoCount }));
-      const pi = cp.permanentUnknown.findIndex((p) => p.listingId === entry.listingId);
-      if (pi >= 0) cp.permanentUnknown.splice(pi, 1); // resolved → leaves permanentUnknown too
-    }
-    if (budgetStopped) for (; qi < queue.length; qi += 1) stillQueued.push(queue[qi]); // persist untouched tail
-    cp.retryableUnknown = stillQueued;
+      replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'confirmed', photoCount }));
+      dropPermanent(entry.listingId); // resolved → leaves whichever queue held it
+    },
+  };
+
+  // ── Phase -1: permanent-unknown RECHECK (EXPLICIT --recheck-permanent) ────
+  // A bounded, authorized re-evaluation of listings that previously exhausted
+  // the retry policy. Same budgets as everything else. A permanent listing that
+  // gained media / went hidden / became Mallan-owned / disappeared is resolved
+  // with ZERO Cotality; one that still needs a probe is re-probed; success
+  // removes it from permanentUnknown; another failure keeps it there (updated
+  // reason) and NEVER re-enters the retryable queue. Not identity-bound: recheck
+  // only ever resolves or annotates permanent entries, so resuming with or
+  // without the flag is safe.
+  if (deps.recheckPermanent && deps.cotality && cp.permanentUnknown.length > 0) {
+    const res = await walkUnknownQueue<AuditListingRow>(cp.permanentUnknown, budgets, run, overTime, reasons, 'permanent-recheck phase', {
+      ...commonCallbacks,
+      onProbeUnknown: (entry, row, reason) => {
+        cp.counters.failures += 1;
+        replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: `recheck: ${reason}` }));
+        return { listingId: entry.listingId, attempts: entry.attempts, lastReason: `recheck: ${reason}` }; // stays PERMANENT
+      },
+    });
+    cp.permanentUnknown = res.stillQueued;
     syncAcct();
     if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
-    if (budgetStopped) { run.elapsedMs = now() - startedAt; return finishAudit(); }
+    if (res.stopped) { run.elapsedMs = now() - startedAt; return finishAudit(); }
+  }
+
+  // ── Phase 0: retryable-unknown queue (RESUME REPAIR) — before any pages ──
+  // Each queued listing is RE-EVALUATED against CURRENT Neon state first (ZERO
+  // provider calls when it no longer needs a probe or vanished from Neon); only
+  // genuinely still-probe-needing listings hit Cotality. Exhausting the policy
+  // moves the listing onto the permanent queue.
+  if (deps.cotality && cp.retryableUnknown.length > 0) {
+    const res = await walkUnknownQueue<AuditListingRow>(cp.retryableUnknown, budgets, run, overTime, reasons, 'retry phase', {
+      ...commonCallbacks,
+      onProbeUnknown: (entry, row, reason) => {
+        cp.counters.failures += 1;
+        replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason }));
+        const attempts = entry.attempts + 1;
+        if (attempts < budgets.maxUnknownRetriesPerListing) return { listingId: entry.listingId, attempts, lastReason: reason };
+        upsertPermanent({ listingId: entry.listingId, attempts, lastReason: reason });
+        return null; // exhausted → moved to permanent, not requeued as retryable
+      },
+    });
+    cp.retryableUnknown = res.stillQueued;
+    syncAcct();
+    if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
+    if (res.stopped) { run.elapsedMs = now() - startedAt; return finishAudit(); }
   }
 
   // ── Phase 1: cursor pages ────────────────────────────────────────────────

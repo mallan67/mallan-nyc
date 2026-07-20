@@ -30,9 +30,10 @@ import { isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { resolveListingMediaFromRows, getPhotoGallery, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
 import {
   probeListingMedia, emptyCounters, makeAccountant, identitiesMatch, classifyCotalityMedia,
+  assertRetryPolicy, walkUnknownQueue,
   DEFAULT_BUDGETS, CHECKPOINT_VERSION, MAX_UNKNOWN_RETRIES,
   type AuditBudgets, type CotalityCounters, type CotalityMediaReader, type RunCounters,
-  type RunIdentity, type RetryableUnknownEntry,
+  type RunIdentity, type RetryableUnknownEntry, type ProbeOutcome, type CotalityPhotoItem,
 } from '../audit/media-coverage-audit';
 
 // ─── Read-only injected shapes ──────────────────────────────────────────────
@@ -262,18 +263,21 @@ export function validateDryRunCheckpoint(cp: DryRunCheckpoint, expectedIdentity:
   const ids = new Set(cp.plans.map((p) => p.listingId));
   if (ids.size !== cp.plans.length) throw new Error('checkpoint plans contain duplicate listing ids');
   if (cp.plans.length > cp.processed) throw new Error(`checkpoint does not reconcile: plans=${cp.plans.length} > processed=${cp.processed}`);
+  // Both queues are bounded by the shared MAX_UNKNOWN_RETRIES ceiling AND, more
+  // strictly, the retry policy this checkpoint's identity was created under.
+  const policy = Math.min(expectedIdentity.maxUnknownRetries, MAX_UNKNOWN_RETRIES);
   const qids = new Set<string>();
   for (const e of cp.retryableUnknown) {
     if (qids.has(e.listingId)) throw new Error(`retryableUnknown has duplicate id ${e.listingId}`);
     qids.add(e.listingId);
-    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > policy) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
     if (ids.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH planned and retryable-unknown — inconsistent`);
   }
   const pset = new Set<string>();
   for (const e of cp.permanentUnknown || []) {
     if (pset.has(e.listingId)) throw new Error(`permanentUnknown duplicate id ${e.listingId}`);
     pset.add(e.listingId);
-    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > MAX_UNKNOWN_RETRIES) throw new Error(`permanentUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > policy) throw new Error(`permanentUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
     if (qids.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH retryable and permanent unknown`);
     if (ids.has(e.listingId)) throw new Error(`listing ${e.listingId} is BOTH planned and permanent-unknown — inconsistent`);
   }
@@ -289,6 +293,10 @@ export interface DryRunDeps {
   checkpoint?: DryRunCheckpoint;
   saveCheckpoint?: (cp: DryRunCheckpoint) => void | Promise<void>;
   now?: () => number;
+  /** EXPLICIT opt-in (CLI --recheck-permanent). Re-evaluate the permanent
+   *  UNKNOWN queue (fresh Neon read, then bounded re-probe) BEFORE the retryable
+   *  queue, under the SAME per-run budgets. Off by default. */
+  recheckPermanent?: boolean;
 }
 
 export interface DryRunResult {
@@ -326,6 +334,7 @@ function rowSignals(row: DryRunListingRow) {
 
 export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
   const budgets: AuditBudgets = { ...DEFAULT_BUDGETS, ...(deps.budgets || {}) };
+  assertRetryPolicy(budgets, deps.identity); // ONE policy, BEFORE any Neon/Cotality access
   const now = deps.now ?? (() => Date.now());
   const startedAt = now();
   const cp: DryRunCheckpoint = deps.checkpoint
@@ -351,11 +360,10 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
     run.retries = acct.retries;
   };
 
-  const probeAndMaybePlan = async (row: DryRunListingRow, signals: ReturnType<typeof rowSignals>): Promise<'planned' | 'not-eligible' | 'unknown' | 'deferred'> => {
-    const probe = await probeListingMedia(deps.cotality, row.listing_id, budgets, acct);
-    if (probe.status === 'unknown' && probe.deferred) return 'deferred';
-    if (probe.status === 'unknown') { cp.counters.failures += 1; return 'unknown'; }
-    cp.counters.successes += 1;
+  // Add a Bucket-B plan from a CONFIRMED probe (idempotent — one plan per
+  // listing). Shared by the cursor scan and the unknown-queue callbacks.
+  const addPlanIfEligible = (row: DryRunListingRow, probe: Extract<ProbeOutcome, { status: 'confirmed' }>): 'planned' | 'not-eligible' => {
+    const signals = rowSignals(row);
     const eligible = isBucketBBackfillEligible({
       listingId: row.listing_id, rlsEligible: row.rls_eligible, displayable: signals.displayable,
       activeUsablePhotoCount: signals.activeUsablePhotoCount, allStatusRowCount: row._count?.listing_media ?? 0,
@@ -369,49 +377,96 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
     return 'not-eligible';
   };
 
-  // ── Phase 0: retryable-unknown queue (RESUME REPAIR) ─────────────────────
-  // Each queued listing is RE-EVALUATED against current Neon state first:
-  // rowSignals recomputed, and if it no longer needs a probe (gained media,
-  // went hidden, became Mallan-owned) it is DEQUEUED with ZERO Cotality
-  // calls; a listing gone from Neon is DEQUEUED (source-missing, reported).
+  const probeAndMaybePlan = async (row: DryRunListingRow): Promise<'planned' | 'not-eligible' | 'unknown' | 'deferred'> => {
+    const probe = await probeListingMedia(deps.cotality, row.listing_id, budgets, acct);
+    if (probe.status === 'unknown' && probe.deferred) return 'deferred';
+    if (probe.status === 'unknown') { cp.counters.failures += 1; return 'unknown'; }
+    cp.counters.successes += 1;
+    return addPlanIfEligible(row, probe);
+  };
+
+  // Pure result assembly — called exactly once per return path (each phase's
+  // bounded stop returns through here, as does the normal completion).
+  const finishDryRun = (): DryRunResult => {
+    run.elapsedMs = now() - startedAt;
+    const scanComplete = ![...reasons].some((r) => r.includes('pending') || r.includes('max-listings') || r.includes('time budget'));
+    if (cp.retryableUnknown.length > 0) reasons.add(`${cp.retryableUnknown.length} listing(s) queued as retryable UNKNOWN (resume to re-probe)`);
+    if (cp.permanentUnknown.length > 0) reasons.add(`${cp.permanentUnknown.length} listing(s) PERMANENT UNKNOWN (retry policy exhausted)`);
+    const conflictListings = cp.plans.filter((p) => p.conflict && p.conflict.length > 0).length;
+    if (conflictListings > 0) reasons.add(`${conflictListings} listing(s) in CONFLICT — manual review required, no executable plan emitted`);
+    const coverageComplete = scanComplete && cp.retryableUnknown.length === 0 && cp.permanentUnknown.length === 0;
+    const planComplete = coverageComplete && conflictListings === 0;
+    const clean = cp.plans.filter((p) => !p.conflict);
+    const totals = {
+      inserts: clean.reduce((s, p) => s + p.expectedInserts, 0),
+      restores: clean.reduce((s, p) => s + p.expectedRestores, 0),
+      updates: clean.reduce((s, p) => s + p.expectedUpdates, 0),
+      unchanged: clean.reduce((s, p) => s + p.unchangedMatches, 0),
+    };
+    return {
+      scanComplete, coverageComplete, planComplete,
+      incompleteReasons: [...reasons], warnings: [...warnings],
+      plans: cp.plans, conflictListings, permanentUnknownCount: cp.permanentUnknown.length,
+      totals, counters: cp.counters, runCounters: run, processed: cp.processed,
+      eligibleListings: clean.length, checkpoint: cp,
+    };
+  };
+
   const dropResolved = (id: string) => { const pi = cp.permanentUnknown.findIndex((x) => x.listingId === id); if (pi >= 0) cp.permanentUnknown.splice(pi, 1); };
-  if (cp.retryableUnknown.length > 0) {
-    const queue = [...cp.retryableUnknown];
-    const stillQueued: RetryableUnknownEntry[] = [];
-    let qi = 0;
-    let budgetStopped = false;
-    for (; qi < queue.length; qi += 1) {
-      const entry = queue[qi];
-      if (run.listingsFinalized >= budgets.maxListings) { reasons.add('max-listings reached (per-run, retry phase)'); budgetStopped = true; break; }
-      if (overTime()) { reasons.add('run time budget exceeded (retry phase)'); budgetStopped = true; break; }
-      const rows = await deps.candidates.fetchByIds([entry.listingId]); // chunked single-id read
-      const row = rows[0];
-      run.listingsFinalized += 1; // every EXAMINED retry consumes the budget
-      if (!row) {
-        run.sourceMissing += 1;
-        warnings.add(`listing ${entry.listingId} removed from Neon since last run — dropped from retry queue (source-missing)`);
-        continue;
-      }
-      const signals = rowSignals(row);
-      if (!signals.needsProbe) { dropResolved(entry.listingId); continue; } // ZERO Cotality
-      if (run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); run.listingsFinalized -= 1; continue; }
-      run.probesAttempted += 1;
-      run.unknownRetriesAttempted += 1;
-      const outcome = await probeAndMaybePlan(row, signals);
-      if (outcome === 'deferred') { stillQueued.push(entry); run.listingsFinalized -= 1; continue; }
-      if (outcome === 'unknown') {
-        const attempts = entry.attempts + 1;
-        if (attempts < budgets.maxUnknownRetriesPerListing) stillQueued.push({ listingId: entry.listingId, attempts, lastReason: 'probe unknown' });
-        else upsertPermanent({ listingId: entry.listingId, attempts, lastReason: 'probe unknown' });
-        continue;
-      }
-      if (outcome === 'planned') run.unknownReplaced += 1;
+  const commonCallbacks = {
+    fetchByIds: (ids: string[]) => deps.candidates.fetchByIds(ids),
+    needsProbe: (row: DryRunListingRow) => rowSignals(row).needsProbe,
+    probe: (row: DryRunListingRow) => probeListingMedia(deps.cotality, row.listing_id, budgets, acct),
+    onSourceMissing: (entry: RetryableUnknownEntry) => {
+      run.sourceMissing += 1;
+      warnings.add(`listing ${entry.listingId} removed from Neon since last run — dropped from retry queue (source-missing)`);
+    },
+    onNeonResolved: (entry: RetryableUnknownEntry, _row: DryRunListingRow) => { dropResolved(entry.listingId); }, // ZERO Cotality, no plan
+    onProbeSuccess: (entry: RetryableUnknownEntry, row: DryRunListingRow, photoCount: number, photos: CotalityPhotoItem[]) => {
+      cp.counters.successes += 1;
+      if (addPlanIfEligible(row, { status: 'confirmed', photoCount, photos }) === 'planned') run.unknownReplaced += 1;
       dropResolved(entry.listingId);
-    }
-    if (budgetStopped) for (; qi < queue.length; qi += 1) stillQueued.push(queue[qi]);
-    cp.retryableUnknown = stillQueued;
+    },
+  };
+
+  // ── Phase -1: permanent-unknown RECHECK (EXPLICIT --recheck-permanent) ────
+  // Same bounded budgets as everything else. A permanent listing resolved via
+  // Neon or a fresh probe leaves permanentUnknown (and gains a plan if eligible);
+  // another failure keeps it permanent (updated reason) and NEVER re-enters the
+  // retryable queue. Not identity-bound — safe to resume with or without the flag.
+  if (deps.recheckPermanent && cp.permanentUnknown.length > 0) {
+    const res = await walkUnknownQueue<DryRunListingRow>(cp.permanentUnknown, budgets, run, overTime, reasons, 'permanent-recheck phase', {
+      ...commonCallbacks,
+      onProbeUnknown: (entry, _row, reason) => {
+        cp.counters.failures += 1;
+        return { listingId: entry.listingId, attempts: entry.attempts, lastReason: `recheck: ${reason}` }; // stays PERMANENT
+      },
+    });
+    cp.permanentUnknown = res.stillQueued;
     syncAcct();
     if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
+    if (res.stopped) return finishDryRun();
+  }
+
+  // ── Phase 0: retryable-unknown queue (RESUME REPAIR) ─────────────────────
+  // Each queued listing is RE-EVALUATED against current Neon state first (ZERO
+  // Cotality when it no longer needs a probe or vanished); only still-probe-
+  // needing listings hit Cotality. Exhaustion moves the listing to permanent.
+  if (cp.retryableUnknown.length > 0) {
+    const res = await walkUnknownQueue<DryRunListingRow>(cp.retryableUnknown, budgets, run, overTime, reasons, 'retry phase', {
+      ...commonCallbacks,
+      onProbeUnknown: (entry, _row, reason) => {
+        cp.counters.failures += 1;
+        const attempts = entry.attempts + 1;
+        if (attempts < budgets.maxUnknownRetriesPerListing) return { listingId: entry.listingId, attempts, lastReason: reason };
+        upsertPermanent({ listingId: entry.listingId, attempts, lastReason: reason });
+        return null; // exhausted → permanent, not requeued as retryable
+      },
+    });
+    cp.retryableUnknown = res.stillQueued;
+    syncAcct();
+    if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
+    if (res.stopped) return finishDryRun();
   }
 
   // ── Phase 1: cursor pages ────────────────────────────────────────────────
@@ -435,7 +490,7 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
         cp.pendingFrom = row.listing_id; stopped = true; break;
       }
       run.probesAttempted += 1;
-      const outcome = await probeAndMaybePlan(row, signals);
+      const outcome = await probeAndMaybePlan(row);
       if (outcome === 'deferred') {
         reasons.add('cotality request budget exhausted (per-run) — remaining listings pending');
         cp.pendingFrom = row.listing_id; stopped = true; break;
@@ -451,39 +506,8 @@ export async function runDryRun(deps: DryRunDeps): Promise<DryRunResult> {
     if (stopped) break;
   }
 
-  run.elapsedMs = now() - startedAt;
-  const scanComplete = ![...reasons].some((r) => r.includes('pending') || r.includes('max-listings') || r.includes('time budget'));
-  if (cp.retryableUnknown.length > 0) reasons.add(`${cp.retryableUnknown.length} listing(s) queued as retryable UNKNOWN (resume to re-probe)`);
-  if (cp.permanentUnknown.length > 0) reasons.add(`${cp.permanentUnknown.length} listing(s) PERMANENT UNKNOWN (retry policy exhausted)`);
-  const conflictListings = cp.plans.filter((p) => p.conflict && p.conflict.length > 0).length;
-  if (conflictListings > 0) reasons.add(`${conflictListings} listing(s) in CONFLICT — manual review required, no executable plan emitted`);
-  const coverageComplete = scanComplete && cp.retryableUnknown.length === 0 && cp.permanentUnknown.length === 0;
-  const planComplete = coverageComplete && conflictListings === 0;
   if (deps.saveCheckpoint) await deps.saveCheckpoint(cp);
-
-  const clean = cp.plans.filter((p) => !p.conflict);
-  const totals = {
-    inserts: clean.reduce((s, p) => s + p.expectedInserts, 0),
-    restores: clean.reduce((s, p) => s + p.expectedRestores, 0),
-    updates: clean.reduce((s, p) => s + p.expectedUpdates, 0),
-    unchanged: clean.reduce((s, p) => s + p.unchangedMatches, 0),
-  };
-  return {
-    scanComplete,
-    coverageComplete,
-    planComplete,
-    incompleteReasons: [...reasons],
-    warnings: [...warnings],
-    plans: cp.plans,
-    conflictListings,
-    permanentUnknownCount: cp.permanentUnknown.length,
-    totals,
-    counters: cp.counters,
-    runCounters: run,
-    processed: cp.processed,
-    eligibleListings: clean.length,
-    checkpoint: cp,
-  };
+  return finishDryRun();
 }
 
 export const ROLLBACK_NOTE =

@@ -759,22 +759,6 @@ describe('ROUND 5 — retry exhaustion can never exit successfully', () => {
     expect(res.coverageComplete).toBe(false);
     expect(res.planComplete).toBe(false); // never a clean plan while permanentUnknown non-empty
   });
-  it('a resolved listing leaves permanentUnknown (audit) — coverage can recover', async () => {
-    const rows = [auditRow({ listing_id: 'RLSX' })];
-    const idTwo = { ...TEST_IDENTITY, maxUnknownRetries: 2 };
-    const b = tightBudgets({ maxUnknownRetriesPerListing: 2 });
-    let cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'down' }).reader, identity: idTwo, budgets: b })).checkpoint;
-    cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'still' }).reader, identity: idTwo, budgets: b, checkpoint: cp })).checkpoint;
-    expect(cp.permanentUnknown).toHaveLength(1);
-    // permanentUnknown is not re-probed automatically; but if the listing is
-    // put back on retryable and resolves, it leaves permanentUnknown:
-    cp.permanentUnknown = []; // authorized re-evaluation moves it back to retryable
-    cp.retryableUnknown = [{ listingId: 'RLSX', attempts: 1, lastReason: 'manual requeue' }];
-    const good = mockCotality({ pagesPerListing: { RLSX: [{ rows: [cPhoto(1)] }] } });
-    const run = await runAudit({ listings: pagedReader(rows).reader, cotality: good.reader, identity: idTwo, budgets: b, checkpoint: cp });
-    expect(run.checkpoint.permanentUnknown).toHaveLength(0);
-    expect(run.inventory[0].bucket).toBe('B_NEW');
-  });
   it('a run is never "incomplete" and planComplete at once (source-missing is a WARNING, not a reason)', async () => {
     // Exhaust one listing (blocks) AND make a second source-missing (warning).
     const rows = [dryRow({ listing_id: 'RLSA' })];
@@ -889,5 +873,162 @@ describe('ROUND 5 — planned media is photo/hero first', () => {
     expect(plan.items[0].preferredPhotoYn).toBe(true);   // hero first
     expect(plan.items[0].order).toBe(9);
     expect(plan.items.slice(1).map((i: { order: number }) => i.order)).toEqual([2, 5]); // then ascending
+  });
+});
+
+// ─── ROUND 5 (rev): bounded permanent-unknown RECHECK (real framework/CLI) ──
+//
+// permanentUnknown is re-evaluated ONLY via the explicit --recheck-permanent
+// mode (deps.recheckPermanent) — never by hand-editing the checkpoint. The
+// recheck does a fresh Neon read first, re-probes only when still needed, and
+// resolves/annotates in place; it NEVER moves an entry into retryableUnknown.
+
+describe('ROUND 5 (rev) — permanent-unknown recheck is a real bounded mode', () => {
+  const exhaustAudit = async (id2: Record<string, unknown>, b: Record<string, unknown>, rows: Array<Record<string, unknown>>) => {
+    let cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'down' }).reader, identity: id2, budgets: b })).checkpoint;
+    cp = (await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'still' }).reader, identity: id2, budgets: b, checkpoint: cp })).checkpoint;
+    return cp;
+  };
+  const exhaustDryRun = async (id2: Record<string, unknown>, b: Record<string, unknown>, rows: Array<Record<string, unknown>>) => {
+    let cp = (await runDryRun({ candidates: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'down' }).reader, identity: id2, budgets: b })).checkpoint;
+    cp = (await runDryRun({ candidates: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'still' }).reader, identity: id2, budgets: b, checkpoint: cp })).checkpoint;
+    return cp;
+  };
+  const id2 = { ...TEST_IDENTITY, maxUnknownRetries: 2 };
+  const dId2 = { ...DRY_IDENTITY, maxUnknownRetries: 2 };
+  const b = tightBudgets({ maxUnknownRetriesPerListing: 2 });
+
+  it('audit: WITHOUT the flag a permanent listing is never auto-probed (still blocking)', async () => {
+    const rows = [auditRow({ listing_id: 'RLSX' })];
+    const cp = await exhaustAudit(id2, b, rows);
+    expect(cp.permanentUnknown).toHaveLength(1);
+    const cot = mockCotality({ pagesPerListing: { RLSX: [{ rows: [cPhoto(1)] }] } });
+    const run = await runAudit({ listings: pagedReader(rows).reader, cotality: cot.reader, identity: id2, budgets: b, checkpoint: cp }); // no recheckPermanent
+    expect(cot.log).toHaveLength(0); // NOT auto-probed
+    expect(run.checkpoint.permanentUnknown).toHaveLength(1);
+    expect(run.coverageComplete).toBe(false);
+  });
+
+  it('audit: --recheck-permanent re-probes and RESOLVES a now-available listing', async () => {
+    const rows = [auditRow({ listing_id: 'RLSX' })];
+    const cp = await exhaustAudit(id2, b, rows);
+    const good = mockCotality({ pagesPerListing: { RLSX: [{ rows: [cPhoto(1)] }] } });
+    const run = await runAudit({ listings: pagedReader(rows).reader, cotality: good.reader, identity: id2, budgets: b, checkpoint: cp, recheckPermanent: true });
+    expect(good.log.length).toBeGreaterThan(0);        // it WAS re-probed
+    expect(run.checkpoint.permanentUnknown).toHaveLength(0);
+    expect(run.checkpoint.retryableUnknown).toHaveLength(0); // NEVER duplicated into retryable
+    expect(run.inventory.find((r: { listingId: string }) => r.listingId === 'RLSX').bucket).toBe('B_NEW');
+    expect(run.coverageComplete).toBe(true);
+  });
+
+  it('audit: --recheck-permanent resolves via Neon (gained media) with ZERO Cotality', async () => {
+    const cp = await exhaustAudit(id2, b, [auditRow({ listing_id: 'RLSX' })]);
+    const cot = mockCotality({ propertyError: 'must NOT be called' });
+    const run = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSX', listing_media: [photoRow(1)] })]).reader, cotality: cot.reader, identity: id2, budgets: b, checkpoint: cp, recheckPermanent: true });
+    expect(cot.log).toHaveLength(0);
+    expect(run.checkpoint.permanentUnknown).toHaveLength(0);
+    expect(run.inventory.find((r: { listingId: string }) => r.listingId === 'RLSX').bucket).not.toBe('U');
+  });
+
+  it('audit: a still-failing --recheck-permanent keeps it PERMANENT (updated reason), never retryable', async () => {
+    const rows = [auditRow({ listing_id: 'RLSX' })];
+    const cp = await exhaustAudit(id2, b, rows);
+    const run = await runAudit({ listings: pagedReader(rows).reader, cotality: mockCotality({ propertyError: 'STILL down' }).reader, identity: id2, budgets: b, checkpoint: cp, recheckPermanent: true });
+    expect(run.checkpoint.retryableUnknown).toHaveLength(0);   // never duplicated into retryable
+    expect(run.checkpoint.permanentUnknown).toHaveLength(1);
+    expect(run.checkpoint.permanentUnknown[0].lastReason).toContain('recheck');
+    expect(run.coverageComplete).toBe(false);
+  });
+
+  it('dry-run: --recheck-permanent re-probes and ADDS the plan for a now-available listing', async () => {
+    const rows = [dryRow({ listing_id: 'RLSX' })];
+    const cp = await exhaustDryRun(dId2, b, rows);
+    expect(cp.permanentUnknown).toHaveLength(1);
+    const good = mockCotality({ pagesPerListing: { RLSX: [{ rows: [cPhoto(1)] }] } });
+    const run = await runDryRun({ candidates: pagedReader(rows).reader, cotality: good.reader, identity: dId2, budgets: b, checkpoint: cp, recheckPermanent: true });
+    expect(run.checkpoint.permanentUnknown).toHaveLength(0);
+    expect(run.checkpoint.retryableUnknown).toHaveLength(0);
+    expect(run.plans.map((p: { listingId: string }) => p.listingId)).toEqual(['RLSX']);
+    expect(run.planComplete).toBe(true);
+  });
+
+  it('both CLIs register --recheck-permanent; the audit CLI requires --with-cotality (source + spawned tsx)', () => {
+    expect(read('scripts/audit/media-coverage-audit.cli.ts')).toContain("'--recheck-permanent'");
+    expect(read('scripts/backfill/bucket-b-media-dry-run.cli.ts')).toContain("'--recheck-permanent'");
+    runTsx([
+      "process.argv = [process.argv[0], process.argv[1], '--recheck-permanent'];",
+      "const { main } = await import('./scripts/audit/media-coverage-audit.cli');",
+      'await main();', 'process.exit(0);',
+    ], 1);
+  }, 150_000);
+});
+
+// ─── ROUND 5 (rev): probe/request-cap STOP consumes the listing budget ─────
+//
+// Once a retry row is fetched it is EXAMINED and consumes one maxListings unit
+// (never refunded). When the probe cap is already spent the phase stops BEFORE
+// the next read; when a probe defers on the request cap the phase stops after
+// that one fetch. Either way the current entry + untouched tail stay queued and
+// no further retry ids are read. Proven for BOTH audit and dry-run.
+
+describe('ROUND 5 (rev) — retry-phase probe/request-cap stops are bounded', () => {
+  const ids = Array.from({ length: 10 }, (_, i) => `RLS${String(i).padStart(2, '0')}`);
+  const uInv = ids.map((id) => ({ listingId: id, displayable: true, ownership: 'third-party', activeUsablePhotoCount: 0, allStatusRowCount: 0, legacyUsablePhotoCount: 0, cotality: { status: 'unknown', reason: 'x' }, bucket: 'U' }));
+  const uTally = { A: 0, B_NEW: 0, B_INACTIVE: 0, C: 0, D: 0, E: 0, F: 0, U: 10 };
+  const id1 = { ...TEST_IDENTITY, maxUnknownRetries: 3 };
+  const dId1 = { ...DRY_IDENTITY, maxUnknownRetries: 3 };
+  const auditSeed = () => ({ ...emptyCheckpoint(id1), cursor: 'RLS99', processed: 10, inventory: uInv.map((r) => ({ ...r })), tally: { ...uTally }, retryableUnknown: ids.map((id) => ({ listingId: id, attempts: 1, lastReason: 'x' })) });
+  const drySeed = () => ({ ...emptyDryRunCheckpoint(dId1), cursor: 'RLS99', processed: 10, plans: [], retryableUnknown: ids.map((id) => ({ listingId: id, attempts: 1, lastReason: 'x' })) });
+
+  it('audit B — maxCotalityProbes=1: exactly one read, stop immediately, 9-entry tail queued', async () => {
+    const paged = pagedReader(ids.map((id) => auditRow({ listing_id: id })));
+    const run = await runAudit({ listings: paged.reader, cotality: mockCotality({ pages: ids.map(() => ({ rows: [cPhoto(1)] })) }).reader, identity: id1, budgets: tightBudgets({ maxCotalityProbes: 1 }), checkpoint: auditSeed() });
+    expect(paged.byIdCalls.flat()).toEqual(['RLS00']);         // only the first is read
+    expect(run.runCounters.probesAttempted).toBe(1);
+    expect(run.checkpoint.retryableUnknown.length).toBe(9);    // untouched tail
+  });
+  it('audit C — request cap defers the first probe: one read, full 10-entry queue resumable', async () => {
+    const paged = pagedReader(ids.map((id) => auditRow({ listing_id: id })));
+    const run = await runAudit({ listings: paged.reader, cotality: mockCotality().reader, identity: id1, budgets: tightBudgets({ maxCotalityRequests: 0 }), checkpoint: auditSeed() });
+    expect(paged.byIdCalls.flat()).toEqual(['RLS00']);         // only that listing fetched/examined
+    expect(run.runCounters.listingsFinalized).toBe(1);         // examined → consumed, not refunded
+    expect(run.checkpoint.retryableUnknown.length).toBe(10);   // current entry + full tail
+  });
+  it('dry-run B — maxCotalityProbes=1: exactly one read, 9-entry tail queued', async () => {
+    const paged = pagedReader(ids.map((id) => dryRow({ listing_id: id })));
+    const run = await runDryRun({ candidates: paged.reader, cotality: mockCotality({ pages: ids.map(() => ({ rows: [cPhoto(1)] })) }).reader, identity: dId1, budgets: tightBudgets({ maxCotalityProbes: 1 }), checkpoint: drySeed() });
+    expect(paged.byIdCalls.flat()).toEqual(['RLS00']);
+    expect(run.runCounters.probesAttempted).toBe(1);
+    expect(run.checkpoint.retryableUnknown.length).toBe(9);
+  });
+  it('dry-run C — request cap defers the first probe: one read, full 10-entry queue resumable', async () => {
+    const paged = pagedReader(ids.map((id) => dryRow({ listing_id: id })));
+    const run = await runDryRun({ candidates: paged.reader, cotality: mockCotality().reader, identity: dId1, budgets: tightBudgets({ maxCotalityRequests: 0 }), checkpoint: drySeed() });
+    expect(paged.byIdCalls.flat()).toEqual(['RLS00']);
+    expect(run.runCounters.listingsFinalized).toBe(1);
+    expect(run.checkpoint.retryableUnknown.length).toBe(10);
+  });
+});
+
+// ─── ROUND 5 (rev): ONE retry policy enforced at the logic boundary ────────
+
+describe('ROUND 5 (rev) — one retry policy at the logic boundary', () => {
+  it('a direct caller with identity policy 3 and budget policy 5 is REFUSED (audit + dry-run)', async () => {
+    await expect(runAudit({ listings: pagedReader([]).reader, identity: { ...TEST_IDENTITY, maxUnknownRetries: 3 }, budgets: tightBudgets({ maxUnknownRetriesPerListing: 5 }) }))
+      .rejects.toThrow(/retry policy mismatch/);
+    await expect(runDryRun({ candidates: pagedReader([]).reader, cotality: mockCotality().reader, identity: { ...DRY_IDENTITY, maxUnknownRetries: 3 }, budgets: tightBudgets({ maxUnknownRetriesPerListing: 5 }) }))
+      .rejects.toThrow(/retry policy mismatch/);
+  });
+  it('an out-of-range policy (0 or > MAX_UNKNOWN_RETRIES) is refused before any read', async () => {
+    await expect(runAudit({ listings: pagedReader([]).reader, identity: { ...TEST_IDENTITY, maxUnknownRetries: 0 }, budgets: tightBudgets({ maxUnknownRetriesPerListing: 0 }) }))
+      .rejects.toThrow(/integer in \[1/);
+    await expect(runAudit({ listings: pagedReader([]).reader, identity: { ...TEST_IDENTITY, maxUnknownRetries: MAX_UNKNOWN_RETRIES + 1 }, budgets: tightBudgets({ maxUnknownRetriesPerListing: MAX_UNKNOWN_RETRIES + 1 }) }))
+      .rejects.toThrow(/integer in \[1/);
+  });
+  it('the shared MAX_UNKNOWN_RETRIES ceiling replaces the hardcoded 100 (source pins)', () => {
+    const audit = read('scripts/audit/media-coverage-audit.ts');
+    expect(audit).not.toContain('e.attempts > 100');
+    expect(audit).toContain('assertRetryPolicy(budgets, deps.identity)');
+    expect(read('scripts/backfill/bucket-b-media-dry-run.ts')).toContain('assertRetryPolicy(budgets, deps.identity)');
   });
 });
