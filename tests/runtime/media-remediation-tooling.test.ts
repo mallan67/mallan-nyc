@@ -13,9 +13,9 @@ import * as path from 'path';
 /* eslint-disable @typescript-eslint/no-var-requires */
 const {
   runAudit, probeListingMedia, buildInventoryRow, needsCotalityProbe,
-  attemptWithAccounting, makeAccountant, CapStopError, classifyCotalityRowStrict,
-  isValidProviderMediaUrl, validateNextLink, identitiesMatch,
-  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS, CHECKPOINT_VERSION,
+  attemptWithAccounting, makeAccountant, CapStopError, classifyCotalityMedia, classifyCotalityRowStrict,
+  isValidProviderMediaUrl, validateNextLink, identitiesMatch, validateRetryQueue,
+  emptyCheckpoint, validateCheckpoint, DEFAULT_BUDGETS, CHECKPOINT_VERSION, TOOL_VERSION,
 } = require('@/scripts/audit/media-coverage-audit');
 const {
   runDryRun, planListing, diffAuthorizedFields, normalizeSourceUrl,
@@ -30,10 +30,11 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 // ─── fixtures ───────────────────────────────────────────────────────────────
 
 const TEST_IDENTITY = {
-  schemaVersion: CHECKPOINT_VERSION, toolMode: 'audit' as const, probeMode: 'cotality' as const,
-  cotalitySource: 'https://api.cotality.com/trestle', neonFingerprint: 'testfp000001', checkpointPath: null,
+  schemaVersion: CHECKPOINT_VERSION, toolVersion: TOOL_VERSION, toolMode: 'audit' as const, probeMode: 'cotality' as const,
+  cotalitySource: 'https://api.cotality.com/trestle', cotalityClientFingerprint: 'client000001',
+  neonFingerprint: 'testfp000001', checkpointPath: null,
 };
-const NEON_ONLY_IDENTITY = { ...TEST_IDENTITY, probeMode: 'neon-only' as const, cotalitySource: null };
+const NEON_ONLY_IDENTITY = { ...TEST_IDENTITY, probeMode: 'neon-only' as const, cotalitySource: null, cotalityClientFingerprint: null };
 const DRY_IDENTITY = { ...TEST_IDENTITY, toolMode: 'dryrun' as const };
 
 const photoRow = (order: number, over: Record<string, unknown> = {}) => ({
@@ -243,11 +244,11 @@ describe('ROUND 3 — identity-bound checkpoints', () => {
     expect(() => validateCheckpoint(cp, TEST_IDENTITY)).toThrow(/identity mismatch/);
     expect(identitiesMatch(NEON_ONLY_IDENTITY, TEST_IDENTITY).join(' ')).toContain('probeMode');
   });
-  it('a checkpoint from another database or provider endpoint is rejected (cross-source)', () => {
-    const otherDb = emptyCheckpoint({ ...TEST_IDENTITY, neonFingerprint: 'otherdb00002' });
-    expect(() => validateCheckpoint(otherDb, TEST_IDENTITY)).toThrow(/neonFingerprint/);
-    const otherProvider = emptyCheckpoint({ ...TEST_IDENTITY, cotalitySource: 'https://other.example/trestle' });
-    expect(() => validateCheckpoint(otherProvider, TEST_IDENTITY)).toThrow(/cotalitySource/);
+  it('cross-source, cross-client, and cross-tool-version checkpoints are rejected', () => {
+    expect(() => validateCheckpoint(emptyCheckpoint({ ...TEST_IDENTITY, neonFingerprint: 'otherdb00002' }), TEST_IDENTITY)).toThrow(/neonFingerprint/);
+    expect(() => validateCheckpoint(emptyCheckpoint({ ...TEST_IDENTITY, cotalitySource: 'https://other.example/trestle' }), TEST_IDENTITY)).toThrow(/cotalitySource/);
+    expect(() => validateCheckpoint(emptyCheckpoint({ ...TEST_IDENTITY, cotalityClientFingerprint: 'differentclient' }), TEST_IDENTITY)).toThrow(/cotalityClientFingerprint/);
+    expect(() => validateCheckpoint(emptyCheckpoint({ ...TEST_IDENTITY, toolVersion: 'media-coverage-audit@OLD' }), TEST_IDENTITY)).toThrow(/toolVersion/);
   });
   it('version/mode/reconciliation still fail closed; dry-run identity too', () => {
     expect(() => validateCheckpoint({ ...emptyCheckpoint(TEST_IDENTITY), version: 2 }, TEST_IDENTITY)).toThrow(/version/);
@@ -570,4 +571,173 @@ describe('dry-run planner — order fidelity + update detection (retained)', () 
     const probed = await runAudit({ listings: pagedReader([row]).reader, cotality: cot.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
     expect(probed.inventory[0].bucket).toBe('B_NEW');
   });
+});
+
+// ─── ROUND 4: explicit conservative photo classification ───────────────────
+
+describe('ROUND 4 — classifyCotalityMedia never defaults unknown to Photo', () => {
+  it('the exact review examples classify correctly; NOTHING falls through to Photo', () => {
+    expect(classifyCotalityMedia('Photo', null)).toBe('Photo');
+    expect(classifyCotalityMedia('FloorPlan', null)).toBe('FloorPlan');
+    expect(classifyCotalityMedia('Document', null)).toBe('Document');
+    expect(classifyCotalityMedia('Disclosure', null)).toBe('Document');
+    expect(classifyCotalityMedia('Map', null)).toBe('Document');
+    expect(classifyCotalityMedia('Survey', null)).toBe('Document');
+    expect(classifyCotalityMedia('Video', null)).toBe('Video');
+    expect(classifyCotalityMedia('BrandedVirtualTour', null)).toBe('VirtualTour');
+    expect(classifyCotalityMedia('UnbrandedVirtualTour', null)).toBe('VirtualTour');
+    expect(classifyCotalityMedia('Other', null)).toBe('Other');
+    expect(classifyCotalityMedia('AgentPhoto', null)).not.toBe('Photo');
+    expect(classifyCotalityMedia('OfficePhoto', null)).not.toBe('Photo');
+    expect(classifyCotalityMedia('SomethingUnfamiliar', null)).toBe('unknown');
+    expect(classifyCotalityMedia(null, 'Jpeg')).toBe('Photo');
+    expect(classifyCotalityMedia(null, 'png')).toBe('Photo');
+    expect(classifyCotalityMedia(null, 'Pdf')).toBe('Document');
+    expect(classifyCotalityMedia(null, 'docx')).toBe('Document');
+    expect(classifyCotalityMedia(null, 'Mp4')).toBe('Video');
+    expect(classifyCotalityMedia(null, 'weirdtype')).toBe('unknown');
+    expect(classifyCotalityMedia(null, null)).toBe('unknown');
+    expect(classifyCotalityRowStrict({ mediaCategory: 'Document', mediaType: 'Pdf' })).toBe('Document');
+  });
+  it('the probe counts a Document/Disclosure/pdf row as NON-photo (no false Bucket B)', async () => {
+    const { reader } = mockCotality({ pages: [{ rows: [
+      cPhoto(1, { mediaCategory: 'Document', mediaType: 'Pdf' }),
+      cPhoto(2, { mediaCategory: 'Disclosure', mediaType: 'Pdf' }),
+      cPhoto(3, { mediaCategory: null, mediaType: 'docx' }),
+      cPhoto(4),
+    ] }] });
+    const res = await probeListingMedia(reader, 'RLSX', tightBudgets(), acctOf());
+    expect(res).toMatchObject({ status: 'confirmed', photoCount: 1 });
+  });
+});
+
+describe('ROUND 4 — a dry-run with conflicts is NOT planComplete', () => {
+  it('planComplete is false when an R2-key collision exists', async () => {
+    const cot = mockCotality({ pagesPerListing: {
+      RLSC: [{ rows: [cPhoto(1), cPhoto(1, { mediaKey: 'MK-Z', mediaUrl: 'https://cdn.example/z.jpg' })] }],
+    } });
+    const res = await runDryRun({ candidates: pagedReader([dryRow({ listing_id: 'RLSC' })]).reader, cotality: cot.reader, identity: DRY_IDENTITY, budgets: tightBudgets() });
+    expect(res.scanComplete).toBe(true);
+    expect(res.coverageComplete).toBe(true);
+    expect(res.planComplete).toBe(false);
+    expect(res.conflictListings).toBe(1);
+  });
+  it('a clean dry-run is planComplete', async () => {
+    const cot = mockCotality({ pagesPerListing: { RLSOK: [{ rows: [cPhoto(1)] }] } });
+    const res = await runDryRun({ candidates: pagedReader([dryRow({ listing_id: 'RLSOK' })]).reader, cotality: cot.reader, identity: DRY_IDENTITY, budgets: tightBudgets() });
+    expect(res.planComplete).toBe(true);
+  });
+});
+
+describe('ROUND 4 — retry queue re-evaluates Neon state before probing', () => {
+  const transitions: Array<[string, Record<string, unknown>]> = [
+    ['gained active relational media', { listing_media: [photoRow(1)] }],
+    ['gained valid legacy media', { media: [{ url: 'https://x/a.jpg', mediaType: 'Photo', order: 0 }] }],
+    ['became hidden', { idx_display_yn: false }],
+    ['became Mallan-owned', { rls_eligible: false }],
+  ];
+  for (const [label, patch] of transitions) {
+    it('audit: a queued listing that ' + label + ' is re-resolved with ZERO Cotality calls', async () => {
+      const failing = mockCotality({ propertyError: 'transient' });
+      const run1 = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSQ' })]).reader, cotality: failing.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
+      expect(run1.checkpoint.retryableUnknown).toHaveLength(1);
+      const changed = mockCotality({ propertyError: 'must NOT be called' });
+      const run2 = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSQ', ...patch })]).reader, cotality: changed.reader, identity: TEST_IDENTITY, budgets: tightBudgets(), checkpoint: run1.checkpoint });
+      expect(changed.log).toHaveLength(0);
+      expect(run2.checkpoint.retryableUnknown).toHaveLength(0);
+      expect(run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLSQ').bucket).not.toBe('U');
+    });
+  }
+  it('audit: a queued listing MISSING from Neon is dropped (source-missing), not queued forever', async () => {
+    const failing = mockCotality({ propertyError: 'transient' });
+    const run1 = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSGONE' })]).reader, cotality: failing.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
+    expect(run1.checkpoint.retryableUnknown).toHaveLength(1);
+    const empty = mockCotality({ propertyError: 'must not be called' });
+    const run2 = await runAudit({ listings: pagedReader([]).reader, cotality: empty.reader, identity: TEST_IDENTITY, budgets: tightBudgets(), checkpoint: run1.checkpoint });
+    expect(empty.log).toHaveLength(0);
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0);
+    expect(run2.runCounters.sourceMissing).toBe(1);
+    expect(run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLSGONE')).toBeUndefined();
+    expect(run2.processed).toBe(run2.inventory.length);
+  });
+  it('validateRetryQueue rejects duplicates, bad attempts, and non-U records', () => {
+    const uRec = { listingId: 'A', bucket: 'U', cotality: { status: 'unknown', reason: 'x' } };
+    expect(() => validateRetryQueue([{ listingId: 'A', attempts: 1 }, { listingId: 'A', attempts: 1 }], [uRec])).toThrow(/duplicate/);
+    expect(() => validateRetryQueue([{ listingId: 'A', attempts: 0 }], [uRec])).toThrow(/attempts/);
+    expect(() => validateRetryQueue([{ listingId: 'A', attempts: 1 }], [{ ...uRec, bucket: 'B_NEW' }])).toThrow(/matching U/);
+  });
+});
+
+describe('ROUND 4 — authenticated-request boundary; base + redirects fail closed', () => {
+  it('validateNextLink guards every request; redirect:error; base asserted (source pins)', () => {
+    const cli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(cli).toContain('const guard = validateNextLink(url, BASE);');
+    expect(cli).toContain('refusing authenticated request to an unsafe URL');
+    expect(cli).toContain("redirect: 'error'");
+    expect(cli).toContain('assertValidBase(BASE)');
+  });
+  it('assertValidBase rejects http, credentials; accepts clean https (spawned tsx)', () => {
+    runTsx([
+      "process.env.TRESTLE_API_URL = 'http://api.cotality.com/trestle';",
+      "process.env.IDX_CLIENT_ID = 'cid';",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "try { m.buildCotalityReader({ timeoutMs: 100, maxRetries: 0 }); process.exit(9); }",
+      "catch (e) { process.exit(String(e.message).includes('https') ? 0 : 8); }",
+    ], 0);
+    runTsx([
+      "process.env.TRESTLE_API_URL = 'https://u:p@api.cotality.com/trestle';",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "try { m.buildCotalityReader({ timeoutMs: 100, maxRetries: 0 }); process.exit(9); }",
+      "catch (e) { process.exit(String(e.message).includes('credentials') ? 0 : 8); }",
+    ], 0);
+    runTsx([
+      "process.env.TRESTLE_API_URL = 'https://api.cotality.com/trestle';",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "m.buildCotalityReader({ timeoutMs: 100, maxRetries: 0 }); process.exit(0);",
+    ], 0);
+  }, 200_000);
+  it('identity fails closed when Cotality client id is missing in cotality mode (spawned tsx)', () => {
+    runTsx([
+      "delete process.env.IDX_CLIENT_ID; delete process.env.IDX_API_KEY;",
+      "const m = await import('./scripts/audit/media-coverage-audit.cli');",
+      "try { m.buildIdentity('audit', true, 'https://api.cotality.com/trestle', null); process.exit(9); }",
+      "catch (e) { process.exit(String(e.message).includes('IDX_CLIENT_ID') ? 0 : 8); }",
+    ], 0);
+  }, 150_000);
+});
+
+describe('ROUND 4 — checkpoint protection and exposed bounds', () => {
+  const cliImport = "const { main } = await import('./scripts/audit/media-coverage-audit.cli');";
+  it('an existing --checkpoint WITHOUT --resume is refused (never overwritten)', () => {
+    const cpFile = path.join(ROOT, '.tmp-525-existing-' + Date.now() + '.json');
+    fs.writeFileSync(cpFile, '{}', 'utf8');
+    try {
+      runTsx([
+        'process.argv = [process.argv[0], process.argv[1], "--checkpoint", ' + JSON.stringify(cpFile) + '];',
+        cliImport, 'await main();', 'process.exit(0);',
+      ], 1);
+      expect(fs.readFileSync(cpFile, 'utf8')).toBe('{}');
+    } finally {
+      fs.unlinkSync(cpFile);
+    }
+  }, 150_000);
+  it('source pins: --max-unknown-retries validated; --retries 0 allowed; dry-run sequential (no --concurrency)', () => {
+    const auditCli = read('scripts/audit/media-coverage-audit.cli.ts');
+    expect(auditCli).toContain("parseBound(args, '--max-unknown-retries'");
+    expect(auditCli).toContain("parseBound(args, '--retries', 1, 0)");
+    expect(auditCli).toContain('acquireCheckpointLock');
+    expect(auditCli).toContain("openSync(lockPath, 'wx')");
+    expect(auditCli).toContain('${path}.${process.pid}');
+    const dryCli = read('scripts/backfill/bucket-b-media-dry-run.cli.ts');
+    expect(dryCli).toContain("parseBound(args, '--max-unknown-retries'");
+    expect(dryCli).not.toContain("'--concurrency'");
+    expect(dryCli).toContain('sequential');
+  });
+  it('the dry-run CLI rejects --concurrency as an unknown flag (spawned tsx)', () => {
+    runTsx([
+      'process.argv = [process.argv[0], process.argv[1], "--concurrency", "4"];',
+      "const { main } = await import('./scripts/backfill/bucket-b-media-dry-run.cli');",
+      'await main();', 'process.exit(0);',
+    ], 1);
+  }, 150_000);
 });

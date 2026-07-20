@@ -38,34 +38,47 @@
 
 import { isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { resolveListingMediaFromRows, getPhotoGallery, type ListingMediaTableRow } from '@/lib/media/listing-media-resolver';
-import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 import {
   classifyMediaCoverage, emptyTally, isMallanOwnedCoverage,
   type BucketTally, type ListingCoverageInput, type CotalityProbe, type MediaCoverageBucket,
 } from '@/lib/media/media-coverage-bucket';
 
-export const CHECKPOINT_VERSION = 3;
+export const CHECKPOINT_VERSION = 4;
 
 // ─── Run identity (non-secret) ──────────────────────────────────────────────
 
 export interface RunIdentity {
   schemaVersion: number;
+  /** Non-secret tool/code revision — a semantics change bumps this and
+   *  invalidates checkpoints written by an older classifier. */
+  toolVersion: string;
   toolMode: 'audit' | 'dryrun';
   probeMode: 'neon-only' | 'cotality';
   /** Normalized allowed Cotality origin+path (null in neon-only mode). */
   cotalitySource: string | null;
-  /** NON-SECRET Neon source fingerprint (e.g. sha256(host+db) prefix). */
+  /** One-way fingerprint of the NON-SECRET Cotality client identity
+   *  (IDX_CLIENT_ID / IDX_API_KEY) — never the secret/token. Null in
+   *  neon-only mode. */
+  cotalityClientFingerprint: string | null;
+  /** Non-secret Neon fingerprint of the sanitized connection identity
+   *  (host+port+db+user+schema) — never the password. */
   neonFingerprint: string;
   /** The checkpoint/output path this identity is bound to (null = in-memory). */
   checkpointPath: string | null;
 }
 
+/** The current classifier/semantics revision. BUMP when audit classification
+ *  or bucket semantics change so older checkpoints are rejected on resume. */
+export const TOOL_VERSION = 'media-coverage-audit@2026-07-20-r4';
+
 export function identitiesMatch(a: RunIdentity, b: RunIdentity): string[] {
   const problems: string[] = [];
   if (a.schemaVersion !== b.schemaVersion) problems.push(`schemaVersion ${a.schemaVersion} != ${b.schemaVersion}`);
+  if (a.toolVersion !== b.toolVersion) problems.push(`toolVersion ${a.toolVersion} != ${b.toolVersion}`);
   if (a.toolMode !== b.toolMode) problems.push(`toolMode ${a.toolMode} != ${b.toolMode}`);
   if (a.probeMode !== b.probeMode) problems.push(`probeMode ${a.probeMode} != ${b.probeMode}`);
   if (a.cotalitySource !== b.cotalitySource) problems.push('cotalitySource differs');
+  if (a.cotalityClientFingerprint !== b.cotalityClientFingerprint) problems.push('cotalityClientFingerprint differs');
   if (a.neonFingerprint !== b.neonFingerprint) problems.push('neonFingerprint differs');
   if (a.checkpointPath !== b.checkpointPath) problems.push('checkpointPath differs');
   return problems;
@@ -244,14 +257,77 @@ export function validateCheckpoint(cp: AuditCheckpoint, expectedIdentity: RunIde
   if (cp.processed !== cp.inventory.length || cp.processed !== tallySum || ids.size !== cp.inventory.length) {
     throw new Error(`checkpoint does not reconcile: processed=${cp.processed} inventory=${cp.inventory.length} tallySum=${tallySum} uniqueIds=${ids.size}`);
   }
+  validateRetryQueue(cp.retryableUnknown, cp.inventory);
 }
 
-// ─── Strict audit-side classification + URL validation ─────────────────────
+/** Validate the retryable-unknown queue: unique ids, positive bounded attempt
+ *  counts, and each queued id has a corresponding U inventory record. */
+export function validateRetryQueue(queue: RetryableUnknownEntry[], inventory: InventoryRow[]): void {
+  const qids = new Set<string>();
+  const uById = new Map(inventory.map((r) => [r.listingId, r]));
+  for (const e of queue) {
+    if (qids.has(e.listingId)) throw new Error(`retryableUnknown has duplicate id ${e.listingId}`);
+    qids.add(e.listingId);
+    if (!Number.isInteger(e.attempts) || e.attempts < 1 || e.attempts > 100) throw new Error(`retryableUnknown ${e.listingId} has invalid attempts ${e.attempts}`);
+    const rec = uById.get(e.listingId);
+    if (!rec || rec.bucket !== 'U' || rec.cotality.status !== 'unknown') throw new Error(`retryableUnknown ${e.listingId} lacks a matching U inventory record`);
+  }
+}
 
-export function classifyCotalityRowStrict(row: Pick<CotalityMediaRow, 'mediaCategory' | 'mediaType'>): 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' | 'unknown' {
-  const source = row.mediaCategory ?? row.mediaType ?? null;
-  if (source == null || String(source).trim() === '') return 'unknown';
-  return classifyTrestleMediaCategory(String(source));
+// ─── Explicit conservative Cotality media classification ───────────────────
+//
+// The production classifyTrestleMediaCategory DELIBERATELY maps every
+// unrecognized string to "Photo" (ingest leniency). That is unsafe for a
+// coverage audit: Cotality's real MediaCategory enum includes Document,
+// Disclosure, Map, Survey, Other, AgentPhoto, OfficePhoto, etc., and
+// MediaType includes Pdf/Docx/Xlsx/... — none of which are LISTING photos.
+// So the audit uses its OWN explicit allowlists (from the live $metadata,
+// 2026-07-19) and NEVER defaults to Photo.
+
+export type AuditMediaClass = 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' | 'Document' | 'Other' | 'unknown';
+
+/** MediaCategory values that ARE a listing photo (exactly — AgentPhoto,
+ *  OfficePhoto, AerialView, OfficeLogo are NOT listing photos). */
+const PHOTO_CATEGORIES = new Set(['photo']);
+const FLOORPLAN_CATEGORIES = new Set(['floorplan']);
+const VIRTUALTOUR_CATEGORIES = new Set(['brandedvirtualtour', 'unbrandedvirtualtour', 'virtualtour']);
+const VIDEO_CATEGORIES = new Set(['video', 'aerialview']);
+const DOCUMENT_CATEGORIES = new Set(['addendum', 'disclosure', 'document', 'map', 'rentaldocuments', 'restriction', 'survey', 'topography']);
+const OTHER_CATEGORIES = new Set(['agentphoto', 'officelogo', 'officephoto', 'other']);
+/** Raster IMAGE MediaTypes that establish a photo when NO category is present.
+ *  SVG is intentionally excluded (floor plans/maps are commonly SVG). */
+const IMAGE_TYPES = new Set(['jpeg', 'jpg', 'png', 'gif', 'bmp', 'tiff', 'tif']);
+const VIDEO_TYPES = new Set(['mov', 'mp4', 'mpeg', 'quicktime', 'wmv', 'avi']);
+const DOCUMENT_TYPES = new Set(['pdf', 'doc', 'docx', 'rtf', 'txt', 'xls', 'xlsx', 'pptx', 'wps', 'htm', 'html', 'svg']);
+
+/**
+ * Explicit conservative classification of one Cotality Media row.
+ * MediaCategory has precedence when present; MediaType is consulted ONLY
+ * when the category is absent, and only an explicit image type yields Photo.
+ * NOTHING falls through to Photo — an unrecognized value is 'unknown'.
+ */
+export function classifyCotalityMedia(category: string | null | undefined, type: string | null | undefined): AuditMediaClass {
+  const cat = category != null && String(category).trim() !== '' ? String(category).toLowerCase().trim() : null;
+  if (cat) {
+    if (PHOTO_CATEGORIES.has(cat)) return 'Photo';
+    if (FLOORPLAN_CATEGORIES.has(cat)) return 'FloorPlan';
+    if (VIRTUALTOUR_CATEGORIES.has(cat)) return 'VirtualTour';
+    if (VIDEO_CATEGORIES.has(cat)) return 'Video';
+    if (DOCUMENT_CATEGORIES.has(cat)) return 'Document';
+    if (OTHER_CATEGORIES.has(cat)) return 'Other';
+    return 'unknown'; // present but unrecognized — NEVER a photo
+  }
+  const t = type != null && String(type).trim() !== '' ? String(type).toLowerCase().trim() : null;
+  if (!t) return 'unknown';
+  if (IMAGE_TYPES.has(t)) return 'Photo';
+  if (VIDEO_TYPES.has(t)) return 'Video';
+  if (DOCUMENT_TYPES.has(t)) return 'Document';
+  return 'unknown';
+}
+
+/** Back-compat shim: prior name, now delegating to the explicit classifier. */
+export function classifyCotalityRowStrict(row: Pick<CotalityMediaRow, 'mediaCategory' | 'mediaType'>): AuditMediaClass {
+  return classifyCotalityMedia(row.mediaCategory, row.mediaType);
 }
 
 /** A usable provider photo URL must be a non-empty ABSOLUTE http(s) URL. */
@@ -300,7 +376,7 @@ export async function probeListingMedia(
       return { status: 'unknown', reason: `media page: ${page.error}`, deferred: page.deferred };
     }
     for (const row of page.rows) {
-      if (classifyCotalityRowStrict(row) !== 'Photo') continue;
+      if (classifyCotalityMedia(row.mediaCategory, row.mediaType) !== 'Photo') continue;
       if (typeof row.order !== 'number' || !Number.isFinite(row.order) || !Number.isInteger(row.order)) {
         return { status: 'unknown', reason: `malformed provider Order (${String(row.order)}) — cannot trust the media set` };
       }
@@ -368,6 +444,7 @@ export interface RunCounters {
   elapsedMs: number;
   unknownRetriesAttempted: number;
   unknownReplaced: number;
+  sourceMissing: number;
 }
 
 export interface AuditDeps {
@@ -416,7 +493,7 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   const seen = new Set(cp.inventory.map((r) => r.listingId));
   const reasons = new Set<string>();
   const acct = makeAccountant(budgets.maxCotalityRequests);
-  const run: RunCounters = { listingsFinalized: 0, probesAttempted: 0, requestAttempts: 0, retries: 0, elapsedMs: 0, unknownRetriesAttempted: 0, unknownReplaced: 0 };
+  const run: RunCounters = { listingsFinalized: 0, probesAttempted: 0, requestAttempts: 0, retries: 0, elapsedMs: 0, unknownRetriesAttempted: 0, unknownReplaced: 0, sourceMissing: 0 };
   cp.pendingFrom = null;
 
   const overTime = () => now() - startedAt > budgets.runTimeBudgetMs;
@@ -438,15 +515,43 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   };
 
   // ── Phase 0: retryable-unknown queue (RESUME REPAIR) — before any pages ──
+  // Each queued listing is RE-EVALUATED against CURRENT Neon state first: if
+  // it no longer needs a Cotality probe (gained active/legacy media, went
+  // hidden, became Mallan-owned) its inventory is rebuilt from Neon with ZERO
+  // provider calls; if it vanished from Neon it becomes a reported
+  // SOURCE_MISSING state (removed from inventory + tally, dequeued) — never a
+  // forever-queued "not re-fetchable". Only genuinely still-probe-needing
+  // listings hit Cotality.
   if (deps.cotality && cp.retryableUnknown.length > 0) {
     const stillQueued: RetryableUnknownEntry[] = [];
     const queue = [...cp.retryableUnknown];
     const rows = await deps.listings.fetchByIds(queue.map((q) => q.listingId));
     const byId = new Map(rows.map((r) => [r.listing_id, r]));
     for (const entry of queue) {
-      if (overTime() || run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); continue; }
       const row = byId.get(entry.listingId);
-      if (!row) { stillQueued.push({ ...entry, lastReason: 'listing not re-fetchable' }); continue; }
+      if (!row) {
+        // Listing removed from Neon between runs — deterministic policy:
+        // drop its stale inventory record + tally slot and dequeue. Counted
+        // separately as source-missing.
+        const idx = cp.inventory.findIndex((r) => r.listingId === entry.listingId);
+        if (idx >= 0) {
+          cp.tally[cp.inventory[idx].bucket] -= 1;
+          cp.inventory.splice(idx, 1);
+          cp.processed -= 1;
+          seen.clear();
+          for (const r of cp.inventory) seen.add(r.listingId);
+        }
+        run.sourceMissing += 1;
+        reasons.add(`listing ${entry.listingId} removed from Neon since last run — dropped (source-missing)`);
+        continue;
+      }
+      // RE-EVALUATE: does it still need a provider probe at all?
+      if (!needsCotalityProbe(row)) {
+        replaceInventoryRecord(cp, buildInventoryRow(row, { status: 'unknown', reason: 'no longer needs a Cotality probe (Neon state changed)' }));
+        run.unknownReplaced += 1;
+        continue; // ZERO Cotality requests
+      }
+      if (overTime() || run.probesAttempted >= budgets.maxCotalityProbes) { stillQueued.push(entry); continue; }
       run.probesAttempted += 1;
       run.unknownRetriesAttempted += 1;
       const probe = await probeListingMedia(deps.cotality, row.listing_id, budgets, acct);
@@ -538,6 +643,8 @@ export async function runAudit(deps: AuditDeps): Promise<AuditResult> {
   const scanComplete = reasons.size === 0 || ![...reasons].some((r) => r.includes('pending') || r.includes('max-listings') || r.includes('time budget'));
   const unresolvedU = cp.inventory.filter((r) => r.cotality.status === 'unknown' && r.bucket === 'U').length;
   const coverageComplete = scanComplete && unresolvedU === 0 && cp.retryableUnknown.length === 0;
+  // (source-missing drops are surfaced in incompleteReasons; they reduce the
+  //  candidate set rather than leaving coverage unverified.)
   if (cp.retryableUnknown.length > 0) reasons.add(`${cp.retryableUnknown.length} listing(s) queued as retryable UNKNOWN (resume to re-probe)`);
   if (unresolvedU > 0 && !deps.cotality) reasons.add(`${unresolvedU} listing(s) UNVERIFIED (Neon-only run — coverage NOT verified)`);
   else if (unresolvedU > cp.retryableUnknown.length) reasons.add(`${unresolvedU - cp.retryableUnknown.length} listing(s) remain permanent UNKNOWN`);

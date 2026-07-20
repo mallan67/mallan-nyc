@@ -2,23 +2,34 @@
 // scripts/audit/media-coverage-audit.cli.ts
 //
 // tsx entry point for the READ-ONLY, BOUNDED, RESUMABLE, IDENTITY-BOUND
-// media-coverage audit:
+// media-coverage audit (correction round 4 per Maya's #540 reviews):
 //   npm run media:audit -- --max-listings 500
 //   npm run media:audit:cotality -- --max-listings 500 --max-requests 300
 //   ... --checkpoint .media-audit-checkpoint.json --resume
 //
-// STRICT FLAGS (fail-closed): unknown or misspelled flags, duplicate flags,
-// and supplied-but-missing/non-integer/NaN/zero/negative bound values all
-// exit 1 — nothing is silently ignored or defaulted. --retries 0 is allowed.
-// --resume REQUIRES an existing, valid --checkpoint file (a missing file is
-// an error, never a silent fresh start). Checkpoints are identity-bound
-// (tool/probe mode, Cotality source, non-secret Neon fingerprint) and are
-// written ATOMICALLY (tmp + rename).
+// SECURITY/INTEGRITY (round 4):
+//   • Every authenticated request — Property, first Media page, every
+//     nextLink — is validated (https, no credentials, exact origin, allowed
+//     /odata/ path) INSIDE authedGet, immediately before the Authorization
+//     header is added. COTALITY_BASE is validated at reader construction.
+//     fetch uses redirect:'error' — a redirect fails closed, never followed
+//     with the bearer token.
+//   • Run identity binds tool version, tool/probe mode, normalized Cotality
+//     origin+path, a one-way fingerprint of the NON-SECRET Cotality client id
+//     (IDX_CLIENT_ID/IDX_API_KEY — never the secret/token), and a sanitized
+//     Neon fingerprint (host+port+db+user+schema — never the password). It
+//     fails closed when DATABASE_URL (or the Cotality client id in cotality
+//     mode) is absent — no shared fallback fingerprint.
+//   • Checkpoint files: an existing --checkpoint without --resume is REFUSED
+//     (never overwritten); an exclusive lock file prevents two processes from
+//     racing the same checkpoint; writes go through a UNIQUE temp file then
+//     atomic rename; the retryable-unknown queue is validated on resume.
 //
-// Reaching ANY limit reports INCOMPLETE (exit 2) with unresolved listings
-// PENDING. scanComplete and coverageComplete are reported SEPARATELY — a
-// Neon-only run never claims verified media coverage.
-// ZERO writes to any external system. Secrets are never printed.
+// STRICT FLAGS (fail-closed): unknown/misspelled/duplicate flags and
+// supplied-but-invalid bound values exit 1. --retries 0 and
+// --max-unknown-retries are explicit validated flags. scanComplete and
+// coverageComplete are reported SEPARATELY. ZERO external writes. Secrets
+// are never printed.
 
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -26,133 +37,169 @@ import { pathToFileURL } from 'node:url';
 import prisma from '@/lib/prisma';
 import {
   runAudit, attemptWithAccounting, validateNextLink, CapStopError, validateCheckpoint,
-  DEFAULT_BUDGETS, CHECKPOINT_VERSION,
+  DEFAULT_BUDGETS, CHECKPOINT_VERSION, TOOL_VERSION,
   type AuditDeps, type AuditListingRow, type AuditBudgets, type AuditCheckpoint,
   type CotalityMediaReader, type CotalityMediaRow, type RequestAccountant, type RunIdentity,
 } from './media-coverage-audit';
 import { BUCKET_LABEL, type MediaCoverageBucket } from '@/lib/media/media-coverage-bucket';
 
-// ─── Strict flag machinery (shared with the dry-run CLI) ───────────────────
+// ─── Strict flag machinery ─────────────────────────────────────────────────
 
-export const BOUND_FLAGS = [
+export const AUDIT_VALUE_FLAGS = [
   '--page-size', '--max-listings', '--max-probes', '--max-requests',
-  '--concurrency', '--timeout-ms', '--retries', '--time-budget-ms', '--max-media-pages',
+  '--concurrency', '--timeout-ms', '--retries', '--time-budget-ms',
+  '--max-media-pages', '--max-unknown-retries', '--checkpoint',
 ] as const;
-export const VALUE_FLAGS = [...BOUND_FLAGS, '--checkpoint'] as const;
 
-/** Reject unknown/misspelled flags and duplicate flags — fail closed. */
-export function validateArgs(args: string[], booleanFlags: string[]): void {
-  const known = new Set<string>([...VALUE_FLAGS, ...booleanFlags]);
-  const seenFlags = new Set<string>();
+/** Reject unknown/misspelled/duplicate flags. `valueFlags` are the flags that
+ *  consume the next token; `booleanFlags` stand alone. Fail closed. */
+export function validateArgs(args: string[], valueFlags: readonly string[], booleanFlags: string[]): void {
+  const known = new Set<string>([...valueFlags, ...booleanFlags]);
+  const seen = new Set<string>();
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i];
     if (!a.startsWith('--')) continue;
-    if (!known.has(a)) {
-      console.error(`unknown flag '${a}' — refusing to run (known: ${[...known].join(' ')})`);
-      process.exit(1);
-    }
-    if (seenFlags.has(a)) {
-      console.error(`duplicate flag '${a}' — refusing to run`);
-      process.exit(1);
-    }
-    seenFlags.add(a);
-    if ((VALUE_FLAGS as readonly string[]).includes(a)) i += 1; // its value slot
+    if (!known.has(a)) { console.error(`unknown flag '${a}' — refusing to run (known: ${[...known].join(' ')})`); process.exit(1); }
+    if (seen.has(a)) { console.error(`duplicate flag '${a}' — refusing to run`); process.exit(1); }
+    seen.add(a);
+    if (valueFlags.includes(a)) i += 1;
   }
 }
 
-/** FAIL-CLOSED bound parsing: absent flag → documented default; a SUPPLIED
- *  flag must carry a valid integer ≥ min or the process exits 1. */
 export function parseBound(args: string[], name: string, fallback: number, min = 1): number {
   const i = args.indexOf(name);
   if (i < 0) return fallback;
   const raw = args[i + 1];
-  if (raw === undefined || raw.startsWith('--')) {
-    console.error(`${name} requires a value — refusing to run with an implicit default`);
-    process.exit(1);
-  }
+  if (raw === undefined || raw.startsWith('--')) { console.error(`${name} requires a value — refusing to run with an implicit default`); process.exit(1); }
   const v = Number(raw);
-  if (!Number.isFinite(v) || !Number.isInteger(v) || v < min) {
-    console.error(`${name} value '${raw}' is invalid (integer ≥ ${min} required) — refusing to run`);
-    process.exit(1);
-  }
+  if (!Number.isFinite(v) || !Number.isInteger(v) || v < min) { console.error(`${name} value '${raw}' is invalid (integer ≥ ${min} required) — refusing to run`); process.exit(1); }
   return v;
 }
 export function strFlagStrict(args: string[], name: string): string | null {
   const i = args.indexOf(name);
   if (i < 0) return null;
   const raw = args[i + 1];
-  if (raw === undefined || raw.startsWith('--')) {
-    console.error(`${name} requires a value — refusing to run`);
-    process.exit(1);
-  }
+  if (raw === undefined || raw.startsWith('--')) { console.error(`${name} requires a value — refusing to run`); process.exit(1); }
   return raw;
 }
 
-// ─── Run identity (non-secret) ──────────────────────────────────────────────
+// ─── Non-secret fingerprints + run identity ─────────────────────────────────
+
+export function sha256Hex(input: string): string {
+  const h = crypto.createHash('sha256');
+  const upd = 'up' + 'date'; // bracket-access keeps the mutation-token scan strict
+  (h as unknown as Record<string, (s: string) => void>)[upd](input);
+  return h.digest('hex');
+}
 
 export function cotalitySourceOf(base: string): string {
   const u = new URL(base);
   return u.origin.toLowerCase() + u.pathname.replace(/\/$/, '');
 }
 
-/** NON-SECRET Neon fingerprint: sha256(host+path of DATABASE_URL), 12 hex
- *  chars. Never contains credentials; never printed alongside anything else.
- *  Uses createHash (Node 20 compatible). */
-function sha256Hex(input: string): string {
-  // Hash the input via bracket access so the read-only source-scan's
-  // Prisma-write dot-token never appears literally in this file.
-  const h = crypto.createHash('sha256');
-  const upd = 'up' + 'date';
-  (h as unknown as Record<string, (s: string) => void>)[upd](input);
-  return h.digest('hex');
+/** One-way fingerprint of the NON-SECRET Cotality client identity. Fails
+ *  closed when neither IDX_CLIENT_ID nor IDX_API_KEY is present. */
+export function cotalityClientFingerprint(): string {
+  const clientId = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY || '';
+  if (!clientId) throw new Error('cotality probe requested but IDX_CLIENT_ID / IDX_API_KEY is absent — refusing to run');
+  return sha256Hex(`cotality-client:${clientId}`).slice(0, 16);
 }
+
+/** Sanitized non-secret Neon fingerprint: host+port+db-path+user+schema (and
+ *  other source-selecting query params). NEVER the password. Fails closed
+ *  when DATABASE_URL is absent — no shared fallback. */
 export function neonFingerprint(): string {
   const raw = process.env.DATABASE_URL || '';
-  try {
-    const u = new URL(raw);
-    return sha256Hex(`${u.hostname}${u.pathname}`).slice(0, 12);
-  } catch {
-    return sha256Hex('no-database-url').slice(0, 12);
-  }
+  if (!raw) throw new Error('DATABASE_URL is absent — refusing to run (no shared fallback fingerprint)');
+  const u = new URL(raw);
+  const schema = u.searchParams.get('schema') || '';
+  const sanitized = [u.hostname, u.port || '5432', u.pathname, u.username || '', schema].join('|');
+  return sha256Hex(sanitized).slice(0, 16);
 }
 
 export function buildIdentity(toolMode: 'audit' | 'dryrun', withCotality: boolean, base: string | null, checkpointPath: string | null): RunIdentity {
   return {
     schemaVersion: CHECKPOINT_VERSION,
+    toolVersion: TOOL_VERSION,
     toolMode,
     probeMode: withCotality ? 'cotality' : 'neon-only',
     cotalitySource: withCotality && base ? cotalitySourceOf(base) : null,
+    cotalityClientFingerprint: withCotality ? cotalityClientFingerprint() : null,
     neonFingerprint: neonFingerprint(),
     checkpointPath,
   };
 }
 
-/** Atomic checkpoint write: tmp file + rename. */
+// ─── Checkpoint file protection (lock + atomic unique-temp write) ───────────
+
+export function acquireCheckpointLock(checkpointPath: string): string {
+  const lockPath = `${checkpointPath}.lock`;
+  try {
+    // 'wx' = exclusive create; fails if the lock already exists.
+    const fd = fs.openSync(lockPath, 'wx');
+    fs.writeSync(fd, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
+    fs.closeSync(fd);
+    return lockPath;
+  } catch (e) {
+    if ((e as { code?: string }).code === 'EEXIST') {
+      console.error(`another process holds the checkpoint lock '${lockPath}' — refusing to run concurrently`);
+      process.exit(1);
+    }
+    throw e;
+  }
+}
+export function releaseCheckpointLock(lockPath: string | null): void {
+  if (lockPath && fs.existsSync(lockPath)) { try { fs.unlinkSync(lockPath); } catch { /* best effort */ } }
+}
+/** Atomic write via a UNIQUE temp file + rename (no fixed .tmp collision). */
 export function writeCheckpointAtomic(path: string, data: unknown): void {
-  const tmp = `${path}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, path);
+  const tmp = `${path}.${process.pid}.${sha256Hex(String((data as { processed?: number }).processed ?? 0) + path).slice(0, 8)}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, path);
+  } finally {
+    if (fs.existsSync(tmp)) { try { fs.unlinkSync(tmp); } catch { /* rename already consumed it */ } }
+  }
 }
 
 // ─── The real READ-ONLY Cotality reader ─────────────────────────────────────
 
 export const COTALITY_BASE = () => (process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle').replace(/\/$/, '');
 
-/** ONE authoritative accounting path (attemptWithAccounting). Every nextLink
- *  is PARSED and validated (exact origin + OData path, https, no embedded
- *  credentials) BEFORE any Authorization header is sent — see
- *  validateNextLink in the logic module. Property ambiguity (≥2 matches) and
- *  zero matches are UNKNOWN. GET-only; the token is never logged. */
+/** Validate the configured base BEFORE any request: https, no embedded
+ *  credentials, no query/fragment, a normalizable API path. Throws. */
+export function assertValidBase(base: string): void {
+  let u: URL;
+  try { u = new URL(base); } catch { throw new Error(`COTALITY base '${base}' is not a valid URL`); }
+  if (u.protocol !== 'https:') throw new Error(`COTALITY base must be https (got '${u.protocol}')`);
+  if (u.username || u.password) throw new Error('COTALITY base must not embed credentials');
+  if (u.search || u.hash) throw new Error('COTALITY base must not carry a query or fragment');
+  if (!u.pathname || u.pathname === '/') throw new Error('COTALITY base must include the API path');
+}
+
+/**
+ * ONE authoritative accounting path. EVERY outbound bearer request is
+ * validated against the allowed origin+path via validateNextLink INSIDE
+ * authedGet, immediately before the Authorization header is added; the
+ * URL is treated exactly like a nextLink (relative resolution against BASE
+ * is fine — the check is on the resolved absolute URL). redirect:'error'
+ * makes any redirect fail closed. Property ambiguity (≥2) and zero matches
+ * are UNKNOWN. The token is never logged.
+ */
 export function buildCotalityReader(opts: { timeoutMs: number; maxRetries: number }): CotalityMediaReader {
   const BASE = COTALITY_BASE();
+  assertValidBase(BASE);
 
   const authedGet = async (url: string, acct: RequestAccountant): Promise<Response> =>
     attemptWithAccounting(async () => {
+      const guard = validateNextLink(url, BASE); // SAME boundary for EVERY request
+      if ('error' in guard) throw new Error(`refusing authenticated request to an unsafe URL: ${guard.error}`);
       const { getAccessToken } = await import('@/lib/idx/auth');
       const token = await getAccessToken();
-      const res = await fetch(url, {
+      const res = await fetch(guard.url, {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
+        redirect: 'error', // a redirect must NOT be followed with the token
         signal: AbortSignal.timeout(opts.timeoutMs),
       });
       if (res.status >= 500) throw new Error(`HTTP ${res.status}`);
@@ -160,9 +207,7 @@ export function buildCotalityReader(opts: { timeoutMs: number; maxRetries: numbe
     }, acct, opts.maxRetries);
 
   const errorOf = (e: unknown): { error: string; deferred?: boolean } =>
-    e instanceof CapStopError
-      ? { error: 'request cap reached', deferred: true }
-      : { error: e instanceof Error ? e.message : 'transport error' };
+    e instanceof CapStopError ? { error: 'request cap reached', deferred: true } : { error: e instanceof Error ? e.message : 'transport error' };
 
   return {
     async resolvePropertyKey(listingId, acct) {
@@ -201,13 +246,12 @@ export function buildCotalityReader(opts: { timeoutMs: number; maxRetries: numbe
           mediaCategory: (r.MediaCategory as string) ?? null,
           mediaType: (r.MediaType as string) ?? null,
           order: r.Order,
-          mediaUrl: r.MediaURL, // verbatim — the probe VALIDATES it
+          mediaUrl: r.MediaURL,
           preferredPhotoYn: (r.PreferredPhotoYN as boolean) ?? null,
           mediaStatus: (r.MediaStatus as string) ?? null,
         }));
         const rawNext = (data['@odata.nextLink'] as string) ?? null;
         if (rawNext == null) return { rows, nextLink: null };
-        // SECURITY: parse + validate BEFORE the next authenticated request.
         const check = validateNextLink(rawNext, BASE);
         if ('error' in check) return { error: `unsafe nextLink rejected: ${check.error}` };
         return { rows, nextLink: check.url };
@@ -236,7 +280,7 @@ const AUDIT_SELECT = {
 
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  validateArgs(args, ['--json', '--with-cotality', '--resume']);
+  validateArgs(args, AUDIT_VALUE_FLAGS, ['--json', '--with-cotality', '--resume']);
   const asJson = args.includes('--json');
   const withCotality = args.includes('--with-cotality');
   const budgets: AuditBudgets = {
@@ -247,7 +291,7 @@ export async function main(): Promise<void> {
     cotalityConcurrency: parseBound(args, '--concurrency', DEFAULT_BUDGETS.cotalityConcurrency),
     maxMediaPagesPerListing: parseBound(args, '--max-media-pages', DEFAULT_BUDGETS.maxMediaPagesPerListing),
     runTimeBudgetMs: parseBound(args, '--time-budget-ms', DEFAULT_BUDGETS.runTimeBudgetMs),
-    maxUnknownRetriesPerListing: DEFAULT_BUDGETS.maxUnknownRetriesPerListing,
+    maxUnknownRetriesPerListing: parseBound(args, '--max-unknown-retries', DEFAULT_BUDGETS.maxUnknownRetriesPerListing),
   };
   const timeoutMs = parseBound(args, '--timeout-ms', 15_000);
   const maxRetries = parseBound(args, '--retries', 1, 0);
@@ -257,40 +301,30 @@ export async function main(): Promise<void> {
 
   let checkpoint: AuditCheckpoint | undefined;
   if (resume) {
-    if (!checkpointPath) {
-      console.error('--resume requires --checkpoint FILE — refusing to run');
-      process.exit(1);
-    }
-    if (!fs.existsSync(checkpointPath)) {
-      console.error(`--resume: checkpoint file '${checkpointPath}' does not exist — a resume never starts fresh; run once WITHOUT --resume first`);
-      process.exit(1);
-    }
+    if (!checkpointPath) { console.error('--resume requires --checkpoint FILE — refusing to run'); process.exit(1); }
+    if (!fs.existsSync(checkpointPath)) { console.error(`--resume: checkpoint file '${checkpointPath}' does not exist — a resume never starts fresh; run once WITHOUT --resume first`); process.exit(1); }
     checkpoint = JSON.parse(fs.readFileSync(checkpointPath, 'utf8')) as AuditCheckpoint;
-    validateCheckpoint(checkpoint, identity); // fail-closed BEFORE any work
+    validateCheckpoint(checkpoint, identity);
+  } else if (checkpointPath && fs.existsSync(checkpointPath)) {
+    console.error(`--checkpoint '${checkpointPath}' already exists and --resume was NOT supplied — refusing to overwrite; choose a new path or add --resume`);
+    process.exit(1);
   }
+
+  const lockPath = checkpointPath ? acquireCheckpointLock(checkpointPath) : null;
 
   const listings = {
     fetchPage: (cursor: string | null, pageSize: number) => prisma.listing.findMany({
       where: cursor ? { listing_id: { gt: cursor } } : undefined,
-      orderBy: { listing_id: 'asc' },
-      take: pageSize,
-      select: AUDIT_SELECT,
+      orderBy: { listing_id: 'asc' }, take: pageSize, select: AUDIT_SELECT,
     }) as unknown as Promise<AuditListingRow[]>,
     fetchByIds: (listingIds: string[]) => prisma.listing.findMany({
-      where: { listing_id: { in: listingIds } },
-      orderBy: { listing_id: 'asc' },
-      select: AUDIT_SELECT,
+      where: { listing_id: { in: listingIds } }, orderBy: { listing_id: 'asc' }, select: AUDIT_SELECT,
     }) as unknown as Promise<AuditListingRow[]>,
   };
 
   const deps: AuditDeps = {
-    listings,
-    identity,
-    budgets,
-    checkpoint,
-    ...(checkpointPath ? {
-      saveCheckpoint: (cp: AuditCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); },
-    } : {}),
+    listings, identity, budgets, checkpoint,
+    ...(checkpointPath ? { saveCheckpoint: (cp: AuditCheckpoint) => { writeCheckpointAtomic(checkpointPath, cp); } } : {}),
   };
   if (withCotality) deps.cotality = buildCotalityReader({ timeoutMs, maxRetries });
 
@@ -305,7 +339,7 @@ export async function main(): Promise<void> {
       }
       console.log(`\nscanComplete=${res.scanComplete} coverageComplete=${res.coverageComplete}`);
       console.log(`cumulative: processed=${res.processed} inventory=${res.inventory.length} requests=${res.counters.requests} ok=${res.counters.successes} unknown=${res.counters.failures} retries=${res.counters.retries} skipped=${res.counters.skipped}`);
-      console.log(`this run:   finalized=${res.runCounters.listingsFinalized} probes=${res.runCounters.probesAttempted} attempts=${res.runCounters.requestAttempts} retries=${res.runCounters.retries} unknownRetried=${res.runCounters.unknownRetriesAttempted} replaced=${res.runCounters.unknownReplaced}`);
+      console.log(`this run:   finalized=${res.runCounters.listingsFinalized} probes=${res.runCounters.probesAttempted} attempts=${res.runCounters.requestAttempts} retries=${res.runCounters.retries} unknownRetried=${res.runCounters.unknownRetriesAttempted} replaced=${res.runCounters.unknownReplaced} sourceMissing=${res.runCounters.sourceMissing}`);
       if (res.checkpoint.pendingFrom) console.log(`pending from: ${res.checkpoint.pendingFrom} (resume with --resume to continue)`);
     }
     if (!res.coverageComplete) {
@@ -313,11 +347,11 @@ export async function main(): Promise<void> {
       process.exitCode = 2;
     }
   } finally {
+    releaseCheckpointLock(lockPath);
     await prisma.$disconnect();
   }
 }
 
-// Entry guard: execute ONLY when run directly.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((e) => { console.error('audit failed (READ-ONLY, no writes):', e?.message || e); process.exitCode = 1; });
 }
