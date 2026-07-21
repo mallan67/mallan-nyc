@@ -58,20 +58,44 @@ export function buildPropertyQuery(cursor: PropertyCursor, top: number): URLSear
 }
 
 /**
- * Advance the cursor to the last CONTIGUOUSLY-processed record.
+ * Advance the cursor to the last SAFELY-resumable processed position.
  *
- * Walks `processed` in order and stops at the first non-ok record, returning
- * the (ts, key) of the record just before it. If the first record failed, or
- * the run processed nothing, returns null — the caller preserves the prior
- * cursor (never advance past an unprocessed record).
+ * Two rules, both required for skip-safety:
+ *  1. Contiguity — walk in order and stop at the first non-ok record; never
+ *     advance past an unprocessed record.
+ *  2. Tie-block safety (live finding 2026-07-21) — the server does NOT order a
+ *     tied-`ModificationTimestamp` block by the tiebreak key, so a `key gt`
+ *     resume inside such a block would SKIP rows. Therefore the cursor must
+ *     never land INSIDE a timestamp group that is not fully processed: if the
+ *     contiguous-ok prefix ends in a timestamp `tsL` that also appears AFTER the
+ *     prefix (i.e. that group is split), back off to the last processed record
+ *     whose timestamp is strictly less than `tsL`.
+ *
+ * Returns null when nothing can be safely advanced (first record failed, empty
+ * run, or the whole ok-prefix is one incomplete tie block) — the caller then
+ * preserves the prior cursor. The caller must independently guarantee the run
+ * fully drained each timestamp it advances past (follow `@odata.nextLink` to
+ * exhaustion; an incomplete drain must not mark trailing records ok).
  */
 export function advancePropertyCursor(
   processed: ProcessedRecord[],
 ): { ts: string; key: string } | null {
-  let last: { ts: string; key: string } | null = null;
-  for (const r of processed) {
-    if (!r.ok) break;
-    last = { ts: r.ts, key: r.key };
+  // Rule 1: last contiguously-ok index.
+  let lastOk = -1;
+  for (let i = 0; i < processed.length; i++) {
+    if (!processed[i].ok) break;
+    lastOk = i;
   }
-  return last;
+  if (lastOk < 0) return null;
+
+  // Rule 2: is the tie group at the boundary timestamp split across the prefix?
+  const tsL = processed[lastOk].ts;
+  const tieSplit = processed.some((r, i) => i > lastOk && r.ts === tsL);
+  if (!tieSplit) return { ts: processed[lastOk].ts, key: processed[lastOk].key };
+
+  // Back off to the last processed record with a strictly-earlier timestamp.
+  for (let i = lastOk; i >= 0; i--) {
+    if (processed[i].ts !== tsL) return { ts: processed[i].ts, key: processed[i].key };
+  }
+  return null;
 }

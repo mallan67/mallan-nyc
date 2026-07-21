@@ -1,0 +1,147 @@
+{
+  "probe": "live-cotality-pagination",
+  "base": "https://api.cotality.com/trestle",
+  "question": "large result-set server-driven @odata.nextLink pagination",
+  "startedAt": "2026-07-21T07:45:27.977Z",
+  "notes": [],
+  "auth": {
+    "acquired": true,
+    "printed": false
+  },
+  "pages": [
+    {
+      "page": 1,
+      "http": 200,
+      "count": 10,
+      "nextLink_present": true,
+      "nextLink_redacted": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$skip=%3Credacted%3E",
+      "first": {
+        "mt": "2025-01-03T00:15:25.533-00:00",
+        "mk": "2003594970816"
+      },
+      "last": {
+        "mt": "2025-01-03T00:15:25.533-00:00",
+        "mk": "2003595927858"
+      },
+      "resourceNames_all_Property": true,
+      "resourceNames": [
+        "Property"
+      ],
+      "mediaCategory_runtime": [
+        "FloorPlan",
+        "Photo"
+      ],
+      "mediaType_runtime": [
+        "Pdf",
+        "Jpeg"
+      ]
+    },
+    {
+      "page": 2,
+      "http": 200,
+      "count": 10,
+      "nextLink_present": true,
+      "nextLink_redacted": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$skip=%3Credacted%3E",
+      "first": {
+        "mt": "2025-01-03T00:15:25.533-00:00",
+        "mk": "2003594882318"
+      },
+      "last": {
+        "mt": "2025-01-03T00:15:25.533-00:00",
+        "mk": "2003596401041"
+      },
+      "resourceNames_all_Property": true,
+      "resourceNames": [
+        "Property"
+      ],
+      "mediaCategory_runtime": [
+        "Photo",
+        "FloorPlan"
+      ],
+      "mediaType_runtime": [
+        "Jpeg",
+        "Pdf"
+      ]
+    },
+    {
+      "page": 3,
+      "http": 200,
+      "count": 10,
+      "nextLink_present": true,
+      "nextLink_redacted": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$skip=%3Credacted%3E",
+      "first": {
+        "mt": "2025-01-03T00:15:25.533-00:00",
+        "mk": "2003596421714"
+      },
+      "last": {
+        "mt": "2025-01-03T00:15:25.533-00:00",
+        "mk": "2003596236665"
+      },
+      "resourceNames_all_Property": true,
+      "resourceNames": [
+        "Property"
+      ],
+      "mediaCategory_runtime": [
+        "Photo",
+        "FloorPlan"
+      ],
+      "mediaType_runtime": [
+        "Jpeg",
+        "Pdf"
+      ]
+    }
+  ],
+  "summary": {
+    "pages_walked": 3,
+    "page1_nextLink_present": true,
+    "all_pages_200": true,
+    "duplicate_mediakeys_across_pages": 0,
+    "boundary_continuous_no_skip_no_overlap": false,
+    "within_page_order_monotonic": false,
+    "total_unique_keys": 30,
+    "pagination_proven": false
+  },
+  "request_log": [
+    {
+      "seq": 1,
+      "label": "page-1",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E",
+      "status": 200,
+      "ms": 2860,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "date": "Tue, 21 Jul 2026 07:45:31 GMT"
+      }
+    },
+    {
+      "seq": 2,
+      "label": "page-2",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$skip=%3Credacted%3E",
+      "status": 200,
+      "ms": 2491,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "date": "Tue, 21 Jul 2026 07:45:33 GMT"
+      }
+    },
+    {
+      "seq": 3,
+      "label": "page-3",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$skip=%3Credacted%3E",
+      "status": 200,
+      "ms": 2835,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "date": "Tue, 21 Jul 2026 07:45:36 GMT"
+      }
+    }
+  ],
+  "total_requests": 3,
+  "finishedAt": "2026-07-21T07:45:36.687Z"
+}
