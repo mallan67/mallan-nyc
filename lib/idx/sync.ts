@@ -428,6 +428,15 @@ export async function syncListings(
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
 
+  // Correction 4 — fail-closed watermark bookkeeping. Each FAILED record's
+  // cursor key (max of its MT/PCT instants) caps how far the persisted
+  // SyncState watermark may advance this run, so a failed listing is
+  // re-fetched by the next incremental pass instead of being silently
+  // skipped forever. An unparseable failed key freezes the watermark
+  // entirely (strictest fail-closed).
+  const failedCursorKeys: number[] = [];
+  let watermarkFrozen = false;
+
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
     // Stage marker so the shared catch attributes the failure to the write
     // path that actually threw (failure isolation — a failed row is counted
@@ -712,6 +721,18 @@ export async function syncListings(
       } else {
         listingCounters.rows_failed++;
       }
+      // Correction 4: cap the watermark below this failed record so it is
+      // re-fetched next run (filter is `MT/PCT gt watermark`).
+      {
+        const fMt = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)) : null;
+        const fPct = raw.PhotosChangeTimestamp ? new Date(String(raw.PhotosChangeTimestamp)) : null;
+        const fKey = Math.max(
+          fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
+          fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
+        );
+        if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
+        else watermarkFrozen = true; // cannot bound the failure → freeze (fail closed)
+      }
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
       const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
       console.error(`[IDX Sync] Error upserting listing ${listingId}:`, err);
@@ -757,7 +778,10 @@ export async function syncListings(
   // ── Batch-fetch media for listings that didn't get inline media ──
   // When $expand=Media was disabled (large syncs), fetch photos separately
   // and update DB records. Uses Trestle Media endpoint (separate quota: 18K req/hr).
-  if (!useExpandMedia && upserted > 0) {
+  // Correction 1: gate on PROCESSED records (rows_checked — reached the write
+  // decision), NOT on physical listing writes. A fully-suppressed batch must
+  // still fetch + reconcile media; the media path has its own suppression.
+  if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
       // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
       // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
@@ -959,6 +983,20 @@ export async function syncListings(
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
     advanceWatermark = fetchResult.records.length > 0;
+
+    // Correction 4 — contiguous-success watermark (fail-closed): when any
+    // record FAILED this run, the persisted watermark is capped 1ms BELOW the
+    // earliest failed cursor key so the `gt watermark` incremental filter
+    // re-fetches the failed record (and everything after it — idempotent and
+    // cheap now that unchanged re-emits are suppressed). getLastSyncTimestamp
+    // honors this via the error-run clamp. An unbounded failure freezes the
+    // watermark entirely. last_run_status stays "error" — a partial run is
+    // NEVER reported successful.
+    if (watermarkFrozen) {
+      advanceWatermark = false;
+    } else if (failedCursorKeys.length > 0) {
+      batchWatermark = new Date(Math.min(...failedCursorKeys) - 1);
+    }
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -1469,7 +1507,38 @@ export async function getLastSyncTimestamp(): Promise<Date | null> {
     select: { modification_timestamp: true },
   });
 
-  return latest?.modification_timestamp ?? null;
+  const dbCursor = latest?.modification_timestamp ?? null;
+  if (!dbCursor) return null;
+
+  // Correction 4 — error-run clamp (fail-closed retry window): when the last
+  // sync run FAILED, syncListings persisted SyncState.last_watermark as the
+  // contiguous-success watermark (capped below the earliest failed record).
+  // The DB-derived cursor (MAX modification_timestamp) may have advanced PAST
+  // that failed record via later successful upserts in the same batch, which
+  // would permanently exclude it from the `gt since` incremental filter. The
+  // clamp only ever LOWERS the cursor (legacy now-based watermarks are newer
+  // than the DB cursor and are ignored), and only while the last run status
+  // is non-ok. Best-effort: a SyncState read failure falls back to the DB
+  // cursor (same behavior as before this fix).
+  try {
+    const state = await prisma.syncState.findUnique({
+      where: { resource: "Property" },
+      select: { last_watermark: true, last_run_status: true },
+    });
+    if (
+      state &&
+      state.last_run_status !== null &&
+      state.last_run_status !== "ok" &&
+      state.last_watermark &&
+      state.last_watermark < dbCursor
+    ) {
+      return state.last_watermark;
+    }
+  } catch {
+    // fall through to the DB cursor
+  }
+
+  return dbCursor;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1744,7 +1813,9 @@ export async function syncAgentHistory(
   }
 
   // ── Batch-fetch media for listings without inline media ──
-  if (!useExpandMedia && upserted > 0) {
+  // Correction 1: same decoupled gate as syncListings — processed records,
+  // not physical writes.
+  if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
       // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
       // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.

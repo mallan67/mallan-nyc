@@ -187,6 +187,15 @@ export function listingUpdateMateriallyUnchanged(
       const next = update[key];
       if (next === undefined) continue; // omitted field — nothing would be written
       if (!(key in existing)) return false; // unverifiable → fail closed
+      if (key === "raw_data") {
+        // Correction 3: raw_data may carry the keep-set-preserved Media array
+        // whose signed MediaURLs ROTATE per request under $expand=Media.
+        // Compare through the media-aware canonicalizer so rotation alone
+        // never forces a Listing write; every other raw_data change stays
+        // material.
+        if (!rawDataMateriallyEqual(next, existing[key])) return false;
+        continue;
+      }
       if (!materialValuesEqual(next, existing[key])) return false;
     }
     return true;
@@ -197,7 +206,7 @@ export function listingUpdateMateriallyUnchanged(
   }
 }
 
-/** Hosts whose media URLs carry rotating signatures (never identity). */
+/** Hosts whose media URLs carry rotating signed queries (query != identity). */
 const ROTATING_MEDIA_URL_HOSTS = ["cotality.com", "corelogic.com", "trestle"];
 
 export function isRotatingFeedAssetUrl(url: string): boolean {
@@ -205,10 +214,41 @@ export function isRotatingFeedAssetUrl(url: string): boolean {
   return ROTATING_MEDIA_URL_HOSTS.some((h) => lower.includes(h));
 }
 
+/**
+ * Identity of a ROTATING feed asset URL: normalized origin + pathname.
+ * ONLY the query string / fragment (where the rotating signature lives) is
+ * dropped — a different host or a different media path IS a different asset
+ * (true replacement / provider host migration → material). Malformed URLs
+ * degrade deterministically to the raw string (fail-closed via inequality).
+ */
+export function rotatingUrlIdentity(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.origin.toLowerCase() + u.pathname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * URL identity across the stored/incoming seam:
+ *   - both ROTATING feed URLs → compare origin + pathname (signature ignored)
+ *   - anything else (stable R2/Mallan/other URLs, or mixed rotating-vs-stable
+ *     = delivery-state change) → EXACT string compare.
+ */
+function mediaUrlsEquivalent(a: string, b: string): boolean {
+  if (isRotatingFeedAssetUrl(a) && isRotatingFeedAssetUrl(b)) {
+    return rotatingUrlIdentity(a) === rotatingUrlIdentity(b);
+  }
+  return a === b;
+}
+
 interface LegacyMediaItem {
   url: string;
   mediaType: string;
   order: number;
+  /** Stable RESO MediaKey when the writer preserved it (authoritative identity). */
+  mediaKey?: string | null;
 }
 
 function asLegacyMediaItem(v: unknown): LegacyMediaItem | null {
@@ -220,7 +260,9 @@ function asLegacyMediaItem(v: unknown): LegacyMediaItem | null {
     typeof rec.mediaType === "string" ? rec.mediaType : typeof rec.MediaCategory === "string" ? rec.MediaCategory : "";
   const order = typeof rec.order === "number" ? rec.order : typeof rec.Order === "number" ? rec.Order : Number.NaN;
   if (Number.isNaN(order)) return null;
-  return { url, mediaType, order };
+  const mediaKey =
+    typeof rec.mediaKey === "string" ? rec.mediaKey : typeof rec.MediaKey === "string" ? rec.MediaKey : null;
+  return { url, mediaType, order, mediaKey };
 }
 
 /**
@@ -230,9 +272,13 @@ function asLegacyMediaItem(v: unknown): LegacyMediaItem | null {
  * the older JSON-array write path only.
  *
  * Equal ⇔ same length AND per-index items agree on mediaType + order AND
- * URL identity, where two ROTATING feed URLs (Trestle/Cotality signed) are
- * considered identical regardless of their signature. A stored stable URL
- * (e.g. R2) vs an incoming feed URL is a DELIVERY-STATE change → not equal.
+ * asset identity, where asset identity is:
+ *   1. stable MediaKey when BOTH sides carry it (authoritative), else
+ *   2. for two ROTATING feed URLs: normalized origin + pathname — ONLY the
+ *      rotating signed query/fragment is ignored; a same-slot asset
+ *      REPLACEMENT changes the path (or host) and stays material, else
+ *   3. exact URL compare (stable R2/other URLs; rotating-vs-stable is a
+ *      delivery-state change → not equal).
  *
  * Fail-closed: non-array stored media, malformed items, or any comparison
  * error → NOT equal (the write proceeds).
@@ -247,10 +293,62 @@ export function mediaArraysMateriallyEqual(existing: unknown, next: LegacyMediaI
       const incoming = next[i];
       if (stored.mediaType !== incoming.mediaType) return false;
       if (stored.order !== incoming.order) return false;
-      const bothRotating = isRotatingFeedAssetUrl(stored.url) && isRotatingFeedAssetUrl(incoming.url);
-      if (!bothRotating && stored.url !== incoming.url) return false;
+      const storedKey = stored.mediaKey ?? null;
+      const incomingKey = incoming.mediaKey ?? null;
+      if (storedKey !== null && incomingKey !== null) {
+        if (storedKey !== incomingKey) return false;
+      } else if (!mediaUrlsEquivalent(stored.url, incoming.url)) {
+        return false;
+      }
     }
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Canonicalize a raw_data value for MATERIAL comparison: inside the known
+ * `Media` array (preserved by the raw-data keep-set,
+ * lib/compliance/raw-data-keep-fields.ts), rotating signed `MediaURL` /
+ * `Thumbnail` values are replaced by their origin+pathname identity. Nothing
+ * else is altered — real Media path/count/order/metadata changes and every
+ * non-media raw_data change stay fully material. Stable (non-feed) URLs are
+ * left byte-exact.
+ */
+function canonicalizeRawDataMedia(raw: Record<string, unknown>): Record<string, unknown> {
+  const media = raw.Media;
+  if (!Array.isArray(media)) return raw;
+  const canonMedia = media.map((item) => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) return item;
+    const rec = item as Record<string, unknown>;
+    const out: Record<string, unknown> = { ...rec };
+    for (const key of ["MediaURL", "Thumbnail"]) {
+      const v = out[key];
+      if (typeof v === "string" && isRotatingFeedAssetUrl(v)) {
+        out[key] = rotatingUrlIdentity(v);
+      }
+    }
+    return out;
+  });
+  return { ...raw, Media: canonMedia };
+}
+
+/**
+ * Material equality for the `raw_data` column (correction 3). Deep,
+ * key-order-independent compare in which ONLY the rotating signed query of
+ * known feed Media URLs (`raw_data.Media[].MediaURL` / `.Thumbnail`) is
+ * non-identity. Fails closed on malformed input (non-object sides,
+ * canonicalization errors) → CHANGED, never throws.
+ */
+export function rawDataMateriallyEqual(a: unknown, b: unknown): boolean {
+  try {
+    if (typeof a !== "object" || a === null || Array.isArray(a)) return false;
+    if (typeof b !== "object" || b === null || Array.isArray(b)) return false;
+    return materialValuesEqual(
+      canonicalizeRawDataMedia(a as Record<string, unknown>),
+      canonicalizeRawDataMedia(b as Record<string, unknown>),
+    );
   } catch {
     return false;
   }

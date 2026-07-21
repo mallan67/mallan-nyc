@@ -4,6 +4,11 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import {
+  materialValuesEqual,
+  newWritePathCounters,
+  type WritePathCounters,
+} from '@/lib/idx/write-suppression';
 import { EVENT_WEIGHTS, DECAY_HALF_LIFE_DAYS, STAGE_THRESHOLDS } from './config';
 import type { IntentProfileResult, IntentStage, IntentEventType } from './types';
 
@@ -12,7 +17,10 @@ const LAMBDA = Math.LN2 / DECAY_HALF_LIFE_DAYS;
 /**
  * Compute/update intent profile for a lead from their events.
  */
-export async function computeIntentProfile(leadId: bigint): Promise<IntentProfileResult> {
+export async function computeIntentProfile(
+  leadId: bigint,
+  options?: { counters?: WritePathCounters },
+): Promise<IntentProfileResult> {
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
@@ -178,10 +186,66 @@ export async function computeIntentProfile(leadId: bigint): Promise<IntentProfil
     drift_details: driftDetails,
   };
 
-  // Persist profile
+  // Persist profile — write-on-change only (Phase 3, item-6 inventory fix).
+  // `last_computed` means "last MATERIAL result change"; an unchanged profile
+  // performs ZERO writes. `last_event_at` is data-derived (max recorded_at)
+  // and therefore material. NOTE: `intent_strength` uses wall-clock time
+  // decay, so it genuinely drifts across days — suppression mainly dedupes
+  // same-day re-runs and saturated/stable profiles.
   const topFeatures: Record<string, number> = {};
   for (const [k, v] of neighborhoods) topFeatures[`nh:${k}`] = v;
   for (const [k, v] of types) topFeatures[`type:${k}`] = v;
+
+  const materialNext: Record<string, unknown> = {
+    intent_strength: intentStrength,
+    intent_stage: intentStage,
+    price_min: priceMin,
+    price_max: priceMax,
+    preferred_neighborhoods: result.preferred_neighborhoods,
+    preferred_types: result.preferred_types,
+    preferred_beds: result.preferred_beds,
+    amenity_preferences: result.amenity_preferences,
+    preferred_boroughs: result.preferred_boroughs,
+    top_features: topFeatures,
+    event_count: events.length,
+    last_event_at: lastEvent,
+  };
+  const stored = (await prisma.buyerIntentProfile.findUnique({
+    where: { lead_id: leadId },
+    select: {
+      intent_strength: true,
+      intent_stage: true,
+      price_min: true,
+      price_max: true,
+      preferred_neighborhoods: true,
+      preferred_types: true,
+      preferred_beds: true,
+      amenity_preferences: true,
+      preferred_boroughs: true,
+      top_features: true,
+      event_count: true,
+      last_event_at: true,
+    },
+  })) as Record<string, unknown> | null;
+  const unchanged =
+    !!stored &&
+    Object.keys(materialNext).every((key) => materialValuesEqual(materialNext[key], stored[key]));
+  if (unchanged) {
+    if (options?.counters) {
+      options.counters.rows_checked++;
+      options.counters.rows_suppressed_unchanged++;
+    }
+    return result;
+  }
+  if (options?.counters) {
+    options.counters.rows_checked++;
+    if (stored) {
+      options.counters.rows_materially_changed++;
+      options.counters.rows_updated++;
+    } else {
+      options.counters.rows_inserted++;
+    }
+  }
 
   await prisma.buyerIntentProfile.upsert({
     where: { lead_id: leadId },
@@ -231,7 +295,11 @@ function computeStage(strength: number): IntentStage {
 /**
  * Batch recompute stale profiles.
  */
-export async function batchRecompute(batchSize = 50): Promise<number> {
+export async function batchRecompute(batchSize = 50): Promise<{
+  computed: number;
+  write_paths: { intent_profiles: WritePathCounters };
+}> {
+  const counters = newWritePathCounters();
   const stale = new Date();
   stale.setHours(stale.getHours() - 24);
 
@@ -246,11 +314,12 @@ export async function batchRecompute(batchSize = 50): Promise<number> {
   let computed = 0;
   for (const { lead_id } of leads) {
     try {
-      await computeIntentProfile(lead_id);
+      await computeIntentProfile(lead_id, { counters });
       computed++;
     } catch (err) {
+      counters.rows_failed++;
       console.warn(`[buyer-intent] Failed to profile lead ${lead_id}:`, err);
     }
   }
-  return computed;
+  return { computed, write_paths: { intent_profiles: counters } };
 }

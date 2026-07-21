@@ -31,6 +31,7 @@ const mockUpdateMany = jest.fn();
 const mockProjFindUnique = jest.fn();
 const mockProjUpsert = jest.fn();
 const mockSyncStateUpsert = jest.fn();
+const mockSyncStateFindUnique = jest.fn();
 const mockAuditCreate = jest.fn();
 
 jest.mock("@/lib/prisma", () => ({
@@ -48,6 +49,7 @@ jest.mock("@/lib/prisma", () => ({
     },
     syncState: {
       upsert: (args: unknown) => mockSyncStateUpsert(args),
+      findUnique: (args: unknown) => mockSyncStateFindUnique(args),
     },
     auditEvent: {
       create: (args: unknown) => mockAuditCreate(args),
@@ -69,7 +71,7 @@ jest.mock("@/lib/idx/auth", () => ({
   getAccessToken: async () => "mock-token",
 }));
 
-import { syncListings } from "@/lib/idx/sync";
+import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { mapTrestleToPrisma, checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import {
@@ -225,6 +227,7 @@ function mockMediaEndpoint(valueByRun: Array<Record<string, unknown>[]>) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockSyncStateFindUnique.mockResolvedValue(null);
   // Default: media endpoint returns nothing (no media writes attempted).
   global.fetch = jest.fn(async () => ({ ok: false, status: 400, statusText: "Bad Request" })) as unknown as typeof fetch;
 });
@@ -437,5 +440,200 @@ describe("syncListings — failures stay isolated and are never counted as succe
     expect(result.write_paths.listings.rows_updated).toBe(0);
     expect(mockUpsert).not.toHaveBeenCalled();
     expect(result.upserted).toBe(0);
+  });
+});
+
+// ── Correction 1: batch media must run even when ALL listing writes suppressed ──
+
+describe("syncListings — batch media gate is decoupled from physical listing writes", () => {
+  it("fully-suppressed batch still fetches + reconciles media for records lacking inline media", async () => {
+    const rawA = rawRecord();
+    const rawB = rawRecord({ ListingId: "RLS100002", ListingKey: "KEY100002" });
+    const state: StoredState = {
+      listings: new Map([
+        ["RLS100001", dbRowFromRaw(rawA)],
+        ["RLS100002", dbRowFromRaw(rawB)],
+      ]),
+      projections: new Map([
+        ["RLS100001", projectionRowFromRaw(rawA)],
+        ["RLS100002", projectionRowFromRaw(rawB)],
+      ]),
+      mediaByListingId: new Map([
+        // A: stored media identical up to a rotated signature -> suppress.
+        [
+          "RLS100001",
+          [
+            { url: "https://api.cotality.com/trestle/Media/a0.jpg?sig=OLD", mediaType: "Photo", order: -1 },
+            { url: "https://api.cotality.com/trestle/Media/a1.jpg?sig=OLD", mediaType: "Photo", order: 1 },
+          ],
+        ],
+        // B: hero moved -> real change -> must WRITE even though the listing row was suppressed.
+        [
+          "RLS100002",
+          [
+            { url: "https://api.cotality.com/trestle/Media/b0.jpg?sig=OLD", mediaType: "Photo", order: -1 },
+            { url: "https://api.cotality.com/trestle/Media/b1.jpg?sig=OLD", mediaType: "Photo", order: 1 },
+          ],
+        ],
+      ]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
+    mockMediaEndpoint([
+      [
+        { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
+        { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a1.jpg?sig=NEW", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false },
+        { ResourceRecordKey: "KEY100002", MediaURL: "https://api.cotality.com/trestle/Media/b0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: false },
+        { ResourceRecordKey: "KEY100002", MediaURL: "https://api.cotality.com/trestle/Media/b1.jpg?sig=NEW", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: true },
+      ],
+    ]);
+
+    const result = await syncListings({ fullSync: true });
+
+    // Zero physical listing/projection writes...
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(result.upserted).toBe(0);
+    // ...but the media pipeline still executed: fetch + reconciliation ran.
+    expect(global.fetch).toHaveBeenCalled();
+    expect(mockFindFirst).toHaveBeenCalled();
+    expect(result.write_paths.batch_media.rows_checked).toBe(2);
+    expect(result.write_paths.batch_media.rows_suppressed_unchanged).toBe(1);
+    expect(result.write_paths.batch_media.rows_updated).toBe(1);
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+    expect((mockUpdateMany.mock.calls[0][0] as { where: { listing_id: string } }).where.listing_id).toBe("RLS100002");
+  });
+});
+
+// ── Correction 3: rotating URLs inside raw_data.Media must not force writes ──
+
+describe("syncListings — $expand=Media rotation inside raw_data alone -> ZERO listing writes", () => {
+  const inlineMedia = (sig: string) => [
+    { MediaURL: `https://api.cotality.com/trestle/Media/a/0.jpg?token=${sig}`, MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
+    { MediaURL: `https://api.cotality.com/trestle/Media/a/1.jpg?token=${sig}`, MediaCategory: "Photo", Order: 1 },
+  ];
+
+  it("re-emit identical except rotated signed Media URLs -> suppressed", async () => {
+    const rawOld = rawRecord({ Media: inlineMedia("SIG-A") });
+    const rawNew = rawRecord({ Media: inlineMedia("SIG-B-ROTATED") });
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(rawOld)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(rawOld)]]),
+      mediaByListingId: new Map(),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [rawNew], totalFetched: 1 });
+
+    const result = await syncListings({ fullSync: true });
+
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockProjUpsert).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+    expect(result.write_paths.listings.rows_suppressed_unchanged).toBe(1);
+    expect(result.upserted).toBe(0);
+  });
+
+  it("a REAL Media change in raw_data (asset replaced) still writes", async () => {
+    const rawOld = rawRecord({ Media: inlineMedia("SIG-A") });
+    const replaced = rawRecord({
+      Media: [
+        { MediaURL: "https://api.cotality.com/trestle/Media/REPLACED/9.jpg?token=SIG-B", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
+        { MediaURL: "https://api.cotality.com/trestle/Media/a/1.jpg?token=SIG-B", MediaCategory: "Photo", Order: 1 },
+      ],
+    });
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(rawOld)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(rawOld)]]),
+      mediaByListingId: new Map(),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [replaced], totalFetched: 1 });
+
+    const result = await syncListings({ fullSync: true });
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
+    expect(result.write_paths.listings.rows_updated).toBe(1);
+  });
+});
+
+// ── Correction 4: fail-closed watermark (contiguous success) ──
+
+describe("syncListings — watermark never advances past a failed record", () => {
+  it("A ok, B fails, C ok -> persisted watermark stops just below B; run is error", async () => {
+    const MT_A = "2026-07-01T00:00:00.000Z";
+    const MT_B = "2026-07-02T00:00:00.000Z";
+    const MT_C = "2026-07-03T00:00:00.000Z";
+    const rawA = rawRecord({ ModificationTimestamp: MT_A });
+    const rawB = rawRecord({ ListingId: "RLS100002", ListingKey: "KEY100002", ModificationTimestamp: MT_B });
+    const rawC = rawRecord({ ListingId: "RLS100003", ListingKey: "KEY100003", ModificationTimestamp: MT_C });
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(rawA)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(rawA)]]),
+      mediaByListingId: new Map(),
+    };
+    wireMocks(state);
+    mockFindUnique.mockImplementation(async (args: { where: { listing_id: string } }) => {
+      if (args.where.listing_id === "RLS100002") throw new Error("connection reset");
+      return state.listings.get(args.where.listing_id) ?? null;
+    });
+    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB, rawC], totalFetched: 3 });
+
+    const result = await syncListings({ since: new Date("2026-06-30T00:00:00Z") });
+
+    expect(result.errors).toBe(1);
+    expect(mockSyncStateUpsert).toHaveBeenCalledTimes(1);
+    const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
+      create: { last_watermark: Date; last_run_status: string };
+      update: { last_watermark?: Date; last_run_status: string };
+    };
+    const expected = new Date(new Date(MT_B).getTime() - 1);
+    expect(stateArgs.update.last_watermark?.getTime()).toBe(expected.getTime());
+    expect(stateArgs.create.last_watermark.getTime()).toBe(expected.getTime());
+    expect(stateArgs.update.last_run_status).toBe("error");
+  });
+
+  it("no failures -> watermark behavior unchanged (advances; run ok)", async () => {
+    const rawA = rawRecord();
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(rawA)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(rawA)]]),
+      mediaByListingId: new Map(),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
+
+    await syncListings({ fullSync: true });
+    const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
+      update: { last_watermark?: Date; last_run_status: string };
+    };
+    expect(stateArgs.update.last_watermark).toBeInstanceOf(Date);
+    expect(stateArgs.update.last_run_status).toBe("ok");
+  });
+});
+
+describe("getLastSyncTimestamp — error-run cursor clamp", () => {
+  const MT_DB = new Date("2026-07-03T00:00:00.000Z");
+  const CLAMP = new Date("2026-07-01T23:59:59.999Z");
+
+  it("last run errored with an older fail-closed watermark -> cursor clamps to it (failed record re-fetched)", async () => {
+    mockFindFirst.mockResolvedValue({ modification_timestamp: MT_DB });
+    mockSyncStateFindUnique.mockResolvedValue({ last_watermark: CLAMP, last_run_status: "error" });
+    expect((await getLastSyncTimestamp())?.getTime()).toBe(CLAMP.getTime());
+  });
+
+  it("last run ok -> DB cursor used unchanged", async () => {
+    mockFindFirst.mockResolvedValue({ modification_timestamp: MT_DB });
+    mockSyncStateFindUnique.mockResolvedValue({ last_watermark: new Date("2026-07-10T00:00:00Z"), last_run_status: "ok" });
+    expect((await getLastSyncTimestamp())?.getTime()).toBe(MT_DB.getTime());
+  });
+
+  it("error state with a NEWER watermark than the DB cursor (legacy now-based rows) -> DB cursor used (never advance)", async () => {
+    mockFindFirst.mockResolvedValue({ modification_timestamp: MT_DB });
+    mockSyncStateFindUnique.mockResolvedValue({ last_watermark: new Date("2026-07-10T00:00:00Z"), last_run_status: "error" });
+    expect((await getLastSyncTimestamp())?.getTime()).toBe(MT_DB.getTime());
+  });
+
+  it("SyncState read failure -> falls back to the DB cursor (clamp is best-effort, never throws)", async () => {
+    mockFindFirst.mockResolvedValue({ modification_timestamp: MT_DB });
+    mockSyncStateFindUnique.mockRejectedValue(new Error("read failed"));
+    expect((await getLastSyncTimestamp())?.getTime()).toBe(MT_DB.getTime());
   });
 });

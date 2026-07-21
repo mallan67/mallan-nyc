@@ -2,6 +2,12 @@
  * Experiment Metrics Aggregator
  *
  * Auto-concludes PricingExperiment records past their end_date.
+ *
+ * Phase 3 item-6 inventory decision — NO change needed: this weekly cron is
+ * ALREADY write-on-change. It updates a row only on the one-time
+ * active→concluded state transition (end_date reached); unchanged
+ * experiments perform zero writes. No unconditional timestamp refresh
+ * exists on this path.
  */
 import prisma from "@/lib/prisma";
 

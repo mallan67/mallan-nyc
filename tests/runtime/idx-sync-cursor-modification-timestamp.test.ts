@@ -131,9 +131,15 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
     });
 
     it("returns modification_timestamp from the result", () => {
+      // Phase 3 correction 4: the DB cursor is now bound to `dbCursor` first
+      // (so the error-run clamp can compare against it) and returned at the
+      // end. The cursor VALUE is still latest.modification_timestamp; the
+      // clamp only ever LOWERS it to the fail-closed SyncState watermark
+      // (itself derived from source MT/PCT instants, never the local clock).
       expect(functionBody).toMatch(
-        /return\s+latest\??\.\s*modification_timestamp\s*\?\?\s*null\s*;?/
+        /const\s+dbCursor\s*=\s*latest\??\.\s*modification_timestamp\s*\?\?\s*null\s*;?/
       );
+      expect(functionBody).toMatch(/return\s+dbCursor\s*;?/);
     });
   });
 
@@ -163,10 +169,11 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
       // modification_timestamp; last_synced_from_trestle appears only
       // as a where-clause predicate.
       expect(functionBody).toMatch(/orderBy\s*:\s*\{\s*modification_timestamp/);
-      expect(functionBody).toMatch(/select\s*:\s*\{\s*modification_timestamp/);
-      expect(functionBody).toMatch(/return\s+latest\??\.\s*modification_timestamp/);
+      expect(functionBody).toMatch(/select\s*:\s*\{\s*modification_timestamp\s*:\s*true\s*\}/);
+      // Phase 3 correction 4: the value is bound to dbCursor before return.
+      expect(functionBody).toMatch(/const\s+dbCursor\s*=\s*latest\??\.\s*modification_timestamp/);
       expect(functionBody).not.toMatch(/orderBy\s*:\s*\{\s*last_synced_from_trestle/);
-      expect(functionBody).not.toMatch(/select\s*:\s*\{\s*last_synced_from_trestle/);
+      expect(functionBody).not.toMatch(/select\s*:\s*\{\s*last_synced_from_trestle\s*:\s*true/);
       expect(functionBody).not.toMatch(/return\s+latest\??\.\s*last_synced_from_trestle/);
     });
 

@@ -137,6 +137,28 @@ export function demandSignalIdentityWindow(now: Date): { gte: Date; lt: Date } {
 }
 
 /**
+ * Advisory-lock namespace for demand-signal reconciliation (int4 classid of
+ * pg_advisory_xact_lock(int4,int4)). Arbitrary but stable — the pair
+ * (classid, objid) must simply never collide with another lock user.
+ */
+const DEMAND_SIGNAL_LOCK_CLASS = 20260721;
+
+/**
+ * Deterministic 31-bit FNV-1a hash of the logical signal identity, used as
+ * the objid of the advisory xact lock so overlapping collector runs for the
+ * SAME identity serialize their findMany→create window. Collisions between
+ * different identities only cost extra serialization, never correctness.
+ */
+export function demandSignalLockKey(identity: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < identity.length; i++) {
+    h ^= identity.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h & 0x7fffffff;
+}
+
+/**
  * Batch compute demand index for all neighborhoods.
  *
  * Phase 3 write-suppression (surfaces E + F):
@@ -151,6 +173,15 @@ export async function batchComputeDemandIndex(): Promise<{
   neighborhoods: number;
   signals: number;
   alertsFired: number;
+  /**
+   * Pre-existing duplicate rows found inside identity windows this run.
+   * They are NEVER deleted here (no silent cleanup) — only counted so the
+   * condition is visible. The canonical (earliest) row is the one
+   * reconciled; extras stop growing because every run deterministically
+   * targets the canonical row. Durable prevention needs a DB unique
+   * constraint (migration — requires Maya approval; NOT applied here).
+   */
+  duplicate_signal_rows_detected: number;
   write_paths: {
     demand_signals: WritePathCounters;
     demand_indices: WritePathCounters;
@@ -180,6 +211,7 @@ export async function batchComputeDemandIndex(): Promise<{
 
   let signalCount = 0;
   let alertsFired = 0;
+  let duplicateSignalRowsDetected = 0;
   const signalCounters = newWritePathCounters();
   const indexCounters = newWritePathCounters();
 
@@ -194,43 +226,63 @@ export async function batchComputeDemandIndex(): Promise<{
     // Store raw signals — RECONCILED by logical identity (surface F), never
     // blind-inserted. Provenance fields (signal_type / neighborhood / source)
     // are identity and are never rewritten on reconcile.
+    //
+    // Correction 5 — collision-safety: the findMany→create/update window runs
+    // inside an interactive transaction holding a pg advisory xact lock keyed
+    // on the logical identity, so two OVERLAPPING collector runs serialize
+    // and cannot both insert. Pre-existing duplicates inside the window are
+    // NEVER deleted — the EARLIEST row (collected_at ASC) is the
+    // deterministic canonical target, extras are counted + reported only.
+    // NOTE (reported, not applied): the durable cross-connection guarantee is
+    // a DB unique constraint on the logical identity (expression index on
+    // (signal_type, neighborhood, source, day-bucket of period_end)) — that
+    // is a migration and requires Maya approval.
     const signalValue = fp.searches + fp.intents;
     const signalNormalized = norm(fp.searches, maxSearches);
     const signalMetadata = { searches: fp.searches, intents: fp.intents, permits: permitCount };
     signalCounters.rows_checked++;
-    const existingSignal = await prisma.demandSignal.findFirst({
-      where: {
-        signal_type: "composite",
-        neighborhood: nh,
-        source: "first_party",
-        period_end: demandSignalIdentityWindow(now),
-      },
-      orderBy: { collected_at: "desc" },
-    });
-    if (!existingSignal) {
-      await prisma.demandSignal.create({
-        data: {
+    const identityWindow = demandSignalIdentityWindow(now);
+    const lockKey = demandSignalLockKey(
+      `composite|${nh}|first_party|${identityWindow.gte.toISOString()}`,
+    );
+    const signalOutcome = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${DEMAND_SIGNAL_LOCK_CLASS}::int4, ${lockKey}::int4)`;
+      const windowRows = await tx.demandSignal.findMany({
+        where: {
           signal_type: "composite",
           neighborhood: nh,
-          value: signalValue,
-          normalized: signalNormalized,
           source: "first_party",
-          metadata: signalMetadata,
-          period_start: periodStart,
-          period_end: periodEnd,
+          period_end: identityWindow,
         },
+        orderBy: { collected_at: "asc" },
       });
-      signalCounters.rows_inserted++;
-    } else if (
-      materialValuesEqual(existingSignal.value, signalValue) &&
-      materialValuesEqual(existingSignal.normalized, signalNormalized) &&
-      materialValuesEqual(existingSignal.metadata, signalMetadata)
-    ) {
-      // Same logical signal, same values → duplicate re-run; no write.
-      signalCounters.rows_suppressed_unchanged++;
-    } else {
-      await prisma.demandSignal.update({
-        where: { id: existingSignal.id },
+      const duplicates = Math.max(0, windowRows.length - 1);
+      const canonical = windowRows[0] ?? null;
+      if (!canonical) {
+        await tx.demandSignal.create({
+          data: {
+            signal_type: "composite",
+            neighborhood: nh,
+            value: signalValue,
+            normalized: signalNormalized,
+            source: "first_party",
+            metadata: signalMetadata,
+            period_start: periodStart,
+            period_end: periodEnd,
+          },
+        });
+        return { outcome: "inserted" as const, duplicates };
+      }
+      if (
+        materialValuesEqual(canonical.value, signalValue) &&
+        materialValuesEqual(canonical.normalized, signalNormalized) &&
+        materialValuesEqual(canonical.metadata, signalMetadata)
+      ) {
+        // Same logical signal, same values → duplicate re-run; no write.
+        return { outcome: "suppressed" as const, duplicates };
+      }
+      await tx.demandSignal.update({
+        where: { id: canonical.id },
         data: {
           value: signalValue,
           normalized: signalNormalized,
@@ -239,6 +291,14 @@ export async function batchComputeDemandIndex(): Promise<{
           period_end: periodEnd,
         },
       });
+      return { outcome: "updated" as const, duplicates };
+    });
+    duplicateSignalRowsDetected += signalOutcome.duplicates;
+    if (signalOutcome.outcome === "inserted") {
+      signalCounters.rows_inserted++;
+    } else if (signalOutcome.outcome === "suppressed") {
+      signalCounters.rows_suppressed_unchanged++;
+    } else {
       signalCounters.rows_materially_changed++;
       signalCounters.rows_updated++;
     }
@@ -347,6 +407,7 @@ export async function batchComputeDemandIndex(): Promise<{
     neighborhoods: nhList.length,
     signals: signalCount,
     alertsFired,
+    duplicate_signal_rows_detected: duplicateSignalRowsDetected,
     write_paths: { demand_signals: signalCounters, demand_indices: indexCounters },
   };
 }

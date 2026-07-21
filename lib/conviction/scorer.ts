@@ -12,6 +12,11 @@
 
 import prisma from '@/lib/prisma';
 import { getLeadEventCounts, getLeadTopListings } from '@/lib/behavioral/events';
+import {
+  materialValuesEqual,
+  newWritePathCounters,
+  type WritePathCounters,
+} from '@/lib/idx/write-suppression';
 
 // ─── Milestone Weights ─────────────────────────────────────
 const MILESTONES = {
@@ -147,10 +152,23 @@ export async function computeConvictionScore(leadId: bigint): Promise<{
 }
 
 // ─── Batch Compute (Cron) ──────────────────────────────────
+/**
+ * Phase 3 write-suppression (item-6 inventory fix):
+ *   - `last_computed` means "last MATERIAL result change" — an unchanged
+ *     computed result performs ZERO writes.
+ *   - `last_active_at` is a wall-clock-DERIVED approximation of the last
+ *     event time (now − silence_days days). It is EXCLUDED from material
+ *     identity (its millisecond value differs every run) and refreshed only
+ *     alongside a material change. `silence_days` itself IS material — it
+ *     legitimately increments daily for silent leads (a real change).
+ *   - `updated` in the result now counts PHYSICAL writes only.
+ */
 export async function batchComputeConvictionScores(): Promise<{
   processed: number;
   updated: number;
+  write_paths: { conviction: WritePathCounters };
 }> {
+  const counters = newWritePathCounters();
   // Find all leads that have behavioral events in the last 90 days
   const activeLeadIds = await prisma.behavioralEvent.findMany({
     where: {
@@ -161,12 +179,50 @@ export async function batchComputeConvictionScores(): Promise<{
     distinct: ['lead_id'],
   });
 
+  // Prefetch stored rows in ONE query for the write-on-change decision.
+  const leadIds = activeLeadIds
+    .map((r) => r.lead_id)
+    .filter((id): id is bigint => id !== null);
+  const storedRows = await prisma.convictionScore.findMany({
+    where: { lead_id: { in: leadIds } },
+    select: {
+      lead_id: true,
+      score: true,
+      stage: true,
+      milestone_flags: true,
+      hesitation_signals: true,
+      ghost_status: true,
+      silence_days: true,
+      top_listings: true,
+    },
+  });
+  const storedByLead = new Map(storedRows.map((r) => [String(r.lead_id), r as Record<string, unknown>]));
+
   let updated = 0;
 
   for (const { lead_id } of activeLeadIds) {
     if (!lead_id) continue;
     try {
       const result = await computeConvictionScore(lead_id);
+
+      const materialNext: Record<string, unknown> = {
+        score: result.score,
+        stage: result.stage,
+        milestone_flags: result.milestoneFlags,
+        hesitation_signals: result.hesitationSignals,
+        ghost_status: result.ghostStatus,
+        silence_days: result.silenceDays === 999 ? 0 : result.silenceDays,
+        top_listings: result.topListings,
+      };
+      const stored = storedByLead.get(String(lead_id));
+      counters.rows_checked++;
+      const unchanged =
+        !!stored &&
+        Object.keys(materialNext).every((key) => materialValuesEqual(materialNext[key], stored[key]));
+      if (unchanged) {
+        counters.rows_suppressed_unchanged++;
+        continue;
+      }
 
       await prisma.convictionScore.upsert({
         where: { lead_id },
@@ -198,11 +254,18 @@ export async function batchComputeConvictionScores(): Promise<{
           last_computed: new Date(),
         },
       });
+      if (stored) {
+        counters.rows_materially_changed++;
+        counters.rows_updated++;
+      } else {
+        counters.rows_inserted++;
+      }
       updated++;
     } catch (err) {
+      counters.rows_failed++;
       console.error(`[ConvictionScore] Error for lead ${lead_id}:`, err);
     }
   }
 
-  return { processed: activeLeadIds.length, updated };
+  return { processed: activeLeadIds.length, updated, write_paths: { conviction: counters } };
 }
