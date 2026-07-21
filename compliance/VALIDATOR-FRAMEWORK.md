@@ -116,7 +116,7 @@ validator evaluates each surface independently and aggregates.
 | `auction_listing` | PARTIAL | Schema + backend done; UI sub-section deferred |
 | `inquiry_capture` | PASS | Static surfaces complete; runtime test in Phase 3 |
 | `offer_transmission` | PASS | Static surfaces complete; runtime test in Phase 3 |
-| `ethics_training_gate` | PASS | Static surfaces complete; postcondition in operational-actions.json |
+| `ethics_training_gate` | PASS | Administrative RECORD (schema, migration, broker admin route, audit log). NOT an auth gate and has NO operational postcondition — ethics training never blocks login (commit 2c10ce0b). |
 
 #### Exit codes
 
@@ -135,7 +135,6 @@ this into the release-truth-check aggregator (which will check postconditions
 against prod when DB access is available).
 
 Currently registered:
-- `ethics_backfill_before_gate` — backfill must run; `would_lock_out` must = 0
 - `schema_migrations_applied_to_prod` — `prisma migrate status` clean
 - `r2_provisioned_before_media_sync` — `npm run ops:r2-health` ok
 - `twilio_configured_for_sms_reset` — Vercel env vars present

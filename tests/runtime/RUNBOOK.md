@@ -12,7 +12,9 @@
 |---|---|
 | `inquiry-effect.test.ts` | `createInquiry()` calls `prisma.inquiry.create` with the right shape (source, hashed IP per NY SHIELD Act, consent timestamp). Also proves the helper falls back gracefully (returns null, never throws) when the Inquiry table is missing — so lead capture keeps working during a migration window. |
 | `prospect-import-parse.test.ts` | The exceljs-based parser handles csv, xlsx, blank rows, numeric coercion, whitespace headers, and header-only inputs. Closes the #45-class gap (library migration with no real-input proof). |
-| `auth-ethics-gate.test.ts` | UCBA Art. III §6: the gate throws `EthicsTrainingExpiredError(reason="missing")` for NULL expiry, throws `reason="expired"` for past expiry, doesn't throw for future expiry. Closes the C4 silent-degradation risk. |
+| `ethics-training-not-auth-gate.test.ts` | UCBA Art. III §6 is an ADMINISTRATIVE record, NOT an auth gate: proves login/MFA are not ethics surfaces, the throwing enforcement primitives are gone, no `ethics_backfill_before_gate`/`would_lock_out` operational action remains, and the status report is read-only. |
+| `ethics-training-status.test.ts` | The read-only report's classifier: a record is "current" only with completion date + future expiry; missing completion, missing expiry, and expired all go to broker follow-up. |
+| `crm-agents-ethics-fields.test.ts` / `crm-agents-ethics-patch.test.ts` | The broker admin route stores/validates `ethics_training_completed_at`/`ethics_training_expires_at` and writes an audit event on every change. |
 
 Run all: `npm run test:runtime`
 
@@ -68,8 +70,9 @@ Cases:
    OR sets session cookie (non-broker agent).
 2. Valid agent + invalid password → 401 with "Invalid email or password".
 3. Inactive agent → 403 with "Account is inactive or suspended".
-4. Agent with expired ethics training → 403 with `code: "ETHICS_TRAINING_EXPIRED"`.
-5. Valid lead + valid password → sets session cookie with `userType: "lead"`.
+   (Login is governed by account status only. Ethics training is an
+   administrative record and never blocks login — see commit 2c10ce0b.)
+4. Valid lead + valid password → sets session cookie with `userType: "lead"`.
 
 ### Import route — preview + import + duplicates
 Target: `app/api/crm/sales/prospects/import/route.ts`

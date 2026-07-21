@@ -122,31 +122,26 @@
 
     {
       "name": "ethics_training_gate",
-      "title": "Ethics Training Auth Gate — UCBA Art. III §6",
+      "title": "Ethics Training Record Tracking — UCBA Art. III §6 (administrative record; NOT an authentication gate)",
       "rules": ["WS-C4"],
-      "required_surfaces": ["schema", "migration", "auth_gate_logic", "login_route", "mfa_verify_route", "rollout_action"],
+      "required_surfaces": ["schema", "migration", "backend_route", "audit_log"],
       "evidence": {
         "schema": ["prisma/schema.prisma"],
         "migration": ["prisma/migrations/20260426070000_add_ethics_training_fields/migration.sql"],
-        "auth_gate_logic": ["lib/auth/session.ts"],
-        "login_route": ["app/api/auth/login/route.ts"],
-        "mfa_verify_route": ["app/api/auth/mfa/verify/route.ts"],
-        "rollout_action": ["scripts/c4-ethics-backfill.ts"]
+        "backend_route": ["app/api/crm/agents/[id]/ethics-training/route.ts"],
+        "audit_log": ["app/api/crm/agents/[id]/ethics-training/route.ts"]
       },
       "surface_patterns": {
         "schema": "ethics_training_completed_at|ethics_training_expires_at",
         "migration": "ethics_training_completed_at|ethics_training_expires_at",
-        "auth_gate_logic": "EthicsTrainingExpiredError|assertAgentEthicsTrainingValid",
-        "login_route": "EthicsTrainingExpiredError|ETHICS_TRAINING_EXPIRED",
-        "mfa_verify_route": "EthicsTrainingExpiredError|ETHICS_TRAINING_EXPIRED",
-        "rollout_action": "ethics_training_expires_at"
+        "backend_route": "ethics_training_completed_at|ethics_training_expires_at",
+        "audit_log": "logAuditEvent|AuditEvent"
       },
-      "operational_action_id": "ethics_backfill_before_gate",
       "release_blocking": true,
       "ci_policy": "must_verify_before_release",
-      "runtime_test_routes_required": true,
-      "runtime_test_target": "tests/runtime/auth-ethics-gate.test.ts (Phase 3)",
-      "notes": "All static surfaces in place. Operational action (backfill execution) declared in operational-actions.json — release validator must check postcondition."
+      "runtime_test_routes_required": false,
+      "runtime_test_target": "tests/runtime/ethics-training-not-auth-gate.test.ts",
+      "notes": "Ethics training is an ADMINISTRATIVE compliance RECORD (UCBA Art. III §6 gates RLS participation, not CRM access or login). It is NOT an authentication gate: login, MFA verification, and session creation are governed by account status (active/inactive/suspended), never by ethics-training dates — see commit 2c10ce0b, which removed the over-broad login gate after it caused a complete agent lockout on 2026-05-26. Records are maintained via the broker admin backend route (which writes an AuditEvent) and reported read-only by scripts/ethics-training-status-report.ts for broker follow-up. There is NO login/MFA surface, NO auth-gate operational precondition, and NO throwing enforcement primitive in this record."
     },
 
     {
