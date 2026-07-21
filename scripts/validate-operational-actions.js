@@ -26,7 +26,7 @@
  * Usage:
  *   DATABASE_URL="postgres://..." node scripts/validate-operational-actions.js
  *   node scripts/validate-operational-actions.js --json
- *   node scripts/validate-operational-actions.js --action ethics_backfill_before_gate
+ *   node scripts/validate-operational-actions.js --action schema_migrations_applied_to_prod
  */
 
 const fs = require('fs');

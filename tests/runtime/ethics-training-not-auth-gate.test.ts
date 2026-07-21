@@ -86,11 +86,25 @@ describe("no obsolete authentication-gate artifacts remain", () => {
     expect(ops).not.toMatch(/lock them out|auth gate will lock/i);
   });
 
-  it("the ethics report script is READ-ONLY (no placeholder-date write, no lockout/gate language)", () => {
+  it("the ethics report script is READ-ONLY (rejects every write path, not just one SQL string)", () => {
     expect(exists("scripts/c4-ethics-backfill.ts")).toBe(false); // retired/renamed
     const report = read("scripts/ethics-training-status-report.ts");
+    // No raw write and no ORM write — only $queryRaw (read) is permitted.
+    for (const banned of [
+      "$executeRaw",
+      ".create(",
+      ".createMany(",
+      ".update(",
+      ".updateMany(",
+      ".delete(",
+      ".deleteMany(",
+      ".upsert(",
+    ]) {
+      expect(report).not.toContain(banned);
+    }
     expect(report).not.toMatch(/UPDATE\s+agents/i);
     expect(report).not.toMatch(/INTERVAL '30 days'|NOW\(\)\s*\+/i);
+    // No placeholder-date write / lockout / merge-gate language.
     expect(report).not.toMatch(/would_lock_out/i);
     expect(report).not.toMatch(/auth gate|lock(ed)? out|before merging/i);
   });
