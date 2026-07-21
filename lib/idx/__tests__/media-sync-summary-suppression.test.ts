@@ -150,6 +150,56 @@ describe("updateListingMediaSummary — suppression of unchanged summaries", () 
     expect(mockListingUpdate).toHaveBeenCalledTimes(1);
   });
 
+  // ── Correction 7: canonicalization is restricted to KNOWN rotating providers ──
+
+  it("STABLE non-feed hero URL differing only by query (?v=2) → writes (query may be a real version id)", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      mediaRow({ media_url_original: "https://cdn.example.com/photos/L1/hero.jpg?v=2" }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce(
+      storedSummary({ primary_photo_url: "https://cdn.example.com/photos/L1/hero.jpg?v=1" }),
+    );
+
+    const counters = newSummaryWriteCounters();
+    await updateListingMediaSummary("L1", { counters });
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+    expect(counters.rows_updated).toBe(1);
+  });
+
+  it("STABLE R2 hero URL change → writes (exact compare for non-feed URLs)", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      mediaRow({ media_url_original: "https://media.mallan.nyc/photos/L1/0.jpg?rev=b" }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce(
+      storedSummary({ primary_photo_url: "https://media.mallan.nyc/photos/L1/0.jpg?rev=a" }),
+    );
+
+    await updateListingMediaSummary("L1", { counters: newSummaryWriteCounters() });
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("identical STABLE non-feed hero URL → still suppressed (exact match)", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      mediaRow({ media_url_original: "https://media.mallan.nyc/photos/L1/0.jpg?rev=a" }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce(
+      storedSummary({ primary_photo_url: "https://media.mallan.nyc/photos/L1/0.jpg?rev=a" }),
+    );
+
+    await updateListingMediaSummary("L1", { counters: newSummaryWriteCounters() });
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+  });
+
+  it("stored feed URL vs computed STABLE URL (delivery/source switch) → writes (mixed = exact compare)", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      mediaRow({ media_url_original: "https://media.mallan.nyc/photos/L1/0.jpg" }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce(storedSummary()); // stored is the Cotality URL
+
+    await updateListingMediaSummary("L1", { counters: newSummaryWriteCounters() });
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("legacy row (photo_count null) → fail-closed write", async () => {
     mockFindMany.mockResolvedValueOnce([mediaRow()]);
     mockListingFindUnique.mockResolvedValueOnce(storedSummary({ photo_count: null }));

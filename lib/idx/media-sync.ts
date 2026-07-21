@@ -714,11 +714,20 @@ export function listingMediaRowUnchanged(
 // because production observed 0/2,012 rows suppressed — this identifies the
 // dominant differing field without logging any URL/id/key/value.
 
-/** TOTAL, non-throwing URL identity for ATTRIBUTION ONLY (never suppression,
- *  never stored). origin(lowercased scheme+host) + pathname; query/fragment
- *  dropped. A malformed URL falls back deterministically to the trimmed raw —
- *  it can never throw, abort a listing, or change a write. Kept local to
- *  production runtime (NOT imported from the backfill script). */
+/** TOTAL, non-throwing URL identity: origin(lowercased scheme+host) +
+ *  pathname; query/fragment dropped. A malformed URL falls back
+ *  deterministically to the trimmed raw — it can never throw, abort a
+ *  listing, or change a write. Kept local to production runtime (NOT
+ *  imported from the backfill script).
+ *
+ *  USED FOR (correction 7 — doc updated because this is no longer
+ *  attribution-only):
+ *    1. #541 comparator ATTRIBUTION (observability, never the row decision);
+ *    2. summary-write SUPPRESSION in `listingMediaSummaryUnchanged`, but
+ *       ONLY when BOTH URLs belong to a KNOWN rotating feed provider
+ *       (`isRotatingFeedSummaryUrl`) — stable/non-feed URLs are always
+ *       compared byte-exact because their query may be a real version or
+ *       resource id. */
 function mediaUrlIdentity(url: string | null | undefined): string {
   const raw = (url ?? "").trim();
   if (!raw) return "";
@@ -1254,6 +1263,33 @@ export interface StoredListingMediaSummary {
 }
 
 /**
+ * Hosts whose media URLs carry a ROTATING signed query (the Cotality/Trestle
+ * feed re-signs MediaURL on every request). ONLY these providers get the
+ * query-insensitive identity compare below; every other URL (R2, Mallan,
+ * third-party CDNs) is compared byte-exact because its query string may be a
+ * real version/resource identifier.
+ */
+const ROTATING_SUMMARY_URL_HOSTS = ["cotality.com", "corelogic.com", "trestle"];
+
+export function isRotatingFeedSummaryUrl(url: string | null | undefined): boolean {
+  if (typeof url !== "string" || url === "") return false;
+  const lower = url.toLowerCase();
+  return ROTATING_SUMMARY_URL_HOSTS.some((h) => lower.includes(h));
+}
+
+/** Provider-scoped hero-URL equality (correction 7):
+ *  both KNOWN rotating feed URLs → origin+pathname identity (signature
+ *  ignored); anything else (stable URLs, or mixed feed-vs-stable =
+ *  source/delivery switch) → exact compare. null == null only. */
+function summaryHeroUrlEqual(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === null && b === null;
+  if (isRotatingFeedSummaryUrl(a) && isRotatingFeedSummaryUrl(b)) {
+    return mediaUrlIdentity(a) === mediaUrlIdentity(b);
+  }
+  return a === b;
+}
+
+/**
  * True when the stored 4 summary columns already equal the freshly-computed
  * summary — i.e. the `Listing.update()` would be a physical no-op rewrite.
  *
@@ -1263,11 +1299,11 @@ export interface StoredListingMediaSummary {
  *   - `primary_photo_r2_key` — exact (delivery-state change always writes).
  *   - `photos_change_timestamp` — instant compare (an actual source photo
  *     revision always writes).
- *   - `primary_photo_url` — compared by URL IDENTITY (origin + pathname,
- *     query/signature dropped — same rule as `mediaUrlIdentity`): the signed
- *     Trestle MediaURL rotates on every request and is NEVER material. A
- *     hero-photo swap changes the media path, so it is still detected; a
- *     mirrored hero swap also flips `primary_photo_r2_key`.
+ *   - `primary_photo_url` — provider-scoped (correction 7): ONLY when both
+ *     sides are KNOWN rotating Cotality/Trestle feed URLs is the rotating
+ *     signed query ignored (origin + pathname identity). Stable/non-feed
+ *     URLs compare byte-exact. A true hero replacement changes the media
+ *     path (and, when mirrored, `primary_photo_r2_key`) → always material.
  *
  * Fail-closed: a missing stored row returns false (the write proceeds).
  */
@@ -1279,7 +1315,7 @@ export function listingMediaSummaryUnchanged(
   if (stored.photo_count === null || stored.photo_count !== summary.photo_count) return false;
   if ((stored.primary_photo_r2_key ?? null) !== (summary.primary_photo_r2_key ?? null)) return false;
   if (!sameInstant(stored.photos_change_timestamp, summary.photos_change_timestamp)) return false;
-  if (mediaUrlIdentity(stored.primary_photo_url) !== mediaUrlIdentity(summary.primary_photo_url)) return false;
+  if (!summaryHeroUrlEqual(stored.primary_photo_url, summary.primary_photo_url)) return false;
   return true;
 }
 
