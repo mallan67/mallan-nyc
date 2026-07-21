@@ -2411,6 +2411,17 @@ model ListingMedia {
   // Status: 'active' | 'deleted' (soft-delete for audit) | 'replaced'.
   // We never hard-delete a media row so the audit trail stays intact.
   status                    String    @default("active")
+  // ── Unified media-identity columns (additive, nullable per NEON.md §4).
+  // source_revision  ← epoch-ms of max(MediaModificationTimestamp,
+  //   ModificationTimestamp); the version half of the canonical media identity.
+  // r2_object_key    ← the VERSIONED R2 key actually uploaded; coexists with the
+  //   legacy r2_key until the gated lifecycle migrates objects.
+  // pending_removal_run ← run id that first saw this active row vanish from a
+  //   COMPLETE non-empty snapshot; a second confirming absence tombstones it
+  //   (fail-closed reconciliation — no single-response gallery wipes).
+  source_revision           BigInt?   @map("source_revision")
+  r2_object_key             String?   @map("r2_object_key")
+  pending_removal_run       String?   @map("pending_removal_run")
   created_at                DateTime  @default(now()) @map("created_at")
   updated_at                DateTime  @updatedAt @map("updated_at")
 
@@ -2419,6 +2430,9 @@ model ListingMedia {
   @@index([media_modification_ts])
   @@index([modification_ts])
   @@index([status])
+  // NOTE: the partial R2-backlog index (listing_media_r2_backlog_idx) is not
+  // expressible in Prisma schema; it lives in the PREPARED migration SQL and is
+  // created CONCURRENTLY at activation (NEON.md §5).
   @@map("listing_media")
 }
 
