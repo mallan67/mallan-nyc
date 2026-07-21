@@ -13,7 +13,7 @@
 - Phase 0: COMPLETE — direct authenticated Cotality contract evidence captured and sanitized.
 - Phase 1: COMPLETE — media identity spine, strict classifier, hero resolver, prepared migration, and system-health scaffold.
 - Phase 2: ACCEPTED — lossless/fail-closed sync primitives and flag-gated unified media pipeline implemented, pushed, tested, and CI-green.
-- Phase 3: NEXT — compare-before-write suppression across listing/projection/media-summary/batch-media, then scorer write-on-change and seller-signal reconciliation.
+- Phase 3: IN PROGRESS — media-row URL-rotation suppression implemented locally (+ missing-R2 recovery contract + fail-closed hardening). Remaining Phase-3 surfaces (listing/projection/summary/batch-media compare-before-write, scorer write-on-change, seller-signal reconciliation) still open.
 
 ## Phase 0 — Live Cotality contract evidence
 
@@ -129,6 +129,77 @@ Explicit Maya approval is still required before any of the following:
 - Strip legacy JSON.
 - Merge or deploy production changes.
 - Modify or deploy held CRM frontend or workflow files.
+
+## Phase 3 — IN PROGRESS: media-row URL-rotation suppression implemented locally; remaining write-suppression surfaces open
+
+**Status:** media-row suppression slice IMPLEMENTED (code-only; NOT merged/deployed/flag-activated — awaiting Maya review). Phase 3 is NOT complete.
+
+**Open Phase-3 surfaces (still churning):** `updateListingMediaSummary` still issues one `Listing.update()` per processed listing (proven in the 50-listing fixture: 750 media writes suppressed, but 50 summary writes still occur). Also open: listing compare-before-write, projection compare-before-write, media-summary compare-before-write, batch-media suppression, scorer write-on-change, seller-signal reconciliation.
+
+**Missing-R2 recovery contract (added this round):** the suppression stops refreshing the stored signed URL once a row looks delivered (`r2_key`+`media_url_cached`), but those columns do not prove the R2 object exists. `mirrorMediaToR2` now prefers a freshly-reacquired feed URL (`current_feed_url`, by MediaKey this run) over the stored URL for the fetch, and `recoverMissingR2Object` re-mirrors a missing object from that fresh URL (never the stale stored one), writing only the R2 delivery columns. A BOUNDED per-run recovery pass (`MEDIA_RECOVERY_PROBES_PER_RUN=25`, `MEDIA_RECOVERY_CANDIDATES_PER_LISTING=4`) probes suppressed-delivered rows so drift repair can never reintroduce the compute it removes; coverage rotates as the oldest-first cursor advances.
+
+**Fail-closed hardening (added this round):** a per-row create/update failure is counted (`writeFailures`) and isolated, but the listing is then failed closed — the tombstone block inside `upsertListingMedia` is skipped entirely (`writeFailures>0`), the run throws before `updateListingMediaSummary`, the listing is not counted processed, and the keyset cursor does not advance past it. Proven at unit + orchestration level.
+
+**Root cause (live-proven 2026-07-21):** `listingMediaRowUnchanged` compared the
+exact `media_url_original`. The Trestle signed `MediaURL` rotates on EVERY
+request, so that term was always unequal → the `#530` no-op guard never fired →
+`media_sync_state.rows_updated == rows_checked` (measured 752/752 per run, 100%
+write rate). Sampled rows were rewritten ~45 min ago though their
+`MediaModificationTimestamp`/`ModificationTimestamp` were ~112h old and every
+stable identity field was unchanged.
+
+**Fix (`lib/idx/media-sync.ts`):**
+- `listingMediaRowUnchanged` is now a PURE material-identity predicate — the URL
+  is fully EXCLUDED (it is never identity or a material change). Compared fields:
+  status=active, listing_id, resource_record_key/id, media type + category +
+  classification, order, preferred/hero flag, and BOTH source-modification
+  timestamps (their max = sourceRevision).
+- Delivery guard (req 4): a material-unchanged row is SUPPRESSED only when it is
+  already delivered to R2 (`r2_key` AND `media_url_cached` present). An
+  un-mirrored row still WRITES to refresh its signed URL, because the R2 backlog
+  path reuses the STORED `media_url_original` to fetch (proven at
+  `media-sync.ts` backlog select → `mirrorMediaToR2`). New counter
+  `deliveryUrlRefreshed` attributes these.
+- `#541` attribution keeps counting URL differences as OBSERVABILITY only; the
+  URL no longer contributes to `baseMismatchCount` (invariant preserved:
+  `baseMismatchCount === 0` iff material-unchanged). New PROOF counter
+  `suppressedUrlRotationOnly` = rows suppressed whose only diff was a rotated URL.
+- Bounded counters (req 5): `rowsChecked`, `rowsWritten`, `deliveryUrlRefreshed`,
+  `suppressedUrlRotationOnly`, `writeFailures`. No URL/token/id/email is logged.
+- Per-row failure isolation (req 5): a failing create/update is counted
+  (`writeFailures`) and the batch continues; the run then fails the listing
+  closed so the keyset cursor does NOT advance past incomplete media (req 6 —
+  cursor/pagination semantics unchanged).
+
+**Scope:** `lib/idx/media-sync.ts` + tests only. `UNIFIED_MEDIA_PIPELINE`, cron
+cadence, Neon settings, schema, migrations, auth/ethics — all UNTOUCHED. The fix
+lives in the always-on `#530` suppression path (not flag-gated, same as the
+guard it corrects), and takes effect only on a Maya-approved deploy.
+
+**Proof:**
+- New failing-first suite `lib/idx/__tests__/media-sync-url-rotation-suppression.test.ts`
+  (16 tests): URL-only rotation suppressed on delivered rows; un-mirrored rows
+  still refresh; material changes (order/hero/classification/source-ts) still
+  write; deleted media fail-closed; 15-row batch → 0 writes / 15 suppressed; one
+  true change → exactly 1 write; per-row failure isolated.
+- Existing suites updated to the new contract; **628/628** in `lib/idx/__tests__/`
+  + media run-level, **131/131** media runtime suites.
+- `type-check` exit 0 · `rls:validate` UNKNOWN 0 · `ucba:audit` 0 regressions ·
+  `compliance-check` 94/0/0 · `media:system-health` red 0 · `idx:validate` 1
+  pre-existing `Cron Schedule Completeness` critical (unchanged, not this branch).
+
+**Write-reduction proof (how to verify in production after a gated deploy):**
+`media_sync_state.rows_updated / rows_checked` drops from ~1.0 (752/752 pre-fix)
+toward the genuine-change + un-mirrored fraction; `suppressedUrlRotationOnly`
+surfaces the eliminated no-op writes. No production run performed here.
+
+**Expected CPU impact:** eliminates the dominant per-run write churn (all
+already-delivered rows that differ only by a rotated URL — the 752/752 measured).
+Residual writes = genuine material changes + not-yet-mirrored rows (small) +
+retry-exhausted parked rows (addressed by Phase 4's bounded backlog query +
+parked-row exclusion). This does NOT by itself resolve the read-heavy/low-cache
+CPU component identified in the read-only investigation; it removes the
+write-churn contributor.
 
 ## Phase 3 — Next action
 

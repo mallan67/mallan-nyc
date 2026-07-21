@@ -546,14 +546,40 @@ export interface UpsertListingMediaResult {
   /** Total DB rows tombstoned. INVARIANT: tombstoned === tombstonedExplicit + tombstonedVanished. */
   tombstoned: number;
 
+  // ── Phase 3 bounded write-suppression counters (req 5) ──
+  /** rows checked — existing rows evaluated for suppression (= existingRowsCompared). */
+  rowsChecked: number;
+  /** rows written — physical listing_media create/update writes (inserted + updatedChanged + deliveryUrlRefreshed). */
+  rowsWritten: number;
+  /**
+   * Existing rows that were MATERIAL-unchanged but written anyway SOLELY to
+   * refresh the delivery URL because the row is not yet mirrored to R2
+   * (`r2_key`/`media_url_cached` null). Preserves req-4 delivery correctness.
+   */
+  deliveryUrlRefreshed: number;
+  /**
+   * PROOF counter — rows SUPPRESSED whose incoming feed row differed ONLY by a
+   * rotated signed URL (material-unchanged AND already delivered). Pre-Phase-3
+   * these were 100% of writes; this is the write-reduction the fix delivers.
+   */
+  suppressedUrlRotationOnly: number;
+  /** Per-row create/update failures — counted and isolated (row skipped, batch continues). */
+  writeFailures: number;
+  /**
+   * Bounded set of suppressed-delivered rows (capped per listing) the caller
+   * MAY existence-probe for missing-R2 recovery, each carrying the FRESH feed
+   * URL (by MediaKey) so repair never uses the frozen stored URL.
+   */
+  recoveryCandidates: MediaRecoveryCandidate[];
+
   // ── #541 comparator-attribution diagnostic (aggregate counts only) ──
   // Decision-preserving: derived alongside the unchanged decision, never
   // controlling it. INVARIANTS (per successful aggregation):
-  //   existingRowsCompared === skippedUnchanged + rowsWithOneMismatch + rowsWithMultipleMismatches
+  //   existingRowsCompared === skippedUnchanged + deliveryUrlRefreshed + rowsWithOneMismatch + rowsWithMultipleMismatches
   //   updatedChanged       === rowsWithOneMismatch + rowsWithMultipleMismatches
-  //   mismatchMediaUrlExact === mismatchMediaUrlIdentity + mismatchMediaUrlIdentityEquivalent
+  //   mismatchMediaUrlExact === mismatchMediaUrlIdentity + mismatchMediaUrlIdentityEquivalent  (observability; NOT in baseMismatchCount)
   //   0 <= each mismatch counter <= existingRowsCompared
-  /** Existing rows the guard evaluated (skipped + changed) — the attribution universe. */
+  /** Existing rows the guard evaluated (skipped + refreshed + changed) — the attribution universe. */
   existingRowsCompared: number;
   mismatchStatus: number;
   mismatchListingId: number;
@@ -598,13 +624,25 @@ export interface MappedMediaRow {
 }
 
 /**
- * The existing-row projection the no-op guard compares against — exactly the
+ * The existing-row projection the no-op guard compares against — the
  * source-provenance columns the `update` payload writes (see `upsertListingMedia`)
  * MINUS `photos_change_ts_snapshot`. That snapshot is intentionally EXCLUDED:
  * it is a per-fetch Property-event correlation timestamp that is never read
  * anywhere (write-only provenance — verified 2026-07-20), so including it would
- * bump on every re-fetch and defeat suppression. `r2_key`/`media_url_cached`
- * are also excluded — the upsert never touches them (Checkpoint 4 owns them).
+ * bump on every re-fetch and defeat suppression.
+ *
+ * Phase 3: `media_url_original` is present on this shape but is NO LONGER a
+ * material-identity field — the signed Trestle `MediaURL` rotates on EVERY
+ * request (live-proven 2026-07-21), so comparing it made every row look
+ * "changed" (752/752 rewrites/run). It is EXCLUDED from `listingMediaRowUnchanged`
+ * and contributes ZERO to the material-change decision; it is kept only for the
+ * #541 observability attribution.
+ *
+ * `r2_key` / `media_url_cached` are the DELIVERY-artifact columns. The upsert
+ * still NEVER WRITES them (Checkpoint 4 owns them), but Phase 3 now READS them:
+ * the write is suppressed only when the row is already delivered (both present),
+ * because the R2 backlog path reuses the stored `media_url_original` — so an
+ * un-mirrored row genuinely needs its refreshed URL (req 4).
  */
 export interface ExistingMediaRowForCompare {
   listing_id: string;
@@ -619,6 +657,23 @@ export interface ExistingMediaRowForCompare {
   media_modification_ts: Date | null;
   modification_ts: Date | null;
   status: string;
+  /** Delivery-artifact: R2 object key. null ⇒ not yet mirrored. READ-only here. */
+  r2_key: string | null;
+  /** Delivery-artifact: public R2 URL. null ⇒ not yet mirrored. READ-only here. */
+  media_url_cached: string | null;
+}
+
+/**
+ * A row is "delivered" when it has BOTH R2 artifacts — mirrors the exact
+ * backlog-eligibility definition (`r2_key IS NULL OR media_url_cached IS NULL`
+ * ⇒ still backlog). Only delivered rows may have their URL-refresh suppressed;
+ * un-delivered rows still need the fresh signed URL for the R2 backlog fetch.
+ */
+export function mediaRowDelivered(existing: {
+  r2_key: string | null;
+  media_url_cached: string | null;
+}): boolean {
+  return existing.r2_key != null && existing.media_url_cached != null;
 }
 
 /** Date equality that treats null==null and compares by instant otherwise. */
@@ -632,16 +687,28 @@ function sameInstant(a: Date | null | undefined, b: Date | null | undefined): bo
 }
 
 /**
- * #530 no-op guard: is the stored row already byte-identical to the incoming
- * feed row, so the `update` would only bump `@updatedAt`?
+ * #530/Phase-3 material-identity guard: does the stored row already match the
+ * incoming feed row on every MATERIAL field, so an `update` would change nothing
+ * of substance (only bump `@updatedAt` and re-store a rotated URL)?
  *
  * TRUE only when the row is already `status='active'`, still belongs to the
- * SAME listing, and every source-provenance field matches. A `deleted`/
- * `replaced` row that reappears identically is therefore NOT "unchanged"
- * (status must flip back to active — resurrect-on-reappear is preserved), and
- * any real change (URL, type, category, classification, order, preferred flag,
- * or either source timestamp) forces the write. `photos_change_ts_snapshot` is
- * excluded by design (see `ExistingMediaRowForCompare`).
+ * SAME listing, and every MATERIAL source field matches: resource identity
+ * (record key/id), media type + category + classification, order, preferred/
+ * hero flag, and BOTH meaningful source-modification timestamps (their max is
+ * the sourceRevision). A `deleted`/`replaced` row that reappears is NOT
+ * "unchanged" (status must flip back to active — resurrect-on-reappear
+ * preserved), and any real change forces the write.
+ *
+ * EXCLUDED from the decision (by design):
+ *   - `media_url_original` — the signed Trestle `MediaURL` rotates on EVERY
+ *     request (live-proven 2026-07-21). It is NOT identity and never a material
+ *     change; comparing it caused the 100%-write churn this guard now prevents.
+ *   - `photos_change_ts_snapshot` — write-only per-fetch correlation stamp.
+ *
+ * This is PURELY the material-change test. Whether a material-unchanged row is
+ * ultimately suppressed ALSO depends on delivery state (`mediaRowDelivered`) —
+ * see the decision site in `upsertListingMedia` (req 4: an un-mirrored row still
+ * needs its refreshed URL for the R2 backlog fetch).
  */
 export function listingMediaRowUnchanged(
   existing: ExistingMediaRowForCompare,
@@ -653,7 +720,6 @@ export function listingMediaRowUnchanged(
     existing.listing_id === listingId &&
     existing.resource_record_key === row.resourceRecordKey &&
     existing.resource_record_id === row.resourceRecordID &&
-    existing.media_url_original === row.mediaUrlOriginal &&
     existing.media_type === row.mediaType &&
     existing.media_category === row.mediaCategory &&
     existing.media_classification === row.mediaClassification &&
@@ -689,19 +755,20 @@ function mediaUrlIdentity(url: string | null | undefined): string {
   }
 }
 
-/** Which of the comparator's 12 base fields differ for one existing row, plus
- *  the URL sub-attribution. `baseMismatchCount` counts ONLY the 12 base fields
- *  (the URL contributes at most 1, via its EXACT compare — the identity/
- *  identity-equivalent flags are subcategories of that one field, never extra
- *  base mismatches). By construction `baseMismatchCount === 0` iff
- *  `listingMediaRowUnchanged` is true, so attribution covers exactly the
- *  production comparator's existing-row universe. */
+/** Which MATERIAL fields differ for one existing row, plus the URL
+ *  sub-attribution (observability only). `baseMismatchCount` counts ONLY the
+ *  MATERIAL fields — the URL is EXCLUDED (Phase 3: it rotates every request and
+ *  is never a material change). The `media_url_*` flags are pure observability:
+ *  they tell us how many rows differed ONLY by a rotated URL (the churn we now
+ *  suppress) without contributing to the change decision. By construction
+ *  `baseMismatchCount === 0` iff `listingMediaRowUnchanged` is true, so
+ *  attribution still exactly mirrors the material comparator. */
 export interface MediaRowMismatch {
   status: boolean;
   listing_id: boolean;
   resource_record_key: boolean;
   resource_record_id: boolean;
-  media_url_exact: boolean; // base field #5
+  media_url_exact: boolean; // observability ONLY — NOT counted in baseMismatchCount
   media_url_identity: boolean; // subcategory: origin+pathname differ
   media_url_identity_equivalent: boolean; // subcategory: exact differs but identity matches
   media_type: boolean;
@@ -744,9 +811,11 @@ export function classifyMediaRowMismatch(
     media_url_identity_equivalent = !identityDiffers;
   }
 
+  // Phase 3: the URL is EXCLUDED from the material count (it rotates every
+  // request). `media_url_exact` remains available as observability only.
   const baseMismatchCount =
     Number(status) + Number(listing_id) + Number(resource_record_key) + Number(resource_record_id) +
-    Number(media_url_exact) + Number(media_type) + Number(media_category) + Number(media_classification) +
+    Number(media_type) + Number(media_category) + Number(media_classification) +
     Number(order) + Number(preferred_photo_yn) + Number(media_modification_ts) + Number(modification_ts);
 
   return {
@@ -947,6 +1016,13 @@ export async function upsertListingMedia(
   let inserted = 0;
   let updatedChanged = 0;
   let skippedUnchanged = 0;
+  let deliveryUrlRefreshed = 0; // material-unchanged but written to refresh a not-yet-mirrored URL (req 4)
+  let suppressedUrlRotationOnly = 0; // suppressed rows whose only diff was a rotated URL (write-reduction proof)
+  let writeFailures = 0; // per-row create/update failures (isolated; batch continues)
+  // Bounded set of suppressed-delivered rows the run may existence-probe for
+  // missing-R2 recovery (capped per listing). Carries the FRESH feed URL so
+  // repair never depends on the frozen stored URL.
+  const recoveryCandidates: MediaRecoveryCandidate[] = [];
   // #541 comparator-attribution diagnostic — aggregate counts only, derived
   // ALONGSIDE the decision, never controlling it.
   const attr = {
@@ -992,6 +1068,10 @@ export async function upsertListingMedia(
         media_modification_ts: true,
         modification_ts: true,
         status: true,
+        // Phase 3: delivery-artifact columns — READ only, to gate URL-refresh
+        // suppression (never written here; Checkpoint 4 owns their writes).
+        r2_key: true,
+        media_url_cached: true,
       },
     });
     if (existing) {
@@ -1015,57 +1095,105 @@ export async function upsertListingMedia(
       if (mm.baseMismatchCount === 1) attr.rowsWithOneMismatch += 1;
       else if (mm.baseMismatchCount >= 2) attr.rowsWithMultipleMismatches += 1;
 
-      // DECISION — unchanged from #530/#541 (sole authority for the write).
-      if (listingMediaRowUnchanged(existing, row, listingId)) {
+      // DECISION (Phase 3). The URL is excluded from `listingMediaRowUnchanged`
+      // (it rotates every request). A material-unchanged row is SUPPRESSED only
+      // when it is already delivered to R2 — an un-mirrored row still needs its
+      // fresh signed URL because the R2 backlog path reuses the stored
+      // `media_url_original` to fetch (req 4). Deleted/replaced rows are never
+      // "unchanged" (status must flip back to active → resurrect preserved).
+      const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
+      if (materialUnchanged && mediaRowDelivered(existing)) {
         skippedUnchanged++;
-        continue; // byte-identical active row → skip the no-op write
+        if (mm.media_url_exact) suppressedUrlRotationOnly++; // suppressed a rotated-URL-only diff
+        // Bounded recovery candidate: we suppressed the URL-refresh write, so
+        // capture the FRESH feed URL (by MediaKey) in case the R2 object has
+        // since gone missing and needs re-mirroring from a non-stale source.
+        if (
+          recoveryCandidates.length < MEDIA_RECOVERY_CANDIDATES_PER_LISTING &&
+          existing.r2_key != null &&
+          existing.media_url_cached != null
+        ) {
+          recoveryCandidates.push({
+            media_key: row.mediaKey,
+            media_type: row.mediaType,
+            order: row.order,
+            r2_key: existing.r2_key,
+            media_url_cached: existing.media_url_cached,
+            current_feed_url: row.mediaUrlOriginal,
+          });
+        }
+        continue; // no material change + already delivered → skip the write
       }
-      await prisma.listingMedia.update({
-        where: { media_key: row.mediaKey },
-        data: {
-          listing_id: listingId,
-          resource_record_key: row.resourceRecordKey,
-          resource_record_id: row.resourceRecordID,
-          media_url_original: row.mediaUrlOriginal,
-          media_type: row.mediaType,
-          media_category: row.mediaCategory,
-          media_classification: row.mediaClassification,
-          order: row.order,
-          preferred_photo_yn: row.preferredPhotoYN,
-          media_modification_ts: row.mediaModificationTs,
-          modification_ts: row.modificationTs,
-          photos_change_ts_snapshot: row.photosChangeTsSnapshot,
-          status: "active",
-        },
-      });
-      updatedChanged++;
+      try {
+        await prisma.listingMedia.update({
+          where: { media_key: row.mediaKey },
+          data: {
+            listing_id: listingId,
+            resource_record_key: row.resourceRecordKey,
+            resource_record_id: row.resourceRecordID,
+            media_url_original: row.mediaUrlOriginal,
+            media_type: row.mediaType,
+            media_category: row.mediaCategory,
+            media_classification: row.mediaClassification,
+            order: row.order,
+            preferred_photo_yn: row.preferredPhotoYN,
+            media_modification_ts: row.mediaModificationTs,
+            modification_ts: row.modificationTs,
+            photos_change_ts_snapshot: row.photosChangeTsSnapshot,
+            status: "active",
+          },
+        });
+        // Attribute the write: a genuine material change vs. a delivery-only
+        // URL refresh (material-unchanged but not yet mirrored).
+        if (materialUnchanged) deliveryUrlRefreshed++;
+        else updatedChanged++;
+      } catch {
+        // Isolate the failure to this row — count it and continue so one bad
+        // write cannot drop the rest of the listing's media. No URL/id logged.
+        writeFailures++;
+        continue;
+      }
     } else {
-      await prisma.listingMedia.create({
-        data: {
-          listing_id: listingId,
-          media_key: row.mediaKey,
-          resource_record_key: row.resourceRecordKey,
-          resource_record_id: row.resourceRecordID,
-          media_url_original: row.mediaUrlOriginal,
-          media_type: row.mediaType,
-          media_category: row.mediaCategory,
-          media_classification: row.mediaClassification,
-          order: row.order,
-          preferred_photo_yn: row.preferredPhotoYN,
-          media_modification_ts: row.mediaModificationTs,
-          modification_ts: row.modificationTs,
-          photos_change_ts_snapshot: row.photosChangeTsSnapshot,
-          status: "active",
-        },
-      });
-      inserted++;
+      try {
+        await prisma.listingMedia.create({
+          data: {
+            listing_id: listingId,
+            media_key: row.mediaKey,
+            resource_record_key: row.resourceRecordKey,
+            resource_record_id: row.resourceRecordID,
+            media_url_original: row.mediaUrlOriginal,
+            media_type: row.mediaType,
+            media_category: row.mediaCategory,
+            media_classification: row.mediaClassification,
+            order: row.order,
+            preferred_photo_yn: row.preferredPhotoYN,
+            media_modification_ts: row.mediaModificationTs,
+            modification_ts: row.modificationTs,
+            photos_change_ts_snapshot: row.photosChangeTsSnapshot,
+            status: "active",
+          },
+        });
+        inserted++;
+      } catch {
+        writeFailures++;
+        continue;
+      }
     }
   }
 
   let tombstonedExplicit = 0;
   let tombstonedVanished = 0;
 
-  if (explicitDeleteKeys.size > 0) {
+  // FAIL-CLOSED (Phase 3): if ANY per-row upsert write failed, this listing's
+  // media set did not fully persist. A partial listing must NOT execute any
+  // DESTRUCTIVE reconciliation — neither explicit-delete tombstones nor
+  // absence-based vanished tombstones — because a write failure could make a
+  // still-present media row look "vanished". Skip all tombstoning; the run-level
+  // caller also halts the cursor on writeFailures>0, so the listing re-processes
+  // (idempotently) next run and tombstones only once every write succeeded.
+  const tombstoningAllowed = writeFailures === 0;
+
+  if (tombstoningAllowed && explicitDeleteKeys.size > 0) {
     const res = await prisma.listingMedia.updateMany({
       where: {
         listing_id: listingId,
@@ -1077,7 +1205,7 @@ export async function upsertListingMedia(
     tombstonedExplicit = res.count;
   }
 
-  if (options.tombstoneVanished === true && isUnifiedPipelineEnabled()) {
+  if (tombstoningAllowed && options.tombstoneVanished === true && isUnifiedPipelineEnabled()) {
     // Unified pipeline (flag ON): fail-closed reconciler owns the absence-based
     // decision (empty/shrink fail-closed, feed-provenance, second-fetch confirm).
     tombstonedVanished = await applyUnifiedVanishedReconcile(
@@ -1086,7 +1214,7 @@ export async function upsertListingMedia(
       explicitDeleteKeys,
       options.runId ?? "unknown-run",
     );
-  } else if (options.tombstoneVanished === true) {
+  } else if (tombstoningAllowed && options.tombstoneVanished === true) {
     const seenKeys = new Set<string>([
       ...mapped.map((r) => r.mediaKey),
       ...explicitDeleteKeys,
@@ -1126,6 +1254,13 @@ export async function upsertListingMedia(
     tombstonedExplicit,
     tombstonedVanished,
     tombstoned: tombstonedExplicit + tombstonedVanished,
+    // Phase 3 bounded counters (req 5)
+    rowsChecked: attr.existingRowsCompared,
+    rowsWritten: inserted + updatedChanged + deliveryUrlRefreshed,
+    deliveryUrlRefreshed,
+    suppressedUrlRotationOnly,
+    writeFailures,
+    recoveryCandidates,
     ...attr,
   };
 }
@@ -1305,6 +1440,13 @@ export interface MirrorMediaToR2Row {
   media_type: string;
   order: number;
   media_url_original: string | null;
+  /**
+   * Phase 3 recovery: the CURRENT feed URL, reacquired by MediaKey from the
+   * live feed row THIS run. When present it is used for the FETCH in preference
+   * to the stored `media_url_original` — so missing-R2 recovery never depends
+   * solely on a stale/expired stored signed URL. Ephemeral: never persisted.
+   */
+  current_feed_url?: string | null;
   r2_key: string | null;
   media_url_cached: string | null;
   /**
@@ -1351,6 +1493,40 @@ export const R2_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
  * permanent 404/410 before parking.
  */
 export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
+
+/**
+ * Phase 3 missing-R2 recovery — BOUNDED drift repair.
+ *
+ * A row the DB believes is "delivered" (r2_key + media_url_cached both set) is
+ * never selected by the R2 backlog query, so a silently-missing/corrupt R2
+ * object would strand its photo. Since URL-refresh is now suppressed for
+ * delivered rows, we cannot rely on the stored (frozen) signed URL for repair.
+ *
+ * Instead, each run verifies a BOUNDED number of suppressed-delivered rows via
+ * an R2 existence probe and, if the object is missing, re-mirrors using the
+ * CURRENT feed URL (reacquired by MediaKey this run) — never the stale stored
+ * URL, and never converting the URL rotation into a material DB change.
+ *
+ * Bounded twice so it can never reintroduce the compute it removes:
+ *   - `MEDIA_RECOVERY_CANDIDATES_PER_LISTING` caps candidates collected per listing;
+ *   - `MEDIA_RECOVERY_PROBES_PER_RUN` caps total existence probes per run.
+ * Coverage rotates naturally as the oldest-first cursor advances across runs.
+ */
+export const MEDIA_RECOVERY_CANDIDATES_PER_LISTING = 4;
+export const MEDIA_RECOVERY_PROBES_PER_RUN = 25;
+
+/** A suppressed-delivered row eligible for a bounded missing-R2 existence probe. */
+export interface MediaRecoveryCandidate {
+  media_key: string;
+  media_type: string;
+  order: number;
+  /** The delivered R2 key to probe for existence. */
+  r2_key: string;
+  /** The delivered public URL (for the mirror's reuse no-op check). */
+  media_url_cached: string;
+  /** The CURRENT feed URL (fresh, by MediaKey this run) used to re-fetch if missing. */
+  current_feed_url: string;
+}
 
 /**
  * Build the Phase-3 R2 backlog SELECT `where`. Exported + pure so the RC3
@@ -1487,7 +1663,11 @@ export async function mirrorMediaToR2(
   row: MirrorMediaToR2Row,
   deps: MirrorMediaToR2Deps = defaultMirrorMediaToR2Deps,
 ): Promise<MirrorMediaToR2Result> {
-  const url = (row.media_url_original ?? "").trim();
+  // Phase 3: prefer the freshly-reacquired feed URL (by MediaKey, this run) for
+  // the FETCH so recovery never depends solely on a stale stored signed URL.
+  // The stored `media_url_original` is only a fallback when no fresh URL is in
+  // hand. Neither is ever persisted here (URL is not material identity).
+  const url = (row.current_feed_url ?? row.media_url_original ?? "").trim();
   if (!url) {
     // Skipped — no media to mirror. No DB write (cooldown not relevant).
     return { status: "skipped", reason: "no_media_url_original" };
@@ -1657,6 +1837,44 @@ export async function mirrorMediaToR2(
   });
 
   return { status: "uploaded", r2_key: key, media_url_cached: publicUrl };
+}
+
+/**
+ * Phase 3 missing-R2 recovery for a suppressed-delivered row.
+ *
+ * The upsert suppressed this row's URL-refresh write (it looked delivered:
+ * r2_key + media_url_cached set). But those DB columns do NOT prove the R2
+ * object still exists. This probes existence via `mirrorMediaToR2`:
+ *   - object PRESENT  → `reused` — no fetch, no material change (drift-safe).
+ *   - object MISSING  → re-fetch using the CURRENT feed URL (reacquired by
+ *     MediaKey this run) and re-upload to the SAME r2_key, writing only
+ *     `r2_key`/`media_url_cached`. The stale stored `media_url_original` is
+ *     deliberately passed as `null`, so recovery can NEVER depend on it.
+ *
+ * Best-effort: returns the structured mirror result; never throws, never
+ * converts the rotating URL into a material `listing_media` change, never
+ * fails the listing (the photo still serves via the existing cached URL
+ * meanwhile). Invoked under a bounded per-run probe budget by the caller.
+ */
+export async function recoverMissingR2Object(
+  listingId: string,
+  candidate: MediaRecoveryCandidate,
+  deps: MirrorMediaToR2Deps = defaultMirrorMediaToR2Deps,
+): Promise<MirrorMediaToR2Result> {
+  return mirrorMediaToR2(
+    {
+      listing_id: listingId,
+      media_key: candidate.media_key,
+      media_type: candidate.media_type,
+      order: candidate.order,
+      // NEVER the stored URL — recovery must not depend on a frozen signed URL.
+      media_url_original: null,
+      current_feed_url: candidate.current_feed_url, // fresh, reacquired by MediaKey
+      r2_key: candidate.r2_key,
+      media_url_cached: candidate.media_url_cached,
+    },
+    deps,
+  );
 }
 
 // ─── Checkpoint 5 — orchestration (cron-callable) ───────────────────────
@@ -1850,6 +2068,12 @@ export interface RunMediaSyncResult {
   r2_failed: number;
   /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
   r2_skipped: number;
+  /** Phase 3 bounded recovery: suppressed-delivered rows existence-probed this run. */
+  r2_recovery_probed: number;
+  /** Phase 3 bounded recovery: missing R2 objects re-mirrored from the fresh feed URL. */
+  r2_recovery_repaired: number;
+  /** Phase 3 bounded recovery: probes that found a missing object but failed to re-mirror. */
+  r2_recovery_failed: number;
   /**
    * Count of `listing_media` rows still missing `r2_key` or `media_url_cached`
    * after Phase 3 completes (or budget exits). null if the count query failed.
@@ -2189,6 +2413,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2Mirrored = 0;
   let r2Failed = 0;
   let r2Skipped = 0;
+  // Phase 3 bounded missing-R2 recovery (drift repair for suppressed-delivered rows).
+  let r2RecoveryProbed = 0; // rows existence-probed this run
+  let r2RecoveryRepaired = 0; // missing objects re-mirrored from the fresh feed URL
+  let r2RecoveryFailed = 0; // probe found missing but re-mirror failed (still serves via cache)
+  let recoveryProbeBudget = MEDIA_RECOVERY_PROBES_PER_RUN;
   let backlogRemaining: number | null = null;
   let exitReason: RunMediaSyncResult["exit_reason"] = "completed";
   const cursorRecords: MediaSyncBatchRecord[] = [];
@@ -2252,6 +2481,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_mirrored: 0,
       r2_failed: 0,
       r2_skipped: 0,
+      r2_recovery_probed: 0,
+      r2_recovery_repaired: 0,
+      r2_recovery_failed: 0,
       backlog_remaining: null,
       duration_ms: now() - startTime,
     };
@@ -2348,7 +2580,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstonedExplicit += upsertResult.tombstonedExplicit;
       tombstonedVanished += upsertResult.tombstonedVanished;
       rowsTombstoned += upsertResult.tombstoned;
-      rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged; // legacy aggregate retained
+      // Physical listing_media writes = inserts + material updates + delivery-URL
+      // refreshes (Phase 3: an un-mirrored row still writes to refresh its URL).
+      rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged + upsertResult.deliveryUrlRefreshed;
       // #541 attribution (camelCase result → snake_case cumulative)
       attr.existing_rows_compared += upsertResult.existingRowsCompared;
       attr.mismatch_status += upsertResult.mismatchStatus;
@@ -2368,9 +2602,38 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       attr.rows_with_one_mismatch += upsertResult.rowsWithOneMismatch;
       attr.rows_with_multiple_mismatches += upsertResult.rowsWithMultipleMismatches;
 
+      // Phase 3: per-row write failures are isolated + counted INSIDE
+      // upsertListingMedia (bounded blast radius — the other rows still write),
+      // but the listing is NOT fully persisted. Fail closed EXACTLY as a thrown
+      // write would have (req 6): halt the keyset watermark here so the cursor
+      // never advances past incomplete media; the listing re-surfaces next run.
+      if (upsertResult.writeFailures > 0) {
+        throw new Error("listing_media_write_incomplete");
+      }
+
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).
       await updateListingMediaSummary(listingId);
+
+      // Phase 3 bounded missing-R2 recovery. Runs ONLY for a fully-processed
+      // listing (after a successful summary), best-effort, under a per-run probe
+      // budget + a time reserve so it can never reintroduce unbounded compute.
+      // Each probe re-mirrors from the FRESH feed URL (by MediaKey) if the R2
+      // object is missing — never from the stale stored URL. A recovery failure
+      // is counted but NEVER fails the listing (the photo still serves via its
+      // existing cached URL) and NEVER advances/halts the cursor differently.
+      for (const cand of upsertResult.recoveryCandidates) {
+        if (recoveryProbeBudget <= 0 || remainingMs() < phase1ReserveMs) break;
+        recoveryProbeBudget--;
+        r2RecoveryProbed++;
+        try {
+          const rec = await recoverMissingR2Object(listingId, cand, mirrorDeps);
+          if (rec.status === "uploaded") r2RecoveryRepaired++;
+          else if (rec.status === "failed") r2RecoveryFailed++;
+        } catch {
+          r2RecoveryFailed++;
+        }
+      }
 
       cursorRecords.push({
         PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
@@ -2616,6 +2879,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_mirrored: r2Mirrored,
     r2_failed: r2Failed,
     r2_skipped: r2Skipped,
+    r2_recovery_probed: r2RecoveryProbed,
+    r2_recovery_repaired: r2RecoveryRepaired,
+    r2_recovery_failed: r2RecoveryFailed,
     backlog_remaining: backlogRemaining,
     duration_ms: now() - startTime,
   };

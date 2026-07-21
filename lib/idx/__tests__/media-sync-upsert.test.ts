@@ -29,6 +29,8 @@ interface ListingMediaRow {
   media_modification_ts?: Date | null;
   modification_ts?: Date | null;
   status?: string;
+  r2_key?: string | null;
+  media_url_cached?: string | null;
 }
 
 const mockFindUnique = jest.fn<Promise<ListingMediaRow | null>, [{ where: { media_key: string }; select?: unknown }]>();
@@ -423,6 +425,9 @@ describe("upsertListingMedia — Checkpoint 2", () => {
 // The stored row that a byte-identical feed row maps to. Fields mirror the
 // `makeRow()` defaults after mapping (Photo, order 1, no MediaModification, a
 // ModificationTimestamp of 2026-05-08T12:00:00Z, no MediaClassification).
+// Phase 3: the byte-identical stored row is now also ALREADY DELIVERED to R2
+// (r2_key + media_url_cached present) — that is the state in which a
+// material-unchanged row may have its URL-refresh write suppressed.
 function existingMatching(over: Partial<ExistingMediaRowForCompare> = {}): ExistingMediaRowForCompare {
   return {
     listing_id: "RLS20012345",
@@ -437,6 +442,8 @@ function existingMatching(over: Partial<ExistingMediaRowForCompare> = {}): Exist
     media_modification_ts: null,
     modification_ts: new Date("2026-05-08T12:00:00Z"),
     status: "active",
+    r2_key: "photos/RLS20012345/MK-1/0.jpg",
+    media_url_cached: "https://cdn.mallan.nyc/photos/RLS20012345/MK-1/0.jpg",
     ...over,
   };
 }
@@ -465,10 +472,28 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  // Every real change must still WRITE (preserve inserts/updates/restores/order/media changes).
+  // Every real MATERIAL change must still WRITE (preserve inserts/updates/
+  // restores/order/media changes). NOTE (Phase 3): `media_url_original` is NO
+  // LONGER here — a rotated URL alone on a delivered row is suppressed (see the
+  // dedicated rotation-suppression suite + the two cases below).
+  it("PROOF (Phase 3): a URL-only change on a DELIVERED row is SUPPRESSED (no write)", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: "https://cdn.example/OLD.jpg" }));
+    const result = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: "https://cdn.example/NEW.jpg" })]);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(result).toMatchObject(res({ skippedUnchanged: 1 }));
+  });
+
+  it("a URL-only change on an UN-mirrored row (media_url_cached null) still WRITES (delivery refresh)", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: "https://cdn.example/OLD.jpg", media_url_cached: null }));
+    mockUpdate.mockResolvedValueOnce(undefined);
+    const result = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: "https://cdn.example/NEW.jpg" })]);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(result.deliveryUrlRefreshed).toBe(1);
+    expect(result.updatedChanged).toBe(0);
+  });
+
   const changes: Array<[string, Partial<ExistingMediaRowForCompare>]> = [
     ["order changed", { order: 2 }],
-    ["media_url_original changed", { media_url_original: "https://cdn.example/other.jpg" }],
     ["media_type changed", { media_type: "FloorPlan" }],
     ["media_category changed", { media_category: "FloorPlan" }],
     ["media_classification changed", { media_classification: "Interior" }],
@@ -542,11 +567,17 @@ describe("listingMediaRowUnchanged — pure predicate", () => {
     media_modification_ts: new Date("2026-05-08T12:00:00Z"),
     modification_ts: null,
     status: "active",
+    r2_key: "photos/RLS20012345/MK-1/0.jpg",
+    media_url_cached: "https://cdn.mallan.nyc/x.jpg",
   };
 
   it("true when every compared field matches (a fresh Date instance, same instant)", () => {
     const existing = { ...base, media_modification_ts: new Date("2026-05-08T12:00:00Z") };
     expect(listingMediaRowUnchanged(existing, mapped, "RLS20012345")).toBe(true);
+  });
+
+  it("true when ONLY media_url_original differs (Phase 3: URL excluded from material identity)", () => {
+    expect(listingMediaRowUnchanged({ ...base, media_url_original: "https://cdn.example/ROTATED.jpg" }, mapped, "RLS20012345")).toBe(true);
   });
 
   it("photos_change_ts_snapshot is EXCLUDED — a differing snapshot never blocks suppression", () => {
@@ -569,9 +600,9 @@ describe("listingMediaRowUnchanged — pure predicate", () => {
     expect(listingMediaRowUnchanged({ ...base, media_modification_ts: new Date("2000-01-01") }, mapped, "RLS20012345")).toBe(false); // different instant
   });
 
-  it("false on any single source-field mismatch", () => {
+  it("false on any single MATERIAL-field mismatch (media_url_original is NOT material — Phase 3)", () => {
     const fields: Array<Partial<ExistingMediaRowForCompare>> = [
-      { resource_record_key: "X" }, { resource_record_id: "X" }, { media_url_original: "X" },
+      { resource_record_key: "X" }, { resource_record_id: "X" },
       { media_type: "Video" }, { media_category: "X" }, { media_classification: "X" },
       { order: 99 }, { preferred_photo_yn: false },
     ];
@@ -708,24 +739,28 @@ describe("upsertListingMedia — #541 per-field attribution", () => {
     });
   }
 
-  it("URL path difference => exact + identity (not identity-equivalent)", async () => {
+  it("URL path difference => exact + identity (observability); NOT a base mismatch → suppressed on a delivered row", async () => {
     mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: "https://cdn.example/OTHER.jpg" }));
-    mockUpdate.mockResolvedValueOnce(undefined);
     const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
+    // URL diff is still ATTRIBUTED (observability)…
     expect(r.mismatchMediaUrlExact).toBe(1);
     expect(r.mismatchMediaUrlIdentity).toBe(1);
     expect(r.mismatchMediaUrlIdentityEquivalent).toBe(0);
-    expect(r.rowsWithOneMismatch).toBe(1);
+    // …but it is NOT a material change → zero base mismatches → SUPPRESSED.
+    expect(r.rowsWithOneMismatch).toBe(0);
+    expect(r.skippedUnchanged).toBe(1);
+    expect(r.suppressedUrlRotationOnly).toBe(1);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("URL query-only difference => exact + identity-equivalent (identity matches)", async () => {
+  it("URL query-only difference => exact + identity-equivalent (observability); suppressed on a delivered row", async () => {
     mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: URL_BASE + "?token=OLD&expires=1" }));
-    mockUpdate.mockResolvedValueOnce(undefined);
     const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
     expect(r.mismatchMediaUrlExact).toBe(1);
     expect(r.mismatchMediaUrlIdentity).toBe(0);
     expect(r.mismatchMediaUrlIdentityEquivalent).toBe(1);
-    expect(r.rowsWithOneMismatch).toBe(1);
+    expect(r.rowsWithOneMismatch).toBe(0);
+    expect(r.skippedUnchanged).toBe(1);
     expect(r.mismatchMediaUrlExact).toBe(r.mismatchMediaUrlIdentity + r.mismatchMediaUrlIdentityEquivalent);
   });
 
@@ -776,13 +811,13 @@ describe("upsertListingMedia — #541 per-field attribution", () => {
     expect(r.inserted).toBe(1);
   });
 
-  it("a malformed stored URL never throws and never changes the write decision", async () => {
+  it("a malformed stored URL never throws; the URL diff is observed but the row is still suppressed (delivered)", async () => {
     mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: "::: not a url %%%" }));
-    mockUpdate.mockResolvedValueOnce(undefined);
     const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
-    expect(r.mismatchMediaUrlExact).toBe(1);
-    expect(r.updatedChanged).toBe(1);
-    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    expect(r.mismatchMediaUrlExact).toBe(1); // observability — attribution still fires
+    expect(r.skippedUnchanged).toBe(1); // …but URL is not material → suppressed
+    expect(r.suppressedUrlRotationOnly).toBe(1);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -799,6 +834,7 @@ describe("classifyMediaRowMismatch — pure predicate (total, decision-mirroring
     media_url_original: URL_BASE, media_type: "Photo", media_category: "Photo",
     media_classification: null, order: 1, preferred_photo_yn: false,
     media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"), status: "active",
+    r2_key: "photos/RLS20012345/MK-1/0.jpg", media_url_cached: "https://cdn.mallan.nyc/x.jpg",
   };
 
   it("identical row => zero mismatches, mirrors the comparator decision", () => {
@@ -807,12 +843,15 @@ describe("classifyMediaRowMismatch — pure predicate (total, decision-mirroring
     expect(mm.baseMismatchCount === 0).toBe(listingMediaRowUnchanged(base, mapped, "RLS20012345"));
   });
 
-  it("query-only URL => exact & identity-equivalent; path URL => exact & identity", () => {
+  it("URL diffs are observed but contribute ZERO to baseMismatchCount (Phase 3: URL excluded)", () => {
     const q = classifyMediaRowMismatch({ ...base, media_url_original: URL_BASE + "?sig=OLD" }, mapped, "RLS20012345");
     expect([q.media_url_exact, q.media_url_identity, q.media_url_identity_equivalent]).toEqual([true, false, true]);
-    expect(q.baseMismatchCount).toBe(1);
+    expect(q.baseMismatchCount).toBe(0); // URL is observability-only now
     const p = classifyMediaRowMismatch({ ...base, media_url_original: "https://cdn.example/x.jpg" }, mapped, "RLS20012345");
     expect([p.media_url_exact, p.media_url_identity, p.media_url_identity_equivalent]).toEqual([true, true, false]);
+    expect(p.baseMismatchCount).toBe(0);
+    // Comparator agrees: a URL-only diff is still "unchanged".
+    expect(listingMediaRowUnchanged({ ...base, media_url_original: URL_BASE + "?sig=OLD" }, mapped, "RLS20012345")).toBe(true);
   });
 
   it("is total: malformed URLs on either/both sides never throw", () => {
@@ -822,9 +861,10 @@ describe("classifyMediaRowMismatch — pure predicate (total, decision-mirroring
   });
 
   it("baseMismatchCount mirrors the comparator for every single-field change", () => {
+    // media_url_original is deliberately ABSENT (Phase 3: not a material field).
     const changes: Array<Partial<ExistingMediaRowForCompare>> = [
       { status: "deleted" }, { listing_id: "Z" }, { resource_record_key: "Z" }, { resource_record_id: "Z" },
-      { media_url_original: "https://z/z.jpg" }, { media_type: "Video" }, { media_category: "Z" },
+      { media_type: "Video" }, { media_category: "Z" },
       { media_classification: "Z" }, { order: 9 }, { preferred_photo_yn: true },
       { media_modification_ts: new Date("2000-01-01") }, { modification_ts: new Date("2000-01-01") },
     ];

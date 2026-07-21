@@ -1642,6 +1642,11 @@ describe("runMediaSync — #530 detailed outcome accounting", () => {
         media_modification_ts: null,
         modification_ts: new Date("2026-05-08T12:00:00Z"),
         status: "active",
+        // Phase 3: already delivered to R2 → a rotated URL alone is suppressed.
+        // media_url_cached matches getR2PublicUrl(r2_key) so the bounded
+        // recovery probe (existsInR2→true) is a clean no-op (no drift write).
+        r2_key: "photos/RLS20012345/MK-2/0.jpg",
+        media_url_cached: "https://r2.example.com/photos/RLS20012345/MK-2/0.jpg",
       });
     mockListingMediaCreate.mockResolvedValueOnce(undefined);
 
@@ -1770,5 +1775,185 @@ describe("runMediaSync — #530 detailed outcome accounting", () => {
     expect(result.mismatch_media_url_exact).toBe(
       result.mismatch_media_url_identity + result.mismatch_media_url_identity_equivalent,
     );
+  });
+});
+
+// ─── Phase 3 — fail-closed on a per-row write failure ──────────────────────
+describe("runMediaSync — Phase 3 fail-closed on a per-row media write failure", () => {
+  it("a failed media write blocks tombstone, summary, completion AND cursor advance for that listing", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    // Existing row differs materially (order 9 vs incoming 1) → forces an UPDATE.
+    mockListingMediaFindUnique.mockResolvedValue({
+      listing_id: "RLS20012345",
+      resource_record_key: "1159000001",
+      resource_record_id: "RLS20012345",
+      media_url_original: "https://api.cotality.com/OLD",
+      media_type: "Photo", media_category: "Photo", media_classification: null,
+      order: 9, preferred_photo_yn: false,
+      media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"),
+      status: "active",
+      r2_key: "photos/RLS20012345/MK-1/0.jpg",
+      media_url_cached: "https://r2.example.com/photos/RLS20012345/MK-1/0.jpg",
+    });
+    // The material UPDATE fails.
+    mockListingMediaUpdate.mockRejectedValue(new Error("db write failed"));
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS20012345", ListingKey: "1159000001", PhotosChangeTimestamp: "2026-05-08T12:00:00Z" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-1", Order: 1 })]),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+
+    // Fail-closed: the listing did NOT complete.
+    expect(result.rows_failed).toBeGreaterThanOrEqual(1);
+    expect(result.listings_processed).toBe(0);
+    expect(result.status).toBe("partial");
+    // NO destructive tombstone for a partially-written listing (writeFailures>0
+    // skips the tombstone block inside upsertListingMedia).
+    expect(mockListingMediaUpdateMany).not.toHaveBeenCalled();
+    // NO summary write (the run throws before updateListingMediaSummary).
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+    // NO recovery probe (only fully-processed listings recover).
+    expect(result.r2_recovery_probed).toBe(0);
+    // Cursor did NOT advance past the failed listing (null keyset watermark).
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    expect(upsertArgs.update.last_listing_key).toBeNull();
+  });
+});
+
+// ─── Phase 3 — production-shape suppression (≈50 listings × 15 delivered) ───
+describe("runMediaSync — production-shape suppression (50 listings × 15 delivered rows, URLs rotated)", () => {
+  it("only rotated URLs → zero listing_media writes, zero tombstoned rows, all suppressed, cursor advances", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+
+    const LISTINGS = 50;
+    const PER = 15;
+
+    // Every stored row is delivered + material-identical; only the URL rotated.
+    // media_url_cached == getR2PublicUrl(r2_key) so the bounded recovery probe
+    // (existsInR2→true) is a clean no-op.
+    mockListingMediaFindUnique.mockImplementation(async (args) => {
+      const key = (args as { where: { media_key: string } }).where.media_key;
+      const m = key.match(/^L(\d+)-M(\d+)$/)!;
+      const li = m[1];
+      const mj = Number(m[2]);
+      const r2 = `photos/RLS-${li}/${key}/0.jpg`;
+      return {
+        listing_id: `RLS-${li}`,
+        resource_record_key: `K-${li}`,
+        resource_record_id: `RLS-${li}`,
+        media_url_original: `https://api.cotality.com/OLD/${key}`,
+        media_type: "Photo", media_category: "Photo", media_classification: null,
+        order: mj, preferred_photo_yn: false,
+        media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"),
+        status: "active",
+        r2_key: r2,
+        media_url_cached: `https://r2.example.com/${r2}`,
+      };
+    });
+
+    const properties = Array.from({ length: LISTINGS }, (_, i) =>
+      makeProperty({ ListingId: `RLS-${i}`, ListingKey: `K-${i}`, PhotosChangeTimestamp: "2026-05-08T12:00:00Z" }));
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce(properties),
+      fetchMedia: jest.fn().mockImplementation(async (listingKey: string) => {
+        const li = listingKey.replace("K-", "");
+        return Array.from({ length: PER }, (_, j) => makeMediaInput({
+          MediaKey: `L${li}-M${j}`,
+          ResourceRecordKey: `K-${li}`, ResourceRecordID: `RLS-${li}`,
+          Order: j,
+          MediaURL: `https://api.cotality.com/NEW/L${li}-M${j}`, // rotated signed URL
+        }));
+      }),
+    });
+
+    const result = await runMediaSync(makeOptions({
+      fetchDeps, listingsPerRun: LISTINGS, mediaPerListing: PER, budgetMs: 300_000,
+    }));
+
+    // Every one of the 750 rows suppressed; ZERO physical listing_media writes.
+    expect(result.rows_failed).toBe(0);
+    expect(result.listings_processed).toBe(LISTINGS);
+    expect(result.rows_checked).toBe(LISTINGS * PER); // 750 inspected
+    expect(result.rows_skipped_unchanged).toBe(LISTINGS * PER); // 750 suppressed
+    expect(result.rows_updated).toBe(0); // physical writes
+    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expect(mockListingMediaCreate).not.toHaveBeenCalled();
+    // ZERO rows tombstoned (all feed rows present); the reconcile query may run
+    // per listing but must affect no rows.
+    expect(result.rows_tombstoned).toBe(0);
+    // Cursor advanced normally (batch fully processed).
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    expect(upsertArgs.update.last_listing_key).not.toBeNull();
+    // REPORTED: listing-summary writes STILL occur — one Listing.update per
+    // processed listing (the remaining, not-yet-suppressed churn → Phase 3 cont.).
+    expect(mockListingUpdate).toHaveBeenCalledTimes(LISTINGS);
+  });
+});
+
+// ─── Phase 3 — rows_updated = physical writes, not checked rows ────────────
+describe("runMediaSync — rows_updated counts PHYSICAL writes (insert + material update + delivery refresh)", () => {
+  it("mixed batch: rows_checked=5, rows_updated=3 (1 insert + 1 material + 1 delivery refresh), 2 suppressed", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+
+    // resource_record_key/id match makeMediaInput()'s defaults so only the
+    // intended field (order / delivery state) differs.
+    const delivered = (over: Record<string, unknown>) => ({
+      listing_id: "RLS20012345", resource_record_key: "1159000001", resource_record_id: "RLS20012345",
+      media_url_original: "https://api.cotality.com/OLD",
+      media_type: "Photo", media_category: "Photo", media_classification: null,
+      order: 0, preferred_photo_yn: false,
+      media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"),
+      status: "active",
+      r2_key: "photos/x/k/0.jpg", media_url_cached: "https://r2.example.com/photos/x/k/0.jpg",
+      ...over,
+    });
+
+    mockListingMediaFindUnique.mockImplementation(async (args) => {
+      const key = (args as { where: { media_key: string } }).where.media_key;
+      if (key === "MK-new") return null; // insert
+      if (key === "MK-mat") return delivered({ order: 9 }); // material change (order) → update
+      if (key === "MK-refresh") return delivered({ media_url_cached: null }); // un-delivered → URL refresh write
+      return delivered({}); // MK-sup1 / MK-sup2 → suppressed
+    });
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS20012345", ListingKey: "K", PhotosChangeTimestamp: "2026-05-08T12:00:00Z" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValueOnce([
+        makeMediaInput({ MediaKey: "MK-new", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-mat", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-refresh", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-sup1", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-sup2", Order: 0 }),
+      ]),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps, mediaPerListing: 5 }));
+
+    expect(result.rows_failed).toBe(0);
+    expect(result.rows_checked).toBe(5); // inspected feed rows
+    expect(result.rows_skipped_unchanged).toBe(2); // MK-sup1, MK-sup2
+    // PHYSICAL writes: 1 insert + 1 material update + 1 delivery-URL refresh = 3.
+    expect(result.rows_updated).toBe(3);
+    expect(result.rows_updated).not.toBe(result.rows_checked); // NOT the checked count
+    expect(mockListingMediaCreate).toHaveBeenCalledTimes(1);
+    expect(mockListingMediaUpdate).toHaveBeenCalledTimes(2); // material + refresh
   });
 });
