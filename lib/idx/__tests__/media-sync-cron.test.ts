@@ -81,6 +81,23 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     tombstoned_explicit: 0,
     tombstoned_vanished: 0,
     rows_tombstoned: 0,
+    existing_rows_compared: 0,
+    mismatch_status: 0,
+    mismatch_listing_id: 0,
+    mismatch_resource_record_key: 0,
+    mismatch_resource_record_id: 0,
+    mismatch_media_url_exact: 0,
+    mismatch_media_url_identity: 0,
+    mismatch_media_url_identity_equivalent: 0,
+    mismatch_media_type: 0,
+    mismatch_media_category: 0,
+    mismatch_media_classification: 0,
+    mismatch_order: 0,
+    mismatch_preferred_photo: 0,
+    mismatch_media_modification_ts: 0,
+    mismatch_modification_ts: 0,
+    rows_with_one_mismatch: 0,
+    rows_with_multiple_mismatches: 0,
     rows_failed: 0,
     listings_processed: 0,
     listings_skipped: 0,
@@ -286,7 +303,17 @@ describe("GET /api/cron/media-sync — happy path", () => {
       "rows_skipped_invalid", "delete_signals_received", "tombstoned_explicit",
       "tombstoned_vanished", "rows_tombstoned",
     ];
-    for (const k of detailedCounters) {
+    // #541: every comparator-attribution counter is persisted too.
+    const attributionCounters = [
+      "existing_rows_compared", "mismatch_status", "mismatch_listing_id",
+      "mismatch_resource_record_key", "mismatch_resource_record_id",
+      "mismatch_media_url_exact", "mismatch_media_url_identity",
+      "mismatch_media_url_identity_equivalent", "mismatch_media_type",
+      "mismatch_media_category", "mismatch_media_classification", "mismatch_order",
+      "mismatch_preferred_photo", "mismatch_media_modification_ts",
+      "mismatch_modification_ts", "rows_with_one_mismatch", "rows_with_multiple_mismatches",
+    ];
+    for (const k of [...detailedCounters, ...attributionCounters]) {
       expect(ch).toHaveProperty(k);
     }
 
@@ -295,6 +322,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
       "listings_processed", "listings_skipped",
       ...detailedCounters,
+      ...attributionCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
     ]);

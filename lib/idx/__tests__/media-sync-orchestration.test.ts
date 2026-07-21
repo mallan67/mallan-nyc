@@ -1699,10 +1699,76 @@ describe("runMediaSync — #530 detailed outcome accounting", () => {
       "tombstoned_explicit",
       "tombstoned_vanished",
       "rows_tombstoned",
+      // #541 attribution counters must also zero-init on source_error.
+      "existing_rows_compared",
+      "mismatch_status",
+      "mismatch_listing_id",
+      "mismatch_resource_record_key",
+      "mismatch_resource_record_id",
+      "mismatch_media_url_exact",
+      "mismatch_media_url_identity",
+      "mismatch_media_url_identity_equivalent",
+      "mismatch_media_type",
+      "mismatch_media_category",
+      "mismatch_media_classification",
+      "mismatch_order",
+      "mismatch_preferred_photo",
+      "mismatch_media_modification_ts",
+      "mismatch_modification_ts",
+      "rows_with_one_mismatch",
+      "rows_with_multiple_mismatches",
     ] as const;
     for (const k of counters) {
       expect(result[k]).toBe(0);
     }
     expect(result.rows_updated).toBe(0);
+  });
+
+  it("#541 attribution counters aggregate through runMediaSync (changed row) and honour the invariants", async () => {
+    mockMediaSyncFindUnique.mockResolvedValueOnce({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    // One existing row that differs ONLY in `order` → classified "changed".
+    mockListingMediaFindUnique.mockResolvedValueOnce({
+      listing_id: "RLS20012345",
+      resource_record_key: "1159000001",
+      resource_record_id: "RLS20012345",
+      media_url_original: "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1/1/abc",
+      media_type: "Photo",
+      media_category: "Photo",
+      media_classification: null,
+      order: 9, // differs from the mapped order (1)
+      preferred_photo_yn: false,
+      media_modification_ts: null,
+      modification_ts: new Date("2026-05-08T12:00:00Z"),
+      status: "active",
+    });
+    mockListingMediaUpdate.mockResolvedValueOnce(undefined);
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS20012345", ListingKey: "1159000001" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-1" })]),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+
+    expect(result.rows_failed).toBe(0);
+    expect(result.existing_rows_compared).toBe(1);
+    expect(result.mismatch_order).toBe(1);
+    expect(result.rows_with_one_mismatch).toBe(1);
+    expect(result.rows_with_multiple_mismatches).toBe(0);
+    expect(result.rows_updated_changed).toBe(1);
+    expect(result.rows_skipped_unchanged).toBe(0);
+    // Invariants (rows_failed===0).
+    expect(result.existing_rows_compared).toBe(
+      result.rows_skipped_unchanged + result.rows_with_one_mismatch + result.rows_with_multiple_mismatches,
+    );
+    expect(result.rows_updated_changed).toBe(result.rows_with_one_mismatch + result.rows_with_multiple_mismatches);
+    expect(result.mismatch_media_url_exact).toBe(
+      result.mismatch_media_url_identity + result.mismatch_media_url_identity_equivalent,
+    );
   });
 });
