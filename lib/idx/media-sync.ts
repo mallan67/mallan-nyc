@@ -29,6 +29,9 @@
 
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { isUnifiedPipelineEnabled, planUnifiedReconcile } from "@/lib/idx/unified-media-reconcile";
+import { deriveSourceRevision } from "@/lib/media/media-identity";
+import type { ExistingMediaRow, IncomingMedia } from "@/lib/sync/gallery-reconcile";
 import {
   buildMediaR2Key,
   classifyTrestleMediaCategory,
@@ -494,6 +497,12 @@ export interface UpsertListingMediaOptions {
    * because partial inputs would silently kill live rows otherwise.
    */
   tombstoneVanished?: boolean;
+  /**
+   * Correlation id for the unified pipeline's `pending_removal_run` stamping
+   * (second-fetch confirmation). Only consulted when UNIFIED_MEDIA_PIPELINE is
+   * on and `tombstoneVanished` is true.
+   */
+  runId?: string;
 }
 
 /**
@@ -776,6 +785,113 @@ export function classifyMediaRowMismatch(
  * input produces ZERO DB writes on the second run (every matched row is
  * `unchanged`) — not even an `@updatedAt` bump (#530).
  */
+/**
+ * Flag-gated unified vanished reconciliation (Phase 2, Task 10).
+ *
+ * Replaces the legacy absence-based tombstone with the fail-closed reconciler
+ * when UNIFIED_MEDIA_PIPELINE is on. Only invoked when the caller set
+ * `tombstoneVanished: true`, which is its explicit "the Media set is COMPLETE"
+ * signal (runMediaSync sets it only after `fetchMedia` drained `@odata.nextLink`)
+ * — so `pageChainComplete: true` here is the caller's guarantee, not an
+ * assumption. `planUnifiedReconcile` enforces feed-provenance (non-`crm:` only),
+ * empty/shrink fail-closed, and second-fetch confirmation. Returns the number of
+ * rows tombstoned (confirmed removals only); pending (first-sighting) removals
+ * are stamped for the next run to confirm. Explicit `MediaStatus='Deleted'`
+ * removals remain handled by the caller's explicit-delete block.
+ */
+async function applyUnifiedVanishedReconcile(
+  listingId: string,
+  mapped: MappedMediaRow[],
+  explicitDeleteKeys: Set<string>,
+  runId: string,
+): Promise<number> {
+  const existingRows = await prisma.listingMedia.findMany({
+    where: { listing_id: listingId },
+    select: {
+      listing_id: true, resource_record_key: true, resource_record_id: true,
+      media_key: true, source_revision: true, media_category: true,
+      media_classification: true, media_type: true, order: true,
+      preferred_photo_yn: true, status: true, pending_removal_run: true,
+    },
+  });
+  const existing: ExistingMediaRow[] = existingRows
+    .filter((r): r is typeof r & { media_key: string } => r.media_key != null)
+    .map((r) => ({
+    listing_id: r.listing_id,
+    resource_record_key: r.resource_record_key,
+    resource_record_id: r.resource_record_id,
+    media_key: r.media_key,
+    source_revision: r.source_revision != null ? Number(r.source_revision) : null,
+    media_category: r.media_category,
+    media_classification: r.media_classification,
+    media_type: r.media_type,
+    order: r.order,
+    preferred_photo_yn: r.preferred_photo_yn,
+    status: r.status,
+    pending_removal_run: r.pending_removal_run,
+  }));
+
+  const liveIncoming: IncomingMedia[] = mapped.map((m) => ({
+    listing_id: listingId,
+    resource_record_key: m.resourceRecordKey,
+    resource_record_id: m.resourceRecordID,
+    media_key: m.mediaKey,
+    source_revision: deriveSourceRevision({
+      ModificationTimestamp: m.modificationTs ? m.modificationTs.toISOString() : null,
+      MediaModificationTimestamp: m.mediaModificationTs ? m.mediaModificationTs.toISOString() : null,
+    }),
+    media_category: m.mediaCategory,
+    media_classification: m.mediaClassification,
+    media_type: m.mediaType,
+    order: m.order,
+    preferred_photo_yn: m.preferredPhotoYN,
+    status: "active",
+    media_status: "Active",
+    media_url_original: m.mediaUrlOriginal,
+  }));
+  // Explicit deletes are passed as Deleted rows so the reconciler does NOT count
+  // them as absence-based "vanished"; the caller's explicit block tombstones them.
+  const deletedIncoming: IncomingMedia[] = [...explicitDeleteKeys].map((k) => ({
+    listing_id: listingId, resource_record_key: null, resource_record_id: null,
+    media_key: k, source_revision: null, media_category: null,
+    media_classification: null, media_type: "", order: null,
+    preferred_photo_yn: false, status: "active", media_status: "Deleted",
+  }));
+
+  const plan = planUnifiedReconcile({
+    existing,
+    incoming: [...liveIncoming, ...deletedIncoming],
+    pageChainComplete: true, // guaranteed by tombstoneVanished===true (complete drained set)
+    photosCount: null,
+    runId,
+  });
+  if (plan.failClosed) return 0;
+
+  let tombstoned = 0;
+  if (plan.confirmedTombstone.length > 0) {
+    const res = await prisma.listingMedia.updateMany({
+      where: {
+        listing_id: listingId,
+        status: "active",
+        media_key: { in: plan.confirmedTombstone.map((x) => x.media_key) },
+      },
+      data: { status: "deleted", pending_removal_run: null },
+    });
+    tombstoned = res.count;
+  }
+  if (plan.pendingRemoval.length > 0) {
+    await prisma.listingMedia.updateMany({
+      where: {
+        listing_id: listingId,
+        status: "active",
+        media_key: { in: plan.pendingRemoval.map((x) => x.media_key) },
+      },
+      data: { pending_removal_run: runId },
+    });
+  }
+  return tombstoned;
+}
+
 export async function upsertListingMedia(
   listingId: string,
   mediaRows: UpsertListingMediaInput[],
@@ -961,7 +1077,16 @@ export async function upsertListingMedia(
     tombstonedExplicit = res.count;
   }
 
-  if (options.tombstoneVanished === true) {
+  if (options.tombstoneVanished === true && isUnifiedPipelineEnabled()) {
+    // Unified pipeline (flag ON): fail-closed reconciler owns the absence-based
+    // decision (empty/shrink fail-closed, feed-provenance, second-fetch confirm).
+    tombstonedVanished = await applyUnifiedVanishedReconcile(
+      listingId,
+      mapped,
+      explicitDeleteKeys,
+      options.runId ?? "unknown-run",
+    );
+  } else if (options.tombstoneVanished === true) {
     const seenKeys = new Set<string>([
       ...mapped.map((r) => r.mediaKey),
       ...explicitDeleteKeys,
@@ -2210,6 +2335,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
         // absent from the input is proven deleted at source → tombstone it.
         // An empty COMPLETE set tombstones every active row for the listing.
         tombstoneVanished: true,
+        runId, // unified pipeline: correlation id for pending_removal stamping
       });
       // Aggregate the detailed ledger AFTER a successful upsert (a later summary
       // throw still marks the listing failed → detailed reconciliation is only
