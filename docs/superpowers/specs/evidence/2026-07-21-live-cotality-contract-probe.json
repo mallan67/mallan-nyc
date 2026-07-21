@@ -1,13 +1,16 @@
 {
-  "probe": "live-cotality-contract",
+  "probe": "live-cotality-contract-v2",
   "base": "https://api.cotality.com/trestle",
-  "startedAt": "2026-07-21T06:01:39.229Z",
+  "startedAt": "2026-07-21T06:21:58.320Z",
+  "notes": [],
   "auth": {
     "acquired": true,
     "printed": false
   },
   "metadata_http": 200,
+  "metadata_content_type": "application/xml",
   "live_metadata": {
+    "http": 200,
     "media_key_is_MediaKey": true,
     "property_key_is_ListingKey": true,
     "media_fields": {
@@ -67,8 +70,7 @@
       "UnbrandedVirtualTour",
       "Video"
     ],
-    "enum_Permission_count": 19,
-    "enum_Permission_sample": [
+    "enum_Permission": [
       "AgentOnly",
       "CompSold",
       "DownPaymentResourceNo",
@@ -133,11 +135,12 @@
   "listings": [
     {
       "listingKey": "1177660623",
-      "scoped_enum_literal_http": 200,
+      "scoped_plain_http": 200,
       "scoped_count": 7,
-      "scoped_nextLink_present": false,
+      "scoped_nextLink": null,
       "unscoped_http": 200,
       "unscoped_count": 7,
+      "unscoped_nextLink": null,
       "keysets_equal": true,
       "unscoped_resourceNames": [
         "Property"
@@ -156,11 +159,12 @@
       "permission_shapes": [
         "object:null"
       ],
-      "preferred_count": 0,
+      "preferredYN_values": [
+        "null"
+      ],
       "url_hosts": [
         "api.cotality.com"
       ],
-      "url_query_param_names": [],
       "example_first_row": {
         "MediaKey": "2005738833983",
         "ResourceName": "Property",
@@ -175,7 +179,8 @@
         "url": {
           "present": true,
           "host": "api.cotality.com",
-          "pathname": "/trestle/Media/Property/PHOTO-Jpeg/1177660623/<signed-token-segments-masked>",
+          "pathnameMasked": "/trestle/Media/Property/PHOTO-Jpeg/1177660623/<masked>",
+          "pathSegments": 9,
           "queryParamNames": [],
           "hasQuery": false
         }
@@ -183,11 +188,12 @@
     },
     {
       "listingKey": "1177659553",
-      "scoped_enum_literal_http": 200,
+      "scoped_plain_http": 200,
       "scoped_count": 22,
-      "scoped_nextLink_present": false,
+      "scoped_nextLink": null,
       "unscoped_http": 200,
       "unscoped_count": 22,
+      "unscoped_nextLink": null,
       "keysets_equal": true,
       "unscoped_resourceNames": [
         "Property"
@@ -206,11 +212,12 @@
       "permission_shapes": [
         "object:null"
       ],
-      "preferred_count": 0,
+      "preferredYN_values": [
+        "null"
+      ],
       "url_hosts": [
         "api.cotality.com"
       ],
-      "url_query_param_names": [],
       "example_first_row": {
         "MediaKey": "2005738815311",
         "ResourceName": "Property",
@@ -225,7 +232,8 @@
         "url": {
           "present": true,
           "host": "api.cotality.com",
-          "pathname": "/trestle/Media/Property/PHOTO-Jpeg/1177659553/<signed-token-segments-masked>",
+          "pathnameMasked": "/trestle/Media/Property/PHOTO-Jpeg/1177659553/<masked>",
+          "pathSegments": 9,
           "queryParamNames": [],
           "hasQuery": false
         }
@@ -233,11 +241,12 @@
     },
     {
       "listingKey": "1177659552",
-      "scoped_enum_literal_http": 200,
+      "scoped_plain_http": 200,
       "scoped_count": 18,
-      "scoped_nextLink_present": false,
+      "scoped_nextLink": null,
       "unscoped_http": 200,
       "unscoped_count": 18,
+      "unscoped_nextLink": null,
       "keysets_equal": true,
       "unscoped_resourceNames": [
         "Property"
@@ -256,11 +265,12 @@
       "permission_shapes": [
         "object:null"
       ],
-      "preferred_count": 0,
+      "preferredYN_values": [
+        "null"
+      ],
       "url_hosts": [
         "api.cotality.com"
       ],
-      "url_query_param_names": [],
       "example_first_row": {
         "MediaKey": "2005738814898",
         "ResourceName": "Property",
@@ -275,7 +285,8 @@
         "url": {
           "present": true,
           "host": "api.cotality.com",
-          "pathname": "/trestle/Media/Property/PHOTO-Jpeg/1177659552/<signed-token-segments-masked>",
+          "pathnameMasked": "/trestle/Media/Property/PHOTO-Jpeg/1177659552/<masked>",
+          "pathSegments": 9,
           "queryParamNames": [],
           "hasQuery": false
         }
@@ -284,20 +295,170 @@
   ],
   "url_rotation": {
     "listingKey": "1177660623",
-    "immediate_refetch": {
+    "immediate_B_vs_A": {
+      "compared": 7,
       "exactEq": 0,
       "exactDiff": 7,
       "identityEq": 0,
       "identityDiff": 7
     },
-    "after_60s": {
+    "after60s_C_vs_A": {
+      "compared": 7,
       "exactEq": 0,
       "exactDiff": 7,
       "identityEq": 0,
       "identityDiff": 7
-    }
+    },
+    "B_status": 200,
+    "C_status": 200
   },
+  "aged_url_fetch": {
+    "error": "fetch failed",
+    "note": "original A MediaURL failed on delayed re-request"
+  },
+  "request_log": [
+    {
+      "seq": 1,
+      "label": "metadata",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/$metadata",
+      "status": 200,
+      "ms": 153,
+      "headers": {
+        "content-type": "application/xml",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:21:59 GMT"
+      }
+    },
+    {
+      "seq": 2,
+      "label": "property-top5",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Property?$select=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 359,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:21:59 GMT"
+      }
+    },
+    {
+      "seq": 3,
+      "label": "scoped:1177660623",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 220,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:21:59 GMT"
+      }
+    },
+    {
+      "seq": 4,
+      "label": "unscoped:1177660623",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 177,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:22:00 GMT"
+      }
+    },
+    {
+      "seq": 5,
+      "label": "scoped:1177659553",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 186,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:22:00 GMT"
+      }
+    },
+    {
+      "seq": 6,
+      "label": "unscoped:1177659553",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 211,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:22:00 GMT"
+      }
+    },
+    {
+      "seq": 7,
+      "label": "scoped:1177659552",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 174,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:22:00 GMT"
+      }
+    },
+    {
+      "seq": 8,
+      "label": "unscoped:1177659552",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 188,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:22:01 GMT"
+      }
+    },
+    {
+      "seq": 9,
+      "label": "rotation-B:1177660623",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 208,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:22:00 GMT"
+      }
+    },
+    {
+      "seq": 10,
+      "label": "rotation-C:1177660623",
+      "method": "GET",
+      "url": "https://api.cotality.com/trestle/odata/Media?$filter=%3Credacted%3E&$select=%3Credacted%3E&$orderby=%3Credacted%3E&$top=%3Credacted%3E",
+      "status": 200,
+      "ms": 397,
+      "headers": {
+        "content-type": "application/json; odata.metadata=minimal; charset=utf-8",
+        "odata-version": "4.0",
+        "cache-control": "public, max-age=10",
+        "date": "Tue, 21 Jul 2026 06:23:00 GMT"
+      }
+    }
+  ],
   "total_requests": 10,
-  "finishedAt": "2026-07-21T06:02:42.478Z",
-  "_redaction": "URL path token segments masked (first 5 segments retained); no credentials, tokens, or query values present anywhere in this capture."
+  "finishedAt": "2026-07-21T06:23:01.391Z",
+  "_redaction": "Sanitized: query values redacted; MediaURL signed-path segments masked; no credentials/tokens/secrets. Per-request status/timing/headers/nextLinks recorded."
 }
