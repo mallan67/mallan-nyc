@@ -16,10 +16,14 @@ const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UCBA Art. III §6 ethics training tracking (Workstream C4b).
-// DB fields (ethics_training_completed_at, ethics_training_expires_at) and
-// the admin panel at /broker/people/ethics remain for compliance record-
-// keeping. Ethics/CE dates do NOT block session creation — compliance is
-// enforced at the RLS listing-submission layer, not at login.
+// Ethics training is an ADMINISTRATIVE compliance RECORD only. The DB fields
+// (ethics_training_completed_at, ethics_training_expires_at), the admin panel
+// at /broker/people/ethics, and the ethics-training admin API are for record-
+// keeping and broker-directed follow-up. Ethics/CE dates do NOT block session
+// creation, login, or MFA — authentication is governed solely by account
+// status (active/inactive/suspended). Missing or expired ethics training must
+// never automatically block login. It is NOT wired into any automated
+// authentication or listing-submission gate.
 //
 // PR-Licensing.1: Licensing Department workflow (agent self-upload of
 // proof, renewal reminders, broker review dashboard) is the next PR.
@@ -31,10 +35,14 @@ const ETHICS_RETRAINING_URL =
   "https://www.rebny.com/content/rebny/en/Education/courses.html";
 
 /**
- * Thrown by `createSession` (and `assertAgentEthicsTrainingValid`) when an
- * agent has no recorded ethics training, or when their training is past
- * `ethics_training_expires_at`. Login/MFA-verify route handlers catch this
- * specifically and return a 403 with the retraining URL.
+ * Thrown by `assertAgentEthicsTrainingValid` when an agent has no recorded
+ * ethics training, or when their training is past `ethics_training_expires_at`.
+ *
+ * NOTE: this is NOT thrown during authentication. `createSession()` does not
+ * call the assertion, and the login / MFA-verify route handlers do NOT catch
+ * this error — ethics training never blocks login (see the module header and
+ * commit 2c10ce0b). This error type exists only for administrative/reporting
+ * callers of `assertAgentEthicsTrainingValid`.
  */
 export class EthicsTrainingExpiredError extends Error {
   readonly code = "ETHICS_TRAINING_EXPIRED" as const;
@@ -61,9 +69,10 @@ export class EthicsTrainingExpiredError extends Error {
  * Verify the agent's ethics training is valid. Throws
  * `EthicsTrainingExpiredError` if missing or expired.
  *
- * NOT called from createSession() — login is never blocked by ethics dates.
- * Available for future use at the RLS listing-submission layer or as a
- * soft-warning in the broker compliance dashboard.
+ * NOT called from createSession(), login, or MFA — authentication is never
+ * blocked by ethics dates. Provided for ADMINISTRATIVE/reporting use only
+ * (e.g. a broker compliance dashboard or backfill audit). It is not wired into
+ * any automated authentication or listing-submission gate.
  */
 export async function assertAgentEthicsTrainingValid(agentId: bigint): Promise<void> {
   const agent = await prisma.agent.findUnique({
