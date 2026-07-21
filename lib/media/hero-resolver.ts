@@ -1,9 +1,10 @@
 // lib/media/hero-resolver.ts
 //
 // THE single hero-selection + gallery-ordering authority for the unified
-// system. Every surface (listing detail, search cards, featured, agent,
-// similar, /api/listings, CRM cards, reports) must consume this — no divergent
-// implementation is permitted (enforced by a source-scan test in Phase 6).
+// system. Every rendering surface (listing detail, search cards, featured,
+// agent listings, similar, /api/listings, card/report outputs) must consume
+// this — no divergent implementation is permitted (enforced by a source-scan
+// test in Phase 6).
 //
 // Rule (live-grounded, probe 2026-07-21): the hero is the first ACTIVE Photo by
 //   PreferredPhotoYN (true wins; null/false = not-preferred) →
