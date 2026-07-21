@@ -3,8 +3,9 @@
 **Repository:** `mallan67/mallan-nyc`  
 **Branch:** `agent/unified-feed-media-system`  
 **Draft PR:** #544  
-**Base:** `main` @ `51b831dd621510243da5a4c9c70b6c9962b03d95`  
-**Phase 2 accepted head:** `124e617be01b24052a4ac66249b2cafdc5410b04`  
+**Base:** `main` — forked at `51b831dd`, updated onto corrected `main` `7b3dbe1d` (includes PR #545).  
+**Phase 2 accepted code head:** `1dbc74dd` (validated merge).  
+**Proof head:** `c237ec94` (docs-only ledger on top of `1dbc74dd`).  
 **Production activation:** NONE
 
 ## Current status
@@ -60,7 +61,7 @@ Migration proof:
 
 ## Phase 2 — Lossless pipeline and coordinator
 
-**Status:** ACCEPTED at `124e617b`
+**Status:** ACCEPTED at `1dbc74dd`
 
 | Task | Files | Commit(s) |
 |---|---|---|
@@ -68,7 +69,6 @@ Migration proof:
 | Task 8 — Fail-closed gallery reconcile | `lib/sync/gallery-reconcile.ts`, `tests/runtime/gallery-reconcile.test.ts` | `1a71f09f` |
 | Task 9 — Advisory-lock coordinator | `lib/sync/coordinator.ts`, `tests/runtime/coordinator.test.ts` | `5a5d8a55`, `2cacbac7` |
 | Task 10 — Unified media reconcile + live path wiring | `lib/idx/unified-media-reconcile.ts`, `lib/idx/media-sync.ts`, `tests/runtime/media-sync-unified.test.ts` | `55c34396`, `a270a9d0` |
-| CI migration-discipline wording correction | migration evidence/comment wording only | `124e617b` |
 
 Implemented protections:
 - Explicit `pageChainComplete` gate; incomplete pagination preserves the prior cursor.
@@ -96,16 +96,16 @@ Implemented protections:
 
 ### PR and CI proof
 
-PR #544 at `124e617b`:
-- PR checks: SUCCESS
+PR #544 at `1dbc74dd` (rebased onto corrected `main` `7b3dbe1d`; docs-only ledger `c237ec94` on top):
+- pr-check: SUCCESS
 - Target Platform Build: SUCCESS
 - Guardrails (Repo + Compliance): SUCCESS
-- Release Truth: SUCCESS
-- Sentinel-L: SUCCESS
+- Release Truth (job): SUCCESS
 - Claude Code Review: SUCCESS
 - Vercel preview: SUCCESS
+- (`scan` and the retired Sentinel-L are NOT cited as proof — `scan` is not a required check, and Sentinel-L was retired/removed by PR #546.)
 
-The pre-existing `ethics_training_gate` gap on main is outside this PR's media/sync scope and was not modified.
+The pre-existing `ethics_training_gate` gap on main was corrected by PR #545 (merged into `main`); this PR merged that corrected main.
 
 ## Unresolved fail-closed items
 
@@ -155,5 +155,6 @@ Phase 3 gate:
 - **Ethics-contract PR #545 merged to `main`** (merge commit `7b3dbe1d`): the mislabeled `ethics_training_gate` corrected to an administrative RECORD; obsolete auth-gate operational action, write-capable backfill, throwing primitives, and stale docs removed. Post-merge `main` CI green (Release Truth success, Guardrails success); **production deploy `7b3dbe1d` = success**.
 - **`main` now protected** by the `Protect main` ruleset (id 19435006, active): require PR + `pr-check` status + up-to-date branch + conversation resolution; block direct push / force-push / branch deletion; no bypass. Verified — a direct push to `main` was rejected (GH013). `release-truth` intentionally NOT required yet (its preview commit-status is ambiguous/pending); an approving review NOT required yet (sole reviewer).
 - **PR #544 updated onto corrected `main`** by merging `origin/main` (`7b3dbe1d`) into the media branch — all legitimate remote commits preserved (no force-push, no rebase rewrite). New head **`1dbc74dd`**. Conflict-free (media and ethics files disjoint).
-- **Phase 2 gate re-run on `1dbc74dd`:** 299/299 targeted + all media-sync regression suites · type-check 0 · media:system-health red 0 · rls UNKNOWN 0 · ucba 0 regressions · compliance-check 94/0/0 · idx:validate 1 pre-existing critical (Cron Schedule Completeness, unchanged). CI: `pr-check` ✓ · `target-platform-build` ✓ · `guardrails` ✓ · `release-truth` job ✓ · `scan` ✓ · `claude-review` ✓ · Vercel ✓ — code-level blocking failures 0; only the inherent pre-merge deploy-`UNVERIFIED` remains. (`ops:health` DB-drift check needs `DATABASE_URL`, unavailable in the sandbox; PR is flag-OFF with no DB-behavior change.)
+- **Phase 2 gate re-run on `1dbc74dd`:** 299/299 targeted + all media-sync regression suites · type-check 0 · media:system-health red 0 · rls UNKNOWN 0 · ucba 0 regressions · compliance-check 94/0/0 · idx:validate 1 pre-existing critical (Cron Schedule Completeness, unchanged). CI: `pr-check` ✓ · `target-platform-build` ✓ · `guardrails` ✓ · `release-truth` job ✓ · `claude-review` ✓ · Vercel ✓ — code-level blocking failures 0; only the inherent pre-merge deploy-`UNVERIFIED` remains. (`scan` is not cited as proof — not a required check; retired Sentinel-L is not cited.)
+- **Real credentialed `ops:health` (production, via `vercel env run`/`env pull`, 2026-07-21):** verdict **critical** (exit 2). Evidence `docs/superpowers/specs/evidence/2026-07-21-ops-health-production.json` (redacted; DATABASE_URL host confirmed canonical `ep-cold-waterfall-adno3ao2` before any query; no secret displayed). Issues: (1) 🔴 media-sync cursor `last_photos_change` **44.6h stale** (>24h) — the chronic boundary-cluster deadlock (incident 2026-05-21 RC1) that the unified pipeline is built to fix, currently flag-OFF/activation-gated, and **not introduced by this PR**; (2) ⚠️ 1 listing NULL `status_changed_at`; (3) ⚠️ 433 PARKED retry-exhausted media rows. §2.05 RLS violations = **0**; listing sync `ok`; storage 520 MB / 5.1% of cap. (The earlier "ops:health unavailable in the sandbox" note is superseded by this credentialed result.)
 - **Phase 2 ACCEPTED on head `1dbc74dd`.** The Phase-3 precondition (rebased #544 passes the full Phase 2 gate) is met.

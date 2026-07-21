@@ -1,0 +1,138 @@
+{
+  "generated_at": "2026-07-21T16:46:46.389Z",
+  "verdict": "critical",
+  "issues": [
+    {
+      "level": "warning",
+      "category": "retention",
+      "msg": "1 listings still have NULL status_changed_at — Phase 1 backfill not applied"
+    },
+    {
+      "level": "critical",
+      "category": "media-sync",
+      "msg": "media-sync cursor (last_photos_change) is 44.6h stale (> 24h) — likely Phase 1 boundary-cluster deadlock; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC1"
+    },
+    {
+      "level": "warning",
+      "category": "media-sync",
+      "msg": "433 PARKED retry-exhausted rows (r2_attempts >= 8; warn > 150) — growth guard"
+    }
+  ],
+  "storage": {
+    "db_size_mb": 520.63,
+    "free_cap_mb": 10240,
+    "pct_of_free": 5.1,
+    "top_5_tables": [
+      {
+        "table": "listing_media",
+        "size_mb": 198.38
+      },
+      {
+        "table": "listings",
+        "size_mb": 163.31
+      },
+      {
+        "table": "listing_search_projection",
+        "size_mb": 74.58
+      },
+      {
+        "table": "audit_events",
+        "size_mb": 57.13
+      },
+      {
+        "table": "demand_signals",
+        "size_mb": 6.48
+      }
+    ],
+    "table_health": [
+      {
+        "table": "listings",
+        "live": 23273,
+        "dead": 3257,
+        "dead_pct": 12.3,
+        "last_vacuum": null,
+        "last_autovacuum": "2026-07-20T21:00:58.707Z",
+        "manual_vacuum_count": 0,
+        "autovacuum_count": 155
+      },
+      {
+        "table": "listing_media",
+        "live": 306007,
+        "dead": 29157,
+        "dead_pct": 8.7,
+        "last_vacuum": null,
+        "last_autovacuum": "2026-07-13T21:01:38.267Z",
+        "manual_vacuum_count": 0,
+        "autovacuum_count": 26
+      }
+    ]
+  },
+  "sync": {
+    "state": "ok",
+    "last_run_at": "2026-07-21T16:31:38.234Z",
+    "watermark": "2026-07-21T16:31:38.234Z",
+    "last_run_duration_ms": 4533,
+    "rows_upserted_last_run": 70,
+    "rows_with_errors_last_run": 0,
+    "errors_last_24h": 0,
+    "top_error_codes_24h": []
+  },
+  "retention": {
+    "listings_missing_status_changed": 1,
+    "rebny_sec_2_05_violations": 0,
+    "terminal_idx_on_no_timestamp": 0,
+    "archive_backlog": 0,
+    "archive_backlog_predicate": "narrow (flag OFF / default — status_changed_at < cutoff only)",
+    "listings_terminal_missing_terminal_since": 2955,
+    "listings_archived_total": 2033
+  },
+  "triggers": {
+    "storage_upgrade_needed": false,
+    "storage_warning": false,
+    "scale_postgis_threshold": false,
+    "scale_partitioning_threshold": false,
+    "total_listings": 23273,
+    "total_audit_events": 88688
+  },
+  "branch_prune": {
+    "last_run_at": "2026-07-21T04:00:42.926Z",
+    "last_run_hours_ago": 12.8,
+    "status": "ok",
+    "examined": 1,
+    "pruned_count": 0,
+    "errors_count": 0
+  },
+  "media_sync": {
+    "last_photos_change": "2026-07-19T20:11:04.227Z",
+    "cursor_age_hours": 44.6,
+    "last_media_modified": "2026-07-19T20:10:11.640Z",
+    "last_run_at": "2026-07-21T16:01:08.569Z",
+    "last_run_status": "ok",
+    "last_run_hours_ago": 0.8,
+    "rows_checked_last_run": 801,
+    "rows_updated_last_run": 801,
+    "rows_failed_last_run": 0,
+    "idx_displayable_total": 16353,
+    "with_active_listing_media": 15521,
+    "with_r2_cached_listing_media": 15514,
+    "listing_media_coverage_pct": 94.9,
+    "r2_cached_coverage_pct": 94.9,
+    "first_image_r2": 1376,
+    "first_image_trestle_proxy": 3401,
+    "first_image_empty": 11576,
+    "first_image_other": 0,
+    "first_image_table_served": 11018,
+    "no_image_any_layer": 558,
+    "idx_displayable_no_usable_image_lower_bound": 558,
+    "r2_mirrored_24h": 649,
+    "r2_failed_24h": 7,
+    "r2_skipped_24h": 0,
+    "media_sync_firings_24h": 24,
+    "r2_retry_backlog": 433,
+    "r2_retry_backlog_actionable": 0,
+    "r2_retry_parked": 433,
+    "r2_above_tombstone_threshold": 433,
+    "r2_retry_backlog_oldest": "2026-05-13T03:45:30.912Z",
+    "r2_retry_backlog_newest": "2026-07-17T22:00:55.002Z"
+  }
+}
