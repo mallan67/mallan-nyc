@@ -86,8 +86,10 @@ describe("pg advisory-lock adapter shape (source-scan; no DB)", () => {
     expect(src).toContain("pg_try_advisory_lock");
     expect(src).toContain("pg_advisory_unlock");
     expect(src).toContain("DATABASE_URL_UNPOOLED");
-    // Same-connection guarantee: a dedicated pg Client, not a pooled one.
-    expect(src).toMatch(/new Client\(/);
+    // Same-connection guarantee: one held connection (max:1 + connect()), so
+    // lock and unlock hit the same backend — a session lock is connection-scoped.
+    expect(src).toContain("max: 1");
+    expect(src).toMatch(/\.connect\(\)/);
     // Never interpolate the key into SQL — parameter-bound ($1).
     expect(src).toContain("$1");
   });

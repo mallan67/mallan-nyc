@@ -16,7 +16,7 @@
  * guaranteed to run on the SAME backend connection (a pooled client could send
  * the unlock to a different backend, which would never release the lock).
  */
-import { Client } from "pg";
+import { Pool } from "pg";
 
 export type SyncLockName = "property-sync" | "media-sync";
 
@@ -83,22 +83,29 @@ export interface PgAdvisoryLockSession extends AdvisoryLockSession {
 export function createPgAdvisoryLockSession(
   connectionString: string = process.env.DATABASE_URL_UNPOOLED ?? "",
 ): PgAdvisoryLockSession {
-  const client = new Client({ connectionString });
+  // max:1 + a single held `connect()` client guarantees tryLock and unlock run
+  // on the SAME backend connection (a session advisory lock is connection-scoped;
+  // a different connection could never release it).
+  const pool = new Pool({ connectionString, max: 1 });
+  let client: { query(text: string, params?: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }>; release(): void } | null = null;
   return {
     async open() {
-      await client.connect();
+      client = await pool.connect();
     },
     async close() {
-      await client.end();
+      if (client) {
+        client.release();
+        client = null;
+      }
+      await pool.end();
     },
     async tryLock(key: number): Promise<boolean> {
-      const res = await client.query<{ locked: boolean }>(
-        "SELECT pg_try_advisory_lock($1) AS locked",
-        [key],
-      );
+      if (!client) throw new Error("advisory-lock session not open");
+      const res = await client.query("SELECT pg_try_advisory_lock($1) AS locked", [key]);
       return res.rows[0]?.locked === true;
     },
     async unlock(key: number): Promise<void> {
+      if (!client) throw new Error("advisory-lock session not open");
       await client.query("SELECT pg_advisory_unlock($1)", [key]);
     },
   };
