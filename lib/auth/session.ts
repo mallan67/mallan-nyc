@@ -29,73 +29,14 @@ const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
 // proof, renewal reminders, broker review dashboard) is the next PR.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Where agents are sent to complete or renew their REBNY ethics training. */
-const ETHICS_RETRAINING_URL =
-  process.env.REBNY_ETHICS_TRAINING_URL ||
-  "https://www.rebny.com/content/rebny/en/Education/courses.html";
-
-/**
- * Thrown by `assertAgentEthicsTrainingValid` when an agent has no recorded
- * ethics training, or when their training is past `ethics_training_expires_at`.
- *
- * NOTE: this is NOT thrown during authentication. `createSession()` does not
- * call the assertion, and the login / MFA-verify route handlers do NOT catch
- * this error — ethics training never blocks login (see the module header and
- * commit 2c10ce0b). This error type exists only for administrative/reporting
- * callers of `assertAgentEthicsTrainingValid`.
- */
-export class EthicsTrainingExpiredError extends Error {
-  readonly code = "ETHICS_TRAINING_EXPIRED" as const;
-  readonly retrainingUrl: string;
-  /** Why the training is invalid: "missing" (never recorded) | "expired". */
-  readonly reason: "missing" | "expired";
-  /** Date the training expired, when reason="expired". */
-  readonly expiredAt: Date | null;
-
-  constructor(reason: "missing" | "expired", expiredAt: Date | null) {
-    const message =
-      reason === "missing"
-        ? "Ethics training has not been recorded for this agent. Complete training to access RLS."
-        : `Ethics training expired on ${expiredAt?.toISOString().slice(0, 10)}. Re-train to restore RLS access.`;
-    super(message);
-    this.name = "EthicsTrainingExpiredError";
-    this.reason = reason;
-    this.expiredAt = expiredAt;
-    this.retrainingUrl = ETHICS_RETRAINING_URL;
-  }
-}
-
-/**
- * Verify the agent's ethics training is valid. Throws
- * `EthicsTrainingExpiredError` if missing or expired.
- *
- * NOT called from createSession(), login, or MFA — authentication is never
- * blocked by ethics dates. Provided for ADMINISTRATIVE/reporting use only
- * (e.g. a broker compliance dashboard or backfill audit). It is not wired into
- * any automated authentication or listing-submission gate.
- */
-export async function assertAgentEthicsTrainingValid(agentId: bigint): Promise<void> {
-  const agent = await prisma.agent.findUnique({
-    where: { id: agentId },
-    select: {
-      ethics_training_completed_at: true,
-      ethics_training_expires_at: true,
-    },
-  });
-
-  // No row found is a separate problem; let the caller catch the FK violation.
-  if (!agent) return;
-
-  // NULL expires_at means: training has never been recorded for this agent.
-  // The C4 doctrine is fail-closed — treat NULL as "never trained → expired".
-  if (agent.ethics_training_expires_at === null) {
-    throw new EthicsTrainingExpiredError("missing", null);
-  }
-
-  if (agent.ethics_training_expires_at.getTime() < Date.now()) {
-    throw new EthicsTrainingExpiredError("expired", agent.ethics_training_expires_at);
-  }
-}
+// The throwing enforcement primitives that once lived here —
+// `EthicsTrainingExpiredError` and `assertAgentEthicsTrainingValid()` — have
+// been removed. They had no approved production caller, and ethics training is
+// NOT an authentication or listing-submission gate (see the module header and
+// commit 2c10ce0b). Ethics-training records are maintained through the broker
+// admin API (app/api/crm/agents/[id]/ethics-training/route.ts, which writes an
+// audit event) and surfaced read-only by
+// scripts/ethics-training-status-report.ts for broker follow-up.
 
 /** Resolve the correct TTL for a user type + role combination */
 function getSessionDurationMs(userType: string, role: string): number {
