@@ -71,8 +71,13 @@ describe('plan keeps its non-negotiables (drift guard)', () => {
   it('§F: never grep alone', () => {
     expect(plan).toMatch(/never grep alone/i);
   });
-  it('Sentinel-L is non-functional / excluded from every gate', () => {
-    expect(plan).toMatch(/sentinel-l is non-functional/i);
+  it('Sentinel-L is documented as RETIRED/REMOVED (PR #546) and excluded from every gate', () => {
+    // Retirement statement (replaces the earlier "non-functional" wording):
+    // retired/removed, not a gate, not reintroduced without a new approved design.
+    expect(plan).toMatch(/sentinel-l was retired and removed by pr #546/i);
+    expect(plan).toMatch(/must not be reintroduced without a new, separately approved design/i);
+    // And it must not be re-described as a live/non-functional-but-present check.
+    expect(plan).not.toMatch(/sentinel-l is non-functional/i);
   });
   it('per-change MACRO system-impact evaluation + "no work in the dark"', () => {
     expect(plan).toMatch(/system-impact verifier/i);
