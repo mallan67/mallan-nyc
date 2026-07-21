@@ -147,3 +147,13 @@ Phase 3 gate:
 - Progress ledger updated with commits and proof.
 - PR #544 proof table updated.
 - No production activation.
+
+---
+
+## 2026-07-21 — Phase 2 re-validated on corrected `main` + main protection
+
+- **Ethics-contract PR #545 merged to `main`** (merge commit `7b3dbe1d`): the mislabeled `ethics_training_gate` corrected to an administrative RECORD; obsolete auth-gate operational action, write-capable backfill, throwing primitives, and stale docs removed. Post-merge `main` CI green (Release Truth success, Guardrails success); **production deploy `7b3dbe1d` = success**.
+- **`main` now protected** by the `Protect main` ruleset (id 19435006, active): require PR + `pr-check` status + up-to-date branch + conversation resolution; block direct push / force-push / branch deletion; no bypass. Verified — a direct push to `main` was rejected (GH013). `release-truth` intentionally NOT required yet (its preview commit-status is ambiguous/pending); an approving review NOT required yet (sole reviewer).
+- **PR #544 updated onto corrected `main`** by merging `origin/main` (`7b3dbe1d`) into the media branch — all legitimate remote commits preserved (no force-push, no rebase rewrite). New head **`1dbc74dd`**. Conflict-free (media and ethics files disjoint).
+- **Phase 2 gate re-run on `1dbc74dd`:** 299/299 targeted + all media-sync regression suites · type-check 0 · media:system-health red 0 · rls UNKNOWN 0 · ucba 0 regressions · compliance-check 94/0/0 · idx:validate 1 pre-existing critical (Cron Schedule Completeness, unchanged). CI: `pr-check` ✓ · `target-platform-build` ✓ · `guardrails` ✓ · `release-truth` job ✓ · `scan` ✓ · `claude-review` ✓ · Vercel ✓ — code-level blocking failures 0; only the inherent pre-merge deploy-`UNVERIFIED` remains. (`ops:health` DB-drift check needs `DATABASE_URL`, unavailable in the sandbox; PR is flag-OFF with no DB-behavior change.)
+- **Phase 2 ACCEPTED on head `1dbc74dd`.** The Phase-3 precondition (rebased #544 passes the full Phase 2 gate) is met.
