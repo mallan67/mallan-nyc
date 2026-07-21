@@ -1,0 +1,303 @@
+{
+  "probe": "live-cotality-contract",
+  "base": "https://api.cotality.com/trestle",
+  "startedAt": "2026-07-21T06:01:39.229Z",
+  "auth": {
+    "acquired": true,
+    "printed": false
+  },
+  "metadata_http": 200,
+  "live_metadata": {
+    "media_key_is_MediaKey": true,
+    "property_key_is_ListingKey": true,
+    "media_fields": {
+      "MediaKey": "<Property Name=\"MediaKey\" Type=\"Edm.String\" Nullable=\"false\" MaxLength=\"20\">",
+      "ResourceName": "<Property Name=\"ResourceName\" Type=\"Cotality.DataStandard.RESO.DD.Enums.ResourceName\">",
+      "ResourceRecordKey": "<Property Name=\"ResourceRecordKey\" Type=\"Edm.String\" MaxLength=\"20\">",
+      "ResourceRecordID": "<Property Name=\"ResourceRecordID\" Type=\"Edm.String\" MaxLength=\"255\">",
+      "MediaURL": "<Property Name=\"MediaURL\" Type=\"Edm.String\" MaxLength=\"8000\">",
+      "MediaCategory": "<Property Name=\"MediaCategory\" Type=\"Cotality.DataStandard.RESO.DD.Enums.MediaCategory\">",
+      "MediaClassification": "<Property Name=\"MediaClassification\" Type=\"Cotality.DataStandard.RESO.DD.Enums.MediaClassification\">",
+      "MediaType": "<Property Name=\"MediaType\" Type=\"Cotality.DataStandard.RESO.DD.Enums.MediaType\">",
+      "MediaStatus": "<Property Name=\"MediaStatus\" Type=\"Cotality.DataStandard.RESO.DD.Enums.MediaStatus\">",
+      "Permission": "<Property Name=\"Permission\" Type=\"Cotality.DataStandard.RESO.DD.Enums.Multi.Permission\">",
+      "Order": "<Property Name=\"Order\" Type=\"Edm.Int32\">",
+      "PreferredPhotoYN": "<Property Name=\"PreferredPhotoYN\" Type=\"Edm.Boolean\">",
+      "ModificationTimestamp": "<Property Name=\"ModificationTimestamp\" Type=\"Edm.DateTimeOffset\" Precision=\"27\">",
+      "MediaModificationTimestamp": "<Property Name=\"MediaModificationTimestamp\" Type=\"Edm.DateTimeOffset\" Precision=\"27\">"
+    },
+    "property_fields": {
+      "ListingKey": "<Property Name=\"ListingKey\" Type=\"Edm.String\" Nullable=\"false\" MaxLength=\"20\">",
+      "ListingId": "<Property Name=\"ListingId\" Type=\"Edm.String\" MaxLength=\"255\">",
+      "ModificationTimestamp": "<Property Name=\"ModificationTimestamp\" Type=\"Edm.DateTimeOffset\" Precision=\"27\">",
+      "PhotosChangeTimestamp": "<Property Name=\"PhotosChangeTimestamp\" Type=\"Edm.DateTimeOffset\" Precision=\"27\">",
+      "PhotosCount": "<Property Name=\"PhotosCount\" Type=\"Edm.Int32\">",
+      "VirtualTourURLBranded": "<Property Name=\"VirtualTourURLBranded\" Type=\"Edm.String\" MaxLength=\"8000\">",
+      "VirtualTourURLUnbranded": "<Property Name=\"VirtualTourURLUnbranded\" Type=\"Edm.String\" MaxLength=\"8000\">"
+    },
+    "enum_ResourceName": [
+      "Building",
+      "Contacts",
+      "Member",
+      "Office",
+      "Property"
+    ],
+    "enum_MediaStatus": [
+      "Active",
+      "Deleted",
+      "Other"
+    ],
+    "enum_MediaCategory": [
+      "Addendum",
+      "AerialView",
+      "AgentPhoto",
+      "BrandedVirtualTour",
+      "Disclosure",
+      "Document",
+      "FloorPlan",
+      "Map",
+      "OfficeLogo",
+      "OfficePhoto",
+      "Other",
+      "Photo",
+      "RentalDocuments",
+      "Restriction",
+      "Survey",
+      "Topography",
+      "UnbrandedVirtualTour",
+      "Video"
+    ],
+    "enum_Permission_count": 19,
+    "enum_Permission_sample": [
+      "AgentOnly",
+      "CompSold",
+      "DownPaymentResourceNo",
+      "DownPaymentResourceYes",
+      "FirmOnly",
+      "History",
+      "Idx",
+      "IDX",
+      "MemberInactive",
+      "Officeidxoptout",
+      "OfficeInactive",
+      "OfficeOnly",
+      "OfficeSuspended",
+      "PhotoOptedOut",
+      "Private",
+      "Public",
+      "SyndicateOptOut",
+      "Vow",
+      "VOW"
+    ],
+    "permission_declared_multi": true
+  },
+  "property_http": 200,
+  "property_rows": [
+    {
+      "ListingKey": "1177660623",
+      "ListingId": "RLS20104692",
+      "PhotosCount": 7,
+      "PhotosChangeTimestamp": "2026-07-21T03:32:51.420-00:00",
+      "StandardStatus": "Active"
+    },
+    {
+      "ListingKey": "1177659553",
+      "ListingId": "RLS20104691",
+      "PhotosCount": 22,
+      "PhotosChangeTimestamp": "2026-07-21T03:22:51.683-00:00",
+      "StandardStatus": "Active"
+    },
+    {
+      "ListingKey": "1177659552",
+      "ListingId": "RLS20104690",
+      "PhotosCount": 18,
+      "PhotosChangeTimestamp": "2026-07-21T03:21:51.797-00:00",
+      "StandardStatus": "Active"
+    },
+    {
+      "ListingKey": "1177658184",
+      "ListingId": "RLS20104689",
+      "PhotosCount": 7,
+      "PhotosChangeTimestamp": "2026-07-21T03:14:51.700-00:00",
+      "StandardStatus": "Active"
+    },
+    {
+      "ListingKey": "1177658146",
+      "ListingId": "RLS20104688",
+      "PhotosCount": 15,
+      "PhotosChangeTimestamp": "2026-07-21T03:31:51.690-00:00",
+      "StandardStatus": "Active"
+    }
+  ],
+  "filter_syntax_accepted": "plain-enum-literal",
+  "listings": [
+    {
+      "listingKey": "1177660623",
+      "scoped_enum_literal_http": 200,
+      "scoped_count": 7,
+      "scoped_nextLink_present": false,
+      "unscoped_http": 200,
+      "unscoped_count": 7,
+      "keysets_equal": true,
+      "unscoped_resourceNames": [
+        "Property"
+      ],
+      "order_nulls": 0,
+      "order_duplicates": 0,
+      "mediaStatus_values": [
+        "Active"
+      ],
+      "mediaCategory_values": [
+        "Photo"
+      ],
+      "mediaType_values": [
+        "Jpeg"
+      ],
+      "permission_shapes": [
+        "object:null"
+      ],
+      "preferred_count": 0,
+      "url_hosts": [
+        "api.cotality.com"
+      ],
+      "url_query_param_names": [],
+      "example_first_row": {
+        "MediaKey": "2005738833983",
+        "ResourceName": "Property",
+        "ResourceRecordKey": "1177660623",
+        "ResourceRecordID": "RLS20104692",
+        "MediaCategory": "Photo",
+        "MediaType": "Jpeg",
+        "MediaStatus": "Active",
+        "Order": 1,
+        "PreferredPhotoYN": null,
+        "MediaModificationTimestamp": "2026-07-21T03:32:00.000-00:00",
+        "url": {
+          "present": true,
+          "host": "api.cotality.com",
+          "pathname": "/trestle/Media/Property/PHOTO-Jpeg/1177660623/<signed-token-segments-masked>",
+          "queryParamNames": [],
+          "hasQuery": false
+        }
+      }
+    },
+    {
+      "listingKey": "1177659553",
+      "scoped_enum_literal_http": 200,
+      "scoped_count": 22,
+      "scoped_nextLink_present": false,
+      "unscoped_http": 200,
+      "unscoped_count": 22,
+      "keysets_equal": true,
+      "unscoped_resourceNames": [
+        "Property"
+      ],
+      "order_nulls": 0,
+      "order_duplicates": 0,
+      "mediaStatus_values": [
+        "Active"
+      ],
+      "mediaCategory_values": [
+        "Photo"
+      ],
+      "mediaType_values": [
+        "Jpeg"
+      ],
+      "permission_shapes": [
+        "object:null"
+      ],
+      "preferred_count": 0,
+      "url_hosts": [
+        "api.cotality.com"
+      ],
+      "url_query_param_names": [],
+      "example_first_row": {
+        "MediaKey": "2005738815311",
+        "ResourceName": "Property",
+        "ResourceRecordKey": "1177659553",
+        "ResourceRecordID": "RLS20104691",
+        "MediaCategory": "Photo",
+        "MediaType": "Jpeg",
+        "MediaStatus": "Active",
+        "Order": 1,
+        "PreferredPhotoYN": null,
+        "MediaModificationTimestamp": "2026-07-21T03:21:29.523-00:00",
+        "url": {
+          "present": true,
+          "host": "api.cotality.com",
+          "pathname": "/trestle/Media/Property/PHOTO-Jpeg/1177659553/<signed-token-segments-masked>",
+          "queryParamNames": [],
+          "hasQuery": false
+        }
+      }
+    },
+    {
+      "listingKey": "1177659552",
+      "scoped_enum_literal_http": 200,
+      "scoped_count": 18,
+      "scoped_nextLink_present": false,
+      "unscoped_http": 200,
+      "unscoped_count": 18,
+      "keysets_equal": true,
+      "unscoped_resourceNames": [
+        "Property"
+      ],
+      "order_nulls": 0,
+      "order_duplicates": 0,
+      "mediaStatus_values": [
+        "Active"
+      ],
+      "mediaCategory_values": [
+        "Photo"
+      ],
+      "mediaType_values": [
+        "Jpeg"
+      ],
+      "permission_shapes": [
+        "object:null"
+      ],
+      "preferred_count": 0,
+      "url_hosts": [
+        "api.cotality.com"
+      ],
+      "url_query_param_names": [],
+      "example_first_row": {
+        "MediaKey": "2005738814898",
+        "ResourceName": "Property",
+        "ResourceRecordKey": "1177659552",
+        "ResourceRecordID": "RLS20104690",
+        "MediaCategory": "Photo",
+        "MediaType": "Jpeg",
+        "MediaStatus": "Active",
+        "Order": 1,
+        "PreferredPhotoYN": null,
+        "MediaModificationTimestamp": "2026-07-21T03:21:00.000-00:00",
+        "url": {
+          "present": true,
+          "host": "api.cotality.com",
+          "pathname": "/trestle/Media/Property/PHOTO-Jpeg/1177659552/<signed-token-segments-masked>",
+          "queryParamNames": [],
+          "hasQuery": false
+        }
+      }
+    }
+  ],
+  "url_rotation": {
+    "listingKey": "1177660623",
+    "immediate_refetch": {
+      "exactEq": 0,
+      "exactDiff": 7,
+      "identityEq": 0,
+      "identityDiff": 7
+    },
+    "after_60s": {
+      "exactEq": 0,
+      "exactDiff": 7,
+      "identityEq": 0,
+      "identityDiff": 7
+    }
+  },
+  "total_requests": 10,
+  "finishedAt": "2026-07-21T06:02:42.478Z",
+  "_redaction": "URL path token segments masked (first 5 segments retained); no credentials, tokens, or query values present anywhere in this capture."
+}

@@ -86,7 +86,7 @@ Existing `lib/idx/sync.ts` / `lib/idx/media-sync.ts` are refactored to consume t
 
 - `sourceRevision` = epoch-millis of `max(MediaModificationTimestamp, ModificationTimestamp)`; if both null → `0` (identity then rests on MediaKey alone; health check counts these).
 - A **changed MediaKey** or a **higher sourceRevision** = a genuine source revision → new R2 object version; the previous R2 association is invalidated (row repoints; old object enters the replaced-versions inventory for later confirmed deletion).
-- **URL is NOT identity.** `media_url_original` is stored provenance. The comparator treats a row as *changed* only when identity fields, classification fields (`media_category`, `media_classification`, canonical type), `order`, `preferred_photo_yn`, `status`, or listing linkage change — or when URL **origin+pathname identity** changes (query/fragment rotation NEVER writes; the stored URL is refreshed only when a write happens for a real reason).
+- **URL is FULLY EXCLUDED from comparison — live-proven.** The 2026-07-21 authenticated probe showed the live endpoint mints a **new MediaURL on every request, different at origin+pathname level** (7/7 rows on immediate re-fetch AND after 60 s; the signature is embedded in the *path* — there is no query string at all). Therefore ANY URL comparison (exact or normalized) would rewrite every row every fetch. The comparator uses ONLY: identity fields (MediaKey, ResourceName, ResourceRecordKey, sourceRevision), classification fields (`media_category`, `media_classification`, canonical type), `order`, `preferred_photo_yn`, `status`, and listing linkage. `media_url_original` is provenance: refreshed only alongside a write that happens for a genuine reason, never a write trigger. Aged stored URLs may not remain fetchable (path-embedded token — Appendix A.3), so any download always uses the CURRENT run's freshly fetched URL.
 - Schema (prepared migration, **applied per NEON.md manual-first procedure at activation, not at merge**): `listing_media` gains `source_revision BIGINT`, `r2_object_key TEXT` (the versioned key actually uploaded), backfilled lazily by the pipeline; plus the Phase-4 partial index (Section 9).
 
 ## 4. Collision-proof versioned R2 keys (Req 3)
@@ -99,6 +99,8 @@ Existing `lib/idx/sync.ts` / `lib/idx/media-sync.ts` are refactored to consume t
 Properties: MediaKey is the Media resource primary key → **no two distinct media share a key**; a revision change mints a **new** key → no overwrite of a still-referenced object; reordering changes nothing (order is not in the key); null Order is irrelevant.
 
 **Identity-verified reuse:** every upload sets R2 object metadata `{mediaKey, sourceRevision, listingId}`. Reuse requires HeadObject metadata match; mismatch → treat as absent and upload the correct object under its own key (impossible to collide by construction, but verified anyway). `existsInR2` errors are **surfaced as retryable failures**, never swallowed as "absent" (closes F3's churn edge).
+
+**Downloads always use the CURRENT run's freshly fetched `MediaURL`** — never the stored `media_url_original` (live-proven per-request signed paths; an aged stored URL's fetchability is unverified — Appendix A.3). The proxy fallback for un-mirrored rows therefore remains best-effort until a row is mirrored, which is a further reason the mirror backlog must drain (Phase 4) and parked rows must recover.
 
 **Read compatibility:** readers consume `media_url_cached` per row, so the key-scheme change is transparent. Existing legacy-keyed objects keep serving until the lifecycle (Section 11) migrates/deletes them after validation — no bulk deletion at merge.
 
@@ -115,7 +117,7 @@ State machine per listing, replacing unconditional `tombstoneVanished`:
 1. **Explicit delete** (`MediaStatus='Deleted'` — a real contract enum: `Active|Deleted|Other`, Appendix A) → tombstone that row. Always allowed.
 2. **Vanished rows** (absent from a COMPLETE, NON-EMPTY snapshot) → marked `pending_removal` with the run id — **not tombstoned yet**.
 3. **Confirmation**: a row is tombstoned only when a **second, later, complete fetch** also lacks it (`pending_removal` seen twice across distinct successful runs).
-4. **Fail closed, no destructive action**, on: empty result set, incomplete pagination, timeout, 5xx, malformed payload, or **abrupt shrink** (new set < 50% of current active count). These finalize the listing as unresolved; existing media untouched. Where populated, `Property.PhotosCount` (real contract field, `Edm.Int32`) corroborates: a claimed-empty Media set while `PhotosCount > 0` always fails closed (population of this field on the live feed is needs-live — Appendix A).
+4. **Fail closed, no destructive action**, on: empty result set, incomplete pagination, timeout, 5xx, malformed payload, or **abrupt shrink** (new set < 50% of current active count). These finalize the listing as unresolved; existing media untouched. Where populated, `Property.PhotosCount` (real contract field, `Edm.Int32`) corroborates: a claimed-empty Media set while `PhotosCount > 0` always fails closed (**live-verified populated** on all sampled Active listings: 7/22/18/7/15 — Appendix A).
 5. **Cursor advances only when the listing finishes successfully** (retained `ok:true` contiguity rule).
 6. A **mass-tombstone circuit breaker**: any run that would tombstone more than **25 rows** or touch more than **10 listings** destructively (defaults, env-tunable) aborts all destructive actions for the run and alerts (health metric `mass_tombstone_events` must equal 0).
 
@@ -124,7 +126,7 @@ State machine per listing, replacing unconditional `tombstoneVanished`:
 ## 7. One classifier, one resolver (Req 6)
 
 - **Classifier** (`media-classifier.ts`): explicit enums from the committed `artifacts/metadata.xml` — `Photo | FloorPlan | Video | VirtualTour | Document | Unknown`. Nothing defaults to Photo. Ingest policy: `Document` and `Unknown` rows are **stored** (`media_type` accordingly), **excluded** from photo counts, hero eligibility, and the `photos/` namespace, and **not mirrored** to R2 (served via proxy); health check reports their counts. URL-shape detection (the read-path's document/floorplan patterns) is folded in so a null-category floor plan is caught at ingest, not just at render.
-- **Hero resolver** (`hero-resolver.ts`): `active Photo → PreferredPhotoYN → lowest valid Order → stable MediaKey` (MediaKey is the final deterministic tiebreak; a floor plan/video/document/tour can never be hero). Consumed by: listing detail, search cards, featured, agent listings, **Similar API** (finishing the #500 follow-up), `/api/listings` Phase-1 (replacing the `fetch.ts` reimplementation), the CRM media-batch feed (emits `isPrimary`; CRM JS ordering fix is prepared but **CRM-frontend-gated**), and report/seller outputs.
+- **Hero resolver** (`hero-resolver.ts`): `active Photo → PreferredPhotoYN → lowest valid Order → stable MediaKey` (MediaKey is the final deterministic tiebreak; a floor plan/video/document/tour can never be hero). **Live note:** on the sampled live feed `PreferredPhotoYN` was `null` on every row (never `true`/`false`), so the resolver must treat null as not-preferred and fall to lowest valid `Order` — live-proven as the primary ordering signal (Appendix A). Consumed by: listing detail, search cards, featured, agent listings, **Similar API** (finishing the #500 follow-up), `/api/listings` Phase-1 (replacing the `fetch.ts` reimplementation), the CRM media-batch feed (emits `isPrimary`; CRM JS ordering fix is prepared but **CRM-frontend-gated**), and report/seller outputs.
 - All legacy hero/classification implementations are deleted or reduced to delegations — enforced by a source-scan test that fails if a second implementation reappears.
 
 ## 8. Write suppression everywhere (Req 7)
@@ -195,7 +197,7 @@ Sequence (each step gated, each with remeasure): prove suppression in production
 
 Everything lands as **one consolidation PR** from `agent/unified-feed-media-system` (draft until review). Merge activates only dormant-safe code paths (new modules + refactors that behave identically until migrations/flags/cadence apply). Then the **activation runbook** executes in order, each step Maya-approved with verify-then-proceed:
 
-0. **Live Cotality contract verification** (read-only, Maya-approved): execute the already-built, execution-gated PR #543 URL-identity diagnostic + `trestle:probe` to confirm on the live endpoint: enum-literal `$filter` syntax (`ResourceName eq 'Property'`), multi-key `$orderby Order asc, MediaKey asc`, `ResourceName` population on returned rows, null/duplicate `Order` behavior on Photo rows, `Permission` multi-value serialization, `PhotosCount` population, and what the stored-vs-incoming URL identities represent. Any divergence loops back into the design BEFORE activation.
+0. **Live Cotality contract verification** (read-only, Maya-approved). The initial probe ran **2026-07-21T06:01Z** and verified the items in Appendix A.1/A.2 (filter syntax, orderby, ResourceName population, PhotosCount, per-request path-signed URL rotation). Step 0 at activation re-runs it at scale and settles the **A.4 remainder**: null/dup `Order` frequency at scale, `Permission` serialization when non-null, **aged stored-URL fetchability**, longer-horizon rotation, large-gallery pagination — via the gated PR #543 diagnostic + `trestle:probe`. Any divergence loops back into the design BEFORE activation.
 1. Apply identity + partial-index migrations to prod manually (NEON.md §5), verify `indisvalid` + `migrate status` clean → merge/deploy already-compatible code.
 2. Observe: suppression ledger + system health green for ≥3 natural runs.
 3. Flip cadence to :00/:05 ten-minute pairing (`vercel.json` cron change).
@@ -217,36 +219,44 @@ Each runbook step ends with its own production verification (deployment identity
 
 ---
 
-## Appendix A — Cotality contract grounding (no assumptions)
+## Appendix A — Cotality contract grounding (LIVE-verified; no assumptions)
 
-Every API-dependent element of this design is traced to the repo's captured contract (`artifacts/metadata.xml` = live OData `$metadata` capture; enums cross-checked against `data/rebny-rls-property-lookup.csv` / `data/RLS-FIELD-REGISTRY.md`). Per CLAUDE.md §J, the metadata capture is the best in-repo authority; final field truth is confirmed live at Runbook Step 0 — nothing below is invented.
+**Authority: the live authenticated Cotality API — not metadata artifacts, code, comments, or docs.** A read-only authenticated probe was executed against `https://api.cotality.com/trestle` on **2026-07-21T06:01Z** (10 GET requests, token acquired once, zero writes): live `$metadata` + 5 live Property rows + scoped/unscoped Media for 3 live listings (`1177660623/RLS20104692`, `1177659553/RLS20104691`, `1177659552/RLS20104690`) + a 3-fetch URL-rotation test. Raw output: `docs/superpowers/specs/evidence/2026-07-21-live-cotality-contract-probe.json` (URL path token segments masked). The committed `artifacts/metadata.xml` matched the live `$metadata` on every checked field and is hereby demoted to corroboration only.
 
-### A.1 Verified in the captured contract (`artifacts/metadata.xml`)
+### A.1 LIVE-verified in the running API (probe of 2026-07-21)
 
-| Design element | Contract evidence |
+Live `$metadata` fetched over the authenticated session (HTTP 200):
+
+| Design element | LIVE evidence (probe 2026-07-21T06:01Z) |
 |---|---|
-| `MediaKey` is the Media **primary key** → collision-proof key basis | `<Key><PropertyRef Name="MediaKey"/></Key>`; `MediaKey Edm.String Nullable="false" MaxLength="20"` |
-| `ResourceName` exists on Media and enumerates exactly `Building, Contacts, Member, Office, Property` → Property-scoping is real | `ResourceName Type="…Enums.ResourceName"` + EnumType members |
-| `ResourceRecordKey` (String 20) / `ResourceRecordID` (String 255) exist on Media | Media entity properties |
-| `MediaStatus` enumerates `Active, Deleted, Other` → explicit-delete signal is real | EnumType MediaStatus |
-| `Permission` is typed **`Multi.Permission`** (flags enum; members incl. `Public, IDX/Idx, Private, VOW/Vow, OfficeOnly, FirmOnly, AgentOnly, PhotoOptedOut, SyndicateOptOut, …`) | Media entity + EnumType Permission |
-| `Order` is `Edm.Int32` **nullable** (no `Nullable="false"`) → null-Order handling is mandatory, position-based keys are unsound | Media entity property |
-| `PreferredPhotoYN Edm.Boolean`; `MediaURL Edm.String(8000)`; `MediaCategory`/`MediaClassification`/`MediaType` enums; `ModificationTimestamp` + `MediaModificationTimestamp Edm.DateTimeOffset(27)` → sourceRevision derives from real fields | Media entity properties |
-| `MediaCategory` = exactly 18 members (`Photo, FloorPlan, Video, BrandedVirtualTour, UnbrandedVirtualTour, Document, Disclosure, Map, Survey, Addendum, AerialView, AgentPhoto, OfficePhoto, OfficeLogo, Other, RentalDocuments, Restriction, Topography`) → strict classifier's allowlists | EnumType MediaCategory |
-| Property **key = `ListingKey`** (String 20, non-null); `ListingId` (String 255); `ModificationTimestamp`, `PhotosChangeTimestamp` (DateTimeOffset 27); `PhotosCount` (`Edm.Int32`); `VirtualTourURLBranded/Unbranded` (String 8000) → cursor fields, shrink corroboration, URL-style 3D tours all real | Property entity |
+| `MediaKey` is the Media **primary key** → collision-proof key basis | live `$metadata`: `<Key><PropertyRef Name="MediaKey"/></Key>`; `MediaKey Edm.String Nullable="false" MaxLength="20"` |
+| `ResourceName` exists on Media, enum = `Building, Contacts, Member, Office, Property` | live `$metadata` EnumType + **populated `"Property"` on every returned data row** |
+| `ResourceRecordKey` (String 20) / `ResourceRecordID` (String 255) on Media | live `$metadata` + populated on every returned row (`ResourceRecordID` = the RLS ListingId) |
+| `MediaStatus` enum = `Active, Deleted, Other` → explicit-delete signal is real | live `$metadata`; sampled rows all `Active` |
+| `Permission` typed **`Multi.Permission`** (19 members incl. `Public, IDX/Idx, Private, VOW/Vow, OfficeOnly, FirmOnly, AgentOnly, PhotoOptedOut, SyndicateOptOut`) | live `$metadata`; **`Permission: null` on every sampled data row** (edge pre-filtering consistent) |
+| `Order` is `Edm.Int32` **nullable by contract** → null handling mandatory; position-based keys unsound | live `$metadata`; sampled rows were clean 1..N (0 nulls / 0 dupes in-sample — contract still permits null) |
+| `PreferredPhotoYN Edm.Boolean`; `MediaURL String(8000)`; category/classification/type enums; both timestamps `DateTimeOffset(27)` | live `$metadata`; `MediaModificationTimestamp` populated on rows → `sourceRevision` derives from live-real fields |
+| `MediaCategory` = exactly 18 members → strict classifier allowlists | live `$metadata`; sampled rows `Photo`/`Jpeg` |
+| Property **key = `ListingKey`**; `ListingId`; both cursor timestamps; `PhotosCount`; `VirtualTourURLBranded/Unbranded` | live `$metadata` + live rows: `PhotosCount` populated (7, 22, 18, 7, 15); `PhotosChangeTimestamp` populated |
 
-### A.2 Repo-documented (not metadata; verified in-repo, confirm at activation)
+### A.2 LIVE behavior findings (data-plane, same probe)
 
-- Rate limits: 7,200/hr · 180/min OData queries; 18,000/hr · **480/min Media URL** requests (`docs/architecture/COTALITY-COMPLETE-REFERENCE.md`).
-- Dual-cursor incremental semantics: photo-only edits bump `PhotosChangeTimestamp` without `ModificationTimestamp` (same reference).
+1. **Query syntax accepted:** `$filter=ResourceName eq 'Property' and ResourceRecordKey eq '<LK>'` → HTTP 200 with the **plain** enum literal (no qualified-name fallback needed). Multi-key `$orderby Order asc, MediaKey asc` → accepted.
+2. **Scope:** scoped vs unscoped keysets were **equal** on all 3 sampled listings; no non-Property rows observed. Scoping stays (defense per the data model), but no live contamination was observed in-sample.
+3. **URL rotation — the decisive finding:** the same listing's Media, re-fetched **immediately** and again **after 60 s**, returned **7/7 URLs different at origin+pathname level each time**. `MediaURL` carries **no query string**; the rotating signature is embedded in the **path** (includes an epoch-like token segment). ⇒ Any URL-based change detection (exact OR normalized) is structurally unusable; identity must be MediaKey+revision (§3); downloads must use the current run's fresh URL (§4).
+4. **`PreferredPhotoYN` = `null` on every sampled row** → lowest valid `Order` is the live primary hero signal; the resolver treats null as not-preferred (§7).
+5. Pagination: sampled sets fit one page (`@odata.nextLink` absent); complete-pagination handling remains mandatory for larger galleries.
+
+### A.3 Repo-documented (not yet live-verified; confirm at activation)
+
+- Rate limits: 7,200/hr · 180/min OData queries; 18,000/hr · **480/min Media URL** requests (`docs/architecture/COTALITY-COMPLETE-REFERENCE.md`). The probe used 10 requests total.
+- Dual-cursor incremental semantics: photo-only edits bump `PhotosChangeTimestamp` without `ModificationTimestamp`.
 - No 10-minute vendor cadence recommendation exists in-repo; the 10-minute clock is the owner's chosen freshness target within the documented rate limits.
 
-### A.3 Needs-live verification (Class B/C — Runbook Step 0; never assumed by the code, which fails closed meanwhile)
+### A.4 Still needs-live verification (Runbook Step 0; the code fails closed on all of these meanwhile)
 
-1. Enum-literal `$filter` acceptance (`ResourceName eq 'Property'`) and multi-key `$orderby Order asc, MediaKey asc` on the live endpoint.
-2. `ResourceName` population on actually-returned Media rows for this feed.
-3. Real-world null/duplicate `Order` frequency on Photo rows.
-4. `Permission` multi-value JSON serialization shape, and the **policy** question (accept `Public` only vs also `IDX`) — resolvable only by the REBNY/Cotality distribution agreement or a vendor answer; the gate stays `Public`-only fail-closed until answered.
-5. `PhotosCount` population on this feed (corroboration signal).
-6. What the stored-vs-incoming URL identity difference (751/751 origin+pathname) actually represents (host/path migration vs rotation) — the gated #543 diagnostic settles it.
-7. Whether Cotality ever emits transient empty-200 Media sets for populated listings (the reconciliation state machine assumes it can and fails closed regardless).
+1. Real-world null/duplicate `Order` frequency at scale (sample of 3 listings was clean; the contract permits null — handling stays mandatory).
+2. `Permission` multi-value JSON serialization **when non-null** (all sampled rows were null), and the **policy** question (accept `Public` only vs also `IDX`) — resolvable only by the REBNY/Cotality distribution agreement or a vendor answer; the gate stays `Public`-only fail-closed until answered.
+3. **Aged stored-URL fetchability**: whether a previously stored signed-path `media_url_original` still returns the binary later (path token suggests expiry) — determines how unreliable the un-mirrored proxy fallback is; test read-only with an old stored URL at Step 0.
+4. Whether Cotality ever emits transient empty-200 Media sets for populated listings (cannot be provoked safely; the reconciliation state machine fails closed regardless, corroborated by live-populated `PhotosCount`).
+5. Longer-horizon rotation behavior (probe window was 60 s) and behavior across `$expand`/larger galleries with `@odata.nextLink`.
