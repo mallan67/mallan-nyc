@@ -51,13 +51,16 @@ jest.mock("@/lib/prisma", () => ({
 import {
   upsertListingMedia,
   listingMediaRowUnchanged,
+  classifyMediaRowMismatch,
   type ExistingMediaRowForCompare,
   type MappedMediaRow,
   type UpsertListingMediaResult,
 } from "../media-sync";
 
-// Build a full 8-field outcome ledger; unspecified counters default to 0.
-function res(over: Partial<UpsertListingMediaResult> = {}): UpsertListingMediaResult {
+// The 8 CORE outcome fields; unspecified default to 0. Used with
+// `toMatchObject` so the additive #541 attribution counters (asserted
+// separately) are ignored by the core-ledger assertions.
+function res(over: Partial<UpsertListingMediaResult> = {}): Partial<UpsertListingMediaResult> {
   return {
     inserted: 0,
     updatedChanged: 0,
@@ -103,7 +106,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: undefined }),
       makeRow({ MediaKey: "" }),
     ]);
-    expect(result).toEqual(res({ skippedInvalid: 3 }));
+    expect(result).toMatchObject(res({ skippedInvalid: 3 }));
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -115,7 +118,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-B", Permission: "VOW" }),
       makeRow({ MediaKey: "MK-C", Permission: "Private" }),
     ]);
-    expect(result).toEqual(res({ skippedInvalid: 3 }));
+    expect(result).toMatchObject(res({ skippedInvalid: 3 }));
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -144,7 +147,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-A", MediaURL: null }),
       makeRow({ MediaKey: "MK-B", MediaURL: "" }),
     ]);
-    expect(result).toEqual(res({ skippedInvalid: 2 }));
+    expect(result).toMatchObject(res({ skippedInvalid: 2 }));
   });
 
   // ─── Insert path ──────────────────────────────────────────────────────
@@ -158,7 +161,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-2", Order: 2 }),
     ]);
 
-    expect(result).toEqual(res({ inserted: 2 }));
+    expect(result).toMatchObject(res({ inserted: 2 }));
     expect(mockCreate).toHaveBeenCalledTimes(2);
     const firstCall = mockCreate.mock.calls[0][0];
     expect(firstCall.data.listing_id).toBe("RLS20012345");
@@ -201,7 +204,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       makeRow({ MediaKey: "MK-1", Order: 5 }),
     ]);
 
-    expect(result).toEqual(res({ updatedChanged: 1 }));
+    expect(result).toMatchObject(res({ updatedChanged: 1 }));
     expect(mockCreate).not.toHaveBeenCalled();
     const args = mockUpdate.mock.calls[0][0];
     expect(args.where).toEqual({ media_key: "MK-1" });
@@ -227,19 +230,19 @@ describe("upsertListingMedia — Checkpoint 2", () => {
     mockFindUnique.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce(undefined);
     const r1 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r1).toEqual(res({ inserted: 1 }));
+    expect(r1).toMatchObject(res({ inserted: 1 }));
 
     // Second run — same row, now exists.
     mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
     mockUpdate.mockResolvedValueOnce(undefined);
     const r2 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r2).toEqual(res({ updatedChanged: 1 }));
+    expect(r2).toMatchObject(res({ updatedChanged: 1 }));
 
     // Third run — still exists.
     mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
     mockUpdate.mockResolvedValueOnce(undefined);
     const r3 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r3).toEqual(res({ updatedChanged: 1 }));
+    expect(r3).toMatchObject(res({ updatedChanged: 1 }));
 
     // No duplicate creates.
     expect(mockCreate).toHaveBeenCalledTimes(1);
@@ -342,7 +345,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
       { tombstoneVanished: true },
     );
 
-    expect(result).toEqual(res({ inserted: 1, deleteSignalsReceived: 1, tombstonedExplicit: 1, tombstonedVanished: 3, tombstoned: 4 }));
+    expect(result).toMatchObject(res({ inserted: 1, deleteSignalsReceived: 1, tombstonedExplicit: 1, tombstonedVanished: 3, tombstoned: 4 }));
     // Vanished `notIn` clause should include BOTH live and explicitly-deleted keys.
     expect(mockUpdateMany.mock.calls[1][0].where).toEqual({
       listing_id: "RLS20012345",
@@ -407,7 +410,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
 
   it("on empty input with no options — performs zero DB calls", async () => {
     const result = await upsertListingMedia("RLS20012345", []);
-    expect(result).toEqual(res({}));
+    expect(result).toMatchObject(res({}));
     expect(mockFindUnique).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -447,18 +450,18 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
     // The core #530 guarantee: NO write for a no-op.
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(result).toEqual(res({ skippedUnchanged: 1 }));
+    expect(result).toMatchObject(res({ skippedUnchanged: 1 }));
   });
 
   it("running twice with identical input produces 1 insert then 0 writes (true no-op resume)", async () => {
     mockFindUnique.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce(undefined);
     const r1 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r1).toEqual(res({ inserted: 1 }));
+    expect(r1).toMatchObject(res({ inserted: 1 }));
 
     mockFindUnique.mockResolvedValueOnce(existingMatching());
     const r2 = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
-    expect(r2).toEqual(res({ skippedUnchanged: 1 }));
+    expect(r2).toMatchObject(res({ skippedUnchanged: 1 }));
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
@@ -487,7 +490,7 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
       expect(mockUpdate).toHaveBeenCalledTimes(1);
       // The update always re-asserts status='active' (resurrect-on-reappear).
       expect(mockUpdate.mock.calls[0][0].data.status).toBe("active");
-      expect(result).toEqual(res({ updatedChanged: 1 }));
+      expect(result).toMatchObject(res({ updatedChanged: 1 }));
     });
   }
 
@@ -505,7 +508,7 @@ describe("upsertListingMedia — #530 unchanged-write suppression", () => {
       makeRow({ MediaKey: "MK-3" }),
     ]);
 
-    expect(result).toEqual(res({ inserted: 1, updatedChanged: 1, skippedUnchanged: 1 }));
+    expect(result).toMatchObject(res({ inserted: 1, updatedChanged: 1, skippedUnchanged: 1 }));
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
@@ -651,7 +654,7 @@ describe("upsertListingMedia — #530 outcome accounting", () => {
     ];
     const result = await upsertListingMedia("RLS20012345", input);
 
-    expect(result).toEqual(res({
+    expect(result).toMatchObject(res({
       inserted: 1,
       updatedChanged: 1,
       skippedUnchanged: 1,
@@ -668,5 +671,168 @@ describe("upsertListingMedia — #530 outcome accounting", () => {
     expect(physical).toBe(3);
     expect(mockUpdate).toHaveBeenCalledTimes(1);
     expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── #541 comparator-attribution diagnostic (decision-preserving) ──────────
+
+const URL_BASE = "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/1/abc";
+
+describe("upsertListingMedia — #541 per-field attribution", () => {
+  const singleField: Array<[string, Partial<ExistingMediaRowForCompare>, keyof UpsertListingMediaResult]> = [
+    ["status", { status: "deleted" }, "mismatchStatus"],
+    ["listing_id", { listing_id: "RLS-OTHER" }, "mismatchListingId"],
+    ["resource_record_key", { resource_record_key: "RRK-X" }, "mismatchResourceRecordKey"],
+    ["resource_record_id", { resource_record_id: "RID-X" }, "mismatchResourceRecordId"],
+    ["media_type", { media_type: "FloorPlan" }, "mismatchMediaType"],
+    ["media_category", { media_category: "FloorPlan" }, "mismatchMediaCategory"],
+    ["media_classification", { media_classification: "Interior" }, "mismatchMediaClassification"],
+    ["order", { order: 99 }, "mismatchOrder"],
+    ["preferred_photo_yn", { preferred_photo_yn: true }, "mismatchPreferredPhoto"],
+    ["media_modification_ts", { media_modification_ts: new Date("2000-01-01T00:00:00Z") }, "mismatchMediaModificationTs"],
+    ["modification_ts", { modification_ts: new Date("2000-01-01T00:00:00Z") }, "mismatchModificationTs"],
+  ];
+  for (const [label, over, counter] of singleField) {
+    it("attributes a single " + label + " difference and still writes (one-mismatch)", async () => {
+      mockFindUnique.mockResolvedValueOnce(existingMatching(over));
+      mockUpdate.mockResolvedValueOnce(undefined);
+      const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
+
+      expect(r.existingRowsCompared).toBe(1);
+      expect(r[counter]).toBe(1);
+      expect(r.rowsWithOneMismatch).toBe(1);
+      expect(r.rowsWithMultipleMismatches).toBe(0);
+      expect(r.skippedUnchanged).toBe(0);
+      expect(r.updatedChanged).toBe(1);
+      expect(mockUpdate).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("URL path difference => exact + identity (not identity-equivalent)", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: "https://cdn.example/OTHER.jpg" }));
+    mockUpdate.mockResolvedValueOnce(undefined);
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
+    expect(r.mismatchMediaUrlExact).toBe(1);
+    expect(r.mismatchMediaUrlIdentity).toBe(1);
+    expect(r.mismatchMediaUrlIdentityEquivalent).toBe(0);
+    expect(r.rowsWithOneMismatch).toBe(1);
+  });
+
+  it("URL query-only difference => exact + identity-equivalent (identity matches)", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: URL_BASE + "?token=OLD&expires=1" }));
+    mockUpdate.mockResolvedValueOnce(undefined);
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
+    expect(r.mismatchMediaUrlExact).toBe(1);
+    expect(r.mismatchMediaUrlIdentity).toBe(0);
+    expect(r.mismatchMediaUrlIdentityEquivalent).toBe(1);
+    expect(r.rowsWithOneMismatch).toBe(1);
+    expect(r.mismatchMediaUrlExact).toBe(r.mismatchMediaUrlIdentity + r.mismatchMediaUrlIdentityEquivalent);
+  });
+
+  it("multiple base-field differences => rows_with_multiple_mismatches", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching({ order: 9, preferred_photo_yn: true }));
+    mockUpdate.mockResolvedValueOnce(undefined);
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
+    expect(r.mismatchOrder).toBe(1);
+    expect(r.mismatchPreferredPhoto).toBe(1);
+    expect(r.rowsWithMultipleMismatches).toBe(1);
+    expect(r.rowsWithOneMismatch).toBe(0);
+  });
+
+  it("an unchanged row is compared but attributes ZERO mismatches", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching());
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
+    expect(r.existingRowsCompared).toBe(1);
+    expect(r.skippedUnchanged).toBe(1);
+    expect(r.rowsWithOneMismatch).toBe(0);
+    expect(r.rowsWithMultipleMismatches).toBe(0);
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("mixed batch honours the attribution invariants", async () => {
+    mockFindUnique
+      .mockResolvedValueOnce(existingMatching())
+      .mockResolvedValueOnce(existingMatching({ order: 7 }))
+      .mockResolvedValueOnce(existingMatching({ order: 7, media_type: "FloorPlan" }))
+      .mockResolvedValueOnce(null);
+    mockUpdate.mockResolvedValue(undefined);
+    mockCreate.mockResolvedValueOnce(undefined);
+    const r = await upsertListingMedia("RLS20012345", [
+      makeRow({ MediaKey: "MK-1" }),
+      makeRow({ MediaKey: "MK-2" }),
+      makeRow({ MediaKey: "MK-3" }),
+      makeRow({ MediaKey: "MK-4" }),
+    ]);
+    expect(r.existingRowsCompared).toBe(3);
+    expect(r.existingRowsCompared).toBe(r.skippedUnchanged + r.rowsWithOneMismatch + r.rowsWithMultipleMismatches);
+    expect(r.updatedChanged).toBe(r.rowsWithOneMismatch + r.rowsWithMultipleMismatches);
+    const bounded: Array<keyof UpsertListingMediaResult> = ["mismatchOrder", "mismatchMediaType", "mismatchMediaUrlExact"];
+    for (const k of bounded) {
+      expect(r[k]).toBeLessThanOrEqual(r.existingRowsCompared);
+    }
+    expect(r.skippedUnchanged).toBe(1);
+    expect(r.rowsWithOneMismatch).toBe(1);
+    expect(r.rowsWithMultipleMismatches).toBe(1);
+    expect(r.inserted).toBe(1);
+  });
+
+  it("a malformed stored URL never throws and never changes the write decision", async () => {
+    mockFindUnique.mockResolvedValueOnce(existingMatching({ media_url_original: "::: not a url %%%" }));
+    mockUpdate.mockResolvedValueOnce(undefined);
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
+    expect(r.mismatchMediaUrlExact).toBe(1);
+    expect(r.updatedChanged).toBe(1);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("classifyMediaRowMismatch — pure predicate (total, decision-mirroring)", () => {
+  const mapped: MappedMediaRow = {
+    mediaKey: "MK-1", resourceRecordKey: "RRK-100", resourceRecordID: "RLS20012345",
+    mediaUrlOriginal: URL_BASE, mediaType: "Photo", mediaCategory: "Photo",
+    mediaClassification: null, order: 1, preferredPhotoYN: false,
+    mediaModificationTs: null, modificationTs: new Date("2026-05-08T12:00:00Z"),
+    photosChangeTsSnapshot: null,
+  };
+  const base: ExistingMediaRowForCompare = {
+    listing_id: "RLS20012345", resource_record_key: "RRK-100", resource_record_id: "RLS20012345",
+    media_url_original: URL_BASE, media_type: "Photo", media_category: "Photo",
+    media_classification: null, order: 1, preferred_photo_yn: false,
+    media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"), status: "active",
+  };
+
+  it("identical row => zero mismatches, mirrors the comparator decision", () => {
+    const mm = classifyMediaRowMismatch(base, mapped, "RLS20012345");
+    expect(mm.baseMismatchCount).toBe(0);
+    expect(mm.baseMismatchCount === 0).toBe(listingMediaRowUnchanged(base, mapped, "RLS20012345"));
+  });
+
+  it("query-only URL => exact & identity-equivalent; path URL => exact & identity", () => {
+    const q = classifyMediaRowMismatch({ ...base, media_url_original: URL_BASE + "?sig=OLD" }, mapped, "RLS20012345");
+    expect([q.media_url_exact, q.media_url_identity, q.media_url_identity_equivalent]).toEqual([true, false, true]);
+    expect(q.baseMismatchCount).toBe(1);
+    const p = classifyMediaRowMismatch({ ...base, media_url_original: "https://cdn.example/x.jpg" }, mapped, "RLS20012345");
+    expect([p.media_url_exact, p.media_url_identity, p.media_url_identity_equivalent]).toEqual([true, true, false]);
+  });
+
+  it("is total: malformed URLs on either/both sides never throw", () => {
+    expect(() => classifyMediaRowMismatch({ ...base, media_url_original: "%%%" }, { ...mapped, mediaUrlOriginal: "###" }, "X")).not.toThrow();
+    const mm = classifyMediaRowMismatch({ ...base, media_url_original: "%%%" }, mapped, "RLS20012345");
+    expect(mm.media_url_exact).toBe(true);
+  });
+
+  it("baseMismatchCount mirrors the comparator for every single-field change", () => {
+    const changes: Array<Partial<ExistingMediaRowForCompare>> = [
+      { status: "deleted" }, { listing_id: "Z" }, { resource_record_key: "Z" }, { resource_record_id: "Z" },
+      { media_url_original: "https://z/z.jpg" }, { media_type: "Video" }, { media_category: "Z" },
+      { media_classification: "Z" }, { order: 9 }, { preferred_photo_yn: true },
+      { media_modification_ts: new Date("2000-01-01") }, { modification_ts: new Date("2000-01-01") },
+    ];
+    for (const over of changes) {
+      const ex = { ...base, ...over };
+      const mm = classifyMediaRowMismatch(ex, mapped, "RLS20012345");
+      expect(mm.baseMismatchCount).toBeGreaterThanOrEqual(1);
+      expect(mm.baseMismatchCount === 0).toBe(listingMediaRowUnchanged(ex, mapped, "RLS20012345"));
+    }
   });
 });

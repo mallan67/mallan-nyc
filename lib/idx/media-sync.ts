@@ -536,6 +536,37 @@ export interface UpsertListingMediaResult {
   tombstonedVanished: number;
   /** Total DB rows tombstoned. INVARIANT: tombstoned === tombstonedExplicit + tombstonedVanished. */
   tombstoned: number;
+
+  // ── #541 comparator-attribution diagnostic (aggregate counts only) ──
+  // Decision-preserving: derived alongside the unchanged decision, never
+  // controlling it. INVARIANTS (per successful aggregation):
+  //   existingRowsCompared === skippedUnchanged + rowsWithOneMismatch + rowsWithMultipleMismatches
+  //   updatedChanged       === rowsWithOneMismatch + rowsWithMultipleMismatches
+  //   mismatchMediaUrlExact === mismatchMediaUrlIdentity + mismatchMediaUrlIdentityEquivalent
+  //   0 <= each mismatch counter <= existingRowsCompared
+  /** Existing rows the guard evaluated (skipped + changed) — the attribution universe. */
+  existingRowsCompared: number;
+  mismatchStatus: number;
+  mismatchListingId: number;
+  mismatchResourceRecordKey: number;
+  mismatchResourceRecordId: number;
+  /** Base URL field (#5) differs exactly === mismatchMediaUrlIdentity + mismatchMediaUrlIdentityEquivalent. */
+  mismatchMediaUrlExact: number;
+  /** Subcategory: normalized origin+pathname differ (a real target difference). */
+  mismatchMediaUrlIdentity: number;
+  /** Subcategory: exact differs but identity matches (query/fragment/case/whitespace). */
+  mismatchMediaUrlIdentityEquivalent: number;
+  mismatchMediaType: number;
+  mismatchMediaCategory: number;
+  mismatchMediaClassification: number;
+  mismatchOrder: number;
+  mismatchPreferredPhoto: number;
+  mismatchMediaModificationTs: number;
+  mismatchModificationTs: number;
+  /** Changed rows with exactly ONE of the 12 base fields differing. */
+  rowsWithOneMismatch: number;
+  /** Changed rows with TWO OR MORE of the 12 base fields differing. */
+  rowsWithMultipleMismatches: number;
 }
 
 /**
@@ -582,8 +613,12 @@ export interface ExistingMediaRowForCompare {
 }
 
 /** Date equality that treats null==null and compares by instant otherwise. */
-function sameInstant(a: Date | null, b: Date | null): boolean {
-  if (a === null || b === null) return a === b;
+function sameInstant(a: Date | null | undefined, b: Date | null | undefined): boolean {
+  // Total & non-throwing: null and undefined are both "empty" and equal to each
+  // other. Production values are always Date|null (Prisma), so this is
+  // behavior-preserving for the #530 comparator; it only makes the #541
+  // attribution robust to unexpected/absent inputs.
+  if (a == null || b == null) return a == null && b == null;
   return a.getTime() === b.getTime();
 }
 
@@ -618,6 +653,99 @@ export function listingMediaRowUnchanged(
     sameInstant(existing.media_modification_ts, row.mediaModificationTs) &&
     sameInstant(existing.modification_ts, row.modificationTs)
   );
+}
+
+// ─── #541 comparator-attribution diagnostic (observability only) ────────────
+//
+// A DECISION-PRESERVING attribution of WHICH compared field(s) caused an
+// existing row to be classified "changed". It NEVER alters the suppression
+// decision (that stays solely `listingMediaRowUnchanged`), never mutates
+// stored data, and emits only aggregate integer counters. Diagnostic in place
+// because production observed 0/2,012 rows suppressed — this identifies the
+// dominant differing field without logging any URL/id/key/value.
+
+/** TOTAL, non-throwing URL identity for ATTRIBUTION ONLY (never suppression,
+ *  never stored). origin(lowercased scheme+host) + pathname; query/fragment
+ *  dropped. A malformed URL falls back deterministically to the trimmed raw —
+ *  it can never throw, abort a listing, or change a write. Kept local to
+ *  production runtime (NOT imported from the backfill script). */
+function mediaUrlIdentity(url: string | null | undefined): string {
+  const raw = (url ?? "").trim();
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    return u.origin.toLowerCase() + u.pathname;
+  } catch {
+    return raw; // deterministic fallback — degrade to a raw string compare
+  }
+}
+
+/** Which of the comparator's 12 base fields differ for one existing row, plus
+ *  the URL sub-attribution. `baseMismatchCount` counts ONLY the 12 base fields
+ *  (the URL contributes at most 1, via its EXACT compare — the identity/
+ *  identity-equivalent flags are subcategories of that one field, never extra
+ *  base mismatches). By construction `baseMismatchCount === 0` iff
+ *  `listingMediaRowUnchanged` is true, so attribution covers exactly the
+ *  production comparator's existing-row universe. */
+export interface MediaRowMismatch {
+  status: boolean;
+  listing_id: boolean;
+  resource_record_key: boolean;
+  resource_record_id: boolean;
+  media_url_exact: boolean; // base field #5
+  media_url_identity: boolean; // subcategory: origin+pathname differ
+  media_url_identity_equivalent: boolean; // subcategory: exact differs but identity matches
+  media_type: boolean;
+  media_category: boolean;
+  media_classification: boolean;
+  order: boolean;
+  preferred_photo_yn: boolean;
+  media_modification_ts: boolean;
+  modification_ts: boolean;
+  baseMismatchCount: number;
+}
+
+export function classifyMediaRowMismatch(
+  existing: ExistingMediaRowForCompare,
+  row: MappedMediaRow,
+  listingId: string,
+): MediaRowMismatch {
+  const status = existing.status !== "active";
+  const listing_id = existing.listing_id !== listingId;
+  const resource_record_key = existing.resource_record_key !== row.resourceRecordKey;
+  const resource_record_id = existing.resource_record_id !== row.resourceRecordID;
+  const media_url_exact = existing.media_url_original !== row.mediaUrlOriginal;
+  const media_type = existing.media_type !== row.mediaType;
+  const media_category = existing.media_category !== row.mediaCategory;
+  const media_classification = existing.media_classification !== row.mediaClassification;
+  const order = existing.order !== row.order;
+  const preferred_photo_yn = existing.preferred_photo_yn !== row.preferredPhotoYN;
+  const media_modification_ts = !sameInstant(existing.media_modification_ts, row.mediaModificationTs);
+  const modification_ts = !sameInstant(existing.modification_ts, row.modificationTs);
+
+  // URL subcategories (attribution only). When the EXACT URL differs, the
+  // difference is EITHER an identity difference (origin/pathname) OR an
+  // identity-equivalent difference (query/fragment/case/whitespace collapsed
+  // by normalization) — mutually exclusive, so exact === identity + equivalent.
+  let media_url_identity = false;
+  let media_url_identity_equivalent = false;
+  if (media_url_exact) {
+    const identityDiffers = mediaUrlIdentity(existing.media_url_original) !== mediaUrlIdentity(row.mediaUrlOriginal);
+    media_url_identity = identityDiffers;
+    media_url_identity_equivalent = !identityDiffers;
+  }
+
+  const baseMismatchCount =
+    Number(status) + Number(listing_id) + Number(resource_record_key) + Number(resource_record_id) +
+    Number(media_url_exact) + Number(media_type) + Number(media_category) + Number(media_classification) +
+    Number(order) + Number(preferred_photo_yn) + Number(media_modification_ts) + Number(modification_ts);
+
+  return {
+    status, listing_id, resource_record_key, resource_record_id,
+    media_url_exact, media_url_identity, media_url_identity_equivalent,
+    media_type, media_category, media_classification, order, preferred_photo_yn,
+    media_modification_ts, modification_ts, baseMismatchCount,
+  };
 }
 
 /**
@@ -703,6 +831,27 @@ export async function upsertListingMedia(
   let inserted = 0;
   let updatedChanged = 0;
   let skippedUnchanged = 0;
+  // #541 comparator-attribution diagnostic — aggregate counts only, derived
+  // ALONGSIDE the decision, never controlling it.
+  const attr = {
+    existingRowsCompared: 0,
+    mismatchStatus: 0,
+    mismatchListingId: 0,
+    mismatchResourceRecordKey: 0,
+    mismatchResourceRecordId: 0,
+    mismatchMediaUrlExact: 0,
+    mismatchMediaUrlIdentity: 0,
+    mismatchMediaUrlIdentityEquivalent: 0,
+    mismatchMediaType: 0,
+    mismatchMediaCategory: 0,
+    mismatchMediaClassification: 0,
+    mismatchOrder: 0,
+    mismatchPreferredPhoto: 0,
+    mismatchMediaModificationTs: 0,
+    mismatchModificationTs: 0,
+    rowsWithOneMismatch: 0,
+    rowsWithMultipleMismatches: 0,
+  };
 
   // Upsert each surviving row. We use findUnique + create/update rather than
   // Prisma's upsert() so we can return precise inserted/updated/unchanged counts
@@ -730,6 +879,27 @@ export async function upsertListingMedia(
       },
     });
     if (existing) {
+      // Attribution FIRST (never throws, never affects the branch below).
+      const mm = classifyMediaRowMismatch(existing, row, listingId);
+      attr.existingRowsCompared += 1;
+      if (mm.status) attr.mismatchStatus += 1;
+      if (mm.listing_id) attr.mismatchListingId += 1;
+      if (mm.resource_record_key) attr.mismatchResourceRecordKey += 1;
+      if (mm.resource_record_id) attr.mismatchResourceRecordId += 1;
+      if (mm.media_url_exact) attr.mismatchMediaUrlExact += 1;
+      if (mm.media_url_identity) attr.mismatchMediaUrlIdentity += 1;
+      if (mm.media_url_identity_equivalent) attr.mismatchMediaUrlIdentityEquivalent += 1;
+      if (mm.media_type) attr.mismatchMediaType += 1;
+      if (mm.media_category) attr.mismatchMediaCategory += 1;
+      if (mm.media_classification) attr.mismatchMediaClassification += 1;
+      if (mm.order) attr.mismatchOrder += 1;
+      if (mm.preferred_photo_yn) attr.mismatchPreferredPhoto += 1;
+      if (mm.media_modification_ts) attr.mismatchMediaModificationTs += 1;
+      if (mm.modification_ts) attr.mismatchModificationTs += 1;
+      if (mm.baseMismatchCount === 1) attr.rowsWithOneMismatch += 1;
+      else if (mm.baseMismatchCount >= 2) attr.rowsWithMultipleMismatches += 1;
+
+      // DECISION — unchanged from #530/#541 (sole authority for the write).
       if (listingMediaRowUnchanged(existing, row, listingId)) {
         skippedUnchanged++;
         continue; // byte-identical active row → skip the no-op write
@@ -831,6 +1001,7 @@ export async function upsertListingMedia(
     tombstonedExplicit,
     tombstonedVanished,
     tombstoned: tombstonedExplicit + tombstonedVanished,
+    ...attr,
   };
 }
 
@@ -1514,6 +1685,28 @@ export interface RunMediaSyncResult {
   tombstoned_vanished: number;
   /** INVARIANT: rows_tombstoned === tombstoned_explicit + tombstoned_vanished. */
   rows_tombstoned: number;
+  // ── #541 comparator-attribution diagnostic (cumulative; observability only).
+  // INVARIANTS on a run where rows_failed===0:
+  //   existing_rows_compared === rows_skipped_unchanged + rows_with_one_mismatch + rows_with_multiple_mismatches
+  //   rows_updated_changed   === rows_with_one_mismatch + rows_with_multiple_mismatches
+  //   mismatch_media_url_exact === mismatch_media_url_identity + mismatch_media_url_identity_equivalent
+  existing_rows_compared: number;
+  mismatch_status: number;
+  mismatch_listing_id: number;
+  mismatch_resource_record_key: number;
+  mismatch_resource_record_id: number;
+  mismatch_media_url_exact: number;
+  mismatch_media_url_identity: number;
+  mismatch_media_url_identity_equivalent: number;
+  mismatch_media_type: number;
+  mismatch_media_category: number;
+  mismatch_media_classification: number;
+  mismatch_order: number;
+  mismatch_preferred_photo: number;
+  mismatch_media_modification_ts: number;
+  mismatch_modification_ts: number;
+  rows_with_one_mismatch: number;
+  rows_with_multiple_mismatches: number;
   rows_failed: number;
   listings_processed: number;
   listings_skipped: number;
@@ -1843,6 +2036,26 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let tombstonedExplicit = 0;
   let tombstonedVanished = 0;
   let rowsTombstoned = 0;
+  // #541 comparator-attribution diagnostic (cumulative; snake_case = audit keys).
+  const attr = {
+    existing_rows_compared: 0,
+    mismatch_status: 0,
+    mismatch_listing_id: 0,
+    mismatch_resource_record_key: 0,
+    mismatch_resource_record_id: 0,
+    mismatch_media_url_exact: 0,
+    mismatch_media_url_identity: 0,
+    mismatch_media_url_identity_equivalent: 0,
+    mismatch_media_type: 0,
+    mismatch_media_category: 0,
+    mismatch_media_classification: 0,
+    mismatch_order: 0,
+    mismatch_preferred_photo: 0,
+    mismatch_media_modification_ts: 0,
+    mismatch_modification_ts: 0,
+    rows_with_one_mismatch: 0,
+    rows_with_multiple_mismatches: 0,
+  };
   let rowsFailed = 0;
   let listingsProcessed = 0;
   let listingsSkipped = 0;
@@ -1905,6 +2118,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstoned_explicit: 0,
       tombstoned_vanished: 0,
       rows_tombstoned: 0,
+      ...attr, // all zeros on source_error
       rows_failed: 0,
       listings_processed: 0,
       listings_skipped: 0,
@@ -2009,6 +2223,24 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstonedVanished += upsertResult.tombstonedVanished;
       rowsTombstoned += upsertResult.tombstoned;
       rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged; // legacy aggregate retained
+      // #541 attribution (camelCase result → snake_case cumulative)
+      attr.existing_rows_compared += upsertResult.existingRowsCompared;
+      attr.mismatch_status += upsertResult.mismatchStatus;
+      attr.mismatch_listing_id += upsertResult.mismatchListingId;
+      attr.mismatch_resource_record_key += upsertResult.mismatchResourceRecordKey;
+      attr.mismatch_resource_record_id += upsertResult.mismatchResourceRecordId;
+      attr.mismatch_media_url_exact += upsertResult.mismatchMediaUrlExact;
+      attr.mismatch_media_url_identity += upsertResult.mismatchMediaUrlIdentity;
+      attr.mismatch_media_url_identity_equivalent += upsertResult.mismatchMediaUrlIdentityEquivalent;
+      attr.mismatch_media_type += upsertResult.mismatchMediaType;
+      attr.mismatch_media_category += upsertResult.mismatchMediaCategory;
+      attr.mismatch_media_classification += upsertResult.mismatchMediaClassification;
+      attr.mismatch_order += upsertResult.mismatchOrder;
+      attr.mismatch_preferred_photo += upsertResult.mismatchPreferredPhoto;
+      attr.mismatch_media_modification_ts += upsertResult.mismatchMediaModificationTs;
+      attr.mismatch_modification_ts += upsertResult.mismatchModificationTs;
+      attr.rows_with_one_mismatch += upsertResult.rowsWithOneMismatch;
+      attr.rows_with_multiple_mismatches += upsertResult.rowsWithMultipleMismatches;
 
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).
@@ -2249,6 +2481,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     tombstoned_explicit: tombstonedExplicit,
     tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
+    ...attr,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,
     listings_skipped: listingsSkipped,
