@@ -108,6 +108,14 @@ export type CanonicalMediaType = "Photo" | "FloorPlan" | "Video" | "VirtualTour"
  * @param category — raw value from Trestle Media `MediaCategory` field, or
  *   the DB `mediaType` field on already-mirrored items. Accepts string,
  *   undefined, null, empty.
+ *
+ * @deprecated Legacy classifier for the pre-unification media pipeline. It
+ * intentionally defaults unrecognized/absent categories to "Photo" — the source
+ * of the R2 collision + wrong-hero defects. New code MUST use the single strict
+ * classifier `classifyMedia` in `lib/media/media-classifier.ts`, which never
+ * defaults to Photo. Retained ONLY to preserve exact behavior of the still-
+ * active legacy pipeline; removed at the unified-pipeline flag cutover
+ * (activation). Do not add new callers.
  */
 export function classifyTrestleMediaCategory(
   category: string | null | undefined,
