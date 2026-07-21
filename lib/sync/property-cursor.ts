@@ -60,26 +60,37 @@ export function buildPropertyQuery(cursor: PropertyCursor, top: number): URLSear
 /**
  * Advance the cursor to the last SAFELY-resumable processed position.
  *
- * Two rules, both required for skip-safety:
- *  1. Contiguity — walk in order and stop at the first non-ok record; never
- *     advance past an unprocessed record.
- *  2. Tie-block safety (live finding 2026-07-21) — the server does NOT order a
- *     tied-`ModificationTimestamp` block by the tiebreak key, so a `key gt`
- *     resume inside such a block would SKIP rows. Therefore the cursor must
- *     never land INSIDE a timestamp group that is not fully processed: if the
- *     contiguous-ok prefix ends in a timestamp `tsL` that also appears AFTER the
- *     prefix (i.e. that group is split), back off to the last processed record
- *     whose timestamp is strictly less than `tsL`.
+ * `pageChainComplete` is the AUTHORITATIVE gate and MUST come from the caller —
+ * it is true only when the `@odata.nextLink` chain was drained to exhaustion for
+ * this run. This helper CANNOT infer unseen rows from the local `processed`
+ * array: if the chain was not exhausted, rows may exist that were never fetched,
+ * so any advance risks skipping them. When `pageChainComplete` is false the
+ * cursor is FROZEN (returns null → caller preserves the prior cursor).
  *
- * Returns null when nothing can be safely advanced (first record failed, empty
- * run, or the whole ok-prefix is one incomplete tie block) — the caller then
- * preserves the prior cursor. The caller must independently guarantee the run
- * fully drained each timestamp it advances past (follow `@odata.nextLink` to
- * exhaustion; an incomplete drain must not mark trailing records ok).
+ * When the chain is complete, `processed` is the full drained set and two rules
+ * apply for skip-safety:
+ *  1. Contiguity — stop at the first non-ok record; never advance past an
+ *     unprocessed record.
+ *  2. Tie-block safety — a tied-`ModificationTimestamp` block may not be ordered
+ *     by the tiebreak key at the server, so a `key gt` resume inside such a
+ *     block could skip rows. If the contiguous-ok prefix ends in a timestamp
+ *     `tsL` that also appears AFTER the prefix (that group is split by a non-ok
+ *     record), back off to the last processed record whose timestamp is strictly
+ *     less than `tsL`. (This tied-ordering behavior is live-proven for the Media
+ *     endpoint; for Property it is UNVERIFIED — the back-off is a defensive
+ *     fail-closed default, not a claim about the Property endpoint.)
+ *
+ * Returns null when nothing can be safely advanced (incomplete chain, first
+ * record failed, empty run, or the whole ok-prefix is one incomplete tie block).
  */
 export function advancePropertyCursor(
   processed: ProcessedRecord[],
+  pageChainComplete: boolean,
 ): { ts: string; key: string } | null {
+  // Authoritative gate: an un-drained page chain means the local array is not
+  // known to be the full set — never advance, preserve the prior cursor.
+  if (!pageChainComplete) return null;
+
   // Rule 1: last contiguously-ok index.
   let lastOk = -1;
   for (let i = 0; i < processed.length; i++) {

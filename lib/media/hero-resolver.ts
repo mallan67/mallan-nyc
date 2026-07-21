@@ -2,9 +2,10 @@
 //
 // THE single hero-selection + gallery-ordering authority for the unified
 // system. Every rendering surface (listing detail, search cards, featured,
-// agent listings, similar, /api/listings, card/report outputs) must consume
-// this — no divergent implementation is permitted (enforced by a source-scan
-// test in Phase 6).
+// agent listings, similar, /api/listings, CRM cards/reports) must consume this
+// — no divergent implementation is permitted (enforced by a source-scan test in
+// Phase 6). Note: CRM is a rendering surface here, not a source of media-contract
+// truth; the media contract is the live Cotality API alone.
 //
 // Rule (live-grounded, probe 2026-07-21): the hero is the first ACTIVE Photo by
 //   PreferredPhotoYN (true wins; null/false = not-preferred) →
