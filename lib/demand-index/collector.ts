@@ -12,6 +12,11 @@
  */
 import prisma from "@/lib/prisma";
 import { soda, getSocrataToken } from "@/lib/soda";
+import {
+  materialValuesEqual,
+  newWritePathCounters,
+  type WritePathCounters,
+} from "@/lib/idx/write-suppression";
 
 const SIGNAL_WEIGHTS = {
   search_volume: 0.35,
@@ -113,12 +118,43 @@ async function collectPermitSignals(): Promise<Map<string, number>> {
 }
 
 /**
+ * Deterministic logical identity window for a composite demand signal
+ * (Phase 3, surface F — seller/demand-signal reconciliation).
+ *
+ * Identity = (signal_type, neighborhood, source, UTC-day of period_end).
+ * Re-runs inside the same UTC day RECONCILE the existing row (update when
+ * values/metadata materially changed, no-op otherwise) instead of inserting
+ * a duplicate logical signal. A new UTC day starts a new row — the table
+ * remains a daily time series.
+ *
+ * `period_start` / `period_end` describe the rolling observation window AS
+ * OF THE LAST MATERIAL CHANGE; an unchanged re-run intentionally does not
+ * slide them (that alone would be pure churn).
+ */
+export function demandSignalIdentityWindow(now: Date): { gte: Date; lt: Date } {
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return { gte: dayStart, lt: new Date(dayStart.getTime() + 86_400_000) };
+}
+
+/**
  * Batch compute demand index for all neighborhoods.
+ *
+ * Phase 3 write-suppression (surfaces E + F):
+ *   - `demand_signals`: reconciled by logical identity (see
+ *     demandSignalIdentityWindow) — never blind-inserted per run.
+ *   - `demand_indices`: written only when the composite result (score,
+ *     trend, trend_delta, components) materially changed. `signal_count` is
+ *     run-order telemetry and `last_computed` means "last MATERIAL result
+ *     change" — neither justifies a write on its own.
  */
 export async function batchComputeDemandIndex(): Promise<{
   neighborhoods: number;
   signals: number;
   alertsFired: number;
+  write_paths: {
+    demand_signals: WritePathCounters;
+    demand_indices: WritePathCounters;
+  };
 }> {
   const now = new Date();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000);
@@ -144,6 +180,8 @@ export async function batchComputeDemandIndex(): Promise<{
 
   let signalCount = 0;
   let alertsFired = 0;
+  const signalCounters = newWritePathCounters();
+  const indexCounters = newWritePathCounters();
 
   // Benchmarks for normalization (estimated from typical NYC activity)
   const maxSearches = Math.max(...Array.from(firstParty.values()).map((v) => v.searches), 10);
@@ -153,19 +191,57 @@ export async function batchComputeDemandIndex(): Promise<{
     const fp = firstParty.get(nh) || { searches: 0, intents: 0 };
     const permitCount = permits.get(nh) || 0;
 
-    // Store raw signals
-    await prisma.demandSignal.create({
-      data: {
+    // Store raw signals — RECONCILED by logical identity (surface F), never
+    // blind-inserted. Provenance fields (signal_type / neighborhood / source)
+    // are identity and are never rewritten on reconcile.
+    const signalValue = fp.searches + fp.intents;
+    const signalNormalized = norm(fp.searches, maxSearches);
+    const signalMetadata = { searches: fp.searches, intents: fp.intents, permits: permitCount };
+    signalCounters.rows_checked++;
+    const existingSignal = await prisma.demandSignal.findFirst({
+      where: {
         signal_type: "composite",
         neighborhood: nh,
-        value: fp.searches + fp.intents,
-        normalized: norm(fp.searches, maxSearches),
         source: "first_party",
-        metadata: { searches: fp.searches, intents: fp.intents, permits: permitCount },
-        period_start: periodStart,
-        period_end: periodEnd,
+        period_end: demandSignalIdentityWindow(now),
       },
+      orderBy: { collected_at: "desc" },
     });
+    if (!existingSignal) {
+      await prisma.demandSignal.create({
+        data: {
+          signal_type: "composite",
+          neighborhood: nh,
+          value: signalValue,
+          normalized: signalNormalized,
+          source: "first_party",
+          metadata: signalMetadata,
+          period_start: periodStart,
+          period_end: periodEnd,
+        },
+      });
+      signalCounters.rows_inserted++;
+    } else if (
+      materialValuesEqual(existingSignal.value, signalValue) &&
+      materialValuesEqual(existingSignal.normalized, signalNormalized) &&
+      materialValuesEqual(existingSignal.metadata, signalMetadata)
+    ) {
+      // Same logical signal, same values → duplicate re-run; no write.
+      signalCounters.rows_suppressed_unchanged++;
+    } else {
+      await prisma.demandSignal.update({
+        where: { id: existingSignal.id },
+        data: {
+          value: signalValue,
+          normalized: signalNormalized,
+          metadata: signalMetadata,
+          period_start: periodStart,
+          period_end: periodEnd,
+        },
+      });
+      signalCounters.rows_materially_changed++;
+      signalCounters.rows_updated++;
+    }
     signalCount++;
 
     // Compute composite score
@@ -186,30 +262,54 @@ export async function batchComputeDemandIndex(): Promise<{
     const prevScore = prev?.score ?? compositeScore;
     const delta = compositeScore - prevScore;
     const trend = delta > 5 ? "rising" : delta < -5 ? "falling" : "stable";
+    const nextComponents = { searchScore, intentScore, permitScore, priceScore };
 
-    await prisma.demandIndex.upsert({
-      where: { neighborhood: nh },
-      create: {
-        neighborhood: nh,
-        score: compositeScore,
-        trend,
-        trend_delta: delta,
-        components: { searchScore, intentScore, permitScore, priceScore },
-        signal_count: signalCount,
-        last_computed: now,
-      },
-      update: {
-        score: compositeScore,
-        trend,
-        trend_delta: delta,
-        components: { searchScore, intentScore, permitScore, priceScore },
-        signal_count: signalCount,
-        last_computed: now,
-      },
-    });
+    // Phase 3 (surface E): write only when the composite RESULT changed.
+    // `signal_count` (loop-position telemetry) and `last_computed` ("last
+    // MATERIAL result change") never justify a write on their own.
+    indexCounters.rows_checked++;
+    const indexUnchanged =
+      !!prev &&
+      materialValuesEqual(prev.score, compositeScore) &&
+      materialValuesEqual(prev.trend, trend) &&
+      materialValuesEqual(prev.trend_delta, delta) &&
+      materialValuesEqual(prev.components, nextComponents);
 
-    // Check alerts for this neighborhood
-    const index = await prisma.demandIndex.findUnique({ where: { neighborhood: nh } });
+    let indexRow: { id: bigint } | null = prev;
+    if (indexUnchanged) {
+      indexCounters.rows_suppressed_unchanged++;
+    } else {
+      indexRow = await prisma.demandIndex.upsert({
+        where: { neighborhood: nh },
+        create: {
+          neighborhood: nh,
+          score: compositeScore,
+          trend,
+          trend_delta: delta,
+          components: nextComponents,
+          signal_count: signalCount,
+          last_computed: now,
+        },
+        update: {
+          score: compositeScore,
+          trend,
+          trend_delta: delta,
+          components: nextComponents,
+          signal_count: signalCount,
+          last_computed: now,
+        },
+      });
+      if (prev) {
+        indexCounters.rows_materially_changed++;
+        indexCounters.rows_updated++;
+      } else {
+        indexCounters.rows_inserted++;
+      }
+    }
+
+    // Check alerts for this neighborhood (reuses the row already in hand —
+    // the post-upsert re-read was itself avoidable load).
+    const index = indexRow;
     if (index) {
       const alerts = await prisma.demandAlert.findMany({
         where: {
@@ -243,5 +343,10 @@ export async function batchComputeDemandIndex(): Promise<{
     }
   }
 
-  return { neighborhoods: nhList.length, signals: signalCount, alertsFired };
+  return {
+    neighborhoods: nhList.length,
+    signals: signalCount,
+    alertsFired,
+    write_paths: { demand_signals: signalCounters, demand_indices: indexCounters },
+  };
 }
