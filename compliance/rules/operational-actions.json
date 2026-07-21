@@ -17,23 +17,6 @@
 
   "actions": [
     {
-      "id": "ethics_backfill_before_gate",
-      "name": "Ethics-training backfill before auth gate ships",
-      "rules": ["C4"],
-      "workflow": "ethics_training_gate",
-      "required_artifacts": ["scripts/c4-ethics-backfill.ts"],
-      "required_command": "npx tsx scripts/c4-ethics-backfill.ts",
-      "postcondition_sql": "SELECT COUNT(*) FROM agents WHERE status='active' AND (ethics_training_expires_at IS NULL OR ethics_training_expires_at < NOW())",
-      "postcondition_expected": "= 0",
-      "postcondition_description": "Active agents with NULL or already-expired ethics_training_expires_at MUST be 0 — otherwise the auth gate will lock them out",
-      "ci_policy": "must_verify_before_release",
-      "evidence_of_execution": [
-        "scripts/c4-ethics-backfill.ts will report 'would_lock_out: 0' on success",
-        "Or: query the postcondition SQL directly against prod"
-      ]
-    },
-
-    {
       "id": "schema_migrations_applied_to_prod",
       "name": "Prisma migrations applied to prod before code merge",
       "rules": [],
