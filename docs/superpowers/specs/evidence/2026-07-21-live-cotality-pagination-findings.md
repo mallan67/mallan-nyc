@@ -46,8 +46,11 @@ what the real sync relies on.)
   fail-closed default, NOT a claim that Property behaves like Media.
 
 ## Fail-closed handling (adopted)
-1. **Completeness = follow `@odata.nextLink` to exhaustion.** Proven skip/dup-safe.
-   Never treat page 1 (or any single page) as the complete set. If any nextLink
+1. **Completeness = follow `@odata.nextLink` to exhaustion.** In the sampled
+   pages the chain was returned and followable with no duplicates observed; global
+   skip/dup-safety across the full result set was NOT proven here (see NOT-PROVEN
+   above). Because it is not proven, the code treats the chain conservatively:
+   never treat page 1 (or any single page) as the complete set. If any nextLink
    fetch is non-200 or the chain is not fully drained → `fetchComplete=false` →
    the reconciler fails closed (no tombstones), cursor frozen.
 2. **The (ts,key) keyset is a coarse BETWEEN-run start bound only.** It must never
