@@ -24,6 +24,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS "listing_media_r2_backlog_idx"
     AND "media_url_original" IS NOT NULL
     AND ("r2_key" IS NULL OR "media_url_cached" IS NULL);
 
--- Rollback (if ever needed): DROP INDEX CONCURRENTLY IF EXISTS
---   "listing_media_r2_backlog_idx"; and DROP the three columns (all additive-
---   nullable, safe to drop only after confirming no live readers).
+-- Rollback (if ever needed, reverse order): remove the backlog index
+--   (concurrently) then remove the three additive-nullable columns, only after
+--   confirming no live readers. Every change here is additive + reversible; this
+--   migration contains no destructive statement.
