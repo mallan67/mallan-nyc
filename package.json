@@ -63,7 +63,6 @@
         "trestle:audit-resources": "npx tsx scripts/audit-trestle-non-property-resources.ts",
         "trestle:probe": "npx tsx scripts/probe-trestle-fields.ts",
         "trestle:audit:all": "npm run trestle:audit-forms && npm run trestle:audit-server && npm run trestle:audit-resources",
-        "sentinel:l": "tsx tools/sentinel-l/run-sentinel-l.ts",
         "audit:attribution": "npx tsx scripts/audit-public-attribution.ts",
         "audit:pii": "npx tsx scripts/audit-pii-masking.ts",
         "audit:coming-soon": "npx tsx scripts/audit-coming-soon-badge.ts",
