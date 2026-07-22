@@ -17,6 +17,20 @@ import type { SignalInput, ScoredResult, SignalType } from './types';
 import { collectAcrisSignals } from './signals/acris';
 import { collectDobSignals } from './signals/dob';
 import { collectDofSignals } from './signals/dof-tax';
+
+/**
+ * The signal TYPES this scorer's collectors emit — the reconcile owns EXACTLY
+ * these rows and no others. Ownership is by TYPE, not source: other writers
+ * store display signals under the SAME sources (app/api/crm/sales/prospects/
+ * [id]/research: acris_transactions @acris, tax_lien_history @dof) and those
+ * must never be read into the compare nor deleted by a rescore (Codex #551).
+ * Pinned against the collector sources by a drift test.
+ */
+export const SCORER_OWNED_SIGNAL_TYPES: readonly string[] = [
+  'ownership_duration', 'mortgage_age', 'equity_estimate', // acris.ts
+  'dob_permits', 'renovation_signal', 'building_risk',     // dob.ts
+  'property_tax',                                                          // dof-tax.ts
+];
 import { collectFirstPartySignals } from './signals/first-party';
 
 /**
@@ -81,7 +95,8 @@ export async function scoreSellerLead(sellerLeadId: bigint): Promise<ScoredResul
   const existingSignals = await prisma.readinessSignal.findMany({
     where: {
       seller_lead_id: sellerLeadId,
-      source: { not: 'first_party' } // EXACT complement of the persistable filter — covers dof + any future source (Codex post-merge),
+      signal_type: { in: [...SCORER_OWNED_SIGNAL_TYPES] }, // ownership by TYPE (Codex #551) — research-route display signals survive
+      source: { not: 'first_party' },
     },
     select: {
       signal_type: true,
@@ -103,7 +118,8 @@ export async function scoreSellerLead(sellerLeadId: bigint): Promise<ScoredResul
           prisma.readinessSignal.deleteMany({
             where: {
               seller_lead_id: sellerLeadId,
-              source: { not: 'first_party' } // EXACT complement of the persistable filter — covers dof + any future source (Codex post-merge),
+              signal_type: { in: [...SCORER_OWNED_SIGNAL_TYPES] }, // ownership by TYPE (Codex #551) — research-route display signals survive
+      source: { not: 'first_party' },
             },
           }),
           // Insert new signals
