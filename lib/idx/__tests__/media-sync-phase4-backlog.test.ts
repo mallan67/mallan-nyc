@@ -397,28 +397,6 @@ describe("Phase 4 — parked-row recovery (exact-match sentinel-safe, reserved-f
     expect(result.r2_parked_recovery_attempted).toBe(0);
   });
 
-  it("a recovered row that fails again gets STANDARD bookkeeping (8 → 9; never a reset). NOTE: 9 is out of recovery scope (fail-closed one-shot until #534 sentinel integration)", async () => {
-    const parkedRow = backlogRow("PX", {
-      r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD,
-      r2_last_attempt_at: new Date("2026-07-01T00:00:00Z"),
-    });
-    wireBacklogMocks([], [parkedRow]);
-    const mirrorDeps = makeMirrorDeps();
-    (mirrorDeps.existsInR2 as jest.Mock).mockRejectedValue(new Error("still down"));
-
-    const result = await runMediaSync(makeOptions({ mirrorDeps }));
-
-    expect(result.r2_failed).toBe(1);
-    const writes = mockListingMediaUpdate.mock.calls.filter(
-      (call) => (call[0] as { where: { media_key: string } }).where.media_key === parkedRow.media_key,
-    );
-    expect(writes.length).toBe(1);
-    const data = (writes[0][0] as { data: Record<string, unknown> }).data;
-    expect(data.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD + 1);
-    expect(data.r2_last_attempt_at).toBeInstanceOf(Date);
-    expect(data).not.toHaveProperty("status");
-  });
-
   // ── Blocker 2: reserved allowance — no starvation, honest counters ──
 
   it("RESERVED-FIRST: parked allowance is attempted BEFORE the main drain (saturated main cannot starve it)", async () => {
@@ -503,5 +481,162 @@ describe("Phase 4 — parked-row recovery (exact-match sentinel-safe, reserved-f
     expect((mirrorDeps.existsInR2 as jest.Mock).mock.calls.length).toBe(R2_RUN_FAILURE_BUDGET + 2);
     // Main remainder untouched → flag TRUE.
     expect(result.r2_failure_budget_exhausted).toBe(true);
+  });
+});
+
+// ─── 4. Recovery-failure semantics — #534 sentinel is NEVER written ──────
+//
+// Maya integration blocker (round 3): #534 reserves r2_attempts=9
+// EXCLUSIVELY for deterministic POLICY parking. A transient R2/Cotality
+// failure on a recovery attempt must therefore leave the counter at
+// exactly 8 (failure-exhaustion), refresh only the cooldown clock, and let
+// the row retry again after the long cooldown. The row is retryable ONLY
+// while it remains status='active', still lacks its R2 copy
+// (r2_key/media_url_cached missing), and has not received a
+// proven-permanent 404/410 tombstone outcome — that tombstone (E8
+// live-proven) terminates the row and EXITS it from recovery, and even
+// then the sentinel value is never written.
+
+describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)", () => {
+  function parkedFixture() {
+    return backlogRow("PX", {
+      r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD,
+      r2_last_attempt_at: new Date("2026-07-01T00:00:00Z"),
+    });
+  }
+
+  function writesFor(mediaKey: string) {
+    return mockListingMediaUpdate.mock.calls.filter(
+      (call) => (call[0] as { where: { media_key: string } }).where.media_key === mediaKey,
+    );
+  }
+
+  it("attempts=8 + TRANSIENT recovery failure → r2_attempts REMAINS 8 (counter not written)", async () => {
+    const parkedRow = parkedFixture();
+    wireBacklogMocks([], [parkedRow]);
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockRejectedValue(new Error("transient R2 outage"));
+
+    const result = await runMediaSync(makeOptions({ mirrorDeps }));
+
+    expect(result.r2_failed).toBe(1);
+    const writes = writesFor(parkedRow.media_key as string);
+    expect(writes.length).toBe(1);
+    const data = (writes[0][0] as { data: Record<string, unknown> }).data;
+    expect(data).not.toHaveProperty("r2_attempts"); // stays exactly 8 in the DB
+    expect(data).not.toHaveProperty("status");
+  });
+
+  it("TRANSIENT recovery failure writes ONLY the cooldown restart (r2_last_attempt_at)", async () => {
+    const parkedRow = parkedFixture();
+    wireBacklogMocks([], [parkedRow]);
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockRejectedValue(new Error("transient R2 outage"));
+
+    await runMediaSync(makeOptions({ mirrorDeps }));
+
+    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
+    expect(Object.keys(data).sort()).toEqual(["r2_last_attempt_at"]);
+    expect(data.r2_last_attempt_at).toBeInstanceOf(Date);
+  });
+
+  it("after a transient recovery failure the row re-enters eligibility ONLY after the long cooldown (retryable while active + un-mirrored + un-tombstoned; never one-shot)", async () => {
+    const parkedRow = parkedFixture();
+    wireBacklogMocks([], [parkedRow]);
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockRejectedValue(new Error("transient R2 outage"));
+
+    await runMediaSync(makeOptions({ mirrorDeps }));
+
+    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
+    const failedAt = data.r2_last_attempt_at as Date;
+    // Post-failure DB state: counter unchanged unless the write set it.
+    const attemptsAfter = (data.r2_attempts as number | undefined) ?? R2_RETRY_EXHAUSTED_THRESHOLD;
+
+    const eligibleAgainst = (threshold: Date): boolean => {
+      const where = buildR2ParkedRecoveryWhere(threshold) as {
+        r2_attempts: unknown;
+        r2_last_attempt_at: { lt: Date };
+      };
+      const attemptsOk =
+        typeof where.r2_attempts === "number"
+          ? attemptsAfter === where.r2_attempts
+          : attemptsAfter >= (where.r2_attempts as { gte: number }).gte;
+      return attemptsOk && failedAt < where.r2_last_attempt_at.lt;
+    };
+
+    // NOT eligible while the fresh cooldown is running…
+    expect(eligibleAgainst(new Date(failedAt.getTime() - 1000))).toBe(false);
+    // …but eligible again once the long cooldown has fully elapsed.
+    expect(eligibleAgainst(new Date(failedAt.getTime() + R2_PARKED_RECOVERY_COOLDOWN_MS + 1000))).toBe(true);
+  });
+
+  it("NO recovery failure path ever writes the #534 policy sentinel (attempts=9) — transient AND permanent", async () => {
+    // Transient run.
+    const transientRow = parkedFixture();
+    wireBacklogMocks([], [transientRow]);
+    const transientDeps = makeMirrorDeps();
+    (transientDeps.existsInR2 as jest.Mock).mockRejectedValue(new Error("transient"));
+    await runMediaSync(makeOptions({ mirrorDeps: transientDeps }));
+
+    // Permanent-404 run.
+    const permanentRow = parkedFixture();
+    wireBacklogMocks([], [permanentRow]);
+    const permanentDeps = makeMirrorDeps();
+    (permanentDeps.existsInR2 as jest.Mock).mockResolvedValue(false);
+    (permanentDeps.fetchFn as jest.Mock).mockResolvedValue({ ok: false, status: 404 } as unknown as Response);
+    await runMediaSync(makeOptions({ mirrorDeps: permanentDeps }));
+
+    for (const call of mockListingMediaUpdate.mock.calls) {
+      const data = (call[0] as { data: Record<string, unknown> }).data;
+      if ("r2_attempts" in data) {
+        expect(data.r2_attempts).not.toBe(R2_RETRY_EXHAUSTED_THRESHOLD + 1);
+        expect(data.r2_attempts as number).toBeLessThanOrEqual(R2_RETRY_EXHAUSTED_THRESHOLD);
+      }
+    }
+  });
+
+  it("policy-park sentinel rows (attempts=9) remain excluded from recovery selection", () => {
+    const where = buildR2ParkedRecoveryWhere(new Date("2026-07-14T00:00:00Z")) as {
+      r2_attempts: unknown;
+      r2_last_attempt_at: { lt: Date };
+    };
+    const sentinelEligible =
+      typeof where.r2_attempts === "number"
+        ? R2_RETRY_EXHAUSTED_THRESHOLD + 1 === where.r2_attempts
+        : R2_RETRY_EXHAUSTED_THRESHOLD + 1 >= (where.r2_attempts as { gte: number }).gte;
+    expect(sentinelEligible).toBe(false);
+  });
+
+  it("SUCCESSFUL recovery clears normal retry state via the standard success path (attempts→0, cooldown→null)", async () => {
+    const parkedRow = parkedFixture();
+    wireBacklogMocks([], [parkedRow]);
+    const mirrorDeps = makeMirrorDeps(); // existsInR2 → true → reuse + drift write
+
+    const result = await runMediaSync(makeOptions({ mirrorDeps }));
+
+    expect(result.r2_mirrored).toBe(1);
+    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
+    expect(data.r2_attempts).toBe(0);
+    expect(data.r2_last_attempt_at).toBeNull();
+  });
+
+  it("PERMANENT 404 on a recovery row still tombstones (inherited E8 contract) — without writing the sentinel", async () => {
+    const parkedRow = parkedFixture();
+    wireBacklogMocks([], [parkedRow]);
+    const mirrorDeps = makeMirrorDeps();
+    (mirrorDeps.existsInR2 as jest.Mock).mockResolvedValue(false);
+    (mirrorDeps.fetchFn as jest.Mock).mockResolvedValue({ ok: false, status: 404 } as unknown as Response);
+
+    const result = await runMediaSync(makeOptions({ mirrorDeps }));
+
+    expect(result.r2_failed).toBe(1);
+    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
+    // Proven-permanent source loss → tombstone still applies (threshold 3
+    // long since satisfied at 8) — but the counter is NOT advanced to the
+    // #534 sentinel value.
+    expect(data.status).toBe("deleted");
+    expect(data).not.toHaveProperty("r2_attempts");
+    expect(data.r2_last_attempt_at).toBeInstanceOf(Date);
   });
 });

@@ -1574,18 +1574,18 @@ export const R2_PARKED_RECOVERY_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * integration must keep every value above the failure-exhaustion threshold
  * excluded here.
  *
- * Consequence (accepted, fail-closed): recovery is currently ONE-SHOT per
- * parked row — a failed recovery attempt moves the row to attempts=9,
- * which is out of recovery scope until the #534 integration can
- * distinguish failure-parks from policy-parks above the threshold.
+ * Recovery-failure semantics (round 3): a TRANSIENT failure on a recovery
+ * attempt leaves `r2_attempts` exactly at the threshold (the counter is
+ * NOT written — attempts=9 is reserved exclusively for #534 policy
+ * admission) and only refreshes `r2_last_attempt_at`, restarting the long
+ * recovery cooldown. The row is retryable ONLY while the row remains `status='active'`, still lacks its R2 copy (`r2_key`/`media_url_cached` missing), and has not received a proven-permanent 404/410 tombstone outcome.
+ * A PERMANENT 404/410 (E8 live-proven) still tombstones, also without
+ * advancing the counter, and thereby EXITS the row from recovery.
  *
  * Selection never writes/resets any counter (pure code-logic eligibility).
- * A recovered row re-enters the STANDARD mirror path: failure re-bookkeeps
- * (attempts increment + fresh cooldown), success clears state via the
- * normal success path. Rows stay `status='active'` while parked (RC3
- * guarantee — photo keeps serving via the proxy); a recovered retry
- * follows standard Cp4 semantics, including the E8 live-proven
- * 404/410 permanent-tombstone rule.
+ * Success clears state via the normal success path (attempts→0,
+ * cooldown→null). Rows stay `status='active'` while parked (RC3
+ * guarantee — photo keeps serving via the proxy).
  *
  * `r2_last_attempt_at` is non-null for every genuinely parked row (each of
  * its threshold failures wrote it), so the `lt` predicate cannot orphan
@@ -1697,6 +1697,19 @@ export interface MirrorMediaToR2Result {
 export async function mirrorMediaToR2(
   row: MirrorMediaToR2Row,
   deps: MirrorMediaToR2Deps = defaultMirrorMediaToR2Deps,
+  /**
+   * Phase 4 (round 3): `recoveryAttempt: true` marks a row selected through
+   * the PARKED-RECOVERY path (r2_attempts exactly at the failure-exhaustion
+   * threshold). On that path a TRANSIENT failure must NOT advance
+   * `r2_attempts` — the value above the threshold (9) is reserved
+   * EXCLUSIVELY for #534's deterministic policy-park sentinel and must
+   * never be produced by a failure. Only `r2_last_attempt_at` is refreshed
+   * (restarting the long recovery cooldown). The row is retryable ONLY while the row remains `status='active'`, still lacks its R2 copy (`r2_key`/`media_url_cached` missing), and has not received a proven-permanent 404/410 tombstone outcome.
+   * The E8 live-proven PERMANENT 404/410 tombstone contract still applies
+   * (threshold long since satisfied) — also without advancing the counter —
+   * and thereby EXITS the row from recovery.
+   */
+  context: { recoveryAttempt?: boolean } = {},
 ): Promise<MirrorMediaToR2Result> {
   const url = (row.media_url_original ?? "").trim();
   if (!url) {
@@ -1724,6 +1737,8 @@ export async function mirrorMediaToR2(
       return result;
     }
     const newAttempts = (row.r2_attempts ?? 0) + 1;
+    // Recovery attempts never advance the counter — see the `context` doc.
+    const isRecoveryAttempt = context.recoveryAttempt === true;
     // Tombstone-eligible only when the HTTP status proves the binary is
     // permanently unfetchable:
     //   - 404 — E8-confirmed: Trestle CDN body
@@ -1740,16 +1755,29 @@ export async function mirrorMediaToR2(
       /^HTTP (404|410)$/.test(result.error);
     const data: {
       r2_last_attempt_at: Date;
-      r2_attempts: number;
+      r2_attempts?: number;
       status?: string;
     } = {
       r2_last_attempt_at: new Date(),
-      r2_attempts: newAttempts,
     };
-    // Tombstone ONLY on 3 consecutive permanent 4xx (404 / 410). 5xx,
+    if (!isRecoveryAttempt) {
+      // Standard path: the consecutive-failure counter advances as before.
+      data.r2_attempts = newAttempts;
+    }
+    // Recovery path: r2_attempts is intentionally ABSENT from the write —
+    // it stays exactly at the failure-exhaustion threshold in the DB; the
+    // refreshed r2_last_attempt_at alone restarts the long recovery
+    // cooldown. attempts=threshold+1 (9) is reserved for #534 policy
+    // admission and is NEVER written by any failure path.
+    //
+    // Tombstone ONLY on permanent 4xx (404 / 410 — E8 live-proven). 5xx,
     // network, R2-side, token, and other 4xx errors are transient or
-    // ambiguous — keep retrying after cooldown.
-    if (isPermanent4xx && newAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
+    // ambiguous — keep retrying after cooldown. For recovery rows the
+    // effective count is the STORED value (already >= the tombstone
+    // threshold by construction), so a proven-permanent source loss still
+    // tombstones without advancing the counter.
+    const effectiveAttempts = isRecoveryAttempt ? (row.r2_attempts ?? 0) : newAttempts;
+    if (isPermanent4xx && effectiveAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
       data.status = "deleted";
     }
     await prisma.listingMedia.update({
@@ -2823,7 +2851,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     media_url_cached: string | null;
     r2_attempts: number | null;
   };
-  const mirrorChunk = async (chunk: BacklogRowSel[]): Promise<number> => {
+  const mirrorChunk = async (
+    chunk: BacklogRowSel[],
+    recoveryAttempt = false,
+  ): Promise<number> => {
     const results = await Promise.allSettled(
       chunk.map((row) => {
         if (!row.media_key) {
@@ -2844,6 +2875,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
             r2_attempts: row.r2_attempts,
           },
           mirrorDeps,
+          // Recovery rows: transient failures must not advance r2_attempts
+          // (the #534 policy sentinel lives above the threshold).
+          { recoveryAttempt },
         );
       }),
     );
@@ -2907,7 +2941,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       if (remainingMs() <= phase2ReserveMs) break;
       const chunk = parkedRows.slice(j, j + R2_MIRROR_CONCURRENCY);
       r2ParkedRecoveryAttempted += chunk.length;
-      await mirrorChunk(chunk); // parked failures: counted in r2Failed, NOT in the main cap
+      // parked failures: counted in r2Failed, NOT in the main cap; the
+      // recovery flag keeps transient failures from advancing r2_attempts.
+      await mirrorChunk(chunk, true);
     }
 
     // 2. MAIN drain with the HARD failure cap.
