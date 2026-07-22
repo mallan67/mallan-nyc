@@ -1263,18 +1263,43 @@ export interface StoredListingMediaSummary {
 }
 
 /**
- * Hosts whose media URLs carry a ROTATING signed query (the Cotality/Trestle
- * feed re-signs MediaURL on every request). ONLY these providers get the
- * query-insensitive identity compare below; every other URL (R2, Mallan,
- * third-party CDNs) is compared byte-exact because its query string may be a
- * real version/resource identifier.
+ * Provider DOMAINS whose media URLs carry a ROTATING signed query (the
+ * Cotality/Trestle feed re-signs MediaURL on every request). ONLY these
+ * providers get the query-insensitive identity compare below; every other
+ * URL (R2, Mallan, third-party CDNs) is compared byte-exact because its
+ * query string may be a real version/resource identifier.
+ *
+ * HOSTNAME-scoped (Maya re-review 2026-07-21): detection parses the URL and
+ * inspects `URL.hostname` ONLY — exact domain or dot-boundary subdomain,
+ * NEVER a substring over the full URL. A stable URL whose path contains a
+ * provider-looking token (".../trestle-building.jpg") or whose query
+ * smuggles a provider host ("?redirect=api.cotality.com"), and look-alike
+ * hosts ("notcotality.com"), must all stay STABLE (exact compare).
+ *
+ * Allowlist grounding:
+ *   - `cotality.com` — LIVE-OBSERVED: the 2026-07-21 authenticated Phase-0
+ *     probes (docs/superpowers/specs/evidence/
+ *     2026-07-21-live-cotality-{contract,pagination}-probe.json, #544
+ *     branch) contain exactly one media/API host: `api.cotality.com`.
+ *   - `corelogic.com` — DEFENSIVE / NOT observed in those live probes: the
+ *     production media proxy (app/api/media/proxy/route.ts) still allowlists
+ *     the deprecated `api-trestle.corelogic.com` / `api-prod.corelogic.com`
+ *     hosts (Cotality 2026 warranty), so stored legacy URLs may carry it.
  */
-const ROTATING_SUMMARY_URL_HOSTS = ["cotality.com", "corelogic.com", "trestle"];
+const ROTATING_SUMMARY_URL_PROVIDER_DOMAINS = ["cotality.com", "corelogic.com"];
 
 export function isRotatingFeedSummaryUrl(url: string | null | undefined): boolean {
   if (typeof url !== "string" || url === "") return false;
-  const lower = url.toLowerCase();
-  return ROTATING_SUMMARY_URL_HOSTS.some((h) => lower.includes(h));
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return ROTATING_SUMMARY_URL_PROVIDER_DOMAINS.some(
+      (d) => hostname === d || hostname.endsWith("." + d),
+    );
+  } catch {
+    // Malformed URL -> NOT a provider URL -> exact compare downstream
+    // (fail-closed: any difference stays a material change).
+    return false;
+  }
 }
 
 /** Provider-scoped hero-URL equality (correction 7):

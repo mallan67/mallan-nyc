@@ -37,6 +37,7 @@ jest.mock("@/lib/prisma", () => ({
 import {
   updateListingMediaSummary,
   newSummaryWriteCounters,
+  isRotatingFeedSummaryUrl,
   type SummaryWriteCounters,
 } from "../media-sync";
 
@@ -198,6 +199,51 @@ describe("updateListingMediaSummary — suppression of unchanged summaries", () 
 
     await updateListingMediaSummary("L1", { counters: newSummaryWriteCounters() });
     expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Maya re-review 2026-07-21: detection must be HOSTNAME-scoped ──
+  // Substring matching over the whole URL misclassified stable URLs whose
+  // PATH contains a provider-looking token or whose QUERY smuggles a
+  // provider host. Only URL.hostname (exact / dot-boundary subdomain of the
+  // live-evidenced provider domains) may trigger the query-insensitive
+  // identity compare.
+
+  it("stable host with 'trestle' in the PATH, ?v=1 vs ?v=2 → writes (path token is not a provider)", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      mediaRow({ media_url_original: "https://cdn.example.com/photos/trestle-building.jpg?v=2" }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce(
+      storedSummary({ primary_photo_url: "https://cdn.example.com/photos/trestle-building.jpg?v=1" }),
+    );
+
+    await updateListingMediaSummary("L1", { counters: newSummaryWriteCounters() });
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("provider host smuggled in the QUERY, &v=1 vs &v=2 → writes (query is not the hostname)", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      mediaRow({ media_url_original: "https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=2" }),
+    ]);
+    mockListingFindUnique.mockResolvedValueOnce(
+      storedSummary({ primary_photo_url: "https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=1" }),
+    );
+
+    await updateListingMediaSummary("L1", { counters: newSummaryWriteCounters() });
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("isRotatingFeedSummaryUrl is hostname-scoped (live-evidenced providers only)", () => {
+    // LIVE-OBSERVED host (2026-07-21 authenticated probes, #544 evidence).
+    expect(isRotatingFeedSummaryUrl("https://api.cotality.com/trestle/Media/x.jpg?sig=A")).toBe(true);
+    // DEFENSIVE legacy hosts (media-proxy allowlist; unobserved in live probes).
+    expect(isRotatingFeedSummaryUrl("https://api-trestle.corelogic.com/x.jpg?sig=A")).toBe(true);
+    expect(isRotatingFeedSummaryUrl("https://api-prod.corelogic.com/x.jpg?sig=A")).toBe(true);
+    // Look-alike hosts, path tokens, query smuggling, malformed → NOT providers.
+    expect(isRotatingFeedSummaryUrl("https://notcotality.com/x.jpg?sig=A")).toBe(false);
+    expect(isRotatingFeedSummaryUrl("https://evilcorelogic.com/x.jpg?sig=A")).toBe(false);
+    expect(isRotatingFeedSummaryUrl("https://cdn.example.com/photos/trestle-building.jpg?v=1")).toBe(false);
+    expect(isRotatingFeedSummaryUrl("https://cdn.example.com/photo.jpg?redirect=api.cotality.com")).toBe(false);
+    expect(isRotatingFeedSummaryUrl("not a url")).toBe(false);
   });
 
   it("legacy row (photo_count null) → fail-closed write", async () => {
