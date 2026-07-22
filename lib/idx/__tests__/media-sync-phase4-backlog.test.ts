@@ -640,3 +640,16 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
     expect(data.r2_last_attempt_at).toBeInstanceOf(Date);
   });
 });
+
+// ── Codex post-merge review: NULL media_key rows must not monopolize the bounded window ──
+import { buildR2BacklogWhere as __bw, buildR2ParkedRecoveryWhere as __pw } from "../media-sync";
+describe("bounded selections exclude unmirrorable media_key IS NULL rows", () => {
+  it("main backlog where requires media_key not-null (fixed 60-row window cannot be monopolized by unmirrorable rows)", () => {
+    const w = __bw(new Date("2026-07-01T00:00:00Z"), []) as Record<string, unknown>;
+    expect(w.media_key).toEqual({ not: null });
+  });
+  it("parked-recovery where requires media_key not-null", () => {
+    const w = __pw(new Date("2026-07-01T00:00:00Z")) as Record<string, unknown>;
+    expect(w.media_key).toEqual({ not: null });
+  });
+});

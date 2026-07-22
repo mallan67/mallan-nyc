@@ -222,9 +222,10 @@ jest.mock("@/lib/seller-readiness/signals/dob", () => ({
   __esModule: true,
   collectDobSignals: jest.fn(async () => []),
 }));
+const dofSignals = jest.fn(async (_bbl: string): Promise<unknown[]> => []);
 jest.mock("@/lib/seller-readiness/signals/dof-tax", () => ({
   __esModule: true,
-  collectDofSignals: jest.fn(async () => []),
+  collectDofSignals: (bbl: string) => dofSignals(bbl),
 }));
 jest.mock("@/lib/seller-readiness/signals/first-party", () => ({
   __esModule: true,
@@ -773,7 +774,7 @@ describe("scoreSellerLead — signal set reconcile (no delete+recreate when unch
   const LEAD = BigInt(41);
   const SIGNALS = [
     { signal_type: "ownership_duration", raw_value: 12, normalized: 0.8, source: "acris", metadata: null },
-    { signal_type: "equity_position", raw_value: 0.6, normalized: 0.6, source: "acris", metadata: { ltv: 0.4 } },
+    { signal_type: "equity_estimate", raw_value: 0.6, normalized: 0.6, source: "acris", metadata: { ltv: 0.4 } },
   ];
 
   function wire() {
@@ -807,5 +808,93 @@ describe("scoreSellerLead — signal set reconcile (no delete+recreate when unch
     expect(readinessSignal.deleteMany).toHaveBeenCalledTimes(1);
     expect(readinessSignal.create).toHaveBeenCalledTimes(2);
     expect(sellerLead.update).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Codex post-merge review: DOF signals must be in BOTH reconcile scopes ──
+  const DOF_SIGNAL = { signal_type: "property_tax", raw_value: 0.3, normalized: 0.3, source: "dof", metadata: null };
+
+  it("read + delete scopes cover EVERY persisted non-first_party source (not an acris/dob enumeration)", async () => {
+    wire();
+    dofSignals.mockResolvedValueOnce([{ ...DOF_SIGNAL }]);
+    readinessSignal.findMany.mockResolvedValue([...SIGNALS, DOF_SIGNAL].map((s) => ({ ...s })));
+
+    await scoreSellerLead(LEAD);
+
+    // The stored-set READ must select the exact complement of the persistable
+    // filter (source !== first_party) — never an acris/dob-only enumeration
+    // that silently drops DOF (and any future source).
+    const readWhere = readinessSignal.findMany.mock.calls[0][0].where;
+    expect(readWhere.signal_type).toEqual({ in: expect.arrayContaining(["property_tax", "ownership_duration"]) });
+    expect(readWhere.source).toEqual({ not: "first_party" });
+  });
+
+  it("stored set INCLUDING dof that matches the persistable set → zero writes (no dof accumulation)", async () => {
+    wire();
+    dofSignals.mockResolvedValueOnce([{ ...DOF_SIGNAL }]);
+    // Behavioral: the mock HONOURS the where filter over a stored table that
+    // contains acris + dof rows — pre-fix the acris/dob-only read hides the
+    // stored dof row, the sets compare unequal, and delete+recreate fires
+    // (re-inserting dof forever: 33 rows / 1 logical observed in production).
+    const storedTable = [...SIGNALS, DOF_SIGNAL].map((s) => ({ ...s }));
+    readinessSignal.findMany.mockImplementation(async (args: { where: { source?: Record<string, unknown>; signal_type?: { in?: string[] } } }) => {
+      const src = (args.where.source ?? {}) as { in?: string[]; not?: string };
+      const typ = args.where.signal_type as { in?: string[] } | undefined;
+      return storedTable
+        .filter((r) => (src.in ? src.in.includes(r.source) : src.not ? r.source !== src.not : true))
+        .filter((r) => (typ?.in ? typ.in.includes(r.signal_type) : true));
+    });
+
+    await scoreSellerLead(LEAD);
+
+    expect(readinessSignal.deleteMany).not.toHaveBeenCalled();
+    expect(readinessSignal.create).not.toHaveBeenCalled();
+  });
+
+  it("changed set: the DELETE scope also covers dof (replace cannot orphan/duplicate dof rows)", async () => {
+    wire();
+    dofSignals.mockResolvedValueOnce([{ ...DOF_SIGNAL }]);
+    readinessSignal.findMany.mockResolvedValue([]); // nothing stored → replace fires
+
+    await scoreSellerLead(LEAD);
+
+    const delWhere = readinessSignal.deleteMany.mock.calls[0][0].where;
+    expect(delWhere.signal_type).toEqual({ in: expect.arrayContaining(["property_tax"]) });
+    expect(delWhere.source).toEqual({ not: "first_party" });
+    expect(readinessSignal.create).toHaveBeenCalledTimes(3); // acris x2 + dof x1
+  });
+
+  it("research-route display signals (acris_transactions @acris, tax_lien_history @dof) SURVIVE a rescore", async () => {
+    wire();
+    dofSignals.mockResolvedValueOnce([{ ...DOF_SIGNAL }]);
+    const researchRows = [
+      { signal_type: "acris_transactions", raw_value: "9 recorded documents", normalized: 0, source: "acris", metadata: null },
+      { signal_type: "tax_lien_history", raw_value: "2 lien sale record(s)", normalized: 0.6, source: "dof", metadata: null },
+    ];
+    const storedTable = [...researchRows]; // nothing scorer-owned stored → replace fires
+    readinessSignal.findMany.mockImplementation(async (args: { where: { source?: Record<string, unknown>; signal_type?: { in?: string[] } } }) => {
+      const typ = args.where.signal_type as { in?: string[] } | undefined;
+      return storedTable.filter((r) => (typ?.in ? typ.in.includes(r.signal_type) : true));
+    });
+
+    await scoreSellerLead(LEAD);
+
+    // Replace fired for the OWNED set — but the delete scope excludes the
+    // research rows by type, so they are never deleted.
+    const delWhere = readinessSignal.deleteMany.mock.calls[0][0].where;
+    const ownedIn = (delWhere.signal_type as { in: string[] }).in;
+    expect(ownedIn).not.toContain("acris_transactions");
+    expect(ownedIn).not.toContain("tax_lien_history");
+  });
+
+  it("DRIFT PIN: the ownership registry equals the union of types the collectors emit", () => {
+    const fsx = require("node:fs");
+    const px = require("node:path");
+    const read = (rel: string) => fsx.readFileSync(px.resolve(__dirname, "../../", rel), "utf8") as string;
+    const emitted = new Set<string>();
+    for (const rel of ["lib/seller-readiness/signals/acris.ts", "lib/seller-readiness/signals/dob.ts", "lib/seller-readiness/signals/dof-tax.ts"]) {
+      for (const m of read(rel).matchAll(/signal_type:\s*'([a-z_]+)'/g)) emitted.add(m[1]);
+    }
+    const { SCORER_OWNED_SIGNAL_TYPES } = jest.requireActual("@/lib/seller-readiness/scorer");
+    expect(new Set(SCORER_OWNED_SIGNAL_TYPES)).toEqual(emitted);
   });
 });

@@ -43,11 +43,11 @@ export function dbGrowthCell(
   };
 }
 
-/** Cotality ingestion freshness from the max last_synced_from_trestle age in minutes (cadence 10m). */
+/** Cotality ingestion freshness from sync_state.last_run_at age in minutes (run-attempt clock; cadence 10m). */
 export function cotalityFreshnessCell(ageMin: number | null): { status: HealthStatus; evidence: string } {
   if (ageMin === null || !Number.isFinite(ageMin)) {
-    return { status: "⚪", evidence: "no last_synced_from_trestle" };
+    return { status: "⚪", evidence: "no sync_state Property run recorded" };
   }
   const status: HealthStatus = ageMin <= 30 ? "🟢" : ageMin <= 120 ? "🟡" : "🔴";
-  return { status, evidence: `last_synced_from_trestle max ${ageMin}m ago (cadence 10m)` };
+  return { status, evidence: `sync_state last_run_at ${ageMin}m ago (cadence 10m)` };
 }
