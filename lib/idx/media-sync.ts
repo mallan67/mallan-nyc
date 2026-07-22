@@ -1527,6 +1527,70 @@ export function buildR2BacklogWhere(
   };
 }
 
+// ─── Phase 4 — bounded backlog + parked-row recovery ─────────────────────
+
+/**
+ * Phase 4: hard cap on rows selected by the ONE bounded backlog query per
+ * run. Sized for the Phase-3 time budget (~43s at concurrency 5): 60 rows =
+ * 12 chunks; the per-chunk time/budget checks stop earlier when needed.
+ * Bounded and correct WITHOUT the (unapplied) `listing_media_r2_backlog_idx`
+ * partial index — the query merely benefits if that index is ever applied.
+ */
+export const R2_BACKLOG_BATCH_LIMIT = 60;
+
+/**
+ * Phase 4: per-run mirror FAILURE budget. Once this many mirror attempts
+ * have failed in one run, the remaining queue is NOT attempted (rows stay
+ * untouched in the backlog and re-surface next run). Prevents a systemic
+ * outage (Trestle/R2 down) from burning the whole Phase-3 budget on
+ * failures while keeping per-row failures isolated and precisely counted.
+ */
+export const R2_RUN_FAILURE_BUDGET = 10;
+
+/**
+ * Phase 4: parked-row recovery quota — how many RC3 retry-exhausted rows
+ * (`r2_attempts >= R2_RETRY_EXHAUSTED_THRESHOLD`) are re-admitted for ONE
+ * standard mirror attempt per run. 0 disables recovery entirely.
+ */
+export const R2_PARKED_RECOVERY_QUOTA = 5;
+
+/**
+ * Phase 4: minimum time since a parked row's LAST failed attempt before it
+ * becomes recovery-eligible. Much longer than the 6h retry cooldown — a
+ * parked row already failed R2_RETRY_EXHAUSTED_THRESHOLD times.
+ */
+export const R2_PARKED_RECOVERY_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Phase 4 — parked-row recovery `where` (pure, unit-testable).
+ *
+ * Selects rows RC3 parked (attempts >= threshold) that are still active,
+ * still missing their R2 copy, and whose last attempt is older than the
+ * LONG recovery cooldown. Eligibility is pure CODE LOGIC — selection never
+ * writes/resets any counter. A recovered row re-enters the STANDARD mirror
+ * path: failure re-bookkeeps (attempts increment + fresh cooldown → it
+ * re-parks for another R2_PARKED_RECOVERY_COOLDOWN_MS), success clears
+ * state via the normal success path. Rows stay `status='active'` while
+ * parked (RC3 guarantee — photo keeps serving via the proxy); a recovered
+ * retry follows standard Cp4 semantics, including the proven-permanent
+ * 404/410 tombstone rule.
+ *
+ * `r2_last_attempt_at` is non-null for every genuinely parked row (each of
+ * its >= threshold failures wrote it), so the `lt` predicate cannot orphan
+ * real parked rows.
+ */
+export function buildR2ParkedRecoveryWhere(
+  parkedCooldownThreshold: Date,
+): Prisma.ListingMediaWhereInput {
+  return {
+    status: "active",
+    media_url_original: { not: null },
+    OR: [{ r2_key: null }, { media_url_cached: null }],
+    r2_attempts: { gte: R2_RETRY_EXHAUSTED_THRESHOLD },
+    r2_last_attempt_at: { lt: parkedCooldownThreshold },
+  };
+}
+
 /**
  * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
  * injected so tests can stub them without ever touching the live R2
@@ -1904,6 +1968,16 @@ export interface RunMediaSyncOptions {
    * exercise budget paths without real timers. Defaults to `Date.now`.
    */
   now?: () => number;
+  /**
+   * Phase 4: override for R2_BACKLOG_BATCH_LIMIT (tests / tuning only —
+   * production callers use the default).
+   */
+  backlogBatchLimit?: number;
+  /**
+   * Phase 4: override for R2_PARKED_RECOVERY_QUOTA. 0 disables parked-row
+   * recovery (no recovery query is issued at all).
+   */
+  parkedRecoveryQuota?: number;
 }
 
 export interface RunMediaSyncResult {
@@ -1991,6 +2065,16 @@ export interface RunMediaSyncResult {
   r2_mirrored: number;
   /** R2 mirror failures in Phase 3 — row stays in backlog for retry. */
   r2_failed: number;
+  /** Phase 4: rows selected by the ONE bounded backlog query this run. */
+  r2_backlog_batch_selected: number;
+  /** Phase 4: parked rows re-admitted for a standard mirror attempt this run. */
+  r2_parked_recovery_attempted: number;
+  /**
+   * Phase 4: true when the per-run failure budget stopped the drain early —
+   * the un-attempted remainder of the queue was left untouched in the
+   * backlog (no mirror call, no DB write) and re-surfaces next run.
+   */
+  r2_failure_budget_exhausted: boolean;
   /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
   r2_skipped: number;
   /**
@@ -2396,6 +2480,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       ghost_listing_ids: [],
       r2_mirrored: 0,
       r2_failed: 0,
+      r2_backlog_batch_selected: 0,
+      r2_parked_recovery_attempted: 0,
+      r2_failure_budget_exhausted: false,
       r2_skipped: 0,
       backlog_remaining: null,
       duration_ms: now() - startTime,
@@ -2657,77 +2744,118 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   //   throttles those retries to 4×/day. Cp4 sets `r2_last_attempt_at`
   //   on every failure path; success paths clear it back to NULL.
   //   See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` E8 probe.
-  const attemptedBacklogIds = new Set<bigint>();
+  // Phase 4 — BOUNDED drain: exactly ONE bounded backlog query per run
+  // (deterministic `[{created_at asc}, {id asc}]` ordering), plus at most
+  // one bounded parked-recovery query. All processing is in-memory over the
+  // selected queue — no per-iteration re-query, no growing `id notIn` list.
+  // The pre-Phase-4 while-loop re-queried the backlog every 5 rows with an
+  // ever-growing exclusion list; a persistent-failure population could make
+  // that loop issue dozens of scans per run. Failed rows keep only their
+  // standard bookkeeping and re-surface on the NEXT run's fresh query
+  // (cooldown-gated), exactly as before.
   const cooldownThreshold = new Date(now() - R2_RETRY_COOLDOWN_MS);
+  const backlogBatchLimit = options.backlogBatchLimit ?? R2_BACKLOG_BATCH_LIMIT;
+  const parkedRecoveryQuota = options.parkedRecoveryQuota ?? R2_PARKED_RECOVERY_QUOTA;
+  const backlogSelect = {
+    // `id` is required for de-duplication — never passed to mirrorMediaToR2.
+    id: true,
+    listing_id: true,
+    media_key: true,
+    media_type: true,
+    order: true,
+    media_url_original: true,
+    r2_key: true,
+    media_url_cached: true,
+    // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
+    r2_attempts: true,
+  } as const;
 
-  while (remainingMs() > phase2ReserveMs) {
+  let r2BacklogBatchSelected = 0;
+  let r2ParkedRecoveryAttempted = 0;
+  let r2FailureBudgetExhausted = false;
+
+  if (remainingMs() > phase2ReserveMs) {
+    // RC3: the main `where` is the pure `buildR2BacklogWhere` (attempted-id
+    // exclusion list intentionally empty — there is no re-query to exclude
+    // from). Eligibility = active + missing-R2 + past-cooldown + not parked.
     const backlogRows = await prisma.listingMedia.findMany({
-      // RC3: backlog `where` is built by the pure `buildR2BacklogWhere` so the
-      // retry-exhausted exclusion (park non-permanent rows at >= threshold) is
-      // unit-testable. Eligibility = active + missing-R2 + past-cooldown +
-      // not-attempted-this-invocation + not-retry-exhausted.
-      where: buildR2BacklogWhere(cooldownThreshold, [...attemptedBacklogIds]),
-      orderBy: { created_at: "asc" },
-      take: R2_MIRROR_CONCURRENCY,
-      select: {
-        // `id` is required for attempt tracking — never passed to mirrorMediaToR2.
-        id: true,
-        listing_id: true,
-        media_key: true,
-        media_type: true,
-        order: true,
-        media_url_original: true,
-        r2_key: true,
-        media_url_cached: true,
-        // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
-        r2_attempts: true,
-      },
+      where: buildR2BacklogWhere(cooldownThreshold, []),
+      orderBy: [{ created_at: "asc" }, { id: "asc" }],
+      take: backlogBatchLimit,
+      select: backlogSelect,
     });
+    r2BacklogBatchSelected = backlogRows.length;
 
-    if (backlogRows.length === 0) break;
-
-    // Mark every selected row as attempted BEFORE the mirror runs. Even
-    // if Promise.allSettled isolates a per-row throw or the mirror returns
-    // `failed`/`skipped`, the row will not be re-selected this invocation.
-    for (const row of backlogRows) {
-      attemptedBacklogIds.add(row.id);
+    // Phase 4 — parked-row recovery: a small, oldest-first, cooldown-gated
+    // quota of RC3-parked rows re-enters the STANDARD mirror path. Quota 0
+    // disables (no query). Selection is read-only — no counter is reset.
+    let parkedRows: typeof backlogRows = [];
+    if (parkedRecoveryQuota > 0) {
+      parkedRows = await prisma.listingMedia.findMany({
+        where: buildR2ParkedRecoveryWhere(new Date(now() - R2_PARKED_RECOVERY_COOLDOWN_MS)),
+        orderBy: [{ r2_last_attempt_at: "asc" }, { id: "asc" }],
+        take: parkedRecoveryQuota,
+        select: backlogSelect,
+      });
     }
+    r2ParkedRecoveryAttempted = parkedRows.length;
 
-    const results = await Promise.allSettled(
-      backlogRows.map((row) => {
-        if (!row.media_key) {
-          return Promise.resolve({
-            status: "skipped" as const,
-            reason: "no_media_url_original" as const,
-          });
-        }
-        return mirrorMediaToR2(
-          {
-            listing_id: row.listing_id,
-            media_key: row.media_key,
-            media_type: row.media_type,
-            order: row.order,
-            media_url_original: row.media_url_original,
-            r2_key: row.r2_key,
-            media_url_cached: row.media_url_cached,
-            r2_attempts: row.r2_attempts,
-          },
-          mirrorDeps,
-        );
-      }),
-    );
+    // Main backlog first (priority), then recovered parked rows. Defensive
+    // id de-dupe (the two `where`s are disjoint on r2_attempts, but a free
+    // duplicate guard costs nothing).
+    const mainIds = new Set(backlogRows.map((r) => r.id));
+    const queue = [...backlogRows, ...parkedRows.filter((r) => !mainIds.has(r.id))];
 
-    for (const r of results) {
-      if (r.status === "fulfilled") {
-        const v = r.value;
-        if (v.status === "uploaded" || v.status === "reused") r2Mirrored++;
-        else if (v.status === "skipped") r2Skipped++;
-        else if (v.status === "failed") r2Failed++;
-      } else {
-        // Promise itself rejected (mirrorMediaToR2 contract returns structured
-        // results, but defensive — handle thrown anyway).
-        r2Failed++;
+    for (let i = 0; i < queue.length; i += R2_MIRROR_CONCURRENCY) {
+      if (remainingMs() <= phase2ReserveMs) break; // time budget — Phase 4 finalize still runs
+      if (r2Failed >= R2_RUN_FAILURE_BUDGET) {
+        // Failure budget: stop attempting; the remainder stays untouched in
+        // the backlog (no mirror call, no DB write) and re-surfaces next run.
+        r2FailureBudgetExhausted = true;
+        break;
       }
+      const chunk = queue.slice(i, i + R2_MIRROR_CONCURRENCY);
+
+      const results = await Promise.allSettled(
+        chunk.map((row) => {
+          if (!row.media_key) {
+            return Promise.resolve({
+              status: "skipped" as const,
+              reason: "no_media_url_original" as const,
+            });
+          }
+          return mirrorMediaToR2(
+            {
+              listing_id: row.listing_id,
+              media_key: row.media_key,
+              media_type: row.media_type,
+              order: row.order,
+              media_url_original: row.media_url_original,
+              r2_key: row.r2_key,
+              media_url_cached: row.media_url_cached,
+              r2_attempts: row.r2_attempts,
+            },
+            mirrorDeps,
+          );
+        }),
+      );
+
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          const v = r.value;
+          if (v.status === "uploaded" || v.status === "reused") r2Mirrored++;
+          else if (v.status === "skipped") r2Skipped++;
+          else if (v.status === "failed") r2Failed++;
+        } else {
+          // Promise itself rejected (mirrorMediaToR2 contract returns structured
+          // results, but defensive — handle thrown anyway).
+          r2Failed++;
+        }
+      }
+    }
+    // Edge: the budget may be reached exactly on the LAST chunk — flag it.
+    if (r2Failed >= R2_RUN_FAILURE_BUDGET && queue.length > 0) {
+      r2FailureBudgetExhausted = true;
     }
   }
 
@@ -2780,6 +2908,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     ghost_listing_ids: ghostListingIds,
     r2_mirrored: r2Mirrored,
     r2_failed: r2Failed,
+    r2_backlog_batch_selected: r2BacklogBatchSelected,
+    r2_parked_recovery_attempted: r2ParkedRecoveryAttempted,
+    r2_failure_budget_exhausted: r2FailureBudgetExhausted,
     r2_skipped: r2Skipped,
     backlog_remaining: backlogRemaining,
     duration_ms: now() - startTime,
