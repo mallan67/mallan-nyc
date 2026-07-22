@@ -105,6 +105,21 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     r2_failed: 0,
     r2_skipped: 0,
     backlog_remaining: 0,
+    // Phase 4 — bounded drain / reserved recovery observability.
+    r2_backlog_batch_selected: 0,
+    r2_parked_recovery_selected: 0,
+    r2_parked_recovery_attempted: 0,
+    r2_failure_budget_exhausted: false,
+    // Phase 3 surface C — summary-write suppression counters (flattened into
+    // the audit allowlist by the route; Codex #549 review).
+    summary_writes: {
+      rows_checked: 0,
+      rows_materially_changed: 0,
+      rows_suppressed_unchanged: 0,
+      rows_inserted: 0,
+      rows_updated: 0,
+      rows_failed: 0,
+    },
     duration_ms: 100,
     ...overrides,
   };
@@ -317,12 +332,34 @@ describe("GET /api/cron/media-sync — happy path", () => {
       expect(ch).toHaveProperty(k);
     }
 
+    // Phase 3 surface C — flattened summary-suppression counters must persist
+    // in the durable audit payload (Codex #549 review: allowlist omission).
+    const summaryCounters = [
+      "summary_rows_checked", "summary_rows_materially_changed",
+      "summary_rows_suppressed_unchanged", "summary_rows_inserted",
+      "summary_rows_updated", "summary_rows_failed",
+    ];
+    for (const k of summaryCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
+    // Phase 4 — bounded drain / reserved recovery observability must persist too.
+    const phase4Counters = [
+      "r2_backlog_batch_selected", "r2_parked_recovery_selected",
+      "r2_parked_recovery_attempted", "r2_failure_budget_exhausted",
+    ];
+    for (const k of phase4Counters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
       "listings_processed", "listings_skipped",
       ...detailedCounters,
       ...attributionCounters,
+      ...summaryCounters,
+      ...phase4Counters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
     ]);
