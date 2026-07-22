@@ -1273,10 +1273,13 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
   // Main bounded query: active + OR-missing-R2, NOT the parked-recovery query.
   const isMainBacklogCall = (call: unknown[]): boolean => {
     const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown } };
+    // The parked-recovery selection carries a top-level r2_attempts predicate
+    // (exact-match number since the #534-sentinel fix); the main backlog
+    // selection never does.
     return (
       args?.where?.status === "active" &&
       Array.isArray(args.where.OR) &&
-      !(args.where.r2_attempts && typeof args.where.r2_attempts === "object" && "gte" in (args.where.r2_attempts as object))
+      args.where.r2_attempts === undefined
     );
   };
 
