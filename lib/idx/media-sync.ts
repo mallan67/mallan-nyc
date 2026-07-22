@@ -714,11 +714,20 @@ export function listingMediaRowUnchanged(
 // because production observed 0/2,012 rows suppressed — this identifies the
 // dominant differing field without logging any URL/id/key/value.
 
-/** TOTAL, non-throwing URL identity for ATTRIBUTION ONLY (never suppression,
- *  never stored). origin(lowercased scheme+host) + pathname; query/fragment
- *  dropped. A malformed URL falls back deterministically to the trimmed raw —
- *  it can never throw, abort a listing, or change a write. Kept local to
- *  production runtime (NOT imported from the backfill script). */
+/** TOTAL, non-throwing URL identity: origin(lowercased scheme+host) +
+ *  pathname; query/fragment dropped. A malformed URL falls back
+ *  deterministically to the trimmed raw — it can never throw, abort a
+ *  listing, or change a write. Kept local to production runtime (NOT
+ *  imported from the backfill script).
+ *
+ *  USED FOR (correction 7 — doc updated because this is no longer
+ *  attribution-only):
+ *    1. #541 comparator ATTRIBUTION (observability, never the row decision);
+ *    2. summary-write SUPPRESSION in `listingMediaSummaryUnchanged`, but
+ *       ONLY when BOTH URLs belong to a KNOWN rotating feed provider
+ *       (`isRotatingFeedSummaryUrl`) — stable/non-feed URLs are always
+ *       compared byte-exact because their query may be a real version or
+ *       resource id. */
 function mediaUrlIdentity(url: string | null | undefined): string {
   const raw = (url ?? "").trim();
   if (!raw) return "";
@@ -1219,6 +1228,123 @@ export function computeListingMediaSummary(
 }
 
 /**
+ * Phase 3 (surface C) — physical-write counters for the summary write path.
+ * `rows_updated` reflects PHYSICAL Listing writes only (this path only ever
+ * updates, so rows_inserted stays 0); rows the pre-read proved identical are
+ * counted as rows_suppressed_unchanged. rows_failed is attributed by the
+ * caller (runMediaSync stage marker) — this function itself fails loud.
+ */
+export interface SummaryWriteCounters {
+  rows_checked: number;
+  rows_materially_changed: number;
+  rows_suppressed_unchanged: number;
+  rows_inserted: number;
+  rows_updated: number;
+  rows_failed: number;
+}
+
+export function newSummaryWriteCounters(): SummaryWriteCounters {
+  return {
+    rows_checked: 0,
+    rows_materially_changed: 0,
+    rows_suppressed_unchanged: 0,
+    rows_inserted: 0,
+    rows_updated: 0,
+    rows_failed: 0,
+  };
+}
+
+/** The 4 stored Listing summary columns the pre-read compares against. */
+export interface StoredListingMediaSummary {
+  primary_photo_url: string | null;
+  primary_photo_r2_key: string | null;
+  photo_count: number | null;
+  photos_change_timestamp: Date | null;
+}
+
+/**
+ * Provider DOMAINS whose media URLs carry a ROTATING signed query (the
+ * Cotality/Trestle feed re-signs MediaURL on every request). ONLY these
+ * providers get the query-insensitive identity compare below; every other
+ * URL (R2, Mallan, third-party CDNs) is compared byte-exact because its
+ * query string may be a real version/resource identifier.
+ *
+ * HOSTNAME-scoped (Maya re-review 2026-07-21): detection parses the URL and
+ * inspects `URL.hostname` ONLY — exact domain or dot-boundary subdomain,
+ * NEVER a substring over the full URL. A stable URL whose path contains a
+ * provider-looking token (".../trestle-building.jpg") or whose query
+ * smuggles a provider host ("?redirect=api.cotality.com"), and look-alike
+ * hosts ("notcotality.com"), must all stay STABLE (exact compare).
+ *
+ * Allowlist grounding:
+ *   - `cotality.com` — LIVE-OBSERVED: the 2026-07-21 authenticated Phase-0
+ *     probes (docs/superpowers/specs/evidence/
+ *     2026-07-21-live-cotality-{contract,pagination}-probe.json, #544
+ *     branch) contain exactly one media/API host: `api.cotality.com`.
+ *   - `corelogic.com` — DEFENSIVE / NOT observed in those live probes: the
+ *     production media proxy (app/api/media/proxy/route.ts) still allowlists
+ *     the deprecated `api-trestle.corelogic.com` / `api-prod.corelogic.com`
+ *     hosts (Cotality 2026 warranty), so stored legacy URLs may carry it.
+ */
+const ROTATING_SUMMARY_URL_PROVIDER_DOMAINS = ["cotality.com", "corelogic.com"];
+
+export function isRotatingFeedSummaryUrl(url: string | null | undefined): boolean {
+  if (typeof url !== "string" || url === "") return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return ROTATING_SUMMARY_URL_PROVIDER_DOMAINS.some(
+      (d) => hostname === d || hostname.endsWith("." + d),
+    );
+  } catch {
+    // Malformed URL -> NOT a provider URL -> exact compare downstream
+    // (fail-closed: any difference stays a material change).
+    return false;
+  }
+}
+
+/** Provider-scoped hero-URL equality (correction 7):
+ *  both KNOWN rotating feed URLs → origin+pathname identity (signature
+ *  ignored); anything else (stable URLs, or mixed feed-vs-stable =
+ *  source/delivery switch) → exact compare. null == null only. */
+function summaryHeroUrlEqual(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === null && b === null;
+  if (isRotatingFeedSummaryUrl(a) && isRotatingFeedSummaryUrl(b)) {
+    return mediaUrlIdentity(a) === mediaUrlIdentity(b);
+  }
+  return a === b;
+}
+
+/**
+ * True when the stored 4 summary columns already equal the freshly-computed
+ * summary — i.e. the `Listing.update()` would be a physical no-op rewrite.
+ *
+ * Material identity (Phase 3, surface C):
+ *   - `photo_count` — exact (a NULL legacy column is never equal, so the
+ *     backfill still writes; any real count change writes).
+ *   - `primary_photo_r2_key` — exact (delivery-state change always writes).
+ *   - `photos_change_timestamp` — instant compare (an actual source photo
+ *     revision always writes).
+ *   - `primary_photo_url` — provider-scoped (correction 7): ONLY when both
+ *     sides are KNOWN rotating Cotality/Trestle feed URLs is the rotating
+ *     signed query ignored (origin + pathname identity). Stable/non-feed
+ *     URLs compare byte-exact. A true hero replacement changes the media
+ *     path (and, when mirrored, `primary_photo_r2_key`) → always material.
+ *
+ * Fail-closed: a missing stored row returns false (the write proceeds).
+ */
+export function listingMediaSummaryUnchanged(
+  stored: StoredListingMediaSummary | null,
+  summary: ListingMediaSummary,
+): boolean {
+  if (!stored) return false;
+  if (stored.photo_count === null || stored.photo_count !== summary.photo_count) return false;
+  if ((stored.primary_photo_r2_key ?? null) !== (summary.primary_photo_r2_key ?? null)) return false;
+  if (!sameInstant(stored.photos_change_timestamp, summary.photos_change_timestamp)) return false;
+  if (!summaryHeroUrlEqual(stored.primary_photo_url, summary.primary_photo_url)) return false;
+  return true;
+}
+
+/**
  * Re-derive and persist the 4 Listing summary columns from the current
  * `listing_media` rows for `listingId`.
  *
@@ -1228,14 +1354,20 @@ export function computeListingMediaSummary(
  * the 4 columns; never touches the legacy `Listing.media` JSON column or
  * any other field.
  *
- * Idempotent: running twice with no underlying media change writes the
- * same values both times.
+ * Idempotent: running twice with no underlying media change now performs
+ * ZERO physical writes on the second run (Phase 3, surface C): the stored
+ * 4 columns are pre-read and the `Listing.update()` is SUPPRESSED when the
+ * computed values are identical (rotating signed URLs are never identity —
+ * see `listingMediaSummaryUnchanged`). The pre-read is fail-closed: if it
+ * errors or finds no row, the write proceeds exactly as before.
  *
- * Returns the summary that was persisted.
+ * Returns the summary that was computed (and persisted, unless suppressed).
  */
 export async function updateListingMediaSummary(
   listingId: string,
+  options?: { counters?: SummaryWriteCounters },
 ): Promise<ListingMediaSummary> {
+  const counters = options?.counters;
   const rows = await prisma.listingMedia.findMany({
     where: { listing_id: listingId },
     select: {
@@ -1252,6 +1384,29 @@ export async function updateListingMediaSummary(
 
   const summary = computeListingMediaSummary(rows);
 
+  if (counters) counters.rows_checked++;
+  // Phase 3 (surface C) pre-read — suppression is an optimization ONLY:
+  // any read failure falls through to the write (fail-closed).
+  let stored: StoredListingMediaSummary | null = null;
+  try {
+    stored = await prisma.listing.findUnique({
+      where: { listing_id: listingId },
+      select: {
+        primary_photo_url: true,
+        primary_photo_r2_key: true,
+        photo_count: true,
+        photos_change_timestamp: true,
+      },
+    });
+  } catch {
+    stored = null; // fail-closed -> write proceeds
+  }
+
+  if (listingMediaSummaryUnchanged(stored, summary)) {
+    if (counters) counters.rows_suppressed_unchanged++;
+    return summary;
+  }
+
   await prisma.listing.update({
     where: { listing_id: listingId },
     data: {
@@ -1261,6 +1416,10 @@ export async function updateListingMediaSummary(
       photos_change_timestamp: summary.photos_change_timestamp,
     },
   });
+  if (counters) {
+    counters.rows_materially_changed++;
+    counters.rows_updated++;
+  }
 
   return summary;
 }
@@ -1788,6 +1947,12 @@ export interface RunMediaSyncResult {
   tombstoned_vanished: number;
   /** INVARIANT: rows_tombstoned === tombstoned_explicit + tombstoned_vanished. */
   rows_tombstoned: number;
+  /**
+   * Phase 3 (surface C) — Listing media-summary write path accounting.
+   * Physical Listing.update calls only; materially-identical summaries are
+   * suppressed and counted under rows_suppressed_unchanged.
+   */
+  summary_writes: SummaryWriteCounters;
   // ── #541 comparator-attribution diagnostic (cumulative; observability only).
   // INVARIANTS on a run where rows_failed===0:
   //   existing_rows_compared === rows_skipped_unchanged + rows_with_one_mismatch + rows_with_multiple_mismatches
@@ -2160,6 +2325,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     rows_with_multiple_mismatches: 0,
   };
   let rowsFailed = 0;
+  const summaryWrites = newSummaryWriteCounters();
   let listingsProcessed = 0;
   let listingsSkipped = 0;
   let ghostListingsSkipped = 0;
@@ -2221,6 +2387,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstoned_explicit: 0,
       tombstoned_vanished: 0,
       rows_tombstoned: 0,
+      summary_writes: newSummaryWriteCounters(),
       ...attr, // all zeros on source_error
       rows_failed: 0,
       listings_processed: 0,
@@ -2359,7 +2526,15 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).
-      await updateListingMediaSummary(listingId);
+      // Phase 3 (surface C): the summary write is suppressed inside when the
+      // stored 4 columns are already identical; counters record the outcome,
+      // and a failure is attributed to the summary path before re-throwing.
+      try {
+        await updateListingMediaSummary(listingId, { counters: summaryWrites });
+      } catch (summaryErr) {
+        summaryWrites.rows_failed++;
+        throw summaryErr;
+      }
 
       cursorRecords.push({
         PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
@@ -2596,6 +2771,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     tombstoned_explicit: tombstonedExplicit,
     tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
+    summary_writes: summaryWrites,
     ...attr,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,
