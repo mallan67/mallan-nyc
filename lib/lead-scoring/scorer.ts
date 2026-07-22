@@ -80,7 +80,16 @@ export async function scoreLeadById(leadId: bigint): Promise<LeadScoreResult> {
 
   const grade = score >= 80 ? 'A' : score >= 65 ? 'B' : score >= 45 ? 'C' : score >= 25 ? 'D' : 'F';
 
-  // Persist
+  // Persist.
+  //
+  // Phase 3 item-6 inventory decision — NO write-suppression here, by design:
+  // `lead_scores.last_computed` is a staleness CURSOR ("last calculation
+  // attempt"): batchScoreLeads selects rows with last_computed older than
+  // 24h, so suppressing the write would leave the same ≤batchSize leads
+  // permanently "stale" and starve the rotation. Additionally,
+  // `recency_score` decays with wall-clock time, so the composite genuinely
+  // changes day-over-day for most leads. Churn is bounded by design:
+  // at most ONE row write per lead per 24h, capped at batchSize per run.
   await prisma.leadScore.upsert({
     where: { lead_id: leadId },
     create: {

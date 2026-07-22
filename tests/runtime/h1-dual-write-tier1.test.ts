@@ -76,7 +76,7 @@ function makeListingFixture(overrides: Partial<MockListing> = {}): MockListing {
 
 interface PrismaMock {
   listing: { findUnique: jest.Mock };
-  listingSearchProjection: { upsert: jest.Mock };
+  listingSearchProjection: { findUnique: jest.Mock; upsert: jest.Mock };
 }
 
 function makePrismaMock(listing: MockListing | null): PrismaMock {
@@ -85,6 +85,9 @@ function makePrismaMock(listing: MockListing | null): PrismaMock {
       findUnique: jest.fn(async () => listing),
     },
     listingSearchProjection: {
+      // Phase 3 write-suppression pre-read: no stored projection row in these
+      // fixtures, so the upsert contract under test is unchanged.
+      findUnique: jest.fn(async () => null),
       upsert: jest.fn(async (args) => args),
     },
   };
@@ -176,7 +179,7 @@ describe("dualWriteProjectionForListingId — runtime contract", () => {
           throw new Error("simulated DB error during listing lookup");
         }),
       },
-      listingSearchProjection: { upsert: jest.fn() },
+      listingSearchProjection: { findUnique: jest.fn(async () => null), upsert: jest.fn() },
     };
 
     await expect(

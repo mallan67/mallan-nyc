@@ -22,6 +22,7 @@ import { Prisma } from "@prisma/client";
 
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
+import { materialValuesEqual } from "@/lib/idx/write-suppression";
 
 // PropertySubType values that should classify a listing as commercial when no
 // `commercial_sub_type` column is present. Matches the existing inline
@@ -368,6 +369,75 @@ export function buildListingSearchProjectionFromListing(
   };
 }
 
+// ── Phase 3 write-suppression: material projection identity ───────────
+
+/**
+ * Select covering EVERY material projection column — i.e. every column the
+ * upsert payload writes. Used by writers to read the existing row for the
+ * pre-write comparison. Prisma-managed `id` / `created_at` / `updated_at`
+ * are excluded (never written by the payload, never material).
+ */
+export const PROJECTION_MATERIAL_SELECT = {
+  listing_id: true,
+  listing_key: true,
+  source_system: true,
+  mls_status: true,
+  listing_type: true,
+  property_type: true,
+  property_sub_type: true,
+  borough: true,
+  neighborhood: true,
+  postal_code: true,
+  city: true,
+  state: true,
+  list_price: true,
+  bedrooms: true,
+  bathrooms: true,
+  living_area: true,
+  year_built: true,
+  latitude: true,
+  longitude: true,
+  is_commercial: true,
+  is_new_development: true,
+  is_exclusive: true,
+  is_rental: true,
+  rls_eligible: true,
+  idx_display_yn: true,
+  internet_entire_listing_display_yn: true,
+  internet_address_display_yn: true,
+  participant_only_yn: true,
+  searchable_text: true,
+  amenity_keys: true,
+  feature_flags: true,
+  modified_at: true,
+} as const;
+
+/**
+ * True when the freshly-built projection row is materially identical to the
+ * existing DB row (selected via PROJECTION_MATERIAL_SELECT). The comparison
+ * covers the COMPLETE material projection — price, status, geography, search
+ * text, amenity keys, feature flags, display gates, and the source
+ * modification clock (`modified_at`) — so ANY source-derived change writes.
+ *
+ * Fail-closed: a missing existing row, a column absent from the selection,
+ * or a comparison error all return false (the upsert proceeds).
+ */
+export function projectionRowMateriallyEqual(
+  existing: Record<string, unknown> | null | undefined,
+  next: ListingSearchProjectionRow,
+): boolean {
+  if (!existing) return false;
+  try {
+    for (const key of Object.keys(next) as (keyof ListingSearchProjectionRow)[]) {
+      if (!(key in existing)) return false;
+      if (!materialValuesEqual(next[key], existing[key as string])) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── Prisma upsert payload builder ─────────────────────────────────────
 
 /**
@@ -464,6 +534,10 @@ export interface DualWriteProjectionPrisma {
     }) => Promise<unknown>;
   };
   listingSearchProjection: {
+    findUnique: (args: {
+      where: { listing_id: string };
+      select?: Record<string, true>;
+    }) => Promise<unknown>;
     upsert: (args: ListingSearchProjectionUpsertPayload) => Promise<unknown>;
   };
 }
@@ -565,6 +639,14 @@ export async function dualWriteProjectionForListingId(
   };
 
   const projection = buildListingSearchProjectionFromListing(input);
+  // Phase 3 write-suppression: compare the complete material projection
+  // before writing — an unchanged projection performs ZERO writes. Missing
+  // rows and comparison failures fall through to the upsert (fail-closed).
+  const existingProjection = (await prisma.listingSearchProjection.findUnique({
+    where: { listing_id: listingId },
+    select: PROJECTION_MATERIAL_SELECT as unknown as Record<string, true>,
+  })) as Record<string, unknown> | null;
+  if (existingProjection && projectionRowMateriallyEqual(existingProjection, projection)) return;
   const payload = buildProjectionUpsertPayload(projection);
   await prisma.listingSearchProjection.upsert(payload);
 }

@@ -11,8 +11,17 @@ import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import {
   buildListingSearchProjectionFromListing,
   buildProjectionUpsertPayload,
+  projectionRowMateriallyEqual,
+  PROJECTION_MATERIAL_SELECT,
   type ListingProjectionSource,
 } from "@/lib/search/listing-search-projection";
+import {
+  LISTING_SYNC_COMPARE_SELECT,
+  listingUpdateMateriallyUnchanged,
+  mediaArraysMateriallyEqual,
+  newWritePathCounters,
+  type WritePathCounters,
+} from "./write-suppression";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
@@ -328,8 +337,25 @@ export interface SyncOptions {
   fullSync?: boolean;
 }
 
+/**
+ * Phase 3 write-suppression — per-write-path physical counters.
+ * `listings` = the per-record Listing upsert; `projections` = the
+ * listing_search_projection dual-write; `batch_media` = the legacy
+ * listings.media JSON batch refill inside the same run.
+ */
+export interface SyncWritePaths {
+  listings: WritePathCounters;
+  projections: WritePathCounters;
+  batch_media: WritePathCounters;
+}
+
 export interface SyncResult {
   total_fetched: number;
+  /**
+   * PHYSICAL listing writes this run (rows_inserted + rows_updated).
+   * Phase 3: materially-unchanged records are suppressed and no longer
+   * counted here — see write_paths for full accounting.
+   */
   upserted: number;
   skipped_gates: number;
   skipped_validation: number;
@@ -341,6 +367,8 @@ export interface SyncResult {
   skipped_new_terminal_sample?: string[];
   errors: number;
   duration_ms: number;
+  /** Phase 3 write-suppression accounting (physical writes only). */
+  write_paths: SyncWritePaths;
 }
 
 /**
@@ -395,7 +423,25 @@ export async function syncListings(
   const skippedNewTerminalSample: string[] = [];
   let errors = 0;
 
+  // Phase 3 write-suppression counters (physical writes only).
+  const listingCounters = newWritePathCounters();
+  const projectionCounters = newWritePathCounters();
+  const batchMediaCounters = newWritePathCounters();
+
+  // Correction 4 — fail-closed watermark bookkeeping. Each FAILED record's
+  // cursor key (max of its MT/PCT instants) caps how far the persisted
+  // SyncState watermark may advance this run, so a failed listing is
+  // re-fetched by the next incremental pass instead of being silently
+  // skipped forever. An unparseable failed key freezes the watermark
+  // entirely (strictest fail-closed).
+  const failedCursorKeys: number[] = [];
+  let watermarkFrozen = false;
+
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
+    // Stage marker so the shared catch attributes the failure to the write
+    // path that actually threw (failure isolation — a failed row is counted
+    // ONLY as failed, never as suppressed/inserted/updated).
+    let writeStage: "listing" | "projection" = "listing";
     try {
       // 1. Validate required fields
       const validation = validateRequiredFields(raw);
@@ -432,16 +478,13 @@ export async function syncListings(
       // Permissions, and freezing on Sold/Rented. `computeDomTransition` in
       // lib/compliance/dom-tracker.ts encodes all of that; we delegate to it
       // whenever status changes so history is correct.
+      // Phase 3: the select is widened to EVERY material field the UPDATE
+      // payload can carry (LISTING_SYNC_COMPARE_SELECT) so an unchanged
+      // re-emit can be verified and suppressed instead of blindly upserted.
+      // A field missing from this select fails CLOSED (treated as changed).
       const existing = await prisma.listing.findUnique({
         where: { listing_id: mapped.listing_id },
-        select: {
-          status: true,
-          status_changed_at: true,
-          first_active_date: true,
-          days_on_market: true,
-          // #415 rehydration guard: needed so an archived row is not re-hydrated on Cotality re-emit.
-          sync_status: true,
-        },
+        select: LISTING_SYNC_COMPARE_SELECT,
       });
 
       const newPermissions = readTrestlePermissions(raw);
@@ -517,69 +560,97 @@ export async function syncListings(
         if (skippedNewTerminalSample.length < 25) skippedNewTerminalSample.push(mapped.listing_id);
         continue;
       }
-      await prisma.listing.upsert({
-        where: { listing_id: mapped.listing_id },
-        create: {
-          ...typedOnlyMapped,
-          list_price: mapped.list_price,
-          living_area: mapped.living_area,
-          address: mapped.address as Prisma.InputJsonValue,
-          features: mapped.features as Prisma.InputJsonValue,
-          media: mapped.media as Prisma.InputJsonValue,
-          compliance: mapped.compliance as Prisma.InputJsonValue,
-          raw_data: mapped.raw_data as Prisma.InputJsonValue,
-          // Seed status_changed_at on create so new listings are immediately
-          // eligible for retention-cron age checks. first_active_date seeds
-          // only when the initial status is one that would accrue DOM.
-          status_changed_at: new Date(),
-          first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
-            ? new Date()
-            : null,
-          ...terminalSinceCreate,
-        },
-        // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
-        // DROPS raw_data/media/sync_status from this payload so a Cotality re-emit cannot
-        // re-hydrate the stripped blobs or un-archive the row (which would re-enter the drain).
-        update: guardArchivedRehydration({
-          mls_id: mapped.mls_id,
-          status: mapped.status,
-          ...terminalSinceUpdate,
-          listing_type: mapped.listing_type,
-          property_type: mapped.property_type,
-          property_sub_type: mapped.property_sub_type,
-          list_price: mapped.list_price,
-          bedrooms_total: mapped.bedrooms_total,
-          bathrooms_full: mapped.bathrooms_full,
-          bathrooms_half: mapped.bathrooms_half,
-          living_area: mapped.living_area,
-          borough: mapped.borough,
-          neighborhood: mapped.neighborhood,
-          city: mapped.city,
-          postal_code: mapped.postal_code,
-          idx_display_yn: mapped.idx_display_yn,
-          internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
-          internet_address_display_yn: mapped.internet_address_display_yn,
-          participant_only: mapped.participant_only,
-          owner_opt_out: mapped.owner_opt_out,
-          address: mapped.address as Prisma.InputJsonValue,
-          features: mapped.features as Prisma.InputJsonValue,
-          ...mediaUpdatePatch(mapped.media, useExpandMedia),
-          // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
-          // keys (validation_result, approvals) are preserved — never stomped to {}.
-          ...complianceUpdatePatch(),
-          // Phase C: agent_info JSON is no longer persisted. Only the 8 typed agent
-          // columns are written, still derived from the in-memory mapped.agent_info.
-          ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
-          raw_data: mapped.raw_data as Prisma.InputJsonValue,
-          modification_timestamp: mapped.modification_timestamp,
-          listing_contract_date: mapped.listing_contract_date,
-          last_synced_from_trestle: mapped.last_synced_from_trestle,
-          sync_status: mapped.sync_status,
-          // Status-transition fields (only populated when status actually
-          // changed; empty object is a no-op for Prisma).
-          ...statusTransition,
-        }, existing),
-      });
+      // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
+      // DROPS raw_data/media/sync_status from this payload so a Cotality re-emit cannot
+      // re-hydrate the stripped blobs or un-archive the row (which would re-enter the drain).
+      const listingUpdateData = guardArchivedRehydration({
+        mls_id: mapped.mls_id,
+        status: mapped.status,
+        ...terminalSinceUpdate,
+        listing_type: mapped.listing_type,
+        property_type: mapped.property_type,
+        property_sub_type: mapped.property_sub_type,
+        list_price: mapped.list_price,
+        bedrooms_total: mapped.bedrooms_total,
+        bathrooms_full: mapped.bathrooms_full,
+        bathrooms_half: mapped.bathrooms_half,
+        living_area: mapped.living_area,
+        borough: mapped.borough,
+        neighborhood: mapped.neighborhood,
+        city: mapped.city,
+        postal_code: mapped.postal_code,
+        idx_display_yn: mapped.idx_display_yn,
+        internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
+        internet_address_display_yn: mapped.internet_address_display_yn,
+        participant_only: mapped.participant_only,
+        owner_opt_out: mapped.owner_opt_out,
+        address: mapped.address as Prisma.InputJsonValue,
+        features: mapped.features as Prisma.InputJsonValue,
+        ...mediaUpdatePatch(mapped.media, useExpandMedia),
+        // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
+        // keys (validation_result, approvals) are preserved — never stomped to {}.
+        ...complianceUpdatePatch(),
+        // Phase C: agent_info JSON is no longer persisted. Only the 8 typed agent
+        // columns are written, still derived from the in-memory mapped.agent_info.
+        ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
+        raw_data: mapped.raw_data as Prisma.InputJsonValue,
+        modification_timestamp: mapped.modification_timestamp,
+        listing_contract_date: mapped.listing_contract_date,
+        last_synced_from_trestle: mapped.last_synced_from_trestle,
+        sync_status: mapped.sync_status,
+        // Status-transition fields (only populated when status actually
+        // changed; empty object is a no-op for Prisma).
+        ...statusTransition,
+      }, existing);
+
+      // Phase 3 (surface A): suppress the UPDATE entirely when the prepared
+      // payload carries no material change vs the existing row. Material
+      // identity excludes ONLY the local telemetry clock
+      // (last_synced_from_trestle) — status, price, address, eligibility,
+      // attribution, lifecycle, compliance-gate, and source-revision
+      // (modification_timestamp / raw_data) changes ALL still write.
+      // CREATEs are never suppressed. Comparison failure fails closed
+      // (write proceeds) inside listingUpdateMateriallyUnchanged.
+      listingCounters.rows_checked++;
+      const suppressListingWrite =
+        existing !== null &&
+        listingUpdateMateriallyUnchanged(
+          listingUpdateData as Record<string, unknown>,
+          existing as unknown as Record<string, unknown>,
+        );
+      if (suppressListingWrite) {
+        listingCounters.rows_suppressed_unchanged++;
+      } else {
+        await prisma.listing.upsert({
+          where: { listing_id: mapped.listing_id },
+          create: {
+            ...typedOnlyMapped,
+            list_price: mapped.list_price,
+            living_area: mapped.living_area,
+            address: mapped.address as Prisma.InputJsonValue,
+            features: mapped.features as Prisma.InputJsonValue,
+            media: mapped.media as Prisma.InputJsonValue,
+            compliance: mapped.compliance as Prisma.InputJsonValue,
+            raw_data: mapped.raw_data as Prisma.InputJsonValue,
+            // Seed status_changed_at on create so new listings are immediately
+            // eligible for retention-cron age checks. first_active_date seeds
+            // only when the initial status is one that would accrue DOM.
+            status_changed_at: new Date(),
+            first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
+              ? new Date()
+              : null,
+            ...terminalSinceCreate,
+          },
+          update: listingUpdateData,
+        });
+        if (existing) {
+          listingCounters.rows_materially_changed++;
+          listingCounters.rows_updated++;
+        } else {
+          listingCounters.rows_inserted++;
+        }
+        upserted++;
+      }
 
       // 5. Dual-write the search projection (master refactor PR 5B).
       // Sequential write — matches the existing per-listing upsert pattern.
@@ -617,13 +688,51 @@ export async function syncListings(
         features: mapped.features as Record<string, unknown>,
         media: mapped.media as unknown[],
       };
+      // Phase 3 (surface B): compare the COMPLETE material projection before
+      // writing. Every projection column is source-derived (price, status,
+      // geography, search text, flags, amenities, display gates, modified_at)
+      // so all of them are material; only Prisma-managed id/created_at/
+      // updated_at are outside the payload. Missing row → insert flows.
+      writeStage = "projection";
       const projection = buildListingSearchProjectionFromListing(projectionInput);
-      const projectionPayload = buildProjectionUpsertPayload(projection);
-      await prisma.listingSearchProjection.upsert(projectionPayload);
-
-      upserted++;
+      projectionCounters.rows_checked++;
+      const existingProjection = (await prisma.listingSearchProjection.findUnique({
+        where: { listing_id: mapped.listing_id },
+        select: PROJECTION_MATERIAL_SELECT,
+      })) as Record<string, unknown> | null;
+      if (existingProjection && projectionRowMateriallyEqual(existingProjection, projection)) {
+        projectionCounters.rows_suppressed_unchanged++;
+      } else {
+        const projectionPayload = buildProjectionUpsertPayload(projection);
+        await prisma.listingSearchProjection.upsert(projectionPayload);
+        if (existingProjection) {
+          projectionCounters.rows_materially_changed++;
+          projectionCounters.rows_updated++;
+        } else {
+          projectionCounters.rows_inserted++;
+        }
+      }
     } catch (err) {
       errors++;
+      // Failure isolation: attribute the failure to the write path that
+      // threw; the row is never also counted as suppressed/inserted/updated.
+      if (writeStage === "projection") {
+        projectionCounters.rows_failed++;
+      } else {
+        listingCounters.rows_failed++;
+      }
+      // Correction 4: cap the watermark below this failed record so it is
+      // re-fetched next run (filter is `MT/PCT gt watermark`).
+      {
+        const fMt = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)) : null;
+        const fPct = raw.PhotosChangeTimestamp ? new Date(String(raw.PhotosChangeTimestamp)) : null;
+        const fKey = Math.max(
+          fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
+          fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
+        );
+        if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
+        else watermarkFrozen = true; // cannot bound the failure → freeze (fail closed)
+      }
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
       const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
       console.error(`[IDX Sync] Error upserting listing ${listingId}:`, err);
@@ -669,7 +778,10 @@ export async function syncListings(
   // ── Batch-fetch media for listings that didn't get inline media ──
   // When $expand=Media was disabled (large syncs), fetch photos separately
   // and update DB records. Uses Trestle Media endpoint (separate quota: 18K req/hr).
-  if (!useExpandMedia && upserted > 0) {
+  // Correction 1: gate on PROCESSED records (rows_checked — reached the write
+  // decision), NOT on physical listing writes. A fully-suppressed batch must
+  // still fetch + reconcile media; the media path has its own suppression.
+  if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
       // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
       // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
@@ -747,14 +859,43 @@ export async function syncListings(
               });
             }
 
-            // Update DB records — convert ResourceRecordKey back to listing_id via map
+            // Update DB records — convert ResourceRecordKey back to listing_id via map.
+            // Phase 3 (surface D): compare the stored legacy media JSON first and
+            // SKIP the write when it is materially identical. Rotating signed
+            // Trestle URLs are NOT identity (mediaArraysMateriallyEqual); true
+            // inserts/deletions/ordering/hero/delivery-state changes still write.
+            // Per-row try/catch keeps one bad row from aborting the batch.
             for (const [key, media] of mediaByListing) {
               const listingId = keyToIdMap.get(key) || key;
-              await prisma.listing.updateMany({
-                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
-                where: archivedSafeMediaWhere(listingId),
-                data: { media: media as unknown as Prisma.InputJsonValue },
-              });
+              batchMediaCounters.rows_checked++;
+              try {
+                const existingMediaRow = await prisma.listing.findFirst({
+                  // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+                  where: archivedSafeMediaWhere(listingId),
+                  select: { media: true },
+                });
+                if (!existingMediaRow) {
+                  // Archived or missing row: the guarded write would match 0 rows.
+                  batchMediaCounters.rows_suppressed_unchanged++;
+                  continue;
+                }
+                if (mediaArraysMateriallyEqual(existingMediaRow.media, media)) {
+                  batchMediaCounters.rows_suppressed_unchanged++;
+                  continue;
+                }
+                batchMediaCounters.rows_materially_changed++;
+                await prisma.listing.updateMany({
+                  where: archivedSafeMediaWhere(listingId),
+                  data: { media: media as unknown as Prisma.InputJsonValue },
+                });
+                batchMediaCounters.rows_updated++;
+              } catch (mediaRowErr) {
+                batchMediaCounters.rows_failed++;
+                console.warn(
+                  `[IDX Sync] Media write failed for ${listingId}:`,
+                  mediaRowErr instanceof Error ? mediaRowErr.message : mediaRowErr,
+                );
+              }
             }
           } catch (mediaErr) {
             console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
@@ -795,7 +936,13 @@ export async function syncListings(
           skipped_validation: skippedValidation,
           errors,
           duration_ms: durationMs,
-        },
+          // Phase 3 write-suppression accounting (physical writes only).
+          write_paths: {
+            listings: listingCounters,
+            projections: projectionCounters,
+            batch_media: batchMediaCounters,
+          },
+        } as unknown as Prisma.InputJsonValue,
       },
     });
   } catch (err) {
@@ -836,6 +983,20 @@ export async function syncListings(
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
     advanceWatermark = fetchResult.records.length > 0;
+
+    // Correction 4 — contiguous-success watermark (fail-closed): when any
+    // record FAILED this run, the persisted watermark is capped 1ms BELOW the
+    // earliest failed cursor key so the `gt watermark` incremental filter
+    // re-fetches the failed record (and everything after it — idempotent and
+    // cheap now that unchanged re-emits are suppressed). getLastSyncTimestamp
+    // honors this via the error-run clamp. An unbounded failure freezes the
+    // watermark entirely. last_run_status stays "error" — a partial run is
+    // NEVER reported successful.
+    if (watermarkFrozen) {
+      advanceWatermark = false;
+    } else if (failedCursorKeys.length > 0) {
+      batchWatermark = new Date(Math.min(...failedCursorKeys) - 1);
+    }
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -904,6 +1065,11 @@ export async function syncListings(
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
     duration_ms: durationMs,
+    write_paths: {
+      listings: listingCounters,
+      projections: projectionCounters,
+      batch_media: batchMediaCounters,
+    },
   };
 
   // INVARIANT (Maya 2026-07-05): the guard PREVENTS creating never-active terminal rows.
@@ -930,8 +1096,21 @@ export async function syncListings(
  * their photos from Trestle Media endpoint.
  * Called after sync or independently via cron/API.
  */
-export async function backfillEmptyMedia(options?: { limit?: number }): Promise<{ checked: number; updated: number; errors: number }> {
+export async function backfillEmptyMedia(options?: { limit?: number }): Promise<{
+  checked: number;
+  updated: number;
+  errors: number;
+  /** Phase 3 write-suppression accounting for the media updateMany writes. */
+  write_path: WritePathCounters;
+}> {
   const limit = options?.limit ?? 200;
+  // Phase 3 (surface D): counters + suppression for the per-listing media
+  // write below. The PCT-drift eligibility rows (media present but Trestle's
+  // PhotosChangeTimestamp newer than our modification_timestamp) re-enter
+  // this SELECT on every cron pass; before this change each pass rewrote the
+  // full media JSON with freshly-signed (rotating) URLs even when nothing
+  // material changed.
+  const writeCounters = newWritePathCounters();
 
   // Find listings needing media backfill.
   //
@@ -958,8 +1137,8 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   // malformed data. Without it, 8,082+ production rows with
   // `media: {PhotosCount: ...}` would never trigger backfill and would
   // keep rendering as "No Photo" on the site.
-  const listings = await prisma.$queryRaw<{ listing_id: string; mls_id: string | null }[]>`
-    SELECT listing_id, mls_id FROM "listings"
+  const listings = await prisma.$queryRaw<{ listing_id: string; mls_id: string | null; media: unknown }[]>`
+    SELECT listing_id, mls_id, media FROM "listings"
     WHERE (
         media IS NULL
         OR jsonb_typeof(media) != 'array'
@@ -990,7 +1169,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
   if (listings.length === 0) {
     console.log("[Media Backfill] No listings with empty media found");
-    return { checked: 0, updated: 0, errors: 0 };
+    return { checked: 0, updated: 0, errors: 0, write_path: writeCounters };
   }
 
   console.log(`[Media Backfill] Found ${listings.length} listings with empty media`);
@@ -1001,7 +1180,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     token = await getAccessToken();
   } catch {
     console.error("[Media Backfill] Failed to get Trestle token");
-    return { checked: listings.length, updated: 0, errors: 1 };
+    return { checked: listings.length, updated: 0, errors: 1, write_path: writeCounters };
   }
 
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
@@ -1011,6 +1190,12 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   const BATCH_SIZE = 15;
   let updated = 0;
   let errors = 0;
+
+  // Phase 3: stored media (already selected above) keyed by listing_id so the
+  // write below can compare without an extra read.
+  const storedMediaByListingId = new Map<string, unknown>(
+    listings.map((l) => [l.listing_id, l.media]),
+  );
 
   for (let i = 0; i < listings.length; i += BATCH_SIZE) {
     const batch = listings.slice(i, i + BATCH_SIZE);
@@ -1078,14 +1263,24 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
       for (const [listingId, media] of mediaByListingId) {
         try {
+          // Phase 3 (surface D): suppress the rewrite when the stored media is
+          // materially identical (rotating signed URLs are not identity).
+          writeCounters.rows_checked++;
+          if (mediaArraysMateriallyEqual(storedMediaByListingId.get(listingId), media)) {
+            writeCounters.rows_suppressed_unchanged++;
+            continue;
+          }
+          writeCounters.rows_materially_changed++;
           await prisma.listing.updateMany({
             // #415: archived-safe filter (defense-in-depth; the SELECT above already excludes
             // 'archived', so an archived row never reaches here — but never re-hydrate archived media).
             where: archivedSafeMediaWhere(listingId),
             data: { media: media as unknown as Prisma.InputJsonValue },
           });
+          writeCounters.rows_updated++;
           updated++;
         } catch {
+          writeCounters.rows_failed++;
           errors++;
         }
       }
@@ -1095,8 +1290,11 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     }
   }
 
-  console.log(`[Media Backfill] Complete: checked=${listings.length}, updated=${updated}, errors=${errors}`);
-  return { checked: listings.length, updated, errors };
+  console.log(
+    `[Media Backfill] Complete: checked=${listings.length}, updated=${updated}, ` +
+      `suppressed_unchanged=${writeCounters.rows_suppressed_unchanged}, errors=${errors}`,
+  );
+  return { checked: listings.length, updated, errors, write_path: writeCounters };
 }
 
 /**
@@ -1309,7 +1507,38 @@ export async function getLastSyncTimestamp(): Promise<Date | null> {
     select: { modification_timestamp: true },
   });
 
-  return latest?.modification_timestamp ?? null;
+  const dbCursor = latest?.modification_timestamp ?? null;
+  if (!dbCursor) return null;
+
+  // Correction 4 — error-run clamp (fail-closed retry window): when the last
+  // sync run FAILED, syncListings persisted SyncState.last_watermark as the
+  // contiguous-success watermark (capped below the earliest failed record).
+  // The DB-derived cursor (MAX modification_timestamp) may have advanced PAST
+  // that failed record via later successful upserts in the same batch, which
+  // would permanently exclude it from the `gt since` incremental filter. The
+  // clamp only ever LOWERS the cursor (legacy now-based watermarks are newer
+  // than the DB cursor and are ignored), and only while the last run status
+  // is non-ok. Best-effort: a SyncState read failure falls back to the DB
+  // cursor (same behavior as before this fix).
+  try {
+    const state = await prisma.syncState.findUnique({
+      where: { resource: "Property" },
+      select: { last_watermark: true, last_run_status: true },
+    });
+    if (
+      state &&
+      state.last_run_status !== null &&
+      state.last_run_status !== "ok" &&
+      state.last_watermark &&
+      state.last_watermark < dbCursor
+    ) {
+      return state.last_watermark;
+    }
+  } catch {
+    // fall through to the DB cursor
+  }
+
+  return dbCursor;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1369,7 +1598,13 @@ export async function syncAgentHistory(
   let errors = 0;
   let agentMatched = 0;
 
+  // Phase 3 write-suppression counters (physical writes only).
+  const listingCounters = newWritePathCounters();
+  const projectionCounters = newWritePathCounters();
+  const batchMediaCounters = newWritePathCounters();
+
   for (const raw of fetchResult.records) {
+    let writeStage: "listing" | "projection" = "listing";
     try {
       // 1. Validate required fields (relaxed for historical/closed listings)
       const validation = validateHistoricalFields(raw);
@@ -1402,10 +1637,11 @@ export async function syncAgentHistory(
       // status so a historical Closed/Expired/Withdrawn record that flips an existing
       // (e.g. Active) row IS captured on the update branch (Codex #446) — not left NULL.
       // Never bumped on terminal→terminal re-sync; cleared on terminal→active.
+      // Phase 3: widened to LISTING_SYNC_COMPARE_SELECT so an unchanged
+      // re-emit can be verified and suppressed (see syncListings).
       const existingForClock = await prisma.listing.findUnique({
         where: { listing_id: mapped.listing_id },
-        // #415 rehydration guard: sync_status needed so an archived row is not re-hydrated here.
-        select: { status: true, sync_status: true },
+        select: LISTING_SYNC_COMPARE_SELECT,
       });
       const terminalSinceCreate = computeTerminalSincePatch({
         previousStatus: undefined,
@@ -1429,60 +1665,83 @@ export async function syncAgentHistory(
         // its actual expiration date, not the sync wall-clock.
         expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
-      await prisma.listing.upsert({
-        where: { listing_id: mapped.listing_id },
-        create: {
-          ...typedOnlyMapped,
-          agent_id: options.agentDbId,
-          list_price: mapped.list_price,
-          living_area: mapped.living_area,
-          address: mapped.address as Prisma.InputJsonValue,
-          features: mapped.features as Prisma.InputJsonValue,
-          media: mapped.media as Prisma.InputJsonValue,
-          compliance: mapped.compliance as Prisma.InputJsonValue,
-          raw_data: mapped.raw_data as Prisma.InputJsonValue,
-          ...terminalSinceCreate,
-        },
-        // #415 rehydration guard (see syncListings): an already-archived row must not be
-        // re-hydrated / un-archived by an agent-history re-sync either.
-        update: guardArchivedRehydration({
-          agent_id: options.agentDbId,
-          mls_id: mapped.mls_id,
-          status: mapped.status,
-          ...terminalSinceUpdate,
-          listing_type: mapped.listing_type,
-          property_type: mapped.property_type,
-          property_sub_type: mapped.property_sub_type,
-          list_price: mapped.list_price,
-          bedrooms_total: mapped.bedrooms_total,
-          bathrooms_full: mapped.bathrooms_full,
-          bathrooms_half: mapped.bathrooms_half,
-          living_area: mapped.living_area,
-          borough: mapped.borough,
-          neighborhood: mapped.neighborhood,
-          city: mapped.city,
-          postal_code: mapped.postal_code,
-          idx_display_yn: mapped.idx_display_yn,
-          internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
-          internet_address_display_yn: mapped.internet_address_display_yn,
-          participant_only: mapped.participant_only,
-          owner_opt_out: mapped.owner_opt_out,
-          address: mapped.address as Prisma.InputJsonValue,
-          features: mapped.features as Prisma.InputJsonValue,
-          ...mediaUpdatePatch(mapped.media, useExpandMedia),
-          // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
-          // keys (validation_result, approvals) are preserved — never stomped to {}.
-          ...complianceUpdatePatch(),
-          // Phase C: agent_info JSON no longer persisted; only the 8 typed columns,
-          // still derived from the in-memory mapped.agent_info.
-          ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
-          raw_data: mapped.raw_data as Prisma.InputJsonValue,
-          modification_timestamp: mapped.modification_timestamp,
-          listing_contract_date: mapped.listing_contract_date,
-          last_synced_from_trestle: mapped.last_synced_from_trestle,
-          sync_status: mapped.sync_status,
-        }, existingForClock),
-      });
+      // #415 rehydration guard (see syncListings): an already-archived row must not be
+      // re-hydrated / un-archived by an agent-history re-sync either.
+      const agentUpdateData = guardArchivedRehydration({
+        agent_id: options.agentDbId,
+        mls_id: mapped.mls_id,
+        status: mapped.status,
+        ...terminalSinceUpdate,
+        listing_type: mapped.listing_type,
+        property_type: mapped.property_type,
+        property_sub_type: mapped.property_sub_type,
+        list_price: mapped.list_price,
+        bedrooms_total: mapped.bedrooms_total,
+        bathrooms_full: mapped.bathrooms_full,
+        bathrooms_half: mapped.bathrooms_half,
+        living_area: mapped.living_area,
+        borough: mapped.borough,
+        neighborhood: mapped.neighborhood,
+        city: mapped.city,
+        postal_code: mapped.postal_code,
+        idx_display_yn: mapped.idx_display_yn,
+        internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
+        internet_address_display_yn: mapped.internet_address_display_yn,
+        participant_only: mapped.participant_only,
+        owner_opt_out: mapped.owner_opt_out,
+        address: mapped.address as Prisma.InputJsonValue,
+        features: mapped.features as Prisma.InputJsonValue,
+        ...mediaUpdatePatch(mapped.media, useExpandMedia),
+        // S1 (#445 Codex P1): OMIT compliance on UPDATE so CRM/syndication-authored
+        // keys (validation_result, approvals) are preserved — never stomped to {}.
+        ...complianceUpdatePatch(),
+        // Phase C: agent_info JSON no longer persisted; only the 8 typed columns,
+        // still derived from the in-memory mapped.agent_info.
+        ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
+        raw_data: mapped.raw_data as Prisma.InputJsonValue,
+        modification_timestamp: mapped.modification_timestamp,
+        listing_contract_date: mapped.listing_contract_date,
+        last_synced_from_trestle: mapped.last_synced_from_trestle,
+        sync_status: mapped.sync_status,
+      }, existingForClock);
+
+      // Phase 3 (surface A, agent-history path): same suppression contract as
+      // syncListings — unchanged re-emits skip the physical write; attribution
+      // (agent_id) is material, so a first-time agent link still writes.
+      listingCounters.rows_checked++;
+      const suppressAgentListingWrite =
+        existingForClock !== null &&
+        listingUpdateMateriallyUnchanged(
+          agentUpdateData as Record<string, unknown>,
+          existingForClock as unknown as Record<string, unknown>,
+        );
+      if (suppressAgentListingWrite) {
+        listingCounters.rows_suppressed_unchanged++;
+      } else {
+        await prisma.listing.upsert({
+          where: { listing_id: mapped.listing_id },
+          create: {
+            ...typedOnlyMapped,
+            agent_id: options.agentDbId,
+            list_price: mapped.list_price,
+            living_area: mapped.living_area,
+            address: mapped.address as Prisma.InputJsonValue,
+            features: mapped.features as Prisma.InputJsonValue,
+            media: mapped.media as Prisma.InputJsonValue,
+            compliance: mapped.compliance as Prisma.InputJsonValue,
+            raw_data: mapped.raw_data as Prisma.InputJsonValue,
+            ...terminalSinceCreate,
+          },
+          update: agentUpdateData,
+        });
+        if (existingForClock) {
+          listingCounters.rows_materially_changed++;
+          listingCounters.rows_updated++;
+        } else {
+          listingCounters.rows_inserted++;
+        }
+        upserted++;
+      }
 
       // 4. Dual-write the search projection (master refactor PR 5B).
       // Same sequential pattern as syncListings(); per-listing try/catch
@@ -1518,21 +1777,45 @@ export async function syncAgentHistory(
         features: mapped.features as Record<string, unknown>,
         media: mapped.media as unknown[],
       };
+      // Phase 3 (surface B, agent-history path): full-material projection
+      // compare before writing — see syncListings.
+      writeStage = "projection";
       const projection = buildListingSearchProjectionFromListing(projectionInput);
-      const projectionPayload = buildProjectionUpsertPayload(projection);
-      await prisma.listingSearchProjection.upsert(projectionPayload);
+      projectionCounters.rows_checked++;
+      const existingProjection = (await prisma.listingSearchProjection.findUnique({
+        where: { listing_id: mapped.listing_id },
+        select: PROJECTION_MATERIAL_SELECT,
+      })) as Record<string, unknown> | null;
+      if (existingProjection && projectionRowMateriallyEqual(existingProjection, projection)) {
+        projectionCounters.rows_suppressed_unchanged++;
+      } else {
+        const projectionPayload = buildProjectionUpsertPayload(projection);
+        await prisma.listingSearchProjection.upsert(projectionPayload);
+        if (existingProjection) {
+          projectionCounters.rows_materially_changed++;
+          projectionCounters.rows_updated++;
+        } else {
+          projectionCounters.rows_inserted++;
+        }
+      }
 
-      upserted++;
       agentMatched++;
     } catch (err) {
       errors++;
+      if (writeStage === "projection") {
+        projectionCounters.rows_failed++;
+      } else {
+        listingCounters.rows_failed++;
+      }
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
       console.error(`[IDX Agent History] Error upserting listing ${listingId}:`, err);
     }
   }
 
   // ── Batch-fetch media for listings without inline media ──
-  if (!useExpandMedia && upserted > 0) {
+  // Correction 1: same decoupled gate as syncListings — processed records,
+  // not physical writes.
+  if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
       // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
       // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
@@ -1607,14 +1890,39 @@ export async function syncAgentHistory(
               });
             }
 
-            // Convert ResourceRecordKey back to listing_id via map
+            // Convert ResourceRecordKey back to listing_id via map.
+            // Phase 3 (surface D): same suppression as the syncListings batch —
+            // rotating signed URLs are not identity; unchanged media skips the write.
             for (const [key, media] of mediaByKey) {
               const listingId = agentKeyToIdMap.get(key) || key;
-              await prisma.listing.updateMany({
-                // #415: archived-safe filter — an archived row must not have its media re-hydrated.
-                where: archivedSafeMediaWhere(listingId),
-                data: { media: media as unknown as Prisma.InputJsonValue },
-              });
+              batchMediaCounters.rows_checked++;
+              try {
+                const existingMediaRow = await prisma.listing.findFirst({
+                  // #415: archived-safe filter — an archived row must not have its media re-hydrated.
+                  where: archivedSafeMediaWhere(listingId),
+                  select: { media: true },
+                });
+                if (!existingMediaRow) {
+                  batchMediaCounters.rows_suppressed_unchanged++;
+                  continue;
+                }
+                if (mediaArraysMateriallyEqual(existingMediaRow.media, media)) {
+                  batchMediaCounters.rows_suppressed_unchanged++;
+                  continue;
+                }
+                batchMediaCounters.rows_materially_changed++;
+                await prisma.listing.updateMany({
+                  where: archivedSafeMediaWhere(listingId),
+                  data: { media: media as unknown as Prisma.InputJsonValue },
+                });
+                batchMediaCounters.rows_updated++;
+              } catch (mediaRowErr) {
+                batchMediaCounters.rows_failed++;
+                console.warn(
+                  `[IDX Agent History] Media write failed for ${listingId}:`,
+                  mediaRowErr instanceof Error ? mediaRowErr.message : mediaRowErr,
+                );
+              }
             }
           } catch (mediaErr) {
             console.warn(`[IDX Agent History] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
@@ -1671,6 +1979,11 @@ export async function syncAgentHistory(
     skipped_validation: skippedValidation,
     errors,
     duration_ms: durationMs,
+    write_paths: {
+      listings: listingCounters,
+      projections: projectionCounters,
+      batch_media: batchMediaCounters,
+    },
   };
 
   console.log("[IDX Agent History] Complete:", result);

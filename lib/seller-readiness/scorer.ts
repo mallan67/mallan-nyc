@@ -10,6 +10,7 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { materialValuesEqual } from '@/lib/idx/write-suppression';
 import { SIGNAL_WEIGHTS } from './config';
 import { gradeFromScore } from './types';
 import type { SignalInput, ScoredResult, SignalType } from './types';
@@ -55,31 +56,71 @@ export async function scoreSellerLead(sellerLeadId: bigint): Promise<ScoredResul
   // 2. Compute weighted score
   const result = computeScore(allSignals);
 
-  // 3. Persist signals (replace old ones)
+  // 3. Persist signals — SET-LEVEL RECONCILE (Phase 3, item-6 inventory fix).
+  // The historical semantics were delete-all + recreate on EVERY scoring
+  // pass. When the collected acris/dob signal set is materially identical to
+  // what is already stored, that churn is skipped entirely; a changed set
+  // keeps the existing replace-all semantics (bounded: ≤batchSize leads per
+  // 72h staleness window).
+  //
+  // `seller_leads.last_scored_at` is a staleness CURSOR ("last calculation
+  // attempt", NOT material-change time): batchRescore orders and filters on
+  // it, so it MUST advance on every attempt or the same leads would be
+  // re-picked forever and starve the rotation. The lead-score update
+  // therefore always runs (one small row write per lead per 72h).
+  const persistable = allSignals.filter(s => s.source !== 'first_party');
+  const signalShape = (s: { signal_type: string; raw_value: unknown; normalized: number; source: string; metadata?: unknown }) => ({
+    signal_type: s.signal_type,
+    raw_value: s.raw_value,
+    normalized: s.normalized,
+    source: s.source,
+    metadata: s.metadata ?? null,
+  });
+  const signalSortKey = (s: { signal_type: string; source: string; raw_value: unknown }) =>
+    `${s.source}|${s.signal_type}|${JSON.stringify(s.raw_value ?? null)}`;
+  const existingSignals = await prisma.readinessSignal.findMany({
+    where: {
+      seller_lead_id: sellerLeadId,
+      source: { in: ['acris', 'dob'] },
+    },
+    select: {
+      signal_type: true,
+      raw_value: true,
+      normalized: true,
+      source: true,
+      metadata: true,
+    },
+  });
+  const nextSet = persistable.map(signalShape).sort((a, b) => signalSortKey(a).localeCompare(signalSortKey(b)));
+  const storedSet = existingSignals.map(signalShape).sort((a, b) => signalSortKey(a).localeCompare(signalSortKey(b)));
+  const signalsUnchanged = materialValuesEqual(nextSet, storedSet);
+
   await prisma.$transaction([
-    // Delete old signals for this lead
-    prisma.readinessSignal.deleteMany({
-      where: {
-        seller_lead_id: sellerLeadId,
-        source: { in: ['acris', 'dob'] },
-      },
-    }),
-    // Insert new signals
-    ...allSignals
-      .filter(s => s.source !== 'first_party') // first-party signals already persisted individually
-      .map(s =>
-        prisma.readinessSignal.create({
-          data: {
-            seller_lead_id: sellerLeadId,
-            signal_type: s.signal_type,
-            raw_value: s.raw_value,
-            normalized: s.normalized,
-            source: s.source,
-            metadata: (s.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
-          },
-        })
-      ),
-    // Update lead score
+    ...(signalsUnchanged
+      ? []
+      : [
+          // Delete old signals for this lead
+          prisma.readinessSignal.deleteMany({
+            where: {
+              seller_lead_id: sellerLeadId,
+              source: { in: ['acris', 'dob'] },
+            },
+          }),
+          // Insert new signals
+          ...persistable.map(s =>
+            prisma.readinessSignal.create({
+              data: {
+                seller_lead_id: sellerLeadId,
+                signal_type: s.signal_type,
+                raw_value: s.raw_value,
+                normalized: s.normalized,
+                source: s.source,
+                metadata: (s.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+              },
+            })
+          ),
+        ]),
+    // Update lead score (attempt-time cursor — see comment above).
     prisma.sellerLead.update({
       where: { id: sellerLeadId },
       data: {
