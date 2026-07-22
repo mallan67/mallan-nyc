@@ -1527,6 +1527,83 @@ export function buildR2BacklogWhere(
   };
 }
 
+// ─── Phase 4 — bounded backlog + parked-row recovery ─────────────────────
+
+/**
+ * Phase 4: hard cap on rows selected by the ONE bounded backlog query per
+ * run. Sized for the Phase-3 time budget (~43s at concurrency 5): 60 rows =
+ * 12 chunks; the per-chunk time/budget checks stop earlier when needed.
+ * Bounded and correct WITHOUT the (unapplied) `listing_media_r2_backlog_idx`
+ * partial index — the query merely benefits if that index is ever applied.
+ */
+export const R2_BACKLOG_BATCH_LIMIT = 60;
+
+/**
+ * Phase 4: per-run mirror FAILURE budget. Once this many mirror attempts
+ * have failed in one run, the remaining queue is NOT attempted (rows stay
+ * untouched in the backlog and re-surface next run). Prevents a systemic
+ * outage (Trestle/R2 down) from burning the whole Phase-3 budget on
+ * failures while keeping per-row failures isolated and precisely counted.
+ */
+export const R2_RUN_FAILURE_BUDGET = 10;
+
+/**
+ * Phase 4: parked-row recovery quota — how many RC3 retry-exhausted rows
+ * (`r2_attempts >= R2_RETRY_EXHAUSTED_THRESHOLD`) are re-admitted for ONE
+ * standard mirror attempt per run. 0 disables recovery entirely.
+ */
+export const R2_PARKED_RECOVERY_QUOTA = 5;
+
+/**
+ * Phase 4: minimum time since a parked row's LAST failed attempt before it
+ * becomes recovery-eligible. Much longer than the 6h retry cooldown — a
+ * parked row already failed R2_RETRY_EXHAUSTED_THRESHOLD times.
+ */
+export const R2_PARKED_RECOVERY_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Phase 4 — parked-row recovery `where` (pure, unit-testable).
+ *
+ * Eligibility is EXACT-MATCH failure exhaustion ONLY:
+ * `r2_attempts === R2_RETRY_EXHAUSTED_THRESHOLD` (exactly 8). Anything
+ * ABOVE the threshold is excluded FAIL-CLOSED, because the approved #534
+ * mirror-admission-policy design (draft PR #534, stacked on #530 — not in
+ * this stack) reserves **attempts = 9 as a permanent POLICY-park sentinel**
+ * (non-hero third-party gallery media, unsupported media types) that
+ * recovery must never re-admit. When #534's sentinel constant lands, its
+ * integration must keep every value above the failure-exhaustion threshold
+ * excluded here.
+ *
+ * Recovery-failure semantics (round 3): a TRANSIENT failure on a recovery
+ * attempt leaves `r2_attempts` exactly at the threshold (the counter is
+ * NOT written — attempts=9 is reserved exclusively for #534 policy
+ * admission) and only refreshes `r2_last_attempt_at`, restarting the long
+ * recovery cooldown. The row is retryable ONLY while the row remains `status='active'`, still lacks its R2 copy (`r2_key`/`media_url_cached` missing), and has not received a proven-permanent 404/410 tombstone outcome.
+ * A PERMANENT 404/410 (E8 live-proven) still tombstones, also without
+ * advancing the counter, and thereby EXITS the row from recovery.
+ *
+ * Selection never writes/resets any counter (pure code-logic eligibility).
+ * Success clears state via the normal success path (attempts→0,
+ * cooldown→null). Rows stay `status='active'` while parked (RC3
+ * guarantee — photo keeps serving via the proxy).
+ *
+ * `r2_last_attempt_at` is non-null for every genuinely parked row (each of
+ * its threshold failures wrote it), so the `lt` predicate cannot orphan
+ * real parked rows.
+ */
+export function buildR2ParkedRecoveryWhere(
+  parkedCooldownThreshold: Date,
+): Prisma.ListingMediaWhereInput {
+  return {
+    status: "active",
+    media_url_original: { not: null },
+    OR: [{ r2_key: null }, { media_url_cached: null }],
+    // EXACT match — see doc above (#534 policy sentinel lives at 9+).
+    r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD,
+    r2_last_attempt_at: { lt: parkedCooldownThreshold },
+  };
+}
+
 /**
  * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
  * injected so tests can stub them without ever touching the live R2
@@ -1620,6 +1697,19 @@ export interface MirrorMediaToR2Result {
 export async function mirrorMediaToR2(
   row: MirrorMediaToR2Row,
   deps: MirrorMediaToR2Deps = defaultMirrorMediaToR2Deps,
+  /**
+   * Phase 4 (round 3): `recoveryAttempt: true` marks a row selected through
+   * the PARKED-RECOVERY path (r2_attempts exactly at the failure-exhaustion
+   * threshold). On that path a TRANSIENT failure must NOT advance
+   * `r2_attempts` — the value above the threshold (9) is reserved
+   * EXCLUSIVELY for #534's deterministic policy-park sentinel and must
+   * never be produced by a failure. Only `r2_last_attempt_at` is refreshed
+   * (restarting the long recovery cooldown). The row is retryable ONLY while the row remains `status='active'`, still lacks its R2 copy (`r2_key`/`media_url_cached` missing), and has not received a proven-permanent 404/410 tombstone outcome.
+   * The E8 live-proven PERMANENT 404/410 tombstone contract still applies
+   * (threshold long since satisfied) — also without advancing the counter —
+   * and thereby EXITS the row from recovery.
+   */
+  context: { recoveryAttempt?: boolean } = {},
 ): Promise<MirrorMediaToR2Result> {
   const url = (row.media_url_original ?? "").trim();
   if (!url) {
@@ -1647,6 +1737,8 @@ export async function mirrorMediaToR2(
       return result;
     }
     const newAttempts = (row.r2_attempts ?? 0) + 1;
+    // Recovery attempts never advance the counter — see the `context` doc.
+    const isRecoveryAttempt = context.recoveryAttempt === true;
     // Tombstone-eligible only when the HTTP status proves the binary is
     // permanently unfetchable:
     //   - 404 — E8-confirmed: Trestle CDN body
@@ -1663,16 +1755,29 @@ export async function mirrorMediaToR2(
       /^HTTP (404|410)$/.test(result.error);
     const data: {
       r2_last_attempt_at: Date;
-      r2_attempts: number;
+      r2_attempts?: number;
       status?: string;
     } = {
       r2_last_attempt_at: new Date(),
-      r2_attempts: newAttempts,
     };
-    // Tombstone ONLY on 3 consecutive permanent 4xx (404 / 410). 5xx,
+    if (!isRecoveryAttempt) {
+      // Standard path: the consecutive-failure counter advances as before.
+      data.r2_attempts = newAttempts;
+    }
+    // Recovery path: r2_attempts is intentionally ABSENT from the write —
+    // it stays exactly at the failure-exhaustion threshold in the DB; the
+    // refreshed r2_last_attempt_at alone restarts the long recovery
+    // cooldown. attempts=threshold+1 (9) is reserved for #534 policy
+    // admission and is NEVER written by any failure path.
+    //
+    // Tombstone ONLY on permanent 4xx (404 / 410 — E8 live-proven). 5xx,
     // network, R2-side, token, and other 4xx errors are transient or
-    // ambiguous — keep retrying after cooldown.
-    if (isPermanent4xx && newAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
+    // ambiguous — keep retrying after cooldown. For recovery rows the
+    // effective count is the STORED value (already >= the tombstone
+    // threshold by construction), so a proven-permanent source loss still
+    // tombstones without advancing the counter.
+    const effectiveAttempts = isRecoveryAttempt ? (row.r2_attempts ?? 0) : newAttempts;
+    if (isPermanent4xx && effectiveAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
       data.status = "deleted";
     }
     await prisma.listingMedia.update({
@@ -1904,6 +2009,16 @@ export interface RunMediaSyncOptions {
    * exercise budget paths without real timers. Defaults to `Date.now`.
    */
   now?: () => number;
+  /**
+   * Phase 4: override for R2_BACKLOG_BATCH_LIMIT (tests / tuning only —
+   * production callers use the default).
+   */
+  backlogBatchLimit?: number;
+  /**
+   * Phase 4: override for R2_PARKED_RECOVERY_QUOTA. 0 disables parked-row
+   * recovery (no recovery query is issued at all).
+   */
+  parkedRecoveryQuota?: number;
 }
 
 export interface RunMediaSyncResult {
@@ -1991,6 +2106,23 @@ export interface RunMediaSyncResult {
   r2_mirrored: number;
   /** R2 mirror failures in Phase 3 — row stays in backlog for retry. */
   r2_failed: number;
+  /** Phase 4: rows returned by the ONE bounded main-backlog SELECTION query. */
+  r2_backlog_batch_selected: number;
+  /** Phase 4: rows returned by the zero-or-one parked-recovery SELECTION query. */
+  r2_parked_recovery_selected: number;
+  /**
+   * Phase 4: parked rows ACTUALLY handed to mirrorMediaToR2 this run —
+   * incremented at hand-off, never at selection. selected > attempted means
+   * the time budget expired before the reserved chunk could run.
+   */
+  r2_parked_recovery_attempted: number;
+  /**
+   * Phase 4: true ONLY when the MAIN-drain hard failure cap stopped the
+   * drain early AND left >= 1 selected main row unattempted (no mirror
+   * call, no DB write — the remainder re-surfaces next run). False when
+   * the cap is reached exactly on the final row (nothing left untouched).
+   */
+  r2_failure_budget_exhausted: boolean;
   /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
   r2_skipped: number;
   /**
@@ -2396,6 +2528,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       ghost_listing_ids: [],
       r2_mirrored: 0,
       r2_failed: 0,
+      r2_backlog_batch_selected: 0,
+      r2_parked_recovery_selected: 0,
+      r2_parked_recovery_attempted: 0,
+      r2_failure_budget_exhausted: false,
       r2_skipped: 0,
       backlog_remaining: null,
       duration_ms: now() - startTime,
@@ -2657,44 +2793,70 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   //   throttles those retries to 4×/day. Cp4 sets `r2_last_attempt_at`
   //   on every failure path; success paths clear it back to NULL.
   //   See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` E8 probe.
-  const attemptedBacklogIds = new Set<bigint>();
+  // Phase 4 — BOUNDED drain. Selection: at most TWO bounded
+  // CANDIDATE-SELECTION queries per run (one main backlog selection;
+  // zero-or-one parked recovery selection). The pre-existing
+  // `backlog_remaining` COUNT query below is separate and unchanged. All
+  // processing is in-memory over the selected queues — no per-iteration
+  // re-query, no growing `id notIn` list. (The pre-Phase-4 while-loop
+  // re-queried the backlog every 5 rows with an ever-growing exclusion
+  // list.) Bounded + correct WITHOUT the `listing_media_r2_backlog_idx`
+  // partial index, which exists only in #544's prepared (UNAPPLIED)
+  // migration — not in this stack; the query merely benefits if it is
+  // ever applied.
+  //
+  // Ordering of work (Maya re-review round 2):
+  //   1. RESERVED parked-recovery chunk FIRST — its own bounded allowance
+  //      (<= parked quota), so a saturated main backlog can never starve
+  //      recovery run after run. Parked failures do NOT consume the main
+  //      failure budget: they are naturally bounded by the quota itself
+  //      (<= R2_PARKED_RECOVERY_QUOTA attempts/run), so they cannot
+  //      monopolize the drain either.
+  //   2. MAIN drain with a HARD failure cap: each chunk is sized
+  //      min(R2_MIRROR_CONCURRENCY, remaining failure allowance), so main
+  //      failures can NEVER exceed R2_RUN_FAILURE_BUDGET.
   const cooldownThreshold = new Date(now() - R2_RETRY_COOLDOWN_MS);
+  const backlogBatchLimit = options.backlogBatchLimit ?? R2_BACKLOG_BATCH_LIMIT;
+  const parkedRecoveryQuota = options.parkedRecoveryQuota ?? R2_PARKED_RECOVERY_QUOTA;
+  const backlogSelect = {
+    // `id` is required for de-duplication — never passed to mirrorMediaToR2.
+    id: true,
+    listing_id: true,
+    media_key: true,
+    media_type: true,
+    order: true,
+    media_url_original: true,
+    r2_key: true,
+    media_url_cached: true,
+    // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
+    r2_attempts: true,
+  } as const;
 
-  while (remainingMs() > phase2ReserveMs) {
-    const backlogRows = await prisma.listingMedia.findMany({
-      // RC3: backlog `where` is built by the pure `buildR2BacklogWhere` so the
-      // retry-exhausted exclusion (park non-permanent rows at >= threshold) is
-      // unit-testable. Eligibility = active + missing-R2 + past-cooldown +
-      // not-attempted-this-invocation + not-retry-exhausted.
-      where: buildR2BacklogWhere(cooldownThreshold, [...attemptedBacklogIds]),
-      orderBy: { created_at: "asc" },
-      take: R2_MIRROR_CONCURRENCY,
-      select: {
-        // `id` is required for attempt tracking — never passed to mirrorMediaToR2.
-        id: true,
-        listing_id: true,
-        media_key: true,
-        media_type: true,
-        order: true,
-        media_url_original: true,
-        r2_key: true,
-        media_url_cached: true,
-        // Cp4 needs the prior count to decide tombstone-on-3rd-4xx.
-        r2_attempts: true,
-      },
-    });
+  let r2BacklogBatchSelected = 0;
+  let r2ParkedRecoverySelected = 0;
+  let r2ParkedRecoveryAttempted = 0;
+  let r2FailureBudgetExhausted = false;
 
-    if (backlogRows.length === 0) break;
-
-    // Mark every selected row as attempted BEFORE the mirror runs. Even
-    // if Promise.allSettled isolates a per-row throw or the mirror returns
-    // `failed`/`skipped`, the row will not be re-selected this invocation.
-    for (const row of backlogRows) {
-      attemptedBacklogIds.add(row.id);
-    }
-
+  // Mirror one already-sized chunk; returns the number of FAILED rows so the
+  // main drain can enforce its hard cap. Physical counters (r2Mirrored /
+  // r2Skipped / r2Failed) accumulate across BOTH queues.
+  type BacklogRowSel = {
+    id: bigint;
+    listing_id: string;
+    media_key: string | null;
+    media_type: string;
+    order: number;
+    media_url_original: string | null;
+    r2_key: string | null;
+    media_url_cached: string | null;
+    r2_attempts: number | null;
+  };
+  const mirrorChunk = async (
+    chunk: BacklogRowSel[],
+    recoveryAttempt = false,
+  ): Promise<number> => {
     const results = await Promise.allSettled(
-      backlogRows.map((row) => {
+      chunk.map((row) => {
         if (!row.media_key) {
           return Promise.resolve({
             status: "skipped" as const,
@@ -2713,22 +2875,99 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
             r2_attempts: row.r2_attempts,
           },
           mirrorDeps,
+          // Recovery rows: transient failures must not advance r2_attempts
+          // (the #534 policy sentinel lives above the threshold).
+          { recoveryAttempt },
         );
       }),
     );
-
+    let failedInChunk = 0;
     for (const r of results) {
       if (r.status === "fulfilled") {
         const v = r.value;
         if (v.status === "uploaded" || v.status === "reused") r2Mirrored++;
         else if (v.status === "skipped") r2Skipped++;
-        else if (v.status === "failed") r2Failed++;
+        else if (v.status === "failed") {
+          r2Failed++;
+          failedInChunk++;
+        }
       } else {
         // Promise itself rejected (mirrorMediaToR2 contract returns structured
         // results, but defensive — handle thrown anyway).
         r2Failed++;
+        failedInChunk++;
       }
     }
+    return failedInChunk;
+  };
+
+  if (remainingMs() > phase2ReserveMs) {
+    // Candidate-selection query 1 of <= 2: the bounded MAIN backlog.
+    // RC3: the `where` is the pure `buildR2BacklogWhere` (attempted-id
+    // exclusion list intentionally empty — there is no re-query to exclude
+    // from). Eligibility = active + missing-R2 + past-cooldown + not parked.
+    const backlogRows = (await prisma.listingMedia.findMany({
+      where: buildR2BacklogWhere(cooldownThreshold, []),
+      orderBy: [{ created_at: "asc" }, { id: "asc" }],
+      take: backlogBatchLimit,
+      select: backlogSelect,
+    })) as BacklogRowSel[];
+    r2BacklogBatchSelected = backlogRows.length;
+
+    // Candidate-selection query 2 of <= 2 (zero-or-one): parked recovery.
+    // Quota 0 disables (no query). Selection is read-only — no counter is
+    // ever reset; eligibility is pure code logic (exact-match, long
+    // cooldown, oldest-first deterministic).
+    let parkedRows: BacklogRowSel[] = [];
+    if (parkedRecoveryQuota > 0) {
+      parkedRows = (await prisma.listingMedia.findMany({
+        where: buildR2ParkedRecoveryWhere(new Date(now() - R2_PARKED_RECOVERY_COOLDOWN_MS)),
+        orderBy: [{ r2_last_attempt_at: "asc" }, { id: "asc" }],
+        take: parkedRecoveryQuota,
+        select: backlogSelect,
+      })) as BacklogRowSel[];
+    }
+    r2ParkedRecoverySelected = parkedRows.length;
+    // Defensive id de-dupe (the two wheres are disjoint on r2_attempts, but
+    // a free duplicate guard costs nothing).
+    const mainIds = new Set(backlogRows.map((r) => r.id));
+    parkedRows = parkedRows.filter((r) => !mainIds.has(r.id));
+
+    // 1. RESERVED parked chunk(s) FIRST — bounded by the quota itself.
+    //    `r2ParkedRecoveryAttempted` increments ONLY at actual hand-off to
+    //    mirrorMediaToR2 (selected > attempted ⇔ the time budget expired
+    //    before the reserved chunk could run).
+    for (let j = 0; j < parkedRows.length; j += R2_MIRROR_CONCURRENCY) {
+      if (remainingMs() <= phase2ReserveMs) break;
+      const chunk = parkedRows.slice(j, j + R2_MIRROR_CONCURRENCY);
+      r2ParkedRecoveryAttempted += chunk.length;
+      // parked failures: counted in r2Failed, NOT in the main cap; the
+      // recovery flag keeps transient failures from advancing r2_attempts.
+      await mirrorChunk(chunk, true);
+    }
+
+    // 2. MAIN drain with the HARD failure cap.
+    let mainFailed = 0;
+    let mainAttempted = 0;
+    let idx = 0;
+    while (idx < backlogRows.length) {
+      if (remainingMs() <= phase2ReserveMs) break; // time budget — Phase 4 finalize still runs
+      const failureAllowance = R2_RUN_FAILURE_BUDGET - mainFailed;
+      if (failureAllowance <= 0) break;
+      // HARD CAP: never hand more rows to the mirror than the remaining
+      // failure allowance — entering a chunk with 9 failures can add at
+      // most 1 more. Trade-off (accepted): near the cap the drain slows to
+      // small chunks; correctness of the cap beats throughput there.
+      const chunk = backlogRows.slice(idx, idx + Math.min(R2_MIRROR_CONCURRENCY, failureAllowance));
+      idx += chunk.length;
+      mainAttempted += chunk.length;
+      mainFailed += await mirrorChunk(chunk);
+    }
+    // Honest flag: the cap stopped the drain early ONLY if selected main
+    // rows were left unattempted. Reaching the cap exactly on the final
+    // row leaves nothing untouched → false.
+    r2FailureBudgetExhausted =
+      mainFailed >= R2_RUN_FAILURE_BUDGET && mainAttempted < backlogRows.length;
   }
 
   if (remainingMs() <= phase2ReserveMs && exitReason === "completed") {
@@ -2780,6 +3019,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     ghost_listing_ids: ghostListingIds,
     r2_mirrored: r2Mirrored,
     r2_failed: r2Failed,
+    r2_backlog_batch_selected: r2BacklogBatchSelected,
+    r2_parked_recovery_selected: r2ParkedRecoverySelected,
+    r2_parked_recovery_attempted: r2ParkedRecoveryAttempted,
+    r2_failure_budget_exhausted: r2FailureBudgetExhausted,
     r2_skipped: r2Skipped,
     backlog_remaining: backlogRemaining,
     duration_ms: now() - startTime,

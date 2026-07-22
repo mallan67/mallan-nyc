@@ -130,6 +130,15 @@ export async function GET(req: NextRequest) {
           summary_rows_inserted: result.summary_writes.rows_inserted,
           summary_rows_updated: result.summary_writes.rows_updated,
           summary_rows_failed: result.summary_writes.rows_failed,
+          // Phase 4 — bounded drain / reserved recovery observability (aggregate
+          // integers + one boolean; no URLs/ids). Persisted so ops can verify
+          // the bounded backlog, recovery fairness, and budget behavior from
+          // the durable audit log alone (same allowlist class as the Phase 3
+          // summary counters above).
+          r2_backlog_batch_selected: result.r2_backlog_batch_selected,
+          r2_parked_recovery_selected: result.r2_parked_recovery_selected,
+          r2_parked_recovery_attempted: result.r2_parked_recovery_attempted,
+          r2_failure_budget_exhausted: result.r2_failure_budget_exhausted,
           r2_mirrored: result.r2_mirrored,
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,
