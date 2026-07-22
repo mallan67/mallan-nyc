@@ -21,6 +21,7 @@ import {
   listingUpdateMateriallyUnchanged,
   mediaArraysMateriallyEqual,
   rawDataMateriallyEqual,
+  isRotatingFeedAssetUrl,
   LISTING_NON_MATERIAL_UPDATE_FIELDS,
 } from "../write-suppression";
 
@@ -365,5 +366,81 @@ describe("rawDataMateriallyEqual — raw_data with rotating Media[].MediaURL val
 
   it("both sides identical (no Media key at all) → EQUAL", () => {
     expect(rawDataMateriallyEqual({ ListPrice: 1 }, { ListPrice: 1 })).toBe(true);
+  });
+});
+
+// ── Provider detection MUST be hostname-scoped (Maya re-review, 2026-07-21) ──
+//
+// Substring matching over the WHOLE URL misclassified: stable URLs whose PATH
+// contains a provider-looking token ("trestle-building.jpg"), URLs whose QUERY
+// smuggles a provider host ("?redirect=api.cotality.com"), and look-alike
+// hosts ("notcotality.com"). Detection must parse the URL and inspect
+// URL.hostname ONLY, matching exact provider domains or dot-boundary
+// subdomains. Allowlist grounding:
+//   - `api.cotality.com` — LIVE-OBSERVED (the only host in the 2026-07-21
+//     authenticated probes: docs/superpowers/specs/evidence/
+//     2026-07-21-live-cotality-{contract,pagination}-probe.json on #544).
+//   - `*.corelogic.com` — DEFENSIVE/UNOBSERVED legacy (the production media
+//     proxy allowlists api-trestle.corelogic.com / api-prod.corelogic.com;
+//     deprecated hosts under the Cotality 2026 warranty — NOT seen in the
+//     live probes).
+
+describe("isRotatingFeedAssetUrl — hostname-scoped provider detection", () => {
+  it("live-observed provider host api.cotality.com → rotating provider", () => {
+    expect(isRotatingFeedAssetUrl("https://api.cotality.com/trestle/Media/x/0.jpg?sig=A")).toBe(true);
+  });
+
+  it("defensive legacy CoreLogic hosts (proxy-allowlisted, unobserved in live probes) → rotating provider", () => {
+    expect(isRotatingFeedAssetUrl("https://api-trestle.corelogic.com/trestle/Media/x/0.jpg?sig=A")).toBe(true);
+    expect(isRotatingFeedAssetUrl("https://api-prod.corelogic.com/trestle/Media/x/0.jpg?sig=A")).toBe(true);
+  });
+
+  it("provider-looking PATH token on a stable host → NOT a provider URL", () => {
+    expect(isRotatingFeedAssetUrl("https://cdn.example.com/photos/trestle-building.jpg?v=1")).toBe(false);
+  });
+
+  it("provider host smuggled in the QUERY → NOT a provider URL", () => {
+    expect(isRotatingFeedAssetUrl("https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=1")).toBe(false);
+  });
+
+  it("look-alike hosts (no dot boundary) → NOT provider URLs", () => {
+    expect(isRotatingFeedAssetUrl("https://notcotality.com/photo.jpg?sig=A")).toBe(false);
+    expect(isRotatingFeedAssetUrl("https://evilcorelogic.com/photo.jpg?sig=A")).toBe(false);
+  });
+
+  it("malformed URL → NOT a provider URL (falls back to exact compare → fail-closed CHANGED)", () => {
+    expect(isRotatingFeedAssetUrl("not a url at all")).toBe(false);
+  });
+});
+
+describe("hostname-scoped detection flows through the comparators", () => {
+  it("mediaArraysMateriallyEqual: stable host with 'trestle' in the PATH, ?v=1 vs ?v=2 → CHANGED", () => {
+    const stored = [{ url: "https://cdn.example.com/photos/trestle-building.jpg?v=1", mediaType: "Photo", order: 0 }];
+    const next = [{ url: "https://cdn.example.com/photos/trestle-building.jpg?v=2", mediaType: "Photo", order: 0 }];
+    expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
+  });
+
+  it("mediaArraysMateriallyEqual: provider host smuggled in the QUERY, &v=1 vs &v=2 → CHANGED", () => {
+    const stored = [{ url: "https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=1", mediaType: "Photo", order: 0 }];
+    const next = [{ url: "https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=2", mediaType: "Photo", order: 0 }];
+    expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
+  });
+
+  it("mediaArraysMateriallyEqual: look-alike host rotation is NOT treated as provider rotation → CHANGED", () => {
+    const stored = [{ url: "https://notcotality.com/x/0.jpg?sig=A", mediaType: "Photo", order: 0 }];
+    const next = [{ url: "https://notcotality.com/x/0.jpg?sig=B", mediaType: "Photo", order: 0 }];
+    expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
+  });
+
+  it("rawDataMateriallyEqual: stable-host Media URL with provider-looking path, ?v=1 vs ?v=2 → CHANGED", () => {
+    const a = { Media: [{ MediaURL: "https://cdn.example.com/photos/trestle-building.jpg?v=1", Order: 0 }] };
+    const b = { Media: [{ MediaURL: "https://cdn.example.com/photos/trestle-building.jpg?v=2", Order: 0 }] };
+    expect(rawDataMateriallyEqual(a, b)).toBe(false);
+  });
+
+  it("rawDataMateriallyEqual: query-smuggled provider host, &v=1 vs &v=2 → CHANGED", () => {
+    const a = { Media: [{ MediaURL: "https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=1", Order: 0 }] };
+    const b = { Media: [{ MediaURL: "https://cdn.example.com/photo.jpg?redirect=api.cotality.com&v=2", Order: 0 }] };
+    expect(rawDataMateriallyEqual(a, b)).toBe(false);
   });
 });

@@ -206,12 +206,40 @@ export function listingUpdateMateriallyUnchanged(
   }
 }
 
-/** Hosts whose media URLs carry rotating signed queries (query != identity). */
-const ROTATING_MEDIA_URL_HOSTS = ["cotality.com", "corelogic.com", "trestle"];
+/**
+ * Provider DOMAINS whose media URLs carry rotating signed queries
+ * (query != identity). HOSTNAME-scoped: detection parses the URL and
+ * inspects `URL.hostname` ONLY, matching an exact domain or a dot-boundary
+ * subdomain — NEVER a substring over the full URL (a stable URL whose path
+ * or query merely contains a provider-looking token must stay stable).
+ *
+ * Allowlist grounding (Maya re-review 2026-07-21):
+ *   - `cotality.com` — LIVE-OBSERVED. The 2026-07-21 authenticated Phase-0
+ *     probes (docs/superpowers/specs/evidence/
+ *     2026-07-21-live-cotality-contract-probe.json and
+ *     2026-07-21-live-cotality-pagination-probe.json on the #544 branch)
+ *     contain exactly one media/API host: `api.cotality.com`.
+ *   - `corelogic.com` — DEFENSIVE / NOT observed in those live probes. The
+ *     production media proxy (app/api/media/proxy/route.ts) still allowlists
+ *     the deprecated `api-trestle.corelogic.com` / `api-prod.corelogic.com`
+ *     hosts ("old media URLs still work through 2026 warranty per Cotality
+ *     email"), so stored legacy URLs may legitimately carry this domain.
+ */
+const ROTATING_MEDIA_URL_PROVIDER_DOMAINS = ["cotality.com", "corelogic.com"];
+
+function hostnameMatchesProviderDomain(hostname: string, domain: string): boolean {
+  return hostname === domain || hostname.endsWith("." + domain);
+}
 
 export function isRotatingFeedAssetUrl(url: string): boolean {
-  const lower = url.toLowerCase();
-  return ROTATING_MEDIA_URL_HOSTS.some((h) => lower.includes(h));
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return ROTATING_MEDIA_URL_PROVIDER_DOMAINS.some((d) => hostnameMatchesProviderDomain(hostname, d));
+  } catch {
+    // Malformed URL → NOT a provider URL → exact compare downstream
+    // (fail-closed: any difference stays a material change).
+    return false;
+  }
 }
 
 /**
