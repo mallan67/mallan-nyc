@@ -67,9 +67,13 @@ export function cotalityOutcomeCell(
   rowsWithErrors: number | null,
 ): { status: HealthStatus; evidence: string } {
   if (!lastRunStatus) return { status: "⚪", evidence: "no sync_state Property outcome recorded" };
-  const errs = typeof rowsWithErrors === "number" && Number.isFinite(rowsWithErrors) ? rowsWithErrors : 0;
-  if (lastRunStatus === "error") return { status: "🔴", evidence: `last_run_status=error (rows_with_errors=${errs})` };
-  if (lastRunStatus === "partial" || errs > 0) return { status: "🟡", evidence: `last_run_status=${lastRunStatus}, rows_with_errors=${errs}` };
+  // Fail-closed on a MISSING error counter (Codex #552): NULL is "unrecorded",
+  // never a fabricated zero — an ok run without a recorded counter is 🟡.
+  const errsRecorded = typeof rowsWithErrors === "number" && Number.isFinite(rowsWithErrors);
+  const errs = errsRecorded ? (rowsWithErrors as number) : null;
+  if (lastRunStatus === "error") return { status: "🔴", evidence: `last_run_status=error (rows_with_errors=${errs ?? "unrecorded"})` };
+  if (lastRunStatus === "partial" || (errs !== null && errs > 0)) return { status: "🟡", evidence: `last_run_status=${lastRunStatus}, rows_with_errors=${errs ?? "unrecorded"}` };
+  if (lastRunStatus === "ok" && errs === null) return { status: "🟡", evidence: "last_run_status=ok but rows_with_errors unrecorded (fail-closed)" };
   if (lastRunStatus === "ok") return { status: "🟢", evidence: "last_run_status=ok, rows_with_errors=0" };
   return { status: "⚪", evidence: `unrecognized last_run_status=${lastRunStatus}` };
 }

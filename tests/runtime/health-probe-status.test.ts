@@ -79,6 +79,12 @@ describe("cotalityOutcomeCell — last-run OUTCOME is a separate cell from attem
   it("unknown/null → ⚪ (never green by default)", () => {
     expect(cotalityOutcomeCell(null, null).status).toBe("⚪");
   });
+  it("ok with UNRECORDED rows_with_errors (NULL) → 🟡, never green on a fabricated zero (Codex #552)", () => {
+    const cell = cotalityOutcomeCell("ok", null);
+    expect(cell.status).toBe("🟡");
+    expect(cell.evidence).toContain("unrecorded");
+    expect(cell.evidence).not.toContain("rows_with_errors=0");
+  });
 });
 describe("probe.ts — emits BOTH attempt-freshness and last-run-outcome cells", () => {
   const probeSrc = fs2.readFileSync(path2.resolve(__dirname, "../../scripts/health/probe.ts"), "utf8");
