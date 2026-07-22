@@ -81,7 +81,7 @@ export async function scoreSellerLead(sellerLeadId: bigint): Promise<ScoredResul
   const existingSignals = await prisma.readinessSignal.findMany({
     where: {
       seller_lead_id: sellerLeadId,
-      source: { in: ['acris', 'dob'] },
+      source: { not: 'first_party' } // EXACT complement of the persistable filter — covers dof + any future source (Codex post-merge),
     },
     select: {
       signal_type: true,
@@ -103,7 +103,7 @@ export async function scoreSellerLead(sellerLeadId: bigint): Promise<ScoredResul
           prisma.readinessSignal.deleteMany({
             where: {
               seller_lead_id: sellerLeadId,
-              source: { in: ['acris', 'dob'] },
+              source: { not: 'first_party' } // EXACT complement of the persistable filter — covers dof + any future source (Codex post-merge),
             },
           }),
           // Insert new signals

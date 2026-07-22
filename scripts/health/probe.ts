@@ -169,8 +169,13 @@ async function main(): Promise<void> {
       try {
         const total = await prisma.listing.count();
         const archived = await prisma.listing.count({ where: { sync_status: "archived" } });
-        const latest = await prisma.listing.aggregate({ _max: { last_synced_from_trestle: true } });
-        const last = latest._max.last_synced_from_trestle;
+        // Freshness = the RUN-ATTEMPT clock (SyncState.last_run_at), NOT
+        // MAX(listings.last_synced_from_trestle): Phase 3 write-suppression
+        // stops bumping per-row telemetry on unchanged listings, so a
+        // quiet-but-healthy feed would age the row-level max into yellow/red
+        // (Codex post-merge review). last_run_at advances on every attempt.
+        const propertySync = await prisma.syncState.findUnique({ where: { resource: "Property" } });
+        const last = propertySync?.last_run_at ?? null;
         const ageMin = last ? Math.round((Date.now() - new Date(last).getTime()) / 60000) : null;
         const fresh = cotalityFreshnessCell(ageMin);
         add("Cotality ingestion freshness", fresh.status, fresh.evidence);

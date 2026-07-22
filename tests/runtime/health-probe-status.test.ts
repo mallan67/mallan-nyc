@@ -48,3 +48,17 @@ describe('cotalityFreshnessCell — ingestion freshness', () => {
   it('>120m → 🔴', () => expect(cotalityFreshnessCell(200).status).toBe('🔴'));
   it('null (no timestamp) → ⚪', () => expect(cotalityFreshnessCell(null).status).toBe('⚪'));
 });
+
+// ── Codex post-merge review: freshness must come from the run-attempt clock ──
+import * as fs2 from "node:fs";
+import * as path2 from "node:path";
+describe("probe.ts — Cotality ingestion freshness source (attempt-time, suppression-safe)", () => {
+  const probeSrc = fs2.readFileSync(path2.resolve(__dirname, "../../scripts/health/probe.ts"), "utf8");
+  it("reads SyncState (Property) last_run_at — the run-attempt clock that advances on quiet-but-healthy syncs", () => {
+    expect(probeSrc).toMatch(/syncState/);
+    expect(probeSrc).toMatch(/last_run_at/);
+  });
+  it("does NOT derive freshness from MAX(last_synced_from_trestle) — Phase 3 suppression stops bumping it on unchanged listings", () => {
+    expect(probeSrc).not.toMatch(/_max:s*{s*last_synced_from_trestle/);
+  });
+});

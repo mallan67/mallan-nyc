@@ -1503,6 +1503,10 @@ export function buildR2BacklogWhere(
   return {
     status: "active",
     media_url_original: { not: null },
+    // Unmirrorable rows (media_key IS NULL — schema-legal on legacy/remediation
+    // rows) can never be written by the mirror (update-by-media_key), so they
+    // would monopolize the fixed bounded window forever (Codex post-merge).
+    media_key: { not: null },
     OR: [{ r2_key: null }, { media_url_cached: null }],
     // Exclude rows already attempted this invocation (empty ⇒ no filter).
     ...(attemptedIds.length > 0 ? { id: { notIn: attemptedIds } } : {}),
@@ -1597,6 +1601,7 @@ export function buildR2ParkedRecoveryWhere(
   return {
     status: "active",
     media_url_original: { not: null },
+    media_key: { not: null }, // unmirrorable rows never re-admitted (Codex post-merge)
     OR: [{ r2_key: null }, { media_url_cached: null }],
     // EXACT match — see doc above (#534 policy sentinel lives at 9+).
     r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD,
