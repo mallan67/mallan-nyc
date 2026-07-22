@@ -537,14 +537,38 @@ export interface UpsertListingMediaResult {
   /** Total DB rows tombstoned. INVARIANT: tombstoned === tombstonedExplicit + tombstonedVanished. */
   tombstoned: number;
 
+  // ── Phase 3 bounded write counters ──
+  /** Existing rows evaluated for suppression (= existingRowsCompared). */
+  rowsChecked: number;
+  /**
+   * TRUE physical listing_media writes this call = inserts + material updates +
+   * delivery-URL refreshes + explicit tombstones + vanished tombstones. This is
+   * the count the run's `rows_updated` telemetry must reflect.
+   */
+  physicalWrites: number;
+  /** Non-tombstone create/update writes only (inserted + updatedChanged + deliveryUrlRefreshed). */
+  nonTombstoneRowsWritten: number;
+  /**
+   * Material-unchanged rows written SOLELY to refresh a not-yet-mirrored URL
+   * (r2_key/media_url_cached empty/null). Preserves delivery correctness.
+   */
+  deliveryUrlRefreshed: number;
+  /**
+   * PROOF counter — rows SUPPRESSED whose incoming row differed ONLY by a
+   * rotated signed URL (material-unchanged AND already delivered).
+   */
+  suppressedUrlRotationOnly: number;
+  /** Per-row create/update failures — counted and isolated (row skipped, batch continues). */
+  writeFailures: number;
+
   // ── #541 comparator-attribution diagnostic (aggregate counts only) ──
   // Decision-preserving: derived alongside the unchanged decision, never
   // controlling it. INVARIANTS (per successful aggregation):
-  //   existingRowsCompared === skippedUnchanged + rowsWithOneMismatch + rowsWithMultipleMismatches
+  //   existingRowsCompared === skippedUnchanged + deliveryUrlRefreshed + rowsWithOneMismatch + rowsWithMultipleMismatches
   //   updatedChanged       === rowsWithOneMismatch + rowsWithMultipleMismatches
-  //   mismatchMediaUrlExact === mismatchMediaUrlIdentity + mismatchMediaUrlIdentityEquivalent
+  //   mismatchMediaUrlExact === mismatchMediaUrlIdentity + mismatchMediaUrlIdentityEquivalent  (observability; NOT in baseMismatchCount)
   //   0 <= each mismatch counter <= existingRowsCompared
-  /** Existing rows the guard evaluated (skipped + changed) — the attribution universe. */
+  /** Existing rows the guard evaluated (skipped + refreshed + changed) — the attribution universe. */
   existingRowsCompared: number;
   mismatchStatus: number;
   mismatchListingId: number;
@@ -610,6 +634,28 @@ export interface ExistingMediaRowForCompare {
   media_modification_ts: Date | null;
   modification_ts: Date | null;
   status: string;
+  /** Delivery-artifact: R2 object key. Empty/null ⇒ not yet mirrored. READ-only here. */
+  r2_key: string | null;
+  /** Delivery-artifact: public R2 URL. Empty/null ⇒ not yet mirrored. READ-only here. */
+  media_url_cached: string | null;
+}
+
+/**
+ * A row is "delivered" when it has BOTH R2 artifacts as NON-EMPTY strings —
+ * mirrors the backlog-eligibility definition (missing r2_key/media_url_cached ⇒
+ * still backlog). Only delivered rows may have a URL-only rewrite suppressed; an
+ * un-delivered row still needs its fresh signed URL for the R2 backlog fetch.
+ * Empty strings are treated as NOT delivered (defensive — a blank key/URL is not
+ * a usable delivery artifact even if the column is technically non-null).
+ */
+export function mediaRowDelivered(existing: {
+  r2_key: string | null;
+  media_url_cached: string | null;
+}): boolean {
+  return (
+    typeof existing.r2_key === "string" && existing.r2_key.trim() !== "" &&
+    typeof existing.media_url_cached === "string" && existing.media_url_cached.trim() !== ""
+  );
 }
 
 /** Date equality that treats null==null and compares by instant otherwise. */
@@ -644,7 +690,11 @@ export function listingMediaRowUnchanged(
     existing.listing_id === listingId &&
     existing.resource_record_key === row.resourceRecordKey &&
     existing.resource_record_id === row.resourceRecordID &&
-    existing.media_url_original === row.mediaUrlOriginal &&
+    // media_url_original EXCLUDED (Phase 3): the signed Trestle MediaURL rotates
+    // on every request, so it is never identity/material — comparing it caused
+    // the 100%-write churn this guard now prevents. Suppression of a
+    // material-unchanged row is additionally gated on delivery state at the
+    // decision site (mediaRowDelivered) so an un-mirrored row still refreshes.
     existing.media_type === row.mediaType &&
     existing.media_category === row.mediaCategory &&
     existing.media_classification === row.mediaClassification &&
@@ -735,9 +785,11 @@ export function classifyMediaRowMismatch(
     media_url_identity_equivalent = !identityDiffers;
   }
 
+  // Phase 3: the URL is EXCLUDED from the material count (it rotates every
+  // request). `media_url_exact` remains available as observability only.
   const baseMismatchCount =
     Number(status) + Number(listing_id) + Number(resource_record_key) + Number(resource_record_id) +
-    Number(media_url_exact) + Number(media_type) + Number(media_category) + Number(media_classification) +
+    Number(media_type) + Number(media_category) + Number(media_classification) +
     Number(order) + Number(preferred_photo_yn) + Number(media_modification_ts) + Number(modification_ts);
 
   return {
@@ -831,6 +883,9 @@ export async function upsertListingMedia(
   let inserted = 0;
   let updatedChanged = 0;
   let skippedUnchanged = 0;
+  let deliveryUrlRefreshed = 0; // material-unchanged but written to refresh a not-yet-mirrored URL
+  let suppressedUrlRotationOnly = 0; // suppressed rows whose only diff was a rotated URL (write-reduction proof)
+  let writeFailures = 0; // per-row create/update failures (isolated; batch continues, listing fails closed)
   // #541 comparator-attribution diagnostic — aggregate counts only, derived
   // ALONGSIDE the decision, never controlling it.
   const attr = {
@@ -876,6 +931,10 @@ export async function upsertListingMedia(
         media_modification_ts: true,
         modification_ts: true,
         status: true,
+        // Phase 3: delivery-artifact columns — READ only, to gate URL-refresh
+        // suppression (never written here; the R2 mirror path owns their writes).
+        r2_key: true,
+        media_url_cached: true,
       },
     });
     if (existing) {
@@ -899,57 +958,87 @@ export async function upsertListingMedia(
       if (mm.baseMismatchCount === 1) attr.rowsWithOneMismatch += 1;
       else if (mm.baseMismatchCount >= 2) attr.rowsWithMultipleMismatches += 1;
 
-      // DECISION — unchanged from #530/#541 (sole authority for the write).
-      if (listingMediaRowUnchanged(existing, row, listingId)) {
+      // DECISION (Phase 3). The URL is excluded from `listingMediaRowUnchanged`
+      // (it rotates every request). A material-unchanged row is SUPPRESSED only
+      // when it is already delivered to R2 — an un-mirrored row still needs its
+      // fresh signed URL because the R2 backlog path reuses the stored
+      // `media_url_original` to fetch. Deleted/replaced rows are never
+      // "unchanged" (status must flip back to active → resurrect preserved).
+      const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
+      if (materialUnchanged && mediaRowDelivered(existing)) {
         skippedUnchanged++;
-        continue; // byte-identical active row → skip the no-op write
+        if (mm.media_url_exact) suppressedUrlRotationOnly++; // suppressed a rotated-URL-only diff
+        continue; // no material change + already delivered → skip the write
       }
-      await prisma.listingMedia.update({
-        where: { media_key: row.mediaKey },
-        data: {
-          listing_id: listingId,
-          resource_record_key: row.resourceRecordKey,
-          resource_record_id: row.resourceRecordID,
-          media_url_original: row.mediaUrlOriginal,
-          media_type: row.mediaType,
-          media_category: row.mediaCategory,
-          media_classification: row.mediaClassification,
-          order: row.order,
-          preferred_photo_yn: row.preferredPhotoYN,
-          media_modification_ts: row.mediaModificationTs,
-          modification_ts: row.modificationTs,
-          photos_change_ts_snapshot: row.photosChangeTsSnapshot,
-          status: "active",
-        },
-      });
-      updatedChanged++;
+      try {
+        await prisma.listingMedia.update({
+          where: { media_key: row.mediaKey },
+          data: {
+            listing_id: listingId,
+            resource_record_key: row.resourceRecordKey,
+            resource_record_id: row.resourceRecordID,
+            media_url_original: row.mediaUrlOriginal,
+            media_type: row.mediaType,
+            media_category: row.mediaCategory,
+            media_classification: row.mediaClassification,
+            order: row.order,
+            preferred_photo_yn: row.preferredPhotoYN,
+            media_modification_ts: row.mediaModificationTs,
+            modification_ts: row.modificationTs,
+            photos_change_ts_snapshot: row.photosChangeTsSnapshot,
+            status: "active",
+          },
+        });
+        // A genuine material change vs. a delivery-only URL refresh (material
+        // unchanged but not yet mirrored → the fresh URL is genuinely needed).
+        if (materialUnchanged) deliveryUrlRefreshed++;
+        else updatedChanged++;
+      } catch {
+        // Isolate the failure to this row — count it and continue so one bad
+        // write cannot drop the rest of the listing's media. No URL/id logged.
+        writeFailures++;
+        continue;
+      }
     } else {
-      await prisma.listingMedia.create({
-        data: {
-          listing_id: listingId,
-          media_key: row.mediaKey,
-          resource_record_key: row.resourceRecordKey,
-          resource_record_id: row.resourceRecordID,
-          media_url_original: row.mediaUrlOriginal,
-          media_type: row.mediaType,
-          media_category: row.mediaCategory,
-          media_classification: row.mediaClassification,
-          order: row.order,
-          preferred_photo_yn: row.preferredPhotoYN,
-          media_modification_ts: row.mediaModificationTs,
-          modification_ts: row.modificationTs,
-          photos_change_ts_snapshot: row.photosChangeTsSnapshot,
-          status: "active",
-        },
-      });
-      inserted++;
+      try {
+        await prisma.listingMedia.create({
+          data: {
+            listing_id: listingId,
+            media_key: row.mediaKey,
+            resource_record_key: row.resourceRecordKey,
+            resource_record_id: row.resourceRecordID,
+            media_url_original: row.mediaUrlOriginal,
+            media_type: row.mediaType,
+            media_category: row.mediaCategory,
+            media_classification: row.mediaClassification,
+            order: row.order,
+            preferred_photo_yn: row.preferredPhotoYN,
+            media_modification_ts: row.mediaModificationTs,
+            modification_ts: row.modificationTs,
+            photos_change_ts_snapshot: row.photosChangeTsSnapshot,
+            status: "active",
+          },
+        });
+        inserted++;
+      } catch {
+        writeFailures++;
+        continue;
+      }
     }
   }
 
   let tombstonedExplicit = 0;
   let tombstonedVanished = 0;
 
-  if (explicitDeleteKeys.size > 0) {
+  // FAIL-CLOSED (Phase 3): if ANY per-row upsert write failed, this listing's
+  // media set did not fully persist. A partial listing must NOT execute any
+  // DESTRUCTIVE reconciliation — a write failure could make a still-present row
+  // look "vanished". Skip all tombstoning; the run-level caller also halts the
+  // cursor on writeFailures>0, so the listing re-processes (idempotently) next
+  // run and tombstones only once every write succeeded.
+  const tombstoningAllowed = writeFailures === 0;
+
+  if (tombstoningAllowed && explicitDeleteKeys.size > 0) {
     const res = await prisma.listingMedia.updateMany({
       where: {
         listing_id: listingId,
@@ -961,7 +1050,7 @@ export async function upsertListingMedia(
     tombstonedExplicit = res.count;
   }
 
-  if (options.tombstoneVanished === true) {
+  if (tombstoningAllowed && options.tombstoneVanished === true) {
     const seenKeys = new Set<string>([
       ...mapped.map((r) => r.mediaKey),
       ...explicitDeleteKeys,
@@ -1001,6 +1090,17 @@ export async function upsertListingMedia(
     tombstonedExplicit,
     tombstonedVanished,
     tombstoned: tombstonedExplicit + tombstonedVanished,
+    // Phase 3 bounded counters.
+    rowsChecked: attr.existingRowsCompared, // existing rows evaluated for suppression
+    // TRUE physical listing_media writes: inserts + material updates + delivery
+    // refreshes + BOTH tombstone kinds (tombstones ARE physical updateMany writes).
+    physicalWrites:
+      inserted + updatedChanged + deliveryUrlRefreshed + tombstonedExplicit + tombstonedVanished,
+    // Non-tombstone create/update writes only (inserts + material + refresh).
+    nonTombstoneRowsWritten: inserted + updatedChanged + deliveryUrlRefreshed,
+    deliveryUrlRefreshed,
+    suppressedUrlRotationOnly,
+    writeFailures,
     ...attr,
   };
 }
@@ -1668,8 +1768,11 @@ export interface RunMediaSyncResult {
   exit_reason: "completed" | "budget_phase1" | "budget_phase2" | "source_error";
   rows_checked: number;
   /**
-   * LEGACY aggregate retained for dashboard continuity:
-   * `rows_updated === rows_inserted + rows_updated_changed`.
+   * PHYSICAL listing_media writes this run — ONE precise meaning (Phase 3):
+   *   rows_updated === rows_inserted + rows_updated_changed
+   *                    + (delivery-URL refreshes) + tombstoned_explicit + tombstoned_vanished.
+   * i.e. every create, update, delivery-refresh, and tombstone updateMany row.
+   * (Pre-Phase-3 this excluded delivery refreshes and tombstones.)
    */
   rows_updated: number;
   // ── #530 detailed cumulative outcome ledger (summed across all listings this
@@ -2222,7 +2325,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstonedExplicit += upsertResult.tombstonedExplicit;
       tombstonedVanished += upsertResult.tombstonedVanished;
       rowsTombstoned += upsertResult.tombstoned;
-      rowsUpdated += upsertResult.inserted + upsertResult.updatedChanged; // legacy aggregate retained
+      // media_sync_state.rows_updated = TRUE physical listing_media writes:
+      // inserts + material updates + delivery-URL refreshes + BOTH tombstone
+      // kinds (tombstones are physical updateMany writes). One precise meaning.
+      rowsUpdated += upsertResult.physicalWrites;
       // #541 attribution (camelCase result → snake_case cumulative)
       attr.existing_rows_compared += upsertResult.existingRowsCompared;
       attr.mismatch_status += upsertResult.mismatchStatus;
@@ -2241,6 +2347,15 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       attr.mismatch_modification_ts += upsertResult.mismatchModificationTs;
       attr.rows_with_one_mismatch += upsertResult.rowsWithOneMismatch;
       attr.rows_with_multiple_mismatches += upsertResult.rowsWithMultipleMismatches;
+
+      // Phase 3: per-row write failures are isolated + counted INSIDE
+      // upsertListingMedia (bounded blast radius), but the listing is NOT fully
+      // persisted. Fail closed EXACTLY as a thrown write would have: halt the
+      // keyset watermark here (cursor never advances past incomplete media) and
+      // skip the summary. The listing re-processes (idempotently) next run.
+      if (upsertResult.writeFailures > 0) {
+        throw new Error("listing_media_write_incomplete");
+      }
 
       // Fail-loud: a summary failure throws → caught below → ok:false → the
       // keyset watermark will not advance past this listing (retried next run).

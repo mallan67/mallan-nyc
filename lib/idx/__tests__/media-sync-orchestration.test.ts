@@ -1642,6 +1642,9 @@ describe("runMediaSync — #530 detailed outcome accounting", () => {
         media_modification_ts: null,
         modification_ts: new Date("2026-05-08T12:00:00Z"),
         status: "active",
+        // Hotfix: already delivered to R2 → a rotated URL alone is suppressed.
+        r2_key: "photos/RLS20012345/MK-2/0.jpg",
+        media_url_cached: "https://cdn.mallan.nyc/photos/RLS20012345/MK-2/0.jpg",
       });
     mockListingMediaCreate.mockResolvedValueOnce(undefined);
 
@@ -1661,8 +1664,12 @@ describe("runMediaSync — #530 detailed outcome accounting", () => {
     expect(result.rows_inserted).toBe(1);
     expect(result.rows_skipped_unchanged).toBe(1);
     expect(result.rows_updated_changed).toBe(0);
-    // legacy aggregate retained
-    expect(result.rows_updated).toBe(result.rows_inserted + result.rows_updated_changed);
+    // Hotfix: rows_updated = PHYSICAL writes = inserts + material updates +
+    // delivery refreshes + tombstones. Here: 1 insert, 0 of everything else.
+    expect(result.rows_updated).toBe(1);
+    expect(result.rows_updated).toBe(
+      result.rows_inserted + result.rows_updated_changed + result.rows_tombstoned,
+    );
     // invariant
     expect(result.rows_tombstoned).toBe(result.tombstoned_explicit + result.tombstoned_vanished);
     // only MK-1 physically written; MK-2 suppressed
@@ -1770,5 +1777,154 @@ describe("runMediaSync — #530 detailed outcome accounting", () => {
     expect(result.mismatch_media_url_exact).toBe(
       result.mismatch_media_url_identity + result.mismatch_media_url_identity_equivalent,
     );
+  });
+});
+
+// ─── Hotfix — fail-closed on a per-row media write failure ─────────────────
+describe("runMediaSync — fail-closed on a per-row media write failure", () => {
+  it("a failed media write blocks tombstone, summary, completion AND cursor advance for that listing", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    // Existing row differs materially (order 9 vs incoming 1) → forces an UPDATE.
+    mockListingMediaFindUnique.mockResolvedValue({
+      listing_id: "RLS20012345",
+      resource_record_key: "1159000001",
+      resource_record_id: "RLS20012345",
+      media_url_original: "https://api.cotality.com/OLD",
+      media_type: "Photo", media_category: "Photo", media_classification: null,
+      order: 9, preferred_photo_yn: false,
+      media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"),
+      status: "active",
+      r2_key: "photos/RLS20012345/MK-1/0.jpg",
+      media_url_cached: "https://cdn.mallan.nyc/photos/RLS20012345/MK-1/0.jpg",
+    });
+    mockListingMediaUpdate.mockRejectedValue(new Error("db write failed"));
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS20012345", ListingKey: "1159000001", PhotosChangeTimestamp: "2026-05-08T12:00:00Z" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValueOnce([makeMediaInput({ MediaKey: "MK-1", Order: 1 })]),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps }));
+
+    expect(result.rows_failed).toBeGreaterThanOrEqual(1);
+    expect(result.listings_processed).toBe(0);
+    expect(result.status).toBe("partial");
+    expect(mockListingMediaUpdateMany).not.toHaveBeenCalled(); // NO tombstone on a partial listing
+    expect(mockListingUpdate).not.toHaveBeenCalled(); // NO summary write
+    // Cursor did NOT advance past the failed listing (null keyset watermark).
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    expect(upsertArgs.update.last_listing_key).toBeNull();
+  });
+});
+
+// ─── Hotfix — production-shape suppression (50 listings × 15 delivered) ─────
+describe("runMediaSync — production-shape suppression (50 listings × 15 delivered rows, URLs rotated)", () => {
+  it("only rotated URLs → zero listing_media writes, zero tombstoned rows, all suppressed, cursor advances", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    const LISTINGS = 50;
+    const PER = 15;
+    mockListingMediaFindUnique.mockImplementation(async (args) => {
+      const key = (args as { where: { media_key: string } }).where.media_key;
+      const m = key.match(/^L(\d+)-M(\d+)$/)!;
+      const li = m[1];
+      const r2 = `photos/RLS-${li}/${key}/0.jpg`;
+      return {
+        listing_id: `RLS-${li}`, resource_record_key: `K-${li}`, resource_record_id: `RLS-${li}`,
+        media_url_original: `https://api.cotality.com/OLD/${key}`,
+        media_type: "Photo", media_category: "Photo", media_classification: null,
+        order: Number(m[2]), preferred_photo_yn: false,
+        media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"),
+        status: "active", r2_key: r2, media_url_cached: `https://r2.example.com/${r2}`,
+      };
+    });
+    const properties = Array.from({ length: LISTINGS }, (_, i) =>
+      makeProperty({ ListingId: `RLS-${i}`, ListingKey: `K-${i}`, PhotosChangeTimestamp: "2026-05-08T12:00:00Z" }));
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce(properties),
+      fetchMedia: jest.fn().mockImplementation(async (listingKey: string) => {
+        const li = listingKey.replace("K-", "");
+        return Array.from({ length: PER }, (_, j) => makeMediaInput({
+          MediaKey: `L${li}-M${j}`, ResourceRecordKey: `K-${li}`, ResourceRecordID: `RLS-${li}`,
+          Order: j, MediaURL: `https://api.cotality.com/NEW/L${li}-M${j}`,
+        }));
+      }),
+    });
+
+    const result = await runMediaSync(makeOptions({
+      fetchDeps, listingsPerRun: LISTINGS, mediaPerListing: PER, budgetMs: 300_000,
+    }));
+
+    expect(result.rows_failed).toBe(0);
+    expect(result.listings_processed).toBe(LISTINGS);
+    expect(result.rows_checked).toBe(LISTINGS * PER); // 750 inspected
+    expect(result.rows_skipped_unchanged).toBe(LISTINGS * PER); // 750 suppressed
+    expect(result.rows_updated).toBe(0); // ZERO physical writes
+    expect(result.rows_tombstoned).toBe(0);
+    expect(mockListingMediaUpdate).not.toHaveBeenCalled();
+    expect(mockListingMediaCreate).not.toHaveBeenCalled();
+    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    expect(upsertArgs.update.last_listing_key).not.toBeNull();
+    // REPORTED: listing-summary writes STILL occur — one Listing.update per listing.
+    expect(mockListingUpdate).toHaveBeenCalledTimes(LISTINGS);
+  });
+});
+
+// ─── Hotfix — rows_updated is PHYSICAL writes incl. tombstones ─────────────
+describe("runMediaSync — rows_updated = physical writes including tombstones", () => {
+  it("insert + material update + delivery refresh + vanished tombstone all count in rows_updated", async () => {
+    mockMediaSyncFindUnique.mockResolvedValue({
+      last_photos_change: new Date("2026-05-01T00:00:00Z"),
+      last_media_modified: new Date("2026-05-01T00:00:00Z"),
+    });
+    const delivered = (over: Record<string, unknown>) => ({
+      listing_id: "RLS20012345", resource_record_key: "1159000001", resource_record_id: "RLS20012345",
+      media_url_original: "https://api.cotality.com/OLD",
+      media_type: "Photo", media_category: "Photo", media_classification: null,
+      order: 0, preferred_photo_yn: false,
+      media_modification_ts: null, modification_ts: new Date("2026-05-08T12:00:00Z"),
+      status: "active", r2_key: "photos/x/k/0.jpg", media_url_cached: "https://r2.example.com/photos/x/k/0.jpg",
+      ...over,
+    });
+    mockListingMediaFindUnique.mockImplementation(async (args) => {
+      const key = (args as { where: { media_key: string } }).where.media_key;
+      if (key === "MK-new") return null;
+      if (key === "MK-mat") return delivered({ order: 9 });
+      if (key === "MK-refresh") return delivered({ media_url_cached: null });
+      return delivered({});
+    });
+    mockListingMediaCreate.mockResolvedValue(undefined);
+    mockListingMediaUpdate.mockResolvedValue(undefined);
+    // The vanished-reconcile updateMany tombstones 2 rows.
+    mockListingMediaUpdateMany.mockResolvedValue({ count: 2 });
+
+    const fetchDeps = makeFetchDeps({
+      fetchProperties: jest.fn().mockResolvedValueOnce([
+        makeProperty({ ListingId: "RLS20012345", ListingKey: "K", PhotosChangeTimestamp: "2026-05-08T12:00:00Z" }),
+      ]),
+      fetchMedia: jest.fn().mockResolvedValueOnce([
+        makeMediaInput({ MediaKey: "MK-new", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-mat", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-refresh", Order: 0 }),
+        makeMediaInput({ MediaKey: "MK-sup", Order: 0 }),
+      ]),
+    });
+
+    const result = await runMediaSync(makeOptions({ fetchDeps, mediaPerListing: 5 }));
+
+    expect(result.rows_failed).toBe(0);
+    expect(result.rows_inserted).toBe(1);
+    expect(result.rows_updated_changed).toBe(1);
+    expect(result.rows_skipped_unchanged).toBe(1); // MK-sup
+    expect(result.rows_tombstoned).toBe(2);
+    // rows_updated = 1 insert + 1 material + 1 delivery refresh + 2 tombstones = 5.
+    expect(result.rows_updated).toBe(5);
   });
 });
