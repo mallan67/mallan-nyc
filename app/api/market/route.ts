@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
@@ -128,18 +129,28 @@ export async function GET(request: Request) {
       status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
     };
 
-    const activeListings = await prisma.listing.findMany({
-      where: activeWhere,
-      select: {
-        list_price: true,
-        living_area: true,
-        days_on_market: true,
-        first_active_date: true,
-        status: true,
-        created_at: true,
-        modification_timestamp: true,
-      },
-    });
+    // One Cycle W1 — anonymous public read served from the tagged data
+    // cache; the sync's `search` bump (or the 30-min fallback) refreshes it.
+    // NOTE (W3, reported): this query is UNBOUNDED (no take) — the caching
+    // layer removes its per-request repetition but deliberately does not
+    // change the query itself in this PR.
+    const activeListings = await cachedPublicRead(
+      () =>
+        prisma.listing.findMany({
+          where: activeWhere,
+          select: {
+            list_price: true,
+            living_area: true,
+            days_on_market: true,
+            first_active_date: true,
+            status: true,
+            created_at: true,
+            modification_timestamp: true,
+          },
+        }),
+      ['api-market-active', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
 
     // ── If DB has few results, supplement with live Trestle data ──
     let trestleActive: Record<string, unknown>[] = [];
@@ -234,12 +245,17 @@ export async function GET(request: Request) {
     const activeDom = allActiveDom;
 
     // Count new listings in the period
-    const newListingsCount = await prisma.listing.count({
-      where: {
-        ...activeWhere,
-        created_at: { gte: periodStart },
-      },
-    });
+    const newListingsCount = await cachedPublicRead(
+      () =>
+        prisma.listing.count({
+          where: {
+            ...activeWhere,
+            created_at: { gte: periodStart },
+          },
+        }),
+      ['api-market-new-count', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
 
     // Under contract count
     const underContractCount = activeListings.filter(l => l.status === 'ActiveUnderContract').length;
@@ -251,15 +267,20 @@ export async function GET(request: Request) {
       modification_timestamp: { gte: periodStart },
     };
 
-    const closedListings = await prisma.listing.findMany({
-      where: closedWhere,
-      select: {
-        list_price: true,
-        living_area: true,
-        features: true,
-        days_on_market: true,
-      },
-    });
+    const closedListings = await cachedPublicRead(
+      () =>
+        prisma.listing.findMany({
+          where: closedWhere,
+          select: {
+            list_price: true,
+            living_area: true,
+            features: true,
+            days_on_market: true,
+          },
+        }),
+      ['api-market-closed', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
 
     const closedPricesDb = closedListings
       .map(l => {
@@ -302,14 +323,19 @@ export async function GET(request: Request) {
     const neighborhoodMap = new Map<string, { count: number; totalPrice: number }>();
 
     // DB neighborhoods
-    const neighborhoodStats = await prisma.listing.groupBy({
-      by: ['neighborhood'],
-      where: activeWhere,
-      _count: { id: true },
-      _avg: { list_price: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 15,
-    });
+    const neighborhoodStats = await cachedPublicRead(
+      () =>
+        prisma.listing.groupBy({
+          by: ['neighborhood'],
+          where: activeWhere,
+          _count: { id: true },
+          _avg: { list_price: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 15,
+        }),
+      ['api-market-neighborhoods', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
 
     for (const n of neighborhoodStats) {
       if (!n.neighborhood) continue;

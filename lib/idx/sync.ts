@@ -22,6 +22,13 @@ import {
   newWritePathCounters,
   type WritePathCounters,
 } from "./write-suppression";
+import {
+  SEARCH_CACHE_TAG,
+  listingCacheTag,
+  newRevalidationCounters,
+  safeRevalidateTags,
+  type RevalidationCounters,
+} from "@/lib/cache/public-cache";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
@@ -347,6 +354,13 @@ export interface SyncWritePaths {
   listings: WritePathCounters;
   projections: WritePathCounters;
   batch_media: WritePathCounters;
+  /**
+   * One Cycle W1 — sync-driven cache revalidation accounting. The SAME run
+   * that materially changed data refreshes the anonymous public cache:
+   * `listing:{id}` per materially-changed listing (+ one coarse `search`
+   * bump per run when anything changed). Failures never fail the sync.
+   */
+  revalidation: RevalidationCounters;
 }
 
 export interface SyncResult {
@@ -427,6 +441,12 @@ export async function syncListings(
   const listingCounters = newWritePathCounters();
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
+
+  // One Cycle W1 — cache tags to revalidate at end of run. Only PHYSICAL
+  // writes add tags (the suppression comparators are the change oracle);
+  // an unchanged run revalidates NOTHING.
+  const revalidation = newRevalidationCounters();
+  const changedCacheTags = new Set<string>();
 
   // Correction 4 — fail-closed watermark bookkeeping. Each FAILED record's
   // cursor key (max of its MT/PCT instants) caps how far the persisted
@@ -650,6 +670,7 @@ export async function syncListings(
           listingCounters.rows_inserted++;
         }
         upserted++;
+        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
       }
 
       // 5. Dual-write the search projection (master refactor PR 5B).
@@ -711,6 +732,7 @@ export async function syncListings(
         } else {
           projectionCounters.rows_inserted++;
         }
+        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: projection changes affect search surfaces
       }
     } catch (err) {
       errors++;
@@ -889,6 +911,7 @@ export async function syncListings(
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
                 batchMediaCounters.rows_updated++;
+                changedCacheTags.add(listingCacheTag(listingId)); // W1: media changed → refresh cached page
               } catch (mediaRowErr) {
                 batchMediaCounters.rows_failed++;
                 console.warn(
@@ -909,6 +932,15 @@ export async function syncListings(
   }
 
   const durationMs = Date.now() - startTime;
+
+  // One Cycle W1 — sync-driven cache revalidation: refresh exactly what this
+  // run materially changed, plus ONE coarse `search` bump when anything
+  // changed. Failures are counted, never thrown (freshness self-heals via
+  // the 30-min fallback window).
+  if (changedCacheTags.size > 0) {
+    changedCacheTags.add(SEARCH_CACHE_TAG);
+    safeRevalidateTags(changedCacheTags, revalidation);
+  }
 
   // Audit log
   logger.durationMs = durationMs;
@@ -942,6 +974,9 @@ export async function syncListings(
             projections: projectionCounters,
             batch_media: batchMediaCounters,
           },
+          // One Cycle W1 — bounded aggregate revalidation counters.
+          pages_revalidated: revalidation.pages_revalidated,
+          revalidation_failures: revalidation.revalidation_failures,
         } as unknown as Prisma.InputJsonValue,
       },
     });
@@ -1069,6 +1104,7 @@ export async function syncListings(
       listings: listingCounters,
       projections: projectionCounters,
       batch_media: batchMediaCounters,
+      revalidation,
     },
   };
 
@@ -1102,6 +1138,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   errors: number;
   /** Phase 3 write-suppression accounting for the media updateMany writes. */
   write_path: WritePathCounters;
+  /** One Cycle W1 — bounded aggregate revalidation counters. */
+  pages_revalidated: number;
+  revalidation_failures: number;
 }> {
   const limit = options?.limit ?? 200;
   // Phase 3 (surface D): counters + suppression for the per-listing media
@@ -1169,7 +1208,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
   if (listings.length === 0) {
     console.log("[Media Backfill] No listings with empty media found");
-    return { checked: 0, updated: 0, errors: 0, write_path: writeCounters };
+    return { checked: 0, updated: 0, errors: 0, write_path: writeCounters, pages_revalidated: 0, revalidation_failures: 0 };
   }
 
   console.log(`[Media Backfill] Found ${listings.length} listings with empty media`);
@@ -1180,7 +1219,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     token = await getAccessToken();
   } catch {
     console.error("[Media Backfill] Failed to get Trestle token");
-    return { checked: listings.length, updated: 0, errors: 1, write_path: writeCounters };
+    return { checked: listings.length, updated: 0, errors: 1, write_path: writeCounters, pages_revalidated: 0, revalidation_failures: 0 };
   }
 
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
@@ -1196,6 +1235,10 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   const storedMediaByListingId = new Map<string, unknown>(
     listings.map((l) => [l.listing_id, l.media]),
   );
+
+  // One Cycle W1 — refresh cached pages for listings whose media we rewrite.
+  const revalidation = newRevalidationCounters();
+  const changedCacheTags = new Set<string>();
 
   for (let i = 0; i < listings.length; i += BATCH_SIZE) {
     const batch = listings.slice(i, i + BATCH_SIZE);
@@ -1279,6 +1322,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
           });
           writeCounters.rows_updated++;
           updated++;
+          changedCacheTags.add(listingCacheTag(listingId)); // W1
         } catch {
           writeCounters.rows_failed++;
           errors++;
@@ -1290,11 +1334,24 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     }
   }
 
+  // One Cycle W1 — media backfill changed card/detail imagery → refresh.
+  if (changedCacheTags.size > 0) {
+    changedCacheTags.add(SEARCH_CACHE_TAG);
+    safeRevalidateTags(changedCacheTags, revalidation);
+  }
+
   console.log(
     `[Media Backfill] Complete: checked=${listings.length}, updated=${updated}, ` +
       `suppressed_unchanged=${writeCounters.rows_suppressed_unchanged}, errors=${errors}`,
   );
-  return { checked: listings.length, updated, errors, write_path: writeCounters };
+  return {
+    checked: listings.length,
+    updated,
+    errors,
+    write_path: writeCounters,
+    pages_revalidated: revalidation.pages_revalidated,
+    revalidation_failures: revalidation.revalidation_failures,
+  };
 }
 
 /**
@@ -1603,6 +1660,10 @@ export async function syncAgentHistory(
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
 
+  // One Cycle W1 — see syncListings.
+  const revalidation = newRevalidationCounters();
+  const changedCacheTags = new Set<string>();
+
   for (const raw of fetchResult.records) {
     let writeStage: "listing" | "projection" = "listing";
     try {
@@ -1741,6 +1802,7 @@ export async function syncAgentHistory(
           listingCounters.rows_inserted++;
         }
         upserted++;
+        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
       }
 
       // 4. Dual-write the search projection (master refactor PR 5B).
@@ -1916,6 +1978,7 @@ export async function syncAgentHistory(
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
                 batchMediaCounters.rows_updated++;
+                changedCacheTags.add(listingCacheTag(listingId)); // W1
               } catch (mediaRowErr) {
                 batchMediaCounters.rows_failed++;
                 console.warn(
@@ -1936,6 +1999,12 @@ export async function syncAgentHistory(
   }
 
   const durationMs = Date.now() - startTime;
+
+  // One Cycle W1 — see syncListings.
+  if (changedCacheTags.size > 0) {
+    changedCacheTags.add(SEARCH_CACHE_TAG);
+    safeRevalidateTags(changedCacheTags, revalidation);
+  }
 
   // Audit log
   logger.durationMs = durationMs;
@@ -1983,6 +2052,7 @@ export async function syncAgentHistory(
       listings: listingCounters,
       projections: projectionCounters,
       batch_media: batchMediaCounters,
+      revalidation,
     },
   };
 

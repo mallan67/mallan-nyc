@@ -56,7 +56,12 @@ import { formatBathrooms } from '@/lib/format/bathrooms';
 
 // ISR — revalidate every 5 minutes so the synchronized Neon copy stays fresh
 // while the rendered page is CDN-cached.
-export const revalidate = 300;
+// One Cycle W1: the page can never be fresher than the feed sync (data
+// changes ONLY when One Cycle runs), so the ISR window equals the sync
+// cadence — identical effective freshness, ~6× fewer re-renders. Must stay a
+// LITERAL for Next's static analysis (= SYNC_CADENCE_SECONDS in
+// lib/cache/public-cache.ts).
+export const revalidate = 1800;
 export const maxDuration = 60;
 
 // Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,

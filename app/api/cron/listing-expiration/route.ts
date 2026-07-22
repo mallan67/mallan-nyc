@@ -7,6 +7,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { createNotification } from "@/lib/notifications/engine";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 import { sendEmail } from "@/lib/email/sendgrid";
@@ -306,6 +307,9 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // One Cycle W1 — an Expired exclusive must leave cached public surfaces
+    // in the SAME cycle (its idx_display_yn just flipped false above).
+    safeRevalidateTags([listingCacheTag(listing.listing_id), SEARCH_CACHE_TAG]);
     results.periods_created++;
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cachedPublicRead, listingCacheTag, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import { classifyMediaItem } from '@/lib/media/listing-media-resolver';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows, sameAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
@@ -70,6 +71,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ listings: [] });
   }
 
+  // One Cycle W1 — the full similar-comps computation (DB-first + Trestle
+  // fallback) is cached per parameter tuple and tagged so the SYNC that
+  // changes the data refreshes it. Anonymous read; JSON-safe payload; the
+  // wrapper fails closed to the live computation on any cache-layer error.
+  const payload = await cachedPublicRead(computeSimilarListings, ['api-listings-similar'], {
+    tags: [SEARCH_CACHE_TAG, ...(excludeId ? [listingCacheTag(excludeId)] : [])],
+  })({ type, beds, price, postalCode, excludeId, neighborhood, propertyType, propertySubType });
+  return NextResponse.json(payload);
+}
+
+interface SimilarParams {
+  type: string;
+  beds: number;
+  price: number;
+  postalCode: string;
+  excludeId: string;
+  neighborhood: string;
+  propertyType: string;
+  propertySubType: string;
+}
+
+async function computeSimilarListings(params: SimilarParams): Promise<Record<string, unknown>> {
+  const { type, beds, price, postalCode, excludeId, neighborhood, propertyType, propertySubType } = params;
   try {
     // ── DB-first: query local listings for similar properties ──
     const isRental = type === 'rent';
@@ -231,10 +255,10 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      return NextResponse.json({
+      return {
         listings,
         _compliance: { source: 'idx', attribution: 'REBNY RLS' },
-      });
+      };
     }
 
     // ── Trestle fallback if DB has fewer than 3 results ──
@@ -276,7 +300,7 @@ export async function GET(request: NextRequest) {
 
     if (!res.ok) {
       console.warn(`[/api/listings/similar] Trestle ZIP query failed: ${res.status}`);
-      return NextResponse.json({ listings: [] });
+      return { listings: [] };
     }
 
     const data = await res.json();
@@ -389,10 +413,10 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({
+    return {
       listings,
       _compliance: { source: 'idx', attribution: 'REBNY RLS' },
-    });
+    };
   } catch (err) {
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
     if (isTimeout) {
@@ -400,6 +424,6 @@ export async function GET(request: NextRequest) {
     } else {
       console.error('[/api/listings/similar] Error:', err);
     }
-    return NextResponse.json({ listings: [] });
+    return { listings: [] };
   }
 }

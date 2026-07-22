@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
 
@@ -120,6 +121,20 @@ export async function GET(req: NextRequest) {
         },
       })),
     });
+
+    // One Cycle W1 — a §2.05 removal must refresh the cached public pages in
+    // the SAME cycle (comfortably inside the 24h REBNY window). Failures are
+    // logged + counted, never thrown.
+    {
+      const revalidation = newRevalidationCounters();
+      safeRevalidateTags(
+        [...staleClosedListings.map((l) => listingCacheTag(l.listing_id)), SEARCH_CACHE_TAG],
+        revalidation,
+      );
+      console.log(
+        `[data-retention] cache revalidation: ${revalidation.pages_revalidated} tags, ${revalidation.revalidation_failures} failures`,
+      );
+    }
 
     // H1 Tier-2 dual-write — keep ListingSearchProjection.idx_display_yn in
     // lockstep with the Listing flip above. Without this, the projection

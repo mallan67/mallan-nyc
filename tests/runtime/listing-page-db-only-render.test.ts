@@ -69,7 +69,9 @@ describe('listing page renders from the synchronized Neon copy as ISR', () => {
   });
 
   it('keeps ISR revalidation enabled (so the CDN can cache the page)', () => {
-    expect(src).toMatch(/export const revalidate = 300/);
+    // One Cycle W1: ISR window = sync cadence (1800s) — same effective
+    // freshness, ~6x fewer renders.
+    expect(src).toMatch(/export const revalidate = 1800/);
   });
 
   it('exports generateStaticParams so the dynamic route enters the ISR pipeline', () => {

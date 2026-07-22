@@ -35,6 +35,7 @@ import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import {
   upsertListingMedia,
@@ -451,6 +452,9 @@ export async function GET(req: NextRequest) {
             // listing+audit transaction (matches lib/idx/sync.ts pattern of
             // sequential dual-write with no transaction). Failure is non-
             // fatal; ops:projection-backfill heals on next run.
+            // One Cycle W1 — an orphan-recovered listing goes public again in
+            // the SAME cycle. Never throws.
+            safeRevalidateTags([listingCacheTag(String(raw.ListingId)), SEARCH_CACHE_TAG]);
             try {
               await dualWriteProjectionForListingId(prisma, String(raw.ListingId));
             } catch (err) {
@@ -565,6 +569,9 @@ export async function GET(req: NextRequest) {
         // would leak publicly once PR 5B swaps the reader to the
         // projection. Failure is non-fatal; the listing row is already
         // correct so /api/listings stays gated.
+        // One Cycle W1 — a ghost-withdrawn listing's cached page must drop
+        // from public surfaces in the SAME cycle (§2.05). Never throws.
+        safeRevalidateTags([listingCacheTag(g.listing_id), SEARCH_CACHE_TAG]);
         try {
           await dualWriteProjectionForListingId(prisma, g.listing_id);
         } catch (projErr) {
