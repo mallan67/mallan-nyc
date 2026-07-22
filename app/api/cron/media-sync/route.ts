@@ -120,6 +120,16 @@ export async function GET(req: NextRequest) {
           rows_failed: result.rows_failed,
           listings_processed: result.listings_processed,
           listings_skipped: result.listings_skipped,
+          // Phase 3 surface C — summary-write suppression counters (flattened
+          // aggregate integers only; no URLs/ids). Persisted so ops can verify
+          // suppressed/updated/failed SUMMARY writes from the durable audit log
+          // alone after deploy (Codex #549 review — allowlist omission).
+          summary_rows_checked: result.summary_writes.rows_checked,
+          summary_rows_materially_changed: result.summary_writes.rows_materially_changed,
+          summary_rows_suppressed_unchanged: result.summary_writes.rows_suppressed_unchanged,
+          summary_rows_inserted: result.summary_writes.rows_inserted,
+          summary_rows_updated: result.summary_writes.rows_updated,
+          summary_rows_failed: result.summary_writes.rows_failed,
           r2_mirrored: result.r2_mirrored,
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,
