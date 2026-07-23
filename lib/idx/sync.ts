@@ -25,10 +25,12 @@ import {
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
+  buildingTagFromAddress,
   newRevalidationCounters,
   safeRevalidateTags,
   type RevalidationCounters,
 } from "@/lib/cache/public-cache";
+import { warmBuildingManifestShards, type ManifestWarmResult } from "@/lib/buildings/public-building-data";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
@@ -361,6 +363,14 @@ export interface SyncWritePaths {
    * bump per run when anything changed). Failures never fail the sync.
    */
   revalidation: RevalidationCounters;
+  /**
+   * Building-Neon-wake clustering: the ≤9 bounded manifest-shard refills run
+   * immediately after a FULLY SUCCESSFUL sync, while the compute is already
+   * awake — never scattered across the autosuspend window. Best-effort:
+   * failures are counted here and can never advance or corrupt feed state.
+   * null = warm-up skipped (run had errors).
+   */
+  building_manifest_warm?: ManifestWarmResult | null;
 }
 
 export interface SyncResult {
@@ -671,6 +681,12 @@ export async function syncListings(
         }
         upserted++;
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
+        {
+          // Building-Neon-wake: EXACT building revalidation — only THIS building's
+          // cached payload expires (per-building entries carry no coarse tag).
+          const bTag = buildingTagFromAddress(mapped.address);
+          if (bTag) changedCacheTags.add(bTag);
+        }
       }
 
       // 5. Dual-write the search projection (master refactor PR 5B).
@@ -733,6 +749,10 @@ export async function syncListings(
           projectionCounters.rows_inserted++;
         }
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: projection changes affect search surfaces
+        {
+          const bTag = buildingTagFromAddress(mapped.address); // Building-Neon-wake: exact building revalidation
+          if (bTag) changedCacheTags.add(bTag);
+        }
       }
     } catch (err) {
       errors++;
@@ -1091,6 +1111,24 @@ export async function syncListings(
     type: options.type || "all",
   });
 
+  // ── Building-Neon-wake clustering (AFTER the SyncState upsert, OUTSIDE its
+  // try/catch): refill the bounded manifest shards while the compute is
+  // already awake for this run. Only on a FULLY SUCCESSFUL run; failures are
+  // counted, never thrown — feed state is already committed above and cannot
+  // be advanced, blocked, or corrupted from here. If nothing changed this
+  // run (no coarse search bump), every call is a cache HIT: zero Neon work.
+  let buildingManifestWarm: ManifestWarmResult | null = null;
+  if (errors === 0) {
+    try {
+      buildingManifestWarm = await warmBuildingManifestShards();
+      console.log('[IDX Sync] building-manifest warm:', buildingManifestWarm);
+    } catch (warmErr) {
+      // Defense-in-depth: warmBuildingManifestShards never throws by design.
+      console.error('[IDX Sync] building-manifest warm-up error (non-fatal):', warmErr);
+      buildingManifestWarm = null;
+    }
+  }
+
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,
     upserted,
@@ -1105,6 +1143,7 @@ export async function syncListings(
       projections: projectionCounters,
       batch_media: batchMediaCounters,
       revalidation,
+      building_manifest_warm: buildingManifestWarm,
     },
   };
 
@@ -1803,6 +1842,10 @@ export async function syncAgentHistory(
         }
         upserted++;
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
+        {
+          const bTag = buildingTagFromAddress(mapped.address); // Building-Neon-wake: exact building revalidation
+          if (bTag) changedCacheTags.add(bTag);
+        }
       }
 
       // 4. Dual-write the search projection (master refactor PR 5B).

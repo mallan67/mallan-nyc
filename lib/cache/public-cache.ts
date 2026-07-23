@@ -46,8 +46,23 @@ export function listingCacheTag(listingId: string): string {
 }
 
 /**
- * Per-building tag (normalized street number + street name + optional zip).
- * Uppercased/trimmed so page-side and sync-side derivations agree.
+ * Street-name canonicalization for building tags — the SAME direction-prefix
+ * and suffix stripping the building payload uses for its Trestle/DB matching,
+ * so every derivation collapses to one tag:
+ *   link-side  "West 57th Street" → 57TH
+ *   raw stored "57TH"             → 57TH
+ *   variant    "W 57th St"        → 57TH
+ * Sync derives tags from the stored address atoms; pages derive them from the
+ * link query params — without this canon the two could differ and a sync
+ * revalidation would miss the page's entry (leaving it to the 30-min
+ * fallback). Rare residual mismatches still degrade to that fallback, never
+ * to a stale-forever entry.
+ */
+const TAG_DIR_PREFIXES = /^(N|S|E|W|NORTH|SOUTH|EAST|WEST)\b\s*/i;
+const TAG_SUFFIXES = /\s+(ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|PL|PLACE|CT|COURT|LN|LANE|WAY|TERRACE|TER)\.?$/i;
+
+/**
+ * Per-building tag (street number + CANONICALIZED street name + optional zip).
  */
 export function buildingCacheTag(
   streetNumber: string | null | undefined,
@@ -55,9 +70,28 @@ export function buildingCacheTag(
   postalCode?: string | null,
 ): string {
   const num = String(streetNumber ?? "").trim().toUpperCase();
-  const name = String(streetName ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  const name = String(streetName ?? "")
+    .trim()
+    .replace(TAG_DIR_PREFIXES, "")
+    .replace(TAG_SUFFIXES, "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
   const zip = String(postalCode ?? "").trim();
   return `building:${num}:${name}:${zip}`;
+}
+
+/**
+ * Derive the building tag from a stored listing `address` JSON (sync-side).
+ * Mirrors attachListingCacheTags' masked-address guard: a suppressed address
+ * (no street number / "Address Undisclosed") never forms a tag.
+ */
+export function buildingTagFromAddress(address: unknown): string | null {
+  const a = (address ?? null) as Record<string, unknown> | null;
+  const num = String(a?.StreetNumber ?? "").trim();
+  const name = String(a?.StreetName ?? "").trim();
+  if (!num || !name || name.toLowerCase() === "address undisclosed") return null;
+  return buildingCacheTag(num, name, String(a?.PostalCode ?? "").trim() || undefined);
 }
 
 /**

@@ -236,7 +236,11 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
     expect(tags).toContain("listing:RLS100002");
     expect(tags).not.toContain("listing:RLS100001"); // suppressed → untouched cache
     expect(tags.filter((t) => t === "search").length).toBe(1); // bumped ONCE per run
-    expect(result.write_paths.revalidation.pages_revalidated).toBe(2); // listing tag + search
+    // Building-Neon-wake: a materially changed listing ALSO revalidates its
+    // EXACT building tag (per-building cache entries carry no coarse tag,
+    // so the sync must name the buildings it actually changed).
+    expect(tags.some((t2) => t2.startsWith("building:"))).toBe(true);
+    expect(result.write_paths.revalidation.pages_revalidated).toBe(3); // listing + building + search
     expect(result.write_paths.revalidation.revalidation_failures).toBe(0);
   });
 
