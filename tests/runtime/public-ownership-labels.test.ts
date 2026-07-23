@@ -148,6 +148,50 @@ describe("neighborhood tab filter — propertyType param now honored on the DB p
   });
 });
 
+// ─── 4b. DB-path filter proof with EXACT params + listing IDs (Maya) ──────
+
+describe("DB-first path filter proof — exact request parameters and returned listing IDs", () => {
+  // Realistic RLS-style fixture set: 2 condos, 2 co-ops, 1 condop, 1 rental-
+  // building rental — the composition of a real neighborhood result page.
+  const FIXTURES = [
+    { id: "RLS20000001", propertyType: "Condo", ownershipLabel: "Condo" },
+    { id: "RLS20000002", propertyType: "Condo", ownershipLabel: "Condo" },
+    { id: "RLS20000003", propertyType: "Co-op", ownershipLabel: "Co-op" },
+    { id: "RLS20000004", propertyType: "Co-op", ownershipLabel: "Co-op" },
+    { id: "RLS20000005", propertyType: "Condop", ownershipLabel: "Condop" },
+    { id: "RLS20000006", propertyType: "Apartment", ownershipLabel: "Rental Building" },
+  ];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { applyPublicListingPostFilters } = require("@/lib/search/public-listing-db");
+  const run = (qs: string) =>
+    applyPublicListingPostFilters(FIXTURES, new Map(), new URLSearchParams(qs)).map((l: { id: string }) => l.id);
+
+  it("params: propertyType=Condo → ONLY [RLS20000001, RLS20000002] (Condop does NOT leak)", () => {
+    expect(run("propertyType=Condo")).toEqual(["RLS20000001", "RLS20000002"]);
+  });
+
+  it("params: propertyType=Co-op → ONLY [RLS20000003, RLS20000004]", () => {
+    expect(run("propertyType=Co-op")).toEqual(["RLS20000003", "RLS20000004"]);
+  });
+
+  it("the Condo and Co-op result sets are fully DISTINCT (the production defect: they were identical)", () => {
+    const condos = new Set(run("propertyType=Condo"));
+    const coops = run("propertyType=Co-op");
+    expect(coops.some((id: string) => condos.has(id))).toBe(false);
+  });
+
+  it("params: propertyType=Condop → ONLY [RLS20000005]; propertyType=Rental Building → ONLY [RLS20000006]", () => {
+    expect(run("propertyType=Condop")).toEqual(["RLS20000005"]);
+    expect(run("propertyType=Rental+Building")).toEqual(["RLS20000006"]);
+  });
+
+  it("propertyType is NOT silently ignored: filtered results differ from the unfiltered set", () => {
+    const all = run("");
+    expect(all).toHaveLength(6);
+    expect(run("propertyType=Condo")).not.toEqual(all);
+  });
+});
+
 // ─── 5. Surface rendering pins ─────────────────────────────────────────────
 
 describe("surface pins — every required public surface renders the canonical fields", () => {
