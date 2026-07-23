@@ -717,7 +717,7 @@ async function buildBuildingPayload(
         bathsHalf: Number(r.BathroomsHalf || 0),
         sqft: Number(r.LivingArea || 0),
         unit: String(r.UnitNumber || ''),
-        propertyType: String(r.PropertySubType || r.PropertyType || ''),
+        propertyType: mapPropertyTypeToDisplay(r.CommonInterest as string | undefined, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
         status: String(r.StandardStatus || r.MlsStatus || 'Active'),
         listingType,
@@ -781,7 +781,7 @@ async function buildBuildingPayload(
         sqft: Number(r.LivingArea || 0),
         unit: String(r.UnitNumber || ''),
         closeDate: r.CloseDate ? String(r.CloseDate) : null,
-        propertyType: String(r.PropertySubType || r.PropertyType || ''),
+        propertyType: mapPropertyTypeToDisplay(r.CommonInterest as string | undefined, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
         source: 'mls',
       });

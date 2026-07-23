@@ -134,6 +134,7 @@ function trestleRecords(num: string) {
     {
       ...base,
       ListingId: `TRE-${num}-R1`, ListingKey: `KEY-${num}-R1`,
+      CommonInterest: null, // rentals carry no ownership form — card stays 'Apartment'
       ListPrice: 6500, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0,
       LivingArea: 800, UnitNumber: "7A",
       PropertySubType: "Apartment", PropertyType: "Residential Lease",
@@ -232,6 +233,18 @@ async function legacyPayload(num: string, bn?: string) {
   const res = await legacyGET(new NextRequest(`https://mallan.nyc/api/buildings?${sp}`));
   return { status: res.status, body: await res.json() };
 }
+/** Maya-directed divergence (2026-07-23): unit-card propertyType now maps
+ *  through mapPropertyTypeToDisplay (Condo/Co-op/Condop — never raw
+ *  'Apartment' for ownership units). EVERYTHING ELSE stays byte-identical
+ *  to production, so the deep-equal strips ONLY that field and explicit
+ *  assertions below pin the new mapping. */
+function stripDirectedDivergence(p: Record<string, any>) {
+  const clone = JSON.parse(JSON.stringify(p));
+  for (const u of clone.activeUnits ?? []) delete u.propertyType;
+  for (const s of clone.saleHistory ?? []) delete s.propertyType;
+  return clone;
+}
+
 async function newPayload(num: string, bn?: string) {
   const body = await getBuildingDataCached({
     streetNumber: num, streetName: "East 90th Street", postalCode: "10128", buildingName: bn ?? null,
@@ -245,7 +258,7 @@ describe("building payload parity — legacy production route vs new shared acce
     const fresh = await newPayload("400");
     expect(legacy.status).toBe(200);
     // the complete public JSON shape — not merely success:true
-    expect(fresh).toEqual(legacy.body);
+    expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
   });
 
   it("explicit field classes on the SAME payloads (IDs, classification, counts, prices, photos, facts, amenities, pets, ACRIS, VOW, attribution)", async () => {
@@ -258,6 +271,10 @@ describe("building payload parity — legacy production route vs new shared acce
     expect(ids).toContain("SL-2001"); // CRM exclusive present via the manifest layer
     const byId = Object.fromEntries((fresh.activeUnits as Array<Record<string, any>>).map((u) => [u.mlsId, u]));
     expect(byId["TRE-400-S1"].listingType).toBe("sale");
+    // Maya 2026-07-23: ownership units display Condo/Co-op/Condop — never raw Apartment
+    expect(byId["TRE-400-S1"].propertyType).toBe("Condo");
+    expect(byId["TRE-400-CS1"].propertyType).toBe("Condo");
+    expect(byId["TRE-400-R1"].propertyType).toBe("Apartment"); // rental (no ownership form) unchanged
     expect(byId["TRE-400-R1"].listingType).toBe("rent");
     expect(byId["TRE-400-CS1"].status).toBe("ComingSoon");
 
@@ -297,7 +314,7 @@ describe("building payload parity — legacy production route vs new shared acce
     const legacy = await legacyPayload("500");
     const fresh = await newPayload("500");
     expect(legacy.status).toBe(200);
-    expect(fresh).toEqual(legacy.body);
+    expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
     // the CRM-only listing is absent in BOTH (DB layer down) — same degrade
     const ids = (fresh.activeUnits as Array<Record<string, unknown>>).map((u) => u.mlsId);
     expect(ids).not.toContain("SL-2001");
@@ -308,7 +325,7 @@ describe("building payload parity — legacy production route vs new shared acce
     const legacy = await legacyPayload("600");
     const fresh = await newPayload("600");
     expect(legacy.status).toBe(200);
-    expect(fresh).toEqual(legacy.body);
+    expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
     const ids = (fresh.activeUnits as Array<Record<string, unknown>>).map((u) => u.mlsId);
     expect(ids).toContain("SL-2001");
     expect(ids).not.toContain("TRE-600-S1");
@@ -318,7 +335,7 @@ describe("building payload parity — legacy production route vs new shared acce
     const legacy = await legacyPayload("700");
     const fresh = await newPayload("700");
     expect(legacy.status).toBe(200);
-    expect(fresh).toEqual(legacy.body);
+    expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
     expect((fresh.activeUnits as unknown[]).length).toBe(0);
   });
 
@@ -326,7 +343,7 @@ describe("building payload parity — legacy production route vs new shared acce
     // Trestle down for 600 → no BuildingName from feed; DB rows carry none.
     const legacy = await legacyPayload("600", "The Grand Alias");
     const fresh = await newPayload("600", "The Grand Alias");
-    expect(fresh).toEqual(legacy.body);
+    expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
     expect(fresh.building.name).toBe("The Grand Alias");
   });
 

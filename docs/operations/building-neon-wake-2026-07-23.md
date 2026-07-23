@@ -36,6 +36,10 @@ Every writer that can change building-visible inventory revalidates the EXACT bu
 
 All non-sync writers already bump SEARCH_CACHE_TAG, which the manifest shards also carry — so the manifest refreshes with the payload. Proof: A→B behavioral through real syncListings (both tags in one cycle); unchanged run = ZERO revalidations; cache-level eviction test (listing removed from ITS building payload while an unrelated building in the SAME shard stays cached, zero re-assembly); per-writer source pins. Red proof: 8 failures across 3 suites against pre-round code.
 
+## Maya-directed display correction (2026-07-23, mid-review)
+
+Unit cards must show the OWNERSHIP form — Condo / Co-op / Condop — never raw 'Apartment' for ownership units. The Trestle-sourced card path now routes through the canonical mapPropertyTypeToDisplay (CommonInterest-first), matching what the DB-sourced path already did; genuine rentals (no ownership form) keep 'Apartment' via the old value as fallback. This is the ONE deliberate payload divergence from production; the parity harness strips exactly this field from deep-equal and pins the new mapping explicitly (sale/coming-soon → Condo; rental → Apartment).
+
 ## Proof
 
 - **Payload parity** (`building-payload-parity.test.ts`, 7/7): the EXACT production route (frozen from main `c4ade4bd` as `tests/fixtures/legacy-buildings-route-c4ade4bd.ts`) vs the new accessor — **full-JSON equality**, plus explicit field classes (listing IDs, sale/rental/coming-soon classification, counts, prices, photos incl. never-floorplan-hero, name/address, facts, amenities, pet policy, ACRIS-only public sale history, VOW withholding + gatedRecordsCount, compliance attribution, metadata-driving fields) and identical null/error behavior (Neon down, Cotality down, both down, bn-decoration). All fixtures/mocks — zero production traffic.
