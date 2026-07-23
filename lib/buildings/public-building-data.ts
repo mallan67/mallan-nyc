@@ -18,6 +18,7 @@
  * instances), so the #523→#528 serialization hazard does not apply.
  */
 import { getPrimaryPhoto, classifyMediaItem } from '@/lib/media/listing-media-resolver';
+import { classifyOwnershipSignals } from '@/lib/listings/ownership';
 import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
@@ -498,28 +499,10 @@ function getBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
  * OwnershipType → building OwnershipType. Transaction type may group
  * sale-vs-rent and format prices, but NEVER overrides ownership.
  */
-export function classifyBuildingOwnership(signals: {
-  commonInterest?: string | null;
-  buildingCommonInterest?: string | null;
-  ownershipType?: string | null;
-  buildingOwnershipType?: string | null;
-}): 'Condo' | 'Co-op' | 'Condop' | 'Rental Building' | null {
-  const chain = [
-    signals.commonInterest,
-    signals.buildingCommonInterest,
-    signals.ownershipType,
-    signals.buildingOwnershipType,
-  ];
-  for (const v of chain) {
-    const s = String(v ?? '').toLowerCase().replace(/[^a-z]/g, '');
-    if (!s) continue;
-    if (s.includes('condop')) return 'Condop';
-    if (s.includes('condominium') || s === 'condo') return 'Condo';
-    if (s.includes('cooperative') || s === 'coop') return 'Co-op';
-    if (s.includes('rental') || s.includes('apartmentbuilding')) return 'Rental Building';
-  }
-  return null;
-}
+// RECONCILED (2026-07-23, #557): the classifier implementation now lives in
+// the ONE canonical ownership module — this alias keeps #556's public name
+// and test imports stable while eliminating duplicate ownership logic.
+export const classifyBuildingOwnership = classifyOwnershipSignals;
 
 /**
  * Unit-card display type. Ownership classification first (see above). When
