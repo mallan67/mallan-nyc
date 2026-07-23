@@ -99,6 +99,64 @@ export function cachedPublicRead<A extends unknown[], T>(
 }
 
 /**
+ * Codex P2 fix — attach listing/building cache tags to the CURRENT render's
+ * ISR route entry, so `revalidateTag` evicts the page HTML itself (not just
+ * the wrapped data caches).
+ *
+ * Version-semantics premise VERIFIED against the installed Next 16.2.4
+ * (never assumed):
+ *   - dist/server/web/spec-extension/unstable-cache.js L119-127: an
+ *     unstable_cache invocation ACCUMULATES its `tags` into the surrounding
+ *     render's workUnitStore.tags ("We need to accumulate the tags for this
+ *     invocation within the store").
+ *   - dist/server/app-render/app-render.js L900-902 + L1600-1601: those
+ *     collected tags become the ISR route entry's `metadata.fetchTags`, so
+ *     `revalidateTag(tag, "max")` expires the HTML of EVERY URL variant
+ *     that rendered this listing (id-form, canonical address-slug form, and
+ *     legacy alias forms alike — full variant coverage that enumerated
+ *     `revalidatePath` calls could never guarantee).
+ *
+ * The page's listing-data reads deliberately stay LIVE prisma reads inside
+ * the ISR render: routing them through the JSON data cache would corrupt
+ * Prisma Decimal/Date/BigInt shapes on cache hits — the exact class of
+ * ISR-runtime failure that forced the #523→#528 revert. This helper's tiny
+ * tagged entry (value = the tag list itself) is what places the tags on the
+ * route's dependency graph; the ISR render IS the cache for the page data.
+ *
+ * FAIL-OPEN for rendering: any error here leaves the page rendering live,
+ * with freshness then covered by the 30-min fallback window.
+ */
+export async function attachListingCacheTags(
+  listingId: string,
+  building?: {
+    streetNumber?: string | null;
+    streetName?: string | null;
+    postalCode?: string | null;
+  },
+): Promise<void> {
+  try {
+    if (!listingId) return;
+    const tags = [listingCacheTag(listingId)];
+    // Building tag only from REAL address atoms — a masked address
+    // ("Address Undisclosed" / empty street number) never forms a tag.
+    const num = building?.streetNumber?.trim();
+    const name = building?.streetName?.trim();
+    if (num && name && name.toLowerCase() !== "address undisclosed") {
+      tags.push(buildingCacheTag(num, name, building?.postalCode ?? undefined));
+    }
+    await unstable_cache(async () => tags, ["listing-tag-attach", listingId], {
+      tags,
+      revalidate: SYNC_CADENCE_SECONDS,
+    })();
+  } catch (err) {
+    console.error(
+      "[public-cache] attachListingCacheTags failed (page renders live; 30-min fallback covers freshness):",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+/**
  * Bounded aggregate revalidation accounting for sync audit events.
  * `pages_revalidated` counts successful revalidateTag calls (tags, not
  * rendered pages — one tag may cover several pages); `revalidation_failures`

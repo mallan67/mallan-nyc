@@ -55,6 +55,32 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/export const revalidate = 1800;/);
   });
 
+  // ── Codex P2 fix: the detail page's ISR HTML itself must be tag-evictable ──
+  //
+  // Version-semantics premise VERIFIED against the installed Next 16.2.4:
+  //   - node_modules/next/dist/server/web/spec-extension/unstable-cache.js
+  //     L119-127: an unstable_cache invocation ACCUMULATES its tags into the
+  //     surrounding render's workUnitStore.tags.
+  //   - node_modules/next/dist/server/app-render/app-render.js L900-902 +
+  //     L1600-1601: the render's collected tags become the route entry's
+  //     metadata.fetchTags — so revalidateTag(tag, "max") expires the ISR
+  //     HTML of EVERY URL variant that rendered the listing (id-form,
+  //     canonical address-slug form, and legacy alias forms alike — which
+  //     revalidatePath could never fully enumerate).
+  it("detail page attaches listing/building cache tags to its render (revalidateTag evicts the ISR HTML)", () => {
+    const page = read("app/listing/[...slug]/page.tsx");
+    expect(page).toMatch(/attachListingCacheTags\(/);
+    // The attach happens on the single fetch seam every URL variant funnels
+    // through, AFTER the listing resolves (so the tag is the resolved id).
+    expect(page).toMatch(/const fetchListing = cache\([\s\S]*?attachListingCacheTags[\s\S]*?\}\);/);
+  });
+
+  it("the tag-attach helper registers tags via a tagged unstable_cache read (fail-open, never throws)", () => {
+    const src = read("lib/cache/public-cache.ts");
+    expect(src).toMatch(/export async function attachListingCacheTags/);
+    expect(src).toMatch(/unstable_cache\(async \(\) => tags/);
+  });
+
   it("the cache module defaults its fallback window to the sync cadence (30 min)", () => {
     const src = read("lib/cache/public-cache.ts");
     expect(src).toMatch(/SYNC_CADENCE_SECONDS = 30 \* 60/);
