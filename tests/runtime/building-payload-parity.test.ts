@@ -204,9 +204,16 @@ jest.mock("@/lib/idx/auth", () => ({ getAccessToken: jest.fn(async () => "test-t
 jest.mock("@/lib/buildings/acris-building-sales", () => ({
   boroughFromPostalCode: jest.fn(() => "1"),
   lookupBBL: jest.fn(async () => "1015550001"),
+  // New AcrisTransferRecord shape (Maya 2026-07-23): documentId/bbl/amount/
+  // recordedDate/retrievedAt provenance; unit is ALWAYS '' (ACRIS deeds do
+  // not reliably carry units — nothing is inferred).
   fetchAcrisSales: jest.fn(async () => [
-    { id: "acris-1", closePrice: 2100000, closeDate: "2024-05-01", unit: "12B" },
-    { id: "acris-2", closePrice: 995000, closeDate: "2022-09-14", unit: "4C" },
+    { id: "acris-1", documentId: "1", bbl: "1015550001", closePrice: 2100000, amount: 2100000,
+      closeDate: "2024-05-01", recordedDate: "2024-05-01", unit: "", source: "acris",
+      retrievedAt: "2026-07-23T20:00:00.000Z" },
+    { id: "acris-2", documentId: "2", bbl: "1015550001", closePrice: 995000, amount: 995000,
+      closeDate: "2022-09-14", recordedDate: "2022-09-14", unit: "", source: "acris",
+      retrievedAt: "2026-07-23T20:00:00.000Z" },
   ]),
 }));
 
@@ -241,15 +248,27 @@ async function legacyPayload(num: string, bn?: string) {
   const res = await legacyGET(new NextRequest(`https://mallan.nyc/api/buildings?${sp}`));
   return { status: res.status, body: await res.json() };
 }
-/** Maya-directed divergence (2026-07-23): unit-card propertyType now maps
- *  through mapPropertyTypeToDisplay (Condo/Co-op/Condop — never raw
- *  'Apartment' for ownership units). EVERYTHING ELSE stays byte-identical
- *  to production, so the deep-equal strips ONLY that field and explicit
- *  assertions below pin the new mapping. */
+/** Maya-directed divergences from the frozen c4ade4bd production route:
+ *  1. (2026-07-23) unit-card propertyType maps through the canonical
+ *     ownership classifier (Condo/Co-op/Condop — never raw 'Apartment').
+ *  2. (2026-07-23, ACRIS source-boundary PR) saleHistory ACRIS rows carry
+ *     null (not 0) beds/baths/sqft + documentId/bbl/retrievedAt/label
+ *     provenance; the payload adds recordedTransfers + sourceAttribution;
+ *     stats become Cotality-active-only; _compliance names both sources.
+ *  EVERYTHING ELSE stays byte-identical to production. The deep-equal strips
+ *  exactly these fields; explicit assertions below pin every new value. */
 function stripDirectedDivergence(p: Record<string, any>) {
   const clone = JSON.parse(JSON.stringify(p));
   for (const u of clone.activeUnits ?? []) delete u.propertyType;
-  for (const s of clone.saleHistory ?? []) delete s.propertyType;
+  for (const s of clone.saleHistory ?? []) {
+    delete s.propertyType;
+    delete s.beds; delete s.baths; delete s.sqft;
+    delete s.label; delete s.documentId; delete s.bbl; delete s.retrievedAt;
+  }
+  delete clone.recordedTransfers;
+  delete clone.sourceAttribution;
+  delete clone.stats;
+  delete clone._compliance;
   return clone;
 }
 
@@ -287,8 +306,21 @@ describe("building payload parity — legacy production route vs new shared acce
     expect(byId["TRE-400-R1"].listingType).toBe("rent");
     expect(byId["TRE-400-CS1"].status).toBe("ComingSoon");
 
-    // counts + stats + prices
-    expect(fresh.stats).toEqual(body.stats);
+    // counts + stats + prices — stats are now COTALITY-ACTIVE-ONLY (Maya
+    // ACRIS source-boundary PR): the legacy route mixed ACRIS deed amounts
+    // into avgPrice and cross-populated avgPricePerSqft; the new payload
+    // computes from active listings alone (asserted absolutely, not vs body).
+    // active: 3,200,000/1850 · 2,400,000/1400 · 6,500/800 · 1,990,000/1200
+    expect(fresh.stats.totalActive).toBe(4);
+    expect(fresh.stats.totalSales).toBe(2); // compat: transfer count as before
+    expect(fresh.stats.avgPrice).toBe(1899125);
+    expect(fresh.stats.avgSqft).toBe(1313);
+    expect(fresh.stats.avgPricePerSqft).toBe(1447);
+    expect(fresh.stats.active).toEqual({ count: 4, avgListPrice: 1899125, avgSqft: 1313, avgPricePerSqft: 1447 });
+    expect(fresh.stats.recordedTransfers).toEqual({ count: 2 });
+    // ACRIS amounts (2,100,000 / 995,000) appear in NO statistic
+    expect(JSON.stringify(fresh.stats)).not.toContain("2100000");
+    expect(JSON.stringify(fresh.stats)).not.toContain("995000");
     expect(byId["TRE-400-S1"].listPrice).toBe(2400000);
     expect(byId["SL-2001"].listPrice).toBe(3200000);
 
@@ -314,9 +346,16 @@ describe("building payload parity — legacy production route vs new shared acce
     }
     expect(fresh.gatedRecordsCount).toBe(body.gatedRecordsCount);
 
-    // compliance attribution
+    // compliance attribution — per-source (Maya ACRIS source-boundary PR):
+    // the REBNY line stays for Cotality layers; ACRIS is named separately and
+    // the blanket 'idx' source label is gone.
     expect(fresh._compliance.attribution).toContain("REBNY Listing Service");
-    expect(fresh._compliance).toEqual(body._compliance);
+    expect(fresh._compliance.attribution).toContain("ACRIS");
+    expect(fresh._compliance.source).toBe("cotality-trestle+nyc-acris");
+    expect(fresh._compliance.disclaimerRequired).toBe(true);
+    expect(fresh.sourceAttribution.activeUnits.source).toBe("cotality-trestle");
+    expect(fresh.sourceAttribution.recordedTransfers.source).toBe("nyc-acris");
+    expect(fresh.recordedTransfers.length).toBe(2);
   });
 
   it("NULL/ERROR parity — Neon down: both degrade identically to the live Cotality/ACRIS layers", async () => {

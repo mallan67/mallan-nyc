@@ -42,15 +42,21 @@ interface ActiveUnit {
 interface SaleRecord {
   id: string;
   mlsId: string;
+  /** ACRIS rows: recorded document amount — NOT a verified unit sale price. */
   closePrice: number;
-  beds: number;
-  baths: number;
-  sqft: number;
+  // ACRIS recorded transfers carry no unit-level facts — null, never 0.
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
   unit: string;
   closeDate: string | null;
   propertyType: string;
   office: string;
   source: string;
+  label?: 'recorded-transfer';
+  documentId?: string;
+  bbl?: string;
+  retrievedAt?: string;
 }
 
 interface BuildingInfo {
@@ -180,12 +186,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   if (sp.bn) canonicalParams.set('bn', sp.bn);
 
   return {
-    title: `${label} — Units, Sales History & Amenities | Mallan Real Estate`,
-    description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recent sale${salesCount !== 1 ? 's' : ''}. View building amenities, price history, and available units.`,
+    title: `${label} — Units, Recorded Transfers & Amenities | Mallan Real Estate`,
+    description: `Explore ${label} in New York, NY${zip}. ${activeCount} active listing${activeCount !== 1 ? 's' : ''}, ${salesCount} recorded transfer${salesCount !== 1 ? 's' : ''} on public record. View building amenities and available units.`,
     alternates: { canonical: `https://mallan.nyc/buildings/profile?${canonicalParams.toString()}` },
     openGraph: {
       title: `${label} | Building Intelligence | Mallan Real Estate`,
-      description: `Building profile for ${label}. Active listings, sales history, amenities, and market data.`,
+      description: `Building profile for ${label}. Active listings, recorded transfers (NYC public records), and amenities.`,
       type: 'website',
       images: [{ url: 'https://mallan.nyc/images/og-default.png', width: 1200, height: 630, alt: label }],
     },
@@ -208,7 +214,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
 
   const { building, activeUnits, saleHistory, stats, gatedRecordsCount } = data;
   const buildingLabel = building.name || building.address;
-  const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
+  const hasDetailData = saleHistory.some((s) => !!s.sqft || !!s.beds);
   // No hero photo — unit listing photos are not building exterior photos
   const buildingType = displayLabel(building.commonInterest) || displayLabel(building.ownershipType);
   const structure = displayLabel(building.structureType);
@@ -298,7 +304,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                 <div className="w-px h-8 bg-black/10" />
                 <div className="px-4 md:px-6 py-2">
                   <span className="text-xl font-display font-bold text-brand-dark">{formatPrice(stats.avgPrice)}</span>
-                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Avg Price</span>
+                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Avg. Asking Price</span>
                 </div>
               </>
             )}
@@ -316,7 +322,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                 <div className="w-px h-8 bg-black/10" />
                 <div className="px-4 md:px-6 py-2">
                   <span className="text-xl font-display font-bold text-brand-dark">{stats.totalSales}</span>
-                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Recent Sales</span>
+                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Recorded Transfers</span>
                 </div>
               </>
             )}
@@ -530,17 +536,18 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
             </section>
           )}
 
-          {/* Sales History */}
+          {/* NYC Recorded Transfers (ACRIS public records) */}
           {saleHistory.length > 0 && (
             <section className="py-6 border-t border-black/[0.06]">
-              <h2 className="font-display text-xl font-bold text-brand-dark mb-6">Sales History ({saleHistory.length})</h2>
+              <h2 className="font-display text-xl font-bold text-brand-dark mb-2">NYC Recorded Transfers ({saleHistory.length})</h2>
+              <p className="text-[13px] text-brand-dark/60 mb-6">NYC ACRIS public records — recorded transfer documents, not verified unit-level sales. Source: NYC ACRIS.</p>
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-black/10">
-                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Date</th>
+                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Recorded Date</th>
                       <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Unit</th>
-                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Sale Price</th>
+                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Recorded Amount</th>
                       {hasDetailData && (
                         <>
                           <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Beds</th>
@@ -560,11 +567,11 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                         <td className="text-[13px] font-medium text-brand-dark py-3.5 pr-4">{formatPrice(sale.closePrice)}</td>
                         {hasDetailData && (
                           <>
-                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.beds > 0 ? sale.beds : '\u2014'}</td>
-                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.baths > 0 ? sale.baths : '\u2014'}</td>
-                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</td>
+                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.beds ? sale.beds : '\u2014'}</td>
+                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.baths ? sale.baths : '\u2014'}</td>
+                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">
-                              {sale.sqft > 0 && sale.closePrice > 0 ? `$${Math.round(sale.closePrice / sale.sqft).toLocaleString()}` : '\u2014'}
+                              {sale.sqft && sale.closePrice > 0 ? `$${Math.round(sale.closePrice / sale.sqft).toLocaleString()}` : '\u2014'}
                             </td>
                           </>
                         )}
@@ -586,9 +593,9 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                       <span className="text-[12px] text-brand-dark/50">{formatDate(sale.closeDate)}</span>
                     </div>
                     <div className="flex gap-3 text-[12px] text-brand-dark/60">
-                      {sale.beds > 0 && <span>{sale.beds} Bed{sale.beds !== 1 ? 's' : ''}</span>}
-                      {sale.baths > 0 && <span>{sale.baths} Bath</span>}
-                      {sale.sqft > 0 && <span>{sale.sqft.toLocaleString()} SF</span>}
+                      {!!sale.beds && <span>{sale.beds} Bed{sale.beds !== 1 ? 's' : ''}</span>}
+                      {!!sale.baths && <span>{sale.baths} Bath</span>}
+                      {!!sale.sqft && <span>{sale.sqft.toLocaleString()} SF</span>}
                     </div>
                   </div>
                 ))}
@@ -620,7 +627,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
             <section className="py-16 text-center">
               <h2 className="font-display text-xl font-bold text-brand-dark mb-2">No Data Available</h2>
               <p className="text-brand-dark/50 text-sm max-w-md mx-auto">
-                We don&apos;t have any active listings or recent sales history for this building at this time.
+                We don&apos;t have any active listings or recorded transfer records for this building at this time.
               </p>
               <Link href="/buy" className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-brand-gold text-white font-medium rounded-full hover:bg-brand-gold-deep transition-colors text-sm">
                 Browse All Listings
@@ -642,8 +649,8 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                       </h2>
                       <p className="text-white/60 text-sm leading-relaxed mb-2">
                         We know this building inside and out.
-                        {stats.totalSales > 0 && ` With ${stats.totalSales} recent sale${stats.totalSales !== 1 ? 's' : ''} on record, `}
-                        {stats.avgPrice && ` an average sale price of ${formatPrice(stats.avgPrice)}, `}
+                        {stats.totalSales > 0 && ` With ${stats.totalSales} recorded transfer${stats.totalSales !== 1 ? 's' : ''} on public record, `}
+                        {stats.avgPrice && ` an average asking price of ${formatPrice(stats.avgPrice)} among active listings, `}
                         {' '}we can show you exactly where your unit stands in today&apos;s market.
                       </p>
                       <ul className="space-y-2 mt-4 mb-6">
@@ -653,7 +660,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                         </li>
                         <li className="flex items-center gap-2 text-white/70 text-[13px]">
                           <svg className="w-4 h-4 text-brand-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          Building-specific sales history &amp; pricing data
+                          Building-specific recorded transfers &amp; asking-price data
                         </li>
                         <li className="flex items-center gap-2 text-white/70 text-[13px]">
                           <svg className="w-4 h-4 text-brand-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>

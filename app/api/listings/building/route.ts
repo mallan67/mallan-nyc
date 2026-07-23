@@ -145,34 +145,41 @@ export async function GET(request: NextRequest) {
       source: 'mls' as const,
     }));
 
-    // Fetch ACRIS sales if we have a BBL
+    // Fetch ACRIS recorded transfers if we have a BBL.
+    // Maya 2026-07-23 semantics: these are RECORDED TRANSFER documents, not
+    // verified unit sales — beds/baths/sqft stay null (never 0), unit stays
+    // blank, and each row carries documentId/bbl/retrievedAt provenance.
     let acrisSales: Array<{
       id: string;
       mlsId: string;
       closePrice: number;
-      beds: number;
-      baths: number;
-      sqft: number;
+      beds: number | null;
+      baths: number | null;
+      sqft: number | null;
       unit: string;
       closeDate: string | null;
       propertyType: string;
       office: string;
       source: 'acris';
+      label: 'recorded-transfer';
+      documentId?: string;
+      bbl?: string;
+      retrievedAt?: string;
     }> = [];
 
     if (bbl) {
       const rawAcris = await fetchAcrisSales(bbl);
-      // Convert to same shape as Trestle sales, mark source
       acrisSales = rawAcris
         .filter((a) => !isDuplicate(a, trestleSales))
         .map((a) => ({
           ...a,
           mlsId: '',
-          beds: 0,
-          baths: 0,
-          sqft: 0,
+          beds: null,
+          baths: null,
+          sqft: null,
           propertyType: '',
           office: 'NYC ACRIS Public Records',
+          label: 'recorded-transfer' as const,
         }));
     }
 
@@ -198,9 +205,21 @@ export async function GET(request: NextRequest) {
       success: true,
       activeUnits,
       saleHistory,
+      sourceAttribution: {
+        activeUnits: {
+          source: 'cotality-trestle',
+          attribution: 'Based on information from the REBNY Listing Service (Cotality/Trestle IDX Plus).',
+        },
+        recordedTransfers: {
+          source: 'nyc-acris',
+          attribution: 'NYC ACRIS public records — recorded transfer documents. Amounts are not verified unit-level sale prices.',
+        },
+      },
       _compliance: {
-        source: 'idx+acris',
-        attribution: 'REBNY RLS',
+        source: 'cotality-trestle+nyc-acris',
+        attribution:
+          'Active listings: Based on information from the REBNY Listing Service (Cotality/Trestle). ' +
+          'Recorded transfers: NYC ACRIS public records — not verified unit-level sales.',
         acrisBBL: bbl || null,
         acrisRecords: acrisSales.length,
       },

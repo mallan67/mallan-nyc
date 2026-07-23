@@ -43,10 +43,11 @@ function labelForStatus(raw: string | null | undefined): { label: string; color:
 interface SaleRecord {
   id: string;
   mlsId: string;
+  /** ACRIS rows: recorded document amount — NOT a verified unit sale price. */
   closePrice: number;
-  beds: number;
-  baths: number;
-  sqft: number;
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
   unit: string;
   closeDate: string | null;
   propertyType: string;
@@ -116,14 +117,14 @@ export default function BuildingUnits({
 
   // Determine which columns have actual data (hide empty columns from ACRIS-only results)
   const hasUnitData = saleHistory.some((s) => s.unit && s.unit.length > 0);
-  const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0 || s.baths > 0);
+  const hasDetailData = saleHistory.some((s) => !!s.sqft || !!s.beds || !!s.baths);
 
   return (
     <section>
       {/* Header bar */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-[0.15em]">
-          Building Sales History
+          Building Recorded Transfers
         </p>
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -150,14 +151,15 @@ export default function BuildingUnits({
                 ? 'grid-cols-1 lg:grid-cols-2'
                 : 'grid-cols-1'
             }`}>
-              {/* ── LEFT: Building-wide sales history ── */}
+              {/* ── LEFT: Building-wide recorded transfers (NYC ACRIS) ── */}
               <div>
                 <h3 className="font-display text-lg font-semibold text-brand-dark mb-4 leading-snug">
-                  Sales History for {buildingLabel}
+                  Recorded Transfers for {buildingLabel}
                 </h3>
+                <p className="text-[12px] text-brand-dark/60 mb-3">NYC ACRIS public records — recorded transfer documents, not verified unit-level sales. Source: NYC ACRIS.</p>
 
                 {saleHistory.length === 0 ? (
-                  <p className="text-sm text-brand-dark/50">No recent sales found for this building.</p>
+                  <p className="text-sm text-brand-dark/50">No recorded transfers found for this building.</p>
                 ) : (
                   <>
                     {/* Table header — hide columns that have no data */}
@@ -170,7 +172,7 @@ export default function BuildingUnits({
                     }`}>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Date</span>
                       {hasUnitData && <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>}
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Recorded Amount</span>
                       {hasDetailData && (
                         <>
                           <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Sq. Ft.</span>
@@ -202,9 +204,9 @@ export default function BuildingUnits({
                         <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
                         {hasDetailData && (
                           <>
-                            <span className="text-[13px] text-brand-dark/70">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</span>
-                            <span className="text-[13px] text-brand-dark/70">{sale.beds > 0 ? sale.beds : '\u2014'}</span>
-                            <span className="text-[13px] text-brand-dark/70">{sale.baths > 0 ? sale.baths : '\u2014'}</span>
+                            <span className="text-[13px] text-brand-dark/70">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</span>
+                            <span className="text-[13px] text-brand-dark/70">{sale.beds ? sale.beds : '\u2014'}</span>
+                            <span className="text-[13px] text-brand-dark/70">{sale.baths ? sale.baths : '\u2014'}</span>
                           </>
                         )}
                       </div>
@@ -232,14 +234,14 @@ export default function BuildingUnits({
                 {currentUnit && unitHistoryForCurrent.length > 0 ? (
                   <>
                     <h3 className="font-display text-lg font-semibold text-brand-dark mb-1 leading-snug">
-                      Sales History for {streetNumber} {streetName}, {currentUnit}
+                      Recorded Transfers for {streetNumber} {streetName}, {currentUnit}
                     </h3>
                     <div className="w-8 h-0.5 bg-brand-dark mb-4" />
 
                     {/* Table header */}
                     <div className="grid grid-cols-[100px_100px_1fr] gap-x-4 pb-2 border-b border-black/10">
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Date</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Recorded Amount</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Listing Status</span>
                     </div>
 
@@ -250,7 +252,7 @@ export default function BuildingUnits({
                       >
                         <span className="text-[13px] text-brand-dark/70">{formatDate(sale.closeDate)}</span>
                         <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
-                        <span className="text-[13px] text-brand-dark/70">Sold</span>
+                        <span className="text-[13px] text-brand-dark/70">Recorded</span>
                       </div>
                     ))}
                   </>
@@ -264,7 +266,7 @@ export default function BuildingUnits({
                     {/* Table header */}
                     <div className="grid grid-cols-[50px_90px_40px_40px_70px] gap-x-3 pb-2 border-b border-black/10">
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Price</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Recorded Amount</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Beds</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Baths</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Status</span>

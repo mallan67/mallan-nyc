@@ -40,15 +40,21 @@ interface ActiveUnit {
 interface SaleRecord {
   id: string;
   mlsId: string;
+  /** ACRIS rows: recorded document amount — NOT a verified unit sale price. */
   closePrice: number;
-  beds: number;
-  baths: number;
-  sqft: number;
+  // ACRIS recorded transfers carry no unit-level facts — null, never 0.
+  beds: number | null;
+  baths: number | null;
+  sqft: number | null;
   unit: string;
   closeDate: string | null;
   propertyType: string;
   office: string;
   source: string;
+  label?: 'recorded-transfer';
+  documentId?: string;
+  bbl?: string;
+  retrievedAt?: string;
 }
 
 interface BuildingData {
@@ -157,10 +163,10 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   return {
     title: `${buildingLabel} | Building Details | Mallan Real Estate`,
-    description: `View all available listings, sales history, and building amenities at ${buildingLabel}. ${data?.stats?.totalActive || 0} active listings.`,
+    description: `View all available listings, recorded transfer records, and building amenities at ${buildingLabel}. ${data?.stats?.totalActive || 0} active listings.`,
     openGraph: {
       title: `${buildingLabel} | Mallan Real Estate`,
-      description: `Building details, available units, and sales history at ${buildingLabel}.`,
+      description: `Building details, available units, and recorded transfer records at ${buildingLabel}.`,
       images: [{ url: 'https://mallan.nyc/images/og-default.png', width: 1200, height: 630, alt: buildingLabel }],
       type: 'website',
     },
@@ -238,7 +244,7 @@ export default async function BuildingPage({ searchParams }: Props) {
 
   const { building, activeUnits, saleHistory, stats, gatedRecordsCount } = data;
   const buildingLabel = building.name || building.address;
-  const hasDetailData = saleHistory.some((s) => s.sqft > 0 || s.beds > 0);
+  const hasDetailData = saleHistory.some((s) => !!s.sqft || !!s.beds);
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
   const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType;
@@ -307,7 +313,7 @@ export default async function BuildingPage({ searchParams }: Props) {
             {stats.avgPrice && (
               <div className="px-4 md:px-6 py-2">
                 <span className="text-xl font-display font-bold text-brand-dark">{formatPrice(stats.avgPrice)}</span>
-                <span className="text-brand-dark/60 text-[13px] ml-1.5">Avg Price</span>
+                <span className="text-brand-dark/60 text-[13px] ml-1.5">Avg. Asking Price</span>
               </div>
             )}
             {stats.avgSqft && (
@@ -360,7 +366,7 @@ export default async function BuildingPage({ searchParams }: Props) {
                 <div className="w-px h-8 bg-black/10" />
                 <div className="px-4 md:px-6 py-2">
                   <span className="text-xl font-display font-bold text-brand-dark">{stats.totalSales}</span>
-                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Recent Sales</span>
+                  <span className="text-brand-dark/60 text-[13px] ml-1.5">Recorded Transfers</span>
                 </div>
               </>
             )}
@@ -706,7 +712,7 @@ export default async function BuildingPage({ searchParams }: Props) {
             </section>
           )}
 
-          {/* Sales History */}
+          {/* NYC Recorded Transfers (ACRIS public records) */}
           {saleHistory.length > 0 && (
             <section className="py-6 border-t border-black/[0.06]">
               <div className="flex items-center gap-3 mb-6">
@@ -716,18 +722,19 @@ export default async function BuildingPage({ searchParams }: Props) {
                   </svg>
                 </div>
                 <h2 className="font-display text-xl font-bold text-brand-dark">
-                  Sales History ({saleHistory.length})
+                  NYC Recorded Transfers ({saleHistory.length})
                 </h2>
               </div>
+              <p className="text-[13px] text-brand-dark/60 mb-4">NYC ACRIS public records — recorded transfer documents, not verified unit-level sales. Source: NYC ACRIS.</p>
 
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-black/10">
-                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Date</th>
+                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Recorded Date</th>
                       <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Unit</th>
-                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Sale Price</th>
+                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Recorded Amount</th>
                       {hasDetailData && (
                         <>
                           <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">Beds</th>
@@ -747,11 +754,11 @@ export default async function BuildingPage({ searchParams }: Props) {
                         <td className="text-[13px] font-medium text-brand-dark py-3.5 pr-4">{formatPrice(sale.closePrice)}</td>
                         {hasDetailData && (
                           <>
-                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.beds > 0 ? sale.beds : '\u2014'}</td>
-                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.baths > 0 ? sale.baths : '\u2014'}</td>
-                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.sqft > 0 ? sale.sqft.toLocaleString() : '\u2014'}</td>
+                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.beds ? sale.beds : '\u2014'}</td>
+                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.baths ? sale.baths : '\u2014'}</td>
+                            <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">
-                              {sale.sqft > 0 && sale.closePrice > 0
+                              {sale.sqft && sale.closePrice > 0
                                 ? `$${Math.round(sale.closePrice / sale.sqft).toLocaleString()}`
                                 : '\u2014'}
                             </td>
@@ -780,9 +787,9 @@ export default async function BuildingPage({ searchParams }: Props) {
                       <span className="text-[12px] text-brand-dark/50">{formatDate(sale.closeDate)}</span>
                     </div>
                     <div className="flex gap-3 text-[12px] text-brand-dark/60">
-                      {sale.beds > 0 && <span>{sale.beds} Bed{sale.beds !== 1 ? 's' : ''}</span>}
-                      {sale.baths > 0 && <span>{sale.baths} Bath</span>}
-                      {sale.sqft > 0 && <span>{sale.sqft.toLocaleString()} SF</span>}
+                      {!!sale.beds && <span>{sale.beds} Bed{sale.beds !== 1 ? 's' : ''}</span>}
+                      {!!sale.baths && <span>{sale.baths} Bath</span>}
+                      {!!sale.sqft && <span>{sale.sqft.toLocaleString()} SF</span>}
                       {sale.propertyType && <span>{sale.propertyType}</span>}
                     </div>
                   </div>
@@ -831,7 +838,7 @@ export default async function BuildingPage({ searchParams }: Props) {
               </div>
               <h2 className="font-display text-xl font-bold text-brand-dark mb-2">No Data Available</h2>
               <p className="text-brand-dark/50 text-sm max-w-md mx-auto">
-                We don&apos;t have any active listings or recent sales history for this building at this time.
+                We don&apos;t have any active listings or recorded transfer records for this building at this time.
               </p>
               <Link
                 href="/buy"

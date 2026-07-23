@@ -74,14 +74,31 @@ export async function lookupBBL(streetNumber: string, streetName: string, boroug
   }
 }
 
-/** Fetch deed/transfer records from ACRIS for a BBL (public-record closed sales). */
-export async function fetchAcrisSales(bbl: string): Promise<Array<{
-  id: string;
+/**
+ * A NYC ACRIS recorded-transfer document (Maya 2026-07-23 semantics).
+ *
+ * These are RECORDED TRANSFERS from the public record — NOT verified
+ * unit-level closed sales. ACRIS deeds may not identify a unit, may cover a
+ * whole building or multiple properties, and carry no beds/baths/sqft.
+ * Nothing here is inferred; missing stays missing.
+ */
+export interface AcrisTransferRecord {
+  id: string;               // "acris-<documentId>"
+  documentId: string;       // ACRIS document ID (provenance)
+  bbl: string;              // the BBL the query was made for (provenance)
+  /** Recorded document amount. Legacy field name kept for shape compatibility;
+   *  this is NOT a verified unit closing price. */
   closePrice: number;
-  closeDate: string | null;
-  unit: string;
+  amount: number;           // canonical name — same value as closePrice
+  closeDate: string | null; // recorded/document date (legacy field name)
+  recordedDate: string | null;
+  unit: string;             // '' — ACRIS deeds don't reliably carry units
   source: 'acris';
-}>> {
+  retrievedAt: string;      // ISO timestamp of this retrieval (provenance)
+}
+
+/** Fetch deed/transfer records from ACRIS for a BBL (public recorded transfers). */
+export async function fetchAcrisSales(bbl: string): Promise<AcrisTransferRecord[]> {
   try {
     const parts = bbl.split('-');
     if (parts.length !== 3) return [];
@@ -106,19 +123,26 @@ export async function fetchAcrisSales(bbl: string): Promise<Array<{
     if (!masterRes.ok) return [];
     const masterData = (await masterRes.json()) as Array<Record<string, string>>;
 
+    const retrievedAt = new Date().toISOString();
     return masterData
       .filter((doc) => parseFloat(doc.document_amt || '0') > 0)
       .map((doc) => {
         const amt = parseFloat(doc.document_amt || '0');
         const dateStr = doc.recorded_datetime || doc.document_date || null;
+        const date = dateStr ? new Date(dateStr).toISOString().split('T')[0] : null;
         // ACRIS Real Property `easement` is a Y/N flag, NOT a unit number.
         // ACRIS deed records don't reliably carry unit numbers.
         return {
           id: `acris-${doc.document_id}`,
+          documentId: String(doc.document_id || ''),
+          bbl,
           closePrice: amt,
-          closeDate: dateStr ? new Date(dateStr).toISOString().split('T')[0] : null,
+          amount: amt,
+          closeDate: date,
+          recordedDate: date,
           unit: '',
           source: 'acris' as const,
+          retrievedAt,
         };
       });
   } catch (err) {

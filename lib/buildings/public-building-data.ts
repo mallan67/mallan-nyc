@@ -813,18 +813,44 @@ async function buildBuildingPayload(
     }
 
     // ── 4. Merge sale history ──
+    // Maya 2026-07-23 source-boundary rules: ACRIS rows are RECORDED
+    // TRANSFERS (public-record documents), never verified unit sales.
+    // beds/baths/sqft are null (missing stays missing — never 0), and every
+    // ACRIS row carries documentId/bbl/retrievedAt provenance + an explicit
+    // 'recorded-transfer' label.
     const saleHistory: Array<{
       id: string;
       mlsId: string;
       closePrice: number;
-      beds: number;
-      baths: number;
-      sqft: number;
+      beds: number | null;
+      baths: number | null;
+      sqft: number | null;
       unit: string;
       closeDate: string | null;
       propertyType: string;
       office: string;
       source: string;
+      label?: 'recorded-transfer';
+      documentId?: string;
+      bbl?: string;
+      retrievedAt?: string;
+    }> = [];
+
+    // Canonical ACRIS layer (explicit provenance; saleHistory stays as the
+    // compatibility alias carrying the same rows).
+    const recordedTransfers: Array<{
+      id: string;
+      documentId: string;
+      bbl: string;
+      amount: number;
+      recordedDate: string | null;
+      unit: string;
+      beds: null;
+      baths: null;
+      sqft: null;
+      source: 'acris';
+      label: 'recorded-transfer';
+      retrievedAt: string;
     }> = [];
 
     const seenSaleIds = new Set<string>();
@@ -861,18 +887,38 @@ async function buildBuildingPayload(
         // rows are withheld below), so deduping ACRIS against a to-be-withheld
         // MLS twin would drop the only public-allowed record for that sale.
         for (const a of rawAcris) {
+          // No inference: unit stays blank, beds/baths/sqft stay null. The
+          // document amount is NOT presented as a verified unit closing price.
           saleHistory.push({
             id: a.id,
             mlsId: '',
             closePrice: a.closePrice,
-            beds: 0,
-            baths: 0,
-            sqft: 0,
+            beds: null,
+            baths: null,
+            sqft: null,
             unit: a.unit,
             closeDate: a.closeDate,
             propertyType: '',
             office: 'NYC ACRIS Public Records',
             source: 'acris',
+            label: 'recorded-transfer',
+            documentId: a.documentId ?? String(a.id).replace(/^acris-/, ''),
+            bbl: a.bbl ?? bbl,
+            retrievedAt: a.retrievedAt ?? new Date().toISOString(),
+          });
+          recordedTransfers.push({
+            id: a.id,
+            documentId: a.documentId ?? String(a.id).replace(/^acris-/, ''),
+            bbl: a.bbl ?? bbl,
+            amount: a.amount ?? a.closePrice,
+            recordedDate: a.recordedDate ?? a.closeDate,
+            unit: a.unit,
+            beds: null,
+            baths: null,
+            sqft: null,
+            source: 'acris',
+            label: 'recorded-transfer',
+            retrievedAt: a.retrievedAt ?? new Date().toISOString(),
           });
         }
       }
@@ -903,21 +949,29 @@ async function buildBuildingPayload(
       if (!b.closeDate) return -1;
       return new Date(b.closeDate).getTime() - new Date(a.closeDate).getTime();
     });
+    recordedTransfers.sort((a, b) => {
+      if (!a.recordedDate && !b.recordedDate) return 0;
+      if (!a.recordedDate) return 1;
+      if (!b.recordedDate) return -1;
+      return new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime();
+    });
 
-    // ── 5. Compute aggregate stats ──
-    const allPrices = [
-      ...activeUnits.map((u) => u.listPrice),
-      ...saleHistory.map((s) => s.closePrice),
-    ].filter((p) => p > 0);
+    // ── 5. Compute aggregate stats — Cotality ACTIVE listings ONLY ──
+    // Maya 2026-07-23: ACRIS recorded-transfer amounts must never enter
+    // listing/unit-market statistics (no reliable unit match, amounts may
+    // cover whole buildings). avgPricePerSqft uses ONE consistent population:
+    // active units that carry BOTH a price and a square footage. Empty
+    // populations return null — zero is never substituted for missing data.
+    const activePriced = activeUnits.filter((u) => u.listPrice > 0);
+    const activeSized = activeUnits.filter((u) => u.sqft > 0);
+    const activeBoth = activeUnits.filter((u) => u.listPrice > 0 && u.sqft > 0);
 
-    const allSqft = [
-      ...activeUnits.map((u) => u.sqft),
-      ...saleHistory.map((s) => s.sqft),
-    ].filter((s) => s > 0);
-
-    const avgPrice = allPrices.length > 0 ? Math.round(allPrices.reduce((a, b) => a + b, 0) / allPrices.length) : null;
-    const avgSqft = allSqft.length > 0 ? Math.round(allSqft.reduce((a, b) => a + b, 0) / allSqft.length) : null;
-    const avgPricePerSqft = avgPrice && avgSqft ? Math.round(avgPrice / avgSqft) : null;
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const avgPrice = activePriced.length > 0 ? Math.round(mean(activePriced.map((u) => u.listPrice))) : null;
+    const avgSqft = activeSized.length > 0 ? Math.round(mean(activeSized.map((u) => u.sqft))) : null;
+    const avgPricePerSqft = activeBoth.length > 0
+      ? Math.round(mean(activeBoth.map((u) => u.listPrice)) / mean(activeBoth.map((u) => u.sqft)))
+      : null;
 
     // (The query-param buildingName display override happens POST-CACHE in
     // getBuildingDataCached — it must not participate in cache identity.)
@@ -951,18 +1005,54 @@ async function buildBuildingPayload(
         associationFeeIncludes: formatted.associationFeeIncludes,
       },
       activeUnits,
+      // Compatibility alias — same rows as recordedTransfers (ACRIS-only on
+      // this public surface), null-not-zero semantics.
       saleHistory,
+      recordedTransfers,
       stats: {
         totalActive: activeUnits.length,
+        // Compat: numerically the recorded-transfer count (as before).
         totalSales: saleHistory.length,
+        // Cotality ACTIVE listings only — see §5 above.
         avgPrice,
         avgSqft,
         avgPricePerSqft,
+        active: {
+          count: activeUnits.length,
+          avgListPrice: avgPrice,
+          avgSqft,
+          avgPricePerSqft,
+        },
+        // Count only. Transfer AMOUNTS carry no approved unit-market
+        // methodology and ship in no statistic.
+        recordedTransfers: { count: recordedTransfers.length },
       },
       gatedRecordsCount,
+      sourceAttribution: {
+        building: {
+          source: 'cotality-trestle',
+          attribution: 'Based on information from the REBNY Listing Service (Cotality/Trestle IDX Plus).',
+        },
+        activeUnits: {
+          source: 'cotality-trestle',
+          attribution: 'Based on information from the REBNY Listing Service (Cotality/Trestle IDX Plus).',
+        },
+        recordedTransfers: {
+          source: 'nyc-acris',
+          attribution: 'NYC ACRIS public records — recorded transfer documents. Amounts are not verified unit-level sale prices; a transfer may cover a whole building or multiple properties.',
+        },
+        statistics: {
+          source: 'mallan-derived',
+          attribution: 'Derived by Mallan Real Estate Inc. from Cotality/REBNY active listings only; recorded transfers are excluded from all averages.',
+        },
+      },
       _compliance: {
-        source: 'idx',
-        attribution: 'Based on information from the REBNY Listing Service. Data last updated ' + new Date().toISOString().split('T')[0],
+        source: 'cotality-trestle+nyc-acris',
+        attribution:
+          'Building facts and active listings: Based on information from the REBNY Listing Service (Cotality/Trestle). ' +
+          'Recorded transfers: NYC ACRIS public records — not verified unit-level sales. ' +
+          'Statistics: Mallan-derived from active listings only. ' +
+          'Data last updated ' + new Date().toISOString().split('T')[0],
         disclaimerRequired: true,
       },
     };
