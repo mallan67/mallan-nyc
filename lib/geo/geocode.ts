@@ -65,21 +65,37 @@ const memCache = new Map<string, [number, number]>();
  */
 export const GEOCODE_MANIFEST_TAG = 'geocode-manifest';
 
-/** Defensive bound — loud, never silent (current population 13.5k). */
-const GEOCODE_ROW_BOUND = 50000;
+/** Deterministic keyset page size (address_key is the unique cursor). */
+export const GEOCODE_PAGE_SIZE = 10000;
+/** Explicit overflow ceiling: 20 pages = 200,000 rows (15× today's 13.5k).
+ *  Past it the manifest build THROWS — an explicit failure, never a silently
+ *  incomplete manifest substituting approximate coordinates. */
+export const GEOCODE_MAX_PAGES = 20;
 
+/**
+ * COMPLETE manifest via deterministic keyset pagination — no fixed ceiling
+ * can silently omit cached rows (the old take-50000 + console.error is
+ * retired). Runs inside the cached wrapper, so the whole loop executes at
+ * most once per revalidation window across all traffic.
+ */
 async function buildGeocodeManifest(): Promise<Array<[string, number, number]>> {
-  const rows = await prisma.geocodeCache.findMany({
-    select: { address_key: true, latitude: true, longitude: true },
-    orderBy: { address_key: 'asc' },
-    take: GEOCODE_ROW_BOUND,
-  });
-  if (rows.length === GEOCODE_ROW_BOUND) {
-    console.error(
-      `[geocode-manifest] ROW BOUND HIT (${GEOCODE_ROW_BOUND}) — some cached geocodes are not being served; raise the bound.`,
-    );
+  const out: Array<[string, number, number]> = [];
+  let cursor: string | null = null;
+  for (let page = 0; page < GEOCODE_MAX_PAGES; page++) {
+    const rows: Array<{ address_key: string; latitude: number; longitude: number }> =
+      await prisma.geocodeCache.findMany({
+        select: { address_key: true, latitude: true, longitude: true },
+        orderBy: { address_key: 'asc' },
+        take: GEOCODE_PAGE_SIZE,
+        ...(cursor ? { cursor: { address_key: cursor }, skip: 1 } : {}),
+      });
+    for (const r of rows) out.push([r.address_key, r.latitude, r.longitude]);
+    if (rows.length < GEOCODE_PAGE_SIZE) return out; // complete — last page
+    cursor = rows[rows.length - 1].address_key;
   }
-  return rows.map((r) => [r.address_key, r.latitude, r.longitude]);
+  throw new Error(
+    `[geocode-manifest] OVERFLOW: more than ${GEOCODE_PAGE_SIZE * GEOCODE_MAX_PAGES} geocode_cache rows — refusing to serve an incomplete manifest (raise GEOCODE_MAX_PAGES deliberately).`,
+  );
 }
 
 const getGeocodeManifest = cachedPublicRead(buildGeocodeManifest, ['geocode-manifest'], {

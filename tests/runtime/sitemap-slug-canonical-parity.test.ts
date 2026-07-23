@@ -101,7 +101,9 @@ describe('sitemap-style slug == live page canonical (parity lock)', () => {
 });
 
 describe('wiring — both call sites share the helper (SUPPORTING source-grep)', () => {
-  const sitemapSrc = readFileSync(path.resolve(__dirname, '../../app/sitemap.ts'), 'utf8');
+  // rev 3 (2026-07-23): sitemap listing-URL generation moved VERBATIM to the
+  // snapshot module (app/sitemap.ts is gone — plain route handlers now).
+  const sitemapSrc = readFileSync(path.resolve(__dirname, '../../lib/seo/sitemap-snapshot.ts'), 'utf8');
   const pageSrc = readFileSync(path.resolve(__dirname, '../../app/listing/[...slug]/page.tsx'), 'utf8');
 
   it('app/sitemap.ts composes the street via composeSlugStreetName (not bare StreetName)', () => {

@@ -153,7 +153,7 @@ describe('URL emitters — canonical only, no hybrid slug + ?key=', () => {
     'app/components/CompareProperties.tsx',
     'app/favorites/page.tsx',
     'lib/idx/display-adapter.ts',
-    'app/sitemap.ts',
+    'lib/seo/sitemap-snapshot.ts', // rev 3: sitemap URL generation moved here
   ];
   for (const f of emitters) {
     it(`${f} no longer emits /listing/\${slug}?key=`, () => {

@@ -459,9 +459,11 @@ async function buildBuildingPayload(
   streetNumber: string,
   streetName: string,
   postalCode: string | null,
-  buildingName: string | null,
 ) {
-  void buildingName; // canonical identity is number+street+zip; name is display-only
+  // Canonical identity is number+street+zip. buildingName is display-only and
+  // deliberately NOT a parameter: unstable_cache keys include the wrapped
+  // function ARGS, so passing it would mint a separate cache entry (and a
+  // separate Neon-visible assembly) per name variant of the SAME building.
     const cleanStreetNumber = sanitizeOData(streetNumber);
     const cleanStreetName = sanitizeOData(streetName);
     const cleanPostalCode = postalCode ? sanitizeOData(postalCode) : '';
@@ -818,11 +820,8 @@ async function buildBuildingPayload(
     const avgSqft = allSqft.length > 0 ? Math.round(allSqft.reduce((a, b) => a + b, 0) / allSqft.length) : null;
     const avgPricePerSqft = avgPrice && avgSqft ? Math.round(avgPrice / avgSqft) : null;
 
-    // Override building name with query param if provided
-    if (buildingName && !buildingInfo.buildingName) {
-      buildingInfo.buildingName = buildingName;
-    }
-
+    // (The query-param buildingName display override happens POST-CACHE in
+    // getBuildingDataCached — it must not participate in cache identity.)
     const formatted = formatAmenities(buildingInfo);
 
     return {
@@ -887,8 +886,7 @@ export async function getBuildingDataCached(params: {
   const streetNumber = params.streetNumber.trim();
   const streetName = params.streetName.trim();
   const postalCode = params.postalCode?.trim() || null;
-  const buildingName = params.buildingName?.trim() || null;
-  return cachedPublicRead(
+  const payload = await cachedPublicRead(
     buildBuildingPayload,
     ['building-data', streetNumber.toUpperCase(), streetName.toUpperCase(), postalCode ?? ''],
     {
@@ -900,5 +898,13 @@ export async function getBuildingDataCached(params: {
       // fallback as the safety net (media-JSON-only changes ride the fallback).
       tags: [buildingCacheTag(streetNumber, streetName, postalCode ?? undefined)],
     },
-  )(streetNumber, streetName, postalCode, buildingName);
+  )(streetNumber, streetName, postalCode);
+  // Display-only decoration, applied POST-CACHE so a bn= query param can
+  // never mint a second cache identity (or a second Neon-visible assembly)
+  // for the same canonical building.
+  const buildingName = params.buildingName?.trim() || null;
+  if (buildingName && !payload.building.name) {
+    return { ...payload, building: { ...payload.building, name: buildingName } };
+  }
+  return payload;
 }

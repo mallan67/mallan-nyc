@@ -172,6 +172,22 @@ describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
     expect(findManyMock.mock.calls.length - q).toBeLessThanOrEqual(1);
   });
 
+  it("BEHAVIORAL: buildingName variants do NOT mint separate cache identities for the same canonical building", async () => {
+    const t = tokenMock.mock.calls.length;
+    const q = findManyMock.mock.calls.length;
+    const base = { streetNumber: "555", streetName: "555th Street Test", postalCode: "10128" };
+    const p1 = await getBuildingDataCached({ ...base, buildingName: null });
+    const p2 = await getBuildingDataCached({ ...base, buildingName: "The Grand Test" });
+    const p3 = await getBuildingDataCached({ ...base, buildingName: "GRAND TEST TOWER" });
+    // ONE assembly total — bn= variants share the canonical entry
+    expect(tokenMock.mock.calls.length).toBe(t + 1);
+    expect(findManyMock.mock.calls.length - q).toBeLessThanOrEqual(1);
+    // the display decoration still works, POST-cache
+    expect(p1.success).toBe(true);
+    expect(p2.building.name).toBe("The Grand Test");
+    expect(p3.building.name).toBe("GRAND TEST TOWER");
+  });
+
   it("tag canon: link-side, raw-stored, and sync-side derivations produce the SAME tag", () => {
     const linkSide = buildingCacheTag("400", "East 90th Street", "10128");
     const rawStored = buildingCacheTag("400", "EAST 90TH STREET", "10128");

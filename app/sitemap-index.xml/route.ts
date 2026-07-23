@@ -1,56 +1,16 @@
 /**
- * /sitemap-index.xml — sitemap INDEX over the partitioned sitemaps (2026-07-23).
+ * /sitemap-index.xml → 308 permanent redirect to /sitemap.xml (rev 3).
  *
- * Served at the classic /sitemap.xml URL via a proxy rewrite (Next reserves
- * the literal /sitemap.xml path once generateSitemaps exists).
- *
- * app/sitemap.ts now uses `generateSitemaps`, which serves the actual
- * sitemaps at /sitemap/{id}.xml. This route keeps the CLASSIC /sitemap.xml
- * URL alive as a standards-compliant <sitemapindex> pointing at every
- * partition, so robots.txt and existing Search Console registrations keep
- * working unchanged.
- *
- * Partition ids come from the SAME cached partition math the sitemaps use
- * (lib/seo/sitemap-partitions.ts) — index and partitions can never disagree,
- * and the whole set fails closed (500, crawlers keep their cached copy)
- * rather than ever publishing a truncated-but-complete-looking sitemap.
+ * The rev-2 architecture briefly served the index here (Next's
+ * generateSitemaps machinery reserved /sitemap.xml). rev 3 owns /sitemap.xml
+ * directly with a plain route handler, so this URL — which appeared only on
+ * that short-lived preview — cleanly redirects to the canonical index on the
+ * SAME host (previews redirect within the preview).
  */
-import { NextResponse } from 'next/server';
-import { getSitemapPartitionIds } from '@/lib/seo/sitemap-partitions';
-
-const BASE_URL = 'https://mallan.nyc';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 300;
 
-function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-export async function GET() {
-  try {
-    const ids = await getSitemapPartitionIds();
-    const now = new Date().toISOString();
-    const body =
-      `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-      ids
-        .map(
-          (id) =>
-            `  <sitemap><loc>${escapeXml(`${BASE_URL}/sitemap/${id}.xml`)}</loc><lastmod>${now}</lastmod></sitemap>`,
-        )
-        .join('\n') +
-      `\n</sitemapindex>\n`;
-    return new NextResponse(body, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/xml',
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
-      },
-    });
-  } catch (err) {
-    // FAIL-CLOSED: no index rather than a wrong index.
-    console.error('[sitemap.xml] index generation failed:', err);
-    return new NextResponse('sitemap temporarily unavailable', { status: 500 });
-  }
+export async function GET(req: NextRequest) {
+  return NextResponse.redirect(new URL('/sitemap.xml', req.url), 308);
 }

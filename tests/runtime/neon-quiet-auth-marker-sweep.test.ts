@@ -23,30 +23,33 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 describe("repo-wide discovery — no direct session-cookie writes outside the helper", () => {
   const offenders: { rel: string; line: string }[] = [];
   const helperRel = path.join("lib", "auth", "cookie-config.ts");
+  // Generated/vendor/non-source trees only — everything else in the
+  // repository is scanned, from the ROOT, so any future session-cookie
+  // writer anywhere in first-party source fails this test.
+  const EXCLUDED_DIRS = new Set([
+    "node_modules", ".next", ".git", "coverage", "artifacts",
+    "__tests__", "tests",
+  ]);
 
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-      const rel = path.join(dir, entry.name);
+      const rel = dir ? path.join(dir, entry.name) : entry.name;
       if (entry.isDirectory()) {
-        if (["node_modules", "__tests__", ".next"].includes(entry.name)) continue;
+        if (EXCLUDED_DIRS.has(entry.name)) continue;
         walk(rel);
-      } else if (/\.tsx?$/.test(entry.name) && !entry.name.endsWith(".test.ts")) {
+      } else if (/\.(ts|tsx|js|mjs|cjs)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) {
         if (rel === helperRel) continue; // the ONE legitimate owner
         const src = read(rel);
-        for (const m of src.matchAll(/cookies\.(set|delete)\(\s*SESSION_COOKIE/g)) {
+        // direct writes by constant OR by the literal cookie name
+        for (const m of src.matchAll(/cookies\.(set|delete)\(\s*(SESSION_COOKIE|["']session_token["'])/g)) {
           offenders.push({ rel, line: m[0] });
         }
       }
     }
   };
 
-  it("ONLY lib/auth/cookie-config.ts touches the session cookie directly (app/ + lib/ + proxy.ts)", () => {
-    walk("app");
-    walk("lib");
-    const proxySrc = read("proxy.ts");
-    for (const m of proxySrc.matchAll(/cookies\.(set|delete)\(\s*SESSION_COOKIE/g)) {
-      offenders.push({ rel: "proxy.ts", line: m[0] });
-    }
+  it("ONLY lib/auth/cookie-config.ts touches the session cookie directly — ENTIRE first-party source tree from the repo root", () => {
+    walk(""); // full tree from ROOT (minus generated/vendor/test dirs)
     expect(offenders).toEqual([]);
   });
 
