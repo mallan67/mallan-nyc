@@ -65,6 +65,14 @@ jest.mock("@/lib/prisma", () => ({
       findMany: (args: unknown) => mockListingMediaFindMany(args),
       count: (args: unknown) => mockListingMediaCount(args),
     },
+    auditEvent: {
+      findMany: async () => [],
+    },
+    $transaction: (fn: unknown) =>
+      (fn as (tx: unknown) => unknown)({
+        $queryRaw: async () => [{ locked: true }],
+        listingMedia: { findMany: (a: unknown) => mockListingMediaFindMany(a) },
+      }),
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
       findUnique: (args: unknown) => mockListingFindUnique(args),
@@ -148,11 +156,13 @@ function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
 
 /** Main bounded backlog query: active + OR-missing-R2 + NOT parked-scoped. */
 function isMainBacklogCall(call: unknown[]): boolean {
-  const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown } };
+  const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; select?: Record<string, unknown> };
   return (
     args?.where?.status === "active" &&
     Array.isArray(args.where.OR) &&
-    args.where.r2_attempts === undefined
+    args.where.r2_attempts === undefined &&
+    // W3: exclude the bounded backlog_remaining PROBE (ids-only select).
+    !(args.select && Object.keys(args.select).join(",") === "id")
   );
 }
 
@@ -209,7 +219,8 @@ describe("Phase 4 — bounded candidate selection (at most two selection queries
       take: number;
     };
     expect(args.take).toBe(R2_BACKLOG_BATCH_LIMIT);
-    expect(args.orderBy).toEqual([{ created_at: "asc" }, { id: "asc" }]);
+    // W3: PK ordering (monotone insertion key ≈ created_at FIFO, no sort node).
+    expect(args.orderBy).toEqual([{ id: "asc" }]);
     expect(args.where).not.toHaveProperty("id"); // no growing notIn list
     const cooldownLt = (args.where as { AND: Array<{ OR: Array<{ r2_last_attempt_at?: { lt: Date } }> }> })
       .AND[0].OR[1].r2_last_attempt_at!.lt;

@@ -53,6 +53,14 @@ jest.mock("@/lib/prisma", () => ({
       findMany: (args: unknown) => mockListingMediaFindMany(args),
       count: (args: unknown) => mockListingMediaCount(args),
     },
+    auditEvent: {
+      findMany: async () => [],
+    },
+    $transaction: (fn: unknown) =>
+      (fn as (tx: unknown) => unknown)({
+        $queryRaw: async () => [{ locked: true }],
+        listingMedia: { findMany: (a: unknown) => mockListingMediaFindMany(a) },
+      }),
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
       findUnique: (args: unknown) => mockListingFindUnique(args),
@@ -1038,10 +1046,10 @@ describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () 
     // OR clause includes both r2_key=null and media_url_cached=null.
     const orFields = args.where.OR.map((c) => Object.keys(c)[0]).sort();
     expect(orFields).toEqual(["media_url_cached", "r2_key"]);
-    // Phase 4: ONE bounded query per run — deterministic ordering with an id
-    // tie-break, sized by R2_BACKLOG_BATCH_LIMIT (processing stays chunked at
-    // R2_MIRROR_CONCURRENCY in memory).
-    expect(args.orderBy).toEqual([{ created_at: "asc" }, { id: "asc" }]);
+    // W3: ONE bounded ADAPTIVE query per run — PK ordering (id is a
+    // monotone insertion key, so FIFO fairness holds without a created_at
+    // sort node); with no audit history the size falls back to the MIN.
+    expect(args.orderBy).toEqual([{ id: "asc" }]);
     expect(args.take).toBe(R2_BACKLOG_BATCH_LIMIT);
   });
 
@@ -1221,10 +1229,18 @@ describe("runMediaSync — time-budget exits", () => {
 });
 
 describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
-  it("reports backlog_remaining from a final count after Phase 3", async () => {
+  it("reports backlog_remaining from the BOUNDED ids-only probe after Phase 3 (W3: no unbounded COUNT)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    mockListingMediaFindMany.mockResolvedValue([]); // empty backlog
-    mockListingMediaCount.mockResolvedValue(42); // 42 rows still need r2 mirroring
+    // W3: backlog_remaining = length of an ids-only probe (take = cap+1),
+    // replacing the unbounded COUNT. Serve 42 probe rows; drain selections
+    // stay empty.
+    mockListingMediaFindMany.mockImplementation(async (args: unknown) => {
+      const a = args as { select?: Record<string, unknown>; take?: number };
+      if (a?.select && Object.keys(a.select).join(",") === "id") {
+        return Array.from({ length: 42 }, (_, i) => ({ id: BigInt(i + 1) }));
+      }
+      return [];
+    });
 
     const fetchProperties = jest.fn().mockResolvedValueOnce([]);
     const result = await runMediaSync(
@@ -1232,12 +1248,19 @@ describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
     );
 
     expect(result.backlog_remaining).toBe(42);
+    expect(mockListingMediaCount).not.toHaveBeenCalled(); // COUNT retired
   });
 
-  it("backlog_remaining is null if the count query throws (defensive)", async () => {
+  it("backlog_remaining is null if the probe query throws (defensive)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    mockListingMediaFindMany.mockResolvedValue([]);
-    mockListingMediaCount.mockRejectedValue(new Error("Count failed"));
+    // W3: the ids-only probe throws; drain selections stay empty.
+    mockListingMediaFindMany.mockImplementation(async (args: unknown) => {
+      const a = args as { select?: Record<string, unknown> };
+      if (a?.select && Object.keys(a.select).join(",") === "id") {
+        throw new Error("Probe failed");
+      }
+      return [];
+    });
 
     const fetchProperties = jest.fn().mockResolvedValueOnce([]);
     const result = await runMediaSync(
@@ -1272,14 +1295,16 @@ describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
 describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)", () => {
   // Main bounded query: active + OR-missing-R2, NOT the parked-recovery query.
   const isMainBacklogCall = (call: unknown[]): boolean => {
-    const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown } };
+    const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; select?: Record<string, unknown> };
     // The parked-recovery selection carries a top-level r2_attempts predicate
     // (exact-match number since the #534-sentinel fix); the main backlog
-    // selection never does.
+    // selection never does. W3: the ids-only backlog_remaining PROBE is
+    // excluded too.
     return (
       args?.where?.status === "active" &&
       Array.isArray(args.where.OR) &&
-      args.where.r2_attempts === undefined
+      args.where.r2_attempts === undefined &&
+      !(args.select && Object.keys(args.select).join(",") === "id")
     );
   };
 
@@ -1610,9 +1635,14 @@ describe("runMediaSync — observability read-back is non-fatal", () => {
     // (a) did NOT reject — the run completed successfully.
     expect(result.status).toBe("ok");
     expect(result.listings_processed).toBe(1);
-    // (b) later phases were NOT skipped — the Phase-4 backlog count ran AFTER
-    //     the (failed) read-back, proving execution continued past it.
-    expect(mockListingMediaCount).toHaveBeenCalled();
+    // (b) later phases were NOT skipped — the Phase-4 backlog PROBE (W3:
+    //     bounded ids-only findMany, replacing the COUNT) ran AFTER the
+    //     (failed) read-back, proving execution continued past it.
+    const probeRan = mockListingMediaFindMany.mock.calls.some((c) => {
+      const a = c[0] as { select?: Record<string, unknown> };
+      return !!a?.select && Object.keys(a.select).join(",") === "id";
+    });
+    expect(probeRan).toBe(true);
     // (c) the cursor write is UNALTERED — the advance upsert wrote the advanced
     //     keyset cursor exactly as it would without the read-back failure.
     expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);

@@ -1556,6 +1556,69 @@ export function buildR2BacklogWhere(
  */
 export const R2_BACKLOG_BATCH_LIMIT = 60;
 
+// ── One Cycle W3 — adaptive bounded drain ────────────────────────────────
+// Hierarchy (verbatim): Cotality API → sole listing and feed-media truth →
+// One Cycle → Neon operational copy → projections → Vercel cache. Business
+// data never overrides listing facts.
+
+/** W3: catch-up increment — the drain must EXCEED measured inflow so the
+ *  existing backlog shrinks every run. */
+export const R2_DRAIN_CATCHUP_INCREMENT = 25;
+
+/** W3: hard upper bound on any single run's selection (NEON-001: never
+ *  unbounded). 200 rows = 40 chunks at concurrency 5; the per-chunk time
+ *  budget still governs actual work. */
+export const R2_DRAIN_HARD_CAP = 200;
+
+/** W3: bounded backlog_remaining probe cap — the probe selects at most
+ *  cap+1 ids (value cap+1 means ">cap"), replacing the unbounded COUNT. */
+export const R2_BACKLOG_PROBE_CAP = 2000;
+
+/** W3: advisory-lock identity for the drain's candidate-selection mutex. */
+export const R2_DRAIN_LOCK_CLASS = 20260723;
+export const R2_DRAIN_LOCK_KEY = 1;
+
+/**
+ * W3 adaptive sizing (pure): batch = clamp(MIN, inflow + CATCHUP, HARD_CAP).
+ * - null / non-finite / negative inflow → the Phase-4 MIN floor (fail-closed
+ *   fallback: behaves exactly like the fixed pre-W3 drain).
+ * - Always >= MIN (a quiet feed still gets catch-up drainage) and <= the
+ *   hard cap (bounded above regardless of measured inflow).
+ */
+export function computeAdaptiveDrainLimit(inflow: number | null): number {
+  if (inflow === null || !Number.isFinite(inflow) || inflow < 0) {
+    return R2_BACKLOG_BATCH_LIMIT;
+  }
+  return Math.min(
+    R2_DRAIN_HARD_CAP,
+    Math.max(R2_BACKLOG_BATCH_LIMIT, Math.floor(inflow) + R2_DRAIN_CATCHUP_INCREMENT),
+  );
+}
+
+/**
+ * W3 durable inflow measurement (pure). Input: the LAST TWO media_sync_cron
+ * audit events (newest first) — a durable store this pipeline already
+ * writes, so no new writer is introduced. Backlog conservation gives:
+ *   inflow ≈ remaining[n-1] − remaining[n-2] + drained[n-1]  (floored at 0)
+ * Returns null (→ MIN fallback) when the history is missing or unusable.
+ */
+export function measureBacklogInflow(
+  events: Array<{ changes: unknown }> | null | undefined,
+): number | null {
+  const num = (e: { changes: unknown } | undefined, k: string): number | null => {
+    const v = e && typeof e.changes === "object" && e.changes !== null
+      ? (e.changes as Record<string, unknown>)[k]
+      : undefined;
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  };
+  if (!events || events.length < 2) return null;
+  const remainingLatest = num(events[0], "backlog_remaining");
+  const remainingPrior = num(events[1], "backlog_remaining");
+  const drainedLatest = num(events[0], "r2_mirrored");
+  if (remainingLatest === null || remainingPrior === null || drainedLatest === null) return null;
+  return Math.max(0, remainingLatest - remainingPrior + drainedLatest);
+}
+
 /**
  * Phase 4: per-run mirror FAILURE budget. Once this many mirror attempts
  * have failed in one run, the remaining queue is NOT attempted (rows stay
@@ -2145,6 +2208,25 @@ export interface RunMediaSyncResult {
   /** One Cycle W1 — bounded aggregate cache-revalidation counters. */
   pages_revalidated: number;
   revalidation_failures: number;
+  // ── One Cycle W3 — durable drain counters ──
+  /** Measured backlog inflow since the prior run (null = history unusable → MIN fallback). */
+  backlog_inflow_since_last_run: number | null;
+  /** Candidate rows selected this run (main + parked). */
+  rows_selected: number;
+  /** Rows actually handed to the mirror (main attempted + parked attempted). */
+  rows_attempted: number;
+  /** Successfully mirrored rows (= r2_mirrored; explicit W3 alias). */
+  rows_drained: number;
+  /** Mirror failures (= r2_failed; explicit W3 alias). */
+  failures: number;
+  /** 1 when the selection advisory lock was held by another run → drain skipped. */
+  overlap_prevented: number;
+  /** True when the Phase-3 time budget stopped the drain (exit_reason budget_phase2). */
+  time_budget_exhausted: boolean;
+  /** Bounded classification of the selection path this run. */
+  query_path_classification: "adaptive" | "fallback_min" | "skipped_overlap";
+  /** = duration_ms (explicit W3 name). */
+  run_duration_ms: number;
   /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
   r2_skipped: number;
   /**
@@ -2554,6 +2636,15 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_failed: 0,
       pages_revalidated: 0,
       revalidation_failures: 0,
+      backlog_inflow_since_last_run: null,
+      rows_selected: 0,
+      rows_attempted: 0,
+      rows_drained: 0,
+      failures: 0,
+      overlap_prevented: 0,
+      time_budget_exhausted: false,
+      query_path_classification: "fallback_min" as const,
+      run_duration_ms: now() - startTime,
       r2_backlog_batch_selected: 0,
       r2_parked_recovery_selected: 0,
       r2_parked_recovery_attempted: 0,
@@ -2862,6 +2953,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2ParkedRecoverySelected = 0;
   let r2ParkedRecoveryAttempted = 0;
   let r2FailureBudgetExhausted = false;
+  // One Cycle W3 state.
+  let backlogInflow: number | null = null;
+  let overlapPrevented = 0;
+  let queryPathClassification: "adaptive" | "fallback_min" | "skipped_overlap" = "fallback_min";
+  let rowsAttemptedTotal = 0;
 
   // Mirror one already-sized chunk; returns the number of FAILED rows so the
   // main drain can enforce its hard cap. Physical counters (r2Mirrored /
@@ -2928,32 +3024,81 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   };
 
   if (remainingMs() > phase2ReserveMs) {
-    // Candidate-selection query 1 of <= 2: the bounded MAIN backlog.
-    // RC3: the `where` is the pure `buildR2BacklogWhere` (attempted-id
-    // exclusion list intentionally empty — there is no re-query to exclude
-    // from). Eligibility = active + missing-R2 + past-cooldown + not parked.
-    const backlogRows = (await prisma.listingMedia.findMany({
-      where: buildR2BacklogWhere(cooldownThreshold, []),
-      orderBy: [{ created_at: "asc" }, { id: "asc" }],
-      take: backlogBatchLimit,
-      select: backlogSelect,
-    })) as BacklogRowSel[];
-    r2BacklogBatchSelected = backlogRows.length;
-
-    // Candidate-selection query 2 of <= 2 (zero-or-one): parked recovery.
-    // Quota 0 disables (no query). Selection is read-only — no counter is
-    // ever reset; eligibility is pure code logic (exact-match, long
-    // cooldown, oldest-first deterministic).
-    let parkedRows: BacklogRowSel[] = [];
-    if (parkedRecoveryQuota > 0) {
-      parkedRows = (await prisma.listingMedia.findMany({
-        where: buildR2ParkedRecoveryWhere(new Date(now() - R2_PARKED_RECOVERY_COOLDOWN_MS)),
-        orderBy: [{ r2_last_attempt_at: "asc" }, { id: "asc" }],
-        take: parkedRecoveryQuota,
-        select: backlogSelect,
-      })) as BacklogRowSel[];
+    // One Cycle W3 — ADAPTIVE sizing: measure inflow durably from the last
+    // two media_sync_cron audit events (a store this pipeline already
+    // writes; no new writer), then size the batch to EXCEED inflow by the
+    // catch-up increment, floored at the Phase-4 MIN and hard-capped
+    // (NEON-001). Measurement failure → null → MIN fallback (fail-closed).
+    try {
+      const history = (await prisma.auditEvent.findMany({
+        where: { action: "media_sync_cron" },
+        orderBy: { created_at: "desc" },
+        take: 2,
+        select: { changes: true },
+      })) as Array<{ changes: unknown }>;
+      backlogInflow = measureBacklogInflow(history);
+    } catch {
+      backlogInflow = null; // history unavailable → MIN fallback
     }
+    const adaptiveLimit = options.backlogBatchLimit ?? computeAdaptiveDrainLimit(backlogInflow);
+    queryPathClassification = backlogInflow === null ? "fallback_min" : "adaptive";
+
+    // One Cycle W3 — OVERLAP SAFETY: candidate selection runs inside a
+    // short advisory-locked transaction (pg_try_advisory_xact_lock,
+    // released at commit). A concurrent run that cannot take the lock
+    // SKIPS the drain (overlap_prevented). The route's 10-min audit guard
+    // dedupes cron invocations; this drain-level mutex closes the residual
+    // manual/racing window. The mirror phase itself is idempotent
+    // (existsInR2 reuse path + write-once row updates), so serializing
+    // SELECTION makes overlapping runs harmless by construction.
+    let backlogRows: BacklogRowSel[] = [];
+    let parkedRows: BacklogRowSel[] = [];
+    let drainSkippedForOverlap = false;
+    const selection = await prisma.$transaction(
+      async (tx) => {
+        const lockRows = (await tx.$queryRaw`SELECT pg_try_advisory_xact_lock(${R2_DRAIN_LOCK_CLASS}::int4, ${R2_DRAIN_LOCK_KEY}::int4) AS locked`) as Array<{ locked: boolean }>;
+        if (!lockRows?.[0]?.locked) {
+          return { skipped: true as const, main: [] as BacklogRowSel[], parked: [] as BacklogRowSel[] };
+        }
+        // Candidate-selection query 1 of <= 2: the bounded MAIN backlog.
+        // W3 ordering: [{id asc}] — the PK is a monotone insertion key, so
+        // FIFO fairness is preserved WITHOUT a created_at sort node (no
+        // supporting index exists for created_at ordering).
+        const main = (await tx.listingMedia.findMany({
+          where: buildR2BacklogWhere(cooldownThreshold, []),
+          orderBy: [{ id: "asc" }],
+          take: adaptiveLimit,
+          select: backlogSelect,
+        })) as BacklogRowSel[];
+        // Candidate-selection query 2 of <= 2 (zero-or-one): parked
+        // recovery. Quota 0 disables (no query). Selection is read-only —
+        // no counter is ever reset.
+        let parked: BacklogRowSel[] = [];
+        if (parkedRecoveryQuota > 0) {
+          parked = (await tx.listingMedia.findMany({
+            where: buildR2ParkedRecoveryWhere(new Date(now() - R2_PARKED_RECOVERY_COOLDOWN_MS)),
+            orderBy: [{ r2_last_attempt_at: "asc" }, { id: "asc" }],
+            take: parkedRecoveryQuota,
+            select: backlogSelect,
+          })) as BacklogRowSel[];
+        }
+        return { skipped: false as const, main, parked };
+      },
+      { timeout: 30_000, maxWait: 5_000 },
+    );
+    if (selection.skipped) {
+      overlapPrevented = 1;
+      queryPathClassification = "skipped_overlap";
+      drainSkippedForOverlap = true;
+    } else {
+      backlogRows = selection.main;
+      parkedRows = selection.parked;
+    }
+    r2BacklogBatchSelected = backlogRows.length;
     r2ParkedRecoverySelected = parkedRows.length;
+    if (drainSkippedForOverlap) {
+      // Nothing selected; fall through with empty queues (no chunks run).
+    }
     // Defensive id de-dupe (the two wheres are disjoint on r2_attempts, but
     // a free duplicate guard costs nothing).
     const mainIds = new Set(backlogRows.map((r) => r.id));
@@ -2967,6 +3112,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       if (remainingMs() <= phase2ReserveMs) break;
       const chunk = parkedRows.slice(j, j + R2_MIRROR_CONCURRENCY);
       r2ParkedRecoveryAttempted += chunk.length;
+      rowsAttemptedTotal += chunk.length;
       // parked failures: counted in r2Failed, NOT in the main cap; the
       // recovery flag keeps transient failures from advancing r2_attempts.
       await mirrorChunk(chunk, true);
@@ -2987,6 +3133,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       const chunk = backlogRows.slice(idx, idx + Math.min(R2_MIRROR_CONCURRENCY, failureAllowance));
       idx += chunk.length;
       mainAttempted += chunk.length;
+      rowsAttemptedTotal += chunk.length;
       mainFailed += await mirrorChunk(chunk);
     }
     // Honest flag: the cap stopped the drain early ONLY if selected main
@@ -3002,13 +3149,21 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
 
   // ── PHASE 4: finalize + return ───────────────────────────────────────
   try {
-    backlogRemaining = await prisma.listingMedia.count({
+    // One Cycle W3 — BOUNDED probe replaces the unbounded COUNT: select at
+    // most PROBE_CAP+1 ids; a result of PROBE_CAP+1 means ">cap". Bounds
+    // the worst-case scan when the backlog is huge; the real index-level
+    // fix is the proposed (NOT applied) partial index — see the PR's
+    // index-proposal section.
+    const probe = await prisma.listingMedia.findMany({
       where: {
         status: "active",
         media_url_original: { not: null },
         OR: [{ r2_key: null }, { media_url_cached: null }],
       },
+      select: { id: true },
+      take: R2_BACKLOG_PROBE_CAP + 1,
     });
+    backlogRemaining = probe.length;
   } catch {
     backlogRemaining = null;
   }
@@ -3045,6 +3200,15 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     summary_writes: summaryWrites,
     pages_revalidated: revalidation.pages_revalidated,
     revalidation_failures: revalidation.revalidation_failures,
+    backlog_inflow_since_last_run: backlogInflow,
+    rows_selected: r2BacklogBatchSelected + r2ParkedRecoverySelected,
+    rows_attempted: rowsAttemptedTotal,
+    rows_drained: r2Mirrored,
+    failures: r2Failed,
+    overlap_prevented: overlapPrevented,
+    time_budget_exhausted: exitReason === "budget_phase2",
+    query_path_classification: queryPathClassification,
+    run_duration_ms: now() - startTime,
     ...attr,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,

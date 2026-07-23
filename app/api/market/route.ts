@@ -43,6 +43,12 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+// One Cycle W3: hard row cap for the two stats reads below. This is a
+// SAFETY BOUND, not sampling — it far exceeds the realistic gated active/
+// closed-in-period inventory, so computed stats are unchanged in practice
+// while the query can never full-scan unbounded growth (NEON-001).
+const MARKET_STATS_ROW_CAP = 5000;
+
 // In-memory cache (market data changes slowly)
 interface CacheEntry { data: unknown; expiresAt: number }
 const marketCache = new Map<string, CacheEntry>();
@@ -147,6 +153,7 @@ export async function GET(request: Request) {
             created_at: true,
             modification_timestamp: true,
           },
+          take: MARKET_STATS_ROW_CAP,
         }),
       ['api-market-active', cacheKey],
       { tags: [SEARCH_CACHE_TAG] },
@@ -277,6 +284,7 @@ export async function GET(request: Request) {
             features: true,
             days_on_market: true,
           },
+          take: MARKET_STATS_ROW_CAP,
         }),
       ['api-market-closed', cacheKey],
       { tags: [SEARCH_CACHE_TAG] },
