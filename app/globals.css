@@ -3,6 +3,9 @@
 @theme {
   --color-brand-gold: #C4A052;
   --color-brand-gold-deep: #B8860B;
+  /* WCAG-AA gold for small TEXT on white (5.3:1) - Maya 2026-07-23: Google/
+     Lighthouse penalizes the lighter golds (3.3:1) as text. */
+  --color-brand-gold-dark: #8B6508;
   --color-brand-dark: #0A0A0A;
   --color-brand-slate: #3d4556;
 

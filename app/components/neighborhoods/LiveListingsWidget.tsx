@@ -276,7 +276,7 @@ function ListingCard({ listing }: { listing: ListingItem }) {
         {/* Canonical ownership + transaction (Maya 2026-07-23): building
             ownership decides the label; sale/rent decides the prefix. */}
         {(listing.transactionLabel || listing.ownershipLabel) && (
-          <p className="text-[11px] font-medium tracking-wide text-brand-gold-deep mt-0.5 uppercase">
+          <p className="text-[11px] font-medium tracking-wide text-brand-gold-dark mt-0.5 uppercase">
             {listing.transactionLabel || (isRental ? 'For Rent' : 'For Sale')}
             {listing.ownershipLabel ? ` · ${listing.ownershipLabel}` : ''}
           </p>

@@ -102,6 +102,21 @@ interface CardProps {
   onHover?: (id: string | null) => void;
 }
 
+/** Canonical type line for ALL card variants (Maya 2026-07-23): transaction
+    (For Sale / For Rent) + building-ownership form (Condo / Co-op / Condop /
+    Rental Building / Townhouse / House / Multi-Family / Mixed-Use). Ownership
+    label first; legacy propertyType only as fallback. */
+function cardTypeLabel(listing: DisplayListing, isRental: boolean): string {
+  const own = listing.ownershipLabel || listing.propertyType || '';
+  const txn = listing.transactionLabel || (isRental ? 'For Rent' : 'For Sale');
+  return own ? `${txn} · ${own}` : txn;
+}
+
+/** Co-op fee wording keys off the CANONICAL form, not the legacy field. */
+function isCoopCard(listing: DisplayListing): boolean {
+  return (listing.ownershipLabel || listing.propertyType) === 'Co-op';
+}
+
 /** Grid card — standard card with photo on top */
 export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
   const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
@@ -182,16 +197,14 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
           )}
         </p>
         <p className="text-sm text-brand-dark/70 mt-0.5">
-          {/* Canonical ownership label first (Condo/Co-op/Condop/Rental
-              Building/Townhouse…), legacy propertyType as fallback. */}
-          {(listing.ownershipLabel || listing.propertyType) && <>{listing.ownershipLabel || listing.propertyType}</>}
+          {cardTypeLabel(listing, isRental)}
           {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
-            ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough}</>
-            : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough}</>}
+            ? <> · {listing.address.neighborhood}, {listing.address.borough}</>
+            : <> · {listing.address.borough}</>}
         </p>
         {!isRental && listing.associationFee && (
           <p className="text-sm text-brand-dark/70 mt-1">
-            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
+            {isCoopCard(listing) ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
         )}
         {isRental && listing.moveInCosts && (
@@ -297,10 +310,10 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
               )}
             </p>
             <p className="text-sm text-brand-dark/70 mt-0.5">
-              {listing.propertyType && <>{listing.propertyType}</>}
+              {cardTypeLabel(listing, isRental)}
               {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
-                ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough}</>
-                : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough}</>}
+                ? <> · {listing.address.neighborhood}, {listing.address.borough}</>
+                : <> · {listing.address.borough}</>}
             </p>
           </div>
           {listing.propertySubType && (
@@ -311,7 +324,7 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         </div>
         {!isRental && listing.associationFee && (
           <p className="text-sm text-brand-dark/70 mt-1">
-            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
+            {isCoopCard(listing) ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
         )}
         {isRental && listing.moveInCosts && (
@@ -476,14 +489,14 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
             : `${listing.address.streetNumber} ${listing.address.streetName}${listing.address.unitNumber ? `, ${listing.address.unitNumber}` : ''}`}
         </p>
         <p className="text-[13px] text-brand-dark/70 truncate mt-0.5">
-          {listing.propertyType && <>{listing.propertyType}</>}
+          {cardTypeLabel(listing, isRental)}
           {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
-            ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough || 'Manhattan'}</>
-            : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough || 'Manhattan'}</>}
+            ? <> · {listing.address.neighborhood}, {listing.address.borough || 'Manhattan'}</>
+            : <> · {listing.address.borough || 'Manhattan'}</>}
         </p>
         {!isRental && listing.associationFee && (
           <p className="text-[13px] text-brand-dark/70 mt-0.5">
-            {listing.propertyType === 'Co-op' ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
+            {isCoopCard(listing) ? 'Maint' : 'CC'}: ${listing.associationFee.toLocaleString()}/mo
           </p>
         )}
         {isRental && listing.moveInCosts && (
