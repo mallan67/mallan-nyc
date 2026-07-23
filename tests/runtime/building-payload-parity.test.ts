@@ -96,12 +96,14 @@ function dbRows(num: string) {
 }
 
 function trestleRecords(num: string) {
+  // scenario 800: a RENTAL BUILDING — every record carries that ownership form
+  const buildingCI = num === "800" ? "RentalBuilding" : "Condominium";
   const base = {
     BuildingName: "Century Tower",
     YearBuilt: 1999,
     StoriesTotal: 23,
     NumberOfUnitsInCommunity: 128,
-    CommonInterest: "Condominium",
+    CommonInterest: buildingCI,
     StructureType: "HighRise",
     NewConstructionYN: false,
     TaxAnnualAmount: 21729.84,
@@ -274,7 +276,8 @@ describe("building payload parity — legacy production route vs new shared acce
     // Maya 2026-07-23: ownership units display Condo/Co-op/Condop — never raw Apartment
     expect(byId["TRE-400-S1"].propertyType).toBe("Condo");
     expect(byId["TRE-400-CS1"].propertyType).toBe("Condo");
-    expect(byId["TRE-400-R1"].propertyType).toBe("Apartment"); // rental (no ownership form) unchanged
+    // Maya rule: a rental INSIDE A CONDO BUILDING shows Condo (building ownership form)
+    expect(byId["TRE-400-R1"].propertyType).toBe("Condo");
     expect(byId["TRE-400-R1"].listingType).toBe("rent");
     expect(byId["TRE-400-CS1"].status).toBe("ComingSoon");
 
@@ -345,6 +348,15 @@ describe("building payload parity — legacy production route vs new shared acce
     const fresh = await newPayload("600", "The Grand Alias");
     expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
     expect(fresh.building.name).toBe("The Grand Alias");
+  });
+
+  it("Maya rule: rentals in a RENTAL BUILDING display 'Rental Building' on the card", async () => {
+    const fresh = await newPayload("800");
+    const rental = (fresh.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-800-R1");
+    expect(rental?.propertyType).toBe("Rental Building");
+    // and ownership units in that scenario inherit the building form too
+    const sale = (fresh.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-800-S1");
+    expect(sale?.propertyType).toBe("Rental Building");
   });
 
   it("metadata-driving fields match (name, counts the page/generateMetadata renders)", async () => {

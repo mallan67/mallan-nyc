@@ -38,7 +38,7 @@ All non-sync writers already bump SEARCH_CACHE_TAG, which the manifest shards al
 
 ## Maya-directed display correction (2026-07-23, mid-review)
 
-Unit cards must show the OWNERSHIP form — Condo / Co-op / Condop — never raw 'Apartment' for ownership units. The Trestle-sourced card path now routes through the canonical mapPropertyTypeToDisplay (CommonInterest-first), matching what the DB-sourced path already did; genuine rentals (no ownership form) keep 'Apartment' via the old value as fallback. This is the ONE deliberate payload divergence from production; the parity harness strips exactly this field from deep-equal and pins the new mapping explicitly (sale/coming-soon → Condo; rental → Apartment).
+Unit cards must show the BUILDING's ownership form — Condo / Co-op / Condop / Rental Building — never raw 'Apartment'. Refined rule (Maya): a rental inside a condo shows Condo; inside a co-op, Co-op; inside a condop, Condop; in a rental building, Rental Building. Implementation: unitDisplayType() chains the unit's own CommonInterest → the building's aggregated CommonInterest → the canonical mapper with the legacy value as final fallback (exotic sub-types unchanged). All three card sites (Trestle active, Trestle closed, DB active) route through it. This is the ONE deliberate payload divergence from production; the parity harness strips exactly this field from deep-equal and pins the new mapping explicitly (sale/coming-soon → Condo; rental → Apartment).
 
 ## Proof
 

@@ -487,6 +487,30 @@ function getBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
   )(shard);
 }
 
+/**
+ * Unit-card display type (Maya 2026-07-23): the card reflects the OWNERSHIP
+ * form of the unit's building — a rental inside a condo shows 'Condo', inside
+ * a co-op 'Co-op', inside a condop 'Condop', and in a rental building
+ * 'Rental Building'. Chain: the unit's own CommonInterest → the BUILDING's
+ * aggregated CommonInterest → the canonical mapper with the legacy value as
+ * final fallback (exotic sub-types render exactly as before).
+ */
+function unitDisplayType(
+  rowCommonInterest: string | null | undefined,
+  buildingCommonInterest: string | null | undefined,
+  propertySubType: string | null | undefined,
+  legacy: string,
+): string {
+  const ci = rowCommonInterest || buildingCommonInterest || '';
+  switch (ci) {
+    case 'Condominium': return 'Condo';
+    case 'StockCooperative': return 'Co-op';
+    case 'Condop': return 'Condop';
+    case 'RentalBuilding': return 'Rental Building';
+  }
+  return mapPropertyTypeToDisplay(rowCommonInterest ?? undefined, propertySubType ?? null, legacy);
+}
+
 /** Assemble the complete public building payload (PURE READ — no Neon writes). */
 async function buildBuildingPayload(
   streetNumber: string,
@@ -717,7 +741,7 @@ async function buildBuildingPayload(
         bathsHalf: Number(r.BathroomsHalf || 0),
         sqft: Number(r.LivingArea || 0),
         unit: String(r.UnitNumber || ''),
-        propertyType: mapPropertyTypeToDisplay(r.CommonInterest as string | undefined, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
+        propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
         status: String(r.StandardStatus || r.MlsStatus || 'Active'),
         listingType,
@@ -738,7 +762,7 @@ async function buildBuildingPayload(
         bathsHalf: l.bathrooms_half || 0,
         sqft: l.living_area ? Number(l.living_area) : 0,
         unit: String(addr.UnitNumber || ''),
-        propertyType: mapPropertyTypeToDisplay(l.features.CommonInterest ?? undefined, l.property_sub_type, l.property_type || ''),
+        propertyType: unitDisplayType(l.features.CommonInterest, buildingInfo.commonInterest, l.property_sub_type, mapPropertyTypeToDisplay(l.features.CommonInterest ?? undefined, l.property_sub_type, l.property_type || '')),
         office: '',
         status: l.status,
         listingType: l.listing_type || 'sale',
@@ -781,7 +805,7 @@ async function buildBuildingPayload(
         sqft: Number(r.LivingArea || 0),
         unit: String(r.UnitNumber || ''),
         closeDate: r.CloseDate ? String(r.CloseDate) : null,
-        propertyType: mapPropertyTypeToDisplay(r.CommonInterest as string | undefined, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
+        propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
         source: 'mls',
       });
