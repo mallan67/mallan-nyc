@@ -120,6 +120,29 @@ export async function GET(req: NextRequest) {
           rows_failed: result.rows_failed,
           listings_processed: result.listings_processed,
           listings_skipped: result.listings_skipped,
+          // Phase 3 surface C — summary-write suppression counters (flattened
+          // aggregate integers only; no URLs/ids). Persisted so ops can verify
+          // suppressed/updated/failed SUMMARY writes from the durable audit log
+          // alone after deploy (Codex #549 review — allowlist omission).
+          summary_rows_checked: result.summary_writes.rows_checked,
+          summary_rows_materially_changed: result.summary_writes.rows_materially_changed,
+          summary_rows_suppressed_unchanged: result.summary_writes.rows_suppressed_unchanged,
+          summary_rows_inserted: result.summary_writes.rows_inserted,
+          summary_rows_updated: result.summary_writes.rows_updated,
+          summary_rows_failed: result.summary_writes.rows_failed,
+          // One Cycle W1 — bounded aggregate cache-revalidation counters
+          // (integers only; no URLs/ids — same allowlist class as above).
+          pages_revalidated: result.pages_revalidated,
+          revalidation_failures: result.revalidation_failures,
+          // Phase 4 — bounded drain / reserved recovery observability (aggregate
+          // integers + one boolean; no URLs/ids). Persisted so ops can verify
+          // the bounded backlog, recovery fairness, and budget behavior from
+          // the durable audit log alone (same allowlist class as the Phase 3
+          // summary counters above).
+          r2_backlog_batch_selected: result.r2_backlog_batch_selected,
+          r2_parked_recovery_selected: result.r2_parked_recovery_selected,
+          r2_parked_recovery_attempted: result.r2_parked_recovery_attempted,
+          r2_failure_budget_exhausted: result.r2_failure_budget_exhausted,
           r2_mirrored: result.r2_mirrored,
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,

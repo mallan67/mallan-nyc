@@ -17,7 +17,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
-import { dbGrowthCell, cotalityFreshnessCell } from "./health-status";
+import { dbGrowthCell, cotalityFreshnessCell, cotalityOutcomeCell } from "./health-status";
 
 // NO override: a shell-supplied env (the operator's explicit canonical `DATABASE_URL_UNPOOLED=… npm
 // run health:probe`) must WIN over a possibly-stale workstation .env.local (Codex #466).
@@ -169,11 +169,18 @@ async function main(): Promise<void> {
       try {
         const total = await prisma.listing.count();
         const archived = await prisma.listing.count({ where: { sync_status: "archived" } });
-        const latest = await prisma.listing.aggregate({ _max: { last_synced_from_trestle: true } });
-        const last = latest._max.last_synced_from_trestle;
+        // Freshness = the RUN-ATTEMPT clock (SyncState.last_run_at), NOT
+        // MAX(listings.last_synced_from_trestle): Phase 3 write-suppression
+        // stops bumping per-row telemetry on unchanged listings, so a
+        // quiet-but-healthy feed would age the row-level max into yellow/red
+        // (Codex post-merge review). last_run_at advances on every attempt.
+        const propertySync = await prisma.syncState.findUnique({ where: { resource: "Property" } });
+        const last = propertySync?.last_run_at ?? null;
         const ageMin = last ? Math.round((Date.now() - new Date(last).getTime()) / 60000) : null;
         const fresh = cotalityFreshnessCell(ageMin);
-        add("Cotality ingestion freshness", fresh.status, fresh.evidence);
+        const outcome = cotalityOutcomeCell(propertySync?.last_run_status ?? null, propertySync?.rows_with_errors ?? null);
+        add("Cotality sync attempt freshness", fresh.status, fresh.evidence);
+        add("Cotality last-run outcome", outcome.status, outcome.evidence);
         // Gate on a sane floor — a successful read of an empty/restored branch must NOT show 🟢 (Codex #466).
         const growth = dbGrowthCell(total, archived);
         add("DB growth / archive state", growth.status, growth.evidence);
@@ -198,11 +205,13 @@ async function main(): Promise<void> {
         await prisma.$disconnect();
       }
     }, () => {
-      add("Cotality ingestion freshness", "⚪", "DB read failed");
+      add("Cotality sync attempt freshness", "⚪", "DB read failed");
+      add("Cotality last-run outcome", "⚪", "DB read failed");
       add("DB growth / archive state", "⚪", "DB read failed");
     });
   } else {
-    add("Cotality ingestion freshness", "⚪", "no canonical DATABASE_URL in env (pass cold-waterfall to fill)");
+    add("Cotality sync attempt freshness", "⚪", "no canonical DATABASE_URL in env (pass cold-waterfall to fill)");
+    add("Cotality last-run outcome", "⚪", "no canonical DATABASE_URL in env (pass cold-waterfall to fill)");
     add("DB growth / archive state", "⚪", "no canonical DATABASE_URL in env (pass cold-waterfall to fill)");
   }
 

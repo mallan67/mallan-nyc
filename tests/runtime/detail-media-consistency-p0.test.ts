@@ -312,11 +312,13 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
     expect(code).not.toMatch(/from\s+['"]@\/lib\/idx\/fetch['"]/);
     expect(code).not.toMatch(/from\s+['"]@\/lib\/idx\/auth['"]/);
   });
-  it('keeps ISR intact: revalidate = 300 (post-rollback main), dynamicParams, generateStaticParams', () => {
+  it('keeps ISR intact: revalidate = 1800 (One Cycle W1 — ISR window = sync cadence), dynamicParams, generateStaticParams', () => {
     // This branch is based on POST-ROLLBACK main (PR #518 reverted the #516
     // crawl-cache change), so the ISR interval is 300. This media-ownership PR
     // does not touch it.
-    expect(detailPage).toMatch(/export const revalidate = 300/);
+    // One Cycle W1: the page can never be fresher than the feed sync, so the
+    // ISR window equals the 30-min sync cadence (identical effective freshness).
+    expect(detailPage).toMatch(/export const revalidate = 1800/);
     expect(detailPage).toMatch(/export const dynamicParams = true/);
     expect(detailPage).toMatch(/export async function generateStaticParams/);
   });

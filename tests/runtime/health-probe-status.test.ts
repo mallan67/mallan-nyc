@@ -48,3 +48,52 @@ describe('cotalityFreshnessCell — ingestion freshness', () => {
   it('>120m → 🔴', () => expect(cotalityFreshnessCell(200).status).toBe('🔴'));
   it('null (no timestamp) → ⚪', () => expect(cotalityFreshnessCell(null).status).toBe('⚪'));
 });
+
+// ── Codex post-merge review: freshness must come from the run-attempt clock ──
+import * as fs2 from "node:fs";
+import * as path2 from "node:path";
+describe("probe.ts — Cotality ingestion freshness source (attempt-time, suppression-safe)", () => {
+  const probeSrc = fs2.readFileSync(path2.resolve(__dirname, "../../scripts/health/probe.ts"), "utf8");
+  it("reads SyncState (Property) last_run_at — the run-attempt clock that advances on quiet-but-healthy syncs", () => {
+    expect(probeSrc).toMatch(/syncState/);
+    expect(probeSrc).toMatch(/last_run_at/);
+  });
+  it("does NOT derive freshness from MAX(last_synced_from_trestle) — Phase 3 suppression stops bumping it on unchanged listings", () => {
+    expect(probeSrc).not.toMatch(/_max:s*{s*last_synced_from_trestle/);
+  });
+});
+
+// ── Maya correction: attempt-recency must never certify a FAILING sync as healthy ──
+import { cotalityOutcomeCell } from "../../scripts/health/health-status";
+describe("cotalityOutcomeCell — last-run OUTCOME is a separate cell from attempt freshness", () => {
+  it("ok + zero errors → 🟢", () => {
+    expect(cotalityOutcomeCell("ok", 0).status).toBe("🟢");
+  });
+  it("status error → 🔴 even when the attempt is recent", () => {
+    expect(cotalityOutcomeCell("error", 0).status).toBe("🔴");
+  });
+  it("partial or row errors → 🟡", () => {
+    expect(cotalityOutcomeCell("partial", 0).status).toBe("🟡");
+    expect(cotalityOutcomeCell("ok", 3).status).toBe("🟡");
+  });
+  it("unknown/null → ⚪ (never green by default)", () => {
+    expect(cotalityOutcomeCell(null, null).status).toBe("⚪");
+  });
+  it("ok with UNRECORDED rows_with_errors (NULL) → 🟡, never green on a fabricated zero (Codex #552)", () => {
+    const cell = cotalityOutcomeCell("ok", null);
+    expect(cell.status).toBe("🟡");
+    expect(cell.evidence).toContain("unrecorded");
+    expect(cell.evidence).not.toContain("rows_with_errors=0");
+  });
+});
+describe("probe.ts — emits BOTH attempt-freshness and last-run-outcome cells", () => {
+  const probeSrc = fs2.readFileSync(path2.resolve(__dirname, "../../scripts/health/probe.ts"), "utf8");
+  it("adds a Cotality last-run outcome cell fed by last_run_status + rows_with_errors", () => {
+    expect(probeSrc).toMatch(/Cotality last-run outcome/);
+    expect(probeSrc).toMatch(/last_run_status/);
+    expect(probeSrc).toMatch(/rows_with_errors/);
+  });
+  it("labels the freshness cell as ATTEMPT freshness (it proves the cron fired, not that ingestion succeeded)", () => {
+    expect(probeSrc).toMatch(/Cotality sync attempt freshness/);
+  });
+});

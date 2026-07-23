@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export const maxDuration = 120;
 
@@ -87,11 +88,13 @@ export async function GET(req: NextRequest) {
         entity_id: "bulk",
         user_type: "system",
         user_id: null,
+        // Cast: SyncResult now carries the Phase 3 write_paths counters
+        // (plain typed interfaces, JSON-safe by construction).
         changes: {
           ...result,
           incremental: !!since,
           since: since?.toISOString() ?? null,
-        },
+        } as unknown as Prisma.InputJsonValue,
       },
     });
 

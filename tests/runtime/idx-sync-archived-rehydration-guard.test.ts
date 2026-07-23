@@ -188,14 +188,26 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
 describe('idx-sync source — archived-guard wiring (SUPPORTING, not the RED proof)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
-  it('both UPDATE branches wrap the payload in guardArchivedRehydration(...)', () => {
-    const matches = src.match(/update:\s*guardArchivedRehydration\(/g) || [];
-    expect(matches.length).toBe(2);
+  it('both UPDATE payloads are produced by guardArchivedRehydration(...) (Phase 3: assigned to a const, then passed as update:)', () => {
+    // Phase 3 write-suppression extracted the guarded payload into a const so
+    // it can be compared before writing — the guard still wraps BOTH paths.
+    const guarded = src.match(/=\s*guardArchivedRehydration\(\{/g) || [];
+    expect(guarded.length).toBe(2);
+    // And both upserts consume the guarded payload (never a raw object).
+    expect(src).toMatch(/update:\s*listingUpdateData/);
+    expect(src).toMatch(/update:\s*agentUpdateData/);
   });
 
-  it('both existing-row selects include sync_status so the guard can see archived state', () => {
-    const matches = src.match(/sync_status:\s*true/g) || [];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+  it('both existing-row selects include sync_status so the guard can see archived state (via LISTING_SYNC_COMPARE_SELECT)', () => {
+    // Phase 3: the selects now use the shared LISTING_SYNC_COMPARE_SELECT
+    // constant; sync_status must be present there.
+    const selects = src.match(/select:\s*LISTING_SYNC_COMPARE_SELECT/g) || [];
+    expect(selects.length).toBeGreaterThanOrEqual(2);
+    const suppressionSrc = readFileSync(
+      path.resolve(__dirname, '../../lib/idx/write-suppression.ts'),
+      'utf8',
+    );
+    expect(suppressionSrc).toMatch(/sync_status:\s*true/);
   });
 });
 
@@ -257,9 +269,13 @@ describe('archivedSafeMediaWhere — NULL-safe batch media guard (Codex #465 P2,
 describe('idx-sync source — batch media-refill archived guard wiring (SUPPORTING)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
-  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path + backfill write)', () => {
+  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path reads + writes, backfill write)', () => {
+    // Phase 3 write-suppression added an archived-safe findFirst pre-read
+    // next to each sync-path updateMany (2 reads + 2 writes) and kept the
+    // backfill write → 5 archived-safe where sites total. Every one of them
+    // must keep the guard.
     const matches = src.match(/where:\s*archivedSafeMediaWhere\(/g) || [];
-    expect(matches.length).toBe(3);
+    expect(matches.length).toBe(5);
   });
 
   it('no batch media updateMany writes media with a bare { listing_id } where (unguarded rehydration)', () => {

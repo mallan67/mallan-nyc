@@ -66,7 +66,15 @@ export async function computeSnapshot(
     select: { borough: true },
   });
 
-  // Upsert snapshot
+  // Upsert snapshot.
+  //
+  // Phase 3 item-6 inventory decision — NO write-suppression here, by design:
+  // this runs MONTHLY (vercel.json: 1st of month, 06:00), keyed on the unique
+  // (neighborhood, period, listing_type). Each run either inserts the new
+  // period's row or refreshes the current period with aggregates derived from
+  // the live listings table (inventory/prices/DOM genuinely move month to
+  // month). Worst-case churn is ~2 rows per neighborhood per MONTH —
+  // negligible next to the daily writers this phase fixed.
   const snapshot = await prisma.marketSnapshot.upsert({
     where: {
       neighborhood_period_listing_type: {
