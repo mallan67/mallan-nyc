@@ -6,6 +6,7 @@ import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import BackButton from '@/app/components/BackButton';
 import BuildingViolations from '@/app/components/BuildingViolations';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
+import { getBuildingDataCached } from '@/lib/buildings/public-building-data';
 
 export const revalidate = 600;
 
@@ -100,22 +101,13 @@ async function fetchBuildingData(params: {
   postalCode?: string;
   buildingName?: string;
 }): Promise<BuildingData | null> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-
-  const sp = new URLSearchParams({
-    streetNumber: params.streetNumber,
-    streetName: params.streetName,
-  });
-  if (params.postalCode) sp.set('postalCode', params.postalCode);
-  if (params.buildingName) sp.set('buildingName', params.buildingName);
-
+  // Neon-quiet (2026-07-23): direct call into the shared cached accessor —
+  // the page→internal-HTTP hop is GONE. The page render, generateMetadata,
+  // and /api/buildings all read the SAME tagged cache entry, so a repeated
+  // building request executes zero Prisma/Trestle work.
   try {
-    const res = await fetch(`${baseUrl}/api/buildings?${sp}`, { next: { revalidate: 600 } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? (data as BuildingData) : null;
+    const data = await getBuildingDataCached(params);
+    return data.success ? (data as unknown as BuildingData) : null;
   } catch {
     return null;
   }

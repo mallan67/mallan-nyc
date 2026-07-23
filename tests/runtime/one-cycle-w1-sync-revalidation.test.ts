@@ -236,7 +236,11 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
     expect(tags).toContain("listing:RLS100002");
     expect(tags).not.toContain("listing:RLS100001"); // suppressed → untouched cache
     expect(tags.filter((t) => t === "search").length).toBe(1); // bumped ONCE per run
-    expect(result.write_paths.revalidation.pages_revalidated).toBe(2); // listing tag + search
+    // Building-Neon-wake: a materially changed listing ALSO revalidates its
+    // EXACT building tag (per-building cache entries carry no coarse tag,
+    // so the sync must name the buildings it actually changed).
+    expect(tags.some((t2) => t2.startsWith("building:"))).toBe(true);
+    expect(result.write_paths.revalidation.pages_revalidated).toBe(3); // listing + building + search
     expect(result.write_paths.revalidation.revalidation_failures).toBe(0);
   });
 
@@ -265,6 +269,32 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
     const tags = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
     expect(tags).toContain("listing:RLS100001");
     expect(tags).toContain("search");
+  });
+
+  it("an ADDRESS CHANGE (building A → building B) revalidates BOTH buildings' exact tags", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { buildingCacheTag } = require("@/lib/cache/public-cache");
+    const oldRaw = rawRecord(); // stored at 400 East 90th Street (building A)
+    const newRaw = rawRecord({
+      StreetNumber: "155",
+      StreetName: "West 68th Street",
+      PostalCode: "10023",
+      ModificationTimestamp: "2026-07-02T00:00:00Z",
+    }); // feed correction moves it to building B
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(oldRaw)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(oldRaw)]]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [newRaw], totalFetched: 1 });
+
+    await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    const tags = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
+    // the listing must LEAVE building A's cached payload…
+    expect(tags).toContain(buildingCacheTag("400", "East 90th Street", "10128"));
+    // …and APPEAR in building B's — both in the SAME cycle
+    expect(tags).toContain(buildingCacheTag("155", "West 68th Street", "10023"));
   });
 
   it("revalidation failures are COUNTED but never fail the sync run", async () => {

@@ -197,7 +197,10 @@ for (const ep of emailEndpoints) {
 // ── 8. Distribution gates on Trestle fallback endpoints ──
 const trestleFallbackEndpoints = [
   path.join(ROOT, 'app', 'api', 'market', 'route.ts'),
-  path.join(ROOT, 'app', 'api', 'buildings', 'route.ts'),
+  // Building-Neon-wake (2026-07-23): the buildings Trestle-fallback assembly
+  // (incl. checkDistributionGates) moved verbatim into the shared cached
+  // module; the route is a thin shell over it. Gate enforcement lives here:
+  path.join(ROOT, 'lib', 'buildings', 'public-building-data.ts'),
   path.join(ROOT, 'app', 'api', 'listings', 'building', 'route.ts'),
   path.join(ROOT, 'app', 'api', 'open-houses', 'route.ts'),
 ];

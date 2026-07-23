@@ -17,6 +17,7 @@ import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
@@ -489,6 +490,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     data: update,
   });
 
+  // Building-Neon-wake — a CRM edit can change price/address/status/gates on
+  // an exclusive that appears in cached BUILDING payloads: expire the listing
+  // tag + BOTH buildings (previous + new address) + search in the same cycle.
+  safeRevalidateTags([
+    listingCacheTag(listing.listing_id),
+    ...buildingInvalidationTags(existingAddress, updated.address),
+    SEARCH_CACHE_TAG,
+  ]);
+
   // Phase A W3 — dual-write the listing_search_projection so any reader
   // (including the PR 5B-future projection reader) sees the updated row
   // immediately. CRM PATCH can change `list_price`, address fields,
@@ -602,6 +612,14 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     { previous_status: listing.status, new_status: "Withdrawn" },
     req.headers.get("x-forwarded-for") ?? undefined
   );
+
+  // Building-Neon-wake — a withdrawn exclusive must leave its building's
+  // cached payload (and search surfaces) in the same cycle.
+  safeRevalidateTags([
+    listingCacheTag(listing.listing_id),
+    ...buildingInvalidationTags(listing.address),
+    SEARCH_CACHE_TAG,
+  ]);
 
   return NextResponse.json({ success: true, status: "Withdrawn" });
 }

@@ -124,7 +124,9 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
 
 describe('/api/buildings — Trestle Media expand fetches enough rows to skip a leading floorplan (Codex #482)', () => {
   const src = readFileSync(
-    path.resolve(__dirname, '../../app/api/buildings/route.ts'),
+    // Building-Neon-wake (2026-07-23): the Trestle query (incl. MEDIA_EXPAND)
+    // moved verbatim into the shared cached module — same contract, new home.
+    path.resolve(__dirname, '../../lib/buildings/public-building-data.ts'),
     'utf8',
   );
 
