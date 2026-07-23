@@ -14,10 +14,11 @@ the verified findings in `docs/audits/repo-wide-audit-verification-2026-06-07.md
 proof — never grep alone), §G validation chain, §D compliance-first (read the canonical file
 BEFORE touching any §D surface).
 
-**Sentinel-L is NON-FUNCTIONAL — excluded from every gate.** It is not a check, not a
-dependency, not a prerequisite, and is **never cited as evidence** anywhere in this plan. We
-do **not** wait on it, build a canary for it, or block on it. (If it is ever rebuilt, that is
-a separate, independently-verified task — it does not gate this work.)
+**Sentinel-L was RETIRED and REMOVED by PR #546.** It is not a gate, dependency,
+prerequisite, required check, or evidence source, and is **never cited as evidence**
+anywhere in this plan. Its detector coverage was migrated to focused behavioral/contract
+tests (see the retention matrix, `docs/compliance/sentinel-l-retention-matrix-2026-07-21.md`).
+It **must not be reintroduced without a new, separately approved design and proof.**
 
 **No work in the dark (the core rule of this plan).** Every change passes TWO concrete,
 pass-required evaluation points before anything advances: a **MICRO** gate (is the change
@@ -193,8 +194,8 @@ when the sole red is the known-stuck `release-truth` PARTIAL).
 
 ### C2. MACRO oversight — per-change + per-phase + scheduled (gates "settled")
 The macro-oversight layer. The **system-impact verifier runs on EVERY change** (enforcing the
-B4 macro evaluation); the rest gate phase-close and run on a schedule. **Sentinel-L is excluded
-— it is non-functional and appears in no gate.**
+B4 macro evaluation); the rest gate phase-close and run on a schedule. **Sentinel-L was
+retired (removed by PR #546) and appears in no gate.**
 
 | Agent / mechanism | Cadence | What it verifies (macro) | Output / gate |
 |---|---|---|---|
@@ -395,8 +396,9 @@ structured Trace-Record parsing is recorded as **G2-hard (PLANNED)** in the ledg
   cron/CRM-frontend/workflows, manual cron triggers, reconciliation runs, admin bypass, force-push.
 - **Merge** only via documented-waiver squash (no `--admin`, no force) when the sole blocker is
   the known-stuck `release-truth` PARTIAL.
-- **Proof-first / fail-closed / compliance-first** as above. **Sentinel-L is non-functional
-  and excluded from every gate** — never cited, never a dependency, never waited on.
+- **Proof-first / fail-closed / compliance-first** as above. **Sentinel-L was retired
+  (removed by PR #546) and is excluded from every gate** — never cited, never a dependency,
+  and not reintroduced without a new, separately approved design.
 - **No work in the dark:** no change merges or advances without BOTH the micro gate and the
   per-change macro (system-impact) gate green. An unmapped blast radius = not done.
 - **Nothing in this plan has executed.** It is the control structure; each piece runs only

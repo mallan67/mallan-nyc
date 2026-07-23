@@ -1,17 +1,17 @@
 /// <reference types="jest" />
 /**
- * Rental form P0 fixes — Sentinel-L S-RENT-001 + S-DB-008.
+ * Rental form P0 regression guards — two real defects.
  *
- * S-RENT-001: the auth-gate redirects were `'/crm/login.html;` — an
- * unterminated string literal (missing closing quote, semicolon inside the
- * string). That is a parse error that breaks the entire rental form before
- * any workflow code runs.
+ * (1) Malformed rental-login redirect: the auth-gate redirects were
+ * `'/crm/login.html;` — an unterminated string literal (missing closing quote,
+ * semicolon inside the string). That parse error breaks the entire rental form
+ * before any workflow code runs.
  *
- * S-DB-008: rental autosave wrote `localStorage.setItem('rentalListingDraft')`
- * unconditionally, even when editing an existing DB listing — the same
- * phantom-draft class the sales form already guards with
- * `_saleEditMode && _saleEditDbId`. A browser draft must never shadow or
- * overwrite a real DB rental listing.
+ * (2) Edit-mode browser-draft shadowing: rental autosave wrote
+ * `localStorage.setItem('rentalListingDraft')` unconditionally, even when
+ * editing an existing DB listing — the same phantom-draft class the sales form
+ * guards with `_saleEditMode && _saleEditDbId`. A browser draft must never
+ * shadow or overwrite a real DB rental listing.
  */
 
 import fs from 'node:fs';
@@ -20,7 +20,7 @@ import path from 'node:path';
 const FORM_PATH = path.resolve(__dirname, '../../public/crm/RENTAL-FORM-REDESIGN.html');
 const form = fs.readFileSync(FORM_PATH, 'utf8');
 
-describe('Rental form — login redirect is a well-formed string (S-RENT-001)', () => {
+describe('Rental form — malformed rental-login redirect is fixed', () => {
   test('no unterminated /crm/login.html redirect remains', () => {
     expect(form).not.toMatch(/['"]\/crm\/login\.html;/);
   });
@@ -30,7 +30,7 @@ describe('Rental form — login redirect is a well-formed string (S-RENT-001)', 
   });
 });
 
-describe('Rental form — phantom-draft guard on save (S-DB-008)', () => {
+describe('Rental form — edit-mode browser-draft shadowing guard on save', () => {
   const fnStart = form.indexOf('function saveRentalDraft()');
   const fnBody = form.slice(fnStart, fnStart + 1400);
 
@@ -55,7 +55,7 @@ describe('Rental form — phantom-draft guard on save (S-DB-008)', () => {
   });
 });
 
-describe('Rental form — stale draft cannot shadow a DB listing on load (S-DB-008)', () => {
+describe('Rental form — edit-mode browser-draft cannot shadow a DB listing on load', () => {
   const loadStart = form.indexOf('function loadRentalDraft()');
   const loadBody = form.slice(loadStart, loadStart + 700);
 
