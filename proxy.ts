@@ -14,9 +14,13 @@ import {
 
 export const config = {
   matcher: [
-    // sitemap/ covers the partitioned /sitemap/{id}.xml files (2026-07-23) —
-    // same crawler-infrastructure exemption the classic /sitemap.xml has.
-    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemap/|images/|fonts/).*)",
+    // sitemap/ + sitemap-index.xml cover the partitioned sitemaps
+    // (2026-07-23). /sitemap.xml is NO LONGER excluded — it must pass
+    // through this proxy so the early rewrite below can serve the classic
+    // URL from the /sitemap-index.xml route (Next reserves the /sitemap.xml
+    // path for its metadata machinery once generateSitemaps exists, so a
+    // route file cannot own it directly).
+    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap-index\\.xml|sitemap/|images/|fonts/).*)",
   ],
 };
 
@@ -51,6 +55,16 @@ function setCorsHeaders(response: NextResponse, origin: string): NextResponse {
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin");
+
+  // ── Classic sitemap URL (2026-07-23) ──
+  // /sitemap.xml keeps working for robots.txt + Search Console by rewriting
+  // to the sitemap-index route (Next's generateSitemaps machinery reserves
+  // the literal /sitemap.xml path, so a route file cannot own it). This
+  // returns BEFORE bot blocking / rate limiting — sitemap fetches are
+  // crawler infrastructure, exactly like the old matcher exclusion.
+  if (pathname === "/sitemap.xml") {
+    return NextResponse.rewrite(new URL("/sitemap-index.xml", req.url));
+  }
 
   // ── 0. CORS preflight ──
   if (req.method === "OPTIONS" && pathname.startsWith("/api") && isAllowedOrigin(origin)) {

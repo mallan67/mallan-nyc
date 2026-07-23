@@ -61,7 +61,21 @@ export const getDisplayableListingCount = cachedPublicRead(
  * Throws (fail-closed) past MAX_SITEMAP_PARTITIONS.
  */
 export async function getSitemapPartitionIds(): Promise<number[]> {
-  const count = await getDisplayableListingCount();
+  let count: number;
+  try {
+    count = await getDisplayableListingCount();
+  } catch (err) {
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      // The Vercel BUILD runtime deliberately has no DATABASE_URL (NEON.md
+      // §1) — Next still executes generateSitemaps() during page-data
+      // collection. Return a placeholder set: the metadata route re-runs
+      // generateSitemaps ON EVERY REQUEST at runtime (force-dynamic), so
+      // this build-time value never reaches a crawler.
+      return [0, 1, 2, 3];
+    }
+    // Runtime failure → FAIL CLOSED (route 500s; crawlers keep cached copy).
+    throw err;
+  }
   const listingPartitions = Math.ceil(count / LISTINGS_PER_SITEMAP) + 1; // +1 slack
   if (listingPartitions > MAX_SITEMAP_PARTITIONS) {
     console.error(

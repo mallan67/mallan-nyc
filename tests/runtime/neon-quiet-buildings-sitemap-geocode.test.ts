@@ -201,8 +201,13 @@ describe("sitemap — partitioned completeness (population ABOVE 25,000)", () =>
     expect(sm).toContain("cachedPublicRead");
     expect(sm).toContain("dedupeRawDbRows(");
     expect(sm).toContain("internetAddressDisplayYN");
-    // classic /sitemap.xml stays alive as an index over the partitions
-    const idx = read("app/sitemap.xml/route.ts");
+    // classic /sitemap.xml stays alive: the proxy rewrites it to the
+    // sitemap-index route (Next reserves the literal path for its metadata
+    // machinery once generateSitemaps exists)
+    const idx = read("app/sitemap-index.xml/route.ts");
+    const proxy = read("proxy.ts");
+    expect(proxy).toContain('pathname === "/sitemap.xml"');
+    expect(proxy).toContain('NextResponse.rewrite(new URL("/sitemap-index.xml"');
     expect(idx).toContain("getSitemapPartitionIds");
     expect(idx).toContain("sitemapindex");
     expect(idx).toMatch(/status: 500/); // fail-closed, never a wrong index

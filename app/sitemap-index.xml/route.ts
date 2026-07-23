@@ -1,5 +1,8 @@
 /**
- * /sitemap.xml — sitemap INDEX over the partitioned sitemaps (2026-07-23).
+ * /sitemap-index.xml — sitemap INDEX over the partitioned sitemaps (2026-07-23).
+ *
+ * Served at the classic /sitemap.xml URL via a proxy rewrite (Next reserves
+ * the literal /sitemap.xml path once generateSitemaps exists).
  *
  * app/sitemap.ts now uses `generateSitemaps`, which serves the actual
  * sitemaps at /sitemap/{id}.xml. This route keeps the CLASSIC /sitemap.xml
