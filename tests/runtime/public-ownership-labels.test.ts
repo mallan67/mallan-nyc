@@ -232,3 +232,158 @@ describe("surface pins — every required public surface renders the canonical f
     expect(src).toContain("transactionLabel: dto.transactionLabel");
   });
 });
+
+// ─── 6. COMPLETE TAXONOMY (Maya 2026-07-23 CHANGES-REQUIRED round) ─────────
+// Production inventory (read-only census, 2026-07-23): CommonInterest ∈
+// {Condominium, StockCooperative, Condop, RentalBuilding, None};
+// PropertySubType ∈ {Apartment, MultiFamily, SingleFamilyResidence, Duplex,
+// Loft, Triplex, MixedUse, Townhouse} — space-less PascalCase. Loft/Duplex/
+// Triplex are UNIT forms and stay propertySubType; the building-form taxonomy
+// is Condo · Co-op · Condop · Rental Building · Townhouse · House ·
+// Multi-Family · Mixed-Use.
+
+describe("complete taxonomy — classifier covers every live building form", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { deriveOwnershipLabel } = require("@/lib/listings/ownership");
+
+  it("live PascalCase sub-types classify structurally (SingleFamilyResidence → House, MultiFamily → Multi-Family, MixedUse → Mixed-Use, Townhouse → Townhouse)", () => {
+    expect(deriveOwnershipLabel({ propertySubType: "SingleFamilyResidence" })).toBe("House");
+    expect(deriveOwnershipLabel({ propertySubType: "MultiFamily" })).toBe("Multi-Family");
+    expect(deriveOwnershipLabel({ propertySubType: "MixedUse" })).toBe("Mixed-Use");
+    expect(deriveOwnershipLabel({ propertySubType: "Townhouse" })).toBe("Townhouse");
+  });
+
+  it("ownership signals beat structural sub-type; CommonInterest='None' is not a signal", () => {
+    expect(deriveOwnershipLabel({ commonInterest: "Condominium", propertySubType: "Duplex" })).toBe("Condo");
+    expect(deriveOwnershipLabel({ commonInterest: "None", propertySubType: "MultiFamily" })).toBe("Multi-Family");
+    expect(deriveOwnershipLabel({ commonInterest: "None", propertySubType: "SingleFamilyResidence" })).toBe("House");
+  });
+});
+
+describe("full-taxonomy DB-path proof — exact request parameters and returned listing IDs", () => {
+  // 12-fixture neighborhood: every building form + rentals inside condo/co-op.
+  const FULL = [
+    { id: "RLS20000001", listingType: "sale", propertyType: "Condo", ownershipLabel: "Condo" },
+    { id: "RLS20000002", listingType: "sale", propertyType: "Condo", ownershipLabel: "Condo" },
+    { id: "RLS20000003", listingType: "sale", propertyType: "Co-op", ownershipLabel: "Co-op" },
+    { id: "RLS20000004", listingType: "sale", propertyType: "Co-op", ownershipLabel: "Co-op" },
+    { id: "RLS20000005", listingType: "sale", propertyType: "Condop", ownershipLabel: "Condop" },
+    { id: "RLS20000006", listingType: "rent", propertyType: "Apartment", ownershipLabel: "Rental Building" },
+    { id: "RLS20000007", listingType: "sale", propertyType: "Townhouse", ownershipLabel: "Townhouse" },
+    { id: "RLS20000008", listingType: "sale", propertyType: "SingleFamilyResidence", ownershipLabel: "House" },
+    { id: "RLS20000009", listingType: "sale", propertyType: "MultiFamily", ownershipLabel: "Multi-Family" },
+    { id: "RLS20000010", listingType: "sale", propertyType: "MixedUse", ownershipLabel: "Mixed-Use" },
+    { id: "RLS20000011", listingType: "rent", propertyType: "Condo", ownershipLabel: "Condo" },
+    { id: "RLS20000012", listingType: "rent", propertyType: "Co-op", ownershipLabel: "Co-op" },
+  ];
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { applyPublicListingPostFilters } = require("@/lib/search/public-listing-db");
+  const run = (qs: string, rows: typeof FULL = FULL) =>
+    applyPublicListingPostFilters(rows, new Map(), new URLSearchParams(qs)).map((l: { id: string }) => l.id);
+  // `type` is a Prisma-level where clause upstream of the post-filter; the
+  // combined-selection runs model it by pre-narrowing on listingType exactly
+  // as buildPublicListingDbSearch does.
+  const rentOnly = FULL.filter((l) => l.listingType === "rent");
+  const saleOnly = FULL.filter((l) => l.listingType === "sale");
+
+  it("params: propertyType=Townhouse → ONLY [RLS20000007]", () => {
+    expect(run("propertyType=Townhouse")).toEqual(["RLS20000007"]);
+  });
+
+  it("params: propertyType=House → ONLY [RLS20000008]", () => {
+    expect(run("propertyType=House")).toEqual(["RLS20000008"]);
+  });
+
+  it("params: propertyType=Multi-Family → ONLY [RLS20000009] (not hidden inside All)", () => {
+    expect(run("propertyType=Multi-Family")).toEqual(["RLS20000009"]);
+  });
+
+  it("params: propertyType=Mixed-Use → ONLY [RLS20000010]", () => {
+    expect(run("propertyType=Mixed-Use")).toEqual(["RLS20000010"]);
+  });
+
+  it("params: propertyType=Condo includes RENTALS in condos → [RLS20000001, RLS20000002, RLS20000011]", () => {
+    expect(run("propertyType=Condo")).toEqual(["RLS20000001", "RLS20000002", "RLS20000011"]);
+  });
+
+  it("COMBINED params: type=rent + propertyType=Condo → ONLY [RLS20000011] (rental in a condo)", () => {
+    expect(run("type=rent&propertyType=Condo", rentOnly)).toEqual(["RLS20000011"]);
+  });
+
+  it("COMBINED params: type=rent + propertyType=Co-op → ONLY [RLS20000012] (rental in a co-op)", () => {
+    expect(run("type=rent&propertyType=Co-op", rentOnly)).toEqual(["RLS20000012"]);
+  });
+
+  it("COMBINED params: type=sale + propertyType=Condo → ONLY [RLS20000001, RLS20000002]", () => {
+    expect(run("type=sale&propertyType=Condo", saleOnly)).toEqual(["RLS20000001", "RLS20000002"]);
+  });
+
+  it("every building-form filter returns a disjoint, non-empty set; union of forms covers all 12", () => {
+    const forms = ["Condo", "Co-op", "Condop", "Rental Building", "Townhouse", "House", "Multi-Family", "Mixed-Use"];
+    const seen = new Set<string>();
+    for (const f of forms) {
+      const ids = run(`propertyType=${encodeURIComponent(f)}`);
+      expect(ids.length).toBeGreaterThan(0);
+      for (const id of ids) {
+        expect(seen.has(id)).toBe(false);
+        seen.add(id);
+      }
+    }
+    expect(seen.size).toBe(12);
+  });
+});
+
+// ─── 7. Neighborhood two-row filter UI (transaction × building form) ───────
+
+describe("neighborhood widget — two-row combinable filter taxonomy", () => {
+  const src = read("app/components/neighborhoods/LiveListingsWidget.tsx");
+
+  it("ROW 1 (transaction) exposes All / For Sale / For Rent", () => {
+    expect(src).toContain("TRANSACTION_TABS");
+    expect(src).toContain("label: 'For Sale'");
+    expect(src).toContain("label: 'For Rent'");
+  });
+
+  it("ROW 2 (building form) exposes the COMPLETE taxonomy — nothing hidden inside All", () => {
+    expect(src).toContain("PROPERTY_TYPE_TABS");
+    for (const pin of [
+      "propertyType: 'Condo'",
+      "propertyType: 'Co-op'",
+      "propertyType: 'Condop'",
+      "propertyType: 'Rental Building'",
+      "propertyType: 'Townhouse'",
+      "propertyType: 'House'",
+      "propertyType: 'Multi-Family'",
+      "propertyType: 'Mixed-Use'",
+    ]) {
+      expect(src).toContain(pin);
+    }
+    expect(src).toContain("label: 'House / Single-Family'");
+  });
+
+  it("rows are combinable: one query carries BOTH type and propertyType (For Rent + Condo → rentals in condos)", () => {
+    expect(src).toMatch(/params\.set\('type', /);
+    expect(src).toMatch(/params\.set\('propertyType', /);
+  });
+
+  it("mobile: both filter rows scroll horizontally instead of dropping categories", () => {
+    expect((src.match(/overflow-x-auto/g) ?? []).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ─── 8. Trestle fallback path honors the full taxonomy ─────────────────────
+
+describe("Trestle fallback path — full taxonomy is filterable, fail-closed on OData limits", () => {
+  it("Rental Building pushes via CommonInterest (safe); structural forms are NOT pushed as PropertySubType (502)", () => {
+    const src = read("lib/search/public-listing-trestle.ts");
+    expect(src).toContain(`"Rental Building": "RentalBuilding"`);
+    expect(src).not.toContain("PropertySubType eq 'Townhouse'");
+  });
+
+  it("route post-filters propertyType against the canonical classifier BEFORE pagination", () => {
+    const src = read("app/api/listings/route.ts");
+    expect(src).toContain("deriveOwnershipLabel");
+    expect(src).toContain("matchesOwnershipFilter");
+    expect(src).toMatch(/hasPostFilter = .*propertyType/s);
+  });
+});

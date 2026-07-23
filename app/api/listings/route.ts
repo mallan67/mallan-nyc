@@ -16,6 +16,7 @@ import {
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { deriveOwnershipLabel, matchesOwnershipFilter } from '@/lib/listings/ownership';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
   try {
@@ -750,7 +751,7 @@ export async function GET(request: Request) {
 
         // Fetch extra to account for gate filtering + post-filters
         // Property type, neighborhood, borough all need heavy post-filtering headroom
-        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
+        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development' || searchParams.get('propertyType'));
         const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 4 : 1.2) + 20), 1000);
 
         // Amenity fields are NOT added to Trestle $select — many are unavailable
@@ -841,6 +842,31 @@ export async function GET(request: Request) {
               return lowerTypes.some(t => pst.includes(t) || ci.includes(t));
             });
           }
+        }
+
+        // Step 1d: Canonical ownership post-filter for the legacy propertyType
+        // param (Maya 2026-07-23). The OData push only narrows CommonInterest-
+        // backed labels; structural forms (Townhouse / House / Multi-Family /
+        // Mixed-Use) cannot be pushed (PropertySubType filters 502 Trestle), so
+        // every label is enforced here against the SAME canonical classifier
+        // the cards render — before pagination, so pages fill correctly.
+        // Precedence mirrors buildLegacyPropertyTypeFilterPart: propertySubTypes
+        // and ownershipTypes win over propertyType.
+        const legacyPropertyType = searchParams.get('propertyType');
+        if (
+          legacyPropertyType &&
+          !propertySubTypes && !searchParams.get('subTypes') &&
+          !searchParams.get('ownershipTypes')
+        ) {
+          subTypeFiltered = subTypeFiltered.filter((raw) => {
+            const label = deriveOwnershipLabel({
+              commonInterest: raw.CommonInterest ? String(raw.CommonInterest) : null,
+              ownershipType: raw.OwnershipType ? String(raw.OwnershipType) : null,
+              propertySubType: raw.PropertySubType ? String(raw.PropertySubType) : null,
+              listingType: String(raw.PropertyType || '').includes('Lease') ? 'rent' : 'sale',
+            });
+            return matchesOwnershipFilter(legacyPropertyType, label);
+          });
         }
 
         // Step 2: Map to IDXListing

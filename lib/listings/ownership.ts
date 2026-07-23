@@ -30,6 +30,7 @@ export type OwnershipLabel =
   | 'Townhouse'
   | 'House'
   | 'Multi-Family'
+  | 'Mixed-Use'
   | null;
 
 export type TransactionLabel = 'For Sale' | 'For Rent';
@@ -86,13 +87,17 @@ export function deriveOwnershipLabel(input: {
   const own = classifyOwnershipSignals(input);
   if (own) return own;
 
-  const sub = String(input.propertySubType ?? '').toLowerCase();
-  if (sub.includes('townhouse') || sub.includes('town house')) return 'Townhouse';
-  if (sub.includes('single family') || sub === 'house') return 'House';
-  if (sub.includes('multi')) return 'Multi-Family';
+  // Live feed sub-types are space-less PascalCase (SingleFamilyResidence,
+  // MultiFamily, MixedUse — 2026-07-23 production inventory), so separators
+  // are stripped before matching.
+  const sub = String(input.propertySubType ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  if (sub.includes('townhouse')) return 'Townhouse';
+  if (sub.includes('singlefamily') || sub === 'house') return 'House';
+  if (sub.includes('multifamily') || sub.startsWith('multi')) return 'Multi-Family';
+  if (sub.includes('mixeduse')) return 'Mixed-Use';
   if (sub.includes('condop')) return 'Condop';
   if (sub.includes('condo')) return 'Condo';
-  if (sub.includes('co-op') || sub.includes('coop') || sub.includes('stock cooperative')) return 'Co-op';
+  if (sub.includes('coop') || sub.includes('stockcooperative')) return 'Co-op';
 
   if ((input.listingType ?? '') === 'rent') return 'Rental Building';
   return null;

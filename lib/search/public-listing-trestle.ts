@@ -41,6 +41,10 @@ const COMMON_INTEREST_MAP: Record<string, string> = {
   Condo: "Condominium",
   "Co-op": "StockCooperative",
   Condop: "Condop",
+  // Live CommonInterest enum value confirmed in the 2026-07-23 production
+  // census; CommonInterest pushes are the SAFE OData form (PropertySubType
+  // pushes 502) so Rental Building narrows server-side like the other three.
+  "Rental Building": "RentalBuilding",
 };
 
 // NYC borough names → REBNY CountyOrParish values. Trestle stores the county

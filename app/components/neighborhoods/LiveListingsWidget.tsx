@@ -38,11 +38,28 @@ interface ListingItem {
   };
 }
 
-const TABS = [
-  { key: 'all', label: 'All', type: undefined, propertyType: undefined },
-  { key: 'sale-condo', label: 'Condos', type: 'sale', propertyType: 'Condo' },
-  { key: 'sale-coop', label: 'Co-ops', type: 'sale', propertyType: 'Co-op' },
-  { key: 'rent', label: 'Rentals', type: 'rent', propertyType: undefined },
+// Two-row combinable filter taxonomy (Maya 2026-07-23): transaction is a
+// TRANSACTION type, ownership is a BUILDING form — they are orthogonal, so a
+// rental in a condo is selectable as For Rent + Condo. ROW 2 is the COMPLETE
+// building-form taxonomy from the live feed census (Condo / Co-op / Condop /
+// Rental Building / Townhouse / House / Multi-Family / Mixed-Use); unit forms
+// (Loft, Duplex, Triplex) stay propertySubType and are not building forms.
+const TRANSACTION_TABS = [
+  { key: 'all', label: 'All', type: undefined },
+  { key: 'sale', label: 'For Sale', type: 'sale' },
+  { key: 'rent', label: 'For Rent', type: 'rent' },
+] as const;
+
+const PROPERTY_TYPE_TABS = [
+  { key: 'all', label: 'All Types', propertyType: undefined },
+  { key: 'condo', label: 'Condo', propertyType: 'Condo' },
+  { key: 'coop', label: 'Co-op', propertyType: 'Co-op' },
+  { key: 'condop', label: 'Condop', propertyType: 'Condop' },
+  { key: 'rental-building', label: 'Rental Building', propertyType: 'Rental Building' },
+  { key: 'townhouse', label: 'Townhouse', propertyType: 'Townhouse' },
+  { key: 'house', label: 'House / Single-Family', propertyType: 'House' },
+  { key: 'multi-family', label: 'Multi-Family', propertyType: 'Multi-Family' },
+  { key: 'mixed-use', label: 'Mixed-Use', propertyType: 'Mixed-Use' },
 ] as const;
 
 interface LiveListingsWidgetProps {
@@ -58,20 +75,24 @@ export default function LiveListingsWidget({
   zipCodes,
   bounds,
 }: LiveListingsWidgetProps) {
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTxn, setActiveTxn] = useState<string>('all');
+  const [activeForm, setActiveForm] = useState<string>('all');
 
   // Build the query string up front so it's the stable cache key driving
-  // useAsyncResource — neighborhood name, tab, zip codes, and bounds all
-  // contribute. Encoding in the key means tab/filter changes refetch
-  // automatically; identical params reuse the same in-flight request.
+  // useAsyncResource — neighborhood name, both filter rows, zip codes, and
+  // bounds all contribute. Encoding in the key means filter changes refetch
+  // automatically; identical params reuse the same in-flight request. The two
+  // rows COMBINE: For Rent + Condo → type=rent&propertyType=Condo (rentals in
+  // condo buildings).
   const queryString = (() => {
-    const tab = TABS.find((t) => t.key === activeTab) || TABS[0];
+    const txn = TRANSACTION_TABS.find((t) => t.key === activeTxn) || TRANSACTION_TABS[0];
+    const form = PROPERTY_TYPE_TABS.find((t) => t.key === activeForm) || PROPERTY_TYPE_TABS[0];
     const params = new URLSearchParams({ limit: '6', sort: 'price-desc' });
     params.set('neighborhood', name);
     if (zipCodes && zipCodes.length > 0) params.set('zipCodes', zipCodes.join(','));
     if (bounds) params.set('bounds', `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`);
-    if (tab.type) params.set('type', tab.type);
-    if (tab.propertyType) params.set('propertyType', tab.propertyType);
+    if (txn.type) params.set('type', txn.type);
+    if (form.propertyType) params.set('propertyType', form.propertyType);
     return params.toString();
   })();
 
@@ -95,20 +116,45 @@ export default function LiveListingsWidget({
           {name} Listings
         </h2>
 
-        {/* Tabs */}
+        {/* ROW 1 — Transaction (For Sale / For Rent). Horizontally scrollable
+            on mobile so no category is ever dropped. */}
         <div
-          className="flex gap-1 mb-6 overflow-x-auto border-b border-black/5"
+          className="flex gap-1 mb-2 overflow-x-auto border-b border-black/5"
           role="tablist"
-          aria-label="Filter by property type"
+          aria-label="Filter by transaction type"
         >
-          {TABS.map((tab) => (
+          {TRANSACTION_TABS.map((tab) => (
             <button
               key={tab.key}
               role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              aria-selected={activeTxn === tab.key}
+              onClick={() => setActiveTxn(tab.key)}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                activeTab === tab.key
+                activeTxn === tab.key
+                  ? 'border-brand-gold-deep text-brand-dark'
+                  : 'border-transparent text-brand-dark/85 hover:text-brand-dark/95'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ROW 2 — Building form (complete taxonomy; combines with ROW 1:
+            For Rent + Condo returns rentals in condo buildings). */}
+        <div
+          className="flex gap-1 mb-6 overflow-x-auto border-b border-black/5"
+          role="tablist"
+          aria-label="Filter by building type"
+        >
+          {PROPERTY_TYPE_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={activeForm === tab.key}
+              onClick={() => setActiveForm(tab.key)}
+              className={`px-3.5 py-2 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                activeForm === tab.key
                   ? 'border-brand-gold-deep text-brand-dark'
                   : 'border-transparent text-brand-dark/85 hover:text-brand-dark/95'
               }`}
@@ -158,7 +204,7 @@ export default function LiveListingsWidget({
         {!loading && total > 6 && (
           <div className="mt-6 text-center">
             <Link
-              href={`/search?tab=${activeTab === 'rent' ? 'rent' : 'buy'}-residential&neighborhood=${encodeURIComponent(name)}`}
+              href={`/search?tab=${activeTxn === 'rent' ? 'rent' : 'buy'}-residential&neighborhood=${encodeURIComponent(name)}`}
               className="inline-block px-6 py-2.5 border border-brand-dark text-brand-dark text-sm font-medium rounded-2xl hover:bg-brand-dark hover:text-white transition-colors"
             >
               View All {total} Listings
