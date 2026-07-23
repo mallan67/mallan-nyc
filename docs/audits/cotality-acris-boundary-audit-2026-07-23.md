@@ -82,8 +82,8 @@ PR (Cotality/ACRIS boundary only).**
 - Corrected write-suppression / bounded-backlog implementations had already
   merged through #541, #548, #549 and #550.
 - This correction does not change PR #558's source-boundary implementation
-  scope. The detailed shedding/measurement status lives OUTSIDE this PR in
-  `docs/operations/neon-r2-shedding-status-2026-07-23.md`.
+  scope. The detailed Neon/R2 shedding and measurement status is tracked
+  separately outside this PR.
 
 Verified against: main `d6db86e3` (checked out clean), production deployment
 `dpl_3N7j8gvJVE7FK5ELc3Y31t2Fyq82` (target=production, sha `d6db86e3` — confirmed
