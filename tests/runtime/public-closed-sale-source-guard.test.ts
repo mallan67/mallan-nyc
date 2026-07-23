@@ -17,7 +17,11 @@ import { readFileSync } from 'fs';
 import * as path from 'path';
 
 const read = (p: string) => readFileSync(path.resolve(__dirname, '..', '..', p), 'utf8');
-const buildings = read('app/api/buildings/route.ts');
+// Neon-quiet (2026-07-23): the building-payload assembly (incl. the ACRIS
+// merge + visibility contract) moved VERBATIM from app/api/buildings/route.ts
+// into the shared cached module lib/buildings/public-building-data.ts — the
+// route is now a thin shell over it. Same contract, canonical location moved.
+const buildings = read('lib/buildings/public-building-data.ts');
 const listingDetail = read('app/listing/[...slug]/page.tsx');
 const buildingRoute = read('app/api/listings/building/route.ts');
 
