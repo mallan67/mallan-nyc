@@ -2,6 +2,7 @@
 // Status state machine transition with REBNY RLS rules enforcement.
 // Includes DOM tracking per UCBA 2026 (30-day reset).
 import { NextRequest, NextResponse } from "next/server";
+import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
@@ -256,6 +257,15 @@ export async function PATCH(
       ...(updatedRaw ? { raw_data: updatedRaw } : {}),
     },
   });
+
+  // Building-Neon-wake — a status change (incl. Active→Expired/Withdrawn)
+  // changes building-visible inventory: expire the listing tag + its
+  // building + search in the same cycle.
+  safeRevalidateTags([
+    listingCacheTag(listing.listing_id),
+    ...buildingInvalidationTags(listing.address),
+    SEARCH_CACHE_TAG,
+  ]);
 
   // Phase A W1 — dual-write the listing_search_projection so any reader
   // (including the PR 5B-future projection reader) sees the new gate state

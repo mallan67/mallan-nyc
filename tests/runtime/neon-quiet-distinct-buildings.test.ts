@@ -58,6 +58,7 @@ jest.mock("next/cache", () => {
 // FULL keyset-pagination semantics (orderBy listing_id, cursor+skip, take) so
 // the pagination/overflow/warm behaviors are exercised for real.
 const FAIL_SHARDS = new Set<string>(); // warm failure-isolation injection
+const REMOVED_STREETS = new Set<string>(); // writer-eviction simulation (listing left the gated set)
 const OVERFLOW9 = { on: false }; // shard '9' never-short pages → overflow
 function mkRow(num: string, idx: number) {
   return {
@@ -87,7 +88,7 @@ function shardRows(shard: string) {
   const rows: Array<ReturnType<typeof mkRow>> = [];
   for (let i = 0; i < 200; i++) {
     const num = String(100 + i);
-    if (num.startsWith(shard)) rows.push(mkRow(num, 0));
+    if (num.startsWith(shard) && !REMOVED_STREETS.has(num)) rows.push(mkRow(num, 0));
   }
   // shard '8' carries 6,500 rows on ONE street — above the 5,000 page size,
   // so its fill takes exactly two keyset pages (completeness proof).
@@ -241,8 +242,11 @@ describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
 
   it("SOURCE: sync derives EXACT building tags at every mapped listing-change site", () => {
     const sync = read("lib/idx/sync.ts");
-    const count = (sync.match(/buildingTagFromAddress\(mapped\.address\)/g) ?? []).length;
-    expect(count).toBe(3); // listing upsert, projection, full-sync clock path
+    // round 2: sites derive BOTH old + new tags via buildingInvalidationTags
+    const incr = sync.split("buildingInvalidationTags(existing?.address, mapped.address)").length - 1;
+    const clock = sync.split("buildingInvalidationTags(existingForClock?.address, mapped.address)").length - 1;
+    expect(incr).toBe(2); // listing upsert + projection
+    expect(clock).toBe(1); // full-sync/agent-history clock path
   });
 });
 
@@ -335,6 +339,38 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
       expect(typeof r.duration_ms).toBe("number");
     } finally {
       FAIL_SHARDS.delete("3");
+    }
+  });
+});
+
+describe("writer-driven eviction — expiration/withdrawal/display-off cache semantics", () => {
+  it("BEHAVIORAL: the writer tag-set removes the listing from ITS building payload; an unrelated building in the SAME shard stays cached", async () => {
+    const target = CRAWL.find((b) => b.streetNumber.startsWith("2"))!;
+    const other = CRAWL.find((b) => b.streetNumber.startsWith("2") && b.streetNumber !== target.streetNumber)!;
+    const gone = "L-" + target.streetNumber + "-00000";
+
+    const before = await getBuildingDataCached({ ...target, buildingName: null });
+    expect((before.activeUnits as Array<Record<string, unknown>>).map((u) => u.mlsId)).toContain(gone);
+
+    // the writer's DATA change (listing left the gated set: expired /
+    // withdrawn / display-off) …
+    REMOVED_STREETS.add(target.streetNumber);
+    try {
+      // … and the EXACT tag-set every converted writer now revalidates:
+      revalidateTag("listing:" + gone);
+      revalidateTag(buildingCacheTag(target.streetNumber, target.streetName, target.postalCode));
+      revalidateTag("search");
+
+      const after = await getBuildingDataCached({ ...target, buildingName: null });
+      expect((after.activeUnits as Array<Record<string, unknown>>).map((u) => u.mlsId)).not.toContain(gone);
+
+      // unrelated building — SAME shard — remains cached: zero re-assembly
+      const t0 = tokenMock.mock.calls.length;
+      const untouched = await getBuildingDataCached({ ...other, buildingName: null });
+      expect(untouched.success).toBe(true);
+      expect(tokenMock.mock.calls.length).toBe(t0);
+    } finally {
+      REMOVED_STREETS.delete(target.streetNumber);
     }
   });
 });

@@ -25,7 +25,7 @@ import {
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
-  buildingTagFromAddress,
+  buildingInvalidationTags,
   newRevalidationCounters,
   safeRevalidateTags,
   type RevalidationCounters,
@@ -682,10 +682,12 @@ export async function syncListings(
         upserted++;
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
         {
-          // Building-Neon-wake: EXACT building revalidation — only THIS building's
-          // cached payload expires (per-building entries carry no coarse tag).
-          const bTag = buildingTagFromAddress(mapped.address);
-          if (bTag) changedCacheTags.add(bTag);
+          // Building-Neon-wake: EXACT building revalidation — BOTH the previous
+          // and the new building expire on an address change (the listing must
+          // LEAVE the old cached payload and APPEAR in the new one, same cycle).
+          for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
+            changedCacheTags.add(bTag);
+          }
         }
       }
 
@@ -750,8 +752,10 @@ export async function syncListings(
         }
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: projection changes affect search surfaces
         {
-          const bTag = buildingTagFromAddress(mapped.address); // Building-Neon-wake: exact building revalidation
-          if (bTag) changedCacheTags.add(bTag);
+          // Building-Neon-wake: exact building revalidation (old + new address).
+          for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
+            changedCacheTags.add(bTag);
+          }
         }
       }
     } catch (err) {
@@ -1843,8 +1847,10 @@ export async function syncAgentHistory(
         upserted++;
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
         {
-          const bTag = buildingTagFromAddress(mapped.address); // Building-Neon-wake: exact building revalidation
-          if (bTag) changedCacheTags.add(bTag);
+          // Building-Neon-wake: exact building revalidation (old + new address).
+          for (const bTag of buildingInvalidationTags(existingForClock?.address, mapped.address)) {
+            changedCacheTags.add(bTag);
+          }
         }
       }
 

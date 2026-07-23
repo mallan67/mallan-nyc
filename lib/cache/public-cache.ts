@@ -86,6 +86,32 @@ export function buildingCacheTag(
  * Mirrors attachListingCacheTags' masked-address guard: a suppressed address
  * (no street number / "Address Undisclosed") never forms a tag.
  */
+/**
+ * Coarse manifest tag (also carried by every manifest shard alongside the
+ * search tag) — writers that change building-visible inventory outside the
+ * sync bump SEARCH_CACHE_TAG, which covers it; the constant lives here so
+ * tag ownership stays in one module.
+ */
+export const BUILDING_MANIFEST_TAG = "building-manifest";
+
+/**
+ * The tags a WRITER must revalidate for a listing change that can affect
+ * building payloads. Pass EVERY address the row has occupied in the change
+ * (previous + new): an address correction must expire BOTH the old
+ * building's cached payload (the listing must LEAVE it) and the new one's
+ * (it must APPEAR there) in the same cycle. Null-safe and deduplicating —
+ * inserts pass (undefined, newAddress); unchanged addresses collapse to one
+ * tag; masked addresses contribute nothing.
+ */
+export function buildingInvalidationTags(...addresses: Array<unknown>): string[] {
+  const tags = new Set<string>();
+  for (const a of addresses) {
+    const t = buildingTagFromAddress(a);
+    if (t) tags.add(t);
+  }
+  return [...tags];
+}
+
 export function buildingTagFromAddress(address: unknown): string | null {
   const a = (address ?? null) as Record<string, unknown> | null;
   const num = String(a?.StreetNumber ?? "").trim();

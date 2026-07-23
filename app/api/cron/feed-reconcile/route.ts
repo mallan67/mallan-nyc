@@ -35,7 +35,7 @@ import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
-import { listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import {
   upsertListingMedia,
@@ -196,6 +196,7 @@ export async function GET(req: NextRequest) {
         id: true,
         listing_id: true,
         status: true,
+        address: true, // Building-Neon-wake: ghost withdrawal derives the exact building tag
       },
     });
     const ourAllRls = await prisma.listing.findMany({
@@ -454,7 +455,14 @@ export async function GET(req: NextRequest) {
             // fatal; ops:projection-backfill heals on next run.
             // One Cycle W1 — an orphan-recovered listing goes public again in
             // the SAME cycle. Never throws.
-            safeRevalidateTags([listingCacheTag(String(raw.ListingId)), SEARCH_CACHE_TAG]);
+            // Orphan recovery makes the listing publicly visible again — its
+            // building's cached payload must pick it up in the same cycle
+            // (raw is a full Trestle record: StreetNumber/StreetName/PostalCode).
+            safeRevalidateTags([
+              listingCacheTag(String(raw.ListingId)),
+              ...buildingInvalidationTags(raw),
+              SEARCH_CACHE_TAG,
+            ]);
             try {
               await dualWriteProjectionForListingId(prisma, String(raw.ListingId));
             } catch (err) {
@@ -571,7 +579,13 @@ export async function GET(req: NextRequest) {
         // correct so /api/listings stays gated.
         // One Cycle W1 — a ghost-withdrawn listing's cached page must drop
         // from public surfaces in the SAME cycle (§2.05). Never throws.
-        safeRevalidateTags([listingCacheTag(g.listing_id), SEARCH_CACHE_TAG]);
+        // Ghost withdrawal removes the listing from public display — its
+        // building's cached payload must drop it in the same cycle (§2.05).
+        safeRevalidateTags([
+          listingCacheTag(g.listing_id),
+          ...buildingInvalidationTags(g.address),
+          SEARCH_CACHE_TAG,
+        ]);
         try {
           await dualWriteProjectionForListingId(prisma, g.listing_id);
         } catch (projErr) {

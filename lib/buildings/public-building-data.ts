@@ -26,7 +26,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
-import { cachedPublicRead, buildingCacheTag, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
+import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -369,7 +369,7 @@ export interface ManifestListing {
   photoUrl: string | null;
 }
 
-export const BUILDING_MANIFEST_TAG = 'building-manifest';
+export { BUILDING_MANIFEST_TAG }; // canonical owner: lib/cache/public-cache
 
 /** Deterministic keyset page size within a shard (listing_id is the unique
  *  cursor). COMPLETENESS IS STRUCTURAL: pagination runs to exhaustion — no
