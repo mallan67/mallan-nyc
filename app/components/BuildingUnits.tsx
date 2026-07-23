@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { isComingSoonStatus } from './ComingSoonBadge';
+import { toRecordedTransfers, type RecordedTransferView } from '@/lib/buildings/recorded-transfers';
 
 interface ActiveUnit {
   id: string;
@@ -40,20 +41,9 @@ function labelForStatus(raw: string | null | undefined): { label: string; color:
   return STATUS_LABEL_MAP[status] || { label: status, color: 'text-gray-600' };
 }
 
-interface SaleRecord {
-  id: string;
-  mlsId: string;
-  /** ACRIS rows: recorded document amount — NOT a verified unit sale price. */
-  closePrice: number;
-  beds: number | null;
-  baths: number | null;
-  sqft: number | null;
-  unit: string;
-  closeDate: string | null;
-  propertyType: string;
-  office: string;
-  source?: 'mls' | 'acris';
-}
+// Transfers use the CANONICAL RecordedTransferView from
+// lib/buildings/recorded-transfers (recordedTransfers field; saleHistory is
+// only the DEPRECATED compatibility alias resolved inside the helper).
 
 interface BuildingUnitsProps {
   streetNumber: string;
@@ -84,7 +74,7 @@ export default function BuildingUnits({
   currentUnit,
 }: BuildingUnitsProps) {
   const [activeUnits, setActiveUnits] = useState<ActiveUnit[]>([]);
-  const [saleHistory, setSaleHistory] = useState<SaleRecord[]>([]);
+  const [transfers, setTransfers] = useState<RecordedTransferView[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -100,24 +90,24 @@ export default function BuildingUnits({
       .then((r) => r.json())
       .then((data) => {
         setActiveUnits(data.activeUnits || []);
-        setSaleHistory(data.saleHistory || []);
+        setTransfers(toRecordedTransfers(data));
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [streetNumber, streetName, postalCode, currentListingId]);
 
-  if (!loading && activeUnits.length === 0 && saleHistory.length === 0) return null;
+  if (!loading && activeUnits.length === 0 && transfers.length === 0) return null;
 
   const buildingLabel = buildingName || `${streetNumber} ${streetName}`;
   const unitHistoryForCurrent = currentUnit
-    ? saleHistory.filter((s) => s.unit && s.unit.toLowerCase() === currentUnit.toLowerCase())
+    ? transfers.filter((s) => s.unit && s.unit.toLowerCase() === currentUnit.toLowerCase())
     : [];
-  const visibleHistory = expanded ? saleHistory : saleHistory.slice(0, INITIAL_ROWS);
-  const hasMoreRows = saleHistory.length > INITIAL_ROWS;
+  const visibleHistory = expanded ? transfers : transfers.slice(0, INITIAL_ROWS);
+  const hasMoreRows = transfers.length > INITIAL_ROWS;
 
   // Determine which columns have actual data (hide empty columns from ACRIS-only results)
-  const hasUnitData = saleHistory.some((s) => s.unit && s.unit.length > 0);
-  const hasDetailData = saleHistory.some((s) => !!s.sqft || !!s.beds || !!s.baths);
+  const hasUnitData = transfers.some((s) => s.unit && s.unit.length > 0);
+  const hasDetailData = transfers.some((s) => !!s.sqft || !!s.beds || !!s.baths);
 
   return (
     <section>
@@ -158,7 +148,7 @@ export default function BuildingUnits({
                 </h3>
                 <p className="text-[12px] text-brand-dark/60 mb-3">NYC ACRIS public records — recorded transfer documents, not verified unit-level sales. Source: NYC ACRIS.</p>
 
-                {saleHistory.length === 0 ? (
+                {transfers.length === 0 ? (
                   <p className="text-sm text-brand-dark/50">No recorded transfers found for this building.</p>
                 ) : (
                   <>
@@ -195,13 +185,13 @@ export default function BuildingUnits({
                         }`}
                       >
                         <span className="text-[13px] text-brand-dark/70">
-                          {formatDate(sale.closeDate)}
+                          {formatDate(sale.recordedDate)}
                           {sale.source === 'acris' && (
                             <span className="block text-[9px] text-brand-dark/30 leading-tight">ACRIS</span>
                           )}
                         </span>
                         {hasUnitData && <span className="text-[13px] font-medium text-brand-gold-deep">{sale.unit || '\u2014'}</span>}
-                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
+                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.amount)}</span>
                         {hasDetailData && (
                           <>
                             <span className="text-[13px] text-brand-dark/70">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</span>
@@ -221,7 +211,7 @@ export default function BuildingUnits({
                         {expanded ? (
                           <>Show Less <span className="text-sm">&minus;</span></>
                         ) : (
-                          <>See {saleHistory.length - INITIAL_ROWS} More Rows <span className="text-sm">+</span></>
+                          <>See {transfers.length - INITIAL_ROWS} More Rows <span className="text-sm">+</span></>
                         )}
                       </button>
                     )}
@@ -250,8 +240,8 @@ export default function BuildingUnits({
                         key={sale.id}
                         className="grid grid-cols-[100px_100px_1fr] gap-x-4 py-3 border-b border-black/5 items-center"
                       >
-                        <span className="text-[13px] text-brand-dark/70">{formatDate(sale.closeDate)}</span>
-                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.closePrice)}</span>
+                        <span className="text-[13px] text-brand-dark/70">{formatDate(sale.recordedDate)}</span>
+                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.amount)}</span>
                         <span className="text-[13px] text-brand-dark/70">Recorded</span>
                       </div>
                     ))}
@@ -266,7 +256,7 @@ export default function BuildingUnits({
                     {/* Table header */}
                     <div className="grid grid-cols-[50px_90px_40px_40px_70px] gap-x-3 pb-2 border-b border-black/10">
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unit</span>
-                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Recorded Amount</span>
+                      <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Asking Price</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Beds</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Baths</span>
                       <span className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider">Status</span>

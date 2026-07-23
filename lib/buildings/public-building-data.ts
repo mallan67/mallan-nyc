@@ -26,6 +26,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
+import { buildAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
 import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
@@ -760,6 +761,17 @@ async function buildBuildingPayload(
       status: string;
       listingType: string;
       photoUrl: string | null;
+      /** Truthful per-row provenance (Maya 2026-07-23): the effective public
+       *  inventory mixes unsuppressed Cotality/Trestle listings with Mallan
+       *  exclusives published directly by Mallan Real Estate Inc. */
+      source: 'cotality-trestle' | 'mallan-exclusive';
+      /** Present ONLY on a Mallan exclusive whose reconciled Cotality twin is
+       *  suppressed while the local-publication override is active. */
+      publication?: {
+        authority: 'mallan-local';
+        reconciledCotalityId: string;
+        cotalityDisplaySuppressed: true;
+      };
     }> = [];
 
     for (const r of trestleActive) {
@@ -783,6 +795,7 @@ async function buildBuildingPayload(
         status: String(r.StandardStatus || r.MlsStatus || 'Active'),
         listingType,
         photoUrl: getPhotoUrl(r),
+        source: 'cotality-trestle',
       });
     }
 
@@ -790,6 +803,7 @@ async function buildBuildingPayload(
       if (seenIds.has(l.listing_id)) continue;
       seenIds.add(l.listing_id);
       const addr = l.address;
+      const isMallanExclusive = l.listing_id.startsWith('SL-') || l.listing_id.startsWith('RL-');
       activeUnits.push({
         id: String(l.id),
         mlsId: l.listing_id,
@@ -800,16 +814,71 @@ async function buildBuildingPayload(
         sqft: l.living_area ? Number(l.living_area) : 0,
         unit: String(addr.UnitNumber || ''),
         propertyType: unitDisplayType(l.features.CommonInterest, buildingInfo.commonInterest, null, buildingInfo.ownershipType, (l.listing_type || 'sale') === 'rent', l.property_sub_type, mapPropertyTypeToDisplay(l.features.CommonInterest ?? undefined, l.property_sub_type, l.property_type || '')),
-        office: '',
+        // Maya rule 7: the effective public Mallan record is attributed to
+        // Mallan Real Estate Inc., never to Cotality merely because a
+        // reconciled Cotality twin exists.
+        office: isMallanExclusive ? 'Mallan Real Estate Inc.' : '',
         status: l.status,
         listingType: l.listing_type || 'sale',
         photoUrl: l.photoUrl,
+        source: isMallanExclusive ? 'mallan-exclusive' : 'cotality-trestle',
       });
 
       // Extract building info from the DB manifest layer
       if (!buildingInfo.buildingName && addr.BuildingName) buildingInfo.buildingName = String(addr.BuildingName);
       if (!buildingInfo.yearBuilt && l.features.YearBuilt) buildingInfo.yearBuilt = l.features.YearBuilt;
       if (!buildingInfo.storiesTotal && l.features.StoriesTotal) buildingInfo.storiesTotal = l.features.StoriesTotal;
+    }
+
+    // ── 3b. Mallan-exclusive local-publication override (Maya 2026-07-23) ──
+    // An SL-/RL- exclusive and its Cotality/Trestle twin are ONE listing
+    // identity with two reconciled representations. While the local override
+    // is active the LOCAL record is the authoritative public representation:
+    // the Cotality twin is suppressed from display (NOT deleted — it stays in
+    // Neon as the reconciled upstream representation for feed identity,
+    // compliance history and future fallback), the listing counts once, and
+    // the LOCAL asking price / sqft / status feed the statistics.
+    //
+    // Identity evidence: the shared site-wide rule (same building street
+    // atoms + REQUIRED unit + postal, canonicalized) via buildAddressKey —
+    // never approximate address text alone; rows without a unit are never
+    // reconciled. When the override ends (the local row leaves the active
+    // set), the still-eligible Cotality twin re-enters this merge naturally
+    // on the next build — never both at once.
+    {
+      const keyForUnit = (unit: string) =>
+        buildAddressKey({
+          streetNumber: cleanStreetNumber,
+          streetName,
+          unitNumber: unit,
+          postalCode: cleanPostalCode || postalCode || '',
+        });
+      const groups = new Map<string, number[]>();
+      activeUnits.forEach((u, i) => {
+        const k = keyForUnit(u.unit);
+        if (k === null) return;
+        const g = groups.get(k);
+        if (g) g.push(i); else groups.set(k, [i]);
+      });
+      const suppressed = new Set<number>();
+      for (const idxs of groups.values()) {
+        const mallanIdxs = idxs.filter((i) => activeUnits[i].source === 'mallan-exclusive');
+        if (mallanIdxs.length === 0) continue;
+        const cotalityIdxs = idxs.filter((i) => activeUnits[i].source !== 'mallan-exclusive');
+        if (cotalityIdxs.length === 0) continue;
+        const winner = activeUnits[mallanIdxs[0]];
+        winner.publication = {
+          authority: 'mallan-local',
+          reconciledCotalityId: activeUnits[cotalityIdxs[0]].mlsId,
+          cotalityDisplaySuppressed: true,
+        };
+        for (const i of cotalityIdxs) suppressed.add(i);
+      }
+      if (suppressed.size > 0) {
+        const kept = activeUnits.filter((_, i) => !suppressed.has(i));
+        activeUnits.length = 0;
+        activeUnits.push(...kept);
+      }
     }
 
     // ── 4. Merge sale history ──
@@ -1030,12 +1099,12 @@ async function buildBuildingPayload(
       gatedRecordsCount,
       sourceAttribution: {
         building: {
-          source: 'cotality-trestle',
-          attribution: 'Based on information from the REBNY Listing Service (Cotality/Trestle IDX Plus).',
+          source: 'effective-public-inventory',
+          attribution: 'Building facts are derived from the records that supplied them: Cotality/Trestle (REBNY RLS) feed records and Mallan-maintained exclusive records. Feed-supplied facts: Based on information from the REBNY Listing Service.',
         },
         activeUnits: {
-          source: 'cotality-trestle',
-          attribution: 'Based on information from the REBNY Listing Service (Cotality/Trestle IDX Plus).',
+          source: 'effective-public-inventory',
+          attribution: 'Effective publicly displayed active inventory: unsuppressed Cotality/Trestle (REBNY RLS) listings and Mallan exclusives published directly by Mallan Real Estate Inc. — Licensed Real Estate Broker. Each listing carries its own source; suppressed duplicate feed representations are excluded.',
         },
         recordedTransfers: {
           source: 'nyc-acris',
@@ -1043,15 +1112,15 @@ async function buildBuildingPayload(
         },
         statistics: {
           source: 'mallan-derived',
-          attribution: 'Derived by Mallan Real Estate Inc. from Cotality/REBNY active listings only; recorded transfers are excluded from all averages.',
+          attribution: 'Derived by Mallan Real Estate Inc. from the effective publicly displayed active inventory. Suppressed duplicate feed representations and NYC ACRIS recorded transfers are excluded.',
         },
       },
       _compliance: {
-        source: 'cotality-trestle+nyc-acris',
+        source: 'cotality-trestle+mallan-exclusive+nyc-acris',
         attribution:
-          'Building facts and active listings: Based on information from the REBNY Listing Service (Cotality/Trestle). ' +
+          'Active inventory: unsuppressed Cotality/Trestle listings (Based on information from the REBNY Listing Service) and Mallan Real Estate Inc. exclusives. ' +
           'Recorded transfers: NYC ACRIS public records — not verified unit-level sales. ' +
-          'Statistics: Mallan-derived from active listings only. ' +
+          'Statistics: Derived by Mallan Real Estate Inc. from the effective publicly displayed active inventory; suppressed duplicate feed representations and ACRIS recorded transfers excluded. ' +
           'Data last updated ' + new Date().toISOString().split('T')[0],
         disclaimerRequired: true,
       },

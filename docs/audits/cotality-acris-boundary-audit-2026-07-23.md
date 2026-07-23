@@ -16,6 +16,37 @@
 
 **Report-only at rev 1. Rev 2 accompanies the approved narrow implementation
 PR (Cotality/ACRIS boundary only).**
+
+**REV 3 (Maya correction round on PR #558, 2026-07-23):**
+1. **Mallan-exclusive local-publication override model implemented** in the
+   shared payload: an SL-/RL- exclusive and its Cotality/Trestle twin are ONE
+   listing identity with two reconciled representations. While the override is
+   active the local record is the authoritative public representation (local
+   asking price/sqft/status/facts win), the Cotality twin is suppressed from
+   display but PRESERVED in Neon (feed identity, compliance history, future
+   fallback), the listing counts once, and the effective record is attributed
+   to Mallan Real Estate Inc. — Licensed Real Estate Broker. Identity evidence
+   = the site-wide canonicalized street+REQUIRED-unit+postal key
+   (lib/listings/dedupe-crm-vs-idx), never approximate text alone. Override
+   end restores the still-eligible twin without duplication (read-time merge).
+2. **Statistics are now "effective displayed inventory"**, not
+   "Cotality-only": derived from unsuppressed Cotality listings + Mallan
+   exclusives; suppressed duplicate feed representations and ACRIS recorded
+   transfers excluded — and the attribution sentence says exactly that.
+3. **Legacy ACRIS dedup fixed**: /api/listings/building no longer drops an
+   ACRIS transfer for resembling a Cotality closed row that is itself
+   withheld — both representations could vanish. ACRIS is the public-record
+   representation and always ships; the Cotality closed row stays non-public.
+4. **Available Units label corrected**: Asking Price for active listings
+   (unit.listPrice); Recorded Amount strictly for ACRIS transfers —
+   table-scoped tests, not broad string search.
+5. **recordedTransfers is the canonical contract** on BOTH producers;
+   saleHistory is a deprecated compatibility alias consumed only through
+   lib/buildings/recorded-transfers.toRecordedTransfers().
+6. **Honest contract note**: the activeUnits key contract gained an ADDITIVE
+   per-row provenance field source ('cotality-trestle' | 'mallan-exclusive')
+   plus an optional publication block on overridden exclusives; the
+   transfers tables dropped their always-empty Type column.
 Verified against: main `d6db86e3` (checked out clean), production deployment
 `dpl_3N7j8gvJVE7FK5ELc3Y31t2Fyq82` (target=production, sha `d6db86e3` — confirmed
 via Vercel API, not assumed), the live open-PR queue, live Cotality `$metadata`

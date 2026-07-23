@@ -3,7 +3,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { buildingCacheTag, cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { parseBuildingAddress, buildBuildingAddressFilter } from '@/lib/buildings/building-address-filter';
-import { lookupBBL, fetchAcrisSales, isDuplicate, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
+import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -169,8 +169,13 @@ export async function GET(request: NextRequest) {
 
     if (bbl) {
       const rawAcris = await fetchAcrisSales(bbl);
+      // Maya 2026-07-23 correction: do NOT dedupe ACRIS against the Cotality
+      // closed rows — those rows are WITHHELD from the public response below,
+      // so dropping the "duplicate" ACRIS record removed BOTH representations
+      // and made a valid public transfer disappear. The ACRIS record IS the
+      // public-record representation; the Cotality closed row stays private
+      // unless a separately approved display contract permits it.
       acrisSales = rawAcris
-        .filter((a) => !isDuplicate(a, trestleSales))
         .map((a) => ({
           ...a,
           mlsId: '',
@@ -204,7 +209,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       activeUnits,
+      // DEPRECATED compatibility alias — consume `recordedTransfers` instead
+      // (via lib/buildings/recorded-transfers). Same rows, legacy field names.
       saleHistory,
+      // CANONICAL contract: NYC ACRIS recorded transfers.
+      recordedTransfers: saleHistory
+        .filter((s): s is (typeof acrisSales)[number] => s.source === 'acris')
+        .map((s) => ({
+        id: s.id,
+        documentId: s.documentId ?? String(s.id).replace(/^acris-/, ''),
+        bbl: s.bbl ?? bbl ?? '',
+        amount: s.closePrice,
+        recordedDate: s.closeDate,
+        unit: s.unit,
+        beds: null,
+        baths: null,
+        sqft: null,
+        source: 'acris' as const,
+        label: 'recorded-transfer' as const,
+        retrievedAt: s.retrievedAt,
+        })),
       sourceAttribution: {
         activeUnits: {
           source: 'cotality-trestle',

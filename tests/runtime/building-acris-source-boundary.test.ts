@@ -6,8 +6,9 @@
  *   recordedTransfers (saleHistory) → NYC ACRIS public records — recorded
  *                                     transfer documents, NOT verified
  *                                     unit-level sales
- *   statistics                      → Mallan-derived from Cotality active
- *                                     listings ONLY
+ *   statistics                      → Mallan-derived from the EFFECTIVE
+ *                                     publicly displayed active inventory
+ *                                     (suppressed feed twins + ACRIS excluded)
  *
  * Required proofs (each is a test below):
  *   - ACRIS rows explicitly attributed to ACRIS; Cotality layers to Cotality.
@@ -51,14 +52,20 @@ jest.mock("next/cache", () => {
 // 400 = ACRIS service failure (adapter throws)
 // 500 = Neon down (DB layer throws) — Trestle-only assembly
 // 600 = Cotality/Trestle down — DB-only assembly
+// 800 = MALLAN OVERRIDE ACTIVE: SL exclusive (unit PH1) + its Cotality twin
+//       (same unit PH1, different price) both exist — twin must be suppressed
+// 900 = MALLAN OVERRIDE ENDED: SL row gone from DB; the still-eligible
+//       Cotality twin must be restored WITHOUT duplication
 const FAIL_DB = new Set(["500"]);
 const FAIL_TRESTLE = new Set(["600"]);
 const NO_ACTIVE = new Set(["200"]);
 const ACRIS_EMPTY = new Set(["300"]);
 const ACRIS_THROW = new Set(["400"]);
+const HAS_COTALITY_TWIN = new Set(["800", "900"]);
+const OVERRIDE_ENDED = new Set(["900"]);
 
 function dbRows(num: string) {
-  if (NO_ACTIVE.has(num)) return [];
+  if (NO_ACTIVE.has(num) || OVERRIDE_ENDED.has(num)) return [];
   return [
     {
       id: `dbid-${num}-crm`,
@@ -94,7 +101,20 @@ function trestleRecords(num: string) {
     StandardStatus: "Active",
     MlsStatus: "Active",
   };
+  const twin = HAS_COTALITY_TWIN.has(num)
+    ? [{
+        // Cotality/RLS representation of the SAME physical unit as the
+        // SL-3001 Mallan exclusive (unit PH1) — the reconciled twin.
+        ...base,
+        ListingId: `RLS-TWIN-${num}`, ListingKey: `KEY-${num}-TW1`,
+        ListPrice: 2750000, BedroomsTotal: 3, BathroomsFull: 2, BathroomsHalf: 0,
+        LivingArea: 1500, UnitNumber: "PH1", PropertySubType: "Condominium",
+        ListOfficeName: "Mallan Real Estate Inc.",
+        Media: [],
+      }]
+    : [];
   return [
+    ...twin,
     {
       ...base,
       ListingId: `TRE-${num}-A1`, ListingKey: `KEY-${num}-A1`,
@@ -248,9 +268,11 @@ describe("source layers + attribution", () => {
 
   it("sourceAttribution separates Cotality/REBNY, NYC ACRIS, and Mallan-derived statistics", async () => {
     const p = await payload("100");
-    expect(p.sourceAttribution.building.source).toBe("cotality-trestle");
-    expect(p.sourceAttribution.activeUnits.source).toBe("cotality-trestle");
+    expect(p.sourceAttribution.building.source).toBe("effective-public-inventory");
+    expect(p.sourceAttribution.activeUnits.source).toBe("effective-public-inventory");
     expect(p.sourceAttribution.building.attribution).toContain("REBNY");
+    expect(p.sourceAttribution.activeUnits.attribution).toContain("Mallan Real Estate Inc.");
+    expect(p.sourceAttribution.activeUnits.attribution).toContain("suppressed duplicate feed representations are excluded");
     expect(p.sourceAttribution.recordedTransfers.source).toBe("nyc-acris");
     expect(p.sourceAttribution.recordedTransfers.attribution).toContain("ACRIS");
     // ACRIS layer attribution must NOT carry the REBNY attribution
@@ -259,7 +281,8 @@ describe("source layers + attribution", () => {
     expect(p.sourceAttribution.recordedTransfers.attribution.toLowerCase()).toContain("recorded transfer");
     expect(p.sourceAttribution.recordedTransfers.attribution.toLowerCase()).toContain("not verified");
     expect(p.sourceAttribution.statistics.source).toBe("mallan-derived");
-    expect(p.sourceAttribution.statistics.attribution.toLowerCase()).toContain("active listings only");
+    expect(p.sourceAttribution.statistics.attribution).toContain("effective publicly displayed active inventory");
+    expect(p.sourceAttribution.statistics.attribution).toContain("Suppressed duplicate feed representations and NYC ACRIS recorded transfers are excluded");
   });
 
   it("the payload never describes ACRIS content as IDX: blanket source 'idx' is gone", async () => {
@@ -277,9 +300,11 @@ describe("source layers + attribution", () => {
     const p = await payload("100");
     expect(p.activeUnits.length).toBeGreaterThan(0);
     const keys = Object.keys(p.activeUnits[0]).sort();
+    // ADDITIVE contract change (documented): per-row provenance field
+    // `source` (+ optional `publication` on overridden Mallan exclusives).
     expect(keys).toEqual([
       "baths", "bathsHalf", "beds", "id", "listPrice", "listingType", "mlsId",
-      "office", "photoUrl", "propertyType", "sqft", "status", "unit",
+      "office", "photoUrl", "propertyType", "source", "sqft", "status", "unit",
     ].sort());
   });
 });
@@ -491,5 +516,142 @@ describe("legacy /api/listings/building route — same boundary rules", () => {
     expect(body._compliance.source).toContain("cotality");
     expect(body._compliance.attribution).not.toBe("REBNY RLS");
     expect(body._compliance.attribution).toContain("ACRIS");
+  });
+});
+
+// ═══ Maya correction round (2026-07-23): exclusive override + canonical contract ═══
+
+describe("Mallan-exclusive local-publication override — ONE listing identity, twin suppressed", () => {
+  it("override ACTIVE: the SL exclusive is the public representation; the Cotality twin is suppressed; counted ONCE", async () => {
+    const p = await payload("800");
+    const ph1Rows = p.activeUnits.filter((u: { unit: string }) => u.unit === "PH1");
+    expect(ph1Rows).toHaveLength(1);
+    expect(ph1Rows[0].mlsId).toBe("SL-3001");
+    expect(p.activeUnits.some((u: { mlsId: string }) => u.mlsId === "RLS-TWIN-800")).toBe(false);
+    expect(p.stats.totalActive).toBe(3); // SL + A1 + A2, twin NOT double-counted
+  });
+
+  it("override ACTIVE: local record carries Mallan attribution + explicit publication state", async () => {
+    const p = await payload("800");
+    const sl = p.activeUnits.find((u: { mlsId: string }) => u.mlsId === "SL-3001");
+    expect(sl.source).toBe("mallan-exclusive");
+    expect(sl.office).toBe("Mallan Real Estate Inc.");
+    expect(sl.publication).toEqual({
+      authority: "mallan-local",
+      reconciledCotalityId: "RLS-TWIN-800",
+      cotalityDisplaySuppressed: true,
+    });
+    const a1 = p.activeUnits.find((u: { mlsId: string }) => u.mlsId === "TRE-800-A1");
+    expect(a1.source).toBe("cotality-trestle");
+  });
+
+  it("override ACTIVE: statistics use the LOCAL asking price; the suppressed twin price enters nothing", async () => {
+    const p = await payload("800");
+    // active priced: 3,000,000 (LOCAL) + 2,000,000 + 1,000,000 → mean 2,000,000
+    expect(p.stats.avgPrice).toBe(2000000);
+    // ppsf population: SL(3M/1500) + A1(2M/1000) → 2,500,000 / 1,250 = 2,000
+    expect(p.stats.avgPricePerSqft).toBe(2000);
+    expect(JSON.stringify(p.stats)).not.toContain("2750000");
+  });
+
+  it("override ENDED: the still-eligible Cotality twin is restored WITHOUT duplication", async () => {
+    const p = await payload("900");
+    const ph1Rows = p.activeUnits.filter((u: { unit: string }) => u.unit === "PH1");
+    expect(ph1Rows).toHaveLength(1);
+    expect(ph1Rows[0].mlsId).toBe("RLS-TWIN-900");
+    expect(ph1Rows[0].source).toBe("cotality-trestle");
+    expect(ph1Rows[0].publication).toBeUndefined();
+    expect(p.stats.totalActive).toBe(3);
+  });
+
+  it("suppression is read-time only: no Prisma mutation is ever attempted", async () => {
+    await payload("800");
+    expect(prismaWriteAttempts).toEqual([]);
+  });
+
+  it("ACRIS amounts STILL enter no active-listing statistic in the override scenario", async () => {
+    const p = await payload("800");
+    const statsJson = JSON.stringify(p.stats);
+    expect(statsJson).not.toContain("50000000");
+    expect(statsJson).not.toContain("2100000");
+  });
+});
+
+describe("canonical recordedTransfers contract (saleHistory = deprecated alias)", () => {
+  it("the shared payload returns BOTH fields and they stay row-equivalent during the compat period", async () => {
+    const p = await payload("100");
+    expect(p.recordedTransfers.map((t: { id: string }) => t.id))
+      .toEqual(p.saleHistory.map((s: { id: string }) => s.id));
+    for (let i = 0; i < p.recordedTransfers.length; i++) {
+      expect(p.recordedTransfers[i].amount).toBe(p.saleHistory[i].closePrice);
+      expect(p.recordedTransfers[i].recordedDate).toBe(p.saleHistory[i].closeDate);
+    }
+  });
+
+  it("all three public consumers use the canonical field via toRecordedTransfers (no new saleHistory consumer)", () => {
+    for (const parts of [
+      ["app", "building", "page.tsx"],
+      ["app", "buildings", "[slug]", "page.tsx"],
+      ["app", "components", "BuildingUnits.tsx"],
+    ]) {
+      const src = fs.readFileSync(path.join(process.cwd(), ...parts), "utf8");
+      expect(src).toContain("toRecordedTransfers(");
+      expect(src).not.toMatch(/data\.saleHistory|setSaleHistory|=\s*saleHistory\b/);
+    }
+  });
+
+  it("the consumer helper prefers recordedTransfers and normalizes the deprecated alias identically", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { toRecordedTransfers } = require("@/lib/buildings/recorded-transfers");
+    const canonical = toRecordedTransfers({
+      recordedTransfers: [{ id: "a", amount: 5, recordedDate: "2024-01-01", unit: "", beds: null, baths: null, sqft: null, source: "acris" }],
+      saleHistory: [{ id: "WRONG", closePrice: 9 }],
+    });
+    expect(canonical).toHaveLength(1);
+    expect(canonical[0].id).toBe("a");
+    const fallback = toRecordedTransfers({ saleHistory: [{ id: "b", closePrice: 7, closeDate: "2023-02-02" }] });
+    expect(fallback[0].amount).toBe(7);
+    expect(fallback[0].recordedDate).toBe("2023-02-02");
+  });
+});
+
+describe("BuildingUnits — table-scoped labels (Asking Price vs Recorded Amount)", () => {
+  const src = fs.readFileSync(
+    path.join(process.cwd(), "app", "components", "BuildingUnits.tsx"), "utf8");
+  const marker = "Available Units in";
+  const availableSection = src.slice(src.indexOf(marker));
+  const transferSections = src.slice(0, src.indexOf(marker));
+
+  it("the Available Units table (unit.listPrice) says Asking Price — never Recorded Amount", () => {
+    expect(availableSection).toContain("Asking Price");
+    expect(availableSection).toContain("{formatPrice(unit.listPrice)}");
+    expect(availableSection).not.toContain("Recorded Amount");
+  });
+
+  it("the recorded-transfer tables (sale.amount) say Recorded Amount — never Asking Price", () => {
+    expect(transferSections).toContain("Recorded Amount");
+    expect(transferSections).toContain("{formatPrice(sale.amount)}");
+    expect(transferSections).not.toContain("Asking Price");
+    expect((transferSections.match(/Recorded Amount/g) ?? []).length).toBe(2);
+  });
+});
+
+describe("legacy route — ACRIS survives Cotality-closed dedupe (regression) + canonical field", () => {
+  it("an ACRIS record that MATCHES a withheld Cotality closed row still ships (isDuplicate=true)", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const acrisModule = require("@/lib/buildings/acris-building-sales");
+    (acrisModule.isDuplicate as jest.Mock).mockReturnValue(true);
+    const { GET } = require("@/app/api/listings/building/route");
+    const res = await GET(new NextRequest(
+      "https://mallan.nyc/api/listings/building?streetNumber=100&streetName=East%2090th%20Street&postalCode=10128"));
+    const body = await res.json();
+    expect(body.saleHistory.length).toBe(2);
+    expect(body.recordedTransfers.length).toBe(2);
+    for (const t of body.recordedTransfers) {
+      expect(t.source).toBe("acris");
+      expect(t.label).toBe("recorded-transfer");
+      expect(typeof t.amount).toBe("number");
+    }
+    (acrisModule.isDuplicate as jest.Mock).mockReturnValue(false);
   });
 });

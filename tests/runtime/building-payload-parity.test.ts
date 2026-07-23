@@ -259,7 +259,15 @@ async function legacyPayload(num: string, bn?: string) {
  *  exactly these fields; explicit assertions below pin every new value. */
 function stripDirectedDivergence(p: Record<string, any>) {
   const clone = JSON.parse(JSON.stringify(p));
-  for (const u of clone.activeUnits ?? []) delete u.propertyType;
+  for (const u of clone.activeUnits ?? []) {
+    delete u.propertyType;
+    // 3. (2026-07-23 correction round) additive per-row provenance + the
+    // Mallan-exclusive publication override: source/publication fields are
+    // new, and SL-/RL- rows now carry Mallan attribution in office.
+    delete u.source;
+    delete u.publication;
+    if (typeof u.mlsId === "string" && (u.mlsId.startsWith("SL-") || u.mlsId.startsWith("RL-"))) delete u.office;
+  }
   for (const s of clone.saleHistory ?? []) {
     delete s.propertyType;
     delete s.beds; delete s.baths; delete s.sqft;
@@ -351,9 +359,12 @@ describe("building payload parity — legacy production route vs new shared acce
     // the blanket 'idx' source label is gone.
     expect(fresh._compliance.attribution).toContain("REBNY Listing Service");
     expect(fresh._compliance.attribution).toContain("ACRIS");
-    expect(fresh._compliance.source).toBe("cotality-trestle+nyc-acris");
+    expect(fresh._compliance.source).toBe("cotality-trestle+mallan-exclusive+nyc-acris");
+    expect(byId["SL-2001"].source).toBe("mallan-exclusive");
+    expect(byId["SL-2001"].office).toBe("Mallan Real Estate Inc.");
+    expect(byId["TRE-400-S1"].source).toBe("cotality-trestle");
     expect(fresh._compliance.disclaimerRequired).toBe(true);
-    expect(fresh.sourceAttribution.activeUnits.source).toBe("cotality-trestle");
+    expect(fresh.sourceAttribution.activeUnits.source).toBe("effective-public-inventory");
     expect(fresh.sourceAttribution.recordedTransfers.source).toBe("nyc-acris");
     expect(fresh.recordedTransfers.length).toBe(2);
   });

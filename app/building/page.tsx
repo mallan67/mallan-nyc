@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { toRecordedTransfers } from '@/lib/buildings/recorded-transfers';
 import IDXDisclaimer from '@/app/components/IDXDisclaimer';
 import BackButton from '@/app/components/BackButton';
 import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
@@ -83,7 +84,9 @@ interface BuildingData {
     associationFeeIncludes: string[];
   };
   activeUnits: ActiveUnit[];
+  /** @deprecated compatibility alias — consume recordedTransfers via toRecordedTransfers() */
   saleHistory: SaleRecord[];
+  recordedTransfers?: Array<{ id: string; documentId?: string; bbl?: string; amount: number; recordedDate: string | null; unit: string; beds: number | null; baths: number | null; sqft: number | null; source: string; retrievedAt?: string }>;
   stats: {
     totalActive: number;
     totalSales: number;
@@ -242,16 +245,18 @@ export default async function BuildingPage({ searchParams }: Props) {
     notFound();
   }
 
-  const { building, activeUnits, saleHistory, stats, gatedRecordsCount } = data;
+  const { building, activeUnits, stats, gatedRecordsCount } = data;
+  // CANONICAL: recordedTransfers (saleHistory is only the deprecated alias).
+  const recordedTransfers = toRecordedTransfers(data);
   const buildingLabel = building.name || building.address;
-  const hasDetailData = saleHistory.some((s) => !!s.sqft || !!s.beds);
+  const hasDetailData = recordedTransfers.some((s) => !!s.sqft || !!s.beds);
   const saleUnits = activeUnits.filter((u) => u.listingType === 'sale');
   const rentalUnits = activeUnits.filter((u) => u.listingType === 'rent');
   const hasBuildingDetails = building.totalUnits || building.commonInterest || building.ownershipType;
   const hasParking = building.parking.features.length > 0 || building.parking.garageSpaces || building.parking.totalSpaces;
   const hasHvac = building.heating.length > 0 || building.cooling.length > 0;
   const hasFeeInfo = building.associationFee && building.associationFee > 0;
-  const hasAnyData = activeUnits.length > 0 || saleHistory.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal;
+  const hasAnyData = activeUnits.length > 0 || recordedTransfers.length > 0 || building.amenities.length > 0 || building.yearBuilt || building.storiesTotal;
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] font-sans">
@@ -713,7 +718,7 @@ export default async function BuildingPage({ searchParams }: Props) {
           )}
 
           {/* NYC Recorded Transfers (ACRIS public records) */}
-          {saleHistory.length > 0 && (
+          {recordedTransfers.length > 0 && (
             <section className="py-6 border-t border-black/[0.06]">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
@@ -722,7 +727,7 @@ export default async function BuildingPage({ searchParams }: Props) {
                   </svg>
                 </div>
                 <h2 className="font-display text-xl font-bold text-brand-dark">
-                  NYC Recorded Transfers ({saleHistory.length})
+                  NYC Recorded Transfers ({recordedTransfers.length})
                 </h2>
               </div>
               <p className="text-[13px] text-brand-dark/60 mb-4">NYC ACRIS public records — recorded transfer documents, not verified unit-level sales. Source: NYC ACRIS.</p>
@@ -743,28 +748,27 @@ export default async function BuildingPage({ searchParams }: Props) {
                           <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3 pr-4">$/SF</th>
                         </>
                       )}
-                      <th className="text-[11px] font-semibold text-brand-dark/50 uppercase tracking-wider pb-3">Type</th>
+                      
                     </tr>
                   </thead>
                   <tbody>
-                    {saleHistory.map((sale) => (
+                    {recordedTransfers.map((sale) => (
                       <tr key={sale.id} className="border-b border-black/[0.03] hover:bg-black/[0.01] transition-colors">
-                        <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{formatDate(sale.closeDate)}</td>
+                        <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{formatDate(sale.recordedDate)}</td>
                         <td className="text-[13px] font-medium text-brand-gold-deep py-3.5 pr-4">{sale.unit || '\u2014'}</td>
-                        <td className="text-[13px] font-medium text-brand-dark py-3.5 pr-4">{formatPrice(sale.closePrice)}</td>
+                        <td className="text-[13px] font-medium text-brand-dark py-3.5 pr-4">{formatPrice(sale.amount)}</td>
                         {hasDetailData && (
                           <>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.beds ? sale.beds : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.baths ? sale.baths : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">
-                              {sale.sqft && sale.closePrice > 0
-                                ? `$${Math.round(sale.closePrice / sale.sqft).toLocaleString()}`
+                              {sale.sqft && sale.amount > 0
+                                ? `$${Math.round(sale.amount / sale.sqft).toLocaleString()}`
                                 : '\u2014'}
                             </td>
                           </>
                         )}
-                        <td className="text-[13px] text-brand-dark/50 py-3.5">{sale.propertyType || '\u2014'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -773,24 +777,24 @@ export default async function BuildingPage({ searchParams }: Props) {
 
               {/* Mobile card layout */}
               <div className="md:hidden space-y-3">
-                {saleHistory.map((sale) => (
+                {recordedTransfers.map((sale) => (
                   <div key={sale.id} className="rounded-xl bg-[#F8F7F4] p-4 border border-black/[0.03]">
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <p className="text-[15px] font-display font-bold text-brand-dark">
-                          {formatPrice(sale.closePrice)}
+                          {formatPrice(sale.amount)}
                         </p>
                         {sale.unit && (
                           <p className="text-[12px] text-brand-gold-deep font-medium">Unit {sale.unit}</p>
                         )}
                       </div>
-                      <span className="text-[12px] text-brand-dark/50">{formatDate(sale.closeDate)}</span>
+                      <span className="text-[12px] text-brand-dark/50">{formatDate(sale.recordedDate)}</span>
                     </div>
                     <div className="flex gap-3 text-[12px] text-brand-dark/60">
                       {!!sale.beds && <span>{sale.beds} Bed{sale.beds !== 1 ? 's' : ''}</span>}
                       {!!sale.baths && <span>{sale.baths} Bath</span>}
                       {!!sale.sqft && <span>{sale.sqft.toLocaleString()} SF</span>}
-                      {sale.propertyType && <span>{sale.propertyType}</span>}
+                      
                     </div>
                   </div>
                 ))}
