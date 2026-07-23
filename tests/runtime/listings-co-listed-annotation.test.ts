@@ -28,6 +28,8 @@ function listingFixture(overrides: Partial<PublicListingDTO> = {}): PublicListin
     url: '/listing/foo-bar/rls00000000',
     status: 'Active',
     listingType: 'sale',
+    ownershipLabel: 'Condo',
+    transactionLabel: 'For Sale',
     address: {
       streetNumber: '0',
       streetName: '',

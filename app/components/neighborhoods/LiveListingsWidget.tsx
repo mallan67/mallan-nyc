@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { IDXSearchDisclaimer } from '@/app/components/IDXDisclaimer';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
-import { getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
+import { getSearchThumbnail } from '@/lib/media/listing-media-resolver';
 
 interface ListingItem {
   id: string;
@@ -15,6 +15,9 @@ interface ListingItem {
   listPrice: number;
   propertyType: string;
   propertySubType: string | null;
+  /** Canonical pair (Maya 2026-07-23): building ownership + transaction. */
+  ownershipLabel?: string | null;
+  transactionLabel?: string;
   bedroomsTotal: number;
   bathroomsFull: number;
   bathroomsHalf: number;
@@ -176,7 +179,9 @@ function ListingCard({ listing }: { listing: ListingItem }) {
     ? `$${listing.listPrice.toLocaleString()}/mo`
     : `$${listing.listPrice.toLocaleString()}`;
 
-  const photoUrl = getPrimaryPhoto(listing.media)?.url;
+  // NEVER a floorplan: getSearchThumbnail returns the first valid PHOTO only
+  // (explicit placeholder otherwise) — Maya 2026-07-23.
+  const photoUrl = getSearchThumbnail(listing.media);
 
   const isComingSoon = listing.status === 'ComingSoon' || listing.status === 'Coming Soon';
 
@@ -221,6 +226,15 @@ function ListingCard({ listing }: { listing: ListingItem }) {
 
       <div className="p-4">
         <p className="text-lg font-display font-semibold text-brand-dark">{price}</p>
+
+        {/* Canonical ownership + transaction (Maya 2026-07-23): building
+            ownership decides the label; sale/rent decides the prefix. */}
+        {(listing.transactionLabel || listing.ownershipLabel) && (
+          <p className="text-[11px] font-medium tracking-wide text-brand-gold-deep mt-0.5 uppercase">
+            {listing.transactionLabel || (isRental ? 'For Rent' : 'For Sale')}
+            {listing.ownershipLabel ? ` · ${listing.ownershipLabel}` : ''}
+          </p>
+        )}
 
         <p className="text-sm text-brand-dark/95 mt-0.5">
           {listing.address.streetNumber} {listing.address.streetName}

@@ -12,6 +12,7 @@
  */
 
 import type { IDXListing } from './types';
+import { deriveOwnershipLabel, deriveTransactionLabel } from '@/lib/listings/ownership';
 import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { isComingSoonStatus } from '@/lib/compliance/status';
@@ -172,6 +173,10 @@ export interface PublicListingDTO {
   previousListPrice?: number;
   closePrice: number | null;
   propertyType: string;
+  /** Canonical building-ownership label — Condo / Co-op / Condop / Rental Building / Townhouse / House / Multi-Family. */
+  ownershipLabel: string | null;
+  /** For Sale / For Rent — transaction type only; never overrides ownership. */
+  transactionLabel: string;
   propertySubType: string | null;
   bedroomsTotal: number;
   bathroomsFull: number;
@@ -437,6 +442,15 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     previousListPrice: listing.previousListPrice,
     closePrice: listing.closePrice,
     propertyType: mapPropertyTypeToDisplay(listing.commonInterest, listing.propertySubType, listing.propertyType),
+    // Canonical ownership pair (Maya 2026-07-23) — identical derivation to the
+    // DB path so both sources emit the same labels for the same listing.
+    ownershipLabel: deriveOwnershipLabel({
+      commonInterest: listing.commonInterest,
+      ownershipType: (listing as { ownershipType?: string | null }).ownershipType ?? null,
+      propertySubType: listing.propertySubType,
+      listingType: listing.listingType,
+    }),
+    transactionLabel: deriveTransactionLabel(listing.listingType),
     propertySubType: listing.propertySubType,
     bedroomsTotal: listing.bedroomsTotal,
     bathroomsFull: listing.bathroomsFull,

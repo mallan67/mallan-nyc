@@ -95,6 +95,10 @@ export interface DisplayListing {
   livingArea: number | null;
   propertyType: string;
   propertySubType: string | null;
+  /** Canonical building-ownership label (Maya 2026-07-23). */
+  ownershipLabel?: string | null;
+  /** For Sale / For Rent. */
+  transactionLabel?: string;
   associationFee?: number;
   associationFeeFrequency?: string;
   listOfficeName: string;
@@ -157,6 +161,8 @@ export function fromPublicDTO(dto: PublicListingDTO): DisplayListing {
     livingArea: dto.livingArea,
     propertyType: dto.propertyType,
     propertySubType: dto.propertySubType,
+    ownershipLabel: dto.ownershipLabel ?? null,
+    transactionLabel: dto.transactionLabel,
     associationFee: dto.associationFee,
     associationFeeFrequency: dto.associationFeeFrequency,
     listOfficeName: dto.listOfficeName,

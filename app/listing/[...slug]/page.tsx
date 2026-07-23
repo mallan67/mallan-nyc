@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { deriveOwnershipLabel, deriveTransactionLabel } from '@/lib/listings/ownership';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -455,6 +456,15 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       url: buildCanonicalListingPath({ slug: dtoSlug, id: dbListing.listing_id }),
       status: dbListing.status,
       listingType: dbListing.listing_type as 'sale' | 'rent',
+      // Canonical ownership pair (Maya 2026-07-23) — same derivation as both
+      // DTO builders; the facts section + structured data render these.
+      ownershipLabel: deriveOwnershipLabel({
+        commonInterest: (dbListing.features as Record<string, unknown> | null)?.CommonInterest as string | undefined,
+        ownershipType: (dbListing.features as Record<string, unknown> | null)?.OwnershipType as string | undefined,
+        propertySubType: dbListing.property_sub_type,
+        listingType: dbListing.listing_type,
+      }),
+      transactionLabel: deriveTransactionLabel(dbListing.listing_type),
       address: suppressAddress
         ? {
             streetNumber: '',
@@ -659,11 +669,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${fullAddress} | ${priceDisplay} | Mallan Real Estate`,
-    description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
+    description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.ownershipLabel || listing.propertyType} in ${borough}. ${(listing.publicRemarks || '').substring(0, 150)}...`,
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: `${fullAddress} | ${priceDisplay}`,
-      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}.`,
+      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.ownershipLabel || listing.propertyType} in ${borough}.`,
       url: canonicalUrl,
       type: 'article',
       images: [{ url: ogImage, width: 1200, height: 630, alt: fullAddress }],
@@ -671,7 +681,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     twitter: {
       card: 'summary_large_image',
       title: `${fullAddress} | ${priceDisplay}`,
-      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.propertyType} in ${borough}`,
+      description: `${listing.bedroomsTotal} bed, ${listing.bathroomsFull} bath ${listing.ownershipLabel || listing.propertyType} in ${borough}`,
       images: [ogImage],
     },
   };
@@ -756,10 +766,12 @@ export default async function ListingPage({ params }: Props) {
   }
 
   const isRental = listing.listingType === 'rent';
-  const isCoop = listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
+  const isCoop = listing.ownershipLabel === 'Co-op' || listing.propertyType === 'Co-op' || listing.propertyType === 'Cooperative';
   const borough = countyToBorough(listing.address.county);
   const neighborhood = listing.address.neighborhood || '';
-  const displayPropertyType = listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType;
+  // Canonical ownership first (Maya 2026-07-23): building ownership decides
+  // the displayed type; propertySubType stays a separate concept.
+  const displayPropertyType = listing.ownershipLabel || (listing.propertyType === 'Residential' ? (listing.propertySubType || listing.propertyType) : listing.propertyType);
 
   // Neighborhood data lookup
   const boroughSlug = borough.toLowerCase().replace(/\s+/g, '-') as BoroughSlug;

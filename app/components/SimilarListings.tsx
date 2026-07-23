@@ -20,6 +20,7 @@ interface SimilarListing {
   photoUrl: string | null;
   photosCount?: number;
   propertyType: string;
+  ownershipLabel?: string | null;
   office: string;
   /** UCBA Art. I §16(C) — Coming Soon badge requires status + date. */
   status?: string | null;
@@ -102,7 +103,7 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
         </div>
         <p className="text-[13px] text-brand-dark mt-1.5 truncate">{item.address}</p>
         <p className="text-[12px] text-brand-dark/60 mt-0.5 truncate">
-          {item.propertyType}{item.neighborhood ? ` · ${item.neighborhood}` : ''}
+          {item.ownershipLabel || item.propertyType}{item.neighborhood ? ` · ${item.neighborhood}` : ''}
         </p>
         <div className="flex-1 min-h-[8px]" />
         {/* REBNY attribution — UCBA Art. III §2(C): font not smaller than median (median = ~12-13px in this card) */}

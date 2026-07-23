@@ -17,6 +17,7 @@
 
 import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
+import { deriveOwnershipLabel, deriveTransactionLabel } from '@/lib/listings/ownership';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
@@ -438,6 +439,15 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
       listing.property_sub_type,
       listing.property_type || 'Residential',
     ),
+    // Canonical ownership pair (Maya 2026-07-23): building ownership decides
+    // the label; transaction type decides For Sale vs For Rent — never mixed.
+    ownershipLabel: deriveOwnershipLabel({
+      commonInterest: features.CommonInterest as string | undefined,
+      ownershipType: features.OwnershipType as string | undefined,
+      propertySubType: listing.property_sub_type,
+      listingType: listing.listing_type,
+    }),
+    transactionLabel: deriveTransactionLabel(listing.listing_type),
     propertySubType: listing.property_sub_type,
     bedroomsTotal: listing.bedrooms_total || 0,
     bathroomsFull: listing.bathrooms_full || 0,

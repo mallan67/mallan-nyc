@@ -182,7 +182,9 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
           )}
         </p>
         <p className="text-sm text-brand-dark/70 mt-0.5">
-          {listing.propertyType && <>{listing.propertyType}</>}
+          {/* Canonical ownership label first (Condo/Co-op/Condop/Rental
+              Building/Townhouse…), legacy propertyType as fallback. */}
+          {(listing.ownershipLabel || listing.propertyType) && <>{listing.ownershipLabel || listing.propertyType}</>}
           {listing.address.neighborhood && listing.address.neighborhood !== listing.address.borough
             ? <>{listing.propertyType ? ' · ' : ''}{listing.address.neighborhood}, {listing.address.borough}</>
             : <>{listing.propertyType ? ' · ' : ''}{listing.address.borough}</>}

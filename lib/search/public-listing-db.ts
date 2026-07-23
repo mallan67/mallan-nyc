@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { matchesOwnershipFilter } from '@/lib/listings/ownership';
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import {
   buildSearchDisplayWhere,
@@ -348,6 +349,8 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
 export interface PublicPostFilterListing {
   id: string;
   propertyType?: string | null;
+  /** Canonical ownership label emitted by both DTO builders. */
+  ownershipLabel?: string | null;
   yearBuilt?: number | null;
   furnished?: string | null;
   petsAllowed?: string | null;
@@ -388,6 +391,25 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
         });
       });
     }
+  }
+
+  // propertyType — the neighborhood tabs' param (the Condos / Co-ops tabs
+  // send propertyType=Condo|Co-op). Previously honored ONLY by the Trestle
+  // fallback (CommonInterest eq) and silently IGNORED on this DB path —
+  // which is why every tab returned the same listings (Maya 2026-07-23).
+  // Matched against the CANONICAL ownershipLabel the cards display, so a
+  // tab selects exactly what its label shows. propertySubTypes /
+  // ownershipTypes take precedence — identical to the Trestle path's rule.
+  const propertyTypeParam = params.get("propertyType");
+  if (
+    propertyTypeParam &&
+    !params.get("propertySubTypes") &&
+    !params.get("subTypes") &&
+    !params.get("ownershipTypes")
+  ) {
+    result = result.filter((listing) =>
+      matchesOwnershipFilter(propertyTypeParam, (listing.ownershipLabel ?? null) as never),
+    );
   }
 
   // yearBuilt — pre-war (≤1946) / post-war (≥1947). Same threshold as the

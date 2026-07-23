@@ -48,6 +48,8 @@ interface FeaturedListing {
   listPrice: number;
   propertyType: string;
   propertySubType: string | null;
+  ownershipLabel?: string | null;
+  transactionLabel?: string;
   bedroomsTotal: number;
   bathroomsFull: number;
   bathroomsHalf: number;
@@ -288,7 +290,7 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
                 {listing.address.streetNumber} {listing.address.streetName}{listing.address.unitNumber ? `, #${listing.address.unitNumber}` : ''}
               </h3>
               <p className="text-brand-dark/90 text-[13px] font-light">
-                {listing.propertySubType || listing.propertyType}{listing.address.neighborhood ? ` in ${listing.address.neighborhood}` : ''}
+                {listing.ownershipLabel || listing.propertySubType || listing.propertyType}{listing.address.neighborhood ? ` in ${listing.address.neighborhood}` : ''}
               </p>
             </div>
             <p className="font-display font-bold text-base md:text-lg whitespace-nowrap text-brand-dark">
