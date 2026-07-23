@@ -9,43 +9,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { requireBroker, isAuthError, logAuditEvent } from '@/lib/auth/middleware';
+import { PUBLIC_COMPANY_SETTINGS } from '@/lib/config/public-company-settings';
 
 export const dynamic = 'force-dynamic';
 
 const SETTINGS_FILE = path.join(process.cwd(), 'data', 'company-settings.json');
 
-// Default company settings
-const DEFAULT_SETTINGS = {
-  companyName: 'Mallan Real Estate Inc.',
-  license: '10991205323',
-  phone: '646-258-4460',
-  address: {
-    street: '400 East 90th Street, Suite 17C',
-    city: 'New York',
-    state: 'NY',
-    zip: '10128',
-  },
-  heroImage: '/images/hero.jpg',
-  heroTagline: 'One Search. Every Space. Home. Business.',
-  legalLinks: [
-    { title: 'Fair Housing', href: '/fair-housing' },
-    { title: 'Privacy Policy', href: '/privacy' },
-    { title: 'Terms of Service', href: '/terms' },
-    { title: 'Standardized Operating Procedures', href: '/sop' },
-    { title: 'Reasonable Accommodations', href: '/reasonable-accommodations' },
-  ],
-  quickLinks: [
-    { title: 'Buy', href: '/buy' },
-    { title: 'Rent', href: '/rent' },
-    { title: 'Sell', href: '/sell' },
-    { title: 'Agents', href: '/agents' },
-  ],
-  resourceLinks: [
-    { title: "Buyer's Guide", href: '/resources/buyers-guide' },
-    { title: "Seller's Guide", href: '/resources/sellers-guide' },
-    { title: 'Open Houses', href: '/open-houses' },
-  ],
-};
+// Neon-quiet (2026-07-23): the defaults now live in ONE canonical module
+// shared with the public shell (Footer/HeroSearch import it directly and no
+// longer call this GET). The route keeps serving them for any legacy/broker
+// consumer so the two sources can never drift.
+const DEFAULT_SETTINGS = PUBLIC_COMPANY_SETTINGS;
 
 async function getSettings() {
   try {

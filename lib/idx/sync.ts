@@ -1054,6 +1054,14 @@ export async function syncListings(
         rows_with_errors: errors,
       },
     });
+    // Neon-quiet (2026-07-23): the public watermark cache tag is revalidated
+    // ONLY here — after the SyncState upsert has durably committed — and ONLY
+    // for a fully-successful run. A failed/partial run (errors > 0) keeps the
+    // prior cached watermark: stale-but-real always beats fabricated-fresh
+    // (UCBA Art. VIII §4 fail-closed). safeRevalidateTags never throws.
+    if (errors === 0) {
+      safeRevalidateTags(["idx-watermark"], revalidation);
+    }
   } catch (err) {
     console.error("[IDX Sync] Failed to update SyncState watermark:", err);
     // Non-fatal — sync already succeeded; watermark-write failure degrades

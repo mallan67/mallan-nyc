@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateSession, type SessionUser } from "./session";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { AUTH_PRESENCE_COOKIE } from "@/lib/auth/cookie-config";
 
 const SESSION_COOKIE = "session_token";
 
@@ -36,6 +37,7 @@ export async function requireAuth(
     );
     // Clear stale cookie
     res.cookies.delete(SESSION_COOKIE);
+    res.cookies.delete(AUTH_PRESENCE_COOKIE);
     return res;
   }
 

@@ -27,6 +27,17 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+/**
+ * Neon-quiet (2026-07-23): pure, testable presence check. The marker cookie
+ * (AUTH_PRESENCE_COOKIE in lib/auth/cookie-config) is a deliberately
+ * NON-AUTHORITATIVE, presentation-only companion set at login / cleared at
+ * logout. It is NEVER read by any server-side authorization path — a forged
+ * marker merely causes one /api/auth/me call that returns unauthenticated.
+ */
+export function hasAuthPresenceMarker(cookieString: string): boolean {
+  return /(?:^|;\s*)mallan_auth_present=/.test(cookieString);
+}
+
 // useReducer with a stable dispatch identity satisfies the React Compiler's
 // `set-state-in-effect` rule (the dispatch reference doesn't change so it
 // doesn't trigger cascading-render concerns the way `setState` does).
@@ -60,6 +71,14 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [auth, dispatch] = useReducer(authReducer, INITIAL_AUTH);
 
   const refresh = useCallback(async () => {
+    // Neon-quiet (2026-07-23): anonymous public visitors perform ZERO
+    // /api/auth/me calls — no marker → neutral "Sign In" state with no
+    // network request and no Neon query. Authorization remains enforced
+    // server-side on every protected route regardless of this gate.
+    if (typeof document !== 'undefined' && !hasAuthPresenceMarker(document.cookie)) {
+      dispatch({ type: 'set-anonymous' });
+      return;
+    }
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();

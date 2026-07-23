@@ -2,6 +2,7 @@
 // Destroys session and clears cookie.
 import { NextRequest, NextResponse } from "next/server";
 import { destroySession, SESSION_COOKIE } from "@/lib/auth";
+import { AUTH_PRESENCE_COOKIE } from "@/lib/auth/cookie-config";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://mallan.nyc";
 
@@ -16,12 +17,14 @@ async function handleLogout(req: NextRequest) {
   if (req.method === "GET") {
     const res = NextResponse.redirect(`${SITE_URL}/sign-in`);
     res.cookies.delete(SESSION_COOKIE);
+    res.cookies.delete(AUTH_PRESENCE_COOKIE);
     return res;
   }
 
   // POST returns JSON
   const res = NextResponse.json({ success: true });
   res.cookies.delete(SESSION_COOKIE);
+    res.cookies.delete(AUTH_PRESENCE_COOKIE);
   return res;
 }
 

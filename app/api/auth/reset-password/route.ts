@@ -6,7 +6,7 @@ import { hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
 import { validateResetToken } from "@/lib/auth/reset-token";
 import { logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
+import { getSessionCookieConfig, AUTH_PRESENCE_COOKIE, getPresenceCookieConfig } from "@/lib/auth/cookie-config";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
     });
 
     res.cookies.set(SESSION_COOKIE, sessionToken, getSessionCookieConfig(userType, role));
+    res.cookies.set(AUTH_PRESENCE_COOKIE, "1", getPresenceCookieConfig(userType, role));
 
     return res;
   } catch (err) {

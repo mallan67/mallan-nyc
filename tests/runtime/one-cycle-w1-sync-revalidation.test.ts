@@ -236,11 +236,15 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
     expect(tags).toContain("listing:RLS100002");
     expect(tags).not.toContain("listing:RLS100001"); // suppressed → untouched cache
     expect(tags.filter((t) => t === "search").length).toBe(1); // bumped ONCE per run
-    expect(result.write_paths.revalidation.pages_revalidated).toBe(2); // listing tag + search
+    // Neon-quiet 2026-07-23: every SUCCESSFUL run also revalidates the
+    // idx-watermark tag AFTER its SyncState upsert commits (the public
+    // "data last updated" time advances on every successful sync).
+    expect(tags.filter((t) => t === "idx-watermark").length).toBe(1);
+    expect(result.write_paths.revalidation.pages_revalidated).toBe(3); // listing tag + search + idx-watermark
     expect(result.write_paths.revalidation.revalidation_failures).toBe(0);
   });
 
-  it("a fully UNCHANGED run performs ZERO revalidations", async () => {
+  it("a fully UNCHANGED successful run revalidates ONLY the watermark tag (zero listing/search revalidations)", async () => {
     const rawA = rawRecord();
     const state: StoredState = {
       listings: new Map([["RLS100001", dbRowFromRaw(rawA)]]),
@@ -251,8 +255,12 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
 
     const result = await syncListings({ fullSync: true });
 
-    expect(mockRevalidateTag).not.toHaveBeenCalled();
-    expect(result.write_paths.revalidation.pages_revalidated).toBe(0);
+    // Neon-quiet 2026-07-23: listing/search caches stay untouched on an
+    // unchanged run; the idx-watermark tag alone refreshes (last_run_at
+    // advanced — the SyncState upsert committed a successful run).
+    const tags = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
+    expect(tags).toEqual(["idx-watermark"]);
+    expect(result.write_paths.revalidation.pages_revalidated).toBe(1);
   });
 
   it("a brand-new listing (insert) revalidates its tag + search", async () => {

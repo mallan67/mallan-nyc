@@ -43,6 +43,9 @@ jest.mock('@/lib/auth/mfa', () => ({
 jest.mock('@/lib/auth/cookie-config', () => ({
   __esModule: true,
   getSessionCookieConfig: () => ({ httpOnly: true, secure: true, sameSite: 'lax' as const, path: '/' }),
+  // Neon-quiet presence companion (presentation-only marker cookie).
+  AUTH_PRESENCE_COOKIE: 'mallan_auth_present',
+  getPresenceCookieConfig: () => ({ httpOnly: false, secure: true, sameSite: 'lax' as const, path: '/' }),
 }));
 
 beforeEach(() => {

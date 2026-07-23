@@ -10,7 +10,7 @@ import {
   SESSION_COOKIE,
 } from "@/lib/auth";
 import { MFA_SESSION_TTL_MS, generateOtpCode, sendOtpEmail, sendOtpSms } from "@/lib/auth/mfa";
-import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
+import { getSessionCookieConfig, AUTH_PRESENCE_COOKIE, getPresenceCookieConfig } from "@/lib/auth/cookie-config";
 import {
   extractBehavioralSessionId,
   linkBehavioralSessionToLead,
@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
         });
 
         res.cookies.set(SESSION_COOKIE, token, getSessionCookieConfig("agent", agent.role));
+        res.cookies.set(AUTH_PRESENCE_COOKIE, "1", getPresenceCookieConfig("agent", agent.role));
 
         return res;
       }
@@ -165,6 +166,7 @@ export async function POST(req: NextRequest) {
         });
 
         res.cookies.set(SESSION_COOKIE, token, getSessionCookieConfig("lead", role));
+        res.cookies.set(AUTH_PRESENCE_COOKIE, "1", getPresenceCookieConfig("lead", role));
 
         return res;
       }

@@ -58,7 +58,9 @@ const COMPUTED_IMPORT_ALLOWLIST: Record<string, number> = {};
  *  the AST facts of EVERY match in that file must satisfy. */
 const NO_STORE_ALLOWLIST: Record<string, (m: { nonGetMethod: boolean; insideUseEffect: boolean }) => boolean> = {
   // Client watermark fetch — allowed ONLY while it stays inside useEffect:
-  'app/components/IDXDisclaimer.tsx': (m) => m.insideUseEffect === true,
+  // (IDXDisclaimer's no-store watermark fetch was RETIRED by the Neon-quiet
+  //  public-shell change 2026-07-23 — the shared deduped watermark client
+  //  has no no-store; the allowlist shrank rather than grew.)
   // OAuth token request — allowed ONLY while it stays non-GET:
   'lib/idx/auth.ts': (m) => m.nonGetMethod === true,
 };
@@ -185,10 +187,12 @@ describe('release-safety P2 — source guards (repo scan, fail-closed)', () => {
   });
 
   test('the allowlisted files still satisfy their AST predicates directly', () => {
+    // Neon-quiet 2026-07-23: IDXDisclaimer's no-store fetch is GONE (shared
+    // deduped watermark client; browser cache allowed) — zero matches is the
+    // tightened contract.
     const idx = analyzeNoStoreProperties(path.join(ROOT, 'app/components/IDXDisclaimer.tsx'));
     expect(idx.error).toBeNull();
-    expect(idx.matches.length).toBe(1);
-    expect(idx.matches[0].insideUseEffect).toBe(true);
+    expect(idx.matches.length).toBe(0);
     const auth = analyzeNoStoreProperties(path.join(ROOT, 'lib/idx/auth.ts'));
     expect(auth.error).toBeNull();
     expect(auth.matches.length).toBe(1);

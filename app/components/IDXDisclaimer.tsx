@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { fetchIdxWatermarkOnce } from '@/lib/client/idx-watermark-client';
 
 interface IDXDisclaimerProps {
   /** Last data update timestamp */
@@ -52,14 +53,13 @@ function useIdxWatermarkFallback(enabled: boolean): Date | null {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    fetch('/api/idx/watermark', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.displayAt) return;
-        const d = new Date(data.displayAt);
-        if (!isNaN(d.getTime())) setWatermark(d);
-      })
-      .catch(() => { /* non-fatal; we simply won't show a date */ });
+    // Neon-quiet (2026-07-23): deduped shared fetch — one request per full app
+    // mount across Footer + EVERY disclaimer instance (previously each
+    // instance fired its own no-store request). Non-fatal null → no date shown.
+    fetchIdxWatermarkOnce().then((d) => {
+      if (cancelled || !d) return;
+      setWatermark(d);
+    });
     return () => { cancelled = true; };
   }, [enabled]);
   return watermark;
@@ -74,7 +74,7 @@ function useIdxWatermarkFallback(enabled: boolean): Date | null {
  * updated" timestamp must reflect the actual data refresh time, not the render
  * time. Callers should pass `lastUpdated` from the server-side sync watermark
  * (SyncState.last_watermark or Listing.modification_timestamp). If the prop is
- * omitted we fall back to today's date — since idx-sync runs every 12 minutes,
+ * omitted we fall back to today's date — since idx-sync runs every 30 minutes,
  * today's date is a safe upper bound under normal operation, but passing a real
  * timestamp is strictly preferred (and eliminates SSR hydration mismatch).
  */

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { PUBLIC_COMPANY_SETTINGS } from '@/lib/config/public-company-settings';
+import { fetchIdxWatermarkOnce } from '@/lib/client/idx-watermark-client';
 
 type LinkItem = { title: string; href: string };
 
@@ -21,67 +23,30 @@ type CompanySettings = {
   resourceLinks: LinkItem[];
 };
 
-const DEFAULT_SETTINGS: CompanySettings = {
-  companyName: 'Mallan Real Estate Inc.',
-  license: '10991205323',
-  phone: '646-258-4460',
-  address: {
-    street: '400 East 90th Street, Suite 17C',
-    city: 'New York',
-    state: 'NY',
-    zip: '10128',
-  },
-  legalLinks: [
-    { title: 'Fair Housing', href: '/fair-housing' },
-    { title: 'Privacy Policy', href: '/privacy' },
-    { title: 'Terms of Service', href: '/terms' },
-    { title: 'Standardized Operating Procedures', href: '/sop' },
-    { title: 'Reasonable Accommodations', href: '/reasonable-accommodations' },
-  ],
-  quickLinks: [
-    { title: 'Buy', href: '/buy' },
-    { title: 'Rent', href: '/rent' },
-    { title: 'Sell', href: '/sell' },
-    { title: 'Agents', href: '/agents' },
-  ],
-  resourceLinks: [
-    { title: "Buyer's Guide", href: '/resources/buyers-guide' },
-    { title: "Seller's Guide", href: '/resources/sellers-guide' },
-    { title: 'Open Houses', href: '/open-houses' },
-  ],
-};
+// (Local DEFAULT_SETTINGS removed — the canonical values live in
+// lib/config/public-company-settings and are imported above.)
 
 export default function Footer() {
-  const [settings, setSettings] = useState<CompanySettings>(DEFAULT_SETTINGS);
-
-  useEffect(() => {
-    fetch('/api/settings/company')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.companyName) {
-          setSettings(data);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // Neon-quiet (2026-07-23): the public company settings are a build-time
+  // constant (lib/config/public-company-settings) — the previous per-mount
+  // GET /api/settings/company returned the same constants from a route whose
+  // backing file does not exist in the deployment. Zero network requests.
+  const settings: CompanySettings = PUBLIC_COMPANY_SETTINGS;
 
   const currentYear = new Date().getFullYear();
 
   // UCBA Art. VIII §4: footer "Updated" timestamp must reflect the real IDX refresh
-  // time, not the user's render clock. Pull from /api/idx/watermark (cached 3 min).
+  // time, not the user's render clock. Neon-quiet: shared once-per-app-mount
+  // watermark (deduped with every IDXDisclaimer instance via
+  // lib/client/idx-watermark-client; browser cache no longer suppressed by
+  // no-store). Non-fatal null → the footer line simply omits the date.
   const [idxWatermark, setIdxWatermark] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/idx/watermark', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.displayAt) return;
-        const d = new Date(data.displayAt);
-        if (!isNaN(d.getTime())) {
-          setIdxWatermark(d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
-        }
-      })
-      .catch(() => { /* non-fatal; footer line simply omits the date */ });
+    fetchIdxWatermarkOnce().then((d) => {
+      if (cancelled || !d) return;
+      setIdxWatermark(d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+    });
     return () => { cancelled = true; };
   }, []);
 

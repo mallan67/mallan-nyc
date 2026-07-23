@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
 import { getSuggestions as getDictionarySuggestions } from '@/lib/search/nyc-dictionary';
 import type { DictionarySuggestion } from '@/lib/search/nyc-dictionary';
+import { PUBLIC_COMPANY_SETTINGS } from '@/lib/config/public-company-settings';
 
 type SearchTab = 'buy' | 'rent';
 
@@ -60,7 +61,12 @@ export default function HeroSearch() {
     setQuery('');
     setIsSearching(false);
   }, []);
-  const [heroSettings, setHeroSettings] = useState<HeroSettings>(DEFAULT_HERO);
+  // Neon-quiet (2026-07-23): hero settings are the build-time public constants
+  // (previous per-mount GET /api/settings/company returned these same values).
+  const heroSettings: HeroSettings = {
+    heroImage: PUBLIC_COMPANY_SETTINGS.heroImage || DEFAULT_HERO.heroImage,
+    heroTagline: PUBLIC_COMPANY_SETTINGS.heroTagline || DEFAULT_HERO.heroTagline,
+  };
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -69,19 +75,8 @@ export default function HeroSearch() {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetch('/api/settings/company')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.heroImage) {
-          setHeroSettings({
-            heroImage: data.heroImage || DEFAULT_HERO.heroImage,
-            heroTagline: data.heroTagline || DEFAULT_HERO.heroTagline,
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // (Per-mount GET /api/settings/company removed — values are build-time
+  // constants imported above; Neon-quiet 2026-07-23.)
 
   // Rotate placeholder examples
   useEffect(() => {
