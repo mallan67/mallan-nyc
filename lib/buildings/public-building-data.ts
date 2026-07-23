@@ -488,26 +488,63 @@ function getBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
 }
 
 /**
- * Unit-card display type (Maya 2026-07-23): the card reflects the OWNERSHIP
- * form of the unit's building — a rental inside a condo shows 'Condo', inside
- * a co-op 'Co-op', inside a condop 'Condop', and in a rental building
- * 'Rental Building'. Chain: the unit's own CommonInterest → the BUILDING's
- * aggregated CommonInterest → the canonical mapper with the legacy value as
- * final fallback (exotic sub-types render exactly as before).
+ * CANONICAL building-ownership classifier (Maya 2026-07-23, approved rule).
+ *
+ * The displayed type is determined by the BUILDING'S OWNERSHIP STRUCTURE —
+ * never by whether the unit is currently offered for sale or rent:
+ *   Condominium → Condo · Stock Cooperative → Co-op · Condop → Condop ·
+ *   Rental / Apartment Building / no individually owned units → Rental Building.
+ * Priority: unit CommonInterest → building CommonInterest → unit
+ * OwnershipType → building OwnershipType. Transaction type may group
+ * sale-vs-rent and format prices, but NEVER overrides ownership.
+ */
+export function classifyBuildingOwnership(signals: {
+  commonInterest?: string | null;
+  buildingCommonInterest?: string | null;
+  ownershipType?: string | null;
+  buildingOwnershipType?: string | null;
+}): 'Condo' | 'Co-op' | 'Condop' | 'Rental Building' | null {
+  const chain = [
+    signals.commonInterest,
+    signals.buildingCommonInterest,
+    signals.ownershipType,
+    signals.buildingOwnershipType,
+  ];
+  for (const v of chain) {
+    const s = String(v ?? '').toLowerCase().replace(/[^a-z]/g, '');
+    if (!s) continue;
+    if (s.includes('condop')) return 'Condop';
+    if (s.includes('condominium') || s === 'condo') return 'Condo';
+    if (s.includes('cooperative') || s === 'coop') return 'Co-op';
+    if (s.includes('rental') || s.includes('apartmentbuilding')) return 'Rental Building';
+  }
+  return null;
+}
+
+/**
+ * Unit-card display type. Ownership classification first (see above). When
+ * NO ownership signal exists anywhere: a LEASE unit is by definition in a
+ * building with no individually owned units → 'Rental Building' (never
+ * 'Apartment' merely because PropertyType is Residential Lease); a SALE
+ * unit falls to the canonical mapper (Townhouse/House/etc. unchanged).
  */
 function unitDisplayType(
   rowCommonInterest: string | null | undefined,
   buildingCommonInterest: string | null | undefined,
+  rowOwnershipType: string | null | undefined,
+  buildingOwnershipType: string | null | undefined,
+  isRent: boolean,
   propertySubType: string | null | undefined,
   legacy: string,
 ): string {
-  const ci = rowCommonInterest || buildingCommonInterest || '';
-  switch (ci) {
-    case 'Condominium': return 'Condo';
-    case 'StockCooperative': return 'Co-op';
-    case 'Condop': return 'Condop';
-    case 'RentalBuilding': return 'Rental Building';
-  }
+  const own = classifyBuildingOwnership({
+    commonInterest: rowCommonInterest,
+    buildingCommonInterest,
+    ownershipType: rowOwnershipType,
+    buildingOwnershipType,
+  });
+  if (own) return own;
+  if (isRent) return 'Rental Building';
   return mapPropertyTypeToDisplay(rowCommonInterest ?? undefined, propertySubType ?? null, legacy);
 }
 
@@ -741,7 +778,7 @@ async function buildBuildingPayload(
         bathsHalf: Number(r.BathroomsHalf || 0),
         sqft: Number(r.LivingArea || 0),
         unit: String(r.UnitNumber || ''),
-        propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
+        propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.OwnershipType as string | undefined, buildingInfo.ownershipType, listingType === 'rent', r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
         status: String(r.StandardStatus || r.MlsStatus || 'Active'),
         listingType,
@@ -762,7 +799,7 @@ async function buildBuildingPayload(
         bathsHalf: l.bathrooms_half || 0,
         sqft: l.living_area ? Number(l.living_area) : 0,
         unit: String(addr.UnitNumber || ''),
-        propertyType: unitDisplayType(l.features.CommonInterest, buildingInfo.commonInterest, l.property_sub_type, mapPropertyTypeToDisplay(l.features.CommonInterest ?? undefined, l.property_sub_type, l.property_type || '')),
+        propertyType: unitDisplayType(l.features.CommonInterest, buildingInfo.commonInterest, null, buildingInfo.ownershipType, (l.listing_type || 'sale') === 'rent', l.property_sub_type, mapPropertyTypeToDisplay(l.features.CommonInterest ?? undefined, l.property_sub_type, l.property_type || '')),
         office: '',
         status: l.status,
         listingType: l.listing_type || 'sale',
@@ -805,7 +842,7 @@ async function buildBuildingPayload(
         sqft: Number(r.LivingArea || 0),
         unit: String(r.UnitNumber || ''),
         closeDate: r.CloseDate ? String(r.CloseDate) : null,
-        propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
+        propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.OwnershipType as string | undefined, buildingInfo.ownershipType, false, r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
         source: 'mls',
       });

@@ -96,8 +96,14 @@ function dbRows(num: string) {
 }
 
 function trestleRecords(num: string) {
-  // scenario 800: a RENTAL BUILDING — every record carries that ownership form
-  const buildingCI = num === "800" ? "RentalBuilding" : "Condominium";
+  // scenario ownership forms: 800=rental building · 900=co-op · 901=condop ·
+  // 902=NO ownership signal anywhere (tests the no-signal rules)
+  const buildingCI =
+    num === "800" ? "RentalBuilding" :
+    num === "900" ? "StockCooperative" :
+    num === "901" ? "Condop" :
+    num === "902" ? null :
+    "Condominium";
   const base = {
     BuildingName: "Century Tower",
     YearBuilt: 1999,
@@ -348,6 +354,43 @@ describe("building payload parity — legacy production route vs new shared acce
     const fresh = await newPayload("600", "The Grand Alias");
     expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));
     expect(fresh.building.name).toBe("The Grand Alias");
+  });
+
+  it("CANONICAL CLASSIFIER: all seven required examples + four conflict cases", () => {
+    const { classifyBuildingOwnership } = require("@/lib/buildings/public-building-data");
+    const C = (s: Record<string, string | null>) => classifyBuildingOwnership(s);
+    // seven required examples (ownership never overridden by transaction type)
+    expect(C({ commonInterest: "Condominium" })).toBe("Condo");           // sale OR rental in condo
+    expect(C({ commonInterest: "StockCooperative" })).toBe("Co-op");      // sale OR rental in co-op
+    expect(C({ commonInterest: "Condop" })).toBe("Condop");               // sale OR rental in condop
+    expect(C({ buildingCommonInterest: "RentalBuilding" })).toBe("Rental Building");
+    expect(C({ buildingCommonInterest: "Condominium" })).toBe("Condo");   // building-level fallback
+    expect(C({ ownershipType: "Stock Cooperative" })).toBe("Co-op");      // OwnershipType chain
+    expect(C({ buildingOwnershipType: "Apartment Building" })).toBe("Rental Building");
+    // four conflicting-data cases (listing type = rent everywhere — irrelevant)
+    expect(C({ commonInterest: "Condominium" })).toBe("Condo");
+    expect(C({ commonInterest: "StockCooperative" })).toBe("Co-op");
+    expect(C({ commonInterest: "Condop" })).toBe("Condop");
+    expect(C({})).toBeNull(); // no ownership form anywhere → caller applies the rental-building rule
+  });
+
+  it("PAYLOAD: rental in CO-OP → 'Co-op'; rental in CONDOP → 'Condop' (transaction type never overrides)", async () => {
+    const coop = await newPayload("900");
+    const coopRental = (coop.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-900-R1");
+    expect(coopRental?.propertyType).toBe("Co-op");
+    const condop = await newPayload("901");
+    const condopRental = (condop.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-901-R1");
+    expect(condopRental?.propertyType).toBe("Condop");
+    // sales in the same buildings inherit identically
+    expect((coop.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-900-S1")?.propertyType).toBe("Co-op");
+    expect((condop.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-901-S1")?.propertyType).toBe("Condop");
+  });
+
+  it("PAYLOAD: NO ownership signal anywhere — lease → 'Rental Building' (never 'Apartment'); sale → canonical mapper", async () => {
+    const p = await newPayload("902");
+    const rental = (p.activeUnits as Array<Record<string, any>>).find((u) => u.mlsId === "TRE-902-R1");
+    expect(rental?.propertyType).toBe("Rental Building");
+    expect(rental?.propertyType).not.toBe("Apartment");
   });
 
   it("Maya rule: rentals in a RENTAL BUILDING display 'Rental Building' on the card", async () => {
