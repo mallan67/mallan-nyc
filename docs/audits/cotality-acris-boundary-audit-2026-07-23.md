@@ -1,4 +1,4 @@
-# Cotality/ACRIS Source-Boundary + Neon/R2 Optimization Audit — 2026-07-23
+# Cotality/ACRIS Source-Boundary Audit — 2026-07-23
 
 **REV 2 (Maya live-repo review corrections, 2026-07-23):**
 1. Added **D15 — consumer-facing sale-language** as a VERIFIED defect class:
@@ -75,32 +75,16 @@ PR (Cotality/ACRIS boundary only).**
    a where-ENFORCING Prisma mock: the mock evaluates the query's own
    conditions, so admission of SL-0007 proves the contract, not the mock.
 
-**REV 5 (FACTUAL CORRECTION — Maya live-repo review, 2026-07-24):**
-Rev 1's finding **D8 ("no unchanged-row write suppression on main") was
-WRONG**, and §11's open-PR sequencing repeated the error. The original grep
-searched the wrong marker names (skip_unchanged/contentHash) and missed the
-real counters (rows_suppressed_unchanged / rows_materially_changed), and the
-open drafts #530/#535/#533 were treated as the pending fixes without checking
-that corrected implementations had already MERGED as their successors:
+**REV 5 (D8 RETRACTION — 2026-07-23):**
+- Finding D8 is RETRACTED.
+- The original search used incorrect marker names and returned a false
+  negative.
+- Corrected write-suppression / bounded-backlog implementations had already
+  merged through #541, #548, #549 and #550.
+- This correction does not change PR #558's source-boundary implementation
+  scope. The detailed shedding/measurement status lives OUTSIDE this PR in
+  `docs/operations/neon-r2-shedding-status-2026-07-23.md`.
 
-| Open draft | Superseded by | Merged | Live evidence (2026-07-23 23:00Z cycle) |
-|---|---|---|---|
-| #530 (media-row suppression) | **#541** | Jul 20 | rows_checked 445 → rows_skipped_unchanged 354 (~79%) |
-| #535 (listing/projection/batch/scorer suppression) | **#548** | Jul 22 | write_paths counters live per sync cycle |
-| (media-summary suppression) | **#549** | Jul 22 | summary_rows_suppressed_unchanged 19/50 |
-| #533 (bounded backlog) | **#550** | Jul 22 | r2_backlog_batch_selected 60 + parked_recovery 5, one bounded selection |
-
-Still correct / still open: #534 (third-party R2 admission — new gallery
-objects still accumulate: 58 mirrored, backlog_remaining 1,990 in the same
-cycle), the separate existing-object inventory+deletion process, #555
-(geocode residual wakeups), and the historical JSON/audit storage cleanup.
-Open question requiring evidence, not assumption: whether the ~130
-materially-changed listing writes per delta cycle contain residual
-rotation-driven pseudo-changes — answerable by the merged #542
-comparator-attribution diagnostic (read-only), not by the retired July-14
-churn conclusion. The 2-hour storage extrapolation in earlier session
-reporting is likewise retracted pending 24-hour/7-day windows with
-table-by-table and R2-object separation.
 Verified against: main `d6db86e3` (checked out clean), production deployment
 `dpl_3N7j8gvJVE7FK5ELc3Y31t2Fyq82` (target=production, sha `d6db86e3` — confirmed
 via Vercel API, not assumed), the live open-PR queue, live Cotality `$metadata`
@@ -231,7 +215,7 @@ present fabricated data. Missing must remain missing (null, not 0).
 measured residual Neon wake source after #556 (~1 geocode_cache access/min in
 the post-deploy pg_stat delta).
 
-### D8 — ~~No unchanged-row write suppression on main~~ — **RETRACTED in rev 5 (was a grep false-negative; see rev-5 header: superseded fixes #541/#548/#549/#550 are MERGED and live)**
+### D8 — ~~No unchanged-row write suppression on main~~ — **RETRACTED (rev 5): superseded fixes #541/#548/#549/#550 were already merged**
 `lib/idx/sync.ts` and `lib/idx/media-sync.ts` contain no compare-before-write /
 skip-unchanged logic (grep: 0 markers). The fixes are open drafts: #530 (N1
 listing_media), #535 (N2 listing/projection/summary). #533 (N3 single bounded
@@ -384,10 +368,13 @@ provenance is intact and must be preserved through any fix.
 3. **PR-C (Cotality-first BBL):** derive BBL from `CountyOrParish` borough digit
    + `features.TaxBlock`/`TaxLot` (reject `0000`/malformed lots → resolver
    fallback → no ACRIS on failure; never synthesized). Evidence in D5.
-4. **Existing open PRs (Maya's queue, unchanged by this report):** #555
-   (geocode client + writes, D7), #530/#535/#533 (write suppression + bounded
-   backlog, D8), #534 (admission policy — needs rework per the
-   preserve-all-seller-media ruling, D11), #544 (versioned keys, D9).
+4. **Remaining optimization work (corrected in rev 5 — NOT part of this
+   PR):** post-merge production measurement + regression monitoring;
+   field-level listing-write attribution only if still needed; third-party
+   R2 hero-only admission (#534 rework); existing R2 inventory + separately
+   approved cleanup; residual geocode correction (#555); historical
+   JSON/audit-retention work. Write suppression + bounded backlog are
+   MERGED (#541/#548/#549/#550).
 5. **PR-D (R2 error semantics):** `existsInR2` returns a three-state result
    (exists / missing / error) or throws on non-404; consumers fail closed (D10).
 6. **PR-E (scanner hygiene):** move prospect serving off committed files
