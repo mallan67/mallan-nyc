@@ -191,7 +191,7 @@ export default function BuildingUnits({
                           )}
                         </span>
                         {hasUnitData && <span className="text-[13px] font-medium text-brand-gold-deep">{sale.unit || '\u2014'}</span>}
-                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.amount)}</span>
+                        <span className="text-[13px] text-brand-dark">{sale.amount != null ? formatPrice(sale.amount) : '—'}</span>
                         {hasDetailData && (
                           <>
                             <span className="text-[13px] text-brand-dark/70">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</span>
@@ -241,7 +241,7 @@ export default function BuildingUnits({
                         className="grid grid-cols-[100px_100px_1fr] gap-x-4 py-3 border-b border-black/5 items-center"
                       >
                         <span className="text-[13px] text-brand-dark/70">{formatDate(sale.recordedDate)}</span>
-                        <span className="text-[13px] text-brand-dark">{formatPrice(sale.amount)}</span>
+                        <span className="text-[13px] text-brand-dark">{sale.amount != null ? formatPrice(sale.amount) : '—'}</span>
                         <span className="text-[13px] text-brand-dark/70">Recorded</span>
                       </div>
                     ))}

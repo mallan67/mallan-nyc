@@ -45,10 +45,10 @@ jest.mock("next/cache", () => {
 });
 
 // ── scenario control by street number ──────────────────────────────────────
-// 100 = normal: Cotality active units + ACRIS transfers (incl. a whole-building
+// 100 = normal: effective active inventory + ACRIS transfers (incl. a whole-building
 //       $50M deed and an amount-without-sqft record — all ACRIS rows lack units)
-// 200 = NO Cotality active units, ACRIS transfers exist
-// 300 = Cotality active units, NO ACRIS records
+// 200 = NO active inventory at all, ACRIS transfers exist
+// 300 = active inventory present, NO ACRIS records
 // 400 = ACRIS service failure (adapter throws)
 // 500 = Neon down (DB layer throws) — Trestle-only assembly
 // 600 = Cotality/Trestle down — DB-only assembly
@@ -56,38 +56,103 @@ jest.mock("next/cache", () => {
 //       (same unit PH1, different price) both exist — twin must be suppressed
 // 900 = MALLAN OVERRIDE ENDED: SL row gone from DB; the still-eligible
 //       Cotality twin must be restored WITHOUT duplication
+// 400 = THE REAL PRODUCTION PAIR (Maya fixture requirement): Mallan
+//       website-only exclusive SL-0007 (400 East 90th St, Unit 4D, $560,000,
+//       rls_eligible=false) + its Cotality/RLS twin RLS20099289 + Compass
+//       Unit 23B + a DRAFT SL row and an owner-opt-out SL row that the
+//       eligibility contract must EXCLUDE (proves the mock enforces `where`)
+// 450 = ACRIS service failure (adapter throws)
+// 460 = sale/rental at the SAME unit must NOT suppress each other
+// 470 = MULTIPLE Cotality candidates, no explicit evidence → suppress NONE
+// 480 = multiple candidates + explicit provenance link → ONLY the verified
+//       twin is suppressed
+// 490 = no unit → no reconciliation
 const FAIL_DB = new Set(["500"]);
 const FAIL_TRESTLE = new Set(["600"]);
 const NO_ACTIVE = new Set(["200"]);
 const ACRIS_EMPTY = new Set(["300"]);
-const ACRIS_THROW = new Set(["400"]);
+const ACRIS_THROW = new Set(["450"]);
 const HAS_COTALITY_TWIN = new Set(["800", "900"]);
 const OVERRIDE_ENDED = new Set(["900"]);
+const ALL_SCENARIOS = ["100", "200", "300", "400", "450", "460", "470", "480", "490", "500", "600", "800", "900"];
 
-function dbRows(num: string) {
-  if (NO_ACTIVE.has(num) || OVERRIDE_ENDED.has(num)) return [];
-  return [
-    {
-      id: `dbid-${num}-crm`,
-      listing_id: "SL-3001",
-      status: "Active",
-      list_price: 3000000,
-      bedrooms_total: 3,
-      bathrooms_full: 2,
-      bathrooms_half: 0,
-      living_area: 1500,
-      property_type: "Residential",
-      property_sub_type: "Condominium",
-      listing_type: "sale",
-      address: {
-        StreetNumber: num, StreetName: "EAST 90TH STREET", PostalCode: "10128",
-        UnitNumber: "PH1", BuildingName: "",
-      },
-      features: { CommonInterest: "Condominium", YearBuilt: 1999, StoriesTotal: 23 },
-      media: [{ MediaURL: "https://img.example/crm.jpg", MediaCategory: "Photo", Order: 0 }],
-      raw_data: null,
+// Eligibility field sets. Website-only Mallan publications carry
+// rls_eligible=false and do NOT satisfy the feed-only display gates.
+const FEED_ELIGIBLE = {
+  rls_eligible: true, owner_opt_out: false, idx_display_yn: true,
+  internet_entire_listing_display_yn: true, participant_only: false,
+};
+const WEBSITE_ONLY = {
+  rls_eligible: false, owner_opt_out: false, idx_display_yn: false,
+  internet_entire_listing_display_yn: false, participant_only: false,
+};
+
+function slRow(num: string, over: Record<string, unknown>) {
+  return {
+    id: `dbid-${num}-${over.listing_id}`,
+    status: "Active",
+    list_price: 3000000,
+    bedrooms_total: 3,
+    bathrooms_full: 2,
+    bathrooms_half: 0,
+    living_area: 1500,
+    property_type: "Residential",
+    property_sub_type: "Condominium",
+    listing_type: "sale",
+    address: {
+      StreetNumber: num, StreetName: "EAST 90TH STREET", PostalCode: "10128",
+      UnitNumber: "PH1", BuildingName: "",
     },
-  ];
+    features: { CommonInterest: "Condominium", YearBuilt: 1999, StoriesTotal: 23 },
+    media: [{ MediaURL: "https://img.example/crm.jpg", MediaCategory: "Photo", Order: 0 }],
+    raw_data: null,
+    ...WEBSITE_ONLY,
+    ...over,
+  };
+}
+
+function dbRows(num: string): Array<Record<string, unknown>> {
+  if (NO_ACTIVE.has(num) || OVERRIDE_ENDED.has(num)) return [];
+  if (num === "400") {
+    return [
+      // THE REAL PAIR: website-only Mallan exclusive, local asking $560,000
+      slRow(num, {
+        listing_id: "SL-0007", list_price: 560000, living_area: 550,
+        bedrooms_total: 1, bathrooms_full: 1,
+        address: { StreetNumber: "400", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "4D", BuildingName: "" },
+      }),
+      // its Cotality/RLS twin ALSO exists in the operational copy
+      slRow(num, {
+        listing_id: "RLS20099289", list_price: 565000, living_area: 550,
+        bedrooms_total: 1, bathrooms_full: 1,
+        address: { StreetNumber: "400", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "4D", BuildingName: "" },
+        ...FEED_ELIGIBLE,
+      }),
+      // NONPUBLIC CRM rows the contract must EXCLUDE (mock enforces where):
+      slRow(num, { listing_id: "SL-DRAFT-1", status: "Draft", address: { StreetNumber: "400", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "6F", BuildingName: "" } }),
+      slRow(num, { listing_id: "SL-OPTOUT-1", owner_opt_out: true, address: { StreetNumber: "400", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "7G", BuildingName: "" } }),
+    ];
+  }
+  if (num === "460") {
+    return [
+      slRow(num, { listing_id: "RL-RENT-8A", listing_type: "rent", list_price: 4500, address: { StreetNumber: "460", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "8A", BuildingName: "" } }),
+      slRow(num, { listing_id: "SL-SALE-9B", list_price: 900000, address: { StreetNumber: "460", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "9B", BuildingName: "" } }),
+    ];
+  }
+  if (num === "470") {
+    return [slRow(num, { listing_id: "SL-MULTI-5C", list_price: 800000, address: { StreetNumber: "470", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "5C", BuildingName: "" } })];
+  }
+  if (num === "480") {
+    return [slRow(num, {
+      listing_id: "SL-EXPL-5C", list_price: 800000,
+      address: { StreetNumber: "480", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "5C", BuildingName: "" },
+      features: { CommonInterest: "Condominium", ReconciledListingId: "RLS-C2" },
+    })];
+  }
+  if (num === "490") {
+    return [slRow(num, { listing_id: "SL-NOUNIT", list_price: 700000, address: { StreetNumber: "490", StreetName: "EAST 90TH STREET", PostalCode: "10128", UnitNumber: "", BuildingName: "" } })];
+  }
+  return [slRow(num, { listing_id: "SL-3001" })];
 }
 
 function trestleRecords(num: string) {
@@ -101,6 +166,29 @@ function trestleRecords(num: string) {
     StandardStatus: "Active",
     MlsStatus: "Active",
   };
+  if (num === "400") {
+    return [
+      { ...base, ListingId: "RLS20099289", ListingKey: "KEY-400-TWIN", ListPrice: 565000, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 550, UnitNumber: "4D", PropertySubType: "Condominium", ListOfficeName: "Corcoran Group", Media: [] },
+      { ...base, ListingId: "RLS-COMPASS-23B", ListingKey: "KEY-400-23B", ListPrice: 1200000, BedroomsTotal: 2, BathroomsFull: 2, BathroomsHalf: 0, LivingArea: 900, UnitNumber: "23B", PropertySubType: "Condominium", ListOfficeName: "Compass", Media: [] },
+    ];
+  }
+  if (num === "460") {
+    return [
+      { ...base, ListingId: "TRE-460-SALE-8A", ListingKey: "KEY-460-S8A", ListPrice: 2000000, BedroomsTotal: 2, BathroomsFull: 2, BathroomsHalf: 0, LivingArea: 1000, UnitNumber: "8A", PropertySubType: "Condominium", ListOfficeName: "Other Brokerage LLC", Media: [] },
+      { ...base, PropertyType: "Residential Lease", ListingId: "TRE-460-RENT-9B", ListingKey: "KEY-460-R9B", ListPrice: 5000, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 700, UnitNumber: "9B", PropertySubType: "Apartment", ListOfficeName: "Rental Group Inc", Media: [] },
+    ];
+  }
+  if (num === "470" || num === "480") {
+    return [
+      { ...base, ListingId: "RLS-C1", ListingKey: `KEY-${num}-C1`, ListPrice: 810000, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 600, UnitNumber: "5C", PropertySubType: "Condominium", ListOfficeName: "Other Brokerage LLC", Media: [] },
+      { ...base, ListingId: "RLS-C2", ListingKey: `KEY-${num}-C2`, ListPrice: 820000, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 600, UnitNumber: "5C", PropertySubType: "Condominium", ListOfficeName: "Another Brokerage LLC", Media: [] },
+    ];
+  }
+  if (num === "490") {
+    return [
+      { ...base, ListingId: "TRE-490-NOUNIT", ListingKey: "KEY-490-NU", ListPrice: 750000, BedroomsTotal: 1, BathroomsFull: 1, BathroomsHalf: 0, LivingArea: 600, UnitNumber: "", PropertySubType: "Condominium", ListOfficeName: "Other Brokerage LLC", Media: [] },
+    ];
+  }
   const twin = HAS_COTALITY_TWIN.has(num)
     ? [{
         // Cotality/RLS representation of the SAME physical unit as the
@@ -147,13 +235,59 @@ function trestleRecords(num: string) {
 }
 
 // ── prisma mock: findMany only; ANY other model/method access throws ───────
+// The mock ENFORCES the supplied `where` (Maya requirement): it evaluates
+// every condition against the fixture rows instead of returning rows
+// regardless of the query — a row is admitted ONLY if the query's actual
+// eligibility contract admits it (no false positives).
+function rowMatchesWhere(row: Record<string, any>, where: Record<string, any> | undefined): boolean {
+  if (!where) return true;
+  for (const [k, v] of Object.entries(where)) {
+    if (k === "AND") { if (!(v as any[]).every((c) => rowMatchesWhere(row, c))) return false; continue; }
+    if (k === "OR") { if (!(v as any[]).some((c) => rowMatchesWhere(row, c))) return false; continue; }
+    if (k === "address") {
+      const addr = row.address as Record<string, unknown> | null;
+      const cond = v as Record<string, any>;
+      if ("not" in cond) { if (addr == null) return false; continue; } // { not: Prisma.DbNull }
+      if (Array.isArray(cond.path) && cond.string_starts_with !== undefined) {
+        if (!String(addr?.[cond.path[0]] ?? "").startsWith(cond.string_starts_with)) return false;
+        continue;
+      }
+      if (Array.isArray(cond.path) && cond.equals !== undefined) {
+        if (String(addr?.[cond.path[0]] ?? "") !== cond.equals) return false;
+        continue;
+      }
+      return false; // unknown address operator — fail closed
+    }
+    if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+      const cond = v as Record<string, any>;
+      if ("in" in cond) { if (!cond.in.includes(row[k])) return false; continue; }
+      if ("gt" in cond) { if (!(Number(row[k]) > cond.gt)) return false; continue; }
+      return false; // unknown operator — fail closed
+    }
+    if (row[k] !== v) return false;
+  }
+  return true;
+}
+
 const listingFindMany = jest.fn(async (q: Record<string, any>) => {
   const conds: Array<Record<string, any>> = q?.where?.AND ?? [];
   const shardCond = conds.find((c) => c?.address?.string_starts_with);
   const numCond = conds.find((c) => c?.address?.path?.[0] === "StreetNumber" && c?.address?.equals);
-  const num: string = shardCond ? shardCond.address.string_starts_with + "00" : (numCond?.address?.equals ?? "");
+  const shard: string | null = shardCond ? shardCond.address.string_starts_with : null;
+  const num: string = shard ? shard + "00" : (numCond?.address?.equals ?? "");
   if (FAIL_DB.has(num)) throw new Error("simulated Neon outage");
-  return dbRows(num);
+  // Shard query: candidate rows = every scenario in this shard; the query's
+  // OWN where decides admission (enforced, never bypassed).
+  const candidates = shard
+    ? ALL_SCENARIOS.filter((n) => n.startsWith(shard)).flatMap((n) => dbRows(n))
+    : dbRows(num);
+  const matched = candidates.filter((r) => rowMatchesWhere(r, q?.where));
+  matched.sort((a, b) => (String(a.listing_id) < String(b.listing_id) ? -1 : 1));
+  let start = 0;
+  if (q?.cursor?.listing_id) {
+    start = matched.findIndex((r) => r.listing_id === q.cursor.listing_id) + (q.skip ?? 0);
+  }
+  return matched.slice(start, start + (q?.take ?? matched.length));
 });
 const prismaWriteAttempts: string[] = [];
 jest.mock("@/lib/prisma", () => {
@@ -296,7 +430,7 @@ describe("source layers + attribution", () => {
     expect(p._compliance.attribution.toLowerCase()).toContain("not verified unit");
   });
 
-  it("Cotality activeUnits remain Cotality-shaped and compatible (key contract unchanged)", async () => {
+  it("activeUnits keep the compatible key contract (+ documented additive provenance)", async () => {
     const p = await payload("100");
     expect(p.activeUnits.length).toBeGreaterThan(0);
     const keys = Object.keys(p.activeUnits[0]).sort();
@@ -335,7 +469,7 @@ describe("missing stays missing — no zero-fill, no inference", () => {
   });
 });
 
-describe("statistics — Cotality active population ONLY", () => {
+describe("statistics — EFFECTIVE displayed active inventory only (never ACRIS, never suppressed twins)", () => {
   it("avgPrice is the mean of active asking prices; ACRIS amounts (incl. $50M deed) excluded", async () => {
     const p = await payload("100");
     // active priced: 3,000,000 (CRM) + 2,000,000 + 1,000,000 → mean 2,000,000
@@ -363,7 +497,7 @@ describe("statistics — Cotality active population ONLY", () => {
   });
 
   it("empty populations produce null, never zero", async () => {
-    const p = await payload("200"); // no Cotality active units at all
+    const p = await payload("200"); // no active inventory at all
     expect(p.stats.avgPrice).toBeNull();
     expect(p.stats.avgSqft).toBeNull();
     expect(p.stats.avgPricePerSqft).toBeNull();
@@ -375,7 +509,7 @@ describe("statistics — Cotality active population ONLY", () => {
 
 describe("failure isolation", () => {
   it("ACRIS failure leaves the Cotality building + activeUnits fully available", async () => {
-    const p = await payload("400"); // lookupBBL throws
+    const p = await payload("450"); // lookupBBL throws
     expect(p.success).toBe(true);
     expect(p.activeUnits.length).toBeGreaterThan(0);
     expect(p.building.name).toBeTruthy();
@@ -628,9 +762,10 @@ describe("BuildingUnits — table-scoped labels (Asking Price vs Recorded Amount
     expect(availableSection).not.toContain("Recorded Amount");
   });
 
-  it("the recorded-transfer tables (sale.amount) say Recorded Amount — never Asking Price", () => {
+  it("the recorded-transfer tables (sale.amount) say Recorded Amount — never Asking Price, never $0 for missing", () => {
     expect(transferSections).toContain("Recorded Amount");
-    expect(transferSections).toContain("{formatPrice(sale.amount)}");
+    // null-guarded render: a missing amount shows an em-dash, never $0
+    expect(transferSections).toContain("sale.amount != null ? formatPrice(sale.amount)");
     expect(transferSections).not.toContain("Asking Price");
     expect((transferSections.match(/Recorded Amount/g) ?? []).length).toBe(2);
   });
@@ -653,5 +788,130 @@ describe("legacy route — ACRIS survives Cotality-closed dedupe (regression) + 
       expect(typeof t.amount).toBe("number");
     }
     (acrisModule.isDuplicate as jest.Mock).mockReturnValue(false);
+  });
+});
+
+// ═══ Maya round 3: manifest eligibility + real-pair proof + strengthened twins ═══
+
+describe("manifest eligibility — the ONE canonical public contract (SL-0007 / RLS20099289 real pair)", () => {
+  it("the manifest query carries the canonical two-branch eligibility OR (enforced by the mock, not assumed)", async () => {
+    await payload("400");
+    const shardCall = listingFindMany.mock.calls.map((c) => c[0]).find((q) =>
+      (q?.where?.AND ?? []).some((c: Record<string, any>) => c?.address?.string_starts_with));
+    expect(shardCall).toBeTruthy();
+    const orCond = (shardCall!.where.AND as Array<Record<string, any>>).find((c) => Array.isArray(c.OR));
+    expect(orCond).toBeTruthy();
+    const branches = orCond!.OR as Array<Record<string, any>>;
+    expect(branches.some((b) => b.rls_eligible === true && b.idx_display_yn === true)).toBe(true);
+    const web = branches.find((b) => b.rls_eligible === false);
+    expect(web).toBeTruthy();
+    expect(web!.owner_opt_out).toBe(false);
+    expect(web!.list_price).toEqual({ gt: 0 });
+    expect(web!.status.in).toEqual(expect.arrayContaining(["Active", "ComingSoon", "ActiveUnderContract"]));
+  });
+
+  it("REAL PAIR: Unit 4D appears exactly ONCE as SL-0007; the RLS20099289 twin is suppressed; Compass 23B remains", async () => {
+    const p = await payload("400");
+    const unit4d = p.activeUnits.filter((u: { unit: string }) => u.unit === "4D");
+    expect(unit4d).toHaveLength(1);
+    expect(unit4d[0].mlsId).toBe("SL-0007");
+    expect(unit4d[0].listPrice).toBe(560000);
+    expect(unit4d[0].source).toBe("mallan-exclusive");
+    expect(unit4d[0].office).toBe("Mallan Real Estate Inc.");
+    expect(unit4d[0].publication).toEqual({
+      authority: "mallan-local",
+      reconciledCotalityId: "RLS20099289",
+      cotalityDisplaySuppressed: true,
+    });
+    expect(p.activeUnits.some((u: { mlsId: string }) => u.mlsId === "RLS20099289")).toBe(false);
+    const compass = p.activeUnits.find((u: { unit: string }) => u.unit === "23B");
+    expect(compass).toBeTruthy();
+    expect(compass.mlsId).toBe("RLS-COMPASS-23B");
+    expect(compass.office).toBe("Compass");
+    expect(compass.source).toBe("cotality-trestle");
+  });
+
+  it("REAL PAIR statistics: the local $560,000 enters ONCE; the twin's $565,000 and ACRIS amounts enter nothing", async () => {
+    const p = await payload("400");
+    expect(p.stats.totalActive).toBe(2); // SL-0007 + Compass 23B
+    // (560,000 + 1,200,000) / 2
+    expect(p.stats.avgPrice).toBe(880000);
+    // consistent both-population: (560k/550) + (1.2M/900) → 880,000 / 725
+    expect(p.stats.avgPricePerSqft).toBe(1214);
+    const statsJson = JSON.stringify(p.stats);
+    expect(statsJson).not.toContain("565000");
+    expect(statsJson).not.toContain("2100000");
+    expect(statsJson).not.toContain("50000000");
+  });
+
+  it("nonpublic CRM rows stay out: a Draft SL row and an owner-opt-out SL row exist in the fixture but are NOT admitted", async () => {
+    const p = await payload("400");
+    expect(p.activeUnits.some((u: { mlsId: string }) => u.mlsId === "SL-DRAFT-1")).toBe(false);
+    expect(p.activeUnits.some((u: { mlsId: string }) => u.mlsId === "SL-OPTOUT-1")).toBe(false);
+    expect(p.activeUnits.some((u: { unit: string }) => u.unit === "6F" || u.unit === "7G")).toBe(false);
+  });
+});
+
+describe("strengthened twin reconciliation — verified twin only, never blanket suppression", () => {
+  it("sale and rental at the SAME unit never suppress each other (both directions)", async () => {
+    const p = await payload("460");
+    const ids = p.activeUnits.map((u: { mlsId: string }) => u.mlsId).sort();
+    expect(ids).toEqual(["RL-RENT-8A", "SL-SALE-9B", "TRE-460-RENT-9B", "TRE-460-SALE-8A"]);
+    for (const u of p.activeUnits) expect(u.publication).toBeUndefined();
+  });
+
+  it("MULTIPLE Cotality candidates without explicit evidence → suppress NONE (truthful separate records)", async () => {
+    const p = await payload("470");
+    const ids = p.activeUnits.map((u: { mlsId: string }) => u.mlsId).sort();
+    expect(ids).toEqual(["RLS-C1", "RLS-C2", "SL-MULTI-5C"]);
+    const sl = p.activeUnits.find((u: { mlsId: string }) => u.mlsId === "SL-MULTI-5C");
+    expect(sl.publication).toBeUndefined();
+  });
+
+  it("explicit provenance link (features.ReconciledListingId) → ONLY that verified twin is suppressed", async () => {
+    const p = await payload("480");
+    const ids = p.activeUnits.map((u: { mlsId: string }) => u.mlsId).sort();
+    expect(ids).toEqual(["RLS-C1", "SL-EXPL-5C"]);
+    const sl = p.activeUnits.find((u: { mlsId: string }) => u.mlsId === "SL-EXPL-5C");
+    expect(sl.publication).toEqual({
+      authority: "mallan-local",
+      reconciledCotalityId: "RLS-C2",
+      cotalityDisplaySuppressed: true,
+    });
+  });
+
+  it("no unit → no reconciliation (both no-unit rows remain)", async () => {
+    const p = await payload("490");
+    const ids = p.activeUnits.map((u: { mlsId: string }) => u.mlsId).sort();
+    expect(ids).toEqual(["SL-NOUNIT", "TRE-490-NOUNIT"]);
+  });
+});
+
+describe("toRecordedTransfers — malformed compatibility rows never fabricate values", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { toRecordedTransfers } = require("@/lib/buildings/recorded-transfers");
+
+  it("a missing amount stays null — it never becomes a $0 recorded amount", () => {
+    const rows = toRecordedTransfers({ saleHistory: [{ id: "x", closeDate: "2024-01-01", source: "acris" }] });
+    expect(rows[0].amount).toBeNull();
+    expect(rows[0].amount).not.toBe(0);
+  });
+
+  it("a missing source stays 'unknown' — it never silently becomes ACRIS provenance", () => {
+    const rows = toRecordedTransfers({ saleHistory: [{ id: "y", closePrice: 100000 }] });
+    expect(rows[0].source).toBe("unknown");
+    expect(rows[0].source).not.toBe("acris");
+  });
+
+  it("valid legacy closePrice/closeDate still normalize; canonical recordedTransfers stays preferred", () => {
+    const legacy = toRecordedTransfers({ saleHistory: [{ id: "z", closePrice: 250000, closeDate: "2022-03-03", source: "acris" }] });
+    expect(legacy[0].amount).toBe(250000);
+    expect(legacy[0].recordedDate).toBe("2022-03-03");
+    const preferred = toRecordedTransfers({
+      recordedTransfers: [{ id: "canon", amount: 1, recordedDate: "2020-01-01", unit: "", beds: null, baths: null, sqft: null, source: "acris" }],
+      saleHistory: [{ id: "IGNORED", closePrice: 9 }],
+    });
+    expect(preferred).toHaveLength(1);
+    expect(preferred[0].id).toBe("canon");
   });
 });

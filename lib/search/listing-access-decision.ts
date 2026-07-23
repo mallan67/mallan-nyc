@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   ACTIVE_DISPLAY_VALUES,
   normalizeStatus,
@@ -18,6 +18,38 @@ export const SEARCH_DISPLAY_GATE: Prisma.ListingWhereInput = {
   participant_only: false,
   internet_entire_listing_display_yn: true,
 };
+
+/**
+ * CANONICAL public-eligibility contract — the ONE policy every public
+ * listing reader shares (Maya 2026-07-23: no surface may invent its own
+ * visibility policy). TWO branches:
+ *
+ *   1. RLS/Cotality operational-copy rows: `rls_eligible` + the fail-closed
+ *      feed distribution gates (SEARCH_DISPLAY_GATE).
+ *   2. Website-only Mallan publications (`rls_eligible = false`, SL-/RL-
+ *      exclusives published directly by Mallan Real Estate Inc.): publicly
+ *      active status + positive price + address present + owner opt-out
+ *      honored. Feed-only display fields (idx_display_yn,
+ *      internet_entire_listing_display_yn, participant_only) do NOT govern
+ *      a direct Mallan publication and are deliberately not required here.
+ *
+ * Consumers spread this as the OR of a Listing where-clause. It does NOT
+ * broaden access to nonpublic CRM listings: drafts/withdrawn/closed rows
+ * fail the status condition on both branches.
+ */
+export const PUBLIC_LISTING_ELIGIBILITY_OR: Prisma.ListingWhereInput[] = [
+  {
+    rls_eligible: true,
+    ...SEARCH_DISPLAY_GATE,
+  },
+  {
+    rls_eligible: false,
+    owner_opt_out: false,
+    status: { in: [...ACTIVE_DISPLAY_VALUES] },
+    list_price: { gt: 0 },
+    address: { not: Prisma.DbNull },
+  },
+];
 
 // Distribution-gate filter for the listing_search_projection table.
 //

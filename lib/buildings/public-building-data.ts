@@ -27,6 +27,7 @@ import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
 import { buildAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
+import { PUBLIC_LISTING_ELIGIBILITY_OR } from '@/lib/search/listing-access-decision';
 import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
@@ -364,7 +365,14 @@ export interface ManifestListing {
   property_sub_type: string;
   listing_type: string;
   address: ManifestAddress;
-  features: { CommonInterest: string | null; YearBuilt: number | null; StoriesTotal: number | null };
+  features: {
+    CommonInterest: string | null;
+    YearBuilt: number | null;
+    StoriesTotal: number | null;
+    /** Explicit twin-provenance link when the CRM record carries one —
+     *  used ONLY by the Mallan-exclusive reconciliation (read-only). */
+    ReconciledListingId: string | null;
+  };
   /** Precomputed first-photo proxy URL (same classifyMediaItem logic the
    *  route used inline) — the heavy media JSON never enters the cache. */
   photoUrl: string | null;
@@ -405,12 +413,18 @@ async function buildBuildingManifestShard(shard: string): Promise<ManifestListin
   let complete = false;
   for (let page = 0; page < MANIFEST_MAX_PAGES; page++) {
     const batch = (await prisma.listing.findMany({
+      // Maya 2026-07-23: the manifest reuses the ONE canonical public
+      // eligibility contract (lib/search/listing-access-decision) — the same
+      // two branches as the public listings search: RLS rows behind the
+      // fail-closed feed gates, PLUS website-only Mallan exclusives
+      // (rls_eligible=false, publicly active, priced, addressed). A direct
+      // Mallan publication is NOT required to satisfy feed-only display
+      // fields. owner_opt_out is preserved as a manifest-level control
+      // applying to BOTH branches. No new visibility policy is introduced.
       where: {
         AND: [
-          { idx_display_yn: true },
+          { OR: PUBLIC_LISTING_ELIGIBILITY_OR },
           { owner_opt_out: false },
-          { internet_entire_listing_display_yn: true },
-          { participant_only: false },
           { address: { path: ['StreetNumber'], string_starts_with: shard } },
         ],
       },
@@ -467,6 +481,11 @@ async function buildBuildingManifestShard(shard: string): Promise<ManifestListin
         CommonInterest: features.CommonInterest != null ? String(features.CommonInterest) : null,
         YearBuilt: features.YearBuilt != null ? Number(features.YearBuilt) : null,
         StoriesTotal: features.StoriesTotal != null ? Number(features.StoriesTotal) : null,
+        ReconciledListingId:
+          features.ReconciledListingId != null ? String(features.ReconciledListingId)
+          : features.ReconciledCotalityListingId != null ? String(features.ReconciledCotalityListingId)
+          : features.RlsListingId != null ? String(features.RlsListingId)
+          : null,
       },
       photoUrl,
     };
@@ -846,16 +865,30 @@ async function buildBuildingPayload(
     // set), the still-eligible Cotality twin re-enters this merge naturally
     // on the next build — never both at once.
     {
-      const keyForUnit = (unit: string) =>
-        buildAddressKey({
+      // Reconciliation identity (Maya 2026-07-23 strengthened contract):
+      // canonicalized street + REQUIRED unit + postal (buildAddressKey)
+      // PLUS listingType — a sale can never suppress a rental and a rental
+      // can never suppress a sale at the same unit. Rows without a unit are
+      // never reconciled (key = null).
+      const keyForUnit = (unit: string, listingType: string) => {
+        const addrKey = buildAddressKey({
           streetNumber: cleanStreetNumber,
           streetName,
           unitNumber: unit,
           postalCode: cleanPostalCode || postalCode || '',
         });
+        return addrKey === null ? null : `${addrKey}|${listingType}`;
+      };
+      // Explicit twin evidence when the local record's provenance carries a
+      // reconciled feed listing id (checked first; read-only — no schema
+      // field is added in this PR).
+      const explicitTwinId = (mlsId: string): string | null => {
+        const row = activeListings.find((l) => l.listing_id === mlsId);
+        return row?.features?.ReconciledListingId ?? null;
+      };
       const groups = new Map<string, number[]>();
       activeUnits.forEach((u, i) => {
-        const k = keyForUnit(u.unit);
+        const k = keyForUnit(u.unit, u.listingType);
         if (k === null) return;
         const g = groups.get(k);
         if (g) g.push(i); else groups.set(k, [i]);
@@ -867,12 +900,25 @@ async function buildBuildingPayload(
         const cotalityIdxs = idxs.filter((i) => activeUnits[i].source !== 'mallan-exclusive');
         if (cotalityIdxs.length === 0) continue;
         const winner = activeUnits[mallanIdxs[0]];
+        // Determine the VERIFIED twin — never blanket-suppress:
+        //   1. explicit provenance link on the local record, when present;
+        //   2. otherwise a UNIQUE Cotality candidate at this unit+type;
+        //   3. multiple candidates without explicit evidence → identity is
+        //      not proven → suppress NOTHING (truthful separate records).
+        const explicit = explicitTwinId(winner.mlsId);
+        let twinIdx: number | null = null;
+        if (explicit) {
+          twinIdx = cotalityIdxs.find((i) => activeUnits[i].mlsId === explicit) ?? null;
+        } else if (cotalityIdxs.length === 1) {
+          twinIdx = cotalityIdxs[0];
+        }
+        if (twinIdx === null) continue; // fail safe — no silent suppression
         winner.publication = {
           authority: 'mallan-local',
-          reconciledCotalityId: activeUnits[cotalityIdxs[0]].mlsId,
+          reconciledCotalityId: activeUnits[twinIdx].mlsId,
           cotalityDisplaySuppressed: true,
         };
-        for (const i of cotalityIdxs) suppressed.add(i);
+        suppressed.add(twinIdx);
       }
       if (suppressed.size > 0) {
         const kept = activeUnits.filter((_, i) => !suppressed.has(i));
@@ -1025,7 +1071,9 @@ async function buildBuildingPayload(
       return new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime();
     });
 
-    // ── 5. Compute aggregate stats — Cotality ACTIVE listings ONLY ──
+    // ── 5. Compute aggregate stats — EFFECTIVE displayed active inventory ──
+    // (unsuppressed Cotality/Trestle listings + directly published Mallan
+    //  exclusives, with verified duplicate feed representations excluded)
     // Maya 2026-07-23: ACRIS recorded-transfer amounts must never enter
     // listing/unit-market statistics (no reliable unit match, amounts may
     // cover whole buildings). avgPricePerSqft uses ONE consistent population:
@@ -1082,7 +1130,7 @@ async function buildBuildingPayload(
         totalActive: activeUnits.length,
         // Compat: numerically the recorded-transfer count (as before).
         totalSales: saleHistory.length,
-        // Cotality ACTIVE listings only — see §5 above.
+        // Effective displayed active inventory — see §5 above.
         avgPrice,
         avgSqft,
         avgPricePerSqft,

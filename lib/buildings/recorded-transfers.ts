@@ -11,13 +11,17 @@ export interface RecordedTransferView {
   id: string;
   documentId?: string;
   bbl?: string;
-  /** Recorded document amount — NOT a verified unit-level sale price. */
-  amount: number;
+  /** Recorded document amount — NOT a verified unit-level sale price.
+   *  `null` when the row carries no amount: missing stays missing and is
+   *  NEVER rendered as $0. */
+  amount: number | null;
   recordedDate: string | null;
   unit: string;
   beds: number | null;
   baths: number | null;
   sqft: number | null;
+  /** Preserved verbatim; 'unknown' when the row carries no source — a row
+   *  without proven provenance is NEVER silently labeled as ACRIS. */
   source: string;
   retrievedAt?: string;
 }
@@ -26,7 +30,7 @@ interface TransferLikeRow {
   id: string;
   documentId?: string;
   bbl?: string;
-  amount?: number;
+  amount?: number | null;
   recordedDate?: string | null;
   /** deprecated alias fields */
   closePrice?: number;
@@ -55,13 +59,16 @@ export function toRecordedTransfers(payload: {
     id: r.id,
     documentId: r.documentId,
     bbl: r.bbl,
-    amount: r.amount ?? r.closePrice ?? 0,
+    // NO fabrication (Maya 2026-07-23): a missing amount stays null — it
+    // must never render as a recorded amount of $0.
+    amount: r.amount ?? r.closePrice ?? null,
     recordedDate: r.recordedDate ?? r.closeDate ?? null,
     unit: r.unit ?? '',
     beds: r.beds ?? null,
     baths: r.baths ?? null,
     sqft: r.sqft ?? null,
-    source: r.source ?? 'acris',
+    // NO fabrication: an unproven source is 'unknown', never silently ACRIS.
+    source: r.source ?? 'unknown',
     retrievedAt: r.retrievedAt,
   }));
 }

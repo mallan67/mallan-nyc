@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import {
   buildSearchDisplayWhere,
-  SEARCH_DISPLAY_GATE,
+  PUBLIC_LISTING_ELIGIBILITY_OR,
 } from "@/lib/search/listing-access-decision";
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 
@@ -176,18 +176,11 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
 export function buildPublicListingDbSearch(params: URLSearchParams): PublicListingDbSearch {
   const where: Prisma.ListingWhereInput = {
     status: buildSearchDisplayWhere().status,
-    OR: [
-      {
-        rls_eligible: true,
-        ...SEARCH_DISPLAY_GATE,
-      },
-      {
-        rls_eligible: false,
-        status: { in: ALLOWED_PUBLIC_STATUSES },
-        list_price: { gt: 0 },
-        address: { not: Prisma.DbNull },
-      },
-    ],
+    // ONE canonical public-eligibility contract shared with every public
+    // reader (Maya 2026-07-23) — RLS branch + website-only Mallan branch.
+    // NOTE: the shared contract also honors owner_opt_out on the
+    // website-only branch (fail-closed narrowing vs the previous inline OR).
+    OR: PUBLIC_LISTING_ELIGIBILITY_OR,
   };
 
   const listingType = params.get("type");

@@ -92,7 +92,7 @@ interface BuildingData {
   activeUnits: ActiveUnit[];
   /** @deprecated compatibility alias — consume recordedTransfers via toRecordedTransfers() */
   saleHistory: SaleRecord[];
-  recordedTransfers?: Array<{ id: string; documentId?: string; bbl?: string; amount: number; recordedDate: string | null; unit: string; beds: number | null; baths: number | null; sqft: number | null; source: string; retrievedAt?: string }>;
+  recordedTransfers?: Array<{ id: string; documentId?: string; bbl?: string; amount: number | null; recordedDate: string | null; unit: string; beds: number | null; baths: number | null; sqft: number | null; source: string; retrievedAt?: string }>;
   stats: {
     totalActive: number;
     totalSales: number;
@@ -569,14 +569,14 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                       <tr key={sale.id} className="border-b border-black/[0.03] hover:bg-black/[0.01] transition-colors">
                         <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{formatDate(sale.recordedDate)}</td>
                         <td className="text-[13px] font-medium text-brand-gold-deep py-3.5 pr-4">{sale.unit || '\u2014'}</td>
-                        <td className="text-[13px] font-medium text-brand-dark py-3.5 pr-4">{formatPrice(sale.amount)}</td>
+                        <td className="text-[13px] font-medium text-brand-dark py-3.5 pr-4">{sale.amount != null ? formatPrice(sale.amount) : '—'}</td>
                         {hasDetailData && (
                           <>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.beds ? sale.beds : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.baths ? sale.baths : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">{sale.sqft ? sale.sqft.toLocaleString() : '\u2014'}</td>
                             <td className="text-[13px] text-brand-dark/70 py-3.5 pr-4">
-                              {sale.sqft && sale.amount > 0 ? `$${Math.round(sale.amount / sale.sqft).toLocaleString()}` : '\u2014'}
+                              {sale.sqft && sale.amount != null && sale.amount > 0 ? `$${Math.round(sale.amount / sale.sqft).toLocaleString()}` : '\u2014'}
                             </td>
                           </>
                         )}
@@ -591,7 +591,7 @@ export default async function BuildingSlugPage({ searchParams }: Props) {
                   <div key={sale.id} className="rounded-xl bg-[#F8F7F4] p-4 border border-black/[0.03]">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="text-[15px] font-display font-bold text-brand-dark">{formatPrice(sale.amount)}</p>
+                        <p className="text-[15px] font-display font-bold text-brand-dark">{sale.amount != null ? formatPrice(sale.amount) : '—'}</p>
                         {sale.unit && <p className="text-[12px] text-brand-gold-deep font-medium">Unit {sale.unit}</p>}
                       </div>
                       <span className="text-[12px] text-brand-dark/50">{formatDate(sale.recordedDate)}</span>

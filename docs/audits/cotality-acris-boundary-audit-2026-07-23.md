@@ -47,6 +47,33 @@ PR (Cotality/ACRIS boundary only).**
    per-row provenance field source ('cotality-trestle' | 'mallan-exclusive')
    plus an optional publication block on overridden exclusives; the
    transfers tables dropped their always-empty Type column.
+
+**REV 4 (Maya round on PR #558 — manifest eligibility + verified twins, 2026-07-23):**
+1. **Manifest eligibility corrected**: the building manifest applied only the
+   RLS feed display-gate conditions, so website-only Mallan exclusives
+   (rls_eligible=false — e.g. the real SL-0007 / 400 E 90th St Unit 4D pair)
+   were silently absent from the shared building payload. The manifest now
+   reuses the ONE canonical two-branch public eligibility contract, extracted
+   to lib/search/listing-access-decision.ts (PUBLIC_LISTING_ELIGIBILITY_OR)
+   and consumed by BOTH the public listings search and the manifest — no
+   independent visibility policy. Feed-only display fields are not required
+   of a direct Mallan publication; owner opt-out, public status, positive
+   price, and address remain required. No migration, no new field.
+2. **Twin reconciliation strengthened**: identity now includes listingType
+   (a sale can never suppress a rental and vice versa); the verified twin is
+   chosen by explicit provenance (features.ReconciledListingId) first, else
+   a UNIQUE candidate; multiple candidates without explicit evidence →
+   nothing is suppressed (fail-safe, truthful separate records).
+3. **No fabricated compatibility values**: toRecordedTransfers keeps a
+   missing amount as null (never a $0 recorded amount) and an unproven
+   source as 'unknown' (never silently ACRIS); renderers em-dash null
+   amounts.
+4. **Terminology corrected**: statistics and comments now say "effective
+   publicly displayed active inventory" — never "Cotality-only" — matching
+   the mixed Cotality + Mallan-exclusive reality.
+5. Real-pair fixture proof (SL-0007 / RLS20099289 / Unit 4D / $560,000) with
+   a where-ENFORCING Prisma mock: the mock evaluates the query's own
+   conditions, so admission of SL-0007 proves the contract, not the mock.
 Verified against: main `d6db86e3` (checked out clean), production deployment
 `dpl_3N7j8gvJVE7FK5ELc3Y31t2Fyq82` (target=production, sha `d6db86e3` — confirmed
 via Vercel API, not assumed), the live open-PR queue, live Cotality `$metadata`
