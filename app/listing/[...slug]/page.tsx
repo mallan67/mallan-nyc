@@ -49,6 +49,7 @@ import TrackListingView from '@/app/components/TrackListingView';
 import TrackListingSend from '@/app/components/TrackListingSend';
 
 import prisma from '@/lib/prisma';
+import { attachListingCacheTags } from '@/lib/cache/public-cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
@@ -56,7 +57,12 @@ import { formatBathrooms } from '@/lib/format/bathrooms';
 
 // ISR — revalidate every 5 minutes so the synchronized Neon copy stays fresh
 // while the rendered page is CDN-cached.
-export const revalidate = 300;
+// One Cycle W1: the page can never be fresher than the feed sync (data
+// changes ONLY when One Cycle runs), so the ISR window equals the sync
+// cadence — identical effective freshness, ~6× fewer re-renders. Must stay a
+// LITERAL for Next's static analysis (= SYNC_CADENCE_SECONDS in
+// lib/cache/public-cache.ts).
+export const revalidate = 1800;
 export const maxDuration = 60;
 
 // Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,
@@ -600,7 +606,25 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
  * calls notFound() on a genuine null.
  */
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
-  return await fetchFromDB(slug, keyOverride);
+  const result = await fetchFromDB(slug, keyOverride);
+  // One Cycle W1 (Codex P2 fix): attach this listing's cache tags to the
+  // CURRENT render, so the sync's revalidateTag('listing:{id}') evicts this
+  // page's ISR HTML — for every URL variant that funnels through this seam
+  // (id-form, canonical address slug, legacy aliases). The prisma reads
+  // above stay LIVE inside the ISR render (no Decimal/Date/BigInt
+  // serialization — the #523→#528 lesson); the tag-attach entry alone puts
+  // `listing:{id}` (+ building tag when a REAL address is displayable) on
+  // the route's cache dependency graph (see attachListingCacheTags for the
+  // verified Next 16.2.4 semantics). Fail-open: attach errors never block
+  // the render; the 30-min ISR window remains the fallback.
+  if (result?.listing?.id) {
+    await attachListingCacheTags(String(result.listing.id), {
+      streetNumber: result.listing.address?.streetNumber,
+      streetName: result.listing.address?.streetName,
+      postalCode: result.listing.address?.postalCode,
+    });
+  }
+  return result;
 });
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

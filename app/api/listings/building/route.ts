@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccessToken } from '@/lib/idx/auth';
+import { buildingCacheTag, cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { parseBuildingAddress, buildBuildingAddressFilter } from '@/lib/buildings/building-address-filter';
 import { lookupBBL, fetchAcrisSales, isDuplicate, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
@@ -7,11 +8,20 @@ import { lookupBBL, fetchAcrisSales, isDuplicate, boroughFromPostalCode } from '
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 
-async function trestleFetch(url: string, token: string) {
-  return fetch(url, {
+/**
+ * One Cycle W1: fetch+decode a Trestle Property query as JSON. The OAuth
+ * token is resolved INSIDE (only on cache miss) so the rotating Bearer value
+ * never participates in any cache key. Non-OK responses degrade to an empty
+ * value set (prior behavior).
+ */
+async function trestleFetchJson(url: string): Promise<{ value?: Record<string, unknown>[] }> {
+  const token = await getAccessToken();
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     next: { revalidate: 3600 },
   });
+  if (!res.ok) return { value: [] };
+  return (await res.json()) as { value?: Record<string, unknown>[] };
 }
 
 
@@ -33,7 +43,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const token = await getAccessToken();
     // Canonical Trestle address filter (shared with /api/buildings via
     // lib/buildings/building-address-filter). Uppercases StreetName — Trestle
     // stores it UPPERCASE and OData contains() is case-sensitive, so the prior
@@ -78,14 +87,17 @@ export async function GET(request: NextRequest) {
     const borough = postalCode ? boroughFromPostalCode(postalCode) : 'MANHATTAN';
     const bblPromise = lookupBBL(streetNumber, streetName, borough);
 
-    const [activeRes, closedRes, bbl] = await Promise.all([
-      trestleFetch(activeUrl, token),
-      trestleFetch(closedUrl, token),
+    // One Cycle W1 — cache the two Property queries per building (tagged),
+    // so repeat anonymous views stop re-hitting Cotality + re-running this
+    // handler's upstream work every request.
+    const cachedBuildingQuery = cachedPublicRead(trestleFetchJson, ['api-listings-building'], {
+      tags: [SEARCH_CACHE_TAG, buildingCacheTag(streetNumber, streetName, postalCode)],
+    });
+    const [activeData, closedData, bbl] = await Promise.all([
+      cachedBuildingQuery(activeUrl),
+      cachedBuildingQuery(closedUrl),
       bblPromise,
     ]);
-
-    const activeData = activeRes.ok ? await activeRes.json() : { value: [] };
-    const closedData = closedRes.ok ? await closedRes.json() : { value: [] };
 
     // Displayability via the canonical checkDistributionGates — identical to the
     // /api/buildings sibling (which shows these same units and passes the CI

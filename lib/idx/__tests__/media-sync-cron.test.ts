@@ -352,6 +352,13 @@ describe("GET /api/cron/media-sync — happy path", () => {
       expect(ch).toHaveProperty(k);
     }
 
+    // One Cycle W1 — sync-driven cache revalidation counters must persist
+    // (bounded aggregate integers only; same allowlist class).
+    const w1RevalidationCounters = ["pages_revalidated", "revalidation_failures"];
+    for (const k of w1RevalidationCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
@@ -360,6 +367,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       ...attributionCounters,
       ...summaryCounters,
       ...phase4Counters,
+      ...w1RevalidationCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
     ]);

@@ -28,6 +28,12 @@
 //   touching this row.
 
 import prisma from "@/lib/prisma";
+import {
+  SEARCH_CACHE_TAG,
+  listingCacheTag,
+  newRevalidationCounters,
+  safeRevalidateTags,
+} from "@/lib/cache/public-cache";
 import type { Prisma } from "@prisma/client";
 import {
   buildMediaR2Key,
@@ -1365,7 +1371,11 @@ export function listingMediaSummaryUnchanged(
  */
 export async function updateListingMediaSummary(
   listingId: string,
-  options?: { counters?: SummaryWriteCounters },
+  options?: {
+    counters?: SummaryWriteCounters;
+    /** One Cycle W1: revalidation accounting sink (bounded aggregates). */
+    revalidation?: { pages_revalidated: number; revalidation_failures: number };
+  },
 ): Promise<ListingMediaSummary> {
   const counters = options?.counters;
   const rows = await prisma.listingMedia.findMany({
@@ -1420,6 +1430,10 @@ export async function updateListingMediaSummary(
     counters.rows_materially_changed++;
     counters.rows_updated++;
   }
+  // One Cycle W1: the summary (hero/count/photo-revision) materially changed
+  // → refresh this listing's cached public page. Never throws; a suppressed
+  // (unchanged) summary above performs NO revalidation.
+  safeRevalidateTags([listingCacheTag(listingId)], options?.revalidation);
 
   return summary;
 }
@@ -2128,6 +2142,9 @@ export interface RunMediaSyncResult {
    * the cap is reached exactly on the final row (nothing left untouched).
    */
   r2_failure_budget_exhausted: boolean;
+  /** One Cycle W1 — bounded aggregate cache-revalidation counters. */
+  pages_revalidated: number;
+  revalidation_failures: number;
   /** R2 mirror skips in Phase 3 (e.g., row had no `media_url_original`). */
   r2_skipped: number;
   /**
@@ -2463,6 +2480,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   };
   let rowsFailed = 0;
   const summaryWrites = newSummaryWriteCounters();
+  // One Cycle W1 — revalidation accounting for this run.
+  const revalidation = newRevalidationCounters();
   let listingsProcessed = 0;
   let listingsSkipped = 0;
   let ghostListingsSkipped = 0;
@@ -2533,6 +2552,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       ghost_listing_ids: [],
       r2_mirrored: 0,
       r2_failed: 0,
+      pages_revalidated: 0,
+      revalidation_failures: 0,
       r2_backlog_batch_selected: 0,
       r2_parked_recovery_selected: 0,
       r2_parked_recovery_attempted: 0,
@@ -2671,7 +2692,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // stored 4 columns are already identical; counters record the outcome,
       // and a failure is attributed to the summary path before re-throwing.
       try {
-        await updateListingMediaSummary(listingId, { counters: summaryWrites });
+        await updateListingMediaSummary(listingId, { counters: summaryWrites, revalidation });
       } catch (summaryErr) {
         summaryWrites.rows_failed++;
         throw summaryErr;
@@ -3002,6 +3023,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     status: finalStatus,
   });
 
+  // One Cycle W1: card imagery/search surfaces reflect summary changes →
+  // ONE coarse search bump per run when any summary materially changed.
+  if (summaryWrites.rows_updated > 0) {
+    safeRevalidateTags([SEARCH_CACHE_TAG], revalidation);
+  }
+
   return {
     status: finalStatus,
     exit_reason: exitReason,
@@ -3016,6 +3043,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
     summary_writes: summaryWrites,
+    pages_revalidated: revalidation.pages_revalidated,
+    revalidation_failures: revalidation.revalidation_failures,
     ...attr,
     rows_failed: rowsFailed,
     listings_processed: listingsProcessed,

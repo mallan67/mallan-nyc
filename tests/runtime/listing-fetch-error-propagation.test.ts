@@ -62,11 +62,18 @@ describe("listing page wires the not-found-vs-error contract", () => {
     expect(src).toMatch(/resolveListingResult\(/);
   });
 
-  it("fetchListing delegates straight to fetchFromDB without a swallowing try/catch", () => {
-    // Pin the exact post-fix body so a future try/catch swallow can't silently return.
+  it("fetchListing delegates to fetchFromDB without a swallowing try/catch (W1 tag-attach happens AFTER resolution, outside any try)", () => {
+    // Pin the post-W1 body: fetchFromDB is awaited bare (no try/catch — infra
+    // errors still propagate so ISR can never cache a 404 over a valid
+    // listing), and the One Cycle W1 tag attach runs only on a RESOLVED
+    // result (attachListingCacheTags carries its own internal fail-open
+    // handling and cannot swallow fetch errors).
     expect(src).toMatch(
-      /const fetchListing = cache\(async function fetchListing\([^)]*\): Promise<ListingFetchResult \| null> \{\s*return await fetchFromDB\(slug, keyOverride\);\s*\}\);/,
+      /const fetchListing = cache\(async function fetchListing\([^)]*\): Promise<ListingFetchResult \| null> \{\s*const result = await fetchFromDB\(slug, keyOverride\);/,
     );
+    // No try/catch may wrap the fetchFromDB call inside fetchListing.
+    const body = src.match(/const fetchListing = cache\([\s\S]*?\n\}\);/)?.[0] ?? "";
+    expect(body).not.toMatch(/try\s*\{[\s\S]*fetchFromDB/);
   });
 
   it("no prisma.listing.findUnique lookup swallows DB errors with .catch(() => null)", () => {

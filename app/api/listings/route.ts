@@ -94,6 +94,12 @@ export function computeDbEnvelopeSource(
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
 export const maxDuration = 60;
 
+// One Cycle W1: the paged findMany below is NOT wrapped yet — its select
+// includes the BigInt `id` (and full rows), which the Next data cache cannot
+// serialize safely; wrapping it needs the serialize-inside-closure refactor
+// (W1 follow-up). The COUNT read (pure integer) is wrapped now.
+import { cachedPublicRead, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+
 // ── In-memory cache (same pattern as /api/idx/search) ──
 interface CacheEntry { data: unknown; expiresAt: number }
 const listingsCache = new Map<string, CacheEntry>();
@@ -406,7 +412,10 @@ export async function GET(request: Request) {
                 _count: { select: { listing_media: true } },
               },
             }),
-            prisma.listing.count({ where: dbWhere }),
+            cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
+              "api-listings-count",
+              cacheKey,
+            ], { tags: [SEARCH_CACHE_TAG] })(),
           ]);
 
           if (dbListings.length > 0) {
