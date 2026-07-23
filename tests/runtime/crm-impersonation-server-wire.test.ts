@@ -226,7 +226,10 @@ describe('PR-CRM.6 — backend route contract (read-only verification)', () => {
     expect(src).toMatch(/requireBroker\(req\)/);
     expect(src).toMatch(/logAuditEvent\(\s*['"]impersonate_start['"]/);
     expect(src).toMatch(/createSession\(\s*['"]agent['"]/);
-    expect(src).toMatch(/res\.cookies\.set\(SESSION_COOKIE/);
+    // Neon-quiet (2026-07-23): session-cookie writes are centralized —
+    // applySessionCookies sets the session cookie + presence marker together
+    // (2h impersonation TTL preserved as an override).
+    expect(src).toMatch(/applySessionCookies\(res, token, "agent", agent\.role, \{ maxAge: 2 \* 60 \* 60 \}\)/);
     expect(src).toMatch(/success:\s*true/);
     expect(src).toMatch(/impersonating:\s*\{/);
   });
@@ -243,7 +246,8 @@ describe('PR-CRM.6 — backend route contract (read-only verification)', () => {
     expect(src).toMatch(/requireAuth\(req\)/);
     expect(src).toMatch(/logAuditEvent\(\s*['"]impersonate_stop['"]/);
     expect(src).toMatch(/destroySession\(/);
-    expect(src).toMatch(/res\.cookies\.delete\(SESSION_COOKIE\)/);
+    // Centralized clear: session cookie + presence marker deleted together.
+    expect(src).toMatch(/clearSessionCookies\(res\)/);
   });
 });
 

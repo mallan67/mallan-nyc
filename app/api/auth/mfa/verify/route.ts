@@ -2,6 +2,7 @@
 // Validates an OTP code (sent via email/SMS) against an MFA session.
 // On success: creates real session, sets cookie, destroys MFA session.
 // On failure: increments attempts, destroys session after 5 failures.
+import { applySessionCookies } from "@/lib/auth/cookie-config";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
@@ -129,11 +130,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    res.cookies.set(
-      SESSION_COOKIE,
-      sessionToken,
-      getSessionCookieConfig("agent", agent.role)
-    );
+    applySessionCookies(res, sessionToken, "agent", agent.role);
 
     return res;
   } catch (err) {

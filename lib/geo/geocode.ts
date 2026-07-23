@@ -1,22 +1,43 @@
 /**
- * Server-side geocoding for NYC addresses — READ-ONLY request path.
+ * Server-side geocoding for NYC addresses — Neon-QUIET request path.
  *
  * Trestle IDX Plus feed returns null for Latitude/Longitude.
  * This module assigns coordinates using:
  *   1. In-memory cache (warm serverless) — instant
- *   2. Neon DB cache — fast single READ query
+ *   2. GEOCODE MANIFEST — the whole geocode_cache table via the shared data
+ *      cache (≤1 bounded Neon read per revalidation window across ALL
+ *      traffic; an ordinary anonymous request opens NO Neon connection)
  *   3. ZIP code centroids + deterministic jitter — instant fallback
  *
  * Neon-quiet (2026-07-23): the request-time US Census call and the
  * fire-and-forget `geocodeCache.upsert` writes were REMOVED from this
- * public read path. Production evidence: geocode_cache had 13,499 lifetime
- * inserts — public traffic was writing Neon on cache misses, keeping the
- * compute awake and dilating storage. A public request must never write
- * Neon. DURABLE POPULATION is owned by the explicit bounded batch job
- * `scripts/batch-geocode.js` (no time budget, resumable, skips cached
- * rows) — run it deliberately when new addresses appear; misses in the
- * meantime get the deterministic ZIP-centroid fallback below, exactly the
- * fallback they already got whenever the 4s Census budget expired.
+ * public read path (production evidence: 13,499 lifetime inserts came from
+ * public traffic), and the per-request `findMany` was replaced by the
+ * manifest. A public request must never write Neon — and no ordinary
+ * anonymous request opens Neon for geocoding at all.
+ *
+ * ── DURABLE-POPULATION OPERATIONAL CONTRACT (scripts/batch-geocode.js) ──
+ *   OWNER:    Maya (or an operator she designates). Never runs from public
+ *             traffic; never scheduled without her explicit cron approval.
+ *   TRIGGER:  run deliberately after a significant new-listing influx, or
+ *             when listing maps visibly cluster on ZIP centroids. New
+ *             addresses enter its queue automatically: it fetches active
+ *             IDX listings live from Trestle and skips already-cached rows.
+ *   RETRY:    the job is resumable and idempotent — a rerun IS the retry
+ *             (failed/missing addresses are simply attempted again; cached
+ *             rows are skipped).
+ *   FRESHNESS SLA: best-effort. Until a run covers a new address, its pin
+ *             sits on the deterministic ZIP-centroid approximation — the
+ *             same fallback such addresses already received whenever the
+ *             old 4-second Census budget expired.
+ *   VERIFIED vs FALLBACK: verified coordinates exist ONLY in geocode_cache
+ *             (source='census'). Centroid fallbacks are computed per
+ *             request and never written anywhere. LIMITATION (documented,
+ *             unchanged from before): the public payload itself does not
+ *             label which coordinates are verified vs approximate.
+ *   After a run, the manifest picks up new rows within one revalidation
+ *   window (30 min), or immediately if the GEOCODE_MANIFEST_TAG is
+ *   revalidated by an approved pathway.
  *
  * COMPLIANCE: Geocoding runs server-side only.
  */
@@ -25,9 +46,46 @@
 // SECOND PrismaClient (its own pool + its own Neon connections). One
 // client per runtime is the invariant.
 import prisma from '@/lib/prisma';
+import { cachedPublicRead, SYNC_CADENCE_SECONDS } from '@/lib/cache/public-cache';
 
 // ── In-memory cache layer (warm serverless invocations) ──
 const memCache = new Map<string, [number, number]>();
+
+/**
+ * GEOCODE MANIFEST (Neon-quiet 2026-07-23, distinct-address correction).
+ *
+ * A per-request `geocodeCache.findMany` — even read-only — still opened Neon
+ * on every anonymous request whose addresses missed the in-memory map (every
+ * cold serverless instance repeats it). The manifest loads the WHOLE
+ * geocode_cache table (13.5k slim rows ≈ 0.7 MB) through the shared data
+ * cache instead: at most ONE bounded Neon read per revalidation window
+ * across ALL anonymous traffic, then zero. geocode_cache rows are permanent
+ * (an address's coordinates don't change), so the 30-min fallback loses
+ * nothing; the tag allows explicit invalidation after a batch-geocode run.
+ */
+export const GEOCODE_MANIFEST_TAG = 'geocode-manifest';
+
+/** Defensive bound — loud, never silent (current population 13.5k). */
+const GEOCODE_ROW_BOUND = 50000;
+
+async function buildGeocodeManifest(): Promise<Array<[string, number, number]>> {
+  const rows = await prisma.geocodeCache.findMany({
+    select: { address_key: true, latitude: true, longitude: true },
+    orderBy: { address_key: 'asc' },
+    take: GEOCODE_ROW_BOUND,
+  });
+  if (rows.length === GEOCODE_ROW_BOUND) {
+    console.error(
+      `[geocode-manifest] ROW BOUND HIT (${GEOCODE_ROW_BOUND}) — some cached geocodes are not being served; raise the bound.`,
+    );
+  }
+  return rows.map((r) => [r.address_key, r.latitude, r.longitude]);
+}
+
+const getGeocodeManifest = cachedPublicRead(buildGeocodeManifest, ['geocode-manifest'], {
+  tags: [GEOCODE_MANIFEST_TAG],
+  revalidate: SYNC_CADENCE_SECONDS,
+});
 
 /** Normalize address into cache key */
 function addressKey(streetNumber: string, streetName: string, zip: string): string {
@@ -100,14 +158,14 @@ export async function geocodeListings(
 
   const needsFallback: { listing: typeof listings[0]; key: string }[] = [];
   try {
-    // 1s timeout on DB lookup — keep fast for search; Neon cold starts handled by fallback
-    const dbResults = await Promise.race([
-      prisma.geocodeCache.findMany({
-        where: { address_key: { in: keys } },
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('DB geocode cache timeout')), 1000)),
+    // 1.5s budget on the manifest — a cache HIT resolves in microseconds; only
+    // a refill (≤1 per revalidation window across ALL traffic) touches Neon,
+    // and a cold-Neon refill degrades to the ZIP fallback, not a stall.
+    const manifest = await Promise.race([
+      getGeocodeManifest(),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('geocode manifest timeout')), 1500)),
     ]);
-    const dbMap = new Map(dbResults.map(r => [r.address_key, [r.latitude, r.longitude] as [number, number]]));
+    const dbMap = new Map(manifest.map(([k, lat, lng]) => [k, [lat, lng] as [number, number]]));
 
     for (let i = 0; i < stillNeedDb.length; i++) {
       const listing = stillNeedDb[i];

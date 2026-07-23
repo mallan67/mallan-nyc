@@ -1,119 +1,100 @@
-# Neon-Quiet Public Shell — Root Cause, Fix, and Proof (2026-07-23)
+# Neon-Quiet Public Shell — Root Cause, Fix, and Proof (2026-07-23, rev 2)
 
-**Branch:** `fix/public-shell-neon-quiet-2026-07-23` (base: main `c4ade4bd`)
-**Status:** DRAFT PR — nothing merged, nothing deployed. All production numbers below are read-only measurements.
-**Authority hierarchy (governing):** Cotality API → One Cycle sync → Neon operational copy → projections → Vercel cache → visitors. Ordinary anonymous public requests do not read Neon. MAllan business data never overrides Cotality listing facts.
+**Branch:** `fix/public-shell-neon-quiet-2026-07-23` (base: main `c4ade4bd`) · **PR #555 (DRAFT)**
+**rev 2:** incorporates Maya's CHANGES REQUIRED review — distinct-building crawl semantics, geocode manifest, auth-marker sweep, sitemap partitioning, settings-editor deprecation, and removal of the rev-1 overstatements (each noted inline).
+**Status:** DRAFT — nothing merged, nothing deployed. All production numbers are read-only measurements.
+**Authority hierarchy (governing):** Cotality API = sole listing/media truth → One Cycle sync → Neon operational copy → projections → Vercel cache → visitors. The building payload keeps its three layers — Neon operational copy (incl. CRM SL-/RL- exclusives), live Cotality/Trestle, ACRIS public records — only the Neon layer's ACCESS PATTERN changed.
 
 ---
 
-## 1. Root-cause tree (measured, not assumed)
+## 1. Root-cause tree (measured)
 
 ```
 Neon compute awake outside sync windows (NEON-001 residual after W1 #553)
 │
 ├── /api/buildings + /buildings/[slug]  ← STRONGEST LIVE WAKE SOURCE
-│   │   121 API + 179 page executions / 6h (Vercel logs), distinct
-│   │   crawler-walked slugs → every request a cache MISS ≈ one Neon
-│   │   touch every ~3 min — alone enough to defeat 5-min autosuspend.
-│   ├── page → internal HTTP → API (two executions per page view;
-│   │   generateMetadata repeated the fetch)
-│   ├── prisma.listing.findMany on EVERY miss (residual ~20/h listings
-│   │   seq-scans post-W1 ≈ this route's rate)
-│   └── fire-and-forget upsertBuildingFromRecords(...).catch(()=>{})
-│       DORMANT in practice: buildings + building_units = 0 rows,
-│       0 inserts/updates EVER (BuildingKeyNumeric absent from $select)
-│       — but a write call sitting on a public GET regardless.
+│   │   121 API + 179 page executions/6h of DISTINCT crawler-walked slugs
+│   │   → every request a cache MISS → prisma.listing.findMany ~every
+│   │   3 min — alone enough to defeat the 5-min autosuspend.
+│   ├── page → internal HTTP → API (two executions per page view)
+│   ├── per-building findMany on EVERY distinct building (the key defect:
+│   │   caching per building does NOT fix a distinct-slug crawl)
+│   └── fire-and-forget upsertBuildingFromRecords(...) — production-proven
+│       DORMANT (buildings/building_units: 0 rows, 0 writes ever) but a
+│       write call on a public GET regardless.
 │
-├── /sitemap.xml — force-dynamic, revalidate=300: every regeneration ran an
-│   UNBOUNDED prisma.listing.findMany (~10.3k rows) + agents + buildings.
+├── /sitemap.xml — unbounded ~10.3k-row listing scan per regeneration.
 │
-├── lib/geo/geocode.ts — constructed a SECOND PrismaClient (own pool/
-│   connections) and wrote geocode_cache during public requests
-│   (13,499 lifetime inserts) + request-time Census calls.
+├── lib/geo/geocode.ts — SECOND PrismaClient + request-time geocode_cache
+│   READS on every in-memory miss + request-time Census calls +
+│   fire-and-forget upserts (13,499 lifetime inserts from public traffic).
 │
-└── Public shell chatter (fixed in this PR, Parts 1–3 of the prior directive)
-    ├── /api/settings/company fetched by Footer + HeroSearch on every mount
-    ├── /api/idx/watermark fetched no-store by Footer + IDXDisclaimer
-    └── /api/auth/me called by AuthProvider for ANONYMOUS visitors
+└── Public shell chatter — settings fetches, no-store watermark fetches,
+    anonymous /api/auth/me calls.
 ```
 
-## 2. What changed (all in this one focused PR)
+## 2. What changed
 
-### A. Buildings become a pure cached read (items 3–5)
-- **`lib/buildings/public-building-data.ts` (NEW):** the complete payload assembly moved verbatim out of the route. `getBuildingDataCached()` wraps it in the existing `cachedPublicRead` with tags `[buildingCacheTag(num, street, zip), SEARCH_CACHE_TAG]` + 30-min sync-cadence fallback. Payload proven JSON-safe (all values `Number()`/`String()` coerced; round-trip test).
-- **`app/api/buildings/route.ts`:** thin shell — rate limit → param validation → cached accessor → `NextResponse.json`. Zero prisma references, zero Trestle references, zero writes. The dormant `upsertBuildingFromRecords` call and import are **removed**; building/unit sync is exclusively owned by an explicit future workflow (`lib/buildings/upsert.ts` retained for that owner).
-- **`app/buildings/[slug]/page.tsx`:** internal-HTTP hop removed; page and `generateMetadata` call `getBuildingDataCached` directly — page render, metadata, and API all share ONE cache entry.
-- **Compliance unchanged by construction:** distribution gates (`idx_display_yn`, `internet_entire_listing_display_yn`, `owner_opt_out`, `participant_only`), `checkDistributionGates`, ACRIS-only public sale history via `resolveVisibility(audience: 'public')`, REBNY attribution — all moved verbatim; `ci-compliance-check` rule 8 repointed to the canonical file (94/94 BLOCKER+STRICT pass).
+### A. Buildings: sharded manifest + exact tags (rev 2 — the distinct-crawl fix)
+- **`lib/buildings/public-building-data.ts`:** the Neon layer is now a **building manifest** sharded by street-number first character (NYC street numbers → ≤ ~10 shards). Any crawl of N distinct buildings performs **at most ~10 bounded Neon queries per sync window — never one per building**. The manifest carries slim precomputed rows (first-photo URL precomputed; heavy media JSON never enters the cache). The public-invisible DB-closed layer was dropped (its `source:'mls'` rows were always withheld by the public visibility contract), so `raw_data` never loads.
+- **Per-building cache entries carry ONLY their exact building tag** — the coarse `search` tag was REMOVED from them (rev 1 defect: it would have re-expired every building on every sync). `lib/idx/sync.ts` now derives **exact building tags** (`buildingTagFromAddress`) at all three mapped listing-change sites and revalidates only materially affected buildings. `buildingCacheTag` canonicalizes street names (direction/suffix stripping) so link-side, stored-raw, and sync-side derivations collapse to one tag. Media-JSON-only changes ride the 30-min fallback window (documented, bounded).
+- Route stays a thin pure-read shell; page/generateMetadata call the accessor directly (no internal HTTP). Trestle + ACRIS layers still run per building — they are not Neon, and Cotality remains the sole listing truth.
 
-### B. Sitemap cached + bounded (item 6)
-- All three DB sections (listings/agents/buildings) assembled by ONE builder wrapped in `cachedPublicRead` tagged `search` — the tag every successful idx-sync revalidates. Repeated crawler hits execute ZERO Prisma queries between syncs.
-- Listing scan bounded: `take: SITEMAP_LISTING_BOUND` (25,000 — ≥2× current ~10.3k population, ≤ protocol 50k, so **every canonical URL preserved**) with deterministic `orderBy` and a loud log if the bound is ever hit (no silent caps).
-- Every distribution gate, the `ACTIVE_DISPLAY_VALUES` status filter, SEO-001 slug composition, CRM-vs-IDX dedupe, and suppressed-address handling preserved verbatim.
-- Note: the buildings sub-query emits zero URLs today (table empty — see §1); documented in-file.
+### B. Sitemap: PARTITIONED — silent truncation structurally impossible (rev 2)
+- `generateSitemaps` serves `/sitemap/{id}.xml`: partition 0 = static/legal/agents/buildings; partitions 1..K = deterministic 10k listing chunks (orderBy `listing_id` ASC). K derives from a cached COUNT of the exact gated population **+1 slack partition** (growth between refreshes lands in slack, never off the end). Past `MAX_SITEMAP_PARTITIONS` (50 = 500k URLs) the set **fails closed** (500; crawlers keep the cached copy) — it never publishes a falsely complete sitemap. (rev 1's `take:25000` + console.error was still silent truncation; retired.)
+- The classic **`/sitemap.xml` URL keeps working** as a standards-compliant `<sitemapindex>` (`app/sitemap.xml/route.ts`) over the partitions — robots.txt and Search Console registrations unchanged.
+- CRM-vs-IDX dedupe is **cross-partition correct**: every chunk dedupes against the full cached CRM-exclusive set, so an exclusive and its IDX duplicate can never both be emitted even in different partitions. Gates, `ACTIVE_DISPLAY_VALUES`, SEO-001 slug composition, suppressed-address handling — verbatim.
+- All sections through `cachedPublicRead` tagged `search`: regeneration between syncs = zero Neon queries.
 
-### C. Geocode request path is read-only (item 7)
-- Second `PrismaClient` **removed** — module now uses the shared `@/lib/prisma` singleton (invariant: `new PrismaClient` appears only in `lib/prisma.ts` across app/ + lib/, enforced by test).
-- Request-time Census call and fire-and-forget `geocodeCache.upsert` writes **removed**. Read path = memory cache → one bounded DB read (1s budget) → deterministic ZIP-centroid fallback (exactly the fallback misses already got when the 4s budget expired).
-- Durable population = existing explicit bounded job `scripts/batch-geocode.js` (own Census + upsert, resumable, skips cached rows) — run deliberately, never from public traffic.
+### C. Geocode: manifest-served, write-free (rev 2)
+- rev 1 honesty correction: the rev-1 change removed writes but **kept a per-request Neon READ** (`geocodeCache.findMany` on in-memory misses — every cold instance repeats it). Now a **geocode manifest** (whole 13.5k-row table, slim, ≈0.7 MB, bounded at 50k with loud log) serves ALL anonymous traffic through the shared data cache: **≤1 bounded Neon read per revalidation window total; an ordinary anonymous request opens no Neon connection for geocoding.** Zero writes; no Census on the request path; second PrismaClient removed.
+- **Operational contract for `scripts/batch-geocode.js`** (documented in the module and test-pinned): OWNER = Maya/designee; TRIGGER = deliberate run after new-listing influx (the job self-queues from live Trestle and skips cached rows); RETRY = rerun (idempotent/resumable); FRESHNESS SLA = best-effort — until a run covers a new address it renders at the deterministic ZIP centroid (same fallback it already got when the old 4s Census budget expired); VERIFIED vs FALLBACK = verified coordinates exist only in geocode_cache (source='census'); centroid fallbacks are computed per request and never persisted. LIMITATION (unchanged from before): the public payload does not label verified vs approximate coordinates. No schedule is created — scheduling requires Maya's cron approval.
 
-### D. Public shell (Parts 1–3, completed before the buildings redirect)
-- `lib/config/public-company-settings.ts` — canonical static settings (identical to the effective production values; `data/company-settings.json` does not exist so `DEFAULT_SETTINGS` was the source); Footer/HeroSearch no longer fetch; the API route serves the same module (no drift).
-- `lib/cache/idx-watermark.ts` + rewritten watermark route — tag-cached (`idx-watermark`, 30-min fallback); `lib/idx/sync.ts` revalidates the tag ONLY after a fully successful run's `syncState.upsert` (inside `errors === 0`).
-- `lib/client/idx-watermark-client.ts` — ONE deduped watermark request per app mount, no `no-store`, fail-closed null.
-- Auth presence marker `mallan_auth_present` (NOT httpOnly, same lifetime as session cookie, set/cleared at every session-cookie site): `AuthProvider` performs ZERO `/api/auth/me` calls without it. **Security contract:** presentation-only; no server path reads it (enforced by test); authorization continues to rely exclusively on the httpOnly session cookie.
+### D. Auth marker: centralized + repo-wide swept + legacy-covered (rev 2)
+- rev 1 covered only password/invite/reset. Now **one pair owns the session cookie**: `applySessionCookies` / `clearSessionCookies` in `lib/auth/cookie-config.ts` set/delete the httpOnly session cookie AND the presence marker together, with per-site overrides preserved (OAuth 24h, impersonation 2h, dev-login secure:false). Converted: password login (agent+lead), MFA completion, OAuth agent / new lead / existing lead, invitation, reset, impersonation start/stop, dev-login (×2), logout (×2), invalid-session clears (/api/auth/me + auth middleware).
+- **Repo-wide automatic discovery test** (no hardcoded file list): zero direct `cookies.set/delete(SESSION_COOKIE…)` outside the helper across app/, lib/, proxy.ts; any future direct setter fails CI.
+- **Legacy pre-deployment sessions:** `proxy.ts` mirrors the marker from cookie **presence only** (`req.cookies.has` — never reads the value, never validates, never touches Neon). Behavioral test drives the real proxy: legacy session cookie → marker set; anonymous → no marker. An invalid legacy session still 401s at `/api/auth/me`, which clears both cookies. Authorization remains exclusively the httpOnly session cookie (test-enforced: no server authorization path reads the marker).
 
-## 3. Failing-first proof
+### E. Company settings: editor explicitly DEPRECATED (rev 2)
+- rev 1 misframed this as "preserved behavior." Correction: the broker POST wrote an **ephemeral** JSON file that the public shell (build-time module) could never reflect. Leaving it "working" would be dishonest. POST now returns **410 Gone** with a clear message (still broker-gated; attempt audited). Repo-wide sweep: **zero in-repo callers** of the POST existed. To change settings today: edit `lib/config/public-company-settings.ts` and deploy — the ONE source the GET and the public shell both serve. A durable editor needs the HELD CompanySetting migration + tag invalidation of the public shell (design noted here for when Maya approves).
 
-| Suite | Red (original code) | Green (this PR) |
+### F. Public shell (unchanged from rev 1)
+Static company-settings module; deduped tag-cached IDX watermark (revalidated only after a fully successful sync's `syncState.upsert`); presence-marker gate so anonymous visitors make zero `/api/auth/me` calls.
+
+## 3. Corrected claims (rev 1 overstatements removed)
+
+| rev 1 said | rev 2 truth |
+|---|---|
+| "ordinary anonymous public requests do not read Neon" | Anonymous requests perform **zero per-request Neon reads and zero writes**. Neon is read only through bounded cached fills: ≤ ~10 building-manifest shards + 1 geocode manifest + the sitemap sections, each at most once per revalidation window across ALL traffic. |
+| "marker set/cleared at every session-cookie site" (3 files) | True only after rev 2: centralized helper + repo-wide discovery + proxy legacy mirror; OAuth/MFA/impersonation/dev-login/legacy were uncovered in rev 1. |
+| "every canonical URL preserved" (fixed take + log) | Now structural: partitioned + slack + fail-closed cap; proven behaviorally at a 25,001 population with cross-partition dedupe and determinism. |
+| "distinct crawler wake source fixed" (same-building test only) | Now proven with a 100-distinct-building behavioral test incl. sync-invalidation simulation (see §4). |
+| Verdict "SAFE FOR MAYA TO CONSIDER" (rev 1) | Withdrawn for rev 1; re-classified in §8 on the rev-2 evidence. |
+
+## 4. Failing-first proof
+
+| Suite | Red | Green |
 |---|---|---|
-| `tests/runtime/neon-quiet-public-shell.test.ts` (17 tests) | 11 failed | 17/17 |
-| `tests/runtime/neon-quiet-buildings-sitemap-geocode.test.ts` (17 tests) | 16 failed (1 pass = gates-preserved, correctly true in both worlds) | 17/17 |
+| `neon-quiet-public-shell.test.ts` (17) | 11 failed vs pre-PR main | 17/17 |
+| `neon-quiet-distinct-buildings.test.ts` (7, NEW) | red vs pre-correction | 7/7 |
+| `neon-quiet-auth-marker-sweep.test.ts` (26, NEW) | red vs pre-correction | 26/26 |
+| `neon-quiet-buildings-sitemap-geocode.test.ts` (18, rewritten) | red vs pre-correction | 18/18 |
+| Combined correction red-run | **39/51 failed** against pre-correction branch state | **51/51** after |
 
-Behavioral highlights: repeated building request after cache fill = **zero additional Prisma queries** (memoized `unstable_cache` stand-in, `findMany` call-count pinned at 1); repeated sitemap generation = zero additional queries; `geocodeListings` issues exactly one READ and no writes; payload JSON round-trip identity.
+Key behavioral pins: 100 distinct buildings → ≤10 Neon queries (measured in-test: shard bound), re-crawl → 0; coarse `search` revalidation → **0 building re-assemblies and 0 Neon queries** (the rev-1 wake-pattern recurrence is impossible); one exact building tag → exactly 1 re-assembly. Sitemap: 25,001 rows → ids [0..4], every URL exactly once, deterministic across passes, cross-partition CRM dedupe holds, zero queries on regeneration. Geocode: 3 requests / 3 different addresses → 1 Neon read total. Auth: real-proxy legacy-session test; helper parity for broker/agent/lead + overrides.
 
-Adjusted existing pins (intent documented in each): `one-cycle-w1-sync-revalidation` (new watermark tag), `auth-login-flow` (mock exports presence config), `release-safety-source-guards` (IDXDisclaimer no-store allowlist entry retired — allowlist shrank), `public-closed-sale-source-guard` + `search-card-virtual-tour-badge` (source pointers follow the verbatim code move).
+## 5. Analytics / append-only inventory (REPORT ONLY — unchanged from rev 1)
 
-## 4. Validation (exact commands, this branch)
+behavioral_events 78 / intent_events 16 / listing_views 0 — **no purge path (gap; trivial today)**. geocode_cache 13,512 (1-year purge ✓). audit_events 88,948 rows / 60.1 MB (2-year purge ✓ with CAN-SPAM exemption); 52% is one closed incident cohort (`idx_sync_listing_upsert_failure`, 46,011 rows, 2026-05-21→06-13, ~30 MB) that sits until 2028 — bounded prune = candidate for separate approval, NOT performed.
 
-- `npx jest` — **307 suites / 5,350 tests, 0 failures** (final full run)
-- `npx tsc --noEmit` — 0 errors
-- `npm run build` — success
-- `npm run rls:validate` — 0 errors / 0 unknown
-- `npm run ucba:audit` — 0 regressions (CLAIM_OVERSTATED: 0)
-- `npm run compliance-check` — **94 passed, 0 failed** (BLOCKER+STRICT)
-- `npm run idx:validate` — 1 critical: `/api/cron/db-keepalive NOT SCHEDULED` — **pre-existing on main and intentional** (keepalive deliberately disabled per NEON.md; validator run-history confirms "Critical issues unchanged (1)"). Not caused and not fixed by this PR (cron config is HELD).
+## 6. Cron maxDuration (REPORT ONLY — unchanged from rev 1)
 
-What these prove / don't: validators prove static rule conformance of THIS repo; they do not prove any field is live on Cotality; live-production effect requires the post-deploy slope measurements in §7.
+vercel.json glob 30s vs in-code exports (18×60s, feed-reconcile 300s; idx/media-sync have explicit 120s entries): latent declared-vs-exported conflict. Empirically zero cron 5xx in the full log-retention window — nothing is being killed today. No change made (vercel.json is a hard boundary).
 
-## 5. Analytics / append-only inventory (item 8 — REPORT ONLY, nothing deleted)
+## 7. Baseline + measurement protocol (unchanged)
 
-| Table | Rows (2026-07-23) | Retention coverage |
-|---|---|---|
-| behavioral_events | 78 | **NONE — no deleteMany anywhere (gap; trivial today)** |
-| intent_events | 16 | **NONE (gap; trivial today)** |
-| listing_views | 0 | **NONE (gap; empty)** |
-| geocode_cache | 13,512 | 1-year purge in data-retention cron ✓ |
-| audit_events | 88,948 (60.1 MB) | 2-year purge ✓ (with CAN-SPAM `email_unsubscribed` exemption) |
-
-audit_events composition: **`idx_sync_listing_upsert_failure` = 46,011 rows (52%) — entirely from the closed 2026-05-21→06-13 incident window**; sits until the 2-year window in 2028. A bounded intentional prune of that single closed cohort (~30 MB) is a candidate for a separately-approved retention action — NOT performed. Ongoing writers: `idx_sync`+`idx_sync_cron` ≈96 rows/day, `media_sync_cron` 24/day, `feed_reconcile_ghost_transition` ongoing.
-
-## 6. Cron maxDuration verification (item 9 — conflicts only)
-
-- `vercel.json`: glob `app/api/**/*.ts` → 30s; explicit `idx-sync` 120s, `media-sync` 120s. 21 crons scheduled.
-- In-code exports conflict with the glob: 18 cron routes export `maxDuration = 60`, `feed-reconcile` exports `300` — while the deployed vercel.json glob declares 30 for them.
-- **Empirical check (production, full log-retention window):** zero 5xx on any cron path; feed-reconcile's 03:30 run returned 200. No cron is being killed by a duration cap in the observed window. The declared-vs-exported mismatch is a latent conflict to reconcile when vercel.json is next opened under approval — reported only, no change made (vercel.json is a hard boundary).
-
-## 7. Current baseline + predicted effect (slopes, not cumulative numbers)
-
-Baseline (Neon control plane, project `hidden-mountain-87248164`, 2026-07-23T03:10:46Z):
-`cpu_used_sec` 470,284 · `active_time_seconds` 1,879,592 · logical_size 572,923,904 B · db 524 MB.
-
-W1-only slope measured 03:10:46→~04:08Z (~0.95h): **+1,182 CU-s (≈0.35 CU-h/h ≈ 8.3 CU-h/day if sustained)**; active-time delta ≈ elapsed wall-clock → effectively no suspend gap in this window — consistent with the ~3-min building-MISS cadence being the remaining wake source.
-
-Predicted after this PR deploys: building requests collapse to ≤1 Neon read per building per sync window (tag/30-min bounded) instead of one per request; sitemap to ≤1 scan per sync window; geocode writes from public traffic → 0; anonymous-shell function invocations for settings/watermark/auth-me → ~0. Residual expected wake sources: the 21 scheduled crons and authenticated CRM traffic. **Actual CU-hour and storage reduction must be verified post-deploy by re-reading `cpu_used_sec` / `active_time_seconds` / logical_size deltas over wall-clock at T+2h and T+24h — no claim of NEON-001 closure is made here.**
-
-Current scan rates (retiring the stale 108M-tuples/day figure): listings seq-scans ~20/h; media ~10/media-sync run. buildings table: seq_scan counter 4,774 lifetime, 0 rows, 0 writes ever.
+Baseline 2026-07-23T03:10:46Z: `cpu_used_sec` 470,284 · `active_time_seconds` 1,879,592 · logical_size 572,923,904 B. W1-only slope ≈ 0.35 CU-h/h with no suspend gap observed — consistent with the distinct-building MISS cadence. **Actual reduction must be verified post-deploy** by re-reading the same counters over wall-clock at T+2h / T+24h. No NEON-001 closure is claimed.
 
 ## 8. Verdict
 
-**SAFE FOR MAYA TO CONSIDER** — draft PR only. Not merged, not deployed, not marked ready. #544 and #554 untouched. No migration, no vercel.json change, no cron change, no Neon settings change, no production-row mutation. The db-keepalive validator critical is pre-existing and intentionally unresolved.
+**SAFE FOR MAYA TO CONSIDER** — as a DRAFT, on the rev-2 evidence above: all four review findings corrected with failing-first proof, full battery green (Jest suites incl. 51 correction tests, tsc, build, RLS, UCBA 0 regressions, compliance BLOCKER+STRICT 0 failures, workflows, Release Truth), remote CI on the exact pushed head. The one idx:validate critical (`db-keepalive NOT SCHEDULED`) is pre-existing and intentional. Not merged, not deployed, not marked ready; no migration, no vercel.json/cron/Neon-settings change, no production-row mutation; #544/#554 untouched. Production CU/storage reduction remains **NOT YET PROVEN** — it requires the §7 post-deploy slope measurements, which can only happen after Maya's separate deployment decision.

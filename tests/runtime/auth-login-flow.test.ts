@@ -46,6 +46,17 @@ jest.mock('@/lib/auth/cookie-config', () => ({
   // Neon-quiet presence companion (presentation-only marker cookie).
   AUTH_PRESENCE_COOKIE: 'mallan_auth_present',
   getPresenceCookieConfig: () => ({ httpOnly: false, secure: true, sameSite: 'lax' as const, path: '/' }),
+  SESSION_COOKIE: 'session_token',
+  // Centralized pair (Neon-quiet sweep): sets/deletes session cookie +
+  // presence marker together — mirrors the real helper semantics.
+  applySessionCookies: (res: { cookies: { set: (n: string, v: string, o?: object) => void } }, token: string) => {
+    res.cookies.set('session_token', token, { httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+    res.cookies.set('mallan_auth_present', '1', { httpOnly: false, secure: true, sameSite: 'lax', path: '/' });
+  },
+  clearSessionCookies: (res: { cookies: { delete: (n: string) => void } }) => {
+    res.cookies.delete('session_token');
+    res.cookies.delete('mallan_auth_present');
+  },
 }));
 
 beforeEach(() => {

@@ -1,6 +1,7 @@
 // POST /api/auth/dev-login
 // Dev-only auto-login — creates a REAL session for the broker (Maya).
 // Only works on localhost. Returns 404 in production.
+import { applySessionCookies } from "@/lib/auth/cookie-config";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -36,9 +37,7 @@ export async function GET(req: NextRequest) {
         <a href="/crm/index-built.html" style="font-size:20px;color:blue;text-decoration:underline">Open CRM Search</a>
       </div></body></html>`;
     const res = new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html" } });
-    res.cookies.set(SESSION_COOKIE, result.token, {
-      httpOnly: true, secure: false, sameSite: "lax", path: "/", maxAge: 24 * 60 * 60,
-    });
+    applySessionCookies(res, result.token, "agent", "AGENT", { secure: false, maxAge: 24 * 60 * 60 });
     return res;
   }
   return NextResponse.json(
@@ -91,8 +90,6 @@ export async function POST(req: NextRequest) {
     success: true,
     user: { ...result.agent, userType: "agent" },
   });
-  res.cookies.set(SESSION_COOKIE, result.token, {
-    httpOnly: true, secure: false, sameSite: "lax", path: "/", maxAge: 24 * 60 * 60,
-  });
+  applySessionCookies(res, result.token, "agent", "AGENT", { secure: false, maxAge: 24 * 60 * 60 });
   return res;
 }

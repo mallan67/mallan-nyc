@@ -25,6 +25,7 @@ import {
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
+  buildingTagFromAddress,
   newRevalidationCounters,
   safeRevalidateTags,
   type RevalidationCounters,
@@ -671,6 +672,13 @@ export async function syncListings(
         }
         upserted++;
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
+        {
+          // Neon-quiet: exact building revalidation — only THIS building's cached
+          // payload expires (per-building entries no longer carry the coarse
+          // search tag, so a sync must name the buildings it actually changed).
+          const bTag = buildingTagFromAddress(mapped.address);
+          if (bTag) changedCacheTags.add(bTag);
+        }
       }
 
       // 5. Dual-write the search projection (master refactor PR 5B).
@@ -733,6 +741,10 @@ export async function syncListings(
           projectionCounters.rows_inserted++;
         }
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: projection changes affect search surfaces
+        {
+          const bTag = buildingTagFromAddress(mapped.address); // Neon-quiet: exact building revalidation
+          if (bTag) changedCacheTags.add(bTag);
+        }
       }
     } catch (err) {
       errors++;
@@ -1811,6 +1823,10 @@ export async function syncAgentHistory(
         }
         upserted++;
         changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
+        {
+          const bTag = buildingTagFromAddress(mapped.address); // Neon-quiet: exact building revalidation
+          if (bTag) changedCacheTags.add(bTag);
+        }
       }
 
       // 4. Dual-write the search projection (master refactor PR 5B).

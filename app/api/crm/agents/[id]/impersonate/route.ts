@@ -1,6 +1,7 @@
 // POST /api/crm/agents/[id]/impersonate
 // Broker-only: creates a delegated impersonation session for an agent.
 // Audit-logged with broker ID, agent ID, timestamp, and IP.
+import { applySessionCookies } from "@/lib/auth/cookie-config";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent, createSession, SESSION_COOKIE } from "@/lib/auth";
@@ -58,10 +59,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   });
 
   // Set cookie with 2-hour TTL for impersonation (shorter than normal agent 8h)
-  res.cookies.set(SESSION_COOKIE, token, {
-    ...getSessionCookieConfig("agent", agent.role),
-    maxAge: 2 * 60 * 60, // 2 hours max for impersonation
-  });
+  applySessionCookies(res, token, "agent", agent.role, { maxAge: 2 * 60 * 60 });
 
   return res;
 }

@@ -324,6 +324,136 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
  * - Server-side only MLS data access
  */
 
+// ─────────────────────────────────────────────────────────────────────────
+// BUILDING MANIFEST — the Neon layer of the building payload, shared across
+// ALL buildings (Neon-quiet 2026-07-23, distinct-building correction).
+//
+// Why: per-building request-time findMany meant a crawl of N DISTINCT
+// buildings executed N Neon queries (the measured ~3-min wake pattern).
+// The manifest shards the gated listing population by the FIRST CHARACTER
+// of the street number (NYC street numbers start with 1-9/0 → ≤ ~10 shards),
+// so ANY building crawl — 100 or 10,000 distinct buildings — performs at
+// most ~10 bounded Neon queries per sync window, then zero.
+//
+// Layers preserved: this manifest replaces ONLY the Neon layer. The live
+// Cotality/Trestle layer and the ACRIS public-record layer still run
+// per-building (they are not Neon and Cotality remains the sole listing
+// truth). CRM exclusives (SL-/RL-), which exist only in Neon, stay visible
+// through the manifest.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface ManifestAddress {
+  StreetNumber: string;
+  StreetName: string;
+  PostalCode: string;
+  UnitNumber: string;
+  BuildingName: string;
+}
+
+export interface ManifestListing {
+  id: string;
+  listing_id: string;
+  status: string;
+  list_price: number;
+  bedrooms_total: number;
+  bathrooms_full: number;
+  bathrooms_half: number;
+  living_area: number;
+  property_type: string;
+  property_sub_type: string;
+  listing_type: string;
+  address: ManifestAddress;
+  features: { CommonInterest: string | null; YearBuilt: number | null; StoriesTotal: number | null };
+  /** Precomputed first-photo proxy URL (same classifyMediaItem logic the
+   *  route used inline) — the heavy media JSON never enters the cache. */
+  photoUrl: string | null;
+}
+
+export const BUILDING_MANIFEST_TAG = 'building-manifest';
+
+/** Defensive bound per shard — loud, never silent (current total gated
+ *  population ~10.3k across ALL shards). */
+const MANIFEST_ROW_BOUND = 20000;
+
+async function buildBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
+  const rows = await prisma.listing.findMany({
+    where: {
+      AND: [
+        { idx_display_yn: true },
+        { owner_opt_out: false },
+        { internet_entire_listing_display_yn: true },
+        { participant_only: false },
+        { address: { path: ['StreetNumber'], string_starts_with: shard } },
+      ],
+    },
+    select: {
+      id: true, listing_id: true, status: true, list_price: true,
+      bedrooms_total: true, bathrooms_full: true, bathrooms_half: true,
+      living_area: true, property_type: true, property_sub_type: true,
+      listing_type: true, address: true, features: true, media: true,
+    },
+    orderBy: { listing_id: 'asc' },
+    take: MANIFEST_ROW_BOUND,
+  });
+  if (rows.length === MANIFEST_ROW_BOUND) {
+    console.error(
+      `[building-manifest] ROW BOUND HIT (${MANIFEST_ROW_BOUND}) for shard "${shard}" — building payloads may be missing DB-layer rows; raise the bound.`,
+    );
+  }
+  return rows.map((l): ManifestListing => {
+    const addr = (l.address ?? {}) as Record<string, unknown>;
+    const features = (l.features ?? {}) as Record<string, unknown>;
+    const media = l.media as unknown[];
+    let photoUrl: string | null = null;
+    if (Array.isArray(media) && media.length > 0) {
+      const photo = (media as Record<string, unknown>[]).find((m) => classifyMediaItem(m) === 'photo');
+      const url = photo?.url || photo?.MediaURL;
+      photoUrl = url ? `/api/media/proxy?url=${encodeURIComponent(String(url))}` : null;
+    }
+    return {
+      id: String(l.id),
+      listing_id: l.listing_id,
+      status: l.status,
+      list_price: Number(l.list_price ?? 0),
+      bedrooms_total: l.bedrooms_total || 0,
+      bathrooms_full: l.bathrooms_full || 0,
+      bathrooms_half: l.bathrooms_half || 0,
+      living_area: l.living_area ? Number(l.living_area) : 0,
+      property_type: l.property_type || '',
+      property_sub_type: l.property_sub_type || '',
+      listing_type: l.listing_type || 'sale',
+      address: {
+        StreetNumber: String(addr.StreetNumber ?? ''),
+        StreetName: String(addr.StreetName ?? ''),
+        PostalCode: String(addr.PostalCode ?? ''),
+        UnitNumber: String(addr.UnitNumber ?? ''),
+        BuildingName: String(addr.BuildingName ?? ''),
+      },
+      features: {
+        CommonInterest: features.CommonInterest != null ? String(features.CommonInterest) : null,
+        YearBuilt: features.YearBuilt != null ? Number(features.YearBuilt) : null,
+        StoriesTotal: features.StoriesTotal != null ? Number(features.StoriesTotal) : null,
+      },
+      photoUrl,
+    };
+  });
+}
+
+/**
+ * Cached manifest shard. Tagged with the manifest tag AND the coarse search
+ * tag: when a sync changes ANYTHING, the shard refills on next use — that is
+ * ONE bounded query per shard per sync window (≤ ~10 total), regardless of
+ * how many distinct buildings are crawled. Per-building payload entries do
+ * NOT carry the search tag (see getBuildingDataCached).
+ */
+function getBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
+  return cachedPublicRead(
+    buildBuildingManifestShard,
+    ['building-manifest'],
+    { tags: [BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG] },
+  )(shard);
+}
+
 /** Assemble the complete public building payload (PURE READ — no Neon writes). */
 async function buildBuildingPayload(
   streetNumber: string,
@@ -348,45 +478,38 @@ async function buildBuildingPayload(
     // Trestle stores street names in UPPERCASE — OData contains() is case-sensitive
     const coreStreetNameUpper = coreStreetName.toUpperCase();
 
-    // ── 1. Query DB for all listings at this address (non-blocking) ──
-    let dbListings: Awaited<ReturnType<typeof prisma.listing.findMany>> = [];
+    // ── 1. DB layer via the shared building MANIFEST (zero per-building Neon
+    // queries — see the manifest block above). Matching semantics identical to
+    // the old per-building SQL: StreetNumber equals + StreetName contains core
+    // + optional PostalCode equals; then the old orderBy list_price desc,
+    // take 50.
+    let dbListings: ManifestListing[] = [];
     try {
-      const addressConditions: Record<string, unknown>[] = [
-        { path: ['StreetNumber'], equals: cleanStreetNumber },
-      ];
-      if (cleanPostalCode) {
-        addressConditions.push({ path: ['PostalCode'], equals: cleanPostalCode });
-      }
-
-      dbListings = await prisma.listing.findMany({
-        where: {
-          AND: [
-            { idx_display_yn: true },
-            { owner_opt_out: false },
-            { internet_entire_listing_display_yn: true },
-            { participant_only: false },
-            ...addressConditions.map((cond) => ({
-              address: { ...cond },
-            })),
-            {
-              address: {
-                path: ['StreetName'],
-                string_contains: coreStreetNameUpper,
-              },
-            },
-          ],
-        },
-        orderBy: { list_price: 'desc' },
-        take: 50,
-      });
+      const shard = cleanStreetNumber.charAt(0);
+      const manifest = shard ? await getBuildingManifestShard(shard) : [];
+      dbListings = manifest
+        .filter((l) => {
+          const a = l.address;
+          if (a.StreetNumber !== cleanStreetNumber) return false;
+          if (cleanPostalCode && a.PostalCode !== cleanPostalCode) return false;
+          return a.StreetName.toUpperCase().includes(coreStreetNameUpper);
+        })
+        .sort((x, y) => y.list_price - x.list_price)
+        .slice(0, 50);
     } catch (dbErr) {
-      console.warn('[/api/buildings] DB query failed, continuing with Trestle only:', dbErr);
+      console.warn('[/api/buildings] DB manifest lookup failed, continuing with Trestle only:', dbErr);
     }
 
     // Canonical status helpers — was `new Set(['Active', 'ActiveUnderContract', 'Coming Soon'])`
     // which included a space-formatted 'Coming Soon' that never matched DB values.
     const activeListings = dbListings.filter((l) => isActiveDisplayStatus(l.status));
-    const closedListings = dbListings.filter((l) => l.status === Status.CLOSED);
+    // NOTE (Neon-quiet 2026-07-23): the old DB-closed layer (status=Closed
+    // rows pushed as source:'mls' sale history) is GONE from this public
+    // payload — the public visibility contract below withholds every
+    // source:'mls' closed row anyway (ACRIS-only public sale history), so
+    // those rows never appeared in public output. Dropping them lets the
+    // manifest skip the heavy raw_data JSON entirely. Agent/internal
+    // surfaces are unaffected (they do not use this public module).
 
     // ── 2. Fetch from Trestle — ALL records at this address ──
     // Single broad query: no status filter, get everything, then separate
@@ -565,7 +688,7 @@ async function buildBuildingPayload(
     for (const l of activeListings) {
       if (seenIds.has(l.listing_id)) continue;
       seenIds.add(l.listing_id);
-      const addr = l.address as Record<string, unknown>;
+      const addr = l.address;
       activeUnits.push({
         id: String(l.id),
         mlsId: l.listing_id,
@@ -575,26 +698,17 @@ async function buildBuildingPayload(
         bathsHalf: l.bathrooms_half || 0,
         sqft: l.living_area ? Number(l.living_area) : 0,
         unit: String(addr.UnitNumber || ''),
-        propertyType: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || ''),
+        propertyType: mapPropertyTypeToDisplay(l.features.CommonInterest ?? undefined, l.property_sub_type, l.property_type || ''),
         office: '',
         status: l.status,
         listingType: l.listing_type || 'sale',
-        photoUrl: (() => {
-          const media = l.media as unknown[];
-          if (!Array.isArray(media) || media.length === 0) return null;
-          // Find first photo (skip floor plans, videos, virtual tours)
-          const photo = (media as Record<string, unknown>[]).find(m => classifyMediaItem(m) === 'photo');
-          if (!photo) return null;
-          const url = photo?.url || photo?.MediaURL;
-          return url ? `/api/media/proxy?url=${encodeURIComponent(String(url))}` : null;
-        })(),
+        photoUrl: l.photoUrl,
       });
 
-      // Extract building info from DB
-      const features = l.features as Record<string, unknown> | null;
+      // Extract building info from the DB manifest layer
       if (!buildingInfo.buildingName && addr.BuildingName) buildingInfo.buildingName = String(addr.BuildingName);
-      if (!buildingInfo.yearBuilt && features?.YearBuilt) buildingInfo.yearBuilt = Number(features.YearBuilt);
-      if (!buildingInfo.storiesTotal && features?.StoriesTotal) buildingInfo.storiesTotal = Number(features.StoriesTotal);
+      if (!buildingInfo.yearBuilt && l.features.YearBuilt) buildingInfo.yearBuilt = l.features.YearBuilt;
+      if (!buildingInfo.storiesTotal && l.features.StoriesTotal) buildingInfo.storiesTotal = l.features.StoriesTotal;
     }
 
     // ── 4. Merge sale history ──
@@ -629,26 +743,6 @@ async function buildBuildingPayload(
         closeDate: r.CloseDate ? String(r.CloseDate) : null,
         propertyType: String(r.PropertySubType || r.PropertyType || ''),
         office: String(r.ListOfficeName || ''),
-        source: 'mls',
-      });
-    }
-
-    for (const l of closedListings) {
-      if (seenSaleIds.has(l.listing_id)) continue;
-      seenSaleIds.add(l.listing_id);
-      const addr = l.address as Record<string, unknown>;
-      const raw = l.raw_data as Record<string, unknown> | null;
-      saleHistory.push({
-        id: String(l.id),
-        mlsId: l.listing_id,
-        closePrice: raw?.ClosePrice ? Number(raw.ClosePrice) : Number(l.list_price),
-        beds: l.bedrooms_total || 0,
-        baths: l.bathrooms_full || 0,
-        sqft: l.living_area ? Number(l.living_area) : 0,
-        unit: String(addr.UnitNumber || ''),
-        closeDate: raw?.CloseDate ? String(raw.CloseDate) : null,
-        propertyType: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || ''),
-        office: '',
         source: 'mls',
       });
     }
@@ -798,7 +892,13 @@ export async function getBuildingDataCached(params: {
     buildBuildingPayload,
     ['building-data', streetNumber.toUpperCase(), streetName.toUpperCase(), postalCode ?? ''],
     {
-      tags: [buildingCacheTag(streetNumber, streetName, postalCode ?? undefined), SEARCH_CACHE_TAG],
+      // EXACT tag only (Neon-quiet distinct-building correction): the coarse
+      // search tag would expire EVERY building on EVERY sync that changed any
+      // listing, recreating the crawler wake pattern. Sync now revalidates
+      // the exact building tags it materially changed (buildingTagFromAddress
+      // in lib/idx/sync.ts); everything else stays cached, with the 30-min
+      // fallback as the safety net (media-JSON-only changes ride the fallback).
+      tags: [buildingCacheTag(streetNumber, streetName, postalCode ?? undefined)],
     },
   )(streetNumber, streetName, postalCode, buildingName);
 }

@@ -157,29 +157,24 @@ describe("public shell — anonymous auth gate", () => {
     expect(hasAuthPresenceMarker("not_mallan_auth_present=1")).toBe(false);
   });
 
-  it("the presence marker is set at every session-cookie set site and cleared at every delete site", () => {
-    const setters = [
+  it("marker parity is owned by the CENTRALIZED helper — no file sets the session cookie directly", () => {
+    // Superseded by the repo-wide automatic sweep (Maya correction #3): the
+    // original hardcoded three-file parity check missed OAuth, MFA,
+    // impersonation and dev-login. Full coverage now lives in
+    // tests/runtime/neon-quiet-auth-marker-sweep.test.ts (repo-wide
+    // discovery + per-flow pins + legacy-session proxy mirror). Here we keep
+    // only the structural invariant that makes divergence impossible:
+    const helper = read("lib/auth/cookie-config.ts");
+    expect(helper).toContain("export function applySessionCookies");
+    expect(helper).toContain("export function clearSessionCookies");
+    for (const rel of [
       "app/api/auth/login/route.ts",
       "app/api/auth/invite/[token]/route.ts",
       "app/api/auth/reset-password/route.ts",
-    ];
-    for (const rel of setters) {
+    ]) {
       const src = read(rel);
-      const sessionSets = (src.match(/cookies\.set\(SESSION_COOKIE/g) ?? []).length;
-      const presenceSets = (src.match(/cookies\.set\(AUTH_PRESENCE_COOKIE/g) ?? []).length;
-      expect({ rel, presenceSets }).toEqual({ rel, presenceSets: sessionSets });
-    }
-    const clearers = [
-      "app/api/auth/logout/route.ts",
-      "app/api/auth/me/route.ts",
-      "app/api/auth/impersonation/stop/route.ts",
-      "lib/auth/middleware.ts",
-    ];
-    for (const rel of clearers) {
-      const src = read(rel);
-      const sessionDels = (src.match(/cookies\.delete\(SESSION_COOKIE\)/g) ?? []).length;
-      const presenceDels = (src.match(/cookies\.delete\(AUTH_PRESENCE_COOKIE\)/g) ?? []).length;
-      expect({ rel, presenceDels }).toEqual({ rel, presenceDels: sessionDels });
+      expect(src).toContain("applySessionCookies");
+      expect(src).not.toMatch(/cookies\.set\(\s*SESSION_COOKIE/);
     }
   });
 

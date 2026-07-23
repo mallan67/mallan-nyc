@@ -6,10 +6,17 @@ import { checkRateLimits } from "@/lib/middleware/rate-limiter";
 import { checkCsrf } from "@/lib/middleware/csrf";
 import { checkRouteGuards } from "@/lib/middleware/route-guards";
 import { applySecurityHeaders } from "@/lib/middleware/security-headers";
+import {
+  SESSION_COOKIE,
+  AUTH_PRESENCE_COOKIE,
+  getPresenceCookieConfig,
+} from "@/lib/auth/cookie-config";
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|images/|fonts/).*)",
+    // sitemap/ covers the partitioned /sitemap/{id}.xml files (2026-07-23) —
+    // same crawler-infrastructure exemption the classic /sitemap.xml has.
+    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemap/|images/|fonts/).*)",
   ],
 };
 
@@ -75,6 +82,17 @@ export default async function middleware(req: NextRequest) {
   // in PR #511 — it broke script loading under Next 16.2/Turbopack; there is no
   // SRI on scripts today. See lib/middleware/security-headers.ts.)
   const response = NextResponse.next();
+
+  // ── 5a. Legacy-session presence-marker mirror (Neon-quiet 2026-07-23) ──
+  // Sessions created BEFORE the presence marker shipped (or by any path that
+  // somehow missed it) have a session cookie but no marker, which would make
+  // the public shell render them as signed out. Mirror COOKIE PRESENCE only:
+  // if the session cookie exists and the marker doesn't, set the marker.
+  // NO validation, NO Neon read — the marker stays presentation-only (an
+  // invalid session still 401s at /api/auth/me, which clears both cookies).
+  if (req.cookies.has(SESSION_COOKIE) && !req.cookies.has(AUTH_PRESENCE_COOKIE)) {
+    response.cookies.set(AUTH_PRESENCE_COOKIE, "1", getPresenceCookieConfig("", ""));
+  }
 
   // CORS headers for allowed origins
   if (pathname.startsWith("/api") && isAllowedOrigin(origin)) {

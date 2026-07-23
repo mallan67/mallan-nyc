@@ -27,7 +27,7 @@ import { validateSession, SESSION_COOKIE } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { readFile } from "fs/promises";
 import path from "path";
-import { AUTH_PRESENCE_COOKIE } from "@/lib/auth/cookie-config";
+import { clearSessionCookies } from "@/lib/auth/cookie-config";
 
 // Company settings — sourced from data/company-settings.json with hardcoded fallbacks
 async function getCompanyInfo() {
@@ -74,8 +74,7 @@ export async function GET(req: NextRequest) {
       portalRole: null,
       user: null,
     });
-    res.cookies.delete(SESSION_COOKIE);
-    res.cookies.delete(AUTH_PRESENCE_COOKIE);
+    clearSessionCookies(res);
     return res;
   }
 

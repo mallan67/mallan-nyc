@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, logAuditEvent, requireAuth, isAuthError } from "@/lib/auth";
 import { destroySession } from "@/lib/auth/session";
-import { AUTH_PRESENCE_COOKIE } from "@/lib/auth/cookie-config";
+import { clearSessionCookies } from "@/lib/auth/cookie-config";
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -27,8 +27,7 @@ export async function POST(req: NextRequest) {
 
   // Clear cookie
   const res = NextResponse.json({ success: true, message: "Impersonation ended. Please log in again." });
-  res.cookies.delete(SESSION_COOKIE);
-  res.cookies.delete(AUTH_PRESENCE_COOKIE);
+  clearSessionCookies(res);
 
   return res;
 }

@@ -1,8 +1,9 @@
 // lib/auth/oauth.ts
 // Shared helpers for OAuth sign-in flows
 
+import { applySessionCookies } from "@/lib/auth/cookie-config";
 import prisma from "@/lib/prisma";
-import { createSession, SESSION_COOKIE } from "@/lib/auth";
+import { createSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://mallan.nyc";
@@ -46,13 +47,8 @@ export async function handleOAuthLogin(profile: OAuthProfile) {
     const res = NextResponse.redirect(
       `${SITE_URL}/crm/dashboard`
     );
-    res.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 24 * 60 * 60,
-    });
+    // OAuth agent sign-in keeps its historical 24h TTL (override).
+    applySessionCookies(res, token, "agent", agent.role, { sameSite: "lax", maxAge: 24 * 60 * 60 });
     return res;
   }
 
@@ -80,13 +76,8 @@ export async function handleOAuthLogin(profile: OAuthProfile) {
     // New user — redirect to complete profile (pick role + add phone)
     const token = await createSession("lead", lead.id, "buyer");
     const res = NextResponse.redirect(`${SITE_URL}/portal/complete-profile`);
-    res.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 24 * 60 * 60,
-    });
+    // New OAuth lead: historical 24h TTL (override of the 30d lead default).
+    applySessionCookies(res, token, "lead", "buyer", { maxAge: 24 * 60 * 60 });
     return res;
   }
 
@@ -101,12 +92,7 @@ export async function handleOAuthLogin(profile: OAuthProfile) {
     : `${SITE_URL}/portal`;
 
   const res = NextResponse.redirect(redirectUrl);
-  res.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 24 * 60 * 60,
-  });
+  // Existing OAuth lead: historical 24h TTL (override of the 30d lead default).
+  applySessionCookies(res, token, "lead", role, { maxAge: 24 * 60 * 60 });
   return res;
 }

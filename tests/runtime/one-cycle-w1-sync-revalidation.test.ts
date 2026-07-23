@@ -240,7 +240,11 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
     // idx-watermark tag AFTER its SyncState upsert commits (the public
     // "data last updated" time advances on every successful sync).
     expect(tags.filter((t) => t === "idx-watermark").length).toBe(1);
-    expect(result.write_paths.revalidation.pages_revalidated).toBe(3); // listing tag + search + idx-watermark
+    // Neon-quiet distinct-building correction: a materially changed listing
+    // ALSO revalidates its EXACT building tag (per-building entries no longer
+    // carry the coarse search tag, so sync must name changed buildings).
+    expect(tags.some((t2) => t2.startsWith("building:"))).toBe(true);
+    expect(result.write_paths.revalidation.pages_revalidated).toBe(4); // listing + building + search + idx-watermark
     expect(result.write_paths.revalidation.revalidation_failures).toBe(0);
   });
 

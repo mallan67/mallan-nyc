@@ -3,8 +3,12 @@ import prisma from '@/lib/prisma';
 import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
-import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
+import {
+  LISTINGS_PER_SITEMAP,
+  SITEMAP_LISTING_WHERE,
+  getSitemapPartitionIds,
+} from '@/lib/seo/sitemap-partitions';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -12,37 +16,25 @@ const BASE_URL = 'https://mallan.nyc';
 // Runtime generation, not build-time.
 //
 // Vercel's build runtime intentionally does not expose `DATABASE_URL` per the
-// documented architecture (see NEON.md §1 and docs/DEPLOYMENT.md). Previously
-// this sitemap ran at build time, hit `Environment variable not found:
-// DATABASE_URL`, caught the error, and served an empty listing-URL section.
-// Result: the deployed sitemap.xml on production never contained any
-// `/listing/{slug}` URLs — Google could not discover listing pages from it.
+// documented architecture (see NEON.md §1 and docs/DEPLOYMENT.md), so this
+// runs with `force-dynamic` and edge-caches for 5 minutes.
 //
-// `force-dynamic` defers generation to runtime on the first request, where
-// DATABASE_URL is set via Vercel env vars. `revalidate = 300` caches the
-// rendered XML at the edge for 5 minutes.
+// PARTITIONED (2026-07-23): `generateSitemaps` serves this file at
+// /sitemap/{id}.xml — partition 0 is the static/legal/agents/buildings head,
+// partitions 1..K are deterministic 10k listing chunks. The partition count
+// derives from a cached COUNT of the exact gated population (+1 slack chunk),
+// and the whole set FAILS CLOSED past the cap — silent truncation is
+// structurally impossible (see lib/seo/sitemap-partitions.ts). The classic
+// /sitemap.xml URL keeps working as a sitemap INDEX over the partitions
+// (app/sitemap.xml/route.ts), so robots.txt and Search Console registrations
+// are unchanged.
 //
-// Neon-quiet (2026-07-23): a regeneration no longer scans Neon. The three
-// DB-backed sections (listings, agents, buildings) are assembled by ONE
-// cached builder tagged with the coarse `search` tag — the same tag every
-// successful idx-sync revalidates when anything changed (One Cycle: the
-// sitemap can never be fresher than the feed sync, so serving the cached
-// entry until the sync bumps the tag loses zero freshness; the 30-min
-// fallback window covers a missed revalidation). Repeated crawler hits
-// therefore execute ZERO Prisma queries between syncs.
+// Neon-quiet: every DB section runs through cachedPublicRead tagged `search`
+// (revalidated by every idx-sync that changed anything; 30-min fallback) —
+// crawler regenerations execute ZERO Neon queries between syncs.
 // ──────────────────────────────────────────────────────────────────────────
 export const dynamic = 'force-dynamic';
 export const revalidate = 300;
-
-/**
- * Defensive upper bound on sitemap listing rows. NOT a truncation in
- * practice: the sitemap protocol caps a file at 50,000 URLs and the live
- * displayable population is ~10.3k (2026-07 audit), so every canonical
- * listing URL is preserved. The bound exists so a runaway population can
- * never turn sitemap regeneration into an unbounded scan again; if it is
- * ever hit we log loudly (no silent caps).
- */
-const SITEMAP_LISTING_BOUND = 25000;
 
 interface SitemapEntry {
   url: string;
@@ -52,94 +44,120 @@ interface SitemapEntry {
   priority: number;
 }
 
+const LISTING_ROW_SELECT = {
+  listing_id: true,
+  mls_id: true,
+  address: true,
+  internet_address_display_yn: true,
+  modification_timestamp: true,
+} as const;
+
+type SitemapListingRow = {
+  listing_id: string;
+  mls_id: string | null;
+  address: unknown;
+  internet_address_display_yn: boolean | null;
+  modification_timestamp: Date | string | null;
+};
+
 /**
- * All DB-backed sitemap sections in one pass. COMPLIANCE-preserving:
- * identical distribution-gate WHERE clause, identical slug composition
- * (SEO-001 shared helper), identical CRM-vs-IDX dedupe, identical
- * suppressed-address handling — only the caching + bounds around the
- * queries changed.
+ * CRM exclusives (SL-/RL-) for the global dedupe context. Small set; cached.
+ * Every chunk dedupes against ALL CRM rows so a CRM exclusive and its IDX
+ * duplicate can never both be emitted even when they land in different
+ * partitions.
  */
-async function buildDynamicSitemapEntries(): Promise<{
-  listingPages: SitemapEntry[];
-  agentPages: SitemapEntry[];
-  buildingPages: SitemapEntry[];
-}> {
+async function fetchCrmExclusiveRows(): Promise<SitemapListingRow[]> {
+  const rows = await prisma.listing.findMany({
+    where: {
+      AND: [
+        SITEMAP_LISTING_WHERE,
+        { OR: [{ listing_id: { startsWith: 'SL-' } }, { listing_id: { startsWith: 'RL-' } }] },
+      ],
+    },
+    select: LISTING_ROW_SELECT,
+    orderBy: { listing_id: 'asc' },
+  });
+  return rows.map((r) => ({ ...r, modification_timestamp: r.modification_timestamp?.toISOString?.() ?? null }));
+}
+const getCrmExclusiveRows = cachedPublicRead(fetchCrmExclusiveRows, ['sitemap-crm-rows'], {
+  tags: [SEARCH_CACHE_TAG],
+});
+
+/** One deterministic listing chunk (orderBy listing_id ASC, skip/take). */
+async function fetchListingChunk(chunkIndex: number): Promise<SitemapListingRow[]> {
+  const rows = await prisma.listing.findMany({
+    where: SITEMAP_LISTING_WHERE,
+    select: LISTING_ROW_SELECT,
+    orderBy: { listing_id: 'asc' },
+    skip: chunkIndex * LISTINGS_PER_SITEMAP,
+    take: LISTINGS_PER_SITEMAP,
+  });
+  return rows.map((r) => ({ ...r, modification_timestamp: r.modification_timestamp?.toISOString?.() ?? null }));
+}
+const getListingChunk = cachedPublicRead(fetchListingChunk, ['sitemap-listing-chunk'], {
+  tags: [SEARCH_CACHE_TAG],
+});
+
+function listingRowToEntry(l: SitemapListingRow, nowIso: string): SitemapEntry {
+  const addr = (l.address || {}) as Record<string, string>;
+  const slug = generateListingSlug({
+    address: {
+      streetNumber: addr.StreetNumber || addr.streetNumber || '',
+      // SEO-001 (2026-07-02): compose DirPrefix + Name + Suffix via the
+      // SHARED helper — passing StreetName alone made 10,069/10,239
+      // sitemap URLs diverge from the page canonicals (full-population
+      // audit 2026-07-01; e.g. "434-20th-…" vs "434-w-20th-street-…").
+      streetName: composeSlugStreetName(addr),
+      unitNumber: addr.UnitNumber || addr.unitNumber || null,
+      city: addr.City || addr.city || 'New York',
+      stateOrProvince: addr.StateOrProvince || addr.stateOrProvince || 'NY',
+      postalCode: addr.PostalCode || addr.postalCode || '',
+    },
+    id: l.listing_id,
+    mlsId: l.mls_id || l.listing_id,
+    internetAddressDisplayYN: l.internet_address_display_yn ?? undefined,
+  });
+  return {
+    url: `${BASE_URL}${buildCanonicalListingPath({ slug, id: l.listing_id })}`,
+    lastModified: typeof l.modification_timestamp === 'string'
+      ? l.modification_timestamp
+      : (l.modification_timestamp?.toISOString?.() ?? nowIso),
+    changeFrequency: 'daily' as const,
+    priority: 0.7,
+  };
+}
+
+/**
+ * Listing partition: chunk ∪ (global CRM rows) → shared dedupe → keep only
+ * rows that belong to this chunk. Deterministic; every canonical URL appears
+ * in exactly one partition; distribution gates + suppressed-address handling
+ * identical to the pre-partition sitemap.
+ */
+async function buildListingPartition(chunkIndex: number): Promise<SitemapEntry[]> {
+  const nowIso = new Date().toISOString();
+  try {
+    const [chunk, crmRows] = await Promise.all([getListingChunk(chunkIndex), getCrmExclusiveRows()]);
+    const chunkIds = new Set(chunk.map((l) => l.listing_id));
+    const merged = [...chunk];
+    for (const crm of crmRows) if (!chunkIds.has(crm.listing_id)) merged.push(crm);
+    // Public-surface dedupe (2026-05-28): prefer the Mallan CRM exclusive
+    // over its Trestle/IDX duplicate for the same physical unit. See
+    // lib/listings/dedupe-crm-vs-idx.ts.
+    const deduped = dedupeRawDbRows(merged as never[]) as unknown as SitemapListingRow[];
+    return deduped.filter((l) => chunkIds.has(l.listing_id)).map((l) => listingRowToEntry(l, nowIso));
+  } catch (err) {
+    // Non-fatal for THIS partition (matches the old behavior for the listing
+    // section): the partition renders empty this pass; the index and other
+    // partitions are unaffected and the next revalidation retries.
+    console.error(`[sitemap] Failed to build listing partition ${chunkIndex}:`, err);
+    return [];
+  }
+}
+
+/** Agents + buildings head sections (partition 0), cached together. */
+async function buildHeadDynamicSections(): Promise<{ agentPages: SitemapEntry[]; buildingPages: SitemapEntry[] }> {
   const nowIso = new Date().toISOString();
 
-  // Dynamic listing pages — only IDX-displayable, non-suppressed listings
-  let listingPages: SitemapEntry[] = [];
-  try {
-    const listingsRaw = await prisma.listing.findMany({
-      where: {
-        // Distribution gates — all must pass for sitemap inclusion
-        idx_display_yn: true,
-        internet_entire_listing_display_yn: true,
-        owner_opt_out: false,
-        participant_only: false,
-        // Only active listings (closed removed per 24h rule).
-        // Canonical values from lib/compliance/status.ts — was
-        // `['Active', 'Coming Soon']` which never matched because DB
-        // stores `ComingSoon` (no space). Sitemap excluded every Coming
-        // Soon listing as a result. Fixed here.
-        status: { in: [...ACTIVE_DISPLAY_VALUES] },
-      },
-      select: {
-        listing_id: true,
-        mls_id: true,
-        address: true,
-        internet_address_display_yn: true,
-        modification_timestamp: true,
-      },
-      // Deterministic order + defensive bound (see SITEMAP_LISTING_BOUND).
-      orderBy: [{ modification_timestamp: 'desc' }, { listing_id: 'asc' }],
-      take: SITEMAP_LISTING_BOUND,
-    });
-    if (listingsRaw.length === SITEMAP_LISTING_BOUND) {
-      console.error(
-        `[sitemap] LISTING BOUND HIT (${SITEMAP_LISTING_BOUND}) — sitemap may be truncating canonical URLs; raise the bound / split the sitemap.`,
-      );
-    }
-
-    // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
-    // (SL-/RL-) and a Trestle-synced IDX duplicate exist for the same
-    // physical unit, emit only the CRM canonical URL. Avoids
-    // duplicate-content SEO penalty for our own listings. See
-    // lib/listings/dedupe-crm-vs-idx.ts.
-    const listings = dedupeRawDbRows(listingsRaw);
-
-    listingPages = listings.map((l) => {
-      const addr = (l.address || {}) as Record<string, string>;
-      const slug = generateListingSlug({
-        address: {
-          streetNumber: addr.StreetNumber || addr.streetNumber || '',
-          // SEO-001 (2026-07-02): compose DirPrefix + Name + Suffix via the
-          // SHARED helper — passing StreetName alone made 10,069/10,239
-          // sitemap URLs diverge from the page canonicals (full-population
-          // audit 2026-07-01; e.g. "434-20th-…" vs "434-w-20th-street-…").
-          streetName: composeSlugStreetName(addr),
-          unitNumber: addr.UnitNumber || addr.unitNumber || null,
-          city: addr.City || addr.city || 'New York',
-          stateOrProvince: addr.StateOrProvince || addr.stateOrProvince || 'NY',
-          postalCode: addr.PostalCode || addr.postalCode || '',
-        },
-        id: l.listing_id,
-        mlsId: l.mls_id || l.listing_id,
-        internetAddressDisplayYN: l.internet_address_display_yn,
-      });
-
-      return {
-        url: `${BASE_URL}${buildCanonicalListingPath({ slug, id: l.listing_id })}`,
-        lastModified: (l.modification_timestamp ?? new Date(nowIso)).toISOString(),
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-      };
-    });
-  } catch (err) {
-    // Non-fatal — sitemap still includes static pages
-    console.error('[sitemap] Failed to fetch listings:', err);
-  }
-
-  // Agent profile pages
   let agentPages: SitemapEntry[] = [];
   try {
     const agents = await prisma.agent.findMany({
@@ -152,7 +170,7 @@ async function buildDynamicSitemapEntries(): Promise<{
       .filter((a) => a.public_slug)
       .map((a) => ({
         url: `${BASE_URL}/agents/${a.public_slug}`,
-        lastModified: (a.updated_at ?? new Date(nowIso)).toISOString(),
+        lastModified: a.updated_at?.toISOString() ?? nowIso,
         changeFrequency: 'weekly' as const,
         priority: 0.6,
       }));
@@ -162,11 +180,9 @@ async function buildDynamicSitemapEntries(): Promise<{
 
   // Building profile pages — from the local buildings table. NOTE (2026-07-23
   // production measurement): this table has 0 rows — the request-time "silent
-  // upsert" that was supposed to populate it never fired (BuildingKeyNumeric
-  // absent from the public $select) and has now been removed from the public
-  // GET entirely. This section currently emits zero URLs; crawlers discover
-  // building pages via on-page links. It stays so an explicit, approved
-  // building-sync workflow can light it up later.
+  // upsert" that was supposed to populate it never fired and has been removed
+  // from the public GET. This section currently emits zero URLs; it stays so
+  // an explicit, approved building-sync workflow can light it up later.
   let buildingPages: SitemapEntry[] = [];
   try {
     const buildings = await prisma.building.findMany({
@@ -199,7 +215,7 @@ async function buildDynamicSitemapEntries(): Promise<{
         if (b.name) sp.set('bn', b.name);
         return {
           url: `${BASE_URL}/buildings/${slug}?${sp.toString()}`,
-          lastModified: (b.last_synced_at ?? new Date(nowIso)).toISOString(),
+          lastModified: b.last_synced_at?.toISOString() ?? nowIso,
           changeFrequency: 'weekly' as const,
           priority: 0.6,
         };
@@ -208,31 +224,31 @@ async function buildDynamicSitemapEntries(): Promise<{
     // Non-fatal
   }
 
-  return { listingPages, agentPages, buildingPages };
+  return { agentPages, buildingPages };
+}
+const getHeadDynamicSections = cachedPublicRead(buildHeadDynamicSections, ['sitemap-head-sections'], {
+  tags: [SEARCH_CACHE_TAG],
+});
+
+/** Partition ids for Next's metadata route machinery. */
+export async function generateSitemaps(): Promise<Array<{ id: number }>> {
+  const ids = await getSitemapPartitionIds();
+  return ids.map((id) => ({ id }));
 }
 
 /**
- * Cached accessor for the DB-backed sections. `search` tag = revalidated by
- * every idx-sync that changed anything; 30-min sync-cadence fallback.
- */
-const getDynamicSitemapEntries = cachedPublicRead(
-  buildDynamicSitemapEntries,
-  ['sitemap-dynamic-entries'],
-  { tags: [SEARCH_CACHE_TAG] },
-);
-
-/**
- * Dynamic sitemap generation for Next.js 13+
- * Only includes safe-to-index public routes.
- * Excludes: admin, client-access, demo, agent-only routes.
- *
- * COMPLIANCE:
+ * COMPLIANCE (unchanged):
  * - Only includes listings that pass all distribution gates
  * - Suppressed-address listings use MLS-ID-based slugs (no address leak)
  * - Closed listings excluded (24-hour removal rule)
  * - Owner opt-out / participant-only excluded
+ * - Excludes: admin, client-access, demo, agent-only routes
  */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
+  if (id > 0) {
+    return buildListingPartition(id - 1);
+  }
+
   const now = new Date();
 
   // Core public pages - always indexed
@@ -247,7 +263,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/open-houses`, lastModified: now, changeFrequency: 'daily', priority: 0.8 },
     // /search is NOT in the sitemap — it's a parameterless thin-content page.
-    // The canonical indexable listing URLs are /listing/{slug} (included below).
+    // The canonical indexable listing URLs are /listing/{slug} (partitions 1+).
     // robots.ts blocks /search for all bots; listing these here would create
     // a mixed signal that previously confused Google crawling.
     { url: `${BASE_URL}/contact`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
@@ -269,7 +285,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/reasonable-accommodations`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];
 
-  const { listingPages, agentPages, buildingPages } = await getDynamicSitemapEntries();
+  const { agentPages, buildingPages } = await getHeadDynamicSections();
 
-  return [...staticPages, ...legalPages, ...listingPages, ...agentPages, ...buildingPages];
+  return [...staticPages, ...legalPages, ...agentPages, ...buildingPages];
 }
