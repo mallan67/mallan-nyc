@@ -98,11 +98,17 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       expect(idxSyncFnConfig!.maxDuration).toBe(120);
     });
 
-    it("keeps idx-sync cron schedule at '*/30 * * * *' in vercel.json", () => {
+    it("runs idx-sync via the unified One Cycle orchestrator (*/10), not an independent */30 cron", () => {
+      // W2 unification (2026-07-24): idx-sync is no longer an independent Vercel
+      // cron entry — it is a member of /api/cron/one-cycle (*/10). The route
+      // stays deployed (its maxDuration entry above is retained) for manual
+      // triggering, but the standalone schedule was removed so the whole
+      // machine shares ONE 10-minute timeline.
       const crons = vercelJson.crons ?? [];
-      const idxSyncCron = crons.find(c => c.path === '/api/cron/idx-sync');
-      expect(idxSyncCron).toBeDefined();
-      expect(idxSyncCron!.schedule).toBe('*/30 * * * *');
+      expect(crons.find(c => c.path === '/api/cron/idx-sync')).toBeUndefined();
+      const oneCycle = crons.find(c => c.path === '/api/cron/one-cycle');
+      expect(oneCycle).toBeDefined();
+      expect(oneCycle!.schedule).toBe('*/10 * * * *');
     });
 
     it("keeps useExpandMedia = false in lib/idx/sync.ts (Trestle $expand=Media disabled by PR #127)", () => {

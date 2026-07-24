@@ -91,8 +91,16 @@ async function runMember(
 ): Promise<MemberResult> {
   const started = Date.now();
   try {
+    // `x-one-cycle-member` signals the member it is running INSIDE the
+    // orchestrator. The orchestrator is the single 10-minute concurrency unit
+    // (members run sequentially, never overlapping; the media drain also holds
+    // a pg advisory lock), so the member's own AuditEvent concurrency guard —
+    // which is a 10-minute lookback and would therefore FALSE-TRIGGER at a
+    // 10-minute cadence (each run's completion lands inside the next cycle's
+    // window) — is bypassed for the orchestrated path. The guard stays active
+    // for manual / standalone invocation.
     const req = new NextRequest(`https://internal.one-cycle/${member}`, {
-      headers: { authorization: authHeader },
+      headers: { authorization: authHeader, 'x-one-cycle-member': '1' },
     });
     const raced = await Promise.race([
       handler(req).then(async (res) => ({

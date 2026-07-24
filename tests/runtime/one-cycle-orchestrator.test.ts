@@ -86,6 +86,15 @@ describe("one-cycle — ordering + auth forwarding", () => {
     expect(idxGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
     expect(mediaGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
   });
+
+  it("signals both members they are orchestrated (x-one-cycle-member=1) so their 10-min guards do not self-skip the 10-min cadence", async () => {
+    // The concurrency-guard bypass depends on this exact header: a 10-minute
+    // AuditEvent guard at a 10-minute cadence would otherwise false-trigger and
+    // drop every other cycle to an effective 20-minute cadence.
+    await GET(makeReq(AUTH));
+    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("1");
+    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("1");
+  });
 });
 
 describe("one-cycle — failure isolation (W2 §(d))", () => {

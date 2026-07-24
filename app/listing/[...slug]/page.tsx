@@ -55,14 +55,15 @@ import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, 
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
-// ISR — revalidate every 5 minutes so the synchronized Neon copy stays fresh
-// while the rendered page is CDN-cached.
+// ISR — the rendered page is CDN-cached and re-rendered on this window.
 // One Cycle W1: the page can never be fresher than the feed sync (data
-// changes ONLY when One Cycle runs), so the ISR window equals the sync
-// cadence — identical effective freshness, ~6× fewer re-renders. Must stay a
-// LITERAL for Next's static analysis (= SYNC_CADENCE_SECONDS in
-// lib/cache/public-cache.ts).
-export const revalidate = 1800;
+// changes ONLY when One Cycle runs), so the ISR window equals the unified
+// One Cycle cadence (10 min) — identical effective freshness, and sync-driven
+// revalidateTag still expires the page in-line on every actual change. Must
+// stay a LITERAL for Next's static analysis (= SYNC_CADENCE_SECONDS = 10*60 in
+// lib/cache/public-cache.ts; keep all three — cron, this window, the constant —
+// in lockstep).
+export const revalidate = 600;
 export const maxDuration = 60;
 
 // Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,

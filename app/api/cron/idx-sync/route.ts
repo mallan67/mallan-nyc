@@ -28,8 +28,14 @@ export async function GET(req: NextRequest) {
 
   const forceFull = req.nextUrl.searchParams.get('full') === 'true';
 
-  // Concurrency guard — prevent overlapping sync runs (skip for manual full sync)
-  if (!forceFull) {
+  // Concurrency guard — prevent overlapping sync runs. Skipped for a manual
+  // full sync, and for the One Cycle orchestrated path: the orchestrator is
+  // the single 10-minute concurrency unit (sequential members, one cycle every
+  // 10 min), so this 10-minute AuditEvent lookback — which would FALSE-TRIGGER
+  // at a 10-minute cadence — must not gate the orchestrated call. It remains
+  // the overlap guard for manual / standalone invocation.
+  const orchestrated = req.headers.get("x-one-cycle-member") === "1";
+  if (!forceFull && !orchestrated) {
     const recentSync = await prisma.auditEvent.findFirst({
       where: {
         action: "idx_sync_cron",

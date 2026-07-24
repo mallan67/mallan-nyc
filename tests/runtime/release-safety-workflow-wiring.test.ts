@@ -68,13 +68,17 @@ describe('release-safety P2 — workflow wiring pins', () => {
     expect(rt).toContain('RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF');
   });
 
-  test('vercel.json cron cadences are untouched by P2 (COTALITY-10 is a separate stage)', () => {
+  test('feed + media sync run on the unified One Cycle cadence (*/10), not independent crons', () => {
+    // W2 unification (2026-07-24): the standalone idx-sync (*/30) and
+    // media-sync (hourly) cron entries were replaced by /api/cron/one-cycle
+    // (*/10), which invokes both in-process on ONE 10-minute timeline.
     const vercel = JSON.parse(read('vercel.json'));
     const bySchedule = Object.fromEntries(
       (vercel.crons || []).map((c: { path: string; schedule: string }) => [c.path, c.schedule])
     );
-    expect(bySchedule['/api/cron/idx-sync']).toBe('*/30 * * * *');
-    expect(bySchedule['/api/cron/media-sync']).toBe('0 * * * *');
+    expect(bySchedule['/api/cron/idx-sync']).toBeUndefined();
+    expect(bySchedule['/api/cron/media-sync']).toBeUndefined();
+    expect(bySchedule['/api/cron/one-cycle']).toBe('*/10 * * * *');
   });
 
   test('P2 scripts exist where the runbook points', () => {

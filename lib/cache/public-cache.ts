@@ -28,13 +28,15 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 
 /**
- * Fallback time-based revalidation window (seconds) — equal to the idx-sync
- * cadence (30 min), NOT a freshness mechanism of its own: sync-driven
+ * Fallback time-based revalidation window (seconds) — equal to the unified
+ * One Cycle cadence (10 min), NOT a freshness mechanism of its own: sync-driven
  * `revalidateTag` is the primary invalidation. This is a safety net for
  * entries whose tags a revalidation pass could not derive (e.g. address-slug
- * keyed lookups) or a missed revalidation.
+ * keyed lookups) or a missed revalidation. Kept in lockstep with the
+ * `/api/cron/one-cycle` schedule (*&#47;10) and the listing-detail ISR window so
+ * the whole machine shares ONE timeline.
  */
-export const SYNC_CADENCE_SECONDS = 30 * 60;
+export const SYNC_CADENCE_SECONDS = 10 * 60;
 
 /** Coarse tag bumped once per sync run when ANYTHING changed — covers search/
  *  browse/collection surfaces (home, /search, borough + neighborhood pages). */

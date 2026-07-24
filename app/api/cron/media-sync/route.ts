@@ -1,7 +1,8 @@
 // GET /api/cron/media-sync
-// Vercel cron — runs every 15 minutes. Drives the listing_media R2 mirror
-// pipeline: cursor → Trestle Property → Media → upsert → mirror → summary.
-// Protected by CRON_SECRET (timing-safe).
+// Invoked by the One Cycle orchestrator every 10 minutes (no longer an
+// independent Vercel cron entry; the route stays deployed for manual trigger).
+// Drives the listing_media R2 mirror pipeline: cursor → Trestle Property →
+// Media → upsert → mirror → summary. Protected by CRON_SECRET (timing-safe).
 //
 // Master refactor PR 3 Checkpoint 5 (memory/REFACTOR-2026-04-25.md).
 // Reader path is UNCHANGED — public site still reads Listing.media JSON.
@@ -40,19 +41,27 @@ export async function GET(req: NextRequest) {
   }
 
   // 3. Concurrency guard — skip if a successful run logged within the last
-  // 10 minutes. Mirrors the existing idx-sync pattern.
-  const recent = await prisma.auditEvent.findFirst({
-    where: {
-      action: "media_sync_cron",
-      created_at: { gte: new Date(Date.now() - CONCURRENCY_GUARD_MS) },
-    },
-    orderBy: { created_at: "desc" },
-  });
-  if (recent) {
-    return NextResponse.json({
-      skipped: true,
-      reason: "media_sync_cron ran within last 10 minutes",
+  // 10 minutes. Mirrors the existing idx-sync pattern. Bypassed for the One
+  // Cycle orchestrated path: the orchestrator is the single 10-minute
+  // concurrency unit (sequential members; the drain also holds a pg advisory
+  // lock), so this 10-minute lookback — which would FALSE-TRIGGER at a
+  // 10-minute cadence — must not gate the orchestrated call. It stays active
+  // for manual / standalone invocation.
+  const orchestrated = req.headers.get("x-one-cycle-member") === "1";
+  if (!orchestrated) {
+    const recent = await prisma.auditEvent.findFirst({
+      where: {
+        action: "media_sync_cron",
+        created_at: { gte: new Date(Date.now() - CONCURRENCY_GUARD_MS) },
+      },
+      orderBy: { created_at: "desc" },
     });
+    if (recent) {
+      return NextResponse.json({
+        skipped: true,
+        reason: "media_sync_cron ran within last 10 minutes",
+      });
+    }
   }
 
   // 4. Run sync. Failure here writes the error audit event; the cursor is

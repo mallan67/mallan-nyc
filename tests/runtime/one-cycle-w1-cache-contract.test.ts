@@ -50,9 +50,9 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/async function trestleFetchJson\(url: string\)/);
   });
 
-  it("listing detail page ISR window equals the sync cadence (literal 1800)", () => {
+  it("listing detail page ISR window equals the unified One Cycle cadence (literal 600 = 10 min)", () => {
     const src = read("app/listing/[...slug]/page.tsx");
-    expect(src).toMatch(/export const revalidate = 1800;/);
+    expect(src).toMatch(/export const revalidate = 600;/);
   });
 
   // ── Codex P2 fix: the detail page's ISR HTML itself must be tag-evictable ──
@@ -81,9 +81,9 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/unstable_cache\(async \(\) => tags/);
   });
 
-  it("the cache module defaults its fallback window to the sync cadence (30 min)", () => {
+  it("the cache module defaults its fallback window to the unified One Cycle cadence (10 min)", () => {
     const src = read("lib/cache/public-cache.ts");
-    expect(src).toMatch(/SYNC_CADENCE_SECONDS = 30 \* 60/);
+    expect(src).toMatch(/SYNC_CADENCE_SECONDS = 10 \* 60/);
     expect(src).toMatch(/unstable_cache/);
   });
 });
