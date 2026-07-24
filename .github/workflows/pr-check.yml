@@ -31,8 +31,8 @@ jobs:
       DATABASE_URL_UNPOOLED: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
       # Enables tests/runtime/lead-upsert.integration.test.ts to run against the
       # ephemeral postgres service (schema created by `prisma db push` below).
-      # Same scratch DB as DATABASE_URL — the integration test gates on this
-      # dedicated var so it can never point at a real/production database.
+      # CI configures CONTACT_DB_INTEGRATION_URL to use the ephemeral PostgreSQL
+      # service. Local runs must use a throwaway database.
       CONTACT_DB_INTEGRATION_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
 
     steps:

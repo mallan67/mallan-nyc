@@ -11,11 +11,9 @@
  * committed row.
  *
  * Safety + gating: runs ONLY when `CONTACT_DB_INTEGRATION_URL` is set, and never
- * against the default `DATABASE_URL`, so it cannot touch production. Point it at
- * a throwaway / CI Postgres that has the Prisma schema applied (`prisma db
- * push`). In CI, pr-check.yml sets `CONTACT_DB_INTEGRATION_URL` to the ephemeral
- * postgres service after the schema is pushed. Locally, point
- * `CONTACT_DB_INTEGRATION_URL` at a scratch database with the schema pushed.
+ * against the default `DATABASE_URL`. CI configures CONTACT_DB_INTEGRATION_URL
+ * to use the ephemeral PostgreSQL service. Local runs must use a throwaway
+ * database with the Prisma schema applied (`prisma db push`).
  *
  * Structure note: the guard is a top-level `if (!url) { describe.skip } else {
  * describe }` — NOT `describe.skip(...)` with a constructing callback. Jest
