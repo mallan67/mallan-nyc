@@ -433,3 +433,167 @@ export const LISTING_SYNC_COMPARE_SELECT = {
   co_list_office_mls_id: true,
   co_list_agent_mls_id: true,
 } as const;
+
+// ── Change-reason attribution (Maya directive 2026-07-24) ──────────────────
+//
+// WHY: 83–95% of fetched listings count as "materially changed" every cycle
+// because `modification_timestamp` is deliberately material (a source
+// revision must persist). These counters attribute each physical write to
+// WHAT actually changed, so a provenance-only revision (timestamp bump with
+// zero visible field changes) can keep its row write but stop invalidating
+// listing/building/search caches and stop triggering manifest warms.
+
+export const LISTING_CHANGE_REASON_KEYS = [
+  "modification_timestamp_only",
+  "raw_data_only",
+  "status",
+  "price",
+  "address",
+  "display_permissions",
+  "media_identity",
+  "attribution",
+  "other",
+] as const;
+
+export type ListingChangeReason = (typeof LISTING_CHANGE_REASON_KEYS)[number];
+export type ListingChangeReasonCounters = Record<ListingChangeReason, number>;
+
+export function newListingChangeReasonCounters(): ListingChangeReasonCounters {
+  return Object.fromEntries(
+    LISTING_CHANGE_REASON_KEYS.map((k) => [k, 0]),
+  ) as ListingChangeReasonCounters;
+}
+
+export const PROJECTION_CHANGE_REASON_KEYS = [
+  "source_timestamp_only",
+  "search_visible_fields",
+] as const;
+
+export type ProjectionChangeReason = (typeof PROJECTION_CHANGE_REASON_KEYS)[number];
+export type ProjectionChangeReasonCounters = Record<ProjectionChangeReason, number>;
+
+export function newProjectionChangeReasonCounters(): ProjectionChangeReasonCounters {
+  return Object.fromEntries(
+    PROJECTION_CHANGE_REASON_KEYS.map((k) => [k, 0]),
+  ) as ProjectionChangeReasonCounters;
+}
+
+/** Material listing field → reason category. `modification_timestamp` and
+ *  `raw_data` are handled by the exclusive buckets, never by this map.
+ *  Anything unmapped classifies as "other". */
+const LISTING_FIELD_CHANGE_CATEGORY: Readonly<Record<string, ListingChangeReason>> = {
+  status: "status",
+  sync_status: "status",
+  status_changed_at: "status",
+  first_active_date: "status",
+  days_on_market: "status",
+  cumulative_days_on_market: "status",
+  terminal_since: "status",
+  listing_contract_date: "status",
+  list_price: "price",
+  address: "address",
+  borough: "address",
+  neighborhood: "address",
+  city: "address",
+  postal_code: "address",
+  idx_display_yn: "display_permissions",
+  internet_entire_listing_display_yn: "display_permissions",
+  internet_address_display_yn: "display_permissions",
+  participant_only: "display_permissions",
+  owner_opt_out: "display_permissions",
+  media: "media_identity",
+  primary_photo_url: "media_identity",
+  photos_count: "media_identity",
+  agent_id: "attribution",
+  list_agent_full_name: "attribution",
+  list_office_name: "attribution",
+  list_agent_email: "attribution",
+  list_agent_direct_phone: "attribution",
+  list_office_mls_id: "attribution",
+  list_agent_mls_id: "attribution",
+  co_list_office_mls_id: "attribution",
+  co_list_agent_mls_id: "attribution",
+};
+
+/**
+ * The material fields the prepared UPDATE payload would actually change,
+ * using the SAME comparison seams as `listingUpdateMateriallyUnchanged`
+ * (non-material telemetry skipped; `raw_data` through the media-aware
+ * canonicalizer so rotating signed URLs never count; a field missing from
+ * the existing selection counts as changed — fail closed). May throw on
+ * hostile input; `classifyListingChangeReasons` absorbs that.
+ */
+export function changedMaterialListingFields(
+  update: Record<string, unknown>,
+  existing: Record<string, unknown>,
+): string[] {
+  const changed: string[] = [];
+  for (const key of Object.keys(update)) {
+    if (LISTING_NON_MATERIAL_UPDATE_FIELDS.has(key)) continue;
+    const next = update[key];
+    if (next === undefined) continue;
+    if (!(key in existing)) {
+      changed.push(key);
+      continue;
+    }
+    if (key === "raw_data") {
+      if (!rawDataMateriallyEqual(next, existing[key])) changed.push(key);
+      continue;
+    }
+    if (!materialValuesEqual(next, existing[key])) changed.push(key);
+  }
+  return changed;
+}
+
+/**
+ * Attribute a material listing change to reason buckets.
+ *
+ * Exclusive buckets (returned ALONE):
+ *   - ["modification_timestamp_only"] — the source revision clock moved and
+ *     nothing else did. The row write must proceed (provenance), but callers
+ *     may skip cache invalidation and manifest warming.
+ *   - ["raw_data_only"] — raw_data changed (± the timestamp) with no typed
+ *     column change. NOT provenance-only: raw_data feeds the public DTO
+ *     Trestle-direct path, so invalidation stays fail-closed.
+ *
+ * Otherwise: the set of categories for every changed typed field
+ * (modification_timestamp / raw_data accompanying real changes are not
+ * separately attributed). Never throws — classification failure fails
+ * closed to ["other"].
+ */
+export function classifyListingChangeReasons(
+  update: Record<string, unknown>,
+  existing: Record<string, unknown>,
+): ListingChangeReason[] {
+  try {
+    const changed = changedMaterialListingFields(update, existing);
+    if (changed.length === 0) return [];
+    const set = new Set(changed);
+    if (set.size === 1 && set.has("modification_timestamp")) {
+      return ["modification_timestamp_only"];
+    }
+    if (
+      set.has("raw_data") &&
+      [...set].every((k) => k === "raw_data" || k === "modification_timestamp")
+    ) {
+      return ["raw_data_only"];
+    }
+    const reasons = new Set<ListingChangeReason>();
+    for (const key of changed) {
+      if (key === "modification_timestamp" || key === "raw_data") continue;
+      reasons.add(LISTING_FIELD_CHANGE_CATEGORY[key] ?? "other");
+    }
+    return reasons.size > 0 ? [...reasons] : ["other"];
+  } catch {
+    return ["other"];
+  }
+}
+
+/**
+ * True ONLY for the `modification_timestamp_only` bucket — the single case
+ * where a physical listing write may skip cache invalidation. Everything
+ * else (including raw_data_only and classification failures) invalidates.
+ */
+export function isProvenanceOnlyChange(reasons: readonly string[]): boolean {
+  return reasons.length === 1 && reasons[0] === "modification_timestamp_only";
+}
