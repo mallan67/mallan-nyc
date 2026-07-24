@@ -84,6 +84,14 @@ jest.mock("@/lib/prisma", () => ({
       },
       count: (args: unknown) => mockListingMediaCount(args),
     },
+    auditEvent: {
+      findMany: async () => [],
+    },
+    $transaction: (fn: unknown) =>
+      (fn as (tx: unknown) => unknown)({
+        $queryRaw: async () => [{ locked: true }],
+        listingMedia: { findMany: (a: unknown) => mockListingMediaFindMany(a) },
+      }),
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
       findUnique: (args: unknown) => mockListingFindUnique(args),
@@ -192,6 +200,16 @@ function makeOptions(overrides: Partial<RunMediaSyncOptions> = {}): RunMediaSync
 }
 
 // ─── Source-fetch failure (cursor must NOT advance) ──────────────────────
+
+// R2-1 admission interplay: backlog fixture rows must carry the Phase-3
+// listing sub-select; rls_eligible:false makes them Mallan-owned (all_active
+// scope) so orchestration tests exercise the mirror machinery, not the
+// admission policy (which has its own dedicated suite).
+const MIRROR_TEST_LISTING = {
+  listing_id: "RLS-A", rls_eligible: false, status: "Active",
+  idx_display_yn: true, owner_opt_out: false, participant_only: false,
+  internet_entire_listing_display_yn: true,
+};
 
 describe("runMediaSync — source-fetch failure (watermark safety)", () => {
   it("returns status='error' when fetchProperties throws and does NOT advance the cursor", async () => {
@@ -496,6 +514,7 @@ describe("runMediaSync — per-listing failure isolation", () => {
       media_url_original: "https://api.cotality.com/photo.jpg",
       r2_key: null,
       media_url_cached: null,
+    listing: MIRROR_TEST_LISTING,
     };
     mockListingMediaFindMany
       .mockResolvedValueOnce([row])
@@ -629,6 +648,7 @@ describe("runMediaSync — boundary preservation", () => {
           media_url_original: "https://example.com/p.jpg",
           r2_key: null,
           media_url_cached: null,
+        listing: MIRROR_TEST_LISTING,
         },
       ])
       .mockResolvedValueOnce([
@@ -640,6 +660,7 @@ describe("runMediaSync — boundary preservation", () => {
           media_url_original: "https://example.com/p.jpg",
           r2_key: null,
           media_url_cached: null,
+        listing: MIRROR_TEST_LISTING,
         },
       ])
       .mockResolvedValue([]);
@@ -688,8 +709,8 @@ describe("runMediaSync — tombstoneVanished is TRUE on a complete paginated fet
     mockListingMediaUpdate.mockResolvedValue(undefined);
     mockListingMediaFindMany
       .mockResolvedValueOnce([
-        { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-        { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
+        { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+        { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
       ])
       .mockResolvedValue([]);
 
@@ -1069,21 +1090,21 @@ describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () 
     // OR clause includes both r2_key=null and media_url_cached=null.
     const orFields = args.where.OR.map((c) => Object.keys(c)[0]).sort();
     expect(orFields).toEqual(["media_url_cached", "r2_key"]);
-    // Phase 4: ONE bounded query per run — deterministic ordering with an id
-    // tie-break, sized by R2_BACKLOG_BATCH_LIMIT (processing stays chunked at
-    // R2_MIRROR_CONCURRENCY in memory).
-    expect(args.orderBy).toEqual([{ created_at: "asc" }, { id: "asc" }]);
+    // W3: ONE bounded ADAPTIVE query per run — PK ordering (id is a
+    // monotone insertion key, so FIFO fairness holds without a created_at
+    // sort node); with no audit history the size falls back to the MIN.
+    expect(args.orderBy).toEqual([{ id: "asc" }]);
     expect(args.take).toBe(R2_BACKLOG_BATCH_LIMIT);
   });
 
   it("processes a backlog batch of up to 5 rows in parallel (Promise.allSettled with MAX_CONCURRENT=5)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const backlog = [
-      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "RLS-A", media_key: "MK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "RLS-A", media_key: "MK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "RLS-A", media_key: "MK-D", media_type: "Photo", order: 4, media_url_original: "u4", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "RLS-A", media_key: "MK-E", media_type: "Photo", order: 5, media_url_original: "u5", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
     ];
     mockListingMediaFindMany
       .mockResolvedValueOnce(backlog)
@@ -1110,9 +1131,9 @@ describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () 
   it("R2 mirror per-row failure increments r2_failed but does NOT throw or stop other rows in the batch", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const backlog = [
-      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-B", media_key: "MK-B", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null },
-      { listing_id: "RLS-C", media_key: "MK-C", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null },
+      { listing_id: "RLS-A", media_key: "MK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "RLS-B", media_key: "MK-B", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "RLS-C", media_key: "MK-C", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
     ];
     mockListingMediaFindMany.mockResolvedValueOnce(backlog).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
@@ -1148,9 +1169,9 @@ describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () 
       last_media_modified: new Date("2026-05-09T07:30:00Z"),
     });
     const backlog = [
-      { listing_id: "PRIOR-A", media_key: "PK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-      { listing_id: "PRIOR-A", media_key: "PK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null },
-      { listing_id: "PRIOR-A", media_key: "PK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null },
+      { listing_id: "PRIOR-A", media_key: "PK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "PRIOR-A", media_key: "PK-B", media_type: "Photo", order: 2, media_url_original: "u2", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { listing_id: "PRIOR-A", media_key: "PK-C", media_type: "Photo", order: 3, media_url_original: "u3", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
     ];
     mockListingMediaFindMany.mockResolvedValueOnce(backlog).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
@@ -1218,6 +1239,7 @@ describe("runMediaSync — time-budget exits", () => {
       media_url_original: `u${i}`,
       r2_key: null,
       media_url_cached: null,
+    listing: MIRROR_TEST_LISTING,
     }));
     mockListingMediaFindMany.mockResolvedValueOnce(rows).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
@@ -1252,10 +1274,18 @@ describe("runMediaSync — time-budget exits", () => {
 });
 
 describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
-  it("reports backlog_remaining from a final count after Phase 3", async () => {
+  it("reports backlog_remaining from the BOUNDED ids-only probe after Phase 3 (W3: no unbounded COUNT)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    mockListingMediaFindMany.mockResolvedValue([]); // empty backlog
-    mockListingMediaCount.mockResolvedValue(42); // 42 rows still need r2 mirroring
+    // W3: backlog_remaining = length of an ids-only probe (take = cap+1),
+    // replacing the unbounded COUNT. Serve 42 probe rows; drain selections
+    // stay empty.
+    mockListingMediaFindMany.mockImplementation(async (args: unknown) => {
+      const a = args as { select?: Record<string, unknown>; take?: number };
+      if (a?.select && Object.keys(a.select).join(",") === "id") {
+        return Array.from({ length: 42 }, (_, i) => ({ id: BigInt(i + 1) }));
+      }
+      return [];
+    });
 
     const fetchProperties = jest.fn().mockResolvedValueOnce([]);
     const result = await runMediaSync(
@@ -1263,12 +1293,19 @@ describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
     );
 
     expect(result.backlog_remaining).toBe(42);
+    expect(mockListingMediaCount).not.toHaveBeenCalled(); // COUNT retired
   });
 
-  it("backlog_remaining is null if the count query throws (defensive)", async () => {
+  it("backlog_remaining is null if the probe query throws (defensive)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    mockListingMediaFindMany.mockResolvedValue([]);
-    mockListingMediaCount.mockRejectedValue(new Error("Count failed"));
+    // W3: the ids-only probe throws; drain selections stay empty.
+    mockListingMediaFindMany.mockImplementation(async (args: unknown) => {
+      const a = args as { select?: Record<string, unknown> };
+      if (a?.select && Object.keys(a.select).join(",") === "id") {
+        throw new Error("Probe failed");
+      }
+      return [];
+    });
 
     const fetchProperties = jest.fn().mockResolvedValueOnce([]);
     const result = await runMediaSync(
@@ -1303,14 +1340,16 @@ describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
 describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)", () => {
   // Main bounded query: active + OR-missing-R2, NOT the parked-recovery query.
   const isMainBacklogCall = (call: unknown[]): boolean => {
-    const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown } };
+    const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; select?: Record<string, unknown> };
     // The parked-recovery selection carries a top-level r2_attempts predicate
     // (exact-match number since the #534-sentinel fix); the main backlog
-    // selection never does.
+    // selection never does. W3: the ids-only backlog_remaining PROBE is
+    // excluded too.
     return (
       args?.where?.status === "active" &&
       Array.isArray(args.where.OR) &&
-      args.where.r2_attempts === undefined
+      args.where.r2_attempts === undefined &&
+      !(args.select && Object.keys(args.select).join(",") === "id")
     );
   };
 
@@ -1319,11 +1358,11 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
 
     // One bounded queue: 3 rows whose mirror fails + 2 that succeed.
     const rows = [
-      { id: 100n, listing_id: "F-A", media_key: "FK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-      { id: 101n, listing_id: "F-B", media_key: "FK-B", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null },
-      { id: 102n, listing_id: "F-C", media_key: "FK-C", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null },
-      { id: 200n, listing_id: "N-A", media_key: "NK-A", media_type: "Photo", order: 1, media_url_original: "u4", r2_key: null, media_url_cached: null },
-      { id: 201n, listing_id: "N-B", media_key: "NK-B", media_type: "Photo", order: 1, media_url_original: "u5", r2_key: null, media_url_cached: null },
+      { id: 100n, listing_id: "F-A", media_key: "FK-A", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 101n, listing_id: "F-B", media_key: "FK-B", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 102n, listing_id: "F-C", media_key: "FK-C", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 200n, listing_id: "N-A", media_key: "NK-A", media_type: "Photo", order: 1, media_url_original: "u4", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 201n, listing_id: "N-B", media_key: "NK-B", media_type: "Photo", order: 1, media_url_original: "u5", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
     ];
     mockListingMediaFindMany.mockResolvedValueOnce(rows).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
@@ -1365,6 +1404,7 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
       media_url_original: "u",
       r2_key: null,
       media_url_cached: null,
+    listing: MIRROR_TEST_LISTING,
     };
     mockListingMediaFindMany
       .mockResolvedValueOnce([row])
@@ -1397,6 +1437,7 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
       media_url_original: "u",
       r2_key: null,
       media_url_cached: null,
+    listing: MIRROR_TEST_LISTING,
     };
 
     // First invocation: row is selected, mirror fails, row is added to attemptedBacklogIds.
@@ -1448,11 +1489,11 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
     mockMediaSyncFindUnique.mockResolvedValue(null);
     // 5 rows, all succeed via existsInR2=true.
     const fiveRows = [
-      { id: 1n, listing_id: "A", media_key: "K1", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null },
-      { id: 2n, listing_id: "B", media_key: "K2", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null },
-      { id: 3n, listing_id: "C", media_key: "K3", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null },
-      { id: 4n, listing_id: "D", media_key: "K4", media_type: "Photo", order: 1, media_url_original: "u4", r2_key: null, media_url_cached: null },
-      { id: 5n, listing_id: "E", media_key: "K5", media_type: "Photo", order: 1, media_url_original: "u5", r2_key: null, media_url_cached: null },
+      { id: 1n, listing_id: "A", media_key: "K1", media_type: "Photo", order: 1, media_url_original: "u1", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 2n, listing_id: "B", media_key: "K2", media_type: "Photo", order: 1, media_url_original: "u2", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 3n, listing_id: "C", media_key: "K3", media_type: "Photo", order: 1, media_url_original: "u3", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 4n, listing_id: "D", media_key: "K4", media_type: "Photo", order: 1, media_url_original: "u4", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
+      { id: 5n, listing_id: "E", media_key: "K5", media_type: "Photo", order: 1, media_url_original: "u5", r2_key: null, media_url_cached: null, listing: MIRROR_TEST_LISTING },
     ];
     mockListingMediaFindMany.mockResolvedValueOnce(fiveRows).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
@@ -1562,6 +1603,7 @@ describe("runMediaSync — Phase 3 cross-invocation cooldown filter", () => {
       r2_key: null,
       media_url_cached: null,
       r2_attempts: 2, // 2 prior failures; this attempt is the 3rd
+      listing: MIRROR_TEST_LISTING,
     };
     mockListingMediaFindMany.mockResolvedValueOnce([backlogRow]).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
@@ -1641,9 +1683,14 @@ describe("runMediaSync — observability read-back is non-fatal", () => {
     // (a) did NOT reject — the run completed successfully.
     expect(result.status).toBe("ok");
     expect(result.listings_processed).toBe(1);
-    // (b) later phases were NOT skipped — the Phase-4 backlog count ran AFTER
-    //     the (failed) read-back, proving execution continued past it.
-    expect(mockListingMediaCount).toHaveBeenCalled();
+    // (b) later phases were NOT skipped — the Phase-4 backlog PROBE (W3:
+    //     bounded ids-only findMany, replacing the COUNT) ran AFTER the
+    //     (failed) read-back, proving execution continued past it.
+    const probeRan = mockListingMediaFindMany.mock.calls.some((c) => {
+      const a = c[0] as { select?: Record<string, unknown> };
+      return !!a?.select && Object.keys(a.select).join(",") === "id";
+    });
+    expect(probeRan).toBe(true);
     // (c) the cursor write is UNALTERED — the advance upsert wrote the advanced
     //     keyset cursor exactly as it would without the read-back failure.
     expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
@@ -1941,7 +1988,7 @@ describe("runMediaSync — rows_updated = physical writes including tombstones",
       const key = (args as { where: { media_key: string } }).where.media_key;
       if (key === "MK-new") return null;
       if (key === "MK-mat") return delivered({ order: 9 });
-      if (key === "MK-refresh") return delivered({ media_url_cached: null });
+      if (key === "MK-refresh") return delivered({ media_url_cached: null, listing: MIRROR_TEST_LISTING });
       return delivered({});
     });
     mockListingMediaCreate.mockResolvedValue(undefined);

@@ -381,6 +381,17 @@ describe("GET /api/cron/media-sync — happy path", () => {
       expect(ch).toHaveProperty(k);
     }
 
+    // One Cycle W3 — adaptive-drain counters must persist (bounded values;
+    // query_path_classification is a closed enum label, never free text).
+    const w3DrainCounters = [
+      "backlog_inflow_since_last_run", "rows_selected", "rows_attempted",
+      "rows_drained", "failures", "overlap_prevented",
+      "time_budget_exhausted", "query_path_classification", "run_duration_ms",
+    ];
+    for (const k of w3DrainCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
@@ -391,6 +402,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       ...phase4Counters,
       ...w1RevalidationCounters,
       ...r21Counters,
+      ...w3DrainCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
     ]);

@@ -134,6 +134,17 @@ export async function GET(req: NextRequest) {
           // (integers only; no URLs/ids — same allowlist class as above).
           pages_revalidated: result.pages_revalidated,
           revalidation_failures: result.revalidation_failures,
+          // One Cycle W3 — adaptive-drain observability (bounded integers /
+          // booleans / enum label only; same allowlist class).
+          backlog_inflow_since_last_run: result.backlog_inflow_since_last_run,
+          rows_selected: result.rows_selected,
+          rows_attempted: result.rows_attempted,
+          rows_drained: result.rows_drained,
+          failures: result.failures,
+          overlap_prevented: result.overlap_prevented,
+          time_budget_exhausted: result.time_budget_exhausted,
+          query_path_classification: result.query_path_classification,
+          run_duration_ms: result.run_duration_ms,
           // Phase 4 — bounded drain / reserved recovery observability (aggregate
           // integers + one boolean; no URLs/ids). Persisted so ops can verify
           // the bounded backlog, recovery fairness, and budget behavior from

@@ -56,6 +56,14 @@ jest.mock("@/lib/prisma", () => ({
       findMany: (args: unknown) => mockListingMediaFindMany(args),
       count: (args: unknown) => mockListingMediaCount(args),
     },
+    auditEvent: {
+      findMany: async () => [],
+    },
+    $transaction: (fn: unknown) =>
+      (fn as (tx: unknown) => unknown)({
+        $queryRaw: async () => [{ locked: true }],
+        listingMedia: { findMany: (a: unknown) => mockListingMediaFindMany(a) },
+      }),
     listing: {
       update: (args: unknown) => mockListingUpdate(args),
       findUnique: (args: unknown) => mockListingFindUnique(args),

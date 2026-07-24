@@ -45,6 +45,16 @@ jest.mock("@/lib/prisma", () => ({
       update: jest.fn(),
       findUnique: jest.fn(),
     },
+    // W3: the drain selection runs inside a $transaction holding a
+    // pg advisory xact lock. Grant the lock and route the tx-scoped
+    // findMany to the same mock so admission assertions see the calls.
+    $transaction: (fn: unknown) =>
+      (fn as (tx: unknown) => unknown)({
+        $queryRaw: async () => [{ locked: true }],
+        listingMedia: {
+          findMany: (args: unknown) => mockListingMediaFindMany(args),
+        },
+      }),
   },
 }));
 
