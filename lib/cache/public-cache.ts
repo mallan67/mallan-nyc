@@ -121,6 +121,22 @@ export function buildingTagFromAddress(address: unknown): string | null {
 }
 
 /**
+ * Writer-side twin of the manifest reader's shard derivation
+ * (`cleanStreetNumber.charAt(0)` in buildBuildingPayload): the RAW first
+ * character of the trimmed StreetNumber — NO case folding, because the
+ * Prisma `string_starts_with` shard filter is case-sensitive against the
+ * stored JSON. Null when the address carries no street number (masked /
+ * absent — nothing for the manifest warm to target). Sync collects these
+ * for every listing whose PHYSICAL change invalidated caches (old + new
+ * address on a move) and eagerly warms ONLY those shards.
+ */
+export function manifestShardForAddress(address: unknown): string | null {
+  if (typeof address !== "object" || address === null) return null;
+  const num = String((address as Record<string, unknown>).StreetNumber ?? "").trim();
+  return num ? num.charAt(0) : null;
+}
+
+/**
  * Wrap an ANONYMOUS public read in the Next data cache with tags.
  *
  * - `keyParts` must uniquely identify the read (args are ALSO part of the
@@ -252,11 +268,39 @@ export function newRevalidationCounters(): RevalidationCounters {
  * must never fail a sync run (the 30-min fallback still repairs freshness).
  * Deduplicates tags; counts outcomes into the provided counters.
  */
+/**
+ * The exact deprecation notice Next 16.2.4 emits ONCE PER profile-less
+ * `revalidateTag(tag)` call (dist/server/web/spec-extension/revalidate.js:42).
+ * The profile-less call is DELIBERATE here (immediate expiration —
+ * dist-verified, see the comment inside safeRevalidateTags), so the per-call
+ * warning is pure noise at sync scale (77–156 identical lines per cycle).
+ * safeRevalidateTags absorbs warnings matching this marker during its loop
+ * and emits ONE consolidated summary instead (Maya directive 2026-07-24:
+ * "document the accepted deprecated call centrally rather than producing
+ * 77–156 warnings each cycle"). Matched by the stable docs slug so a wording
+ * tweak upstream still consolidates; a SIGNATURE change upstream is caught
+ * by the pinned single-argument test, not silently absorbed.
+ */
+const NEXT_REVALIDATE_TAG_DEPRECATION_MARKER = "revalidate-tag-single-arg";
+
 export function safeRevalidateTags(
   tags: Iterable<string>,
   counters?: RevalidationCounters,
 ): void {
   const seen = new Set<string>();
+  const originalWarn = console.warn;
+  let suppressedWarnings = 0;
+  // Intercept ONLY the known per-call deprecation line for the duration of
+  // the loop; every other warning passes straight through. Restored in
+  // finally — an interceptor leak would swallow unrelated warnings forever.
+  console.warn = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes(NEXT_REVALIDATE_TAG_DEPRECATION_MARKER)) {
+      suppressedWarnings++;
+      return;
+    }
+    originalWarn.apply(console, args as []);
+  };
+  try {
   for (const tag of tags) {
     if (!tag || seen.has(tag)) continue;
     seen.add(tag);
@@ -293,5 +337,15 @@ export function safeRevalidateTags(
         err instanceof Error ? err.message : err,
       );
     }
+  }
+  } finally {
+    console.warn = originalWarn;
+  }
+  if (suppressedWarnings > 0) {
+    console.log(
+      `[public-cache] revalidated ${seen.size} tag(s) via profile-less immediate expiration; ` +
+        `Next deprecation warning suppressed ${suppressedWarnings}x (accepted deliberately — ` +
+        `see safeRevalidateTags in lib/cache/public-cache.ts for the dist-verified rationale).`,
+    );
   }
 }
