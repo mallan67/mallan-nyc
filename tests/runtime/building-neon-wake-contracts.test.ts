@@ -52,15 +52,25 @@ describe("thin pure-read building route + direct page accessor", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("warm clustering is wired: sync warms the manifest ONLY on a fully successful run, after the SyncState upsert", () => {
+  it("warm clustering is wired: sync warms ONLY the affected shards, only on a fully successful run, after the SyncState upsert", () => {
     const sync = read("lib/idx/sync.ts");
-    const warmIdx = sync.indexOf("warmBuildingManifestShards()");
+    // Scope B (2026-07-24): the warm call passes the affected-shard set —
+    // a bare warmBuildingManifestShards() (all-shard default) must NOT
+    // reappear in sync.
+    expect(sync).not.toContain("warmBuildingManifestShards()");
+    const warmIdx = sync.indexOf("warmBuildingManifestShards(sortedAffectedShards)");
     const upsertIdx = sync.indexOf("prisma.syncState.upsert");
     expect(warmIdx).toBeGreaterThan(-1);
     expect(upsertIdx).toBeGreaterThan(-1);
     expect(warmIdx).toBeGreaterThan(upsertIdx); // after feed state is committed
-    const guardIdx = sync.lastIndexOf("if (errors === 0)", warmIdx);
-    expect(guardIdx).toBeGreaterThan(upsertIdx); // guarded on full success
+    const guardIdx = sync.lastIndexOf("if (errors === 0 && sortedAffectedShards.length > 0)", warmIdx);
+    expect(guardIdx).toBeGreaterThan(upsertIdx); // full success + shards actually affected
+    // Scope A: the persistence canary runs at run START — before the fetch
+    // and before any tag revalidation in the request.
+    const canaryIdx = sync.indexOf("await probeManifestPersistence()");
+    const fetchIdx = sync.indexOf("await fetchFromTrestle(");
+    expect(canaryIdx).toBeGreaterThan(-1);
+    expect(canaryIdx).toBeLessThan(fetchIdx);
   });
 });
 

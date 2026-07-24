@@ -142,6 +142,67 @@ describe("exclusive provenance buckets", () => {
     expect(isProvenanceOnlyChange(reasons)).toBe(false);
   });
 
+  it("PRODUCTION SHAPE: a feed clock bump changes BOTH the column AND raw_data.ModificationTimestamp — still modification_timestamp_only", () => {
+    // Every real re-emit moves raw_data.ModificationTimestamp alongside the
+    // mirrored column. Without the provenance-clock carve-out this would
+    // classify raw_data_only and keep invalidating caches on every bump.
+    const reasons = classifyListingChangeReasons(
+      updatePayload({
+        modification_timestamp: T1,
+        raw_data: {
+          ListingId: "RLS1",
+          StandardStatus: "Active",
+          ModificationTimestamp: "2026-07-24T10:00:00Z",
+        },
+      }),
+      existingRow({
+        raw_data: {
+          ListingId: "RLS1",
+          StandardStatus: "Active",
+          ModificationTimestamp: "2026-07-20T10:00:00Z",
+        },
+      }),
+    );
+    expect(reasons).toEqual(["modification_timestamp_only"]);
+    expect(isProvenanceOnlyChange(reasons)).toBe(true);
+  });
+
+  it("PhotosChangeTimestamp-only raw_data delta is provenance too (real media changes are caught by the media compare path)", () => {
+    const reasons = classifyListingChangeReasons(
+      updatePayload({
+        raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-24T09:00:00Z" },
+      }),
+      existingRow({
+        raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-19T09:00:00Z" },
+      }),
+    );
+    expect(reasons).toEqual(["modification_timestamp_only"]);
+  });
+
+  it("clock bump + real raw_data content change → raw_data_only (fail-closed: still invalidates)", () => {
+    const reasons = classifyListingChangeReasons(
+      updatePayload({
+        modification_timestamp: T1,
+        raw_data: {
+          ListingId: "RLS1",
+          StandardStatus: "Active",
+          ModificationTimestamp: "2026-07-24T10:00:00Z",
+          PublicRemarks: "Newly renovated",
+        },
+      }),
+      existingRow({
+        raw_data: {
+          ListingId: "RLS1",
+          StandardStatus: "Active",
+          ModificationTimestamp: "2026-07-20T10:00:00Z",
+          PublicRemarks: "Charming prewar",
+        },
+      }),
+    );
+    expect(reasons).toEqual(["raw_data_only"]);
+    expect(isProvenanceOnlyChange(reasons)).toBe(false);
+  });
+
   it("rotating signed MediaURL inside raw_data.Media is NOT a change (same seam as suppression)", () => {
     const mediaA = [{ MediaKey: "M1", MediaURL: "https://api.cotality.com/trestle/media/1.jpg?sig=aaa", Order: 0 }];
     const mediaB = [{ MediaKey: "M1", MediaURL: "https://api.cotality.com/trestle/media/1.jpg?sig=bbb", Order: 0 }];

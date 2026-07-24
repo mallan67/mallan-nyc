@@ -12,25 +12,38 @@ import {
   buildListingSearchProjectionFromListing,
   buildProjectionUpsertPayload,
   projectionRowMateriallyEqual,
+  projectionRowSearchVisiblyEqual,
   PROJECTION_MATERIAL_SELECT,
   type ListingProjectionSource,
 } from "@/lib/search/listing-search-projection";
 import {
   LISTING_SYNC_COMPARE_SELECT,
   listingUpdateMateriallyUnchanged,
+  classifyListingChangeReasons,
+  isProvenanceOnlyChange,
   mediaArraysMateriallyEqual,
   newWritePathCounters,
+  newListingChangeReasonCounters,
+  newProjectionChangeReasonCounters,
   type WritePathCounters,
+  type ListingChangeReasonCounters,
+  type ProjectionChangeReasonCounters,
 } from "./write-suppression";
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
   buildingInvalidationTags,
+  manifestShardForAddress,
   newRevalidationCounters,
   safeRevalidateTags,
   type RevalidationCounters,
 } from "@/lib/cache/public-cache";
-import { warmBuildingManifestShards, type ManifestWarmResult } from "@/lib/buildings/public-building-data";
+import {
+  warmBuildingManifestShards,
+  probeManifestPersistence,
+  type ManifestWarmResult,
+  type ManifestPersistenceProbe,
+} from "@/lib/buildings/public-building-data";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
@@ -364,13 +377,29 @@ export interface SyncWritePaths {
    */
   revalidation: RevalidationCounters;
   /**
-   * Building-Neon-wake clustering: the ≤9 bounded manifest-shard refills run
+   * Building-Neon-wake clustering: bounded manifest-shard refills run
    * immediately after a FULLY SUCCESSFUL sync, while the compute is already
-   * awake — never scattered across the autosuspend window. Best-effort:
-   * failures are counted here and can never advance or corrupt feed state.
-   * null = warm-up skipped (run had errors).
+   * awake — never scattered across the autosuspend window. Scope B
+   * (2026-07-24): ONLY the shards whose listings physically changed this
+   * run are warmed; null = warm skipped (run had errors, or zero
+   * manifest-affecting shards changed).
    */
   building_manifest_warm?: ManifestWarmResult | null;
+  /**
+   * Scope A (2026-07-24): cross-request persistence instrument. Runs at the
+   * START of the run — BEFORE this run revalidates any tags — so it
+   * verifies whether the PREVIOUS run's warm actually survived request
+   * teardown. cache_hits = persisted (zero Neon); live_fills = lost (one
+   * bounded refill each). null = probe failed.
+   */
+  manifest_canary?: ManifestPersistenceProbe | null;
+  /** Change-reason attribution for physical listing writes (2026-07-24). */
+  listing_change_reasons?: ListingChangeReasonCounters;
+  /** Projection write attribution: source_timestamp_only rows are SKIPPED
+   *  (scope D); search_visible_fields rows are written. */
+  projection_change_reasons?: ProjectionChangeReasonCounters;
+  /** The manifest shards eagerly warmed this run (sorted). */
+  affected_manifest_shards?: string[];
 }
 
 export interface SyncResult {
@@ -410,6 +439,22 @@ export async function syncListings(
   beginSyncDiagnosticRun();
   const startTime = Date.now();
   const logger = createAuditEntry("fetch", "syncListings", "success");
+
+  // Scope A (2026-07-24): persistence canary — MUST run before ANYTHING in
+  // this request revalidates a tag. It verifies whether the PREVIOUS run's
+  // manifest warm survived request teardown (the in-request verification
+  // read it replaces was blind by construction: pendingRevalidatedTags
+  // force same-request re-execution, dist incremental-cache/index.js:289-291).
+  // Cache-hit probes cost zero Neon; a lost page costs one bounded read
+  // that itself refills the page. Best-effort — never blocks the sync.
+  let manifestCanary: ManifestPersistenceProbe | null = null;
+  try {
+    manifestCanary = await probeManifestPersistence();
+    console.log("[IDX Sync] manifest persistence canary:", manifestCanary);
+  } catch (canaryErr) {
+    console.error("[IDX Sync] manifest canary failed (non-fatal):", canaryErr);
+    manifestCanary = null;
+  }
 
   let filter: string;
 
@@ -452,11 +497,22 @@ export async function syncListings(
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
 
+  // Change-reason attribution (2026-07-24): WHY each physical write happened.
+  const listingChangeReasons = newListingChangeReasonCounters();
+  const projectionChangeReasons = newProjectionChangeReasonCounters();
+
   // One Cycle W1 — cache tags to revalidate at end of run. Only PHYSICAL
   // writes add tags (the suppression comparators are the change oracle);
-  // an unchanged run revalidates NOTHING.
+  // an unchanged run revalidates NOTHING. Scope D (2026-07-24): a
+  // provenance-only listing write (modification_timestamp_only) adds NO
+  // tags — a change nobody can see must not expire any cache.
   const revalidation = newRevalidationCounters();
   const changedCacheTags = new Set<string>();
+
+  // Scope B (2026-07-24): the manifest shards affected by this run's
+  // PHYSICAL, cache-visible changes (old + new address shard on a move).
+  // Only these are eagerly warmed after the run; empty set → no warm.
+  const affectedManifestShards = new Set<string>();
 
   // Correction 4 — fail-closed watermark bookkeeping. Each FAILED record's
   // cursor key (max of its MT/PCT instants) caps how far the persisted
@@ -680,13 +736,31 @@ export async function syncListings(
           listingCounters.rows_inserted++;
         }
         upserted++;
-        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
-        {
+        // Change-reason attribution (2026-07-24). A provenance-only write
+        // (modification_timestamp moved, nothing else) keeps the row write
+        // (a source revision must persist) but SKIPS all cache invalidation
+        // and manifest-shard marking — nothing visible changed. raw_data
+        // changes and classification failures stay fail-closed (invalidate).
+        const changeReasons = existing
+          ? classifyListingChangeReasons(
+              listingUpdateData as Record<string, unknown>,
+              existing as unknown as Record<string, unknown>,
+            )
+          : null;
+        if (changeReasons) {
+          for (const reason of changeReasons) listingChangeReasons[reason]++;
+        }
+        if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
+          changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
           // Building-Neon-wake: EXACT building revalidation — BOTH the previous
           // and the new building expire on an address change (the listing must
           // LEAVE the old cached payload and APPEAR in the new one, same cycle).
           for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
             changedCacheTags.add(bTag);
+          }
+          for (const addr of [existing?.address, mapped.address]) {
+            const shard = manifestShardForAddress(addr);
+            if (shard) affectedManifestShards.add(shard);
           }
         }
       }
@@ -739,14 +813,23 @@ export async function syncListings(
         where: { listing_id: mapped.listing_id },
         select: PROJECTION_MATERIAL_SELECT,
       })) as Record<string, unknown> | null;
-      if (existingProjection && projectionRowMateriallyEqual(existingProjection, projection)) {
+      if (existingProjection && projectionRowSearchVisiblyEqual(existingProjection, projection)) {
+        // Scope D (2026-07-24): NOTHING search-visible changed. This covers
+        // both the fully-identical row AND the source-timestamp-only bump —
+        // the projection keeps its old modified_at (the revision clock lives
+        // on the listing row for provenance), no search/building payload is
+        // invalidated, and search-alerts see no false "updated" signal.
         projectionCounters.rows_suppressed_unchanged++;
+        if (!projectionRowMateriallyEqual(existingProjection, projection)) {
+          projectionChangeReasons.source_timestamp_only++;
+        }
       } else {
         const projectionPayload = buildProjectionUpsertPayload(projection);
         await prisma.listingSearchProjection.upsert(projectionPayload);
         if (existingProjection) {
           projectionCounters.rows_materially_changed++;
           projectionCounters.rows_updated++;
+          projectionChangeReasons.search_visible_fields++;
         } else {
           projectionCounters.rows_inserted++;
         }
@@ -755,6 +838,10 @@ export async function syncListings(
           // Building-Neon-wake: exact building revalidation (old + new address).
           for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
             changedCacheTags.add(bTag);
+          }
+          for (const addr of [existing?.address, mapped.address]) {
+            const shard = manifestShardForAddress(addr);
+            if (shard) affectedManifestShards.add(shard);
           }
         }
       }
@@ -974,39 +1061,9 @@ export async function syncListings(
     errorMessage: errors > 0 ? `${errors} errors during sync` : undefined,
   });
 
-  // Also log to AuditEvent table
-  try {
-    await prisma.auditEvent.create({
-      data: {
-        action: "idx_sync",
-        entity_type: "listing",
-        entity_id: "bulk",
-        user_type: "system",
-        user_id: null,
-        changes: {
-          type: options.type || "all",
-          fullSync: options.fullSync || false,
-          total_fetched: fetchResult.totalFetched,
-          upserted,
-          skipped_gates: skippedGates,
-          skipped_validation: skippedValidation,
-          errors,
-          duration_ms: durationMs,
-          // Phase 3 write-suppression accounting (physical writes only).
-          write_paths: {
-            listings: listingCounters,
-            projections: projectionCounters,
-            batch_media: batchMediaCounters,
-          },
-          // One Cycle W1 — bounded aggregate revalidation counters.
-          pages_revalidated: revalidation.pages_revalidated,
-          revalidation_failures: revalidation.revalidation_failures,
-        } as unknown as Prisma.InputJsonValue,
-      },
-    });
-  } catch (err) {
-    console.error("[IDX Sync] Failed to log audit event:", err);
-  }
+  // The durable idx_sync AuditEvent is written AFTER the manifest warm (see
+  // below) so its changes payload can carry the warm + canary + reason
+  // counters (Maya-approved allowlist addition, 2026-07-24).
 
   // ── Watermark ownership (fix for homepage "last updated" staleness) ──
   // The UI at /api/idx/watermark and lib/idx/watermark.ts reads
@@ -1116,21 +1173,73 @@ export async function syncListings(
   });
 
   // ── Building-Neon-wake clustering (AFTER the SyncState upsert, OUTSIDE its
-  // try/catch): refill the bounded manifest shards while the compute is
-  // already awake for this run. Only on a FULLY SUCCESSFUL run; failures are
-  // counted, never thrown — feed state is already committed above and cannot
-  // be advanced, blocked, or corrupted from here. If nothing changed this
-  // run (no coarse search bump), every call is a cache HIT: zero Neon work.
+  // try/catch): refill manifest shards while the compute is already awake
+  // for this run. Only on a FULLY SUCCESSFUL run; failures are counted,
+  // never thrown — feed state is already committed above and cannot be
+  // advanced, blocked, or corrupted from here. Scope B (2026-07-24): ONLY
+  // the shards whose listings physically changed are warmed; when no
+  // manifest-affecting change happened the warm is SKIPPED ENTIRELY (zero
+  // manifest reads — the acceptance gate's "zero full-manifest warm when no
+  // public manifest field changed").
   let buildingManifestWarm: ManifestWarmResult | null = null;
-  if (errors === 0) {
+  const sortedAffectedShards = [...affectedManifestShards].sort();
+  if (errors === 0 && sortedAffectedShards.length > 0) {
     try {
-      buildingManifestWarm = await warmBuildingManifestShards();
-      console.log('[IDX Sync] building-manifest warm:', buildingManifestWarm);
+      buildingManifestWarm = await warmBuildingManifestShards(sortedAffectedShards);
+      console.log('[IDX Sync] building-manifest warm:', {
+        shards: sortedAffectedShards,
+        ...buildingManifestWarm,
+      });
     } catch (warmErr) {
       // Defense-in-depth: warmBuildingManifestShards never throws by design.
       console.error('[IDX Sync] building-manifest warm-up error (non-fatal):', warmErr);
       buildingManifestWarm = null;
     }
+  } else if (errors === 0) {
+    console.log('[IDX Sync] building-manifest warm skipped: no manifest-affecting shard changed this run');
+  }
+
+  // Durable idx_sync AuditEvent — written AFTER the warm so the changes
+  // payload carries the warm + canary + change-reason counters (the audit
+  // previously ran before the warm, which is why building_manifest_warm
+  // never reached audit_events — Maya-approved allowlist fix, 2026-07-24).
+  try {
+    await prisma.auditEvent.create({
+      data: {
+        action: "idx_sync",
+        entity_type: "listing",
+        entity_id: "bulk",
+        user_type: "system",
+        user_id: null,
+        changes: {
+          type: options.type || "all",
+          fullSync: options.fullSync || false,
+          total_fetched: fetchResult.totalFetched,
+          upserted,
+          skipped_gates: skippedGates,
+          skipped_validation: skippedValidation,
+          errors,
+          duration_ms: durationMs,
+          // Phase 3 write-suppression accounting (physical writes only).
+          write_paths: {
+            listings: listingCounters,
+            projections: projectionCounters,
+            batch_media: batchMediaCounters,
+            building_manifest_warm: buildingManifestWarm,
+          },
+          // Change-reason attribution + targeted-warm evidence (2026-07-24).
+          listing_change_reasons: listingChangeReasons,
+          projection_change_reasons: projectionChangeReasons,
+          affected_manifest_shards: sortedAffectedShards,
+          manifest_canary: manifestCanary,
+          // One Cycle W1 — bounded aggregate revalidation counters.
+          pages_revalidated: revalidation.pages_revalidated,
+          revalidation_failures: revalidation.revalidation_failures,
+        } as unknown as Prisma.InputJsonValue,
+      },
+    });
+  } catch (err) {
+    console.error("[IDX Sync] Failed to log audit event:", err);
   }
 
   const result: SyncResult = {
@@ -1148,6 +1257,10 @@ export async function syncListings(
       batch_media: batchMediaCounters,
       revalidation,
       building_manifest_warm: buildingManifestWarm,
+      manifest_canary: manifestCanary,
+      listing_change_reasons: listingChangeReasons,
+      projection_change_reasons: projectionChangeReasons,
+      affected_manifest_shards: sortedAffectedShards,
     },
   };
 
@@ -1703,6 +1816,10 @@ export async function syncAgentHistory(
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
 
+  // Change-reason attribution (2026-07-24) — same contract as syncListings.
+  const listingChangeReasons = newListingChangeReasonCounters();
+  const projectionChangeReasons = newProjectionChangeReasonCounters();
+
   // One Cycle W1 — see syncListings.
   const revalidation = newRevalidationCounters();
   const changedCacheTags = new Set<string>();
@@ -1845,8 +1962,19 @@ export async function syncAgentHistory(
           listingCounters.rows_inserted++;
         }
         upserted++;
-        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
-        {
+        // Change-reason attribution + provenance-only invalidation skip —
+        // same contract as syncListings (2026-07-24).
+        const changeReasons = existingForClock
+          ? classifyListingChangeReasons(
+              agentUpdateData as Record<string, unknown>,
+              existingForClock as unknown as Record<string, unknown>,
+            )
+          : null;
+        if (changeReasons) {
+          for (const reason of changeReasons) listingChangeReasons[reason]++;
+        }
+        if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
+          changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
           // Building-Neon-wake: exact building revalidation (old + new address).
           for (const bTag of buildingInvalidationTags(existingForClock?.address, mapped.address)) {
             changedCacheTags.add(bTag);
@@ -1897,14 +2025,21 @@ export async function syncAgentHistory(
         where: { listing_id: mapped.listing_id },
         select: PROJECTION_MATERIAL_SELECT,
       })) as Record<string, unknown> | null;
-      if (existingProjection && projectionRowMateriallyEqual(existingProjection, projection)) {
+      if (existingProjection && projectionRowSearchVisiblyEqual(existingProjection, projection)) {
+        // Scope D (2026-07-24) — see syncListings: a source-timestamp-only
+        // bump keeps the old projection row (revision clock stays on the
+        // listing row) and invalidates nothing.
         projectionCounters.rows_suppressed_unchanged++;
+        if (!projectionRowMateriallyEqual(existingProjection, projection)) {
+          projectionChangeReasons.source_timestamp_only++;
+        }
       } else {
         const projectionPayload = buildProjectionUpsertPayload(projection);
         await prisma.listingSearchProjection.upsert(projectionPayload);
         if (existingProjection) {
           projectionCounters.rows_materially_changed++;
           projectionCounters.rows_updated++;
+          projectionChangeReasons.search_visible_fields++;
         } else {
           projectionCounters.rows_inserted++;
         }
@@ -2082,7 +2217,10 @@ export async function syncAgentHistory(
           skipped_validation: skippedValidation,
           errors,
           duration_ms: durationMs,
-        },
+          // Change-reason attribution (2026-07-24) — same contract as idx_sync.
+          listing_change_reasons: listingChangeReasons,
+          projection_change_reasons: projectionChangeReasons,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
   } catch (err) {

@@ -546,15 +546,61 @@ export function changedMaterialListingFields(
 }
 
 /**
+ * TOP-LEVEL raw_data keys that are pure SOURCE-REVISION CLOCKS — provenance,
+ * never content. A feed re-emit whose only delta is one of these clocks
+ * (plus the mirrored `modification_timestamp` column) is a change nobody
+ * can see: the raw record's ModificationTimestamp moves on EVERY revision,
+ * so without this carve-out the modification_timestamp_only bucket could
+ * never fire (the raw_data delta would reclassify every clock bump as
+ * raw_data_only and keep invalidating caches).
+ *
+ * Deliberately minimal: StatusChangeTimestamp / PriceChangeTimestamp are
+ * NOT here — when those move, the corresponding typed field moved too and
+ * classification proceeds through its real category. PhotosChangeTimestamp
+ * IS here because real media changes are detected (and invalidated) by the
+ * batch-media compare path, never by this clock.
+ */
+export const RAW_DATA_PROVENANCE_CLOCK_KEYS: ReadonlySet<string> = new Set([
+  "ModificationTimestamp",
+  "PhotosChangeTimestamp",
+  "OriginalEntryTimestamp",
+]);
+
+/** raw_data equality with the top-level provenance clocks removed from both
+ *  sides (rotating Media URLs still canonicalized). Fail-closed: any error
+ *  or non-object input → NOT equal. */
+function rawDataEqualIgnoringProvenanceClocks(a: unknown, b: unknown): boolean {
+  try {
+    if (typeof a !== "object" || a === null || Array.isArray(a)) return false;
+    if (typeof b !== "object" || b === null || Array.isArray(b)) return false;
+    const strip = (o: Record<string, unknown>): Record<string, unknown> => {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(o)) {
+        if (!RAW_DATA_PROVENANCE_CLOCK_KEYS.has(k)) out[k] = v;
+      }
+      return out;
+    };
+    return rawDataMateriallyEqual(
+      strip(a as Record<string, unknown>),
+      strip(b as Record<string, unknown>),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Attribute a material listing change to reason buckets.
  *
  * Exclusive buckets (returned ALONE):
- *   - ["modification_timestamp_only"] — the source revision clock moved and
- *     nothing else did. The row write must proceed (provenance), but callers
- *     may skip cache invalidation and manifest warming.
- *   - ["raw_data_only"] — raw_data changed (± the timestamp) with no typed
- *     column change. NOT provenance-only: raw_data feeds the public DTO
- *     Trestle-direct path, so invalidation stays fail-closed.
+ *   - ["modification_timestamp_only"] — only source-revision clocks moved
+ *     (the `modification_timestamp` column and/or raw_data's top-level
+ *     provenance clock keys). The row write must proceed (provenance), but
+ *     callers may skip cache invalidation and manifest warming.
+ *   - ["raw_data_only"] — raw_data changed BEYOND its provenance clocks
+ *     (± the timestamp column) with no typed column change. NOT
+ *     provenance-only: raw_data feeds the public DTO Trestle-direct path,
+ *     so invalidation stays fail-closed.
  *
  * Otherwise: the set of categories for every changed typed field
  * (modification_timestamp / raw_data accompanying real changes are not
@@ -569,6 +615,15 @@ export function classifyListingChangeReasons(
     const changed = changedMaterialListingFields(update, existing);
     if (changed.length === 0) return [];
     const set = new Set(changed);
+    if (
+      set.has("raw_data") &&
+      rawDataEqualIgnoringProvenanceClocks(update.raw_data, existing.raw_data)
+    ) {
+      // The raw_data delta is provenance clocks only — reclassify it as
+      // part of the timestamp bump, not a content change.
+      set.delete("raw_data");
+      if (set.size === 0) return ["modification_timestamp_only"];
+    }
     if (set.size === 1 && set.has("modification_timestamp")) {
       return ["modification_timestamp_only"];
     }
@@ -579,7 +634,7 @@ export function classifyListingChangeReasons(
       return ["raw_data_only"];
     }
     const reasons = new Set<ListingChangeReason>();
-    for (const key of changed) {
+    for (const key of set) {
       if (key === "modification_timestamp" || key === "raw_data") continue;
       reasons.add(LISTING_FIELD_CHANGE_CATEGORY[key] ?? "other");
     }
