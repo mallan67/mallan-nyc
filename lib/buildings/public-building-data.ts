@@ -462,9 +462,8 @@ function pageKey(shard: string, cursor: string | null): string {
   return `${shard}|${cursor ?? 'START'}`;
 }
 
-/** ONE bounded keyset page read from Neon (or the in-process memory layer),
- *  mapped to slim cacheable rows. This is the ONLY Neon touch point of the
- *  manifest. */
+/** ONE bounded keyset page read from Neon, mapped to slim cacheable rows.
+ *  This is the ONLY Neon touch point of the manifest. */
 /** Test hook: resets the warm execution counters. */
 export function clearManifestPageMemory(): void {
   manifestPageExecCount.clear();
@@ -607,6 +606,14 @@ export async function getBuildingManifestShard(shard: string): Promise<ManifestL
   for (;;) {
     const pageResult: ManifestPageResult = await getCachedManifestPage(shard, cursor);
     rows.push(...pageResult.rows);
+    // Row ceiling is enforced IMMEDIATELY after accumulation — BEFORE the
+    // terminal return (Maya boundary fix: a 75,001-row shard whose last
+    // page is terminal must still overflow, never succeed).
+    if (rows.length > MANIFEST_MAX_ROWS_PER_SHARD) {
+      throw new Error(
+        `[building-manifest] OVERFLOW: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows (${rows.length} processed) — refusing to serve an incomplete manifest.`,
+      );
+    }
     if (pageResult.nextCursor === null) return rows;
     if (pageResult.rows.length === 0) {
       throw new Error(
@@ -619,11 +626,6 @@ export async function getBuildingManifestShard(shard: string): Promise<ManifestL
       );
     }
     seenCursors.add(pageResult.nextCursor);
-    if (rows.length > MANIFEST_MAX_ROWS_PER_SHARD) {
-      throw new Error(
-        `[building-manifest] OVERFLOW: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows (${rows.length} processed) — refusing to serve an incomplete manifest.`,
-      );
-    }
     cursor = pageResult.nextCursor;
   }
 }
@@ -1173,8 +1175,9 @@ export interface ManifestWarmResult {
    *  also where a stale serve lands — it is NEVER counted as fresh. */
   cache_hit_existing: number;
   /** Pages whose cache SET failed (the verification re-read re-executed the
-   *  fetch — served from the in-process memory layer, NOT Neon). These are
-   *  fallback-live pages, NEVER counted as warmed cache. */
+   *  fetch — a real second Neon read, bounded to the warm pass; there is NO
+   *  cross-request memory layer). These are fallback-live pages, NEVER
+   *  counted as warmed cache. */
   fallback_live: number;
   /** Pages whose verification read returned a PRE-WARM (stale) entry
    *  without re-executing the fetch — possible under stale-while-
@@ -1246,6 +1249,13 @@ export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> 
           }
         }
         rowsSeen += first.rows.length;
+        // Same boundary rule as the reader: ceiling BEFORE the terminal
+        // break, so a terminal page cannot smuggle the shard past the limit.
+        if (rowsSeen > MANIFEST_MAX_ROWS_PER_SHARD) {
+          throw new Error(
+            `[building-manifest] OVERFLOW during warm: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows`,
+          );
+        }
         if (first.nextCursor === null) break;
         if (first.rows.length === 0 || first.nextCursor === cursor || seenCursors.has(first.nextCursor)) {
           throw new Error(
@@ -1253,11 +1263,6 @@ export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> 
           );
         }
         seenCursors.add(first.nextCursor);
-        if (rowsSeen > MANIFEST_MAX_ROWS_PER_SHARD) {
-          throw new Error(
-            `[building-manifest] OVERFLOW during warm: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows`,
-          );
-        }
         cursor = first.nextCursor;
       }
       warmed++;

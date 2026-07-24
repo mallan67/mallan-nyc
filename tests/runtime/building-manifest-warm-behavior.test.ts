@@ -78,12 +78,13 @@ jest.mock("next/cache", () => ({
 
 // ── prisma mock: pages of rows per shard ───────────────────────────────────
 let rowBloat = 0; // when >0, rows carry a huge padding string (shrink test)
+let poolSize = 40; // boundary tests override this (e.g. exactly 75,000 rows)
 const cursorLoop = { on: false }; // pathological source: cursor never advances
 const findManyMock = jest.fn(async (q: Record<string, any>) => {
   const take: number = q?.take ?? 10;
-  const all = Array.from({ length: 40 }, (_, i) => ({
+  const all = Array.from({ length: poolSize }, (_, i) => ({
     id: BigInt(i + 1),
-    listing_id: `L-${String(i + 1).padStart(4, "0")}`,
+    listing_id: `L-${String(i + 1).padStart(6, "0")}`,
     status: "Active",
     list_price: 1000000,
     bedrooms_total: 1,
@@ -133,6 +134,7 @@ beforeEach(() => {
   clearManifestPageMemory();
   cacheMode.mode = "normal";
   rowBloat = 0;
+  poolSize = 40;
   findManyMock.mockClear();
 });
 
@@ -190,7 +192,7 @@ describe("warm contract under real tag semantics", () => {
     const rows = await getBuildingManifestShard("7");
     // the captured value is returned despite the cache-storage error
     expect(rows.map((r: { listing_id: string }) => r.listing_id)).toEqual(
-      Array.from({ length: 40 }, (_, i) => `L-${String(i + 1).padStart(4, "0")}`),
+      Array.from({ length: 40 }, (_, i) => `L-${String(i + 1).padStart(6, "0")}`),
     );
     // exactly ONE Prisma execution per page for this invocation — the
     // wrapped fetch is never re-run because the cache backend threw
@@ -221,12 +223,42 @@ describe("warm contract under real tag semantics", () => {
     const before = findManyMock.mock.calls.length;
     const rows = await getBuildingManifestShard("7");
     const ids = rows.map((r: { listing_id: string }) => r.listing_id);
-    const expected = Array.from({ length: 40 }, (_, i) => `L-${String(i + 1).padStart(4, "0")}`);
+    const expected = Array.from({ length: 40 }, (_, i) => `L-${String(i + 1).padStart(6, "0")}`);
     // EXACTLY once, in order, through final cursor exhaustion — not merely
     // "more pages than shards".
     expect(ids).toEqual(expected);
     expect(new Set(ids).size).toBe(40);
     // shrink actually produced multiple pages (multiple keyset fetches)
     expect(findManyMock.mock.calls.length - before).toBeGreaterThan(1);
+  });
+});
+
+describe("row-ceiling BOUNDARY — the terminal page cannot smuggle a shard past the limit", () => {
+  it("EXACTLY 75,000 rows ending on a terminal page SUCCEEDS", async () => {
+    poolSize = 75_000;
+    const rows = await getBuildingManifestShard("7");
+    expect(rows.length).toBe(75_000);
+    expect(rows[74_999].listing_id).toBe("L-075000");
+  });
+
+  it("75,001 rows ending on a terminal page THROWS OVERFLOW (reader path)", async () => {
+    poolSize = 75_001;
+    await expect(getBuildingManifestShard("7")).rejects.toThrow(/OVERFLOW/);
+  });
+
+  it("the SAME boundary applies to the warm traversal: 75,001-row shard is counted failed, never silently truncated", async () => {
+    poolSize = 75_001;
+    const r = await warmBuildingManifestShards();
+    // every shard walks the same over-limit pool in this mock → every
+    // shard's walk throws inside warm and is COUNTED, never propagated
+    expect(r.shards_failed).toBe(BUILDING_MANIFEST_SHARDS.length);
+    expect(r.shards_warmed).toBe(0);
+  });
+
+  it("warm at EXACTLY 75,000 rows succeeds (terminal boundary inclusive)", async () => {
+    poolSize = 75_000;
+    const r = await warmBuildingManifestShards();
+    expect(r.shards_failed).toBe(0);
+    expect(r.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
   });
 });
