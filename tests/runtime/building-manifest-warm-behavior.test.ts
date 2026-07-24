@@ -27,7 +27,7 @@
 
 type StoreEntry = { value: unknown; tags: string[]; stale: boolean; swrServed: boolean };
 const store = new Map<string, StoreEntry>();
-type CacheMode = "normal" | "fail_set";
+type CacheMode = "normal" | "fail_set" | "throw_after_set";
 const cacheMode: { mode: CacheMode } = { mode: "normal" };
 
 jest.mock("next/cache", () => ({
@@ -45,6 +45,12 @@ jest.mock("next/cache", () => ({
         return hit.value;
       }
       const value = await fn(...args);
+      if (cacheMode.mode === "throw_after_set") {
+        // PRODUCTION SHAPE: the fetch resolved, then the cache layer THROWS
+        // (the 2 MB oversized-entry failure raised an error — it did not
+        // silently decline to store).
+        throw new Error("simulated cache-storage failure (items over 2MB can not be cached)");
+      }
       if (cacheMode.mode !== "fail_set") {
         store.set(k, { value, tags: opts?.tags ?? [], stale: false, swrServed: false });
       }
@@ -72,6 +78,7 @@ jest.mock("next/cache", () => ({
 
 // ── prisma mock: pages of rows per shard ───────────────────────────────────
 let rowBloat = 0; // when >0, rows carry a huge padding string (shrink test)
+const cursorLoop = { on: false }; // pathological source: cursor never advances
 const findManyMock = jest.fn(async (q: Record<string, any>) => {
   const take: number = q?.take ?? 10;
   const all = Array.from({ length: 40 }, (_, i) => ({
@@ -90,6 +97,11 @@ const findManyMock = jest.fn(async (q: Record<string, any>) => {
     features: { CommonInterest: "Condominium", YearBuilt: 2000, StoriesTotal: 10 },
     primary_photo_url: null,
   }));
+  if (cursorLoop.on) {
+    // full page whose last listing_id never changes → nextCursor repeats
+    return Array.from({ length: take }, (_, i) => ({ ...all[i % all.length], listing_id: `L-LOOP-${i}` }))
+      .map((r, i, arr) => (i === arr.length - 1 ? { ...r, listing_id: "L-LOOP-END" } : r));
+  }
   let start = 0;
   if (q?.cursor?.listing_id) {
     start = all.findIndex((r) => r.listing_id === q.cursor.listing_id) + (q.skip ?? 0);
@@ -110,8 +122,10 @@ jest.mock("@/lib/buildings/acris-building-sales", () => ({
 const {
   warmBuildingManifestShards,
   clearManifestPageMemory,
+  getBuildingManifestShard,
   BUILDING_MANIFEST_SHARDS,
 } = require("@/lib/buildings/public-building-data");
+const { safeRevalidateTags } = require("@/lib/cache/public-cache");
 const { revalidateTag } = require("next/cache");
 
 beforeEach(() => {
@@ -127,8 +141,13 @@ describe("warm contract under real tag semantics", () => {
     const r = await warmBuildingManifestShards();
     expect(r.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(r.cache_persisted).toBe(BUILDING_MANIFEST_SHARDS.length); // 1 page/shard fixture
+    expect(r.cache_hit_existing).toBe(0);
     expect(r.fallback_live).toBe(0);
     expect(r.swr_stale_served).toBe(0);
+    // second warm: entries are valid pre-existing → hits, zero fresh work
+    const r2 = await warmBuildingManifestShards();
+    expect(r2.cache_hit_existing).toBe(BUILDING_MANIFEST_SHARDS.length);
+    expect(r2.cache_persisted).toBe(0);
   });
 
   it("SWR (failing-first proof): an OLD tagged page served stale is NEVER counted as freshly persisted", async () => {
@@ -143,37 +162,71 @@ describe("warm contract under real tag semantics", () => {
     await new Promise((resolve) => setTimeout(resolve, 5));
     const neonBefore = findManyMock.mock.calls.length;
     const r = await warmBuildingManifestShards();
-    // The stale entries were served without re-executing the fetch: they
-    // must land in swr_stale_served — NOT in cache_persisted.
-    expect(r.swr_stale_served).toBe(BUILDING_MANIFEST_SHARDS.length);
+    // The stale entries were served WITHOUT executing the fetch: they land
+    // in cache_hit_existing — NEVER in cache_persisted. (The dedicated
+    // swr_stale_served tripwire covers the fetch-ran-but-verification-
+    // returned-stale case.) The blocker requirement holds either way: an
+    // old tagged page is never counted as a freshly persisted warm result.
+    expect(r.cache_hit_existing).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(r.cache_persisted).toBe(0);
     expect(r.fallback_live).toBe(0);
     expect(findManyMock.mock.calls.length).toBe(neonBefore); // stale serves cost zero Neon
   });
 
-  it("SET-FAILURE: pages are fallback_live and the Neon read runs EXACTLY ONCE per page (memory reuse)", async () => {
+  it("SILENT SET-FAILURE: pages are fallback_live; reads bounded at 2 per page per warm pass (no cross-request memory)", async () => {
     cacheMode.mode = "fail_set";
     const r = await warmBuildingManifestShards();
     expect(r.fallback_live).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(r.cache_persisted).toBe(0);
-    // one Neon read per page — the verification re-read and any further
-    // reads inside the TTL are served by the in-process memory layer
-    expect(findManyMock.mock.calls.length).toBe(BUILDING_MANIFEST_SHARDS.length);
-    // subsequent warm within the TTL: still zero NEW Neon reads for the
-    // refresh is forced per key… refresh deletes memory ⇒ re-reads Neon.
-    // What must stay bounded: reads NEVER exceed one per page per pass.
-    const before = findManyMock.mock.calls.length;
-    await warmBuildingManifestShards();
-    expect(findManyMock.mock.calls.length - before).toBe(BUILDING_MANIFEST_SHARDS.length);
+    // With NO cross-request memory (blocker 2), the warm's verification
+    // re-read is a real second Neon read when the set fails — bounded to
+    // the warm pass (2 per page), never a per-request stale cache.
+    expect(findManyMock.mock.calls.length).toBe(BUILDING_MANIFEST_SHARDS.length * 2);
   });
 
-  it("DYNAMIC SHRINK: oversized rows split into multiple under-budget pages; the walk still covers every row", async () => {
+  it("PRODUCTION-SHAPED failure: fetch resolves, cache layer THROWS — caller gets the captured value, Prisma runs EXACTLY once", async () => {
+    cacheMode.mode = "throw_after_set";
+    const before = findManyMock.mock.calls.length;
+    const rows = await getBuildingManifestShard("7");
+    // the captured value is returned despite the cache-storage error
+    expect(rows.map((r: { listing_id: string }) => r.listing_id)).toEqual(
+      Array.from({ length: 40 }, (_, i) => `L-${String(i + 1).padStart(4, "0")}`),
+    );
+    // exactly ONE Prisma execution per page for this invocation — the
+    // wrapped fetch is never re-run because the cache backend threw
+    expect(findManyMock.mock.calls.length - before).toBe(1); // 40 rows = 1 page
+  });
+
+  it("safeRevalidateTags invokes revalidateTag with EXACTLY one argument (the immediate-expiration path)", () => {
+    (revalidateTag as jest.Mock).mockClear();
+    safeRevalidateTags(["tag-under-test"]);
+    expect(revalidateTag).toHaveBeenCalledTimes(1);
+    const call = (revalidateTag as jest.Mock).mock.calls[0];
+    expect(call[0]).toBe("tag-under-test");
+    expect(call.length).toBe(1); // NO profile — dist-verified immediate path
+  });
+
+  it("CURSOR INVARIANT: a page whose cursor repeats FAILS loudly (never an infinite or silent walk)", async () => {
+    cursorLoop.on = true;
+    try {
+      await expect(getBuildingManifestShard("7")).rejects.toThrow(/CURSOR DID NOT ADVANCE/);
+    } finally {
+      cursorLoop.on = false;
+    }
+  });
+
+  it("DYNAMIC SHRINK completeness: every fixture listing ID is returned exactly once, in order, to exhaustion", async () => {
     // ~90 KB per row × 40 rows ≈ 3.6 MB in one nominal page → must shrink.
     rowBloat = 90_000;
-    const r = await warmBuildingManifestShards();
-    expect(r.shards_failed).toBe(0);
-    // more pages than shards ⇒ shrink produced additional pages
-    const pagesCounted = r.cache_persisted + r.fallback_live + r.swr_stale_served;
-    expect(pagesCounted).toBeGreaterThan(BUILDING_MANIFEST_SHARDS.length);
+    const before = findManyMock.mock.calls.length;
+    const rows = await getBuildingManifestShard("7");
+    const ids = rows.map((r: { listing_id: string }) => r.listing_id);
+    const expected = Array.from({ length: 40 }, (_, i) => `L-${String(i + 1).padStart(4, "0")}`);
+    // EXACTLY once, in order, through final cursor exhaustion — not merely
+    // "more pages than shards".
+    expect(ids).toEqual(expected);
+    expect(new Set(ids).size).toBe(40);
+    // shrink actually produced multiple pages (multiple keyset fetches)
+    expect(findManyMock.mock.calls.length - before).toBeGreaterThan(1);
   });
 });

@@ -141,18 +141,33 @@ export function cachedPublicRead<A extends unknown[], T>(
   opts: { tags: string[]; revalidate?: number },
 ): (...args: A) => Promise<T> {
   return async (...args: A) => {
+    // PER-INVOCATION capture (Maya blocker 2 on #560, 2026-07-24): when the
+    // cache backend throws AFTER the wrapped fn already resolved (the
+    // production 2 MB oversized-entry failure shape), the fallback must
+    // return the captured value — NEVER execute the underlying read a
+    // second time for a cache-storage failure. Only when the fn itself
+    // never resolved (the error happened before/inside it) does the
+    // fallback re-attempt the live read.
+    let captured: { value: T } | null = null;
+    const capturing = async (...a: A): Promise<T> => {
+      const value = await fn(...a);
+      captured = { value };
+      return value;
+    };
     try {
-      const wrapped = unstable_cache(fn, keyParts, {
+      const wrapped = unstable_cache(capturing, keyParts, {
         tags: opts.tags,
         revalidate: opts.revalidate ?? SYNC_CADENCE_SECONDS,
       });
       return await wrapped(...args);
     } catch (err) {
-      // Cache layer failed → live read (correctness beats CU savings).
       console.error(
         "[public-cache] cache layer error — degrading to live read:",
         err instanceof Error ? err.message : err,
       );
+      if (captured !== null) return (captured as { value: T }).value;
+      // Cache layer failed BEFORE the fn resolved → one live re-attempt
+      // (correctness beats CU savings).
       return fn(...args);
     }
   };

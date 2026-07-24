@@ -59,7 +59,7 @@ jest.mock("next/cache", () => {
 // the pagination/overflow/warm behaviors are exercised for real.
 const FAIL_SHARDS = new Set<string>(); // warm failure-isolation injection
 const REMOVED_STREETS = new Set<string>(); // writer-eviction simulation (listing left the gated set)
-const OVERFLOW9 = { on: false }; // shard '9' never-short pages → overflow
+const OVERFLOW9 = { on: false, counter: 0 }; // shard '9' never-short pages → overflow
 function mkRow(num: string, idx: number) {
   return {
     id: `dbid-${num}-${idx}`,
@@ -105,8 +105,10 @@ const findManyMock = jest.fn(async (q: Record<string, any>) => {
   if (FAIL_SHARDS.has(shard)) throw new Error("simulated Neon outage for warm test");
   const take: number = q?.take ?? 100000;
   if (shard === "9" && OVERFLOW9.on) {
-    // pathological source that never returns a short page
-    return Array.from({ length: take }, (_, i) => mkRow("999", i));
+    // pathological source that never returns a short page — ids ADVANCE
+    // forever so the walk hits the TOTAL-ROW ceiling (not the cursor-repeat
+    // invariant, which has its own test in the warm-behavior suite)
+    return Array.from({ length: take }, () => mkRow("999", OVERFLOW9.counter++));
   }
   const all = shardRows(shard);
   let start = 0;
@@ -195,9 +197,9 @@ describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
     expect(tokenMock.mock.calls.length).toBe(t + 1); // exactly one rebuild
     // that rebuild refills at most ITS shard of the manifest (which the
     // previous test's `search` bump had expired) — never 100 queries.
-    // CRAWL[7] lives on shard 8, whose fill takes TWO keyset pages (6,501
-    // rows > the 5,000 page size) — still one bounded shard, not per-building.
-    expect(findManyMock.mock.calls.length - q).toBeLessThanOrEqual(2);
+    // CRAWL[7] lives on shard 8, whose fill takes FIVE keyset pages (6,501
+    // rows > the 1,500-row page size) — still one bounded shard, not per-building.
+    expect(findManyMock.mock.calls.length - q).toBeLessThanOrEqual(5);
   });
 
   it("BEHAVIORAL: buildingName variants do NOT mint separate cache identities for the same canonical building", async () => {
@@ -367,10 +369,9 @@ describe("writer-driven eviction — expiration/withdrawal/display-off cache sem
     try {
       // … and the EXACT tag-set every converted writer now revalidates:
       revalidateTag("listing:" + gone);
-      // in-process page memory: production staleness after a writer
-      // invalidation is bounded by the 5-minute TTL — the clear simulates
-      // that bound elapsing (the DATA cache honors the exact tags at once).
-      clearManifestPageMemory();
+      // Blocker-2 proof: NO memory clear here — immediate tag invalidation
+      // alone must make the removed listing disappear (no cross-request
+      // page memory exists to hold it).
       revalidateTag(buildingCacheTag(target.streetNumber, target.streetName, target.postalCode));
       revalidateTag("search");
 

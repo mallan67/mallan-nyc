@@ -106,8 +106,16 @@ describe("building-manifest cache-size proof (2 MB production limit)", () => {
     // SWR-aware proof: a stale pre-warm entry is separated, never counted
     // as fresh; refresh is forced PER KEY (no module-global bypass flag).
     expect(src).toContain("swr_stale_served: swrStaleServed");
+    expect(src).toContain("cache_hit_existing: cacheHitExisting");
     expect(src).toContain("second.fetchedAt >= warmStart");
-    expect(src).toContain("manifestPageMemory.delete(key)");
+    // Blocker 2: NO cross-request page memory of any kind
     expect(src).not.toContain("manifestMemoryBypass");
+    expect(src).not.toContain("manifestPageMemory");
+    expect(src).not.toContain("MANIFEST_MEMORY_TTL_MS");
+    // per-invocation capture is the ONLY set-failure absorption
+    expect(src).toContain("captured = await fetchManifestPage(s, c)");
+    // Blocker 1: completeness is row-based, walked to cursor exhaustion
+    expect(src).toContain("MANIFEST_MAX_ROWS_PER_SHARD");
+    expect(src).not.toContain("MANIFEST_MAX_PAGES");
   });
 });
