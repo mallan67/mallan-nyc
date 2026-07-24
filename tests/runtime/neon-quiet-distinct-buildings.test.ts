@@ -315,10 +315,10 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     const coldCalls = findManyMock.mock.calls.length - before;
     expect(coldCalls).toBeGreaterThanOrEqual(BUILDING_MANIFEST_SHARDS.length); // ≥1 page per shard
     expect(coldCalls).toBeLessThanOrEqual(BUILDING_MANIFEST_SHARDS.length + 4); // shard 8 = 5 pages
-    // 2 MB correction: only PROVABLY persisted pages count as warmed cache —
-    // with the memoizing test cache every page persists; fallback-live = 0.
-    expect(r1.cache_persisted).toBe(coldCalls);
-    expect(r1.fallback_live).toBe(0);
+    // Scope A (2026-07-24): every executed page is exactly ONE Neon read —
+    // pages_filled equals the cold-call count (no verification re-read).
+    expect(r1.pages_filled).toBe(coldCalls);
+    expect(r1.cache_hit_existing).toBe(0);
     const r2 = await warmBuildingManifestShards();
     expect(r2.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(findManyMock.mock.calls.length - before).toBe(coldCalls); // second warm: ZERO new queries
