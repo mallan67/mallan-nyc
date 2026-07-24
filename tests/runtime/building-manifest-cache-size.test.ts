@@ -7,7 +7,7 @@
  * to persist, and re-run the Neon read per distinct-building request.
  *
  * Proofs here:
- *   1. A REALISTIC worst-case 2,000-row page serializes far below the
+ *   1. A REALISTIC worst-case 1,500-row page serializes far below the
  *      explicit ceiling (which itself is far below 2 MB).
  *   2. The manifest read NEVER selects the heavy `media` JSON — the stored
  *      media-summary column (primary_photo_url) is the hero source.
@@ -21,7 +21,12 @@ import {
   MANIFEST_CACHE_MAX_BYTES,
 } from "@/lib/buildings/public-building-data";
 
-// Realistic WORST-CASE slim row: every string field at plausible maximum
+// WORST-CASE slim row — deliberately EXCEEDS the real production maxima
+// (read-only Neon evidence, 2026-07-24, n=9,805 displayable actives:
+//  StreetName max 22 / p99 13 chars; UnitNumber max 20; BuildingName null
+//  in every address JSON; primary_photo_url max=p99 161 chars;
+//  listing_id max 11). Every fixture string below is LONGER than the real
+//  maximum, so the proven bound is strictly conservative.
 // (long pre-war building names, hyphenated Queens street numbers, long
 // proxy-wrapped photo URLs).
 function worstCaseRow(i: number) {
@@ -98,6 +103,11 @@ describe("building-manifest cache-size proof (2 MB production limit)", () => {
     );
     expect(src).toContain("cache_persisted: cachePersisted");
     expect(src).toContain("fallback_live: fallbackLive");
-    expect(src).toContain("manifestMemoryBypass = true");
+    // SWR-aware proof: a stale pre-warm entry is separated, never counted
+    // as fresh; refresh is forced PER KEY (no module-global bypass flag).
+    expect(src).toContain("swr_stale_served: swrStaleServed");
+    expect(src).toContain("second.fetchedAt >= warmStart");
+    expect(src).toContain("manifestPageMemory.delete(key)");
+    expect(src).not.toContain("manifestMemoryBypass");
   });
 });

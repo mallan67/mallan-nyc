@@ -90,7 +90,7 @@ function shardRows(shard: string) {
     const num = String(100 + i);
     if (num.startsWith(shard) && !REMOVED_STREETS.has(num)) rows.push(mkRow(num, 0));
   }
-  // shard '8' carries 6,500 rows on ONE street — above the 2,000-row page
+  // shard '8' carries 6,500 rows on ONE street — above the 1,500-row page
   // size (2 MB-safe cache pages), so its fill takes FIVE keyset pages.
   if (shard === "8") {
     for (let i = 1; i <= 6500; i++) rows.push(mkRow("888", i));

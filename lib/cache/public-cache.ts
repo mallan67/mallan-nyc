@@ -246,9 +246,30 @@ export function safeRevalidateTags(
     if (!tag || seen.has(tag)) continue;
     seen.add(tag);
     try {
-      // Next 16.2 signature: profile "max" = expire the tag's entries
-      // immediately (the classic hard invalidation semantics).
-      revalidateTag(tag, "max");
+      // DIST-VERIFIED semantics (installed Next 16.2.4 — Maya correction
+      // 2026-07-24; the previous comment here was WRONG):
+      //   - revalidateTag(tag, "max") is NOT immediate expiration: the
+      //     profile resolves to `durations = { expire: cacheLife.expire }`
+      //     (dist/server/revalidation-utils.js:100-124) — i.e.
+      //     stale-while-revalidate against the "max" profile's expire
+      //     window.
+      //   - A PROFILE-LESS call leaves `durations` undefined, "which will
+      //     trigger immediate expiration in the cache handler"
+      //     (revalidation-utils.js:126-127) — the classic blocking
+      //     invalidation these writers require (Sec 2.05 removals must
+      //     disappear promptly, and the manifest warm contract depends on
+      //     a true MISS after invalidation).
+      //   - updateTag() has the same immediate semantics but throws
+      //     outside Server Actions (revalidate.js:48-58) — unusable in
+      //     these route-handler/cron writers.
+      // The profile-less form emits a one-line deprecation console.warn
+      // (revalidate.js:41-43); accepted deliberately — correctness over
+      // log noise — and pinned by tests so a future signature change is
+      // caught, not assumed.
+      // The published TypeScript signature requires the profile argument,
+      // but the profile-less runtime path is precisely the immediate-
+      // expiration branch (dist-verified above) — cast, don't pass "max".
+      (revalidateTag as unknown as (tag: string) => void)(tag);
       if (counters) counters.pages_revalidated++;
     } catch (err) {
       if (counters) counters.revalidation_failures++;
