@@ -70,6 +70,8 @@ function dbRows(num: string) {
         { MediaURL: "https://img.example/fp.jpg", MediaCategory: "FloorPlan", Order: 0 },
         { MediaURL: "https://img.example/crm-hero.jpg", MediaCategory: "Photo", Order: 1 },
       ],
+      // 2 MB correction: the manifest reads the STORED summary hero.
+      primary_photo_url: "https://img.example/crm-hero.jpg",
       raw_data: null,
     },
     {
@@ -90,6 +92,7 @@ function dbRows(num: string) {
       },
       features: { CommonInterest: "Condominium" },
       media: [],
+      primary_photo_url: null,
       raw_data: { ClosePrice: 1495000, CloseDate: "2025-11-02" },
     },
   ];

@@ -90,8 +90,8 @@ function shardRows(shard: string) {
     const num = String(100 + i);
     if (num.startsWith(shard) && !REMOVED_STREETS.has(num)) rows.push(mkRow(num, 0));
   }
-  // shard '8' carries 6,500 rows on ONE street — above the 5,000 page size,
-  // so its fill takes exactly two keyset pages (completeness proof).
+  // shard '8' carries 6,500 rows on ONE street — above the 2,000-row page
+  // size (2 MB-safe cache pages), so its fill takes FIVE keyset pages.
   if (shard === "8") {
     for (let i = 1; i <= 6500; i++) rows.push(mkRow("888", i));
   }
@@ -133,7 +133,7 @@ jest.mock("@/lib/buildings/acris-building-sales", () => ({
   boroughFromPostalCode: jest.fn(() => null),
 }));
 
-const { getBuildingDataCached } = require("@/lib/buildings/public-building-data");
+const { getBuildingDataCached, clearManifestPageMemory } = require("@/lib/buildings/public-building-data");
 const { revalidateTag } = require("next/cache");
 const { buildingCacheTag, buildingTagFromAddress } = require("@/lib/cache/public-cache");
 
@@ -157,11 +157,11 @@ async function crawlAll() {
 }
 
 describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
-  it("BEHAVIORAL: 100 DISTINCT buildings perform ≤10 Neon queries (shard bound), never one per building", async () => {
+  it("BEHAVIORAL: 100 DISTINCT buildings perform ≤13 Neon queries (page bound), never one per building", async () => {
     await crawlAll();
     expect(tokenMock.mock.calls.length).toBe(100); // each building assembled once
     expect(findManyMock.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(findManyMock.mock.calls.length).toBeLessThanOrEqual(10); // ≤ shard count — NOT 100
+    expect(findManyMock.mock.calls.length).toBeLessThanOrEqual(13); // ≤ total page count — NOT 100
   });
 
   it("BEHAVIORAL: re-crawling all 100 performs ZERO additional Neon queries and ZERO re-assembly", async () => {
@@ -253,11 +253,12 @@ describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
 // ─── Manifest completeness + wake clustering (building-only PR additions) ──
 
 describe("manifest completeness — keyset pagination, explicit overflow", () => {
-  it("BEHAVIORAL: a shard ABOVE the 5,000-row page size fills COMPLETELY in exactly two keyset pages", async () => {
+  it("BEHAVIORAL: a shard ABOVE the 1,500-row cache-page size fills COMPLETELY in exactly five keyset pages", async () => {
     const before = findManyMock.mock.calls.length;
     // street 888 carries 6,501 rows — crawled earlier, so shard 8 is cached;
     // force a fresh fill to observe the pagination itself
     revalidateTag("building-manifest");
+    clearManifestPageMemory();
     revalidateTag("search");
     // the payload entry itself is cached from the earlier crawl — expire ITS
     // exact tag so the assembly (and therefore the shard fill) re-runs
@@ -270,7 +271,7 @@ describe("manifest completeness — keyset pagination, explicit overflow", () =>
       const conds = (c[0] as Record<string, any>)?.where?.AND ?? [];
       return conds.some((x: Record<string, any>) => x?.address?.string_starts_with === "8");
     });
-    expect(shard8Calls.length).toBe(2); // 5,000 + 1,501 — run to exhaustion
+    expect(shard8Calls.length).toBe(5); // 1,500 ×4 + remainder — run to exhaustion
     const second = shard8Calls[1][0] as Record<string, any>;
     expect(second.cursor?.listing_id).toBeDefined(); // keyset, not offset
     // completeness: the DB layer saw ALL 6,501 rows (payload caps display at
@@ -282,6 +283,7 @@ describe("manifest completeness — keyset pagination, explicit overflow", () =>
   it("BEHAVIORAL: pathological never-short shard THROWS an explicit OVERFLOW — never a silently truncated payload", async () => {
     OVERFLOW9.on = true;
     revalidateTag("building-manifest");
+    clearManifestPageMemory();
     revalidateTag("search");
     try {
       await expect(
@@ -290,6 +292,7 @@ describe("manifest completeness — keyset pagination, explicit overflow", () =>
     } finally {
       OVERFLOW9.on = false;
       revalidateTag("building-manifest");
+    clearManifestPageMemory();
       revalidateTag("search");
     }
   });
@@ -301,6 +304,7 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
 
   it("BEHAVIORAL: one warm-up fills EVERY shard while awake; a second warm-up is all cache hits (zero Neon)", async () => {
     revalidateTag("building-manifest");
+    clearManifestPageMemory();
     revalidateTag("search");
     const before = findManyMock.mock.calls.length;
     const r1 = await warmBuildingManifestShards();
@@ -308,7 +312,11 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     expect(r1.shards_failed).toBe(0);
     const coldCalls = findManyMock.mock.calls.length - before;
     expect(coldCalls).toBeGreaterThanOrEqual(BUILDING_MANIFEST_SHARDS.length); // ≥1 page per shard
-    expect(coldCalls).toBeLessThanOrEqual(BUILDING_MANIFEST_SHARDS.length + 1); // shard 8 pages twice
+    expect(coldCalls).toBeLessThanOrEqual(BUILDING_MANIFEST_SHARDS.length + 4); // shard 8 = 5 pages
+    // 2 MB correction: only PROVABLY persisted pages count as warmed cache —
+    // with the memoizing test cache every page persists; fallback-live = 0.
+    expect(r1.cache_persisted).toBe(coldCalls);
+    expect(r1.fallback_live).toBe(0);
     const r2 = await warmBuildingManifestShards();
     expect(r2.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(findManyMock.mock.calls.length - before).toBe(coldCalls); // second warm: ZERO new queries
@@ -330,6 +338,7 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
 
   it("BEHAVIORAL: a failing shard is COUNTED, never thrown — warm-up cannot corrupt or block anything", async () => {
     revalidateTag("building-manifest");
+    clearManifestPageMemory();
     revalidateTag("search");
     FAIL_SHARDS.add("3");
     try {
@@ -358,6 +367,10 @@ describe("writer-driven eviction — expiration/withdrawal/display-off cache sem
     try {
       // … and the EXACT tag-set every converted writer now revalidates:
       revalidateTag("listing:" + gone);
+      // in-process page memory: production staleness after a writer
+      // invalidation is bounded by the 5-minute TTL — the clear simulates
+      // that bound elapsing (the DATA cache honors the exact tags at once).
+      clearManifestPageMemory();
       revalidateTag(buildingCacheTag(target.streetNumber, target.streetName, target.postalCode));
       revalidateTag("search");
 
