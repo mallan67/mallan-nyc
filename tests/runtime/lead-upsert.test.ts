@@ -74,6 +74,18 @@ function collectBoundValues(values: ReadonlyArray<unknown>): unknown[] {
 }
 
 describe("atomicMergeUpsertLead — SQL contract", () => {
+  it('source contract: the helper file contains no raw PascalCase relation reference anywhere (comments included)', () => {
+    const fs = require("fs");
+    const path = require("path");
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "lib/leads/lead-upsert.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/"Lead"/);
+    expect(src).toMatch(/INSERT INTO "leads" \(/);
+    expect(src).toMatch(/"leads"\."roles"/);
+  });
+
   it("emits a single INSERT ... ON CONFLICT statement with DB-side roles union", async () => {
     const calls: Array<{ sql: string; values: unknown[] }> = [];
     const fakePrisma = {
@@ -106,11 +118,20 @@ describe("atomicMergeUpsertLead — SQL contract", () => {
     // Pin every expression that the concurrency contract depends on.
     // If any of these regexes stops matching, a future refactor has
     // broken the DB-side merge and reopened the TOCTOU race.
-    expect(sql).toMatch(/INSERT INTO "Lead"/i);
+    // Must target the REAL physical table `leads` (Prisma @@map("leads")),
+    // referenced by its literal quoted name (no alias) per the 2026-07-17
+    // SQL contract.
+    // Regression guard: the historical `INSERT INTO "Lead"` (quoted, case-
+    // sensitive) hit a non-existent relation → 42P01 → 16 days of dropped
+    // contact leads (fixed 2026-07-14). Never let the PascalCase name back in.
+    expect(sql).toMatch(/INSERT INTO "leads" \(/);
+    expect(sql).toMatch(/"leads"\."roles"/);
+    expect(sql).toMatch(/"leads"\."phone"/);
+    expect(sql).not.toMatch(/"Lead"/);
     expect(sql).toMatch(/ON CONFLICT \("email"\)/i);
     expect(sql).toMatch(/DO UPDATE SET/i);
     expect(sql).toMatch(
-      /unnest\(\s*"Lead"\."roles"\s*\|\|\s*EXCLUDED\."roles"\s*\)/i
+      /unnest\(\s*"leads"\."roles"\s*\|\|\s*EXCLUDED\."roles"\s*\)/
     );
     expect(sql).toMatch(/SELECT DISTINCT/i);
     expect(sql).toMatch(/RETURNING/i);
@@ -150,7 +171,7 @@ describe("atomicMergeUpsertLead — SQL contract", () => {
       consentCapturedAt: new Date(),
     });
     expect(capturedSql).toMatch(
-      /COALESCE\(\s*NULLIF\(EXCLUDED\."phone",\s*''\),\s*"Lead"\."phone"\s*\)/i
+      /COALESCE\(\s*NULLIF\(EXCLUDED\."phone",\s*''\),\s*"leads"\."phone"\s*\)/
     );
   });
 

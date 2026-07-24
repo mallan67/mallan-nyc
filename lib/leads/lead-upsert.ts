@@ -4,7 +4,7 @@
  * Background — A3 Codex feedback on PR #171 (2026-05-20).
  *
  * The original A3 implementation used a read-then-write pattern:
- *   1. SELECT roles FROM "Lead" WHERE email = $1
+ *   1. SELECT roles FROM "leads" WHERE email = $1
  *   2. mergedRoles = JS-side mergeRoles(existing, incoming)
  *   3. INSERT ... ON CONFLICT (email) DO UPDATE SET roles = <jsValue>
  *
@@ -25,7 +25,7 @@
  * The union expression:
  *   ARRAY(
  *     SELECT DISTINCT e
- *     FROM unnest("Lead"."roles" || EXCLUDED."roles") AS e
+ *     FROM unnest("leads"."roles" || EXCLUDED."roles") AS e
  *     WHERE e <> ''
  *   )
  *
@@ -115,7 +115,7 @@ export async function atomicMergeUpsertLead(
   const rows = await prisma.$queryRaw<
     Array<{ id: bigint; roles: string[] }>
   >`
-    INSERT INTO "Lead" (
+    INSERT INTO "leads" (
       "first_name", "last_name", "email", "phone", "roles",
       "status", "source", "consent_captured_at",
       "created_at", "updated_at"
@@ -126,10 +126,10 @@ export async function atomicMergeUpsertLead(
       NOW(), NOW()
     )
     ON CONFLICT ("email") DO UPDATE SET
-      "phone" = COALESCE(NULLIF(EXCLUDED."phone", ''), "Lead"."phone"),
+      "phone" = COALESCE(NULLIF(EXCLUDED."phone", ''), "leads"."phone"),
       "roles" = ARRAY(
         SELECT DISTINCT e
-        FROM unnest("Lead"."roles" || EXCLUDED."roles") AS e
+        FROM unnest("leads"."roles" || EXCLUDED."roles") AS e
         WHERE e <> ''
       ),
       "consent_captured_at" = EXCLUDED."consent_captured_at",
