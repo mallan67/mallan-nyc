@@ -45,7 +45,16 @@
 import { MALLAN_BROKERAGE_NAME } from '@/lib/syndication/mallan-identity';
 import { typedAgentColumnsFromJson } from '@/lib/listings/agent-info-typed-columns';
 
-const CRM_PREFIXES = ['SL-', 'RL-'] as const;
+/**
+ * Canonical Mallan-authored listing_id prefixes (CRM-created exclusives).
+ * Exported (R2-1) so DB-side `Prisma.ListingWhereInput` builders (e.g. the
+ * R2 mirror-admission policy in `lib/idx/media-sync.ts`) can derive their
+ * `startsWith` branches from the SAME source of truth as
+ * `isMallanExclusiveListing()` — no divergent duplicate of the prefix list.
+ */
+export const MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES = ['SL-', 'RL-'] as const;
+
+const CRM_PREFIXES = MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES;
 
 /**
  * The agent identity the app already holds — sourced from the authenticated

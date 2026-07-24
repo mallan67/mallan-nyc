@@ -143,7 +143,23 @@ export async function GET(req: NextRequest) {
           r2_parked_recovery_selected: result.r2_parked_recovery_selected,
           r2_parked_recovery_attempted: result.r2_parked_recovery_attempted,
           r2_failure_budget_exhausted: result.r2_failure_budget_exhausted,
+          // R2-1 mirror-admission counters (additive; legacy keys retained):
+          //   mirror_allowed          — Phase-3 candidates admitted by the
+          //                             mirror policy (= r2_uploaded + r2_reused
+          //                             + r2_failed + r2_skipped)
+          //   mirror_rejected_policy  — candidates rejected by the policy
+          //                             (never fetched/uploaded)
+          //   mirror_rejected_policy_parked — subset of the rejections that
+          //                             were POLICY-PARKED (r2_attempts = 9,
+          //                             one-time-per-row; permanently out of
+          //                             the backlog SELECT — Blocker-1)
+          //   r2_uploaded / r2_reused — split of the legacy r2_mirrored aggregate
+          mirror_allowed: result.mirror_allowed,
+          mirror_rejected_policy: result.mirror_rejected_policy,
+          mirror_rejected_policy_parked: result.mirror_rejected_policy_parked,
           r2_mirrored: result.r2_mirrored,
+          r2_uploaded: result.r2_uploaded,
+          r2_reused: result.r2_reused,
           r2_failed: result.r2_failed,
           r2_skipped: result.r2_skipped,
           backlog_remaining: result.backlog_remaining,
