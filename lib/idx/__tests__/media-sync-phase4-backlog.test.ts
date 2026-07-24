@@ -142,6 +142,19 @@ function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
     r2_key: null,
     media_url_cached: null,
     r2_attempts: null,
+    // R2-1 admission relation: Mallan-owned (rls_eligible=false =>
+    // all_active scope) so every Photo row is admitted and this suite keeps
+    // testing pure Phase-4 drain semantics, not the admission policy
+    // (which has its own suite: media-sync-r21-mirror-policy.test.ts).
+    listing: {
+      listing_id: listingId,
+      rls_eligible: false,
+      status: "Active",
+      idx_display_yn: false,
+      owner_opt_out: false,
+      participant_only: false,
+      internet_entire_listing_display_yn: false,
+    },
     ...over,
   };
 }
