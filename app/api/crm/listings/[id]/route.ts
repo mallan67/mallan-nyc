@@ -17,7 +17,7 @@ import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
-import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
@@ -495,7 +495,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // tag + BOTH buildings (previous + new address) + search in the same cycle.
   safeRevalidateTags([
     listingCacheTag(listing.listing_id),
-    ...buildingInvalidationTags(existingAddress, updated.address),
+    ...buildingAndManifestInvalidationTags(existingAddress, updated.address),
     SEARCH_CACHE_TAG,
   ]);
 
@@ -617,7 +617,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   // cached payload (and search surfaces) in the same cycle.
   safeRevalidateTags([
     listingCacheTag(listing.listing_id),
-    ...buildingInvalidationTags(listing.address),
+    ...buildingAndManifestInvalidationTags(listing.address),
     SEARCH_CACHE_TAG,
   ]);
 

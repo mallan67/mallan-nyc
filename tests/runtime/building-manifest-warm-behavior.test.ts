@@ -1,6 +1,6 @@
 /**
  * WARM-CONTRACT BEHAVIOR under real Next 16 cache semantics (Maya
- * corrections on PR #560, 2026-07-24).
+ * corrections on PR #560 + the 2026-07-24 follow-up directive).
  *
  * The mock models the DIST-VERIFIED contract instead of an idealized
  * immediate-delete store:
@@ -14,14 +14,22 @@
  *                                 SET never persists (the 2 MB production
  *                                 failure shape).
  *
- * Proofs:
- *   1. FAILING-FIRST SWR proof: an old tagged page served stale can NEVER
- *      be counted as a freshly persisted warm result (swr_stale_served).
- *   2. Set-failure: pages count as fallback_live, the underlying Neon read
- *      runs EXACTLY ONCE per page (memory reuse — no second read from the
- *      verification pass or later requests within the TTL).
- *   3. Normal mode: pages count as cache_persisted.
- *   4. Dynamic shrink: a page whose rows serialize over the byte budget
+ * Scope-A/B proofs (Maya directive 2026-07-24 — "Warm should perform one
+ * read per page… Not by rereading inside the request that invalidated the
+ * tag"; "if records changed only in shards 1, 4, and 7, do not query the
+ * other six"):
+ *   1. Warm performs EXACTLY ONE Neon read per page filled — the
+ *      same-request verification re-read is GONE, in every cache mode.
+ *   2. Warm is TARGETED: only the requested shards are touched; an empty
+ *      shard set performs zero reads.
+ *   3. Persistence is verified by probeManifestPersistence — a first-page
+ *      read per shard in a LATER request (before that request revalidates
+ *      anything): a persisted entry probes as cache_hits with zero Neon; a
+ *      lost entry probes as live_fills (one bounded read that itself
+ *      refills the page).
+ *   4. An old SWR-stale page served without executing is never counted as
+ *      a fill.
+ *   5. Dynamic shrink: a page whose rows serialize over the byte budget
  *      shrinks to fit and the keyset walk still covers every row.
  */
 
@@ -122,11 +130,12 @@ jest.mock("@/lib/buildings/acris-building-sales", () => ({
 
 const {
   warmBuildingManifestShards,
+  probeManifestPersistence,
   clearManifestPageMemory,
   getBuildingManifestShard,
   BUILDING_MANIFEST_SHARDS,
 } = require("@/lib/buildings/public-building-data");
-const { safeRevalidateTags } = require("@/lib/cache/public-cache");
+const { safeRevalidateTags, manifestShardTag } = require("@/lib/cache/public-cache");
 const { revalidateTag } = require("next/cache");
 
 beforeEach(() => {
@@ -138,52 +147,125 @@ beforeEach(() => {
   findManyMock.mockClear();
 });
 
-describe("warm contract under real tag semantics", () => {
-  it("NORMAL: every page counts as cache_persisted; nothing stale, nothing fallback", async () => {
+describe("warm contract — single read per page, targeted shards", () => {
+  it("NORMAL: cold warm fills every page with EXACTLY ONE Neon read each; re-warm is all hits with zero reads", async () => {
     const r = await warmBuildingManifestShards();
+    expect(r.shards_requested).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(r.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
-    expect(r.cache_persisted).toBe(BUILDING_MANIFEST_SHARDS.length); // 1 page/shard fixture
+    expect(r.pages_filled).toBe(BUILDING_MANIFEST_SHARDS.length); // 1 page/shard fixture
     expect(r.cache_hit_existing).toBe(0);
-    expect(r.fallback_live).toBe(0);
-    expect(r.swr_stale_served).toBe(0);
+    // Scope A acceptance: at most one Neon query per page actually warmed.
+    expect(findManyMock.mock.calls.length).toBe(BUILDING_MANIFEST_SHARDS.length);
     // second warm: entries are valid pre-existing → hits, zero fresh work
+    const neonBefore = findManyMock.mock.calls.length;
     const r2 = await warmBuildingManifestShards();
     expect(r2.cache_hit_existing).toBe(BUILDING_MANIFEST_SHARDS.length);
-    expect(r2.cache_persisted).toBe(0);
+    expect(r2.pages_filled).toBe(0);
+    expect(findManyMock.mock.calls.length).toBe(neonBefore);
   });
 
-  it("SWR (failing-first proof): an OLD tagged page served stale is NEVER counted as freshly persisted", async () => {
-    // Populate pre-warm entries (old fetchedAt), then SWR-revalidate the tag.
+  it("TARGETED (scope B): only the requested shards are walked; the empty set performs ZERO reads", async () => {
+    const r = await warmBuildingManifestShards(["7", "4", "7"]); // dedupes
+    expect(r.shards_requested).toBe(2);
+    expect(r.shards_warmed).toBe(2);
+    expect(r.pages_filled).toBe(2);
+    expect(findManyMock.mock.calls.length).toBe(2);
+    const rEmpty = await warmBuildingManifestShards([]);
+    expect(rEmpty).toEqual({
+      shards_requested: 0,
+      shards_warmed: 0,
+      shards_failed: 0,
+      pages_filled: 0,
+      cache_hit_existing: 0,
+      duration_ms: expect.any(Number),
+    });
+    expect(findManyMock.mock.calls.length).toBe(2); // unchanged — zero Neon
+  });
+
+  it("SWR: an OLD tagged page served stale costs zero Neon and is NEVER counted as a fill", async () => {
     await warmBuildingManifestShards();
     clearManifestPageMemory(); // memory would otherwise mask the cache layer
     (revalidateTag as jest.Mock)("building-manifest", "max"); // SWR — old values survive
-    // Advance the wall clock past the pre-warm fetchedAt: production warms
-    // are 30 minutes apart; in-test both warms can land in the SAME
-    // Date.now() millisecond, which would make the stale entry look
-    // "fresh enough" purely by clock resolution.
     await new Promise((resolve) => setTimeout(resolve, 5));
     const neonBefore = findManyMock.mock.calls.length;
     const r = await warmBuildingManifestShards();
-    // The stale entries were served WITHOUT executing the fetch: they land
-    // in cache_hit_existing — NEVER in cache_persisted. (The dedicated
-    // swr_stale_served tripwire covers the fetch-ran-but-verification-
-    // returned-stale case.) The blocker requirement holds either way: an
-    // old tagged page is never counted as a freshly persisted warm result.
     expect(r.cache_hit_existing).toBe(BUILDING_MANIFEST_SHARDS.length);
-    expect(r.cache_persisted).toBe(0);
-    expect(r.fallback_live).toBe(0);
+    expect(r.pages_filled).toBe(0);
     expect(findManyMock.mock.calls.length).toBe(neonBefore); // stale serves cost zero Neon
   });
 
-  it("SILENT SET-FAILURE: pages are fallback_live; reads bounded at 2 per page per warm pass (no cross-request memory)", async () => {
+  it("SET-FAILURE: NO same-request verification re-read (exactly one read per page); the NEXT-request probe reports the loss as live_fills", async () => {
     cacheMode.mode = "fail_set";
     const r = await warmBuildingManifestShards();
-    expect(r.fallback_live).toBe(BUILDING_MANIFEST_SHARDS.length);
-    expect(r.cache_persisted).toBe(0);
-    // With NO cross-request memory (blocker 2), the warm's verification
-    // re-read is a real second Neon read when the set fails — bounded to
-    // the warm pass (2 per page), never a per-request stale cache.
-    expect(findManyMock.mock.calls.length).toBe(BUILDING_MANIFEST_SHARDS.length * 2);
+    // Scope A: the warm itself no longer re-reads to verify — one read per
+    // page, in EVERY cache mode. It cannot (and does not claim to) know
+    // whether the SET persisted.
+    expect(r.pages_filled).toBe(BUILDING_MANIFEST_SHARDS.length);
+    expect(findManyMock.mock.calls.length).toBe(BUILDING_MANIFEST_SHARDS.length);
+    // The next request's probe is the honest instrument: nothing persisted,
+    // so every first-page probe re-executes (one bounded read each, which
+    // itself refills the page when the store recovers).
+    const neonBefore = findManyMock.mock.calls.length;
+    const probe = await probeManifestPersistence();
+    expect(probe.live_fills).toBe(BUILDING_MANIFEST_SHARDS.length);
+    expect(probe.cache_hits).toBe(0);
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + BUILDING_MANIFEST_SHARDS.length);
+  });
+
+  it("PRODUCTION SHAPE (Maya #561 review): previous run warmed ONLY shard 4; a GLOBAL purge follows; the scoped canary touches shard 4 only — shards 1-3 and 5-9 execute ZERO queries", async () => {
+    // Previous run: targeted warm of shard 4 only.
+    const r = await warmBuildingManifestShards(["4"]);
+    expect(r.pages_filled).toBe(1);
+    // Every manifest entry receives the global invalidation (full purge —
+    // the worst case that made an all-shard canary recreate broad reads).
+    (revalidateTag as jest.Mock)("building-manifest"); // profile-less → immediate
+    const neonBefore = findManyMock.mock.calls.length;
+    // Next run's canary probes ONLY the previously warmed set.
+    const probe = await probeManifestPersistence(["4"]);
+    expect(probe.shards_probed).toBe(1);
+    expect(probe.live_fills).toBe(1); // the purge is honestly reported…
+    expect(probe.cache_hits).toBe(0);
+    // …at the cost of exactly ONE bounded read. The other eight shard
+    // classes are NEVER queried.
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
+    const probedShards = findManyMock.mock.calls
+      .slice(neonBefore)
+      .map((c) => c[0]?.where?.AND?.at(-1)?.address?.string_starts_with);
+    expect(probedShards).toEqual(["4"]);
+  });
+
+  it("PER-SHARD INVALIDATION (Maya #561 review): a shard-4 change invalidates and refills shard 4 while cached shard 7 stays a HIT", async () => {
+    // All shards cached (e.g. from lazy traffic).
+    await warmBuildingManifestShards();
+    // A price change in shard 4: the writer revalidates ONLY that shard's
+    // manifest tag (plus its building/listing tags — irrelevant here).
+    (revalidateTag as jest.Mock)(manifestShardTag("4")); // profile-less → immediate
+    const neonBefore = findManyMock.mock.calls.length;
+    const r = await warmBuildingManifestShards(["4"]);
+    expect(r.pages_filled).toBe(1); // shard 4 refilled — one read
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
+    // Shard 7 SURVIVED the shard-4 invalidation: reading it is a pure
+    // cache hit — zero further Neon queries.
+    const rows = await getBuildingManifestShard("7");
+    expect(rows.length).toBe(40);
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
+  });
+
+  it("PROBE: a persisted warm probes as cache_hits with ZERO Neon; immediate invalidation probes as live_fills (one read each)", async () => {
+    await warmBuildingManifestShards();
+    const neonBefore = findManyMock.mock.calls.length;
+    const persisted = await probeManifestPersistence();
+    expect(persisted.shards_probed).toBe(BUILDING_MANIFEST_SHARDS.length);
+    expect(persisted.cache_hits).toBe(BUILDING_MANIFEST_SHARDS.length);
+    expect(persisted.live_fills).toBe(0);
+    expect(persisted.failed).toBe(0);
+    expect(findManyMock.mock.calls.length).toBe(neonBefore); // zero Neon on full persistence
+    (revalidateTag as jest.Mock)("building-manifest"); // profile-less → immediate expiration
+    const lost = await probeManifestPersistence(["7", "4"]);
+    expect(lost.shards_probed).toBe(2);
+    expect(lost.live_fills).toBe(2);
+    expect(lost.cache_hits).toBe(0);
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 2);
   });
 
   it("PRODUCTION-SHAPED failure: fetch resolves, cache layer THROWS — caller gets the captured value, Prisma runs EXACTLY once", async () => {

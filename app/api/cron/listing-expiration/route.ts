@@ -7,7 +7,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { createNotification } from "@/lib/notifications/engine";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 import { sendEmail } from "@/lib/email/sendgrid";
@@ -313,7 +313,7 @@ export async function GET(req: NextRequest) {
     // the building page's active units in the same cycle.
     safeRevalidateTags([
       listingCacheTag(listing.listing_id),
-      ...buildingInvalidationTags(listing.address),
+      ...buildingAndManifestInvalidationTags(listing.address),
       SEARCH_CACHE_TAG,
     ]);
     results.periods_created++;

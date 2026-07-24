@@ -35,7 +35,7 @@ import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
-import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import {
   upsertListingMedia,
@@ -460,7 +460,7 @@ export async function GET(req: NextRequest) {
             // (raw is a full Trestle record: StreetNumber/StreetName/PostalCode).
             safeRevalidateTags([
               listingCacheTag(String(raw.ListingId)),
-              ...buildingInvalidationTags(raw),
+              ...buildingAndManifestInvalidationTags(raw),
               SEARCH_CACHE_TAG,
             ]);
             try {
@@ -583,7 +583,7 @@ export async function GET(req: NextRequest) {
         // building's cached payload must drop it in the same cycle (§2.05).
         safeRevalidateTags([
           listingCacheTag(g.listing_id),
-          ...buildingInvalidationTags(g.address),
+          ...buildingAndManifestInvalidationTags(g.address),
           SEARCH_CACHE_TAG,
         ]);
         try {
