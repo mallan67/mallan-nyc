@@ -438,6 +438,48 @@ export function projectionRowMateriallyEqual(
   }
 }
 
+/**
+ * Projection columns that carry SOURCE PROVENANCE only — no public search
+ * surface reads them as content. `modified_at` mirrors the Trestle
+ * ModificationTimestamp; its consumers (verified 2026-07-24) are the
+ * search-alerts `modifiedSince` filter and `modified_at desc` recency
+ * ordering (lib/search/core.ts, lib/search/criteria-to-prisma.ts) — both of
+ * which SHOULD ignore a revision bump with zero visible changes, otherwise
+ * they fire false "updated listing" signals.
+ */
+export const PROJECTION_PROVENANCE_ONLY_FIELDS: ReadonlySet<string> = new Set([
+  "modified_at",
+]);
+
+/**
+ * Scope D (Maya directive 2026-07-24): like `projectionRowMateriallyEqual`
+ * but IGNORING the provenance-only clock. When this returns true the caller
+ * skips the projection upsert entirely — the source revision timestamp stays
+ * on the LISTING row for provenance, and no building/search cache
+ * invalidation fires for a change nobody can see. Any search-visible delta
+ * (price, status, geography, text, amenities, display gates) still returns
+ * false and the full-row upsert proceeds (which also refreshes modified_at).
+ *
+ * Fail-closed exactly like the material comparator: missing row, missing
+ * column, or comparison error → NOT equal → write.
+ */
+export function projectionRowSearchVisiblyEqual(
+  existing: Record<string, unknown> | null | undefined,
+  next: ListingSearchProjectionRow,
+): boolean {
+  if (!existing) return false;
+  try {
+    for (const key of Object.keys(next) as (keyof ListingSearchProjectionRow)[]) {
+      if (PROJECTION_PROVENANCE_ONLY_FIELDS.has(key as string)) continue;
+      if (!(key in existing)) return false;
+      if (!materialValuesEqual(next[key], existing[key as string])) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── Prisma upsert payload builder ─────────────────────────────────────
 
 /**
