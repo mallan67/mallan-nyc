@@ -367,12 +367,17 @@ describe("writer-driven eviction — expiration/withdrawal/display-off cache sem
     // withdrawn / display-off) …
     REMOVED_STREETS.add(target.streetNumber);
     try {
-      // … and the EXACT tag-set every converted writer now revalidates:
+      // … and the EXACT tag-set every converted writer now revalidates
+      // (buildingAndManifestInvalidationTags: listing + building + the
+      // affected manifest SHARD — the coarse search tag no longer touches
+      // manifest pages, so the shard tag is what makes the listing leave
+      // the shared manifest):
       revalidateTag("listing:" + gone);
       // Blocker-2 proof: NO memory clear here — immediate tag invalidation
       // alone must make the removed listing disappear (no cross-request
       // page memory exists to hold it).
       revalidateTag(buildingCacheTag(target.streetNumber, target.streetName, target.postalCode));
+      revalidateTag("building-manifest-shard:" + target.streetNumber.charAt(0));
       revalidateTag("search");
 
       const after = await getBuildingDataCached({ ...target, buildingName: null });

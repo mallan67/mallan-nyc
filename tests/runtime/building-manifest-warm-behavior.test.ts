@@ -135,7 +135,7 @@ const {
   getBuildingManifestShard,
   BUILDING_MANIFEST_SHARDS,
 } = require("@/lib/buildings/public-building-data");
-const { safeRevalidateTags } = require("@/lib/cache/public-cache");
+const { safeRevalidateTags, manifestShardTag } = require("@/lib/cache/public-cache");
 const { revalidateTag } = require("next/cache");
 
 beforeEach(() => {
@@ -210,6 +210,45 @@ describe("warm contract — single read per page, targeted shards", () => {
     expect(probe.live_fills).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(probe.cache_hits).toBe(0);
     expect(findManyMock.mock.calls.length).toBe(neonBefore + BUILDING_MANIFEST_SHARDS.length);
+  });
+
+  it("PRODUCTION SHAPE (Maya #561 review): previous run warmed ONLY shard 4; a GLOBAL purge follows; the scoped canary touches shard 4 only — shards 1-3 and 5-9 execute ZERO queries", async () => {
+    // Previous run: targeted warm of shard 4 only.
+    const r = await warmBuildingManifestShards(["4"]);
+    expect(r.pages_filled).toBe(1);
+    // Every manifest entry receives the global invalidation (full purge —
+    // the worst case that made an all-shard canary recreate broad reads).
+    (revalidateTag as jest.Mock)("building-manifest"); // profile-less → immediate
+    const neonBefore = findManyMock.mock.calls.length;
+    // Next run's canary probes ONLY the previously warmed set.
+    const probe = await probeManifestPersistence(["4"]);
+    expect(probe.shards_probed).toBe(1);
+    expect(probe.live_fills).toBe(1); // the purge is honestly reported…
+    expect(probe.cache_hits).toBe(0);
+    // …at the cost of exactly ONE bounded read. The other eight shard
+    // classes are NEVER queried.
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
+    const probedShards = findManyMock.mock.calls
+      .slice(neonBefore)
+      .map((c) => c[0]?.where?.AND?.at(-1)?.address?.string_starts_with);
+    expect(probedShards).toEqual(["4"]);
+  });
+
+  it("PER-SHARD INVALIDATION (Maya #561 review): a shard-4 change invalidates and refills shard 4 while cached shard 7 stays a HIT", async () => {
+    // All shards cached (e.g. from lazy traffic).
+    await warmBuildingManifestShards();
+    // A price change in shard 4: the writer revalidates ONLY that shard's
+    // manifest tag (plus its building/listing tags — irrelevant here).
+    (revalidateTag as jest.Mock)(manifestShardTag("4")); // profile-less → immediate
+    const neonBefore = findManyMock.mock.calls.length;
+    const r = await warmBuildingManifestShards(["4"]);
+    expect(r.pages_filled).toBe(1); // shard 4 refilled — one read
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
+    // Shard 7 SURVIVED the shard-4 invalidation: reading it is a pure
+    // cache hit — zero further Neon queries.
+    const rows = await getBuildingManifestShard("7");
+    expect(rows.length).toBe(40);
+    expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
   });
 
   it("PROBE: a persisted warm probes as cache_hits with ZERO Neon; immediate invalidation probes as live_fills (one read each)", async () => {

@@ -167,7 +167,11 @@ describe("exclusive provenance buckets", () => {
     expect(isProvenanceOnlyChange(reasons)).toBe(true);
   });
 
-  it("PhotosChangeTimestamp-only raw_data delta is provenance too (real media changes are caught by the media compare path)", () => {
+  it("PhotosChangeTimestamp-only raw_data delta is NOT provenance — raw_data_only, still invalidates (Maya review of #561)", () => {
+    // The batch-media reconcile loop only processes listings that RETURN
+    // media rows: a gallery emptied to zero upstream never enters
+    // mediaByListing, so PCT is the ONLY signal for that case and its
+    // invalidation must never be suppressed.
     const reasons = classifyListingChangeReasons(
       updatePayload({
         raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-24T09:00:00Z" },
@@ -176,7 +180,8 @@ describe("exclusive provenance buckets", () => {
         raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-19T09:00:00Z" },
       }),
     );
-    expect(reasons).toEqual(["modification_timestamp_only"]);
+    expect(reasons).toEqual(["raw_data_only"]);
+    expect(isProvenanceOnlyChange(reasons)).toBe(false);
   });
 
   it("clock bump + real raw_data content change → raw_data_only (fail-closed: still invalidates)", () => {

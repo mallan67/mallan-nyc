@@ -34,6 +34,7 @@ import {
   listingCacheTag,
   buildingInvalidationTags,
   manifestShardForAddress,
+  manifestShardTag,
   newRevalidationCounters,
   safeRevalidateTags,
   type RevalidationCounters,
@@ -425,6 +426,34 @@ export interface SyncResult {
 }
 
 /**
+ * Cross-run carrier for the manifest shards the LAST run warmed, stored as
+ * compact JSON in `SyncState.notes` (a previously-unwritten free-text
+ * column — NO schema change). The next run's persistence canary probes
+ * EXACTLY this set and nothing else (Maya review of #561: an all-shard
+ * probe under a global invalidation would live-fill every never-warmed
+ * shard, recreating broad scheduled reads under the name "canary").
+ */
+const SYNC_NOTES_WARMED_SHARDS_KEY = "manifest_warmed_shards";
+
+export function serializeWarmedShardsToNotes(shards: readonly string[]): string {
+  return JSON.stringify({ [SYNC_NOTES_WARMED_SHARDS_KEY]: [...shards] });
+}
+
+/** Fail-quiet parse: missing/malformed/legacy notes → [] (probe nothing —
+ *  the canary is an instrument, never a warm). */
+export function parseWarmedShardsFromNotes(notes: string | null | undefined): string[] {
+  if (!notes) return [];
+  try {
+    const parsed = JSON.parse(notes) as Record<string, unknown>;
+    const shards = parsed?.[SYNC_NOTES_WARMED_SHARDS_KEY];
+    if (!Array.isArray(shards)) return [];
+    return shards.filter((s): s is string => typeof s === "string" && s.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Sync listings from Trestle to local Prisma DB.
  * 1. Fetch from Trestle (paginated)
  * 2. For each record: validate → check gates → map → upsert
@@ -440,17 +469,28 @@ export async function syncListings(
   const startTime = Date.now();
   const logger = createAuditEntry("fetch", "syncListings", "success");
 
-  // Scope A (2026-07-24): persistence canary — MUST run before ANYTHING in
-  // this request revalidates a tag. It verifies whether the PREVIOUS run's
-  // manifest warm survived request teardown (the in-request verification
-  // read it replaces was blind by construction: pendingRevalidatedTags
-  // force same-request re-execution, dist incremental-cache/index.js:289-291).
-  // Cache-hit probes cost zero Neon; a lost page costs one bounded read
-  // that itself refills the page. Best-effort — never blocks the sync.
+  // Scope A (2026-07-24, scope corrected per Maya review of #561):
+  // persistence canary — MUST run before ANYTHING in this request
+  // revalidates a tag, and probes ONLY the shards the PREVIOUS run actually
+  // warmed (read from SyncState.notes — see the upsert below). Probing the
+  // all-shard default here would recreate broad scheduled reads: under a
+  // global invalidation, every never-warmed shard would live-fill on probe.
+  // An empty/unknown previous set probes NOTHING (zero queries) — the
+  // canary is an instrument, never a warm. Cache-hit probes cost zero
+  // Neon; a lost page costs one bounded read that itself refills the page.
+  // Best-effort — never blocks the sync.
   let manifestCanary: ManifestPersistenceProbe | null = null;
   try {
-    manifestCanary = await probeManifestPersistence();
-    console.log("[IDX Sync] manifest persistence canary:", manifestCanary);
+    const prevState = await prisma.syncState.findUnique({
+      where: { resource: "Property" },
+      select: { notes: true },
+    });
+    const prevWarmedShards = parseWarmedShardsFromNotes(prevState?.notes);
+    manifestCanary = await probeManifestPersistence(prevWarmedShards);
+    console.log("[IDX Sync] manifest persistence canary:", {
+      probed_shards: prevWarmedShards,
+      ...manifestCanary,
+    });
   } catch (canaryErr) {
     console.error("[IDX Sync] manifest canary failed (non-fatal):", canaryErr);
     manifestCanary = null;
@@ -760,7 +800,13 @@ export async function syncListings(
           }
           for (const addr of [existing?.address, mapped.address]) {
             const shard = manifestShardForAddress(addr);
-            if (shard) affectedManifestShards.add(shard);
+            if (shard) {
+              affectedManifestShards.add(shard);
+              // Per-shard manifest invalidation (Maya review of #561):
+              // manifest pages no longer carry the coarse `search` tag, so
+              // the writer expires exactly the affected shard's pages.
+              changedCacheTags.add(manifestShardTag(shard));
+            }
           }
         }
       }
@@ -841,7 +887,13 @@ export async function syncListings(
           }
           for (const addr of [existing?.address, mapped.address]) {
             const shard = manifestShardForAddress(addr);
-            if (shard) affectedManifestShards.add(shard);
+            if (shard) {
+              affectedManifestShards.add(shard);
+              // Per-shard manifest invalidation (Maya review of #561):
+              // manifest pages no longer carry the coarse `search` tag, so
+              // the writer expires exactly the affected shard's pages.
+              changedCacheTags.add(manifestShardTag(shard));
+            }
           }
         }
       }
@@ -1113,6 +1165,10 @@ export async function syncListings(
     } else if (failedCursorKeys.length > 0) {
       batchWatermark = new Date(Math.min(...failedCursorKeys) - 1);
     }
+    // The shards this run is ABOUT to warm (the warm block below runs only
+    // when errors === 0). Persisted in `notes` so the NEXT run's canary
+    // probes exactly this set — see parseWarmedShardsFromNotes.
+    const shardsToRecord = errors === 0 ? [...affectedManifestShards].sort() : [];
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -1124,6 +1180,7 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
+        notes: serializeWarmedShardsToNotes(shardsToRecord),
       },
       update: {
         ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
@@ -1133,6 +1190,7 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
+        notes: serializeWarmedShardsToNotes(shardsToRecord),
       },
     });
   } catch (err) {
@@ -1978,6 +2036,11 @@ export async function syncAgentHistory(
           // Building-Neon-wake: exact building revalidation (old + new address).
           for (const bTag of buildingInvalidationTags(existingForClock?.address, mapped.address)) {
             changedCacheTags.add(bTag);
+          }
+          // Per-shard manifest invalidation (Maya review of #561).
+          for (const addr of [existingForClock?.address, mapped.address]) {
+            const shard = manifestShardForAddress(addr);
+            if (shard) changedCacheTags.add(manifestShardTag(shard));
           }
         }
       }

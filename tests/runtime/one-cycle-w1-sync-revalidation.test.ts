@@ -240,7 +240,11 @@ describe("One Cycle W1 — syncListings drives cache revalidation", () => {
     // EXACT building tag (per-building cache entries carry no coarse tag,
     // so the sync must name the buildings it actually changed).
     expect(tags.some((t2) => t2.startsWith("building:"))).toBe(true);
-    expect(result.write_paths.revalidation.pages_revalidated).toBe(3); // listing + building + search
+    // Per-shard manifest invalidation (Maya #561 review): the affected
+    // manifest shard tag is named too — manifest pages no longer carry the
+    // coarse search tag.
+    expect(tags.some((t2) => t2.startsWith("building-manifest-shard:"))).toBe(true);
+    expect(result.write_paths.revalidation.pages_revalidated).toBe(4); // listing + building + shard + search
     expect(result.write_paths.revalidation.revalidation_failures).toBe(0);
   });
 

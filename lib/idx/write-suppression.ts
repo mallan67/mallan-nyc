@@ -557,12 +557,18 @@ export function changedMaterialListingFields(
  * Deliberately minimal: StatusChangeTimestamp / PriceChangeTimestamp are
  * NOT here — when those move, the corresponding typed field moved too and
  * classification proceeds through its real category. PhotosChangeTimestamp
- * IS here because real media changes are detected (and invalidated) by the
- * batch-media compare path, never by this clock.
+ * is NOT here either (Maya review of #561): the batch-media reconcile loop
+ * only processes listings that RETURN media rows — a listing whose gallery
+ * the provider emptied to zero never enters mediaByListing, so its stored
+ * media is not cleared by that path. Treating a PCT move as provenance
+ * would also have suppressed cache invalidation for exactly that case.
+ * A PCT-only delta therefore classifies raw_data_only → still invalidates
+ * (fail-closed). Reclassifying PCT as provenance requires true negative
+ * media reconciliation (explicit empty-set handling + stored-media clear)
+ * first — tracked in the unified feed/media plan, NOT done here.
  */
 export const RAW_DATA_PROVENANCE_CLOCK_KEYS: ReadonlySet<string> = new Set([
   "ModificationTimestamp",
-  "PhotosChangeTimestamp",
   "OriginalEntryTimestamp",
 ]);
 

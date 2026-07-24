@@ -26,7 +26,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
-import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
+import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, manifestShardTag } from '@/lib/cache/public-cache';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -585,7 +585,15 @@ async function getCachedManifestPage(
     return await cachedPublicRead(
       capturingFetch,
       ['building-manifest-page'],
-      { tags: [BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG] },
+      // Per-shard invalidation (Maya review of PR #561): pages carry their
+      // SHARD tag — writers expire exactly the shards whose listings
+      // changed and every other shard's cache survives the cycle. The
+      // coarse `search` tag is deliberately ABSENT (it used to expire all
+      // nine shards on any listing change anywhere). BUILDING_MANIFEST_TAG
+      // remains as the rare full-purge handle. Changes with no address
+      // context (media-sync hero/summary updates) ride the 30-min fallback
+      // window — same stance as building payloads for media-only changes.
+      { tags: [BUILDING_MANIFEST_TAG, manifestShardTag(shard)] },
     )(shard, cursor);
   } catch (err) {
     if (captured !== null) return captured;

@@ -90,9 +90,9 @@ const mockWarm = jest.fn(async (shards: readonly string[]) => ({
   cache_hit_existing: 0,
   duration_ms: 5,
 }));
-const mockProbe = jest.fn(async () => ({
-  shards_probed: 9,
-  cache_hits: 9,
+const mockProbe = jest.fn(async (shards: readonly string[]) => ({
+  shards_probed: shards.length,
+  cache_hits: shards.length,
   live_fills: 0,
   failed: 0,
   duration_ms: 2,
@@ -100,7 +100,7 @@ const mockProbe = jest.fn(async () => ({
 jest.mock("@/lib/buildings/public-building-data", () => ({
   __esModule: true,
   warmBuildingManifestShards: (shards: readonly string[]) => mockWarm(shards),
-  probeManifestPersistence: () => mockProbe(),
+  probeManifestPersistence: (shards: readonly string[]) => mockProbe(shards),
 }));
 
 import { syncListings } from "@/lib/idx/sync";
@@ -430,9 +430,11 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
       cache_hit_existing: 0,
       duration_ms: 5,
     });
+    // No previous warm recorded in this fixture → the scoped canary probed
+    // nothing (never the all-shard default).
     expect(changes.manifest_canary).toEqual({
-      shards_probed: 9,
-      cache_hits: 9,
+      shards_probed: 0,
+      cache_hits: 0,
       live_fills: 0,
       failed: 0,
       duration_ms: 2,
@@ -465,8 +467,8 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
       mockFetchFromTrestle.mock.invocationCallOrder[0],
     );
     expect(result.write_paths.manifest_canary).toEqual({
-      shards_probed: 9,
-      cache_hits: 9,
+      shards_probed: 0,
+      cache_hits: 0,
       live_fills: 0,
       failed: 0,
       duration_ms: 2,
@@ -474,5 +476,133 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
     // Empty run: nothing changed → no warm, no revalidation.
     expect(mockWarm).not.toHaveBeenCalled();
     expect(mockRevalidateTag).not.toHaveBeenCalled();
+  });
+});
+
+describe("canary scope (Maya #561 review) — probe ONLY the previously warmed shards", () => {
+  it("with no recorded previous warm, the canary probes NOTHING (never the all-shard default)", async () => {
+    const state: StoredState = { listings: new Map(), projections: new Map() };
+    wireMocks(state);
+    mockSyncStateFindUnique.mockResolvedValue({ notes: null });
+    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+
+    await syncListings({ fullSync: true, maxRecords: 10 });
+
+    expect(mockProbe).toHaveBeenCalledTimes(1);
+    expect(mockProbe.mock.calls[0][0]).toEqual([]);
+  });
+
+  it("probes exactly the shard set recorded by the previous run's SyncState notes", async () => {
+    const state: StoredState = { listings: new Map(), projections: new Map() };
+    wireMocks(state);
+    mockSyncStateFindUnique.mockResolvedValue({
+      notes: JSON.stringify({ manifest_warmed_shards: ["4"] }),
+    });
+    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+
+    await syncListings({ fullSync: true, maxRecords: 10 });
+
+    expect(mockProbe.mock.calls[0][0]).toEqual(["4"]);
+  });
+
+  it("malformed/legacy notes fail quiet to an empty probe set", async () => {
+    const state: StoredState = { listings: new Map(), projections: new Map() };
+    wireMocks(state);
+    mockSyncStateFindUnique.mockResolvedValue({ notes: "not json at all" });
+    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+
+    await syncListings({ fullSync: true, maxRecords: 10 });
+
+    expect(mockProbe.mock.calls[0][0]).toEqual([]);
+  });
+
+  it("records THIS run's warmed shards in SyncState notes for the next run's canary", async () => {
+    const raw = rawRecord();
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [rawRecord({ ListPrice: 725000, ModificationTimestamp: "2026-07-20T00:00:00Z" })],
+      totalFetched: 1,
+    });
+
+    await syncListings({ fullSync: true, maxRecords: 10 });
+
+    const upsertArg = mockSyncStateUpsert.mock.calls[0][0] as {
+      update: { notes?: string };
+      create: { notes?: string };
+    };
+    expect(JSON.parse(upsertArg.update.notes!)).toEqual({ manifest_warmed_shards: ["4"] });
+    expect(JSON.parse(upsertArg.create.notes!)).toEqual({ manifest_warmed_shards: ["4"] });
+  });
+});
+
+describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)", () => {
+  it("a physical change revalidates the affected shard's manifest tag (manifest pages no longer ride the search tag)", async () => {
+    const raw = rawRecord();
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [rawRecord({ ListPrice: 725000, ModificationTimestamp: "2026-07-20T00:00:00Z" })],
+      totalFetched: 1,
+    });
+
+    await syncListings({ fullSync: true, maxRecords: 10 });
+
+    const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
+    expect(revalidated).toContain("building-manifest-shard:4");
+    expect(revalidated.filter((t) => t.startsWith("building-manifest-shard:"))).toEqual([
+      "building-manifest-shard:4",
+    ]);
+  });
+
+  it("CRITICAL (zero-media hole): PhotosChangeTimestamp advances and the media endpoint succeeds with NO rows — the change is NOT provenance-only and invalidation fires", async () => {
+    const raw = rawRecord({ PhotosChangeTimestamp: "2026-07-10T00:00:00Z" });
+    const dbRow = dbRowFromRaw(raw);
+    // The listing HAS stored media from a previous cycle.
+    (dbRow as Record<string, unknown>).media = [
+      { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "photo", order: 0 },
+    ];
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRow]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+    };
+    wireMocks(state);
+    // Feed re-emits with ONLY the photo clock advanced…
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
+      totalFetched: 1,
+    });
+    // …and the media endpoint SUCCEEDS but returns zero rows for it.
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({ value: [] }),
+    })) as unknown as typeof fetch;
+
+    const result = await syncListings({ fullSync: true, maxRecords: 10 });
+
+    expect(result.errors).toBe(0);
+    // NOT provenance-only: classified raw_data_only, fail-closed.
+    expect(result.write_paths.listing_change_reasons).toMatchObject({
+      raw_data_only: 1,
+      modification_timestamp_only: 0,
+    });
+    // Cache invalidation FIRES (listing tag + shard tag + coarse search).
+    const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
+    expect(revalidated).toContain("listing:RLS100001");
+    expect(revalidated).toContain("building-manifest-shard:4");
+    expect(revalidated).toContain("search");
+    expect(mockWarm).toHaveBeenCalledTimes(1);
+    // Honest limitation (pre-existing, unchanged by this PR): the stored
+    // media JSON is NOT cleared — the batch loop only processes listings
+    // that RETURN media rows. True negative reconciliation is tracked in
+    // the unified feed/media plan; until then invalidation (proven above)
+    // is the fail-closed guarantee.
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 });

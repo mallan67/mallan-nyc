@@ -137,6 +137,35 @@ export function manifestShardForAddress(address: unknown): string | null {
 }
 
 /**
+ * Per-shard manifest page tag (Maya review of PR #561): manifest pages are
+ * tagged by SHARD — NOT with the coarse `search` tag — so one listing
+ * change expires only its own shard's pages while every other shard's
+ * cache SURVIVES the cycle. `BUILDING_MANIFEST_TAG` stays on every page
+ * as the rare full-purge handle only.
+ */
+export function manifestShardTag(shard: string): string {
+  return `building-manifest-shard:${shard}`;
+}
+
+/**
+ * The COMPLETE writer-side tag set for a listing change that can affect
+ * building-visible inventory: the exact building tag(s) PLUS the manifest
+ * shard tag(s), for EVERY address the row has occupied (previous + new).
+ * Every writer that used `buildingInvalidationTags` for display-state
+ * changes must use this instead now that manifest pages no longer carry
+ * the coarse `search` tag (which used to expire them as a side effect).
+ * Null-safe and deduplicating, like buildingInvalidationTags.
+ */
+export function buildingAndManifestInvalidationTags(...addresses: Array<unknown>): string[] {
+  const tags = new Set<string>(buildingInvalidationTags(...addresses));
+  for (const a of addresses) {
+    const shard = manifestShardForAddress(a);
+    if (shard) tags.add(manifestShardTag(shard));
+  }
+  return [...tags];
+}
+
+/**
  * Wrap an ANONYMOUS public read in the Next data cache with tags.
  *
  * - `keyParts` must uniquely identify the read (args are ALSO part of the

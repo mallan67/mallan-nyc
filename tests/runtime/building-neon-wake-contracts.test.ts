@@ -66,8 +66,10 @@ describe("thin pure-read building route + direct page accessor", () => {
     const guardIdx = sync.lastIndexOf("if (errors === 0 && sortedAffectedShards.length > 0)", warmIdx);
     expect(guardIdx).toBeGreaterThan(upsertIdx); // full success + shards actually affected
     // Scope A: the persistence canary runs at run START — before the fetch
-    // and before any tag revalidation in the request.
-    const canaryIdx = sync.indexOf("await probeManifestPersistence()");
+    // and before any tag revalidation in the request — and probes ONLY the
+    // previously-warmed shard set (never the all-shard default).
+    expect(sync).not.toContain("await probeManifestPersistence()");
+    const canaryIdx = sync.indexOf("await probeManifestPersistence(prevWarmedShards)");
     const fetchIdx = sync.indexOf("await fetchFromTrestle(");
     expect(canaryIdx).toBeGreaterThan(-1);
     expect(canaryIdx).toBeLessThan(fetchIdx);
@@ -91,28 +93,28 @@ describe("writer invalidation contract — every building-visible writer names i
 
   it("listing-expiration: expired exclusive drops from its building in the same cycle", () => {
     const src = read("app/api/cron/listing-expiration/route.ts");
-    expect(src).toContain("...buildingInvalidationTags(listing.address)");
+    expect(src).toContain("...buildingAndManifestInvalidationTags(listing.address)");
   });
 
   it("feed-reconcile: ghost withdrawal AND orphan recovery both invalidate the building", () => {
     const src = read("app/api/cron/feed-reconcile/route.ts");
-    expect(src).toContain("...buildingInvalidationTags(g.address)");
-    expect(src).toContain("...buildingInvalidationTags(raw)"); // full Trestle record — atoms top-level
+    expect(src).toContain("...buildingAndManifestInvalidationTags(g.address)");
+    expect(src).toContain("...buildingAndManifestInvalidationTags(raw)"); // full Trestle record — atoms top-level
     expect(src).toContain("address: true, // Building-Neon-wake"); // ghosts select carries the address
   });
 
   it("data-retention display removal: every stale-closed listing invalidates its building", () => {
     const src = read("app/api/cron/data-retention/route.ts");
-    expect(src).toContain("...buildingInvalidationTags(...staleClosedListings.map((l) => l.address))");
+    expect(src).toContain("...buildingAndManifestInvalidationTags(...staleClosedListings.map((l) => l.address))");
     expect(src).toContain("select: { id: true, listing_id: true, status: true, status_changed_at: true, address: true }");
   });
 
   it("CRM writers: PATCH (old+new address), soft-withdraw DELETE, and status change all invalidate", () => {
     const patch = read("app/api/crm/listings/[id]/route.ts");
-    expect(patch).toContain("...buildingInvalidationTags(existingAddress, updated.address)");
-    expect(patch).toContain("...buildingInvalidationTags(listing.address)"); // DELETE soft-withdraw
+    expect(patch).toContain("...buildingAndManifestInvalidationTags(existingAddress, updated.address)");
+    expect(patch).toContain("...buildingAndManifestInvalidationTags(listing.address)"); // DELETE soft-withdraw
     const status = read("app/api/crm/listings/[id]/status/route.ts");
-    expect(status).toContain("...buildingInvalidationTags(listing.address)");
+    expect(status).toContain("...buildingAndManifestInvalidationTags(listing.address)");
   });
 
   it("PROVEN N/A: dom-reset writes only building-invisible fields (days_on_market, first_active_date)", () => {
