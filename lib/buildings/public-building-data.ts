@@ -374,9 +374,25 @@ export { BUILDING_MANIFEST_TAG }; // canonical owner: lib/cache/public-cache
 /** Deterministic keyset page size within a shard (listing_id is the unique
  *  cursor). COMPLETENESS IS STRUCTURAL: pagination runs to exhaustion — no
  *  fixed take can truncate a shard. Past the explicit ceiling the build
- *  THROWS (an explicit failure, never a silently incomplete payload). */
-export const MANIFEST_PAGE_SIZE = 5000;
-export const MANIFEST_MAX_PAGES = 20; // 100k rows/shard — ~22× today's largest shard
+ *  THROWS (an explicit failure, never a silently incomplete payload).
+ *
+ *  2 MB CORRECTION (Maya 2026-07-24): the production Next data cache
+ *  rejects entries over 2 MB — the original design cached a WHOLE shard
+ *  (worst case 4,473 rows) as one value, which could exceed the limit,
+ *  silently fail to persist, and re-run the Neon read on every distinct
+ *  building request (defeating the shed). The cache unit is now ONE PAGE
+ *  (1,500 slim rows ≈ well under the limit, guarded by an explicit
+ *  serialized-byte ceiling below), keyed by (shard, cursor). */
+export const MANIFEST_PAGE_SIZE = 1500;
+/** Completeness ceiling in ROWS, not pages (Maya blocker 1, 2026-07-24):
+ *  a fixed page count only equals a row bound when every page is full —
+ *  dynamic shrink makes that false. The walk runs to cursor exhaustion and
+ *  overflows on ACTUAL rows processed. ~17× today's largest shard. */
+export const MANIFEST_MAX_ROWS_PER_SHARD = 75_000;
+/** Explicit serialized-size ceiling per cached page entry — comfortably
+ *  below the production 2 MB data-cache limit. A page over this THROWS
+ *  (explicit failure, never a silently-uncacheable entry). */
+export const MANIFEST_CACHE_MAX_BYTES = 1_500_000;
 
 /** Slim row shape returned by the manifest page select (Decimal-bearing
  *  columns stay `unknown` and are coerced with Number() in the mapper —
@@ -395,15 +411,71 @@ interface ManifestPageRow {
   listing_type: string | null;
   address: unknown;
   features: unknown;
-  media: unknown;
+  // 2 MB correction: the heavy `media` JSON is NO LONGER read — the stored
+  // media-summary column (primary_photo_url, maintained by media-sync) is
+  // the hero source. The manifest read no longer drags full galleries out
+  // of Neon to derive one URL.
+  primary_photo_url: string | null;
 }
 
-async function buildBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
-  const rows: ManifestPageRow[] = [];
-  let cursor: string | null = null;
-  let complete = false;
-  for (let page = 0; page < MANIFEST_MAX_PAGES; page++) {
-    const batch = (await prisma.listing.findMany({
+/** One cached manifest PAGE: bounded rows + the keyset cursor to the next
+ *  page (null = shard complete). Each page is its own data-cache entry. */
+interface ManifestPageResult {
+  rows: ManifestListing[];
+  nextCursor: string | null;
+  /** Epoch ms when this page was read from Neon — the warm pass counts a
+   *  page as freshly persisted ONLY when the verification read returns a
+   *  value at least as new as the warm start (an SWR-served stale entry
+   *  can NEVER be counted as a fresh warm result). */
+  fetchedAt: number;
+}
+
+// NOTE (Maya blocker 2, 2026-07-24): there is deliberately NO cross-request
+// in-process page cache here. An earlier revision kept pages in module
+// memory for 5 minutes to absorb cache-set failures — but that defeated
+// IMMEDIATE tag invalidation: a withdrawn / expired / display-disabled /
+// opted-out listing could keep rendering from module memory even after the
+// data cache was correctly invalidated (across writers with no follow-up
+// warm, partial syncs, concurrent requests and other instances). Cache-set
+// failures are instead absorbed PER INVOCATION in getCachedManifestPage
+// (the resolved fetch value is captured and returned if the cache layer
+// throws afterwards) — zero stale retention across requests.
+
+/** Serialized-size guard: an over-limit page THROWS loudly instead of
+ *  becoming a silently-uncacheable entry. */
+function assertPageCacheable(shard: string, cursor: string | null, page: ManifestPageResult): void {
+  const bytes = Buffer.byteLength(JSON.stringify(page), 'utf8');
+  if (bytes > MANIFEST_CACHE_MAX_BYTES) {
+    throw new Error(
+      `[building-manifest] PAGE OVER CACHE LIMIT: shard "${shard}" cursor "${cursor ?? 'START'}" serializes to ${bytes} bytes (> ${MANIFEST_CACHE_MAX_BYTES}). Refusing a silently-uncacheable page.`,
+    );
+  }
+}
+
+/** Execution counter per page-cache key — lets the warm pass distinguish a
+ *  PERSISTED cache entry (second call does not re-execute) from a
+ *  fallback-live read (set failed; fn re-ran). Bounded by pruning alongside
+ *  the memory map. */
+const manifestPageExecCount = new Map<string, number>();
+
+function pageKey(shard: string, cursor: string | null): string {
+  return `${shard}|${cursor ?? 'START'}`;
+}
+
+/** ONE bounded keyset page read from Neon, mapped to slim cacheable rows.
+ *  This is the ONLY Neon touch point of the manifest. */
+/** Test hook: resets the warm execution counters. */
+export function clearManifestPageMemory(): void {
+  manifestPageExecCount.clear();
+}
+
+async function fetchManifestPage(
+  shard: string,
+  cursor: string | null,
+): Promise<ManifestPageResult> {
+  const key = pageKey(shard, cursor);
+  manifestPageExecCount.set(key, (manifestPageExecCount.get(key) ?? 0) + 1);
+  const batch = (await prisma.listing.findMany({
       where: {
         AND: [
           { idx_display_yn: true },
@@ -417,32 +489,21 @@ async function buildBuildingManifestShard(shard: string): Promise<ManifestListin
         id: true, listing_id: true, status: true, list_price: true,
         bedrooms_total: true, bathrooms_full: true, bathrooms_half: true,
         living_area: true, property_type: true, property_sub_type: true,
-        listing_type: true, address: true, features: true, media: true,
+        listing_type: true, address: true, features: true,
+        // 2 MB correction: the stored media-summary hero (maintained by
+        // media-sync) replaces the full `media` JSON read.
+        primary_photo_url: true,
       },
       orderBy: { listing_id: 'asc' },
       take: MANIFEST_PAGE_SIZE,
       ...(cursor ? { cursor: { listing_id: cursor }, skip: 1 } : {}),
     })) as unknown as ManifestPageRow[];
-    rows.push(...batch);
-    if (batch.length < MANIFEST_PAGE_SIZE) { complete = true; break; }
-    cursor = String(batch[batch.length - 1].listing_id);
-  }
-  if (!complete) {
-    // EXPLICIT failure — never a successful truncated building payload.
-    throw new Error(
-      `[building-manifest] OVERFLOW: shard "${shard}" exceeds ${MANIFEST_PAGE_SIZE * MANIFEST_MAX_PAGES} rows — refusing to serve an incomplete manifest.`,
-    );
-  }
-  return rows.map((l): ManifestListing => {
+  const mapped = batch.map((l): ManifestListing => {
     const addr = (l.address ?? {}) as Record<string, unknown>;
     const features = (l.features ?? {}) as Record<string, unknown>;
-    const media = l.media as unknown[];
-    let photoUrl: string | null = null;
-    if (Array.isArray(media) && media.length > 0) {
-      const photo = (media as Record<string, unknown>[]).find((m) => classifyMediaItem(m) === 'photo');
-      const url = photo?.url || photo?.MediaURL;
-      photoUrl = url ? `/api/media/proxy?url=${encodeURIComponent(String(url))}` : null;
-    }
+    const photoUrl = l.primary_photo_url
+      ? `/api/media/proxy?url=${encodeURIComponent(String(l.primary_photo_url))}`
+      : null;
     return {
       id: String(l.id),
       listing_id: l.listing_id,
@@ -470,21 +531,103 @@ async function buildBuildingManifestShard(shard: string): Promise<ManifestListin
       photoUrl,
     };
   });
+  let keptRows = mapped;
+  let shardComplete = batch.length < MANIFEST_PAGE_SIZE;
+  let result: ManifestPageResult = {
+    rows: keptRows,
+    nextCursor: shardComplete ? null : String(batch[batch.length - 1].listing_id),
+    fetchedAt: Date.now(),
+  };
+  // DYNAMIC SHRINK (Maya 2026-07-24 req 7): if REAL production rows ever
+  // serialize past the budget, the page shrinks to fit instead of failing —
+  // the keyset walk simply continues from the last kept row. Only the
+  // pathological single-row-over-budget page still fails loudly (below).
+  while (
+    keptRows.length > 1 &&
+    Buffer.byteLength(JSON.stringify(result), 'utf8') > MANIFEST_CACHE_MAX_BYTES
+  ) {
+    keptRows = keptRows.slice(0, Math.ceil(keptRows.length / 2));
+    result = {
+      rows: keptRows,
+      nextCursor: String(keptRows[keptRows.length - 1].listing_id),
+      fetchedAt: result.fetchedAt,
+    };
+    shardComplete = false;
+  }
+  // Explicit ceiling: a page that could not persist must FAIL LOUDLY, never
+  // become a silently-uncacheable entry that re-reads Neon per request.
+  assertPageCacheable(shard, cursor, result);
+  return result;
 }
 
 /**
- * Cached manifest shard. Tagged with the manifest tag AND the coarse search
- * tag: when a sync changes ANYTHING, the shard refills on next use — that is
- * ONE bounded query per shard per sync window (≤ ~10 total), regardless of
- * how many distinct buildings are crawled. Per-building payload entries do
- * NOT carry the search tag (see getBuildingDataCached).
+ * Cached manifest PAGE. Tagged with the manifest tag AND the coarse search
+ * tag: when a sync changes ANYTHING, pages refill on next use — bounded
+ * keyset queries per sync window regardless of how many distinct buildings
+ * are crawled. Each entry is ONE page (2 MB-safe by construction + explicit
+ * byte guard). Per-building payload entries do NOT carry the search tag
+ * (see getBuildingDataCached).
  */
-function getBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
-  return cachedPublicRead(
-    buildBuildingManifestShard,
-    ['building-manifest'],
-    { tags: [BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG] },
-  )(shard);
+async function getCachedManifestPage(
+  shard: string,
+  cursor: string | null,
+): Promise<ManifestPageResult> {
+  // PER-INVOCATION capture (Maya blocker 2): if the cache backend throws
+  // AFTER the wrapped fetch already resolved (the production 2 MB failure
+  // shape), return the captured value — the Neon read is never re-run for
+  // a cache-set failure, and NO cross-request stale memory is involved.
+  let captured: ManifestPageResult | null = null;
+  const capturingFetch = async (s: string, c: string | null): Promise<ManifestPageResult> => {
+    captured = await fetchManifestPage(s, c);
+    return captured;
+  };
+  try {
+    return await cachedPublicRead(
+      capturingFetch,
+      ['building-manifest-page'],
+      { tags: [BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG] },
+    )(shard, cursor);
+  } catch (err) {
+    if (captured !== null) return captured;
+    throw err;
+  }
+}
+
+/** Complete shard = the cached pages walked to CURSOR EXHAUSTION with a
+ *  TOTAL-ROW ceiling (Maya blocker 1: a fixed page count is only a row
+ *  bound when every page is full — dynamic shrink broke that). Invariants
+ *  enforced per nonterminal page: at least one row; the cursor advances;
+ *  no cursor ever repeats. Every violation and the row-ceiling overflow
+ *  FAIL EXPLICITLY — never a silently truncated manifest. */
+export async function getBuildingManifestShard(shard: string): Promise<ManifestListing[]> {
+  const rows: ManifestListing[] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | null = null;
+  for (;;) {
+    const pageResult: ManifestPageResult = await getCachedManifestPage(shard, cursor);
+    rows.push(...pageResult.rows);
+    // Row ceiling is enforced IMMEDIATELY after accumulation — BEFORE the
+    // terminal return (Maya boundary fix: a 75,001-row shard whose last
+    // page is terminal must still overflow, never succeed).
+    if (rows.length > MANIFEST_MAX_ROWS_PER_SHARD) {
+      throw new Error(
+        `[building-manifest] OVERFLOW: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows (${rows.length} processed) — refusing to serve an incomplete manifest.`,
+      );
+    }
+    if (pageResult.nextCursor === null) return rows;
+    if (pageResult.rows.length === 0) {
+      throw new Error(
+        `[building-manifest] EMPTY NONTERMINAL PAGE: shard "${shard}" cursor "${cursor ?? 'START'}" returned 0 rows with a nextCursor — refusing a manifest that cannot progress.`,
+      );
+    }
+    if (pageResult.nextCursor === cursor || seenCursors.has(pageResult.nextCursor)) {
+      throw new Error(
+        `[building-manifest] CURSOR DID NOT ADVANCE: shard "${shard}" repeated cursor "${pageResult.nextCursor}" — refusing a manifest that cannot terminate.`,
+      );
+    }
+    seenCursors.add(pageResult.nextCursor);
+    cursor = pageResult.nextCursor;
+  }
 }
 
 /**
@@ -597,7 +740,11 @@ async function buildBuildingPayload(
       // fail; never a silently DB-truncated payload). Transient DB errors keep
       // the PRE-EXISTING degrade production has today: continue with the live
       // Cotality/Trestle + ACRIS layers so the page stays available.
-      if (dbErr instanceof Error && dbErr.message.includes('[building-manifest] OVERFLOW')) throw dbErr;
+      // ALL structural manifest invariant failures propagate (OVERFLOW,
+      // EMPTY NONTERMINAL PAGE, CURSOR DID NOT ADVANCE, PAGE OVER CACHE
+      // LIMIT) — never a silently degraded incomplete payload. Ordinary
+      // Neon outages (no marker) still degrade to the Trestle layers.
+      if (dbErr instanceof Error && dbErr.message.includes('[building-manifest]')) throw dbErr;
       console.warn('[/api/buildings] DB manifest lookup failed, continuing with Trestle only:', dbErr);
     }
 
@@ -1018,6 +1165,25 @@ export const BUILDING_MANIFEST_SHARDS = ['1', '2', '3', '4', '5', '6', '7', '8',
 export interface ManifestWarmResult {
   shards_warmed: number;
   shards_failed: number;
+  /** Pages whose FRESH fetch PROVABLY persisted this warm (the fetch ran,
+   *  and a verification re-read returned the fresh value without
+   *  re-executing). Only these count as successful cache warming. */
+  cache_persisted: number;
+  /** Pages served WITHOUT executing the fetch at all — a valid pre-existing
+   *  entry under the immediate-invalidation writer contract (normal after a
+   *  no-change sync). Under a stale-while-revalidate regression this is
+   *  also where a stale serve lands — it is NEVER counted as fresh. */
+  cache_hit_existing: number;
+  /** Pages whose cache SET failed (the verification re-read re-executed the
+   *  fetch — a real second Neon read, bounded to the warm pass; there is NO
+   *  cross-request memory layer). These are fallback-live pages, NEVER
+   *  counted as warmed cache. */
+  fallback_live: number;
+  /** Pages whose verification read returned a PRE-WARM (stale) entry
+   *  without re-executing the fetch — possible under stale-while-
+   *  revalidate tag semantics. Explicitly separated: never counted as a
+   *  fresh warm result. */
+  swr_stale_served: number;
   duration_ms: number;
 }
 
@@ -1038,9 +1204,67 @@ export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> 
   const t0 = Date.now();
   let warmed = 0;
   let failed = 0;
+  let cachePersisted = 0;
+  let cacheHitExisting = 0;
+  let fallbackLive = 0;
+  let swrStaleServed = 0;
+  // Bound the exec-count map: one warm per sync; clearing here caps growth
+  // to the pages touched between warms.
+  manifestPageExecCount.clear();
   for (const shard of BUILDING_MANIFEST_SHARDS) {
     try {
-      await getBuildingManifestShard(shard);
+      // Walk the shard's pages under the SAME row-ceiling/invariant rules
+      // as the reader, verifying persistence per page. Classification:
+      //   - first read served WITHOUT executing the fetch → a valid
+      //     pre-existing entry (cache_hit_existing; normal after a
+      //     no-change sync; a stale SWR serve would also land here and is
+      //     never counted as fresh);
+      //   - fetch ran, verification re-executed it → the SET failed
+      //     (fallback_live — a real second Neon read; bounded to the warm
+      //     pass, never a per-request pattern);
+      //   - fetch ran, verification returned the FRESH value without
+      //     executing → provably persisted (cache_persisted);
+      //   - fetch ran, verification returned a PRE-WARM value without
+      //     executing → SWR tripwire (swr_stale_served).
+      const warmStart = Date.now();
+      const seenCursors = new Set<string>();
+      let rowsSeen = 0;
+      let cursor: string | null = null;
+      for (;;) {
+        const key = pageKey(shard, cursor);
+        const execBefore = manifestPageExecCount.get(key) ?? 0;
+        const first: ManifestPageResult = await getCachedManifestPage(shard, cursor);
+        const execAfterFirst = manifestPageExecCount.get(key) ?? 0;
+        if (execAfterFirst === execBefore) {
+          cacheHitExisting++;
+        } else {
+          const second: ManifestPageResult = await getCachedManifestPage(shard, cursor);
+          const execAfterSecond = manifestPageExecCount.get(key) ?? 0;
+          if (execAfterSecond > execAfterFirst) {
+            fallbackLive++;
+          } else if (second.fetchedAt >= warmStart) {
+            cachePersisted++;
+          } else {
+            swrStaleServed++;
+          }
+        }
+        rowsSeen += first.rows.length;
+        // Same boundary rule as the reader: ceiling BEFORE the terminal
+        // break, so a terminal page cannot smuggle the shard past the limit.
+        if (rowsSeen > MANIFEST_MAX_ROWS_PER_SHARD) {
+          throw new Error(
+            `[building-manifest] OVERFLOW during warm: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows`,
+          );
+        }
+        if (first.nextCursor === null) break;
+        if (first.rows.length === 0 || first.nextCursor === cursor || seenCursors.has(first.nextCursor)) {
+          throw new Error(
+            `[building-manifest] warm walk invariant violated for shard "${shard}" at cursor "${cursor ?? 'START'}"`,
+          );
+        }
+        seenCursors.add(first.nextCursor);
+        cursor = first.nextCursor;
+      }
       warmed++;
     } catch (err) {
       failed++;
@@ -1050,5 +1274,13 @@ export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> 
       );
     }
   }
-  return { shards_warmed: warmed, shards_failed: failed, duration_ms: Date.now() - t0 };
+  return {
+    shards_warmed: warmed,
+    shards_failed: failed,
+    cache_persisted: cachePersisted,
+    cache_hit_existing: cacheHitExisting,
+    fallback_live: fallbackLive,
+    swr_stale_served: swrStaleServed,
+    duration_ms: Date.now() - t0,
+  };
 }

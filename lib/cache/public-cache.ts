@@ -141,18 +141,33 @@ export function cachedPublicRead<A extends unknown[], T>(
   opts: { tags: string[]; revalidate?: number },
 ): (...args: A) => Promise<T> {
   return async (...args: A) => {
+    // PER-INVOCATION capture (Maya blocker 2 on #560, 2026-07-24): when the
+    // cache backend throws AFTER the wrapped fn already resolved (the
+    // production 2 MB oversized-entry failure shape), the fallback must
+    // return the captured value — NEVER execute the underlying read a
+    // second time for a cache-storage failure. Only when the fn itself
+    // never resolved (the error happened before/inside it) does the
+    // fallback re-attempt the live read.
+    let captured: { value: T } | null = null;
+    const capturing = async (...a: A): Promise<T> => {
+      const value = await fn(...a);
+      captured = { value };
+      return value;
+    };
     try {
-      const wrapped = unstable_cache(fn, keyParts, {
+      const wrapped = unstable_cache(capturing, keyParts, {
         tags: opts.tags,
         revalidate: opts.revalidate ?? SYNC_CADENCE_SECONDS,
       });
       return await wrapped(...args);
     } catch (err) {
-      // Cache layer failed → live read (correctness beats CU savings).
       console.error(
         "[public-cache] cache layer error — degrading to live read:",
         err instanceof Error ? err.message : err,
       );
+      if (captured !== null) return (captured as { value: T }).value;
+      // Cache layer failed BEFORE the fn resolved → one live re-attempt
+      // (correctness beats CU savings).
       return fn(...args);
     }
   };
@@ -246,9 +261,30 @@ export function safeRevalidateTags(
     if (!tag || seen.has(tag)) continue;
     seen.add(tag);
     try {
-      // Next 16.2 signature: profile "max" = expire the tag's entries
-      // immediately (the classic hard invalidation semantics).
-      revalidateTag(tag, "max");
+      // DIST-VERIFIED semantics (installed Next 16.2.4 — Maya correction
+      // 2026-07-24; the previous comment here was WRONG):
+      //   - revalidateTag(tag, "max") is NOT immediate expiration: the
+      //     profile resolves to `durations = { expire: cacheLife.expire }`
+      //     (dist/server/revalidation-utils.js:100-124) — i.e.
+      //     stale-while-revalidate against the "max" profile's expire
+      //     window.
+      //   - A PROFILE-LESS call leaves `durations` undefined, "which will
+      //     trigger immediate expiration in the cache handler"
+      //     (revalidation-utils.js:126-127) — the classic blocking
+      //     invalidation these writers require (Sec 2.05 removals must
+      //     disappear promptly, and the manifest warm contract depends on
+      //     a true MISS after invalidation).
+      //   - updateTag() has the same immediate semantics but throws
+      //     outside Server Actions (revalidate.js:48-58) — unusable in
+      //     these route-handler/cron writers.
+      // The profile-less form emits a one-line deprecation console.warn
+      // (revalidate.js:41-43); accepted deliberately — correctness over
+      // log noise — and pinned by tests so a future signature change is
+      // caught, not assumed.
+      // The published TypeScript signature requires the profile argument,
+      // but the profile-less runtime path is precisely the immediate-
+      // expiration branch (dist-verified above) — cast, don't pass "max".
+      (revalidateTag as unknown as (tag: string) => void)(tag);
       if (counters) counters.pages_revalidated++;
     } catch (err) {
       if (counters) counters.revalidation_failures++;
