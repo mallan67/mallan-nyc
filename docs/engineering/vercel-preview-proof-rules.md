@@ -350,7 +350,7 @@ Per the standing rules from 2026-05-17:
 - ❌ No `NEON_PROJECT_ID` change
 - ❌ No Neon branches deleted, no integration changes
 - ❌ No migrations / reconciliation / cron triggers
-- ❌ No PR #148 / PR 5B / CRM / Sentinel work
+- ❌ No PR #148 / PR 5B / CRM work
 - ❌ No `memory/SESSION-*` archival docs touched
 - ❌ No `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md`
 - ❌ No production-data mutation

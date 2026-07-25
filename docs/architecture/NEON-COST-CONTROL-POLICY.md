@@ -287,7 +287,7 @@ Branches         10               5000             17        ❌ over budget
 - ❌ No preview-branching toggle change
 - ❌ No ops:health code change
 - ❌ No workflow files created or modified
-- ❌ No migrations / reconciliation / cron triggers / R2 / CRM / Sentinel work
+- ❌ No migrations / reconciliation / cron triggers / R2 / CRM work
 - ❌ No PR #148 / PR 5B work
 - ❌ No source code touched
 - ❌ No `scripts/ops-health.js` THRESHOLDS change

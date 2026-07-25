@@ -233,7 +233,7 @@ The same env-var NAME may live on both surfaces with **different values**. This 
 | `SMTP_USER` / `SMTP_PASS` | secrets | M365 / Gmail SMTP creds | rotate workflow (email notification step) |
 | `SLACK_WEBHOOK_URL` | secret | Slack alert endpoint | rotate workflow |
 | `NEON_ADMIN_KEY`, `NEON_ROTATION_ADMIN`, `ROTATION_ADMIN_KEY`, `ASSISTANT_PAT`, `TEST_SECRET`, `NYC_GEOCLIENT_KEY`, `NYC_SODA_*`, `SOCRATA_APP_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN` | secrets | Various integration creds | Various workflows |
-| `AUDIT_*` (var) | actions vars | Audit-bot config (email, cadence, SMTP) | `.github/workflows/repo-audit-bot.yml` |
+| `AUDIT_*` (var) | actions vars | **Orphaned** — were the audit-bot config (email, cadence, SMTP); the consuming `repo-audit-bot` workflow was decommissioned 2026-07-25, so these actions vars are no longer read by any workflow | *(no consumer — decommissioned)* |
 | `NEON_PREVIEW_PROJECT_ID` | **actions var** (not secret) | **`hidden-mountain-87248164`** (the PREVIEW project) — added 2026-06-01 for Tier 2 cleanup; deliberately distinct from the production-pointing `NEON_PROJECT_ID` | `.github/workflows/cleanup-neon-preview-branch.yml` |
 | `NEON_PREVIEW_API_KEY` | secret | Neon key scoped to the PREVIEW project (`hidden-mountain`) — added 2026-06-01 for Tier 2 cleanup; distinct from the production `NEON_API_KEY` rotation key | `.github/workflows/cleanup-neon-preview-branch.yml` |
 
@@ -348,7 +348,7 @@ RULES:
 - ❌ No `ops:health` code change
 - ❌ No workflow files modified
 - ❌ No migrations / reconciliation / cron triggers
-- ❌ No PR #148 / PR 5B / CRM / Sentinel work
+- ❌ No PR #148 / PR 5B / CRM work
 - ❌ No source code touched
 - ❌ No `scripts/ops-health.js` THRESHOLDS change
 - ❌ No `memory/SESSION-*` archival docs touched

@@ -3,7 +3,7 @@
 > **Status:** Architecture plan only. **No code from this doc.** Docs-only PR.
 > **Date:** 2026-05-18 · **Version 2 — corrected, with MVP decisions** · **Author:** Claude Code under Maya direction
 > **What v2 corrects vs v1:** v1 used `source='manual'` as the primary discriminator and treated `source='trestle'` as automatically disqualifying. **That was wrong.** Mallan's own exclusive listings flow through RealPlus → REBNY RLS → Trestle IDX and arrive in this codebase with `source='trestle'`. The correct gate is **listing-side control + explicit syndication authorization + compliance-safe public advertising rights** — not source-based.
-> **Holds preserved (Maya's spec):** no IDX/RLS/Trestle co-brokerage export · no other brokerage's listings · no ListingSearchProjection changes · no IDX sync changes · no PR #148 / PR 5B · no reconciliation · no env vars · no Neon · no migrations · no cron · no Sentinel / agents / skills / workflows.
+> **Holds preserved (Maya's spec):** no IDX/RLS/Trestle co-brokerage export · no other brokerage's listings · no ListingSearchProjection changes · no IDX sync changes · no PR #148 / PR 5B · no reconciliation · no env vars · no Neon · no migrations · no cron · no agents / skills / workflows.
 > **Truth source:** current `main` HEAD `b95e5f44`.
 
 ---
@@ -456,7 +456,6 @@ Specific ambiguity scenarios + what happens:
 | Cron schedule (`vercel.json`) | ❌ no | No cron entry added |
 | `.env*` / Neon / migrations | ❌ no | No env vars added |
 | `.github/workflows/`, `.claude/agents/`, `.claude/skills/` | ❌ no | No workflow/agent/skill edits |
-| Sentinel / bot configs | ❌ no | No Sentinel implementation |
 | Public IDX reader (`app/api/listings`) | ❌ no | Plan writes a separate `/exclusives` page (PR 6) that runs its own gate |
 
 The IDX-projection lane and this lane are non-overlapping. They can both run in parallel.
@@ -567,7 +566,7 @@ All seven decisions are now binding on the MVP. See the "MVP Decisions" callout 
 - An env-var change
 - A reconciliation run
 - A merge of PR #148 or start of PR 5B
-- A Sentinel / agents / skills / workflows edit
+- An agents / skills / workflows edit
 - An external integration with any partner
 - An assumption that `source='manual'` or `source='trestle'` is the discriminator (corrected)
 

@@ -16,7 +16,7 @@
 > §G chain run before every commit, rebny-compliance skill invoked pre-commit.
 >
 > **Standing holds none of these may touch:** prisma schema/migrations · env vars · Neon settings ·
-> cron config (`vercel.json`) · `.github/workflows/**` · `public/crm/**` frontend · Sentinel/agents/
+> cron config (`vercel.json`) · `.github/workflows/**` · `public/crm/**` frontend · agents/
 > skills · R2 deletes/cleanup · backfills/reconciliation runs · manual cron triggers · force-push.
 > Correction 4 explicitly resolves with **no schema** (stop-bumping variant chosen).
 

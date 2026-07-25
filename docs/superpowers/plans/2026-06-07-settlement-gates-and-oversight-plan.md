@@ -17,8 +17,13 @@ BEFORE touching any §D surface).
 **Sentinel-L was RETIRED and REMOVED by PR #546.** It is not a gate, dependency,
 prerequisite, required check, or evidence source, and is **never cited as evidence**
 anywhere in this plan. Its detector coverage was migrated to focused behavioral/contract
-tests (see the retention matrix, `docs/compliance/sentinel-l-retention-matrix-2026-07-21.md`).
-It **must not be reintroduced without a new, separately approved design and proof.**
+tests. It **must not be reintroduced without a new, separately approved design and proof.**
+
+> **DECOMMISSIONED (2026-07-25):** the macro-oversight / reconciliation mechanism this plan
+> specifies — a scheduled, report-only repo-audit bot — was fully removed (see
+> `memory/SENTINEL-DECOMMISSION-2026-07-25.md`). Every `repo-audit-bot` reference below is
+> **historical design intent, not an available mechanism**: the macro-oversight role has NO
+> current implementation and must be re-designed + separately approved before any phase runs.
 
 **No work in the dark (the core rule of this plan).** Every change passes TWO concrete,
 pass-required evaluation points before anything advances: a **MICRO** gate (is the change
@@ -200,7 +205,7 @@ retired (removed by PR #546) and appears in no gate.**
 | Agent / mechanism | Cadence | What it verifies (macro) | Output / gate |
 |---|---|---|---|
 | **System-impact verifier** (the per-change macro gate) | **every change, pre-merge** | Builds + records the B4 blast-radius; runs each touched domain's gate; confirms no other ledger row regressed; runs whole-surface `tristle`; the "no work in the dark" enforcer | **PASS required to merge** + blast-radius record on the PR |
-| **`repo-audit-bot`** (report-only) | per-phase close + weekly | Deep cross-cutting audit: did the phase's fixes hold? any new drift, silent failure, or compliance regression vs the prior report? | dated report under `memory/audits/` |
+| **`repo-audit-bot`** (report-only) — **DECOMMISSIONED 2026-07-25; no current implementation, needs replacement** | per-phase close + weekly | Deep cross-cutting audit: did the phase's fixes hold? any new drift, silent failure, or compliance regression vs the prior report? | dated report under `memory/audits/` |
 | **Settlement verifier** | per-phase | Every ledger row owned by the phase is green (harness ✓ + compliance ✓ + live proof ✓ + micro ✓ + macro ✓); updates the Settlement Ledger | ledger rows → SETTLED |
 | **Baseline regression-diff** | every harness run | full pass-set vs frozen baseline; flags any new red | pass/fail |
 | **`tristle-rebny-compliance`** (final release gate) | every change touching §D + before every deploy | whole-surface compliance PASS — IDX/RLS display, attribution, disclaimers, FARE, Fair Housing, NY DOS, data security | PASS/FAIL (merge + deploy blocker) |

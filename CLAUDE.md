@@ -27,7 +27,7 @@
 4. **Compliance-first** — see §D.
 5. **Fail-closed on rule conflict or missing canonical file** — see §E.
 6. **Proof-first on completion claims** — see §F.
-7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main. *(The Mallan Sentinel repo-audit-bot subsystem was decommissioned 2026-07-25 — see `memory/SENTINEL-DECOMMISSION-2026-07-25.md`.)*
+7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main.
 8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
 9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
 
