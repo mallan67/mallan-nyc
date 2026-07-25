@@ -542,13 +542,18 @@ export async function syncListings(
   const listingChangeReasons = newListingChangeReasonCounters();
   const projectionChangeReasons = newProjectionChangeReasonCounters();
 
-  // Phase-1 write-amplification forensic (2026-07-25): TEMPORARY, flag-gated
-  // diagnostic answering "which raw_data KEYS change on raw_data_only writes?".
-  // Key NAMES + counts ONLY (never values/PII); emitted to runtime logs at run
-  // end, NEVER to audit_events (append-only growth is the thing we're fixing).
-  // Off unless DIAG_RAW_DATA_KEYS=1 — zero behavior/perf impact when disabled.
-  // Remove after the required natural cycles are captured.
-  const diagRawDataKeys = process.env.DIAG_RAW_DATA_KEYS === "1";
+  // Phase-1 write-amplification forensic (2026-07-25): TEMPORARY diagnostic
+  // answering "which raw_data KEYS change on raw_data_only writes?". Key NAMES +
+  // counts ONLY (never values/PII); emitted to runtime logs at run end, NEVER to
+  // audit_events (append-only growth is the thing we're fixing).
+  //
+  // AUTO-EXPIRING (Maya safeguard): active ONLY while DIAG_RAW_DATA_KEYS_UNTIL is
+  // a FUTURE ISO timestamp. It fails OFF after the bounded evidence window with no
+  // redeploy or manual cleanup — it cannot be left on indefinitely. Unset/invalid/
+  // past ⇒ disabled (zero behavior/perf impact).
+  const diagUntilRaw = process.env.DIAG_RAW_DATA_KEYS_UNTIL;
+  const diagUntil = Date.parse(diagUntilRaw ?? "");
+  const diagRawDataKeys = Number.isFinite(diagUntil) && Date.now() < diagUntil;
   const rawDataChangedKeyCounts = new Map<string, number>();
   let rawDataOnlyWritesSampled = 0;
 
@@ -1302,6 +1307,13 @@ export async function syncListings(
           distinct_keys: rawDataChangedKeyCounts.size,
           top20,
         }),
+    );
+  } else if (diagUntilRaw && !diagRawDataKeys) {
+    // Configured but expired/invalid — one harmless line so the evidence
+    // collector knows WHY no histogram appeared (vs the diagnostic silently off).
+    console.log(
+      "[IDX Sync][diag] raw_data key histogram DISABLED — DIAG_RAW_DATA_KEYS_UNTIL " +
+        "expired or invalid: " + JSON.stringify(diagUntilRaw),
     );
   }
 

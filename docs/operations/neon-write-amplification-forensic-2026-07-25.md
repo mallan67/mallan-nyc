@@ -28,14 +28,14 @@ are corrected below.
 
 ## 2. Corrected causal claims (the three required corrections)
 
-1. **reset-sync did NOT cause the 89,001 historical deletes.**
+1. **No completed audited reset-sync execution was found; the historical delete
+   source remains UNRESOLVED.**
    `SELECT ... FROM audit_events WHERE action='listings_reset_sync'` returns **zero rows**.
-   The correct wording: *no completed audited reset-sync execution was found; the
-   source of the 89,001 historical deletes remains **UNRESOLVED**; no current
-   scheduled bulk-delete path was found.* (Absence of the audit row does not prove
-   the route never ran — it writes its audit event only after delete+fetch+reload
-   completes, so a crash mid-run would leave no row. But there is no evidence it
-   ran, and no live path reproduces bulk listing deletes.)
+   This does NOT prove the route never ran — it writes its audit event only after
+   delete+fetch+reload completes, so a crash mid-run would leave no row. What is
+   proven: no *completed audited* run, no current scheduled bulk-delete path
+   (`feed-reconcile` has none; the live `upsert` path never deletes). The source of
+   the 89,001 deletes is unresolved; it is not ongoing.
 
 2. **The ~10,000/day unattributed media writes are NOT "delivery refreshes."**
    Correct wording: *approximately 10,000 media physical writes/day were observed,
@@ -59,7 +59,8 @@ are corrected below.
   One MEASURED successful cycle inserted **5 rows** (`one_cycle_started`, `idx_sync`,
   `idx_sync_cron`, `media_sync_cron`, `one_cycle_run`) — Snapshot A→B delta (+5). The
   daily rate is **measured, not a fixed floor**: `audit_events` inserts/day went
-  **07-23 = 199 → 07-25 = 566** (the `*/10` One Cycle switch on 07-24 ≈ tripled it), and
+  **07-23 = 199 → 07-25 = 566 (≈2.8×)** after the `*/10` One Cycle switch on 07-24 —
+  measured **correlation**, not isolated causation (other cron activity also varies), and
   the per-cycle composition VARIES (07-25: 89 One Cycle runs but 103 `idx_sync_cron`,
   96 `media_sync_cron` — not a uniform 5/cycle; skipped/partial/chain-stopped cycles
   write fewer).
@@ -69,14 +70,17 @@ are corrected below.
 - **`listing_media` soft-`deleted` rows:** 28,664 rows physically retained, pruned by
   no cron.
 
-## 4. Primary mechanism — PROVEN (mechanism), scope still being quantified
+## 4. Confirmed write-amplification mechanism — PROVEN (mechanism), scope still being quantified
 
 `sync.ts` includes `raw_data` in the material-change comparison (`:722/:737`) and
 **deliberately writes the row for provenance-only changes** (`:780` — "a source
 revision must persist"), while the projection layer correctly suppresses the
 search/cache work. So a Trestle re-emit whose only delta is a ticking `raw_data`
-produces a full-row + TOAST rewrite with **no** user-visible change. Sample cycle
-20:20: `listings rows_updated=75`, `listing_change_reasons.raw_data_only=75`,
+produces a full-row + TOAST rewrite in which the **search projection was suppressed**
+(no search-visible change) — but whether that raw_data delta affected another public-
+detail or compliance consumer is **UNMEASURED** until the changed-key histogram runs
+(raw_data feeds the public DTO Trestle-direct path). Sample cycle 20:20:
+`listings rows_updated=75`, `listing_change_reasons.raw_data_only=75`,
 `projections rows_updated=0` (all suppressed downstream). This is a **confirmed recent**
 source of listing write-amplification (~30% of recent listing updates, §5.3). Its share
 of the **1.4M lifetime** `listings` updates and of lifetime WAL is **UNMEASURED** — not

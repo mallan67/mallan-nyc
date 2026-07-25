@@ -2831,6 +2831,34 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
  *   - Never modifies `app/api/media/batch/`, `lib/idx/sync.ts`,
  *     `lib/external-listings/`, schema, migrations, or public reader paths.
  */
+/**
+ * Phase-1 write-amplification forensic (2026-07-25): run-level totals for the
+ * three NON-DERIVABLE physical-write cause counters. Extracted as a PURE,
+ * directly-unit-tested accumulator (media-write-cause-accumulator.test.ts) so the
+ * "multiple nonzero per-listing results sum correctly" property is proven — not
+ * merely asserted on an all-zero mock run. runMediaSync's per-listing loop calls
+ * `accumulateMediaWriteCauses` for every settled upsert.
+ */
+export interface MediaWriteCauseTotals {
+  delivery_url_refreshed: number;
+  suppressed_url_rotation_only: number;
+  write_failures: number;
+}
+
+export function newMediaWriteCauseTotals(): MediaWriteCauseTotals {
+  return { delivery_url_refreshed: 0, suppressed_url_rotation_only: 0, write_failures: 0 };
+}
+
+/** Add ONE per-listing WriteCounters result into the run totals (pure; mutates acc). */
+export function accumulateMediaWriteCauses(
+  acc: MediaWriteCauseTotals,
+  r: { deliveryUrlRefreshed: number; suppressedUrlRotationOnly: number; writeFailures: number },
+): void {
+  acc.delivery_url_refreshed += r.deliveryUrlRefreshed;
+  acc.suppressed_url_rotation_only += r.suppressedUrlRotationOnly;
+  acc.write_failures += r.writeFailures;
+}
+
 export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<RunMediaSyncResult> {
   const now = options.now ?? Date.now;
   const startTime = now();
@@ -2860,9 +2888,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let rowsTombstoned = 0;
   // Phase-1 write-amplification forensic (2026-07-25): explicit physical-write
   // cause attribution — additive/observability only, never controls a decision.
-  let deliveryUrlRefreshed = 0; // material-unchanged writes solely to refresh a not-yet-mirrored URL
-  let suppressedUrlRotationOnly = 0; // suppressed rows whose only diff was a rotated signed URL (proof)
-  let writeFailuresTotal = 0; // per-row create/update failures (isolated; listing fails closed)
+  // Phase-1 forensic: run-level physical-write cause totals (non-derivable),
+  // accumulated via the pure, unit-tested accumulateMediaWriteCauses helper.
+  const causeTotals = newMediaWriteCauseTotals();
   // #541 comparator-attribution diagnostic (cumulative; snake_case = audit keys).
   const attr = {
     existing_rows_compared: 0,
@@ -3087,9 +3115,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // kinds (tombstones are physical updateMany writes). One precise meaning.
       rowsUpdated += upsertResult.physicalWrites;
       // Phase-1 forensic: physical-write cause attribution (additive only).
-      deliveryUrlRefreshed += upsertResult.deliveryUrlRefreshed;
-      suppressedUrlRotationOnly += upsertResult.suppressedUrlRotationOnly;
-      writeFailuresTotal += upsertResult.writeFailures;
+      accumulateMediaWriteCauses(causeTotals, upsertResult);
       // #541 attribution (camelCase result → snake_case cumulative)
       attr.existing_rows_compared += upsertResult.existingRowsCompared;
       attr.mismatch_status += upsertResult.mismatchStatus;
@@ -3706,9 +3732,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
     // Phase-1 forensic — minimal non-derivable cause counters (additive only).
-    delivery_url_refreshed: deliveryUrlRefreshed,
-    suppressed_url_rotation_only: suppressedUrlRotationOnly,
-    write_failures: writeFailuresTotal,
+    delivery_url_refreshed: causeTotals.delivery_url_refreshed,
+    suppressed_url_rotation_only: causeTotals.suppressed_url_rotation_only,
+    write_failures: causeTotals.write_failures,
     summary_writes: summaryWrites,
     pages_revalidated: revalidation.pages_revalidated,
     revalidation_failures: revalidation.revalidation_failures,
