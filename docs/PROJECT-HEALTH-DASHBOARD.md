@@ -108,7 +108,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
 | OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
-| OPS-010A | Operations | Storage churn suppression (diff-before-write) | P1 | Open (sequenced after pilot) | Claude |
+| OPS-010A | Operations | Storage churn suppression (diff-before-write). **Phase-1 evidence+telemetry landed (PR #569, 2026-07-25):** media physical-write cause counters + flag-gated raw_data key histogram; fresh pg_stat (listing_media 3.40M / listings 1.40M updates); audit_events 199→566/day (~2.8×) post-`*/10`. Forensic: `docs/operations/neon-write-amplification-forensic-2026-07-25.md`. Phase-2 suppression HELD. | P1 | Open — Phase-1 landed; Phase-2 suppression HELD | Claude |
 | OPS-022 | Operations | **Gate-6 rollback branch AUTO-PRUNED** (2026-07-03; main only) — a fresh PROTECTED rollback branch is a HARD prerequisite before the 5K execute (one-way strip, 6h PITR) | P1 | **BLOCKER for 5K — needs Maya (create + protect branch)** | Maya |
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |

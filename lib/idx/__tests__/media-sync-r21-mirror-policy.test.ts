@@ -317,7 +317,8 @@ describe("R2-1 — third-party displayable listing mirrors the canonical hero ON
     // (physical_writes/non_tombstone are intentionally NOT stored; rows_updated
     // IS physical_writes.)
     expect(typeof result.delivery_url_refreshed).toBe("number");
-    expect(typeof result.suppressed_url_rotation_only).toBe("number");
+    expect(typeof result.suppressed_url_signature_rotation).toBe("number");
+    expect(typeof result.suppressed_url_identity_changed).toBe("number");
     expect(typeof result.write_failures).toBe("number");
     expect(result.rows_updated).toBe(
       result.rows_inserted +

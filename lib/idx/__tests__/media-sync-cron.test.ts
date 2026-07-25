@@ -98,7 +98,8 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     rows_tombstoned: 0,
     // Phase-1 write-amplification forensic — physical-write cause counters.
     delivery_url_refreshed: 0,
-    suppressed_url_rotation_only: 0,
+    suppressed_url_signature_rotation: 0,
+    suppressed_url_identity_changed: 0,
     write_failures: 0,
     existing_rows_compared: 0,
     mismatch_status: 0,
@@ -460,7 +461,8 @@ describe("GET /api/cron/media-sync — happy path", () => {
     // writes can be split (delivery-refresh vs material vs insert vs tombstone).
     // Compact integers only; additive/observability — no URLs/values/PII.
     const phase1CauseCounters = [
-      "delivery_url_refreshed", "suppressed_url_rotation_only", "write_failures",
+      "delivery_url_refreshed", "suppressed_url_signature_rotation",
+      "suppressed_url_identity_changed", "write_failures",
     ];
     for (const k of phase1CauseCounters) {
       expect(ch).toHaveProperty(k);
@@ -506,7 +508,8 @@ describe("GET /api/cron/media-sync — happy path", () => {
         rows_inserted: inserted,
         rows_updated_changed: updatedChanged,
         delivery_url_refreshed: deliveryRefresh,
-        suppressed_url_rotation_only: 9,
+        suppressed_url_signature_rotation: 9,
+        suppressed_url_identity_changed: 4,
         write_failures: 0,
         tombstoned_explicit: tExplicit,
         tombstoned_vanished: tVanished,
@@ -522,7 +525,8 @@ describe("GET /api/cron/media-sync — happy path", () => {
 
     // Exact values flowed member → durable payload (not zeros, not dropped).
     expect(ch.delivery_url_refreshed).toBe(7);
-    expect(ch.suppressed_url_rotation_only).toBe(9);
+    expect(ch.suppressed_url_signature_rotation).toBe(9);
+    expect(ch.suppressed_url_identity_changed).toBe(4);
     expect(ch.write_failures).toBe(0);
 
     // Invariant holds on the durable payload → cause split is fully recoverable.

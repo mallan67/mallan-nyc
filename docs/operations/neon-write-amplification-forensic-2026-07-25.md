@@ -9,6 +9,12 @@
 > This document is Commit 1 of the single evidence-only branch
 > `fix/neon-write-amplification-2026-07-25`. It supersedes the looser conclusions
 > in the chat forensic; where the two differ, this file is authoritative.
+>
+> **This is EVIDENCE for existing registry issues, NOT a new issue ID.** Canonical
+> status lives in `docs/PLATFORM-ISSUE-REGISTRY.md`: **OPS-010A** (recurring Neon
+> WAL/history write-amplification from listing/media sync) and **OPS-010** (DB/audit
+> growth: `audit_events` append-only, `listing_media` tombstones). This file is the
+> attached measurement detail those rows reference.
 
 ## 0. Verdict
 
@@ -35,7 +41,8 @@ are corrected below.
    delete+fetch+reload completes, so a crash mid-run would leave no row. What is
    proven: no *completed audited* run, no current scheduled bulk-delete path
    (`feed-reconcile` has none; the live `upsert` path never deletes). The source of
-   the 89,001 deletes is unresolved; it is not ongoing.
+   the 89,001 deletes is unresolved; no current scheduled path performs bulk listing
+   deletion (static review does not prove an unscheduled/manual route cannot).
 
 2. **The ~10,000/day unattributed media writes are NOT "delivery refreshes."**
    Correct wording: *approximately 10,000 media physical writes/day were observed,
@@ -139,9 +146,11 @@ short-window rate. Consumption-history API is Scale-plan-gated (unavailable on L
   delete+fetch+reload finishes, so a crash after the deletes would leave no row; this
   rules out a *completed audited* run, **NOT** that the route never started. Also PROVEN
   by code: `feed-reconcile` has no listing-delete path (only a Trestle `$filter`), and the
-  live `upsert` sync path never deletes. No CURRENT scheduled bulk-delete path exists; the
-  deletes likely pre-date the 2026-06-02 cross-project repoint or an older sync
-  implementation. Ongoing row-recreate ≈ `feed_reconcile_orphan_created` ~15/day.
+  live `upsert` sync path never deletes. No current scheduled listing bulk-delete path
+  was identified. **The source and timing of the historical delete counters remain
+  unresolved** (no dated theory is asserted — static review does not exclude an
+  unscheduled/manual/historical route). Ongoing row-recreate observed ≈
+  `feed_reconcile_orphan_created` ~15/day.
 
 ## 7. UNMEASURED (needs instrumentation / your input)
 - **The exact Neon graph that is increasing.** 535 MB / 603 MB are single snapshots;

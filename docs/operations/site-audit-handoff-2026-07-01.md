@@ -278,3 +278,16 @@ Before starting new work, update this file with:
 - exact stop point
 
 Do not rely on chat memory alone.
+
+---
+
+## 2026-07-25 addendum — Neon write-amplification (OPS-010A / OPS-010) evidence + Phase-1 telemetry
+
+- **Session:** read-only Neon write-amplification forensic + Phase-1 evidence-only telemetry.
+- **PR:** #569 `fix/neon-write-amplification-2026-07-25` — **DRAFT, not merged, no production deploy** (a Vercel PREVIEW deployed; `release-truth` `deploy_pending` by design). Branch head as of this note: see `git rev-parse`.
+- **Scope:** additive telemetry only — NO sync/write behavior, cadence, retention, `raw_data` storage, DB rows, cron, or env change.
+- **Evidence doc:** `docs/operations/neon-write-amplification-forensic-2026-07-25.md` (attached evidence for **OPS-010A** + **OPS-010**; not a new ID).
+- **Fresh measurements (read-only, cold-waterfall):** `pg_database_size` 535 MB / synthetic 603 MB (bounded, not ballooning); cumulative tuple updates listing_media **3.40M** / listings **1.40M**; `audit_events` append-only, insert rate **199→566/day (~2.8×)** after the `*/10` One-Cycle switch (07-24, correlation); one light One Cycle ≈ **118 KB WAL**; `sync_errors` = 0 rows; `listing_media` soft-deleted = 28,664; historical 89,001 `listings` deletes = **UNRESOLVED** (no completed audited `reset-sync`; no current scheduled bulk-delete path).
+- **Telemetry landed:** media physical-write cause counters (`delivery_url_refreshed`, `suppressed_url_signature_rotation`, `suppressed_url_identity_changed`, `write_failures`) in `media_sync_cron`; flag-gated (`DIAG_RAW_DATA_KEYS_UNTIL`, auto-expiring) raw_data changed-key histogram to runtime logs (never audit_events).
+- **Open gates (Maya):** (1) the exact rising Neon dashboard metric (screenshot); (2) merge + production-deploy authorization for a bounded ≥3-cycle capture window. Phase-2 diff-before-write suppression stays **HELD**.
+- **Stop point:** Phase-1 corrections complete on the branch; awaiting clean current-head Codex re-review + the two gates. Do NOT merge/deploy/change env.

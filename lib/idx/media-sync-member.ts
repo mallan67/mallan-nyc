@@ -85,7 +85,8 @@ export async function runMediaSyncMember({
           // physical_writes (=rows_updated) and non_tombstone (derivable) are
           // deliberately NOT stored — see media-sync.ts RunMediaSyncResult.
           delivery_url_refreshed: result.delivery_url_refreshed,
-          suppressed_url_rotation_only: result.suppressed_url_rotation_only,
+          suppressed_url_signature_rotation: result.suppressed_url_signature_rotation,
+          suppressed_url_identity_changed: result.suppressed_url_identity_changed,
           write_failures: result.write_failures,
           existing_rows_compared: result.existing_rows_compared,
           mismatch_status: result.mismatch_status,
