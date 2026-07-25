@@ -18,15 +18,16 @@
 import { NextRequest } from "next/server";
 
 // ── member WORK functions mocked (in-process, NOT route handlers) ─────────────
-// The member functions return a MemberRunResult ({ status, body }) — NOT a
-// NextResponse. One Cycle imports and calls them directly; there is no HTTP
-// handler, forwarded secret, or x-one-cycle-member header involved.
+// The member functions return a MemberRunResult ({ status, outcome, body }) —
+// NOT a NextResponse. `outcome` is the EXPLICIT semantic result; the machine's
+// complete/success and the completion ledger derive from it, never from status.
 type MemberArgs = { oneCycleRunId: string; forceFull?: boolean };
-const idxMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
-  async () => ({ status: 200, body: { success: true, listings_processed: 7, rows_suppressed_unchanged: 3 } }),
+type MemberOut = { status: number; outcome: "ok" | "partial" | "skipped" | "error"; body: Record<string, unknown> };
+const idxMember = jest.fn<Promise<MemberOut>, [MemberArgs]>(
+  async () => ({ status: 200, outcome: "ok", body: { success: true, listings_processed: 7, rows_suppressed_unchanged: 3 } }),
 );
-const mediaMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
-  async () => ({ status: 200, body: { success: true, r2_mirrored: 2, mirror_allowed: 2 } }),
+const mediaMember = jest.fn<Promise<MemberOut>, [MemberArgs]>(
+  async () => ({ status: 200, outcome: "ok", body: { success: true, r2_mirrored: 2, mirror_allowed: 2 } }),
 );
 jest.mock("@/lib/idx/idx-sync-member", () => ({ runIdxSyncMember: (a: MemberArgs) => idxMember(a) }));
 jest.mock("@/lib/idx/media-sync-member", () => ({ runMediaSyncMember: (a: MemberArgs) => mediaMember(a) }));
@@ -91,10 +92,12 @@ beforeEach(() => {
   delete process.env.ONE_CYCLE_BUDGET_MS_MEDIA_SYNC;
   idxMember.mockImplementation(async () => ({
     status: 200,
+    outcome: "ok",
     body: { success: true, listings_processed: 7, rows_suppressed_unchanged: 3 },
   }));
   mediaMember.mockImplementation(async () => ({
     status: 200,
+    outcome: "ok",
     body: { success: true, r2_mirrored: 2, mirror_allowed: 2 },
   }));
 });
@@ -145,16 +148,16 @@ describe("no concurrent members", () => {
     let releaseIdx: () => void = () => {};
     idxMember.mockImplementation(
       () =>
-        new Promise<{ status: number; body: Record<string, unknown> }>((resolve) => {
+        new Promise<MemberOut>((resolve) => {
           releaseIdx = () => {
             idxResolved = true;
-            resolve({ status: 200, body: { success: true } });
+            resolve({ status: 200, outcome: "ok", body: { success: true } });
           };
         }),
     );
     mediaMember.mockImplementation(async () => {
       if (!idxResolved) mediaStartedWhileIdxUnresolved = true;
-      return { status: 200, body: { success: true } };
+      return { status: 200, outcome: "ok", body: { success: true } };
     });
 
     const p = GET(makeReq(AUTH));
@@ -176,7 +179,7 @@ describe("no concurrent members", () => {
     process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "1";
     idxMember.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 15));
-      return { status: 200, body: { success: true } };
+      return { status: 200, outcome: "ok", body: { success: true } };
     });
     const body = await (await GET(makeReq(AUTH))).json();
     const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
@@ -194,7 +197,7 @@ describe("truth semantics: settled / complete / success", () => {
     process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "1";
     idxMember.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 15));
-      return { status: 200, body: { success: true } };
+      return { status: 200, outcome: "ok", body: { success: true } };
     });
   };
 
@@ -216,7 +219,7 @@ describe("truth semantics: settled / complete / success", () => {
   });
 
   it("idx failed + media budget_skipped ⇒ settled true, complete FALSE, success false", async () => {
-    idxMember.mockImplementation(async () => ({ status: 500, body: { error: "boom" } }));
+    idxMember.mockImplementation(async () => ({ status: 500, outcome: "error", body: { error: "boom" } }));
     const body = await (await GET(makeReq(AUTH))).json();
     expect(body.members_budget_skipped).toBe(1);
     expect(body.orchestration_settled).toBe(true);
@@ -233,7 +236,7 @@ describe("truth semantics: settled / complete / success", () => {
   });
 
   it("a failed member (non-2xx) forces success:false and stops the chain", async () => {
-    idxMember.mockImplementation(async () => ({ status: 500, body: { error: "boom" } }));
+    idxMember.mockImplementation(async () => ({ status: 500, outcome: "error", body: { error: "boom" } }));
     const body = await (await GET(makeReq(AUTH))).json();
     const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
     expect(idx.status).toBe("failed");
@@ -366,5 +369,77 @@ describe("member telemetry correlation", () => {
     const body = await (await GET(makeReq(AUTH))).json();
     expect(idxMember.mock.calls[0][0].oneCycleRunId).toBe(body.run_id);
     expect(mediaMember.mock.calls[0][0].oneCycleRunId).toBe(body.run_id);
+  });
+});
+
+// ─── member SEMANTIC outcome drives machine truth (NOT HTTP status) ───────────
+describe("member outcome semantics (machine truth ≠ HTTP status)", () => {
+  it("IDX precondition skip (HTTP 200, outcome 'skipped') CANNOT yield machine success=true and STOPS media", async () => {
+    // Exactly the disabled/missing-credentials case: the member returns 200 with
+    // a skip body but outcome 'skipped'. HTTP-status-only classification would
+    // have counted this as ok — the semantic outcome must not.
+    idxMember.mockImplementation(async () => ({
+      status: 200,
+      outcome: "skipped",
+      body: { skipped: true, reason: "IDX disabled or credentials missing" },
+    }));
+    const res = await GET(makeReq(AUTH));
+    const body = await res.json();
+    const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
+    const media = body.members.find((m: { member: string }) => m.member === "media-sync");
+
+    expect(idx.status).toBe("skipped");
+    expect(idx.outcome).toBe("skipped");
+    expect(body.success).toBe(false); // never success on a precondition skip
+    expect(body.complete).toBe(false); // idx did not do its work
+    expect(body.members_ok).toBe(0); // a 200 skip is NOT ok
+    expect(media.status).toBe("budget_skipped"); // chain stopped BEFORE media
+    expect(mediaMember).not.toHaveBeenCalled();
+    expect(body.outcome).toBe("incomplete"); // machine-level outcome
+  });
+
+  it("media partial (HTTP 200, outcome 'partial') ⇒ complete=true, success=false, machine outcome 'partial'", async () => {
+    mediaMember.mockImplementation(async () => ({
+      status: 200,
+      outcome: "partial",
+      body: { success: true, rows_failed: 3, r2_failed: 0 },
+    }));
+    const res = await GET(makeReq(AUTH));
+    const body = await res.json();
+    const media = body.members.find((m: { member: string }) => m.member === "media-sync");
+
+    expect(media.status).toBe("partial");
+    expect(media.outcome).toBe("partial");
+    // The member STARTED and settled, so the cycle is complete — but not success.
+    expect(body.complete).toBe(true);
+    expect(body.success).toBe(false);
+    expect(body.members_partial).toBe(1);
+    expect(body.members_ok).toBe(1); // idx ok
+    expect(body.outcome).toBe("partial"); // machine-level outcome is partial
+  });
+
+  it("media error (outcome 'error' returned over HTTP 200) forces success=false — not counted ok", async () => {
+    // A graceful runMediaSync error returns 200 but outcome 'error'. Status-only
+    // classification would call it ok; the semantic outcome must force failure.
+    mediaMember.mockImplementation(async () => ({
+      status: 200,
+      outcome: "error",
+      body: { success: true, error: "Property fetch failed" },
+    }));
+    const body = await (await GET(makeReq(AUTH))).json();
+    const media = body.members.find((m: { member: string }) => m.member === "media-sync");
+    expect(media.status).toBe("failed");
+    expect(media.outcome).toBe("error");
+    expect(body.success).toBe(false);
+    expect(body.members_ok).toBe(1); // only idx
+  });
+
+  it("both fully-ok members ⇒ complete=true, success=true, machine outcome 'success'", async () => {
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(body.complete).toBe(true);
+    expect(body.success).toBe(true);
+    expect(body.members_partial).toBe(0);
+    expect(body.members_precondition_skipped).toBe(0);
+    expect(body.outcome).toBe("success");
   });
 });

@@ -83,30 +83,34 @@ const req = (opts: { url?: string; forged?: boolean; runId?: string } = {}) => {
 // back from the claim call so telemetry correlation can be asserted.
 const routeRunId = () => (claimMachine.mock.calls[0][1] as { runId: string }).runId;
 
+// A clean (status "ok", zero-failure) runMediaSync result. Spread + override to
+// build partial variants (rows_failed / r2_failed).
+const mediaOkResult = () => ({
+  status: "ok", exit_reason: "completed", rows_checked: 0, rows_updated: 0,
+  rows_inserted: 0, rows_updated_changed: 0, rows_skipped_unchanged: 0,
+  rows_skipped_invalid: 0, delete_signals_received: 0, tombstoned_explicit: 0,
+  tombstoned_vanished: 0, rows_tombstoned: 0, existing_rows_compared: 0,
+  mismatch_status: 0, mismatch_listing_id: 0, mismatch_resource_record_key: 0,
+  mismatch_resource_record_id: 0, mismatch_media_url_exact: 0,
+  mismatch_media_url_identity: 0, mismatch_media_url_identity_equivalent: 0,
+  mismatch_media_type: 0, mismatch_media_category: 0, mismatch_media_classification: 0,
+  mismatch_order: 0, mismatch_preferred_photo: 0, mismatch_media_modification_ts: 0,
+  mismatch_modification_ts: 0, rows_with_one_mismatch: 0, rows_with_multiple_mismatches: 0,
+  rows_failed: 0, listings_processed: 0, listings_skipped: 0, r2_mirrored: 0,
+  r2_failed: 0, r2_skipped: 0, backlog_remaining: 0, r2_backlog_batch_selected: 0,
+  r2_parked_recovery_selected: 0, r2_parked_recovery_attempted: 0,
+  r2_failure_budget_exhausted: false,
+  summary_writes: { rows_checked: 0, rows_materially_changed: 0, rows_suppressed_unchanged: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0 },
+  pages_revalidated: 0, revalidation_failures: 0, backlog_inflow_since_last_run: 0,
+  rows_selected: 0, rows_attempted: 0, rows_drained: 0, failures: 0, overlap_prevented: 0,
+  time_budget_exhausted: false, query_path_classification: "backlog", run_duration_ms: 1,
+  mirror_allowed: 0, mirror_rejected_policy: 0, mirror_rejected_policy_parked: 0,
+  r2_uploaded: 0, r2_reused: 0, duration_ms: 1, ghost_listings_skipped: 0, ghost_listing_ids: [],
+});
+
 beforeEach(() => {
   syncListings.mockReset().mockResolvedValue({ processed: 0 });
-  runMediaSync.mockReset().mockResolvedValue({
-    status: "ok", exit_reason: "completed", rows_checked: 0, rows_updated: 0,
-    rows_inserted: 0, rows_updated_changed: 0, rows_skipped_unchanged: 0,
-    rows_skipped_invalid: 0, delete_signals_received: 0, tombstoned_explicit: 0,
-    tombstoned_vanished: 0, rows_tombstoned: 0, existing_rows_compared: 0,
-    mismatch_status: 0, mismatch_listing_id: 0, mismatch_resource_record_key: 0,
-    mismatch_resource_record_id: 0, mismatch_media_url_exact: 0,
-    mismatch_media_url_identity: 0, mismatch_media_url_identity_equivalent: 0,
-    mismatch_media_type: 0, mismatch_media_category: 0, mismatch_media_classification: 0,
-    mismatch_order: 0, mismatch_preferred_photo: 0, mismatch_media_modification_ts: 0,
-    mismatch_modification_ts: 0, rows_with_one_mismatch: 0, rows_with_multiple_mismatches: 0,
-    rows_failed: 0, listings_processed: 0, listings_skipped: 0, r2_mirrored: 0,
-    r2_failed: 0, r2_skipped: 0, backlog_remaining: 0, r2_backlog_batch_selected: 0,
-    r2_parked_recovery_selected: 0, r2_parked_recovery_attempted: 0,
-    r2_failure_budget_exhausted: false,
-    summary_writes: { rows_checked: 0, rows_materially_changed: 0, rows_suppressed_unchanged: 0, rows_inserted: 0, rows_updated: 0, rows_failed: 0 },
-    pages_revalidated: 0, revalidation_failures: 0, backlog_inflow_since_last_run: 0,
-    rows_selected: 0, rows_attempted: 0, rows_drained: 0, failures: 0, overlap_prevented: 0,
-    time_budget_exhausted: false, query_path_classification: "backlog", run_duration_ms: 1,
-    mirror_allowed: 0, mirror_rejected_policy: 0, mirror_rejected_policy_parked: 0,
-    r2_uploaded: 0, r2_reused: 0, duration_ms: 1, ghost_listings_skipped: 0, ghost_listing_ids: [],
-  });
+  runMediaSync.mockReset().mockResolvedValue(mediaOkResult());
   claimMachine.mockReset().mockResolvedValue({ ok: true });
   completeMachine.mockClear();
   auditCreate.mockClear();
@@ -195,6 +199,52 @@ describe("internal member functions never claim (import-only unclaimed path)", (
     await runMediaSyncMember({ oneCycleRunId: "orchestrator-run" });
     expect(claimMachine).not.toHaveBeenCalled();
     expect(runMediaSync).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── standalone completion markers preserve the SEMANTIC outcome ──────────────
+describe("standalone completion markers preserve skipped / partial / error", () => {
+  const markerOutcome = () => (completeMachine.mock.calls[0][1] as { outcome: string }).outcome;
+
+  it("IDX disabled ⇒ marker outcome 'skipped' (NOT 'success'); no sync work runs", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    const prev = process.env.IDX_ENABLED;
+    process.env.IDX_ENABLED = "false"; // precondition failure inside the member
+    try {
+      const res = await idxGET(req());
+      const body = await res.json();
+      expect(body.skipped).toBe(true); // HTTP body stays backward-compatible
+      expect(syncListings).not.toHaveBeenCalled(); // no work
+      expect(completeMachine).toHaveBeenCalledTimes(1);
+      expect(markerOutcome()).toBe("skipped"); // ledger truth: never "success"
+    } finally {
+      process.env.IDX_ENABLED = prev;
+    }
+  });
+
+  it("media rows_failed > 0 ⇒ member 'partial' ⇒ marker outcome 'partial'", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    runMediaSync.mockResolvedValueOnce({ ...mediaOkResult(), status: "partial", rows_failed: 3 });
+    await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", { headers: { authorization: AUTH } }));
+    expect(runMediaSync).toHaveBeenCalledTimes(1);
+    expect(completeMachine).toHaveBeenCalledTimes(1);
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("media r2_failed > 0 ⇒ member 'partial' ⇒ marker outcome 'partial'", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    runMediaSync.mockResolvedValueOnce({ ...mediaOkResult(), status: "partial", r2_failed: 4 });
+    await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", { headers: { authorization: AUTH } }));
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("media thrown failure ⇒ member 'error' ⇒ marker outcome 'error'", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    runMediaSync.mockRejectedValueOnce(new Error("Neon write timeout"));
+    const res = await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", { headers: { authorization: AUTH } }));
+    expect(res.status).toBe(500);
+    expect(completeMachine).toHaveBeenCalledTimes(1);
+    expect(markerOutcome()).toBe("error");
   });
 });
 

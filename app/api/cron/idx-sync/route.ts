@@ -41,11 +41,13 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Completion-marker outcome is the member's SEMANTIC outcome, not HTTP status:
+  // a precondition skip (200) must be recorded "skipped", never "success".
   let outcome = "error";
   try {
     // Standalone runs correlate telemetry with their own claim run_id.
     const res = await runIdxSyncMember({ oneCycleRunId: machineRunId, forceFull });
-    outcome = res.status >= 200 && res.status < 300 ? "success" : "error";
+    outcome = res.outcome === "ok" ? "success" : res.outcome; // success | partial | skipped | error
     return NextResponse.json(res.body, { status: res.status });
   } finally {
     // ALWAYS write the matching completion marker so the next execution is

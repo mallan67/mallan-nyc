@@ -16,8 +16,23 @@ import {
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
+/**
+ * Explicit SEMANTIC result of a member run — the machine's source of truth.
+ * Machine completeness/success and the completion ledger are derived from THIS,
+ * never from the HTTP status alone (a 200 can be a skip or a partial):
+ *   - ok       — the member did its full work and every required unit succeeded
+ *   - partial  — the member started and settled, but some units failed
+ *                (e.g. media rows_failed > 0 or r2_failed > 0)
+ *   - skipped  — a precondition prevented the work (IDX disabled / no creds);
+ *                the member did NOT do its work → never counts as success
+ *   - error    — the run failed / threw
+ */
+export type MemberOutcome = 'ok' | 'partial' | 'skipped' | 'error';
+
 export interface MemberRunResult {
   status: number;
+  /** The explicit semantic outcome — machine truth derives from this, not status. */
+  outcome: MemberOutcome;
   body: Record<string, unknown>;
 }
 
@@ -40,7 +55,15 @@ export async function runIdxSyncMember({
   forceFull: boolean;
 }): Promise<MemberRunResult> {
   if (process.env.IDX_ENABLED !== "true" || !hasCredentials()) {
-    return { status: 200, body: { skipped: true, reason: "IDX disabled or credentials missing" } };
+    // PRECONDITION FAILURE — no sync work ran. This is NOT success: it must stop
+    // the chain before media and force machine complete=false / success=false.
+    // The HTTP body stays backward-compatible (200 skipped); the explicit
+    // `outcome: "skipped"` is what the orchestrator + completion ledger use.
+    return {
+      status: 200,
+      outcome: "skipped",
+      body: { skipped: true, reason: "IDX disabled or credentials missing" },
+    };
   }
 
   // Run-scoped, isolated collector — concurrent Cotality calls in other async
@@ -78,6 +101,7 @@ export async function runIdxSyncMember({
 
     return {
       status: 200,
+      outcome: "ok",
       body: { success: true, ...result, cotality: snapshotCollector(cotalityCollector) },
     };
   } catch (err) {
@@ -104,6 +128,6 @@ export async function runIdxSyncMember({
       })
       .catch(() => {}); // Don't let audit failure mask the real error
 
-    return { status: 500, body: { error: `Sync failed: ${msg}` } };
+    return { status: 500, outcome: "error", body: { error: `Sync failed: ${msg}` } };
   }
 }

@@ -226,6 +226,54 @@ describe("GET /api/cron/media-sync — atomic machine claim", () => {
   });
 });
 
+// ─── Semantic outcome: audit + completion marker are NOT derived from HTTP ────
+describe("GET /api/cron/media-sync — semantic outcome (partial / skipped)", () => {
+  const auditOutcomeFor = (action: string) =>
+    (mockAuditCreate.mock.calls
+      .map((c) => (c[0] as { data: { action: string; changes: Record<string, unknown> } }).data)
+      .find((d) => d.action === action)?.changes.outcome);
+  const markerOutcome = () => (mockCompleteMachine.mock.calls[0][1] as { outcome: string }).outcome;
+
+  beforeEach(() => {
+    mockHasCredentials.mockReturnValue(true);
+    mockClaimMachine.mockResolvedValue({ ok: true } as never);
+    mockAuditCreate.mockResolvedValue(undefined);
+  });
+
+  it("rows_failed > 0 ⇒ media_sync_cron audit outcome 'partial' (NOT 'success') and marker 'partial'", async () => {
+    // runMediaSync reports status "partial" when rows_failed>0; the member must
+    // classify that as a partial outcome, never success — even though HTTP is 200.
+    mockRunMediaSync.mockResolvedValueOnce(makeRunResult({ status: "partial", rows_failed: 3 }));
+    const res = await GET(authedReq());
+    expect(res.status).toBe(200);
+    expect(auditOutcomeFor("media_sync_cron")).toBe("partial");
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("r2_failed > 0 ⇒ audit outcome 'partial' and marker 'partial'", async () => {
+    mockRunMediaSync.mockResolvedValueOnce(makeRunResult({ status: "partial", r2_failed: 4 }));
+    await GET(authedReq());
+    expect(auditOutcomeFor("media_sync_cron")).toBe("partial");
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("a clean run (no failures) still writes audit outcome 'success' and marker 'success'", async () => {
+    mockRunMediaSync.mockResolvedValueOnce(makeRunResult());
+    await GET(authedReq());
+    expect(auditOutcomeFor("media_sync_cron")).toBe("success");
+    expect(markerOutcome()).toBe("success");
+  });
+
+  it("missing credentials ⇒ 503, member outcome 'skipped' ⇒ completion marker 'skipped' (not 'success')", async () => {
+    mockHasCredentials.mockReturnValue(false);
+    const res = await GET(authedReq());
+    expect(res.status).toBe(503);
+    expect(mockRunMediaSync).not.toHaveBeenCalled();
+    expect(mockCompleteMachine).toHaveBeenCalledTimes(1);
+    expect(markerOutcome()).toBe("skipped");
+  });
+});
+
 // ─── Happy path ──────────────────────────────────────────────────────────
 
 describe("GET /api/cron/media-sync — happy path", () => {

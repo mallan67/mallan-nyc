@@ -3,6 +3,7 @@ import { timingSafeEqual, randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { claimMachine } from '@/lib/idx/machine-claim';
 import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
+import type { MemberOutcome, MemberRunResult } from '@/lib/idx/idx-sync-member';
 import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
@@ -126,9 +127,17 @@ void _CYCLE_FITS_INTERVAL;
 // manual run can never overlap the machine via a non-atomic check-then-start.
 
 /**
- * Terminal member statuses. A member is "resolved" once it holds one of these:
- *   - ok            — settled 2xx within its soft budget
- *   - failed        — settled non-2xx
+ * Terminal member statuses — derived from the member's SEMANTIC outcome, never
+ * from HTTP status. A member is "resolved" once it holds one of these:
+ *   - ok            — did its full work, every required unit succeeded
+ *   - partial       — STARTED and settled, but some units failed (member
+ *                     outcome "partial", e.g. media rows_failed/r2_failed > 0):
+ *                     it ran to settlement (⇒ counts toward complete) but is NOT
+ *                     ok (⇒ forces success=false, machine outcome "partial")
+ *   - skipped       — a precondition prevented the work (IDX/media disabled or
+ *                     no creds): the member did NOT do its work, so it is NOT a
+ *                     completion (⇒ complete=false) and it stops the chain
+ *   - failed        — the run failed (member outcome "error"; settled non-ok)
  *   - member_error  — threw
  *   - timed_out     — SETTLED, but ran longer than its soft budget (never
  *                     abandoned — the orchestrator awaited it to settlement)
@@ -138,18 +147,22 @@ void _CYCLE_FITS_INTERVAL;
  */
 type MemberStatus =
   | 'ok'
+  | 'partial'
+  | 'skipped'
   | 'failed'
   | 'member_error'
   | 'timed_out'
   | 'budget_skipped';
 
 const TERMINAL_STATUSES: ReadonlySet<MemberStatus> = new Set<MemberStatus>([
-  'ok', 'failed', 'member_error', 'timed_out', 'budget_skipped',
+  'ok', 'partial', 'skipped', 'failed', 'member_error', 'timed_out', 'budget_skipped',
 ]);
 
 interface MemberResult {
   member: string;
   status: MemberStatus;
+  /** The member's explicit semantic outcome (machine-truth source, not status). */
+  outcome: MemberOutcome;
   http_status: number | null;
   duration_ms: number;
   /** True once the started member promise has settled (resolved OR rejected). */
@@ -187,9 +200,7 @@ function extractSummary(body: unknown): Record<string, unknown> {
  * NOT claim. There is NO forgeable HTTP header that reaches this unclaimed path:
  * the public GET routes always claim; only this direct import is exempt.
  */
-type MemberFn = (args: {
-  oneCycleRunId: string;
-}) => Promise<{ status: number; body: Record<string, unknown> }>;
+type MemberFn = (args: { oneCycleRunId: string }) => Promise<MemberRunResult>;
 
 /**
  * Run ONE member to SETTLEMENT — no Promise.race, no abandonment.
@@ -216,23 +227,46 @@ async function runMember(
 ): Promise<MemberResult> {
   const started = Date.now();
   let status: MemberStatus;
+  let outcome: MemberOutcome;
   let http_status: number | null = null;
   let summary: Record<string, unknown> = {};
   try {
     const res = await fn({ oneCycleRunId: runId }); // FULLY AWAITED — never abandoned
     http_status = res.status;
-    status = res.status >= 200 && res.status < 300 ? 'ok' : 'failed';
+    outcome = res.outcome;
+    // Classify from the SEMANTIC outcome, NEVER from the HTTP status. A 200 that
+    // is a precondition skip or a partial run must NOT be counted as ok.
+    switch (res.outcome) {
+      case 'ok':
+        status = 'ok';
+        break;
+      case 'partial':
+        status = 'partial';
+        break;
+      case 'skipped':
+        status = 'skipped';
+        break;
+      case 'error':
+      default:
+        status = 'failed';
+        break;
+    }
     summary = extractSummary(res.body);
   } catch (err) {
+    // A member function catches its own errors and returns outcome "error";
+    // reaching here means an UNEXPECTED throw escaped it.
     status = 'member_error';
+    outcome = 'error';
     summary = { error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' };
   }
   const duration_ms = Date.now() - started;
-  // Settled-but-over-budget ⇒ timed_out (never contributes to success).
-  if ((status === 'ok' || status === 'failed') && duration_ms > budgetMs) {
+  // Settled-but-over-budget ⇒ timed_out (never contributes to success). Applies
+  // to any status that actually did work (ok/partial/failed); a precondition
+  // skip did no work, so it is never reclassified.
+  if ((status === 'ok' || status === 'partial' || status === 'failed') && duration_ms > budgetMs) {
     status = 'timed_out';
   }
-  return { member, status, http_status, duration_ms, settled: true, summary };
+  return { member, status, outcome, http_status, duration_ms, settled: true, summary };
 }
 
 /** Media cursor lag vs NOW — the machine's freshness gauge (seconds). */
@@ -339,7 +373,7 @@ export async function GET(req: NextRequest) {
     // Chain already stopped by a prior non-ok member → never start this one.
     if (chainStopped) {
       members.push({
-        member: name, status: 'budget_skipped', http_status: null,
+        member: name, status: 'budget_skipped', outcome: 'skipped', http_status: null,
         duration_ms: 0, settled: false, summary: { skip_reason: chainStopReason },
       });
       continue;
@@ -352,7 +386,7 @@ export async function GET(req: NextRequest) {
       chainStopped = true;
       chainStopReason = 'insufficient_budget';
       members.push({
-        member: name, status: 'budget_skipped', http_status: null,
+        member: name, status: 'budget_skipped', outcome: 'skipped', http_status: null,
         duration_ms: 0, settled: false, summary: { skip_reason: chainStopReason },
       });
       continue;
@@ -375,10 +409,12 @@ export async function GET(req: NextRequest) {
   const cursorLag = await readMediaCursorLagSeconds();
 
   const byName = new Map(members.map((m) => [m.member, m] as const));
-  // "Ran to settlement" = actually started AND settled (ok/failed/error/timed_out).
-  // budget_skipped means the member NEVER STARTED — it is NOT a completion.
+  // A member "ran to settlement" if it actually started AND settled — ok,
+  // partial (started, some units failed), failed, member_error, or timed_out.
+  // A precondition `skipped` and a `budget_skipped` did NOT do their work, so
+  // they are NOT completions.
   const ranToSettlement = (s: MemberStatus): boolean =>
-    s === 'ok' || s === 'failed' || s === 'member_error' || s === 'timed_out';
+    s === 'ok' || s === 'partial' || s === 'failed' || s === 'member_error' || s === 'timed_out';
 
   // members_unresolved: a member that was STARTED but never settled. The
   // sequential-await structure makes this structurally 0 in any written audit
@@ -400,8 +436,9 @@ export async function GET(req: NextRequest) {
     const m = byName.get(n);
     return !!m && ranToSettlement(m.status);
   });
-  // success: complete AND every required member is 'ok'. timed_out /
-  // budget_skipped / failed / member_error all force success=false.
+  // success: complete AND every required member is 'ok'. partial / skipped /
+  // timed_out / budget_skipped / failed / member_error all force success=false.
+  // A partial media run is therefore complete=true but success=false.
   const success = complete && requiredMembers.every((n) => byName.get(n)?.status === 'ok');
 
   const machine = {
@@ -415,6 +452,12 @@ export async function GET(req: NextRequest) {
     success,
     media_cursor_lag_seconds: cursorLag,
     members_ok: members.filter((m) => m.status === 'ok').length,
+    // partial: STARTED and settled but some units failed (member outcome
+    // "partial") — counts toward complete, never toward success.
+    members_partial: members.filter((m) => m.status === 'partial').length,
+    // precondition-skipped: a member whose precondition (IDX/media enabled +
+    // creds) failed — did NOT run its work (distinct from budget_skipped).
+    members_precondition_skipped: members.filter((m) => m.status === 'skipped').length,
     members_failed: members.filter(
       (m) => m.status === 'failed' || m.status === 'member_error',
     ).length,

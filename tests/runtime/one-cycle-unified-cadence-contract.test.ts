@@ -37,13 +37,15 @@ const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 // ── member WORK functions mocked (behavioral points 8, 9 drive the orchestrator)
 // The orchestrator imports and calls these in-process; they return a
-// MemberRunResult ({ status, body }), NOT a NextResponse.
+// MemberRunResult ({ status, outcome, body }), NOT a NextResponse. `outcome` is
+// the explicit semantic result the machine derives truth from.
 type MemberArgs = { oneCycleRunId: string; forceFull?: boolean };
-const idxMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
-  async () => ({ status: 200, body: { success: true, listings_processed: 1 } }),
+type MemberOut = { status: number; outcome: "ok" | "partial" | "skipped" | "error"; body: Record<string, unknown> };
+const idxMember = jest.fn<Promise<MemberOut>, [MemberArgs]>(
+  async () => ({ status: 200, outcome: "ok", body: { success: true, listings_processed: 1 } }),
 );
-const mediaMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
-  async () => ({ status: 200, body: { success: true, r2_mirrored: 0 } }),
+const mediaMember = jest.fn<Promise<MemberOut>, [MemberArgs]>(
+  async () => ({ status: 200, outcome: "ok", body: { success: true, r2_mirrored: 0 } }),
 );
 jest.mock("@/lib/idx/idx-sync-member", () => ({ runIdxSyncMember: (a: MemberArgs) => idxMember(a) }));
 jest.mock("@/lib/idx/media-sync-member", () => ({ runMediaSyncMember: (a: MemberArgs) => mediaMember(a) }));

@@ -11,7 +11,7 @@ import {
   snapshotCollector,
 } from "@/lib/idx/cotality-telemetry";
 import prisma from "@/lib/prisma";
-import type { MemberRunResult } from "@/lib/idx/idx-sync-member";
+import type { MemberOutcome, MemberRunResult } from "@/lib/idx/idx-sync-member";
 
 /**
  * Run the media-sync member. Correlates durable Cotality telemetry with the
@@ -24,9 +24,15 @@ export async function runMediaSyncMember({
   oneCycleRunId: string | null;
 }): Promise<MemberRunResult> {
   // Trestle credential pre-check — soft fail (503) so the cron can be dialled
-  // out gracefully if creds rotate.
+  // out gracefully if creds rotate. PRECONDITION FAILURE: no media work ran, so
+  // outcome is "skipped" (never counts as machine success; the standalone
+  // completion marker will say "skipped", not "success").
   if (!hasCredentials()) {
-    return { status: 503, body: { error: "Trestle credentials not configured" } };
+    return {
+      status: 503,
+      outcome: "skipped",
+      body: { error: "Trestle credentials not configured" },
+    };
   }
 
   // Run-scoped, isolated collector — concurrent Cotality calls in other async
@@ -35,6 +41,22 @@ export async function runMediaSyncMember({
 
   try {
     const result = await runWithCotalityTelemetry(cotalityCollector, () => runMediaSync());
+
+    // SEMANTIC outcome — machine truth, NOT the HTTP status. runMediaSync already
+    // reports status "partial" when rows_failed>0 || r2_failed>0; we also check
+    // the failure counters directly so a partial can never be mislabeled "ok".
+    // A `result.status === "error"` (graceful source-fetch failure, no throw) is
+    // an error outcome even though it returns over HTTP 200. This does NOT change
+    // media-sync behavior/policy — it only classifies the result it produced.
+    const semanticOutcome: MemberOutcome =
+      result.status === "error"
+        ? "error"
+        : result.status === "partial" || result.rows_failed > 0 || result.r2_failed > 0
+          ? "partial"
+          : "ok";
+    // Audit `outcome` preserves the semantic value: "success" only for a clean
+    // run, "partial"/"error" otherwise (never "success" on a partial run).
+    const auditOutcome = semanticOutcome === "ok" ? "success" : semanticOutcome;
 
     // Audit changes payload — explicit field list (NOT a spread of `result`)
     // so internal fields can never accidentally leak.
@@ -110,7 +132,7 @@ export async function runMediaSyncMember({
           backlog_remaining: result.backlog_remaining,
           duration_ms: result.duration_ms,
           // Durable Cotality usage telemetry, correlated with the machine run.
-          outcome: "success",
+          outcome: auditOutcome,
           one_cycle_run_id: oneCycleRunId,
           cotality: snapshotCollector(cotalityCollector) as unknown as Record<string, number>,
           ...(result.error ? { error: result.error } : {}),
@@ -125,7 +147,8 @@ export async function runMediaSyncMember({
       );
     }
 
-    return { status: 200, body: { success: true, ...result } };
+    // HTTP stays backward-compatible (200); the explicit `outcome` carries truth.
+    return { status: 200, outcome: semanticOutcome, body: { success: true, ...result } };
   } catch (err) {
     // Defensive — any unexpected throw escapes runMediaSync()'s internal error
     // handling. Bearer tokens / signed URLs are never echoed; only err.message.
@@ -150,6 +173,6 @@ export async function runMediaSyncMember({
       .catch(() => {
         // audit failure must not mask the real error
       });
-    return { status: 500, body: { error: `Sync failed: ${msg}` } };
+    return { status: 500, outcome: "error", body: { error: `Sync failed: ${msg}` } };
   }
 }
