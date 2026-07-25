@@ -310,6 +310,23 @@ describe("R2-1 — third-party displayable listing mirrors the canonical hero ON
     expect(result.r2_uploaded).toBe(0);
     expect(result.r2_failed).toBe(0);
 
+    // Phase-1 forensic accumulation proof: the new per-listing cause counters are
+    // summed by the REAL runMediaSync loop (not a mock) and are emitted as
+    // numbers, and the physical-write invariant holds on the accumulated result —
+    // so the ~10K/day writes can be split by cause from durable fields alone.
+    // (physical_writes/non_tombstone are intentionally NOT stored; rows_updated
+    // IS physical_writes.)
+    expect(typeof result.delivery_url_refreshed).toBe("number");
+    expect(typeof result.suppressed_url_rotation_only).toBe("number");
+    expect(typeof result.write_failures).toBe("number");
+    expect(result.rows_updated).toBe(
+      result.rows_inserted +
+        result.rows_updated_changed +
+        result.delivery_url_refreshed +
+        result.tombstoned_explicit +
+        result.tombstoned_vanished,
+    );
+
     // Exactly one mirror attempt happened.
     expect((mirrorDeps.existsInR2 as jest.Mock).mock.calls.length).toBe(1);
 

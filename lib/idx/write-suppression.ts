@@ -596,6 +596,39 @@ function rawDataEqualIgnoringProvenanceClocks(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * Phase-1 write-amplification forensic (2026-07-25): the TOP-LEVEL raw_data
+ * keys that DIFFER under the SAME material semantics the classifier uses to
+ * decide `raw_data_only`. Critically this is NOT a JSON.stringify diff:
+ *   - rotating signed feed Media URLs (`Media[].MediaURL` / `.Thumbnail`) are
+ *     canonicalized via `rawDataMateriallyEqual`, so URL rotation alone NEVER
+ *     reports `Media` (that rotation is exactly why the row is NOT material);
+ *   - the pure provenance clocks (`RAW_DATA_PROVENANCE_CLOCK_KEYS`) are
+ *     excluded — they move on every emit and are never the raw_data_only cause;
+ *   - key order is irrelevant (deep compare), and added/removed keys ARE
+ *     reported.
+ * Reports genuine content keys only (e.g. `PhotosChangeTimestamp`,
+ * `PublicRemarks`, a real Media path/order/count change). Key NAMES only —
+ * never values. Pure; fail-open-empty on non-object input (no throw).
+ */
+export function changedRawDataMaterialKeys(previous: unknown, next: unknown): string[] {
+  if (typeof previous !== "object" || previous === null || Array.isArray(previous)) return [];
+  if (typeof next !== "object" || next === null || Array.isArray(next)) return [];
+  const p = previous as Record<string, unknown>;
+  const n = next as Record<string, unknown>;
+  const changed: string[] = [];
+  for (const key of new Set([...Object.keys(p), ...Object.keys(n)])) {
+    if (RAW_DATA_PROVENANCE_CLOCK_KEYS.has(key)) continue; // clock: always moves, not the cause
+    // Wrap each side as { [key]: value } so a `Media` key runs through
+    // canonicalizeRawDataMedia (rotation ignored) and every other key falls
+    // through to the same key-order-independent deep compare the classifier uses.
+    if (!rawDataMateriallyEqual({ [key]: p[key] }, { [key]: n[key] })) {
+      changed.push(key);
+    }
+  }
+  return changed;
+}
+
+/**
  * Attribute a material listing change to reason buckets.
  *
  * Exclusive buckets (returned ALONE):

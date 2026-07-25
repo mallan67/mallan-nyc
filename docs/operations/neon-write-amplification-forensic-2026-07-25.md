@@ -56,9 +56,13 @@ are corrected below.
 - **`audit_events` is append-only** (`n_tup_ins` 89,867, `n_tup_upd` 0, `n_tup_del` 1;
   last autovacuum 2026-06-02). `data-retention` purges only at **>2 years**
   (`route.ts:76-84`); the oldest row is 2026-03-15, so **nothing is purged until 2028**.
-  Every One Cycle writes **5 rows** (`one_cycle_started`, `idx_sync`, `idx_sync_cron`,
-  `media_sync_cron`, `one_cycle_run`) — proven by the Snapshot A→B delta (+5). At
-  144 cycles/day that is a ~720-row/day floor.
+  One MEASURED successful cycle inserted **5 rows** (`one_cycle_started`, `idx_sync`,
+  `idx_sync_cron`, `media_sync_cron`, `one_cycle_run`) — Snapshot A→B delta (+5). The
+  daily rate is **measured, not a fixed floor**: `audit_events` inserts/day went
+  **07-23 = 199 → 07-25 = 566** (the `*/10` One Cycle switch on 07-24 ≈ tripled it), and
+  the per-cycle composition VARIES (07-25: 89 One Cycle runs but 103 `idx_sync_cron`,
+  96 `media_sync_cron` — not a uniform 5/cycle; skipped/partial/chain-stopped cycles
+  write fewer).
 - **Frozen dead weight:** `idx_sync_listing_upsert_failure` = 46,011 rows / **30 MB**,
   entirely within 2026-05-21 → 06-13 (an old incident) — half of `audit_events`,
   no longer growing.
@@ -73,18 +77,23 @@ revision must persist"), while the projection layer correctly suppresses the
 search/cache work. So a Trestle re-emit whose only delta is a ticking `raw_data`
 produces a full-row + TOAST rewrite with **no** user-visible change. Sample cycle
 20:20: `listings rows_updated=75`, `listing_change_reasons.raw_data_only=75`,
-`projections rows_updated=0` (all suppressed downstream). This is the 1.4M lifetime
-`listings` updates and most of the base-table WAL.
+`projections rows_updated=0` (all suppressed downstream). This is a **confirmed recent**
+source of listing write-amplification (~30% of recent listing updates, §5.3). Its share
+of the **1.4M lifetime** `listings` updates and of lifetime WAL is **UNMEASURED** — not
+attributed here.
 
 **The connected duplication that makes each rewrite heavy** — the same listing is
-materialised across four connected stores, all re-touched per material sync:
+materialised across four connected stores. They are **NOT all physically rewritten** on
+every material sync (see Note): the projection is frequently suppressed, and legacy
+`listings.media` JSON is omitted on normal incremental updates (`useExpandMedia=false`).
+In the cited `raw_data_only` cases, only the **base `listings` row** is confirmed to write:
 
 | Store | Size | Note |
 |---|---|---|
-| `raw_data` (full Trestle echo) | 68 MB | rewritten every sync (it ticks) |
-| Legacy JSON: `features` 24 MB + `address` 7 MB + `media` 5 MB | 36 MB | `media` mostly retired (only 6,239 listings) |
-| ~40 typed columns | heap | re-derived |
-| `listing_search_projection` | 75 MB table | already suppresses when search-invisible |
+| `raw_data` (retained Trestle **keep-set, 110 fields** — NOT a full echo; `raw-data-keep-fields.ts`) | 68 MB | rewritten on the base row when material; confirmed write in `raw_data_only` cases |
+| Legacy JSON: `features` 24 MB + `address` 7 MB + `media` 5 MB | 36 MB | `media` mostly retired (only 6,239 listings); omitted on incremental updates |
+| ~40 typed columns | heap | re-derived on the base row |
+| `listing_search_projection` | 75 MB table | **frequently suppressed** when search-invisible (often NOT rewritten) |
 
 ## 5. Measured evidence (raw)
 
@@ -108,7 +117,7 @@ modts_only 68 · other 73 · status 26 · price 10 · display 6 · attribution 5
 checked 64,673 · **physical writes (rows_updated) 26,821** · updated_changed **6,832** ·
 inserted 6,913 · skipped_unchanged 40,386 · tombstoned_vanished 2,534 · failed 0 ·
 `mismatch_media_url_exact` 57,760 (≈ every row — URL rotates; a **diagnostic**, not a write cause).
-**Unattributed ≈ 10,542** (26,821 − 6,832 − 6,913 − 2,534) — cause split **UNMEASURED** until Commit 2 emits `delivery_url_refreshed` / `suppressed_url_rotation_only`.
+**Unattributed ≈ 10,542** (26,821 − 6,832 − 6,913 − 2,534) — a **derived residual, not a proven single cause**. Its split (delivery-URL refresh vs other) stays **UNMEASURED** until the Commit-2 counters (`delivery_url_refreshed` / `suppressed_url_rotation_only`, now emitted but not present on these historical rows) are captured over live cycles.
 
 ### 5.5 One natural cycle (Snapshot A 20:28:57 → B 20:36:47, crossing the 20:30 fire)
 +5 audit rows · +4 listing updates · +101 media updates · +0 projection updates · **~118 KB WAL** · `pg_database_size` +8 kB (noise). A *light* cycle; daytime cycles reach 75 listing rewrites / 200+ media updates.
@@ -120,11 +129,15 @@ compute jump appeared between two reads 7 min apart), so they cannot yield a cle
 short-window rate. Consumption-history API is Scale-plan-gated (unavailable on Launch).
 
 ## 6. UNRESOLVED
-- **Source of the 89,001 `listings` deletes** (and 88,930 projection deletes).
-  Not reset-sync (audit-empty), not `feed-reconcile` (no delete path — only a
-  Trestle `$filter`), not the `upsert` sync path. Likely pre-dates the 2026-06-02
-  cross-project repoint or an older sync implementation. Not ongoing (current
-  row-recreate ≈ `feed_reconcile_orphan_created` ~15/day).
+- **Source of the 89,001 `listings` deletes** (and 88,930 projection deletes) is
+  **UNRESOLVED.** PROVEN: **no completed audited `reset-sync` execution**
+  (`listings_reset_sync` audit = 0 rows) — but that route writes its audit only AFTER
+  delete+fetch+reload finishes, so a crash after the deletes would leave no row; this
+  rules out a *completed audited* run, **NOT** that the route never started. Also PROVEN
+  by code: `feed-reconcile` has no listing-delete path (only a Trestle `$filter`), and the
+  live `upsert` sync path never deletes. No CURRENT scheduled bulk-delete path exists; the
+  deletes likely pre-date the 2026-06-02 cross-project repoint or an older sync
+  implementation. Ongoing row-recreate ≈ `feed_reconcile_orphan_created` ~15/day.
 
 ## 7. UNMEASURED (needs instrumentation / your input)
 - **The exact Neon graph that is increasing.** 535 MB / 603 MB are single snapshots;
@@ -146,9 +159,31 @@ after Phase-1 evidence.
 
 ## 9. Plan (single branch, evidence-first)
 - **Commit 1 (this doc).**
-- **Commit 2 (additive telemetry only, no behavior change):** emit compact numeric
-  media cause counters into `media_sync_cron`; emit a flag-gated, top-20,
-  names-and-counts-only `raw_data` changed-key histogram to **runtime logs** (never
-  `audit_events`); capture **≥3 natural cycles** (no manual trigger).
+- **Commit 2 (additive telemetry only, no behavior change):** emit the **3 non-derivable**
+  media cause counters (`delivery_url_refreshed`, `suppressed_url_rotation_only`,
+  `write_failures`) into `media_sync_cron` — `physical_writes` (=`rows_updated`) and
+  `non_tombstone_rows_written` (derivable) are deliberately NOT stored (audit-growth
+  minimization); emit a flag-gated (`DIAG_RAW_DATA_KEYS=1`), top-20, names+counts-only
+  `raw_data` changed-key histogram to **runtime logs** (never `audit_events`) using the
+  **production material comparator**; then capture **≥3 natural cycles** (no manual trigger).
 - **STOP after Phase 1 and report raw evidence.** No suppression, cleanup, route
   deletion or retention change until Maya reviews the measured causes.
+
+## 10. Operational notes (corrected)
+- **Deploy state:** opening PR #569 created a **Vercel PREVIEW** deployment (verified:
+  `gh pr checks 569` → "Vercel … Deployment has completed"). **No production deployment
+  occurred** (`release-truth` stays `pending: deploy_pending`). An earlier statement that
+  "opening the PR does not deploy" was **inaccurate** — it deploys a preview, not production.
+- **Instrumentation cost is small but NOT zero:** the 3 media counters add a few integers of
+  JSON to each `media_sync_cron` row; when `DIAG_RAW_DATA_KEYS=1` the listing path does
+  per-key material comparisons + one log line per cycle. It changes **no** sync/write
+  decision and adds **no** new DB read (only already-selected columns), but is not literally
+  free.
+- **Preview cannot collect natural cron cycles:** Vercel scheduled crons fire only on
+  PRODUCTION. Capturing ≥3 natural cycles requires the merged `main` SHA deployed to
+  production — do **not** promote a non-main preview to production (conflicts with
+  release-truth governance).
+- **Comparator correctness (Codex, ACCEPTED):** the `raw_data` histogram uses
+  `changedRawDataMaterialKeys` (reuses `rawDataMateriallyEqual` + excludes
+  `RAW_DATA_PROVENANCE_CLOCK_KEYS`), **not** `JSON.stringify` — rotating signed Media URLs
+  and clock bumps are never mis-reported. Proven by `changed-raw-data-keys.test.ts` (11 cases).

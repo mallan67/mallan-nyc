@@ -20,6 +20,7 @@ import {
   LISTING_SYNC_COMPARE_SELECT,
   listingUpdateMateriallyUnchanged,
   classifyListingChangeReasons,
+  changedRawDataMaterialKeys,
   isProvenanceOnlyChange,
   mediaArraysMateriallyEqual,
   newWritePathCounters,
@@ -801,26 +802,24 @@ export async function syncListings(
           for (const reason of changeReasons) listingChangeReasons[reason]++;
         }
         // Phase-1 forensic (flag-gated): tally WHICH raw_data keys changed on a
-        // raw_data_only write. Names+counts only; never values. No-op unless the
-        // diagnostic flag is set.
+        // raw_data_only write, using the SAME material semantics the classifier
+        // used to decide raw_data_only (rotating Media URLs canonicalized away,
+        // provenance clocks excluded) — so the histogram can never disagree with
+        // the classification. Key NAMES + counts only; never values.
         if (
           diagRawDataKeys &&
           existing &&
           changeReasons &&
           [...changeReasons].includes("raw_data_only")
         ) {
-          const prev = (existing as { raw_data?: unknown }).raw_data;
-          const next = mapped.raw_data as unknown;
-          if (prev && next && typeof prev === "object" && typeof next === "object") {
-            const p = prev as Record<string, unknown>;
-            const n = next as Record<string, unknown>;
-            for (const k of new Set([...Object.keys(p), ...Object.keys(n)])) {
-              if (JSON.stringify(p[k]) !== JSON.stringify(n[k])) {
-                rawDataChangedKeyCounts.set(k, (rawDataChangedKeyCounts.get(k) ?? 0) + 1);
-              }
-            }
-            rawDataOnlyWritesSampled++;
+          const keys = changedRawDataMaterialKeys(
+            (existing as { raw_data?: unknown }).raw_data,
+            mapped.raw_data as unknown,
+          );
+          for (const k of keys) {
+            rawDataChangedKeyCounts.set(k, (rawDataChangedKeyCounts.get(k) ?? 0) + 1);
           }
+          rawDataOnlyWritesSampled++;
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
           changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page

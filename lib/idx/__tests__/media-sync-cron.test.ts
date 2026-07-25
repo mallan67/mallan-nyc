@@ -97,8 +97,6 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     tombstoned_vanished: 0,
     rows_tombstoned: 0,
     // Phase-1 write-amplification forensic — physical-write cause counters.
-    physical_writes: 0,
-    non_tombstone_rows_written: 0,
     delivery_url_refreshed: 0,
     suppressed_url_rotation_only: 0,
     write_failures: 0,
@@ -462,8 +460,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
     // writes can be split (delivery-refresh vs material vs insert vs tombstone).
     // Compact integers only; additive/observability — no URLs/values/PII.
     const phase1CauseCounters = [
-      "physical_writes", "non_tombstone_rows_written", "delivery_url_refreshed",
-      "suppressed_url_rotation_only", "write_failures",
+      "delivery_url_refreshed", "suppressed_url_rotation_only", "write_failures",
     ];
     for (const k of phase1CauseCounters) {
       expect(ch).toHaveProperty(k);
@@ -490,6 +487,52 @@ describe("GET /api/cron/media-sync — happy path", () => {
     for (const key of Object.keys(ch)) {
       expect(allowed.has(key)).toBe(true);
     }
+  });
+
+  it("emits Phase-1 cause counters with EXACT nonzero values and the physical-write invariant holds", async () => {
+    // Distinct nonzero values so a wiring bug that dropped/zeroed any counter
+    // fails loudly (the zero-default toHaveProperty check could not). Chosen to
+    // satisfy the physical-write invariant that lets the ~10K/day writes be
+    // split by cause using ONLY durable fields (physical_writes/non_tombstone
+    // are intentionally NOT stored — audit-growth minimization):
+    //   rows_updated === rows_inserted + rows_updated_changed
+    //                    + delivery_url_refreshed + tombstoned_explicit + tombstoned_vanished
+    const inserted = 3, updatedChanged = 5, deliveryRefresh = 7, tExplicit = 2, tVanished = 1;
+    const rowsUpdated = inserted + updatedChanged + deliveryRefresh + tExplicit + tVanished; // 18
+    mockRunMediaSync.mockResolvedValueOnce(
+      makeRunResult({
+        rows_checked: 40,
+        rows_updated: rowsUpdated,
+        rows_inserted: inserted,
+        rows_updated_changed: updatedChanged,
+        delivery_url_refreshed: deliveryRefresh,
+        suppressed_url_rotation_only: 9,
+        write_failures: 0,
+        tombstoned_explicit: tExplicit,
+        tombstoned_vanished: tVanished,
+        rows_tombstoned: tExplicit + tVanished,
+      }),
+    );
+    mockAuditCreate.mockResolvedValueOnce(undefined);
+
+    await GET(authedReq());
+    const ch = (mockAuditCreate.mock.calls[0][0] as {
+      data: { changes: Record<string, number> };
+    }).data.changes;
+
+    // Exact values flowed member → durable payload (not zeros, not dropped).
+    expect(ch.delivery_url_refreshed).toBe(7);
+    expect(ch.suppressed_url_rotation_only).toBe(9);
+    expect(ch.write_failures).toBe(0);
+
+    // Invariant holds on the durable payload → cause split is fully recoverable.
+    expect(ch.rows_updated).toBe(
+      ch.rows_inserted +
+        ch.rows_updated_changed +
+        ch.delivery_url_refreshed +
+        ch.tombstoned_explicit +
+        ch.tombstoned_vanished,
+    );
   });
 
   it("logs runMediaSync's status='error' result in the SAME media_sync_cron event (not media_sync_cron_error)", async () => {
