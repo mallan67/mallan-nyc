@@ -27,7 +27,7 @@
 4. **Compliance-first** — see §D.
 5. **Fail-closed on rule conflict or missing canonical file** — see §E.
 6. **Proof-first on completion claims** — see §F.
-7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), Sentinel, agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main.
+7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main. *(The Mallan Sentinel repo-audit-bot subsystem was decommissioned 2026-07-25 — see `memory/SENTINEL-DECOMMISSION-2026-07-25.md`.)*
 8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
 9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
 
@@ -52,7 +52,7 @@
 | **PR 5B** — `refactor/05-listing-search-projection` (public reader swap from `listings.idx_display_yn` → `listing_search_projection.idx_display_yn`) | HELD | `memory/REFACTOR-2026-04-25.md` master plan + recurring Maya direction |
 | **External-inventory implementation** (OneKey / NY-State MLS / other non-REBNY feeds) | HELD | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`; spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` |
 | **Syndication exports / partner integrations** | HELD | `MALLAN_OFFICE_MLS_IDS=[]` in `lib/syndication/mallan-identity.ts`; Layer 1.PRE empty-config-guard blocks all rows (PR #162 + #163); no `/api/exports/*` route exists |
-| Schema migrations · env vars · Neon · cron config · CRM frontend (`public/crm/**`) · Sentinel · agents · skills · `.github/workflows/**` | HELD | Maya standing directive |
+| Schema migrations · env vars · Neon · cron config · CRM frontend (`public/crm/**`) · agents · skills · `.github/workflows/**` | HELD | Maya standing directive |
 | Manual cron triggers · reconciliation runs · admin merge bypass · force-push to main | HELD | Maya standing directive |
 
 ---

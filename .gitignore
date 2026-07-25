@@ -151,12 +151,9 @@ vite.config.ts.timestamp-*
 !.vercel/project.json
 
 # Local Claude Code config + agent definitions are personal per-machine.
-# EXCEPTION: ship the Mallan Sentinel agent spec so the GitHub Actions
-# repo-audit-bot workflow can read it on the runner.
+# (The Mallan Sentinel repo-audit-bot agent spec — the only shipped spec — was
+# decommissioned 2026-07-25, so no .claude/agents/ file is tracked any longer.)
 .claude/*
-!.claude/agents/
-.claude/agents/*
-!.claude/agents/repo-audit-bot.md
 
 # Backup files
 *.bak
@@ -226,8 +223,6 @@ dump-*
 *.cleanbak
 vercel-*-backup.txt
 
-# Sentinel-L scanner outputs (timestamped per run, never committed)
-ops/audit/sentinel-l/
 # Smoke runner reports (timestamped per run, never committed)
 ops/audit/sales-smoke/
 
@@ -273,7 +268,7 @@ __pw-review*/
 /branch-cleanup-*.txt
 /pr*-*.jpeg
 
-# Generated Sentinel audit run-output (CI regenerates on the runner)
+# Generated audit / smoke run-output (regenerated per run; never committed)
 /ops/audit/
 
 # Local backup/scratch dirs
