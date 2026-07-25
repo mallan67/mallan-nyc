@@ -55,23 +55,57 @@ export const maxDuration = 300;
  */
 export const CYCLE_INTERVAL_MS = 600_000;
 
+/** Ordered required members (authority hierarchy: listings first, media second). */
+const MEMBER_NAMES = ['idx-sync', 'media-sync'] as const;
+
 /** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
 const MEMBER_BUDGETS_MS: Record<string, number> = {
   'idx-sync': 120_000,
   'media-sync': 150_000,
 };
 const CYCLE_HEADROOM_MS = 20_000;
+/** No single member may be budgeted longer than this (must leave room for others). */
+const MAX_MEMBER_BUDGET_MS = 240_000;
 
 /**
- * Resolve a member's soft budget. Overridable per member via
- * `ONE_CYCLE_BUDGET_MS_<MEMBER>` (e.g. ONE_CYCLE_BUDGET_MS_IDX_SYNC) so ops can
- * retune without a redeploy — and so tests can force the over-budget path
- * deterministically. Falls back to the compiled default.
+ * Resolve + VALIDATE the member budgets. Each is overridable via
+ * `ONE_CYCLE_BUDGET_MS_<MEMBER>` (e.g. ONE_CYCLE_BUDGET_MS_IDX_SYNC) for ops
+ * retuning without a redeploy. Invalid configuration FAILS CLOSED — the cycle
+ * starts NO member and returns a configuration_error. Rejected:
+ *   - non-finite / non-integer / zero / negative;
+ *   - greater than MAX_MEMBER_BUDGET_MS;
+ *   - a combined total + headroom that does not fit inside maxDuration.
  */
-function budgetFor(name: string): number {
-  const raw = process.env[`ONE_CYCLE_BUDGET_MS_${name.replace(/-/g, '_').toUpperCase()}`];
-  const n = raw !== undefined ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : (MEMBER_BUDGETS_MS[name] ?? 60_000);
+function resolveBudgets():
+  | { ok: true; budgets: Record<string, number> }
+  | { ok: false; error: string } {
+  const budgets: Record<string, number> = {};
+  let total = 0;
+  for (const name of MEMBER_NAMES) {
+    const raw = process.env[`ONE_CYCLE_BUDGET_MS_${name.replace(/-/g, '_').toUpperCase()}`];
+    let b: number;
+    if (raw === undefined) {
+      b = MEMBER_BUDGETS_MS[name] ?? 60_000;
+    } else {
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n <= 0) {
+        return { ok: false, error: `budget for ${name} must be a positive integer ms, got "${raw}"` };
+      }
+      b = n;
+    }
+    if (b > MAX_MEMBER_BUDGET_MS) {
+      return { ok: false, error: `budget for ${name} (${b}ms) exceeds max ${MAX_MEMBER_BUDGET_MS}ms` };
+    }
+    budgets[name] = b;
+    total += b;
+  }
+  if (total + CYCLE_HEADROOM_MS >= maxDuration * 1000) {
+    return {
+      ok: false,
+      error: `member budgets + headroom (${total + CYCLE_HEADROOM_MS}ms) do not fit inside maxDuration (${maxDuration * 1000}ms)`,
+    };
+  }
+  return { ok: true, budgets };
 }
 
 // Static invariant: the whole cycle fits inside one interval with margin, so
@@ -168,6 +202,7 @@ async function runMember(
   handler: (req: NextRequest) => Promise<Response>,
   authHeader: string,
   memberToken: string,
+  runId: string,
   budgetMs: number,
 ): Promise<MemberResult> {
   const started = Date.now();
@@ -177,8 +212,15 @@ async function runMember(
   // (the member timing-safe-compares it), so the header ALONE cannot bypass:
   // auth (401) precedes the guard, and a bare `x-one-cycle-member: 1` does not
   // match. Only the secret-holding orchestrator can produce the bypass.
+  // `x-one-cycle-run-id` lets the member stamp its own durable audit event
+  // (idx_sync_cron / media_sync_cron, incl. Cotality telemetry) with THIS
+  // cycle's run_id, so member-level telemetry correlates with the cycle.
   const req = new NextRequest(`https://internal.one-cycle/${member}`, {
-    headers: { authorization: authHeader, 'x-one-cycle-member': memberToken },
+    headers: {
+      authorization: authHeader,
+      'x-one-cycle-member': memberToken,
+      'x-one-cycle-run-id': runId,
+    },
   });
 
   let status: MemberStatus;
@@ -233,14 +275,20 @@ async function readMediaCursorLagSeconds(): Promise<number | null> {
  * started/completed are paired by a unique run_id — NOT timestamp inference.
  * A refused claim means the caller MUST exit without starting any member.
  * Fail-closed: any error refuses the claim (never risk two concurrent cycles).
+ *
+ * `db` is injected (the shared prisma client in production; an ephemeral-DB
+ * client in the integration test) so the real advisory-lock + JSON-path query
+ * are exercised against actual PostgreSQL, not mocks. Exported for that test.
  */
-async function claimCycle(
+type ClaimDb = Pick<typeof prisma, '$transaction'>;
+export async function claimCycle(
+  db: ClaimDb,
   runId: string,
   now: Date,
 ): Promise<{ ok: boolean; reason?: string }> {
   const staleMs = maxDuration * 1000;
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await db.$transaction(async (tx) => {
       const lockRows = (await tx.$queryRaw`
         SELECT pg_try_advisory_xact_lock(${CYCLE_LOCK_CLASS}::int4, ${CYCLE_LOCK_KEY}::int4) AS locked
       `) as Array<{ locked: boolean }>;
@@ -304,11 +352,39 @@ export async function GET(req: NextRequest) {
   }
 
   const runId = randomUUID();
+
+  // Budget config validation — FAIL CLOSED before taking a claim or starting any
+  // member. An invalid ONE_CYCLE_BUDGET_MS_* override must never silently force
+  // timeouts or defeat the budget design.
+  const budgetCfg = resolveBudgets();
+  if (!budgetCfg.ok) {
+    // Best-effort audit (never throws); no claim taken, no member started.
+    try {
+      await prisma.auditEvent.create({
+        data: {
+          action: 'one_cycle_config_error',
+          entity_type: 'cron',
+          entity_id: 'one-cycle',
+          user_type: 'system',
+          user_id: null,
+          changes: { run_id: runId, configuration_error: budgetCfg.error },
+        },
+      });
+    } catch {
+      /* observability only */
+    }
+    return NextResponse.json(
+      { configuration_error: budgetCfg.error, run_id: runId, started: false },
+      { status: 500 },
+    );
+  }
+  const budgets = budgetCfg.budgets;
+
   const startedAt = new Date();
 
   // Overlap guard: a second concurrent one-cycle invocation cannot win the
   // advisory claim and exits here WITHOUT starting either member.
-  const claim = await claimCycle(runId, startedAt);
+  const claim = await claimCycle(prisma, runId, startedAt);
   if (!claim.ok) {
     return NextResponse.json(
       {
@@ -334,7 +410,7 @@ export async function GET(req: NextRequest) {
   let chainStopReason: string | null = null;
 
   for (const [name, load] of memberDefs) {
-    const budget = budgetFor(name);
+    const budget = budgets[name];
 
     // Chain already stopped by a prior non-ok member → never start this one.
     if (chainStopped) {
@@ -373,7 +449,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Await to settlement BEFORE the loop can reach the next member.
-    const result = await runMember(name, handler, authHeader, cronSecret, budget);
+    const result = await runMember(name, handler, authHeader, cronSecret, runId, budget);
     members.push(result);
 
     // Any non-ok member stops the chain: a slow/failed/timed-out IDX must never
@@ -389,23 +465,40 @@ export async function GET(req: NextRequest) {
   const cursorLag = await readMediaCursorLagSeconds();
 
   const byName = new Map(members.map((m) => [m.member, m] as const));
-  // A required member is UNRESOLVED only if it was started but never settled.
-  // The sequential-await structure makes this structurally 0 in any written
-  // audit (we only reach the completion write after every member settled or was
+  // "Ran to settlement" = actually started AND settled (ok/failed/error/timed_out).
+  // budget_skipped means the member NEVER STARTED — it is NOT a completion.
+  const ranToSettlement = (s: MemberStatus): boolean =>
+    s === 'ok' || s === 'failed' || s === 'member_error' || s === 'timed_out';
+
+  // members_unresolved: a member that was STARTED but never settled. The
+  // sequential-await structure makes this structurally 0 in any written audit
+  // (the completion write is only reached after every member settled or was
   // skipped) — the field exists to PROVE that invariant.
   const members_unresolved = members.filter(
-    (m) => !TERMINAL_STATUSES.has(m.status) || (m.status !== 'budget_skipped' && !m.settled),
+    (m) => m.status !== 'budget_skipped' && !m.settled,
   ).length;
   const missing_required = requiredMembers.filter((n) => !byName.has(n)).length;
-  const complete = members_unresolved === 0 && missing_required === 0;
-  // Success ⇒ every required member is 'ok'. timed_out / budget_skipped /
-  // failed / member_error all force success=false.
+  const members_budget_skipped = members.filter((m) => m.status === 'budget_skipped').length;
+
+  // orchestration_settled: every started promise settled AND every required
+  // member has a terminal record. TRUE even when a member was budget_skipped
+  // (nothing was left dangling) — it is the "nothing abandoned" invariant.
+  const orchestration_settled = members_unresolved === 0 && missing_required === 0;
+  // complete: every REQUIRED member actually started and settled. A skipped
+  // required member ⇒ NOT complete (media did not complete).
+  const complete = requiredMembers.every((n) => {
+    const m = byName.get(n);
+    return !!m && ranToSettlement(m.status);
+  });
+  // success: complete AND every required member is 'ok'. timed_out /
+  // budget_skipped / failed / member_error all force success=false.
   const success = complete && requiredMembers.every((n) => byName.get(n)?.status === 'ok');
 
   const machine = {
     run_id: runId,
     cadence: '10m',
     cadence_ms: CYCLE_INTERVAL_MS,
+    orchestration_settled,
     complete,
     success,
     media_cursor_lag_seconds: cursorLag,
@@ -414,7 +507,7 @@ export async function GET(req: NextRequest) {
       (m) => m.status === 'failed' || m.status === 'member_error',
     ).length,
     members_timed_out: members.filter((m) => m.status === 'timed_out').length,
-    members_budget_skipped: members.filter((m) => m.status === 'budget_skipped').length,
+    members_budget_skipped,
     members_unresolved,
   };
 

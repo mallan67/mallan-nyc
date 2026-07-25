@@ -2,6 +2,8 @@
 // OAuth2 client credentials flow for Trestle/REBNY RLS API.
 // Caches token until 5 minutes before expiry.
 
+import { recordTokenRequest, recordTokenRefresh } from "./cotality-telemetry";
+
 /** Token response from Trestle OIDC. */
 export interface TrestleAuthToken {
   access_token: string;
@@ -58,6 +60,7 @@ export async function getAccessToken(): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8_000);
   let response: Response;
+  const _tokenT0 = Date.now();
   try {
     response = await fetch(getTrestleTokenEndpoint(), {
       method: "POST",
@@ -70,6 +73,8 @@ export async function getAccessToken(): Promise<string> {
     });
   } finally {
     clearTimeout(timeoutId);
+    // Telemetry only — counts the token-endpoint call (no behavior change).
+    recordTokenRequest(Date.now() - _tokenT0);
   }
 
   if (!response.ok) {
@@ -106,8 +111,11 @@ export function hasCredentials(): boolean {
 }
 
 /**
- * Invalidate the cached token (e.g., on 401 from API).
+ * Invalidate the cached token (e.g., on 401 from API). A forced invalidation
+ * always precedes a re-acquisition, so it is the canonical "token refresh"
+ * signal for telemetry.
  */
 export function invalidateToken(): void {
   cachedToken = null;
+  recordTokenRefresh();
 }

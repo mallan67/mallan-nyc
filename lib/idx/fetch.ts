@@ -4,6 +4,13 @@
 
 import { getAccessToken, invalidateToken } from "./auth";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
+import {
+  recordCotalityHttp,
+  recordPropertyRequest,
+  recordMediaRequest,
+  recordRetry,
+  parseRetryAfterSeconds,
+} from "./cotality-telemetry";
 
 // Derive Trestle property endpoint from centralized TRESTLE_API_URL.
 // Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
@@ -88,6 +95,7 @@ export interface TrestleFetchResult {
 export async function fetchFromTrestle(
   options: TrestleFetchOptions = {}
 ): Promise<TrestleFetchResult> {
+  recordPropertyRequest();
   const token = await getAccessToken();
 
   const selectFields =
@@ -211,6 +219,7 @@ export async function fetchFromTrestle(
 export async function fetchSingleListing(
   listingId: string
 ): Promise<Record<string, unknown> | null> {
+  recordPropertyRequest();
   let token: string;
   try {
     token = await getAccessToken();
@@ -273,6 +282,7 @@ export async function fetchListingByAddress(address: {
   postalCode: string;
   unitNumber?: string;
 }): Promise<Record<string, unknown> | null> {
+  recordPropertyRequest();
   let token: string;
   try {
     token = await getAccessToken();
@@ -471,6 +481,7 @@ export async function fetchListingMedia(
   listingKey: string,
   options?: { listingKeyNumeric?: number | string }
 ): Promise<{ url: string; mediaType: string; order: number }[]> {
+  recordMediaRequest();
   let token: string;
   try {
     token = await getAccessToken();
@@ -582,6 +593,7 @@ async function fetchWithRetry(
     console.warn(
       `[IDX Fetch] Trestle ${lastResponse.status} error, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
     );
+    recordRetry();
     await new Promise((resolve) => setTimeout(resolve, delay));
     lastResponse = await fetchPage(url, token);
   }
@@ -598,8 +610,9 @@ async function fetchPage(
   // Without this, requests can hang for 60s+ and block page rendering.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  const t0 = Date.now();
   try {
-    return await fetch(url, {
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -611,6 +624,17 @@ async function fetchPage(
       // hits Trestle live — causing 3-8s load times on cold starts.
       next: { revalidate: 300 },
     });
+    // Telemetry only — no behavior change (endpoint/filters/auth untouched).
+    recordCotalityHttp({
+      url,
+      durationMs: Date.now() - t0,
+      status: response.status,
+      retryAfterSeconds:
+        response.status === 429
+          ? parseRetryAfterSeconds(response.headers.get('retry-after'))
+          : null,
+    });
+    return response;
   } finally {
     clearTimeout(timeoutId);
   }

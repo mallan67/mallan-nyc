@@ -176,7 +176,7 @@ describe("7. x-one-cycle-member header alone cannot bypass the concurrency guard
     const src = read("app/api/cron/one-cycle/route.ts");
     // runMember is passed cronSecret and forwards it as x-one-cycle-member.
     expect(src).toMatch(/'x-one-cycle-member': memberToken/);
-    expect(src).toMatch(/runMember\(name, handler, authHeader, cronSecret, budget\)/);
+    expect(src).toMatch(/runMember\(name, handler, authHeader, cronSecret, runId, budget\)/);
   });
 });
 

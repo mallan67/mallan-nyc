@@ -161,7 +161,12 @@ describe("no concurrent members", () => {
   });
 
   it("an IDX member OVER its budget is timed_out, stops the chain, and media never starts", async () => {
-    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "-1"; // any real duration exceeds this
+    // Valid POSITIVE 1ms budget (config-valid) + a >1ms real delay ⇒ timed_out.
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "1";
+    idxGET.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 15));
+      return NextResponse.json({ success: true });
+    });
     const body = await (await GET(makeReq(AUTH))).json();
     const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
     const media = body.members.find((m: { member: string }) => m.member === "media-sync");
@@ -172,21 +177,48 @@ describe("no concurrent members", () => {
   });
 });
 
-// ─── 2 + 3. success truth semantics ───────────────────────────────────────────
-describe("success truth semantics", () => {
-  it("a timed_out member forces success:false / complete:true", async () => {
-    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "-1";
+// ─── 2 + 3. complete / settled / success truth table ──────────────────────────
+describe("truth semantics: settled / complete / success", () => {
+  const forceIdxTimeout = () => {
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "1";
+    idxGET.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 15));
+      return NextResponse.json({ success: true });
+    });
+  };
+
+  it("both ok ⇒ settled true, complete true, success true", async () => {
     const body = await (await GET(makeReq(AUTH))).json();
-    expect(body.members_timed_out).toBe(1);
-    expect(body.success).toBe(false);
+    expect(body.orchestration_settled).toBe(true);
     expect(body.complete).toBe(true);
+    expect(body.success).toBe(true);
   });
 
-  it("a budget_skipped member forces success:false", async () => {
-    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "-1"; // idx times out ⇒ media budget_skipped
+  it("idx timed_out + media budget_skipped ⇒ settled true, complete FALSE, success false", async () => {
+    forceIdxTimeout();
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(body.members_timed_out).toBe(1);
+    expect(body.members_budget_skipped).toBe(1);
+    expect(body.orchestration_settled).toBe(true); // nothing abandoned
+    expect(body.complete).toBe(false); // media did NOT complete
+    expect(body.success).toBe(false);
+  });
+
+  it("idx failed + media budget_skipped ⇒ settled true, complete FALSE, success false", async () => {
+    idxGET.mockImplementation(async () => NextResponse.json({ error: "boom" }, { status: 500 }));
     const body = await (await GET(makeReq(AUTH))).json();
     expect(body.members_budget_skipped).toBe(1);
+    expect(body.orchestration_settled).toBe(true);
+    expect(body.complete).toBe(false); // a required member was skipped
     expect(body.success).toBe(false);
+  });
+
+  it("a skipped required member can NEVER produce complete:true", async () => {
+    forceIdxTimeout();
+    const body = await (await GET(makeReq(AUTH))).json();
+    const media = body.members.find((m: { member: string }) => m.member === "media-sync");
+    expect(media.status).toBe("budget_skipped");
+    expect(body.complete).toBe(false);
   });
 
   it("a failed member (non-2xx) forces success:false and stops the chain", async () => {
@@ -276,5 +308,52 @@ describe("overlap guard", () => {
     await GET(makeReq(AUTH));
     expect(idxGET).toHaveBeenCalledTimes(1);
     expect(mediaGET).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── budget config validation (fail closed) ───────────────────────────────────
+describe("budget config validation fails closed", () => {
+  it.each([
+    ["zero", "0"],
+    ["negative", "-5"],
+    ["non-integer", "1.5"],
+    ["non-finite", "abc"],
+    ["over the max", "999999"],
+  ])("rejects a %s budget → 500 configuration_error, NO claim, NO member starts", async (_label, val) => {
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = val;
+    const res = await GET(makeReq(AUTH));
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(typeof body.configuration_error).toBe("string");
+    expect(body.started).toBe(false);
+    expect(transactionMock).not.toHaveBeenCalled(); // no claim taken
+    expect(idxGET).not.toHaveBeenCalled();
+    expect(mediaGET).not.toHaveBeenCalled();
+  });
+
+  it("rejects combined budgets that don't fit inside maxDuration", async () => {
+    // idx 200000 + media default 150000 + headroom 20000 = 370000 >= 300000.
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "200000";
+    const res = await GET(makeReq(AUTH));
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.configuration_error).toMatch(/do not fit inside maxDuration/);
+    expect(idxGET).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid positive override within range", async () => {
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "60000"; // valid
+    const res = await GET(makeReq(AUTH));
+    expect(res.status).toBe(200);
+    expect(idxGET).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── run_id forwarded to members for telemetry correlation ────────────────────
+describe("member telemetry correlation", () => {
+  it("forwards x-one-cycle-run-id to both members, equal to the cycle run_id", async () => {
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-run-id")).toBe(body.run_id);
+    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-run-id")).toBe(body.run_id);
   });
 });

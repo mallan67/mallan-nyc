@@ -6,6 +6,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
+import { resetCotalityTelemetry, snapshotCotalityTelemetry } from "@/lib/idx/cotality-telemetry";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -57,6 +58,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ skipped: true, reason: "Sync already ran within last 10 minutes" });
     }
   }
+
+  // Correlate durable Cotality telemetry with the One Cycle run (when orchestrated).
+  const oneCycleRunId = req.headers.get("x-one-cycle-run-id");
+  resetCotalityTelemetry();
 
   try {
     const since = forceFull ? null : await getLastSyncTimestamp();
@@ -110,6 +115,8 @@ export async function GET(req: NextRequest) {
           ...result,
           incremental: !!since,
           since: since?.toISOString() ?? null,
+          one_cycle_run_id: oneCycleRunId,
+          cotality: snapshotCotalityTelemetry(),
         } as unknown as Prisma.InputJsonValue,
       },
     });
@@ -117,6 +124,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       ...result,
+      cotality: snapshotCotalityTelemetry(),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hasCredentials } from "@/lib/idx/auth";
 import { runMediaSync } from "@/lib/idx/media-sync";
+import { resetCotalityTelemetry, snapshotCotalityTelemetry } from "@/lib/idx/cotality-telemetry";
 
 export const maxDuration = 120;
 
@@ -73,6 +74,10 @@ export async function GET(req: NextRequest) {
       });
     }
   }
+
+  // Correlate durable Cotality telemetry with the One Cycle run (when orchestrated).
+  const oneCycleRunId = req.headers.get("x-one-cycle-run-id");
+  resetCotalityTelemetry();
 
   // 4. Run sync. Failure here writes the error audit event; the cursor is
   // NOT advanced inside `runMediaSync()` on the error path.
@@ -194,6 +199,10 @@ export async function GET(req: NextRequest) {
           r2_skipped: result.r2_skipped,
           backlog_remaining: result.backlog_remaining,
           duration_ms: result.duration_ms,
+          // Durable Cotality usage telemetry (media-resource requests/pages,
+          // token, retries, 429s, latency), correlated with the One Cycle run.
+          one_cycle_run_id: oneCycleRunId,
+          cotality: snapshotCotalityTelemetry() as unknown as Record<string, number>,
           ...(result.error ? { error: result.error } : {}),
         },
       },

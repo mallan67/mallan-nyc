@@ -405,6 +405,9 @@ describe("GET /api/cron/media-sync — happy path", () => {
       ...w3DrainCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
+      // Durable Cotality usage telemetry + One Cycle run correlation (aggregate
+      // integers only; no URLs/ids — same allowlist class as the counters above).
+      "cotality", "one_cycle_run_id",
     ]);
     for (const key of Object.keys(ch)) {
       expect(allowed.has(key)).toBe(true);
