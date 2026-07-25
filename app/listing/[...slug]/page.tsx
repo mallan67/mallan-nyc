@@ -55,14 +55,15 @@ import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, 
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
-// ISR — the rendered page is CDN-cached and re-rendered on this window.
-// One Cycle W1: the page can never be fresher than the feed sync (data
-// changes ONLY when One Cycle runs), so the ISR window equals the unified
-// One Cycle cadence (10 min) — identical effective freshness, and sync-driven
-// revalidateTag still expires the page in-line on every actual change. Must
-// stay a LITERAL for Next's static analysis (= SYNC_CADENCE_SECONDS = 10*60 in
-// lib/cache/public-cache.ts; keep all three — cron, this window, the constant —
-// in lockstep).
+// ISR — 600s is the TIME-BASED STALENESS FALLBACK, not a proactive re-render:
+// a page is regenerated on the first request AFTER it has been stale for 600s.
+// It does NOT re-render every page every 10 minutes. Real data changes expire
+// the page SOONER and precisely via sync-driven `revalidateTag` (One Cycle W1),
+// which runs in-line with each write; this window is only the safety net for a
+// change whose tag a revalidation pass could not derive or a missed pass.
+// Aligned to the unified One Cycle cadence (10 min) so cron, cache fallback and
+// this window share ONE timeline. Must stay a LITERAL for Next's static
+// analysis (= SYNC_CADENCE_SECONDS = 10*60 in lib/cache/public-cache.ts).
 export const revalidate = 600;
 export const maxDuration = 60;
 

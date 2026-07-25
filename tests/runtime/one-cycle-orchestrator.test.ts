@@ -32,9 +32,25 @@ jest.mock("@/app/api/cron/media-sync/route", () => ({ GET: (r: NextRequest) => m
 
 const auditCreate = jest.fn(async (_args: unknown) => ({}));
 const auditFindFirst = jest.fn(async () => null as unknown);
+// claimCycle transaction: default grants the advisory lock and finds no
+// in-progress marker (normal path). Individual tests can override lockGranted /
+// startedMarker to exercise the overlap guard.
+const claimState = { lockGranted: true, startedMarker: null as unknown, completedAfter: null as unknown };
+const txMock = {
+  $queryRaw: async () => [{ locked: claimState.lockGranted }],
+  auditEvent: {
+    findFirst: async (args: { where?: { action?: string } }) =>
+      args?.where?.action === "one_cycle_started"
+        ? claimState.startedMarker
+        : claimState.completedAfter,
+    create: (a: unknown) => auditCreate(a),
+  },
+};
+const transactionMock = jest.fn(async (fn: (tx: unknown) => unknown) => fn(txMock));
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: {
+    $transaction: (fn: unknown) => transactionMock(fn as (tx: unknown) => unknown),
     auditEvent: {
       create: (a: unknown) => auditCreate(a),
       findFirst: (a: unknown) => auditFindFirst(),
@@ -63,6 +79,10 @@ beforeEach(() => {
   mediaGET.mockClear();
   auditCreate.mockClear();
   auditFindFirst.mockClear();
+  transactionMock.mockClear();
+  claimState.lockGranted = true;
+  claimState.startedMarker = null;
+  claimState.completedAfter = null;
 });
 
 describe("one-cycle — auth", () => {
@@ -87,13 +107,14 @@ describe("one-cycle — ordering + auth forwarding", () => {
     expect(mediaGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
   });
 
-  it("signals both members they are orchestrated (x-one-cycle-member=1) so their 10-min guards do not self-skip the 10-min cadence", async () => {
-    // The concurrency-guard bypass depends on this exact header: a 10-minute
-    // AuditEvent guard at a 10-minute cadence would otherwise false-trigger and
-    // drop every other cycle to an effective 20-minute cadence.
+  it("signals both members they are orchestrated (x-one-cycle-member = CRON_SECRET) so their 10-min guards do not self-skip the 10-min cadence", async () => {
+    // The bypass token is the SECRET, not a bare flag: a 10-minute AuditEvent
+    // guard at a 10-minute cadence would otherwise false-trigger and drop every
+    // other cycle to an effective 20-minute cadence — and only the secret-holding
+    // orchestrator may produce the bypass (see the header-alone test below).
     await GET(makeReq(AUTH));
-    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("1");
-    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("1");
+    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("test-cycle-secret");
+    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("test-cycle-secret");
   });
 });
 

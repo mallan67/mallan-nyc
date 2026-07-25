@@ -541,15 +541,18 @@ describe("retention — diagnostic events fall under existing 2-year audit purge
 });
 
 describe("no out-of-scope changes (cron / schema / compliance / sync behavior)", () => {
-  it("vercel.json still has the idx-sync cron at schedule */30 * * * *", () => {
+  it("runs idx-sync via the unified One Cycle orchestrator (*/10), not an independent */30 cron", () => {
+    // W2 unification (2026-07-24): the standalone idx-sync cron entry was
+    // replaced by /api/cron/one-cycle (*/10). The route stays deployed for
+    // manual triggering; the schedule moved to the orchestrator.
     const vercel = JSON.parse(readFileSync(VERCEL_JSON_PATH, "utf8")) as {
       crons?: Array<{ path: string; schedule: string }>;
     };
-    const idxSyncCron = (vercel.crons ?? []).find(
-      (c) => c.path === "/api/cron/idx-sync",
-    );
-    expect(idxSyncCron).toBeDefined();
-    expect(idxSyncCron!.schedule).toBe("*/30 * * * *");
+    const crons = vercel.crons ?? [];
+    expect(crons.find((c) => c.path === "/api/cron/idx-sync")).toBeUndefined();
+    const oneCycle = crons.find((c) => c.path === "/api/cron/one-cycle");
+    expect(oneCycle).toBeDefined();
+    expect(oneCycle!.schedule).toBe("*/10 * * * *");
   });
 
   it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {

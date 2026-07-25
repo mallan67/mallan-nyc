@@ -44,12 +44,36 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+/**
+ * The unified machine cadence, in milliseconds — the single source of truth for
+ * "10 minutes" on the orchestrator side. Kept in lockstep with the production
+ * cron (`*&#47;10 * * * *`), the public cache fallback TTL (SYNC_CADENCE_SECONDS
+ * = 600s), and the listing-detail ISR window (revalidate = 600). A cycle must
+ * always finish within one interval — enforced by the budget invariant below
+ * (maxDuration 300s < CYCLE_INTERVAL_MS 600s) so a cycle can never run into the
+ * next fire.
+ */
+export const CYCLE_INTERVAL_MS = 600_000;
+
 /** Per-member wall-clock budgets (ms). Sum + headroom < maxDuration. */
 const MEMBER_BUDGETS_MS: Record<string, number> = {
   'idx-sync': 120_000,
   'media-sync': 150_000,
 };
 const CYCLE_HEADROOM_MS = 20_000;
+
+// Static invariant: the whole cycle fits inside one interval with margin, so
+// scheduled fires never overlap under budget. (Belt-and-suspenders: the claim
+// below still hard-stops any genuine overlap, e.g. a manual trigger.)
+const _CYCLE_FITS_INTERVAL: true =
+  (maxDuration * 1000 < CYCLE_INTERVAL_MS) as true;
+void _CYCLE_FITS_INTERVAL;
+
+// Advisory-lock identity for the cycle-claim mutex (distinct from the R2 drain
+// lock class 20260723). A second concurrent invocation cannot win this lock and
+// therefore cannot pass the claim.
+const CYCLE_LOCK_CLASS = 20260724;
+const CYCLE_LOCK_KEY = 1;
 
 interface MemberResult {
   member: string;
@@ -87,20 +111,24 @@ async function runMember(
   member: string,
   handler: (req: NextRequest) => Promise<Response>,
   authHeader: string,
+  memberToken: string,
   budgetMs: number,
 ): Promise<MemberResult> {
   const started = Date.now();
   try {
-    // `x-one-cycle-member` signals the member it is running INSIDE the
-    // orchestrator. The orchestrator is the single 10-minute concurrency unit
-    // (members run sequentially, never overlapping; the media drain also holds
-    // a pg advisory lock), so the member's own AuditEvent concurrency guard —
-    // which is a 10-minute lookback and would therefore FALSE-TRIGGER at a
-    // 10-minute cadence (each run's completion lands inside the next cycle's
-    // window) — is bypassed for the orchestrated path. The guard stays active
-    // for manual / standalone invocation.
+    // `x-one-cycle-member` is the orchestrator-identity proof that lets the
+    // member SKIP its own 10-minute AuditEvent concurrency guard — which would
+    // otherwise FALSE-TRIGGER at a 10-minute cadence (each run completes inside
+    // the next cycle's lookback window → alternate cycles skipped). Crucially,
+    // the header VALUE must equal CRON_SECRET (the member timing-safe-compares
+    // it), so the header ALONE cannot bypass: an unauthenticated caller is
+    // rejected at auth (401) before the guard, and an authenticated caller who
+    // sets a bare `x-one-cycle-member: 1` does NOT match the secret and the
+    // guard stays active. Only a holder of the secret — the orchestrator — can
+    // produce the bypass. Overlap safety for the cycle itself is the advisory
+    // claim below, not this header.
     const req = new NextRequest(`https://internal.one-cycle/${member}`, {
-      headers: { authorization: authHeader, 'x-one-cycle-member': '1' },
+      headers: { authorization: authHeader, 'x-one-cycle-member': memberToken },
     });
     const raced = await Promise.race([
       handler(req).then(async (res) => ({
@@ -153,8 +181,76 @@ async function readMediaCursorLagSeconds(): Promise<number | null> {
   }
 }
 
+/**
+ * Atomically claim the right to run THIS cycle — the orchestrator-level overlap
+ * guard (point 8). Inside a single short transaction:
+ *   1. take the cycle advisory xact lock (auto-released at txn end) so two
+ *      concurrent claims serialize and cannot both proceed;
+ *   2. if a `one_cycle_started` marker exists within the max cycle runtime
+ *      (maxDuration — a cycle can never be older than that and still running)
+ *      with NO `one_cycle_run` completion after it, another cycle is genuinely
+ *      in progress → refuse the claim;
+ *   3. otherwise write the `one_cycle_started` marker and grant the claim.
+ * A refused claim means the caller MUST exit without starting any member.
+ * Fail-closed: any error refuses the claim (never risk two concurrent cycles).
+ * The staleness window is maxDuration (not the full interval) so a crashed
+ * cycle cannot wedge the machine past one interval.
+ */
+async function claimCycle(
+  now: Date,
+): Promise<{ ok: boolean; reason?: string }> {
+  const staleMs = maxDuration * 1000;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const lockRows = (await tx.$queryRaw`
+        SELECT pg_try_advisory_xact_lock(${CYCLE_LOCK_CLASS}::int4, ${CYCLE_LOCK_KEY}::int4) AS locked
+      `) as Array<{ locked: boolean }>;
+      if (!lockRows?.[0]?.locked) {
+        return { ok: false, reason: 'lock_contended' };
+      }
+      const started = await tx.auditEvent.findFirst({
+        where: {
+          action: 'one_cycle_started',
+          created_at: { gte: new Date(now.getTime() - staleMs) },
+        },
+        orderBy: { created_at: 'desc' },
+        select: { created_at: true },
+      });
+      if (started) {
+        const completed = await tx.auditEvent.findFirst({
+          where: {
+            action: 'one_cycle_run',
+            created_at: { gte: started.created_at },
+          },
+          orderBy: { created_at: 'desc' },
+          select: { id: true },
+        });
+        if (!completed) {
+          return { ok: false, reason: 'overlap_in_progress' };
+        }
+      }
+      await tx.auditEvent.create({
+        data: {
+          action: 'one_cycle_started',
+          entity_type: 'cron',
+          entity_id: 'one-cycle',
+          user_type: 'system',
+          user_id: null,
+          changes: { started_at: now.toISOString(), cadence_ms: CYCLE_INTERVAL_MS },
+        },
+      });
+      return { ok: true };
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      reason: err instanceof Error ? `claim_error:${err.message.slice(0, 120)}` : 'claim_error',
+    };
+  }
+}
+
 /** Did the previous cycle plausibly overlap this one? (observability only —
- *  hard overlap safety lives in the members' own guards + W3's advisory lock.) */
+ *  hard overlap safety is the advisory claim above.) */
 async function previousRunOverlap(startedAt: Date): Promise<boolean> {
   try {
     const prev = await prisma.auditEvent.findFirst({
@@ -187,6 +283,17 @@ export async function GET(req: NextRequest) {
   }
 
   const startedAt = new Date();
+
+  // Overlap guard (point 8): a second concurrent one-cycle invocation cannot
+  // win the advisory claim and exits here WITHOUT starting either member.
+  const claim = await claimCycle(startedAt);
+  if (!claim.ok) {
+    return NextResponse.json(
+      { skipped: true, reason: claim.reason ?? 'overlap', started_at: startedAt.toISOString() },
+      { status: 200 },
+    );
+  }
+
   const overlap = await previousRunOverlap(startedAt);
   const members: MemberResult[] = [];
 
@@ -223,13 +330,16 @@ export async function GET(req: NextRequest) {
       });
       continue;
     }
-    members.push(await runMember(name, handler, authHeader, budget));
+    // The member-bypass token IS the CRON_SECRET (validated at auth above), so
+    // only the secret-holding orchestrator can produce a guard bypass.
+    members.push(await runMember(name, handler, authHeader, cronSecret, budget));
   }
 
   const endedAt = new Date();
   const cursorLag = await readMediaCursorLagSeconds();
   const machine = {
     cadence: '10m',
+    cadence_ms: CYCLE_INTERVAL_MS,
     previous_run_overlap: overlap,
     media_cursor_lag_seconds: cursorLag,
     members_ok: members.filter((m) => m.status === 'ok').length,

@@ -47,7 +47,17 @@ export async function GET(req: NextRequest) {
   // lock), so this 10-minute lookback — which would FALSE-TRIGGER at a
   // 10-minute cadence — must not gate the orchestrated call. It stays active
   // for manual / standalone invocation.
-  const orchestrated = req.headers.get("x-one-cycle-member") === "1";
+  //
+  // The bypass proof is the CRON_SECRET carried in `x-one-cycle-member`
+  // (timing-safe compared), NOT the header's mere presence: auth above already
+  // rejected anyone without the secret, and a bare `x-one-cycle-member: 1` does
+  // not match, so the header alone can never bypass the guard.
+  const memberToken = req.headers.get("x-one-cycle-member");
+  const orchestrated =
+    !!cronSecret &&
+    !!memberToken &&
+    memberToken.length === cronSecret.length &&
+    timingSafeEqual(Buffer.from(memberToken), Buffer.from(cronSecret));
   if (!orchestrated) {
     const recent = await prisma.auditEvent.findFirst({
       where: {
