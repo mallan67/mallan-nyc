@@ -1,24 +1,20 @@
 // GET /api/cron/media-sync
-// Vercel cron — runs every 15 minutes. Drives the listing_media R2 mirror
-// pipeline: cursor → Trestle Property → Media → upsert → mirror → summary.
-// Protected by CRON_SECRET (timing-safe).
-//
-// Master refactor PR 3 Checkpoint 5 (memory/REFACTOR-2026-04-25.md).
-// Reader path is UNCHANGED — public site still reads Listing.media JSON.
-// PR 4 swaps the reader after this cron has populated listing_media in
-// production for ≥48h.
-import { timingSafeEqual } from "crypto";
+// PUBLIC manual-trigger wrapper. NOT a Vercel cron entry — One Cycle runs the
+// media member in-process. Every request here ALWAYS takes the shared atomic
+// machine claim: there is NO request header, query param, or bearer combination
+// that reaches the unclaimed member path over HTTP (the orchestrated in-process
+// call goes through runMediaSyncMember directly, import-only). Protected by
+// CRON_SECRET (timing-safe).
+import { timingSafeEqual, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { hasCredentials } from "@/lib/idx/auth";
-import { runMediaSync } from "@/lib/idx/media-sync";
+import { runMediaSyncMember } from "@/lib/idx/media-sync-member";
+import { claimMachine, completeMachine } from "@/lib/idx/machine-claim";
 
 export const maxDuration = 120;
 
-const CONCURRENCY_GUARD_MS = 10 * 60 * 1000;
-
 export async function GET(req: NextRequest) {
-  // 1. CRON_SECRET timing-safe Bearer auth (mirrors app/api/cron/idx-sync).
+  // 1. CRON_SECRET timing-safe Bearer auth.
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (
@@ -30,174 +26,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Trestle credential pre-check — soft fail (503) so the cron can be
-  // dialled out gracefully if creds rotate.
-  if (!hasCredentials()) {
-    return NextResponse.json(
-      { error: "Trestle credentials not configured" },
-      { status: 503 },
-    );
-  }
-
-  // 3. Concurrency guard — skip if a successful run logged within the last
-  // 10 minutes. Mirrors the existing idx-sync pattern.
-  const recent = await prisma.auditEvent.findFirst({
-    where: {
-      action: "media_sync_cron",
-      created_at: { gte: new Date(Date.now() - CONCURRENCY_GUARD_MS) },
-    },
-    orderBy: { created_at: "desc" },
+  // 2. ALWAYS take the shared atomic machine claim — no request header is read
+  // to exempt a caller, so a CRON_SECRET holder cannot forge orchestrator
+  // identity to bypass it. The only unclaimed path is the in-process
+  // runMediaSyncMember import, unreachable via HTTP. Fail closed on refusal.
+  const machineRunId = randomUUID();
+  const machineStartedAt = new Date();
+  const claim = await claimMachine(prisma, {
+    runId: machineRunId,
+    executionType: "standalone-media-sync",
+    member: "media-sync",
+    now: machineStartedAt,
   });
-  if (recent) {
+  if (!claim.ok) {
     return NextResponse.json({
       skipped: true,
-      reason: "media_sync_cron ran within last 10 minutes",
+      reason: `blocked: machine claim not granted (${claim.reason}) — standalone media-sync must not overlap the machine`,
     });
   }
 
-  // 4. Run sync. Failure here writes the error audit event; the cursor is
-  // NOT advanced inside `runMediaSync()` on the error path.
+  // Completion-marker outcome is the member's SEMANTIC outcome, not HTTP status:
+  // a partial run (200) must be recorded "partial", never "success".
+  let outcome = "error";
   try {
-    const result = await runMediaSync();
-
-    // Audit changes payload — explicit field list (NOT a spread of `result`)
-    // so internal fields can never accidentally leak. Includes the Phase 3
-    // observability fields added by the phased-orchestrator refactor (PR #97):
-    //   - exit_reason       — was completed / budget_phase1 / budget_phase2 / source_error
-    //   - r2_mirrored       — successful R2 mirrors in this firing
-    //   - r2_failed         — R2 mirror failures (separate from source rows_failed)
-    //   - r2_skipped        — rows skipped by mirror (e.g., no media_url_original)
-    //   - backlog_remaining — listing_media rows still missing r2_key/cached
-    // Required so external observers (the 48h PR-4 observation clock, ops
-    // dashboards, retro analyses) can verify Phase 1/2/3 health from audit
-    // alone without ad-hoc DB queries.
-    await prisma.auditEvent.create({
-      data: {
-        action: "media_sync_cron",
-        entity_type: "listing_media",
-        entity_id: "bulk",
-        user_type: "system",
-        user_id: null,
-        changes: {
-          status: result.status,
-          exit_reason: result.exit_reason,
-          rows_checked: result.rows_checked,
-          rows_updated: result.rows_updated,
-          // #530 detailed outcome ledger (JSON payload only — NO schema column).
-          // Lets a retro prove suppression is REAL: distinguish a genuine drop in
-          // rows_updated (rows_skipped_unchanged up) from lower feed volume,
-          // invalid rows, delete signals, vanished rows, or failures. Authoritative
-          // only on runs where rows_failed === 0 (see RunMediaSyncResult).
-          rows_inserted: result.rows_inserted,
-          rows_updated_changed: result.rows_updated_changed,
-          rows_skipped_unchanged: result.rows_skipped_unchanged,
-          rows_skipped_invalid: result.rows_skipped_invalid,
-          delete_signals_received: result.delete_signals_received,
-          tombstoned_explicit: result.tombstoned_explicit,
-          tombstoned_vanished: result.tombstoned_vanished,
-          rows_tombstoned: result.rows_tombstoned,
-          // #541 comparator-attribution diagnostic (aggregate integer counts only —
-          // NO URLs / listing IDs / media keys / source values). Explicit allowlist,
-          // no result spread. Identifies which compared field(s) marked existing rows
-          // "changed" (0/2,012 suppressed in production). Behavior-preserving.
-          existing_rows_compared: result.existing_rows_compared,
-          mismatch_status: result.mismatch_status,
-          mismatch_listing_id: result.mismatch_listing_id,
-          mismatch_resource_record_key: result.mismatch_resource_record_key,
-          mismatch_resource_record_id: result.mismatch_resource_record_id,
-          mismatch_media_url_exact: result.mismatch_media_url_exact,
-          mismatch_media_url_identity: result.mismatch_media_url_identity,
-          mismatch_media_url_identity_equivalent: result.mismatch_media_url_identity_equivalent,
-          mismatch_media_type: result.mismatch_media_type,
-          mismatch_media_category: result.mismatch_media_category,
-          mismatch_media_classification: result.mismatch_media_classification,
-          mismatch_order: result.mismatch_order,
-          mismatch_preferred_photo: result.mismatch_preferred_photo,
-          mismatch_media_modification_ts: result.mismatch_media_modification_ts,
-          mismatch_modification_ts: result.mismatch_modification_ts,
-          rows_with_one_mismatch: result.rows_with_one_mismatch,
-          rows_with_multiple_mismatches: result.rows_with_multiple_mismatches,
-          rows_failed: result.rows_failed,
-          listings_processed: result.listings_processed,
-          listings_skipped: result.listings_skipped,
-          // Phase 3 surface C — summary-write suppression counters (flattened
-          // aggregate integers only; no URLs/ids). Persisted so ops can verify
-          // suppressed/updated/failed SUMMARY writes from the durable audit log
-          // alone after deploy (Codex #549 review — allowlist omission).
-          summary_rows_checked: result.summary_writes.rows_checked,
-          summary_rows_materially_changed: result.summary_writes.rows_materially_changed,
-          summary_rows_suppressed_unchanged: result.summary_writes.rows_suppressed_unchanged,
-          summary_rows_inserted: result.summary_writes.rows_inserted,
-          summary_rows_updated: result.summary_writes.rows_updated,
-          summary_rows_failed: result.summary_writes.rows_failed,
-          // One Cycle W1 — bounded aggregate cache-revalidation counters
-          // (integers only; no URLs/ids — same allowlist class as above).
-          pages_revalidated: result.pages_revalidated,
-          revalidation_failures: result.revalidation_failures,
-          // Phase 4 — bounded drain / reserved recovery observability (aggregate
-          // integers + one boolean; no URLs/ids). Persisted so ops can verify
-          // the bounded backlog, recovery fairness, and budget behavior from
-          // the durable audit log alone (same allowlist class as the Phase 3
-          // summary counters above).
-          r2_backlog_batch_selected: result.r2_backlog_batch_selected,
-          r2_parked_recovery_selected: result.r2_parked_recovery_selected,
-          r2_parked_recovery_attempted: result.r2_parked_recovery_attempted,
-          r2_failure_budget_exhausted: result.r2_failure_budget_exhausted,
-          // R2-1 mirror-admission counters (additive; legacy keys retained):
-          //   mirror_allowed          — Phase-3 candidates admitted by the
-          //                             mirror policy (= r2_uploaded + r2_reused
-          //                             + r2_failed + r2_skipped)
-          //   mirror_rejected_policy  — candidates rejected by the policy
-          //                             (never fetched/uploaded)
-          //   mirror_rejected_policy_parked — subset of the rejections that
-          //                             were POLICY-PARKED (r2_attempts = 9,
-          //                             one-time-per-row; permanently out of
-          //                             the backlog SELECT — Blocker-1)
-          //   r2_uploaded / r2_reused — split of the legacy r2_mirrored aggregate
-          mirror_allowed: result.mirror_allowed,
-          mirror_rejected_policy: result.mirror_rejected_policy,
-          mirror_rejected_policy_parked: result.mirror_rejected_policy_parked,
-          r2_mirrored: result.r2_mirrored,
-          r2_uploaded: result.r2_uploaded,
-          r2_reused: result.r2_reused,
-          r2_failed: result.r2_failed,
-          r2_skipped: result.r2_skipped,
-          backlog_remaining: result.backlog_remaining,
-          duration_ms: result.duration_ms,
-          ...(result.error ? { error: result.error } : {}),
-        },
-      },
+    // Standalone runs correlate telemetry with their own claim run_id.
+    const res = await runMediaSyncMember({ oneCycleRunId: machineRunId });
+    outcome = res.outcome === "ok" ? "success" : res.outcome; // success | partial | skipped | error
+    return NextResponse.json(res.body, { status: res.status });
+  } finally {
+    // ALWAYS write the matching completion marker so the next execution is
+    // permitted (releases the claim window).
+    await completeMachine(prisma, {
+      runId: machineRunId,
+      executionType: "standalone-media-sync",
+      member: "media-sync",
+      outcome,
+      startedAt: machineStartedAt,
     });
-
-    // P1C5 (queued from RC5): ghosts are otherwise invisible in runtime logs —
-    // the JSON below is RETURNED to the cron invoker, never logged. One line
-    // when >0 makes skipped ghosts greppable in Vercel runtime logs.
-    if (result.ghost_listings_skipped > 0) {
-      console.log(
-        `[media-sync] ghost listings skipped: ${result.ghost_listings_skipped} (${result.ghost_listing_ids.join(", ")})`,
-      );
-    }
-
-    return NextResponse.json({ success: true, ...result });
-  } catch (err) {
-    // Defensive — any unexpected throw escapes runMediaSync()'s internal
-    // error handling. Log and return 500. Bearer tokens / signed URLs are
-    // never echoed; only `err.message`.
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    await prisma.auditEvent
-      .create({
-        data: {
-          action: "media_sync_cron_error",
-          entity_type: "listing_media",
-          entity_id: "bulk",
-          user_type: "system",
-          user_id: null,
-          changes: { error: msg },
-        },
-      })
-      .catch(() => {
-        // audit failure must not mask the real error
-      });
-    return NextResponse.json({ error: `Sync failed: ${msg}` }, { status: 500 });
   }
 }

@@ -26,7 +26,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
-import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
+import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, manifestShardTag } from '@/lib/cache/public-cache';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -585,7 +585,15 @@ async function getCachedManifestPage(
     return await cachedPublicRead(
       capturingFetch,
       ['building-manifest-page'],
-      { tags: [BUILDING_MANIFEST_TAG, SEARCH_CACHE_TAG] },
+      // Per-shard invalidation (Maya review of PR #561): pages carry their
+      // SHARD tag — writers expire exactly the shards whose listings
+      // changed and every other shard's cache survives the cycle. The
+      // coarse `search` tag is deliberately ABSENT (it used to expire all
+      // nine shards on any listing change anywhere). BUILDING_MANIFEST_TAG
+      // remains as the rare full-purge handle. Changes with no address
+      // context (media-sync hero/summary updates) ride the 30-min fallback
+      // window — same stance as building payloads for media-only changes.
+      { tags: [BUILDING_MANIFEST_TAG, manifestShardTag(shard)] },
     )(shard, cursor);
   } catch (err) {
     if (captured !== null) return captured;
@@ -1163,92 +1171,95 @@ export async function getBuildingDataCached(params: {
 export const BUILDING_MANIFEST_SHARDS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
 export interface ManifestWarmResult {
+  /** Distinct shards this warm was asked to (and did) walk. */
+  shards_requested: number;
   shards_warmed: number;
   shards_failed: number;
-  /** Pages whose FRESH fetch PROVABLY persisted this warm (the fetch ran,
-   *  and a verification re-read returned the fresh value without
-   *  re-executing). Only these count as successful cache warming. */
-  cache_persisted: number;
-  /** Pages served WITHOUT executing the fetch at all — a valid pre-existing
-   *  entry under the immediate-invalidation writer contract (normal after a
-   *  no-change sync). Under a stale-while-revalidate regression this is
-   *  also where a stale serve lands — it is NEVER counted as fresh. */
+  /** Pages whose fetch EXECUTED during this warm — exactly ONE bounded Neon
+   *  query each (scope A: the same-request verification re-read is gone).
+   *  Whether the resulting SET persisted is NOT knowable in this request
+   *  (the sync's own tag revalidation forces same-request re-execution —
+   *  dist incremental-cache/index.js:289-291); persistence is verified by
+   *  probeManifestPersistence in the NEXT request. */
+  pages_filled: number;
+  /** Pages served WITHOUT executing the fetch — a valid pre-existing entry
+   *  (normal when the shard's tag was not revalidated this run). A stale
+   *  SWR serve also lands here and is never counted as a fill. */
   cache_hit_existing: number;
-  /** Pages whose cache SET failed (the verification re-read re-executed the
-   *  fetch — a real second Neon read, bounded to the warm pass; there is NO
-   *  cross-request memory layer). These are fallback-live pages, NEVER
-   *  counted as warmed cache. */
-  fallback_live: number;
-  /** Pages whose verification read returned a PRE-WARM (stale) entry
-   *  without re-executing the fetch — possible under stale-while-
-   *  revalidate tag semantics. Explicitly separated: never counted as a
-   *  fresh warm result. */
-  swr_stale_served: number;
+  duration_ms: number;
+}
+
+export interface ManifestPersistenceProbe {
+  shards_probed: number;
+  /** First page served without executing the fetch → the entry PERSISTED
+   *  across requests. Zero Neon cost. */
+  cache_hits: number;
+  /** First page had to execute → the previous warm's SET did not survive
+   *  (or the shard was never warmed). One bounded Neon read that itself
+   *  refills the page — measured, never wasted. */
+  live_fills: number;
+  failed: number;
   duration_ms: number;
 }
 
 /**
- * Refill every manifest shard NOW — called by idx-sync immediately after a
- * FULLY SUCCESSFUL run, while the Neon compute is already awake for that
- * sync. This clusters the ≤9 bounded fills into the existing wake window
- * instead of letting lazy fills land scattered across the autosuspend
- * period. When the sync changed nothing (search tag not bumped) every call
- * is a cache HIT and zero Neon queries execute.
+ * Refill manifest shards NOW — called by idx-sync immediately after a FULLY
+ * SUCCESSFUL run, while the Neon compute is already awake for that sync.
+ * Scope B (Maya directive 2026-07-24): the caller passes ONLY the shards
+ * whose listings physically changed this run (old + new address shard on a
+ * move); unaffected shards are never queried and refill lazily on first
+ * demand, one bounded page at a time. An empty set performs zero work.
+ *
+ * Scope A: ONE read per page — no same-request verification re-read. The
+ * warm executes each missing page's fetch exactly once (pages_filled) or
+ * observes a valid pre-existing entry (cache_hit_existing). Persistence is
+ * verified by `probeManifestPersistence` at the START of the next sync
+ * request, before that request revalidates anything.
  *
  * STRICTLY BEST-EFFORT AND READ-ONLY: failures are counted and logged,
  * never thrown — a warm-up failure can NEVER advance, block, or corrupt
  * feed state (it runs after the SyncState upsert, outside its try/catch,
  * and touches no sync variables).
  */
-export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> {
+export async function warmBuildingManifestShards(
+  shards: readonly string[] = BUILDING_MANIFEST_SHARDS,
+): Promise<ManifestWarmResult> {
   const t0 = Date.now();
+  const targets = [...new Set(shards.filter((s) => typeof s === 'string' && s.length > 0))];
   let warmed = 0;
   let failed = 0;
-  let cachePersisted = 0;
+  let pagesFilled = 0;
   let cacheHitExisting = 0;
-  let fallbackLive = 0;
-  let swrStaleServed = 0;
+  if (targets.length === 0) {
+    return {
+      shards_requested: 0,
+      shards_warmed: 0,
+      shards_failed: 0,
+      pages_filled: 0,
+      cache_hit_existing: 0,
+      duration_ms: Date.now() - t0,
+    };
+  }
   // Bound the exec-count map: one warm per sync; clearing here caps growth
   // to the pages touched between warms.
   manifestPageExecCount.clear();
-  for (const shard of BUILDING_MANIFEST_SHARDS) {
+  for (const shard of targets) {
     try {
       // Walk the shard's pages under the SAME row-ceiling/invariant rules
-      // as the reader, verifying persistence per page. Classification:
-      //   - first read served WITHOUT executing the fetch → a valid
-      //     pre-existing entry (cache_hit_existing; normal after a
-      //     no-change sync; a stale SWR serve would also land here and is
-      //     never counted as fresh);
-      //   - fetch ran, verification re-executed it → the SET failed
-      //     (fallback_live — a real second Neon read; bounded to the warm
-      //     pass, never a per-request pattern);
-      //   - fetch ran, verification returned the FRESH value without
-      //     executing → provably persisted (cache_persisted);
-      //   - fetch ran, verification returned a PRE-WARM value without
-      //     executing → SWR tripwire (swr_stale_served).
-      const warmStart = Date.now();
+      // as the reader. Classification is execution-based only: the fetch
+      // ran (pages_filled — one Neon query) or it did not
+      // (cache_hit_existing — zero Neon).
       const seenCursors = new Set<string>();
       let rowsSeen = 0;
       let cursor: string | null = null;
       for (;;) {
         const key = pageKey(shard, cursor);
         const execBefore = manifestPageExecCount.get(key) ?? 0;
-        const first: ManifestPageResult = await getCachedManifestPage(shard, cursor);
-        const execAfterFirst = manifestPageExecCount.get(key) ?? 0;
-        if (execAfterFirst === execBefore) {
-          cacheHitExisting++;
-        } else {
-          const second: ManifestPageResult = await getCachedManifestPage(shard, cursor);
-          const execAfterSecond = manifestPageExecCount.get(key) ?? 0;
-          if (execAfterSecond > execAfterFirst) {
-            fallbackLive++;
-          } else if (second.fetchedAt >= warmStart) {
-            cachePersisted++;
-          } else {
-            swrStaleServed++;
-          }
-        }
-        rowsSeen += first.rows.length;
+        const page: ManifestPageResult = await getCachedManifestPage(shard, cursor);
+        const execAfter = manifestPageExecCount.get(key) ?? 0;
+        if (execAfter === execBefore) cacheHitExisting++;
+        else pagesFilled++;
+        rowsSeen += page.rows.length;
         // Same boundary rule as the reader: ceiling BEFORE the terminal
         // break, so a terminal page cannot smuggle the shard past the limit.
         if (rowsSeen > MANIFEST_MAX_ROWS_PER_SHARD) {
@@ -1256,14 +1267,14 @@ export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> 
             `[building-manifest] OVERFLOW during warm: shard "${shard}" exceeds ${MANIFEST_MAX_ROWS_PER_SHARD} rows`,
           );
         }
-        if (first.nextCursor === null) break;
-        if (first.rows.length === 0 || first.nextCursor === cursor || seenCursors.has(first.nextCursor)) {
+        if (page.nextCursor === null) break;
+        if (page.rows.length === 0 || page.nextCursor === cursor || seenCursors.has(page.nextCursor)) {
           throw new Error(
             `[building-manifest] warm walk invariant violated for shard "${shard}" at cursor "${cursor ?? 'START'}"`,
           );
         }
-        seenCursors.add(first.nextCursor);
-        cursor = first.nextCursor;
+        seenCursors.add(page.nextCursor);
+        cursor = page.nextCursor;
       }
       warmed++;
     } catch (err) {
@@ -1275,12 +1286,58 @@ export async function warmBuildingManifestShards(): Promise<ManifestWarmResult> 
     }
   }
   return {
+    shards_requested: targets.length,
     shards_warmed: warmed,
     shards_failed: failed,
-    cache_persisted: cachePersisted,
+    pages_filled: pagesFilled,
     cache_hit_existing: cacheHitExisting,
-    fallback_live: fallbackLive,
-    swr_stale_served: swrStaleServed,
+    duration_ms: Date.now() - t0,
+  };
+}
+
+/**
+ * The cross-request persistence instrument (Maya directive 2026-07-24:
+ * persistence "must be verified by the next separate request, the next sync
+ * invocation, or a dedicated post-request probe — not by rereading inside
+ * the request that invalidated the tag").
+ *
+ * Reads ONLY the FIRST page of each shard through the normal cached read
+ * path. MUST run BEFORE the calling request revalidates any tags (idx-sync
+ * calls it at run start): a served-from-cache page proves the prior warm's
+ * SET survived request teardown and tag flushing (cache_hits, zero Neon); a
+ * re-executed page proves it did not (live_fills — one bounded read that
+ * itself refills the page). Best-effort: per-shard failures are counted,
+ * never thrown.
+ */
+export async function probeManifestPersistence(
+  shards: readonly string[] = BUILDING_MANIFEST_SHARDS,
+): Promise<ManifestPersistenceProbe> {
+  const t0 = Date.now();
+  const targets = [...new Set(shards.filter((s) => typeof s === 'string' && s.length > 0))];
+  let cacheHits = 0;
+  let liveFills = 0;
+  let failed = 0;
+  for (const shard of targets) {
+    try {
+      const key = pageKey(shard, null);
+      const execBefore = manifestPageExecCount.get(key) ?? 0;
+      await getCachedManifestPage(shard, null);
+      const execAfter = manifestPageExecCount.get(key) ?? 0;
+      if (execAfter === execBefore) cacheHits++;
+      else liveFills++;
+    } catch (err) {
+      failed++;
+      console.error(
+        `[building-manifest] persistence probe failed for shard "${shard}" (non-fatal):`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  return {
+    shards_probed: targets.length,
+    cache_hits: cacheHits,
+    live_fills: liveFills,
+    failed,
     duration_ms: Date.now() - t0,
   };
 }

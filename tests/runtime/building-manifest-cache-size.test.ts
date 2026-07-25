@@ -96,25 +96,31 @@ describe("building-manifest cache-size proof (2 MB production limit)", () => {
     expect(src).toContain("assertPageCacheable(shard, cursor, result)");
   });
 
-  it("warm counters separate cache_persisted from fallback_live (fallback live reads are NOT warmed cache)", () => {
+  it("warm is single-read + targeted; persistence lives in the cross-request probe (scope A/B, 2026-07-24)", () => {
     const src = fs.readFileSync(
       path.join(process.cwd(), "lib", "buildings", "public-building-data.ts"),
       "utf8",
     );
-    expect(src).toContain("cache_persisted: cachePersisted");
-    expect(src).toContain("fallback_live: fallbackLive");
-    // SWR-aware proof: a stale pre-warm entry is separated, never counted
-    // as fresh; refresh is forced PER KEY (no module-global bypass flag).
-    expect(src).toContain("swr_stale_served: swrStaleServed");
+    // Scope A: execution-based counters only — the in-request verification
+    // re-read (and its cache_persisted / fallback_live / swr_stale_served
+    // classification) is GONE. One read per page, in every cache mode.
+    expect(src).toContain("pages_filled: pagesFilled");
     expect(src).toContain("cache_hit_existing: cacheHitExisting");
-    expect(src).toContain("second.fetchedAt >= warmStart");
-    // Blocker 2: NO cross-request page memory of any kind
+    expect(src).not.toContain("cache_persisted");
+    expect(src).not.toContain("fallback_live");
+    expect(src).not.toContain("swr_stale_served");
+    expect(src).not.toContain("const second: ManifestPageResult");
+    // Scope B: warm accepts a target shard list (defaulting to all shards).
+    expect(src).toContain("warmBuildingManifestShards(\n  shards: readonly string[] = BUILDING_MANIFEST_SHARDS,\n)");
+    // The cross-request persistence instrument exists and reads FIRST pages.
+    expect(src).toContain("export async function probeManifestPersistence(");
+    // Blocker 2 (PR #560): NO cross-request page memory of any kind
     expect(src).not.toContain("manifestMemoryBypass");
     expect(src).not.toContain("manifestPageMemory");
     expect(src).not.toContain("MANIFEST_MEMORY_TTL_MS");
     // per-invocation capture is the ONLY set-failure absorption
     expect(src).toContain("captured = await fetchManifestPage(s, c)");
-    // Blocker 1: completeness is row-based, walked to cursor exhaustion
+    // Blocker 1 (PR #560): completeness is row-based, walked to cursor exhaustion
     expect(src).toContain("MANIFEST_MAX_ROWS_PER_SHARD");
     expect(src).not.toContain("MANIFEST_MAX_PAGES");
   });

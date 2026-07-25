@@ -315,10 +315,10 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     const coldCalls = findManyMock.mock.calls.length - before;
     expect(coldCalls).toBeGreaterThanOrEqual(BUILDING_MANIFEST_SHARDS.length); // ≥1 page per shard
     expect(coldCalls).toBeLessThanOrEqual(BUILDING_MANIFEST_SHARDS.length + 4); // shard 8 = 5 pages
-    // 2 MB correction: only PROVABLY persisted pages count as warmed cache —
-    // with the memoizing test cache every page persists; fallback-live = 0.
-    expect(r1.cache_persisted).toBe(coldCalls);
-    expect(r1.fallback_live).toBe(0);
+    // Scope A (2026-07-24): every executed page is exactly ONE Neon read —
+    // pages_filled equals the cold-call count (no verification re-read).
+    expect(r1.pages_filled).toBe(coldCalls);
+    expect(r1.cache_hit_existing).toBe(0);
     const r2 = await warmBuildingManifestShards();
     expect(r2.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(findManyMock.mock.calls.length - before).toBe(coldCalls); // second warm: ZERO new queries
@@ -367,12 +367,17 @@ describe("writer-driven eviction — expiration/withdrawal/display-off cache sem
     // withdrawn / display-off) …
     REMOVED_STREETS.add(target.streetNumber);
     try {
-      // … and the EXACT tag-set every converted writer now revalidates:
+      // … and the EXACT tag-set every converted writer now revalidates
+      // (buildingAndManifestInvalidationTags: listing + building + the
+      // affected manifest SHARD — the coarse search tag no longer touches
+      // manifest pages, so the shard tag is what makes the listing leave
+      // the shared manifest):
       revalidateTag("listing:" + gone);
       // Blocker-2 proof: NO memory clear here — immediate tag invalidation
       // alone must make the removed listing disappear (no cross-request
       // page memory exists to hold it).
       revalidateTag(buildingCacheTag(target.streetNumber, target.streetName, target.postalCode));
+      revalidateTag("building-manifest-shard:" + target.streetNumber.charAt(0));
       revalidateTag("search");
 
       const after = await getBuildingDataCached({ ...target, buildingName: null });

@@ -128,27 +128,38 @@ for (const route of listingRoutes) {
   });
 }
 
-// 3. Verify cron frequency for idx-sync (closed-status propagation)
+// 3. Verify cron frequency for idx-sync (closed-status propagation).
+// One Cycle W2 (2026-07-24): idx-sync is no longer a standalone cron — it is
+// the FIRST sequential member of /api/cron/one-cycle. So the frequency that
+// governs REBNY RLS §2.05 (closed within 24h) is now the one-cycle schedule.
+// Accept either the legacy standalone idx-sync cron OR the one-cycle
+// orchestrator (which drives idx-sync every run), and enforce the ≤30-min
+// freshness bound against whichever is present.
 const vercelJson = path.join(ROOT, 'vercel.json');
 if (fs.existsSync(vercelJson)) {
   const vercel = JSON.parse(fs.readFileSync(vercelJson, 'utf-8'));
-  const idxSync = (vercel.crons || []).find((c: { path: string }) => /idx-sync/.test(c.path));
-  if (!idxSync) {
+  const crons = (vercel.crons || []) as Array<{ path: string; schedule: string }>;
+  const idxSync = crons.find((c) => /idx-sync/.test(c.path));
+  const oneCycle = crons.find((c) => /one-cycle/.test(c.path));
+  const driver = idxSync ?? oneCycle;
+  if (!driver) {
     findings.push({
       file: 'vercel.json',
       kind: 'CRON_FREQUENCY',
-      detail: 'No idx-sync cron found — Trestle status changes will not propagate to DB',
+      detail:
+        'No idx-sync cron and no one-cycle orchestrator found — Trestle status changes will not propagate to DB',
     });
   } else {
-    // Schedule should run at least every 12 minutes for closed-status freshness
-    const schedule = idxSync.schedule as string;
+    // Schedule must run at least every 30 minutes for closed-status freshness.
+    const schedule = driver.schedule;
     // Crude check: must include `*/N * * * *` with N <= 30
     const m = schedule.match(/^\*\/(\d+)\s/);
     if (!m || parseInt(m[1], 10) > 30) {
+      const label = idxSync ? 'idx-sync' : 'one-cycle (drives idx-sync)';
       findings.push({
         file: 'vercel.json',
         kind: 'CRON_FREQUENCY',
-        detail: `idx-sync cron schedule "${schedule}" runs less often than every 30 min — closed listings may exceed 24h before sync`,
+        detail: `${label} cron schedule "${schedule}" runs less often than every 30 min — closed listings may exceed 24h before sync`,
       });
     }
   }

@@ -41,6 +41,19 @@ jest.mock("@/lib/idx/media-sync", () => {
   };
 });
 
+// The shared atomic claim is mocked; overlap/atomicity is covered separately in
+// one-cycle-standalone-overlap.test.ts + machine-claim.integration.test.ts.
+// Default: the claim is GRANTED (no active machine) so the happy-path tests run.
+const mockClaimMachine = jest.fn<Promise<{ ok: boolean; reason?: string }>, [unknown, unknown]>(async () => ({ ok: true }));
+const mockCompleteMachine = jest.fn<Promise<void>, [unknown, unknown]>(async () => {});
+jest.mock("@/lib/idx/machine-claim", () => ({
+  claimMachine: (db: unknown, input: unknown) => mockClaimMachine(db, input),
+  completeMachine: (db: unknown, input: unknown) => mockCompleteMachine(db, input),
+  MACHINE_STALE_MS: 300_000,
+  MACHINE_STARTED: "one_cycle_started",
+  MACHINE_COMPLETED: "one_cycle_run",
+}));
+
 // Imported AFTER mocks are wired up.
 import { GET } from "@/app/api/cron/media-sync/route";
 import { NextRequest } from "next/server";
@@ -50,6 +63,8 @@ beforeEach(() => {
   mockAuditCreate.mockReset();
   mockHasCredentials.mockReset();
   mockRunMediaSync.mockReset();
+  mockClaimMachine.mockReset().mockResolvedValue({ ok: true });
+  mockCompleteMachine.mockClear();
   process.env.CRON_SECRET = "test-secret";
 });
 
@@ -165,53 +180,97 @@ describe("GET /api/cron/media-sync — auth", () => {
 // ─── Trestle credentials gate ────────────────────────────────────────────
 
 describe("GET /api/cron/media-sync — trestle credentials gate", () => {
-  it("returns 503 when Trestle credentials are missing — no concurrency check, no sync", async () => {
+  it("returns 503 when Trestle credentials are missing — no sync work runs", async () => {
+    // W2 (2026-07-24): the route is a thin claim wrapper; the credential
+    // pre-check now lives in runMediaSyncMember and soft-fails 503 before any
+    // Trestle/R2/DB work. (The claim may be taken and released around it — that
+    // is harmless; the point is NO media sync executes.)
     mockHasCredentials.mockReturnValue(false);
     const res = await GET(authedReq());
     expect(res.status).toBe(503);
-    expect(mockAuditFindFirst).not.toHaveBeenCalled();
     expect(mockRunMediaSync).not.toHaveBeenCalled();
   });
 });
 
-// ─── Concurrency guard ───────────────────────────────────────────────────
+// ─── Machine claim (atomic overlap admission) ────────────────────────────
 
-describe("GET /api/cron/media-sync — concurrency guard", () => {
-  it("returns skipped when a media_sync_cron auditEvent exists in the last 10 minutes", async () => {
+describe("GET /api/cron/media-sync — atomic machine claim", () => {
+  it("skips (starts no work) when the shared claim is refused", async () => {
     mockHasCredentials.mockReturnValue(true);
-    mockAuditFindFirst.mockResolvedValueOnce({
-      id: 1,
-      action: "media_sync_cron",
-      created_at: new Date(),
-    });
+    mockClaimMachine.mockResolvedValue({ ok: false, reason: "overlap_in_progress" } as never);
 
     const res = await GET(authedReq());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.skipped).toBe(true);
-    expect(body.reason).toMatch(/within last 10 minutes/);
+    expect(body.reason).toMatch(/machine claim not granted/);
     expect(mockRunMediaSync).not.toHaveBeenCalled();
-    expect(mockAuditCreate).not.toHaveBeenCalled();
+    expect(mockCompleteMachine).not.toHaveBeenCalled(); // never claimed ⇒ never completes
   });
 
-  it("queries auditEvent with the correct concurrency window", async () => {
+  it("takes the standalone-media-sync claim and writes a completion in finally when granted", async () => {
     mockHasCredentials.mockReturnValue(true);
-    mockAuditFindFirst.mockResolvedValueOnce(null);
+    mockClaimMachine.mockResolvedValue({ ok: true } as never);
     mockRunMediaSync.mockResolvedValueOnce(makeRunResult());
     mockAuditCreate.mockResolvedValueOnce(undefined);
 
     await GET(authedReq());
 
-    const args = mockAuditFindFirst.mock.calls[0][0] as {
-      where: { action: string; created_at: { gte: Date } };
-      orderBy: unknown;
-    };
-    expect(args.where.action).toBe("media_sync_cron");
-    expect(args.where.created_at.gte).toBeInstanceOf(Date);
-    // Window must be exactly 10 minutes (within a few ms of now-10min).
-    const expectedGte = Date.now() - 10 * 60 * 1000;
-    const actualGte = args.where.created_at.gte.getTime();
-    expect(Math.abs(actualGte - expectedGte)).toBeLessThan(2000);
+    expect(mockClaimMachine).toHaveBeenCalledTimes(1);
+    const claimInput = mockClaimMachine.mock.calls[0][1] as { executionType: string; member: string };
+    expect(claimInput.executionType).toBe("standalone-media-sync");
+    expect(claimInput.member).toBe("media-sync");
+    expect(mockRunMediaSync).toHaveBeenCalledTimes(1);
+    expect(mockCompleteMachine).toHaveBeenCalledTimes(1);
+    expect((mockCompleteMachine.mock.calls[0][1] as { outcome: string }).outcome).toBe("success");
+  });
+});
+
+// ─── Semantic outcome: audit + completion marker are NOT derived from HTTP ────
+describe("GET /api/cron/media-sync — semantic outcome (partial / skipped)", () => {
+  const auditOutcomeFor = (action: string) =>
+    (mockAuditCreate.mock.calls
+      .map((c) => (c[0] as { data: { action: string; changes: Record<string, unknown> } }).data)
+      .find((d) => d.action === action)?.changes.outcome);
+  const markerOutcome = () => (mockCompleteMachine.mock.calls[0][1] as { outcome: string }).outcome;
+
+  beforeEach(() => {
+    mockHasCredentials.mockReturnValue(true);
+    mockClaimMachine.mockResolvedValue({ ok: true } as never);
+    mockAuditCreate.mockResolvedValue(undefined);
+  });
+
+  it("rows_failed > 0 ⇒ media_sync_cron audit outcome 'partial' (NOT 'success') and marker 'partial'", async () => {
+    // runMediaSync reports status "partial" when rows_failed>0; the member must
+    // classify that as a partial outcome, never success — even though HTTP is 200.
+    mockRunMediaSync.mockResolvedValueOnce(makeRunResult({ status: "partial", rows_failed: 3 }));
+    const res = await GET(authedReq());
+    expect(res.status).toBe(200);
+    expect(auditOutcomeFor("media_sync_cron")).toBe("partial");
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("r2_failed > 0 ⇒ audit outcome 'partial' and marker 'partial'", async () => {
+    mockRunMediaSync.mockResolvedValueOnce(makeRunResult({ status: "partial", r2_failed: 4 }));
+    await GET(authedReq());
+    expect(auditOutcomeFor("media_sync_cron")).toBe("partial");
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("a clean run (no failures) still writes audit outcome 'success' and marker 'success'", async () => {
+    mockRunMediaSync.mockResolvedValueOnce(makeRunResult());
+    await GET(authedReq());
+    expect(auditOutcomeFor("media_sync_cron")).toBe("success");
+    expect(markerOutcome()).toBe("success");
+  });
+
+  it("missing credentials ⇒ 503, member outcome 'skipped' ⇒ completion marker 'skipped' (not 'success')", async () => {
+    mockHasCredentials.mockReturnValue(false);
+    const res = await GET(authedReq());
+    expect(res.status).toBe(503);
+    expect(mockRunMediaSync).not.toHaveBeenCalled();
+    expect(mockCompleteMachine).toHaveBeenCalledTimes(1);
+    expect(markerOutcome()).toBe("skipped");
   });
 });
 
@@ -381,6 +440,17 @@ describe("GET /api/cron/media-sync — happy path", () => {
       expect(ch).toHaveProperty(k);
     }
 
+    // One Cycle W3 — adaptive-drain counters must persist (bounded values;
+    // query_path_classification is a closed enum label, never free text).
+    const w3DrainCounters = [
+      "backlog_inflow_since_last_run", "rows_selected", "rows_attempted",
+      "rows_drained", "failures", "overlap_prevented",
+      "time_budget_exhausted", "query_path_classification", "run_duration_ms",
+    ];
+    for (const k of w3DrainCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
@@ -391,8 +461,12 @@ describe("GET /api/cron/media-sync — happy path", () => {
       ...phase4Counters,
       ...w1RevalidationCounters,
       ...r21Counters,
+      ...w3DrainCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
+      // Durable Cotality usage telemetry + One Cycle run correlation (aggregate
+      // integers only; no URLs/ids — same allowlist class as the counters above).
+      "cotality", "one_cycle_run_id", "outcome",
     ]);
     for (const key of Object.keys(ch)) {
       expect(allowed.has(key)).toBe(true);

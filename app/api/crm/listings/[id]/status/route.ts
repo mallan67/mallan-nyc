@@ -2,7 +2,7 @@
 // Status state machine transition with REBNY RLS rules enforcement.
 // Includes DOM tracking per UCBA 2026 (30-day reset).
 import { NextRequest, NextResponse } from "next/server";
-import { buildingInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
@@ -263,7 +263,7 @@ export async function PATCH(
   // building + search in the same cycle.
   safeRevalidateTags([
     listingCacheTag(listing.listing_id),
-    ...buildingInvalidationTags(listing.address),
+    ...buildingAndManifestInvalidationTags(listing.address),
     SEARCH_CACHE_TAG,
   ]);
 

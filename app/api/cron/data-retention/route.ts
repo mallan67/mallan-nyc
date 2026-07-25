@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
-import { buildingInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
 
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
           ...staleClosedListings.map((l) => listingCacheTag(l.listing_id)),
           // display removal must also drop each listing from its BUILDING's
           // cached payload in the same cycle (§2.05)
-          ...buildingInvalidationTags(...staleClosedListings.map((l) => l.address)),
+          ...buildingAndManifestInvalidationTags(...staleClosedListings.map((l) => l.address)),
           SEARCH_CACHE_TAG,
         ],
         revalidation,

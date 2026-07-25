@@ -595,10 +595,19 @@ function section10() {
   const cronDir = path.join(ROOT, 'app', 'api', 'cron');
   if (!fs.existsSync(cronDir)) { critical(s, 'app/api/cron/', 'Not found'); return; }
   const routes = fs.readdirSync(cronDir, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name);
+  // One Cycle W2 (2026-07-24): idx-sync and media-sync are no longer scheduled
+  // independently — they are sequential MEMBERS of /api/cron/one-cycle (*/10).
+  // Their route files intentionally remain deployed for manual triggering, so
+  // "unscheduled" is CORRECT for them AS LONG AS one-cycle itself is scheduled
+  // (which genuinely drives them). Flagging them NOT SCHEDULED would be a false
+  // critical. Any other unscheduled route (e.g. db-keepalive) is still critical.
+  const ORCHESTRATED_MEMBERS = new Set(['idx-sync', 'media-sync']);
+  const oneCycleScheduled = scheduled.has('/api/cron/one-cycle');
   for (const r of routes) {
     const p = `/api/cron/${r}`;
     if (!fs.existsSync(path.join(cronDir, r, 'route.ts'))) { info(s, p, 'Directory but no route.ts'); continue; }
     if (scheduled.has(p)) { const c = config.crons.find(c => c.path === p); pass(s, `${p} (${c.schedule})`); }
+    else if (ORCHESTRATED_MEMBERS.has(r) && oneCycleScheduled) { pass(s, `${p} (orchestrated by /api/cron/one-cycle */10)`); }
     else critical(s, `${p} → NOT SCHEDULED`, 'Add to vercel.json or delete');
   }
   for (const p of scheduled) {

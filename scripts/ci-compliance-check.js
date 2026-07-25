@@ -348,19 +348,32 @@ if (fs.existsSync(securityHeadersPath)) {
 
 // ── 12. IDX sync cron cadence (REBNY UCBA Art. I §6 — 24-hour data freshness) ──
 // Any cadence up to daily (24h) satisfies REBNY. Flag only if truly stale (>24h).
+// One Cycle W2 (2026-07-24): idx-sync is no longer a standalone cron — it is the
+// first sequential member of /api/cron/one-cycle. So the cadence that governs
+// REBNY freshness is now the one-cycle schedule. Accept either the legacy
+// standalone idx-sync entry OR the one-cycle orchestrator, and FAIL if NEITHER
+// is present (a silent skip would drop the freshness guarantee entirely).
 if (fs.existsSync(vercelJsonPath)) {
   const vercelJson = fs.readFileSync(vercelJsonPath, 'utf8');
   const idxSyncMatch = vercelJson.match(/"\/api\/cron\/idx-sync",\s*"schedule":\s*"([^"]+)"/);
-  if (idxSyncMatch) {
-    const cron = idxSyncMatch[1];
-    // Valid cadences: */N where N <= 60 (minutes), OR anything with hour field <= 23
+  const oneCycleMatch = vercelJson.match(/"\/api\/cron\/one-cycle",\s*"schedule":\s*"([^"]+)"/);
+  const driver = idxSyncMatch
+    ? { label: 'idx-sync', cron: idxSyncMatch[1] }
+    : oneCycleMatch
+      ? { label: 'one-cycle (drives idx-sync)', cron: oneCycleMatch[1] }
+      : null;
+  if (!driver) {
+    fail('No idx-sync cron and no one-cycle orchestrator scheduled — Trestle status changes cannot propagate within REBNY 24h (UCBA Art. I §6)');
+  } else {
+    const cron = driver.cron;
+    // Valid cadences: */N minutes, every-N-hours (N<=24), OR daily-at-hour.
     const everyNmin = cron.match(/^\*\/(\d+)\s+\*\s+\*\s+\*\s+\*$/);
     const everyNhour = cron.match(/^0\s+\*\/(\d+)\s+\*\s+\*\s+\*$/);
     const dailyAtHour = cron.match(/^\d+\s+\d+\s+\*\s+\*\s+\*$/);
     if (everyNmin || (everyNhour && Number(everyNhour[1]) <= 24) || dailyAtHour) {
-      pass(`idx-sync cadence '${cron}' satisfies REBNY 24h freshness rule`);
+      pass(`${driver.label} cadence '${cron}' satisfies REBNY 24h freshness rule`);
     } else {
-      fail(`idx-sync cadence '${cron}' does not guarantee 24h data freshness (REBNY UCBA Art. I §6)`);
+      fail(`${driver.label} cadence '${cron}' does not guarantee 24h data freshness (REBNY UCBA Art. I §6)`);
     }
   }
 }

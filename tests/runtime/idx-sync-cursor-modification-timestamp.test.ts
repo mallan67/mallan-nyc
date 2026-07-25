@@ -70,7 +70,6 @@ import * as path from 'path';
 
 const SYNC_SOURCE_PATH = path.resolve(__dirname, '../../lib/idx/sync.ts');
 const VERCEL_JSON_PATH = path.resolve(__dirname, '../../vercel.json');
-const CRON_ROUTE_PATH = path.resolve(__dirname, '../../app/api/cron/idx-sync/route.ts');
 const PRISMA_SCHEMA_PATH = path.resolve(__dirname, '../../prisma/schema.prisma');
 
 /**
@@ -258,20 +257,30 @@ describe('infrastructure non-changes around PR-S.6', () => {
     crons?: Array<{ path: string; schedule: string }>;
     functions?: Record<string, { maxDuration?: number }>;
   };
-  let cronRouteSource: string;
+  let memberSource: string;
   let prismaSchema: string;
 
   beforeAll(() => {
     vercelJson = JSON.parse(readFileSync(VERCEL_JSON_PATH, 'utf8'));
-    cronRouteSource = readFileSync(CRON_ROUTE_PATH, 'utf8');
+    // W2 (2026-07-24): the maxRecords cap moved from the public route into the
+    // extracted in-process member function (lib/idx/idx-sync-member.ts).
+    memberSource = readFileSync(
+      path.resolve(__dirname, '../../lib/idx/idx-sync-member.ts'),
+      'utf8',
+    );
     prismaSchema = readFileSync(PRISMA_SCHEMA_PATH, 'utf8');
   });
 
-  it("vercel.json still contains the idx-sync cron at schedule */30 * * * *", () => {
+  it("runs idx-sync via the unified One Cycle orchestrator (*/10), not an independent */30 cron", () => {
+    // W2 unification (2026-07-24): the standalone idx-sync cron entry was
+    // replaced by /api/cron/one-cycle (*/10), which invokes idx-sync then
+    // media-sync in-process on ONE 10-minute timeline. The route stays
+    // deployed for manual triggering.
     const crons = vercelJson.crons ?? [];
-    const idxSyncCron = crons.find(c => c.path === '/api/cron/idx-sync');
-    expect(idxSyncCron).toBeDefined();
-    expect(idxSyncCron!.schedule).toBe('*/30 * * * *');
+    expect(crons.find(c => c.path === '/api/cron/idx-sync')).toBeUndefined();
+    const oneCycle = crons.find(c => c.path === '/api/cron/one-cycle');
+    expect(oneCycle).toBeDefined();
+    expect(oneCycle!.schedule).toBe('*/10 * * * *');
   });
 
   it("vercel.json does NOT contain /api/cron/media-backfill — paused for 2026-05-21 P0 Neon/media incident (PR #176)", () => {
@@ -301,26 +310,25 @@ describe('infrastructure non-changes around PR-S.6', () => {
     expect(mediaBackfillCron).toBeUndefined();
   });
 
-  it("vercel.json still contains /api/cron/media-sync at schedule 0 * * * * (hourly; approved compute-reduction cadence, PR #481 2026-07-07)", () => {
-    // /api/cron/media-sync is the PR-3 master-refactor path with
-    // retry/cooldown/tombstone guards in listing_media (see
-    // prisma/schema.prisma ListingMedia model at lines 2357-2370 and
-    // the audit-event 10-minute concurrency guard at
-    // app/api/cron/media-sync/route.ts:42-56). It must remain active
-    // after PR #176 so R2 mirroring continues. A separate follow-up
-    // (PR B, not started at PR #176 time) may later throttle this to
-    // `0,30 * * * *`; pin the current PR-#176-era schedule here so a
-    // later schedule change is detected by the test rather than
-    // silently shipping.
+  it("runs media-sync via the unified One Cycle orchestrator (*/10), not an independent hourly cron", () => {
+    // W2 unification (2026-07-24): media-sync is no longer an independent
+    // Vercel cron (was `0 * * * *`). It is the second member of
+    // /api/cron/one-cycle (*/10), invoked in-process after idx-sync so the
+    // listing→media gap closes every 10 minutes on ONE timeline. Its
+    // retry/cooldown/tombstone guards in listing_media are unchanged; its
+    // AuditEvent concurrency guard is bypassed only for the orchestrated
+    // path (the orchestrator + the drain's pg advisory lock provide overlap
+    // protection). The route stays deployed for manual triggering.
     const crons = vercelJson.crons ?? [];
-    const mediaSyncCron = crons.find(c => c.path === '/api/cron/media-sync');
-    expect(mediaSyncCron).toBeDefined();
-    expect(mediaSyncCron!.schedule).toBe('0 * * * *');
+    expect(crons.find(c => c.path === '/api/cron/media-sync')).toBeUndefined();
+    const oneCycle = crons.find(c => c.path === '/api/cron/one-cycle');
+    expect(oneCycle).toBeDefined();
+    expect(oneCycle!.schedule).toBe('*/10 * * * *');
   });
 
-  it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
-    expect(cronRouteSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
-    expect(cronRouteSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
+  it("idx-sync member still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
+    expect(memberSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
+    expect(memberSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
   });
 
   it("prisma schema still declares Listing.modification_timestamp (no schema change)", () => {

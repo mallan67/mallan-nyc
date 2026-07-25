@@ -57,9 +57,11 @@ describe('P1C5 — structural locks (secondary guards, never the only proof)', (
     expect(src).toContain('first_image_table_served');
   });
 
-  it('media-sync cron logs skipped ghosts (queued from RC5 — the JSON is returned, never logged)', () => {
+  it('media-sync member logs skipped ghosts (queued from RC5 — the JSON is returned, never logged)', () => {
+    // W2 (2026-07-24): the media-sync WORK (incl. the ghost-log line) was
+    // extracted from the public route into the in-process member function.
     const src = fs.readFileSync(
-      path.join(process.cwd(), 'app/api/cron/media-sync/route.ts'),
+      path.join(process.cwd(), 'lib/idx/media-sync-member.ts'),
       'utf8',
     );
     expect(src).toMatch(/ghost_listings_skipped > 0/);

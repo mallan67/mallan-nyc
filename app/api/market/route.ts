@@ -43,6 +43,12 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+// One Cycle W3: hard row cap for the two stats reads below. This is a
+// SAFETY BOUND, not sampling — it far exceeds the realistic gated active/
+// closed-in-period inventory, so computed stats are unchanged in practice
+// while the query can never full-scan unbounded growth (NEON-001).
+const MARKET_STATS_ROW_CAP = 5000;
+
 // In-memory cache (market data changes slowly)
 interface CacheEntry { data: unknown; expiresAt: number }
 const marketCache = new Map<string, CacheEntry>();
@@ -129,11 +135,14 @@ export async function GET(request: Request) {
       status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] },
     };
 
-    // One Cycle W1 — anonymous public read served from the tagged data
-    // cache; the sync's `search` bump (or the 30-min fallback) refreshes it.
-    // NOTE (W3, reported): this query is UNBOUNDED (no take) — the caching
-    // layer removes its per-request repetition but deliberately does not
-    // change the query itself in this PR.
+    // One Cycle W1 — anonymous public read served from the tagged data cache.
+    // The row-level sample below (for median price / PPSF / DOM) is bounded by
+    // MARKET_STATS_ROW_CAP to keep Neon from full-scanning unbounded growth
+    // (NEON-001). It is ordered by modification_timestamp DESC so the sample is
+    // DETERMINISTIC (the most-recently-updated N), never an arbitrary subset,
+    // and overflow (true count > cap) is surfaced in the response `_meta` so a
+    // bounded sample is never presented as complete. COUNTS are taken exactly
+    // via count() below — they never depend on this cap.
     const activeListings = await cachedPublicRead(
       () =>
         prisma.listing.findMany({
@@ -147,8 +156,24 @@ export async function GET(request: Request) {
             created_at: true,
             modification_timestamp: true,
           },
+          orderBy: { modification_timestamp: 'desc' },
+          take: MARKET_STATS_ROW_CAP,
         }),
       ['api-market-active', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
+
+    // EXACT counts (never truncated by the sample cap): total active, and the
+    // under-contract subset. count() is cheap and index-served.
+    const dbActiveCount = await cachedPublicRead(
+      () => prisma.listing.count({ where: activeWhere }),
+      ['api-market-active-count', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
+
+    const dbUnderContractCount = await cachedPublicRead(
+      () => prisma.listing.count({ where: { ...baseWhere, status: 'ActiveUnderContract' } }),
+      ['api-market-uc-count', cacheKey],
       { tags: [SEARCH_CACHE_TAG] },
     )();
 
@@ -234,7 +259,7 @@ export async function GET(request: Request) {
       ...trestleActive.map(r => Number(r.DaysOnMarket || 0)),
     ].filter(d => d >= 0 && d < 3650);
 
-    const totalActiveCount = activeListings.length + trestleActive.length;
+    const totalActiveCount = dbActiveCount + trestleActive.length;
 
     const activePrices = allActivePrices;
 
@@ -257,8 +282,8 @@ export async function GET(request: Request) {
       { tags: [SEARCH_CACHE_TAG] },
     )();
 
-    // Under contract count
-    const underContractCount = activeListings.filter(l => l.status === 'ActiveUnderContract').length;
+    // Under contract count — EXACT (from count(), not the capped sample).
+    const underContractCount = dbUnderContractCount;
 
     // ── Closed listings stats ──
     const closedWhere: Prisma.ListingWhereInput = {
@@ -277,8 +302,19 @@ export async function GET(request: Request) {
             features: true,
             days_on_market: true,
           },
+          // Deterministic recent sample for the sold-price / sale-to-list
+          // distributions (bounded by the same cap; counts are exact below).
+          orderBy: { modification_timestamp: 'desc' },
+          take: MARKET_STATS_ROW_CAP,
         }),
       ['api-market-closed', cacheKey],
+      { tags: [SEARCH_CACHE_TAG] },
+    )();
+
+    // EXACT closed count (never truncated by the sample cap).
+    const dbClosedCount = await cachedPublicRead(
+      () => prisma.listing.count({ where: closedWhere }),
+      ['api-market-closed-count', cacheKey],
       { tags: [SEARCH_CACHE_TAG] },
     )();
 
@@ -295,7 +331,7 @@ export async function GET(request: Request) {
       .filter(p => p > 0);
 
     const closedPrices = [...closedPricesDb, ...closedPricesTrestle];
-    const totalClosedCount = closedListings.length + trestleClosed.length;
+    const totalClosedCount = dbClosedCount + trestleClosed.length;
 
     // Sale-to-list ratio
     const saleToListRatiosDb = closedListings
@@ -379,6 +415,15 @@ export async function GET(request: Request) {
     const startDateStr = periodStart.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     const endDateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+    // Overflow disclosure: counts (totalCount / underContract) are always exact.
+    // The distribution metrics (median price / avgPricePerSqft / medianDaysOnMarket
+    // / medianSoldPrice / saleToListRatio) are computed from the bounded recent
+    // sample; when the true gated count exceeds the cap they are a SAMPLE, not the
+    // full set. Surface that explicitly so a bounded sample is never presented as
+    // complete market data.
+    const distributionsSampled =
+      dbActiveCount > MARKET_STATS_ROW_CAP || dbClosedCount > MARKET_STATS_ROW_CAP;
+
     const response = {
       success: true,
       filters: {
@@ -387,6 +432,14 @@ export async function GET(request: Request) {
         periodLabel,
         borough: borough || 'All Boroughs',
         neighborhood: neighborhood || null,
+      },
+      _meta: {
+        // 'complete' = distributions cover the full gated set; 'recent_sample' =
+        // computed from the most-recent MARKET_STATS_ROW_CAP rows (counts stay exact).
+        distributionBasis: distributionsSampled ? 'recent_sample' : 'complete',
+        distributionSampleCap: MARKET_STATS_ROW_CAP,
+        activeCountExact: dbActiveCount,
+        closedCountExact: dbClosedCount,
       },
       active: {
         totalCount: totalActiveCount,

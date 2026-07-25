@@ -27,12 +27,19 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/computeSimilarListings/);
   });
 
-  it("/api/market wraps all four Neon reads in the tagged cache", () => {
+  it("/api/market wraps every Neon read in the tagged cache", () => {
     const src = read("app/api/market/route.ts");
-    expect((src.match(/cachedPublicRead\(/g) || []).length).toBe(4);
+    // Seven tagged reads: active sample + active count + under-contract count +
+    // new-listings count + closed sample + closed count + neighborhood groupBy.
+    // (The exact count() reads were added so market COUNTS are never truncated
+    // by the MARKET_STATS_ROW_CAP sample bound — NEON-001 overflow fix.)
+    expect((src.match(/cachedPublicRead\(/g) || []).length).toBe(7);
     expect(src).toMatch(/api-market-active/);
+    expect(src).toMatch(/api-market-active-count/);
+    expect(src).toMatch(/api-market-uc-count/);
     expect(src).toMatch(/api-market-new-count/);
     expect(src).toMatch(/api-market-closed/);
+    expect(src).toMatch(/api-market-closed-count/);
     expect(src).toMatch(/api-market-neighborhoods/);
   });
 
@@ -50,9 +57,9 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/async function trestleFetchJson\(url: string\)/);
   });
 
-  it("listing detail page ISR window equals the sync cadence (literal 1800)", () => {
+  it("listing detail page ISR window equals the unified One Cycle cadence (literal 600 = 10 min)", () => {
     const src = read("app/listing/[...slug]/page.tsx");
-    expect(src).toMatch(/export const revalidate = 1800;/);
+    expect(src).toMatch(/export const revalidate = 600;/);
   });
 
   // ── Codex P2 fix: the detail page's ISR HTML itself must be tag-evictable ──
@@ -81,9 +88,9 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/unstable_cache\(async \(\) => tags/);
   });
 
-  it("the cache module defaults its fallback window to the sync cadence (30 min)", () => {
+  it("the cache module defaults its fallback window to the unified One Cycle cadence (10 min)", () => {
     const src = read("lib/cache/public-cache.ts");
-    expect(src).toMatch(/SYNC_CADENCE_SECONDS = 30 \* 60/);
+    expect(src).toMatch(/SYNC_CADENCE_SECONDS = 10 \* 60/);
     expect(src).toMatch(/unstable_cache/);
   });
 });
