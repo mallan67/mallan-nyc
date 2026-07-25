@@ -167,7 +167,7 @@ after Phase-1 evidence.
   media cause counters (`delivery_url_refreshed`, `suppressed_url_rotation_only`,
   `write_failures`) into `media_sync_cron` — `physical_writes` (=`rows_updated`) and
   `non_tombstone_rows_written` (derivable) are deliberately NOT stored (audit-growth
-  minimization); emit a flag-gated (`DIAG_RAW_DATA_KEYS=1`), top-20, names+counts-only
+  minimization); emit a flag-gated (`DIAG_RAW_DATA_KEYS_UNTIL=<future ISO timestamp>`), top-20, names+counts-only
   `raw_data` changed-key histogram to **runtime logs** (never `audit_events`) using the
   **production material comparator**; then capture **≥3 natural cycles** (no manual trigger).
 - **STOP after Phase 1 and report raw evidence.** No suppression, cleanup, route
@@ -179,7 +179,8 @@ after Phase-1 evidence.
   occurred** (`release-truth` stays `pending: deploy_pending`). An earlier statement that
   "opening the PR does not deploy" was **inaccurate** — it deploys a preview, not production.
 - **Instrumentation cost is small but NOT zero:** the 3 media counters add a few integers of
-  JSON to each `media_sync_cron` row; when `DIAG_RAW_DATA_KEYS=1` the listing path does
+  JSON to each `media_sync_cron` row; when `DIAG_RAW_DATA_KEYS_UNTIL` is a future ISO
+  timestamp the listing path does
   per-key material comparisons + one log line per cycle. It changes **no** sync/write
   decision and adds **no** new DB read (only already-selected columns), but is not literally
   free.
