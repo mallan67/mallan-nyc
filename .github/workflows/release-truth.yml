@@ -37,7 +37,13 @@ permissions:
 jobs:
   release-truth:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 15 (was 10): the armed push-to-main path WAITS for the production Vercel
+    # deployment to become READY (the verifier's bounded ~5 min poll) and then
+    # runs the smoke + aggregation, so the job needs some headroom beyond npm ci.
+    # This is only a CEILING — the job ends as soon as proof completes (ordinarily
+    # 6–8 min); GitHub does not sit idle for the rest. Non-armed / PR runs finish
+    # well inside it.
+    timeout-minutes: 15
 
     env:
       DATABASE_URL: postgresql://stub:stub@localhost:5432/stub?schema=public
@@ -91,48 +97,51 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      # P2 production hard gate — OFF until the repo variable
-      # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF is 'true' (Maya's decision).
-      # SECRET SCOPING (strict): VERCEL_TOKEN exists ONLY in this step, and
-      # this step runs ONLY on push to refs/heads/main. It can NEVER run on
-      # pull_request events, and workflow_dispatch runs (which may check out
-      # an arbitrary inputs.sha / inputs.pr revision) NEVER receive the
-      # token either — manual dispatch stays advisory and token-free, so
-      # non-main code is never executed with the Vercel token.
-      - name: Verify production alias deployment (gated, push-to-main only)
-        id: prodverify
-        if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # Phase 1 — TOKEN-FREE production identity proof. Asks mallan.nyc ITSELF
+      # (GET /api/release-identity) which commit + deployment it is serving; a
+      # MATCH proves alias ownership BY CONSTRUCTION (the workflow queried the
+      # alias directly). No Vercel API token, no VERCEL_TEAM_ID, no
+      # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF variable, no secret at all. Runs on
+      # push-to-main OR manual dispatch — both safe (read-only public GET).
+      - name: Verify production identity — phase 1 (public proof, no token)
+        id: verify
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set +e
-          # --json: stdout is EXACTLY one JSON document; progress goes to
-          # stderr (preserved below). mallan.nyc must be served by a READY
-          # deployment built from the target SHA with proven alias ownership.
-          node scripts/release-safety/verify-deployment-sha.js --expected-sha "$TARGET_SHA" --json > deploy-proof.json 2> deploy-proof.stderr
+          # --json: stdout is EXACTLY one JSON document; progress → stderr. The
+          # verifier's DEFAULT bounded poll (10 × 30s ≈ 5 min) WAITS for the
+          # pushed deploy to become the one serving mallan.nyc — a push-to-main
+          # fires this concurrently with the Vercel build, which normally
+          # finishes inside that window. FAIL-CLOSED: still non-MATCH after ~5
+          # min → status pending/failure, retriable (do NOT raise the poll to
+          # mask a slow/missing deploy).
+          node scripts/release-safety/verify-release-identity.js --expected-sha "$TARGET_SHA" --base-url https://mallan.nyc --json > deploy-proof.json 2> deploy-proof.stderr
           rc=$?
           cat deploy-proof.stderr >&2
-          # STRICT proof validation — the gate accepts the file only when the
-          # verifier exited 0 AND every identity field checks out; anything
-          # else discards the proof and fails the gate (rc=4).
+          # STRICT proof validation — accept ONLY a MATCH whose every identity
+          # field checks out: dpl_ deployment id, deployed_sha === target,
+          # target_env === production, alias host mallan.nyc. Anything else
+          # discards the proof and fails closed.
           node -e '
             const fs = require("fs");
             const target = (process.env.TARGET_SHA || "").toLowerCase();
             const d = JSON.parse(fs.readFileSync("deploy-proof.json", "utf8"));
             const problems = [];
             if (d.verdict !== "MATCH") problems.push("verdict=" + d.verdict);
-            if (!d.deployment_id || typeof d.deployment_id !== "string") problems.push("deployment_id missing");
+            if (!/^dpl_[A-Za-z0-9]+$/.test(d.deployment_id || "")) problems.push("deployment_id not a dpl_ id");
             if ((d.expected_sha || "").toLowerCase() !== target) problems.push("expected_sha mismatch");
             if ((d.deployed_sha || "").toLowerCase() !== target) problems.push("deployed_sha mismatch");
+            if (d.target_env !== "production") problems.push("target_env=" + d.target_env);
             if (d.alias_host !== "mallan.nyc") problems.push("alias_host=" + d.alias_host);
             if (!Array.isArray(d.aliases) || !d.aliases.includes("mallan.nyc")) problems.push("aliases lack mallan.nyc");
             if (problems.length > 0) { console.error("proof rejected: " + problems.join("; ")); process.exit(1); }
-            console.log("alias verifier proof accepted: " + d.deployment_id + " @ " + d.deployed_sha);
+            console.log("identity proof accepted: " + d.deployment_id + " @ " + d.deployed_sha + " (" + d.target_env + ")");
           '
           check_rc=$?
           if [ $rc -ne 0 ] || [ $check_rc -ne 0 ]; then
-            echo "deploy proof invalid or verifier failed (verifier rc=$rc, proof check rc=$check_rc) — discarding deploy-proof.json" >&2
+            echo "identity proof invalid (verifier rc=$rc, check rc=$check_rc) — discarding deploy-proof.json" >&2
             rm -f deploy-proof.json
             [ $rc -eq 0 ] && rc=4
           fi
@@ -141,19 +150,92 @@ jobs:
           # status post, and summary still run and stay honest.
           exit 0
 
+      # Runtime smoke evidence. PROD_PROVEN requires BOTH a deploy proof AND
+      # runtime smoke — this supplies the smoke the workflow previously never
+      # ran. Runs ONLY when phase 1 produced a VALIDATED deploy-proof.json (rc=0
+      # ⇒ mallan.nyc serves the target SHA in production); probes mallan.nyc via
+      # listing-smoke.js bound to the SAME SHA and the deployment_id phase 1
+      # matched. No token needed. Non-fatal: a failing smoke still writes
+      # smoke.json (passed:false) so the aggregator returns an honest not-proven
+      # verdict and the status stays pending/failure — never a false green.
+      - name: Run listing smoke against production
+        # Event-gated FIRST (a skipped verify leaves outputs.rc = '' and GitHub
+        # coerces '' == '0' to a numeric 0 == 0 = TRUE, which would wrongly run
+        # this on PRs). Production proof only runs on push-to-main / dispatch.
+        id: smoke
+        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && steps.verify.outputs.rc == '0'
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set +e
+          if [ ! -f deploy-proof.json ]; then
+            echo "no validated deploy-proof.json — skipping smoke (aggregator stays UNVERIFIED)" >&2
+            exit 0
+          fi
+          DEPLOYMENT_ID=$(jq -r '.deployment_id // empty' deploy-proof.json)
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "deploy-proof.json has no deployment_id — cannot bind smoke; skipping" >&2
+            exit 0
+          fi
+          # stdout is EXACTLY one JSON document (the evidence); progress → stderr.
+          node scripts/release-safety/listing-smoke.js \
+            --base-url https://mallan.nyc \
+            --expected-sha "$TARGET_SHA" \
+            --deployment-id "$DEPLOYMENT_ID" \
+            > smoke.json 2> smoke.stderr
+          srr=$?
+          cat smoke.stderr >&2
+          echo "smoke_rc=$srr" >> "$GITHUB_OUTPUT"
+          # Keep smoke.json regardless of pass/fail so the aggregator's smoke
+          # layer decides honestly (PROD_PROVEN needs passed===true, bound to the
+          # deploy proof's SHA + deployment). This step never fails the run.
+          exit 0
+
+      # Phase 2 — reconfirm the SAME deployment STILL serves the alias AFTER the
+      # smoke. listing-smoke records --deployment-id verbatim, so without this an
+      # A→B alias switch DURING the smoke window could bind B's responses to A's
+      # id and publish a FALSE PROD_PROVEN (Codex TOCTOU finding on #565). Re-GET
+      # /api/release-identity and REQUIRE the same sha + deployment id + still
+      # production; ANY change discards BOTH proofs so the aggregator cannot reach
+      # PROD_PROVEN (fail closed) and the gate step below fails the run.
+      - name: Reconfirm production identity — phase 2 (post-smoke)
+        # Event-gated (same '' == '0' coercion guard as the smoke step).
+        id: reconfirm
+        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && steps.verify.outputs.rc == '0'
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set +e
+          node scripts/release-safety/verify-release-identity.js --expected-sha "$TARGET_SHA" --base-url https://mallan.nyc --json --reconfirm deploy-proof.json > reconfirm.json 2> reconfirm.stderr
+          rrc=$?
+          cat reconfirm.stderr >&2
+          if [ $rrc -ne 0 ]; then
+            echo "post-smoke reconfirm FAILED — alias identity changed during the smoke window; discarding proofs (fail closed)" >&2
+            rm -f deploy-proof.json smoke.json
+          fi
+          echo "reconfirm_rc=$rrc" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Run release-truth aggregator
         id: aggregator
         run: |
           set +e
-          # When the gated step above produced a VALIDATED deploy-proof.json,
-          # feed it to the aggregator; the verdict stays honest either way:
-          # PROD_PROVEN additionally requires runtime smoke evidence
-          # (--smoke-evidence, runbook-supplied), so the advisory verdict here
-          # reads UNVERIFIED until then. PR events are NEVER production-gated
-          # (advisory only; they evaluate via --pr and cap at PREVIEW_PROVEN).
+          # Feed the aggregator BOTH proofs when they survived: the phase-1
+          # deploy-proof.json (mallan.nyc serves the target SHA in production)
+          # AND smoke.json (listing-smoke bound to that exact SHA + deployment).
+          # Phase 2 DELETES both if the alias identity changed during the smoke
+          # window, so an absent file here is itself the fail-closed signal.
+          # PROD_PROVEN requires BOTH present + bound; with either missing the
+          # verdict stays UNVERIFIED (status pending). Previously the workflow
+          # passed only --deploy-proof and never ran the smoke, so it could never
+          # reach PROD_PROVEN — this wires the missing evidence. PR events are
+          # NEVER production-gated (advisory only; --pr caps at PREVIEW_PROVEN).
           extra=""
           if [ -f deploy-proof.json ]; then
-            extra="--deploy-proof deploy-proof.json"
+            extra="$extra --deploy-proof deploy-proof.json"
+          fi
+          if [ -f smoke.json ]; then
+            extra="$extra --smoke-evidence smoke.json"
           fi
           # Single aggregator execution: one JSON, stderr preserved. Logs,
           # status, and summary all render from this SAME JSON.
@@ -259,9 +341,17 @@ jobs:
 
       - name: Enforce production gate
         # Runs LAST so the aggregator verdict, commit status, and summary are
-        # always published first. Fails the run when the gated alias
-        # verification step ran and did not end in MATCH.
-        if: steps.prodverify.outputs.rc != '' && steps.prodverify.outputs.rc != '0'
+        # always published first. Fails the run when phase-1 identity did not
+        # MATCH, OR the phase-2 post-smoke reconfirm rejected (alias identity
+        # changed during the smoke window). Either way the proofs were discarded
+        # and the status is pending/failure — this makes the RUN fail-closed too,
+        # so a slow/missing/switched deploy is visible and retriable.
+        # Event-gated so PR / non-main events never reach the fail branch (they
+        # skip the production-proof steps entirely and stay advisory/pending).
+        if: >-
+          ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') &&
+          ((steps.verify.outputs.rc != '' && steps.verify.outputs.rc != '0') ||
+           (steps.reconfirm.outputs.reconfirm_rc != '' && steps.reconfirm.outputs.reconfirm_rc != '0'))
         run: |
-          echo "Production alias verification FAILED (verifier exit ${{ steps.prodverify.outputs.rc }}) — failing the gated run"
+          echo "Production identity gate FAILED (phase-1 rc='${{ steps.verify.outputs.rc }}', phase-2 reconfirm rc='${{ steps.reconfirm.outputs.reconfirm_rc }}') — failing the run"
           exit 1

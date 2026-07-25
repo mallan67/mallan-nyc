@@ -194,49 +194,45 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).toContain("prNum ? 'DEPLOY_PREVIEW' : 'DEPLOY_PASS'");
   });
 
-  test('the workflow invokes the alias-aware verifier for the production gate and runs the aggregator ONCE', () => {
-    expect(workflow).toContain('verify-deployment-sha.js');
+  test('the workflow invokes the TOKEN-FREE identity verifier for the production gate and runs the aggregator ONCE', () => {
+    // W3 (2026-07-25): the token-based alias verifier was replaced by the
+    // token-free public-endpoint verifier. Proof comes from asking mallan.nyc
+    // itself (GET /api/release-identity) — no Vercel API token.
+    expect(workflow).toContain('verify-release-identity.js');
+    expect(workflow).toContain('/api/release-identity');
+    expect(workflow).not.toContain('verify-deployment-sha.js');
     expect(workflow).toContain('--deploy-proof deploy-proof.json');
     // the verifier runs in --json machine mode with stderr preserved:
-    expect(workflow).toMatch(/verify-deployment-sha\.js[^\n]*--json > deploy-proof\.json 2> deploy-proof\.stderr/);
+    expect(workflow).toMatch(/verify-release-identity\.js[^\n]*--json > deploy-proof\.json 2> deploy-proof\.stderr/);
     // exactly ONE aggregator execution (single JSON source of truth):
     const invocations = workflow.match(/node scripts\/release-truth-check\.js/g) || [];
     expect(invocations).toHaveLength(1);
     // the aggregator's stderr is preserved to a file (never sent to /dev/null):
     expect(workflow).toMatch(/release-truth-check\.js[^\n]*2> release-truth\.stderr/);
     expect(workflow).not.toMatch(/release-truth-check\.js[^\n]*2>\/dev\/null/);
-    // strict proof validation lives in the gated step:
+    // strict proof validation lives in the verify step:
     expect(workflow).toContain('proof rejected');
     expect(workflow).toContain('deployed_sha mismatch');
   });
 
-  test('VERCEL_TOKEN is reachable ONLY on push to refs/heads/main (not PRs, not dispatch)', () => {
-    // Exactly ONE secret reference in the whole workflow file …
-    const secretRefs = workflow.match(/secrets\.VERCEL_TOKEN/g) || [];
-    expect(secretRefs).toHaveLength(1);
-    // … inside the prodverify step:
-    const prodverifyStart = workflow.indexOf('id: prodverify');
-    const aggregatorStart = workflow.indexOf('id: aggregator');
-    const secretPos = workflow.indexOf('secrets.VERCEL_TOKEN');
-    expect(prodverifyStart).toBeGreaterThan(-1);
-    expect(secretPos).toBeGreaterThan(prodverifyStart);
-    expect(secretPos).toBeLessThan(aggregatorStart);
-    // … and NOTHING from the aggregator step onward carries the token:
-    expect(workflow.slice(aggregatorStart)).not.toContain('VERCEL_TOKEN');
-    // The ONLY path to the secret-bearing step is push to refs/heads/main:
-    // pull_request events fail `event_name == 'push'`; workflow_dispatch runs
-    // (with arbitrary inputs.sha or inputs.pr checkouts) also fail it — so
-    // neither can ever receive the token.
-    const guard = "if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'";
-    const guardPos = workflow.indexOf(guard);
-    expect(guardPos).toBeGreaterThan(prodverifyStart);
-    expect(guardPos).toBeLessThan(secretPos);
-    // No alternative guard mentions the secret step; the old broad guard is gone:
-    expect(workflow).not.toContain("github.event_name != 'pull_request'");
-    // The token env assignment is bound to the SAME step as the guard
-    // (no other env block between guard and secret):
-    const between = workflow.slice(guardPos, secretPos);
-    expect(between.match(/- name:/g)).toBeNull();
+  test('the workflow references NO Vercel secret or private-credential gate (fully token-free)', () => {
+    // The whole point of the redesign: GitHub Actions stays independent of any
+    // private Vercel credential. No token, no team id, no arming variable.
+    expect(workflow).not.toMatch(/secrets\.VERCEL_TOKEN/);
+    expect(workflow).not.toMatch(/vars\.VERCEL_TEAM_ID/);
+    expect(workflow).not.toMatch(/vars\.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF/);
+    // The production proof runs on push-to-main OR a manual dispatch (both are
+    // safe: read-only public GETs) — no secret-scoping guard is needed.
+    expect(workflow).toMatch(/github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
+  });
+
+  test('the production proof is TWO-PHASE: pre-smoke MATCH then post-smoke reconfirm (TOCTOU guard)', () => {
+    // phase 1 verify → smoke → phase 2 reconfirm, in that order.
+    expect(workflow).toMatch(/verify-release-identity\.js[\s\S]*listing-smoke\.js[\s\S]*--reconfirm deploy-proof\.json/);
+    // a reconfirm rejection discards BOTH proofs (fail closed):
+    expect(workflow).toContain('rm -f deploy-proof.json smoke.json');
+    // the enforce-gate fails the run on a phase-1 non-MATCH OR a phase-2 reject:
+    expect(workflow).toContain('reconfirm_rc');
   });
 
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {
