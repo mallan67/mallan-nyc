@@ -37,7 +37,13 @@ permissions:
 jobs:
   release-truth:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 15 (was 10): the armed push-to-main path WAITS for the production Vercel
+    # deployment to become READY (the verifier's bounded ~5 min poll) and then
+    # runs the smoke + aggregation, so the job needs some headroom beyond npm ci.
+    # This is only a CEILING — the job ends as soon as proof completes (ordinarily
+    # 6–8 min); GitHub does not sit idle for the rest. Non-armed / PR runs finish
+    # well inside it.
+    timeout-minutes: 15
 
     env:
       DATABASE_URL: postgresql://stub:stub@localhost:5432/stub?schema=public
@@ -104,12 +110,24 @@ jobs:
         if: vars.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Optional: only needed if VERCEL_TOKEN is not already team-scoped to
+          # the project's team. Empty when the repo variable is unset, which the
+          # verifier treats as "no teamId" — harmless.
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set +e
           # --json: stdout is EXACTLY one JSON document; progress goes to
           # stderr (preserved below). mallan.nyc must be served by a READY
           # deployment built from the target SHA with proven alias ownership.
+          # The verifier's DEFAULT bounded poll (10 × 30s ≈ 5 min) lets it WAIT
+          # for the matching production deployment to become READY — a
+          # push-to-main fires this workflow concurrently with the Vercel build,
+          # which normally finishes inside that window. FAIL-CLOSED by design: a
+          # deployment still not READY/matching after ~5 min yields a non-MATCH
+          # verdict (status pending/failure) to be retried, rather than hanging
+          # the release-proof worker. (Do NOT raise the poll to mask a slow or
+          # missing deploy.)
           node scripts/release-safety/verify-deployment-sha.js --expected-sha "$TARGET_SHA" --json > deploy-proof.json 2> deploy-proof.stderr
           rc=$?
           cat deploy-proof.stderr >&2
@@ -141,19 +159,64 @@ jobs:
           # status post, and summary still run and stay honest.
           exit 0
 
+      # Runtime smoke evidence (gated, push-to-main only). PROD_PROVEN requires
+      # BOTH a deploy proof AND runtime smoke — this step supplies the smoke the
+      # workflow previously never ran. Runs ONLY when the verifier produced a
+      # VALIDATED deploy-proof.json (rc=0 ⇒ the production alias serves the target
+      # SHA and is READY); probes mallan.nyc via listing-smoke.js bound to the
+      # SAME SHA and the deployment_id the verifier matched. No Vercel token
+      # needed (HTTP probes only). Non-fatal: a failing smoke still writes
+      # smoke.json (passed:false) so the aggregator returns an honest not-proven
+      # verdict and the status stays pending/failure — never a false green.
+      - name: Run listing smoke against production (gated, push-to-main only)
+        id: smoke
+        if: steps.prodverify.outputs.rc == '0'
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set +e
+          if [ ! -f deploy-proof.json ]; then
+            echo "no validated deploy-proof.json — skipping smoke (aggregator stays UNVERIFIED)" >&2
+            exit 0
+          fi
+          DEPLOYMENT_ID=$(jq -r '.deployment_id // empty' deploy-proof.json)
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "deploy-proof.json has no deployment_id — cannot bind smoke; skipping" >&2
+            exit 0
+          fi
+          # stdout is EXACTLY one JSON document (the evidence); progress → stderr.
+          node scripts/release-safety/listing-smoke.js \
+            --base-url https://mallan.nyc \
+            --expected-sha "$TARGET_SHA" \
+            --deployment-id "$DEPLOYMENT_ID" \
+            > smoke.json 2> smoke.stderr
+          srr=$?
+          cat smoke.stderr >&2
+          echo "smoke_rc=$srr" >> "$GITHUB_OUTPUT"
+          # Keep smoke.json regardless of pass/fail so the aggregator's smoke
+          # layer decides honestly (PROD_PROVEN needs passed===true, bound to the
+          # deploy proof's SHA + deployment). This step never fails the run.
+          exit 0
+
       - name: Run release-truth aggregator
         id: aggregator
         run: |
           set +e
-          # When the gated step above produced a VALIDATED deploy-proof.json,
-          # feed it to the aggregator; the verdict stays honest either way:
-          # PROD_PROVEN additionally requires runtime smoke evidence
-          # (--smoke-evidence, runbook-supplied), so the advisory verdict here
-          # reads UNVERIFIED until then. PR events are NEVER production-gated
-          # (advisory only; they evaluate via --pr and cap at PREVIEW_PROVEN).
+          # Feed the aggregator BOTH proofs when the gated steps produced them:
+          # the VALIDATED deploy-proof.json (production alias serves the target
+          # SHA, READY) AND smoke.json (listing-smoke bound to that exact SHA +
+          # deployment). PROD_PROVEN requires BOTH; with either missing the
+          # verdict stays UNVERIFIED (status pending), fail-closed. Previously the
+          # workflow passed only --deploy-proof and never ran the smoke, so it
+          # could never reach PROD_PROVEN — this wires the missing evidence. PR
+          # events are NEVER production-gated (advisory only; --pr caps at
+          # PREVIEW_PROVEN).
           extra=""
           if [ -f deploy-proof.json ]; then
-            extra="--deploy-proof deploy-proof.json"
+            extra="$extra --deploy-proof deploy-proof.json"
+          fi
+          if [ -f smoke.json ]; then
+            extra="$extra --smoke-evidence smoke.json"
           fi
           # Single aggregator execution: one JSON, stderr preserved. Logs,
           # status, and summary all render from this SAME JSON.
