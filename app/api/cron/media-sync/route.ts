@@ -13,7 +13,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hasCredentials } from "@/lib/idx/auth";
 import { runMediaSync } from "@/lib/idx/media-sync";
-import { resetCotalityTelemetry, snapshotCotalityTelemetry } from "@/lib/idx/cotality-telemetry";
+import {
+  createCotalityCollector,
+  runWithCotalityTelemetry,
+  snapshotCollector,
+} from "@/lib/idx/cotality-telemetry";
+import { isOneCycleActive } from "@/lib/idx/one-cycle-active";
 
 export const maxDuration = 120;
 
@@ -59,6 +64,16 @@ export async function GET(req: NextRequest) {
     !!memberToken &&
     memberToken.length === cronSecret.length &&
     timingSafeEqual(Buffer.from(memberToken), Buffer.from(cronSecret));
+
+  // Machine-overlap guard: a standalone / manual invocation must NOT run while
+  // One Cycle is mid-cycle. The orchestrated call is exempt — it IS the machine.
+  if (!orchestrated && (await isOneCycleActive(prisma))) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "blocked: One Cycle is active — standalone media-sync must not overlap the machine",
+    });
+  }
+
   if (!orchestrated) {
     const recent = await prisma.auditEvent.findFirst({
       where: {
@@ -77,12 +92,14 @@ export async function GET(req: NextRequest) {
 
   // Correlate durable Cotality telemetry with the One Cycle run (when orchestrated).
   const oneCycleRunId = req.headers.get("x-one-cycle-run-id");
-  resetCotalityTelemetry();
+  // Run-scoped, isolated collector — concurrent Cotality calls in other async
+  // contexts cannot alter these counters.
+  const cotalityCollector = createCotalityCollector("media-sync", oneCycleRunId);
 
   // 4. Run sync. Failure here writes the error audit event; the cursor is
   // NOT advanced inside `runMediaSync()` on the error path.
   try {
-    const result = await runMediaSync();
+    const result = await runWithCotalityTelemetry(cotalityCollector, () => runMediaSync());
 
     // Audit changes payload — explicit field list (NOT a spread of `result`)
     // so internal fields can never accidentally leak. Includes the Phase 3
@@ -201,8 +218,9 @@ export async function GET(req: NextRequest) {
           duration_ms: result.duration_ms,
           // Durable Cotality usage telemetry (media-resource requests/pages,
           // token, retries, 429s, latency), correlated with the One Cycle run.
+          outcome: "success",
           one_cycle_run_id: oneCycleRunId,
-          cotality: snapshotCotalityTelemetry() as unknown as Record<string, number>,
+          cotality: snapshotCollector(cotalityCollector) as unknown as Record<string, number>,
           ...(result.error ? { error: result.error } : {}),
         },
       },
@@ -231,7 +249,14 @@ export async function GET(req: NextRequest) {
           entity_id: "bulk",
           user_type: "system",
           user_id: null,
-          changes: { error: msg },
+          // Telemetry persists on FAILURE too — 429 / retry / token refresh /
+          // timeout / thrown request stays visible in the durable error audit.
+          changes: {
+            error: msg,
+            outcome: "error",
+            one_cycle_run_id: oneCycleRunId,
+            cotality: snapshotCollector(cotalityCollector) as unknown as Record<string, number>,
+          },
         },
       })
       .catch(() => {

@@ -635,6 +635,11 @@ async function fetchPage(
           : null,
     });
     return response;
+  } catch (err) {
+    // A call that THREW before returning a Response (network error / abort /
+    // timeout) still counts as an attempted Cotality request + its latency.
+    recordCotalityHttp({ url, durationMs: Date.now() - t0, status: 0 });
+    throw err;
   } finally {
     clearTimeout(timeoutId);
   }

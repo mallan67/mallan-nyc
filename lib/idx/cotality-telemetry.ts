@@ -1,28 +1,35 @@
 /**
- * Cotality (Trestle) request telemetry — durable, queryable usage counters.
+ * Cotality (Trestle) request telemetry — RUN-SCOPED via AsyncLocalStorage.
  *
- * Purpose: make the Cotality API load MEASURABLE now that One Cycle runs the
- * feed/media members every 10 minutes (IDX 48→144/day, media 24→144/day). The
- * fetch/auth layer increments a per-run singleton; the idx-sync / media-sync
- * cron routes RESET it before their work and SNAPSHOT it after, writing the
- * snapshot into their durable audit event (idx_sync_cron / media_sync_cron)
- * correlated with the One Cycle run_id.
+ * Purpose: make the per-sync-member Cotality API load MEASURABLE (idx-sync /
+ * media-sync run every 10 minutes under One Cycle). Each member invocation runs
+ * its work inside `runWithCotalityTelemetry(collector, fn)`; the fetch/auth
+ * layer increments the CURRENT context's collector. The member route snapshots
+ * the collector into its durable audit event, correlated with the One Cycle
+ * run_id.
+ *
+ * ISOLATION (why AsyncLocalStorage, not a module singleton): a concurrent
+ * public page render, a manual trigger, or any other Cotality caller runs in a
+ * DIFFERENT async context — its record* calls resolve to a DIFFERENT collector
+ * (or none) and CANNOT alter a sync member's counters. A caller outside any
+ * telemetry context is a no-op (never contaminates an active member context).
  *
  * Safety: this module ONLY counts. It never changes the Cotality endpoint,
- * credentials, mapping, filters, or authorization contract. The singleton is
- * safe because sync runs are strictly sequential (One Cycle awaits idx before
- * media; the overlap guard prevents concurrent cycles) — reset/snapshot bracket
- * each member's work.
+ * credentials, mapping, filters, or authorization contract.
+ *
+ * SCOPE NOTE: the counters are PER-MEMBER (the sync member's own Cotality
+ * volume), NOT a system-wide total across every live Cotality caller.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface CotalityCounters {
   /** Logical property fetch operations (fetchFromTrestle / single / by-address). */
   property_requests: number;
-  /** HTTP pages fetched against the Property resource. */
+  /** HTTP pages fetched against the Property resource (incl. thrown attempts). */
   property_pages: number;
   /** Logical media fetch operations (fetchListingMedia). */
   media_requests: number;
-  /** HTTP pages fetched against the Media resource. */
+  /** HTTP pages fetched against the Media resource (incl. thrown attempts). */
   media_pages: number;
   /** OAuth token-endpoint calls. */
   token_requests: number;
@@ -32,12 +39,20 @@ export interface CotalityCounters {
   retries: number;
   /** HTTP 429 responses observed. */
   http_429_count: number;
-  /** Max Retry-After (seconds) observed on a 429, if the header was supplied. */
+  /** Max Retry-After (seconds) observed on a 429, if supplied. */
   retry_after_seconds: number;
-  /** Total wall-clock spent in Cotality HTTP calls (ms). */
+  /** Total wall-clock in Cotality HTTP calls (ms) — incl. calls that threw. */
   cotality_duration_ms: number;
-  /** Every HTTP call to Cotality (property + media + token). */
+  /** Every attempted HTTP call to Cotality (property + media + token), incl.
+   *  attempts that threw before returning a Response. */
   total_cotality_requests: number;
+}
+
+/** One isolated collector per member invocation. */
+export interface CotalityCollector {
+  member: string;
+  one_cycle_run_id: string | null;
+  counters: CotalityCounters;
 }
 
 function zero(): CotalityCounters {
@@ -56,22 +71,39 @@ function zero(): CotalityCounters {
   };
 }
 
-let counters: CotalityCounters = zero();
+const als = new AsyncLocalStorage<CotalityCollector>();
 
-/** Reset counters at the start of a member's Cotality work. */
-export function resetCotalityTelemetry(): void {
-  counters = zero();
+/** Create a fresh, isolated collector for one member invocation. */
+export function createCotalityCollector(
+  member: string,
+  oneCycleRunId: string | null,
+): CotalityCollector {
+  return { member, one_cycle_run_id: oneCycleRunId, counters: zero() };
 }
 
-/** Immutable snapshot of the current counters (for the member audit event). */
-export function snapshotCotalityTelemetry(): CotalityCounters {
-  return { ...counters };
+/** Run `fn` (the member's work) with `collector` as the active telemetry context. */
+export function runWithCotalityTelemetry<T>(
+  collector: CotalityCollector,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return als.run(collector, fn);
+}
+
+/** Immutable snapshot of a collector (call after the run — success OR error). */
+export function snapshotCollector(collector: CotalityCollector): CotalityCounters {
+  return { ...collector.counters };
+}
+
+/** The current context's counters, or null when called outside any member run. */
+function current(): CotalityCounters | null {
+  const c = als.getStore();
+  return c ? c.counters : null;
 }
 
 /**
- * Record one raw Cotality HTTP call. `url` decides property vs media pages
- * (the Media resource path is `/odata/Media`). 429s are counted and the
- * Retry-After (seconds) is captured when present.
+ * Record one raw Cotality HTTP call. `status === 0` marks an attempt that THREW
+ * before returning a Response (network error / abort / timeout) — still counted
+ * toward total + duration + pages. `url` decides property vs media pages.
  */
 export function recordCotalityHttp(args: {
   url: string;
@@ -79,43 +111,51 @@ export function recordCotalityHttp(args: {
   status: number;
   retryAfterSeconds?: number | null;
 }): void {
-  counters.total_cotality_requests++;
-  counters.cotality_duration_ms += Math.max(0, Math.round(args.durationMs));
+  const c = current();
+  if (!c) return; // outside a member context — never contaminate
+  c.total_cotality_requests++;
+  c.cotality_duration_ms += Math.max(0, Math.round(args.durationMs));
   if (/\/odata\/Media(\?|$|\/)/i.test(args.url)) {
-    counters.media_pages++;
+    c.media_pages++;
   } else {
-    counters.property_pages++;
+    c.property_pages++;
   }
   if (args.status === 429) {
-    counters.http_429_count++;
+    c.http_429_count++;
     if (
       typeof args.retryAfterSeconds === 'number' &&
       Number.isFinite(args.retryAfterSeconds) &&
-      args.retryAfterSeconds > counters.retry_after_seconds
+      args.retryAfterSeconds > c.retry_after_seconds
     ) {
-      counters.retry_after_seconds = args.retryAfterSeconds;
+      c.retry_after_seconds = args.retryAfterSeconds;
     }
   }
 }
 
 export function recordPropertyRequest(): void {
-  counters.property_requests++;
+  const c = current();
+  if (c) c.property_requests++;
 }
 export function recordMediaRequest(): void {
-  counters.media_requests++;
+  const c = current();
+  if (c) c.media_requests++;
 }
 /** A token-endpoint call (also counts toward total + duration). */
 export function recordTokenRequest(durationMs: number): void {
-  counters.token_requests++;
-  counters.total_cotality_requests++;
-  counters.cotality_duration_ms += Math.max(0, Math.round(durationMs));
+  const c = current();
+  if (!c) return;
+  c.token_requests++;
+  c.total_cotality_requests++;
+  c.cotality_duration_ms += Math.max(0, Math.round(durationMs));
 }
 /** A forced token re-acquisition (cache invalidated after a 401). */
 export function recordTokenRefresh(): void {
-  counters.token_refreshes++;
+  const c = current();
+  if (c) c.token_refreshes++;
 }
 export function recordRetry(): void {
-  counters.retries++;
+  const c = current();
+  if (c) c.retries++;
 }
 
 /** Parse a Retry-After header (seconds form) → seconds, or null. */

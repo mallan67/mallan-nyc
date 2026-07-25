@@ -6,7 +6,12 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
-import { resetCotalityTelemetry, snapshotCotalityTelemetry } from "@/lib/idx/cotality-telemetry";
+import {
+  createCotalityCollector,
+  runWithCotalityTelemetry,
+  snapshotCollector,
+} from "@/lib/idx/cotality-telemetry";
+import { isOneCycleActive } from "@/lib/idx/one-cycle-active";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -46,6 +51,18 @@ export async function GET(req: NextRequest) {
     !!memberToken &&
     memberToken.length === cronSecret.length &&
     timingSafeEqual(Buffer.from(memberToken), Buffer.from(cronSecret));
+
+  // Machine-overlap guard: a standalone / manual invocation (INCLUDING
+  // ?full=true) must NOT run while One Cycle is mid-cycle (a one_cycle_started
+  // with no matching one_cycle_run). The orchestrated call itself is exempt —
+  // it IS the machine. This runs before, and independent of, the ?full bypass.
+  if (!orchestrated && (await isOneCycleActive(prisma))) {
+    return NextResponse.json({
+      skipped: true,
+      reason: "blocked: One Cycle is active — standalone idx-sync must not overlap the machine",
+    });
+  }
+
   if (!forceFull && !orchestrated) {
     const recentSync = await prisma.auditEvent.findFirst({
       where: {
@@ -61,7 +78,9 @@ export async function GET(req: NextRequest) {
 
   // Correlate durable Cotality telemetry with the One Cycle run (when orchestrated).
   const oneCycleRunId = req.headers.get("x-one-cycle-run-id");
-  resetCotalityTelemetry();
+  // Run-scoped, isolated collector — concurrent public/manual Cotality calls in
+  // other async contexts cannot alter these counters.
+  const cotalityCollector = createCotalityCollector("idx-sync", oneCycleRunId);
 
   try {
     const since = forceFull ? null : await getLastSyncTimestamp();
@@ -95,11 +114,15 @@ export async function GET(req: NextRequest) {
     // cost so a higher cap becomes safe).
     const SCHEDULED_MAX_RECORDS = 500;
 
-    const result = await syncListings({
-      since: since || undefined,
-      maxRecords: SCHEDULED_MAX_RECORDS,
-      fullSync: forceFull || !since, // Full sync if forced or no previous sync
-    });
+    // All Cotality fetches inside syncListings run within the isolated
+    // telemetry context so their counters attribute to THIS member run.
+    const result = await runWithCotalityTelemetry(cotalityCollector, () =>
+      syncListings({
+        since: since || undefined,
+        maxRecords: SCHEDULED_MAX_RECORDS,
+        fullSync: forceFull || !since, // Full sync if forced or no previous sync
+      }),
+    );
 
     // Log audit
     await prisma.auditEvent.create({
@@ -115,8 +138,9 @@ export async function GET(req: NextRequest) {
           ...result,
           incremental: !!since,
           since: since?.toISOString() ?? null,
+          outcome: "success",
           one_cycle_run_id: oneCycleRunId,
-          cotality: snapshotCotalityTelemetry(),
+          cotality: snapshotCollector(cotalityCollector),
         } as unknown as Prisma.InputJsonValue,
       },
     });
@@ -124,7 +148,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       ...result,
-      cotality: snapshotCotalityTelemetry(),
+      cotality: snapshotCollector(cotalityCollector),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
@@ -137,7 +161,14 @@ export async function GET(req: NextRequest) {
         entity_id: "bulk",
         user_type: "system",
         user_id: null,
-        changes: { error: msg },
+        // Telemetry persists on FAILURE too — a 429 / retry / token refresh /
+        // timeout / thrown request stays visible in the durable error audit.
+        changes: {
+          error: msg,
+          outcome: "error",
+          one_cycle_run_id: oneCycleRunId,
+          cotality: snapshotCollector(cotalityCollector),
+        } as unknown as Prisma.InputJsonValue,
       },
     }).catch(() => {}); // Don't let audit failure mask the real error
 

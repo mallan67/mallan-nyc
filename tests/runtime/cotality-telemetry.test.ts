@@ -1,13 +1,18 @@
 /// <reference types="jest" />
 /**
- * Cotality telemetry counter module — reset / record / snapshot semantics, and
- * that the fetch/auth layer is actually wired to it (source contract).
+ * Cotality telemetry — RUN-SCOPED (AsyncLocalStorage) collector semantics, and
+ * that the fetch/auth layer + cron members are wired to it (source contract).
+ *
+ * Key isolation proof: two collectors run concurrently and a record* call in
+ * one context NEVER alters the other's counters; a call outside any context is
+ * a no-op.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
-  resetCotalityTelemetry,
-  snapshotCotalityTelemetry,
+  createCotalityCollector,
+  runWithCotalityTelemetry,
+  snapshotCollector,
   recordCotalityHttp,
   recordPropertyRequest,
   recordMediaRequest,
@@ -20,46 +25,58 @@ import {
 const read = (rel: string) =>
   fs.readFileSync(path.resolve(__dirname, "../..", rel), "utf8");
 
-beforeEach(() => resetCotalityTelemetry());
-
-describe("cotality telemetry counters", () => {
-  it("starts at zero after reset and exposes every required counter", () => {
-    const s = snapshotCotalityTelemetry();
+describe("run-scoped collector counters", () => {
+  it("a fresh collector starts at zero and carries member + run_id", () => {
+    const c = createCotalityCollector("idx-sync", "run-1");
+    expect(c.member).toBe("idx-sync");
+    expect(c.one_cycle_run_id).toBe("run-1");
     for (const k of [
       "property_requests", "property_pages", "media_requests", "media_pages",
       "token_requests", "token_refreshes", "retries", "http_429_count",
       "retry_after_seconds", "cotality_duration_ms", "total_cotality_requests",
     ]) {
-      expect(s).toHaveProperty(k, 0);
+      expect(snapshotCollector(c)).toHaveProperty(k, 0);
     }
   });
 
-  it("classifies property vs media pages by URL and accumulates duration + total", () => {
-    recordCotalityHttp({ url: "https://api.cotality.com/trestle/odata/Property?x=1", durationMs: 30, status: 200 });
-    recordCotalityHttp({ url: "https://api.cotality.com/trestle/odata/Media?y=2", durationMs: 20, status: 200 });
-    const s = snapshotCotalityTelemetry();
+  it("records property vs media pages by URL, duration, total, 429 + max Retry-After", async () => {
+    const c = createCotalityCollector("idx-sync", null);
+    await runWithCotalityTelemetry(c, async () => {
+      recordCotalityHttp({ url: "https://api.cotality.com/trestle/odata/Property?x=1", durationMs: 30, status: 200 });
+      recordCotalityHttp({ url: "https://api.cotality.com/trestle/odata/Media?y=2", durationMs: 20, status: 429, retryAfterSeconds: 4 });
+      recordCotalityHttp({ url: "/odata/Media", durationMs: 10, status: 429, retryAfterSeconds: 9 });
+    });
+    const s = snapshotCollector(c);
     expect(s.property_pages).toBe(1);
+    expect(s.media_pages).toBe(2);
+    expect(s.total_cotality_requests).toBe(3);
+    expect(s.cotality_duration_ms).toBe(60);
+    expect(s.http_429_count).toBe(2);
+    expect(s.retry_after_seconds).toBe(9);
+  });
+
+  it("counts a THROWN HTTP attempt (status 0) toward total + duration + pages", async () => {
+    const c = createCotalityCollector("media-sync", null);
+    await runWithCotalityTelemetry(c, async () => {
+      recordCotalityHttp({ url: "/odata/Media?z=1", durationMs: 8, status: 0 }); // threw before Response
+    });
+    const s = snapshotCollector(c);
+    expect(s.total_cotality_requests).toBe(1);
     expect(s.media_pages).toBe(1);
-    expect(s.total_cotality_requests).toBe(2);
-    expect(s.cotality_duration_ms).toBe(50);
+    expect(s.cotality_duration_ms).toBe(8);
+    expect(s.http_429_count).toBe(0);
   });
 
-  it("counts 429s and captures the max Retry-After", () => {
-    recordCotalityHttp({ url: "/odata/Property", durationMs: 5, status: 429, retryAfterSeconds: 3 });
-    recordCotalityHttp({ url: "/odata/Media", durationMs: 5, status: 429, retryAfterSeconds: 7 });
-    recordCotalityHttp({ url: "/odata/Media", durationMs: 5, status: 429, retryAfterSeconds: 2 });
-    const s = snapshotCotalityTelemetry();
-    expect(s.http_429_count).toBe(3);
-    expect(s.retry_after_seconds).toBe(7); // max
-  });
-
-  it("records logical requests, token calls, refreshes and retries independently", () => {
-    recordPropertyRequest();
-    recordMediaRequest();
-    recordTokenRequest(12);
-    recordTokenRefresh();
-    recordRetry();
-    const s = snapshotCotalityTelemetry();
+  it("records logical requests, token calls, refreshes and retries", async () => {
+    const c = createCotalityCollector("idx-sync", "r");
+    await runWithCotalityTelemetry(c, async () => {
+      recordPropertyRequest();
+      recordMediaRequest();
+      recordTokenRequest(12);
+      recordTokenRefresh();
+      recordRetry();
+    });
+    const s = snapshotCollector(c);
     expect(s.property_requests).toBe(1);
     expect(s.media_requests).toBe(1);
     expect(s.token_requests).toBe(1);
@@ -69,11 +86,36 @@ describe("cotality telemetry counters", () => {
     expect(s.retries).toBe(1);
   });
 
-  it("snapshot is an immutable copy (later records do not mutate an old snapshot)", () => {
-    const before = snapshotCotalityTelemetry();
-    recordPropertyRequest();
-    expect(before.property_requests).toBe(0);
-    expect(snapshotCotalityTelemetry().property_requests).toBe(1);
+  it("ISOLATION: a record in one context never alters another concurrent collector", async () => {
+    const a = createCotalityCollector("idx-sync", "A");
+    const b = createCotalityCollector("media-sync", "B");
+    // Interleave two concurrent contexts.
+    await Promise.all([
+      runWithCotalityTelemetry(a, async () => {
+        recordPropertyRequest();
+        await new Promise((r) => setTimeout(r, 5));
+        recordPropertyRequest();
+      }),
+      runWithCotalityTelemetry(b, async () => {
+        recordMediaRequest();
+        await new Promise((r) => setTimeout(r, 5));
+        recordMediaRequest();
+      }),
+    ]);
+    expect(snapshotCollector(a).property_requests).toBe(2);
+    expect(snapshotCollector(a).media_requests).toBe(0); // b's media never leaked into a
+    expect(snapshotCollector(b).media_requests).toBe(2);
+    expect(snapshotCollector(b).property_requests).toBe(0);
+  });
+
+  it("a record OUTSIDE any context is a no-op (never contaminates)", () => {
+    // No runWithCotalityTelemetry wrapper — must not throw, must not record.
+    expect(() => {
+      recordPropertyRequest();
+      recordCotalityHttp({ url: "/odata/Property", durationMs: 5, status: 200 });
+    }).not.toThrow();
+    // And a fresh collector remains zero afterwards.
+    expect(snapshotCollector(createCotalityCollector("idx-sync", null)).property_requests).toBe(0);
   });
 
   it("parseRetryAfterSeconds handles seconds form and rejects garbage", () => {
@@ -84,29 +126,32 @@ describe("cotality telemetry counters", () => {
   });
 });
 
-describe("fetch/auth layer is wired to the telemetry module (source contract)", () => {
-  it("fetch.ts records HTTP calls, retries, and property/media requests", () => {
+describe("fetch/auth layer + cron members are wired to run-scoped telemetry (source contract)", () => {
+  it("fetch.ts records HTTP calls (incl. thrown), retries, property/media requests", () => {
     const src = read("lib/idx/fetch.ts");
     expect(src).toMatch(/from "\.\/cotality-telemetry"/);
     expect(src).toMatch(/recordCotalityHttp\(/);
+    expect(src).toMatch(/status: 0/); // thrown-attempt path
     expect(src).toMatch(/recordRetry\(\)/);
     expect(src).toMatch(/recordPropertyRequest\(\)/);
     expect(src).toMatch(/recordMediaRequest\(\)/);
   });
 
-  it("auth.ts records token requests and refreshes", () => {
+  it("auth.ts records token requests (even on throw, via finally) and refreshes", () => {
     const src = read("lib/idx/auth.ts");
     expect(src).toMatch(/recordTokenRequest\(/);
     expect(src).toMatch(/recordTokenRefresh\(\)/);
   });
 
-  it("both cron members reset + snapshot telemetry and stamp the one_cycle_run_id", () => {
+  it("both cron members run inside a collector and persist telemetry on success AND error", () => {
     for (const rel of ["app/api/cron/idx-sync/route.ts", "app/api/cron/media-sync/route.ts"]) {
       const src = read(rel);
-      expect(src).toMatch(/resetCotalityTelemetry\(\)/);
-      expect(src).toMatch(/snapshotCotalityTelemetry\(\)/);
+      expect(src).toMatch(/createCotalityCollector\(/);
+      expect(src).toMatch(/runWithCotalityTelemetry\(/);
       expect(src).toMatch(/x-one-cycle-run-id/);
-      expect(src).toMatch(/one_cycle_run_id/);
+      // telemetry appears in BOTH the success and the *_error audit payloads.
+      expect((src.match(/snapshotCollector\(cotalityCollector\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
+      expect(src).toMatch(/isOneCycleActive\(/);
     }
   });
 });

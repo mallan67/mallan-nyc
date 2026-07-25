@@ -41,6 +41,13 @@ jest.mock("@/lib/idx/media-sync", () => {
   };
 });
 
+// No active One Cycle in these standalone-route tests — the machine-overlap
+// block is covered separately in one-cycle-standalone-overlap.test.ts.
+jest.mock("@/lib/idx/one-cycle-active", () => ({
+  isOneCycleActive: async () => false,
+  ONE_CYCLE_STALE_MS: 300_000,
+}));
+
 // Imported AFTER mocks are wired up.
 import { GET } from "@/app/api/cron/media-sync/route";
 import { NextRequest } from "next/server";
@@ -407,7 +414,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       "duration_ms", "error",
       // Durable Cotality usage telemetry + One Cycle run correlation (aggregate
       // integers only; no URLs/ids — same allowlist class as the counters above).
-      "cotality", "one_cycle_run_id",
+      "cotality", "one_cycle_run_id", "outcome",
     ]);
     for (const key of Object.keys(ch)) {
       expect(allowed.has(key)).toBe(true);
