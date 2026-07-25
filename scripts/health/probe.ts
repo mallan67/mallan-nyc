@@ -61,7 +61,7 @@ tryProbe(() => {
 tryProbe(() => {
   // --limit 200: gh defaults to 30, which would silently undercount the open-PR backlog (Codex #466).
   const prs = JSON.parse(sh("gh pr list --state open --limit 200 --json number,title")) as Array<{ number: number; title: string }>;
-  const codePrs = prs.filter((p) => !/Sentinel audit|report-only/i.test(p.title));
+  const codePrs = prs.filter((p) => !/report-only/i.test(p.title));
   add("Open PRs", prs.length > 12 ? "🟡" : "🟢",
     `${prs.length} open (${codePrs.length} non-audit): ${codePrs.slice(0, 4).map((p) => `#${p.number}`).join(", ") || "none"}`);
 }, () => add("Open PRs", "⚪", "gh unavailable / not authed"));
