@@ -159,8 +159,11 @@ jobs:
       # smoke.json (passed:false) so the aggregator returns an honest not-proven
       # verdict and the status stays pending/failure — never a false green.
       - name: Run listing smoke against production
+        # Event-gated FIRST (a skipped verify leaves outputs.rc = '' and GitHub
+        # coerces '' == '0' to a numeric 0 == 0 = TRUE, which would wrongly run
+        # this on PRs). Production proof only runs on push-to-main / dispatch.
         id: smoke
-        if: steps.verify.outputs.rc == '0'
+        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && steps.verify.outputs.rc == '0'
         env:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
@@ -196,8 +199,9 @@ jobs:
       # production; ANY change discards BOTH proofs so the aggregator cannot reach
       # PROD_PROVEN (fail closed) and the gate step below fails the run.
       - name: Reconfirm production identity — phase 2 (post-smoke)
+        # Event-gated (same '' == '0' coercion guard as the smoke step).
         id: reconfirm
-        if: steps.verify.outputs.rc == '0'
+        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && steps.verify.outputs.rc == '0'
         env:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
@@ -342,9 +346,12 @@ jobs:
         # changed during the smoke window). Either way the proofs were discarded
         # and the status is pending/failure — this makes the RUN fail-closed too,
         # so a slow/missing/switched deploy is visible and retriable.
+        # Event-gated so PR / non-main events never reach the fail branch (they
+        # skip the production-proof steps entirely and stay advisory/pending).
         if: >-
-          (steps.verify.outputs.rc != '' && steps.verify.outputs.rc != '0') ||
-          (steps.reconfirm.outputs.reconfirm_rc != '' && steps.reconfirm.outputs.reconfirm_rc != '0')
+          ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') &&
+          ((steps.verify.outputs.rc != '' && steps.verify.outputs.rc != '0') ||
+           (steps.reconfirm.outputs.reconfirm_rc != '' && steps.reconfirm.outputs.reconfirm_rc != '0'))
         run: |
           echo "Production identity gate FAILED (phase-1 rc='${{ steps.verify.outputs.rc }}', phase-2 reconfirm rc='${{ steps.reconfirm.outputs.reconfirm_rc }}') — failing the run"
           exit 1

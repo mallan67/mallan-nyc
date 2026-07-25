@@ -92,6 +92,20 @@ describe('release-safety P2 — workflow wiring pins', () => {
     expect(rt).toContain('reconfirm_rc');
   });
 
+  test('the production-proof steps are EVENT-gated so PR events stay advisory (GH \'\' == \'0\' coercion guard)', () => {
+    // GitHub coerces a skipped step\'s empty rc: `'' == '0'` becomes numeric
+    // 0 == 0 = TRUE. Relying on `steps.verify.outputs.rc == '0'` alone made
+    // smoke/reconfirm/enforce run on PRs and fail the run. All four
+    // production-proof steps must be gated on push-to-main OR workflow_dispatch.
+    const rt = read('.github/workflows/release-truth.yml');
+    const eventGate = /\(github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'\) \|\| github\.event_name == 'workflow_dispatch'/g;
+    // verify + smoke + reconfirm + enforce == 4 occurrences.
+    expect((rt.match(eventGate) || []).length).toBeGreaterThanOrEqual(4);
+    // The enforce gate in particular must carry the event gate (its absence is
+    // exactly what failed PR #565's run on the token-free commit).
+    expect(rt).toMatch(/Enforce production gate[\s\S]*github\.event_name == 'push'[\s\S]*reconfirm_rc/);
+  });
+
   test('feed + media sync run on the unified One Cycle cadence (*/10), not independent crons', () => {
     // W2 unification (2026-07-24): the standalone idx-sync (*/30) and
     // media-sync (hourly) cron entries were replaced by /api/cron/one-cycle
