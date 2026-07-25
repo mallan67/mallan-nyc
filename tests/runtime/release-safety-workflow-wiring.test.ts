@@ -65,7 +65,31 @@ describe('release-safety P2 — workflow wiring pins', () => {
     const rt = read('.github/workflows/release-truth.yml');
     expect(rt).toContain('state="pending"');
     expect(rt).not.toMatch(/^\s*state="success"\s*$\n(?=\s*case)/m);
-    expect(rt).toContain('RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF');
+  });
+
+  test('release-truth production proof is TOKEN-FREE (no Vercel secret; public identity endpoint)', () => {
+    const rt = read('.github/workflows/release-truth.yml');
+    // No Vercel API credential is referenced anywhere in the workflow.
+    expect(rt).not.toMatch(/secrets\.VERCEL_TOKEN/);
+    expect(rt).not.toMatch(/vars\.VERCEL_TEAM_ID/);
+    expect(rt).not.toMatch(/vars\.RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF/);
+    // Proof comes from asking the production alias itself.
+    expect(rt).toContain('verify-release-identity.js');
+    expect(rt).toContain('/api/release-identity');
+    // It still feeds BOTH proofs to the aggregator.
+    expect(rt).toContain('--deploy-proof deploy-proof.json');
+    expect(rt).toContain('--smoke-evidence smoke.json');
+  });
+
+  test('release-truth runs the two-phase identity check (pre-smoke MATCH + post-smoke reconfirm)', () => {
+    const rt = read('.github/workflows/release-truth.yml');
+    // Phase 1 verify, then smoke, then phase 2 reconfirm — TOCTOU guard.
+    expect(rt).toMatch(/verify-release-identity\.js[\s\S]*listing-smoke\.js[\s\S]*--reconfirm deploy-proof\.json/);
+    // On a reconfirm failure BOTH proofs are discarded (fail closed) so the
+    // aggregator cannot reach PROD_PROVEN.
+    expect(rt).toMatch(/rm -f deploy-proof\.json smoke\.json/);
+    // The enforce-gate fails the run on a phase-1 non-MATCH OR a phase-2 reject.
+    expect(rt).toContain('reconfirm_rc');
   });
 
   test('feed + media sync run on the unified One Cycle cadence (*/10), not independent crons', () => {
@@ -85,9 +109,11 @@ describe('release-safety P2 — workflow wiring pins', () => {
     for (const rel of [
       'scripts/release-safety/listing-smoke.js',
       'scripts/release-safety/verify-deployment-sha.js',
+      'scripts/release-safety/verify-release-identity.js',
       'scripts/release-safety/record-known-good.js',
       'scripts/release-safety/release-truth-verdict.js',
       'scripts/release-safety/import-graph.js',
+      'app/api/release-identity/route.ts',
       'docs/operations/release-safety-runbook.md',
     ]) {
       expect(fs.existsSync(path.join(ROOT, rel))).toBe(true);
