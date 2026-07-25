@@ -61,11 +61,15 @@ are corrected below.
    the unattributed media writes may generate more WAL. The next step identifies the
    exact changed keys — it does **not** suppress the whole category.
 
-## 3. What is genuinely, monotonically growing — PROVEN
+## 3. What accumulates — PROVEN (with the correct bounds)
 
 - **`audit_events` is append-only** (`n_tup_ins` 89,867, `n_tup_upd` 0, `n_tup_del` 1;
-  last autovacuum 2026-06-02). `data-retention` purges only at **>2 years**
-  (`route.ts:76-84`); the oldest row is 2026-03-15, so **nothing is purged until 2028**.
+  last autovacuum 2026-06-02) but **BOUNDED to a rolling 2-year window**: `data-retention`
+  DELETES rows older than 2 years EXCEPT `email_unsubscribed` (`route.ts:66-83`). Oldest row
+  is 2026-03-15, so it is in the **pre-2028 fill phase** (nothing purged yet) and will
+  **plateau at ~2 years of rows — NOT unbounded**. Only `email_unsubscribed` (durable
+  CAN-SPAM suppression ledger) is purge-exempt. The genuinely unbounded table is
+  `listing_media` (soft-deleted tombstones never purged — 28,664 measured).
   One MEASURED successful cycle inserted **5 rows** (`one_cycle_started`, `idx_sync`,
   `idx_sync_cron`, `media_sync_cron`, `one_cycle_run`) — Snapshot A→B delta (+5). The
   daily rate is **measured, not a fixed floor**: `audit_events` inserts/day went
