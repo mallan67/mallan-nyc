@@ -30,6 +30,9 @@
     "app/api/**/*.ts": {
       "maxDuration": 30
     },
+    "app/api/cron/one-cycle/route.ts": {
+      "maxDuration": 300
+    },
     "app/api/cron/idx-sync/route.ts": {
       "maxDuration": 120
     },

@@ -118,6 +118,21 @@ describe("1–2. schedule: exactly one one-cycle at */10, no independent sync cr
     expect(crons.find((c) => c.path === "/api/cron/idx-sync")).toBeUndefined();
     expect(crons.find((c) => c.path === "/api/cron/media-sync")).toBeUndefined();
   });
+
+  it("2b. one-cycle has an EXPLICIT 300s vercel.json function override (not the app/api/** 30s glob)", () => {
+    // The route declares `export const maxDuration = 300` and budgets IDX (120s)
+    // + media (150s) + headroom against a 300s function. Without an exact
+    // vercel.json override, the `app/api/**/*.ts: 30s` glob would cap the
+    // deployed function at 30s and kill the cycle before IDX settles — the whole
+    // machine would never run media or write the completion marker.
+    const functions = (JSON.parse(read("vercel.json")).functions ?? {}) as Record<
+      string,
+      { maxDuration?: number }
+    >;
+    const oneCycleFn = functions["app/api/cron/one-cycle/route.ts"];
+    expect(oneCycleFn).toBeDefined();
+    expect(oneCycleFn!.maxDuration).toBe(300);
+  });
 });
 
 // ─── Points 3–5: cadence constants ───────────────────────────────────────────

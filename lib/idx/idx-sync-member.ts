@@ -81,6 +81,17 @@ export async function runIdxSyncMember({
       }),
     );
 
+    // SEMANTIC outcome — machine truth, NOT HTTP status. syncListings catches
+    // per-record listing/projection failures and resolves with `errors > 0`
+    // (the watermark is capped/frozen so those rows are re-fetched next run)
+    // instead of throwing. A nonzero error count is a PARTIAL pass and must not
+    // be reported as full success — otherwise the machine would report success
+    // while the listing pass was incomplete. A partial IDX also HOLDS media
+    // (Maya, 2026-07-25): the orchestrator's existing non-ok chain-stop already
+    // budget-skips media, so the cycle is complete=false / success=false.
+    const semanticOutcome: MemberOutcome = result.errors > 0 ? "partial" : "ok";
+    const auditOutcome = semanticOutcome === "ok" ? "success" : semanticOutcome;
+
     await prisma.auditEvent.create({
       data: {
         action: "idx_sync_cron",
@@ -92,7 +103,7 @@ export async function runIdxSyncMember({
           ...result,
           incremental: !!since,
           since: since?.toISOString() ?? null,
-          outcome: "success",
+          outcome: auditOutcome,
           one_cycle_run_id: oneCycleRunId,
           cotality: snapshotCollector(cotalityCollector),
         } as unknown as Prisma.InputJsonValue,
@@ -101,7 +112,7 @@ export async function runIdxSyncMember({
 
     return {
       status: 200,
-      outcome: "ok",
+      outcome: semanticOutcome,
       body: { success: true, ...result, cotality: snapshotCollector(cotalityCollector) },
     };
   } catch (err) {

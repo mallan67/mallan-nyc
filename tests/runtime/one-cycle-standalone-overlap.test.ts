@@ -246,6 +246,38 @@ describe("standalone completion markers preserve skipped / partial / error", () 
     expect(completeMachine).toHaveBeenCalledTimes(1);
     expect(markerOutcome()).toBe("error");
   });
+
+  it("IDX syncListings errors>0 ⇒ member 'partial' ⇒ audit outcome 'partial' + marker 'partial'", async () => {
+    // syncListings resolves (does not throw) with a nonzero per-record error
+    // count; the member must classify that as partial, not success.
+    claimMachine.mockResolvedValue({ ok: true });
+    syncListings.mockResolvedValueOnce({
+      total_fetched: 500, upserted: 496, skipped_gates: 0, skipped_validation: 0,
+      errors: 4, duration_ms: 1, write_paths: {},
+    });
+    await idxGET(req());
+    const idxAudit = auditCreate.mock.calls
+      .map((c) => (c[0] as { data: { action: string; changes: Record<string, unknown> } }).data)
+      .find((d) => d.action === "idx_sync_cron");
+    expect(idxAudit).toBeDefined();
+    expect(idxAudit!.changes.outcome).toBe("partial"); // NOT "success"
+    expect(completeMachine).toHaveBeenCalledTimes(1);
+    expect(markerOutcome()).toBe("partial");
+  });
+
+  it("IDX syncListings errors===0 ⇒ member 'ok' ⇒ audit outcome 'success' + marker 'success'", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    syncListings.mockResolvedValueOnce({
+      total_fetched: 500, upserted: 500, skipped_gates: 0, skipped_validation: 0,
+      errors: 0, duration_ms: 1, write_paths: {},
+    });
+    await idxGET(req());
+    const idxAudit = auditCreate.mock.calls
+      .map((c) => (c[0] as { data: { action: string; changes: Record<string, unknown> } }).data)
+      .find((d) => d.action === "idx_sync_cron");
+    expect(idxAudit!.changes.outcome).toBe("success");
+    expect(markerOutcome()).toBe("success");
+  });
 });
 
 describe("telemetry persists with the route's OWN claim run_id on success AND error", () => {

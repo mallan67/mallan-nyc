@@ -398,6 +398,31 @@ describe("member outcome semantics (machine truth ≠ HTTP status)", () => {
     expect(body.outcome).toBe("incomplete"); // machine-level outcome
   });
 
+  it("IDX partial (per-record errors → outcome 'partial') HOLDS media and CANNOT yield success=true", async () => {
+    // syncListings catches per-record failures and resolves with errors>0; the
+    // IDX member returns outcome 'partial'. Per Maya (2026-07-25) a partial IDX
+    // HOLDS media — the non-ok chain-stop budget-skips media, so the cycle is
+    // complete=false / success=false and never reports the machine successful.
+    idxMember.mockImplementation(async () => ({
+      status: 200,
+      outcome: "partial",
+      body: { success: true, errors: 4, upserted: 496 },
+    }));
+    const res = await GET(makeReq(AUTH));
+    const body = await res.json();
+    const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
+    const media = body.members.find((m: { member: string }) => m.member === "media-sync");
+
+    expect(idx.status).toBe("partial");
+    expect(idx.outcome).toBe("partial");
+    expect(body.members_partial).toBe(1);
+    expect(body.success).toBe(false); // partial IDX is never machine success
+    expect(media.status).toBe("budget_skipped"); // media HELD
+    expect(mediaMember).not.toHaveBeenCalled();
+    expect(body.complete).toBe(false); // media did not run to settlement
+    expect(body.outcome).toBe("incomplete");
+  });
+
   it("media partial (HTTP 200, outcome 'partial') ⇒ complete=true, success=false, machine outcome 'partial'", async () => {
     mediaMember.mockImplementation(async () => ({
       status: 200,

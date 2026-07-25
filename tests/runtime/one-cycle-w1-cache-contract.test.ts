@@ -27,12 +27,19 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/computeSimilarListings/);
   });
 
-  it("/api/market wraps all four Neon reads in the tagged cache", () => {
+  it("/api/market wraps every Neon read in the tagged cache", () => {
     const src = read("app/api/market/route.ts");
-    expect((src.match(/cachedPublicRead\(/g) || []).length).toBe(4);
+    // Seven tagged reads: active sample + active count + under-contract count +
+    // new-listings count + closed sample + closed count + neighborhood groupBy.
+    // (The exact count() reads were added so market COUNTS are never truncated
+    // by the MARKET_STATS_ROW_CAP sample bound — NEON-001 overflow fix.)
+    expect((src.match(/cachedPublicRead\(/g) || []).length).toBe(7);
     expect(src).toMatch(/api-market-active/);
+    expect(src).toMatch(/api-market-active-count/);
+    expect(src).toMatch(/api-market-uc-count/);
     expect(src).toMatch(/api-market-new-count/);
     expect(src).toMatch(/api-market-closed/);
+    expect(src).toMatch(/api-market-closed-count/);
     expect(src).toMatch(/api-market-neighborhoods/);
   });
 
