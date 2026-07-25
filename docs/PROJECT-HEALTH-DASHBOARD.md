@@ -170,14 +170,14 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Media sync / orphans | 🟡 | 2026-07-01 | ghost-skip edge (OPS-012); media-backfill lane dead (OPS-008) | listing_media vs feed join |
 | Deleted/Closed timing (24h rule) | 🟢 | 2026-07-01 | all 176 off-feed ids render "Not Available" (live sweep) | full stale-id probe |
 | ComingSoon/Pending timing | 🟡 | 2026-07-01 | 8 Pending still sitemap-listed within minutes of transition (SEO-007/OPS-003) | live diff re-run |
-| Tombstones / reconciliation / drift | 🟡 | 2026-07-01 | tombstone growth unbounded (OPS-010); feed-reconcile clean-run writes no audit | table counts + audit rows |
+| Tombstones / reconciliation / drift | 🟡 | 2026-07-25 | `listing_media` soft-deleted tombstones measured **28,664**, never purged (OPS-010); feed-reconcile clean-run writes no audit | table counts + audit rows |
 | Archive integrity (Gate 6) | 🟡 (Regression Watch) | 2026-07-03 | rehydration guard MERGED + deployed (OPS-006 → Fixed/RW-004; baseline 2,032/2,032 stripped+hidden); OPS-009 two-flag gate IMPLEMENTED+deployed+VERIFIED (#470/OPS-020). Remaining 5K prerequisites: (1) `ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle, (2) OPS-022 fresh rollback branch | RW-004 queries + post-MAINTENANCE clean cycle |
 
 ### 4 · Database
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
 | Growth (listings) | 🟢 | 2026-07-01 | 110,597 rows; floor-gated cell (auto tier) | health:probe |
-| Unbounded tables | 🟡(static) | 2026-07-01 | listing_media tombstones + sync_errors (OPS-010); audit_events mixes compliance+diagnostics | row-count trend query |
+| Unbounded tables | 🟡 | 2026-07-25 | **Measured (PR #569, live pg_stat):** `sync_errors`=**0** (empty — NOT growing; corrects the old static note); `audit_events` append-only + 2yr-only purge → **unbounded** (199→566/day post-`*/10`; 30 MB frozen incident burst); `listing_media` soft-deleted tombstones=**28,664** never purged (OPS-010/010A) | live pg_stat 2026-07-25 |
 | Large JSON columns | 🟡 | 2026-06-10 | listings 893MB/677MB TOAST (r2-neon cost audit) | pg_column_size sample |
 | Schema vs migrations drift | 🟡 | 2026-07-03 | **OPS-017 full diff DONE** (read-only): leads "drift" was a FALSE ALARM (`String[]`→nullable is correct); real drift = 5 orphan legacy tables + 3 orphan indexes + 3 `updated_at` defaults (benign, app references none); `listing_events` = expected SELLER-002 staged. P1→P3 | cleanup needs a held migration — no action now |
 | Indexes / FKs / slow queries / orphans / duplicates | ⚪ | — | never audited | read-only pg_stat + EXPLAIN pass (needs canonical DATABASE_URL, Maya approval) |

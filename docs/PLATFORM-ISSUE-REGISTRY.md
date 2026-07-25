@@ -117,7 +117,7 @@ does, not what production is doing.
 | OPS-007 | Ops visibility for all 23 crons (monitoring blind spot, not user-facing) | Static analysis | Claude | Audit |
 | OPS-008 | Legacy `listings.media` JSON lane; catastrophic only if the repair script is run | Static analysis + Validator | Maya (decision) | Audit |
 | OPS-009 | Any terminal listing >180d on the legacy clock — archived regardless of flag | Static analysis | Maya (decision) | Audit |
-| OPS-010 | DB size/cost; audit-query performance over time | Static analysis | Claude | Audit |
+| OPS-010 | DB size/cost; audit-query performance over time. **[2026-07-25 · PR #569]** live read-only pg_stat: `sync_errors`=0 (empty — NOT growing), `audit_events` append-only (89,867 rows; 2yr-only purge; grows unbounded), `listing_media` soft-deleted=28,664 | Static analysis + live read-only pg_stat 2026-07-25 (PR #569) | Claude | Audit |
 | OPS-010A | Recurring Neon WAL/history growth (~750 MB+/mo est.) — every synced listing/media row | Runtime log (frozen-cursor measurement) + Static analysis | Claude (after #465) | Audit (WAL/history trend pre/post) |
 | OPS-015 | None user-facing — ops noise + marginal compute; masks real DB incidents in error dashboard | Runtime log + prior audits | Maya (decision) + Claude | Audit (clean error dashboard post-change) |
 | OPS-011 | Latent: ALL public search results the moment PR-5B reader swap lands | Static analysis | Claude | Audit (pre-5B gate) |

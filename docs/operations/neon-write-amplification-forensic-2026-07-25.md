@@ -128,7 +128,7 @@ modts_only 68 · other 73 · status 26 · price 10 · display 6 · attribution 5
 checked 64,673 · **physical writes (rows_updated) 26,821** · updated_changed **6,832** ·
 inserted 6,913 · skipped_unchanged 40,386 · tombstoned_vanished 2,534 · failed 0 ·
 `mismatch_media_url_exact` 57,760 (≈ every row — URL rotates; a **diagnostic**, not a write cause).
-**Unattributed ≈ 10,542** (26,821 − 6,832 − 6,913 − 2,534) — a **derived residual, not a proven single cause**. Its split (delivery-URL refresh vs other) stays **UNMEASURED** until the Commit-2 counters (`delivery_url_refreshed` / `suppressed_url_rotation_only`, now emitted but not present on these historical rows) are captured over live cycles.
+**Unattributed ≈ 10,542** (26,821 − 6,832 − 6,913 − 2,534) — a **derived residual, not a proven single cause**. Its split (delivery-URL refresh vs other) stays **UNMEASURED** until the Commit-2 counters (`delivery_url_refreshed` / `suppressed_url_signature_rotation` / `suppressed_url_identity_changed`, now emitted but not present on these historical rows) are captured over live cycles.
 
 ### 5.5 One natural cycle (Snapshot A 20:28:57 → B 20:36:47, crossing the 20:30 fire)
 +5 audit rows · +4 listing updates · +101 media updates · +0 projection updates · **~118 KB WAL** · `pg_database_size` +8 kB (noise). A *light* cycle; daytime cycles reach 75 listing rewrites / 200+ media updates.
@@ -172,9 +172,11 @@ after Phase-1 evidence.
 
 ## 9. Plan (single branch, evidence-first)
 - **Commit 1 (this doc).**
-- **Commit 2 (additive telemetry only, no behavior change):** emit the **3 non-derivable**
-  media cause counters (`delivery_url_refreshed`, `suppressed_url_rotation_only`,
-  `write_failures`) into `media_sync_cron` — `physical_writes` (=`rows_updated`) and
+- **Commit 2 (additive telemetry only, no behavior change):** emit the **4 non-derivable**
+  media cause counters (`delivery_url_refreshed`, `suppressed_url_signature_rotation`,
+  `suppressed_url_identity_changed`, `write_failures`) into `media_sync_cron` — the
+  URL-suppression counter is SPLIT (Codex P2) so signature rotation and origin/pathname
+  identity changes are never conflated. `physical_writes` (=`rows_updated`) and
   `non_tombstone_rows_written` (derivable) are deliberately NOT stored (audit-growth
   minimization); emit a flag-gated (`DIAG_RAW_DATA_KEYS_UNTIL=<future ISO timestamp>`), top-20, names+counts-only
   `raw_data` changed-key histogram to **runtime logs** (never `audit_events`) using the
@@ -187,7 +189,7 @@ after Phase-1 evidence.
   `gh pr checks 569` → "Vercel … Deployment has completed"). **No production deployment
   occurred** (`release-truth` stays `pending: deploy_pending`). An earlier statement that
   "opening the PR does not deploy" was **inaccurate** — it deploys a preview, not production.
-- **Instrumentation cost is small but NOT zero:** the 3 media counters add a few integers of
+- **Instrumentation cost is small but NOT zero:** the 4 media cause counters add a few integers of
   JSON to each `media_sync_cron` row; when `DIAG_RAW_DATA_KEYS_UNTIL` is a future ISO
   timestamp the listing path does
   per-key material comparisons + one log line per cycle. It changes **no** sync/write
