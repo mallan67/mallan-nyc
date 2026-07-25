@@ -96,6 +96,12 @@ function makeRunResult(overrides: Record<string, unknown> = {}) {
     tombstoned_explicit: 0,
     tombstoned_vanished: 0,
     rows_tombstoned: 0,
+    // Phase-1 write-amplification forensic — physical-write cause counters.
+    physical_writes: 0,
+    non_tombstone_rows_written: 0,
+    delivery_url_refreshed: 0,
+    suppressed_url_rotation_only: 0,
+    write_failures: 0,
     existing_rows_compared: 0,
     mismatch_status: 0,
     mismatch_listing_id: 0,
@@ -451,6 +457,18 @@ describe("GET /api/cron/media-sync — happy path", () => {
       expect(ch).toHaveProperty(k);
     }
 
+    // Phase-1 write-amplification forensic (2026-07-25) — explicit physical-write
+    // cause attribution must persist so the ~10K/day previously-unattributed media
+    // writes can be split (delivery-refresh vs material vs insert vs tombstone).
+    // Compact integers only; additive/observability — no URLs/values/PII.
+    const phase1CauseCounters = [
+      "physical_writes", "non_tombstone_rows_written", "delivery_url_refreshed",
+      "suppressed_url_rotation_only", "write_failures",
+    ];
+    for (const k of phase1CauseCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // No accidental field leakage — explicit allowlist only.
     const allowed = new Set([
       "status", "exit_reason", "rows_checked", "rows_updated", "rows_failed",
@@ -462,6 +480,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       ...w1RevalidationCounters,
       ...r21Counters,
       ...w3DrainCounters,
+      ...phase1CauseCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
       // Durable Cotality usage telemetry + One Cycle run correlation (aggregate

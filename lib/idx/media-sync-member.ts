@@ -80,6 +80,13 @@ export async function runMediaSyncMember({
           tombstoned_explicit: result.tombstoned_explicit,
           tombstoned_vanished: result.tombstoned_vanished,
           rows_tombstoned: result.rows_tombstoned,
+          // Phase-1 write-amplification forensic (2026-07-25): explicit physical-write
+          // cause attribution — compact numeric counters, additive only.
+          physical_writes: result.physical_writes,
+          non_tombstone_rows_written: result.non_tombstone_rows_written,
+          delivery_url_refreshed: result.delivery_url_refreshed,
+          suppressed_url_rotation_only: result.suppressed_url_rotation_only,
+          write_failures: result.write_failures,
           existing_rows_compared: result.existing_rows_compared,
           mismatch_status: result.mismatch_status,
           mismatch_listing_id: result.mismatch_listing_id,

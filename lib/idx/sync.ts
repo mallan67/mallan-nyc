@@ -541,6 +541,16 @@ export async function syncListings(
   const listingChangeReasons = newListingChangeReasonCounters();
   const projectionChangeReasons = newProjectionChangeReasonCounters();
 
+  // Phase-1 write-amplification forensic (2026-07-25): TEMPORARY, flag-gated
+  // diagnostic answering "which raw_data KEYS change on raw_data_only writes?".
+  // Key NAMES + counts ONLY (never values/PII); emitted to runtime logs at run
+  // end, NEVER to audit_events (append-only growth is the thing we're fixing).
+  // Off unless DIAG_RAW_DATA_KEYS=1 — zero behavior/perf impact when disabled.
+  // Remove after the required natural cycles are captured.
+  const diagRawDataKeys = process.env.DIAG_RAW_DATA_KEYS === "1";
+  const rawDataChangedKeyCounts = new Map<string, number>();
+  let rawDataOnlyWritesSampled = 0;
+
   // One Cycle W1 — cache tags to revalidate at end of run. Only PHYSICAL
   // writes add tags (the suppression comparators are the change oracle);
   // an unchanged run revalidates NOTHING. Scope D (2026-07-24): a
@@ -789,6 +799,28 @@ export async function syncListings(
           : null;
         if (changeReasons) {
           for (const reason of changeReasons) listingChangeReasons[reason]++;
+        }
+        // Phase-1 forensic (flag-gated): tally WHICH raw_data keys changed on a
+        // raw_data_only write. Names+counts only; never values. No-op unless the
+        // diagnostic flag is set.
+        if (
+          diagRawDataKeys &&
+          existing &&
+          changeReasons &&
+          [...changeReasons].includes("raw_data_only")
+        ) {
+          const prev = (existing as { raw_data?: unknown }).raw_data;
+          const next = mapped.raw_data as unknown;
+          if (prev && next && typeof prev === "object" && typeof next === "object") {
+            const p = prev as Record<string, unknown>;
+            const n = next as Record<string, unknown>;
+            for (const k of new Set([...Object.keys(p), ...Object.keys(n)])) {
+              if (JSON.stringify(p[k]) !== JSON.stringify(n[k])) {
+                rawDataChangedKeyCounts.set(k, (rawDataChangedKeyCounts.get(k) ?? 0) + 1);
+              }
+            }
+            rawDataOnlyWritesSampled++;
+          }
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
           changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
@@ -1255,6 +1287,23 @@ export async function syncListings(
     }
   } else if (errors === 0) {
     console.log('[IDX Sync] building-manifest warm skipped: no manifest-affecting shard changed this run');
+  }
+
+  // Phase-1 forensic (flag-gated): ONE compact top-20 line to runtime logs —
+  // never persisted to audit_events. Names + counts only.
+  if (diagRawDataKeys && rawDataChangedKeyCounts.size > 0) {
+    const top20 = [...rawDataChangedKeyCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([key, count]) => ({ key, count }));
+    console.log(
+      "[IDX Sync][diag] raw_data_only changed-key histogram (top20, names+counts only): " +
+        JSON.stringify({
+          raw_data_only_writes_sampled: rawDataOnlyWritesSampled,
+          distinct_keys: rawDataChangedKeyCounts.size,
+          top20,
+        }),
+    );
   }
 
   // Durable idx_sync AuditEvent — written AFTER the warm so the changes

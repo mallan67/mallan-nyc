@@ -2412,6 +2412,23 @@ export interface RunMediaSyncResult {
   tombstoned_vanished: number;
   /** INVARIANT: rows_tombstoned === tombstoned_explicit + tombstoned_vanished. */
   rows_tombstoned: number;
+  // ── Phase-1 write-amplification forensic (2026-07-25): explicit physical-write
+  //    cause attribution. Additive/observability only — derived from the per-listing
+  //    WriteCounters; they change NO write decision. INVARIANTS (rows_failed===0):
+  //      physical_writes === rows_updated  (same count; explicit alias)
+  //      physical_writes === rows_inserted + rows_updated_changed
+  //                          + delivery_url_refreshed + tombstoned_explicit + tombstoned_vanished
+  //      non_tombstone_rows_written === rows_inserted + rows_updated_changed + delivery_url_refreshed
+  /** Alias of rows_updated — total physical listing_media writes. */
+  physical_writes: number;
+  /** inserted + updatedChanged + delivery_url_refreshed. */
+  non_tombstone_rows_written: number;
+  /** Material-unchanged rows written SOLELY to refresh a not-yet-mirrored URL. */
+  delivery_url_refreshed: number;
+  /** Rows SUPPRESSED whose only diff was a rotated signed URL (write-reduction proof). */
+  suppressed_url_rotation_only: number;
+  /** Per-row create/update failures (isolated; listing fails closed). */
+  write_failures: number;
   /**
    * Phase 3 (surface C) — Listing media-summary write path accounting.
    * Physical Listing.update calls only; materially-identical summaries are
@@ -2843,6 +2860,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let tombstonedExplicit = 0;
   let tombstonedVanished = 0;
   let rowsTombstoned = 0;
+  // Phase-1 write-amplification forensic (2026-07-25): explicit physical-write
+  // cause attribution — additive/observability only, never controls a decision.
+  let deliveryUrlRefreshed = 0; // material-unchanged writes solely to refresh a not-yet-mirrored URL
+  let suppressedUrlRotationOnly = 0; // suppressed rows whose only diff was a rotated signed URL (proof)
+  let nonTombstoneRowsWritten = 0; // inserted + updatedChanged + deliveryUrlRefreshed
+  let writeFailuresTotal = 0; // per-row create/update failures (isolated; listing fails closed)
   // #541 comparator-attribution diagnostic (cumulative; snake_case = audit keys).
   const attr = {
     existing_rows_compared: 0,
@@ -2933,6 +2956,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstoned_explicit: 0,
       tombstoned_vanished: 0,
       rows_tombstoned: 0,
+      // Phase-1 forensic cause counters — all zero on a source-fetch error (no writes).
+      physical_writes: 0,
+      non_tombstone_rows_written: 0,
+      delivery_url_refreshed: 0,
+      suppressed_url_rotation_only: 0,
+      write_failures: 0,
       summary_writes: newSummaryWriteCounters(),
       ...attr, // all zeros on source_error
       rows_failed: 0,
@@ -3062,6 +3091,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // inserts + material updates + delivery-URL refreshes + BOTH tombstone
       // kinds (tombstones are physical updateMany writes). One precise meaning.
       rowsUpdated += upsertResult.physicalWrites;
+      // Phase-1 forensic: physical-write cause attribution (additive only).
+      deliveryUrlRefreshed += upsertResult.deliveryUrlRefreshed;
+      suppressedUrlRotationOnly += upsertResult.suppressedUrlRotationOnly;
+      nonTombstoneRowsWritten += upsertResult.nonTombstoneRowsWritten;
+      writeFailuresTotal += upsertResult.writeFailures;
       // #541 attribution (camelCase result → snake_case cumulative)
       attr.existing_rows_compared += upsertResult.existingRowsCompared;
       attr.mismatch_status += upsertResult.mismatchStatus;
@@ -3677,6 +3711,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     tombstoned_explicit: tombstonedExplicit,
     tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
+    // Phase-1 forensic — physical-write cause attribution (additive only).
+    physical_writes: rowsUpdated,
+    non_tombstone_rows_written: nonTombstoneRowsWritten,
+    delivery_url_refreshed: deliveryUrlRefreshed,
+    suppressed_url_rotation_only: suppressedUrlRotationOnly,
+    write_failures: writeFailuresTotal,
     summary_writes: summaryWrites,
     pages_revalidated: revalidation.pages_revalidated,
     revalidation_failures: revalidation.revalidation_failures,
