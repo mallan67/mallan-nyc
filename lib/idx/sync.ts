@@ -554,6 +554,9 @@ export async function syncListings(
   const diagUntilRaw = process.env.DIAG_RAW_DATA_KEYS_UNTIL;
   const diagUntil = Date.parse(diagUntilRaw ?? "");
   const diagRawDataKeys = Number.isFinite(diagUntil) && Date.now() < diagUntil;
+  // Bounded grace after the cutoff: the "window closed" notice logs only within
+  // this window, then goes fully silent (no indefinite per-cycle noise).
+  const DIAG_EXPIRY_GRACE_MS = 24 * 60 * 60 * 1000;
   const rawDataChangedKeyCounts = new Map<string, number>();
   let rawDataOnlyWritesSampled = 0;
 
@@ -1293,9 +1296,11 @@ export async function syncListings(
     console.log('[IDX Sync] building-manifest warm skipped: no manifest-affecting shard changed this run');
   }
 
-  // Phase-1 forensic (flag-gated): ONE compact top-20 line to runtime logs —
-  // never persisted to audit_events. Names + counts only.
-  if (diagRawDataKeys && rawDataChangedKeyCounts.size > 0) {
+  // Phase-1 forensic (flag-gated): ONE compact line to runtime logs per ACTIVE
+  // cycle — never audit_events. Emit EVEN on a zero-change cycle (empty top20,
+  // zero sample) so the ≥3-cycle capture distinguishes a quiet cycle from missing
+  // instrumentation (Codex). Names + counts only.
+  if (diagRawDataKeys) {
     const top20 = [...rawDataChangedKeyCounts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
@@ -1308,12 +1313,19 @@ export async function syncListings(
           top20,
         }),
     );
-  } else if (diagUntilRaw && !diagRawDataKeys) {
-    // Configured but expired/invalid — one harmless line so the evidence
-    // collector knows WHY no histogram appeared (vs the diagnostic silently off).
+  } else if (
+    diagUntilRaw &&
+    Number.isFinite(diagUntil) &&
+    Date.now() >= diagUntil &&
+    Date.now() < diagUntil + DIAG_EXPIRY_GRACE_MS
+  ) {
+    // Configured-but-expired: emit the "window closed" notice ONLY within the
+    // bounded grace window after the cutoff (so the evidence collector learns the
+    // window ended), then go fully SILENT — no indefinite ~144/day noise (Codex).
+    // Invalid/unset timestamps are silent (Number.isFinite guard).
     console.log(
-      "[IDX Sync][diag] raw_data key histogram DISABLED — DIAG_RAW_DATA_KEYS_UNTIL " +
-        "expired or invalid: " + JSON.stringify(diagUntilRaw),
+      "[IDX Sync][diag] raw_data key histogram WINDOW CLOSED — DIAG_RAW_DATA_KEYS_UNTIL " +
+        "passed (silent after grace): " + JSON.stringify(diagUntilRaw),
     );
   }
 
