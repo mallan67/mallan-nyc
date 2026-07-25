@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual, randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
@@ -8,38 +8,38 @@ import prisma from '@/lib/prisma';
 // Replaces the independent idx-sync (*/30) and media-sync (hourly) schedules
 // with ONE orchestrated cycle every 10 minutes, per the W2 design doc
 // (docs/operations/one-cycle-w2-schedule-design-2026-07-23.md §(b)/(d)) with
-// Maya's cadence override (10 min, not 30) — affordable because W3's adaptive
-// drain skips the DB wake entirely on empty cycles.
+// Maya's cadence override (10 min, not 30).
+//
+// NEON COST — stated accurately, NOT claimed as a reduction:
+//   The orchestrator ALWAYS touches Neon on every fire: it takes an advisory
+//   lock and writes a one_cycle_started + one_cycle_run audit record. W3's
+//   adaptive drain may skip media-SPECIFIC backlog work on an empty cycle, but
+//   that does NOT make the one-cycle invocation DB-wake-free — the cycle still
+//   wakes Neon. Whether consolidating to */10 lowers Neon wake count / active
+//   time / compute-per-hour is a PRODUCTION-MEASURED question (before/after the
+//   deploy), not an assertion. No compute-reduction claim is made here.
 //
 // Authority hierarchy (verbatim from the design):
 //   "Cotality API → sole listing and feed-media truth → One Cycle → Neon
 //    operational copy → projections → Vercel cache."
 //
-// Members are invoked IN-PROCESS by calling the existing route handlers with
-// a forwarded Authorization header — no HTTP fan-out, no member refactor:
-// every member keeps its own auth check, 10-minute concurrency guard, audit
-// event, and counters byte-identical to its standalone schedule. The once-
-// daily compliance/business crons intentionally keep their own slots (1
-// firing/day each; consolidation of the 5 heavyweight inline routes is a
-// separately-scoped refactor per the design's §(d) fallback note).
-//
-// Failure design (W2 §(d)): a failed member never breaks the chain; statuses
-// land in ONE `one_cycle_run` AuditEvent per firing with a per-member status
-// array + the machine roll-up. No in-cycle retries — the next cycle re-covers
-// missed ground because failures never advance cursors/watermarks.
+// Members are invoked IN-PROCESS by calling the existing route handlers with a
+// forwarded Authorization header — no HTTP fan-out. Members run STRICTLY
+// SEQUENTIALLY and each is AWAITED TO SETTLEMENT before the next starts, so IDX
+// and media can never overlap inside a cycle and no completion is ever recorded
+// while a started member is unresolved (see runMember + the loop below).
 //
 // MEASUREMENT (the "one production machine" contract): the `one_cycle_run`
-// audit payload carries the machine roll-up (member statuses/durations,
-// media cursor lag, previous-run overlap). The DETAILED per-domain counters
-// intentionally stay in the members' own audit events, which external
-// observers already consume:
+// audit payload carries the machine roll-up (member statuses/durations, media
+// cursor lag, overlap, run_id). DETAILED per-domain counters stay in each
+// member's own audit event, which external observers already consume:
 //   - listing/projection writes + suppression, cache revalidations,
 //     affected-vs-warmed shards, manifest hits vs live fills → `idx_sync_cron`
 //   - media rows, R2 admitted (mirror_allowed) / parked
 //     (mirror_rejected_policy_parked) / uploaded (r2_uploaded) / reused
 //     (r2_reused), W3 drain counters, cursor telemetry → `media_sync_cron`
-//   - total Neon activity per hour → Neon console/API (ops:health), not
-//     app-measurable; correlated by timestamp with cycle audit rows.
+//   - total Neon wake count / active time / compute per hour → Neon console/API
+//     (ops:health), correlated by timestamp + run_id with the cycle audit rows.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -55,12 +55,24 @@ export const maxDuration = 300;
  */
 export const CYCLE_INTERVAL_MS = 600_000;
 
-/** Per-member wall-clock budgets (ms). Sum + headroom < maxDuration. */
+/** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
 const MEMBER_BUDGETS_MS: Record<string, number> = {
   'idx-sync': 120_000,
   'media-sync': 150_000,
 };
 const CYCLE_HEADROOM_MS = 20_000;
+
+/**
+ * Resolve a member's soft budget. Overridable per member via
+ * `ONE_CYCLE_BUDGET_MS_<MEMBER>` (e.g. ONE_CYCLE_BUDGET_MS_IDX_SYNC) so ops can
+ * retune without a redeploy — and so tests can force the over-budget path
+ * deterministically. Falls back to the compiled default.
+ */
+function budgetFor(name: string): number {
+  const raw = process.env[`ONE_CYCLE_BUDGET_MS_${name.replace(/-/g, '_').toUpperCase()}`];
+  const n = raw !== undefined ? Number(raw) : NaN;
+  return Number.isFinite(n) ? n : (MEMBER_BUDGETS_MS[name] ?? 60_000);
+}
 
 // Static invariant: the whole cycle fits inside one interval with margin, so
 // scheduled fires never overlap under budget. (Belt-and-suspenders: the claim
@@ -75,11 +87,35 @@ void _CYCLE_FITS_INTERVAL;
 const CYCLE_LOCK_CLASS = 20260724;
 const CYCLE_LOCK_KEY = 1;
 
+/**
+ * Terminal member statuses. A member is "resolved" once it holds one of these:
+ *   - ok            — settled 2xx within its soft budget
+ *   - failed        — settled non-2xx
+ *   - member_error  — threw
+ *   - timed_out     — SETTLED, but ran longer than its soft budget (never
+ *                     abandoned — the orchestrator awaited it to settlement)
+ *   - budget_skipped— never started (insufficient remaining budget / chain
+ *                     stopped by a prior non-ok member)
+ * `ok` is the ONLY status that contributes to cycle success.
+ */
+type MemberStatus =
+  | 'ok'
+  | 'failed'
+  | 'member_error'
+  | 'timed_out'
+  | 'budget_skipped';
+
+const TERMINAL_STATUSES: ReadonlySet<MemberStatus> = new Set<MemberStatus>([
+  'ok', 'failed', 'member_error', 'timed_out', 'budget_skipped',
+]);
+
 interface MemberResult {
   member: string;
-  status: 'ok' | 'failed' | 'budget_skipped' | 'timeout' | 'member_error';
+  status: MemberStatus;
   http_status: number | null;
   duration_ms: number;
+  /** True once the started member promise has settled (resolved OR rejected). */
+  settled: boolean;
   /** Whitelisted numeric/boolean counters from the member's JSON response. */
   summary: Record<string, unknown>;
 }
@@ -107,6 +143,26 @@ function extractSummary(body: unknown): Record<string, unknown> {
   return out;
 }
 
+/**
+ * Run ONE member to SETTLEMENT — no Promise.race, no abandonment.
+ *
+ * The prior implementation raced the member against a timeout and, on timeout,
+ * returned while the member kept running — which let the next member start
+ * concurrently and allowed a cycle to record completion with a member still
+ * unresolved. That is removed. Here the member handler is AWAITED fully, so:
+ *   - the caller cannot start the next member until this one settles;
+ *   - IDX and media never overlap;
+ *   - `settled` is always true on return.
+ *
+ * The soft budget is a wall-clock CLASSIFICATION + chain-stop signal, not a
+ * cancellation: a member that settles later than its budget is marked
+ * `timed_out`. We do NOT claim to cancel it — the underlying Prisma / Trestle /
+ * R2 work does not honor an AbortSignal we could thread through, so per the
+ * contract we "stop the chain and await/settle the started work" instead. The
+ * hard ceiling is the function `maxDuration` (Vercel kills at 300s), after which
+ * no one_cycle_run is written and the started-marker staleness window frees the
+ * machine for the next fire.
+ */
 async function runMember(
   member: string,
   handler: (req: NextRequest) => Promise<Response>,
@@ -115,53 +171,35 @@ async function runMember(
   budgetMs: number,
 ): Promise<MemberResult> {
   const started = Date.now();
+  // `x-one-cycle-member` is the orchestrator-identity proof that lets the member
+  // SKIP its own 10-minute AuditEvent concurrency guard (which would FALSE-
+  // TRIGGER at a 10-minute cadence). The header VALUE must equal CRON_SECRET
+  // (the member timing-safe-compares it), so the header ALONE cannot bypass:
+  // auth (401) precedes the guard, and a bare `x-one-cycle-member: 1` does not
+  // match. Only the secret-holding orchestrator can produce the bypass.
+  const req = new NextRequest(`https://internal.one-cycle/${member}`, {
+    headers: { authorization: authHeader, 'x-one-cycle-member': memberToken },
+  });
+
+  let status: MemberStatus;
+  let http_status: number | null = null;
+  let summary: Record<string, unknown> = {};
   try {
-    // `x-one-cycle-member` is the orchestrator-identity proof that lets the
-    // member SKIP its own 10-minute AuditEvent concurrency guard — which would
-    // otherwise FALSE-TRIGGER at a 10-minute cadence (each run completes inside
-    // the next cycle's lookback window → alternate cycles skipped). Crucially,
-    // the header VALUE must equal CRON_SECRET (the member timing-safe-compares
-    // it), so the header ALONE cannot bypass: an unauthenticated caller is
-    // rejected at auth (401) before the guard, and an authenticated caller who
-    // sets a bare `x-one-cycle-member: 1` does NOT match the secret and the
-    // guard stays active. Only a holder of the secret — the orchestrator — can
-    // produce the bypass. Overlap safety for the cycle itself is the advisory
-    // claim below, not this header.
-    const req = new NextRequest(`https://internal.one-cycle/${member}`, {
-      headers: { authorization: authHeader, 'x-one-cycle-member': memberToken },
-    });
-    const raced = await Promise.race([
-      handler(req).then(async (res) => ({
-        kind: 'res' as const,
-        status: res.status,
-        body: await res.json().catch(() => ({})),
-      })),
-      new Promise<{ kind: 'timeout' }>((resolve) =>
-        setTimeout(() => resolve({ kind: 'timeout' }), budgetMs),
-      ),
-    ]);
-    const duration_ms = Date.now() - started;
-    if (raced.kind === 'timeout') {
-      // The member keeps running inside this invocation; we record the
-      // breach and move on — its own audit event tells the full story.
-      return { member, status: 'timeout', http_status: null, duration_ms, summary: {} };
-    }
-    return {
-      member,
-      status: raced.status >= 200 && raced.status < 300 ? 'ok' : 'failed',
-      http_status: raced.status,
-      duration_ms,
-      summary: extractSummary(raced.body),
-    };
+    const res = await handler(req); // FULLY AWAITED — never abandoned
+    http_status = res.status;
+    const body = await res.json().catch(() => ({}));
+    status = res.status >= 200 && res.status < 300 ? 'ok' : 'failed';
+    summary = extractSummary(body);
   } catch (err) {
-    return {
-      member,
-      status: 'member_error',
-      http_status: null,
-      duration_ms: Date.now() - started,
-      summary: { error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' },
-    };
+    status = 'member_error';
+    summary = { error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' };
   }
+  const duration_ms = Date.now() - started;
+  // Settled-but-over-budget ⇒ timed_out (never contributes to success).
+  if ((status === 'ok' || status === 'failed') && duration_ms > budgetMs) {
+    status = 'timed_out';
+  }
+  return { member, status, http_status, duration_ms, settled: true, summary };
 }
 
 /** Media cursor lag vs NOW — the machine's freshness gauge (seconds). */
@@ -183,20 +221,21 @@ async function readMediaCursorLagSeconds(): Promise<number | null> {
 
 /**
  * Atomically claim the right to run THIS cycle — the orchestrator-level overlap
- * guard (point 8). Inside a single short transaction:
+ * guard. Inside a single short transaction:
  *   1. take the cycle advisory xact lock (auto-released at txn end) so two
  *      concurrent claims serialize and cannot both proceed;
- *   2. if a `one_cycle_started` marker exists within the max cycle runtime
- *      (maxDuration — a cycle can never be older than that and still running)
- *      with NO `one_cycle_run` completion after it, another cycle is genuinely
- *      in progress → refuse the claim;
- *   3. otherwise write the `one_cycle_started` marker and grant the claim.
+ *   2. find the most recent `one_cycle_started` marker within the max cycle
+ *      runtime (maxDuration — a cycle can never be older than that and still
+ *      running); if its run_id has NO matching `one_cycle_run` completion,
+ *      another cycle is genuinely in progress → refuse the claim;
+ *   3. otherwise write the `one_cycle_started` marker (carrying THIS run_id) and
+ *      grant the claim.
+ * started/completed are paired by a unique run_id — NOT timestamp inference.
  * A refused claim means the caller MUST exit without starting any member.
  * Fail-closed: any error refuses the claim (never risk two concurrent cycles).
- * The staleness window is maxDuration (not the full interval) so a crashed
- * cycle cannot wedge the machine past one interval.
  */
 async function claimCycle(
+  runId: string,
   now: Date,
 ): Promise<{ ok: boolean; reason?: string }> {
   const staleMs = maxDuration * 1000;
@@ -214,15 +253,18 @@ async function claimCycle(
           created_at: { gte: new Date(now.getTime() - staleMs) },
         },
         orderBy: { created_at: 'desc' },
-        select: { created_at: true },
+        select: { created_at: true, changes: true },
       });
       if (started) {
+        const prevRunId =
+          started.changes && typeof started.changes === 'object'
+            ? (started.changes as Record<string, unknown>).run_id
+            : undefined;
         const completed = await tx.auditEvent.findFirst({
-          where: {
-            action: 'one_cycle_run',
-            created_at: { gte: started.created_at },
-          },
-          orderBy: { created_at: 'desc' },
+          where:
+            typeof prevRunId === 'string'
+              ? { action: 'one_cycle_run', changes: { path: ['run_id'], equals: prevRunId } }
+              : { action: 'one_cycle_run', created_at: { gte: started.created_at } },
           select: { id: true },
         });
         if (!completed) {
@@ -236,7 +278,7 @@ async function claimCycle(
           entity_id: 'one-cycle',
           user_type: 'system',
           user_id: null,
-          changes: { started_at: now.toISOString(), cadence_ms: CYCLE_INTERVAL_MS },
+          changes: { run_id: runId, started_at: now.toISOString(), cadence_ms: CYCLE_INTERVAL_MS },
         },
       });
       return { ok: true };
@@ -246,27 +288,6 @@ async function claimCycle(
       ok: false,
       reason: err instanceof Error ? `claim_error:${err.message.slice(0, 120)}` : 'claim_error',
     };
-  }
-}
-
-/** Did the previous cycle plausibly overlap this one? (observability only —
- *  hard overlap safety is the advisory claim above.) */
-async function previousRunOverlap(startedAt: Date): Promise<boolean> {
-  try {
-    const prev = await prisma.auditEvent.findFirst({
-      where: { action: 'one_cycle_run' },
-      orderBy: { created_at: 'desc' },
-      select: { created_at: true, changes: true },
-    });
-    if (!prev) return false;
-    const prevStart = new Date(prev.created_at).getTime();
-    const prevDuration =
-      typeof (prev.changes as Record<string, unknown>)?.duration_ms === 'number'
-        ? ((prev.changes as Record<string, unknown>).duration_ms as number)
-        : 0;
-    return prevStart + prevDuration > startedAt.getTime();
-  } catch {
-    return false;
   }
 }
 
@@ -282,76 +303,124 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const runId = randomUUID();
   const startedAt = new Date();
 
-  // Overlap guard (point 8): a second concurrent one-cycle invocation cannot
-  // win the advisory claim and exits here WITHOUT starting either member.
-  const claim = await claimCycle(startedAt);
+  // Overlap guard: a second concurrent one-cycle invocation cannot win the
+  // advisory claim and exits here WITHOUT starting either member.
+  const claim = await claimCycle(runId, startedAt);
   if (!claim.ok) {
     return NextResponse.json(
-      { skipped: true, reason: claim.reason ?? 'overlap', started_at: startedAt.toISOString() },
+      {
+        skipped: true,
+        reason: claim.reason ?? 'overlap',
+        run_id: runId,
+        started_at: startedAt.toISOString(),
+      },
       { status: 200 },
     );
   }
 
-  const overlap = await previousRunOverlap(startedAt);
-  const members: MemberResult[] = [];
-
   // Member order is the authority hierarchy: listings first, media second.
-  // Lazy require so a member module failure is isolated per W2 §(d).
+  // Lazy require so a member module failure is isolated.
   const memberDefs: Array<[string, () => (r: NextRequest) => Promise<Response>]> = [
     ['idx-sync', () => require('@/app/api/cron/idx-sync/route').GET],
     ['media-sync', () => require('@/app/api/cron/media-sync/route').GET],
   ];
+  const requiredMembers = memberDefs.map(([n]) => n);
+
+  const members: MemberResult[] = [];
+  let chainStopped = false;
+  let chainStopReason: string | null = null;
 
   for (const [name, load] of memberDefs) {
-    const elapsed = Date.now() - startedAt.getTime();
-    const budget = MEMBER_BUDGETS_MS[name] ?? 60_000;
-    if (elapsed + budget + CYCLE_HEADROOM_MS > maxDuration * 1000) {
+    const budget = budgetFor(name);
+
+    // Chain already stopped by a prior non-ok member → never start this one.
+    if (chainStopped) {
       members.push({
-        member: name,
-        status: 'budget_skipped',
-        http_status: null,
-        duration_ms: 0,
-        summary: {},
+        member: name, status: 'budget_skipped', http_status: null,
+        duration_ms: 0, settled: false, summary: { skip_reason: chainStopReason },
       });
       continue;
     }
+
+    // Not enough wall-clock left for this member to plausibly finish inside the
+    // function budget → skip it (do NOT start work we can't let settle).
+    const elapsed = Date.now() - startedAt.getTime();
+    if (elapsed + budget + CYCLE_HEADROOM_MS > maxDuration * 1000) {
+      chainStopped = true;
+      chainStopReason = 'insufficient_budget';
+      members.push({
+        member: name, status: 'budget_skipped', http_status: null,
+        duration_ms: 0, settled: false, summary: { skip_reason: chainStopReason },
+      });
+      continue;
+    }
+
     let handler: (r: NextRequest) => Promise<Response>;
     try {
       handler = load();
     } catch (err) {
+      chainStopped = true;
+      chainStopReason = 'member_load_error';
       members.push({
-        member: name,
-        status: 'member_error',
-        http_status: null,
-        duration_ms: 0,
+        member: name, status: 'member_error', http_status: null,
+        duration_ms: 0, settled: true,
         summary: { error: err instanceof Error ? err.message.slice(0, 200) : 'load failed' },
       });
       continue;
     }
-    // The member-bypass token IS the CRON_SECRET (validated at auth above), so
-    // only the secret-holding orchestrator can produce a guard bypass.
-    members.push(await runMember(name, handler, authHeader, cronSecret, budget));
+
+    // Await to settlement BEFORE the loop can reach the next member.
+    const result = await runMember(name, handler, authHeader, cronSecret, budget);
+    members.push(result);
+
+    // Any non-ok member stops the chain: a slow/failed/timed-out IDX must never
+    // let media start (on stale or incomplete listings), and a timed_out member
+    // has already SETTLED here — nothing is left unresolved.
+    if (result.status !== 'ok') {
+      chainStopped = true;
+      chainStopReason = `prior_member_${result.status}`;
+    }
   }
 
   const endedAt = new Date();
   const cursorLag = await readMediaCursorLagSeconds();
+
+  const byName = new Map(members.map((m) => [m.member, m] as const));
+  // A required member is UNRESOLVED only if it was started but never settled.
+  // The sequential-await structure makes this structurally 0 in any written
+  // audit (we only reach the completion write after every member settled or was
+  // skipped) — the field exists to PROVE that invariant.
+  const members_unresolved = members.filter(
+    (m) => !TERMINAL_STATUSES.has(m.status) || (m.status !== 'budget_skipped' && !m.settled),
+  ).length;
+  const missing_required = requiredMembers.filter((n) => !byName.has(n)).length;
+  const complete = members_unresolved === 0 && missing_required === 0;
+  // Success ⇒ every required member is 'ok'. timed_out / budget_skipped /
+  // failed / member_error all force success=false.
+  const success = complete && requiredMembers.every((n) => byName.get(n)?.status === 'ok');
+
   const machine = {
+    run_id: runId,
     cadence: '10m',
     cadence_ms: CYCLE_INTERVAL_MS,
-    previous_run_overlap: overlap,
+    complete,
+    success,
     media_cursor_lag_seconds: cursorLag,
     members_ok: members.filter((m) => m.status === 'ok').length,
     members_failed: members.filter(
       (m) => m.status === 'failed' || m.status === 'member_error',
     ).length,
-    members_skipped: members.filter(
-      (m) => m.status === 'budget_skipped' || m.status === 'timeout',
-    ).length,
+    members_timed_out: members.filter((m) => m.status === 'timed_out').length,
+    members_budget_skipped: members.filter((m) => m.status === 'budget_skipped').length,
+    members_unresolved,
   };
 
-  // ONE cycle audit event (W2 §(d) partial-cycle reporting). Never throws.
+  // ONE cycle-completion audit — written ONLY after every member has settled or
+  // been skipped (never while a member is unresolved). Paired to the start
+  // marker by run_id. Never throws.
   try {
     await prisma.auditEvent.create({
       data: {
@@ -365,7 +434,7 @@ export async function GET(req: NextRequest) {
           ended_at: endedAt.toISOString(),
           duration_ms: endedAt.getTime() - startedAt.getTime(),
           members: JSON.parse(JSON.stringify(members)),
-          ...machine,
+          ...machine, // includes run_id, complete, success, member tallies
         },
       },
     });
@@ -377,7 +446,6 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    success: machine.members_failed === 0,
     started_at: startedAt.toISOString(),
     duration_ms: endedAt.getTime() - startedAt.getTime(),
     members,

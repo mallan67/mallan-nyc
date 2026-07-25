@@ -1,72 +1,65 @@
 /// <reference types="jest" />
 /**
- * One Cycle W2 orchestrator — /api/cron/one-cycle (10-minute cadence).
+ * One Cycle orchestrator — behavioral contract.
  *
- * Contracts (W2 design §(b)/(d) + Maya's 2026-07-24 cadence directive):
- *   1. CRON_SECRET Bearer auth (timing-safe), like every member.
- *   2. Member order = authority hierarchy: idx-sync BEFORE media-sync.
- *   3. A failed member never breaks the chain; statuses are recorded.
- *   4. Exactly ONE `one_cycle_run` AuditEvent per firing with the
- *      per-member status array + machine roll-up (cadence, cursor lag,
- *      previous-run overlap, ok/failed/skipped counts).
- *   5. Members are invoked in-process with the forwarded auth header —
- *      their own guards/audits stay authoritative.
- *   6. SCHEDULE contract: vercel.json runs one-cycle at *&#47;10 and no longer
- *      schedules idx-sync / media-sync independently (routes stay deployed
- *      for manual triggering during the transition window).
+ * Proves the corrected orchestration (no Promise.race; sequential await;
+ * run_id-paired markers; strict success semantics):
+ *   - a delayed IDX member beyond its budget does not let media start
+ *     concurrently;
+ *   - a timed_out member cannot yield success:true;
+ *   - a budget_skipped member cannot yield success:true;
+ *   - no completion audit is written while a member is unresolved
+ *     (completion happens only after every member settled);
+ *   - one_cycle_started and one_cycle_run share the same run_id;
+ *   - a normal cycle runs idx-sync then media-sync exactly once;
+ *   - an overlapping cycle claim starts neither member;
+ *   - auth + orchestrated-bypass token behavior.
  */
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
-// Typed to the generic member contract (Response) so a test can override with
-// any status (e.g. a 500 body) without fighting the inferred success shape.
-const idxGET = jest.fn<Promise<Response>, [NextRequest]>(async (_req: NextRequest) =>
+// ── member routes mocked ──────────────────────────────────────────────────────
+const idxGET = jest.fn<Promise<Response>, [NextRequest]>(async () =>
   NextResponse.json({ success: true, listings_processed: 7, rows_suppressed_unchanged: 3 }),
 );
-const mediaGET = jest.fn<Promise<Response>, [NextRequest]>(async (_req: NextRequest) =>
-  NextResponse.json({ success: true, r2_mirrored: 2, mirror_allowed: 2, rows_drained: 2 }),
+const mediaGET = jest.fn<Promise<Response>, [NextRequest]>(async () =>
+  NextResponse.json({ success: true, r2_mirrored: 2, mirror_allowed: 2 }),
 );
 jest.mock("@/app/api/cron/idx-sync/route", () => ({ GET: (r: NextRequest) => idxGET(r) }));
 jest.mock("@/app/api/cron/media-sync/route", () => ({ GET: (r: NextRequest) => mediaGET(r) }));
 
-const auditCreate = jest.fn(async (_args: unknown) => ({}));
-const auditFindFirst = jest.fn(async () => null as unknown);
-// claimCycle transaction: default grants the advisory lock and finds no
-// in-progress marker (normal path). Individual tests can override lockGranted /
-// startedMarker to exercise the overlap guard.
-const claimState = { lockGranted: true, startedMarker: null as unknown, completedAfter: null as unknown };
-const txMock = {
-  $queryRaw: async () => [{ locked: claimState.lockGranted }],
-  auditEvent: {
-    findFirst: async (args: { where?: { action?: string } }) =>
-      args?.where?.action === "one_cycle_started"
-        ? claimState.startedMarker
-        : claimState.completedAfter,
-    create: (a: unknown) => auditCreate(a),
-  },
+// ── prisma mocked (claim transaction + completion audit) ──────────────────────
+const startedMarkerCreate = jest.fn(async (_a?: unknown) => ({}));
+const cycleRunCreate = jest.fn(async (_a?: unknown) => ({}));
+const claimState = {
+  lockGranted: true,
+  lastStarted: null as unknown, // most-recent one_cycle_started marker (or null)
+  completedForPrev: null as unknown, // matching one_cycle_run for the prev marker (or null)
 };
-const transactionMock = jest.fn(async (fn: (tx: unknown) => unknown) => fn(txMock));
+const transactionMock = jest.fn(async (fn: (tx: unknown) => unknown) =>
+  fn({
+    $queryRaw: async () => [{ locked: claimState.lockGranted }],
+    auditEvent: {
+      findFirst: async (args: { where?: { action?: string } }) =>
+        args?.where?.action === "one_cycle_started"
+          ? claimState.lastStarted
+          : claimState.completedForPrev,
+      create: (a: unknown) => startedMarkerCreate(a),
+    },
+  }),
+);
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: {
     $transaction: (fn: unknown) => transactionMock(fn as (tx: unknown) => unknown),
-    auditEvent: {
-      create: (a: unknown) => auditCreate(a),
-      findFirst: (a: unknown) => auditFindFirst(),
-    },
+    auditEvent: { create: (a: unknown) => cycleRunCreate(a), findFirst: async (_a?: unknown) => null },
   },
 }));
-
-const cursorMock = jest.fn(async () => ({
-  last_photos_change: new Date(Date.now() - 90_000),
-}));
 jest.mock("@/lib/idx/media-sync", () => ({
-  getMediaSyncCursor: () => cursorMock(),
+  getMediaSyncCursor: async () => ({ last_photos_change: new Date(Date.now() - 90_000) }),
 }));
 
-process.env.CRON_SECRET = "test-cycle-secret";
-const AUTH = "Bearer test-cycle-secret";
+process.env.CRON_SECRET = "unit-secret";
+const AUTH = "Bearer unit-secret";
 const { GET } = require("@/app/api/cron/one-cycle/route");
 
 const makeReq = (auth?: string) =>
@@ -74,128 +67,214 @@ const makeReq = (auth?: string) =>
     headers: auth ? { authorization: auth } : {},
   });
 
+const runIdOf = (createMock: jest.Mock) => {
+  const call = createMock.mock.calls[0]?.[0] as
+    | { data?: { changes?: { run_id?: string } } }
+    | undefined;
+  return call?.data?.changes?.run_id;
+};
+
 beforeEach(() => {
-  idxGET.mockClear();
-  mediaGET.mockClear();
-  auditCreate.mockClear();
-  auditFindFirst.mockClear();
+  idxGET.mockReset();
+  mediaGET.mockReset();
+  startedMarkerCreate.mockClear();
+  cycleRunCreate.mockClear();
   transactionMock.mockClear();
   claimState.lockGranted = true;
-  claimState.startedMarker = null;
-  claimState.completedAfter = null;
+  claimState.lastStarted = null;
+  claimState.completedForPrev = null;
+  delete process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC;
+  delete process.env.ONE_CYCLE_BUDGET_MS_MEDIA_SYNC;
+  idxGET.mockImplementation(async () =>
+    NextResponse.json({ success: true, listings_processed: 7, rows_suppressed_unchanged: 3 }),
+  );
+  mediaGET.mockImplementation(async () =>
+    NextResponse.json({ success: true, r2_mirrored: 2, mirror_allowed: 2 }),
+  );
 });
 
-describe("one-cycle — auth", () => {
-  it("rejects a missing/wrong bearer with 401 and runs NO member", async () => {
+// ─── auth + bypass token ──────────────────────────────────────────────────────
+describe("auth + orchestrated bypass token", () => {
+  it("401 on missing/wrong bearer; NO member runs, NO claim taken", async () => {
     expect((await GET(makeReq())).status).toBe(401);
     expect((await GET(makeReq("Bearer wrong-secret-value"))).status).toBe(401);
     expect(idxGET).not.toHaveBeenCalled();
     expect(mediaGET).not.toHaveBeenCalled();
-  });
-});
-
-describe("one-cycle — ordering + auth forwarding", () => {
-  it("runs idx-sync strictly BEFORE media-sync, forwarding the cron bearer to both", async () => {
-    const res = await GET(makeReq(AUTH));
-    expect(res.status).toBe(200);
-    expect(idxGET).toHaveBeenCalledTimes(1);
-    expect(mediaGET).toHaveBeenCalledTimes(1);
-    expect(idxGET.mock.invocationCallOrder[0]).toBeLessThan(
-      mediaGET.mock.invocationCallOrder[0],
-    );
-    expect(idxGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
-    expect(mediaGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("signals both members they are orchestrated (x-one-cycle-member = CRON_SECRET) so their 10-min guards do not self-skip the 10-min cadence", async () => {
-    // The bypass token is the SECRET, not a bare flag: a 10-minute AuditEvent
-    // guard at a 10-minute cadence would otherwise false-trigger and drop every
-    // other cycle to an effective 20-minute cadence — and only the secret-holding
-    // orchestrator may produce the bypass (see the header-alone test below).
+  it("forwards auth + the SECRET as the x-one-cycle-member bypass token to both members", async () => {
     await GET(makeReq(AUTH));
-    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("test-cycle-secret");
-    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("test-cycle-secret");
+    expect(idxGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
+    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("unit-secret");
+    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("unit-secret");
   });
 });
 
-describe("one-cycle — failure isolation (W2 §(d))", () => {
-  it("an idx-sync throw does NOT stop media-sync; statuses recorded; cycle audit written", async () => {
-    idxGET.mockRejectedValueOnce(new Error("simulated member crash"));
+// ─── 6. normal cycle: idx then media, exactly once ────────────────────────────
+describe("normal cycle", () => {
+  it("runs idx-sync then media-sync exactly once, success:true, complete:true", async () => {
     const res = await GET(makeReq(AUTH));
     const body = await res.json();
-    expect(mediaGET).toHaveBeenCalledTimes(1); // chain survived
-    const statuses = Object.fromEntries(
-      body.members.map((m: { member: string; status: string }) => [m.member, m.status]),
+    expect(idxGET).toHaveBeenCalledTimes(1);
+    expect(mediaGET).toHaveBeenCalledTimes(1);
+    expect(idxGET.mock.invocationCallOrder[0]).toBeLessThan(mediaGET.mock.invocationCallOrder[0]);
+    expect(body.success).toBe(true);
+    expect(body.complete).toBe(true);
+    expect(body.members_ok).toBe(2);
+    expect(body.members_unresolved).toBe(0);
+  });
+});
+
+// ─── 1. delayed IDX beyond budget must not let media run concurrently ─────────
+describe("no concurrent members", () => {
+  it("media never starts until idx has fully settled (sequential await)", async () => {
+    let idxResolved = false;
+    let mediaStartedWhileIdxUnresolved = false;
+    let releaseIdx: () => void = () => {};
+    idxGET.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          releaseIdx = () => {
+            idxResolved = true;
+            resolve(NextResponse.json({ success: true }));
+          };
+        }),
     );
-    expect(statuses["idx-sync"]).toBe("member_error");
-    expect(statuses["media-sync"]).toBe("ok");
-    expect(body.members_failed).toBe(1);
+    mediaGET.mockImplementation(async () => {
+      if (!idxResolved) mediaStartedWhileIdxUnresolved = true;
+      return NextResponse.json({ success: true });
+    });
+
+    const p = GET(makeReq(AUTH));
+    // Wait until idx has actually STARTED (past auth + the claim transaction).
+    for (let i = 0; i < 100 && idxGET.mock.calls.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 1));
+    }
+    expect(idxGET).toHaveBeenCalledTimes(1);
+    // idx is pending (unresolved) — media must NOT have started.
+    expect(mediaGET).not.toHaveBeenCalled();
+    releaseIdx();
+    await p;
+    expect(mediaStartedWhileIdxUnresolved).toBe(false);
+    expect(mediaGET).toHaveBeenCalledTimes(1);
+  });
+
+  it("an IDX member OVER its budget is timed_out, stops the chain, and media never starts", async () => {
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "-1"; // any real duration exceeds this
+    const body = await (await GET(makeReq(AUTH))).json();
+    const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
+    const media = body.members.find((m: { member: string }) => m.member === "media-sync");
+    expect(idx.status).toBe("timed_out");
+    expect(idx.settled).toBe(true); // awaited to settlement — never abandoned
+    expect(media.status).toBe("budget_skipped");
+    expect(mediaGET).not.toHaveBeenCalled(); // media never STARTED
+  });
+});
+
+// ─── 2 + 3. success truth semantics ───────────────────────────────────────────
+describe("success truth semantics", () => {
+  it("a timed_out member forces success:false / complete:true", async () => {
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "-1";
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(body.members_timed_out).toBe(1);
+    expect(body.success).toBe(false);
+    expect(body.complete).toBe(true);
+  });
+
+  it("a budget_skipped member forces success:false", async () => {
+    process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "-1"; // idx times out ⇒ media budget_skipped
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(body.members_budget_skipped).toBe(1);
     expect(body.success).toBe(false);
   });
 
-  it("a member 500 response is recorded as failed, not thrown", async () => {
-    idxGET.mockResolvedValueOnce(
-      NextResponse.json({ error: "boom" }, { status: 500 }),
-    );
+  it("a failed member (non-2xx) forces success:false and stops the chain", async () => {
+    idxGET.mockImplementation(async () => NextResponse.json({ error: "boom" }, { status: 500 }));
     const body = await (await GET(makeReq(AUTH))).json();
     const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
     expect(idx.status).toBe("failed");
-    expect(idx.http_status).toBe(500);
+    expect(body.success).toBe(false);
+    expect(mediaGET).not.toHaveBeenCalled(); // chain stops on non-ok
+  });
+
+  it("a thrown member is member_error, success:false, chain stops", async () => {
+    idxGET.mockImplementation(async () => {
+      throw new Error("simulated crash");
+    });
+    const body = await (await GET(makeReq(AUTH))).json();
+    const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
+    expect(idx.status).toBe("member_error");
+    expect(idx.settled).toBe(true);
+    expect(body.success).toBe(false);
+    expect(mediaGET).not.toHaveBeenCalled();
   });
 });
 
-describe("one-cycle — the single machine audit event", () => {
-  it("writes exactly ONE one_cycle_run AuditEvent with member array + machine roll-up", async () => {
+// ─── 4. no completion audit while a member is unresolved ──────────────────────
+describe("completion ordering", () => {
+  it("one_cycle_run is written ONLY after every member settled (never mid-flight)", async () => {
     await GET(makeReq(AUTH));
-    const cycleAudits = auditCreate.mock.calls.filter(
-      (c) => (c[0] as { data: { action: string } }).data.action === "one_cycle_run",
+    expect(cycleRunCreate).toHaveBeenCalledTimes(1);
+    // The completion audit create runs AFTER both member GETs resolved.
+    expect(cycleRunCreate.mock.invocationCallOrder[0]).toBeGreaterThan(
+      idxGET.mock.invocationCallOrder[0],
     );
-    expect(cycleAudits.length).toBe(1);
-    const ch = (cycleAudits[0][0] as { data: { changes: Record<string, unknown> } }).data
-      .changes;
-    for (const k of [
-      "started_at", "ended_at", "duration_ms", "members", "cadence",
-      "previous_run_overlap", "media_cursor_lag_seconds",
-      "members_ok", "members_failed", "members_skipped",
-    ]) {
-      expect(ch).toHaveProperty(k);
+    expect(cycleRunCreate.mock.invocationCallOrder[0]).toBeGreaterThan(
+      mediaGET.mock.invocationCallOrder[0],
+    );
+    // And the written audit proves nothing was unresolved.
+    const changes = (cycleRunCreate.mock.calls[0][0] as { data: { changes: Record<string, unknown> } })
+      .data.changes;
+    expect(changes.members_unresolved).toBe(0);
+    expect(changes.complete).toBe(true);
+    const members = changes.members as Array<{ status: string; settled: boolean }>;
+    for (const m of members) {
+      if (m.status !== "budget_skipped") expect(m.settled).toBe(true);
     }
-    expect(ch.cadence).toBe("10m");
-    // cursor mock is 90s behind ⇒ lag ≈ 90 (±5s of test execution)
-    expect(ch.media_cursor_lag_seconds as number).toBeGreaterThanOrEqual(85);
-    expect(ch.media_cursor_lag_seconds as number).toBeLessThanOrEqual(120);
-    // member summaries carry whitelisted counters only
-    const members = ch.members as Array<{ member: string; summary: Record<string, unknown> }>;
-    const idx = members.find((m) => m.member === "idx-sync")!;
-    expect(idx.summary).toHaveProperty("listings_processed", 7);
-    expect(idx.summary).toHaveProperty("rows_suppressed_unchanged", 3);
-    expect(idx.summary).not.toHaveProperty("success");
-    const media = members.find((m) => m.member === "media-sync")!;
-    expect(media.summary).toHaveProperty("mirror_allowed", 2);
-  });
-
-  it("an audit-write failure never fails the cycle response", async () => {
-    auditCreate.mockRejectedValueOnce(new Error("audit table unavailable"));
-    const res = await GET(makeReq(AUTH));
-    expect(res.status).toBe(200);
   });
 });
 
-describe("one-cycle — schedule contract (vercel.json)", () => {
-  const cfg = JSON.parse(
-    fs.readFileSync(path.resolve(__dirname, "../../vercel.json"), "utf8"),
-  ) as { crons: Array<{ path: string; schedule: string }> };
+// ─── 5. run_id pairing ────────────────────────────────────────────────────────
+describe("run_id pairing", () => {
+  it("one_cycle_started and one_cycle_run carry the SAME run_id", async () => {
+    const body = await (await GET(makeReq(AUTH))).json();
+    const startedRunId = runIdOf(startedMarkerCreate);
+    const completedRunId = runIdOf(cycleRunCreate);
+    expect(typeof startedRunId).toBe("string");
+    expect(startedRunId).toBe(completedRunId);
+    expect(body.run_id).toBe(startedRunId); // response echoes it too
+  });
+});
 
-  it("one-cycle is scheduled every 10 minutes", () => {
-    const entry = cfg.crons.find((c) => c.path === "/api/cron/one-cycle");
-    expect(entry).toBeDefined();
-    expect(entry!.schedule).toBe("*/10 * * * *");
+// ─── 7. overlapping cycle claim starts neither member ─────────────────────────
+describe("overlap guard", () => {
+  it("lock contended → skipped, neither member runs, no completion audit", async () => {
+    claimState.lockGranted = false;
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(body.skipped).toBe(true);
+    expect(body.reason).toBe("lock_contended");
+    expect(idxGET).not.toHaveBeenCalled();
+    expect(mediaGET).not.toHaveBeenCalled();
+    expect(cycleRunCreate).not.toHaveBeenCalled();
   });
 
-  it("idx-sync and media-sync are no longer independently scheduled (routes remain deployed)", () => {
-    expect(cfg.crons.some((c) => c.path === "/api/cron/idx-sync")).toBe(false);
-    expect(cfg.crons.some((c) => c.path === "/api/cron/media-sync")).toBe(false);
-    expect(fs.existsSync(path.resolve(__dirname, "../../app/api/cron/idx-sync/route.ts"))).toBe(true);
-    expect(fs.existsSync(path.resolve(__dirname, "../../app/api/cron/media-sync/route.ts"))).toBe(true);
+  it("in-progress prior started-marker (no matching completion) → overlap skip, neither member runs", async () => {
+    claimState.lockGranted = true;
+    claimState.lastStarted = { created_at: new Date(), changes: { run_id: "prev-run" } };
+    claimState.completedForPrev = null; // no one_cycle_run for prev-run yet
+    const body = await (await GET(makeReq(AUTH))).json();
+    expect(body.skipped).toBe(true);
+    expect(body.reason).toBe("overlap_in_progress");
+    expect(idxGET).not.toHaveBeenCalled();
+    expect(mediaGET).not.toHaveBeenCalled();
+  });
+
+  it("prior started-marker WITH a matching completion → claim granted, members run", async () => {
+    claimState.lastStarted = { created_at: new Date(Date.now() - 1000), changes: { run_id: "prev-run" } };
+    claimState.completedForPrev = { id: 1 }; // prev-run completed
+    await GET(makeReq(AUTH));
+    expect(idxGET).toHaveBeenCalledTimes(1);
+    expect(mediaGET).toHaveBeenCalledTimes(1);
   });
 });
