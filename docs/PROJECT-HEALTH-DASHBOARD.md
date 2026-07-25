@@ -23,19 +23,21 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-03T16:36:52Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-25T23:50:07Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `ab56ecd8`; probed from branch `docs/registry-neon-verification-2026-07-02` |
-| Open PRs | 🟡 | 41 open (31 non-audit): #473, #472, #467, #428 |
+| Repo / main HEAD | 🟢 | main `318925e9`; probed from branch `fix/neon-write-amplification-2026-07-25` |
+| Open PRs | 🟢 | 1 open (1 non-audit): #569 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
-| Cron cadence (live Cotality) | 🟢 | 21 crons; idx-sync `*/30 * * * *`, media-sync `0 * * * *` (hourly), db-keepalive removed — approved compute-reduction (PR #481, 2026-07-07) |
+| Neon facts drift (neon:verify) | 🟢 | NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s) |
+| Cron cadence (live Cotality) | 🟡 | 20 crons; idx-sync `MISSING`, media-sync `MISSING`, db-keepalive `MISSING` |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 17m ago (cadence 30m after PR #481) |
-| DB growth / archive state | 🟢 | 110,707 listings; 2,032 archived (sync_status='archived') |
+| Cotality sync attempt freshness | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
+| Cotality last-run outcome | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
+| DB growth / archive state | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
 <!-- HEALTH:AUTO:END -->
 
 > To fill the DB rows, run with the canonical cold-waterfall connection in env (read-only), e.g.
@@ -283,8 +285,10 @@ billed-storage drop. The S1 measurement (OPS-018, 2026-07-02) confirmed freed TO
 reusable-not-returned — after the drain, a no-drop measurement is NORMAL, not an anomaly.
 Disposition: no compaction now; no pg_repack until after the drain, if at all; VACUUM FULL forbidden.
 
-Follow-on (sequenced after OPS-009/pilot): **OPS-010A** diff-before-write suppression — the
-recurring ~750 MB+/mo churn lever, larger long-term than the one-time backlog. **OPS-015** tracks
+Follow-on (sequenced after OPS-009/pilot): **OPS-010A** — base material-diff suppression is
+already DEPLOYED (`listingMediaRowUnchanged`/`listingUpdateMateriallyUnchanged`); the remaining
+Phase-2 work is suppressing the residual `raw_data_only` + `delivery_url_refreshed` causes (the
+recurring churn lever), larger long-term than the one-time backlog. **OPS-015** tracks
 db-keepalive redundancy separately (decision, not a fix now).
 
 ---
