@@ -13,19 +13,23 @@
  *   - one_cycle_started and one_cycle_run share the same run_id;
  *   - a normal cycle runs idx-sync then media-sync exactly once;
  *   - an overlapping cycle claim starts neither member;
- *   - auth + orchestrated-bypass token behavior.
+ *   - members are called IN-PROCESS (no HTTP handler, no header, no nested claim).
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
-// ── member routes mocked ──────────────────────────────────────────────────────
-const idxGET = jest.fn<Promise<Response>, [NextRequest]>(async () =>
-  NextResponse.json({ success: true, listings_processed: 7, rows_suppressed_unchanged: 3 }),
+// ── member WORK functions mocked (in-process, NOT route handlers) ─────────────
+// The member functions return a MemberRunResult ({ status, body }) — NOT a
+// NextResponse. One Cycle imports and calls them directly; there is no HTTP
+// handler, forwarded secret, or x-one-cycle-member header involved.
+type MemberArgs = { oneCycleRunId: string; forceFull?: boolean };
+const idxMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
+  async () => ({ status: 200, body: { success: true, listings_processed: 7, rows_suppressed_unchanged: 3 } }),
 );
-const mediaGET = jest.fn<Promise<Response>, [NextRequest]>(async () =>
-  NextResponse.json({ success: true, r2_mirrored: 2, mirror_allowed: 2 }),
+const mediaMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
+  async () => ({ status: 200, body: { success: true, r2_mirrored: 2, mirror_allowed: 2 } }),
 );
-jest.mock("@/app/api/cron/idx-sync/route", () => ({ GET: (r: NextRequest) => idxGET(r) }));
-jest.mock("@/app/api/cron/media-sync/route", () => ({ GET: (r: NextRequest) => mediaGET(r) }));
+jest.mock("@/lib/idx/idx-sync-member", () => ({ runIdxSyncMember: (a: MemberArgs) => idxMember(a) }));
+jest.mock("@/lib/idx/media-sync-member", () => ({ runMediaSyncMember: (a: MemberArgs) => mediaMember(a) }));
 
 // ── prisma mocked (claim transaction + completion audit) ──────────────────────
 const startedMarkerCreate = jest.fn(async (_a?: unknown) => ({}));
@@ -75,8 +79,8 @@ const runIdOf = (createMock: jest.Mock) => {
 };
 
 beforeEach(() => {
-  idxGET.mockReset();
-  mediaGET.mockReset();
+  idxMember.mockReset();
+  mediaMember.mockReset();
   startedMarkerCreate.mockClear();
   cycleRunCreate.mockClear();
   transactionMock.mockClear();
@@ -85,29 +89,36 @@ beforeEach(() => {
   claimState.completedForPrev = null;
   delete process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC;
   delete process.env.ONE_CYCLE_BUDGET_MS_MEDIA_SYNC;
-  idxGET.mockImplementation(async () =>
-    NextResponse.json({ success: true, listings_processed: 7, rows_suppressed_unchanged: 3 }),
-  );
-  mediaGET.mockImplementation(async () =>
-    NextResponse.json({ success: true, r2_mirrored: 2, mirror_allowed: 2 }),
-  );
+  idxMember.mockImplementation(async () => ({
+    status: 200,
+    body: { success: true, listings_processed: 7, rows_suppressed_unchanged: 3 },
+  }));
+  mediaMember.mockImplementation(async () => ({
+    status: 200,
+    body: { success: true, r2_mirrored: 2, mirror_allowed: 2 },
+  }));
 });
 
-// ─── auth + bypass token ──────────────────────────────────────────────────────
-describe("auth + orchestrated bypass token", () => {
+// ─── auth + in-process member invocation ──────────────────────────────────────
+describe("auth + in-process member invocation", () => {
   it("401 on missing/wrong bearer; NO member runs, NO claim taken", async () => {
     expect((await GET(makeReq())).status).toBe(401);
     expect((await GET(makeReq("Bearer wrong-secret-value"))).status).toBe(401);
-    expect(idxGET).not.toHaveBeenCalled();
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("forwards auth + the SECRET as the x-one-cycle-member bypass token to both members", async () => {
+  it("calls both member functions in-process — no HTTP handler, no forgeable header, idx incremental", async () => {
     await GET(makeReq(AUTH));
-    expect(idxGET.mock.calls[0][0].headers.get("authorization")).toBe(AUTH);
-    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("unit-secret");
-    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-member")).toBe("unit-secret");
+    // Members are invoked with the run correlation id only — no auth header, no
+    // secret, no bypass token is threaded to them (there is no HTTP boundary).
+    expect(idxMember).toHaveBeenCalledTimes(1);
+    expect(mediaMember).toHaveBeenCalledTimes(1);
+    expect(typeof idxMember.mock.calls[0][0].oneCycleRunId).toBe("string");
+    expect(typeof mediaMember.mock.calls[0][0].oneCycleRunId).toBe("string");
+    // One Cycle drives INCREMENTAL idx-sync — a full drain is a manual claimed GET.
+    expect(idxMember.mock.calls[0][0].forceFull).toBe(false);
   });
 });
 
@@ -116,9 +127,9 @@ describe("normal cycle", () => {
   it("runs idx-sync then media-sync exactly once, success:true, complete:true", async () => {
     const res = await GET(makeReq(AUTH));
     const body = await res.json();
-    expect(idxGET).toHaveBeenCalledTimes(1);
-    expect(mediaGET).toHaveBeenCalledTimes(1);
-    expect(idxGET.mock.invocationCallOrder[0]).toBeLessThan(mediaGET.mock.invocationCallOrder[0]);
+    expect(idxMember).toHaveBeenCalledTimes(1);
+    expect(mediaMember).toHaveBeenCalledTimes(1);
+    expect(idxMember.mock.invocationCallOrder[0]).toBeLessThan(mediaMember.mock.invocationCallOrder[0]);
     expect(body.success).toBe(true);
     expect(body.complete).toBe(true);
     expect(body.members_ok).toBe(2);
@@ -132,40 +143,40 @@ describe("no concurrent members", () => {
     let idxResolved = false;
     let mediaStartedWhileIdxUnresolved = false;
     let releaseIdx: () => void = () => {};
-    idxGET.mockImplementation(
+    idxMember.mockImplementation(
       () =>
-        new Promise<Response>((resolve) => {
+        new Promise<{ status: number; body: Record<string, unknown> }>((resolve) => {
           releaseIdx = () => {
             idxResolved = true;
-            resolve(NextResponse.json({ success: true }));
+            resolve({ status: 200, body: { success: true } });
           };
         }),
     );
-    mediaGET.mockImplementation(async () => {
+    mediaMember.mockImplementation(async () => {
       if (!idxResolved) mediaStartedWhileIdxUnresolved = true;
-      return NextResponse.json({ success: true });
+      return { status: 200, body: { success: true } };
     });
 
     const p = GET(makeReq(AUTH));
     // Wait until idx has actually STARTED (past auth + the claim transaction).
-    for (let i = 0; i < 100 && idxGET.mock.calls.length === 0; i++) {
+    for (let i = 0; i < 100 && idxMember.mock.calls.length === 0; i++) {
       await new Promise((r) => setTimeout(r, 1));
     }
-    expect(idxGET).toHaveBeenCalledTimes(1);
+    expect(idxMember).toHaveBeenCalledTimes(1);
     // idx is pending (unresolved) — media must NOT have started.
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
     releaseIdx();
     await p;
     expect(mediaStartedWhileIdxUnresolved).toBe(false);
-    expect(mediaGET).toHaveBeenCalledTimes(1);
+    expect(mediaMember).toHaveBeenCalledTimes(1);
   });
 
   it("an IDX member OVER its budget is timed_out, stops the chain, and media never starts", async () => {
     // Valid POSITIVE 1ms budget (config-valid) + a >1ms real delay ⇒ timed_out.
     process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "1";
-    idxGET.mockImplementation(async () => {
+    idxMember.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 15));
-      return NextResponse.json({ success: true });
+      return { status: 200, body: { success: true } };
     });
     const body = await (await GET(makeReq(AUTH))).json();
     const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
@@ -173,7 +184,7 @@ describe("no concurrent members", () => {
     expect(idx.status).toBe("timed_out");
     expect(idx.settled).toBe(true); // awaited to settlement — never abandoned
     expect(media.status).toBe("budget_skipped");
-    expect(mediaGET).not.toHaveBeenCalled(); // media never STARTED
+    expect(mediaMember).not.toHaveBeenCalled(); // media never STARTED
   });
 });
 
@@ -181,9 +192,9 @@ describe("no concurrent members", () => {
 describe("truth semantics: settled / complete / success", () => {
   const forceIdxTimeout = () => {
     process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "1";
-    idxGET.mockImplementation(async () => {
+    idxMember.mockImplementation(async () => {
       await new Promise((r) => setTimeout(r, 15));
-      return NextResponse.json({ success: true });
+      return { status: 200, body: { success: true } };
     });
   };
 
@@ -205,7 +216,7 @@ describe("truth semantics: settled / complete / success", () => {
   });
 
   it("idx failed + media budget_skipped ⇒ settled true, complete FALSE, success false", async () => {
-    idxGET.mockImplementation(async () => NextResponse.json({ error: "boom" }, { status: 500 }));
+    idxMember.mockImplementation(async () => ({ status: 500, body: { error: "boom" } }));
     const body = await (await GET(makeReq(AUTH))).json();
     expect(body.members_budget_skipped).toBe(1);
     expect(body.orchestration_settled).toBe(true);
@@ -222,16 +233,16 @@ describe("truth semantics: settled / complete / success", () => {
   });
 
   it("a failed member (non-2xx) forces success:false and stops the chain", async () => {
-    idxGET.mockImplementation(async () => NextResponse.json({ error: "boom" }, { status: 500 }));
+    idxMember.mockImplementation(async () => ({ status: 500, body: { error: "boom" } }));
     const body = await (await GET(makeReq(AUTH))).json();
     const idx = body.members.find((m: { member: string }) => m.member === "idx-sync");
     expect(idx.status).toBe("failed");
     expect(body.success).toBe(false);
-    expect(mediaGET).not.toHaveBeenCalled(); // chain stops on non-ok
+    expect(mediaMember).not.toHaveBeenCalled(); // chain stops on non-ok
   });
 
   it("a thrown member is member_error, success:false, chain stops", async () => {
-    idxGET.mockImplementation(async () => {
+    idxMember.mockImplementation(async () => {
       throw new Error("simulated crash");
     });
     const body = await (await GET(makeReq(AUTH))).json();
@@ -239,7 +250,7 @@ describe("truth semantics: settled / complete / success", () => {
     expect(idx.status).toBe("member_error");
     expect(idx.settled).toBe(true);
     expect(body.success).toBe(false);
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
   });
 });
 
@@ -248,12 +259,12 @@ describe("completion ordering", () => {
   it("one_cycle_run is written ONLY after every member settled (never mid-flight)", async () => {
     await GET(makeReq(AUTH));
     expect(cycleRunCreate).toHaveBeenCalledTimes(1);
-    // The completion audit create runs AFTER both member GETs resolved.
+    // The completion audit create runs AFTER both member calls resolved.
     expect(cycleRunCreate.mock.invocationCallOrder[0]).toBeGreaterThan(
-      idxGET.mock.invocationCallOrder[0],
+      idxMember.mock.invocationCallOrder[0],
     );
     expect(cycleRunCreate.mock.invocationCallOrder[0]).toBeGreaterThan(
-      mediaGET.mock.invocationCallOrder[0],
+      mediaMember.mock.invocationCallOrder[0],
     );
     // And the written audit proves nothing was unresolved.
     const changes = (cycleRunCreate.mock.calls[0][0] as { data: { changes: Record<string, unknown> } })
@@ -286,8 +297,8 @@ describe("overlap guard", () => {
     const body = await (await GET(makeReq(AUTH))).json();
     expect(body.skipped).toBe(true);
     expect(body.reason).toBe("lock_contended");
-    expect(idxGET).not.toHaveBeenCalled();
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
     expect(cycleRunCreate).not.toHaveBeenCalled();
   });
 
@@ -298,16 +309,16 @@ describe("overlap guard", () => {
     const body = await (await GET(makeReq(AUTH))).json();
     expect(body.skipped).toBe(true);
     expect(body.reason).toBe("overlap_in_progress");
-    expect(idxGET).not.toHaveBeenCalled();
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
   });
 
   it("prior started-marker WITH a matching completion → claim granted, members run", async () => {
     claimState.lastStarted = { created_at: new Date(Date.now() - 1000), changes: { run_id: "prev-run" } };
     claimState.completedForPrev = { id: 1 }; // prev-run completed
     await GET(makeReq(AUTH));
-    expect(idxGET).toHaveBeenCalledTimes(1);
-    expect(mediaGET).toHaveBeenCalledTimes(1);
+    expect(idxMember).toHaveBeenCalledTimes(1);
+    expect(mediaMember).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -327,8 +338,8 @@ describe("budget config validation fails closed", () => {
     expect(typeof body.configuration_error).toBe("string");
     expect(body.started).toBe(false);
     expect(transactionMock).not.toHaveBeenCalled(); // no claim taken
-    expect(idxGET).not.toHaveBeenCalled();
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
   });
 
   it("rejects combined budgets that don't fit inside maxDuration", async () => {
@@ -338,22 +349,22 @@ describe("budget config validation fails closed", () => {
     const body = await res.json();
     expect(res.status).toBe(500);
     expect(body.configuration_error).toMatch(/do not fit inside maxDuration/);
-    expect(idxGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
   });
 
   it("accepts a valid positive override within range", async () => {
     process.env.ONE_CYCLE_BUDGET_MS_IDX_SYNC = "60000"; // valid
     const res = await GET(makeReq(AUTH));
     expect(res.status).toBe(200);
-    expect(idxGET).toHaveBeenCalledTimes(1);
+    expect(idxMember).toHaveBeenCalledTimes(1);
   });
 });
 
-// ─── run_id forwarded to members for telemetry correlation ────────────────────
+// ─── run_id passed to members for telemetry correlation ───────────────────────
 describe("member telemetry correlation", () => {
-  it("forwards x-one-cycle-run-id to both members, equal to the cycle run_id", async () => {
+  it("passes oneCycleRunId to both members, equal to the cycle run_id", async () => {
     const body = await (await GET(makeReq(AUTH))).json();
-    expect(idxGET.mock.calls[0][0].headers.get("x-one-cycle-run-id")).toBe(body.run_id);
-    expect(mediaGET.mock.calls[0][0].headers.get("x-one-cycle-run-id")).toBe(body.run_id);
+    expect(idxMember.mock.calls[0][0].oneCycleRunId).toBe(body.run_id);
+    expect(mediaMember.mock.calls[0][0].oneCycleRunId).toBe(body.run_id);
   });
 });

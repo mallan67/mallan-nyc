@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual, randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { claimMachine } from '@/lib/idx/machine-claim';
+import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
+import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
 // cadence, 2026-07-24) ───────────────────────────────────────────────────────
@@ -24,11 +26,14 @@ import { claimMachine } from '@/lib/idx/machine-claim';
 //   "Cotality API → sole listing and feed-media truth → One Cycle → Neon
 //    operational copy → projections → Vercel cache."
 //
-// Members are invoked IN-PROCESS by calling the existing route handlers with a
-// forwarded Authorization header — no HTTP fan-out. Members run STRICTLY
-// SEQUENTIALLY and each is AWAITED TO SETTLEMENT before the next starts, so IDX
-// and media can never overlap inside a cycle and no completion is ever recorded
-// while a started member is unresolved (see runMember + the loop below).
+// Members are invoked IN-PROCESS by importing and calling their internal work
+// functions directly (runIdxSyncMember / runMediaSyncMember) — no HTTP fan-out,
+// no forwarded secret, no forgeable header. One Cycle already owns the shared
+// machine claim, so members do NOT claim again; the public GET routes ALWAYS
+// claim, so there is no HTTP path that reaches an unclaimed member. Members run
+// STRICTLY SEQUENTIALLY and each is AWAITED TO SETTLEMENT before the next starts,
+// so IDX and media can never overlap inside a cycle and no completion is ever
+// recorded while a started member is unresolved (see runMember + the loop below).
 //
 // MEASUREMENT (the "one production machine" contract): the `one_cycle_run`
 // audit payload carries the machine roll-up (member statuses/durations, media
@@ -177,12 +182,19 @@ function extractSummary(body: unknown): Record<string, unknown> {
 }
 
 /**
+ * A member is an IN-PROCESS function (runIdxSyncMember / runMediaSyncMember) —
+ * NOT an HTTP handler. One Cycle already owns the machine claim, so members do
+ * NOT claim. There is NO forgeable HTTP header that reaches this unclaimed path:
+ * the public GET routes always claim; only this direct import is exempt.
+ */
+type MemberFn = (args: {
+  oneCycleRunId: string;
+}) => Promise<{ status: number; body: Record<string, unknown> }>;
+
+/**
  * Run ONE member to SETTLEMENT — no Promise.race, no abandonment.
  *
- * The prior implementation raced the member against a timeout and, on timeout,
- * returned while the member kept running — which let the next member start
- * concurrently and allowed a cycle to record completion with a member still
- * unresolved. That is removed. Here the member handler is AWAITED fully, so:
+ * The member function is AWAITED fully, so:
  *   - the caller cannot start the next member until this one settles;
  *   - IDX and media never overlap;
  *   - `settled` is always true on return.
@@ -198,39 +210,19 @@ function extractSummary(body: unknown): Record<string, unknown> {
  */
 async function runMember(
   member: string,
-  handler: (req: NextRequest) => Promise<Response>,
-  authHeader: string,
-  memberToken: string,
+  fn: MemberFn,
   runId: string,
   budgetMs: number,
 ): Promise<MemberResult> {
   const started = Date.now();
-  // `x-one-cycle-member` is the orchestrator-identity proof that lets the member
-  // SKIP its own 10-minute AuditEvent concurrency guard (which would FALSE-
-  // TRIGGER at a 10-minute cadence). The header VALUE must equal CRON_SECRET
-  // (the member timing-safe-compares it), so the header ALONE cannot bypass:
-  // auth (401) precedes the guard, and a bare `x-one-cycle-member: 1` does not
-  // match. Only the secret-holding orchestrator can produce the bypass.
-  // `x-one-cycle-run-id` lets the member stamp its own durable audit event
-  // (idx_sync_cron / media_sync_cron, incl. Cotality telemetry) with THIS
-  // cycle's run_id, so member-level telemetry correlates with the cycle.
-  const req = new NextRequest(`https://internal.one-cycle/${member}`, {
-    headers: {
-      authorization: authHeader,
-      'x-one-cycle-member': memberToken,
-      'x-one-cycle-run-id': runId,
-    },
-  });
-
   let status: MemberStatus;
   let http_status: number | null = null;
   let summary: Record<string, unknown> = {};
   try {
-    const res = await handler(req); // FULLY AWAITED — never abandoned
+    const res = await fn({ oneCycleRunId: runId }); // FULLY AWAITED — never abandoned
     http_status = res.status;
-    const body = await res.json().catch(() => ({}));
     status = res.status >= 200 && res.status < 300 ? 'ok' : 'failed';
-    summary = extractSummary(body);
+    summary = extractSummary(res.body);
   } catch (err) {
     status = 'member_error';
     summary = { error: err instanceof Error ? err.message.slice(0, 200) : 'unknown' };
@@ -326,10 +318,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Member order is the authority hierarchy: listings first, media second.
-  // Lazy require so a member module failure is isolated.
-  const memberDefs: Array<[string, () => (r: NextRequest) => Promise<Response>]> = [
-    ['idx-sync', () => require('@/app/api/cron/idx-sync/route').GET],
-    ['media-sync', () => require('@/app/api/cron/media-sync/route').GET],
+  // Members are the internal work functions, imported and called in-process.
+  // One Cycle owns the claim, so these run UNCLAIMED here — that unclaimed path
+  // is reachable ONLY via this direct import, never over HTTP (the public GET
+  // routes always claim). One Cycle drives INCREMENTAL idx-sync (forceFull:false);
+  // a full backlog drain is a deliberate manual `?full=true` GET, which claims.
+  const memberDefs: Array<[string, MemberFn]> = [
+    ['idx-sync', ({ oneCycleRunId }) => runIdxSyncMember({ oneCycleRunId, forceFull: false })],
+    ['media-sync', ({ oneCycleRunId }) => runMediaSyncMember({ oneCycleRunId })],
   ];
   const requiredMembers = memberDefs.map(([n]) => n);
 
@@ -337,7 +333,7 @@ export async function GET(req: NextRequest) {
   let chainStopped = false;
   let chainStopReason: string | null = null;
 
-  for (const [name, load] of memberDefs) {
+  for (const [name, fn] of memberDefs) {
     const budget = budgets[name];
 
     // Chain already stopped by a prior non-ok member → never start this one.
@@ -362,22 +358,8 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    let handler: (r: NextRequest) => Promise<Response>;
-    try {
-      handler = load();
-    } catch (err) {
-      chainStopped = true;
-      chainStopReason = 'member_load_error';
-      members.push({
-        member: name, status: 'member_error', http_status: null,
-        duration_ms: 0, settled: true,
-        summary: { error: err instanceof Error ? err.message.slice(0, 200) : 'load failed' },
-      });
-      continue;
-    }
-
     // Await to settlement BEFORE the loop can reach the next member.
-    const result = await runMember(name, handler, authHeader, cronSecret, runId, budget);
+    const result = await runMember(name, fn, runId, budget);
     members.push(result);
 
     // Any non-ok member stops the chain: a slow/failed/timed-out IDX must never

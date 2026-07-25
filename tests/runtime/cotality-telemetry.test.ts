@@ -143,17 +143,29 @@ describe("fetch/auth layer + cron members are wired to run-scoped telemetry (sou
     expect(src).toMatch(/recordTokenRefresh\(\)/);
   });
 
-  it("both cron members run inside a collector and persist telemetry on success AND error", () => {
-    for (const rel of ["app/api/cron/idx-sync/route.ts", "app/api/cron/media-sync/route.ts"]) {
+  it("both member functions run inside a collector and persist telemetry on success AND error", () => {
+    // W2 (2026-07-24): the telemetry-wrapped WORK lives in the extracted member
+    // functions, correlated with the machine run via oneCycleRunId (a function
+    // ARGUMENT, not a forgeable HTTP header).
+    for (const rel of ["lib/idx/idx-sync-member.ts", "lib/idx/media-sync-member.ts"]) {
       const src = read(rel);
       expect(src).toMatch(/createCotalityCollector\(/);
       expect(src).toMatch(/runWithCotalityTelemetry\(/);
-      expect(src).toMatch(/x-one-cycle-run-id/);
+      expect(src).toMatch(/oneCycleRunId/);
       // telemetry appears in BOTH the success and the *_error audit payloads.
       expect((src.match(/snapshotCollector\(cotalityCollector\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
-      // standalone admission is the shared ATOMIC claim (not a check-then-start).
+    }
+  });
+
+  it("both public routes always take the shared ATOMIC claim and never read a one-cycle header", () => {
+    for (const rel of ["app/api/cron/idx-sync/route.ts", "app/api/cron/media-sync/route.ts"]) {
+      const src = read(rel);
+      // Standalone admission is the shared ATOMIC claim (not a check-then-start).
       expect(src).toMatch(/claimMachine\(/);
       expect(src).toMatch(/completeMachine\(/);
+      // The forgeable header exemption is gone — the routes never read it.
+      expect(src).not.toMatch(/x-one-cycle-member/);
+      expect(src).not.toMatch(/x-one-cycle-run-id/);
     }
   });
 });

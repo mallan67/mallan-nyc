@@ -70,7 +70,6 @@ import * as path from 'path';
 
 const SYNC_SOURCE_PATH = path.resolve(__dirname, '../../lib/idx/sync.ts');
 const VERCEL_JSON_PATH = path.resolve(__dirname, '../../vercel.json');
-const CRON_ROUTE_PATH = path.resolve(__dirname, '../../app/api/cron/idx-sync/route.ts');
 const PRISMA_SCHEMA_PATH = path.resolve(__dirname, '../../prisma/schema.prisma');
 
 /**
@@ -258,12 +257,17 @@ describe('infrastructure non-changes around PR-S.6', () => {
     crons?: Array<{ path: string; schedule: string }>;
     functions?: Record<string, { maxDuration?: number }>;
   };
-  let cronRouteSource: string;
+  let memberSource: string;
   let prismaSchema: string;
 
   beforeAll(() => {
     vercelJson = JSON.parse(readFileSync(VERCEL_JSON_PATH, 'utf8'));
-    cronRouteSource = readFileSync(CRON_ROUTE_PATH, 'utf8');
+    // W2 (2026-07-24): the maxRecords cap moved from the public route into the
+    // extracted in-process member function (lib/idx/idx-sync-member.ts).
+    memberSource = readFileSync(
+      path.resolve(__dirname, '../../lib/idx/idx-sync-member.ts'),
+      'utf8',
+    );
     prismaSchema = readFileSync(PRISMA_SCHEMA_PATH, 'utf8');
   });
 
@@ -322,9 +326,9 @@ describe('infrastructure non-changes around PR-S.6', () => {
     expect(oneCycle!.schedule).toBe('*/10 * * * *');
   });
 
-  it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
-    expect(cronRouteSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
-    expect(cronRouteSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
+  it("idx-sync member still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
+    expect(memberSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
+    expect(memberSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
   });
 
   it("prisma schema still declares Listing.modification_timestamp (no schema change)", () => {

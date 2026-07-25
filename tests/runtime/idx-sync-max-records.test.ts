@@ -37,11 +37,16 @@ import { readFileSync } from 'fs';
 import * as path from 'path';
 
 const ROUTE_SOURCE_PATH = path.resolve(__dirname, '../../app/api/cron/idx-sync/route.ts');
+// W2 (2026-07-24): the IDX-sync WORK (the maxRecords cap + syncListings call)
+// was extracted from the public route into an in-process member function so the
+// One Cycle orchestrator can call it directly with no forgeable HTTP path.
+const MEMBER_SOURCE_PATH = path.resolve(__dirname, '../../lib/idx/idx-sync-member.ts');
 const VERCEL_JSON_PATH = path.resolve(__dirname, '../../vercel.json');
 const SYNC_SOURCE_PATH = path.resolve(__dirname, '../../lib/idx/sync.ts');
 
 describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
   let routeSource: string;
+  let memberSource: string;
   let vercelJsonRaw: string;
   let vercelJson: {
     crons?: Array<{ path: string; schedule: string }>;
@@ -51,17 +56,17 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
 
   beforeAll(() => {
     routeSource = readFileSync(ROUTE_SOURCE_PATH, 'utf8');
+    memberSource = readFileSync(MEMBER_SOURCE_PATH, 'utf8');
     vercelJsonRaw = readFileSync(VERCEL_JSON_PATH, 'utf8');
     vercelJson = JSON.parse(vercelJsonRaw);
     syncSource = readFileSync(SYNC_SOURCE_PATH, 'utf8');
   });
 
   describe('scheduled cron passes maxRecords ≤ 500', () => {
-    it('declares SCHEDULED_MAX_RECORDS as a const literal ≤ 500', () => {
-      // The patch introduces a named constant for the cap so the test
-      // can assert against the literal directly. Match a const
-      // declaration whose value is a number literal, then assert ≤ 500.
-      const match = routeSource.match(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*(\d+)\s*;/);
+    it('declares SCHEDULED_MAX_RECORDS as a const literal ≤ 500 (in the member fn)', () => {
+      // The cap lives in the extracted member function (lib/idx/idx-sync-member.ts).
+      // Match a const declaration whose value is a number literal, then assert ≤ 500.
+      const match = memberSource.match(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*(\d+)\s*;/);
       expect(match).not.toBeNull();
       const value = Number(match![1]);
       expect(value).toBeGreaterThan(0);
@@ -71,18 +76,18 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
     it('passes the named constant to syncListings, not an inline number', () => {
       // Guards against an accidental partial revert (someone replacing
       // the const usage with `maxRecords: 12000` inline).
-      expect(routeSource).toMatch(
+      expect(memberSource).toMatch(
         /maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/
       );
     });
 
     it('does NOT pass the pre-fix value of 12000 anywhere', () => {
       // Anti-revert: the old hardcoded 12000 must not appear in the
-      // file, even in a comment-out, dead code branch, or alternate
+      // member file, even in a comment-out, dead code branch, or alternate
       // path. (The block comment above the const explains the
       // history, where `12,000` appears with a comma — the regex
       // matches an unbroken digit run only.)
-      expect(routeSource).not.toMatch(/maxRecords\s*:\s*12000\b/);
+      expect(memberSource).not.toMatch(/maxRecords\s*:\s*12000\b/);
     });
   });
 
@@ -134,8 +139,9 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       // override of maxRecords — so the manual `?full=true` trigger
       // gets the same 500 cap. To drain a very large backlog manually,
       // the cron is invoked repeatedly. This test pins that no
-      // alternate maxRecords path was introduced inadvertently.
-      const occurrences = routeSource.match(/maxRecords\s*:/g) ?? [];
+      // alternate maxRecords path was introduced inadvertently (the
+      // single maxRecords usage lives in the member function).
+      const occurrences = memberSource.match(/maxRecords\s*:/g) ?? [];
       expect(occurrences).toHaveLength(1);
     });
 
@@ -151,15 +157,15 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
   });
 
   describe('design intent — cap is documented in source', () => {
-    it('includes a comment block explaining the cap and the timeout math', () => {
+    it('includes a comment block explaining the cap and the timeout math (member fn)', () => {
       // The const is a magic number without context unless the
       // surrounding comment explains why. Pin that the rationale stays
-      // in the source so a future engineer trying to bump the cap
+      // in the member source so a future engineer trying to bump the cap
       // sees the constraints (120 s budget, per-record DB cost,
       // media batch follow-up).
-      expect(routeSource).toMatch(/maxDuration/);
-      expect(routeSource).toMatch(/120\s*s/);
-      expect(routeSource).toMatch(/per-record/);
+      expect(memberSource).toMatch(/maxDuration/);
+      expect(memberSource).toMatch(/120\s*s/);
+      expect(memberSource).toMatch(/per-record/);
     });
   });
 });

@@ -57,10 +57,6 @@ import * as path from "path";
 
 const SYNC_SOURCE_PATH = path.resolve(__dirname, "../../lib/idx/sync.ts");
 const VERCEL_JSON_PATH = path.resolve(__dirname, "../../vercel.json");
-const CRON_ROUTE_PATH = path.resolve(
-  __dirname,
-  "../../app/api/cron/idx-sync/route.ts",
-);
 const PRISMA_SCHEMA_PATH = path.resolve(__dirname, "../../prisma/schema.prisma");
 
 /**
@@ -555,10 +551,15 @@ describe("no out-of-scope changes (cron / schema / compliance / sync behavior)",
     expect(oneCycle!.schedule).toBe("*/10 * * * *");
   });
 
-  it("cron route still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
-    const cronRouteSource = readFileSync(CRON_ROUTE_PATH, "utf8");
-    expect(cronRouteSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
-    expect(cronRouteSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
+  it("idx-sync member still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {
+    // W2 (2026-07-24): the cap moved from the public route into the extracted
+    // in-process member function (lib/idx/idx-sync-member.ts).
+    const memberSource = readFileSync(
+      path.resolve(__dirname, "../../lib/idx/idx-sync-member.ts"),
+      "utf8",
+    );
+    expect(memberSource).toMatch(/const\s+SCHEDULED_MAX_RECORDS\s*=\s*500\s*;/);
+    expect(memberSource).toMatch(/maxRecords\s*:\s*SCHEDULED_MAX_RECORDS/);
   });
 
   it("prisma schema unchanged by this PR (no new model, no new field, no migration)", () => {

@@ -15,9 +15,10 @@
  *   5. The orchestrator interval === 600000 ms.
  *   6. No 1800-second / 30-minute cadence remains on the listing/cache/sync
  *      surfaces.
- *   7. The x-one-cycle-member header ALONE cannot bypass concurrency
- *      protection — bypass requires an authenticated internal orchestrator
- *      invocation (the header must carry CRON_SECRET; auth precedes the guard).
+ *   7. There is NO HTTP header/query/bearer exemption: the public idx-sync and
+ *      media-sync GET routes never read x-one-cycle-member / x-one-cycle-run-id
+ *      and ALWAYS take claimMachine(); the orchestrator reaches the unclaimed
+ *      member path only by importing the internal member functions in-process.
  *   8. A second overlapping one-cycle invocation exits safely without starting
  *      either member.
  *   9. A normal cycle executes idx-sync then media-sync exactly once.
@@ -29,23 +30,26 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-// ── member routes mocked (behavioral points 8, 9 drive the orchestrator) ──────
-const idxGET = jest.fn<Promise<Response>, [NextRequest]>(async () =>
-  NextResponse.json({ success: true, listings_processed: 1 }),
+// ── member WORK functions mocked (behavioral points 8, 9 drive the orchestrator)
+// The orchestrator imports and calls these in-process; they return a
+// MemberRunResult ({ status, body }), NOT a NextResponse.
+type MemberArgs = { oneCycleRunId: string; forceFull?: boolean };
+const idxMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
+  async () => ({ status: 200, body: { success: true, listings_processed: 1 } }),
 );
-const mediaGET = jest.fn<Promise<Response>, [NextRequest]>(async () =>
-  NextResponse.json({ success: true, r2_mirrored: 0 }),
+const mediaMember = jest.fn<Promise<{ status: number; body: Record<string, unknown> }>, [MemberArgs]>(
+  async () => ({ status: 200, body: { success: true, r2_mirrored: 0 } }),
 );
-jest.mock("@/app/api/cron/idx-sync/route", () => ({ GET: (r: NextRequest) => idxGET(r) }));
-jest.mock("@/app/api/cron/media-sync/route", () => ({ GET: (r: NextRequest) => mediaGET(r) }));
+jest.mock("@/lib/idx/idx-sync-member", () => ({ runIdxSyncMember: (a: MemberArgs) => idxMember(a) }));
+jest.mock("@/lib/idx/media-sync-member", () => ({ runMediaSyncMember: (a: MemberArgs) => mediaMember(a) }));
 
 const auditCreate = jest.fn(async (_a?: unknown) => ({}));
-// claimCycle transaction stand-in — lockGranted / startedMarker / completedAfter
+// claimMachine transaction stand-in — lockGranted / startedMarker / completedAfter
 // are flipped per-test to drive the overlap guard.
 const claimState = {
   lockGranted: true,
@@ -86,8 +90,8 @@ const makeReq = (auth?: string) =>
   });
 
 beforeEach(() => {
-  idxGET.mockClear();
-  mediaGET.mockClear();
+  idxMember.mockClear();
+  mediaMember.mockClear();
   auditCreate.mockClear();
   transactionMock.mockClear();
   claimState.lockGranted = true;
@@ -154,29 +158,35 @@ describe("6. no 1800s / 30-min cadence remains on listing/cache/sync surfaces", 
   });
 });
 
-// ─── Point 7: header alone cannot bypass; bypass needs the authenticated secret
-describe("7. x-one-cycle-member header alone cannot bypass the concurrency guard", () => {
+// ─── Point 7: NO HTTP exemption — routes always claim; members are import-only ─
+describe("7. no forgeable HTTP exemption to the concurrency guard", () => {
   it.each([
     "app/api/cron/idx-sync/route.ts",
     "app/api/cron/media-sync/route.ts",
-  ])("%s: guard bypass is gated on timingSafeEqual(memberToken, CRON_SECRET), not a bare flag", (rel) => {
+  ])("%s: never reads a one-cycle header and ALWAYS calls claimMachine after auth", (rel) => {
     const src = read(rel);
-    // The bypass compares the header VALUE against the secret (timing-safe) —
-    // a bare `=== "1"` presence check would let any caller bypass.
-    expect(src).toMatch(/const memberToken = req\.headers\.get\("x-one-cycle-member"\)/);
-    expect(src).toMatch(/timingSafeEqual\(\s*Buffer\.from\(memberToken\)/);
-    expect(src).not.toMatch(/x-one-cycle-member"\)\s*===\s*"1"/);
-    // Auth (401) is evaluated BEFORE the guard, so an unauthenticated request
-    // carrying the header is rejected before the bypass is ever considered.
+    // The forgeable exemption is GONE — these headers are not read at all.
+    expect(src).not.toMatch(/x-one-cycle-member/);
+    expect(src).not.toMatch(/x-one-cycle-run-id/);
+    // Every request takes the shared atomic claim.
+    expect(src).toMatch(/claimMachine\(/);
+    // Auth (401) is evaluated BEFORE the claim, and there is no code path that
+    // skips the claim for an authenticated caller.
     expect(src.indexOf("Unauthorized")).toBeGreaterThan(-1);
-    expect(src.indexOf("Unauthorized")).toBeLessThan(src.indexOf("x-one-cycle-member"));
+    expect(src.indexOf("Unauthorized")).toBeLessThan(src.indexOf("claimMachine("));
   });
 
-  it("the orchestrator sends the SECRET (not a bare flag) as the bypass token", () => {
+  it("the orchestrator reaches the unclaimed path ONLY by importing the member functions in-process", () => {
     const src = read("app/api/cron/one-cycle/route.ts");
-    // runMember is passed cronSecret and forwards it as x-one-cycle-member.
-    expect(src).toMatch(/'x-one-cycle-member': memberToken/);
-    expect(src).toMatch(/runMember\(name, handler, authHeader, cronSecret, runId, budget\)/);
+    // Imports and calls the internal work functions directly — no HTTP fan-out.
+    expect(src).toMatch(/import \{ runIdxSyncMember \} from '@\/lib\/idx\/idx-sync-member'/);
+    expect(src).toMatch(/import \{ runMediaSyncMember \} from '@\/lib\/idx\/media-sync-member'/);
+    expect(src).toMatch(/runMember\(name, fn, runId, budget\)/);
+    // No bypass token / header is forwarded to members (there is no HTTP boundary).
+    expect(src).not.toMatch(/x-one-cycle-member/);
+    // It does NOT lazy-require the public route GET handlers any more.
+    expect(src).not.toMatch(/require\('@\/app\/api\/cron\/idx-sync\/route'\)/);
+    expect(src).not.toMatch(/require\('@\/app\/api\/cron\/media-sync\/route'\)/);
   });
 });
 
@@ -189,8 +199,8 @@ describe("8. a second overlapping one-cycle invocation exits without starting me
     expect(res.status).toBe(200);
     expect(body.skipped).toBe(true);
     expect(body.reason).toBe("lock_contended");
-    expect(idxGET).not.toHaveBeenCalled();
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
   });
 
   it("an in-progress started-marker with no completion → overlap skip, neither member runs", async () => {
@@ -201,8 +211,8 @@ describe("8. a second overlapping one-cycle invocation exits without starting me
     const body = await res.json();
     expect(body.skipped).toBe(true);
     expect(body.reason).toBe("overlap_in_progress");
-    expect(idxGET).not.toHaveBeenCalled();
-    expect(mediaGET).not.toHaveBeenCalled();
+    expect(idxMember).not.toHaveBeenCalled();
+    expect(mediaMember).not.toHaveBeenCalled();
   });
 });
 
@@ -211,10 +221,10 @@ describe("9. a normal cycle executes idx-sync then media-sync exactly once", () 
   it("both members run once, in authority-hierarchy order, after a granted claim", async () => {
     const res = await GET(makeReq(AUTH));
     expect(res.status).toBe(200);
-    expect(idxGET).toHaveBeenCalledTimes(1);
-    expect(mediaGET).toHaveBeenCalledTimes(1);
-    expect(idxGET.mock.invocationCallOrder[0]).toBeLessThan(
-      mediaGET.mock.invocationCallOrder[0],
+    expect(idxMember).toHaveBeenCalledTimes(1);
+    expect(mediaMember).toHaveBeenCalledTimes(1);
+    expect(idxMember.mock.invocationCallOrder[0]).toBeLessThan(
+      mediaMember.mock.invocationCallOrder[0],
     );
     // The claim wrote a one_cycle_started marker inside the transaction.
     expect(

@@ -16,9 +16,12 @@
  *   - completion: action `one_cycle_run`      — {run_id, execution_type, member, outcome, started_at, ended_at, duration_ms, ...}
  * start↔completion are paired by the unique run_id (JSON path), NOT timestamp.
  *
- * Exemption: the One Cycle in-process member calls are ORCHESTRATED (they carry
- * the CRON_SECRET in x-one-cycle-member) and must NOT take a second nested claim
- * — One Cycle already owns the machine execution.
+ * Exemption: the One Cycle orchestrator imports and calls the internal member
+ * work functions (runIdxSyncMember / runMediaSyncMember) IN-PROCESS. Those
+ * functions never claim — One Cycle already owns the machine execution. That
+ * unclaimed path is reachable ONLY via the direct import; there is no HTTP
+ * header / query / bearer combination that reaches it, because the public GET
+ * routes ALWAYS claim first.
  *
  * Fail closed: any error refuses the claim (start no work). A crashed execution
  * blocks only until the stale window (MACHINE_STALE_MS) elapses.

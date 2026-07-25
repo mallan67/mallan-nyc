@@ -1,20 +1,27 @@
 /// <reference types="jest" />
 /**
  * Standalone / manual idx-sync + media-sync must NOT overlap an active One
- * Cycle, and member telemetry must persist (with run_id) on success AND error.
+ * Cycle, and NO forged HTTP header can bypass the shared atomic claim.
+ *
+ * The confused-deputy fix: the public GET routes no longer read
+ * x-one-cycle-member / x-one-cycle-run-id. A caller holding CRON_SECRET can no
+ * longer forge "I am the orchestrator" to reach the unclaimed member path. The
+ * ONLY unclaimed path is the in-process import of runIdxSyncMember /
+ * runMediaSyncMember, unreachable over HTTP.
  *
  * Proves:
- *   - manual idx-sync during an active One Cycle starts no work;
- *   - ?full=true during an active One Cycle starts no work;
- *   - manual media-sync during an active One Cycle starts no work;
- *   - the orchestrated call itself is exempt (it IS the machine);
- *   - error audits retain run_id + the Cotality counters (429/retry/request/duration);
- *   - successful member telemetry is correlated with the run_id.
+ *   - a public idx-sync request with a valid Bearer + FORGED x-one-cycle-member
+ *     STILL takes the shared claim (granted ⇒ runs, refused ⇒ no work);
+ *   - ?full=true still claims (no bypass);
+ *   - equivalent media-sync cases;
+ *   - the internal member functions never claim (import-only unclaimed path);
+ *   - member telemetry persists (with the route's OWN claim run_id) on success
+ *     AND error.
  */
 import { NextRequest } from "next/server";
 
 // The shared atomic claim is mocked so we can drive granted/refused deterministically.
-const claimMachine = jest.fn<Promise<{ ok: boolean; reason?: string }>, [unknown, unknown]>();
+const claimMachine = jest.fn<Promise<{ ok: boolean; reason?: string; runId?: string }>, [unknown, unknown]>();
 const completeMachine = jest.fn<Promise<void>, [unknown, unknown]>(async () => {});
 jest.mock("@/lib/idx/machine-claim", () => ({
   claimMachine: (db: unknown, input: unknown) => claimMachine(db, input),
@@ -58,13 +65,23 @@ process.env.IDX_ENABLED = "true";
 const AUTH = "Bearer sec";
 const { GET: idxGET } = require("@/app/api/cron/idx-sync/route");
 const { GET: mediaGET } = require("@/app/api/cron/media-sync/route");
+// The internal member work functions — the ONLY unclaimed path (import-only).
+const { runIdxSyncMember } = require("@/lib/idx/idx-sync-member");
+const { runMediaSyncMember } = require("@/lib/idx/media-sync-member");
 
-const req = (opts: { url?: string; orchestrated?: boolean; runId?: string } = {}) => {
+// `forged` sets x-one-cycle-member = CRON_SECRET (the exact forgery a
+// CRON_SECRET holder could send). The routes must IGNORE it and claim anyway.
+const req = (opts: { url?: string; forged?: boolean; runId?: string } = {}) => {
   const headers: Record<string, string> = { authorization: AUTH };
-  if (opts.orchestrated) headers["x-one-cycle-member"] = "sec";
+  if (opts.forged) headers["x-one-cycle-member"] = "sec";
   if (opts.runId) headers["x-one-cycle-run-id"] = opts.runId;
   return new NextRequest(opts.url ?? "https://mallan.nyc/api/cron/idx-sync", { headers });
 };
+
+// The route generates its OWN claim run_id (randomUUID) and passes it to
+// claimMachine as `runId` AND to the member as `oneCycleRunId`. This reads it
+// back from the claim call so telemetry correlation can be asserted.
+const routeRunId = () => (claimMachine.mock.calls[0][1] as { runId: string }).runId;
 
 beforeEach(() => {
   syncListings.mockReset().mockResolvedValue({ processed: 0 });
@@ -95,32 +112,39 @@ beforeEach(() => {
   auditCreate.mockClear();
 });
 
-describe("standalone idx-sync overlap block (atomic claim)", () => {
-  it("manual idx-sync refused by the claim starts NO work", async () => {
+describe("standalone idx-sync ALWAYS claims — a forged header cannot bypass", () => {
+  it("valid Bearer + FORGED x-one-cycle-member, refused by the claim, starts NO work", async () => {
     claimMachine.mockResolvedValue({ ok: false, reason: "overlap_in_progress" });
-    const res = await idxGET(req());
+    const res = await idxGET(req({ forged: true, runId: "attacker-run" }));
     const body = await res.json();
     expect(body.skipped).toBe(true);
     expect(body.reason).toMatch(/machine claim not granted/);
+    // The forged header did NOT exempt the request — the claim WAS attempted.
+    expect(claimMachine).toHaveBeenCalledTimes(1);
+    expect((claimMachine.mock.calls[0][1] as { executionType: string }).executionType).toBe("standalone-idx-sync");
     expect(syncListings).not.toHaveBeenCalled();
     expect(completeMachine).not.toHaveBeenCalled(); // never claimed ⇒ never completes
   });
 
+  it("valid Bearer + FORGED x-one-cycle-member, GRANTED the claim, runs under a fresh route run_id", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    await idxGET(req({ forged: true, runId: "attacker-run" }));
+    // Claim taken (forgery ignored), work ran, completion written.
+    expect(claimMachine).toHaveBeenCalledTimes(1);
+    expect(syncListings).toHaveBeenCalledTimes(1);
+    expect(completeMachine).toHaveBeenCalledTimes(1);
+    // The route used its OWN randomUUID run id, NOT the forged header value.
+    expect(routeRunId()).not.toBe("attacker-run");
+  });
+
   it("?full=true refused by the claim starts NO work (cannot escape the shared claim)", async () => {
     claimMachine.mockResolvedValue({ ok: false, reason: "lock_contended" });
-    const res = await idxGET(req({ url: "https://mallan.nyc/api/cron/idx-sync?full=true" }));
+    const res = await idxGET(req({ url: "https://mallan.nyc/api/cron/idx-sync?full=true", forged: true }));
     const body = await res.json();
     expect(body.skipped).toBe(true);
     expect(syncListings).not.toHaveBeenCalled();
-    // The claim WAS attempted for full=true (no bypass).
     expect(claimMachine).toHaveBeenCalledTimes(1);
     expect((claimMachine.mock.calls[0][1] as { executionType: string }).executionType).toBe("standalone-idx-sync");
-  });
-
-  it("the ORCHESTRATED call takes NO claim and runs (One Cycle owns the machine)", async () => {
-    await idxGET(req({ orchestrated: true, runId: "run-x" }));
-    expect(claimMachine).not.toHaveBeenCalled();
-    expect(syncListings).toHaveBeenCalledTimes(1);
   });
 
   it("manual idx-sync GRANTED the claim runs and writes a completion in finally", async () => {
@@ -132,41 +156,67 @@ describe("standalone idx-sync overlap block (atomic claim)", () => {
   });
 });
 
-describe("standalone media-sync overlap block (atomic claim)", () => {
-  it("manual media-sync refused by the claim starts NO work", async () => {
+describe("standalone media-sync ALWAYS claims — a forged header cannot bypass", () => {
+  const mediaReq = (forged: boolean) =>
+    new NextRequest("https://mallan.nyc/api/cron/media-sync", {
+      headers: forged
+        ? { authorization: AUTH, "x-one-cycle-member": "sec", "x-one-cycle-run-id": "attacker-run" }
+        : { authorization: AUTH },
+    });
+
+  it("valid Bearer + FORGED x-one-cycle-member, refused by the claim, starts NO work", async () => {
     claimMachine.mockResolvedValue({ ok: false, reason: "overlap_in_progress" });
-    const res = await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", { headers: { authorization: AUTH } }));
+    const res = await mediaGET(mediaReq(true));
     const body = await res.json();
     expect(body.skipped).toBe(true);
     expect(body.reason).toMatch(/machine claim not granted/);
+    expect(claimMachine).toHaveBeenCalledTimes(1);
+    expect((claimMachine.mock.calls[0][1] as { executionType: string }).executionType).toBe("standalone-media-sync");
     expect(runMediaSync).not.toHaveBeenCalled();
   });
 
-  it("the ORCHESTRATED media-sync call takes NO claim and runs", async () => {
-    await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", {
-      headers: { authorization: AUTH, "x-one-cycle-member": "sec", "x-one-cycle-run-id": "run-y" },
-    }));
+  it("valid Bearer + FORGED x-one-cycle-member, GRANTED the claim, runs under a fresh route run_id", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
+    await mediaGET(mediaReq(true));
+    expect(claimMachine).toHaveBeenCalledTimes(1);
+    expect(runMediaSync).toHaveBeenCalledTimes(1);
+    expect(routeRunId()).not.toBe("attacker-run");
+  });
+});
+
+describe("internal member functions never claim (import-only unclaimed path)", () => {
+  it("runIdxSyncMember called directly does NOT claim and runs the work", async () => {
+    await runIdxSyncMember({ oneCycleRunId: "orchestrator-run", forceFull: false });
+    expect(claimMachine).not.toHaveBeenCalled();
+    expect(syncListings).toHaveBeenCalledTimes(1);
+  });
+
+  it("runMediaSyncMember called directly does NOT claim and runs the work", async () => {
+    await runMediaSyncMember({ oneCycleRunId: "orchestrator-run" });
+    expect(claimMachine).not.toHaveBeenCalled();
     expect(runMediaSync).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("telemetry persists with run_id on success AND error", () => {
-  it("success: idx_sync_cron audit carries run_id + cotality snapshot + outcome", async () => {
-    // The mock runs INSIDE the collector context (route wraps it) → records real counters.
+describe("telemetry persists with the route's OWN claim run_id on success AND error", () => {
+  it("success: idx_sync_cron audit carries the route run_id + cotality snapshot + outcome", async () => {
+    // The mock runs INSIDE the collector context (member wraps it) → records real counters.
     syncListings.mockImplementation(async () => {
       recordCotalityHttp({ url: "/odata/Property", durationMs: 20, status: 200 });
       return { processed: 1 };
     });
-    await idxGET(req({ orchestrated: true, runId: "run-ok" }));
+    await idxGET(req({ forged: true, runId: "attacker-run" }));
     const audit = auditCreate.mock.calls.map((c) => (c[0] as { data: { action: string; changes: Record<string, unknown> } }).data)
       .find((d) => d.action === "idx_sync_cron");
     expect(audit).toBeDefined();
-    expect(audit!.changes.one_cycle_run_id).toBe("run-ok");
+    // Correlated with the ROUTE's claim run_id — never the forged header value.
+    expect(audit!.changes.one_cycle_run_id).toBe(routeRunId());
+    expect(audit!.changes.one_cycle_run_id).not.toBe("attacker-run");
     expect(audit!.changes.outcome).toBe("success");
     expect((audit!.changes.cotality as Record<string, number>).total_cotality_requests).toBe(1);
   });
 
-  it("error: idx_sync_cron_error audit RETAINS run_id + the 429/retry/request/duration counters", async () => {
+  it("error: idx_sync_cron_error audit RETAINS the route run_id + the 429/retry/request/duration counters", async () => {
     syncListings.mockImplementation(async () => {
       // A 429 + retry + a token refresh happen, THEN the run throws.
       recordCotalityHttp({ url: "/odata/Property", durationMs: 12, status: 429, retryAfterSeconds: 5 });
@@ -175,12 +225,13 @@ describe("telemetry persists with run_id on success AND error", () => {
       t.recordTokenRefresh();
       throw new Error("Trestle exploded");
     });
-    const res = await idxGET(req({ orchestrated: true, runId: "run-err" }));
+    const res = await idxGET(req({ forged: true, runId: "attacker-run" }));
     expect(res.status).toBe(500);
     const audit = auditCreate.mock.calls.map((c) => (c[0] as { data: { action: string; changes: Record<string, unknown> } }).data)
       .find((d) => d.action === "idx_sync_cron_error");
     expect(audit).toBeDefined();
-    expect(audit!.changes.one_cycle_run_id).toBe("run-err");
+    expect(audit!.changes.one_cycle_run_id).toBe(routeRunId());
+    expect(audit!.changes.one_cycle_run_id).not.toBe("attacker-run");
     expect(audit!.changes.outcome).toBe("error");
     const cot = audit!.changes.cotality as Record<string, number>;
     expect(cot.http_429_count).toBe(1);
