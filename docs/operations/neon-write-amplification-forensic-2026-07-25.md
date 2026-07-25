@@ -48,9 +48,12 @@ are corrected below.
    Correct wording: *approximately 10,000 media physical writes/day were observed,
    but their split among material changes, delivery-URL refreshes, inserts and
    tombstones **cannot be determined from current durable telemetry**.* The code
-   distinguishes these causes (`deliveryUrlRefreshed`, `suppressedUrlRotationOnly`
-   in `media-sync.ts`), but the persisted `media_sync_cron` payload does not emit
-   them. Commit 2 adds them.
+   distinguishes these causes in `media-sync.ts` (`deliveryUrlRefreshed`, plus — after
+   the Codex-P2 split — `suppressedUrlSignatureRotation` and
+   `suppressedUrlIdentityChanged`), but the *pre-PR-#569* `media_sync_cron` payload did
+   not emit them. This PR adds them (`delivery_url_refreshed`,
+   `suppressed_url_signature_rotation`, `suppressed_url_identity_changed`,
+   `write_failures`).
 
 3. **`raw_data_only` is a confirmed substantial amplifier, not yet the confirmed
    primary driver.** Measured: **2,354 `raw_data_only` writes out of 7,763 listing
