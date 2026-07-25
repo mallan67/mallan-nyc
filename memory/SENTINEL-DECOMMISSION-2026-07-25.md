@@ -44,3 +44,31 @@ No production code, `pr-check` gate, or npm script depended on the subsystem
 (the `app/api/listings/suggest/route.ts` "sentinel" hit was an `OwnerOptOut`
 sentinel-value comment). Git-reversible. Delivered as its own PR
 (`chore/decommission-sentinel-2026-07-25`), separate from the release-truth work.
+
+## Governance-footprint cleanup (follow-up, `chore/finish-sentinel-governance-cleanup-2026-07-25`)
+#566 removed the executable subsystem but left LIVE governance references, some
+pointing at now-deleted files. This follow-up scrubbed the ACTIVE surfaces:
+- `docs/agents/AGENT-ROUTING-MANDATE` — deleted the live **Sentinel-G** routing
+  section (it told agents to run the deleted `run-sentinel-g.ts` + read the
+  deleted mandate) and dropped "Sentinel" from the actionable-status line.
+- `docs/engineering/pr-verification-checklist.md` — removed Sentinel from the R9
+  hard-hold + the "does NOT touch" template line; deleted 3 dead pointer rows
+  (`repo-audit-bot.md`, `repo-audit-bot.yml:441`, `sentinel-v2-redesign-plan`).
+- `CLAUDE.md` — removed the decommission parenthetical from the active hard rules
+  (this record is the durable history).
+- Dashboard + issue registry (OPS-008) + ownership map (`AUDIT_*` row) + the two
+  superpowers plans — closed/updated the `repo-audit-bot` entries; the settlement
+  plan carries a decommission banner marking its `repo-audit-bot` oversight role
+  as historical design intent with no current implementation, and its dead
+  `sentinel-l-retention-matrix` link was removed.
+- `release-truth.yml` — neutralized the "PR #266 Sentinel precedent" comment.
+- Living hold-lists (NEON cost/ownership, vercel-preview-proof, syndication +
+  phase1-media plans, HANDOFF) — dropped the stale "no Sentinel work" scope refs.
+- **Regression guard:** `tests/runtime/sentinel-decommission-guard.test.ts` fails
+  if any deleted-bot PATH or a live Sentinel-G routing section reappears in an
+  active governance file. It is PATH-based, so generic "sentinel value" code and
+  dated historical mentions are NOT flagged.
+
+PRESERVED (not cleanup): this record; dated audit reports; the `2026-07-03`
+registry log line; the Sentinel-L retirement guard tests; and all generic
+"sentinel value" programming uses.

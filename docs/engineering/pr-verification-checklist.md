@@ -15,7 +15,7 @@
 | **R5** | **Codex feedback resolution rule** — every Codex/CR comment must be greppable as resolved before merge | PR #152 shipped with 3 unresolved contradictions because I corrected the TL;DR + §I but missed §C, §E, and the footer |
 | **R6** | **Audit-doc correction rule** — when a finding is contradicted by new evidence, the contradiction must be cleared in ALL surfaces of the doc (TL;DR + section + risk row + summary) in one PR | PR #152 only patched 3 of 5; PR #153 was needed to clean up |
 | **R7** | **Docs-only PR proof rule** — every docs PR must include a `git diff --name-only` filter + a forbidden-path filter in the body | Provides one-glance proof that no source code crept in |
-| **R9** | **Hard-hold confirmation block** — every PR body must include an explicit "what this PR does NOT touch" list for: IDX, projection, reconciliation, env vars, Neon, migrations, cron triggers, CRM, Sentinel, PR #148, PR 5B | Today's PRs respected this implicitly; today's rule makes it explicit |
+| **R9** | **Hard-hold confirmation block** — every PR body must include an explicit "what this PR does NOT touch" list for: IDX, projection, reconciliation, env vars, Neon, migrations, cron triggers, CRM, PR #148, PR 5B | Today's PRs respected this implicitly; today's rule makes it explicit |
 | **R10** | **Required PR body proof matrix** — every PR body must include a structured table of validation gates passed | Replaces the ad-hoc "tested it" with a machine-readable expectation |
 
 ---
@@ -189,7 +189,7 @@ Every PR body MUST include an explicit "what this PR does NOT touch" list. Today
 - ❌ No `NEON_PROJECT_ID` change on any surface
 - ❌ No Neon branches deleted, no Neon integration changes
 - ❌ No migrations / reconciliation / cron triggers
-- ❌ No PR #148 / PR 5B / CRM / Sentinel work
+- ❌ No PR #148 / PR 5B / CRM work
 - ❌ No `memory/SESSION-*` archival docs touched
 - ❌ No `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md`
 - ❌ No <PR-specific hard hold>
@@ -286,7 +286,6 @@ grep -rln 'CLAUDE\.md' --exclude-dir=node_modules --exclude-dir=.next \
 
 | Files (sampled) |
 |-----------------|
-| `.claude/agents/repo-audit-bot.md` (lists CLAUDE.md in its read-list) |
 | `.claude/agents/security-agent.md` ("Cross-reference with CLAUDE.md") |
 | `docs/operations/proof-first-guardrails.md` |
 | `MALLAN-NYC-CRM-PROJECT.md` |
@@ -297,10 +296,8 @@ grep -rln 'CLAUDE\.md' --exclude-dir=node_modules --exclude-dir=.next \
 | `memory/AUDITOR-LOG.md` |
 | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
 | `compliance/VALIDATOR-FRAMEWORK.md` |
-| `docs/sentinel-v2-redesign-plan-2026-05-16.md` |
 | `docs/superpowers/specs/2026-05-04-crm-search-agent-workflow-rebuild.md` |
 | `scripts/fix-stale-form-bindings.ts` |
-| `.github/workflows/repo-audit-bot.yml:441` ("per CLAUDE.md" inline comment) |
 
 ### Survey verdict
 

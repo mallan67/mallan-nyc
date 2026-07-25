@@ -1,7 +1,7 @@
 # Agent Routing Mandate — Mallan NYC
 
 **Created:** 2026-05-28
-**Status:** Actionable instruction for Codex, Claude, Sentinel, and helper agents
+**Status:** Actionable instruction for Codex, Claude, and helper agents
 
 This file defines which agent owns which work. Do not ask every agent to audit everything. Pick the narrowest owner, inspect the exact files, run the exact proof, and stop at the boundary.
 
@@ -17,29 +17,6 @@ Every agent must report:
 6. remaining blocker
 
 No generic advice. No unproven “fixed.”
-
----
-
-## Sentinel-G
-
-Owner for: Trestle/Cotality metadata, IDX Plus fields, ListingId/ListingKey/SourceSystemKey mapping, attribution, public DTO privacy, display gates, canonical listing URL consistency.
-
-Must run when available:
-
-```bash
-npx tsx tools/sentinel-g/run-sentinel-g.ts
-```
-
-Must read:
-
-- `docs/agents/SENTINEL-G-MANDATE-2026-05-28.md`
-- `lib/idx/fetch.ts`
-- `lib/idx/trestle-mapper.ts`
-- `lib/idx/public-dto.ts`
-- `lib/idx/db-to-public-dto.ts`
-- `app/api/listings/suggest/route.ts`
-
-Must not touch: CRM UI, seller forms, Neon, Vercel aliases, schema migrations, media UI.
 
 ---
 

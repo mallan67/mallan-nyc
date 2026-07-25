@@ -151,8 +151,7 @@ vite.config.ts.timestamp-*
 !.vercel/project.json
 
 # Local Claude Code config + agent definitions are personal per-machine.
-# (The Mallan Sentinel repo-audit-bot agent spec — the only shipped spec — was
-# decommissioned 2026-07-25, so no .claude/agents/ file is tracked any longer.)
+# (No .claude/agents/ file is tracked; agent specs stay local.)
 .claude/*
 
 # Backup files
