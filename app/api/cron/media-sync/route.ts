@@ -8,7 +8,7 @@
 // Reader path is UNCHANGED — public site still reads Listing.media JSON.
 // PR 4 swaps the reader after this cron has populated listing_media in
 // production for ≥48h.
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hasCredentials } from "@/lib/idx/auth";
@@ -18,11 +18,9 @@ import {
   runWithCotalityTelemetry,
   snapshotCollector,
 } from "@/lib/idx/cotality-telemetry";
-import { isOneCycleActive } from "@/lib/idx/one-cycle-active";
+import { claimMachine, completeMachine } from "@/lib/idx/machine-claim";
 
 export const maxDuration = 120;
-
-const CONCURRENCY_GUARD_MS = 10 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
   // 1. CRON_SECRET timing-safe Bearer auth (mirrors app/api/cron/idx-sync).
@@ -46,18 +44,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 3. Concurrency guard — skip if a successful run logged within the last
-  // 10 minutes. Mirrors the existing idx-sync pattern. Bypassed for the One
-  // Cycle orchestrated path: the orchestrator is the single 10-minute
-  // concurrency unit (sequential members; the drain also holds a pg advisory
-  // lock), so this 10-minute lookback — which would FALSE-TRIGGER at a
-  // 10-minute cadence — must not gate the orchestrated call. It stays active
-  // for manual / standalone invocation.
-  //
-  // The bypass proof is the CRON_SECRET carried in `x-one-cycle-member`
-  // (timing-safe compared), NOT the header's mere presence: auth above already
-  // rejected anyone without the secret, and a bare `x-one-cycle-member: 1` does
-  // not match, so the header alone can never bypass the guard.
+  // 3. Orchestrated = called in-process by One Cycle (CRON_SECRET in
+  // x-one-cycle-member, timing-safe). The orchestrated path is EXEMPT from
+  // taking a claim — One Cycle already owns the machine execution.
   const memberToken = req.headers.get("x-one-cycle-member");
   const orchestrated =
     !!cronSecret &&
@@ -65,36 +54,36 @@ export async function GET(req: NextRequest) {
     memberToken.length === cronSecret.length &&
     timingSafeEqual(Buffer.from(memberToken), Buffer.from(cronSecret));
 
-  // Machine-overlap guard: a standalone / manual invocation must NOT run while
-  // One Cycle is mid-cycle. The orchestrated call is exempt — it IS the machine.
-  if (!orchestrated && (await isOneCycleActive(prisma))) {
-    return NextResponse.json({
-      skipped: true,
-      reason: "blocked: One Cycle is active — standalone media-sync must not overlap the machine",
-    });
-  }
-
+  // ATOMIC machine claim for every standalone / manual execution. Replaces the
+  // old non-atomic isOneCycleActive pre-check AND the 10-min lookback: a single
+  // transaction takes the advisory lock, checks the latest unmatched machine-
+  // start marker, and writes THIS run's start marker before any sync work.
+  let claimed = false;
+  const machineRunId = randomUUID();
+  const machineStartedAt = new Date();
   if (!orchestrated) {
-    const recent = await prisma.auditEvent.findFirst({
-      where: {
-        action: "media_sync_cron",
-        created_at: { gte: new Date(Date.now() - CONCURRENCY_GUARD_MS) },
-      },
-      orderBy: { created_at: "desc" },
+    const claim = await claimMachine(prisma, {
+      runId: machineRunId,
+      executionType: "standalone-media-sync",
+      member: "media-sync",
+      now: machineStartedAt,
     });
-    if (recent) {
+    if (!claim.ok) {
       return NextResponse.json({
         skipped: true,
-        reason: "media_sync_cron ran within last 10 minutes",
+        reason: `blocked: machine claim not granted (${claim.reason}) — standalone media-sync must not overlap the machine`,
       });
     }
+    claimed = true;
   }
 
-  // Correlate durable Cotality telemetry with the One Cycle run (when orchestrated).
-  const oneCycleRunId = req.headers.get("x-one-cycle-run-id");
+  // Correlate durable Cotality telemetry with the machine run: the One Cycle
+  // run_id when orchestrated, else this standalone execution's own claim run_id.
+  const oneCycleRunId = orchestrated ? req.headers.get("x-one-cycle-run-id") : machineRunId;
   // Run-scoped, isolated collector — concurrent Cotality calls in other async
   // contexts cannot alter these counters.
   const cotalityCollector = createCotalityCollector("media-sync", oneCycleRunId);
+  let outcome = "error";
 
   // 4. Run sync. Failure here writes the error audit event; the cursor is
   // NOT advanced inside `runMediaSync()` on the error path.
@@ -235,6 +224,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    outcome = "success";
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     // Defensive — any unexpected throw escapes runMediaSync()'s internal
@@ -263,5 +253,17 @@ export async function GET(req: NextRequest) {
         // audit failure must not mask the real error
       });
     return NextResponse.json({ error: `Sync failed: ${msg}` }, { status: 500 });
+  } finally {
+    // A claimed standalone execution ALWAYS writes its matching completion
+    // marker so the next execution is permitted. Orchestrated calls do not claim.
+    if (claimed) {
+      await completeMachine(prisma, {
+        runId: machineRunId,
+        executionType: "standalone-media-sync",
+        member: "media-sync",
+        outcome,
+        startedAt: machineStartedAt,
+      });
+    }
   }
 }

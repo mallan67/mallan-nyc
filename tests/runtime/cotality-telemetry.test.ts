@@ -151,7 +151,9 @@ describe("fetch/auth layer + cron members are wired to run-scoped telemetry (sou
       expect(src).toMatch(/x-one-cycle-run-id/);
       // telemetry appears in BOTH the success and the *_error audit payloads.
       expect((src.match(/snapshotCollector\(cotalityCollector\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
-      expect(src).toMatch(/isOneCycleActive\(/);
+      // standalone admission is the shared ATOMIC claim (not a check-then-start).
+      expect(src).toMatch(/claimMachine\(/);
+      expect(src).toMatch(/completeMachine\(/);
     }
   });
 });

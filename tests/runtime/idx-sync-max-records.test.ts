@@ -139,9 +139,14 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       expect(occurrences).toHaveLength(1);
     });
 
-    it('keeps the concurrency guard intact (10-min lookback on idx_sync_cron)', () => {
-      expect(routeSource).toMatch(/action\s*:\s*['"]idx_sync_cron['"]/);
-      expect(routeSource).toMatch(/Date\.now\(\)\s*-\s*10\s*\*\s*60\s*\*\s*1000/);
+    it('admits standalone runs via the shared ATOMIC machine claim (not the old non-atomic 10-min lookback)', () => {
+      // W2 hardening (2026-07-24): the non-atomic 10-min AuditEvent lookup +
+      // isOneCycleActive pre-check were replaced by the shared claimMachine
+      // transaction — the single atomic admission gate. A standalone/manual run
+      // (incl. ?full=true) claims before any work and completes in a finally.
+      expect(routeSource).toMatch(/claimMachine\(/);
+      expect(routeSource).toMatch(/completeMachine\(/);
+      expect(routeSource).not.toMatch(/Date\.now\(\)\s*-\s*10\s*\*\s*60\s*\*\s*1000/);
     });
   });
 

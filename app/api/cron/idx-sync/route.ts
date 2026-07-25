@@ -2,7 +2,7 @@
 // Automated IDX sync cron — runs every 4 hours.
 // Fetches incremental updates from Trestle and upserts to local DB.
 // Protected by CRON_SECRET header (Vercel Cron).
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
@@ -11,7 +11,7 @@ import {
   runWithCotalityTelemetry,
   snapshotCollector,
 } from "@/lib/idx/cotality-telemetry";
-import { isOneCycleActive } from "@/lib/idx/one-cycle-active";
+import { claimMachine, completeMachine } from "@/lib/idx/machine-claim";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -34,17 +34,10 @@ export async function GET(req: NextRequest) {
 
   const forceFull = req.nextUrl.searchParams.get('full') === 'true';
 
-  // Concurrency guard — prevent overlapping sync runs. Skipped for a manual
-  // full sync, and for the One Cycle orchestrated path: the orchestrator is
-  // the single 10-minute concurrency unit (sequential members, one cycle every
-  // 10 min), so this 10-minute AuditEvent lookback — which would FALSE-TRIGGER
-  // at a 10-minute cadence — must not gate the orchestrated call. It remains
-  // the overlap guard for manual / standalone invocation.
-  //
-  // The bypass proof is the CRON_SECRET carried in `x-one-cycle-member`
-  // (timing-safe compared) — NOT the header's mere presence. Auth above already
-  // rejected anyone without the secret (401), and a bare `x-one-cycle-member: 1`
-  // does not match the secret, so the header alone can never bypass the guard.
+  // Orchestrated = called in-process by One Cycle (proven by the CRON_SECRET in
+  // x-one-cycle-member, timing-safe compared — NOT the header's mere presence).
+  // The orchestrated path is EXEMPT from taking a claim: One Cycle already owns
+  // the machine execution (requirement: no nested claim).
   const memberToken = req.headers.get("x-one-cycle-member");
   const orchestrated =
     !!cronSecret &&
@@ -52,35 +45,37 @@ export async function GET(req: NextRequest) {
     memberToken.length === cronSecret.length &&
     timingSafeEqual(Buffer.from(memberToken), Buffer.from(cronSecret));
 
-  // Machine-overlap guard: a standalone / manual invocation (INCLUDING
-  // ?full=true) must NOT run while One Cycle is mid-cycle (a one_cycle_started
-  // with no matching one_cycle_run). The orchestrated call itself is exempt —
-  // it IS the machine. This runs before, and independent of, the ?full bypass.
-  if (!orchestrated && (await isOneCycleActive(prisma))) {
-    return NextResponse.json({
-      skipped: true,
-      reason: "blocked: One Cycle is active — standalone idx-sync must not overlap the machine",
+  // ATOMIC machine claim for every standalone / manual execution (INCLUDING
+  // ?full=true). This replaces the old non-atomic isOneCycleActive pre-check
+  // AND the 10-min lookback: a single transaction takes the advisory lock,
+  // checks the latest unmatched machine-start marker, and writes THIS run's
+  // start marker before any sync work. Fail closed; ?full=true cannot bypass.
+  let claimed = false;
+  const machineRunId = randomUUID();
+  const machineStartedAt = new Date();
+  if (!orchestrated) {
+    const claim = await claimMachine(prisma, {
+      runId: machineRunId,
+      executionType: "standalone-idx-sync",
+      member: "idx-sync",
+      now: machineStartedAt,
     });
-  }
-
-  if (!forceFull && !orchestrated) {
-    const recentSync = await prisma.auditEvent.findFirst({
-      where: {
-        action: "idx_sync_cron",
-        created_at: { gte: new Date(Date.now() - 10 * 60 * 1000) }, // Within last 10 min
-      },
-      orderBy: { created_at: "desc" },
-    });
-    if (recentSync) {
-      return NextResponse.json({ skipped: true, reason: "Sync already ran within last 10 minutes" });
+    if (!claim.ok) {
+      return NextResponse.json({
+        skipped: true,
+        reason: `blocked: machine claim not granted (${claim.reason}) — standalone idx-sync must not overlap the machine`,
+      });
     }
+    claimed = true;
   }
 
-  // Correlate durable Cotality telemetry with the One Cycle run (when orchestrated).
-  const oneCycleRunId = req.headers.get("x-one-cycle-run-id");
+  // Correlate durable Cotality telemetry with the machine run: the One Cycle
+  // run_id when orchestrated, else this standalone execution's own claim run_id.
+  const oneCycleRunId = orchestrated ? req.headers.get("x-one-cycle-run-id") : machineRunId;
   // Run-scoped, isolated collector — concurrent public/manual Cotality calls in
   // other async contexts cannot alter these counters.
   const cotalityCollector = createCotalityCollector("idx-sync", oneCycleRunId);
+  let outcome = "error";
 
   try {
     const since = forceFull ? null : await getLastSyncTimestamp();
@@ -145,6 +140,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    outcome = "success";
     return NextResponse.json({
       success: true,
       ...result,
@@ -176,5 +172,18 @@ export async function GET(req: NextRequest) {
       { error: `Sync failed: ${msg}` },
       { status: 500 }
     );
+  } finally {
+    // A claimed standalone execution ALWAYS writes its matching completion
+    // marker (run_id + execution_type + member + outcome + timings) so the next
+    // execution is permitted. Orchestrated calls do not claim, so do not close.
+    if (claimed) {
+      await completeMachine(prisma, {
+        runId: machineRunId,
+        executionType: "standalone-idx-sync",
+        member: "idx-sync",
+        outcome,
+        startedAt: machineStartedAt,
+      });
+    }
   }
 }

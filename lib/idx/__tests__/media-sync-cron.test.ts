@@ -41,11 +41,17 @@ jest.mock("@/lib/idx/media-sync", () => {
   };
 });
 
-// No active One Cycle in these standalone-route tests — the machine-overlap
-// block is covered separately in one-cycle-standalone-overlap.test.ts.
-jest.mock("@/lib/idx/one-cycle-active", () => ({
-  isOneCycleActive: async () => false,
-  ONE_CYCLE_STALE_MS: 300_000,
+// The shared atomic claim is mocked; overlap/atomicity is covered separately in
+// one-cycle-standalone-overlap.test.ts + machine-claim.integration.test.ts.
+// Default: the claim is GRANTED (no active machine) so the happy-path tests run.
+const mockClaimMachine = jest.fn<Promise<{ ok: boolean; reason?: string }>, [unknown, unknown]>(async () => ({ ok: true }));
+const mockCompleteMachine = jest.fn<Promise<void>, [unknown, unknown]>(async () => {});
+jest.mock("@/lib/idx/machine-claim", () => ({
+  claimMachine: (db: unknown, input: unknown) => mockClaimMachine(db, input),
+  completeMachine: (db: unknown, input: unknown) => mockCompleteMachine(db, input),
+  MACHINE_STALE_MS: 300_000,
+  MACHINE_STARTED: "one_cycle_started",
+  MACHINE_COMPLETED: "one_cycle_run",
 }));
 
 // Imported AFTER mocks are wired up.
@@ -57,6 +63,8 @@ beforeEach(() => {
   mockAuditCreate.mockReset();
   mockHasCredentials.mockReset();
   mockRunMediaSync.mockReset();
+  mockClaimMachine.mockReset().mockResolvedValue({ ok: true });
+  mockCompleteMachine.mockClear();
   process.env.CRON_SECRET = "test-secret";
 });
 
@@ -181,44 +189,37 @@ describe("GET /api/cron/media-sync — trestle credentials gate", () => {
   });
 });
 
-// ─── Concurrency guard ───────────────────────────────────────────────────
+// ─── Machine claim (atomic overlap admission) ────────────────────────────
 
-describe("GET /api/cron/media-sync — concurrency guard", () => {
-  it("returns skipped when a media_sync_cron auditEvent exists in the last 10 minutes", async () => {
+describe("GET /api/cron/media-sync — atomic machine claim", () => {
+  it("skips (starts no work) when the shared claim is refused", async () => {
     mockHasCredentials.mockReturnValue(true);
-    mockAuditFindFirst.mockResolvedValueOnce({
-      id: 1,
-      action: "media_sync_cron",
-      created_at: new Date(),
-    });
+    mockClaimMachine.mockResolvedValue({ ok: false, reason: "overlap_in_progress" } as never);
 
     const res = await GET(authedReq());
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.skipped).toBe(true);
-    expect(body.reason).toMatch(/within last 10 minutes/);
+    expect(body.reason).toMatch(/machine claim not granted/);
     expect(mockRunMediaSync).not.toHaveBeenCalled();
-    expect(mockAuditCreate).not.toHaveBeenCalled();
+    expect(mockCompleteMachine).not.toHaveBeenCalled(); // never claimed ⇒ never completes
   });
 
-  it("queries auditEvent with the correct concurrency window", async () => {
+  it("takes the standalone-media-sync claim and writes a completion in finally when granted", async () => {
     mockHasCredentials.mockReturnValue(true);
-    mockAuditFindFirst.mockResolvedValueOnce(null);
+    mockClaimMachine.mockResolvedValue({ ok: true } as never);
     mockRunMediaSync.mockResolvedValueOnce(makeRunResult());
     mockAuditCreate.mockResolvedValueOnce(undefined);
 
     await GET(authedReq());
 
-    const args = mockAuditFindFirst.mock.calls[0][0] as {
-      where: { action: string; created_at: { gte: Date } };
-      orderBy: unknown;
-    };
-    expect(args.where.action).toBe("media_sync_cron");
-    expect(args.where.created_at.gte).toBeInstanceOf(Date);
-    // Window must be exactly 10 minutes (within a few ms of now-10min).
-    const expectedGte = Date.now() - 10 * 60 * 1000;
-    const actualGte = args.where.created_at.gte.getTime();
-    expect(Math.abs(actualGte - expectedGte)).toBeLessThan(2000);
+    expect(mockClaimMachine).toHaveBeenCalledTimes(1);
+    const claimInput = mockClaimMachine.mock.calls[0][1] as { executionType: string; member: string };
+    expect(claimInput.executionType).toBe("standalone-media-sync");
+    expect(claimInput.member).toBe("media-sync");
+    expect(mockRunMediaSync).toHaveBeenCalledTimes(1);
+    expect(mockCompleteMachine).toHaveBeenCalledTimes(1);
+    expect((mockCompleteMachine.mock.calls[0][1] as { outcome: string }).outcome).toBe("success");
   });
 });
 

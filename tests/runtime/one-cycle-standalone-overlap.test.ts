@@ -13,10 +13,15 @@
  */
 import { NextRequest } from "next/server";
 
-const isOneCycleActive = jest.fn<Promise<boolean>, []>();
-jest.mock("@/lib/idx/one-cycle-active", () => ({
-  isOneCycleActive: () => isOneCycleActive(),
-  ONE_CYCLE_STALE_MS: 300_000,
+// The shared atomic claim is mocked so we can drive granted/refused deterministically.
+const claimMachine = jest.fn<Promise<{ ok: boolean; reason?: string }>, [unknown, unknown]>();
+const completeMachine = jest.fn<Promise<void>, [unknown, unknown]>(async () => {});
+jest.mock("@/lib/idx/machine-claim", () => ({
+  claimMachine: (db: unknown, input: unknown) => claimMachine(db, input),
+  completeMachine: (db: unknown, input: unknown) => completeMachine(db, input),
+  MACHINE_STALE_MS: 300_000,
+  MACHINE_STARTED: "one_cycle_started",
+  MACHINE_COMPLETED: "one_cycle_run",
 }));
 
 const syncListings = jest.fn();
@@ -62,7 +67,6 @@ const req = (opts: { url?: string; orchestrated?: boolean; runId?: string } = {}
 };
 
 beforeEach(() => {
-  isOneCycleActive.mockReset();
   syncListings.mockReset().mockResolvedValue({ processed: 0 });
   runMediaSync.mockReset().mockResolvedValue({
     status: "ok", exit_reason: "completed", rows_checked: 0, rows_updated: 0,
@@ -86,53 +90,59 @@ beforeEach(() => {
     mirror_allowed: 0, mirror_rejected_policy: 0, mirror_rejected_policy_parked: 0,
     r2_uploaded: 0, r2_reused: 0, duration_ms: 1, ghost_listings_skipped: 0, ghost_listing_ids: [],
   });
+  claimMachine.mockReset().mockResolvedValue({ ok: true });
+  completeMachine.mockClear();
   auditCreate.mockClear();
 });
 
-describe("standalone idx-sync overlap block", () => {
-  it("manual idx-sync during an active One Cycle starts NO work", async () => {
-    isOneCycleActive.mockResolvedValue(true);
+describe("standalone idx-sync overlap block (atomic claim)", () => {
+  it("manual idx-sync refused by the claim starts NO work", async () => {
+    claimMachine.mockResolvedValue({ ok: false, reason: "overlap_in_progress" });
     const res = await idxGET(req());
     const body = await res.json();
     expect(body.skipped).toBe(true);
-    expect(body.reason).toMatch(/One Cycle is active/);
+    expect(body.reason).toMatch(/machine claim not granted/);
     expect(syncListings).not.toHaveBeenCalled();
+    expect(completeMachine).not.toHaveBeenCalled(); // never claimed ⇒ never completes
   });
 
-  it("?full=true during an active One Cycle starts NO work (does not bypass the machine)", async () => {
-    isOneCycleActive.mockResolvedValue(true);
+  it("?full=true refused by the claim starts NO work (cannot escape the shared claim)", async () => {
+    claimMachine.mockResolvedValue({ ok: false, reason: "lock_contended" });
     const res = await idxGET(req({ url: "https://mallan.nyc/api/cron/idx-sync?full=true" }));
     const body = await res.json();
     expect(body.skipped).toBe(true);
-    expect(body.reason).toMatch(/One Cycle is active/);
     expect(syncListings).not.toHaveBeenCalled();
+    // The claim WAS attempted for full=true (no bypass).
+    expect(claimMachine).toHaveBeenCalledTimes(1);
+    expect((claimMachine.mock.calls[0][1] as { executionType: string }).executionType).toBe("standalone-idx-sync");
   });
 
-  it("the ORCHESTRATED call is exempt — it runs even while a cycle is 'active'", async () => {
-    isOneCycleActive.mockResolvedValue(true);
+  it("the ORCHESTRATED call takes NO claim and runs (One Cycle owns the machine)", async () => {
     await idxGET(req({ orchestrated: true, runId: "run-x" }));
+    expect(claimMachine).not.toHaveBeenCalled();
     expect(syncListings).toHaveBeenCalledTimes(1);
   });
 
-  it("manual idx-sync with NO active cycle proceeds", async () => {
-    isOneCycleActive.mockResolvedValue(false);
+  it("manual idx-sync GRANTED the claim runs and writes a completion in finally", async () => {
+    claimMachine.mockResolvedValue({ ok: true });
     await idxGET(req());
     expect(syncListings).toHaveBeenCalledTimes(1);
+    expect(completeMachine).toHaveBeenCalledTimes(1);
+    expect((completeMachine.mock.calls[0][1] as { outcome: string }).outcome).toBe("success");
   });
 });
 
-describe("standalone media-sync overlap block", () => {
-  it("manual media-sync during an active One Cycle starts NO work", async () => {
-    isOneCycleActive.mockResolvedValue(true);
+describe("standalone media-sync overlap block (atomic claim)", () => {
+  it("manual media-sync refused by the claim starts NO work", async () => {
+    claimMachine.mockResolvedValue({ ok: false, reason: "overlap_in_progress" });
     const res = await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", { headers: { authorization: AUTH } }));
     const body = await res.json();
     expect(body.skipped).toBe(true);
-    expect(body.reason).toMatch(/One Cycle is active/);
+    expect(body.reason).toMatch(/machine claim not granted/);
     expect(runMediaSync).not.toHaveBeenCalled();
   });
 
-  it("the ORCHESTRATED media-sync call is exempt", async () => {
-    isOneCycleActive.mockResolvedValue(true);
+  it("the ORCHESTRATED media-sync call takes NO claim and runs", async () => {
     await mediaGET(new NextRequest("https://mallan.nyc/api/cron/media-sync", {
       headers: { authorization: AUTH, "x-one-cycle-member": "sec", "x-one-cycle-run-id": "run-y" },
     }));
@@ -142,7 +152,6 @@ describe("standalone media-sync overlap block", () => {
 
 describe("telemetry persists with run_id on success AND error", () => {
   it("success: idx_sync_cron audit carries run_id + cotality snapshot + outcome", async () => {
-    isOneCycleActive.mockResolvedValue(false);
     // The mock runs INSIDE the collector context (route wraps it) → records real counters.
     syncListings.mockImplementation(async () => {
       recordCotalityHttp({ url: "/odata/Property", durationMs: 20, status: 200 });
@@ -158,7 +167,6 @@ describe("telemetry persists with run_id on success AND error", () => {
   });
 
   it("error: idx_sync_cron_error audit RETAINS run_id + the 429/retry/request/duration counters", async () => {
-    isOneCycleActive.mockResolvedValue(false);
     syncListings.mockImplementation(async () => {
       // A 429 + retry + a token refresh happen, THEN the run throws.
       recordCotalityHttp({ url: "/odata/Property", durationMs: 12, status: 429, retryAfterSeconds: 5 });

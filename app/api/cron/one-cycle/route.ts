@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual, randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
+import { claimMachine } from '@/lib/idx/machine-claim';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
 // cadence, 2026-07-24) ───────────────────────────────────────────────────────
@@ -115,11 +116,9 @@ const _CYCLE_FITS_INTERVAL: true =
   (maxDuration * 1000 < CYCLE_INTERVAL_MS) as true;
 void _CYCLE_FITS_INTERVAL;
 
-// Advisory-lock identity for the cycle-claim mutex (distinct from the R2 drain
-// lock class 20260723). A second concurrent invocation cannot win this lock and
-// therefore cannot pass the claim.
-const CYCLE_LOCK_CLASS = 20260724;
-const CYCLE_LOCK_KEY = 1;
+// Machine-execution overlap protection is the SHARED atomic claim
+// (lib/idx/machine-claim.ts), used by One Cycle AND every standalone member so a
+// manual run can never overlap the machine via a non-atomic check-then-start.
 
 /**
  * Terminal member statuses. A member is "resolved" once it holds one of these:
@@ -261,84 +260,6 @@ async function readMediaCursorLagSeconds(): Promise<number | null> {
   }
 }
 
-/**
- * Atomically claim the right to run THIS cycle — the orchestrator-level overlap
- * guard. Inside a single short transaction:
- *   1. take the cycle advisory xact lock (auto-released at txn end) so two
- *      concurrent claims serialize and cannot both proceed;
- *   2. find the most recent `one_cycle_started` marker within the max cycle
- *      runtime (maxDuration — a cycle can never be older than that and still
- *      running); if its run_id has NO matching `one_cycle_run` completion,
- *      another cycle is genuinely in progress → refuse the claim;
- *   3. otherwise write the `one_cycle_started` marker (carrying THIS run_id) and
- *      grant the claim.
- * started/completed are paired by a unique run_id — NOT timestamp inference.
- * A refused claim means the caller MUST exit without starting any member.
- * Fail-closed: any error refuses the claim (never risk two concurrent cycles).
- *
- * `db` is injected (the shared prisma client in production; an ephemeral-DB
- * client in the integration test) so the real advisory-lock + JSON-path query
- * are exercised against actual PostgreSQL, not mocks. Exported for that test.
- */
-type ClaimDb = Pick<typeof prisma, '$transaction'>;
-export async function claimCycle(
-  db: ClaimDb,
-  runId: string,
-  now: Date,
-): Promise<{ ok: boolean; reason?: string }> {
-  const staleMs = maxDuration * 1000;
-  try {
-    return await db.$transaction(async (tx) => {
-      const lockRows = (await tx.$queryRaw`
-        SELECT pg_try_advisory_xact_lock(${CYCLE_LOCK_CLASS}::int4, ${CYCLE_LOCK_KEY}::int4) AS locked
-      `) as Array<{ locked: boolean }>;
-      if (!lockRows?.[0]?.locked) {
-        return { ok: false, reason: 'lock_contended' };
-      }
-      const started = await tx.auditEvent.findFirst({
-        where: {
-          action: 'one_cycle_started',
-          created_at: { gte: new Date(now.getTime() - staleMs) },
-        },
-        orderBy: { created_at: 'desc' },
-        select: { created_at: true, changes: true },
-      });
-      if (started) {
-        const prevRunId =
-          started.changes && typeof started.changes === 'object'
-            ? (started.changes as Record<string, unknown>).run_id
-            : undefined;
-        const completed = await tx.auditEvent.findFirst({
-          where:
-            typeof prevRunId === 'string'
-              ? { action: 'one_cycle_run', changes: { path: ['run_id'], equals: prevRunId } }
-              : { action: 'one_cycle_run', created_at: { gte: started.created_at } },
-          select: { id: true },
-        });
-        if (!completed) {
-          return { ok: false, reason: 'overlap_in_progress' };
-        }
-      }
-      await tx.auditEvent.create({
-        data: {
-          action: 'one_cycle_started',
-          entity_type: 'cron',
-          entity_id: 'one-cycle',
-          user_type: 'system',
-          user_id: null,
-          changes: { run_id: runId, started_at: now.toISOString(), cadence_ms: CYCLE_INTERVAL_MS },
-        },
-      });
-      return { ok: true };
-    });
-  } catch (err) {
-    return {
-      ok: false,
-      reason: err instanceof Error ? `claim_error:${err.message.slice(0, 120)}` : 'claim_error',
-    };
-  }
-}
-
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization') ?? '';
   const cronSecret = process.env.CRON_SECRET;
@@ -382,9 +303,16 @@ export async function GET(req: NextRequest) {
 
   const startedAt = new Date();
 
-  // Overlap guard: a second concurrent one-cycle invocation cannot win the
-  // advisory claim and exits here WITHOUT starting either member.
-  const claim = await claimCycle(prisma, runId, startedAt);
+  // Overlap guard: the SHARED atomic machine claim. A second concurrent
+  // execution (another cycle OR a standalone member) cannot win it and exits
+  // here WITHOUT starting any member.
+  const claim = await claimMachine(prisma, {
+    runId,
+    executionType: 'one-cycle',
+    member: null,
+    extra: { cadence_ms: CYCLE_INTERVAL_MS },
+    now: startedAt,
+  });
   if (!claim.ok) {
     return NextResponse.json(
       {
@@ -496,6 +424,8 @@ export async function GET(req: NextRequest) {
 
   const machine = {
     run_id: runId,
+    execution_type: 'one-cycle',
+    outcome: success ? 'success' : complete ? 'partial' : 'incomplete',
     cadence: '10m',
     cadence_ms: CYCLE_INTERVAL_MS,
     orchestration_settled,
