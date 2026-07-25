@@ -101,11 +101,18 @@ jobs:
       # (GET /api/release-identity) which commit + deployment it is serving; a
       # MATCH proves alias ownership BY CONSTRUCTION (the workflow queried the
       # alias directly). No Vercel API token, no VERCEL_TEAM_ID, no
-      # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF variable, no secret at all. Runs on
-      # push-to-main OR manual dispatch — both safe (read-only public GET).
+      # RELEASE_TRUTH_REQUIRE_DEPLOY_PROOF variable, no secret at all.
+      #
+      # PUSH-TO-MAIN ONLY. A push to main IS the current production revision, so
+      # mallan.nyc will serve it once deployed. workflow_dispatch is deliberately
+      # EXCLUDED: a manual/retrospective audit can target an arbitrary inputs.sha
+      # / inputs.pr (a preview or an older SHA) that mallan.nyc will never serve,
+      # which would exhaust the poll and fail the enforce gate — regressing the
+      # advisory manual-audit path. Dispatch stays advisory (aggregator runs, no
+      # production proof). To re-prove a main commit, RE-RUN its push job.
       - name: Verify production identity — phase 1 (public proof, no token)
         id: verify
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
@@ -163,7 +170,7 @@ jobs:
         # coerces '' == '0' to a numeric 0 == 0 = TRUE, which would wrongly run
         # this on PRs). Production proof only runs on push-to-main / dispatch.
         id: smoke
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && steps.verify.outputs.rc == '0'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.verify.outputs.rc == '0'
         env:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
@@ -201,7 +208,7 @@ jobs:
       - name: Reconfirm production identity — phase 2 (post-smoke)
         # Event-gated (same '' == '0' coercion guard as the smoke step).
         id: reconfirm
-        if: ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && steps.verify.outputs.rc == '0'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.verify.outputs.rc == '0'
         env:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
@@ -349,7 +356,7 @@ jobs:
         # Event-gated so PR / non-main events never reach the fail branch (they
         # skip the production-proof steps entirely and stay advisory/pending).
         if: >-
-          ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') &&
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') &&
           ((steps.verify.outputs.rc != '' && steps.verify.outputs.rc != '0') ||
            (steps.reconfirm.outputs.reconfirm_rc != '' && steps.reconfirm.outputs.reconfirm_rc != '0'))
         run: |

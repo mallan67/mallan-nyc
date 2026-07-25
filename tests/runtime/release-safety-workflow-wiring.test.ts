@@ -92,18 +92,25 @@ describe('release-safety P2 — workflow wiring pins', () => {
     expect(rt).toContain('reconfirm_rc');
   });
 
-  test('the production-proof steps are EVENT-gated so PR events stay advisory (GH \'\' == \'0\' coercion guard)', () => {
-    // GitHub coerces a skipped step\'s empty rc: `'' == '0'` becomes numeric
-    // 0 == 0 = TRUE. Relying on `steps.verify.outputs.rc == '0'` alone made
-    // smoke/reconfirm/enforce run on PRs and fail the run. All four
-    // production-proof steps must be gated on push-to-main OR workflow_dispatch.
+  test('the production-proof steps are gated PUSH-TO-MAIN ONLY (PR + retrospective dispatch stay advisory)', () => {
+    // Two failure modes this pins:
+    //  1) GitHub coerces a skipped step's empty rc: `'' == '0'` → numeric
+    //     0 == 0 = TRUE, so `steps.verify.outputs.rc == '0'` alone ran
+    //     smoke/reconfirm/enforce on PRs and failed the run.
+    //  2) `|| workflow_dispatch` let a retrospective dispatch (inputs.sha /
+    //     inputs.pr — a preview or old SHA mallan.nyc never serves) exhaust the
+    //     poll and fail the enforce gate (Codex on #565).
+    // All four production-proof steps must gate on push-to-main, and NONE may
+    // reference workflow_dispatch in its `if:`.
     const rt = read('.github/workflows/release-truth.yml');
-    const eventGate = /\(github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'\) \|\| github\.event_name == 'workflow_dispatch'/g;
-    // verify + smoke + reconfirm + enforce == 4 occurrences.
-    expect((rt.match(eventGate) || []).length).toBeGreaterThanOrEqual(4);
-    // The enforce gate in particular must carry the event gate (its absence is
-    // exactly what failed PR #565's run on the token-free commit).
-    expect(rt).toMatch(/Enforce production gate[\s\S]*github\.event_name == 'push'[\s\S]*reconfirm_rc/);
+    const pushGate = /github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/g;
+    // verify + smoke + reconfirm + enforce == 4 push-to-main gates.
+    expect((rt.match(pushGate) || []).length).toBeGreaterThanOrEqual(4);
+    // No production-proof `if:` may include workflow_dispatch (it appears only in
+    // the `on:` trigger block and the advisory status-post `push || pull_request`).
+    expect(rt).not.toMatch(/if:[^\n]*workflow_dispatch/);
+    // The enforce gate must carry the push-to-main gate (its absence failed #565).
+    expect(rt).toMatch(/Enforce production gate[\s\S]*github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'[\s\S]*reconfirm_rc/);
   });
 
   test('feed + media sync run on the unified One Cycle cadence (*/10), not independent crons', () => {
