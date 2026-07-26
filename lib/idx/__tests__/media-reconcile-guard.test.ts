@@ -11,6 +11,9 @@
 import { decideReconcile, type ReconcileGuardInput, type PendingCandidateState } from "@/lib/idx/media-reconcile-guard";
 import fc from "fast-check";
 
+// Pinned seed → reproducible property-test evidence (DB-1 / §12 acceptance).
+fc.configureGlobal({ seed: 20260726 });
+
 const H = (hash = "v1:AAA"): ReconcileGuardInput["hashResult"] => ({ ok: true, hash, count: 2 });
 const T = (iso: string) => new Date(iso);
 

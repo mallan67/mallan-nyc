@@ -17,6 +17,9 @@ import {
 } from "@/lib/idx/media-set-hash";
 import fc from "fast-check";
 
+// Pinned seed → reproducible property-test evidence (DB-1 / §12 acceptance).
+fc.configureGlobal({ seed: 20260726 });
+
 const row = (o: Partial<MediaSetItem> = {}): MediaSetItem => ({
   mediaKey: "m1",
   resourceRecordKey: "L1",
