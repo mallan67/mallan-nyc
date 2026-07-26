@@ -21,9 +21,11 @@
 
 Two outcomes, in this order:
 
-1. **Safety first** — a two-strike, corroborated empty-gallery guard backed by a per-listing
-   media sync-state + stable set-hash, so a *technically-successful-but-transient empty 200* from
-   Cotality can never be mistaken for a truly-deleted gallery and mass-tombstone live photos.
+1. **Safety first** — a two-strike, corroborated guard against **any implicit disappearance** of
+   previously-active feed media (shrink, a vanished MediaKey, or empty), plus a **source-set
+   validity gate**, backed by a per-listing media sync-state + stable set-hash — so a
+   *technically-successful-but-transient/short/invalid 200* from Cotality can never be mistaken for a
+   real removal and mass-tombstone live photos.
 2. **Then write reduction** — once (1) exists and its tests pass, stop the PCT-only full-row
    rewrite: a PCT-only event whose stable media set is unchanged updates only the lightweight
    sync-state row and does **not** rewrite `listings.raw_data` or invalidate listing/search caches
@@ -114,6 +116,50 @@ two-strike guard does double duty: it enables PCT suppression *and* closes this 
 `R2_BACKLOG_PROBE_CAP=2000`, `R2_RUN_FAILURE_BUDGET=10` (`media-sync.ts:1838-1910`). Phase 2A does
 **not** touch the drain (that is Phase 2B territory).
 
+### 2.6 Live Cotality field verification (Class-B proof, §J.4)
+
+Every Media/Building/Property field this design references was verified **live against the Trestle
+`$metadata` endpoint** on 2026-07-26 (the `trestle-fields` MCP fetches live, cached ≤10 min; §J.4
+live-`$metadata` bar). This is a Class-B check — not asserted from memory or Codex.
+
+**Media resource (56 live fields) — all referenced fields exist:**
+
+| Field | Live type | Used for |
+|---|---|---|
+| `MediaKey` | String[20] | identity / hash key |
+| `ResourceRecordKey` | String[20] | listing FK (query filter, §4.3b consistency) |
+| `ResourceRecordKeyNumeric` | Int64 | numeric-key fallback |
+| `ResourceRecordID` | String[255] | last-resort key only (never primary) |
+| `ResourceName` | Enum | **must be added to `$select`** for §4.3b resource-consistency |
+| `MediaURL` | String[8000] | delivery only — **excluded from hash** |
+| `MediaCategory` / `MediaClassification` / `MediaType` | Enum | hash material metadata |
+| `Order` | Int32 | hash |
+| `PreferredPhotoYN` | Boolean | hash / hero selection |
+| `MediaModificationTimestamp` / `ModificationTimestamp` | DateTime | hash revision clocks |
+| `MediaStatus` | Enum | explicit keyed removal (`Deleted`) |
+| `Permission` | **Multi-Enum** | compliance removal signal |
+
+- ⚠️ **`Permission` is Multi-Enum, not a single string.** "Non-public" (§4.3 immediate compliance
+  removal) = the value set is present and not exactly `{Public}`. The existing
+  `String(raw.Permission) !== "Public"` is fail-closed-skip but must be generalized to multi-value.
+- Also live (not required by the hash, noted for completeness): `RecordSignature`(Int32),
+  `HumanModifiedYN`(Boolean), `MediaAlteration`(Multi-Enum), `ListingPermission`(Multi-Enum),
+  `ImageHeight`/`ImageWidth`(Int32), `InternetEntireListingDisplayYN`(Boolean).
+
+**Building resource (live) = `BuildingKey`[String,255] only**, plus `$expand` → Media / Property.
+Cotality "Building" is a grouping key, not a rich resource. Phase 2A reconciles **per-listing Media**
+via `ResourceRecordKey eq '<ListingKey>'` and does **not** touch the Building resource; because Media
+carries `ResourceName`, §4.3b's consistency check confirms each row belongs to the listing's resource
+(not a building-level asset).
+
+**Property:** `PhotosChangeTimestamp` = DateTime, nullable (the carve-out targets a real field);
+`PhotosCount` also present.
+
+Backup live-verification paths if a re-check is needed: `npm run trestle:diff` (live-vs-CSV),
+`npm run trestle:probe`, `npm run trestle:audit-resources`, or the snapshot `artifacts/metadata.xml`.
+Per §J.8: this verifies field **existence, name, and type** on the live model — it does **not** by
+itself prove any given field is populated for a specific listing.
+
 ---
 
 ## 3. Scope
@@ -121,7 +167,8 @@ two-strike guard does double duty: it enables PCT suppression *and* closes this 
 **In scope (Phase 2A):**
 1. New `listing_media_sync_state` table (per-listing).
 2. Stable media-set hash (URL-free).
-3. Two-strike corroborated empty-gallery guard wired into the RC1 reconcile loop.
+3. Two-strike corroborated guard against ANY implicit disappearance of active feed media (shrink,
+   vanished MediaKey, or empty) + a source-set validity gate, wired into the RC1 reconcile loop.
 4. Concurrency protection so overlapping executions can't count as two strikes.
 5. State/hash checkpoint discipline (persist only after complete + successful reconciliation).
 6. PCT-only write suppression in `sync.ts` (gated behind the guard existing + tested).
@@ -148,20 +195,27 @@ model ListingMediaSyncState {
   listing_id                   String    @unique @map("listing_id")
   listing                      Listing   @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
 
-  // Successful-reconciliation checkpoint (persisted ONLY after a complete set + all writes succeed)
-  last_seen_photos_change_ts   DateTime? @map("last_seen_photos_change_ts")
-  last_complete_media_set_hash String?   @map("last_complete_media_set_hash")
-  last_reconciled_at           DateTime? @map("last_reconciled_at")
-  last_source_modification_ts  DateTime? @map("last_source_modification_ts")
+  // SUCCESSFULLY-RECONCILED checkpoint (persisted ONLY after a complete + valid set
+  // + all writes succeed). Kept SEPARATE from the observed/pending fields below.
+  last_seen_photos_change_ts    DateTime? @map("last_seen_photos_change_ts")
+  last_complete_media_set_hash  String?   @map("last_complete_media_set_hash") // versioned hash, e.g. "v1:<digest>"
+  last_reconciled_at            DateTime? @map("last_reconciled_at")
+  last_source_modification_ts   DateTime? @map("last_source_modification_ts")
 
-  // Two-strike empty-gallery guard state
-  pending_empty_count          Int       @default(0) @map("pending_empty_count")
-  pending_empty_first_seen_at  DateTime? @map("pending_empty_first_seen_at")
-  pending_empty_first_pct      DateTime? @map("pending_empty_first_pct")
-  pending_empty_first_cycle_id String?   @map("pending_empty_first_cycle_id")
+  // GENERALIZED pending-candidate guard state (any implicit disappearance — shrinkage,
+  // a vanished MediaKey, or empty — NOT only empty). These are OBSERVED values, distinct
+  // from the reconciled checkpoint above.
+  pending_candidate_set_hash        String?   @map("pending_candidate_set_hash")
+  pending_candidate_media_count     Int?      @map("pending_candidate_media_count")
+  pending_missing_media_count       Int?      @map("pending_missing_media_count")
+  pending_photos_change_timestamp   DateTime? @map("pending_photos_change_timestamp")
+  pending_source_modification_ts    DateTime? @map("pending_source_modification_ts")
+  pending_first_observed_at         DateTime? @map("pending_first_observed_at")
+  pending_last_observation_run_id   String?   @map("pending_last_observation_run_id")
+  pending_confirmation_count        Int       @default(0) @map("pending_confirmation_count")
 
-  created_at                   DateTime  @default(now()) @map("created_at")
-  updated_at                   DateTime  @updatedAt @map("updated_at")
+  created_at                    DateTime  @default(now()) @map("created_at")
+  updated_at                    DateTime  @updatedAt @map("updated_at")
 
   @@map("listing_media_sync_state")
 }
@@ -176,57 +230,111 @@ does not apply it.**
 
 ### 4.2 Stable media-set hash (URL-free)
 
-A pure function `stableMediaSetHash(rows)` producing a deterministic string over the **material
-identity** of the complete feed set — deliberately the same fields the existing row comparator
-`listingMediaRowUnchanged` uses (minus the URL), so "stable set unchanged" ⟺ "same membership AND
-every row materially unchanged":
+A pure function `stableMediaSetHash(rows)` producing a deterministic **versioned** digest over the
+**material identity** of the complete feed set — deliberately the same fields the existing row
+comparator `listingMediaRowUnchanged` uses (minus the URL), so "stable set unchanged" ⟺ "same
+membership AND every row materially unchanged". Requirements (Maya, 2026-07-26):
 
+- **MediaKey-based**, **canonical sort** (items sorted by `MediaKey`) for order-independence.
 - Per item (feed rows only; `crm:` excluded — they are not in Trestle sets by design):
   `MediaKey`, `media_type`, `media_category`, `media_classification`, `order`,
-  `preferred_photo_yn`, `media_modification_ts` (ISO or `∅`), `modification_ts` (ISO or `∅`).
-- **Signed delivery URLs are excluded** (they rotate every request — `write-suppression.ts` doctrine).
-- Items sorted by `MediaKey` for order-independence; the empty set hashes to a fixed sentinel
-  (e.g. `sha256("[]")`) distinct from `null` ("never reconciled").
+  `preferred_photo_yn`, and both revision timestamps — `media_modification_ts`
+  (`MediaModificationTimestamp`) and `modification_ts` (`Media.ModificationTimestamp`), ISO or `∅`.
+  (All live-verified on the Media resource — see §2.6.)
+- **No URL contribution whatsoever** — host, path, query, and fragment are ALL excluded (signed
+  URLs rotate every request — `write-suppression.ts` doctrine).
+- **Versioned:** the digest is prefixed with a scheme version (e.g. `"v1:<sha256>"`) so a future
+  field-set change is distinguishable and cannot silently collide with a v1 digest.
+- **Duplicate `MediaKey` ⇒ fail closed:** a set containing a duplicate key is UNSAFE — the hash
+  function signals invalidity (see §4.3b); it never silently dedupes and hashes anyway.
+- The empty set hashes to a fixed versioned sentinel (e.g. `"v1:∅"`) distinct from `null`
+  ("never reconciled").
 
 Pure + unit-tested; no Prisma, no I/O.
 
-### 4.3 Two-strike corroborated empty-gallery guard (Maya's exact rule)
+### 4.3 Two-strike guard — generalized to ANY implicit disappearance (Maya's exact rule, corrected 2026-07-26)
 
-Applies **only** to a *previously-non-empty* gallery becoming a *complete-empty* set.
-"Previously non-empty" = there currently exist `active`, non-`crm:` `listing_media` rows for the
-listing (DB truth — robust even when the sync-state row is absent, e.g. first run post-migration).
+The guard protects **any implicit disappearance of previously-active feed media**, NOT only a
+non-empty gallery becoming completely empty. An "implicit disappearance" is any previously-`active`,
+non-`crm:` `listing_media` `MediaKey` that is **absent from the new complete candidate set** without
+an explicit removal signal for that key. Examples all requiring **two consecutive identical
+complete-set observations in different natural cycles** before any tombstone:
 
-Decision, per listing, in the RC1 reconcile loop (after `fetchMedia` **resolves** = complete set):
+- 10 active feed rows → 8, with no explicit delete signals (partial shrink);
+- any single previously-active `MediaKey` absent from the new candidate set;
+- a complete set becoming empty (the original case, now a subset of this rule).
 
-- **Complete set is NON-EMPTY** → reconcile normally (existing `upsertListingMedia(...,
-  {tombstoneVanished:true})` path); **reset** `pending_empty_count = 0` and clear pending fields;
-  persist checkpoint (hash of the non-empty set).
-- **Complete set is EMPTY and gallery was previously EMPTY** (no active non-`crm:` rows) →
-  ordinary no-op. Refresh `last_reconciled_at`; hash = empty sentinel.
-- **Complete set is EMPTY and gallery was previously NON-EMPTY** → **two-strike**:
-  - **First complete-empty (strike 1):** record pending state
-    (`pending_empty_count=1`, `pending_empty_first_seen_at`, `pending_empty_first_pct` = observed
-    PCT, `pending_empty_first_cycle_id` = One-Cycle run id, `last_source_modification_ts` = source
-    mod ts). **Do NOT** tombstone, **do NOT** clear hero/photo-count, **do NOT** rewrite the
-    listing for PCT, **do NOT** invalidate caches. (Do **not** advance the successful-reconcile
-    checkpoint — the set is not confirmed.)
-  - **Second complete-empty (strike 2) — must satisfy ALL:**
-    1. a **different natural cycle** (`current one_cycle_run_id != pending_empty_first_cycle_id`) —
+**Immediate (not two-strike) removal signals** — explicit and keyed, so no corroboration is needed:
+- an explicit keyed `MediaStatus='Deleted'` record (existing `explicitDeleteKeys` path,
+  `media-sync.ts:1088-1098`) → tombstone that named `MediaKey` immediately;
+- an explicit keyed **non-public `Permission`** row → treat as a **compliance removal signal**
+  (immediate), NOT as generic malformed input. (Live: `Permission` is a **Multi-Enum** — see §2.6 —
+  so "non-public" = the value set is present and not exactly `{Public}`.)
+
+Decision, per listing, in the RC1 reconcile loop, **after `fetchMedia` resolves (complete set) AND
+the set passes the §4.3b validity gate**:
+
+- **No implicit disappearance** (every previously-active feed `MediaKey` is still present; only
+  additions/material updates/explicit removals) → reconcile normally (existing `upsertListingMedia(...,
+  {tombstoneVanished:true})` path is safe here because nothing is *implicitly* vanishing);
+  **reset** all `pending_*` fields; persist the successful checkpoint (hash of the new set).
+- **Implicit disappearance detected** → **two-strike** on the *candidate set*:
+  - **First observation (strike 1 — see §5):** upsert safe additions/updates; **retain** the
+    still-missing existing media (no tombstone); **retain** existing hero/photo-count for the
+    unconfirmed removals; record generalized pending-candidate state
+    (`pending_candidate_set_hash`, `pending_candidate_media_count`, `pending_missing_media_count`,
+    `pending_photos_change_timestamp`, `pending_source_modification_ts`,
+    `pending_first_observed_at`, `pending_last_observation_run_id`,
+    `pending_confirmation_count = 1`). **No** destructive cache revalidation. Do **not** advance the
+    successful-reconcile checkpoint (the reduced set is unconfirmed).
+  - **Second observation (strike 2) — must satisfy ALL:**
+    1. a **different natural cycle** (`current one_cycle_run_id != pending_last_observation_run_id`) —
        never a concurrent duplicate execution;
-    2. complete pagination again (fetch resolved);
-    3. no fetch / pagination / media-write failure this cycle;
-    4. no intervening non-empty result (guaranteed by the reset rule);
-    5. PCT **equal to or newer** than `pending_empty_first_pct` (non-regressing);
-    6. source modification timestamp **not regressing** vs `last_source_modification_ts`.
-    → **Then, atomically:** tombstone **feed-owned** media only (existing empty-set branch,
-    preserving `crm:`), update hero/photo-count summary, commit the successful checkpoint
-    (`last_complete_media_set_hash` = empty sentinel, `last_seen_photos_change_ts`,
-    `last_reconciled_at`), and clear pending state.
-  - If any strike-2 condition fails → remain pending (do not tombstone), keep or refresh the
-    pending observation as appropriate.
-- **Explicit individual `MediaStatus='Deleted'` records** continue to tombstone the named
-  `MediaKey` immediately (existing `explicitDeleteKeys` path, `media-sync.ts:1088-1098`) — the
-  two-strike rule governs the dangerous *mass* non-empty→zero clear only, not named deletions.
+    2. the **same candidate** — `pending_candidate_set_hash` recomputed this cycle is identical;
+    3. complete pagination again (fetch resolved) AND the set passes §4.3b validity again;
+    4. no fetch / pagination / media-write failure this cycle;
+    5. no intervening non-empty/larger result (guaranteed by the reset rule below);
+    6. PCT **equal to or newer** than `pending_photos_change_timestamp` (non-regressing);
+    7. source modification timestamp **not regressing** vs `pending_source_modification_ts`.
+    → **Then, in ONE DB transaction (§5):** tombstone the still-missing **feed-owned** rows only
+    (preserving `crm:`), update the hero/photo-count summary, commit the successful checkpoint
+    (`last_complete_media_set_hash` = candidate hash, `last_seen_photos_change_ts`,
+    `last_source_modification_ts`, `last_reconciled_at`), and clear pending state. **Revalidate
+    caches only AFTER the transaction commits.**
+  - If any strike-2 condition fails → remain pending (do not tombstone); refresh the pending
+    observation as appropriate.
+- **Any non-empty / non-shrinking result** (candidate ⊇ previously-active feed set) → **reset**
+  `pending_*` to zero and reconcile normally. A single transient empty/short 200 therefore never
+  blanks anything.
+- **A listing whose reduced set is already the confirmed checkpoint** (candidate hash ==
+  `last_complete_media_set_hash`) → ordinary no-op; repeated identical reductions are not re-torn-down.
+
+### 4.3b Source-set validity gate (fail-closed — new, Maya 2026-07-26)
+
+A complete `fetchMedia` response is **NOT safe for implicit tombstoning** when any active/public row
+in the candidate set has:
+- a **missing `MediaKey`**;
+- a **missing `MediaURL`**;
+- a **duplicate `MediaKey`** within the set;
+- a **`ResourceRecordKey` inconsistent with the listing being reconciled** (must equal the
+  listing's `ListingKey`; the `$select` must add **`ResourceName`** — live-confirmed on Media, §2.6 —
+  and the row must belong to the listing's resource, not a Building-level asset);
+- any **malformed identity/material field** that prevents deterministic hashing.
+
+On an **unsafe** set:
+- safe additions/updates **may** proceed (a valid new/changed row is still upserted);
+- **no implicitly-vanished row is tombstoned** (this closes the current gap: today `skippedInvalid`
+  from a missing `MediaKey`/`MediaURL` does **not** block `tombstoneVanished` — only `writeFailures`
+  does, at `media-sync.ts:1086`; §4.3b makes the validity result also block destructive
+  reconciliation);
+- **no successful hash/checkpoint is written**;
+- **no summary reduction is committed** (hero/photo-count retained);
+- the **cursor does not advance past the listing** (it retries next cycle, idempotently);
+- the listing **retries**.
+
+An explicit keyed **non-public `Permission`** row is **not** generic malformed input — it is a
+compliance removal signal (§4.3) and is handled as an immediate keyed removal, not a validity
+failure.
 
 ### 4.4 Concurrency protection
 
@@ -242,11 +350,13 @@ observations from one natural cycle count as two strikes.*
 ### 4.5 State/hash checkpoint discipline
 
 - `last_complete_media_set_hash` and the successful-reconcile checkpoint (`last_seen_photos_change_ts`,
-  `last_reconciled_at`) are persisted **only after** the complete set was fetched **and** all
-  DB writes for that listing succeeded.
-- The checkpoint is **never** advanced after partial pagination (`fetchMedia` threw) or any write
-  failure. This mirrors the existing cursor discipline (`pickKeysetWatermark` halts at the first
-  incomplete/failed listing, `media-sync.ts:435-444`).
+  `last_source_modification_ts`, `last_reconciled_at`) are persisted **only after** the complete set
+  was fetched, **passed the §4.3b validity gate**, **and** all DB writes for that listing succeeded.
+- The checkpoint is **never** advanced after partial pagination (`fetchMedia` threw), a §4.3b
+  validity failure, or any write failure. This mirrors the existing cursor discipline
+  (`pickKeysetWatermark` halts at the first incomplete/failed listing, `media-sync.ts:435-444`).
+- Observed (`pending_*`) and successfully-reconciled (`last_*`) timestamps are kept strictly
+  separate — a pending observation NEVER writes a `last_*` value.
 
 ### 4.6 PCT-only write suppression in `sync.ts` (gated on §4.3 existing + tested)
 
@@ -271,6 +381,20 @@ existing rotating-URL canonicalization and provenance-clock stripping). Effect o
   written to persist the provenance clock but **cache is not invalidated** (existing
   `isProvenanceOnlyChange` path) — still a large reduction vs today's full rewrite + invalidation.
 
+**Only `PhotosChangeTimestamp`** is in `RAW_DATA_RECONCILED_ELSEWHERE_KEYS` — no other key is
+reclassified.
+
+**Table-capability fail-closed check (new, Maya 2026-07-26):** the PCT carve-out is only sound while
+the reconciliation safety table (`listing_media_sync_state`) is actually present and usable. A
+**once-per-IDX-run capability check** verifies the table is available; **if it is unavailable, the
+carve-out is disabled fail-closed** for that run — i.e. PCT reverts to material and the pre-existing
+full-write behavior resumes, so PCT churn is never suppressed without the safety mechanism backing
+it. The check runs once per IDX run (not per row) to avoid per-record overhead.
+
+**Ships ENABLED (Q3 resolved):** the PCT suppression ships **enabled** in this PR **after** the
+migration is applied and the guard's tests pass (§10) — not behind a runtime flag. The table-
+capability check (above) is the runtime safety net; §11's flag option is withdrawn.
+
 **Cooperation, not inline reconciliation (design decision for review):** requirement #4 says a
 PCT-only event should "invoke/check media reconciliation." In the real architecture the RC1
 reconciliation already runs every cycle in the media-sync half of One Cycle, selecting exactly the
@@ -292,22 +416,31 @@ any reader is found, revisit before enabling §4.6.
 runMediaSync → fetchProperties(page) → for each property:
   fetchMedia(listingKey)                 # RC1: resolves ⇒ COMPLETE set; throws ⇒ preserve+halt
   ├─ threw?  → preserve media, no tombstone, do NOT advance checkpoint (existing behavior)
-  └─ resolved (complete set):
-       prevActiveFeedCount = count active non-crm listing_media for listing
-       if set NON-EMPTY:
-           upsertListingMedia(..., tombstoneVanished:true)   # existing path
-           reset pending; persist checkpoint(hash(set))
-       elif prevActiveFeedCount == 0:                        # already-empty
-           no-op; refresh last_reconciled_at; hash=∅sentinel
-       else:                                                 # NON-EMPTY → EMPTY (dangerous)
-           two-strike guard (§4.3) under row lock (§4.4):
-             strike 1 → record pending; NO tombstone/hero/cache
-             strike 2 (all conditions) → atomic: tombstone feed-only, update hero/count,
-                                          commit checkpoint, clear pending
+  └─ resolved (complete candidate set):
+       validity = validateSourceSet(candidate, listingKey)   # §4.3b
+       upsert SAFE additions/updates (always allowed)        # existing upsert, tombstoneVanished:FALSE here
+       apply explicit keyed removals immediately             # MediaStatus=Deleted + non-public Permission
+       if NOT validity.safe:
+           NO implicit tombstone; NO checkpoint; NO summary reduction;
+           cursor does NOT advance past listing; retry next cycle
+       else:
+           missing = previously-active non-crm feed keys ABSENT from candidate
+           if missing is EMPTY:                              # no implicit disappearance
+               reset pending; persist checkpoint(hash(candidate)); reconcile normally
+           else:                                             # implicit disappearance → two-strike
+             under row/advisory lock (§4.4):
+               if candidate confirms a prior strike (§4.3 conditions 1-7):
+                   ONE TXN: tombstone still-missing feed-only rows (crm preserved),
+                            update hero/count, commit checkpoint, clear pending
+                   revalidate caches AFTER commit
+               else:                                          # strike 1 (or non-confirming)
+                   record pending-candidate state; retain missing media + hero/count;
+                   NO tombstone; NO destructive revalidation; checkpoint NOT advanced
 ```
 
-Listing-sync half (`sync.ts`): with §4.6 enabled, a PCT-only `raw_data` delta no longer forces a
-write; the media truth is reconciled by the media-sync half above.
+Listing-sync half (`sync.ts`): with §4.6 enabled (and the table-capability check passing), a
+PCT-only `raw_data` delta no longer forces a write; the media truth is reconciled by the media-sync
+half above.
 
 ---
 
@@ -353,13 +486,33 @@ test in the same PR:
 9. Repeated PCT with already-processed state → no redundant work; already-confirmed-empty no-op.
 10. Cache/projection suppression on unchanged stable set (PCT-only → no invalidation/warm).
 
-Two-strike-specific:
-11. Non-empty → **first** complete-empty → pending recorded, **nothing** tombstoned/cleared/invalidated.
-12. First-empty then **non-empty** → pending reset, normal reconcile (single transient empty-200 never blanks).
-13. First-empty then second-empty **same cycle id** → NOT confirmed (no tombstone).
-14. First-empty then second-empty **different cycle**, all conditions → tombstone feed-only, crm preserved, hero/count updated, checkpoint committed.
-15. Second-empty with **regressing PCT** or **regressing source ts** → NOT confirmed.
-16. Concurrency: two overlapping same-cycle observations → at most one pending, never a confirm.
+Two-strike (generalized to ANY implicit disappearance):
+11. Previously-active → **first** reduced/empty candidate → pending recorded, **nothing**
+    tombstoned/cleared/invalidated; safe additions/updates still upserted.
+12. First-reduced then **non-shrinking** result → pending reset, normal reconcile (single transient
+    empty/short 200 never blanks).
+13. First-reduced then identical-reduced **same cycle id** → NOT confirmed (no tombstone).
+14. First-reduced then identical-reduced **different cycle**, all conditions → tombstone still-missing
+    feed-only rows, crm preserved, hero/count updated, checkpoint committed, caches revalidated only
+    after commit.
+15. Second observation with **regressing PCT** or **regressing source ts** → NOT confirmed.
+16. Second observation with a **different candidate hash** (set changed again) → NOT confirmed; new
+    pending recorded.
+17. **Partial shrink** (10→8, no explicit deletes) exercises the same two-strike path as complete-empty.
+18. Concurrency: two overlapping same-cycle observations → at most one pending, never a confirm
+    (row/advisory lock, §4.4).
+
+Source-set validity gate (§4.3b):
+19. Candidate with a **missing MediaKey** → additions/updates proceed; **no implicit tombstone**;
+    no checkpoint; cursor does not advance; retries.
+20. Candidate with a **missing MediaURL** on an active/public row → same as 19 (fail-closed).
+21. Candidate with a **duplicate MediaKey** → hash signals invalid; no implicit tombstone; no checkpoint.
+22. Candidate row with **ResourceRecordKey ≠ listing** (or wrong ResourceName) → no implicit tombstone.
+23. Explicit keyed **MediaStatus=Deleted** → immediate tombstone of that key (not two-strike).
+24. Explicit keyed **non-public (multi-enum) Permission** → immediate compliance removal (not
+    treated as malformed; not two-strike).
+25. **Table-capability off** (`listing_media_sync_state` unavailable) → PCT carve-out disabled
+    fail-closed for the run (PCT stays material; pre-existing full-write behavior).
 
 Plus: `sync.ts` PCT-only suppression tests (write suppressed / provenance-only when mod-ts moved /
 no cache invalidation), and the full validation chain in CLAUDE.md §G before commit.
@@ -394,9 +547,11 @@ sharply, removed galleries still clear (one cycle later), crm media intact, no i
 
 ## 11. Open items for Maya's spec-review
 
-- **Q3 confirmation:** guard-first-then-PCT within one PR (§10) as written — or do you still want
-  the PCT exclusion behind a default-OFF runtime flag so it's flipped only after observing natural
-  cycles post-merge? (Spec currently ships it enabled as the final, isolated commit.)
+- **RESOLVED (Q3):** PCT suppression ships **enabled** after migration + tests, guarded at runtime by
+  the once-per-IDX-run table-capability check (§4.6). The default-OFF flag option is withdrawn.
 - **§4.6 cooperation model** (media-sync reconciles; listing-sync merely stops rewriting) — confirm
   you're good with this vs. literally invoking reconciliation from `sync.ts`.
 - **§4.4 lock choice** (row lock vs advisory lock) — any preference, or leave to the plan.
+- **§4.3b `$select` addition** — Phase 2A adds `ResourceName` to the reconcile `$select` (live-
+  confirmed on Media, §2.6) to support the resource-consistency validity check; flagging since it
+  changes the Media OData query (compliance index §4/§8 surface).
