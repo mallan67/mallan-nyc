@@ -1,5 +1,7 @@
 name: Phase 2A Recovery
 
+# One-time branch recovery. The implementation script removes this workflow
+# and its payload files before creating the final implementation commit.
 on:
   push:
     branches:
