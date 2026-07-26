@@ -749,7 +749,9 @@ describe("upsertListingMedia — #541 per-field attribution", () => {
     // …but it is NOT a material change → zero base mismatches → SUPPRESSED.
     expect(r.rowsWithOneMismatch).toBe(0);
     expect(r.skippedUnchanged).toBe(1);
-    expect(r.suppressedUrlRotationOnly).toBe(1);
+    // Pathname differs → IDENTITY change, not a signature rotation (Codex P2).
+    expect(r.suppressedUrlIdentityChanged).toBe(1);
+    expect(r.suppressedUrlSignatureRotation).toBe(0);
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
@@ -761,6 +763,9 @@ describe("upsertListingMedia — #541 per-field attribution", () => {
     expect(r.mismatchMediaUrlIdentityEquivalent).toBe(1);
     expect(r.rowsWithOneMismatch).toBe(0);
     expect(r.skippedUnchanged).toBe(1);
+    // Same origin+pathname, only query changed → SIGNATURE rotation (Codex P2).
+    expect(r.suppressedUrlSignatureRotation).toBe(1);
+    expect(r.suppressedUrlIdentityChanged).toBe(0);
     expect(r.mismatchMediaUrlExact).toBe(r.mismatchMediaUrlIdentity + r.mismatchMediaUrlIdentityEquivalent);
   });
 
@@ -816,7 +821,9 @@ describe("upsertListingMedia — #541 per-field attribution", () => {
     const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1", MediaURL: URL_BASE })]);
     expect(r.mismatchMediaUrlExact).toBe(1); // observability — attribution still fires
     expect(r.skippedUnchanged).toBe(1); // …but URL is not material → suppressed
-    expect(r.suppressedUrlRotationOnly).toBe(1);
+    // Malformed stored URL vs a valid one → identities differ → IDENTITY change.
+    expect(r.suppressedUrlIdentityChanged).toBe(1);
+    expect(r.suppressedUrlSignatureRotation).toBe(0);
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

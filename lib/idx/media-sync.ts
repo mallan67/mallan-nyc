@@ -576,10 +576,20 @@ export interface UpsertListingMediaResult {
    */
   deliveryUrlRefreshed: number;
   /**
-   * PROOF counter — rows SUPPRESSED whose incoming row differed ONLY by a
-   * rotated signed URL (material-unchanged AND already delivered).
+   * PROOF counters (split 2026-07-25, Codex P2). Rows SUPPRESSED (material-
+   * unchanged AND already delivered) that differed on the URL. The material
+   * comparator excludes the URL entirely, so the old single
+   * `suppressedUrlRotationOnly` conflated two very different cases:
+   *   signature rotation — origin+pathname identical, only query/fragment/case
+   *   changed (a harmless re-sign).
    */
-  suppressedUrlRotationOnly: number;
+  suppressedUrlSignatureRotation: number;
+  /**
+   * identity change — origin OR pathname changed (a POTENTIAL asset replacement
+   * that Phase 2 may decide should force a physical write). Do NOT read this as
+   * benign rotation.
+   */
+  suppressedUrlIdentityChanged: number;
   /** Per-row create/update failures — counted and isolated (row skipped, batch continues). */
   writeFailures: number;
 
@@ -915,7 +925,8 @@ export async function upsertListingMedia(
   let updatedChanged = 0;
   let skippedUnchanged = 0;
   let deliveryUrlRefreshed = 0; // material-unchanged but written to refresh a not-yet-mirrored URL
-  let suppressedUrlRotationOnly = 0; // suppressed rows whose only diff was a rotated URL (write-reduction proof)
+  let suppressedUrlSignatureRotation = 0; // suppressed: URL query/sig rotated (origin+pathname identical)
+  let suppressedUrlIdentityChanged = 0; // suppressed: URL origin/pathname changed (potential asset replacement)
   let writeFailures = 0; // per-row create/update failures (isolated; batch continues, listing fails closed)
   // #541 comparator-attribution diagnostic — aggregate counts only, derived
   // ALONGSIDE the decision, never controlling it.
@@ -998,7 +1009,12 @@ export async function upsertListingMedia(
       const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
       if (materialUnchanged && mediaRowDelivered(existing)) {
         skippedUnchanged++;
-        if (mm.media_url_exact) suppressedUrlRotationOnly++; // suppressed a rotated-URL-only diff
+        // Split (Codex P2): the URL is excluded from the material decision, so a
+        // suppressed row may differ by a harmless signature rotation OR a real
+        // origin/pathname change. Attribute each precisely (mutually exclusive:
+        // media_url_exact === identity + identity_equivalent).
+        if (mm.media_url_identity_equivalent) suppressedUrlSignatureRotation++;
+        if (mm.media_url_identity) suppressedUrlIdentityChanged++;
         continue; // no material change + already delivered → skip the write
       }
       try {
@@ -1130,7 +1146,8 @@ export async function upsertListingMedia(
     // Non-tombstone create/update writes only (inserts + material + refresh).
     nonTombstoneRowsWritten: inserted + updatedChanged + deliveryUrlRefreshed,
     deliveryUrlRefreshed,
-    suppressedUrlRotationOnly,
+    suppressedUrlSignatureRotation,
+    suppressedUrlIdentityChanged,
     writeFailures,
     ...attr,
   };
@@ -2412,6 +2429,23 @@ export interface RunMediaSyncResult {
   tombstoned_vanished: number;
   /** INVARIANT: rows_tombstoned === tombstoned_explicit + tombstoned_vanished. */
   rows_tombstoned: number;
+  // ── Phase-1 write-amplification forensic (2026-07-25): the minimal cause
+  //    counters that CANNOT be derived from the fields already emitted.
+  //    Additive/observability only — change NO write decision. Redundant aliases
+  //    are deliberately NOT stored (audit growth is under investigation):
+  //      physical_writes  === rows_updated  (already emitted) — asserted by test
+  //      non_tombstone    === rows_inserted + rows_updated_changed + delivery_url_refreshed (derivable)
+  //    INVARIANT (rows_failed===0), asserted in media-sync-cron.test:
+  //      rows_updated === rows_inserted + rows_updated_changed
+  //                       + delivery_url_refreshed + tombstoned_explicit + tombstoned_vanished
+  /** Material-unchanged rows written SOLELY to refresh a not-yet-mirrored URL. */
+  delivery_url_refreshed: number;
+  /** Suppressed: URL query/signature rotated only (origin+pathname identical). */
+  suppressed_url_signature_rotation: number;
+  /** Suppressed: URL origin/pathname changed (potential asset replacement; Phase-2 decision). */
+  suppressed_url_identity_changed: number;
+  /** Per-row create/update failures (isolated; listing fails closed). */
+  write_failures: number;
   /**
    * Phase 3 (surface C) — Listing media-summary write path accounting.
    * Physical Listing.update calls only; materially-identical summaries are
@@ -2816,6 +2850,46 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
  *   - Never modifies `app/api/media/batch/`, `lib/idx/sync.ts`,
  *     `lib/external-listings/`, schema, migrations, or public reader paths.
  */
+/**
+ * Phase-1 write-amplification forensic (2026-07-25): run-level totals for the
+ * three NON-DERIVABLE physical-write cause counters. Extracted as a PURE,
+ * directly-unit-tested accumulator (media-write-cause-accumulator.test.ts) so the
+ * "multiple nonzero per-listing results sum correctly" property is proven — not
+ * merely asserted on an all-zero mock run. runMediaSync's per-listing loop calls
+ * `accumulateMediaWriteCauses` for every settled upsert.
+ */
+export interface MediaWriteCauseTotals {
+  delivery_url_refreshed: number;
+  suppressed_url_signature_rotation: number;
+  suppressed_url_identity_changed: number;
+  write_failures: number;
+}
+
+export function newMediaWriteCauseTotals(): MediaWriteCauseTotals {
+  return {
+    delivery_url_refreshed: 0,
+    suppressed_url_signature_rotation: 0,
+    suppressed_url_identity_changed: 0,
+    write_failures: 0,
+  };
+}
+
+/** Add ONE per-listing WriteCounters result into the run totals (pure; mutates acc). */
+export function accumulateMediaWriteCauses(
+  acc: MediaWriteCauseTotals,
+  r: {
+    deliveryUrlRefreshed: number;
+    suppressedUrlSignatureRotation: number;
+    suppressedUrlIdentityChanged: number;
+    writeFailures: number;
+  },
+): void {
+  acc.delivery_url_refreshed += r.deliveryUrlRefreshed;
+  acc.suppressed_url_signature_rotation += r.suppressedUrlSignatureRotation;
+  acc.suppressed_url_identity_changed += r.suppressedUrlIdentityChanged;
+  acc.write_failures += r.writeFailures;
+}
+
 export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<RunMediaSyncResult> {
   const now = options.now ?? Date.now;
   const startTime = now();
@@ -2843,6 +2917,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let tombstonedExplicit = 0;
   let tombstonedVanished = 0;
   let rowsTombstoned = 0;
+  // Phase-1 write-amplification forensic (2026-07-25): explicit physical-write
+  // cause attribution — additive/observability only, never controls a decision.
+  // Phase-1 forensic: run-level physical-write cause totals (non-derivable),
+  // accumulated via the pure, unit-tested accumulateMediaWriteCauses helper.
+  const causeTotals = newMediaWriteCauseTotals();
   // #541 comparator-attribution diagnostic (cumulative; snake_case = audit keys).
   const attr = {
     existing_rows_compared: 0,
@@ -2933,6 +3012,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       tombstoned_explicit: 0,
       tombstoned_vanished: 0,
       rows_tombstoned: 0,
+      // Phase-1 forensic cause counters — all zero on a source-fetch error (no writes).
+      delivery_url_refreshed: 0,
+      suppressed_url_signature_rotation: 0,
+      suppressed_url_identity_changed: 0,
+      write_failures: 0,
       summary_writes: newSummaryWriteCounters(),
       ...attr, // all zeros on source_error
       rows_failed: 0,
@@ -3062,6 +3146,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // inserts + material updates + delivery-URL refreshes + BOTH tombstone
       // kinds (tombstones are physical updateMany writes). One precise meaning.
       rowsUpdated += upsertResult.physicalWrites;
+      // Phase-1 forensic: physical-write cause attribution (additive only).
+      accumulateMediaWriteCauses(causeTotals, upsertResult);
       // #541 attribution (camelCase result → snake_case cumulative)
       attr.existing_rows_compared += upsertResult.existingRowsCompared;
       attr.mismatch_status += upsertResult.mismatchStatus;
@@ -3677,6 +3763,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     tombstoned_explicit: tombstonedExplicit,
     tombstoned_vanished: tombstonedVanished,
     rows_tombstoned: rowsTombstoned,
+    // Phase-1 forensic — minimal non-derivable cause counters (additive only).
+    delivery_url_refreshed: causeTotals.delivery_url_refreshed,
+    suppressed_url_signature_rotation: causeTotals.suppressed_url_signature_rotation,
+    suppressed_url_identity_changed: causeTotals.suppressed_url_identity_changed,
+    write_failures: causeTotals.write_failures,
     summary_writes: summaryWrites,
     pages_revalidated: revalidation.pages_revalidated,
     revalidation_failures: revalidation.revalidation_failures,

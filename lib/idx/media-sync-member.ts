@@ -80,6 +80,14 @@ export async function runMediaSyncMember({
           tombstoned_explicit: result.tombstoned_explicit,
           tombstoned_vanished: result.tombstoned_vanished,
           rows_tombstoned: result.rows_tombstoned,
+          // Phase-1 write-amplification forensic (2026-07-25): the minimal
+          // non-derivable physical-write cause counters (additive only).
+          // physical_writes (=rows_updated) and non_tombstone (derivable) are
+          // deliberately NOT stored — see media-sync.ts RunMediaSyncResult.
+          delivery_url_refreshed: result.delivery_url_refreshed,
+          suppressed_url_signature_rotation: result.suppressed_url_signature_rotation,
+          suppressed_url_identity_changed: result.suppressed_url_identity_changed,
+          write_failures: result.write_failures,
           existing_rows_compared: result.existing_rows_compared,
           mismatch_status: result.mismatch_status,
           mismatch_listing_id: result.mismatch_listing_id,

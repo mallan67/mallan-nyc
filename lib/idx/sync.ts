@@ -20,6 +20,7 @@ import {
   LISTING_SYNC_COMPARE_SELECT,
   listingUpdateMateriallyUnchanged,
   classifyListingChangeReasons,
+  changedRawDataMaterialKeys,
   isProvenanceOnlyChange,
   mediaArraysMateriallyEqual,
   newWritePathCounters,
@@ -541,6 +542,24 @@ export async function syncListings(
   const listingChangeReasons = newListingChangeReasonCounters();
   const projectionChangeReasons = newProjectionChangeReasonCounters();
 
+  // Phase-1 write-amplification forensic (2026-07-25): TEMPORARY diagnostic
+  // answering "which raw_data KEYS change on raw_data_only writes?". Key NAMES +
+  // counts ONLY (never values/PII); emitted to runtime logs at run end, NEVER to
+  // audit_events (append-only growth is the thing we're fixing).
+  //
+  // AUTO-EXPIRING (Maya safeguard): active ONLY while DIAG_RAW_DATA_KEYS_UNTIL is
+  // a FUTURE ISO timestamp. It fails OFF after the bounded evidence window with no
+  // redeploy or manual cleanup — it cannot be left on indefinitely. Unset/invalid/
+  // past ⇒ disabled (zero behavior/perf impact).
+  const diagUntilRaw = process.env.DIAG_RAW_DATA_KEYS_UNTIL;
+  const diagUntil = Date.parse(diagUntilRaw ?? "");
+  const diagRawDataKeys = Number.isFinite(diagUntil) && Date.now() < diagUntil;
+  // Bounded grace after the cutoff: the "window closed" notice logs only within
+  // this window, then goes fully silent (no indefinite per-cycle noise).
+  const DIAG_EXPIRY_GRACE_MS = 24 * 60 * 60 * 1000;
+  const rawDataChangedKeyCounts = new Map<string, number>();
+  let rawDataOnlyWritesSampled = 0;
+
   // One Cycle W1 — cache tags to revalidate at end of run. Only PHYSICAL
   // writes add tags (the suppression comparators are the change oracle);
   // an unchanged run revalidates NOTHING. Scope D (2026-07-24): a
@@ -789,6 +808,26 @@ export async function syncListings(
           : null;
         if (changeReasons) {
           for (const reason of changeReasons) listingChangeReasons[reason]++;
+        }
+        // Phase-1 forensic (flag-gated): tally WHICH raw_data keys changed on a
+        // raw_data_only write, using the SAME material semantics the classifier
+        // used to decide raw_data_only (rotating Media URLs canonicalized away,
+        // provenance clocks excluded) — so the histogram can never disagree with
+        // the classification. Key NAMES + counts only; never values.
+        if (
+          diagRawDataKeys &&
+          existing &&
+          changeReasons &&
+          [...changeReasons].includes("raw_data_only")
+        ) {
+          const keys = changedRawDataMaterialKeys(
+            (existing as { raw_data?: unknown }).raw_data,
+            mapped.raw_data as unknown,
+          );
+          for (const k of keys) {
+            rawDataChangedKeyCounts.set(k, (rawDataChangedKeyCounts.get(k) ?? 0) + 1);
+          }
+          rawDataOnlyWritesSampled++;
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
           changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
@@ -1255,6 +1294,39 @@ export async function syncListings(
     }
   } else if (errors === 0) {
     console.log('[IDX Sync] building-manifest warm skipped: no manifest-affecting shard changed this run');
+  }
+
+  // Phase-1 forensic (flag-gated): ONE compact line to runtime logs per ACTIVE
+  // cycle — never audit_events. Emit EVEN on a zero-change cycle (empty top20,
+  // zero sample) so the ≥3-cycle capture distinguishes a quiet cycle from missing
+  // instrumentation (Codex). Names + counts only.
+  if (diagRawDataKeys) {
+    const top20 = [...rawDataChangedKeyCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([key, count]) => ({ key, count }));
+    console.log(
+      "[IDX Sync][diag] raw_data_only changed-key histogram (top20, names+counts only): " +
+        JSON.stringify({
+          raw_data_only_writes_sampled: rawDataOnlyWritesSampled,
+          distinct_keys: rawDataChangedKeyCounts.size,
+          top20,
+        }),
+    );
+  } else if (
+    diagUntilRaw &&
+    Number.isFinite(diagUntil) &&
+    Date.now() >= diagUntil &&
+    Date.now() < diagUntil + DIAG_EXPIRY_GRACE_MS
+  ) {
+    // Configured-but-expired: emit the "window closed" notice ONLY within the
+    // bounded grace window after the cutoff (so the evidence collector learns the
+    // window ended), then go fully SILENT — no indefinite ~144/day noise (Codex).
+    // Invalid/unset timestamps are silent (Number.isFinite guard).
+    console.log(
+      "[IDX Sync][diag] raw_data key histogram WINDOW CLOSED — DIAG_RAW_DATA_KEYS_UNTIL " +
+        "passed (silent after grace): " + JSON.stringify(diagUntilRaw),
+    );
   }
 
   // Durable idx_sync AuditEvent — written AFTER the warm so the changes

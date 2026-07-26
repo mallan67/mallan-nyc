@@ -108,24 +108,69 @@ function deliveredRow(over: Partial<ListingMediaRow> = {}): ListingMediaRow {
 }
 
 describe("hotfix: rotating signed URL alone must not write (delivered row)", () => {
-  it("PROOF: path-signature rotation on a delivered row is SUPPRESSED (zero update)", async () => {
+  it("PROOF: path-embedded signature change on a delivered row is SUPPRESSED (IDENTITY change)", async () => {
     mockFindUnique.mockResolvedValueOnce(deliveredRow());
     const r = await upsertListingMedia("RLS20012345", [makeRow()]);
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(r.skippedUnchanged).toBe(1);
-    expect(r.suppressedUrlRotationOnly).toBe(1);
+    // The signature is in the PATH here (…/1/OLD-signature-A → …/1/NEW-signature-Z),
+    // so origin+pathname differs → this is an IDENTITY change, NOT a query
+    // rotation. This is exactly the case the old conflated counter mislabeled
+    // as "rotation" (Codex P2).
+    expect(r.suppressedUrlIdentityChanged).toBe(1);
+    expect(r.suppressedUrlSignatureRotation).toBe(0);
     expect(r.mismatchMediaUrlExact).toBe(1); // URL still counted (observability)
     expect(r.physicalWrites).toBe(0);
   });
 
-  it("PROOF: query-token-only rotation on a delivered row is SUPPRESSED", async () => {
+  it("PROOF: query-token-only rotation on a delivered row is SUPPRESSED (SIGNATURE rotation)", async () => {
     const base = "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/1/sig";
     mockFindUnique.mockResolvedValueOnce(deliveredRow({ media_url_original: base + "?token=OLD&expires=1" }));
     const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaURL: base + "?token=NEW&expires=2" })]);
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(r.skippedUnchanged).toBe(1);
-    expect(r.suppressedUrlRotationOnly).toBe(1);
+    // Same origin+pathname, only the query changed → SIGNATURE rotation.
+    expect(r.suppressedUrlSignatureRotation).toBe(1);
+    expect(r.suppressedUrlIdentityChanged).toBe(0);
+  });
+});
+
+describe("Codex P2 split: signature rotation vs identity change attributed separately", () => {
+  it("different ORIGIN (same path) on a delivered row → IDENTITY change", async () => {
+    const path = "/trestle/Media/Property/PHOTO-Jpeg/100/1/sig";
+    mockFindUnique.mockResolvedValueOnce(deliveredRow({ media_url_original: "https://api.cotality.com" + path }));
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaURL: "https://media.cotality.com" + path })]);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(r.skippedUnchanged).toBe(1);
+    expect(r.suppressedUrlIdentityChanged).toBe(1);
+    expect(r.suppressedUrlSignatureRotation).toBe(0);
+  });
+
+  it("EXACT-SAME URL on a delivered row → NEITHER URL counter (pure no-op)", async () => {
+    const same = "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/1/sig";
+    mockFindUnique.mockResolvedValueOnce(deliveredRow({ media_url_original: same }));
+    const r = await upsertListingMedia("RLS20012345", [makeRow({ MediaURL: same })]);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(r.skippedUnchanged).toBe(1);
+    expect(r.mismatchMediaUrlExact).toBe(0);
+    expect(r.suppressedUrlSignatureRotation).toBe(0);
+    expect(r.suppressedUrlIdentityChanged).toBe(0);
+  });
+
+  it("mixed batch: both counters accumulate independently across rows", async () => {
+    const b = "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100";
+    mockFindUnique
+      .mockResolvedValueOnce(deliveredRow({ media_key: "MK-1", order: 0, media_url_original: `${b}/1/sig?token=OLD` }))
+      .mockResolvedValueOnce(deliveredRow({ media_key: "MK-2", order: 1, media_url_original: `${b}/2/OLD` }));
+    const r = await upsertListingMedia("RLS20012345", [
+      makeRow({ MediaKey: "MK-1", Order: 0, MediaURL: `${b}/1/sig?token=NEW` }), // query → signature
+      makeRow({ MediaKey: "MK-2", Order: 1, MediaURL: `${b}/2/NEW` }), // pathname → identity
+    ]);
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(r.skippedUnchanged).toBe(2);
+    expect(r.suppressedUrlSignatureRotation).toBe(1);
+    expect(r.suppressedUrlIdentityChanged).toBe(1);
   });
 });
 
@@ -245,7 +290,9 @@ describe("hotfix: batch proof — unchanged delivered batch → near-zero writes
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockCreate).not.toHaveBeenCalled();
     expect(r.skippedUnchanged).toBe(15);
-    expect(r.suppressedUrlRotationOnly).toBe(15);
+    // Different origin each row (https://old/i → https://new/i) → IDENTITY changes.
+    expect(r.suppressedUrlIdentityChanged).toBe(15);
+    expect(r.suppressedUrlSignatureRotation).toBe(0);
     expect(r.physicalWrites).toBe(0);
     expect(r.rowsChecked).toBe(15);
   });

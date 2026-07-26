@@ -23,19 +23,21 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-03T16:36:52Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-25T23:50:07Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `ab56ecd8`; probed from branch `docs/registry-neon-verification-2026-07-02` |
-| Open PRs | 🟡 | 41 open (31 non-audit): #473, #472, #467, #428 |
+| Repo / main HEAD | 🟢 | main `318925e9`; probed from branch `fix/neon-write-amplification-2026-07-25` |
+| Open PRs | 🟢 | 1 open (1 non-audit): #569 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
-| Cron cadence (live Cotality) | 🟢 | 21 crons; idx-sync `*/30 * * * *`, media-sync `0 * * * *` (hourly), db-keepalive removed — approved compute-reduction (PR #481, 2026-07-07) |
+| Neon facts drift (neon:verify) | 🟢 | NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s) |
+| Cron cadence (live Cotality) | 🟡 | 20 crons; idx-sync `MISSING`, media-sync `MISSING`, db-keepalive `MISSING` |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
-| Cotality ingestion freshness | 🟢 | last_synced_from_trestle max 17m ago (cadence 30m after PR #481) |
-| DB growth / archive state | 🟢 | 110,707 listings; 2,032 archived (sync_status='archived') |
+| Cotality sync attempt freshness | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
+| Cotality last-run outcome | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
+| DB growth / archive state | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
 <!-- HEALTH:AUTO:END -->
 
 > To fill the DB rows, run with the canonical cold-waterfall connection in env (read-only), e.g.
@@ -108,7 +110,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | SEO-004 | SEO | /buildings canonical/sitemap/robots broken | P1 | Open | Claude |
 | OPS-002 | Operations | DB keepalive stability | P1 | Monitoring | Audit |
 | OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
-| OPS-010A | Operations | Storage churn suppression (diff-before-write) | P1 | Open (sequenced after pilot) | Claude |
+| OPS-010A | Operations | Storage churn suppression (diff-before-write). **Phase-1 evidence + telemetry IMPLEMENTED on draft PR #569 (2026-07-25; pending review + merge — NOT in production):** media physical-write cause counters + flag-gated raw_data key histogram; fresh pg_stat (listing_media 3.40M / listings 1.40M updates); audit_events 199→566/day (~2.8×) post-`*/10`. Forensic: `docs/operations/neon-write-amplification-forensic-2026-07-25.md`. **Base material-diff suppression already DEPLOYED** (`listingMediaRowUnchanged`/`listingUpdateMateriallyUnchanged`); Phase-2 target is the narrower `raw_data_only` + `delivery_url_refreshed` causes (HELD). | P1 | Open — base diff-suppression deployed; Phase-2 = raw_data_only + delivery-refresh (HELD) | Claude |
 | OPS-022 | Operations | **Gate-6 rollback branch AUTO-PRUNED** (2026-07-03; main only) — a fresh PROTECTED rollback branch is a HARD prerequisite before the 5K execute (one-way strip, 6h PITR) | P1 | **BLOCKER for 5K — needs Maya (create + protect branch)** | Maya |
 | BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
@@ -170,14 +172,14 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Media sync / orphans | 🟡 | 2026-07-01 | ghost-skip edge (OPS-012); media-backfill lane dead (OPS-008) | listing_media vs feed join |
 | Deleted/Closed timing (24h rule) | 🟢 | 2026-07-01 | all 176 off-feed ids render "Not Available" (live sweep) | full stale-id probe |
 | ComingSoon/Pending timing | 🟡 | 2026-07-01 | 8 Pending still sitemap-listed within minutes of transition (SEO-007/OPS-003) | live diff re-run |
-| Tombstones / reconciliation / drift | 🟡 | 2026-07-01 | tombstone growth unbounded (OPS-010); feed-reconcile clean-run writes no audit | table counts + audit rows |
+| Tombstones / reconciliation / drift | 🟡 | 2026-07-25 | `listing_media` soft-deleted tombstones measured **28,664**, never purged (OPS-010); feed-reconcile clean-run writes no audit | table counts + audit rows |
 | Archive integrity (Gate 6) | 🟡 (Regression Watch) | 2026-07-03 | rehydration guard MERGED + deployed (OPS-006 → Fixed/RW-004; baseline 2,032/2,032 stripped+hidden); OPS-009 two-flag gate IMPLEMENTED+deployed+VERIFIED (#470/OPS-020). Remaining 5K prerequisites: (1) `ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle, (2) OPS-022 fresh rollback branch | RW-004 queries + post-MAINTENANCE clean cycle |
 
 ### 4 · Database
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
 | Growth (listings) | 🟢 | 2026-07-01 | 110,597 rows; floor-gated cell (auto tier) | health:probe |
-| Unbounded tables | 🟡(static) | 2026-07-01 | listing_media tombstones + sync_errors (OPS-010); audit_events mixes compliance+diagnostics | row-count trend query |
+| Unbounded tables | 🟡 | 2026-07-25 | **Measured (PR #569, live pg_stat):** `sync_errors`=**0** (empty — NOT growing; corrects the old static note); `audit_events` append-only but **BOUNDED** (rolling 2yr purge; `email_unsubscribed` exempt) → plateaus, NOT unbounded (rate 199→566/day post-`*/10`; 30 MB frozen burst, purges ~2028); genuinely unbounded here = `listing_media` soft-deleted tombstones **28,664** never purged + `email_unsubscribed` audit rows (purge-exempt) (OPS-010/010A) | live pg_stat 2026-07-25 |
 | Large JSON columns | 🟡 | 2026-06-10 | listings 893MB/677MB TOAST (r2-neon cost audit) | pg_column_size sample |
 | Schema vs migrations drift | 🟡 | 2026-07-03 | **OPS-017 full diff DONE** (read-only): leads "drift" was a FALSE ALARM (`String[]`→nullable is correct); real drift = 5 orphan legacy tables + 3 orphan indexes + 3 `updated_at` defaults (benign, app references none); `listing_events` = expected SELLER-002 staged. P1→P3 | cleanup needs a held migration — no action now |
 | Indexes / FKs / slow queries / orphans / duplicates | ⚪ | — | never audited | read-only pg_stat + EXPLAIN pass (needs canonical DATABASE_URL, Maya approval) |
@@ -283,8 +285,10 @@ billed-storage drop. The S1 measurement (OPS-018, 2026-07-02) confirmed freed TO
 reusable-not-returned — after the drain, a no-drop measurement is NORMAL, not an anomaly.
 Disposition: no compaction now; no pg_repack until after the drain, if at all; VACUUM FULL forbidden.
 
-Follow-on (sequenced after OPS-009/pilot): **OPS-010A** diff-before-write suppression — the
-recurring ~750 MB+/mo churn lever, larger long-term than the one-time backlog. **OPS-015** tracks
+Follow-on (sequenced after OPS-009/pilot): **OPS-010A** — base material-diff suppression is
+already DEPLOYED (`listingMediaRowUnchanged`/`listingUpdateMateriallyUnchanged`); the remaining
+Phase-2 work is suppressing the residual `raw_data_only` + `delivery_url_refreshed` causes (the
+recurring churn lever), larger long-term than the one-time backlog. **OPS-015** tracks
 db-keepalive redundancy separately (decision, not a fix now).
 
 ---
