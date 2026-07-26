@@ -1,0 +1,657 @@
+from pathlib import Path
+import re
+
+def read(path):
+    return Path(path).read_text()
+
+def write(path, content):
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content)
+
+def replace_once(path, old, new):
+    content = read(path)
+    count = content.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected exactly one anchor, found {count}: {old[:100]!r}")
+    write(path, content.replace(old, new, 1))
+
+def sub_once(path, pattern, replacement, flags=0):
+    content = read(path)
+    updated, count = re.subn(pattern, replacement, content, count=1, flags=flags)
+    if count != 1:
+        raise SystemExit(f"{path}: regex anchor count {count}: {pattern[:100]!r}")
+    write(path, updated)
+
+# Remove the obsolete ops-health marker mechanism.
+replace_once(
+    ".gitignore",
+    "# NEON guard sentinel — written by `npm run ops:health`, consumed by\n# scripts/neon-precommit-guard.js. Per-developer, must not be committed.\n.ops-health-last\n",
+    "",
+)
+
+guard = read("scripts/neon-precommit-guard.js")
+guard = guard.replace(
+    "// affect Neon state — schema edits, migration files, vercel.json,\n// prisma-related scripts — and blocks the commit unless:\n//\n//   1. The commit message contains the explicit acknowledgment token\n//      `[neon-preflight: OK]`, AND\n//   2. `npm run ops:health` was run in the last 60 minutes (.ops-health-last\n//      sentinel file), AND\n//   3. `npx prisma migrate status` reports \"Database schema is up to date\"\n//      (confirms the dev's local prod-mirrored DB matches main).\n",
+    "// affect Neon state — schema edits, migration files, vercel.json,\n// prisma-related scripts — and requires the explicit acknowledgment token\n// `[neon-preflight: OK]` in the commit message. Prisma migrate status remains\n// an advisory drift check; committing reviewable capability-gated code does not\n// require a live production database connection.\n",
+)
+guard = guard.replace("const path = require('path');\n\n", "")
+guard = guard.replace("const ROOT = process.cwd();\n", "")
+guard = guard.replace("const OPS_HEALTH_SENTINEL = path.join(ROOT, '.ops-health-last');\nconst OPS_HEALTH_MAX_AGE_MS = 60 * 60 * 1000;\n", "")
+guard, marker_count = re.subn(
+    r"// ── 3\. Require recent ops:health run .*?// ── 4\. Confirm prisma migrate status is clean on the dev's local DB ──────\n",
+    "// ── 3. Advisory prisma migrate status check ─────────────────────────────\n",
+    guard,
+    count=1,
+    flags=re.S,
+)
+if marker_count != 1:
+    raise SystemExit(f"scripts/neon-precommit-guard.js: marker block count {marker_count}")
+guard = guard.replace(
+    "    `    ${TOKEN}\\n` +\n    `    - Ran \\`DATABASE_URL=prod prisma migrate deploy\\` — applied cleanly\\n` +\n    `    - Ran \\`npm run ops:health\\` — storage 43%, compute 38%`",
+    "    `    ${TOKEN}\\n` +\n    `    - No database, environment, R2, migration-application, deployment, or production mutation occurred`",
+)
+write("scripts/neon-precommit-guard.js", guard)
+
+ops = read("scripts/ops-health.js")
+ops, ops_count = re.subn(
+    r"  // Drop a sentinel file so the NEON pre-commit guard can verify a recent run\..*?  } catch \{ /\* sentinel is best-effort \*/ \}\n\n",
+    "",
+    ops,
+    count=1,
+    flags=re.S,
+)
+if ops_count != 1:
+    raise SystemExit(f"scripts/ops-health.js: marker write block count {ops_count}")
+write("scripts/ops-health.js", ops)
+
+replace_once(
+    "NEON.md",
+    """> This checklist is **enforced by a git pre-commit + commit-msg hook**
+> (`.githooks/pre-commit` + `.githooks/commit-msg`, installed via
+> `npm run hooks:install`). Commits touching `prisma/schema.prisma`,
+> `prisma/migrations/`, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`
+> are **blocked** unless:
+> 1. The commit message contains the acknowledgment token `[neon-preflight: OK]`
+> 2. `npm run ops:health` was run within the last 60 minutes (`.ops-health-last` sentinel)
+>
+> Emergency bypass: `NEON_GUARD_BYPASS=1 git commit …` (document why in message).
+""",
+    """> This checklist is **enforced by a git pre-commit + commit-msg hook**
+> (`.githooks/pre-commit` + `.githooks/commit-msg`, installed via
+> `npm run hooks:install`). Commits touching `prisma/schema.prisma`,
+> `prisma/migrations/`, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`
+> require the acknowledgment token `[neon-preflight: OK]`.
+>
+> `npm run ops:health` is an optional, read-only operator diagnostic. Run it only
+> with an independently verified canonical connection; it is not a commit marker
+> and never authorizes a production migration or deployment. Schema-dependent
+> production behavior remains blocked until the migration is manually applied and
+> verified against the canonical production branch.
+>
+> Emergency bypass: `NEON_GUARD_BYPASS=1 git commit …` (document why in message).
+""",
+)
+replace_once(
+    "NEON.md",
+    "# 1. Confirm Neon has headroom\nnpm run ops:health\n# Read \"pct_of_free\" for storage (<80%) and compute hours used (<160)\n",
+    "# 1. Optional: inspect headroom with independently verified canonical credentials\n# npm run ops:health\n# This diagnostic is read-only and is not a commit prerequisite.\n",
+)
+
+memory = read("memory/SENTINEL-DECOMMISSION-2026-07-25.md")
+memory = memory.replace(
+    "**Decision (Maya, 2026-07-25):** fully remove the \"Mallan Sentinel\" repo-audit-bot\nsubsystem. It was HELD; this is the explicit approval + record of the removal.\n",
+    "**Decision (Maya, 2026-07-25):** fully remove the \"Mallan Sentinel\" repo-audit-bot\nsubsystem. It was HELD; this is the explicit approval + record of the removal.\n\n**Superseding decision (Maya, 2026-07-26):** remove the separate `.ops-health-last`\nmarker and marker-based pre-commit gate as well. `ops:health` remains an optional\nread-only operator diagnostic and no longer writes or authorizes a marker file.\n",
+    1,
+)
+memory = memory.replace(
+    "- `.gitignore` — dropped the Sentinel-specific `.claude/agents/repo-audit-bot.md`\n  ship-exception and the `ops/audit/sentinel-l/` ignore; kept the unrelated\n  ops-health `.ops-health-last` sentinel FILE and the general `/ops/audit/` ignore.\n",
+    "- `.gitignore` — dropped the Sentinel-specific `.claude/agents/repo-audit-bot.md`\n  ship-exception and the `ops/audit/sentinel-l/` ignore. The general `/ops/audit/`\n  ignore remains; the separate `.ops-health-last` marker was removed by Maya's\n  superseding 2026-07-26 decision.\n",
+    1,
+)
+memory = memory.replace(
+    "- The ops-health `.ops-health-last` sentinel file + NEON pre-commit guard.\n",
+    "- The `ops:health` diagnostic itself (read-only when run with verified canonical credentials); its obsolete marker file and marker check were removed.\n",
+    1,
+)
+write("memory/SENTINEL-DECOMMISSION-2026-07-25.md", memory)
+
+# Add per-listing reconciliation state to Prisma schema.
+replace_once(
+    "prisma/schema.prisma",
+    "  listing_media             ListingMedia[]\n  listing_search_projection ListingSearchProjection?\n",
+    "  listing_media             ListingMedia[]\n  listing_media_sync_state  ListingMediaSyncState?\n  listing_search_projection ListingSearchProjection?\n",
+)
+sub_once(
+    "prisma/schema.prisma",
+    r"(model MediaSyncState \{.*?\n\})",
+    lambda match: match.group(1) + "\n\n" + '// Per-listing authoritative media reconciliation checkpoint and bounded pending lane.\nmodel ListingMediaSyncState {\n  id                                  BigInt    @id @default(autoincrement())\n  listing_id                          String    @unique @map("listing_id")\n  listing                             Listing   @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)\n  last_seen_photos_change_ts          DateTime? @map("last_seen_photos_change_ts")\n  last_complete_media_set_hash        String?   @map("last_complete_media_set_hash")\n  last_reconciled_at                  DateTime? @map("last_reconciled_at")\n  last_source_modification_ts         DateTime? @map("last_source_modification_ts")\n  pending_candidate_set_hash          String?   @map("pending_candidate_set_hash")\n  pending_candidate_media_count       Int?      @map("pending_candidate_media_count")\n  pending_missing_media_count         Int?      @map("pending_missing_media_count")\n  pending_photos_change_timestamp     DateTime? @map("pending_photos_change_timestamp")\n  pending_source_modification_ts      DateTime? @map("pending_source_modification_ts")\n  pending_first_observed_at           DateTime? @map("pending_first_observed_at")\n  pending_last_observation_run_id     String?   @map("pending_last_observation_run_id")\n  pending_confirmation_count          Int       @default(0) @map("pending_confirmation_count")\n  pending_next_check_at               DateTime? @map("pending_next_check_at")\n  created_at                          DateTime  @default(now()) @map("created_at")\n  updated_at                          DateTime  @updatedAt @map("updated_at")\n\n  @@index([pending_next_check_at])\n  @@map("listing_media_sync_state")\n}\n',
+    flags=re.S,
+)
+
+write(
+    "prisma/migrations/20260726120000_add_listing_media_sync_state/migration.sql",
+    """-- Phase 2A: new-empty per-listing media reconciliation state table.
+CREATE TABLE "listing_media_sync_state" (
+"id" BIGSERIAL NOT NULL,
+"listing_id" TEXT NOT NULL,
+"last_seen_photos_change_ts" TIMESTAMP(3),
+"last_complete_media_set_hash" TEXT,
+"last_reconciled_at" TIMESTAMP(3),
+"last_source_modification_ts" TIMESTAMP(3),
+"pending_candidate_set_hash" TEXT,
+"pending_candidate_media_count" INTEGER,
+"pending_missing_media_count" INTEGER,
+"pending_photos_change_timestamp" TIMESTAMP(3),
+"pending_source_modification_ts" TIMESTAMP(3),
+"pending_first_observed_at" TIMESTAMP(3),
+"pending_last_observation_run_id" TEXT,
+"pending_confirmation_count" INTEGER NOT NULL DEFAULT 0,
+"pending_next_check_at" TIMESTAMP(3),
+"created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+"updated_at" TIMESTAMP(3) NOT NULL,
+CONSTRAINT "listing_media_sync_state_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "listing_media_sync_state_listing_id_key"
+ON "listing_media_sync_state"("listing_id");
+CREATE INDEX "listing_media_sync_state_pending_next_check_at_idx"
+ON "listing_media_sync_state"("pending_next_check_at");
+ALTER TABLE "listing_media_sync_state"
+ADD CONSTRAINT "listing_media_sync_state_listing_id_fkey"
+FOREIGN KEY ("listing_id") REFERENCES "listings"("listing_id")
+ON DELETE CASCADE ON UPDATE CASCADE;
+""",
+)
+
+write(
+    "lib/idx/listing-media-sync-state.ts",
+    r'''import prisma from "@/lib/prisma";
+import type { PendingCandidateState } from "./media-reconcile-guard";
+
+export const PENDING_VERIFICATION_LIMIT = 10;
+export const PENDING_RECHECK_DELAY_MS = 10 * 60 * 1000;
+
+export interface ListingMediaSyncSnapshot {
+listingId: string;
+lastSeenPhotosChangeTs: Date | null;
+lastCompleteMediaSetHash: string | null;
+lastReconciledAt: Date | null;
+lastSourceModificationTs: Date | null;
+pending: PendingCandidateState | null;
+}
+
+export interface PendingLaneRow extends ListingMediaSyncSnapshot {
+pendingNextCheckAt: Date | null;
+}
+
+export interface PendingQueueStats {
+count: number;
+oldestFirstObservedAt: Date | null;
+}
+
+const clearPendingData = {
+pending_candidate_set_hash: null,
+pending_candidate_media_count: null,
+pending_missing_media_count: null,
+pending_photos_change_timestamp: null,
+pending_source_modification_ts: null,
+pending_first_observed_at: null,
+pending_last_observation_run_id: null,
+pending_confirmation_count: 0,
+pending_next_check_at: null,
+} as const;
+
+function toSnapshot(row: {
+listing_id: string;
+last_seen_photos_change_ts: Date | null;
+last_complete_media_set_hash: string | null;
+last_reconciled_at: Date | null;
+last_source_modification_ts: Date | null;
+pending_candidate_set_hash: string | null;
+pending_candidate_media_count: number | null;
+pending_missing_media_count: number | null;
+pending_photos_change_timestamp: Date | null;
+pending_source_modification_ts: Date | null;
+pending_first_observed_at: Date | null;
+pending_last_observation_run_id: string | null;
+pending_confirmation_count: number;
+pending_next_check_at?: Date | null;
+}): PendingLaneRow {
+const hasPending = row.pending_confirmation_count > 0 && row.pending_candidate_set_hash != null;
+return {
+listingId: row.listing_id,
+lastSeenPhotosChangeTs: row.last_seen_photos_change_ts,
+lastCompleteMediaSetHash: row.last_complete_media_set_hash,
+lastReconciledAt: row.last_reconciled_at,
+lastSourceModificationTs: row.last_source_modification_ts,
+pending: hasPending
+? {
+    candidateSetHash: row.pending_candidate_set_hash,
+    candidateMediaCount: row.pending_candidate_media_count,
+    missingMediaCount: row.pending_missing_media_count,
+    photosChangeTimestamp: row.pending_photos_change_timestamp,
+    sourceModificationTs: row.pending_source_modification_ts,
+    firstObservedAt: row.pending_first_observed_at,
+    lastObservationRunId: row.pending_last_observation_run_id,
+    confirmationCount: row.pending_confirmation_count,
+  }
+: null,
+pendingNextCheckAt: row.pending_next_check_at ?? null,
+};
+}
+
+export async function mediaSyncStateTableAvailable(): Promise<boolean> {
+const query = (prisma as unknown as { $queryRawUnsafe?: (sql: string) => Promise<unknown> }).$queryRawUnsafe;
+if (typeof query !== "function") return false;
+try {
+await query.call(prisma, 'SELECT 1 FROM "listing_media_sync_state" LIMIT 1');
+return true;
+} catch (error) {
+const message = error instanceof Error ? error.message : String(error);
+if (/listing_media_sync_state/i.test(message) && /(does not exist|P2021|undefined table)/i.test(message)) {
+return false;
+}
+throw error;
+}
+}
+
+export async function getListingMediaSyncState(
+listingId: string,
+): Promise<ListingMediaSyncSnapshot | null> {
+const row = await prisma.listingMediaSyncState.findUnique({ where: { listing_id: listingId } });
+return row ? toSnapshot(row) : null;
+}
+
+export async function writePendingCandidate(args: {
+listingId: string;
+pending: PendingCandidateState;
+nextCheckAt: Date;
+}): Promise<void> {
+const data = {
+pending_candidate_set_hash: args.pending.candidateSetHash,
+pending_candidate_media_count: args.pending.candidateMediaCount,
+pending_missing_media_count: args.pending.missingMediaCount,
+pending_photos_change_timestamp: args.pending.photosChangeTimestamp,
+pending_source_modification_ts: args.pending.sourceModificationTs,
+pending_first_observed_at: args.pending.firstObservedAt,
+pending_last_observation_run_id: args.pending.lastObservationRunId,
+pending_confirmation_count: args.pending.confirmationCount,
+pending_next_check_at: args.nextCheckAt,
+};
+await prisma.listingMediaSyncState.upsert({
+where: { listing_id: args.listingId },
+create: { listing_id: args.listingId, ...data },
+update: data,
+});
+}
+
+export async function commitReconcileCheckpoint(args: {
+listingId: string;
+mediaSetHash: string;
+photosChangeTs: Date | null;
+sourceModificationTs: Date | null;
+reconciledAt: Date;
+}): Promise<void> {
+const checkpoint = {
+last_seen_photos_change_ts: args.photosChangeTs,
+last_complete_media_set_hash: args.mediaSetHash,
+last_reconciled_at: args.reconciledAt,
+last_source_modification_ts: args.sourceModificationTs,
+...clearPendingData,
+};
+await prisma.listingMediaSyncState.upsert({
+where: { listing_id: args.listingId },
+create: { listing_id: args.listingId, ...checkpoint },
+update: checkpoint,
+});
+}
+
+export async function clearPending(listingId: string): Promise<void> {
+await prisma.listingMediaSyncState.updateMany({
+where: { listing_id: listingId },
+data: clearPendingData,
+});
+}
+
+export async function selectPendingLane(
+limit = PENDING_VERIFICATION_LIMIT,
+now = new Date(),
+): Promise<PendingLaneRow[]> {
+const rows = await prisma.listingMediaSyncState.findMany({
+where: {
+pending_confirmation_count: { gt: 0 },
+OR: [{ pending_next_check_at: null }, { pending_next_check_at: { lte: now } }],
+},
+orderBy: [{ pending_next_check_at: "asc" }, { updated_at: "asc" }],
+take: Math.max(0, limit),
+});
+return rows.map(toSnapshot);
+}
+
+export async function getPendingQueueStats(): Promise<PendingQueueStats> {
+const [count, oldest] = await Promise.all([
+prisma.listingMediaSyncState.count({ where: { pending_confirmation_count: { gt: 0 } } }),
+prisma.listingMediaSyncState.findFirst({
+where: { pending_confirmation_count: { gt: 0 } },
+orderBy: { pending_first_observed_at: "asc" },
+select: { pending_first_observed_at: true },
+}),
+]);
+return { count, oldestFirstObservedAt: oldest?.pending_first_observed_at ?? null };
+}
+''',
+)
+
+write(
+    "lib/idx/__tests__/listing-media-sync-state.test.ts",
+    r'''const mockQueryRawUnsafe = jest.fn<Promise<unknown>, [string]>();
+const mockFindMany = jest.fn<Promise<unknown[]>, [unknown]>();
+const mockFindUnique = jest.fn<Promise<unknown>, [unknown]>();
+const mockUpsert = jest.fn<Promise<unknown>, [unknown]>();
+const mockUpdateMany = jest.fn<Promise<unknown>, [unknown]>();
+const mockCount = jest.fn<Promise<number>, [unknown]>();
+const mockFindFirst = jest.fn<Promise<unknown>, [unknown]>();
+
+jest.mock("@/lib/prisma", () => ({
+  __esModule: true,
+  default: {
+    $queryRawUnsafe: (sql: string) => mockQueryRawUnsafe(sql),
+    listingMediaSyncState: {
+      findMany: (args: unknown) => mockFindMany(args),
+      findUnique: (args: unknown) => mockFindUnique(args),
+      findFirst: (args: unknown) => mockFindFirst(args),
+      upsert: (args: unknown) => mockUpsert(args),
+      updateMany: (args: unknown) => mockUpdateMany(args),
+      count: (args: unknown) => mockCount(args),
+    },
+  },
+}));
+
+import { mediaSyncStateTableAvailable, selectPendingLane } from "../listing-media-sync-state";
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+test("capability check fails closed when the table cannot be read", async () => {
+  mockQueryRawUnsafe.mockRejectedValueOnce(new Error("relation listing_media_sync_state does not exist"));
+  await expect(mediaSyncStateTableAvailable()).resolves.toBe(false);
+});
+
+test("pending lane is bounded, due-only, and deterministically ordered", async () => {
+  mockFindMany.mockResolvedValueOnce([
+    {
+      listing_id: "L-1",
+      last_seen_photos_change_ts: null,
+      last_complete_media_set_hash: "v1:old",
+      last_reconciled_at: null,
+      last_source_modification_ts: null,
+      pending_candidate_set_hash: "v1:new",
+      pending_candidate_media_count: 2,
+      pending_missing_media_count: 1,
+      pending_photos_change_timestamp: null,
+      pending_source_modification_ts: null,
+      pending_first_observed_at: new Date("2026-07-26T00:00:00Z"),
+      pending_last_observation_run_id: "run-1",
+      pending_confirmation_count: 1,
+      pending_next_check_at: null,
+    },
+  ]);
+  const now = new Date("2026-07-26T01:00:00Z");
+  const rows = await selectPendingLane(3, now);
+  expect(mockFindMany).toHaveBeenCalledWith({
+    where: {
+      pending_confirmation_count: { gt: 0 },
+      OR: [{ pending_next_check_at: null }, { pending_next_check_at: { lte: now } }],
+    },
+    orderBy: [{ pending_next_check_at: "asc" }, { updated_at: "asc" }],
+    take: 3,
+  });
+  expect(rows).toHaveLength(1);
+  expect(rows[0].pending?.candidateSetHash).toBe("v1:new");
+});
+''',
+)
+
+# Wire the authoritative guard into media-sync.
+replace_once(
+    "lib/idx/media-sync.ts",
+    'import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";\n',
+    '''import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";
+import { stableMediaSetHash, type MediaSetItem } from "./media-set-hash";
+import { decideReconcile, type ReconcileAction } from "./media-reconcile-guard";
+import {
+  PENDING_RECHECK_DELAY_MS,
+  PENDING_VERIFICATION_LIMIT,
+  clearPending,
+  commitReconcileCheckpoint,
+  getListingMediaSyncState,
+  getPendingQueueStats,
+  mediaSyncStateTableAvailable,
+  selectPendingLane,
+  writePendingCandidate,
+} from "./listing-media-sync-state";
+''',
+)
+replace_once(
+    "lib/idx/media-sync.ts",
+    "  ResourceRecordID?: string | null;\n  MediaURL?: string | null;\n",
+    "  ResourceRecordID?: string | null;\n  ResourceName?: string | null;\n  MediaURL?: string | null;\n",
+)
+replace_once(
+    "lib/idx/media-sync.ts",
+    '    "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",\n',
+    '    "MediaKey,ResourceRecordKey,ResourceRecordID,ResourceName,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",\n',
+)
+replace_once(
+    "lib/idx/media-sync.ts",
+    "  summary_writes: SummaryWriteCounters;\n",
+    """  summary_writes: SummaryWriteCounters;
+/** Confirmed media sets that avoided a redundant listing summary/cache payload. */
+listing_payloads_suppressed?: number;
+/** Complete responses rejected by the source-set validity gate. */
+source_sets_invalid?: number;
+/** First-strike or refreshed pending disappearance observations persisted. */
+pending_verifications_recorded?: number;
+/** Two-strike implicit disappearances confirmed in distinct natural cycles. */
+implicit_disappearances_confirmed?: number;
+/** Current total pending queue size (null-safe, bounded diagnostics). */
+pending_queue_count?: number;
+/** Age in seconds of the oldest pending observation, or null when empty/unavailable. */
+pending_queue_oldest_age_seconds?: number | null;
+/** Regression guard: CRM media tombstones must remain zero. */
+crm_media_tombstones?: number;
+""",
+)
+
+replace_once(
+    "lib/idx/media-sync.ts",
+    "  const summaryWrites = newSummaryWriteCounters();\n",
+    """  const summaryWrites = newSummaryWriteCounters();
+let listingPayloadsSuppressed = 0;
+let sourceSetsInvalid = 0;
+let pendingVerificationsRecorded = 0;
+let implicitDisappearancesConfirmed = 0;
+let pendingQueueCount = 0;
+let pendingQueueOldestAgeSeconds: number | null = null;
+let crmMediaTombstones = 0;
+let reconcileStateAvailable = false;
+""",
+)
+
+nested_code = """  emitCursorTelemetry("run_start", runId, {
+started_at: new Date(now()).toISOString(),
+listings_per_run: listingsPerRun,
+});
+
+const aggregateUpsert = (upsertResult: UpsertListingMediaResult): void => {
+rowsInserted += upsertResult.inserted;
+rowsUpdatedChanged += upsertResult.updatedChanged;
+rowsSkippedUnchanged += upsertResult.skippedUnchanged;
+rowsSkippedInvalid += upsertResult.skippedInvalid;
+deleteSignalsReceived += upsertResult.deleteSignalsReceived;
+tombstonedExplicit += upsertResult.tombstonedExplicit;
+tombstonedVanished += upsertResult.tombstonedVanished;
+rowsTombstoned += upsertResult.tombstoned;
+rowsUpdated += upsertResult.physicalWrites;
+accumulateMediaWriteCauses(causeTotals, upsertResult);
+attr.existing_rows_compared += upsertResult.existingRowsCompared;
+attr.mismatch_status += upsertResult.mismatchStatus;
+attr.mismatch_listing_id += upsertResult.mismatchListingId;
+attr.mismatch_resource_record_key += upsertResult.mismatchResourceRecordKey;
+attr.mismatch_resource_record_id += upsertResult.mismatchResourceRecordId;
+attr.mismatch_media_url_exact += upsertResult.mismatchMediaUrlExact;
+attr.mismatch_media_url_identity += upsertResult.mismatchMediaUrlIdentity;
+attr.mismatch_media_url_identity_equivalent += upsertResult.mismatchMediaUrlIdentityEquivalent;
+attr.mismatch_media_type += upsertResult.mismatchMediaType;
+attr.mismatch_media_category += upsertResult.mismatchMediaCategory;
+attr.mismatch_media_classification += upsertResult.mismatchMediaClassification;
+attr.mismatch_order += upsertResult.mismatchOrder;
+attr.mismatch_preferred_photo += upsertResult.mismatchPreferredPhoto;
+attr.mismatch_media_modification_ts += upsertResult.mismatchMediaModificationTs;
+attr.mismatch_modification_ts += upsertResult.mismatchModificationTs;
+attr.rows_with_one_mismatch += upsertResult.rowsWithOneMismatch;
+attr.rows_with_multiple_mismatches += upsertResult.rowsWithMultipleMismatches;
+};
+
+const toMediaSetItem = (row: UpsertListingMediaInput): MediaSetItem => ({
+mediaKey: row.MediaKey,
+resourceRecordKey: row.ResourceRecordKey,
+mediaUrl: row.MediaURL,
+mediaType: classifyTrestleMediaCategory(row.MediaCategory),
+mediaCategory: row.MediaCategory,
+mediaClassification: row.MediaClassification,
+order: row.Order == null ? null : Number(row.Order),
+preferredPhotoYN: parseBool(row.PreferredPhotoYN),
+mediaModificationTs: row.MediaModificationTimestamp,
+modificationTs: row.ModificationTimestamp,
+});
+
+const processMediaSet = async (args: {
+listingId: string;
+listingKey: string;
+photosChangeTs: Date | string | null;
+sourceModificationTs: Date | string | null;
+mediaRows: UpsertListingMediaInput[];
+}): Promise<{ ok: boolean; action: ReconcileAction | "legacy" }> => {
+rowsChecked += args.mediaRows.length;
+const runUpsert = async (tombstoneVanished: boolean): Promise<UpsertListingMediaResult> => {
+const result = await upsertListingMedia(args.listingId, args.mediaRows, {
+photosChangeTsSnapshot: args.photosChangeTs,
+tombstoneVanished,
+});
+aggregateUpsert(result);
+if (result.writeFailures > 0) throw new Error("listing_media_write_incomplete");
+return result;
+};
+
+if (!reconcileStateAvailable) {
+await runUpsert(true);
+try {
+await updateListingMediaSummary(args.listingId, { counters: summaryWrites, revalidation });
+} catch (summaryErr) {
+summaryWrites.rows_failed++;
+throw summaryErr;
+}
+return { ok: true, action: "legacy" };
+}
+
+const previousRows = await prisma.listingMedia.findMany({
+where: { listing_id: args.listingId, status: "active" },
+select: { media_key: true },
+});
+const previousActiveFeedKeys = previousRows
+.map((row) => row.media_key)
+.filter((key): key is string => typeof key === "string" && !key.startsWith(CRM_MEDIA_KEY_PREFIX));
+const activeCandidateRows = args.mediaRows.filter((row) => row.MediaStatus !== "Deleted");
+const sourceContractUnsafe = activeCandidateRows.some(
+(row) =>
+  (row.Permission != null && String(row.Permission) !== "Public") ||
+  (row.ResourceName != null && String(row.ResourceName) !== "Property"),
+);
+if (sourceContractUnsafe) {
+sourceSetsInvalid++;
+return { ok: false, action: "unsafe_retry" };
+}
+const hashResult = stableMediaSetHash(activeCandidateRows.map(toMediaSetItem), args.listingKey);
+const explicitDeleteKeys = args.mediaRows
+.filter((row) => row.MediaStatus === "Deleted" && row.MediaKey != null)
+.map((row) => String(row.MediaKey));
+const candidateFeedKeys = Array.from(
+new Set([
+...activeCandidateRows.map((row) => (row.MediaKey == null ? "" : String(row.MediaKey))).filter(Boolean),
+...explicitDeleteKeys,
+]),
+);
+const state = await getListingMediaSyncState(args.listingId);
+const decision = decideReconcile({
+listingKey: args.listingKey,
+cycleRunId: reconcileCycleId,
+hashResult,
+previousActiveFeedKeys,
+candidateFeedKeys,
+pending: state?.pending ?? null,
+observedPct: parseDate(args.photosChangeTs),
+observedSourceModTs: parseDate(args.sourceModificationTs),
+lastCheckpointHash: state?.lastCompleteMediaSetHash ?? null,
+now: new Date(now()),
+});
+
+if (decision.action === "unsafe_retry") {
+sourceSetsInvalid++;
+return { ok: false, action: decision.action };
+}
+
+await runUpsert(decision.tombstoneVanishedFeed);
+
+if (decision.action === "record_pending") {
+if (!decision.pendingWrite) throw new Error("pending_decision_missing_state");
+await writePendingCandidate({
+listingId: args.listingId,
+pending: decision.pendingWrite,
+nextCheckAt: new Date(now() + PENDING_RECHECK_DELAY_MS),
+});
+pendingVerificationsRecorded++;
+return { ok: true, action: decision.action };
+}
+
+if (decision.action === "no_op") {
+await clearPending(args.listingId);
+listingPayloadsSuppressed++;
+return { ok: true, action: decision.action };
+}
+
+if (decision.updateSummary) {
+try {
+await updateListingMediaSummary(args.listingId, { counters: summaryWrites, revalidation });
+} catch (summaryErr) {
+summaryWrites.rows_failed++;
+throw summaryErr;
+}
+} else {
+listingPayloadsSuppressed++;
+}
+
+if (!decision.advanceCheckpoint || !decision.checkpointHash) {
+throw new Error("reconcile_decision_missing_checkpoint");
+}
+await commitReconcileCheckpoint({
+listingId: args.listingId,
+mediaSetHash: decision.checkpointHash,
+photosChangeTs: parseDate(args.photosChangeTs),
+sourceModificationTs: parseDate(args.sourceModificationTs),
+reconciledAt: new Date(now()),
+});
+if (decision.action === "confirm_removal") implicitDisappearancesConfirmed++;
+return { ok: true, action: decision.action };
+};
+
+// ── PHASE 1: source ingest ───────────────────────────────────────────
+"""
+sub_once(
+    "lib/idx/media-sync.ts",
+    r'  emitCursorTelemetry\("run_start", runId, \{\n    started_at: new Date\(now\(\)\)\.toISOString\(\),\n    listings_per_run: listingsPerRun,\n  \}\);\n\n  // ── PHASE 1: source ingest ─+',
+    nested_code.rstrip(),
+)
+
