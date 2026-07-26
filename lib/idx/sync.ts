@@ -26,6 +26,7 @@ import {
   newWritePathCounters,
   newListingChangeReasonCounters,
   newProjectionChangeReasonCounters,
+  decideListingWriteAction,
   type WritePathCounters,
   type ListingChangeReasonCounters,
   type ProjectionChangeReasonCounters,
@@ -748,24 +749,34 @@ export async function syncListings(
         ...statusTransition,
       }, existing);
 
-      // Phase 3 (surface A): suppress the UPDATE entirely when the prepared
-      // payload carries no material change vs the existing row. Material
-      // identity excludes ONLY the local telemetry clock
-      // (last_synced_from_trestle) — status, price, address, eligibility,
-      // attribution, lifecycle, compliance-gate, and source-revision
-      // (modification_timestamp / raw_data) changes ALL still write.
-      // CREATEs are never suppressed. Comparison failure fails closed
-      // (write proceeds) inside listingUpdateMateriallyUnchanged.
+      // Phase 3 (surface A): decide how to handle the UPDATE for this listing.
+      // Three paths:
+      //   "suppress" — the prepared payload is materially identical to the
+      //     existing row (excludes telemetry clock); no DB write needed.
+      //   "targeted" — every raw_data change is in RAW_DATA_METADATA_ONLY_KEYS
+      //     (provenance clocks); write all other columns but OMIT raw_data
+      //     from the Prisma UPDATE payload to avoid the TOAST/WAL write.
+      //   "full" — real content, business, or unknown changes; write the
+      //     complete payload including raw_data.
+      // CREATEs always take the "full" path. Comparison failure fails closed
+      // (write proceeds) inside decideListingWriteAction.
       listingCounters.rows_checked++;
-      const suppressListingWrite =
-        existing !== null &&
-        listingUpdateMateriallyUnchanged(
-          listingUpdateData as Record<string, unknown>,
-          existing as unknown as Record<string, unknown>,
-        );
-      if (suppressListingWrite) {
+      const writeDecision = decideListingWriteAction(
+        listingUpdateData as Record<string, unknown>,
+        existing as unknown as Record<string, unknown> | null,
+      );
+      if (writeDecision === "suppress") {
         listingCounters.rows_suppressed_unchanged++;
       } else {
+        // Build the Prisma UPDATE payload: FULL always includes raw_data;
+        // TARGETED omits it to avoid the TOAST write.
+        let updatePayload: Record<string, unknown>;
+        if (writeDecision === "targeted") {
+          const { raw_data: _omittedRawData, ...withoutRawData } = listingUpdateData as Record<string, unknown>;
+          updatePayload = withoutRawData;
+        } else {
+          updatePayload = listingUpdateData as Record<string, unknown>;
+        }
         await prisma.listing.upsert({
           where: { listing_id: mapped.listing_id },
           create: {
@@ -786,11 +797,12 @@ export async function syncListings(
               : null,
             ...terminalSinceCreate,
           },
-          update: listingUpdateData,
+          update: updatePayload as Prisma.ListingUncheckedUpdateInput,
         });
         if (existing) {
           listingCounters.rows_materially_changed++;
           listingCounters.rows_updated++;
+          if (writeDecision === "targeted") listingCounters.rows_updated_targeted++;
         } else {
           listingCounters.rows_inserted++;
         }

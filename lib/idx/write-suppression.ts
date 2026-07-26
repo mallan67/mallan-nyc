@@ -31,6 +31,11 @@
  * `rows_suppressed_unchanged` are rows we verified and intentionally did
  * not write; `rows_failed` are rows whose processing threw (they are never
  * double-counted as suppressed/inserted/updated).
+ *
+ * `rows_updated_targeted` is the subset of `rows_updated` that used the
+ * targeted-metadata write path (raw_data OMITTED from the Prisma UPDATE
+ * payload because every raw_data change was in RAW_DATA_METADATA_ONLY_KEYS).
+ * Full updates = rows_updated - rows_updated_targeted.
  */
 export interface WritePathCounters {
   rows_checked: number;
@@ -38,6 +43,8 @@ export interface WritePathCounters {
   rows_suppressed_unchanged: number;
   rows_inserted: number;
   rows_updated: number;
+  /** Subset of rows_updated: targeted metadata updates (raw_data omitted). */
+  rows_updated_targeted: number;
   rows_failed: number;
 }
 
@@ -48,6 +55,7 @@ export function newWritePathCounters(): WritePathCounters {
     rows_suppressed_unchanged: 0,
     rows_inserted: 0,
     rows_updated: 0,
+    rows_updated_targeted: 0,
     rows_failed: 0,
   };
 }
@@ -690,4 +698,114 @@ export function classifyListingChangeReasons(
  */
 export function isProvenanceOnlyChange(reasons: readonly string[]): boolean {
   return reasons.length === 1 && reasons[0] === "modification_timestamp_only";
+}
+
+// ── Pre-write decision helper (Neon write-amplification fix, issue #574) ────
+//
+// WHY: even when listingUpdateMateriallyUnchanged returns false (the row IS
+// materially changed — e.g. modification_timestamp bumped) the prepared UPDATE
+// payload always includes `raw_data`. Writing the unchanged JSONB column still
+// produces a PostgreSQL TOAST/WAL entry and resets the page's xmax, causing
+// unnecessary storage + compute churn on every 10-minute cycle.
+//
+// SOLUTION: a three-way decision helper that lets sync.ts OMIT `raw_data`
+// from the Prisma UPDATE payload when the ONLY raw_data changes are in the
+// closed allowlist of pure source-metadata keys. All other columns (including
+// modification_timestamp and sync_status) still write normally.
+//
+// The allowlist is deliberately identical to RAW_DATA_PROVENANCE_CLOCK_KEYS
+// (same two keys, same semantics) so the TARGETED decision fires exactly when
+// classifyListingChangeReasons would emit "modification_timestamp_only" —
+// the row is written for provenance but the raw_data JSONB column is not.
+
+/**
+ * Closed allowlist of raw_data top-level keys that are PURE SOURCE METADATA
+ * carrying no business content. When the ONLY raw_data differences between
+ * the prepared UPDATE and the existing row are keys in this set, the
+ * `raw_data` JSONB column can be safely OMITTED from the Prisma UPDATE,
+ * avoiding its PostgreSQL TOAST/WAL write.
+ *
+ * Matches RAW_DATA_PROVENANCE_CLOCK_KEYS by design — these keys identify
+ * provenance-only clocks, never content. Defining them separately enforces
+ * that this allowlist is EXPLICITLY TESTED before any key is added or removed.
+ * Any key NOT in this set forces the FULL update (fail closed).
+ */
+export const RAW_DATA_METADATA_ONLY_KEYS: ReadonlySet<string> = new Set([
+  "ModificationTimestamp",
+  "OriginalEntryTimestamp",
+]);
+
+/**
+ * Three-way write action for a `listings` UPDATE:
+ *   "suppress"  — the update is materially identical to the existing row; no
+ *                 DB write is needed.
+ *   "targeted"  — every raw_data change is in RAW_DATA_METADATA_ONLY_KEYS;
+ *                 write all columns but OMIT raw_data from the UPDATE payload
+ *                 to avoid the PostgreSQL TOAST/WAL write.
+ *   "full"      — real content, business, or unknown raw_data changes; write
+ *                 the complete payload including raw_data.
+ */
+export type ListingWriteDecision = "suppress" | "targeted" | "full";
+
+/**
+ * Decide which of the three write paths to use for a `listings` UPDATE.
+ *
+ * CREATE (existing === null) always returns "full" — there is no existing row
+ * to suppress against and no raw_data to omit.
+ *
+ * Fail-closed contract: any comparison error (including inside sub-helpers)
+ * returns "full" so the write proceeds. Suppression and targeted omission are
+ * optimizations; correctness always wins.
+ *
+ * Relationship to classifyListingChangeReasons:
+ *   - "suppress" ↔ listingUpdateMateriallyUnchanged is true
+ *   - "targeted" ↔ classifyListingChangeReasons would return
+ *     ["modification_timestamp_only"] (raw_data changed only in provenance
+ *     clocks, which equal RAW_DATA_METADATA_ONLY_KEYS)
+ *   - "full"     ↔ all other cases
+ */
+export function decideListingWriteAction(
+  update: Record<string, unknown>,
+  existing: Record<string, unknown> | null,
+): ListingWriteDecision {
+  if (existing === null) return "full";
+  try {
+    // Full suppression: no material change at all (telemetry clocks excluded).
+    if (listingUpdateMateriallyUnchanged(update, existing)) return "suppress";
+
+    // Targeted write: raw_data is present in the update, it changed, but every
+    // changed raw_data key is in RAW_DATA_METADATA_ONLY_KEYS.
+    const nextRaw = update.raw_data;
+    if (nextRaw !== undefined) {
+      const rawChanged = !rawDataMateriallyEqual(nextRaw, existing.raw_data);
+      if (rawChanged) {
+        // changedRawDataMaterialKeys is "fail-open-empty" on non-object input
+        // (it returns [] rather than throwing — by design for forensic logging).
+        // In the decision context, a non-object or null raw_data on EITHER side
+        // is unverifiable; we cannot safely conclude "only allowlisted keys
+        // changed", so fail closed to a full write.
+        const prevRaw = existing.raw_data;
+        if (
+          typeof prevRaw !== "object" || prevRaw === null || Array.isArray(prevRaw) ||
+          typeof nextRaw !== "object" || nextRaw === null || Array.isArray(nextRaw)
+        ) {
+          return "full";
+        }
+        // Both sides are proper objects. changedRawDataMaterialKeys excludes
+        // RAW_DATA_PROVENANCE_CLOCK_KEYS (= RAW_DATA_METADATA_ONLY_KEYS) and
+        // canonicalizes rotating Media URLs. An empty return means the only
+        // raw_data differences are in the allowlist.
+        const contentChanged = changedRawDataMaterialKeys(prevRaw, nextRaw);
+        if (contentChanged.length > 0) return "full";
+        return "targeted";
+      }
+    }
+
+    // raw_data unchanged or absent in update — non-raw_data columns changed,
+    // so a full write (including raw_data if present) is required.
+    return "full";
+  } catch {
+    // Comparison itself failed — fail closed.
+    return "full";
+  }
 }

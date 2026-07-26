@@ -34,13 +34,14 @@ function decimalLike(v: string | number) {
 }
 
 describe("newWritePathCounters — required counter shape", () => {
-  it("initializes all six required counters to zero", () => {
+  it("initializes all seven required counters to zero", () => {
     expect(newWritePathCounters()).toEqual({
       rows_checked: 0,
       rows_materially_changed: 0,
       rows_suppressed_unchanged: 0,
       rows_inserted: 0,
       rows_updated: 0,
+      rows_updated_targeted: 0,
       rows_failed: 0,
     });
   });
