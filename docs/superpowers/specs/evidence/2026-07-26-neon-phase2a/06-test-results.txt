@@ -1,0 +1,62 @@
+Phase 2A — deterministic test evidence (CODE-1, CODE-2)
+=======================================================
+Recorded before Task 6, per Maya authorization 2026-07-26.
+Branch: fix/neon-write-amp-phase2a-media-reconcile-2026-07-26
+
+Commits (full 40-char SHAs):
+  Task 4  media-set-hash (CODE-1) : afb6a6e64de8a246c59e53c013b34a47395baca9
+  Task 5  reconcile-guard (CODE-2): 8858e11d21075779245149b0827a03bfe77641de
+  seed pin (reproducibility)      : 54719654ef7e5f8ea84ecf3ec6d234cb9494acc4
+  remote HEAD (pushed)            : 54719654ef7e5f8ea84ecf3ec6d234cb9494acc4
+
+Runner: Jest 30.2.0 + ts-jest 29.4.6 (repo uses Jest, NOT Vitest).
+fast-check: 3.23.2 (devDependency), GLOBAL SEED = 20260726 (pinned, reproducible).
+
+-------------------------------------------------------------------
+COMMAND (both pure-core suites):
+  npx jest --config lib/idx/jest.config.js "media-set-hash|media-reconcile-guard"
+
+RESULT:
+  PASS lib/idx/__tests__/media-set-hash.test.ts
+  PASS lib/idx/__tests__/media-reconcile-guard.test.ts
+  Test Suites: 2 passed, 2 total
+  Tests:       30 passed, 30 total   (16 hash + 14 guard)
+  Exit: 0
+-------------------------------------------------------------------
+
+CODE-1 — media-set-hash.test.ts (16 tests):
+  Example (11): order-independence; URL host/path/query invariance; changes on
+    MediaKey/order/preferred/category/type/both revision timestamps; empty→sentinel;
+    idempotence; duplicate-key invalid; missing MediaKey invalid; missing MediaURL
+    invalid; malformed timestamp invalid; RRK-mismatch unsafe; clean set safe.
+  fast-check properties (5), seed 20260726:
+    - row order never changes the hash ............... numRuns 300  PASS
+    - any URL change never changes the hash .......... numRuns 300  PASS
+    - hashing is idempotent (no time/randomness) ..... numRuns 200  PASS
+    - duplicate MediaKey ALWAYS invalidates .......... numRuns 200  PASS
+    - missing MediaKey/URL ALWAYS invalidates ........ numRuns 200  PASS
+
+CODE-2 — media-reconcile-guard.test.ts (14 tests):
+  Truth table (10): reconcile_normal+checkpoint; no_op on checkpoint match; first
+    implicit shrink→record_pending (no tombstone/summary/checkpoint); complete-empty
+    first strike→record_pending (preserve hero/count); same-candidate SAME cycle→not
+    confirmed; same-candidate DIFFERENT cycle non-regressing→confirm_removal; second
+    candidate differs→replace pending; regressing PCT→not confirmed; regressing source
+    ts→not confirmed; invalid hash→unsafe_retry (no destructive action).
+  fast-check properties (4), seed 20260726:
+    - SAME-cycle re-observation NEVER confirms ....... numRuns 300  PASS
+    - regressing PCT can NEVER confirm ............... numRuns 300  PASS
+    - invalid set is NEVER destructive ............... numRuns 200  PASS
+    - confirmation REQUIRES two distinct run IDs ..... numRuns 300  PASS
+
+-------------------------------------------------------------------
+TYPE-CHECK:
+  COMMAND: npm run type-check   (tsc --noEmit)
+  RESULT : exit 0 — no errors (new modules media-set-hash.ts, media-reconcile-guard.ts clean)
+-------------------------------------------------------------------
+
+NOTE: To reproduce exactly, the pinned seed (20260726) makes every fast-check run
+deterministic; re-running the COMMAND above reproduces the identical 30/30 result.
+
+Pending (this file will be appended): Task 6 helper tests, Task 7 integration,
+Task 8 pending-lane, Task 10 PCT carve-out, and the pre-flip reader-verification result.
