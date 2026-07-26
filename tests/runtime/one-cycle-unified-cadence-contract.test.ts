@@ -1,32 +1,22 @@
 /// <reference types="jest" />
 /**
- * ONE MACHINE — unified 10-minute cadence contract (permanent).
+ * ONE MACHINE — coordinated cadence and concurrency contract.
  *
- * Maya directive (2026-07-24): the whole feed/media machine runs on ONE
- * 10-minute timeline. This file is the source-of-truth contract for that
- * cadence and the orchestrator's concurrency protection. It proves, per the
- * nine required points:
+ * Emergency containment (2026-07-26): while the permanent Neon write-
+ * suppression repair is completed, the scheduler fires hourly instead of every
+ * 10 minutes. Cache/ISR fallback constants remain 600 seconds so genuine source
+ * changes can still be reflected sooner through tag invalidation and revalidation.
  *
- *   1. Exactly one scheduled one-cycle entry every 10 minutes.
+ * This file proves:
+ *   1. Exactly one scheduled one-cycle entry, currently hourly.
  *   2. No independently scheduled idx-sync or media-sync entry remains.
  *   3. SYNC_CADENCE_SECONDS === 600.
- *   4. The listing-detail route contains the statically-analyzable literal
- *      `export const revalidate = 600`.
- *   5. The orchestrator interval === 600000 ms.
- *   6. No 1800-second / 30-minute cadence remains on the listing/cache/sync
- *      surfaces.
- *   7. There is NO HTTP header/query/bearer exemption: the public idx-sync and
- *      media-sync GET routes never read x-one-cycle-member / x-one-cycle-run-id
- *      and ALWAYS take claimMachine(); the orchestrator reaches the unclaimed
- *      member path only by importing the internal member functions in-process.
- *   8. A second overlapping one-cycle invocation exits safely without starting
- *      either member.
+ *   4. The listing-detail route contains `export const revalidate = 600`.
+ *   5. The orchestrator interval safety constant remains 600000 ms.
+ *   6. No 1800-second / 30-minute cadence remains on listing/cache/sync surfaces.
+ *   7. There is NO HTTP header/query/bearer exemption.
+ *   8. A second overlapping one-cycle invocation exits safely.
  *   9. A normal cycle executes idx-sync then media-sync exactly once.
- *
- * NOTE on ISR: `revalidate = 600` is the TIME-BASED staleness fallback, not a
- * proactive re-render — real data changes expire pages sooner via sync-driven
- * revalidateTag. This contract deliberately does not assert "every page
- * re-renders every 10 minutes" because that is not what ISR does.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -35,10 +25,6 @@ import { NextRequest } from "next/server";
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-// ── member WORK functions mocked (behavioral points 8, 9 drive the orchestrator)
-// The orchestrator imports and calls these in-process; they return a
-// MemberRunResult ({ status, outcome, body }), NOT a NextResponse. `outcome` is
-// the explicit semantic result the machine derives truth from.
 type MemberArgs = { oneCycleRunId: string; forceFull?: boolean };
 type MemberOut = { status: number; outcome: "ok" | "partial" | "skipped" | "error"; body: Record<string, unknown> };
 const idxMember = jest.fn<Promise<MemberOut>, [MemberArgs]>(
@@ -51,8 +37,6 @@ jest.mock("@/lib/idx/idx-sync-member", () => ({ runIdxSyncMember: (a: MemberArgs
 jest.mock("@/lib/idx/media-sync-member", () => ({ runMediaSyncMember: (a: MemberArgs) => mediaMember(a) }));
 
 const auditCreate = jest.fn(async (_a?: unknown) => ({}));
-// claimMachine transaction stand-in — lockGranted / startedMarker / completedAfter
-// are flipped per-test to drive the overlap guard.
 const claimState = {
   lockGranted: true,
   startedMarker: null as unknown,
@@ -101,17 +85,16 @@ beforeEach(() => {
   claimState.completedAfter = null;
 });
 
-// ─── Points 1–2: schedule (vercel.json) ──────────────────────────────────────
-describe("1–2. schedule: exactly one one-cycle at */10, no independent sync crons", () => {
+describe("1–2. schedule: one coordinated hourly cycle, no independent sync crons", () => {
   const crons = (JSON.parse(read("vercel.json")).crons ?? []) as Array<{
     path: string;
     schedule: string;
   }>;
 
-  it("1. exactly one scheduled /api/cron/one-cycle at */10 * * * *", () => {
+  it("1. exactly one scheduled /api/cron/one-cycle at 0 * * * *", () => {
     const oneCycleEntries = crons.filter((c) => c.path === "/api/cron/one-cycle");
     expect(oneCycleEntries).toHaveLength(1);
-    expect(oneCycleEntries[0].schedule).toBe("*/10 * * * *");
+    expect(oneCycleEntries[0].schedule).toBe("0 * * * *");
   });
 
   it("2. no independently scheduled idx-sync or media-sync cron entry", () => {
@@ -119,12 +102,7 @@ describe("1–2. schedule: exactly one one-cycle at */10, no independent sync cr
     expect(crons.find((c) => c.path === "/api/cron/media-sync")).toBeUndefined();
   });
 
-  it("2b. one-cycle has an EXPLICIT 300s vercel.json function override (not the app/api/** 30s glob)", () => {
-    // The route declares `export const maxDuration = 300` and budgets IDX (120s)
-    // + media (150s) + headroom against a 300s function. Without an exact
-    // vercel.json override, the `app/api/**/*.ts: 30s` glob would cap the
-    // deployed function at 30s and kill the cycle before IDX settles — the whole
-    // machine would never run media or write the completion marker.
+  it("2b. one-cycle has an EXPLICIT 300s vercel.json function override", () => {
     const functions = (JSON.parse(read("vercel.json")).functions ?? {}) as Record<
       string,
       { maxDuration?: number }
@@ -135,8 +113,7 @@ describe("1–2. schedule: exactly one one-cycle at */10, no independent sync cr
   });
 });
 
-// ─── Points 3–5: cadence constants ───────────────────────────────────────────
-describe("3–5. cadence constants are all 600s / 600000ms", () => {
+describe("3–5. cache and execution safety constants remain 600s / 600000ms", () => {
   it("3. SYNC_CADENCE_SECONDS === 600", () => {
     const { SYNC_CADENCE_SECONDS } = require("@/lib/cache/public-cache");
     expect(SYNC_CADENCE_SECONDS).toBe(600);
@@ -152,7 +129,6 @@ describe("3–5. cadence constants are all 600s / 600000ms", () => {
   });
 });
 
-// ─── Point 6: no stale 30-minute / 1800s cadence on the machine surfaces ──────
 describe("6. no 1800s / 30-min cadence remains on listing/cache/sync surfaces", () => {
   const SURFACES = [
     "app/listing/[...slug]/page.tsx",
@@ -168,49 +144,40 @@ describe("6. no 1800s / 30-min cadence remains on listing/cache/sync surfaces", 
     expect(src).not.toMatch(/\*\/30 \* \* \* \*/);
   });
 
-  it("vercel.json has no */30 or hourly sync-cron cadence line", () => {
+  it("vercel.json has no independently scheduled sync-member cron", () => {
     const raw = read("vercel.json");
     expect(raw).not.toMatch(/"\/api\/cron\/idx-sync"/);
     expect(raw).not.toMatch(/"\/api\/cron\/media-sync"/);
   });
 });
 
-// ─── Point 7: NO HTTP exemption — routes always claim; members are import-only ─
 describe("7. no forgeable HTTP exemption to the concurrency guard", () => {
   it.each([
     "app/api/cron/idx-sync/route.ts",
     "app/api/cron/media-sync/route.ts",
   ])("%s: never reads a one-cycle header and ALWAYS calls claimMachine after auth", (rel) => {
     const src = read(rel);
-    // The forgeable exemption is GONE — these headers are not read at all.
     expect(src).not.toMatch(/x-one-cycle-member/);
     expect(src).not.toMatch(/x-one-cycle-run-id/);
-    // Every request takes the shared atomic claim.
     expect(src).toMatch(/claimMachine\(/);
-    // Auth (401) is evaluated BEFORE the claim, and there is no code path that
-    // skips the claim for an authenticated caller.
     expect(src.indexOf("Unauthorized")).toBeGreaterThan(-1);
     expect(src.indexOf("Unauthorized")).toBeLessThan(src.indexOf("claimMachine("));
   });
 
-  it("the orchestrator reaches the unclaimed path ONLY by importing the member functions in-process", () => {
+  it("the orchestrator reaches the unclaimed path ONLY by importing member functions in-process", () => {
     const src = read("app/api/cron/one-cycle/route.ts");
-    // Imports and calls the internal work functions directly — no HTTP fan-out.
     expect(src).toMatch(/import \{ runIdxSyncMember \} from '@\/lib\/idx\/idx-sync-member'/);
     expect(src).toMatch(/import \{ runMediaSyncMember \} from '@\/lib\/idx\/media-sync-member'/);
     expect(src).toMatch(/runMember\(name, fn, runId, budget\)/);
-    // No bypass token / header is forwarded to members (there is no HTTP boundary).
     expect(src).not.toMatch(/x-one-cycle-member/);
-    // It does NOT lazy-require the public route GET handlers any more.
     expect(src).not.toMatch(/require\('@\/app\/api\/cron\/idx-sync\/route'\)/);
     expect(src).not.toMatch(/require\('@\/app\/api\/cron\/media-sync\/route'\)/);
   });
 });
 
-// ─── Point 8: a second overlapping cycle exits without starting members ───────
 describe("8. a second overlapping one-cycle invocation exits without starting members", () => {
   it("advisory-lock contended → skipped, neither member runs", async () => {
-    claimState.lockGranted = false; // another cycle holds the claim
+    claimState.lockGranted = false;
     const res = await GET(makeReq(AUTH));
     const body = await res.json();
     expect(res.status).toBe(200);
@@ -223,7 +190,7 @@ describe("8. a second overlapping one-cycle invocation exits without starting me
   it("an in-progress started-marker with no completion → overlap skip, neither member runs", async () => {
     claimState.lockGranted = true;
     claimState.startedMarker = { created_at: new Date() };
-    claimState.completedAfter = null; // no completion after the start
+    claimState.completedAfter = null;
     const res = await GET(makeReq(AUTH));
     const body = await res.json();
     expect(body.skipped).toBe(true);
@@ -233,7 +200,6 @@ describe("8. a second overlapping one-cycle invocation exits without starting me
   });
 });
 
-// ─── Point 9: a normal cycle runs idx-sync then media-sync exactly once ───────
 describe("9. a normal cycle executes idx-sync then media-sync exactly once", () => {
   it("both members run once, in authority-hierarchy order, after a granted claim", async () => {
     const res = await GET(makeReq(AUTH));
@@ -243,7 +209,6 @@ describe("9. a normal cycle executes idx-sync then media-sync exactly once", () 
     expect(idxMember.mock.invocationCallOrder[0]).toBeLessThan(
       mediaMember.mock.invocationCallOrder[0],
     );
-    // The claim wrote a one_cycle_started marker inside the transaction.
     expect(
       auditCreate.mock.calls.some(
         (c) => (c[0] as { data?: { action?: string } })?.data?.action === "one_cycle_started",
