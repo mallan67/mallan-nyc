@@ -157,6 +157,32 @@ describe("listingUpdateMateriallyUnchanged — listings upsert identity", () => 
     ).toBe(false);
   });
 
+  it("raw_data with stale stored ModificationTimestamp (post-targeted-write scenario) → CHANGED at listingUpdateMateriallyUnchanged gate, suppressed at decideListingWriteAction gate", () => {
+    // After a targeted write, stored raw_data.ModificationTimestamp is stale.
+    // listingUpdateMateriallyUnchanged uses full rawDataMateriallyEqual — it sees the
+    // MT delta and returns false (CHANGED). The second-cycle suppression is handled
+    // by decideListingWriteAction, which checks the typed modification_timestamp
+    // column. This test documents that listingUpdateMateriallyUnchanged alone does NOT
+    // suppress; decideListingWriteAction must be tested for the full two-cycle proof
+    // (see write-decision.test.ts).
+    const T0 = new Date("2026-07-01T00:00:00Z");
+    const T1 = new Date("2026-07-26T00:00:00Z");
+    const existingPostTargeted = {
+      ...existing,
+      modification_timestamp: T1, // typed column persisted by cycle-1 targeted write
+      raw_data: { ...base.raw_data, ModificationTimestamp: T0.toISOString() }, // stale
+    };
+    const cycle2Update = {
+      ...base,
+      modification_timestamp: T1,
+      raw_data: { ...base.raw_data, ModificationTimestamp: T1.toISOString() }, // incoming
+    };
+    // listingUpdateMateriallyUnchanged sees raw_data.MT differ (T1 vs T0) → CHANGED.
+    // The second-cycle suppression is handled by decideListingWriteAction's typed
+    // column check (see write-decision.test.ts for the end-to-end proof).
+    expect(listingUpdateMateriallyUnchanged(cycle2Update, existingPostTargeted)).toBe(false);
+  });
+
   it("field present in the update but MISSING from the existing select → fail-closed CHANGED", () => {
     const { neighborhood: _n, ...existingWithoutNeighborhood } = existing;
     expect(listingUpdateMateriallyUnchanged(base, existingWithoutNeighborhood)).toBe(false);

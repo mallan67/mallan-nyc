@@ -821,11 +821,13 @@ export type ListingWriteDecision = "suppress" | "targeted" | "full";
  * optimizations; correctness always wins.
  *
  * Relationship to classifyListingChangeReasons:
- *   - "suppress" ↔ listingUpdateMateriallyUnchanged is true
- *   - "targeted" ↔ classifyListingChangeReasons would return
- *     ["modification_timestamp_only"]: changedRawDataMaterialKeys returns []
- *     (all raw_data differences are in RAW_DATA_PROVENANCE_CLOCK_KEYS, and
- *     every such key also appears in RAW_DATA_METADATA_ONLY_KEYS)
+ *   - "suppress" ↔ listingUpdateMateriallyUnchanged is true (raw_data equality
+ *     uses rawDataEqualIgnoringProvenanceClocks, so a stale stored provenance
+ *     clock after a prior targeted write does not prevent second-cycle suppress)
+ *   - "targeted" ↔ every changed raw_data top-level key is in
+ *     RAW_DATA_METADATA_ONLY_KEYS (the exact closed allowlist). This is stricter
+ *     than changedRawDataMaterialKeys, which uses the broader
+ *     RAW_DATA_PROVENANCE_CLOCK_KEYS exclusions.
  *   - "full"     ↔ all other cases
  */
 export function decideListingWriteAction(
@@ -855,12 +857,44 @@ export function decideListingWriteAction(
         ) {
           return "full";
         }
-        // Both sides are proper objects. changedRawDataMaterialKeys excludes
-        // RAW_DATA_PROVENANCE_CLOCK_KEYS and canonicalizes rotating Media URLs.
-        // An empty return means the only raw_data differences are provenance
-        // clocks (all of which also appear in RAW_DATA_METADATA_ONLY_KEYS).
-        const contentChanged = changedRawDataMaterialKeys(prevRaw, nextRaw);
-        if (contentChanged.length > 0) return "full";
+        // Both sides are proper objects. Enumerate ALL changed top-level keys
+        // (no provenance clock exclusions) using the same per-key canonical
+        // semantics as changedRawDataMaterialKeys (Media URL rotation handled).
+        // Every changed key MUST be in RAW_DATA_METADATA_ONLY_KEYS for the
+        // targeted path; any unknown key — including RAW_DATA_PROVENANCE_CLOCK_KEYS
+        // members not in the allowlist (e.g. OriginalEntryTimestamp) — forces
+        // a full write (fail closed).
+        const p = prevRaw as Record<string, unknown>;
+        const n = nextRaw as Record<string, unknown>;
+        const changedKeys: string[] = [];
+        for (const key of new Set([...Object.keys(p), ...Object.keys(n)])) {
+          if (!rawDataMateriallyEqual({ [key]: p[key] }, { [key]: n[key] })) {
+            changedKeys.push(key);
+          }
+        }
+        // changedKeys.length === 0 means the only difference was Media URL
+        // rotation (canonical identity is equal). Safe to treat as targeted.
+        if (changedKeys.length > 0 && !changedKeys.every((k) => RAW_DATA_METADATA_ONLY_KEYS.has(k))) {
+          return "full";
+        }
+        // Every changed raw_data key is in the allowlist (or no keys changed at all).
+        // Second-cycle check: after a targeted write, stored raw_data carries a stale
+        // copy of ModificationTimestamp while the typed column already reflects the
+        // new value. On the next cycle, the incoming Cotality payload is unchanged
+        // (MT still T1) but stored raw_data.MT is still T0, so listingUpdateMateriallyUnchanged
+        // returns false (raw_data differs via rawDataMateriallyEqual). We avoid
+        // the repeated physical write by checking whether the authoritative typed
+        // column already matches. If it does, the stale raw_data copy is the only
+        // difference — no new information → suppress.
+        // Only MT is in RAW_DATA_METADATA_ONLY_KEYS, and its typed column is
+        // modification_timestamp. If the update omits modification_timestamp, we
+        // cannot confirm equivalence → targeted (fail closed).
+        if (
+          update.modification_timestamp !== undefined &&
+          materialValuesEqual(update.modification_timestamp, existing.modification_timestamp)
+        ) {
+          return "suppress";
+        }
         return "targeted";
       }
     }

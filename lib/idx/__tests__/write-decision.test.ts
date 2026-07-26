@@ -175,25 +175,25 @@ describe("decideListingWriteAction — targeted: allowlisted metadata only", () 
     expect(decideListingWriteAction(update, existingRow())).toBe("targeted");
   });
 
-  it("returns 'targeted' when OriginalEntryTimestamp changes in raw_data (comparator behavior — hypothetical)", () => {
-    // NOTE: OriginalEntryTimestamp is NOT in RAW_DATA_KEEP_FIELDS — slimRawData
-    // strips it before persistence, so in production this key is NEVER in stored
-    // raw_data. This test verifies the COMPARATOR handles it correctly (via
-    // RAW_DATA_PROVENANCE_CLOCK_KEYS exclusion) for defensive correctness, but
-    // this path cannot be reached in production because slimRawData guarantees
-    // OriginalEntryTimestamp is absent from both stored and incoming raw_data.
-    // Consequence: OriginalEntryTimestamp is NOT in RAW_DATA_METADATA_ONLY_KEYS.
+  it("returns 'full' when OriginalEntryTimestamp changes in raw_data — not in RAW_DATA_METADATA_ONLY_KEYS (fail closed)", () => {
+    // OriginalEntryTimestamp is NOT in RAW_DATA_METADATA_ONLY_KEYS. Even though it
+    // is in RAW_DATA_PROVENANCE_CLOCK_KEYS, the targeted gate requires ALL changed
+    // keys to be in RAW_DATA_METADATA_ONLY_KEYS exactly. A key in the broader
+    // provenance set but not in the allowlist must force a full write (fail closed).
+    // NOTE: In production, OET is never stored (slimRawData strips it), so this
+    // path is hypothetical. The code must be fail-closed even for hypotheticals.
     const updatedRaw = {
       ...(existingRow().raw_data as Record<string, unknown>),
       OriginalEntryTimestamp: "2025-06-01T00:00:00Z",
     };
     const update = updatePayload({ raw_data: updatedRaw });
-    expect(decideListingWriteAction(update, existingRow())).toBe("targeted");
+    expect(decideListingWriteAction(update, existingRow())).toBe("full");
   });
 
-  it("returns 'targeted' when both provenance clocks changed simultaneously", () => {
-    // ModificationTimestamp — production path (in keep-fields, stored, typed column updated).
-    // OriginalEntryTimestamp — hypothetical comparator test (never stored in production).
+  it("returns 'full' when both ModificationTimestamp and OriginalEntryTimestamp changed simultaneously", () => {
+    // ModificationTimestamp IS in RAW_DATA_METADATA_ONLY_KEYS.
+    // OriginalEntryTimestamp is NOT in RAW_DATA_METADATA_ONLY_KEYS.
+    // Both changed → at least one key outside the allowlist → full (fail closed).
     const updatedRaw = {
       ...(existingRow().raw_data as Record<string, unknown>),
       ModificationTimestamp: T1.toISOString(),
@@ -203,7 +203,7 @@ describe("decideListingWriteAction — targeted: allowlisted metadata only", () 
       raw_data: updatedRaw,
       modification_timestamp: T1,
     });
-    expect(decideListingWriteAction(update, existingRow())).toBe("targeted");
+    expect(decideListingWriteAction(update, existingRow())).toBe("full");
   });
 
   it("targeted decision aligns with modification_timestamp_only classification", () => {
@@ -371,10 +371,12 @@ describe("decideListingWriteAction — cache/projection/manifest behavior for no
     // returns true. We prove that a "targeted" write decision always corresponds
     // to classifyListingChangeReasons returning ["modification_timestamp_only"],
     // which isProvenanceOnlyChange maps to true.
+    // Only ModificationTimestamp changes — it is the sole key in RAW_DATA_METADATA_ONLY_KEYS.
     const updatedRaw = {
       ...(existingRow().raw_data as Record<string, unknown>),
       ModificationTimestamp: T1.toISOString(),
-      OriginalEntryTimestamp: "2025-06-01T00:00:00Z",
+      // OriginalEntryTimestamp deliberately excluded: it is NOT in
+      // RAW_DATA_METADATA_ONLY_KEYS and would force a full write.
     };
     const update = updatePayload({
       raw_data: updatedRaw,
@@ -398,6 +400,52 @@ describe("decideListingWriteAction — cache/projection/manifest behavior for no
     expect(decideListingWriteAction(update, existing)).toBe("suppress");
     // In suppress path: listingCounters.rows_suppressed_unchanged++ and nothing else.
     // No Prisma write, no cache tags, no projection.
+  });
+
+  it("two-consecutive-cycle proof: cycle-1 → targeted; cycle-2 → suppress (no repeated write)", () => {
+    // CYCLE 1: Cotality sends a new ModificationTimestamp (T1).
+    // Existing row: modification_timestamp=T0, raw_data.ModificationTimestamp=T0.
+    const cycle1Existing = existingRow({
+      modification_timestamp: T0,
+      raw_data: {
+        ...(existingRow().raw_data as Record<string, unknown>),
+        ModificationTimestamp: T0.toISOString(),
+      },
+    });
+    const cycle1Update = updatePayload({
+      modification_timestamp: T1,
+      raw_data: {
+        ...(existingRow().raw_data as Record<string, unknown>),
+        ModificationTimestamp: T1.toISOString(),
+      },
+    });
+    expect(decideListingWriteAction(cycle1Update, cycle1Existing)).toBe("targeted");
+
+    // CYCLE 2: After the targeted write, Prisma persisted modification_timestamp=T1
+    // but deliberately left stored raw_data.ModificationTimestamp=T0 (raw_data was
+    // omitted from the UPDATE payload). The same Cotality record is received again
+    // unchanged (ModificationTimestamp is still T1).
+    //
+    // Post-cycle-1 DB state: typed column updated, stored raw_data.MT stale.
+    const cycle2Existing = {
+      ...cycle1Existing,
+      modification_timestamp: T1, // typed column was persisted by cycle-1 targeted write
+      raw_data: cycle1Existing.raw_data, // raw_data.ModificationTimestamp still T0 (stale)
+      last_synced_from_trestle: T1, // last_synced also updated by cycle-1 write
+    };
+    // Cotality sends the same payload again (MT still T1).
+    const cycle2Update = updatePayload({
+      modification_timestamp: T1,
+      raw_data: {
+        ...(existingRow().raw_data as Record<string, unknown>),
+        ModificationTimestamp: T1.toISOString(),
+      },
+    });
+    // listingUpdateMateriallyUnchanged uses rawDataEqualIgnoringProvenanceClocks,
+    // which strips ModificationTimestamp from both sides before comparing.
+    // With MT stripped: stored raw_data == incoming raw_data (all other keys equal).
+    // Typed modification_timestamp: T1 == T1. → materially unchanged → suppress.
+    expect(decideListingWriteAction(cycle2Update, cycle2Existing)).toBe("suppress");
   });
 
   it("full decision for raw_data content change preserves cache invalidation path", () => {
