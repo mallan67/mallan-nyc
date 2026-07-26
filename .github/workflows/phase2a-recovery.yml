@@ -32,9 +32,7 @@ jobs:
 
       - name: Apply Phase 2A implementation
         shell: bash
-        run: |
-          cat .github/phase2a-recovery.part00 .github/phase2a-recovery.part01 > /tmp/phase2a-recover.py
-          python3 /tmp/phase2a-recover.py
+        run: python3 .github/phase2a-recovery-v2.py
 
       - name: Install dependencies
         run: npm ci
