@@ -58,5 +58,24 @@ TYPE-CHECK:
 NOTE: To reproduce exactly, the pinned seed (20260726) makes every fast-check run
 deterministic; re-running the COMMAND above reproduces the identical 30/30 result.
 
-Pending (this file will be appended): Task 6 helper tests, Task 7 integration,
-Task 8 pending-lane, Task 10 PCT carve-out, and the pre-flip reader-verification result.
+-------------------------------------------------------------------
+TASK 6 — listing_media_sync_state helpers (mocked Prisma)
+COMMAND: npx jest --config lib/idx/jest.config.js listing-media-sync-state
+RESULT : 8 passed, 8 total. Exit 0.
+  - mediaSyncStateTableAvailable: true when queryable; FALSE when query throws (fail-closed)
+  - getListingMediaSyncState: null when no row; maps checkpoint; pending=null at confirmation 0;
+    builds pending when confirmation>0
+  - writePendingCandidate: upserts pending_* + next_check_at, NO last_* fields leak
+  - commitReconcileCheckpoint: writes last_* AND resets pending_confirmation_count=0 + clears pending
+  - selectPendingLane: where confirmation>0 + due, orderBy pending_next_check_at asc, take limit
+TYPE-CHECK: npm run type-check → exit 0 (no errors in Phase-2A modules).
+prisma validate → "valid"; prisma generate → OK.
+DB-1 ephemeral-branch proof → see 07-migration-proof.md (PASS; not applied to prod main).
+-------------------------------------------------------------------
+
+NOTE: To reproduce exactly, the pinned seed (20260726) makes every fast-check run
+deterministic; re-running the COMMAND above reproduces the identical 30/30 result.
+
+Still pending: Task 7 integration, Task 8 pending-lane, Task 9 counters, Task 10 PCT
+carve-out + pre-flip reader-verification. Task 6 CODE commit is BLOCKED (see final report:
+schema.prisma commit needs ops:health, which needs read-only creds not present).

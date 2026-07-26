@@ -16,7 +16,7 @@
 | CODE-1 | Stable hash determinism | `05-replay-results.json` | ⬜ PENDING | — |
 | CODE-2 | Reconciliation truth table | `06-test-results.txt` | ⬜ PENDING | — |
 | CODE-3 | Pending verification lane | `06-test-results.txt` | ⬜ PENDING | — |
-| DB-1 | Migration (new empty table only) | `07-migration-proof.md` | ⬜ PENDING | — (Maya-gated) |
+| DB-1 | Migration (new empty table only) | `07-migration-proof.md` | 🟨 BRANCH-PASS | ephemeral br-super-sunset-adrkwzj8 (from br-crimson-frog, now deleted) 2026-07-26: table/cols/FK/unique/pending-index + schema-diff (additions only) + counts-unchanged + unique/FK enforced + index-scan all PASS. **Apply-to-main NOT done (Maya-gated).** |
 | REPLAY-1 | Deterministic replay (real shapes) | `04-replay-fixtures/` + `05-replay-results.json` | ⬜ PENDING | — |
 | PROD-1 | Three natural cycles | `08-production-natural-cycles.jsonl` + `09-production-db-invariants.txt` | ⬜ PENDING | — (Maya-gated deploy) |
 | PROD-2 | 24-hour normalized write trend | `09-production-db-invariants.txt` | ⬜ PENDING | — (Maya-gated deploy) |
