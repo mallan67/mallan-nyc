@@ -1,0 +1,227 @@
+# One natural-cycle identity is shared by the pending lane and normal cursor lane.
+replace_once(
+    "lib/idx/media-sync.ts",
+    "  const runId = newRunId();\n",
+    "  const runId = newRunId();\n  const reconcileCycleId = runId;\n",
+)
+
+batch_anchor = """  emitCursorTelemetry("batch", runId, {
+    batch_count: properties.length,
+    first_photos_change: firstProp?.PhotosChangeTimestamp ?? null,
+    first_listing_key: firstProp?.ListingKey ?? null,
+    last_photos_change: lastProp?.PhotosChangeTimestamp ?? null,
+    last_listing_key: lastProp?.ListingKey ?? null,
+  });
+
+  for (const property of properties) {
+"""
+pending_lane = """  emitCursorTelemetry("batch", runId, {
+    batch_count: properties.length,
+    first_photos_change: firstProp?.PhotosChangeTimestamp ?? null,
+    first_listing_key: firstProp?.ListingKey ?? null,
+    last_photos_change: lastProp?.PhotosChangeTimestamp ?? null,
+    last_listing_key: lastProp?.ListingKey ?? null,
+  });
+
+  reconcileStateAvailable = await mediaSyncStateTableAvailable();
+  const pendingHandled = new Set<string>();
+  if (reconcileStateAvailable) {
+    try {
+      const stats = await getPendingQueueStats();
+      pendingQueueCount = stats.count;
+      pendingQueueOldestAgeSeconds = stats.oldestFirstObservedAt
+        ? Math.max(0, Math.floor((now() - stats.oldestFirstObservedAt.getTime()) / 1000))
+        : null;
+      const pendingRows = await selectPendingLane(PENDING_VERIFICATION_LIMIT, new Date(now()));
+      for (const pendingRow of pendingRows) {
+        if (remainingMs() < phase1ReserveMs) break;
+        try {
+          const refs = await prisma.listingMedia.findMany({
+            where: { listing_id: pendingRow.listingId, status: "active" },
+            select: { media_key: true, resource_record_key: true },
+          });
+          const listingKey = refs.find(
+            (row) =>
+              typeof row.media_key === "string" &&
+              !row.media_key.startsWith(CRM_MEDIA_KEY_PREFIX) &&
+              typeof row.resource_record_key === "string" &&
+              row.resource_record_key.length > 0,
+          )?.resource_record_key;
+          if (!listingKey) continue;
+          const mediaRows = await fetchDeps.fetchMedia(listingKey);
+          const result = await processMediaSet({
+            listingId: pendingRow.listingId,
+            listingKey,
+            photosChangeTs: pendingRow.pending?.photosChangeTimestamp ?? pendingRow.lastSeenPhotosChangeTs,
+            sourceModificationTs:
+              pendingRow.pending?.sourceModificationTs ?? pendingRow.lastSourceModificationTs,
+            mediaRows,
+          });
+          if (result.ok) pendingHandled.add(pendingRow.listingId);
+        } catch {
+          rowsFailed++;
+        }
+      }
+    } catch {
+      // Capability was present at run start but the state lane became unreadable.
+      // Fail closed for optimization: keep legacy media behavior for this run.
+      reconcileStateAvailable = false;
+    }
+  }
+
+  for (const property of properties) {
+"""
+replace_once("lib/idx/media-sync.ts", batch_anchor, pending_lane)
+
+replace_once(
+    "lib/idx/media-sync.ts",
+    """    const listingId = property.ListingId ? String(property.ListingId) : null;
+    if (!listingId || !listingKey) {
+""",
+    """    const listingId = property.ListingId ? String(property.ListingId) : null;
+    if (listingId && listingKey && pendingHandled.has(listingId)) {
+      cursorRecords.push({
+        PhotosChangeTimestamp: property.PhotosChangeTimestamp ?? null,
+        ModificationTimestamp: property.ModificationTimestamp ?? null,
+      });
+      processed.push({ listingKey, photosChangeTs: propTs, ok: true });
+      listingsProcessed++;
+      continue;
+    }
+    if (!listingId || !listingKey) {
+""",
+)
+
+old_ingest = """      // RC1: fetchMedia follows @odata.nextLink and THROWS on an incomplete
+      // response — a resolve guarantees the COMPLETE current media set.
+      const mediaRows = await fetchDeps.fetchMedia(listingKey);
+      rowsChecked += mediaRows.length;
+
+      const upsertResult = await upsertListingMedia(listingId, mediaRows, {
+        photosChangeTsSnapshot: property.PhotosChangeTimestamp ?? null,
+        // SAFE NOW (RC1): the set is complete (full pagination), so a media_key
+        // absent from the input is proven deleted at source → tombstone it.
+        // An empty COMPLETE set tombstones every active row for the listing.
+        tombstoneVanished: true,
+      });
+      // Aggregate the detailed ledger AFTER a successful upsert (a later summary
+      // throw still marks the listing failed → detailed reconciliation is only
+      // authoritative when rows_failed===0).
+      rowsInserted += upsertResult.inserted;
+      rowsUpdatedChanged += upsertResult.updatedChanged;
+      rowsSkippedUnchanged += upsertResult.skippedUnchanged;
+      rowsSkippedInvalid += upsertResult.skippedInvalid;
+      deleteSignalsReceived += upsertResult.deleteSignalsReceived;
+      tombstonedExplicit += upsertResult.tombstonedExplicit;
+      tombstonedVanished += upsertResult.tombstonedVanished;
+      rowsTombstoned += upsertResult.tombstoned;
+      // media_sync_state.rows_updated = TRUE physical listing_media writes:
+      // inserts + material updates + delivery-URL refreshes + BOTH tombstone
+      // kinds (tombstones are physical updateMany writes). One precise meaning.
+      rowsUpdated += upsertResult.physicalWrites;
+      // Phase-1 forensic: physical-write cause attribution (additive only).
+      accumulateMediaWriteCauses(causeTotals, upsertResult);
+      // #541 attribution (camelCase result → snake_case cumulative)
+      attr.existing_rows_compared += upsertResult.existingRowsCompared;
+      attr.mismatch_status += upsertResult.mismatchStatus;
+      attr.mismatch_listing_id += upsertResult.mismatchListingId;
+      attr.mismatch_resource_record_key += upsertResult.mismatchResourceRecordKey;
+      attr.mismatch_resource_record_id += upsertResult.mismatchResourceRecordId;
+      attr.mismatch_media_url_exact += upsertResult.mismatchMediaUrlExact;
+      attr.mismatch_media_url_identity += upsertResult.mismatchMediaUrlIdentity;
+      attr.mismatch_media_url_identity_equivalent += upsertResult.mismatchMediaUrlIdentityEquivalent;
+      attr.mismatch_media_type += upsertResult.mismatchMediaType;
+      attr.mismatch_media_category += upsertResult.mismatchMediaCategory;
+      attr.mismatch_media_classification += upsertResult.mismatchMediaClassification;
+      attr.mismatch_order += upsertResult.mismatchOrder;
+      attr.mismatch_preferred_photo += upsertResult.mismatchPreferredPhoto;
+      attr.mismatch_media_modification_ts += upsertResult.mismatchMediaModificationTs;
+      attr.mismatch_modification_ts += upsertResult.mismatchModificationTs;
+      attr.rows_with_one_mismatch += upsertResult.rowsWithOneMismatch;
+      attr.rows_with_multiple_mismatches += upsertResult.rowsWithMultipleMismatches;
+
+      // Phase 3: per-row write failures are isolated + counted INSIDE
+      // upsertListingMedia (bounded blast radius), but the listing is NOT fully
+      // persisted. Fail closed EXACTLY as a thrown write would have: halt the
+      // keyset watermark here (cursor never advances past incomplete media) and
+      // skip the summary. The listing re-processes (idempotently) next run.
+      if (upsertResult.writeFailures > 0) {
+        throw new Error("listing_media_write_incomplete");
+      }
+
+      // Fail-loud: a summary failure throws → caught below → ok:false → the
+      // keyset watermark will not advance past this listing (retried next run).
+      // Phase 3 (surface C): the summary write is suppressed inside when the
+      // stored 4 columns are already identical; counters record the outcome,
+      // and a failure is attributed to the summary path before re-throwing.
+      try {
+        await updateListingMediaSummary(listingId, { counters: summaryWrites, revalidation });
+      } catch (summaryErr) {
+        summaryWrites.rows_failed++;
+        throw summaryErr;
+      }
+
+      cursorRecords.push({
+"""
+new_ingest = """      // A successful fetch is a COMPLETE set. Phase 2A validates and hashes
+      // it before any implicit tombstone, then applies the two-strike decision.
+      const mediaRows = await fetchDeps.fetchMedia(listingKey);
+      const reconcileResult = await processMediaSet({
+        listingId,
+        listingKey,
+        photosChangeTs: property.PhotosChangeTimestamp ?? null,
+        sourceModificationTs: property.ModificationTimestamp ?? null,
+        mediaRows,
+      });
+      if (!reconcileResult.ok) {
+        throw new Error("media_source_set_invalid");
+      }
+
+      cursorRecords.push({
+"""
+replace_once("lib/idx/media-sync.ts", old_ingest, new_ingest)
+
+replace_once(
+    "lib/idx/media-sync.ts",
+    """    summary_writes: summaryWrites,
+    pages_revalidated: revalidation.pages_revalidated,
+""",
+    """    summary_writes: summaryWrites,
+    listing_payloads_suppressed: listingPayloadsSuppressed,
+    source_sets_invalid: sourceSetsInvalid,
+    pending_verifications_recorded: pendingVerificationsRecorded,
+    implicit_disappearances_confirmed: implicitDisappearancesConfirmed,
+    pending_queue_count: pendingQueueCount,
+    pending_queue_oldest_age_seconds: pendingQueueOldestAgeSeconds,
+    crm_media_tombstones: crmMediaTombstones,
+    pages_revalidated: revalidation.pages_revalidated,
+""",
+)
+
+# Retain the explicit invariant counter. Existing tombstone predicates exclude crm: keys.
+replace_once(
+    "lib/idx/media-sync.ts",
+    """  return {
+    status,
+    exit_reason: exitReason,
+""",
+    """  if (crmMediaTombstones !== 0) {
+    throw new Error("crm_media_tombstone_regression");
+  }
+
+  return {
+    status,
+    exit_reason: exitReason,
+""",
+)
+
+# A source error occurs before reconciliation; optional counters default absent. The normal
+# successful/partial result always emits the new counters above.
+
+# Remove recovery payloads and workflow from the implementation commit.
+for temp in [
+    ".github/phase2a-recovery.part00",
+    ".github/phase2a-recovery.part01",
+    ".github/workflows/phase2a-recovery.yml",
+]:
+    Path(temp).unlink(missing_ok=True)
