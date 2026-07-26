@@ -746,3 +746,30 @@ Known residual work: Phase 2B only
 ```
 No line is PASS without: command/query · timestamp · exact SHA/deployment · artifact path · actual
 result · expected result.
+
+### 12.12 Verification tooling — per-gate bindings (proven 2026-07-26)
+
+**Neon safety rule (non-negotiable):** every Neon MCP / `neonctl` call MUST pass explicit
+`projectId=hidden-mountain-87248164` + `branchId=br-crimson-frog-adr7g9gt`. The MCP default org
+(`org-old-tooth-88806088`) resolves to the STALE do-not-serve `morning-bread` project — never operate
+on defaults. Canonical-prod reachability + a read-only baseline were proven 2026-07-26 via
+`describe_project` + `run_sql` (neon-green-school / `br-crimson-frog-adr7g9gt` / 535 MB).
+
+| Gate | Primary tool (available now) | Proves | Credential/runtime gap |
+|---|---|---|---|
+| COT-1 | trestle-fields MCP (live `$metadata`) | field existence + type | none (proven) |
+| COT-2 | `npm run trestle:probe` / `trestle:diff` | pagination, counts, dup-keys, RRK consistency | **Trestle creds** — run in Vercel runtime or Maya-provided |
+| COT-3 | COT-1/2 output + REBNY canonical docs | Permission values/serialization/display rule | depends on COT-2 |
+| CODE-1/2/3 | `npm run type-check` + vitest test run | hash determinism · truth table · pending lane | none (local) |
+| DB-1 | Neon MCP `prepare_database_migration` (temp branch) → `run_sql`/`describe_table_schema`/`compare_database_schema` verify → `complete_database_migration` (Maya-gated) | table/columns/FK/index added, zero existing-row rewrites | none for test-branch; **Maya gate** to complete to main |
+| DB-1 (index) | Neon MCP `explain_sql_statement` (EXPLAIN ANALYZE) | pending-lane index used, no seq scan | none |
+| REPLAY-1 | Neon MCP `create_branch` (isolated prod-shaped copy) → replay harness → delete branch | deterministic replay vs real shapes | **Maya gate** (branch creation = resource action) |
+| PROD-1 | Vercel MCP `get_deployment` + `get_runtime_logs`; Neon MCP `run_sql` invariants | SHA/READY + natural-cycle telemetry + DB invariants | **Maya-gated deploy**; natural cycles only |
+| PROD-2 | Vercel MCP `get_runtime_errors` + Neon MCP `run_sql` normalized rates; `neon inspect db` | 24h normalized trend, no regression | Maya-gated deploy |
+| R2 state | Neon MCP `run_sql` on `r2_key`/`media_url_cached` | delivery/backlog split (2A: no R2 writes) | object existence (`existsInR2`) needs runtime creds |
+| System | `npm run` idx:validate · rls:validate · compliance-check · ucba:audit · crm:test · ops:health · neon:verify | §G compliance + Neon-facts drift | none (local) |
+
+**Baseline captured read-only 2026-07-26 (anchors DB-1 "no rewrites"):** listings=23,686 ·
+listing_media active=289,954 · crm:=64 · R2 delivered=281,477 · R2 backlog=8,477 · media_sync_state=1
+· `listing_media_sync_state` absent. DB-1 must show these unchanged (± natural sync) except the new
+empty table.
