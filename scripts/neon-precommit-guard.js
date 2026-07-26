@@ -9,11 +9,14 @@
 // prisma-related scripts — and blocks the commit unless:
 //
 //   1. The commit message contains the explicit acknowledgment token
-//      `[neon-preflight: OK]`, AND
-//   2. `npm run ops:health` was run in the last 60 minutes (.ops-health-last
-//      sentinel file), AND
-//   3. `npx prisma migrate status` reports "Database schema is up to date"
-//      (confirms the dev's local prod-mirrored DB matches main).
+//      `[neon-preflight: OK]`.
+//
+// It also runs an ADVISORY `npx prisma migrate status` (surfaces drift; never
+// blocks). The `.ops-health-last` recent-run marker gate was removed 2026-07-26
+// (Maya directive): ops:health is a read-only diagnostic, not a commit
+// prerequisite. The token is the gate; the real production safety rule
+// (migrations applied + verified before schema-dependent deploy) lives in
+// NEON.md, not in a marker file.
 //
 // The token is intentionally specific enough that copy-pasting a generic
 // commit message never satisfies it — a dev has to type it deliberately,
@@ -24,12 +27,8 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 
-const ROOT = process.cwd();
 const TOKEN = '[neon-preflight: OK]';
-const OPS_HEALTH_SENTINEL = path.join(ROOT, '.ops-health-last');
-const OPS_HEALTH_MAX_AGE_MS = 60 * 60 * 1000;
 const TRIGGER_PATHS = [
   /^prisma\/schema\.prisma$/,
   /^prisma\/migrations\//,
@@ -113,27 +112,10 @@ if (msgFile) {
   }
 }
 
-// ── 3. Require recent ops:health run ─────────────────────────────────────
-let healthAge = Infinity;
-try {
-  const stat = fs.statSync(OPS_HEALTH_SENTINEL);
-  healthAge = Date.now() - stat.mtimeMs;
-} catch {
-  /* no sentinel */
-}
-
-if (healthAge > OPS_HEALTH_MAX_AGE_MS) {
-  const ageMin = Math.round(healthAge / 60000);
-  fail(
-    `  ops:health was last run ${isFinite(healthAge) ? ageMin + ' minutes ago' : 'never'}.\n` +
-    `  NEON.md §5 requires a run within the last 60 minutes before any\n` +
-    `  Neon-sensitive commit.\n\n` +
-    `  Fix: run \`npm run ops:health\` and re-commit.`
-  );
-}
-ok(`ops:health sentinel is ${Math.round(healthAge / 60000)} min old (threshold 60).`);
-
-// ── 4. Confirm prisma migrate status is clean on the dev's local DB ──────
+// ── 3. Confirm prisma migrate status is clean on the dev's local DB ──────
+// (The `.ops-health-last` recent-run marker gate was removed 2026-07-26 per
+// Maya's directive: ops:health is a read-only diagnostic, not a commit
+// prerequisite. The `[neon-preflight: OK]` token above remains the gate.)
 // Not mandatory because dev may have a scratch DB, but we surface drift.
 try {
   const status = execSync('npx prisma migrate status', {

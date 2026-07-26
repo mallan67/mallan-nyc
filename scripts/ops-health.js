@@ -741,16 +741,9 @@ async function run() {
 
   await prisma.$disconnect();
 
-  // Drop a sentinel file so the NEON pre-commit guard can verify a recent run.
-  // Written regardless of verdict — the guard cares that we ran, not the result.
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    fs.writeFileSync(
-      path.join(process.cwd(), '.ops-health-last'),
-      JSON.stringify({ verdict: report.verdict, at: report.generated_at }, null, 2)
-    );
-  } catch { /* sentinel is best-effort */ }
+  // The `.ops-health-last` marker was removed 2026-07-26 (Maya directive):
+  // ops:health is a READ-ONLY operator diagnostic, run only with a verified
+  // canonical DB connection — it is no longer a prerequisite for committing code.
 
   if (JSON_OUT) {
     console.log(JSON.stringify(report, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2));

@@ -28,6 +28,18 @@ tests + a `sentinel-g` tool + retention/mandate docs made up the rest.
 - `.gitignore` — dropped the Sentinel-specific `.claude/agents/repo-audit-bot.md`
   ship-exception and the `ops/audit/sentinel-l/` ignore; kept the unrelated
   ops-health `.ops-health-last` sentinel FILE and the general `/ops/audit/` ignore.
+
+## SUPERSEDING NOTE (Maya, 2026-07-26)
+The `.ops-health-last` marker referenced above (deliberately KEPT on 2026-07-25)
+was **subsequently ordered removed** by Maya on 2026-07-26. The recent-run marker
+GATE in `scripts/neon-precommit-guard.js` and the marker WRITE in
+`scripts/ops-health.js` were deleted, and `.ops-health-last` was dropped from
+`.gitignore`. No replacement marker was added. `ops:health` is now a read-only
+operator diagnostic (runnable only with a verified canonical production
+connection), NOT a commit prerequisite; the `[neon-preflight: OK]` token remains
+the commit gate. The real production safety rule is unchanged — migrations must
+be applied + verified before schema-dependent deploy. See NEON.md §5 + §10
+(2026-07-26 entry).
 - `scripts/health/probe.ts` — dropped the "Sentinel audit" PR-title filter.
 
 ## Deliberately LEFT (not the subsystem)

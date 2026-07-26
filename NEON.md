@@ -201,18 +201,28 @@ CREATE TABLE "company_settings" (...);
 > (`.githooks/pre-commit` + `.githooks/commit-msg`, installed via
 > `npm run hooks:install`). Commits touching `prisma/schema.prisma`,
 > `prisma/migrations/`, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`
-> are **blocked** unless:
-> 1. The commit message contains the acknowledgment token `[neon-preflight: OK]`
-> 2. `npm run ops:health` was run within the last 60 minutes (`.ops-health-last` sentinel)
+> are **blocked** unless the commit message contains the acknowledgment token
+> `[neon-preflight: OK]`. (The `.ops-health-last` recent-run marker gate was
+> **removed 2026-07-26** per Maya's directive — see §10 change log. `ops:health`
+> is now a **read-only operator diagnostic**, runnable only with a **verified
+> canonical production connection**, and is **NOT** a commit prerequisite.)
 >
-> Emergency bypass: `NEON_GUARD_BYPASS=1 git commit …` (document why in message).
+> **Committing/reviewing capability-gated code is distinct from DEPLOYING
+> schema-dependent behavior.** The real production safety rule stands: a
+> migration must be applied to the canonical Neon production DB and **verified
+> BEFORE** any schema-dependent code path is deployed (§1, §4). Capability-gated
+> code must **fail closed** (retain existing production behavior) when its new
+> table is absent.
 
 ```bash
 # 0. Install the guard hooks once per clone
 npm run hooks:install
 
-# 1. Confirm Neon has headroom
-npm run ops:health
+# 1. (Optional) Confirm Neon headroom — READ-ONLY diagnostic. Requires a
+#    VERIFIED CANONICAL production connection (NEVER the stale local
+#    .vercel/.env.production.local, which predates the cold-waterfall repoint).
+#    Not a commit gate.
+DATABASE_URL="<verified canonical prod>" npm run ops:health
 # Read "pct_of_free" for storage (<80%) and compute hours used (<160)
 
 # 2. Apply the migration to PROD manually, from your machine
@@ -364,6 +374,7 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 | 2026-06-01 | **Tier 2 stabilization — PR-close preview-branch cleanup workflow (draft PR, HELD).** Added `.github/workflows/cleanup-neon-preview-branch.yml` (official `neondatabase/delete-branch-action@v3` + an isolation guard step) to delete `preview/<head_ref>` on PR close, complementing the daily `neon-branch-prune` cron. Uses dedicated preview-only creds `vars.NEON_PREVIEW_PROJECT_ID` (= `hidden-mountain-87248164`) + `secrets.NEON_PREVIEW_API_KEY`; hard-pinned to the preview project and refuses the legacy do-not-serve project (`morning-bread-68708332`), protected branch names, and suspicious refs. **HELD** until Maya adds the two GitHub config items + confirms a read-only key test. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. | (draft PR) |
 | 2026-06-03 | Production DB confirmed on **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` / `main` (`br-crimson-frog-adr7g9gt`)**; legacy `morning-bread`/`royal-dawn` is stale/do-not-serve. Stale Neon/Vercel docs removed; canonical facts live in the AGENT STOP box (top of this file) + `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`. `rotate-db-keys` schedule disabled (PR #321). | (current) |
 | 2026-07-05 | **OPS-016 permanent resolution.** All Neon facts live-verified read-only (`neonctl projects get` / `branches list` / `connection-string`): plan `launch_v3`, compute fixed 0.25 CU, 1 branch (main only), **history retention `21600 s` = 6 h** (NOT 7 days). Added the machine-checked §2.1 `NEON:FACTS` block + `npm run neon:verify` (`scripts/neon-verify.ts`) which fails on any docs↔live drift; corrected the stale storage (~215 MB → synthetic ~1.51 GB) and branch-count (8 → 1) figures; documented the 7-day raise as an optional Maya-gated Console/API lever (not applied). No live Neon setting, env, cron, migration, or branch changed. | (current) |
+| 2026-07-26 | **`.ops-health-last` marker gate REMOVED (Maya directive).** Deleted the recent-run sentinel check in `scripts/neon-precommit-guard.js` and the sentinel WRITE in `scripts/ops-health.js`; dropped `.ops-health-last` from `.gitignore`. Rationale: the marker forced a live prod DB connection merely to **commit** capability-gated code — conflating committing/reviewing with **deploying** schema-dependent behavior — and blocked progress when no verified canonical connection was available. The `[neon-preflight: OK]` token remains the commit gate; `ops:health` is now a read-only diagnostic runnable only with a verified canonical prod connection. Real safety rule unchanged: migrations applied + verified before schema-dependent deploy; capability-gated code fails closed when its table is absent. No DB mutation, migration, env change, deploy, or stale-connection use. Superseding note added to `memory/SENTINEL-DECOMMISSION-2026-07-25.md`. | (current) |
 
 ---
 
