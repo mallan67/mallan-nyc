@@ -1,0 +1,3 @@
+# Replay fixtures land here (REPLAY-1). Each fixture is a redacted, real-shape Cotality payload
+# per the schema in spec §12.8 — captured from actual /odata responses (keys hashed, URLs dropped),
+# NOT invented objects. Populated during implementation; empty until then.
