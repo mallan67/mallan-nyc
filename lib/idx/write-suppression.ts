@@ -713,26 +713,89 @@ export function isProvenanceOnlyChange(reasons: readonly string[]): boolean {
 // closed allowlist of pure source-metadata keys. All other columns (including
 // modification_timestamp and sync_status) still write normally.
 //
-// The allowlist is deliberately identical to RAW_DATA_PROVENANCE_CLOCK_KEYS
-// (same two keys, same semantics) so the TARGETED decision fires exactly when
-// classifyListingChangeReasons would emit "modification_timestamp_only" —
-// the row is written for provenance but the raw_data JSONB column is not.
+// ALLOWLIST ELIGIBILITY CRITERIA (Cotality alignment review, 2026-07-26):
+// A key is eligible for this allowlist ONLY when ALL of the following hold:
+//   1. It IS in RAW_DATA_KEEP_FIELDS (slimRawData preserves it → it can
+//      actually exist in stored raw_data and be compared between cycles).
+//   2. The exact same value is ALSO persisted in a separate typed/listing
+//      column that is written even on the targeted path.
+//   3. A repo-wide consumer audit confirms no code reads raw_data[key] from
+//      a STORED row for actual decision-making (only the typed column is used).
+//   4. The Phase 3 comparator (changedRawDataMaterialKeys / RAW_DATA_PROVENANCE
+//      _CLOCK_KEYS) explicitly excludes this key from material comparison, so
+//      a stale stored value cannot trigger spurious "changed" classifications.
+//
+// RAW_DATA_METADATA_ONLY_KEYS ≠ RAW_DATA_PROVENANCE_CLOCK_KEYS:
+// RAW_DATA_PROVENANCE_CLOCK_KEYS drives changedRawDataMaterialKeys (comparator
+// exclusions). RAW_DATA_METADATA_ONLY_KEYS is a STRICTER subset: only keys
+// that ALSO pass the eligibility criteria above may appear here. A key that
+// is excluded from material comparison (criterion 4) but fails criterion 1
+// (never stored due to slimRawData) is kept in RAW_DATA_PROVENANCE_CLOCK_KEYS
+// as a defensive exclusion but MUST NOT appear here because it can never
+// actually be the sole change in a stored raw_data comparison.
 
 /**
  * Closed allowlist of raw_data top-level keys that are PURE SOURCE METADATA
- * carrying no business content. When the ONLY raw_data differences between
- * the prepared UPDATE and the existing row are keys in this set, the
- * `raw_data` JSONB column can be safely OMITTED from the Prisma UPDATE,
- * avoiding its PostgreSQL TOAST/WAL write.
+ * with no business content. When the ONLY raw_data differences between the
+ * prepared UPDATE and the existing stored row are keys in this set, the
+ * `raw_data` JSONB column is safely OMITTED from the Prisma UPDATE, avoiding
+ * its PostgreSQL TOAST/WAL write.
  *
- * Matches RAW_DATA_PROVENANCE_CLOCK_KEYS by design — these keys identify
- * provenance-only clocks, never content. Defining them separately enforces
- * that this allowlist is EXPLICITLY TESTED before any key is added or removed.
- * Any key NOT in this set forces the FULL update (fail closed).
+ * Any key NOT in this set forces a FULL update (fail closed).
+ *
+ * EVIDENCE TABLE (required per Cotality alignment review, 2026-07-26):
+ *
+ * Key: ModificationTimestamp
+ *   Cotality field:  Property.ModificationTimestamp (Edm.DateTimeOffset, B4_STATUS_DATES)
+ *                    and SourceSystemModificationTimestamp → renamed to ModificationTimestamp
+ *                    via RESO_TO_RLS_RENAMES (lib/idx/trestle-mapper.ts:18).
+ *   In keep-fields:  YES — lib/compliance/raw-data-keep-fields.ts:55 (Identifiers section).
+ *                    Therefore slimRawData preserves it; it IS present in stored raw_data.
+ *   Typed column:    modification_timestamp (DateTimeOffset → Date) — mapped at
+ *                    trestle-mapper.ts:1209. Persisted on EVERY write path including
+ *                    targeted (only raw_data is omitted, not the typed column).
+ *   Consumer audit:  Repo-wide grep of raw_data.ModificationTimestamp / raw.ModificationTimestamp
+ *                    (verified 2026-07-26):
+ *                      • lib/search/crm-idx-mapper.ts:224 — reads from live Trestle
+ *                        search response (`raw` = incoming OData record), NOT stored row.
+ *                      • lib/idx/sync.ts:963, 1195 — reads from incoming Trestle record
+ *                        (`raw`), NOT from existing.raw_data.
+ *                      • lib/idx/media-sync.ts:919 — reads from incoming UpsertListingMedia
+ *                        input row, NOT from stored listing.raw_data.
+ *                      • lib/market-report/generator.ts:232 — reads from live Trestle
+ *                        fetchFromTrestle result, NOT stored row.
+ *                      • lib/idx/write-suppression.ts (changedRawDataMaterialKeys) — reads
+ *                        existing.raw_data but EXPLICITLY EXCLUDES ModificationTimestamp
+ *                        via RAW_DATA_PROVENANCE_CLOCK_KEYS (criterion 4 satisfied).
+ *                    No code reads stored raw_data.ModificationTimestamp for actual
+ *                    decision-making; all decision paths use the typed column.
+ *   Stale-safe:      Yes. The typed modification_timestamp column is always current.
+ *                    The comparator exclusion (RAW_DATA_PROVENANCE_CLOCK_KEYS) ensures
+ *                    a stale raw_data.ModificationTimestamp never produces a spurious
+ *                    material-change classification on subsequent sync cycles.
+ *   Verification:    lib/compliance/raw-data-keep-fields.ts:55 (keep-field designation);
+ *                    lib/idx/trestle-mapper.ts:1209 (typed column mapping);
+ *                    lib/idx/write-suppression.ts RAW_DATA_PROVENANCE_CLOCK_KEYS (exclusion);
+ *                    grep output above (consumer audit, 2026-07-26).
+ *
+ * NON-ELIGIBLE KEY: OriginalEntryTimestamp
+ *   Cotality field:  Property.OriginalEntryTimestamp (Edm.DateTimeOffset, B3_LISTING_AGREEMENT).
+ *   In keep-fields:  NO — NOT in lib/compliance/raw-data-keep-fields.ts. slimRawData strips
+ *                    it before persistence. Therefore it is NEVER present in stored raw_data
+ *                    and CAN NEVER be a key that differs between stored and incoming data.
+ *   Decision:        INELIGIBLE for this allowlist (criterion 1 fails). It remains in
+ *                    RAW_DATA_PROVENANCE_CLOCK_KEYS as a defensive comparator exclusion for
+ *                    the future case where it might be added to RAW_DATA_KEEP_FIELDS, but
+ *                    its absence from stored rows means including it here would be dead code.
  */
 export const RAW_DATA_METADATA_ONLY_KEYS: ReadonlySet<string> = new Set([
   "ModificationTimestamp",
-  "OriginalEntryTimestamp",
+  // OriginalEntryTimestamp is intentionally excluded: it is NOT in
+  // RAW_DATA_KEEP_FIELDS, so slimRawData drops it before storage. It can
+  // never appear in a stored raw_data row and therefore can never be the
+  // "only changed key" in a raw_data comparison. Keeping it here would be
+  // misleading dead code. (It stays in RAW_DATA_PROVENANCE_CLOCK_KEYS as a
+  // defensive exclusion in case it is added to the keep-fields in the future.)
 ]);
 
 /**
@@ -760,8 +823,9 @@ export type ListingWriteDecision = "suppress" | "targeted" | "full";
  * Relationship to classifyListingChangeReasons:
  *   - "suppress" ↔ listingUpdateMateriallyUnchanged is true
  *   - "targeted" ↔ classifyListingChangeReasons would return
- *     ["modification_timestamp_only"] (raw_data changed only in provenance
- *     clocks, which equal RAW_DATA_METADATA_ONLY_KEYS)
+ *     ["modification_timestamp_only"]: changedRawDataMaterialKeys returns []
+ *     (all raw_data differences are in RAW_DATA_PROVENANCE_CLOCK_KEYS, and
+ *     every such key also appears in RAW_DATA_METADATA_ONLY_KEYS)
  *   - "full"     ↔ all other cases
  */
 export function decideListingWriteAction(
@@ -792,9 +856,9 @@ export function decideListingWriteAction(
           return "full";
         }
         // Both sides are proper objects. changedRawDataMaterialKeys excludes
-        // RAW_DATA_PROVENANCE_CLOCK_KEYS (= RAW_DATA_METADATA_ONLY_KEYS) and
-        // canonicalizes rotating Media URLs. An empty return means the only
-        // raw_data differences are in the allowlist.
+        // RAW_DATA_PROVENANCE_CLOCK_KEYS and canonicalizes rotating Media URLs.
+        // An empty return means the only raw_data differences are provenance
+        // clocks (all of which also appear in RAW_DATA_METADATA_ONLY_KEYS).
         const contentChanged = changedRawDataMaterialKeys(prevRaw, nextRaw);
         if (contentChanged.length > 0) return "full";
         return "targeted";

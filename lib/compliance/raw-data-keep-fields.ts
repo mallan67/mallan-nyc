@@ -47,8 +47,24 @@
  * forms (verified 2026-04-27).
  */
 export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
-  // ── Identifiers (sync identity + change detection) ─────────────────
-  // Used by lib/idx/sync.ts to detect edits + by reset-sync route.
+  // ── Identifiers (sync identity + archive reference) ────────────────────
+  // ListingId / ListingKey / SourceSystemKey — upsert identity + reset-sync
+  // and archive cross-reference (data-retention cron reads these for the
+  // listings_archive write).
+  //
+  // ModificationTimestamp — the Cotality source-revision clock. Phase 3 note:
+  // the typed `modification_timestamp` column is the authoritative live value
+  // and is always updated on every write path (including targeted). The stored
+  // raw_data copy may be transiently stale on targeted-path writes, but:
+  //   a) changedRawDataMaterialKeys explicitly excludes ModificationTimestamp
+  //      via RAW_DATA_PROVENANCE_CLOCK_KEYS — a stale value never produces a
+  //      spurious "material change" classification on subsequent cycles;
+  //   b) no production code reads raw_data.ModificationTimestamp from a stored
+  //      row for actual decision-making (consumer audit 2026-07-26: all such
+  //      reads are from incoming live Trestle records, not stored rows);
+  //   c) reset-sync always performs a fresh full-write from Trestle, never
+  //      reading the stored raw_data value.
+  // Kept in raw_data for completeness, archive fidelity, and future consumers.
   'ListingKey',
   'ListingId',
   'SourceSystemKey',

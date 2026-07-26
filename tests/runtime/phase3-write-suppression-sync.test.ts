@@ -265,6 +265,7 @@ describe("syncListings — unchanged IDX batch produces ZERO listing/projection 
       rows_suppressed_unchanged: 2,
       rows_inserted: 0,
       rows_updated: 0,
+      rows_updated_targeted: 0,
       rows_failed: 0,
     });
     expect(result.write_paths.projections).toEqual({
@@ -273,6 +274,7 @@ describe("syncListings — unchanged IDX batch produces ZERO listing/projection 
       rows_suppressed_unchanged: 2,
       rows_inserted: 0,
       rows_updated: 0,
+      rows_updated_targeted: 0,
       rows_failed: 0,
     });
     // `upserted` now reports PHYSICAL listing writes only.
