@@ -1,9 +1,14 @@
 # Neon write-amplification — Phase-1 PRODUCTION capture (2026-07-26)
 
 > **Evidence for existing issues OPS-010A + OPS-010** (`docs/PLATFORM-ISSUE-REGISTRY.md`) — NOT a new ID.
-> Bounded, Maya-authorized production evidence window. Read-only capture; **no application
-> behavior, retention, R2, Neon, cadence, env or cron was changed to gather this.** The
-> diagnostic instrumentation (PR #569) is evidence-only and auto-expires.
+> Bounded, Maya-authorized production evidence window. The SQL queries + log collection were
+> **read-only**. The ONLY production configuration mutation used for the capture was the
+> **Maya-authorized temporary `DIAG_RAW_DATA_KEYS_UNTIL` environment variable** (set on
+> Production, then removed from project settings after the capture; the deployed in-code guard
+> also auto-expired at the authorized timestamp). **No OTHER environment, application behavior,
+> retention, R2, Neon, cadence or cron setting changed.** The diagnostic instrumentation
+> (PR #569) is evidence-only and auto-expires. (This PR — #570 — is documentation-only and
+> itself makes no environment change.)
 
 ## 1. Window facts (independently verifiable)
 - **Merge SHA:** `2fecd4f366948779d912600daa71170ea0213b3a` (PR #569 → `main`, merged 2026-07-26T01:05:26Z).
@@ -55,4 +60,4 @@ Two proven levers, both requiring Maya's explicit go before any behavior change:
 - **`PhotosChangeTimestamp`**: it is deliberately fail-closed to `raw_data_only` (see `write-suppression.ts` `RAW_DATA_PROVENANCE_CLOCK_KEYS` comment — reclassifying it needs true empty-gallery reconciliation first). Handling it would remove the dominant `raw_data_only` base-row rewrite.
 - **`delivery_url_refreshed`**: draining the R2 mirror backlog removes those refresh writes.
 
-**No suppression of `PhotosChangeTimestamp` or URL identity changes, and no retention / R2 / Neon / cadence / env / cron change, has been made.** Phase-2 remains HELD pending Maya's decision from this record.
+**No suppression of `PhotosChangeTimestamp` or URL identity changes, and no retention / R2 / Neon / cadence / cron change, has been made** (the only capture-time env mutation was the Maya-authorized temporary `DIAG_RAW_DATA_KEYS_UNTIL`, already removed — see §1). Phase-2 remains HELD pending Maya's decision from this record.
