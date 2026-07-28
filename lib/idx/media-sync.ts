@@ -2131,14 +2131,6 @@ export async function mirrorMediaToR2(
       // Should never happen since callers select rows where media_key is set.
       return result;
     }
-    // NOT PERSISTED. Since the terminal-safe advance below, this projected
-    // value is used ONLY for the tombstone comparison against
-    // R2_TOMBSTONE_4XX_THRESHOLD (3). The value actually stored is computed
-    // atomically by the database and is bounded by the terminal sentinel.
-    // Capping it here would not change the tombstone decision (the rule is
-    // `>= 3` and the counter is monotonic), so it is deliberately left
-    // uncapped rather than implying it is what gets written.
-    const newAttempts = (row.r2_attempts ?? 0) + 1;
     // Recovery attempts never advance the counter — see the `context` doc.
     const isRecoveryAttempt = context.recoveryAttempt === true;
     // Tombstone-eligible only when the HTTP status proves the binary is
@@ -2155,92 +2147,102 @@ export async function mirrorMediaToR2(
       result.reason === "fetch_failed" &&
       typeof result.error === "string" &&
       /^HTTP (404|410)$/.test(result.error);
-    const data: {
-      r2_last_attempt_at: Date;
-      status?: string;
-    } = {
-      r2_last_attempt_at: new Date(),
-    };
-    // Recovery path: r2_attempts is intentionally ABSENT from the write —
-    // it stays exactly at the failure-exhaustion threshold in the DB; the
-    // refreshed r2_last_attempt_at alone restarts the long recovery
-    // cooldown. attempts=threshold+1 (9) is reserved for #534 policy
-    // admission and is NEVER written by any failure path.
+    // ── ONE ATOMIC PARAMETERIZED FAILURE WRITE (PR #584) ──────────────────
     //
-    // Tombstone ONLY on permanent 4xx (404 / 410 — E8 live-proven). 5xx,
-    // network, R2-side, token, and other 4xx errors are transient or
-    // ambiguous — keep retrying after cooldown. For recovery rows the
-    // effective count is the STORED value (already >= the tombstone
-    // threshold by construction), so a proven-permanent source loss still
-    // tombstones without advancing the counter.
-    const effectiveAttempts = isRecoveryAttempt ? (row.r2_attempts ?? 0) : newAttempts;
-    if (isPermanent4xx && effectiveAttempts >= R2_TOMBSTONE_4XX_THRESHOLD) {
-      data.status = "deleted";
-    }
-    await prisma.listingMedia.update({
-      where: { media_key: row.media_key },
-      data,
-    });
-
-    // ── TERMINAL-STATE-SAFE COUNTER ADVANCE (#575 follow-up) ──────────────
+    // The cooldown, the counter and the tombstone are ONE logical fact about
+    // ONE failed attempt, so ONE statement commits them. They used to be two
+    // independent writes, which produced two defects:
     //
-    // Previously this was `data.r2_attempts = (row.r2_attempts ?? 0) + 1` —
-    // an UNBOUNDED read-modify-write. `row.r2_attempts` is a value read
-    // earlier during batch selection, incremented in JS, then written back
-    // with no DB-side predicate. Two defects follow:
+    //   1. PARTIAL COMMIT. A crash, dropped connection or killed process
+    //      between the writes left the row with a refreshed cooldown (and
+    //      possibly `status='deleted'`) but no counter advance — a failure
+    //      that silently did not count. An interleaved success could also
+    //      leave `r2_attempts = 1` with a null `r2_last_attempt_at`.
+    //   2. TOMBSTONE FROM A STALE SNAPSHOT. The status was decided from
+    //      `row.r2_attempts` — a value read during batch selection. Two
+    //      workers overlapping on a row at 1 both computed 2 and both
+    //      declined to tombstone, while their atomic increments serialized
+    //      1 -> 2 -> 3. The row survived its third permanent failure, and
+    //      enough overlap parked it at 8 without ever tombstoning.
     //
-    //   1. NO BOUND. Nothing stopped the value passing the terminal
-    //      sentinels. Production carries 80 rows above 9 (max 112), all
-    //      last touched between 2026-05-13 and 2026-06-10 — i.e. produced
-    //      before today's selection predicates existed. They are frozen, not
-    //      growing, but the unbounded arithmetic that created them is still
-    //      in the code.
-    //   2. NOT ATOMIC. A stale read plus a blind write means two workers
-    //      processing the same row could each write a value derived from the
-    //      same stale base, and neither write is bounded.
+    // The persisted count is now computed BY THE DATABASE from the value
+    // stored at the moment the statement runs, never in TypeScript:
     //
-    // The counter's three states (see R2_RETRY_EXHAUSTED_THRESHOLD and
-    // R2_POLICY_PARKED_ATTEMPTS):
-    //   NULL / 1..7  ordinary consecutive-failure count
-    //   8            retry-exhausted TERMINAL (RC3)
-    //   9            policy-parked TERMINAL (#534) — assigned, never reached
-    //                by arithmetic
-    //   >9           legacy overflow; no current path can produce it
+    //   NULL -> 1        first failure; no separate IS NULL statement, so a
+    //                    concurrent worker cannot lose the second failure to
+    //                    a guard that no longer matches
+    //   0..7 -> +1       ordinary consecutive-failure advance
+    //   8    -> 8        retry-exhausted TERMINAL (RC3)
+    //   9    -> 9        policy-parked TERMINAL (#534) — assigned, never
+    //                    reached by arithmetic, never decremented toward 8
+    //   >9   -> as found legacy overflow (80 frozen production rows, max
+    //                    112). Deliberately NOT normalised.
     //
-    // The advance below is bounded BY THE DATABASE, not by JS. The `lt`
-    // predicate is re-evaluated against the CURRENT stored value inside the
-    // same statement as the increment, so:
-    //   • an ordinary row advances at most to exactly 8;
-    //   • a row already at 8 does not match, and stays 8;
-    //   • a policy-parked 9 does not match, and stays exactly 9 — it is
-    //     never decremented toward 8 either, because the row is untouched;
-    //   • a legacy >9 row does not match, and is left EXACTLY as found —
-    //     this deliberately does not normalise production data;
-    //   • a stale JS read cannot cross the bound, and concurrent workers
-    //     cannot both push a row past the terminal, because the guard and
-    //     the arithmetic are one atomic statement.
+    // The tombstone reads that SAME atomically computed next count, in the
+    // same statement, so the write that actually produces the third
+    // permanent failure is the one that tombstones — whatever any worker's
+    // snapshot claimed. Tombstoning stays restricted to permanent 4xx
+    // (404 / 410); 5xx, network, R2-side, token and every other 4xx error is
+    // transient or ambiguous and only earns a cooldown. 429 in particular
+    // must never tombstone, given Trestle's 480/min media-URL ceiling.
     //
-    // Recovery attempts still never advance the counter (see `context` doc),
-    // so they skip this block entirely.
-    if (!isRecoveryAttempt) {
-      if (row.r2_attempts === null || row.r2_attempts === undefined) {
-        // First failure. Guarded on still-NULL so a concurrent worker that
-        // already started the count cannot be double-counted back to 1.
-        await prisma.listingMedia.updateMany({
-          where: { media_key: row.media_key, r2_attempts: null },
-          data: { r2_attempts: 1 },
-        });
-      } else {
-        // Atomic DB-side `r2_attempts = r2_attempts + 1`, applied ONLY while
-        // the stored value is still below the terminal.
-        await prisma.listingMedia.updateMany({
-          where: {
-            media_key: row.media_key,
-            r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-          },
-          data: { r2_attempts: { increment: 1 } },
-        });
-      }
+    // The WHERE carries the canonical unmirrored predicate from
+    // `buildR2BacklogWhere` (`r2_key IS NULL OR media_url_cached IS NULL`),
+    // so a stale failure released after a successful mirror has committed
+    // matches ZERO rows and cannot clobber the mirrored columns, reset
+    // counter or cleared cooldown.
+    //
+    // Every `${...}` below is a Prisma bind parameter, NOT SQL text. The
+    // media key is always data and can never alter the statement — proven by
+    // the SQL-shaped-media_key control in the Layer 2 suite.
+    //
+    // `RETURNING r2_attempts, status` reports the committed outcome. No
+    // TypeScript branch depends on it, which is the point: the database
+    // decides both the count and the status.
+    const now = new Date();
+    if (isRecoveryAttempt) {
+      // Recovery rows sit at exactly the exhaustion threshold. `r2_attempts`
+      // is deliberately ABSENT from the SET list — it stays exactly 8 — while
+      // the refreshed timestamp alone restarts the long recovery cooldown.
+      // A proven-permanent source loss still tombstones, without advancing
+      // the counter. attempts = threshold + 1 (9) is reserved for #534 policy
+      // admission and is NEVER written by any failure path.
+      await prisma.$queryRaw`
+        UPDATE listing_media
+        SET r2_last_attempt_at = ${now},
+            status = CASE
+              WHEN ${isPermanent4xx}::boolean
+               AND r2_attempts >= ${R2_TOMBSTONE_4XX_THRESHOLD}
+              THEN 'deleted'
+              ELSE status
+            END
+        WHERE media_key = ${row.media_key}
+          AND (r2_key IS NULL OR media_url_cached IS NULL)
+        RETURNING r2_attempts, status
+      `;
+    } else {
+      await prisma.$queryRaw`
+        UPDATE listing_media
+        SET r2_last_attempt_at = ${now},
+            r2_attempts = CASE
+              WHEN r2_attempts IS NULL THEN 1
+              WHEN r2_attempts < ${R2_RETRY_EXHAUSTED_THRESHOLD} THEN r2_attempts + 1
+              ELSE r2_attempts
+            END,
+            status = CASE
+              WHEN ${isPermanent4xx}::boolean
+               AND (CASE
+                      WHEN r2_attempts IS NULL THEN 1
+                      WHEN r2_attempts < ${R2_RETRY_EXHAUSTED_THRESHOLD} THEN r2_attempts + 1
+                      ELSE r2_attempts
+                    END) >= ${R2_TOMBSTONE_4XX_THRESHOLD}
+              THEN 'deleted'
+              ELSE status
+            END
+        WHERE media_key = ${row.media_key}
+          AND (r2_key IS NULL OR media_url_cached IS NULL)
+        RETURNING r2_attempts, status
+      `;
     }
 
     return result;
