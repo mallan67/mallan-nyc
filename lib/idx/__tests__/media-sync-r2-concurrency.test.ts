@@ -44,6 +44,7 @@ import type { MirrorMediaToR2Deps, MirrorMediaToR2Row } from "../media-sync";
 
 const mockListingMediaUpdate = jest.fn<Promise<unknown>, [unknown]>();
 const mockListingMediaUpdateMany = jest.fn<Promise<unknown>, [unknown]>();
+const mockQueryRaw = jest.fn<Promise<unknown>, [TemplateStringsArray, unknown[]]>();
 
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
@@ -52,6 +53,13 @@ jest.mock("@/lib/prisma", () => ({
       update: (args: unknown) => mockListingMediaUpdate(args),
       updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
     },
+    // MOCK INFRASTRUCTURE (harness extension): the corrected implementation
+    // commits failure bookkeeping as ONE parameterized statement. Prisma
+    // exposes that as a tagged template, so the mock receives the static
+    // string fragments and the interpolated values SEPARATELY — which is
+    // itself the proof that no value is ever concatenated into SQL text.
+    $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) =>
+      mockQueryRaw(strings, values),
   },
 }));
 
@@ -61,6 +69,7 @@ import { mirrorMediaToR2 } from "../media-sync";
 beforeEach(() => {
   mockListingMediaUpdate.mockReset();
   mockListingMediaUpdateMany.mockReset();
+  mockQueryRaw.mockReset();
 });
 
 // ─── Stateful single-row store ────────────────────────────────────────────
@@ -137,12 +146,336 @@ function applyData(state: RowState, data: Record<string, unknown>): void {
   }
 }
 
+// ─── Minimal parameterized-SQL emulator (MOCK INFRASTRUCTURE) ─────────────
+//
+// The corrected implementation commits failure bookkeeping as ONE parameterized
+// `UPDATE ... RETURNING`. To keep this layer a real regression harness rather
+// than a rubber stamp, the statement is TOKENIZED, PARSED and EVALUATED against
+// the stored row — the outcome is derived from the SQL the implementation
+// actually emitted, not asserted from a table of expected transitions. Wrong
+// SQL therefore produces a wrong stored row and fails the assertions below.
+//
+// It is deliberately fail-closed: any syntax it does not model THROWS, exactly
+// like `fieldMatches` does for an unmodelled Prisma predicate, so no construct
+// can be silently treated as "matched" and make a test vacuous.
+//
+// THIS IS AN EMULATOR, NOT PostgreSQL. It encodes this author's understanding
+// of the semantics and is NOT independent proof of what the database does.
+// That proof is Layer 2 and only Layer 2.
+
+type SqlValue = string | number | boolean | Date | null;
+
+const SQL_KEYWORDS = new Set([
+  "UPDATE", "SET", "WHERE", "RETURNING", "CASE", "WHEN", "THEN", "ELSE", "END",
+  "AND", "OR", "NOT", "IS", "NULL", "DISTINCT", "FROM", "TRUE", "FALSE",
+]);
+
+type Token =
+  | { kind: "kw"; value: string }
+  | { kind: "ident"; value: string }
+  | { kind: "num"; value: number }
+  | { kind: "str"; value: string }
+  | { kind: "param"; index: number }
+  | { kind: "op"; value: string };
+
+/** Rebuild the statement text, marking each interpolation slot as a parameter. */
+function renderSql(strings: TemplateStringsArray): string {
+  let out = strings[0] ?? "";
+  for (let i = 1; i < strings.length; i++) out += `$__P${i - 1}__${strings[i]}`;
+  return out;
+}
+
+function tokenizeSql(sql: string): Token[] {
+  const tokens: Token[] = [];
+  const ops = ["::", ">=", "<=", "<>", "!=", "=", "<", ">", "+", "-", "(", ")", ","];
+  let i = 0;
+  while (i < sql.length) {
+    const ch = sql[i]!;
+    if (/\s/.test(ch)) { i++; continue; }
+    if (ch === "'") {
+      let j = i + 1;
+      let out = "";
+      for (;;) {
+        if (j >= sql.length) throw new Error("Unterminated SQL string literal");
+        if (sql[j] === "'" && sql[j + 1] === "'") { out += "'"; j += 2; continue; }
+        if (sql[j] === "'") break;
+        out += sql[j];
+        j++;
+      }
+      tokens.push({ kind: "str", value: out });
+      i = j + 1;
+      continue;
+    }
+    const param = /^\$__P(\d+)__/.exec(sql.slice(i));
+    if (param) {
+      tokens.push({ kind: "param", index: Number(param[1]) });
+      i += param[0].length;
+      continue;
+    }
+    if (/[0-9]/.test(ch)) {
+      const m = /^[0-9]+/.exec(sql.slice(i))!;
+      tokens.push({ kind: "num", value: Number(m[0]) });
+      i += m[0].length;
+      continue;
+    }
+    if (/[A-Za-z_]/.test(ch)) {
+      const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(sql.slice(i))!;
+      const upper = m[0].toUpperCase();
+      tokens.push(
+        SQL_KEYWORDS.has(upper) ? { kind: "kw", value: upper } : { kind: "ident", value: m[0] },
+      );
+      i += m[0].length;
+      continue;
+    }
+    const op = ops.find((o) => sql.startsWith(o, i));
+    if (!op) throw new Error(`Unmodelled SQL character: ${JSON.stringify(ch)}`);
+    tokens.push({ kind: "op", value: op });
+    i += op.length;
+  }
+  return tokens;
+}
+
+type SqlNode =
+  | { t: "col"; name: string }
+  | { t: "lit"; value: SqlValue }
+  | { t: "param"; index: number }
+  | { t: "cast"; expr: SqlNode; to: string }
+  | { t: "bin"; op: string; l: SqlNode; r: SqlNode }
+  | { t: "isNull"; expr: SqlNode; negated: boolean }
+  | { t: "isDistinct"; l: SqlNode; r: SqlNode; negated: boolean }
+  | { t: "not"; expr: SqlNode }
+  | { t: "case"; whens: Array<{ when: SqlNode; then: SqlNode }>; otherwise: SqlNode | null };
+
+interface UpdateStatement {
+  table: string;
+  sets: Array<{ col: string; expr: SqlNode }>;
+  where: SqlNode;
+  returning: string[];
+}
+
+function parseUpdate(tokens: Token[]): UpdateStatement {
+  let pos = 0;
+  const peek = (): Token | undefined => tokens[pos];
+  const isKw = (v: string) => { const t = peek(); return t?.kind === "kw" && t.value === v; };
+  const isOp = (v: string) => { const t = peek(); return t?.kind === "op" && t.value === v; };
+  const takeKw = (v: string) => {
+    if (!isKw(v)) throw new Error(`Expected SQL keyword ${v} at token ${pos}`);
+    pos++;
+  };
+  const takeOp = (v: string) => {
+    if (!isOp(v)) throw new Error(`Expected SQL operator ${v} at token ${pos}`);
+    pos++;
+  };
+  const takeIdent = (): string => {
+    const t = peek();
+    if (t?.kind !== "ident") throw new Error(`Expected identifier at token ${pos}`);
+    pos++;
+    return t.value;
+  };
+
+  function parsePrimary(): SqlNode {
+    const t = peek();
+    if (!t) throw new Error("Unexpected end of SQL");
+    if (t.kind === "kw" && t.value === "CASE") {
+      pos++;
+      const whens: Array<{ when: SqlNode; then: SqlNode }> = [];
+      while (isKw("WHEN")) {
+        pos++;
+        const when = parseExpr();
+        takeKw("THEN");
+        whens.push({ when, then: parseExpr() });
+      }
+      let otherwise: SqlNode | null = null;
+      if (isKw("ELSE")) { pos++; otherwise = parseExpr(); }
+      takeKw("END");
+      if (whens.length === 0) throw new Error("CASE with no WHEN branch");
+      return { t: "case", whens, otherwise };
+    }
+    if (t.kind === "kw" && t.value === "NULL") { pos++; return { t: "lit", value: null }; }
+    if (t.kind === "kw" && (t.value === "TRUE" || t.value === "FALSE")) {
+      pos++;
+      return { t: "lit", value: t.value === "TRUE" };
+    }
+    if (t.kind === "op" && t.value === "(") {
+      pos++;
+      const inner = parseExpr();
+      takeOp(")");
+      return inner;
+    }
+    if (t.kind === "num") { pos++; return { t: "lit", value: t.value }; }
+    if (t.kind === "str") { pos++; return { t: "lit", value: t.value }; }
+    if (t.kind === "param") { pos++; return { t: "param", index: t.index }; }
+    if (t.kind === "ident") { pos++; return { t: "col", name: t.value }; }
+    throw new Error(`Unmodelled SQL token in expression: ${JSON.stringify(t)}`);
+  }
+
+  function parseCast(): SqlNode {
+    let node = parsePrimary();
+    while (isOp("::")) {
+      pos++;
+      node = { t: "cast", expr: node, to: takeIdent().toLowerCase() };
+    }
+    return node;
+  }
+
+  function parseAdditive(): SqlNode {
+    let node = parseCast();
+    while (isOp("+") || isOp("-")) {
+      const op = (peek() as { value: string }).value;
+      pos++;
+      node = { t: "bin", op, l: node, r: parseCast() };
+    }
+    return node;
+  }
+
+  function parseComparison(): SqlNode {
+    const left = parseAdditive();
+    if (isKw("IS")) {
+      pos++;
+      const negated = isKw("NOT") ? (pos++, true) : false;
+      if (isKw("NULL")) { pos++; return { t: "isNull", expr: left, negated }; }
+      if (isKw("DISTINCT")) {
+        pos++;
+        takeKw("FROM");
+        return { t: "isDistinct", l: left, r: parseAdditive(), negated };
+      }
+      throw new Error("Unmodelled SQL: IS <something other than NULL / DISTINCT FROM>");
+    }
+    for (const op of ["=", "<>", "!=", "<=", ">=", "<", ">"]) {
+      if (isOp(op)) {
+        pos++;
+        return { t: "bin", op, l: left, r: parseAdditive() };
+      }
+    }
+    return left;
+  }
+
+  function parseNot(): SqlNode {
+    if (isKw("NOT")) { pos++; return { t: "not", expr: parseNot() }; }
+    return parseComparison();
+  }
+
+  function parseAnd(): SqlNode {
+    let node = parseNot();
+    while (isKw("AND")) { pos++; node = { t: "bin", op: "AND", l: node, r: parseNot() }; }
+    return node;
+  }
+
+  function parseExpr(): SqlNode {
+    let node = parseAnd();
+    while (isKw("OR")) { pos++; node = { t: "bin", op: "OR", l: node, r: parseAnd() }; }
+    return node;
+  }
+
+  takeKw("UPDATE");
+  const table = takeIdent();
+  takeKw("SET");
+  const sets: Array<{ col: string; expr: SqlNode }> = [];
+  for (;;) {
+    const col = takeIdent();
+    takeOp("=");
+    sets.push({ col, expr: parseExpr() });
+    if (isOp(",")) { pos++; continue; }
+    break;
+  }
+  takeKw("WHERE");
+  const where = parseExpr();
+  takeKw("RETURNING");
+  const returning: string[] = [takeIdent()];
+  while (isOp(",")) { pos++; returning.push(takeIdent()); }
+  if (pos !== tokens.length) throw new Error(`Trailing SQL after RETURNING at token ${pos}`);
+  return { table, sets, where, returning };
+}
+
+function evalSql(node: SqlNode, state: RowState, params: unknown[]): SqlValue {
+  switch (node.t) {
+    case "lit":
+      return node.value;
+    case "param": {
+      if (node.index >= params.length) throw new Error(`SQL parameter $${node.index} not supplied`);
+      return params[node.index] as SqlValue;
+    }
+    case "col": {
+      if (!(node.name in state)) throw new Error(`Unmodelled column in SQL: ${node.name}`);
+      return (state as unknown as Record<string, SqlValue>)[node.name]!;
+    }
+    case "cast": {
+      const v = evalSql(node.expr, state, params);
+      if (v === null) return null;
+      if (node.to === "boolean") {
+        if (typeof v === "boolean") return v;
+        throw new Error(`Cannot cast ${JSON.stringify(v)} to boolean`);
+      }
+      throw new Error(`Unmodelled SQL cast target: ${node.to}`);
+    }
+    case "isNull": {
+      const v = evalSql(node.expr, state, params);
+      return node.negated ? v !== null : v === null;
+    }
+    case "isDistinct": {
+      const l = evalSql(node.l, state, params);
+      const r = evalSql(node.r, state, params);
+      const distinct = l === null || r === null ? l !== r : l !== r;
+      return node.negated ? !distinct : distinct;
+    }
+    case "not": {
+      const v = evalSql(node.expr, state, params);
+      return v === null ? null : !v;
+    }
+    case "case": {
+      for (const branch of node.whens) {
+        if (evalSql(branch.when, state, params) === true) return evalSql(branch.then, state, params);
+      }
+      return node.otherwise ? evalSql(node.otherwise, state, params) : null;
+    }
+    case "bin": {
+      const l = evalSql(node.l, state, params);
+      // SQL short-circuit: FALSE AND x is FALSE, TRUE OR x is TRUE.
+      if (node.op === "AND" && l === false) return false;
+      if (node.op === "OR" && l === true) return true;
+      const r = evalSql(node.r, state, params);
+      if (node.op === "AND") return l === null || r === null ? null : l && r;
+      if (node.op === "OR") return l === null || r === null ? null : l || r;
+      // Any comparison or arithmetic involving NULL yields NULL.
+      if (l === null || r === null) return null;
+      switch (node.op) {
+        case "+": return (l as number) + (r as number);
+        case "-": return (l as number) - (r as number);
+        case "=": return l === r;
+        case "<>":
+        case "!=": return l !== r;
+        case "<": return (l as number) < (r as number);
+        case "<=": return (l as number) <= (r as number);
+        case ">": return (l as number) > (r as number);
+        case ">=": return (l as number) >= (r as number);
+        default: throw new Error(`Unmodelled SQL operator: ${node.op}`);
+      }
+    }
+  }
+}
+
 /**
  * One `listing_media` row with PostgreSQL-like statement semantics:
  * every WHERE is evaluated against the value stored at the moment the
  * statement runs, and only a matched row is written.
  */
-function makeRowStore(initial: Partial<RowState> = {}) {
+function makeRowStore(
+  initial: Partial<RowState> = {},
+  /**
+   * MOCK INFRASTRUCTURE. `blockAttemptsChange` is the JS analogue of the
+   * `pr584_block_attempts_change` BEFORE UPDATE trigger Layer 2 installs on a
+   * real database: any statement whose write would change `r2_attempts` raises
+   * BEFORE any part of that statement is applied.
+   *
+   * It is deliberately path-agnostic, so ONE mechanism exercises BOTH shapes:
+   *   - split implementation: write #1 sets only the cooldown (and possibly the
+   *     status), leaves `r2_attempts` alone, and therefore COMMITS; the separate
+   *     counter statement is then refused — reproducing the partial commit;
+   *   - atomic implementation: the single statement carries the counter with the
+   *     cooldown, so it is refused as a whole and nothing is written.
+   */
+  options: { blockAttemptsChange?: boolean } = {},
+) {
   const state: RowState = {
     media_key: MEDIA_KEY,
     status: "active",
@@ -154,7 +487,24 @@ function makeRowStore(initial: Partial<RowState> = {}) {
   };
 
   /** Ordered log of the statements the implementation issued. */
-  const ops: Array<{ op: "update" | "updateMany"; matched: boolean }> = [];
+  const ops: Array<{ op: "update" | "updateMany" | "queryRaw"; matched: boolean }> = [];
+
+  /** The trigger analogue — see `options.blockAttemptsChange`. */
+  const guardAttempts = (next: number | null): void => {
+    if (!options.blockAttemptsChange) return;
+    if (next === state.r2_attempts) return;
+    throw new Error("PR584_TEST_TRIGGER: r2_attempts change blocked by the counter statement guard");
+  };
+
+  /** What `r2_attempts` would become under a Prisma `data` payload. */
+  const prospectiveFromData = (data: Record<string, unknown>): number | null => {
+    if (!("r2_attempts" in (data ?? {}))) return state.r2_attempts;
+    const v = data.r2_attempts;
+    if (v !== null && typeof v === "object" && "increment" in (v as object)) {
+      return (state.r2_attempts ?? 0) + (v as { increment: number }).increment;
+    }
+    return v as number | null;
+  };
 
   const update = async (args: unknown) => {
     const { where, data } = args as {
@@ -169,6 +519,7 @@ function makeRowStore(initial: Partial<RowState> = {}) {
       err.code = "P2025";
       throw err;
     }
+    guardAttempts(prospectiveFromData(data));
     applyData(state, data);
     return { ...state };
   };
@@ -181,16 +532,52 @@ function makeRowStore(initial: Partial<RowState> = {}) {
     const matched = whereMatches(state, where);
     ops.push({ op: "updateMany", matched });
     if (!matched) return { count: 0 };
+    guardAttempts(prospectiveFromData(data));
     applyData(state, data);
     return { count: 1 };
   };
 
-  return { state, ops, update, updateMany };
+  /**
+   * Execute one parameterized `UPDATE ... RETURNING` against the stored row.
+   * Every SET expression is evaluated against the row as it stands BEFORE the
+   * statement writes (PostgreSQL semantics), so a self-referencing counter
+   * advance reads its own pre-update value exactly once.
+   */
+  const queryRaw = async (strings: TemplateStringsArray, values: unknown[]) => {
+    const stmt = parseUpdate(tokenizeSql(renderSql(strings)));
+    if (stmt.table !== "listing_media") {
+      throw new Error(`Unmodelled table in raw statement: ${stmt.table}`);
+    }
+    const matched = evalSql(stmt.where, state, values) === true;
+    ops.push({ op: "queryRaw", matched });
+    if (!matched) return [];
+
+    // Compute EVERY new value from the pre-update row before applying any.
+    const next: Record<string, SqlValue> = {};
+    for (const { col, expr } of stmt.sets) {
+      if (!(col in state)) throw new Error(`Unmodelled column in SET: ${col}`);
+      next[col] = evalSql(expr, state, values);
+    }
+    guardAttempts(
+      "r2_attempts" in next ? (next.r2_attempts as number | null) : state.r2_attempts,
+    );
+    Object.assign(state, next);
+
+    const row: Record<string, SqlValue> = {};
+    for (const col of stmt.returning) {
+      if (!(col in state)) throw new Error(`Unmodelled column in RETURNING: ${col}`);
+      row[col] = (state as unknown as Record<string, SqlValue>)[col]!;
+    }
+    return [row];
+  };
+
+  return { state, ops, update, updateMany, queryRaw };
 }
 
 function wire(store: ReturnType<typeof makeRowStore>): void {
   mockListingMediaUpdate.mockImplementation(store.update);
   mockListingMediaUpdateMany.mockImplementation(store.updateMany);
+  mockQueryRaw.mockImplementation(store.queryRaw);
 }
 
 // ─── Row snapshots + dependency stubs ─────────────────────────────────────
@@ -279,14 +666,19 @@ const nonImageDeps = () => makeDeps(makeFetchResponse(200, "application/pdf", "%
 
 describe("DEFECT 1 — cooldown/status and counter must not partially commit", () => {
   it("a failed counter statement must leave the cooldown unwritten", async () => {
-    const store = makeRowStore({ r2_attempts: 2 });
-    mockListingMediaUpdate.mockImplementation(store.update);
-    // Let write #1 (cooldown + status) succeed and force write #2 (the counter)
-    // to fail — exactly what a dropped connection or a killed process produces
-    // between two independent statements.
-    mockListingMediaUpdateMany.mockImplementation(async () => {
-      throw new Error("simulated failure of the counter statement");
-    });
+    // FAULT INJECTION (mock infrastructure): refuse any write that would change
+    // `r2_attempts` — the JS analogue of the BEFORE UPDATE trigger Layer 2
+    // installs on a real database. ONE mechanism, deliberately path-agnostic,
+    // so it indicts a split implementation and exonerates an atomic one:
+    //   - split: write #1 carries only the cooldown (and possibly the status),
+    //     does not touch the counter, and therefore COMMITS; the separate
+    //     counter statement is then refused — the partial commit this test
+    //     exists to catch, exactly as a dropped connection or killed process
+    //     would produce between two independent statements;
+    //   - atomic: the counter travels WITH the cooldown in one statement, so
+    //     the refusal aborts the whole statement and nothing is written.
+    const store = makeRowStore({ r2_attempts: 2 }, { blockAttemptsChange: true });
+    wire(store);
 
     await expect(mirrorMediaToR2(makeRow({ r2_attempts: 2 }), nonImageDeps())).rejects.toThrow(
       /counter statement/,
