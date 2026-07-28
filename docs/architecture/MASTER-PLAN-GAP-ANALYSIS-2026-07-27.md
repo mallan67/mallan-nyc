@@ -253,16 +253,30 @@ $ grep -nE "model Person|model Household|model Organization|model Artifact" pris
                                                                     → no output;  exit 1
 ```
 
-| Plan §7 entity | Status |
-|---|---|
-| §7.1 Person | **Missing.** Nearest: `Lead` + `LeadParty` + `FamilyMember` — role-shaped, not identity-shaped |
-| §7.2 Household / decision group | **Missing.** `FamilyMember` is partial |
-| §7.3 Organization (LLC, trust, estate, lender, managing agent, law firm) | **Missing entirely** |
-| §7.4 Property graph | **Substantially present** |
-| §7.7 Commitments | **Missing.** Nearest: `FollowUpTask` |
-| §8.5 Artifact (versioned, approvable, staleable) | **Missing.** `CmaReport` etc. are one-off tables |
+| Plan §7 entity | Status | Basis |
+|---|---|---|
+| §7.1 Person | No `model Person` declared | searched |
+| §7.2 Household / decision group | No `model Household` declared | searched |
+| §7.3 Organization (LLC, trust, estate, lender, managing agent, law firm) | No `model Organization` declared | searched |
+| §7.4 Property graph | Substantially present | `model` enumeration |
+| §7.7 Commitments | **NOT SEARCHED** — no claim made | — |
+| §8.5 Artifact (versioned, approvable, staleable) | No `model Artifact` declared | searched |
 
-**§7.3 Organization is the most consequential omission.** NYC transactions run through LLCs, trusts,
+> **Scope bound, corrected 2026-07-28.** This table previously read "**Missing**" and "**Missing
+> entirely**" across all six rows. That is broader than the command. The grep above covers exactly
+> four names — `Person`, `Household`, `Organization`, `Artifact` — and proves only that **no Prisma
+> model declaration by those names exists in `prisma/schema.prisma`**. It does not prove the
+> absence of equivalent functionality under other names, in other files, or outside Prisma.
+>
+> `§7.7 Commitments` was **never searched** and its former "Missing" claim is withdrawn outright.
+> `FollowUpTask` exists and may or may not serve the role; that is unassessed.
+>
+> Nearest existing structures, offered as orientation and **not** as evidence of absence:
+> `Lead` + `LeadParty` + `FamilyMember` (role-shaped rather than identity-shaped) for §7.1–7.2;
+> `FollowUpTask` for §7.7; `CmaReport` and similar one-off tables for §8.5.
+
+**§7.3 Organization looks like the most consequential of the four — this is a judgement, not a
+measurement.** NYC transactions run through LLCs, trusts,
 estates, co-op boards, managing agents, and law firms. Without it, §15 (transactions) and §14.8
 (commissions/referrals) have no counterparty entity to attach to.
 
@@ -407,9 +421,20 @@ valid for the code they tested. Full detail in `docs/evidence/capability-evidenc
 | `npx jest --config lib/idx/jest.config.js --ci` | 39 suites / 784 tests passed | `0` |
 | `npx jest --config lib/compliance/jest.config.js --ci` | 14 suites / 381 tests passed | `0` |
 
-Negative evidence for the media split: `grep -rilE "editType|virtualStaging|aiModified|disclosureRequired"`
-over `lib/idx/ lib/media/` → **no output, exit `1`** (no matches). Zero of the ten §17.5 provenance
-scope items exists.
+Negative evidence for the media split (E-4): `grep -rilE "editType|edit_type|virtualStaging|virtual_staging|aiModified|ai_modified|disclosureRequired"`
+over `lib/idx/ lib/media/` → **no output, exit `1`**.
+
+**Bounded claim.** That search proves only that **those seven identifiers** appear in no file under
+those two directories at `6d2518b8`. It does **not** establish the absence of provider/model
+attribution, original or derived asset links, approval, publication history, withdrawal status,
+differently named equivalents, or implementations elsewhere in the repository — **none of which
+were searched**.
+
+> **Corrected 2026-07-28.** This paragraph previously read *"Zero of the ten §17.5 provenance scope
+> items exists."* **Withdrawn.** Seven identifiers were searched; ten scope items were asserted
+> about. The conclusion was broader than the command. `CAP-MEDIA-AI-PROVENANCE` is therefore
+> recorded as `discovered` — meaning **no positive implementation evidence is registered** — rather
+> than as proven absent.
 
 **The validator was negative-tested**, not merely run green — a validator that only ever passes
 proves nothing. Every run is preserved verbatim, with its raw output and exit code, in evidence

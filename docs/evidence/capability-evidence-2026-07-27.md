@@ -137,7 +137,7 @@ Backs: `CAP-COMPLIANCE-GATES`.
 
 ---
 
-## E-4 — Media AI-provenance fields are absent (negative evidence)
+## E-4 — Bounded search for AI-media provenance identifiers (negative evidence)
 
 > **CORRECTED 2026-07-27.** This entry previously recorded **EXIT CODE `0`** for a `grep` that
 > found nothing. That was wrong: a bare `grep` with no matches exits **`1`**. The original
@@ -183,15 +183,27 @@ Both commands were re-run to confirm the codes above; `1` and `0` respectively.
 **Note:** `lib/media/` exists, so exit `1` here means "searched successfully, found nothing" — not
 exit `2`, which would indicate a missing path or a read error.
 
-**PROVES:** at this commit, no module under `lib/idx/` or `lib/media/` declares an AI-modification
-edit type, virtual-staging marker, provider/model attribution, or disclosure requirement — the
-§17.5 provenance field list.
+> **SCOPE CORRECTION, 2026-07-28.** The previous `PROVES` statement claimed this search
+> established the absence of **provider/model attribution** and of "the §17.5 provenance field
+> list." **Neither was searched.** The pattern set contains seven identifiers and none of them
+> covers provider/model attribution, original or derived asset links, approval, publication
+> history, or withdrawal status. The conclusion was broader than the command — exactly what the
+> evidence standard forbids — and is withdrawn. The claim below is narrowed to what was actually
+> executed. No new search was run; the wording was corrected instead of the scope expanded.
 
-**DOES NOT PROVE:** that no equivalent exists under a different name elsewhere in the repo. The
-search covered two directories and one pattern set.
+**PROVES:** At commit `6d2518b8`, no files under `lib/idx/` or `lib/media/` contained the searched
+identifiers `editType`, `edit_type`, `virtualStaging`, `virtual_staging`, `aiModified`,
+`ai_modified`, or `disclosureRequired`.
+
+**DOES NOT PROVE:** This does not establish the absence of provider/model attribution, original or
+derived asset links, approval, publication history, withdrawal status, differently named
+equivalents, or implementations elsewhere in the repository.
 
 **Consequence:** `CAP-MEDIA-PROVENANCE` was split. Media synchronization is `implemented` (E-2);
-the AI-provenance envelope is `discovered`. A capability may not be promoted on half its scope.
+the AI-provenance envelope is recorded as `discovered` — a status that asserts **no positive
+implementation evidence is registered**, which is what this bounded search supports. It is not a
+claim that the capability is absent from the repository. A capability may not be promoted on half
+its stated scope, and equally may not be declared absent on a search narrower than that scope.
 
 Also note: `lib/idx/media-reconcile-guard.ts` and `lib/idx/media-set-hash.ts` do **not** exist at
 this commit. They are unpushed on `fix/neon-write-amp-phase2a-media-reconcile-2026-07-26` and were

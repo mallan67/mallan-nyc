@@ -357,17 +357,24 @@ export const capabilities = [
       command:
         'grep -rilE "editType|edit_type|virtualStaging|virtual_staging|aiModified|ai_modified|disclosureRequired" lib/idx/ lib/media/',
       resultArtifact:
-        'docs/evidence/capability-evidence-2026-07-27.md#e-4--media-ai-provenance-fields-are-absent-negative-evidence',
+        'docs/evidence/capability-evidence-2026-07-27.md#e-4--bounded-search-for-ai-media-provenance-identifiers-negative-evidence',
       exitCode: 1,
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
       environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',
+      // SCOPE CORRECTION 2026-07-28: `proves` previously claimed absence of
+      // provider/model attribution and of the whole §17.5 field list. Neither was
+      // searched — the pattern set has seven identifiers and covers neither. The
+      // conclusion was broader than the command. Narrowed to what actually ran;
+      // no new search was performed.
       proves:
-        'No AI-modification edit type, virtual-staging marker, provider/model attribution, or ' +
-        'disclosure field exists under lib/idx/ or lib/media/ at this commit.',
+        'At commit 6d2518b8, no files under lib/idx/ or lib/media/ contained the searched ' +
+        'identifiers editType, edit_type, virtualStaging, virtual_staging, aiModified, ' +
+        'ai_modified, or disclosureRequired.',
       doesNotProve:
-        'That no equivalent exists elsewhere in the repo under a different name. Two directories, ' +
-        'one pattern set.',
+        'This does not establish the absence of provider/model attribution, original or derived ' +
+        'asset links, approval, publication history, withdrawal status, differently named ' +
+        'equivalents, or implementations elsewhere in the repository.',
     },
     policyWatch: [
       {
@@ -384,8 +391,12 @@ export const capabilities = [
     ],
     notes:
       'C-6 ratified: build this envelope on EXISTING REBNY/RLS media obligations, independent of ' +
-      'the DCWP proposal. Status is `discovered` on negative evidence — zero of the ten required ' +
-      'scope items is implemented.',
+      'the DCWP proposal. ' +
+      'Status is `discovered`: no positive implementation evidence is registered. The bounded ' +
+      'search recorded in negativeEvidence found none of the searched markers under lib/idx/ or ' +
+      'lib/media/; broader repository coverage remains unverified. `requiredScope` below is the ' +
+      'TARGET definition from §17.5 — it is not a claim about what was searched, and no item in ' +
+      'it has been individually confirmed absent.',
   },
 
   {
@@ -467,10 +478,16 @@ export const capabilities = [
     rollback: 'unverified',
     blockedBy: 'C-3',
     notes:
-      'grep "model Person|model Household|model Organization" -> NONE. §7.3 Organization is the most ' +
-      'consequential omission: NYC transactions run through LLCs, trusts, estates, boards, managing ' +
-      'agents, and law firms. OPEN QUESTION (untested): does model Lead currently key on email? ' +
-      '§7.1 warns against email-only identity.',
+      'Status is `discovered`: no positive implementation evidence is registered. ' +
+      'grep -nE "model Person|model Household|model Organization|model Artifact" over ' +
+      'prisma/schema.prisma produced no output (exit 1), which establishes only that no Prisma ' +
+      'model declaration by those four names exists in that file — not the absence of equivalent ' +
+      'functionality under other names, in other files, or outside Prisma. ' +
+      'JUDGEMENT, not measurement: §7.3 Organization looks like the most consequential of the ' +
+      'four, because NYC transactions run through LLCs, trusts, estates, boards, managing agents, ' +
+      'and law firms. That is an argument, not evidence. ' +
+      'OPEN QUESTION (untested): does model Lead currently key on email? §7.1 warns against ' +
+      'email-only identity.',
   },
 
   {
