@@ -1,6 +1,6 @@
 # Frontend / Backend Integration Architecture — mallan.nyc
 
-**Revision:** 4 · **Date:** 2026-07-28 · **Status:** DESIGN — not approved, not implemented
+**Revision:** 5 · **Date:** 2026-07-28 · **Status:** DESIGN — not approved, not implemented
 **Scope:** System-wide frontend/backend integration for `mallan67/mallan-nyc`
 **Isolation:** Standalone. References no repository-governance, historical-audit, or other
 architecture effort.
@@ -20,7 +20,7 @@ a withdrawn requirement's ID is retired, never reused.
 | Prefix | Domain | Section |
 |---|---|---|
 | `ACT` | Actors and identity | C |
-| `PRV` | Listing provenance | D |
+| `LST` | Listing identity, ownership, matched pairs | D |
 | `ARC` | Architecture and layering | E |
 | `TRN` | Transport class and envelope | F |
 | `AUZ` | Authorization and non-disclosure | G |
@@ -71,7 +71,7 @@ a withdrawn requirement's ID is retired, never reused.
 | Block | Depends on | Feeds | Phase |
 |---|---|---|---|
 | **C — Actors** | — | AUZ, POL, ARC-5 | 2 |
-| **D — Provenance** | — | AUZ-4, POL-1, CMA, PH-3 | 1 → 2 |
+| **D — Listing identity** | — | AUZ-4, POL-1, CMA, PH-3 | 1 → 2 |
 | **E — Architecture** | ACT | TRN, AUZ, POL, VER, AUD | 2 |
 | **F — Transport / envelope** | ARC-4 | AUD-3, VER, both clients | 2 |
 | **G — Authorization** | ACT, PRV, ARC-5 | every entrypoint; PH-3, PH-4 | 2 |
@@ -102,48 +102,128 @@ it), `TRN-2` (envelope), `AUZ-1` (outcome model).
 
 ---
 
-# D. LISTING PROVENANCE
+# D. LISTING IDENTITY, OWNERSHIP AND MATCHED PAIRS
 
 > **Depends on:** — · **Feeds:** AUZ-4, POL-1, CMA-*, PH-3 · **Status:** DECIDED, one OPEN
+> **Verified against live Cotality `$metadata` and captured feed values, 2026-07-28.**
 
-Provenance, authority, reconciliation, publication, and provider verification are **five distinct
-kinds of fact**. Collapsing them — or mixing lifecycle status into any of them — produces states
-that cannot be reasoned about.
+## D.1 The three listing categories
+
+| ID prefix | Example | Created by | Editable on mallan.nyc | Category |
+|---|---|---|---|---|
+| **`SL-`** | `SL-0004` | Mallan CRM sale form | **Yes** | **S**ale **L**isting — Mallan-managed website record |
+| **`RL-`** | `RL-0012` | Mallan CRM rental form | **Yes** | **R**ental **L**isting — Mallan-managed website record |
+| **`RLS`** | `RLS20093870` | REBNY RLS via RealPlus, delivered through Cotality | **No** | Provider record |
+
+> ⚠️ **`RL-` is NOT short for RLS.** `RL-` (dashed) is a Mallan rental listing. `RLS` (undashed) is
+> the REBNY provider identifier. Reading `RL-` as "RLS" would apply Mallan-exclusive treatment —
+> address-suppression bypass, dedup preference, exclusive agent attribution — to provider listings.
+> That is a compliance failure. Confirmed by Maya 2026-07-28.
+
+Cotality imposes no prefix: `ListingId` is `String(255)`, nullable; `ListingKey` is `String(20)`,
+not null. The value carries whatever the originating MLS assigned. `RLS…` is REBNY's convention
+arriving *through* Cotality. `SL-`/`RL-` are generated locally and never exist in Cotality.
+
+## D.2 System boundaries — what connects to what
 
 ```text
-acquisition_source           how it entered Mallan — immutable
-  mallan_direct | cotality
-
-authority_source             who is authoritative for provider-controlled fields NOW
-  mallan | cotality
-
-reconciliation_status        where the provider-matching workflow stands
-  not_applicable | not_submitted | submitted | pending_match
-  | matched | conflict | rejected | failed
-
-publication_scope            where Mallan publishes it
-  private | mallan_web
-
-provider_publication_status  what the provider has verified
-  not_verified | provider_verified
-
-provider_identity            the provider's own record, when one exists
-  cotality_listing_id | provider_last_verified_at
+Maya → RealPlus → REBNY/RLS → Cotality ──read-only──► mallan.nyc
+Maya → mallan.nyc directly ─────────────────────────► SL- / RL- record
 ```
 
 | ID | Requirement |
 |---|---|
-| **PRV-1** | `acquisition_source` is **immutable**. Original acquisition history is preserved permanently, never overwritten, even after Cotality becomes authoritative. |
-| **PRV-2** | **A Mallan-direct listing remains Mallan-authoritative until a verified Cotality record is matched.** Submission alone never changes authority and never proves publication or syndication. |
-| **PRV-3** | `authority_source` moves to `cotality` only when `reconciliation_status` is `matched` **and** `provider_identity` is populated. |
-| **PRV-4** | `provider_publication_status: provider_verified` is settable **only** from verified provider facts carrying `cotality_listing_id` and `provider_last_verified_at`. No user, form, import, or application-layer write may assert it. Any other path is a defect. |
-| **PRV-5** | `reconciliation_status: submitted` is a workflow state, not a publication or authority fact. It changes neither. |
-| **PRV-6** | **Listing lifecycle status — active, under contract, closed, withdrawn, expired — lives in the canonical Cotality-aligned status model. It is never embedded in provenance, publication, or distribution.** |
-| **PRV-7** | When `authority_source` is `cotality`, the provider is authoritative for provider-controlled fields. Mallan-originated values are retained as history and never presented as current provider truth. |
-| **PRV-8** | A Mallan-direct listing may be published `mallan_web` with no Cotality provenance and **must never claim any**. No DTO, artifact, report, or email may attribute Cotality provenance to a listing lacking `provider_identity`. |
-| **PRV-9** | `publication_scope` is **enforced**, not descriptive. Exposing a `private` listing outside its permitted surface fails closed. |
-| **PRV-10** | The application service decides visibility, so every consumer filters identically regardless of acquisition source. |
-| **PRV-11** | *(OPEN — O-1)* Whether existing models express these dimensions, and whether a schema change is required. |
+| **LST-1** | **RealPlus is not a feed to mallan.nyc.** It is an external listing-input system with no connection to this site. Its only relationship is that records entered there arrive here later, read-only, via Cotality. |
+| **LST-2** | **mallan.nyc has no write path to Cotality.** The IDX Plus license is read-only display. No design in this plan may assume, create, or depend on write-back to the provider. |
+| **LST-3** | Because of LST-2, the **only** way to control how a Mallan listing appears on mallan.nyc is to create it directly as `SL-`/`RL-`. This is the mechanism, not a workaround. |
+| **LST-4** | A future direct RLS submission path is **out of scope**. It does not exist and is not modelled here. |
+
+## D.3 Matched pairs — the same physical unit in both systems
+
+A Mallan listing may have a Cotality counterpart, created because the same unit was entered through
+RealPlus. Example: `SL-0004` and `RLS20093870` are both 333 E 46th St #2G.
+
+| Concern | Mallan `SL-`/`RL-` | Cotality counterpart |
+|---|---|---|
+| Public page on mallan.nyc | **Canonical** | Suppressed |
+| Website presentation, media order | Mallan-controlled | Not used as duplicate |
+| Provider facts, status, permissions, attribution | No write-back | **Provider-controlled** |
+| Seller portal / CRM / CMA / marketing | Attached here | Supplies permitted supporting facts |
+| Search result | One canonical result | Hidden while matched |
+| Editable on mallan.nyc | Yes | **No** |
+| Audit / reconciliation | Keeps the relationship | Retained |
+
+| ID | Requirement |
+|---|---|
+| **LST-5** | **The Mallan record is the canonical mallan.nyc representation, permanently.** This is a matched-pair relationship, **not an authority handover** — the `SL-`/`RL-` page never becomes Cotality-controlled. |
+| **LST-6** | The matched Cotality record is **retained exactly as received**. Not modified, not normalized, not deleted. It is refreshed by normal sync and otherwise left alone. |
+| **LST-7** | The matched Cotality record is **suppressed from public display**. Suppression is display-only. It must not produce: a second search result · a second listing page · a second sitemap URL · competing attribution · conflicting media · a duplicate "Our Listings" card. |
+| **LST-8** | **Neither source silently overwrites the other.** A Mallan website edit never rewrites the stored Cotality row. A Cotality refresh never erases Mallan-controlled presentation. |
+| **LST-9** | Cotality listings **without** a matched Mallan record are ordinary provider inventory — read-only, displayed only under applicable REBNY/Cotality rules, never editable through Mallan. |
+| **LST-10** | The CRM must provide **matching and reconciliation controls**: see that `SL-0004` and `RLS20093870` are the same listing, inspect discrepancies, and resolve an incorrect match. |
+| **LST-11** | *(OPEN — O-1)* Whether the current data model expresses the match relationship explicitly, or whether matching is inferred at query time. Determines whether a schema change is required. |
+
+## D.4 Field ownership — what may be edited where
+
+| Mallan-editable (Mallan record) | Cotality-controlled (never written from mallan.nyc) |
+|---|---|
+| Website headline and presentation | Cotality listing identifier |
+| Photo ordering and Mallan-owned media | Provider timestamps |
+| Seller portal content | Provider status |
+| Marketing strategy and campaign content | REBNY permissions |
+| Internal notes, showing feedback | Provider office and agent attribution |
+| Offers and tasks, agent commentary | Cotality-returned values |
+| CMA selections and adjustments | Provider syndication state |
+| Featured-listing placement | |
+
+| ID | Requirement |
+|---|---|
+| **LST-12** | Mallan website content and Cotality provider facts are stored and rendered as **distinguishable** sets. A consumer can always tell which source a value came from. |
+| **LST-13** | Live provider status definitions are used throughout (POL-1). No hardcoded status assumptions. *Verified 2026-07-28: the committed enum copy had already drifted from live — e.g. `MlsStatus` gained `ActiveOptionContract`, `PendingInspection`, `PendingShortSale`; `ListingPermission` gained `ComingSoon`.* |
+
+## D.5 Every code must match the live Cotality API
+
+**Standing rule (Maya, 2026-07-28).** Every code, enum, status, permission value, property type,
+classification, and identifier semantic used anywhere in this system must be **matched against the
+live Cotality API** — not against memory, not against a CSV, not against a committed snapshot, not
+against another MLS, and not against a prior audit.
+
+| ID | Requirement |
+|---|---|
+| **LST-14** | No code value may be hardcoded, copied, or inferred. Every one resolves from live Cotality truth. This applies with particular force to status, permission, display-gate, property-type, and syndication values, where a stale value silently changes what the public sees. |
+| **LST-15** | A **committed snapshot is a cache, never an authority.** Any committed copy must be drift-checked against live before it is relied on. `npm run cotality:verify` is that check today — read-only, exit `0` = matches live, `1` = drift, `2` = unreachable. |
+| **LST-16** | **Unreachable is not "assume unchanged."** Exit `2` means unverified; work that depends on provider truth stops rather than proceeding on the cached copy. |
+| **LST-17** | Drift is a **blocking** condition for any change touching the drifted vocabulary, not a warning to be noted and passed. |
+
+**Live evidence, 2026-07-28.** `node scripts/cotality-verify.mjs` connected to Cotality and reported
+the committed enum source **already drifted** from live:
+
+```text
+MlsStatus         live added [ActiveOptionContract, PendingBackupsRequested,
+                  PendingFeasibility, PendingInspection, PendingShortSale,
+                  PrepNoShow, PrepShow]
+ListingPermission live added [ComingSoon]
+Permission        live added [ComingSoon]
+SyndicateTo       live added [JamesEditioncom, Properstarcom, RealtorcomInternational]
+Disclosures       live added [OwnerIsanAgent]
+```
+
+`MlsStatus` and `ListingPermission` drive display gating. A system reasoning from the committed copy
+is reasoning from values Cotality no longer considers complete. Remediation is
+`npm run cotality:pull` plus review of the diff — **not run here**, because it regenerates a
+committed file and that is a separate, reviewable change.
+
+## D.6 Existing implementation — verified, not assumed
+
+Present at the time of writing:
+
+- `lib/listings/dedupe-crm-vs-idx.ts` — `CRM_PREFIXES = ['SL-','RL-']`, `preferCrmExclusiveOverIdxDuplicate()`
+- `lib/listings/exclusive-agent-assignment.ts` — `MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES`
+- Cross-source suppression wired in `app/api/listings/route.ts` and `app/api/agents/[slug]/listings/route.ts`
+
+**Not verified:** whether `lib/search/public-listing-db.ts` / `public-listing-trestle.ts` apply
+cross-source suppression. No caller was observed there, but that is not proof of absence — it
+requires the PH-1.4 live trace. **No claim is made that public search duplicates a matched pair.**
 
 ---
 
@@ -334,7 +414,7 @@ revision incorrectly froze factual market activity behind an agent's republish a
 | **CMA-1** | Automatically refreshed from Cotality: active similar units in the building · under-contract similar units · recently sold similar units · useful withdrawn or expired units · dates, prices, and source timestamps. |
 | **CMA-2** | **This is factual market activity. It refreshes automatically and does not depend on the agent republishing anything.** |
 | **CMA-3** | **The agent cannot edit the underlying Cotality facts** in this view. |
-| **CMA-4** | Status categories come from **live Cotality status definitions**. No hardcoded status assumptions (PRV-6, POL-1). |
+| **CMA-4** | Status categories come from **live Cotality status definitions**. No hardcoded status assumptions (LST-13, LST-14, POL-1). |
 
 ## K.2 Product B — Agent-controlled CMA
 
@@ -455,7 +535,7 @@ Record the trace.
 **PH-1.5** Verify portal reality per role — authentication, authorization, response compatibility,
 data correctness, live operation. Replace all inferred status.
 
-**PH-1.6** Inventory listing provenance (PRV-11) and the consent/audience data present on contacts
+**PH-1.6** Inventory the listing match relationship (LST-11), run `cotality:verify` and record drift (LST-15), and inventory the consent/audience data present on contacts
 (MKT-2).
 
 **PH-1.7** Identify every existing direct domain-service call from a route, Server Component, cron,
@@ -534,7 +614,7 @@ establish.
 
 | ID | Question | Blocks |
 |---|---|---|
-| **O-1** | Do existing models express the six PRV dimensions, or is a schema change required? | PRV-11, PH-2 |
+| **O-1** | Does the data model express the SL/RL ↔ RLS match relationship explicitly, or is matching inferred at query time? Determines whether a schema change is required. | LST-11, PH-2 |
 | **O-2** | Which entrypoints legitimately need a non-JSON transport class? | TRN-4, PH-1 |
 | **O-3** | What is the actual browser and server data path for `/search` today? | PH-3 |
 | **O-4** | What consent and audience data exists on contacts now, and what must be added? | MKT-2, PH-5 |
@@ -567,6 +647,14 @@ establish.
 | **4** | **PH-1.1** | Matrix is now one row per route × HTTP method plus non-HTTP entrypoints; added `method`, `runtime`, `entrypoint_type`, `application_service`. |
 | **4** | **PH-1.7** | New: inventory existing direct domain-service calls (ARC-7 violations). |
 | **4** | **MKT-1** | Reworded to state Mallan policy — affirmative opt-in per channel and purpose, permanent honoring of opt-out — rather than describing "CAN-SPAM postures." |
+
+---
+
+| **5** | **PRV-* → LST-1..17** | **Provenance model replaced by the verified matched-pair model.** The rev-4 authority-transition design was wrong: a Mallan `SL-`/`RL-` record never becomes Cotality-controlled, and mallan.nyc has no submission workflow (RealPlus submits, entirely outside this system). Removed `reconciliation_status`, `publication_scope`, `provider_publication_status`, `authority_source` transitions. |
+| **5** | **LST-1..3** | Prefix taxonomy verified against live Cotality: `SL-` = Sale Listing (Mallan), `RL-` = Rental Listing (Mallan), `RLS` = REBNY via Cotality (read-only). `RL-` is NOT short for RLS — the near-collision is flagged explicitly because misreading it would apply Mallan-exclusive display treatment to provider listings. |
+| **5** | **LST-5..8** | Matched-pair rules: Mallan record canonical permanently; Cotality counterpart retained exactly as received and suppressed from display only; neither source silently overwrites the other. |
+| **5** | **LST-14..17** | **Every code must match the live Cotality API.** Committed snapshots are caches, never authorities. Drift is blocking. Unreachable means unverified, not unchanged. Live evidence recorded: the committed enum copy had already drifted (`MlsStatus`, `ListingPermission`, `Permission`, `SyndicateTo`, `Disclosures`). |
+| **5** | **LST-10** | CRM must provide match/reconciliation controls so an agent can see SL-0004 ↔ RLS20093870, inspect discrepancies, and resolve incorrect matches. |
 
 ---
 
