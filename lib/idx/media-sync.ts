@@ -2202,8 +2202,33 @@ export async function mirrorMediaToR2(
     //     counter and refreshing the cooldown on a row that is no longer
     //     eligible to mirror at all.
     //
-    // Both halves are load-bearing and neither subsumes the other. A write
-    // must never be bounded more loosely than the selection that produced it.
+    // A THIRD condition bounds the write by the same ATTEMPTS eligibility the
+    // selection used — ordinary `(r2_attempts IS NULL OR r2_attempts < 8)`,
+    // recovery `r2_attempts = 8`. Without it the counter's distinct meanings
+    // collapse into one:
+    //
+    //   NULL / 1..7  an ordinary consecutive-FAILURE COUNT
+    //   8            retry-exhausted terminal (RC3) — still a failure count
+    //   9            POLICY-PARKED sentinel (#534) — ASSIGNED, never reached
+    //                by arithmetic, and NOT a failure count
+    //   >9           legacy overflow (80 frozen production rows, max 112)
+    //
+    // Parked rows deliberately stay ACTIVE and UNMIRRORED — that is why
+    // parking is not deletion; the photo still serves through the
+    // media_url_original proxy — so they satisfy the status and pointer
+    // halves. An ordinary worker selected at `< 8` can race an invocation that
+    // parks the row at 9: the counter CASE preserves 9, but the STATUS
+    // expression re-evaluates that CASE, reads 9, finds `9 >= 3` true, and
+    // tombstones a parked row on that worker's FIRST permanent 404. Nine is
+    // not three failures. The same exposure applies to the >9 legacy
+    // population, which this path must never tombstone or normalise.
+    //
+    // Deliberately NOT included: the backlog cooldown window, or any other
+    // selection predicate. The guard covers identity, status, mirror pointers
+    // and attempts — nothing further.
+    //
+    // Every condition is load-bearing and none subsumes another. A write must
+    // never be bounded more loosely than the selection that produced it.
     //
     // Every `${...}` below is a Prisma bind parameter, NOT SQL text. The
     // media key is always data and can never alter the statement — proven by
@@ -2232,6 +2257,7 @@ export async function mirrorMediaToR2(
         WHERE media_key = ${row.media_key}
           AND status = 'active'
           AND (r2_key IS NULL OR media_url_cached IS NULL)
+          AND r2_attempts = ${R2_RETRY_EXHAUSTED_THRESHOLD}
         RETURNING r2_attempts, status
       `;
     } else {
@@ -2256,6 +2282,7 @@ export async function mirrorMediaToR2(
         WHERE media_key = ${row.media_key}
           AND status = 'active'
           AND (r2_key IS NULL OR media_url_cached IS NULL)
+          AND (r2_attempts IS NULL OR r2_attempts < ${R2_RETRY_EXHAUSTED_THRESHOLD})
         RETURNING r2_attempts, status
       `;
     }
