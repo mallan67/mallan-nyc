@@ -855,6 +855,54 @@ Operational gates that block CI / commits:
 
 ## Listings: Types, Visibility, Distribution
 
+### Listing identifier prefixes — which is which
+
+**Verified against live Cotality `$metadata` + captured feed values, 2026-07-28.**
+
+| Prefix | Example | Who creates it | Editable on mallan.nyc? | Meaning |
+|---|---|---|---|---|
+| **`SL-`** | `SL-0004` | **Mallan** — CRM `SALE-FORM-REDESIGN.html` → `app/api/crm/listings/route.ts` | **Yes** — you own it | **S**ale **L**isting. Mallan-managed website record. |
+| **`RL-`** | `RL-0012` | **Mallan** — CRM `RENTAL-FORM-REDESIGN.html` → same route | **Yes** — you own it | **R**ental **L**isting. Mallan-managed website record. |
+| **`RLS`** | `RLS20093870` | **REBNY RLS**, entered via RealPlus, delivered through Cotality | **No** — read-only | Provider record. Never Mallan-owned. |
+
+> ⚠️ **`RL-` and `RLS` are different things.** `RL-` (dashed) is **yours**. `RLS` (undashed) is **REBNY's**.
+> `RL-` does **not** stand for RLS. Misreading this would apply Mallan-exclusive display treatment —
+> address-suppression bypass, dedup preference, exclusive agent attribution — to provider listings,
+> which is a compliance failure. Confirmed by Maya 2026-07-28.
+
+Cotality does not impose a prefix: `ListingId` is `String(255)`, nullable, carrying whatever the
+originating MLS assigned. `RLS…` is REBNY's convention arriving *through* Cotality. `SL-`/`RL-` are
+generated locally and never exist in Cotality.
+
+Code that depends on this: `lib/listings/dedupe-crm-vs-idx.ts` (`CRM_PREFIXES`),
+`lib/listings/exclusive-agent-assignment.ts` (`MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES`),
+`lib/idx/db-to-public-dto.ts`, `lib/idx/public-dto.ts`, `app/api/listings/route.ts`.
+
+### Matched pairs — the same apartment in both systems
+
+RealPlus is **not** a feed to mallan.nyc. It is where listings are entered for REBNY/RLS
+distribution; that record then arrives here read-only via Cotality. mallan.nyc has **no write path
+to Cotality**, so the only way to control how a Mallan listing appears on the site is to create it
+directly as `SL-`/`RL-`.
+
+When the same physical unit exists both ways — e.g. `SL-0004` and `RLS20093870`, 333 E 46th St #2G:
+
+| Concern | Mallan `SL-0004` | Cotality counterpart `RLS20093870` |
+|---|---|---|
+| Public page on mallan.nyc | **Yes — canonical** | Suppressed (not deleted) |
+| Website presentation, media order | Mallan-controlled | Not used |
+| Provider facts, status, permissions, attribution | No write-back | **Provider-controlled, left as received** |
+| Seller portal / CRM / CMA / marketing | Attached here | Supplies permitted supporting facts |
+| Search result | One canonical result | Hidden while matched |
+| Editable on mallan.nyc | Yes | **No** |
+
+**The Mallan record stays canonical permanently. This is not an authority handover** — the `SL-`
+page never becomes Cotality-controlled. The Cotality row is retained unmodified for reconciliation,
+provider facts, compliance, and audit. Suppression is display-only; nothing in the provider row is
+changed or deleted.
+
+### Types
+
 | Type | Source | Visibility | Distribution |
 |---|---|---|---|
 | **RLS-eligible sale / rental** | Submitted via RealPlus → REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
