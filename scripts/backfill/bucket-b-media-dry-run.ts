@@ -10,11 +10,15 @@
 //   • RETRYABLE UNKNOWN queue: a transient provider error is re-probed on
 //     resume (bounded per-listing) and a successful probe ADDS the missing
 //     plan — the dry-run never needs a restart to repair itself.
-//   • R2-KEY COLLISION + AMBIGUITY DETECTION: duplicate provider Orders
-//     (identical buildMediaR2Key outputs), duplicate existing media_key
-//     values, duplicate existing normalized URLs, and divergent key-vs-URL
-//     matches all produce a STRUCTURED CONFLICT for manual review — never an
+//   • R2-KEY COLLISION + AMBIGUITY DETECTION: a provider item with NO
+//     MediaKey (#575 fail-closed), duplicate existing media_key values,
+//     duplicate existing normalized URLs, and divergent key-vs-URL matches all
+//     produce a STRUCTURED CONFLICT for manual review — never an
 //     executable-looking plan and never an arbitrary Map-order choice.
+//     NOTE (#575): duplicate provider *Orders* are no longer a collision.
+//     buildMediaR2Key is keyed on the stable Cotality MediaKey, so two
+//     distinct photos sharing an Order now yield distinct R2 keys and plan
+//     cleanly. The r2Keys check is retained as a defensive invariant.
 //   • URL identity normalization lowercases scheme+host ONLY — pathname case
 //     is PRESERVED (/Photo/A.jpg ≠ /photo/a.jpg).
 //   • Provider photos arrive URL-validated (the shared probe rejects
@@ -132,8 +136,11 @@ export function diffAuthorizedFields(row: AllStatusRow, p: CotalityPhoto): strin
  *   • multiple existing rows sharing a normalized provider URL ⇒ CONFLICT;
  *   • a provider item whose media_key match and URL match are DIFFERENT
  *     rows ⇒ CONFLICT;
- *   • two distinct planned photos generating the SAME R2 key (identical
- *     provider Order — buildMediaR2Key is listingId+type+order) ⇒ CONFLICT.
+ *   • a provider item with no MediaKey ⇒ CONFLICT (#575 fail-closed: object
+ *     identity is the stable Cotality MediaKey, never the provider Order);
+ *   • two distinct planned photos generating the SAME R2 key ⇒ CONFLICT
+ *     (defensive: buildMediaR2Key is listingId+type+MediaKey and the MediaKey
+ *     encoding is injective, so this is now unreachable in practice).
  * A conflicted listing emits NO executable-looking plan.
  */
 export function planListing(row: DryRunListingRow, cotalityPhotos: CotalityPhoto[]): ListingPlan {
@@ -163,7 +170,7 @@ export function planListing(row: DryRunListingRow, cotalityPhotos: CotalityPhoto
   const seenUrls = new Set<string>();
   const seenKeys = new Set<string>();
   const claimedRowIds = new Set<string>();
-  const r2Keys = new Map<string, number>(); // r2Key -> provider order first seen
+  const r2Keys = new Map<string, string>(); // r2Key -> provider MediaKey first seen (#575)
   const items: PlannedItem[] = [];
   for (const p of cotalityPhotos) {
     const nu = normalizeSourceUrl(p.sourceUrl);
@@ -181,12 +188,20 @@ export function planListing(row: DryRunListingRow, cotalityPhotos: CotalityPhoto
     if (matched && claimedRowIds.has(matched.id)) continue;
     if (matched) claimedRowIds.add(matched.id);
 
-    const r2Key = buildMediaR2Key(row.listing_id, 'Photo', p.order);
-    if (r2Keys.has(r2Key)) {
-      conflicts.push(`R2 KEY COLLISION: two distinct provider photos generate '${r2Key}' (orders ${r2Keys.get(r2Key)} and ${p.order})`);
+    // #575: object identity is the stable Cotality MediaKey, never `Order`.
+    // FAIL-CLOSED — a provider item without a MediaKey is a conflict, not an
+    // Order-keyed guess. `p.mediaKey` is already the primary match key used
+    // above, so this planner always had the real identity available.
+    if (!p.mediaKey) {
+      conflicts.push(`provider item (order ${p.order}) has no MediaKey — cannot derive a stable R2 key`);
       continue;
     }
-    r2Keys.set(r2Key, p.order);
+    const r2Key = buildMediaR2Key(row.listing_id, 'Photo', p.mediaKey);
+    if (r2Keys.has(r2Key)) {
+      conflicts.push(`R2 KEY COLLISION: two distinct provider photos generate '${r2Key}' (media keys ${r2Keys.get(r2Key)} and ${p.mediaKey})`);
+      continue;
+    }
+    r2Keys.set(r2Key, p.mediaKey);
 
     let action: PlannedAction;
     let changedFields: string[] = [];

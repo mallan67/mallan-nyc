@@ -327,14 +327,30 @@ describe('ROUND 3 — provider MediaURL validation', () => {
 // ─── ROUND 3: R2-key collisions + ambiguous matches ────────────────────────
 
 describe('ROUND 3 — R2-key collisions and ambiguous matches are CONFLICTS', () => {
-  it('two distinct provider photos with the SAME Order (same R2 key) => conflict, no executable plan', () => {
+  // #575 BEHAVIOUR CHANGE — this case is no longer a conflict.
+  //
+  // Under the old Order-based key scheme these two DISTINCT photos both mapped
+  // to `photos/{id}/1.jpg`, so the planner had to reject otherwise-valid feed
+  // data. Keying on MediaKey makes that collision structurally impossible, so
+  // the pair now plans cleanly. The old assertion encoded the DEFECT as
+  // expected behaviour; keeping it would have blocked the fix.
+  it('two distinct provider photos with the SAME Order now plan cleanly (distinct MediaKeys)', () => {
     const plan = planListing(dryRow(), [
       { order: 1, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: 'MK-A' },
       { order: 1, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-B' }, // distinct photo, same order
     ]);
+    expect(plan.conflict).toBeNull();
+    expect(plan.items).toHaveLength(2);
+    // Distinct MediaKeys => distinct R2 keys, which is the whole point.
+    expect(new Set(plan.items.map((i: { r2Key: string }) => i.r2Key)).size).toBe(2);
+  });
+
+  it('a provider photo with NO MediaKey => conflict (fail-closed, never Order-keyed)', () => {
+    const plan = planListing(dryRow(), [
+      { order: 1, sourceUrl: 'https://cdn.example/a.jpg', mediaKey: undefined as unknown as string },
+    ]);
     expect(plan.conflict).not.toBeNull();
-    expect(plan.conflict!.join(' ')).toContain('R2 KEY COLLISION');
-    expect(plan.items).toHaveLength(0);
+    expect(plan.conflict!.join(' ')).toContain('no MediaKey');
     expect(plan.expectedInserts).toBe(0);
   });
   it('duplicate existing media_key values => conflict (never arbitrary Map selection)', () => {
@@ -374,7 +390,10 @@ describe('ROUND 3 — R2-key collisions and ambiguous matches are CONFLICTS', ()
   it('dry-run totals EXCLUDE conflict listings and report them separately', async () => {
     const cot = mockCotality({
       pagesPerListing: {
-        RLSCONFLICT: [{ rows: [cPhoto(1), cPhoto(1, { mediaKey: 'MK-X', mediaUrl: 'https://cdn.example/x.jpg' })] }],
+        // #575: same-Order/distinct-MediaKey is no longer a conflict (distinct
+        // MediaKeys now yield distinct R2 keys), so the conflict exercised here
+        // is the fail-closed missing-MediaKey case.
+        RLSCONFLICT: [{ rows: [cPhoto(1), cPhoto(3, { mediaKey: undefined, mediaUrl: 'https://cdn.example/x.jpg' })] }],
         RLSOK: [{ rows: [cPhoto(2)] }],
       },
     });
@@ -558,7 +577,7 @@ describe('dry-run planner — order fidelity + update detection (retained)', () 
       { order: -1, sourceUrl: 'https://cdn.example/b.jpg', mediaKey: 'MK-B' },
     ]);
     expect(plan.items.map((i: { order: number }) => i.order)).toEqual([-1, 7]); // photo-first: ascending order, no preferred
-    expect(plan.items[0].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', -1));
+    expect(plan.items[0].r2Key).toBe(buildMediaR2Key(plan.listingId, 'Photo', 'MK-B')); // #575: identity, not the -1 ordinal
 
     const row = { id: '1', status: 'active', media_key: null, media_url_original: 'https://cdn.example/x.jpg', media_url_cached: null, order: 1, media_type: 'Photo', preferred_photo_yn: false };
     expect(diffAuthorizedFields(row, { order: 1, sourceUrl: 'https://cdn.example/x.jpg', mediaKey: 'MK-REAL' })).toContain('media_key');
@@ -614,9 +633,12 @@ describe('ROUND 4 — classifyCotalityMedia never defaults unknown to Photo', ()
 });
 
 describe('ROUND 4 — a dry-run with conflicts is NOT planComplete', () => {
-  it('planComplete is false when an R2-key collision exists', async () => {
+  // #575: a same-Order pair is no longer a conflict (distinct MediaKeys now
+  // yield distinct R2 keys). The conflict exercised here is the fail-closed
+  // missing-MediaKey case, which is a real, still-reachable conflict.
+  it('planComplete is false when a provider photo has no MediaKey', async () => {
     const cot = mockCotality({ pagesPerListing: {
-      RLSC: [{ rows: [cPhoto(1), cPhoto(1, { mediaKey: 'MK-Z', mediaUrl: 'https://cdn.example/z.jpg' })] }],
+      RLSC: [{ rows: [cPhoto(1), cPhoto(2, { mediaKey: undefined, mediaUrl: 'https://cdn.example/z.jpg' })] }],
     } });
     const res = await runDryRun({ candidates: pagedReader([dryRow({ listing_id: 'RLSC' })]).reader, cotality: cot.reader, identity: DRY_IDENTITY, budgets: tightBudgets() });
     expect(res.scanComplete).toBe(true);
