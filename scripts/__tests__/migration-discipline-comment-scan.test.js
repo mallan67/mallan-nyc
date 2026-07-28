@@ -1,15 +1,14 @@
-#!/usr/bin/env node
 /**
  * Regression test — migration-discipline destructive scanner must ignore SQL
  * COMMENTS.
  *
  * THE BUG THIS PINS (2026-07-28, PR #581):
- *   `scanForDestructive` regex-scanned the raw migration file, including
- *   comment lines. NEON.md §4 + the repo's manual-CONCURRENTLY pattern REQUIRE
- *   every large-table index migration to document its rollback, and that
- *   rollback is by definition a destructive statement:
+ *   `scanForDestructive` regex-scanned the raw migration file, comments
+ *   included. NEON.md §4 + the repo's manual-CONCURRENTLY pattern REQUIRE every
+ *   large-table index migration to document its rollback, and that rollback is
+ *   by definition a destructive statement:
  *
- *     -- ROLLBACK: DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;
+ *     --   DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;
  *
  *   That comment tripped DROP_INDEX, so the validator reported
  *   `migration discipline FAIL: 1` and release-truth aggregated to PARTIAL —
@@ -17,93 +16,109 @@
  *   CREATE INDEX. The effect was perverse: documenting the rollback (good
  *   practice, required by NEON.md) is what failed the guardrail.
  *
- *   Comments are never executed by Postgres, so scanning them is unsound in
- *   BOTH directions — it cannot catch a real destructive op that isn't also
- *   present in executable SQL, and it fires on prose. Strip comments, then
- *   scan. The `@allow-destructive` opt-in is deliberately still read from the
- *   RAW text, because that annotation only ever lives in a comment.
- *
- * Run: node scripts/__tests__/migration-discipline-comment-scan.test.js
+ *   Postgres never executes a comment, so scanning comments is unsound in BOTH
+ *   directions — it cannot catch a real destructive op that isn't also present
+ *   in executable SQL, and it fires on prose. Strip comments, then scan. The
+ *   `@allow-destructive` opt-in is deliberately still read from the RAW text,
+ *   because that annotation only ever lives in a comment.
  */
 
-const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const {
   stripSqlComments,
   scanForDestructive,
+  DESTRUCTIVE_PATTERNS,
 } = require('../validate-migration-discipline.js');
-
-let failures = 0;
-function test(name, fn) {
-  try {
-    fn();
-    console.log(`  \x1b[32m✓\x1b[0m ${name}`);
-  } catch (e) {
-    failures++;
-    console.log(`  \x1b[31m✗\x1b[0m ${name}`);
-    console.log(`    ${e.message}`);
-  }
-}
 
 const ids = (sql) => scanForDestructive(sql).map((d) => d.id).sort();
 
-console.log('\nmigration-discipline — comment-aware destructive scan\n');
+describe('migration-discipline destructive scan ignores SQL comments', () => {
+  it('does not flag a rollback note that lives in a line comment', () => {
+    const sql = [
+      '-- ROLLBACK (production, manual, non-transactional):',
+      '--   DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;',
+      'CREATE INDEX "listing_media_r2_backlog_id_idx"',
+      'ON "listing_media" ("id")',
+      'WHERE "r2_key" IS NULL;',
+    ].join('\n');
+    expect(ids(sql)).toEqual([]);
+  });
 
-// ─── The exact PR #581 shape ─────────────────────────────────────────────
-test('rollback note in a line comment does not trip DROP_INDEX', () => {
-  const sql = [
-    '-- ROLLBACK (production, manual, non-transactional):',
-    '--   DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;',
-    'CREATE INDEX "listing_media_r2_backlog_id_idx"',
-    'ON "listing_media" ("id")',
-    'WHERE "r2_key" IS NULL;',
-  ].join('\n');
-  assert.deepStrictEqual(ids(sql), [], 'comment-only DROP INDEX must not be flagged');
+  it('still flags an executable DROP INDEX', () => {
+    expect(ids('DROP INDEX listing_media_r2_backlog_id_idx;')).toEqual(['DROP_INDEX']);
+  });
+
+  it('still flags executable DROP TABLE / DROP COLUMN / TRUNCATE', () => {
+    expect(ids('DROP TABLE "leads";')).toEqual(['DROP_TABLE']);
+    expect(ids('ALTER TABLE "leads" DROP COLUMN "x";')).toEqual(['DROP_COLUMN']);
+    expect(ids('TRUNCATE "leads";')).toEqual(['TRUNCATE']);
+  });
+
+  it('flags a destructive statement that shares a line with a trailing comment', () => {
+    expect(ids('DROP TABLE "leads"; -- harmless looking note')).toEqual(['DROP_TABLE']);
+  });
+
+  it('flags a destructive statement following a block comment', () => {
+    const sql = '/* explanatory\n   block */\nALTER TABLE "l" ALTER COLUMN "c" TYPE text;';
+    expect(ids(sql)).toEqual(['TYPE_CHANGE']);
+  });
+
+  it('still honors @allow-destructive, which only ever lives in a comment', () => {
+    const sql = '-- @allow-destructive rollback documented in PR\nDROP TABLE "old_thing";';
+    expect(ids(sql)).toEqual([]);
+  });
 });
 
-// ─── Still catches the real thing ────────────────────────────────────────
-test('executable DROP INDEX is still flagged', () => {
-  assert.deepStrictEqual(ids('DROP INDEX listing_media_r2_backlog_id_idx;'), ['DROP_INDEX']);
+describe('stripSqlComments', () => {
+  it('removes line and block comments but preserves statements', () => {
+    const out = stripSqlComments('SELECT 1; -- note\n/* block */ SELECT 2;');
+    expect(out).not.toMatch(/note/);
+    expect(out).not.toMatch(/block/);
+    expect(out).toMatch(/SELECT 1;/);
+    expect(out).toMatch(/SELECT 2;/);
+  });
+
+  it('does not treat a double-dash inside a string literal as a comment', () => {
+    // Postgres treats -- inside '...' as DATA. If we stripped from there to
+    // end-of-line we would HIDE the real destructive statement that follows.
+    const sql = `INSERT INTO t VALUES ('a -- not a comment'); DROP TABLE "t";`;
+    expect(ids(sql)).toEqual(['DROP_TABLE']);
+  });
+
+  it('leaves dollar-quoted bodies intact so DO blocks stay scannable', () => {
+    const sql = `DO $$ BEGIN EXECUTE 'noop'; END $$;\nDROP TABLE "t";`;
+    expect(ids(sql)).toEqual(['DROP_TABLE']);
+  });
 });
 
-test('executable DROP TABLE / DROP COLUMN / TRUNCATE still flagged', () => {
-  assert.deepStrictEqual(ids('DROP TABLE "leads";'), ['DROP_TABLE']);
-  assert.deepStrictEqual(ids('ALTER TABLE "leads" DROP COLUMN "x";'), ['DROP_COLUMN']);
-  assert.deepStrictEqual(ids('TRUNCATE "leads";'), ['TRUNCATE']);
-});
+describe('no regression across the committed migration set', () => {
+  const migDir = path.join(__dirname, '..', '..', 'prisma', 'migrations');
 
-test('destructive statement is caught even when a comment precedes it on the same line', () => {
-  assert.deepStrictEqual(ids('DROP TABLE "leads"; -- harmless looking note'), ['DROP_TABLE']);
-});
+  // The pre-fix behaviour: scan raw text, comments included.
+  const rawScan = (sql) => {
+    if (/@allow-destructive\b/i.test(sql)) return [];
+    return DESTRUCTIVE_PATTERNS.filter((p) => p.re.test(sql)).map((p) => p.id).sort();
+  };
 
-test('destructive statement after a block comment is still caught', () => {
-  const sql = '/* explanatory\n   block */\nALTER TABLE "l" ALTER COLUMN "c" TYPE text;';
-  assert.deepStrictEqual(ids(sql), ['TYPE_CHANGE']);
-});
+  const migrations = fs
+    .readdirSync(migDir)
+    .filter((d) => fs.existsSync(path.join(migDir, d, 'migration.sql')));
 
-// ─── @allow-destructive opt-in must survive comment stripping ────────────
-test('@allow-destructive (which only ever lives in a comment) still suppresses', () => {
-  const sql = '-- @allow-destructive rollback documented in PR\nDROP TABLE "old_thing";';
-  assert.deepStrictEqual(ids(sql), [], '@allow-destructive must be read from RAW text');
-});
+  it('finds migrations to check', () => {
+    expect(migrations.length).toBeGreaterThan(0);
+  });
 
-// ─── stripSqlComments unit behaviour ─────────────────────────────────────
-test('stripSqlComments removes line and block comments, preserves statements', () => {
-  const out = stripSqlComments('SELECT 1; -- note\n/* block */ SELECT 2;');
-  assert.ok(!/note/.test(out), 'line comment body removed');
-  assert.ok(!/block/.test(out), 'block comment body removed');
-  assert.ok(/SELECT 1;/.test(out) && /SELECT 2;/.test(out), 'statements preserved');
+  it.each(migrations)(
+    'comment-stripping never introduces a NEW destructive hit: %s',
+    (dir) => {
+      const sql = fs.readFileSync(path.join(migDir, dir, 'migration.sql'), 'utf8');
+      const before = new Set(rawScan(sql));
+      const after = ids(sql);
+      // The change must be strictly monotone toward FEWER hits: every hit that
+      // survives must also have been present before. A migration that passed
+      // before can therefore never newly fail.
+      for (const hit of after) expect(before.has(hit)).toBe(true);
+    },
+  );
 });
-
-test('a double-dash inside a string literal does not eat the rest of the line', () => {
-  // Postgres treats -- inside '...' as data, not a comment. If we stripped it
-  // we could hide a real destructive statement that follows on the same line.
-  const sql = `INSERT INTO t VALUES ('a -- not a comment'); DROP TABLE "t";`;
-  assert.deepStrictEqual(ids(sql), ['DROP_TABLE']);
-});
-
-console.log('');
-if (failures > 0) {
-  console.log(`\x1b[31m${failures} failing\x1b[0m\n`);
-  process.exit(1);
-}
-console.log('\x1b[32mall passing\x1b[0m\n');
