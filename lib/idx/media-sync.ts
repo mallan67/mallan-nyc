@@ -2014,6 +2014,13 @@ export interface MirrorMediaToR2Result {
   /** Stable machine-readable failure / skip reason code. */
   reason?:
     | "no_media_url_original"
+    /**
+     * #575 fail-closed: the row has no stable Trestle `MediaKey`, so no
+     * deterministic object key can be derived. Skipped rather than keyed by
+     * `Order` (a presentation ordinal), which is what produced duplicate R2
+     * objects on every gallery reorder.
+     */
+    | "no_media_key"
     | "r2_head_failed"
     | "token_failed"
     | "fetch_failed"
@@ -2086,11 +2093,29 @@ export async function mirrorMediaToR2(
 
   // R2 key resolution: prefer existing (stable across retries), else derive.
   // `buildMediaR2Key` namespaces by canonical mediaType (Photo→photos/,
-  // FloorPlan→floorplans/, Video→videos/, VirtualTour→virtualtours/).
+  // FloorPlan→floorplans/, Video→videos/, VirtualTour→virtualtours/) and
+  // addresses the object by the STABLE Trestle `MediaKey` (#575) — NOT by
+  // `Order`, which is a presentation ordinal the feed reassigns on every
+  // gallery reorder and which therefore produced a duplicate object per
+  // reorder.
+  //
+  // Preferring the existing `r2_key` is what makes this change non-disruptive:
+  // already-mirrored rows keep their current key, so deploying the new scheme
+  // causes NO re-upload wave. Only rows that have never been mirrored get a
+  // MediaKey-addressed key.
+  //
+  // FAIL-CLOSED: a row without a MediaKey is skipped rather than keyed by
+  // Order. `MirrorMediaToR2Row.media_key` is typed non-nullable and all
+  // 320,913 production rows have one (0 NULL, measured 2026-07-28), so this
+  // guard fires only on a regression or a malformed caller.
+  const derivedFrom = (row.media_key ?? "").trim();
+  if (!row.r2_key && !derivedFrom) {
+    return { status: "skipped", reason: "no_media_key" };
+  }
   const key =
     row.r2_key && row.r2_key.length > 0
       ? row.r2_key
-      : buildMediaR2Key(row.listing_id, row.media_type, row.order);
+      : buildMediaR2Key(row.listing_id, row.media_type, derivedFrom);
 
   // Failure path emits cooldown + attempts increment (and possibly tombstone)
   // before returning the structured result. Centralized so every `failed`

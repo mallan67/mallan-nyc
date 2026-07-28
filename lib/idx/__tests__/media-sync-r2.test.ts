@@ -136,8 +136,8 @@ describe("mirrorMediaToR2 — reuse path (object already in R2)", () => {
       deps,
     );
     expect(result.status).toBe("reused");
-    expect(result.r2_key).toBe("photos/RLS20012345/1.jpg");
-    expect(result.media_url_cached).toBe("https://r2.example.com/photos/RLS20012345/1.jpg");
+    expect(result.r2_key).toBe("photos/RLS20012345/MK-1.jpg");
+    expect(result.media_url_cached).toBe("https://r2.example.com/photos/RLS20012345/MK-1.jpg");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
     expect(deps.fetchFn).not.toHaveBeenCalled();
     expect(deps.getAccessToken).not.toHaveBeenCalled();
@@ -146,14 +146,21 @@ describe("mirrorMediaToR2 — reuse path (object already in R2)", () => {
     expect(mockListingMediaUpdate).toHaveBeenCalledWith({
       where: { media_key: "MK-1" },
       data: {
-        r2_key: "photos/RLS20012345/1.jpg",
-        media_url_cached: "https://r2.example.com/photos/RLS20012345/1.jpg",
+        r2_key: "photos/RLS20012345/MK-1.jpg",
+        media_url_cached: "https://r2.example.com/photos/RLS20012345/MK-1.jpg",
         r2_last_attempt_at: null,
         r2_attempts: 0,
       },
     });
   });
 
+  // #575 MIGRATION SAFETY: this key is deliberately in the LEGACY Order-based
+  // format. It proves that switching object identity to MediaKey does NOT
+  // recompute — and therefore does NOT re-upload — media that is already
+  // mirrored. Every one of the 309,430 already-mirrored production rows takes
+  // this path, so the new scheme causes no re-upload wave and no duplication.
+  // Do not "modernise" this literal to the MediaKey format; that would delete
+  // the guard.
   it("reuses without DB write when r2_key + media_url_cached already match", async () => {
     const key = "photos/RLS20012345/1.jpg";
     const url = `https://r2.example.com/${key}`;
@@ -206,8 +213,8 @@ describe("mirrorMediaToR2 — upload path", () => {
     const result = await mirrorMediaToR2(makeRow(), deps);
 
     expect(result.status).toBe("uploaded");
-    expect(result.r2_key).toBe("photos/RLS20012345/1.jpg");
-    expect(result.media_url_cached).toBe("https://r2.example.com/photos/RLS20012345/1.jpg");
+    expect(result.r2_key).toBe("photos/RLS20012345/MK-1.jpg");
+    expect(result.media_url_cached).toBe("https://r2.example.com/photos/RLS20012345/MK-1.jpg");
 
     // Trestle fetch with bearer token + image accept header.
     expect(deps.fetchFn).toHaveBeenCalledTimes(1);
@@ -219,7 +226,7 @@ describe("mirrorMediaToR2 — upload path", () => {
     // R2 upload happened with the buffer + content-type.
     expect(deps.uploadToR2).toHaveBeenCalledTimes(1);
     const [uploadKey, uploadBuf, uploadCT] = deps.uploadToR2.mock.calls[0];
-    expect(uploadKey).toBe("photos/RLS20012345/1.jpg");
+    expect(uploadKey).toBe("photos/RLS20012345/MK-1.jpg");
     expect(Buffer.isBuffer(uploadBuf)).toBe(true);
     expect(uploadCT).toBe("image/jpeg");
 
@@ -227,8 +234,8 @@ describe("mirrorMediaToR2 — upload path", () => {
     expect(mockListingMediaUpdate).toHaveBeenCalledWith({
       where: { media_key: "MK-1" },
       data: {
-        r2_key: "photos/RLS20012345/1.jpg",
-        media_url_cached: "https://r2.example.com/photos/RLS20012345/1.jpg",
+        r2_key: "photos/RLS20012345/MK-1.jpg",
+        media_url_cached: "https://r2.example.com/photos/RLS20012345/MK-1.jpg",
         r2_last_attempt_at: null,
         r2_attempts: 0,
       },

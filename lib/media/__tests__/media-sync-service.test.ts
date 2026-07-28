@@ -19,14 +19,58 @@ const eligibleListing: MediaSyncListing = {
       url: "https://api.cotality.com/media/photo.jpg",
       mediaType: "Photo",
       order: 1,
+      // #575: MediaKey is the stable object identity. Required — items without
+      // one are skipped fail-closed rather than keyed by `order`.
+      media_key: "MEDIAKEY-R123456-1",
     },
   ],
 };
 
 describe("media sync service", () => {
-  it("builds deterministic R2 keys", () => {
-    expect(buildMediaR2Key("R-12/34", "FloorPlan", 7)).toBe("floorplans/R-12_34/7.jpg");
-    expect(buildMediaR2Key("R-12/34", "Photo", 0)).toBe("photos/R-12_34/0.jpg");
+  it("builds deterministic R2 keys addressed by MediaKey", () => {
+    expect(buildMediaR2Key("R-12/34", "FloorPlan", "MK-700")).toBe("floorplans/R-12_34/MK-700.jpg");
+    expect(buildMediaR2Key("R-12/34", "Photo", "MK-001")).toBe("photos/R-12_34/MK-001.jpg");
+  });
+
+  // ── #575 — Order is a presentation ordinal, NOT identity ───────────────
+  // Trestle reassigns Order whenever a gallery is reordered. Keying on it
+  // meant an UNCHANGED asset got a new key after a reorder, so the same bytes
+  // were re-uploaded under a new name and the old object was orphaned — one
+  // duplicate per reorder, forever. These pin the fix.
+  describe("#575 — object identity is stable across gallery reordering", () => {
+    it("returns the same key for the same asset regardless of its Order", () => {
+      // Same MediaKey, listing moved the photo from position 1 to position 9.
+      const before = buildMediaR2Key("RLS123", "Photo", "MEDIAKEY-ABC");
+      const after = buildMediaR2Key("RLS123", "Photo", "MEDIAKEY-ABC");
+      expect(after).toBe(before);
+      expect(before).toBe("photos/RLS123/MEDIAKEY-ABC.jpg");
+    });
+
+    it("gives DIFFERENT assets different keys even at the same Order", () => {
+      // The old scheme collapsed these to the same `photos/RLS123/1.jpg`.
+      expect(buildMediaR2Key("RLS123", "Photo", "MEDIAKEY-AAA")).not.toBe(
+        buildMediaR2Key("RLS123", "Photo", "MEDIAKEY-BBB"),
+      );
+    });
+
+    it("never embeds an Order ordinal in the key", () => {
+      expect(buildMediaR2Key("RLS123", "Photo", "MEDIAKEY-ABC")).not.toMatch(/\/\d+\.jpg$/);
+    });
+
+    it("fails closed when MediaKey is missing rather than falling back to Order", () => {
+      // Falling back would silently reintroduce the defect on exactly the rows
+      // least likely to be noticed.
+      expect(() => buildMediaR2Key("RLS123", "Photo", "")).toThrow(/mediaKey is required/i);
+      expect(() => buildMediaR2Key("RLS123", "Photo", undefined as unknown as string)).toThrow(
+        /mediaKey is required/i,
+      );
+    });
+
+    it("sanitises MediaKey so it cannot escape its prefix", () => {
+      expect(buildMediaR2Key("RLS123", "Photo", "../../etc/passwd")).toBe(
+        "photos/RLS123/______etc_passwd.jpg",
+      );
+    });
   });
 
   // ── classifyTrestleMediaCategory — fixes the floor-plan-as-photo bug ──
@@ -83,28 +127,33 @@ describe("media sync service", () => {
   });
 
   describe("buildMediaR2Key — namespace separation prevents Photo/FloorPlan key collision", () => {
-    it("Photo Order=1 and FloorPlan Order=1 produce DISTINCT keys", () => {
-      const photoKey = buildMediaR2Key("RLS123", "Photo", 1);
-      const floorplanKey = buildMediaR2Key("RLS123", "FloorPlan", 1);
-      expect(photoKey).toBe("photos/RLS123/1.jpg");
-      expect(floorplanKey).toBe("floorplans/RLS123/1.jpg");
+    // Retained from the 2026-05-01 floor-plan-as-photo incident. Under the
+    // MediaKey scheme a cross-type collision is already impossible (MediaKey is
+    // globally unique), so these now assert the folder ROUTING itself — using
+    // the SAME key for both types, which is a strictly stronger check than the
+    // original Order=1/Order=1 case.
+    it("the same key under different media types produces DISTINCT R2 keys", () => {
+      const photoKey = buildMediaR2Key("RLS123", "Photo", "MK-1");
+      const floorplanKey = buildMediaR2Key("RLS123", "FloorPlan", "MK-1");
+      expect(photoKey).toBe("photos/RLS123/MK-1.jpg");
+      expect(floorplanKey).toBe("floorplans/RLS123/MK-1.jpg");
       expect(photoKey).not.toBe(floorplanKey);
     });
 
     it("FloorPlan never writes into photos/", () => {
-      expect(buildMediaR2Key("RLS123", "FloorPlan", 1)).not.toMatch(/^photos\//);
-      expect(buildMediaR2Key("RLS123", "FloorPlan", 99)).not.toMatch(/^photos\//);
+      expect(buildMediaR2Key("RLS123", "FloorPlan", "MK-1")).not.toMatch(/^photos\//);
+      expect(buildMediaR2Key("RLS123", "FloorPlan", "MK-99")).not.toMatch(/^photos\//);
     });
 
     it("Photo never writes into floorplans/", () => {
-      expect(buildMediaR2Key("RLS123", "Photo", 1)).not.toMatch(/^floorplans\//);
-      expect(buildMediaR2Key("RLS123", "Photo", 99)).not.toMatch(/^floorplans\//);
+      expect(buildMediaR2Key("RLS123", "Photo", "MK-1")).not.toMatch(/^floorplans\//);
+      expect(buildMediaR2Key("RLS123", "Photo", "MK-99")).not.toMatch(/^floorplans\//);
     });
 
-    it("a mixed-media listing (1 Photo + 1 FloorPlan, both Order=1) produces 2 distinct R2 URLs", () => {
+    it("a mixed-media listing (1 Photo + 1 FloorPlan) produces 2 distinct R2 URLs", () => {
       const keys = new Set([
-        buildMediaR2Key("RLS123", "Photo", 1),
-        buildMediaR2Key("RLS123", "FloorPlan", 1),
+        buildMediaR2Key("RLS123", "Photo", "MK-1"),
+        buildMediaR2Key("RLS123", "FloorPlan", "MK-1"),
       ]);
       expect(keys.size).toBe(2);
     });
@@ -161,7 +210,8 @@ describe("media sync service", () => {
       skipped_ineligible: 0,
       failed: 0,
     });
-    expect(existsInR2).toHaveBeenCalledWith("photos/R123456/1.jpg");
+    // #575: keyed by the stable MediaKey, not by `order`.
+    expect(existsInR2).toHaveBeenCalledWith("photos/R123456/MEDIAKEY-R123456-1.jpg");
     expect(getAccessToken).not.toHaveBeenCalled();
     expect(fetchFn).not.toHaveBeenCalled();
     expect(uploadToR2).not.toHaveBeenCalled();
