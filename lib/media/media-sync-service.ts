@@ -70,6 +70,17 @@ export interface MediaSyncResult {
   copied: number;
   skipped_existing: number;
   skipped_ineligible: number;
+  /**
+   * #575 fail-closed: media items dropped because they carry no stable
+   * Cotality `MediaKey`, so no deterministic R2 key can be derived.
+   *
+   * Reported EXPLICITLY so this path can never present as a silent no-op. If
+   * this is non-zero while `copied` / `would_copy` are zero, the caller is
+   * supplying MediaKey-less items — check that media is sourced from
+   * `listing_media` (which has `media_key`, 100% populated) and NOT from the
+   * legacy `listings.media` JSON column, which never carries one.
+   */
+  skipped_no_media_key: number;
   failed: number;
 }
 
@@ -346,6 +357,7 @@ export async function mirrorListingMediaBatch(
     copied: 0,
     skipped_existing: 0,
     skipped_ineligible: 0,
+    skipped_no_media_key: 0,
     failed: 0,
   };
 
@@ -377,19 +389,38 @@ export async function mirrorListingMediaBatch(
         // #575: object identity comes from MediaKey.
         mediaKey: getMediaKey(item),
       }))
-      // FAIL-CLOSED: an item without a stable MediaKey is skipped, never keyed
-      // by Order. Guessing a key here is what produced a duplicate object on
-      // every gallery reorder.
-      .filter(
-        (m): m is typeof m & { mediaKey: string } =>
-          !!m.url && isTrestleMediaUrl(m.url) && !!m.mediaKey,
+      .filter((m) => !!m.url && isTrestleMediaUrl(m.url));
+
+    // FAIL-CLOSED: an item without a stable MediaKey cannot be given a
+    // deterministic object key, so it is skipped rather than keyed by `Order`.
+    // Guessing a key here is what produced a duplicate object on every gallery
+    // reorder.
+    //
+    // The skip is COUNTED and WARNED, never silent. The legacy
+    // `listings.media` JSON column never carries a MediaKey (verified against
+    // production: 0 occurrences across 86,460 elements), so a caller feeding
+    // this function from that column would otherwise see `scanned_media: 0`
+    // and read it as "nothing to do". Callers must source media from
+    // `listing_media`, where `media_key` is unique and 100% populated.
+    const keyed = mediaItems.filter(
+      (m): m is typeof m & { mediaKey: string } => !!m.mediaKey,
+    );
+    const missingKeys = mediaItems.length - keyed.length;
+    if (missingKeys > 0) {
+      result.skipped_no_media_key += missingKeys;
+      logger.warn(
+        `[Media Sync] ${missingKeys} media item(s) on ${listing.listing_id} have no MediaKey — skipped fail-closed (#575). ` +
+          "Source media from `listing_media` (media_key), not the legacy `listings.media` JSON column.",
       );
+    }
 
-    result.scanned_media += mediaItems.length;
-    if (mediaItems.length === 0) continue;
+    result.scanned_media += keyed.length;
+    if (keyed.length === 0) continue;
 
-    for (let i = 0; i < mediaItems.length; i += batchSize) {
-      const batch = mediaItems.slice(i, i + batchSize);
+    const mediaItemsToMirror = keyed;
+
+    for (let i = 0; i < mediaItemsToMirror.length; i += batchSize) {
+      const batch = mediaItemsToMirror.slice(i, i + batchSize);
       await Promise.allSettled(
         batch.map(async ({ url, mediaType, mediaKey }) => {
           const key = buildMediaR2Key(listing.listing_id, mediaType, mediaKey);

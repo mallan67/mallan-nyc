@@ -99,6 +99,67 @@ describe("media sync service", () => {
       expect(encodeR2Segment("~2F")).not.toBe(encodeR2Segment("/"));
     });
 
+    // REGRESSION PIN (Codex review of #583): the fail-closed filter must never
+    // present as a silent no-op.
+    //
+    // The legacy `listings.media` JSON column CANNOT carry a MediaKey — every
+    // producer (lib/idx/trestle-mapper.ts, the batch writers in lib/idx/sync.ts)
+    // serialises only {url, mediaType, order}. Verified against canonical
+    // production 2026-07-28 (read-only): across 86,460 media JSON elements the
+    // keys are url/order/mediaType/Order/MediaCategory/MediaURL — MediaKey
+    // appears ZERO times.
+    //
+    // Feeding that shape in must therefore report the skip EXPLICITLY, so an
+    // operator can never read `scanned_media: 0` as "nothing to do". The real
+    // fix is upstream: scripts/sync-listing-media-r2.ts now sources media from
+    // `listing_media`, where media_key is unique and 100% populated.
+    it("production-shaped JSON media (no MediaKey) is COUNTED and WARNED, never silently dropped", async () => {
+      const warn = jest.fn();
+      const legacyShapeListing: MediaSyncListing = {
+        ...eligibleListing,
+        media: [
+          // Exactly the production JSON shape — no MediaKey in any spelling.
+          { url: "https://api.cotality.com/media/a.jpg", mediaType: "Photo", order: 0 },
+          { url: "https://api.cotality.com/media/b.jpg", mediaType: "Photo", order: 1 },
+        ],
+      };
+      const result = await mirrorListingMediaBatch(
+        [legacyShapeListing],
+        { execute: false, logger: { warn, log: jest.fn(), error: jest.fn() } },
+        {
+          hasR2Config: () => true,
+          getAccessToken: jest.fn() as never,
+          existsInR2: jest.fn() as never,
+          uploadToR2: jest.fn() as never,
+          fetchFn: jest.fn() as never,
+        },
+      );
+
+      expect(result.skipped_no_media_key).toBe(2);
+      expect(result.scanned_media).toBe(0);
+      expect(result.would_copy).toBe(0);
+      expect(result.copied).toBe(0);
+      // The operator must be told why, and where to source media from.
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("no MediaKey"));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("listing_media"));
+    });
+
+    it("relational-shaped media (media_key present) mirrors normally", async () => {
+      const result = await mirrorListingMediaBatch(
+        [eligibleListing],
+        { execute: false, logger: { warn: jest.fn(), log: jest.fn(), error: jest.fn() } },
+        {
+          hasR2Config: () => true,
+          getAccessToken: jest.fn() as never,
+          existsInR2: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false) as never,
+          uploadToR2: jest.fn() as never,
+          fetchFn: jest.fn() as never,
+        },
+      );
+      expect(result.skipped_no_media_key).toBe(0);
+      expect(result.scanned_media).toBe(1);
+    });
+
     it("getMediaKey reads both Trestle and DB spellings, else null", () => {
       expect(getMediaKey({ MediaKey: "MK-1" })).toBe("MK-1");
       expect(getMediaKey({ media_key: "MK-2" })).toBe("MK-2");
