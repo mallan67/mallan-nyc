@@ -36,6 +36,7 @@ import type {
   MirrorMediaToR2Deps,
   RunMediaSyncOptions,
 } from "../media-sync";
+import { createRawUpdateStore, type RawRowState } from "./raw-failure-write-store";
 
 // ─── Mock Prisma ──────────────────────────────────────────────────────────
 
@@ -48,6 +49,14 @@ const mockListingMediaUpdateMany = jest.fn<Promise<{ count: number }>, [unknown]
 const mockListingMediaFindMany = jest.fn<Promise<unknown[]>, [unknown]>();
 const mockListingMediaCount = jest.fn<Promise<number>, [unknown]>();
 const mockListingUpdate = jest.fn<Promise<unknown>, [unknown]>();
+
+/**
+ * PR #584. Failure bookkeeping is ONE parameterized `UPDATE ... RETURNING`, so
+ * the failure assertions below read the STORED ROW rather than a Prisma
+ * payload. Rows materialise at the counter their fixture declares.
+ */
+const fixtureRows = new Map<string, Partial<RawRowState>>();
+const store = createRawUpdateStore((key) => fixtureRows.get(key));
 const mockListingFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 
 jest.mock("@/lib/prisma", () => ({
@@ -68,6 +77,8 @@ jest.mock("@/lib/prisma", () => ({
     auditEvent: {
       findMany: async () => [],
     },
+    $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) =>
+      store.exec(strings, values),
     $transaction: (fn: unknown) =>
       (fn as (tx: unknown) => unknown)({
         $queryRaw: async () => [{ locked: true }],
@@ -93,6 +104,8 @@ import {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  store.reset();
+  fixtureRows.clear();
   mockListingFindUnique.mockImplementation(async (args: unknown) => ({
     listing_id: (args as { where?: { listing_id?: string } })?.where?.listing_id,
   }));
@@ -140,7 +153,7 @@ function makeOptions(overrides: Partial<RunMediaSyncOptions> = {}): RunMediaSync
 let nextId = 1n;
 function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
   nextId += 1n;
-  return {
+  const row = {
     id: nextId,
     listing_id: listingId,
     media_key: `MK-${listingId}-${String(nextId)}`,
@@ -165,6 +178,16 @@ function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
     },
     ...over,
   };
+  // Register the fixture's starting state so the failure statement's
+  // database-side arithmetic begins from the counter this row declares.
+  // The fixture itself is unchanged.
+  fixtureRows.set(row.media_key as string, {
+    r2_attempts: (row.r2_attempts as number | null) ?? null,
+    status: "active",
+    r2_key: (row.r2_key as string | null) ?? null,
+    media_url_cached: (row.media_url_cached as string | null) ?? null,
+  });
+  return row;
 }
 
 /** Main bounded backlog query: active + OR-missing-R2 + NOT parked-scoped. */
@@ -277,15 +300,26 @@ describe("Phase 4 — failure isolation and HARD per-run failure cap", () => {
     expect(result.r2_failed).toBe(1);
     expect(result.r2_mirrored).toBe(2);
     expect(result.r2_failure_budget_exhausted).toBe(false);
-    const bWrites = mockListingMediaUpdate.mock.calls.filter(
-      (call) => (call[0] as { where: { media_key: string } }).where.media_key === b.media_key,
-    );
+    const bWrites = store.writesFor(b.media_key);
+    // ONE write — cooldown, counter and status commit together.
     expect(bWrites.length).toBe(1);
-    const bData = (bWrites[0][0] as { data: Record<string, unknown> }).data;
-    expect(bData.r2_attempts).toBe(1);
-    expect(bData.r2_last_attempt_at).toBeInstanceOf(Date);
-    expect(bData).not.toHaveProperty("r2_key");
-    expect(bData).not.toHaveProperty("status");
+    const bAfter = bWrites[0].after;
+    expect(bAfter.r2_last_attempt_at).toBeInstanceOf(Date);
+    expect(bAfter.r2_key).toBeNull();
+    // Transient failure — MUST NOT tombstone.
+    expect(bAfter.status).toBe("active");
+
+    // TERMINAL-STATE BEHAVIOUR: the counter is derived by the database from
+    // the value stored at the moment the statement ran, never from a blind
+    // JS literal. B started at NULL, so its FIRST failure stores 1.
+    expect(bWrites[0].before.r2_attempts).toBeNull();
+    expect(bAfter.r2_attempts).toBe(1);
+    // The media key is a BOUND PARAMETER, never SQL text.
+    expect(bWrites[0].params).toContain(b.media_key);
+
+    // Unaffected rows were still processed — A and C mirrored normally.
+    expect(store.writesFor(a.media_key)).toHaveLength(0);
+    expect(store.writesFor(c.media_key)).toHaveLength(0);
   });
 
   it("HARD CAP: entering a chunk with 9 failures cannot overshoot — main failures never exceed the budget", async () => {
@@ -340,7 +374,9 @@ describe("Phase 4 — failure isolation and HARD per-run failure cap", () => {
     expect(result.r2_failed).toBe(R2_RUN_FAILURE_BUDGET);
     expect(result.r2_failure_budget_exhausted).toBe(true);
     expect((mirrorDeps.existsInR2 as jest.Mock).mock.calls.length).toBe(R2_RUN_FAILURE_BUDGET);
-    expect(mockListingMediaUpdate.mock.calls.length).toBe(R2_RUN_FAILURE_BUDGET);
+    // Exactly one failure write per attempted row, and none for the untouched
+    // remainder.
+    expect(store.writes.length).toBe(R2_RUN_FAILURE_BUDGET);
   });
 
   it("failure budget NOT exhausted on a healthy run → flag false", async () => {
@@ -535,6 +571,15 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
     );
   }
 
+  /**
+   * Failure-path writes. These no longer arrive as a Prisma `update` payload —
+   * they are the single parameterized failure statement — so the assertions
+   * read the RESULTING STORED ROW.
+   */
+  function failureWritesFor(mediaKey: string) {
+    return store.writesFor(mediaKey);
+  }
+
   it("attempts=8 + TRANSIENT recovery failure → r2_attempts REMAINS 8 (counter not written)", async () => {
     const parkedRow = parkedFixture();
     wireBacklogMocks([], [parkedRow]);
@@ -544,11 +589,11 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
     const result = await runMediaSync(makeOptions({ mirrorDeps }));
 
     expect(result.r2_failed).toBe(1);
-    const writes = writesFor(parkedRow.media_key as string);
+    const writes = failureWritesFor(parkedRow.media_key as string);
     expect(writes.length).toBe(1);
-    const data = (writes[0][0] as { data: Record<string, unknown> }).data;
-    expect(data).not.toHaveProperty("r2_attempts"); // stays exactly 8 in the DB
-    expect(data).not.toHaveProperty("status");
+    // Stays exactly 8 in the DB, and a transient failure never tombstones.
+    expect(writes[0].after.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(writes[0].after.status).toBe("active");
   });
 
   it("TRANSIENT recovery failure writes ONLY the cooldown restart (r2_last_attempt_at)", async () => {
@@ -559,9 +604,13 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
 
     await runMediaSync(makeOptions({ mirrorDeps }));
 
-    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
-    expect(Object.keys(data).sort()).toEqual(["r2_last_attempt_at"]);
-    expect(data.r2_last_attempt_at).toBeInstanceOf(Date);
+    const write = failureWritesFor(parkedRow.media_key as string)[0];
+    expect(write.after.r2_last_attempt_at).toBeInstanceOf(Date);
+    // Stronger than listing the payload keys: NOTHING else about the row moved.
+    expect(write.after.r2_attempts).toBe(write.before.r2_attempts);
+    expect(write.after.status).toBe(write.before.status);
+    expect(write.after.r2_key).toBe(write.before.r2_key);
+    expect(write.after.media_url_cached).toBe(write.before.media_url_cached);
   });
 
   it("after a transient recovery failure the row re-enters eligibility ONLY after the long cooldown (retryable while active + un-mirrored + un-tombstoned; never one-shot)", async () => {
@@ -572,10 +621,10 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
 
     await runMediaSync(makeOptions({ mirrorDeps }));
 
-    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
-    const failedAt = data.r2_last_attempt_at as Date;
-    // Post-failure DB state: counter unchanged unless the write set it.
-    const attemptsAfter = (data.r2_attempts as number | undefined) ?? R2_RETRY_EXHAUSTED_THRESHOLD;
+    const write = failureWritesFor(parkedRow.media_key as string)[0];
+    const failedAt = write.after.r2_last_attempt_at as Date;
+    // Post-failure DB state, read from the stored row itself.
+    const attemptsAfter = write.after.r2_attempts as number;
 
     const eligibleAgainst = (threshold: Date): boolean => {
       const where = buildR2ParkedRecoveryWhere(threshold) as {
@@ -618,6 +667,12 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
         expect(data.r2_attempts as number).toBeLessThanOrEqual(R2_RETRY_EXHAUSTED_THRESHOLD);
       }
     }
+    // The failure statements must not reach the sentinel either.
+    expect(store.writes.length).toBeGreaterThan(0);
+    for (const write of store.writes) {
+      expect(write.after.r2_attempts).not.toBe(R2_RETRY_EXHAUSTED_THRESHOLD + 1);
+      expect(write.after.r2_attempts as number).toBeLessThanOrEqual(R2_RETRY_EXHAUSTED_THRESHOLD);
+    }
   });
 
   it("policy-park sentinel rows (attempts=9) remain excluded from recovery selection", () => {
@@ -655,13 +710,14 @@ describe("Phase 4 — recovery-failure semantics (#534 sentinel never written)",
     const result = await runMediaSync(makeOptions({ mirrorDeps }));
 
     expect(result.r2_failed).toBe(1);
-    const data = (writesFor(parkedRow.media_key as string)[0][0] as { data: Record<string, unknown> }).data;
+    const write = failureWritesFor(parkedRow.media_key as string)[0];
     // Proven-permanent source loss → tombstone still applies (threshold 3
     // long since satisfied at 8) — but the counter is NOT advanced to the
     // #534 sentinel value.
-    expect(data.status).toBe("deleted");
-    expect(data).not.toHaveProperty("r2_attempts");
-    expect(data.r2_last_attempt_at).toBeInstanceOf(Date);
+    expect(write.after.status).toBe("deleted");
+    expect(write.after.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(write.after.r2_attempts).not.toBe(R2_RETRY_EXHAUSTED_THRESHOLD + 1);
+    expect(write.after.r2_last_attempt_at).toBeInstanceOf(Date);
   });
 });
 
