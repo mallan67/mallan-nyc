@@ -23,12 +23,12 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-25T23:50:07Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-28T04:10:36Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `318925e9`; probed from branch `fix/neon-write-amplification-2026-07-25` |
-| Open PRs | 🟢 | 1 open (1 non-audit): #569 |
+| Repo / main HEAD | 🟢 | main `ccfb4e85`; probed from branch `fix/neon-write-amp-phase2a-media-reconcile-2026-07-26` |
+| Open PRs | 🟢 | 2 open (2 non-audit): #581, #579 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
@@ -53,7 +53,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Area | Status | Verified (UTC) | Evidence / how to refresh |
 |------|--------|----------------|---------------------------|
 | Vercel production deploy | 🟢 | 2026-07-02 | Vercel MCP: production `dpl_2o8LWxcQQmkUkYVZjfdbUxm3KNdK` READY on main@`858da234` (#465 + #466 merged); /api/health 200 post-deploy |
-| Vercel runtime errors (24h/7d) | 🟡 | 2026-07-01 | Vercel MCP `get_runtime_errors` (7d): 12 groups; 25006 read-only-txn class LAST SEEN 2026-06-28 (3 clean days); 24h window = 2 errors total (keepalive 18:00Z + social-proof ETIMEDOUT). Backlog PROD-001 |
+| Vercel runtime errors (24h/7d) | 🟡 | 2026-07-28 | Vercel MCP `get_runtime_logs` (production, `since=24h`, levels error+fatal, `group_by=route`): **22 errors across 6 routes** — `/buildings/[slug]` 12 · `/buy` 4 · `/rent` 3 · `/resources/buyers-guide` 1 · `/` 1 · `/api/market` 1. Counts only — no per-error messages, timestamps or stack traces retrieved; **none triaged**. Supersedes the 2026-07-01 snapshot. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
 | Media pipeline | 🟢 (Regression Watch) | 2026-07-03 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden, population re-verified through 07-03 03:00 run (registry RW-004, watch to 2026-07-09). OPS-008 footgun RESOLVED via #471 (route deleted; script --execute refuses; deferred tail: route-catalog regen, tracked in OPS-008 row — the repo-audit-bot guardrail lines were removed by the 2026-07-25 Sentinel decommission) |
 | Search projection | 🟡 | 2026-07-01 | dual-write is best-effort/non-transactional (backlog OPS-011) — heal before any PR-5B reader swap; PR-5B HELD |
@@ -299,3 +299,7 @@ db-keepalive redundancy separately (decision, not a fix now).
 2. Update any assessed-tier rows you actually verified this session (with evidence). Leave the rest ⚪.
 3. Update [`docs/operations/site-audit-handoff-YYYY-MM-DD.md`](operations/) with the session narrative + exact stop point.
 4. Do not mark 🟢 without proof. Do not rely on chat memory.
+
+**OPS-023** — P2 · Open · lifecycle-policy decision required.
+Canonical details and evidence: `docs/PLATFORM-ISSUE-REGISTRY.md`.
+Companion backlog index deployed 2026-07-28T02:45:22.752Z; three-cycle production verification COMPLETE (evidence: `docs/operations/neon-listing-media-backlog-index-2026-07-28.md`). PR #581 open — sole remaining blocker is the operator-run production `prisma migrate resolve`.

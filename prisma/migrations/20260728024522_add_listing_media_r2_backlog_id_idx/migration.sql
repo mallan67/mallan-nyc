@@ -1,0 +1,63 @@
+-- OPS-023 companion — R2-backlog PARTIAL index on `listing_media`. ADDITIVE ONLY.
+-- No data change, no destructive op, no table rewrite, no column change, no downgrade.
+--
+-- WHY: the bounded remaining-backlog probe (lib/idx/media-sync.ts:3704) has no ORDER BY,
+-- so the planner chose a Parallel Seq Scan over all 320,883 `listing_media` rows on every
+-- ten-minute cycle. Production measured `listing_media.seq_scan +6` and
+-- `seq_tup_read +641,766` per pre-index cycle. After this index: +0 and +0 across three
+-- observed cycles. Full evidence:
+--   docs/operations/neon-listing-media-backlog-index-2026-07-28.md
+--
+-- DEPLOYABILITY (same "Option B" pattern as 20260624120000_p1_search_index_pack):
+-- PLAIN `CREATE INDEX` is kept here so normal `prisma migrate deploy` (transactional)
+-- replay stays deployable on SMALL/EMPTY fresh / staging / recovery DBs, where a plain
+-- build is instant. CONCURRENTLY is intentionally NOT in this file — it cannot run inside
+-- Prisma's transactional migration apply, which would break replay for every environment.
+--
+-- ⚠️ PRODUCTION — DO NOT run `prisma migrate deploy` for this migration.
+-- `listing_media` is ~320,883 rows; NEON.md forbids plain CREATE INDEX on > 10K-row tables
+-- (write-blocking lock). Production ALREADY RECEIVED THE IDENTICAL INDEX via a manual,
+-- non-transactional `CREATE INDEX CONCURRENTLY` on 2026-07-28T02:45:22.752Z against
+-- deployment dpl_4u2mFqKdfQJWCdNHRzZeWhRn28LW (SHA ccfb4e85):
+--
+--   CREATE INDEX CONCURRENTLY IF NOT EXISTS listing_media_r2_backlog_id_idx
+--   ON listing_media (id)
+--   WHERE r2_key IS NULL
+--      OR media_url_cached IS NULL;
+--
+-- It was verified `indisvalid = true`, `indisready = true`, `indislive = true`
+-- (272 kB, 11,453 indexed rows of 320,883) and re-confirmed valid at 03:19:28Z.
+--
+-- PRODUCTION MIGRATION-HISTORY RECONCILIATION (do NOT execute the statement below there).
+-- In order, host-guarded to cold-waterfall:
+--   1. Re-read the live definition and confirm it matches this file EXACTLY:
+--        SELECT pg_get_indexdef('listing_media_r2_backlog_id_idx'::regclass);
+--      Expected:
+--        CREATE INDEX listing_media_r2_backlog_id_idx ON public.listing_media
+--          USING btree (id) WHERE ((r2_key IS NULL) OR (media_url_cached IS NULL))
+--   2. Confirm the index is VALID + READY + LIVE — not merely present. A cancelled or
+--      failed CONCURRENTLY build leaves an INVALID index that `pg_indexes` still lists but
+--      the planner cannot use. Use `pg_index`, NOT `pg_indexes`:
+--        SELECT c.relname, i.indisvalid, i.indisready, i.indislive
+--        FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+--        WHERE c.relname = 'listing_media_r2_backlog_id_idx';
+--      Proceed ONLY if all three are true. If INVALID: STOP, do NOT run `migrate resolve`,
+--      and report — do not silently drop or recreate.
+--   3. Mark this migration applied WITHOUT executing its SQL:
+--        npx prisma migrate resolve --applied 20260728024522_add_listing_media_r2_backlog_id_idx
+--   4. Prove history is clean:
+--        npx prisma migrate status
+--
+-- ROLLBACK (production, manual, non-transactional — removes ONLY this index):
+--   DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;
+--
+-- NOTE: this index is deliberately NOT declared as a Prisma `@@index([id])` on
+-- ListingMedia. Prisma cannot express a PARTIAL index; an `@@index([id])` would represent
+-- a FULL index over 320,883 rows instead of the deployed 11,453-row partial predicate, and
+-- would additionally be redundant with the primary key. The partial predicate is immutable
+-- (no `now()` or other volatile expression), so it is index-legal.
+
+CREATE INDEX "listing_media_r2_backlog_id_idx"
+ON "listing_media" ("id")
+WHERE "r2_key" IS NULL
+   OR "media_url_cached" IS NULL;

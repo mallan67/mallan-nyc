@@ -130,7 +130,8 @@
         "geo:validate": "node scripts/validate-rls-geo.js",
         "geo:aliases": "node scripts/build-rls-aliases.js",
         "geo:all": "npm run geo:build && npm run geo:aliases && npm run geo:derive && npm run geo:validate",
-        "test:geo": "node scripts/__tests__/neighborhood-expansion.test.js"
+        "test:geo": "node scripts/__tests__/neighborhood-expansion.test.js",
+        "test:migration-discipline": "jest scripts/__tests__/migration-discipline-comment-scan.test.js"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.50.0",

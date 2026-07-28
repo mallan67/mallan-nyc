@@ -306,3 +306,50 @@ Do not rely on chat memory alone.
 - **Interpretation corrections (2026-07-26):** (a) `audit_events` — non-exempt actions 2yr-bounded, but `email_unsubscribed` is purge-exempt + create-only → **NOT strictly bounded**; (b) the +72 KB / 35-min db-size reading is **short-window LOGICAL only** — does NOT establish a long-term or billed (WAL/history) trend; (c) the Neon monitoring `~115` line is **max capacity, NOT active connections** (earlier chat misread — corrected); (d) the Prisma pool-limit (pool=5) errors are a **separate real signal**, tracked independently.
 - **Phase-2 = HELD.** No suppression of `PhotosChangeTimestamp` / URL identity changes; no retention / R2 / Neon / cadence / cron change made (the only capture-time env mutation was the Maya-authorized temporary `DIAG_RAW_DATA_KEYS_UNTIL`, set + removed, guard auto-expired). Decision pending Maya from this record.
 - **Stop point:** Phase-1 complete + this doc-only correction PR (`docs/neon-phase1-capture-2026-07-26`) open for one normal review/CI cycle. Do NOT restart the doc-polish loop; Phase-2 awaits explicit Maya go.
+
+---
+
+## Session addendum — 2026-07-28 (Neon `listing_media` backlog index)
+
+- **OPS-023** — registered this session. P2 · **Open** · needs Maya's lifecycle-policy
+  decision. Canonical description + evidence: `docs/PLATFORM-ISSUE-REGISTRY.md`.
+- **Production index** — `listing_media_r2_backlog_id_idx` created via manual
+  `CREATE INDEX CONCURRENTLY` on 2026-07-28T02:45:22.752Z against
+  `dpl_4u2mFqKdfQJWCdNHRzZeWhRn28LW` (SHA `ccfb4e85`). Verified
+  `indisvalid`/`indisready`/`indislive` = true. Three-cycle verification complete.
+  Evidence: `docs/operations/neon-listing-media-backlog-index-2026-07-28.md`.
+- **PR #581** — OPEN, not merged. Operations documentation + replayable migration state.
+  High-risk (contains a migration) per AGENTS.md §6.
+- **Migration resolve/status** — ✅ **RESOLVE DONE 2026-07-28.** `prisma migrate resolve --applied 20260728024522_add_listing_media_r2_backlog_id_idx` succeeded against canonical production (`ep-cold-waterfall-adno3ao2`, verified by hostname only; the credential was never printed). The production index was **not** recreated or altered. ⚠️ **`prisma migrate status` is still NOT clean** — solely because of the unrelated, genuinely pending earlier migration `20260712120000_b1b1_canonical_identity_schema`. Read-only comparison proved all six of its tables are **absent** in production, so it requires **deliberate application with Maya approval**, NOT `migrate resolve`. It is outside PR #581.
+- **Unresolved, separate** — **#575** stable R2 object identity (`buildMediaR2Key` still
+  keys on `Order`); **#577** `raw_data.PhotosChangeTimestamp` write churn (still live —
+  the 02:50 cycle logged `raw_data_only: 19` of 21 listing writes).
+- **Exact stop point** — PR #581 open at the pushed HEAD, awaiting (1) operator-run
+  `migrate resolve` + clean `migrate status`, (2) repository check suite in an environment
+  with dependencies installed, (3) a clean Codex verdict. No merge.
+
+### Production runtime-error snapshot — captured 2026-07-28
+
+Fresh capture for this session. **Does not reuse the 2026-07-25 snapshot.**
+
+- **Capture timestamp:** 2026-07-28 (this session, ~04:00Z)
+- **Project / environment:** `prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW` (mallan-nyc) · **production**
+- **Window:** the 24 hours preceding capture (`since=24h`), levels `error` + `fatal`
+- **Total runtime errors: 22**, grouped by route:
+
+| route | errors |
+|---|---|
+| `/buildings/[slug]` | 12 |
+| `/buy` | 4 |
+| `/rent` | 3 |
+| `/resources/buyers-guide` | 1 |
+| `/` | 1 |
+| `/api/market` | 1 |
+
+**Not zero.** The `/buildings/[slug]` cluster (12 of 22, 55%) is the dominant category.
+
+**Tool limitation:** this capture was taken with `group_by=route`, which returns counts
+only — **per-error timestamps, messages, stack traces and categories were NOT retrieved**,
+so no error was classified beyond its route. None of these errors has been triaged, and
+none is known to be related to the OPS-023 index deployment (which touched no application
+code). Triage is NOT part of this deployment and remains open work.
