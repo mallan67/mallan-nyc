@@ -145,11 +145,39 @@ DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;
 Trigger rollback if: the index becomes invalid, query results differ pre/post,
 a job failure or lock issue appears, or a material write regression is observed.
 
-## 9. Post-deployment measurements
+## 9. Post-deployment measurements — three cycles (02:50, 03:00, 03:10 UTC)
 
-Populated after three natural ten-minute cycles (02:50, 03:00, 03:10 UTC).
+Window 2026-07-28T02:44:08.301Z (pre-create) → 2026-07-28T03:13:35.980Z.
 
-See the final report appended below / the session record.
+| metric | pre-index per cycle | **post-index, 3-cycle window** |
+|---|---|---|
+| `listing_media` seq_scan | +6 | **+0 (total, all 3 cycles)** |
+| `listing_media` seq_tup_read | +641,766 | **+0 (total)** |
+| new index idx_scan | n/a | 1 → 10 (in use) |
+| `listing_media` n_tup_upd | +20 / +102 / 0 | +270 (work still flowing) |
+| index validity | n/a | `indisvalid = true` throughout |
+| index size | n/a | 272 kB (stable) |
+
+`lm_seq_scan` read **199,412 at 02:49:54, 02:53:21 and 03:13:35 — identical.**
+Sequential scanning of `listing_media` is fully eliminated, not merely reduced.
+
+### Refresh invocation count (from Vercel logs, NOT index statistics)
+
+| cycle | one-cycle invocations | media-sync run_id | duration | exit |
+|---|---|---|---|---|
+| 02:40 (pre-index) | 1 | `25c30495-…07868` | 13,583 ms | completed / ok |
+| 02:50 (post-index) | 1 | `c7df1c3f-…4b600` | **10,850 ms** | completed / ok |
+| 03:00 + 03:10 | **2 total (1 each)** | — | — | 200 |
+
+One scheduled invocation, one `run_start`, one `run_end` per ten-minute cycle.
+**No duplicate execution, no retry path, no second deployment path.** Cadence intact.
+
+`idx_scan` was NOT used to infer invocation count — it counts scan initiations only.
+
+### Job health
+
+All invocations HTTP 200. `exit_reason: "completed"`, `status: "ok"`. No lock error,
+no write regression, no failed job across the window.
 
 ## 10. Remaining lifecycle defect — NOT fixed by this index
 
