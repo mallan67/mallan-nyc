@@ -733,15 +733,28 @@ describe("r2_attempts — terminal-state-safe advance", () => {
   });
 
   it("(2) another failure leaves retry-exhausted UNCHANGED", async () => {
-    // Stored 8. The statement IS still issued (the cooldown is refreshed), but
-    // the bound is re-evaluated against the current stored value, so the
-    // counter does not move. Asserting the stored number is what makes the
-    // no-op true in the database rather than in JS.
+    // Stored 8. The statement IS still issued, but its attempts predicate
+    // (`r2_attempts IS NULL OR r2_attempts < 8`) is re-evaluated against the
+    // CURRENT stored value, so it matches zero rows and the row is left
+    // exactly as found. Asserting the stored row is what makes the no-op true
+    // in the database rather than in JS.
+    //
+    // This previously asserted a refreshed cooldown, which described the older
+    // implementation: the terminal row still matched the guard and had its
+    // timestamp rewritten while the counter stood still. Bounding the write by
+    // the same attempts eligibility the selection uses — the fix for the
+    // policy-sentinel race — makes a terminal row ineligible outright, so
+    // nothing about it is rewritten.
     await mirrorMediaToR2(makeRow({ r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD }), failingDeps());
     expect(storedRow().r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
-    // Non-vacuous: a write really happened, it simply could not cross 8.
-    expect(store.writesFor("MK-1")).toHaveLength(1);
-    expect(storedRow().r2_last_attempt_at).toBeInstanceOf(Date);
+    // Non-vacuous: the statement really was issued against this row...
+    const writes = store.writesFor("MK-1");
+    expect(writes).toHaveLength(1);
+    // ...and the guard, not the absence of a call, is what made it a no-op.
+    expect(writes[0].matched).toBe(false);
+    // Nothing on the row moved — counter, cooldown, status or pointers.
+    expect(storedRow().r2_last_attempt_at).toBeNull();
+    expect(writes[0].after).toEqual(writes[0].before);
   });
 
   it("(3) a policy-parked row remains EXACTLY policy-parked", async () => {
