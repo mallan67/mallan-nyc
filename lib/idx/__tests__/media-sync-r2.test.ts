@@ -15,18 +15,27 @@
  */
 
 import type { MirrorMediaToR2Deps, MirrorMediaToR2Row } from "../media-sync";
+import { createRawUpdateStore, type FailureWrite } from "./raw-failure-write-store";
 
 // ─── Mock Prisma ──────────────────────────────────────────────────────────
 
 const mockListingMediaUpdate = jest.fn<Promise<unknown>, [unknown]>();
-/**
- * The terminal-safe counter advance uses `updateMany` so that the bound and
- * the increment are ONE atomic statement (see `emitFailure` in
- * lib/idx/media-sync.ts). These tests assert on the WHERE clause it issues,
- * because that predicate IS the safety property — it is what prevents a stale
- * read or a concurrent worker from pushing a row past its terminal sentinel.
- */
 const mockListingMediaUpdateMany = jest.fn<Promise<unknown>, [unknown]>();
+
+/**
+ * PR #584. Failure bookkeeping is ONE parameterized `UPDATE ... RETURNING`, so
+ * there is no longer a Prisma object to inspect. This store EXECUTES the
+ * statement, and the failure assertions below read the STORED ROW — the
+ * committed outcome, which is strictly stronger than the previous
+ * requested-payload assertions.
+ *
+ * `startingAttempts` lets a row materialise at the counter value its fixture
+ * declares. It is consulted only the FIRST time a media_key is touched, so a
+ * test that fails the same row repeatedly keeps accumulating against the value
+ * the database actually stored.
+ */
+let startingAttempts: number | null = null;
+const store = createRawUpdateStore(() => ({ r2_attempts: startingAttempts }));
 
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
@@ -35,6 +44,8 @@ jest.mock("@/lib/prisma", () => ({
       update: (args: unknown) => mockListingMediaUpdate(args),
       updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
     },
+    $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) =>
+      store.exec(strings, values),
   },
 }));
 
@@ -48,11 +59,17 @@ import {
 beforeEach(() => {
   mockListingMediaUpdate.mockReset();
   mockListingMediaUpdateMany.mockReset();
+  store.reset();
+  startingAttempts = null;
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function makeRow(overrides: Partial<MirrorMediaToR2Row> = {}): MirrorMediaToR2Row {
+  // The fixture's counter is also the value the row materialises at in the
+  // store, so the database-side arithmetic starts from the same number the
+  // caller's snapshot declares. Fixtures themselves are unchanged.
+  if ("r2_attempts" in overrides) startingAttempts = overrides.r2_attempts ?? null;
   return {
     listing_id: "RLS20012345",
     media_key: "MK-1",
@@ -420,59 +437,50 @@ describe("mirrorMediaToR2 — R2 key namespace per media_type", () => {
 // cooldown-only — see Codex review on PR #100.
 //
 /**
- * Assert the counter advance was issued as a BOUNDED, ATOMIC statement that
- * would land on `expectedAttempts`.
+ * Assert the counter reached `expectedAttempts` IN THE STORED ROW.
  *
- * `expectedAttempts` is the value the DB reaches, but the assertion is on the
- * SHAPE, not on a JS-computed number — that is the whole point of the fix. The
- * old code wrote a literal computed from a possibly stale read; the new code
- * emits `increment: 1` guarded by `lt: R2_RETRY_EXHAUSTED_THRESHOLD`, so the
- * database itself enforces the bound.
+ * Previously this asserted the SHAPE of the Prisma statement (`increment: 1`
+ * guarded by `lt: R2_RETRY_EXHAUSTED_THRESHOLD`, or a still-NULL-guarded
+ * literal 1). Both shapes are gone: the bound and the arithmetic now live in
+ * one parameterized statement, and the still-NULL guard was itself the proven
+ * NULL-undercount defect. Asserting the stored number instead proves the
+ * outcome the shape was only evidence for.
  */
 function expectBoundedAttemptAdvance(expectedAttempts: number) {
-  const advance = mockListingMediaUpdateMany.mock.calls.find(
-    (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
-  )?.[0] as { where: Record<string, unknown>; data: Record<string, unknown> } | undefined;
-
-  expect(advance).toBeDefined();
-  expect(advance!.where).toMatchObject({ media_key: "MK-1" });
-
-  if (expectedAttempts === 1) {
-    // First failure on a NULL counter — guarded on still-NULL.
-    expect(advance!.data).toEqual({ r2_attempts: 1 });
-    expect(advance!.where).toMatchObject({ r2_attempts: null });
-  } else {
-    expect(advance!.data).toEqual({ r2_attempts: { increment: 1 } });
-    expect(advance!.where).toMatchObject({
-      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-    });
-  }
+  const write = store.writesFor("MK-1")[0];
+  expect(write).toBeDefined();
+  expect(write!.matched).toBe(true);
+  expect(write!.after.r2_attempts).toBe(expectedAttempts);
+  // The counter is never a JS-computed literal: it is derived by the statement
+  // from the value stored before it ran.
+  expect(write!.after.r2_attempts).not.toBe(write!.before.r2_attempts);
 }
 
-// Helper: assert the failure-path DB update has the cooldown shape.
+// Helper: assert the failure path committed the cooldown, counter and status
+// as ONE write, and assert the RESULTING STORED ROW.
 function expectFailureDbUpdate(
-  call: unknown,
+  write: FailureWrite | undefined,
   opts: { expectTombstone?: boolean; expectedAttempts: number },
 ) {
-  const args = call as { where: { media_key: string }; data: Record<string, unknown> };
-  expect(args.where).toEqual({ media_key: "MK-1" });
-  expect(args.data.r2_last_attempt_at).toBeInstanceOf(Date);
-  // The counter no longer rides on this unique-key `update`. It moved to a
-  // separate BOUNDED, ATOMIC `updateMany` so the terminal guard and the
-  // increment are one statement (see "r2_attempts — terminal-state-safe
-  // advance"). This call must therefore NOT carry r2_attempts at all —
-  // asserting its absence is what stops the unbounded blind write returning.
-  expect(args.data).not.toHaveProperty("r2_attempts");
+  expect(write).toBeDefined();
+  expect(write!.media_key).toBe("MK-1");
+  expect(write!.matched).toBe(true);
+  expect(write!.after.r2_last_attempt_at).toBeInstanceOf(Date);
   expectBoundedAttemptAdvance(opts.expectedAttempts);
   if (opts.expectTombstone) {
-    expect(args.data.status).toBe("deleted");
+    expect(write!.after.status).toBe("deleted");
   } else {
-    expect(args.data).not.toHaveProperty("status");
+    // Stronger than the old "no status key in the payload": the row is proven
+    // to still be active after the write.
+    expect(write!.after.status).toBe("active");
   }
-  // Boundary: failure path NEVER touches r2_key, media_url_cached, or media_url_original.
-  expect(args.data).not.toHaveProperty("r2_key");
-  expect(args.data).not.toHaveProperty("media_url_cached");
-  expect(args.data).not.toHaveProperty("media_url_original");
+  // Boundary: the failure path NEVER touches r2_key or media_url_cached.
+  // (`media_url_original` is not a column this statement may write at all —
+  // the store throws "Unmodelled column in SET" if any statement tries.)
+  expect(write!.after.r2_key).toBeNull();
+  expect(write!.after.media_url_cached).toBeNull();
+  // Parameterization: the media key travels as a BOUND VALUE, never SQL text.
+  expect(write!.params).toContain("MK-1");
 }
 
 describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410) after 3 attempts tombstones", () => {
@@ -487,8 +495,9 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.reason).toBe("fetch_failed");
     expect(result.error).toBe("HTTP 404");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expect(mockListingMediaUpdate).toHaveBeenCalledTimes(1);
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    // Exactly ONE failure write — cooldown, counter and status commit together.
+    expect(store.writesFor("MK-1")).toHaveLength(1);
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 1,
       expectTombstone: false,
     });
@@ -504,7 +513,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("fetch_failed");
     expect(result.error).toBe("HTTP 404");
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: true,
     });
@@ -517,7 +526,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
       ),
     });
     await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -530,7 +539,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
       ),
     });
     await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: true,
     });
@@ -543,7 +552,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
       ),
     });
     await mirrorMediaToR2(makeRow({ r2_attempts: 2 }), deps);
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -559,7 +568,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("fetch_failed");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -575,7 +584,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("non_image_content_type");
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -591,7 +600,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("fetch_threw");
     expect(result.error).toBe("ECONNRESET");
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -607,7 +616,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.status).toBe("failed");
     expect(result.reason).toBe("upload_failed");
     expect(result.error).toBe("R2 quota exceeded");
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -624,7 +633,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.reason).toBe("r2_head_failed");
     expect(deps.fetchFn).not.toHaveBeenCalled();
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -641,7 +650,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     expect(result.reason).toBe("token_failed");
     expect(deps.fetchFn).not.toHaveBeenCalled();
     expect(deps.uploadToR2).not.toHaveBeenCalled();
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 3,
       expectTombstone: false,
     });
@@ -668,7 +677,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     const row = makeRow();
     delete row.r2_attempts;
     await mirrorMediaToR2(row, deps);
-    expectFailureDbUpdate(mockListingMediaUpdate.mock.calls[0][0], {
+    expectFailureDbUpdate(store.writesFor("MK-1")[0], {
       expectedAttempts: 1,
       expectTombstone: false,
     });
@@ -706,96 +715,88 @@ describe("r2_attempts — terminal-state-safe advance", () => {
         .mockResolvedValue(makeFetchResponse({ status: 500 })),
     });
 
-  const advanceCall = () =>
-    mockListingMediaUpdateMany.mock.calls.find(
-      (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
-    )?.[0] as
-      | { where: Record<string, unknown>; data: { r2_attempts: unknown } }
-      | undefined;
+  /**
+   * The STORED row. Every assertion in this block reads it, because the bound
+   * now lives inside the failure statement rather than in a Prisma predicate —
+   * so the resulting number IS the safety property, not evidence for it.
+   */
+  const storedRow = () => store.row("MK-1");
 
   it("(1) the final ordinary retry reaches retry-exhausted EXACTLY", async () => {
-    // Stored 7 → the atomic increment lands on exactly 8, and the guard
-    // `lt: 8` is what forbids it going further on any subsequent pass.
+    // Stored 7 → the database-side advance lands on exactly 8, and the bound
+    // carried in the same statement is what forbids it going further on any
+    // subsequent pass.
     await mirrorMediaToR2(makeRow({ r2_attempts: 7 }), failingDeps());
-    const call = advanceCall();
-    expect(call?.data).toEqual({ r2_attempts: { increment: 1 } });
-    expect(call?.where).toMatchObject({
-      media_key: "MK-1",
-      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-    });
+    expect(storedRow().r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    // A transient 500 must never tombstone.
+    expect(storedRow().status).toBe("active");
   });
 
   it("(2) another failure leaves retry-exhausted UNCHANGED", async () => {
-    // Stored 8. The statement is still issued, but its WHERE (`lt: 8`) cannot
-    // match a row at 8, so the DB leaves it at 8. Asserting the predicate is
-    // the point: it is what makes the no-op true in the database, not in JS.
+    // Stored 8. The statement IS still issued (the cooldown is refreshed), but
+    // the bound is re-evaluated against the current stored value, so the
+    // counter does not move. Asserting the stored number is what makes the
+    // no-op true in the database rather than in JS.
     await mirrorMediaToR2(makeRow({ r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD }), failingDeps());
-    const call = advanceCall();
-    expect(call?.where).toMatchObject({
-      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-    });
-    // Never a bare assignment that could overwrite the terminal.
-    expect(call?.data).toEqual({ r2_attempts: { increment: 1 } });
+    expect(storedRow().r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    // Non-vacuous: a write really happened, it simply could not cross 8.
+    expect(store.writesFor("MK-1")).toHaveLength(1);
+    expect(storedRow().r2_last_attempt_at).toBeInstanceOf(Date);
   });
 
   it("(3) a policy-parked row remains EXACTLY policy-parked", async () => {
-    // Stored 9. `lt: 8` excludes it, so it is neither incremented to 10 nor
-    // pulled back down to 8.
+    // Stored 9. It is neither incremented to 10 nor pulled back down to 8.
     await mirrorMediaToR2(makeRow({ r2_attempts: R2_POLICY_PARKED_ATTEMPTS }), failingDeps());
-    const call = advanceCall();
-    expect(call?.where).toMatchObject({
-      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-    });
+    expect(storedRow().r2_attempts).toBe(R2_POLICY_PARKED_ATTEMPTS);
     expect(R2_POLICY_PARKED_ATTEMPTS).toBeGreaterThanOrEqual(R2_RETRY_EXHAUSTED_THRESHOLD);
   });
 
   it("(6) a value already ABOVE the sentinel cannot be incremented again", async () => {
-    // The legacy overflow population (10..112). The guard excludes them, and
-    // they are deliberately left EXACTLY as found — no silent normalisation.
-    for (const stored of [10, 11, 112]) {
-      mockListingMediaUpdateMany.mockReset();
-      await mirrorMediaToR2(makeRow({ r2_attempts: stored }), failingDeps());
-      const call = advanceCall();
-      expect(call?.where).toMatchObject({
-        r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-      });
-      // No statement anywhere assigns a literal — which is what a
-      // "normalise to 8/9" implementation would have to do.
-      const literalAssign = mockListingMediaUpdateMany.mock.calls.some(
-        (c) => typeof (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts === "number",
-      );
-      expect(literalAssign).toBe(false);
+    // The legacy overflow population (10..112). They are excluded from the
+    // advance and left EXACTLY as found — no silent normalisation, which is
+    // what keeps the 80 frozen production rows untouched.
+    for (const start of [10, 11, 112]) {
+      store.reset();
+      await mirrorMediaToR2(makeRow({ r2_attempts: start }), failingDeps());
+      expect(storedRow().r2_attempts).toBe(start);
+      // Neither incremented nor normalised down to a sentinel.
+      expect(storedRow().r2_attempts).not.toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+      expect(storedRow().r2_attempts).not.toBe(R2_POLICY_PARKED_ATTEMPTS);
     }
   });
 
   it("(7) repeated processing cannot produce 10, 11 or higher", async () => {
-    // Ten consecutive failures against a row already at the terminal. Every
-    // issued statement carries the `lt: 8` bound, so no sequence of them can
-    // cross it. This is the concurrency property too: the guard is evaluated by
-    // the DB inside the same statement as the increment, so a stale JS read
+    // Ten consecutive failures against a row already at the terminal. The bound
+    // is re-evaluated by the database inside the same statement as the
+    // arithmetic, so no sequence of them can cross it, and a stale JS read
     // cannot widen it.
     for (let i = 0; i < 10; i++) {
       await mirrorMediaToR2(makeRow({ r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD }), failingDeps());
     }
-    const advances = mockListingMediaUpdateMany.mock.calls.filter(
-      (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
-    );
-    expect(advances.length).toBeGreaterThan(0);
-    for (const [args] of advances) {
-      expect((args as { where: Record<string, unknown> }).where).toMatchObject({
-        r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-      });
-      expect((args as { data: unknown }).data).toEqual({ r2_attempts: { increment: 1 } });
+    expect(storedRow().r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    // Non-vacuous: all ten statements were genuinely issued against the row,
+    // and not one of them moved the counter.
+    expect(store.writesFor("MK-1")).toHaveLength(10);
+    for (const write of store.writesFor("MK-1")) {
+      expect(write.after.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
     }
   });
 
-  it("first failure on a NULL counter starts at 1, guarded on still-NULL", async () => {
+  it("first failure on a NULL counter stores 1, and two concurrent first failures store 2", async () => {
     await mirrorMediaToR2(makeRow({ r2_attempts: null }), failingDeps());
-    const call = advanceCall();
-    expect(call?.data).toEqual({ r2_attempts: 1 });
-    // Guarded so a concurrent worker that already began counting cannot be
-    // reset back to 1.
-    expect(call?.where).toMatchObject({ media_key: "MK-1", r2_attempts: null });
+    expect(storedRow().r2_attempts).toBe(1);
+
+    // The previous implementation guarded this write with
+    // `WHERE r2_attempts IS NULL`, on the reasoning that a concurrent worker
+    // "cannot be reset back to 1". That guard WAS the NULL-undercount defect:
+    // the second worker matched zero rows, so a real second failure was
+    // silently discarded and the row stored 1 for two failures. The correct
+    // contract is the stored count.
+    store.reset();
+    const staleSnapshot = () => makeRow({ r2_attempts: null });
+    await mirrorMediaToR2(staleSnapshot(), failingDeps());
+    await mirrorMediaToR2(staleSnapshot(), failingDeps());
+    expect(storedRow().r2_attempts).toBe(2);
   });
 
   it("(5) success resets the counter per the existing contract", async () => {
@@ -819,66 +820,25 @@ describe("r2_attempts — terminal-state-safe advance", () => {
       failingDeps(),
       { recoveryAttempt: true },
     );
-    expect(advanceCall()).toBeUndefined();
+    // The counter stays exactly at the exhaustion threshold; only the cooldown
+    // is refreshed, which is what restarts the long recovery window. The #534
+    // sentinel (threshold + 1) is never written by any failure path.
+    expect(storedRow().r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(storedRow().r2_attempts).not.toBe(R2_POLICY_PARKED_ATTEMPTS);
+    expect(storedRow().r2_last_attempt_at).toBeInstanceOf(Date);
+    // Transient recovery failure — still active.
+    expect(storedRow().status).toBe("active");
   });
 });
 
-// ─── Simulated-database proofs of the terminal bound ──────────────────────
+// ─── Stored-value proofs of the terminal bound ───────────────────────
 //
-// The tests above inspect the Prisma object the code GENERATES. That proves
-// intent, not arithmetic. These two SIMULATE the database: a stateful
-// `updateMany` mock holds a stored value, evaluates the `lt` guard against
-// that CURRENT value, applies the increment, and reports how many rows
-// matched. So they prove the resulting stored number, and — for the
-// concurrency case — that atomicity is what prevents 9, rather than luck.
+// The tests above already read the stored row. These two exist for the
+// ARITHMETIC and the CONCURRENCY property specifically: that the resulting
+// number is derived by the database from the value stored at the moment the
+// statement runs, so two workers carrying the same stale snapshot cannot both
+// push a row past its terminal.
 describe("r2_attempts — simulated-database arithmetic", () => {
-  /**
-   * Stand in for one `listing_media` row. `apply` mirrors Postgres semantics
-   * for the statements this code issues: the WHERE is evaluated against the
-   * value stored RIGHT NOW, and only a matched row is written.
-   */
-  function makeSimulatedRow(initial: number | null) {
-    const state = { stored: initial as number | null, matchedUpdates: 0 };
-    const apply = (args: unknown) => {
-      const { where, data } = args as {
-        where: { r2_attempts?: unknown };
-        data: { r2_attempts?: unknown };
-      };
-      if (data?.r2_attempts === undefined) return { count: 0 }; // not a counter write
-
-      // Guard evaluated against the CURRENT stored value — this is the whole
-      // safety property.
-      let matches: boolean;
-      if (where.r2_attempts === null) {
-        matches = state.stored === null;
-      } else if (
-        typeof where.r2_attempts === "object" &&
-        where.r2_attempts !== null &&
-        "lt" in (where.r2_attempts as Record<string, unknown>)
-      ) {
-        const lt = (where.r2_attempts as { lt: number }).lt;
-        matches = state.stored !== null && state.stored < lt;
-      } else {
-        matches = false;
-      }
-      if (!matches) return { count: 0 };
-
-      if (typeof data.r2_attempts === "number") {
-        state.stored = data.r2_attempts;
-      } else if (
-        typeof data.r2_attempts === "object" &&
-        data.r2_attempts !== null &&
-        "increment" in (data.r2_attempts as Record<string, unknown>)
-      ) {
-        const inc = (data.r2_attempts as { increment: number }).increment;
-        state.stored = (state.stored ?? 0) + inc;
-      }
-      state.matchedUpdates++;
-      return { count: 1 };
-    };
-    return { state, apply };
-  }
-
   const transientFailureDeps = () =>
     makeDeps({
       existsInR2: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false),
@@ -888,28 +848,23 @@ describe("r2_attempts — simulated-database arithmetic", () => {
         .mockResolvedValue(makeFetchResponse({ status: 500 })),
     });
 
-  const usedLiteralAssignment = () =>
-    mockListingMediaUpdateMany.mock.calls.some(
-      (c) => typeof (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts === "number",
-    );
-
-  const tombstoned = () =>
-    mockListingMediaUpdate.mock.calls.some(
-      (c) => (c[0] as { data?: { status?: string } })?.data?.status === "deleted",
-    );
+  const storedRow = () => store.row("MK-1");
 
   it("ordinary progression: a failure at 6 advances the STORED value to exactly 7", async () => {
-    const sim = makeSimulatedRow(6);
-    mockListingMediaUpdateMany.mockImplementation(async (args) => sim.apply(args));
-
     await mirrorMediaToR2(makeRow({ r2_attempts: 6 }), transientFailureDeps());
 
-    expect(sim.state.stored).toBe(7);
-    expect(sim.state.matchedUpdates).toBe(1);
-    // Advance is arithmetic on the stored value, never a JS-computed literal.
-    expect(usedLiteralAssignment()).toBe(false);
+    expect(storedRow().r2_attempts).toBe(7);
+    const writes = store.writesFor("MK-1");
+    expect(writes).toHaveLength(1);
+    expect(writes[0].matched).toBe(true);
+    // The advance is arithmetic ON THE STORED VALUE, never a JS-computed
+    // literal: the statement read 6 and wrote 6 + 1.
+    expect(writes[0].before.r2_attempts).toBe(6);
+    expect(writes[0].after.r2_attempts).toBe(7);
+    // The media key is a BOUND PARAMETER, not SQL text.
+    expect(writes[0].params).toContain("MK-1");
     // Transient failure — must not tombstone.
-    expect(tombstoned()).toBe(false);
+    expect(storedRow().status).toBe("active");
   });
 
   it("TWO CONCURRENT failures from 7 reach exactly 8 and can never reach 9", async () => {
@@ -917,35 +872,26 @@ describe("r2_attempts — simulated-database arithmetic", () => {
     // exactly the situation the old JS-side `(row.r2_attempts ?? 0) + 1` could
     // not survive: both would have computed 8 and written it blind, and a third
     // overlapping pass could have carried it past the terminal.
-    const sim = makeSimulatedRow(7);
-    mockListingMediaUpdateMany.mockImplementation(async (args) => sim.apply(args));
-
     await Promise.all([
       mirrorMediaToR2(makeRow({ r2_attempts: 7 }), transientFailureDeps()),
       mirrorMediaToR2(makeRow({ r2_attempts: 7 }), transientFailureDeps()),
     ]);
 
-    // First statement matched (7 < 8) and advanced to 8. The second was
-    // evaluated against the NEW stored value (8), failed `lt: 8`, and matched
-    // zero rows.
-    expect(sim.state.stored).toBe(8);
-    expect(sim.state.stored).not.toBe(9);
-    expect(sim.state.matchedUpdates).toBe(1);
+    expect(storedRow().r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(storedRow().r2_attempts).not.toBe(R2_POLICY_PARKED_ATTEMPTS);
 
-    // Both callers DID issue a guarded statement — the second was a genuine
-    // no-op in the database, not a call that was never made. That is what makes
-    // this test non-vacuous.
-    const counterWrites = mockListingMediaUpdateMany.mock.calls.filter(
-      (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
-    );
-    expect(counterWrites.length).toBe(2);
-    for (const [args] of counterWrites) {
-      expect((args as { where: Record<string, unknown> }).where).toMatchObject({
-        r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-      });
-    }
+    // Both callers DID issue a statement — the second was a genuine no-op on
+    // the counter, not a call that was never made. That is what makes this test
+    // non-vacuous. The first read 7 and wrote 8; the second read 8, re-evaluated
+    // the bound against THAT value, and left it at 8.
+    const writes = store.writesFor("MK-1");
+    expect(writes).toHaveLength(2);
+    expect(writes[0].before.r2_attempts).toBe(7);
+    expect(writes[0].after.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(writes[1].before.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
+    expect(writes[1].after.r2_attempts).toBe(R2_RETRY_EXHAUSTED_THRESHOLD);
 
-    expect(usedLiteralAssignment()).toBe(false);
-    expect(tombstoned()).toBe(false);
+    // Transient failure — must not tombstone.
+    expect(storedRow().status).toBe("active");
   });
 });

@@ -20,6 +20,7 @@ import type {
   TrestleProperty,
   UpsertListingMediaInput,
 } from "../media-sync";
+import { createRawUpdateStore, type RawRowState } from "./raw-failure-write-store";
 
 // ─── Mock Prisma ──────────────────────────────────────────────────────────
 
@@ -38,6 +39,14 @@ const mockListingUpdate = jest.fn<Promise<unknown>, [unknown]>();
 // under test are unchanged; RC5-specific ghost behavior lives in media-sync-rc5.test.ts.
 const mockListingFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 
+/**
+ * PR #584. Failure bookkeeping is ONE parameterized `UPDATE ... RETURNING`, so
+ * the failure assertions below read the STORED ROW rather than a Prisma
+ * payload. Rows materialise at the counter their fixture declares.
+ */
+const fixtureRows = new Map<string, Partial<RawRowState>>();
+const store = createRawUpdateStore((key) => fixtureRows.get(key));
+
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: {
@@ -45,6 +54,8 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: (args: unknown) => mockMediaSyncFindUnique(args),
       upsert: (args: unknown) => mockMediaSyncUpsert(args),
     },
+    $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) =>
+      store.exec(strings, values),
     listingMedia: {
       findUnique: (args: unknown) => mockListingMediaFindUnique(args),
       create: (args: unknown) => mockListingMediaCreate(args),
@@ -109,6 +120,8 @@ import {
 } from "../media-sync";
 
 beforeEach(() => {
+  store.reset();
+  fixtureRows.clear();
   mockMediaSyncFindUnique.mockReset();
   mockMediaSyncUpsert.mockReset();
   mockListingMediaFindUnique.mockReset();
@@ -1606,6 +1619,9 @@ describe("runMediaSync — Phase 3 cross-invocation cooldown filter", () => {
       r2_attempts: 2, // 2 prior failures; this attempt is the 3rd
       listing: MIRROR_TEST_LISTING,
     };
+    // The row starts in the store at the counter its fixture declares, so the
+    // database-side advance runs 2 -> 3. The fixture itself is unchanged.
+    fixtureRows.set(backlogRow.media_key, { r2_attempts: backlogRow.r2_attempts });
     mockListingMediaFindMany.mockResolvedValueOnce([backlogRow]).mockResolvedValue([]);
     mockListingMediaUpdate.mockResolvedValue(undefined);
 
@@ -1621,42 +1637,32 @@ describe("runMediaSync — Phase 3 cross-invocation cooldown filter", () => {
     );
 
     expect(result.r2_failed).toBe(1);
-    // mirrorMediaToR2's failure-emit helper should have written status='deleted'
+    // mirrorMediaToR2's failure write should have stored status='deleted'
     // because r2_attempts was 2 going in, +1 = 3, and the failure is HTTP 404.
-    const tombstoneCall = mockListingMediaUpdate.mock.calls.find((call) => {
-      const args = call[0] as { data: Record<string, unknown> };
-      return args.data.status === "deleted";
-    });
-    expect(tombstoneCall).toBeDefined();
-    const tombstoneArgs = tombstoneCall![0] as {
-      where: { media_key: string };
-      data: { status: string; r2_attempts?: number; r2_last_attempt_at: Date };
-    };
-    expect(tombstoneArgs.where.media_key).toBe("MK-X");
+    const tombstoneWrite = store.writes.find((w) => w.after.status === "deleted");
+    expect(tombstoneWrite).toBeDefined();
+    expect(tombstoneWrite!.media_key).toBe("MK-X");
     // TOMBSTONE CONTRACT UNCHANGED: a 3rd EFFECTIVE permanent 404 still sets
     // status='deleted'.
-    expect(tombstoneArgs.data.status).toBe("deleted");
-    expect(tombstoneArgs.data.r2_last_attempt_at).toBeInstanceOf(Date);
+    expect(tombstoneWrite!.after.status).toBe("deleted");
+    expect(tombstoneWrite!.after.r2_last_attempt_at).toBeInstanceOf(Date);
 
-    // TERMINAL-STATE BEHAVIOUR (not a mechanical retarget): the counter must
-    // NOT ride on this unique-key update as a blind literal. That literal was
-    // computed in JS from a possibly stale read and carried no bound — the
-    // mechanism that produced the historical >9 rows.
-    expect(tombstoneArgs.data).not.toHaveProperty("r2_attempts");
-
-    // It is instead a bounded atomic statement: the row was at 2, and advances
-    // ONLY while the stored value is still below the retry-exhausted terminal.
-    // The guard is evaluated by the database inside the same statement as the
-    // increment, so 7 can reach 8 but nothing can reach 9.
-    const advance = mockListingMediaUpdateMany.mock.calls
-      .map((c) => c[0] as { where: Record<string, unknown>; data: Record<string, unknown> })
-      .find((a) => a?.data?.r2_attempts !== undefined);
-    expect(advance).toBeDefined();
-    expect(advance!.where).toMatchObject({
-      media_key: "MK-X",
-      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
-    });
-    expect(advance!.data).toEqual({ r2_attempts: { increment: 1 } });
+    // TERMINAL-STATE BEHAVIOUR (not a mechanical retarget): the counter is
+    // never a blind JS literal computed from a possibly stale read — that
+    // unbounded write is the mechanism that produced the historical >9 rows.
+    // The row was forwarded at 2, and the DATABASE advanced it to 3 from the
+    // value it actually held, in the same statement that set the status.
+    expect(tombstoneWrite!.before.r2_attempts).toBe(2);
+    expect(tombstoneWrite!.after.r2_attempts).toBe(3);
+    // Bounded: it advances ONLY while the stored value is below the
+    // retry-exhausted terminal, so 7 can reach 8 but nothing can reach 9.
+    expect(tombstoneWrite!.after.r2_attempts as number).toBeLessThanOrEqual(
+      R2_RETRY_EXHAUSTED_THRESHOLD,
+    );
+    // Cooldown, counter and status committed as ONE write.
+    expect(store.writesFor("MK-X")).toHaveLength(1);
+    // The media key is a BOUND PARAMETER, never SQL text.
+    expect(tombstoneWrite!.params).toContain("MK-X");
   });
 });
 
