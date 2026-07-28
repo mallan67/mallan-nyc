@@ -154,7 +154,7 @@ Window 2026-07-28T02:44:08.301Z (pre-create) → 2026-07-28T03:13:35.980Z.
 | `listing_media` seq_scan | +6 | **+0 (total, all 3 cycles)** |
 | `listing_media` seq_tup_read | +641,766 | **+0 (total)** |
 | new index idx_scan | n/a | 1 → 10 (in use) |
-| `listing_media` n_tup_upd | +20 / +102 / 0 | +270 (work still flowing) |
+| `listing_media` n_tup_upd | +20 / +102 / 0 | +270 (see note below) |
 | index validity | n/a | `indisvalid = true` throughout |
 | index size | n/a | 272 kB (stable) |
 
@@ -207,3 +207,50 @@ Worker-distribution analysis, statistics-counter inception, additional sampling 
 R2 orphan counts, `r2_attempts > 9` anomaly (60 active rows, clusters at 107–112), the
 residual `Seq Scan on listings` inside Q3 (9,728 of 23,791 rows matched), and the
 `raw_data.PhotosChangeTimestamp` work (issue #577). All separate follow-ups.
+
+---
+
+## 12. Wording precision (owner corrections, 2026-07-28)
+
+These supersede any looser phrasing earlier in this document.
+
+**Scan attribution.** Two scan-producing queries occurred within ONE media-sync
+execution. **Q3 was directly confirmed as a parallel sequential scan** by a captured
+plan. The second scan-producing query was NOT separately plan-captured before the index
+was created, so it is not asserted here to have been a parallel sequential scan.
+
+**On the +270 `listing_media` writes in §9.** These show that `listing_media` writes
+continued after index creation, demonstrating the media workflow was not globally
+stopped. They do **not** prove successful eligible R2 mirroring — no runtime
+success/upload counters were collected, and the measured eligible backlog was zero (§10).
+
+**On invocation counting.** `listing_media_r2_backlog_id_idx.idx_scan` confirms the index
+is being used. It counts index scans initiated, not application/job executions, and was
+NOT used to derive the refresh invocation count. That count comes from Vercel invocation
+records and `media_sync_cursor` run_start/run_end events (§9).
+
+**On overlap shedding.** No cycle overran into the next during the observation window, so
+the `skipped_overlap` path was never exercised. The advisory locks
+(`machine-claim.ts:72`, `media-sync.ts:3582`) are present and non-blocking, but shedding
+behavior was **not** observed in production and is therefore not claimed as verified.
+
+## 13. Operational SQL record (idempotent)
+
+Apply:
+
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS listing_media_r2_backlog_id_idx
+ON listing_media (id)
+WHERE r2_key IS NULL
+   OR media_url_cached IS NULL;
+```
+
+Rollback:
+
+```sql
+DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;
+```
+
+Both statements are idempotent and must run OUTSIDE a transaction block
+(`CONCURRENTLY` cannot run inside one). Neither touches data, R2, compute sizing,
+cadence, or any other index.
