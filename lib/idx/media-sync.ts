@@ -583,6 +583,13 @@ export interface UpsertListingMediaResult {
    *   signature rotation — origin+pathname identical, only query/fragment/case
    *   changed (a harmless re-sign).
    */
+  /**
+   * Suppressed because the row is un-mirrored BUT unreachable by every R2
+   * selector (`r2_attempts` above the retry-exhaustion threshold: the #534
+   * parked sentinel, or the frozen legacy overflow). Before this guard these
+   * were pure no-op URL refreshes, rewritten every cycle forever.
+   */
+  suppressedMirrorUnreachable: number;
   suppressedUrlSignatureRotation: number;
   /**
    * identity change — origin OR pathname changed (a POTENTIAL asset replacement
@@ -670,6 +677,40 @@ export interface ExistingMediaRowForCompare {
   r2_key: string | null;
   /** Delivery-artifact: public R2 URL. Empty/null ⇒ not yet mirrored. READ-only here. */
   media_url_cached: string | null;
+  /**
+   * Retry/park counter. READ-only here (the R2 mirror path owns its writes).
+   * Used ONLY to decide whether an un-mirrored row could still be selected by
+   * an R2 selector — see `mediaRowMirrorUnreachable`.
+   *
+   * OPTIONAL and fail-safe: absent/null ⇒ treated as REACHABLE, so a caller
+   * that does not project it keeps the pre-existing refresh behaviour and can
+   * never lose a needed URL refresh.
+   */
+  r2_attempts?: number | null;
+}
+
+/**
+ * TRUE when an un-mirrored row can never be selected by EITHER R2 selector, so
+ * refreshing its rotating signed URL has no consumer.
+ *
+ * Post-#584 the two selectors are, on their attempts predicate:
+ *   ordinary backlog  `r2_attempts IS NULL OR r2_attempts < 8`
+ *   exact-8 recovery  `r2_attempts = 8`
+ *
+ * So anything ABOVE 8 is unreachable by both: the #534 policy-parked sentinel
+ * (9) and the frozen legacy overflow (>9). Exactly 8 is DELIBERATELY reachable
+ * — it is recovery-eligible and must keep its fresh URL.
+ *
+ * Fail-safe: a NULL counter is treated as reachable (it is — `IS NULL` matches
+ * the ordinary selector), so an unknown state never loses its refresh.
+ */
+export function mediaRowMirrorUnreachable(existing: {
+  r2_attempts?: number | null;
+}): boolean {
+  return (
+    typeof existing.r2_attempts === "number" &&
+    existing.r2_attempts > R2_RETRY_EXHAUSTED_THRESHOLD
+  );
 }
 
 /**
@@ -925,6 +966,7 @@ export async function upsertListingMedia(
   let updatedChanged = 0;
   let skippedUnchanged = 0;
   let deliveryUrlRefreshed = 0; // material-unchanged but written to refresh a not-yet-mirrored URL
+  let suppressedMirrorUnreachable = 0; // suppressed: un-mirrored but no R2 selector can reach it (>8)
   let suppressedUrlSignatureRotation = 0; // suppressed: URL query/sig rotated (origin+pathname identical)
   let suppressedUrlIdentityChanged = 0; // suppressed: URL origin/pathname changed (potential asset replacement)
   let writeFailures = 0; // per-row create/update failures (isolated; batch continues, listing fails closed)
@@ -977,6 +1019,9 @@ export async function upsertListingMedia(
         // suppression (never written here; the R2 mirror path owns their writes).
         r2_key: true,
         media_url_cached: true,
+        // READ-only: lets the URL-refresh exception skip rows no R2 selector
+        // can ever reach (see mediaRowMirrorUnreachable).
+        r2_attempts: true,
       },
     });
     if (existing) {
@@ -1006,9 +1051,19 @@ export async function upsertListingMedia(
       // fresh signed URL because the R2 backlog path reuses the stored
       // `media_url_original` to fetch. Deleted/replaced rows are never
       // "unchanged" (status must flip back to active → resurrect preserved).
+      // The URL-refresh exception exists so an UN-MIRRORED row keeps a fresh
+      // signed `media_url_original` for the R2 backlog fetch. That reasoning
+      // only holds while a selector can still pick the row up. A row parked
+      // ABOVE the retry-exhaustion threshold (the #534 sentinel at 9, or the
+      // frozen legacy overflow above it) is unreachable by BOTH selectors
+      // post-#584, so its refresh has no consumer — it was a pure no-op write
+      // repeated every cycle, forever. Exactly 8 stays reachable (recovery)
+      // and keeps refreshing.
       const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
-      if (materialUnchanged && mediaRowDelivered(existing)) {
+      const mirrorUnreachable = mediaRowMirrorUnreachable(existing);
+      if (materialUnchanged && (mediaRowDelivered(existing) || mirrorUnreachable)) {
         skippedUnchanged++;
+        if (mirrorUnreachable && !mediaRowDelivered(existing)) suppressedMirrorUnreachable++;
         // Split (Codex P2): the URL is excluded from the material decision, so a
         // suppressed row may differ by a harmless signature rotation OR a real
         // origin/pathname change. Attribute each precisely (mutually exclusive:
@@ -1146,6 +1201,7 @@ export async function upsertListingMedia(
     // Non-tombstone create/update writes only (inserts + material + refresh).
     nonTombstoneRowsWritten: inserted + updatedChanged + deliveryUrlRefreshed,
     deliveryUrlRefreshed,
+    suppressedMirrorUnreachable,
     suppressedUrlSignatureRotation,
     suppressedUrlIdentityChanged,
     writeFailures,
@@ -2996,6 +3052,8 @@ const defaultFetchDeps: MediaSyncFetchDeps = {
  */
 export interface MediaWriteCauseTotals {
   delivery_url_refreshed: number;
+  /** No-op URL refreshes prevented on rows no R2 selector can reach (>8). */
+  suppressed_mirror_unreachable: number;
   suppressed_url_signature_rotation: number;
   suppressed_url_identity_changed: number;
   write_failures: number;
@@ -3004,6 +3062,7 @@ export interface MediaWriteCauseTotals {
 export function newMediaWriteCauseTotals(): MediaWriteCauseTotals {
   return {
     delivery_url_refreshed: 0,
+    suppressed_mirror_unreachable: 0,
     suppressed_url_signature_rotation: 0,
     suppressed_url_identity_changed: 0,
     write_failures: 0,
@@ -3015,12 +3074,15 @@ export function accumulateMediaWriteCauses(
   acc: MediaWriteCauseTotals,
   r: {
     deliveryUrlRefreshed: number;
+    /** Optional so pre-existing callers/tests compile unchanged; absent ⇒ 0. */
+    suppressedMirrorUnreachable?: number;
     suppressedUrlSignatureRotation: number;
     suppressedUrlIdentityChanged: number;
     writeFailures: number;
   },
 ): void {
   acc.delivery_url_refreshed += r.deliveryUrlRefreshed;
+  acc.suppressed_mirror_unreachable += r.suppressedMirrorUnreachable ?? 0;
   acc.suppressed_url_signature_rotation += r.suppressedUrlSignatureRotation;
   acc.suppressed_url_identity_changed += r.suppressedUrlIdentityChanged;
   acc.write_failures += r.writeFailures;
