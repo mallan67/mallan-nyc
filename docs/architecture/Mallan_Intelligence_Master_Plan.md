@@ -2042,12 +2042,56 @@ Observed candidates at repository root: `__pw-review/`, `__pw-review-v2/`, `__pw
 **Ruling.** §24 and §8.3 become machine-checkable, using the pattern already proven in this repository by `ucba:audit`, `rls:validate`, `idx:validate`, and `compliance-check`:
 
 - **`config/capabilities.mjs`** — the capability registry (a module, not YAML: neither `js-yaml` nor `yaml` is a dependency, and a hand-rolled parser could silently mis-parse, making the validator itself untrustworthy). One entry per capability, carrying its §8.3 maturity status, its §24 acceptance evidence, and its owner.
-- **`scripts/capability-audit.mjs`** — the validator. Verifies structural completeness, that every claimed status is supported by declared evidence, and that no capability claims a promoted status without the proof that status requires.
+- **`scripts/capability-audit.mjs`** — the validator.
 - **`npm run capability:audit`** — the entry point.
+
+The registry is **data only**: plain exported objects and arrays, no imports, no filesystem access, no network calls, no environment reads, no side effects. Importing it must never change anything.
+
+### C-5.1 Promotion thresholds
+
+A status may be claimed only when its evidence exists. `evidence` means a **complete structured record**, not a string:
+
+```text
+evidence: {
+  command:        exact command run
+  resultArtifact: durable capture (docs/evidence/… or CI run)
+  exitCode:       integer
+  testedAt:       date
+  targetSha:      commit the run targeted
+  proves:         the narrow thing established
+  doesNotProve:   what a reader might wrongly infer
+}
+```
+
+| Status | Requires |
+|---|---|
+| `implemented` | canonical files exist · exact test command · run against a named commit · exit code · captured result or durable CI evidence · statement of what the test does not prove |
+| `shadow_mode` | `implemented` + comparison against existing behavior + measured discrepancy results + observability + no user-facing authority |
+| `limited_release` | `shadow_mode` + named owner + bounded audience or feature flag + rollback procedure + monitored results |
+| `production` | `limited_release` + exact deployed SHA + live production probe + operational monitoring + rollback proof + no unresolved release blocker |
+| `degraded` | evidence the capability was previously `production` + linked canonical issue + measured current failure or impairment |
+
+Additional enforced rules:
+
+- Placeholder values (`unverified`, `tbd`, `pending`, `none`, empty) **never** satisfy an evidence field.
+- A declared path that does not exist is a **violation** for a promoted capability, a warning otherwise. A promoted capability may not point at files that are not there.
+- A capability blocked by a ratified correction may not claim a promoted status.
+- `resultArtifact` must resolve to a file that exists; `targetSha` must look like a commit sha.
+
+The validator **does not rerun tests**, and says so in its own output. It enforces that a promoted status **points to a complete evidence record**. It cannot confirm that record is truthful — that is what the durable artifact and the reviewer are for.
+
+### C-5.2 Program assessment is a separate vocabulary from capability maturity
+
+Programs are coarse aggregates of many capabilities; a capability is a single thing that either has its evidence or does not. Using one word for both invited agents to treat `partial` or `shell` as though they were legitimate capability maturity states.
+
+- Capabilities carry **`status`**, drawn from §8.3: `discovered · designed · contracted · implemented · shadow_mode · limited_release · production · degraded · deprecated · retired`.
+- Programs carry **`assessment`**, drawn from a separate list: `not_started · discovered · designed · partial · shell · implemented · complete`.
+
+The validator rejects a program that carries `status`, and rejects a capability whose `status` is a program assessment.
 
 The registry begins as a **static file with no schema and no migration**, so Program 0 can complete without touching the database and without triggering the C-3 gate. It becomes a runtime registry later, under §8.3, once the C-3 gate is satisfied.
 
-**Maturity status is assigned from evidence, never from intent or from volume of code written.** A capability with a route, a model, and a test but no wired loop is `implemented`, not `production`.
+**Maturity is assigned from evidence, never from intent or from volume of code written.** A capability with a route, a model, and a test but no wired loop is `implemented`, not `production`.
 
 CI enforcement is **not** included: `.github/workflows/**` is held pending Maya's approval (`CLAUDE.md` §A.7). Until then the validator is run manually and its result stated explicitly.
 

@@ -7,37 +7,47 @@
  * Validator : npm run capability:audit  ->  scripts/capability-audit.mjs
  * Evidence  : AI-START-HERE.md "Evidence standard";
  *             memory/EVIDENCE-STANDARD-2026-07-27.md
+ *             docs/evidence/capability-evidence-2026-07-27.md
+ *
+ * ---------------------------------------------------------------------------
+ * THIS FILE IS DATA. NOTHING ELSE.
+ * ---------------------------------------------------------------------------
+ * Plain exported objects and arrays only. No imports, no filesystem access, no
+ * network calls, no environment reads, no side effects, no computed values that
+ * depend on runtime state. It must be safe to import from anywhere, and reading
+ * it must never change anything.
  *
  * ---------------------------------------------------------------------------
  * WHY .mjs AND NOT .yaml
  * ---------------------------------------------------------------------------
  * Correction C-5 originally named `config/capabilities.yaml`. Neither `js-yaml`
- * nor `yaml` is a dependency of this repository (verified: `require.resolve`
- * fails for both). The options were to add a dependency, hand-roll a YAML subset
- * parser, or use a format Node already understands.
+ * nor `yaml` is a dependency of this repository. Adding one solely for this
+ * registry adds dependency and parser risk; a hand-rolled YAML subset parser
+ * could silently mis-parse, which would make the validator itself untrustworthy.
+ * A validator you cannot trust is worse than no validator.
  *
- * A hand-rolled parser can silently mis-parse, which would make the validator
- * itself unreliable — precisely the failure mode the evidence standard exists to
- * prevent. A validator you cannot trust is worse than no validator.
- *
- * This module is therefore the registry. It keeps comments, needs no dependency,
- * and cannot silently mis-parse.
+ * This module requires no dependency, preserves comments, is natively importable
+ * by Node, fails loudly on syntax errors, and stays a static registry with no
+ * schema or migration.
  *
  * ---------------------------------------------------------------------------
- * THIS IS A STATIC REGISTRY. No schema, no migration — it does not trigger the
- * C-3 Neon/R2 gate. It becomes a runtime registry later, under §8.3, only after
- * that gate is satisfied.
+ * STATIC REGISTRY: no schema, no migration -> does not trigger the C-3 Neon/R2
+ * gate. It becomes a runtime registry later, under §8.3, only after that gate is
+ * satisfied.
  * ---------------------------------------------------------------------------
  *
- * RULE (C-5): maturity is assigned from EVIDENCE, never from intent or from how
- * much code was written. A capability with a route, a model, and a test but no
- * wired loop is `implemented`, NOT `production`.
+ * THE RULE (C-5): maturity is assigned from EVIDENCE, never from intent or from
+ * how much code was written. A capability with a route, a model, and a test but
+ * no wired loop is `implemented`, NOT `production`.
  *
- * `'unverified'` is a legal value for any acceptance field. A field left as
- * `unverified` is honest. A field asserted without evidence is a process failure.
+ * `'unverified'` is a legal value. A field left `unverified` is honest. A field
+ * asserted without evidence is a process failure.
  */
 
-/** §8.3 maturity statuses, in promotion order. */
+/**
+ * §8.3 capability maturity statuses, in promotion order.
+ * These apply to CAPABILITIES ONLY. Programs use PROGRAM_ASSESSMENTS below.
+ */
 export const STATUSES = [
   'discovered',
   'designed',
@@ -52,47 +62,111 @@ export const STATUSES = [
 ];
 
 /**
- * Proof each status requires before it may be claimed.
- * Enforced by scripts/capability-audit.mjs.
+ * Program-level assessment vocabulary — DELIBERATELY SEPARATE from STATUSES.
+ *
+ * A program is a coarse aggregate of many capabilities; a capability is a single
+ * thing that either has its evidence or does not. Sharing one word ("status")
+ * for both invited agents to treat `partial` or `shell` as though they were
+ * legitimate capability maturity states. They are not, and the validator now
+ * rejects them in that position.
+ */
+export const PROGRAM_ASSESSMENTS = [
+  'not_started',
+  'discovered',
+  'designed',
+  'partial',
+  'shell',
+  'implemented',
+  'complete',
+];
+
+/**
+ * Evidence a status must point to before it may be claimed.
+ *
+ * `evidence` means a complete structured evidence record (see EVIDENCE_FIELDS).
+ * The validator does NOT rerun tests. It enforces that a promoted status points
+ * to a complete, non-placeholder evidence record naming a real command, exit
+ * code, target commit, and proof boundary.
  */
 export const PROMOTION_PROOF = {
-  implemented: ['tests'],
-  shadow_mode: ['tests', 'observability'],
-  limited_release: ['tests', 'observability', 'rollback'],
-  production: ['tests', 'observability', 'rollback', 'production_proof'],
-  degraded: ['issue'],
+  implemented: ['canonicalFiles', 'evidence'],
+  shadow_mode: ['canonicalFiles', 'evidence', 'shadowComparison', 'observability'],
+  limited_release: [
+    'canonicalFiles',
+    'evidence',
+    'shadowComparison',
+    'observability',
+    'owner',
+    'audience',
+    'rollback',
+    'monitoredResults',
+  ],
+  production: [
+    'canonicalFiles',
+    'evidence',
+    'shadowComparison',
+    'observability',
+    'owner',
+    'audience',
+    'rollback',
+    'monitoredResults',
+    'deployedSha',
+    'productionProbe',
+    'rollbackProof',
+  ],
+  degraded: ['previouslyProduction', 'issue', 'measuredImpairment'],
 };
+
+/** Every field an `evidence` record must carry. None may be empty. */
+export const EVIDENCE_FIELDS = [
+  'command',
+  'resultArtifact',
+  'exitCode',
+  'testedAt',
+  'targetSha',
+  'proves',
+  'doesNotProve',
+];
 
 export const meta = {
-  version: 1,
-  generatedBy: 'hand-seeded 2026-07-27 from MASTER-PLAN-GAP-ANALYSIS-2026-07-27.md',
-  baselineCommit: '262b6693',
-  baselineBranch: 'fix/neon-write-amp-phase2a-media-reconcile-2026-07-26',
+  version: 2,
+  generatedBy: 'hand-seeded 2026-07-27; evidence captured at PR #579 head',
+  baselineCommit: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+  baselineBranch: 'docs/unified-ai-master-plan-2026-07-27',
+  measurementBaseline: {
+    commit: '262b6693',
+    branch: 'fix/neon-write-amp-phase2a-media-reconcile-2026-07-26',
+    note:
+      'Repository counts in the gap analysis (77 models, 288 routes, ...) were ' +
+      'measured here. Capability evidence below was captured at baselineCommit.',
+  },
   baselineNote:
-    'Dated evidence per correction C-7. Statuses reflect that commit only and are ' +
-    'expected to go stale. Re-measure before citing.',
+    'Dated evidence per correction C-7. Expected to go stale. Re-measure before citing.',
 };
 
-/** §22 programs. `status` is the aggregate read from gap analysis §3. */
+/**
+ * §22 programs.
+ * NOTE the property is `assessment`, not `status` — see PROGRAM_ASSESSMENTS.
+ */
 export const programs = [
-  { id: 'P0', name: 'Adopt and reconcile the authority', status: 'designed', evidence: 'gap-analysis §3' },
-  { id: 'P1', name: 'Provider and policy adaptability', status: 'partial', evidence: 'gap-analysis §2.2, §2.3' },
-  { id: 'P2', name: 'Canonical graph and identity', status: 'partial', evidence: 'gap-analysis §2.4', blockedBy: 'C-3' },
-  { id: 'P3', name: 'Canonical search runtime', status: 'implemented', evidence: 'gap-analysis §3' },
-  { id: 'P4', name: 'Events, workflows, artifacts, approvals', status: 'discovered', evidence: 'gap-analysis §2.1', blockedBy: 'C-3' },
-  { id: 'P5', name: 'Public growth system', status: 'partial', evidence: 'gap-analysis §3' },
-  { id: 'P6', name: 'Agent service system', status: 'partial', evidence: 'gap-analysis §3' },
-  { id: 'P7', name: 'Client portals', status: 'shell', evidence: 'gap-analysis §3' },
-  { id: 'P8', name: 'Broker operating system', status: 'discovered', evidence: 'gap-analysis §3' },
-  { id: 'P9', name: 'Transactions and after-close', status: 'partial', evidence: 'gap-analysis §3' },
-  { id: 'P10', name: 'Advanced intelligence', status: 'partial', evidence: 'gap-analysis §3' },
-  { id: 'P11', name: 'Decommissioning and consolidation', status: 'discovered', evidence: 'master plan §26 C-4' },
+  { id: 'P0', name: 'Adopt and reconcile the authority', assessment: 'designed', evidence: 'gap-analysis §3' },
+  { id: 'P1', name: 'Provider and policy adaptability', assessment: 'partial', evidence: 'gap-analysis §2.2, §2.3' },
+  { id: 'P2', name: 'Canonical graph and identity', assessment: 'partial', evidence: 'gap-analysis §2.4', blockedBy: 'C-3' },
+  { id: 'P3', name: 'Canonical search runtime', assessment: 'implemented', evidence: 'gap-analysis §3; docs/evidence/capability-evidence-2026-07-27.md E-1' },
+  { id: 'P4', name: 'Events, workflows, artifacts, approvals', assessment: 'not_started', evidence: 'gap-analysis §2.1', blockedBy: 'C-3' },
+  { id: 'P5', name: 'Public growth system', assessment: 'partial', evidence: 'gap-analysis §3' },
+  { id: 'P6', name: 'Agent service system', assessment: 'partial', evidence: 'gap-analysis §3' },
+  { id: 'P7', name: 'Client portals', assessment: 'shell', evidence: 'gap-analysis §3' },
+  { id: 'P8', name: 'Broker operating system', assessment: 'discovered', evidence: 'gap-analysis §3' },
+  { id: 'P9', name: 'Transactions and after-close', assessment: 'partial', evidence: 'gap-analysis §3' },
+  { id: 'P10', name: 'Advanced intelligence', assessment: 'partial', evidence: 'gap-analysis §3' },
+  { id: 'P11', name: 'Decommissioning and consolidation', assessment: 'discovered', evidence: 'master plan §26 C-4' },
 ];
 
 /**
  * Capabilities.
- * Seeded with the ones the 2026-07-27 gap analysis actually measured.
- * INTENTIONALLY INCOMPLETE — see `coverage` below.
+ * Seeded from what the 2026-07-27 gap analysis measured, with promotion evidence
+ * captured at meta.baselineCommit. INTENTIONALLY INCOMPLETE — see `coverage`.
  */
 export const capabilities = [
   {
@@ -109,13 +183,26 @@ export const capabilities = [
       'lib/search/criteria-to-prisma.ts',
     ],
     tests: ['lib/search/__tests__/'],
+    evidence: {
+      command: 'npx jest --config lib/search/jest.config.js --ci',
+      resultArtifact: 'docs/evidence/capability-evidence-2026-07-27.md#e-1--libsearch-suite',
+      exitCode: 0,
+      testedAt: '2026-07-27',
+      targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      proves:
+        '23 suites / 625 tests pass: canonical + visibility contracts, access decision, ' +
+        'criteria-to-Prisma translation, public DTO (DB and Trestle paths), projection ' +
+        'write suppression, natural-language parsing.',
+      doesNotProve:
+        'That search returns correct results against live Cotality; that production totals ' +
+        'or pagination are truthful under load; that any deployed surface uses these modules; ' +
+        'or that the assertions encode correct REBNY semantics.',
+    },
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     notes:
-      'Strongest measured area. NOT promoted to `production` because no production ' +
-      'probe was run during the gap analysis. Promotion requires a live probe ' +
-      'capture, not a test pass.',
+      'Strongest measured area. NOT promoted beyond `implemented`: no shadow comparison, no ' +
+      'production probe, no rollback proof. A passing unit suite is not a production claim.',
   },
 
   {
@@ -127,9 +214,22 @@ export const capabilities = [
     status: 'implemented',
     canonicalFiles: ['lib/idx/'],
     tests: ['lib/idx/__tests__/'],
+    evidence: {
+      command: 'npx jest --config lib/idx/jest.config.js --ci',
+      resultArtifact: 'docs/evidence/capability-evidence-2026-07-27.md#e-2--libidx-suite',
+      exitCode: 0,
+      testedAt: '2026-07-27',
+      targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      proves:
+        '39 suites / 784 tests pass: auth, fetch, field mapping, normalization, media sync and ' +
+        'cursor telemetry, write suppression, DTO construction.',
+      doesNotProve:
+        'That any field is live or populated on Cotality today; that mapping matches current ' +
+        'Trestle $metadata; that a live fetch succeeds; or that production sync is healthy. ' +
+        'NO LIVE COTALITY CALL WAS MADE. Those are Class-B claims per CLAUDE.md §J.4.',
+    },
     observability: 'lib/idx/cotality-telemetry.ts',
     rollback: 'unverified',
-    production_proof: 'unverified',
     gaps: [
       'generated-contract module absent (§5.3)',
       'capability-registry module absent (§5.3)',
@@ -147,21 +247,123 @@ export const capabilities = [
     owner: 'unassigned',
     status: 'implemented',
     canonicalFiles: ['lib/compliance/', 'docs/compliance/COMPLIANCE-CANONICAL-INDEX.md'],
-    tests: [
-      'lib/compliance/__tests__/',
-      'npm run ucba:audit',
-      'npm run rls:validate',
-      'npm run idx:validate',
-      'npm run compliance-check',
-    ],
+    tests: ['lib/compliance/__tests__/'],
+    evidence: {
+      command: 'npx jest --config lib/compliance/jest.config.js --ci',
+      resultArtifact: 'docs/evidence/capability-evidence-2026-07-27.md#e-3--libcompliance-suite',
+      exitCode: 0,
+      testedAt: '2026-07-27',
+      targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      proves:
+        '14 suites / 381 tests pass: IDX display gate, RLS eligibility and enforcement, status ' +
+        'normalization including terminal statuses, auction banner and DTO handling, agent-info mapping.',
+      doesNotProve:
+        'That any disclosure actually RENDERS on a production page. That is the exact 2026-05-20 ' +
+        'FARE Act failure: source and unit evidence passed while the production conditional did ' +
+        'not render. Rendering claims require a live URL probe. Also does not prove the four ' +
+        'validator suites (ucba:audit, rls:validate, idx:validate, compliance-check) pass — ' +
+        'none were run.',
+    },
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     gaps: [
       'code-shaped, not data-shaped: no §6.1 versioned policy registry',
       'no contract_version / policy_version stamping anywhere in schema',
       'effective-date behavior (§6.4) unimplementable without version stamping',
     ],
+  },
+
+  // --- media split (review item 3) ------------------------------------------
+  // Previously one capability claiming `implemented` while its own notes said the
+  // AI-provenance half was unverified. A capability may not be promoted on half
+  // its stated scope.
+
+  {
+    id: 'CAP-MEDIA-SYNC',
+    name: 'Media synchronization and reconciliation',
+    program: 'P1',
+    planRef: '§15.1',
+    owner: 'unassigned',
+    status: 'implemented',
+    canonicalFiles: ['lib/idx/media-sync.ts', 'lib/idx/media-sync-member.ts', 'lib/idx/watermark.ts'],
+    tests: ['lib/idx/__tests__/'],
+    evidence: {
+      command: 'npx jest --config lib/idx/jest.config.js --ci',
+      resultArtifact: 'docs/evidence/capability-evidence-2026-07-27.md#e-2--libidx-suite',
+      exitCode: 0,
+      testedAt: '2026-07-27',
+      targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      proves:
+        'Media sync, ordering, cursor telemetry, and write-cause accumulation behave as asserted ' +
+        'within the 39-suite lib/idx run.',
+      doesNotProve:
+        'That production media is correct or complete; that hero-image selection is valid on any ' +
+        'live listing; or anything about AI-modification provenance (see CAP-MEDIA-AI-PROVENANCE).',
+    },
+    observability: 'unverified',
+    rollback: 'unverified',
+    notes:
+      'Declared paths are only those existing at targetSha. media-reconcile-guard.ts and ' +
+      'media-set-hash.ts are NOT declared here: they are unpushed on ' +
+      'fix/neon-write-amp-phase2a-media-reconcile-2026-07-26. Add them when that branch lands, ' +
+      'with fresh evidence — not before.',
+  },
+
+  {
+    id: 'CAP-MEDIA-AI-PROVENANCE',
+    name: 'AI-modified media provenance envelope',
+    program: 'P1',
+    planRef: '§15.1, §17.5, §26 C-6',
+    owner: 'unassigned',
+    status: 'discovered',
+    canonicalFiles: [],
+    tests: [],
+    observability: 'unverified',
+    rollback: 'unverified',
+    requiredScope: [
+      'original asset retained',
+      'derived analysis',
+      'edited version',
+      'edit type',
+      'provider / model attribution',
+      'edit date',
+      'disclosure',
+      'approval',
+      'publication history',
+      'withdrawal status',
+    ],
+    negativeEvidence: {
+      command:
+        'grep -rilE "editType|edit_type|virtualStaging|virtual_staging|aiModified|ai_modified|disclosureRequired" lib/idx/ lib/media/',
+      resultArtifact:
+        'docs/evidence/capability-evidence-2026-07-27.md#e-4--media-ai-provenance-fields-are-absent-negative-evidence',
+      exitCode: 0,
+      testedAt: '2026-07-27',
+      targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      proves:
+        'No AI-modification edit type, virtual-staging marker, provider/model attribution, or ' +
+        'disclosure field exists under lib/idx/ or lib/media/ at this commit.',
+      doesNotProve:
+        'That no equivalent exists elsewhere in the repo under a different name. Two directories, ' +
+        'one pattern set.',
+    },
+    policyWatch: [
+      {
+        id: 'NYC-DCWP-AI-MEDIA-DISCLOSURE',
+        review_status: 'monitoring',
+        enforcement_mode: 'none',
+        effective_date: null,
+        note:
+          'PROPOSED DCWP rulemaking, NOT enacted. No Local Law number, no Intro number, no rule ' +
+          'citation. Official NYC.gov source returned HTTP 403 and was NOT read. Do not implement ' +
+          'a disclosure gate against this. Promotion requires a dated official source per ' +
+          'CLAUDE.md §E and §J.4.',
+      },
+    ],
+    notes:
+      'C-6 ratified: build this envelope on EXISTING REBNY/RLS media obligations, independent of ' +
+      'the DCWP proposal. Status is `discovered` on negative evidence — zero of the ten required ' +
+      'scope items is implemented.',
   },
 
   {
@@ -175,11 +377,10 @@ export const capabilities = [
     tests: [],
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     blockedBy: 'C-3',
     notes:
-      'Measured at zero: grep -ril "outbox" over lib app prisma scripts -> 0 files. ' +
-      'C-1 ratified: audit_events is a SEPARATE system and must not be widened into an event bus.',
+      'Measured at zero: grep -ril "outbox" over lib app prisma scripts -> 0 files. C-1 ratified: ' +
+      'audit_events is a SEPARATE system and must not be widened into an event bus.',
   },
 
   {
@@ -193,12 +394,11 @@ export const capabilities = [
     tests: [],
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     blockedBy: 'C-3',
     notes:
-      'The 23 cron routes under app/api/cron/ are a SCHEDULER, not a workflow engine. ' +
-      'They cannot pause, resume, await approval, compensate, or partially regenerate. ' +
-      'Do not record them as satisfying this capability.',
+      'The 23 cron routes under app/api/cron/ are a SCHEDULER, not a workflow engine. They cannot ' +
+      'pause, resume, await approval, compensate, or partially regenerate. Do not record them as ' +
+      'satisfying this capability.',
   },
 
   {
@@ -212,7 +412,6 @@ export const capabilities = [
     tests: [],
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     blockedBy: 'C-3',
   },
 
@@ -227,12 +426,10 @@ export const capabilities = [
     tests: [],
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     notes:
-      'CanonicalProperty / CanonicalBuilding / CanonicalUnit / ListingIdentity / ' +
-      'IdentityMatchAudit / IdentityReviewQueue are declared. Recorded as `contracted` ' +
-      'rather than `implemented` because no dedicated test path was identified — ' +
-      'declaration is not implementation evidence.',
+      'CanonicalProperty / CanonicalBuilding / CanonicalUnit / ListingIdentity / IdentityMatchAudit / ' +
+      'IdentityReviewQueue are DECLARED in schema. `contracted`, not `implemented`: no dedicated ' +
+      'test path was identified and no evidence record exists. Declaration is not implementation.',
   },
 
   {
@@ -246,55 +443,12 @@ export const capabilities = [
     tests: [],
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     blockedBy: 'C-3',
     notes:
-      'grep "model Person|model Household|model Organization" -> NONE. §7.3 Organization ' +
-      'is the most consequential omission: NYC transactions run through LLCs, trusts, ' +
-      'estates, boards, managing agents, and law firms. OPEN QUESTION (untested): does ' +
-      'model Lead currently key on email? §7.1 warns against email-only identity.',
-  },
-
-  {
-    id: 'CAP-MEDIA-PROVENANCE',
-    name: 'Media contract and AI-modification provenance',
-    program: 'P1',
-    planRef: '§15.1, §17.5, §26 C-6',
-    owner: 'unassigned',
-    status: 'implemented',
-    canonicalFiles: [
-      'lib/idx/media-sync.ts',
-      'lib/idx/media-reconcile-guard.ts',
-      'lib/idx/media-set-hash.ts',
-      'lib/idx/watermark.ts',
-    ],
-    tests: ['lib/idx/__tests__/'],
-    observability: 'unverified',
-    rollback: 'unverified',
-    production_proof: 'unverified',
-    policyWatch: [
-      {
-        id: 'NYC-DCWP-AI-MEDIA-DISCLOSURE',
-        review_status: 'monitoring',
-        enforcement_mode: 'none',
-        effective_date: null,
-        note:
-          'PROPOSED DCWP rulemaking, NOT enacted. No Local Law number, no Intro number, ' +
-          'no rule citation. Official NYC.gov source returned HTTP 403 and was NOT read. ' +
-          'Do not implement a disclosure gate against this. Promotion requires a dated ' +
-          'official source per CLAUDE.md §E and §J.4.',
-      },
-    ],
-    notes:
-      'C-6 ratified: build the provenance envelope on EXISTING REBNY/RLS media ' +
-      'obligations, independent of the DCWP proposal. Note the §17.5 field list ' +
-      '(edit type, provider/model, disclosure, approval, withdrawal) is NOT yet ' +
-      'verified as implemented — only media sync/reconcile is. ' +
-      'EXPECTED WARNING: media-reconcile-guard.ts and media-set-hash.ts are declared ' +
-      'here but do not exist on this branch — they are unpushed on ' +
-      'fix/neon-write-amp-phase2a-media-reconcile-2026-07-26. The validator correctly ' +
-      'warns. Do not silence the warning by deleting the paths; it resolves when that ' +
-      'branch lands. This is the registry doing its job across branch boundaries.',
+      'grep "model Person|model Household|model Organization" -> NONE. §7.3 Organization is the most ' +
+      'consequential omission: NYC transactions run through LLCs, trusts, estates, boards, managing ' +
+      'agents, and law firms. OPEN QUESTION (untested): does model Lead currently key on email? ' +
+      '§7.1 warns against email-only identity.',
   },
 
   {
@@ -308,11 +462,9 @@ export const capabilities = [
     tests: [],
     observability: 'unverified',
     rollback: 'unverified',
-    production_proof: 'unverified',
     notes:
-      'Measured: 2 .tsx files per role (buyer/seller/tenant/landlord) against 40 backing ' +
-      'API routes. Backend is ahead of frontend. Recorded as `designed` rather than ' +
-      '`implemented` because no wired loop was demonstrated.',
+      'Measured: 2 .tsx files per role against 40 backing API routes. Backend ahead of frontend. ' +
+      '`designed`, not `implemented`: no wired loop demonstrated and no evidence record.',
   },
 ];
 
@@ -324,9 +476,9 @@ export const coverage = {
   capabilitiesRegistered: capabilities.length,
   capabilitiesTotalEstimated: 'unknown',
   method:
-    'Hand-seeded from the capabilities the 2026-07-27 gap analysis actually measured. ' +
-    'This is NOT a complete inventory of the platform. Producing the complete inventory ' +
-    'is a Program 0 deliverable and is not yet done.',
+    'Hand-seeded from the capabilities the 2026-07-27 gap analysis actually measured. This is NOT ' +
+    'a complete inventory of the platform. Producing the complete inventory is a Program 0 ' +
+    'deliverable and is not yet done.',
   knownUnregisteredAreas: [
     'CRM (156 API routes under app/api/crm/)',
     'lead scoring, buyer intent, demand index, conviction, seller readiness',
@@ -335,6 +487,24 @@ export const coverage = {
     'public growth journeys (§10)',
     'broker operating system (§14)',
   ],
+  notRunDuringSeeding: [
+    'npm run type-check',
+    'npm run ucba:audit / rls:validate / idx:validate / compliance-check',
+    'npm run test:rls',
+    'npm run crm:test',
+    'any live Cotality call',
+    'any production or preview URL probe',
+    'any Neon/production database query',
+  ],
 };
 
-export default { STATUSES, PROMOTION_PROOF, meta, programs, capabilities, coverage };
+export default {
+  STATUSES,
+  PROGRAM_ASSESSMENTS,
+  PROMOTION_PROOF,
+  EVIDENCE_FIELDS,
+  meta,
+  programs,
+  capabilities,
+  coverage,
+};

@@ -340,9 +340,36 @@ consistent with how `ucba:audit` and `rls:validate` already operate in this repo
 
 Delivered in this PR as **schema-free, static** artifacts (no migration, no hold triggered):
 
-- `config/capabilities.mjs` — the registry, seeded and hand-verified;
+- `config/capabilities.mjs` — the registry. **Data only**: no imports, no filesystem, no network,
+  no environment reads, no side effects;
 - `scripts/capability-audit.mjs` — the validator;
+- `docs/evidence/capability-evidence-2026-07-27.md` — the durable evidence artifact every
+  promoted status points to;
 - `npm run capability:audit` — the entry point.
+
+**Promotion thresholds are enforced** per plan §26 C-5.1. `implemented` requires a complete
+structured evidence record — exact command, `resultArtifact`, integer `exitCode`, `testedAt`,
+`targetSha`, `proves`, `doesNotProve`. Placeholders (`unverified`, `tbd`, `pending`) never satisfy
+an evidence field. A missing declared path is a **violation** for a promoted capability. Program
+`assessment` and capability `status` are separate vocabularies and the validator rejects confusion
+between them (§26 C-5.2).
+
+**Evidence captured at PR head `6d2518b8`** (`docs/evidence/capability-evidence-2026-07-27.md`):
+
+| Suite | Result | Exit |
+|---|---|---|
+| `npx jest --config lib/search/jest.config.js --ci` | 23 suites / 625 tests passed | `0` |
+| `npx jest --config lib/idx/jest.config.js --ci` | 39 suites / 784 tests passed | `0` |
+| `npx jest --config lib/compliance/jest.config.js --ci` | 14 suites / 381 tests passed | `0` |
+
+Negative evidence for the media split: `grep -rilE "editType|virtualStaging|aiModified|disclosureRequired"`
+over `lib/idx/ lib/media/` → **no matches**. Zero of the ten §17.5 provenance scope items exists.
+
+**The validator was negative-tested**, not merely run green — a validator that only ever passes
+proves nothing. Four induced faults each produced the correct blocking violation:
+program carrying `status` → `PROGRAM_USES_STATUS`; unearned `production` → `UNEARNED_STATUS`;
+missing path on a promoted capability → `PROMOTED_PATH_MISSING`; placeholder `exitCode` →
+`EVIDENCE_INCOMPLETE`. The registry was then restored `cmp`-identical and passes.
 
 **Not** wired into `.github/workflows/**` — that path is held pending Maya's approval
 (`CLAUDE.md` §A.7).
