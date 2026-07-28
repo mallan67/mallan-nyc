@@ -1,450 +1,528 @@
 # Frontend / Backend Integration Architecture — mallan.nyc
 
-**Date:** 2026-07-28
-**Status:** Design — not approved, not implemented
-**Scope:** System-wide frontend/backend integration architecture for `mallan67/mallan-nyc`
-**Program:** One unified program, six controlled phases (§9)
-
-**Scope isolation.** This document is standalone. It does not depend on, modify, or reference any
-repository-governance effort, historical audit, or separate architecture workstream. It may be read
-and executed on its own.
+**Revision:** 3 · **Date:** 2026-07-28 · **Status:** DESIGN — not approved, not implemented
+**Scope:** System-wide frontend/backend integration for `mallan67/mallan-nyc`
+**Isolation:** Standalone. References no repository-governance, historical-audit, or other
+architecture effort.
 
 ---
 
-## 0. Claims this design does NOT make
+# A. HOW TO USE THIS DOCUMENT
 
-This section exists first because several statements made while exploring this problem were inferred
-from file counts and text searches rather than verified. None of them is treated as fact below.
-Each becomes Phase 1 work.
+Read this section before changing anything below it. It exists so that an agent picking up any
+single requirement can tell what it depends on, what depends on it, and what must be re-verified
+if it moves.
 
-| Not asserted | Why not | Resolved in |
+## A.1 Requirement IDs
+
+Every normative requirement has a stable ID. **Cite the ID, never the prose.** IDs are permanent —
+if a requirement is withdrawn, its ID is retired, never reused.
+
+| Prefix | Domain | Section |
 |---|---|---|
-| That the portals work | UI line counts and endpoint string references prove neither authentication, authorization, response compatibility, data correctness, nor live operation | Phase 1 |
-| That any route is "orphaned" | A text search over `app/**/*.tsx` cannot prove absence of callers. Correct status: **no caller found in the searched paths** | Phase 1 |
-| That search is disconnected from its engine | A static `grep` for `fetch(` is not a data-path trace | Phase 1 live trace |
-| That any capability is complete | Presence of a module, route, model, or test is not operation | Phase 1 |
-
-**Rule for this program:** a component is described by what has been observed of it, at a named
-commit, by a named method. Absence of evidence is recorded as *not verified*, never as absence.
-
----
-
-## 1. Problem
-
-Mallan runs two frontends against one backend:
-
-- the **Next.js application** — public site, search, and the buyer / tenant / seller / landlord portals;
-- the **static CRM** under `public/crm` — plain HTML and JavaScript.
-
-They are to remain separate. Today they also have **separate, implicit contracts**: every call site
-re-invents its request shape, error handling, and response parsing. There is no shared schema, no
-shared client, no common envelope, and no single place where authorization or policy is decided.
-
-The consequence is that every fix is made twice, every compliance gate is re-implemented per route,
-and no one can state which routes are correct without reading each one.
-
-**This design does not merge the frontends. It gives them one contract.**
-
----
-
-## 2. Actors are not symmetric
-
-Frontend users and backend users are different populations with different rights. The architecture
-must model this explicitly rather than by convention.
-
-| Actor class | Origin | Typical surface |
-|---|---|---|
-| `anonymous` | public web | public search, listing detail, lead capture |
-| `portal_client` | authenticated client, role-scoped | buyer / tenant / seller / landlord portal |
-| `agent` | brokerage staff | CRM, professional search |
-| `broker` | supervising broker | CRM, governance, approval |
-| `system` | cron, webhook, internal job | no user-facing surface |
-
-`portal_client` is further scoped by **role** (buyer, tenant, seller, landlord) and by **resource**:
-a seller may read *their* listing's analytics and no one else's. Role alone is insufficient —
-authorization must resolve to the specific resource. See §6.
-
----
-
-## 3. Listing origination — Mallan-owned and web-direct
-
-**Requirement.** Not every listing comes from Cotality. Mallan-owned listings may be entered
-directly and published to the web, and Mallan may elect to publish a listing **only** to the web.
-There is currently no direct feed for these.
-
-The architecture therefore treats listing **origin** and listing **display scope** as independent,
-explicit fields on the domain model — never inferred.
-
-```text
-origin:        cotality | mallan_direct
-display_scope: web_only | web_and_syndicated | private
-```
-
-Consequences:
-
-- A `mallan_direct` listing must never be represented as Cotality-sourced, and must not claim
-  Cotality provenance in any DTO, artifact, report, or email.
-- Cotality display rules (RLS gates, attribution, IDX disclaimer) apply to `cotality`-origin
-  listings. `mallan_direct` listings are governed by NY DOS advertising rules and Fair Housing, and
-  by REBNY/RLS only where Mallan has separately undertaken those obligations.
-- `display_scope: web_only` is an **enforced** gate, not a label. A route that would expose a
-  `web_only` listing outside the public web must fail closed.
-- The domain service — not the route — decides which listings a given actor may see, so both
-  origins are filtered identically for every consumer.
-
-**Open item for Phase 1:** whether existing models (`Listing`, `ExternalListing`) already carry
-equivalent fields, and whether a schema change is required. If it is, it is gated — see §10.
-
----
-
-## 4. Architecture
-
-```text
-   Next.js frontend                         Static CRM frontend
-   (app/, portals)                          (public/crm, plain JS)
-          │                                          │
-   browser client (ESM/TS)              generated browser client (IIFE/ESM, no bundler)
-          │                                          │
-          └──────────────┬───────────────────────────┘
-                         │  HTTP
-                         ▼
-              thin HTTP route adapters
-              (validate → authorize → policy → delegate → envelope)
-                         │  direct function call
-                         ▼
-                 domain services
-      (search, listings, cma, seller, marketing, intelligence)
-                         │
-                         ▼
-        data + providers (Prisma, Cotality/Trestle, email transport)
-
-
-   Next.js SERVER-SIDE code  ──────────────────────► domain services
-   (Server Components, Server Actions, cron, jobs)     DIRECT. Never via HTTP.
-```
-
-### 4.1 Contract source of truth
-
-One directory is the single source of shared request/response schemas. Both clients and all route
-adapters are generated from or validated against it. Nothing else defines a wire shape.
-
-Contents: request schemas, response schemas, the envelope type, the error taxonomy, transport
-classifications, and the contract version.
-
-### 4.2 Generated browser client for the static CRM
-
-The CRM has no build step and no module bundler. It therefore receives a **generated, committed,
-browser-loadable client** — no framework imports, no Node built-ins, no TypeScript at runtime.
-
-- Generated from the contract source; generation is reproducible and verified in CI-equivalent checks.
-- Committed as a build artifact with the contract version embedded.
-- A drift check fails if the committed artifact does not match regeneration from the current contract.
-
-### 4.3 Browser client for the Next.js frontend
-
-A typed client for React client components. Same contract, same envelope, same error taxonomy.
-Returns a discriminated union; never throws on HTTP status.
-
-### 4.4 Thin HTTP route adapters
-
-A route adapter does exactly five things and contains **no business logic**:
-
-1. validate the request against the contract schema;
-2. resolve the actor and authorize (actor · role · resource · listing);
-3. evaluate policy gates (REBNY / Cotality / Fair Housing);
-4. delegate to a domain service;
-5. validate the response and wrap it in the envelope.
-
-Anything else in a route is a defect.
-
-### 4.5 Reusable domain services
-
-Domain services hold the behavior. They are plain functions with typed inputs and outputs, no
-knowledge of HTTP, and no knowledge of who is calling.
-
-**Server-side Next.js code — Server Components, Server Actions, cron handlers, background jobs —
-calls domain services directly.** It must never issue an HTTP request to the application's own
-routes. Self-HTTP costs a network round trip, loses type safety, obscures errors, breaks tracing,
-and re-authenticates work that is already authorized.
-
-Authorization is passed to the service as an explicit, already-resolved actor context. The service
-enforces resource scoping; it does not re-derive identity.
-
----
-
-## 5. Transport classification and the envelope
-
-Not every route can or should return JSON. Each route declares its transport class in the contract,
-and the audit (§8) checks it against actual behavior.
-
-| Class | Envelope | Examples |
-|---|---|---|
-| `json` | **Required** | the large majority of routes |
-| `file` | Exempt — registered | document download, export, PDF |
-| `stream` | Exempt — registered | SSE, progressive responses |
-| `redirect` | Exempt — registered | unsubscribe confirmation, OAuth entry |
-| `auth_callback` | Exempt — registered | provider callbacks with fixed contracts |
-| `webhook` | Exempt — registered | inbound provider callbacks; shape set by the sender |
-| `health` | Exempt — registered | liveness and readiness probes |
-
-**Exemptions are registered, not implicit.** An unregistered non-JSON route fails the audit. A route
-registered as exempt must state why.
-
-### 5.1 The JSON envelope
-
-```jsonc
-// success
-{ "ok": true,  "data": { }, "meta": { } }
-// failure
-{ "ok": false, "error": { "code": "", "message": "", "details": {} }, "meta": { } }
-```
-
-`meta` carries `contractVersion`, `requestId`, `actorClass`, and `generatedAt`. Where a response
-derives from provider data it additionally carries source and source timestamp.
-
-`meta` is response metadata only. **No database column is introduced by the envelope**, so the
-envelope itself requires no migration.
-
-### 5.2 Error taxonomy
-
-A closed set of machine-readable codes — validation, authentication, authorization, not-found,
-conflict, policy-blocked, provider-unavailable, not-evaluated, internal. Both clients switch on the
-code. Human-readable messages never carry meaning the code does not.
-
-**No silent failure.** Unknown, unsupported, stale, and unverified states are explicit values, never
-an empty success.
-
----
-
-## 6. Authorization
-
-Four layers, evaluated in order, all inside the route adapter before any domain call:
-
-1. **Actor** — who is calling, and is the credential valid;
-2. **Role** — is this actor class permitted this operation at all;
-3. **Resource** — is this specific record within the actor's scope;
-4. **Listing-level** — for listing-bearing routes, is this actor entitled to *this listing*, given
-   origin, display scope, ownership, and representation.
-
-Layer 4 is separate because listing entitlement is not a property of the user alone. A seller sees
-their own listing's analytics; an agent sees listings they represent; the public sees only what
-display scope and RLS permit.
-
-Authorization failures return `authorization` — never a silent empty result set, which would be
-indistinguishable from "no data."
-
----
-
-## 7. Policy gates
-
-Policy gates are evaluated in the route adapter, after authorization, before the domain call. Each
-returns an explicit decision, never a boolean guess.
-
-```text
-allowed | blocked | not_evaluated
-```
-
-### 7.1 REBNY / RLS and Cotality gates
-
-Applied to `cotality`-origin listings for display permission, attribution, and disclaimer
-requirements, per the canonical compliance index. Applied per audience, since public, agent, and
-portal audiences differ.
-
-Cotality field, enum, and runtime truth is resolved through the existing integration surface. This
-design adds no new provider vocabulary and copies none.
-
-### 7.2 Fair Housing gate — never silently passes
-
-The Fair Housing scanner is being built separately and is not connected.
-
-**Until it is connected, the Fair Housing gate returns `not_evaluated`.** It never returns `allowed`.
-
-- `not_evaluated` on a **compliance-sensitive surface** requires **human review** before the content
-  may be sent or published. The system routes it to review; it does not proceed.
-
-**Compliance-sensitive surfaces**, defined explicitly so the rule is not interpretable:
-
-  1. any outbound marketing email, campaign, or template;
-  2. any public listing description, headline, or marketing remark;
-  3. any listing presentation, seller report, landlord report, or CMA narrative shown outside the brokerage;
-  4. any advertising copy naming a listing, building, neighborhood, agent, or the brokerage;
-  5. any AI- or template-generated text destined for any of the above.
-
-  Purely internal, non-client-facing text — an agent's private note, an internal task, a debug log —
-  is not compliance-sensitive and is not gated.
-- `not_evaluated` is recorded on the artifact, so anything produced while the scanner was absent is
-  identifiable later.
-- A gate that returns `allowed` without having evaluated anything is a defect, not a convenience.
-
-**Interface requirement.** The gate receives **context**, not a bare string: the text, the field it
-came from, the audience, the surface, and the listing origin. Without context the gate cannot
-distinguish a factual amenity from a preference statement — a building's children's playroom is a
-description of the property; "perfect for families" is a statement about desired occupants. Only the
-second is a violation. A string-only interface would make that distinction impossible and would
-guarantee false positives that train people to ignore the gate.
-
-The scanner plugs in behind this interface. Nothing else changes when it lands.
-
----
-
-## 8. Contract audit — baseline and ratchet
-
-A validator classifies every route and enforces that the system only improves.
-
-- **Baseline:** the current count of conforming routes is recorded once.
-- **Ratchet:** the validator fails if conformance decreases. New routes must conform. Existing
-  non-conforming routes may be migrated at any pace, but never added to.
-- Route classification, exemption registration, and client-artifact drift are all checked.
-- The validator reports what it proves **and what it does not** — it verifies contract conformance,
-  not correctness, not authorization behavior, and not live operation.
-
-This makes migration measurable rather than asserted, and prevents regression without demanding a
-big-bang rewrite.
-
----
-
-## 9. Phases
-
-One program. Each phase has an entry condition, an exit condition, and required evidence. No phase
-is declared complete on the strength of code existing.
-
-### Phase 1 — Verified inventory
-
-**Nothing is designed further until reality is measured.**
-
-- Live-trace the search experience end to end: the actual browser network activity on `/search`,
-  the server-side data path, whether results render, and the true status of the `/api/results`
-  dependency. Record the trace.
-- Verify portal reality per role: authentication, authorization, response compatibility, data
-  correctness, and live operation. Replace all inferred status.
-- Re-classify every route with no caller found: search `public/crm`, tests, server-side code, and
-  dynamically constructed paths before assigning any status. Output is *caller found* / *no caller
-  found in searched paths*, never "orphaned."
-- Inventory listing origination: whether `origin` and `display_scope` equivalents exist today.
-- Inventory consent and audience data actually present on contacts.
-
-**Exit:** a dated inventory in which every status names its verification method. Unverified items
-are listed as unverified.
-
-### Phase 2 — Contract foundation
-
-Contract source of truth; envelope; error taxonomy; transport classification and exemption
-registry; route adapter; domain-service boundary; both clients; authorization layers; policy gate
-interfaces including the Fair Housing `not_evaluated` behavior; the baseline-and-ratchet audit.
-
-**Exit:** foundation in place, audit baseline recorded, at least one non-critical route migrated
-end to end through both clients as proof.
-
-### Phase 3 — Search integration
-
-Wire the search experience to its domain service through the contract, informed by the Phase 1
-trace. Resolve `/api/results`. Support both `cotality` and `mallan_direct` origins with display
-scope enforced. Public and professional audiences share meaning, not exposure.
-
-**Exit:** search works, proven live, for each audience, with correct totals and no silent empty
-results.
-
-### Phase 4 — Seller operating loop
-
-Seller portal on the contract: listing status, traffic, engagement, showings, offers, and **CMA**.
-
-CMA is treated as a **versioned artifact** with a lifecycle — draft → reviewed → **broker-approved**
-→ delivered → superseded. **A CMA is exposed to a seller only after broker approval.** It carries
-its inputs, method, comparable set, source timestamps, contract version, policy status, and
-approver. An unapproved or stale CMA is never shown.
-
-**Exit:** a seller sees their listing's real activity and an approved CMA, proven live.
-
-### Phase 5 — Marketing readiness
-
-Audience classification, suppression, unsubscribe, previews, and dry runs on the contract, with the
-Fair Housing gate returning `not_evaluated` and routing to human review.
-
-**This phase explicitly does not claim complete consent enforcement.** See §10.
-
-**Exit:** the system can classify audiences, suppress correctly, honor unsubscribe, and produce
-previews and dry runs with full recipient accounting — with its consent limitations stated.
-
-### Phase 6 — Explainable intelligence
-
-Signals surfaced through the contract as structured, explainable records:
-
-```text
-signal type · evidence · source · source timestamp · confidence
-reason codes · policy status · expiration · recommended action
-assigned person · human-approval requirement
-```
-
-No unexplained score is presented as truth. Any future AI layer is a **replaceable consumer** of
-these signals: it may summarize, rank, or draft, and it must **never invent the underlying facts**.
-Model, prompt version, and cost are recorded; output requiring judgment requires human approval.
-
-**Exit:** signals visible with evidence and reason codes, and a documented statement of what each
-signal does and does not establish.
-
----
-
-## 10. Consent — explicit deferred decision
-
-Consent is modeled as **contact × channel × purpose**, not a boolean.
-
-- **contact** — the person
-- **channel** — email, SMS, voice, portal
-- **purpose** — transactional, listing updates, marketing, market reports
-
-Both CAN-SPAM postures are supported: **opt-in** recorded affirmatively, and **opt-out** honored
-durably.
-
-**Deferred, requiring an explicit data-model decision and approval:**
-
-1. durable consent **provenance** per contact — source, acquisition date, legal basis, and evidence;
-2. authorization to run **production bulk email**.
-
-These require schema work and are therefore gated. Until both are decided:
-
-- the marketing system **may** support audience classification, suppression, unsubscribe, previews,
-  and dry runs;
-- the marketing system **may not** claim complete consent enforcement, and no documentation,
-  report, or interface may state that it has been achieved;
-- production bulk sends remain out of scope for this design.
-
-Existing fail-closed suppression behavior is retained unchanged.
-
----
-
-## 11. Verification requirements
-
-Every phase carries all four. None is optional, and none substitutes for another.
-
-| Requirement | Meaning |
+| `ACT` | Actors and identity | C |
+| `PRV` | Listing provenance and distribution | D |
+| `ARC` | Architecture and layering | E |
+| `TRN` | Transport class and envelope | F |
+| `AUZ` | Authorization and non-disclosure | G |
+| `POL` | Policy gates (REBNY / Cotality / Fair Housing) | H |
+| `VER` | Contract versioning and client compatibility | I |
+| `AUD` | Contract audit | J |
+| `CMA` | CMA model | K |
+| `MKT` | Consent and marketing | L |
+| `VRF` | Verification requirements | M |
+| `PH` | Phases | N |
+
+## A.2 Status legend
+
+Every requirement carries exactly one.
+
+| Status | Meaning |
 |---|---|
-| **Health checks** | Operational probes proving the surface responds correctly, run before and after change |
-| **Exact tests** | Named commands with recorded raw output and exit codes, against a named commit, in a named environment. Tests fail before the change and pass after when behavior changes |
-| **Production proof** | Live evidence from production or an immutable preview — a real request producing a real response. Source reads and unit tests never substitute for a rendering or behavior claim |
-| **Rollback** | A written, tested path back, verified before the change ships |
+| **DECIDED** | Settled. Change requires the §A.4 protocol. |
+| **DEFERRED** | Deliberately not decided yet. Blocking condition is named. |
+| **OPEN** | Needs an answer. Listed in §O. |
+| **DERIVED** | Follows from another requirement; changes when its parent changes. |
 
-A phase is complete when all four exist for it, and each states what it proves **and what it does
-not**.
+## A.3 Section header convention
+
+Every section below carries a header block:
+
+> **Depends on:** IDs that must hold for this to be valid
+> **Feeds:** IDs that break if this changes
+> **Status:** the section's dominant status
+
+## A.4 Change protocol — read before editing any requirement
+
+Because these requirements are interdependent, changing one silently invalidates others. When
+changing a requirement:
+
+1. **Locate its ID** and its row in the dependency map (§B).
+2. **Read the `Feeds` column.** Every ID listed there must be re-read and either confirmed still
+   valid or changed in the same edit.
+3. **If the requirement is `DECIDED`,** record the change in §P with its ID, what changed, and why.
+   Do not silently rewrite a `DECIDED` requirement.
+4. **If the change affects a phase already executed,** its verification evidence (§M) is invalidated
+   and must be re-produced. Note this explicitly.
+5. **Never widen a claim to make an edit easier.** If evidence does not support the new wording,
+   the wording changes, not the evidence.
+
+## A.5 The one rule that governs everything
+
+> A component is described by what has been observed of it, at a named commit, by a named method.
+> **Absence of evidence is recorded as "not verified," never as absence.**
 
 ---
 
-## 12. Explicit non-goals
+# B. DEPENDENCY MAP
 
-- Merging the two frontends. They stay separate by decision.
-- Rewriting the static CRM.
-- Introducing a new AI provider or model dependency.
-- Building the Fair Housing scanner — external by decision, consumed through the §7.2 interface.
-- Production bulk email — gated by §10.
-- Any schema migration, which is separately gated and requires explicit approval.
-- Any repository-governance, historical-audit, or unrelated architecture work.
+The build order and blast radius of every block. Read a row as: *this block cannot be correct until
+`Depends on` holds, and changing it forces re-verification of `Feeds`.*
+
+| Block | Depends on | Feeds | Phase |
+|---|---|---|---|
+| **C — Actors** | — | AUZ, POL, TRN | 2 |
+| **D — Provenance** | — | AUZ-4, POL-1, CMA, PH-3 | 1 → 2 |
+| **E — Architecture** | ACT | TRN, AUZ, POL, VER, AUD | 2 |
+| **F — Transport / envelope** | ARC-4 | AUD-2, VER-2, all clients | 2 |
+| **G — Authorization** | ACT, PRV, ARC-4 | every route; PH-3, PH-4 | 2 |
+| **H — Policy gates** | PRV, ARC-4 | PH-3, PH-4, PH-5, CMA | 2 |
+| **I — Versioning** | ARC-2, ARC-3, TRN-2 | both clients, AUD-3 | 2 |
+| **J — Audit** | TRN, VER | every later phase | 2 |
+| **K — CMA** | PRV, POL-1, AUZ-4 | PH-4 | 4 |
+| **L — Marketing** | POL-2, AUZ | PH-5 | 5 |
+| **M — Verification** | — | every phase exit | all |
+| **N — Phases** | all of the above | — | — |
+
+**Critical path:** `PH-1` (inventory) → `ARC` + `TRN` + `AUZ` + `VER` + `AUD` (foundation) →
+`PH-3` (search) → `PH-4` (seller + CMA) → `PH-5` (marketing) → `PH-6` (intelligence).
+
+**Highest blast radius:** `TRN-2` (the envelope) and `AUZ-1` (the three outcomes). Changing either
+touches every route.
 
 ---
 
-## 13. Open questions
+# C. ACTORS
 
-1. Do `Listing` / `ExternalListing` already express `origin` and `display_scope`, or is a schema
-   change required? (Phase 1)
-2. Which routes legitimately need a non-JSON transport class? (Phase 1 registry)
-3. What is the actual browser and server data path for `/search` today? (Phase 1 live trace)
-4. What consent and audience data exists on contacts now, and what must be added? (Phase 1, then §10)
-5. Who is the named approver for CMA artifacts, and what is the review turnaround? (Phase 4)
+> **Depends on:** — · **Feeds:** AUZ, POL, TRN · **Status:** DECIDED
+
+Frontend users and backend users are different populations with different rights.
+
+| ID | Requirement |
+|---|---|
+| **ACT-1** | Five actor classes exist: `anonymous`, `portal_client`, `agent`, `broker`, `system`. |
+| **ACT-2** | `portal_client` is scoped by **role** (buyer / tenant / seller / landlord) **and** by resource. Role alone never authorizes. |
+| **ACT-3** | Actor context is resolved once, in the route adapter, and passed to domain services already resolved. Services never re-derive identity. |
+
+---
+
+# D. LISTING PROVENANCE AND DISTRIBUTION
+
+> **Depends on:** — · **Feeds:** AUZ-4, POL-1, CMA-1, PH-3 · **Status:** DECIDED, with one OPEN
+
+A single `origin` value cannot describe a listing's life. A listing may begin as Mallan-direct, later
+be submitted to Cotality, and thereafter be governed by it. Provenance, authority, and distribution
+are **four independent dimensions**.
+
+```text
+acquisition_source     how it entered Mallan — immutable
+  mallan_direct | cotality
+
+authority_source       who is authoritative for provider-controlled fields NOW
+  mallan | cotality | pending_reconciliation
+
+distribution_state     where it is actually published
+  private | mallan_web_only | submitted_to_rls
+  | provider_verified_syndicated | withdrawn
+
+provider_identity      the provider's own record, when one exists
+  cotality_listing_id | provider_last_verified_at | reconciliation_status
+```
+
+| ID | Requirement |
+|---|---|
+| **PRV-1** | `acquisition_source` is **immutable**. Original acquisition history is preserved permanently, never overwritten, even after Cotality becomes authoritative. |
+| **PRV-2** | `provider_verified_syndicated` is reachable **only** from verified provider facts carrying `cotality_listing_id` and `provider_last_verified_at`. No user, form, import, or application-layer write may assert it. Any other path is a defect. |
+| **PRV-3** | `submitted_to_rls` ≠ `provider_verified_syndicated`. Submission is intent; verified syndication is an observed provider fact. The gap is `pending_reconciliation`. |
+| **PRV-4** | When `authority_source` is `cotality`, the provider is authoritative for provider-controlled fields. Mallan-originated values are retained as history and never presented as current provider truth. |
+| **PRV-5** | A direct listing may be web-only with no Cotality provenance and **must never claim any**. No DTO, artifact, report, or email may attribute Cotality provenance to a listing lacking `provider_identity`. |
+| **PRV-6** | `distribution_state` is **enforced**, not descriptive. Exposing a `private` or `mallan_web_only` listing outside its permitted surface fails closed. |
+| **PRV-7** | The domain service decides visibility, so every consumer filters identically regardless of acquisition source. |
+| **PRV-8** | *(OPEN — O-1)* Whether existing models express these four dimensions, and whether a schema change is required. |
+
+---
+
+# E. ARCHITECTURE
+
+> **Depends on:** ACT · **Feeds:** TRN, AUZ, POL, VER, AUD · **Status:** DECIDED
+
+```text
+   Next.js frontend                      Static CRM frontend
+   (app/, portals)                       (public/crm, plain JS)
+          │                                       │
+   browser client (ESM/TS)          generated browser client (no bundler)
+          │                                       │
+          └─────────────┬─────────────────────────┘
+                        │  HTTP
+                        ▼
+             thin HTTP route adapters
+        validate → authorize → policy → delegate → envelope
+                        │  direct function call
+                        ▼
+                domain services
+   (search, listings, cma, seller, marketing, intelligence)
+                        │
+                        ▼
+      data + providers (Prisma, Cotality/Trestle, email transport)
+
+   Next.js SERVER-SIDE code ─────────────────────► domain services
+   (Server Components, Actions, cron, jobs)        DIRECT. Never via HTTP.
+```
+
+| ID | Requirement |
+|---|---|
+| **ARC-1** | One directory is the single source of shared request/response schemas, envelope type, error taxonomy, transport classifications, and contract version. Nothing else defines a wire shape. |
+| **ARC-2** | The static CRM receives a **generated, committed, browser-loadable** client — no framework imports, no Node built-ins, no runtime TypeScript. Lifecycle in VER-5. |
+| **ARC-3** | The Next.js frontend receives a typed client over the same contract, returning a discriminated union, never throwing on HTTP status. |
+| **ARC-4** | A route adapter does exactly five things and contains **no business logic**: validate request · resolve actor and authorize · evaluate policy · delegate to a domain service · validate response and wrap. Anything else is a defect. |
+| **ARC-5** | Domain services are plain functions with typed inputs/outputs, no knowledge of HTTP or caller. |
+| **ARC-6** | **Server-side Next.js code calls domain services directly and never issues HTTP requests to its own routes.** Self-HTTP costs a round trip, loses type safety, obscures errors, breaks tracing, and re-authenticates already-authorized work. |
+| **ARC-7** | The two frontends remain separate. This design gives them one contract; it does not merge them. |
+
+---
+
+# F. TRANSPORT CLASS AND ENVELOPE
+
+> **Depends on:** ARC-4 · **Feeds:** AUD-2, VER-2, both clients · **Status:** DECIDED
+> ⚠ **Highest blast radius — TRN-2 touches every route.**
+
+| ID | Requirement |
+|---|---|
+| **TRN-1** | Every route declares a transport class in the contract: `json`, `file`, `stream`, `redirect`, `auth_callback`, `webhook`, `health`. The audit checks the declaration against actual behavior. |
+| **TRN-2** | `json` routes **must** use the envelope: `{ok:true,data,meta}` / `{ok:false,error,meta}`. `meta` carries `contractVersion`, `requestId`, `actorClass`, `generatedAt`, and — for provider-derived responses — source and source timestamp. |
+| **TRN-3** | `meta` is response metadata only. **The envelope introduces no database column and requires no migration.** |
+| **TRN-4** | Non-JSON classes are **registered exemptions**, each stating why. An unregistered non-JSON route fails the audit. |
+| **TRN-5** | The error taxonomy is a closed set: `VALIDATION`, `AUTHENTICATION`, `FORBIDDEN`, `RESOURCE_NOT_AVAILABLE`, `EMPTY_RESULT`, `CONFLICT`, `POLICY_BLOCKED`, `NOT_EVALUATED`, `PROVIDER_UNAVAILABLE`, `INTERNAL`. Clients switch on the code; messages never carry meaning the code does not. |
+| **TRN-6** | **No silent failure.** Unknown, unsupported, stale, and unverified states are explicit values — never an empty success. |
+
+---
+
+# G. AUTHORIZATION AND NON-DISCLOSURE
+
+> **Depends on:** ACT, PRV, ARC-4 · **Feeds:** every route, PH-3, PH-4 · **Status:** DECIDED
+> ⚠ **High blast radius — AUZ-1 changes response shape across all ID-addressed routes.**
+
+Four layers, in order, inside the route adapter, before any domain call.
+
+| ID | Requirement |
+|---|---|
+| **AUZ-1** | Three distinct outcomes, never conflated — see table below. |
+| **AUZ-2** | Layer 1 **Actor**: is the credential valid. Layer 2 **Role**: is this actor class permitted this operation at all. |
+| **AUZ-3** | Layer 3 **Resource**: is this specific record within the actor's scope. |
+| **AUZ-4** | Layer 4 **Listing-level**: is this actor entitled to *this listing*, given `acquisition_source`, `authority_source`, `distribution_state`, ownership, and representation. Separate from role because listing entitlement is not a property of the user alone. |
+| **AUZ-5** | **Non-disclosure.** For ID-addressed resources, `RESOURCE_NOT_AVAILABLE` is returned identically whether the resource does not exist or exists but belongs to someone else. Body, status, and timing must not differ. This prevents enumeration of listing, client, offer, and document IDs belonging to other portal users. |
+
+| Situation | Code | Discloses existence? |
+|---|---|---|
+| Authorized query returning zero records | `EMPTY_RESULT` | n/a |
+| Authenticated user lacks a broad feature permission | `FORBIDDEN` | No — the *feature* is denied, not a record |
+| Resource-specific mismatch (listing, client, document, offer) | `RESOURCE_NOT_AVAILABLE` | **No — must not** |
+
+User-facing message for `RESOURCE_NOT_AVAILABLE`, deliberately uninformative:
+
+> This item is unavailable or is not associated with your account.
+
+`EMPTY_RESULT` stays distinct from both denials so an authorized-but-empty result is never confused
+with a refusal.
+
+---
+
+# H. POLICY GATES
+
+> **Depends on:** PRV, ARC-4 · **Feeds:** PH-3, PH-4, PH-5, CMA · **Status:** DECIDED
+
+Evaluated after authorization, before the domain call. Each returns `allowed` · `blocked` ·
+`not_evaluated`.
+
+| ID | Requirement |
+|---|---|
+| **POL-1** | REBNY/RLS and Cotality gates apply per audience to listings whose `authority_source` is `cotality`, covering display permission, attribution, and disclaimer. Resolved through the existing integration surface using **live provider values and status definitions**. No new provider vocabulary, none copied, **no hardcoded status assumptions**. |
+| **POL-2** | **The Fair Housing gate never silently passes.** Until the external scanner is connected it returns `not_evaluated`. It never returns `allowed`. |
+| **POL-3** | `not_evaluated` on a compliance-sensitive surface requires **human review** before send or publish. The system routes to review; it does not proceed. |
+| **POL-4** | `not_evaluated` is recorded on the artifact, so anything produced while the scanner was absent stays identifiable. |
+| **POL-5** | The gate receives **context** — text, originating field, audience, surface, listing provenance — not a bare string. Without context it cannot distinguish a factual amenity ("children's playroom") from a preference statement ("perfect for families"); only the second is a violation. A string-only interface guarantees false positives that train people to ignore the gate. |
+
+**Compliance-sensitive surfaces** (POL-3), enumerated so the rule is not interpretable:
+
+1. any outbound marketing email, campaign, or template;
+2. any public listing description, headline, or marketing remark;
+3. any listing presentation, seller report, landlord report, or CMA narrative shown outside the brokerage;
+4. any advertising copy naming a listing, building, neighborhood, agent, or the brokerage;
+5. any AI- or template-generated text destined for any of the above.
+
+Purely internal, non-client-facing text — a private note, an internal task, a debug log — is not
+gated.
+
+---
+
+# I. CONTRACT VERSIONING AND CLIENT COMPATIBILITY
+
+> **Depends on:** ARC-2, ARC-3, TRN-2 · **Feeds:** both clients, AUD-3 · **Status:** DECIDED
+
+The two frontends ship independently, so one may run an incompatible contract version.
+
+| ID | Requirement |
+|---|---|
+| **VER-1** | Four version fields exist: `contractVersion` (served, in every `meta`), `minimumSupportedClientVersion` (advertised), `clientBuildVersion` (sent per request), `serverSupportedVersions` (advertised). |
+| **VER-2** | Client older than `minimumSupportedClientVersion`, or newer than anything in `serverSupportedVersions`, receives a version-incompatibility error and **fails visibly** with an explicit upgrade message. |
+| **VER-3** | **The generated CRM client must never silently parse an unrecognized response shape.** Unknown envelopes are errors, not plausible-looking objects. |
+| **VER-4** | Version checks happen on the response envelope — no separate round trip. |
+| **VER-5** | Generated-client lifecycle: generated from the contract by one named command · deterministic (same contract in, byte-identical client out) · embeds `clientBuildVersion` and source contract version · committed so the CRM loads it without a build step · **never manually copied or hand-edited** · a drift check regenerates and compares, failing on any difference. Publication *is* the commit. |
+
+---
+
+# J. CONTRACT AUDIT — BASELINE AND RATCHET
+
+> **Depends on:** TRN, VER · **Feeds:** every later phase · **Status:** DECIDED
+
+| ID | Requirement |
+|---|---|
+| **AUD-1** | The current count of conforming routes is recorded once as a **baseline**. |
+| **AUD-2** | **Ratchet:** the validator fails if conformance decreases. New routes must conform. Existing non-conforming routes migrate at any pace but are never added to. |
+| **AUD-3** | The audit checks route classification, exemption registration, envelope conformance for `json` routes, and generated-client drift (VER-5). |
+| **AUD-4** | The validator states what it proves **and what it does not** — it verifies contract conformance, not correctness, not authorization behavior, not live operation. |
+
+---
+
+# K. CMA MODEL
+
+> **Depends on:** PRV, POL-1, AUZ-4 · **Feeds:** PH-4 · **Status:** DECIDED
+
+> **CMA-0 — governing statement.** The CMA is generated automatically from current Cotality data.
+> The authorized listing agent or broker reviews and may modify the comparable selection, analysis,
+> and presentation before sharing it with the seller. **Central broker approval is not required**
+> unless separately configured for brokerage supervision or exceptional compliance review.
+
+| ID | Requirement |
+|---|---|
+| **CMA-1** | Every authorized agent or broker generates a CMA for their own client or listing. No company-wide approval bottleneck. |
+| **CMA-2** | Two automatic views per seller listing: **building activity** and **area CMA** (below). |
+| **CMA-3** | The system uses **current Cotality values and status definitions**. It hardcodes no status assumptions. |
+| **CMA-4** | Each comparable carries **selection reason codes** explaining why it was chosen. |
+| **CMA-5** | Both results are preserved: `system_generated_set`, `agent_selected_set`, `excluded_comparables`, `manual_adjustments`, `agent_notes`, `generated_at`, `modified_at`, `shared_at`. |
+| **CMA-6** | **Manual changes never rewrite or falsify Cotality facts.** The agent adds professional judgment; original provider values remain preserved and distinguishable from adjustments. |
+| **CMA-7** | The seller sees only the version the listing agent chose to share — never internal drafts, excluded properties, or private notes unless published. |
+| **CMA-8** | The system refreshes when relevant market activity changes, alerts the agent, and lets them publish an update. The seller-visible version does not change until the agent shares it. |
+
+**Building activity** — comparable units in the seller's own building, separated into: currently
+active · currently under contract (live Cotality status) · recently sold · withdrawn or expired
+where useful for pricing context.
+
+Prioritized by similarity in: unit type · bedroom and bathroom count · approximate size · floor or
+line · exposure · condition · outdoor space · property type · maintenance or common charges.
+
+**Area CMA** — comparable units outside the building within the relevant market area, by: similar
+property type · similar configuration · appropriate price range · reasonable geographic radius ·
+recent listing and closing dates · relevant building and amenity characteristics.
+
+**Automatic population:** active / under-contract / recently sold comparables · asking prices · last
+asking prices · closed prices where available · price per square foot where size data is reliable ·
+days on market · listing and closing dates · unit characteristics · building characteristics ·
+source timestamp · Cotality listing identifiers.
+
+**Selection reasons (CMA-4) example:**
+
+```text
+Selected because:
+- same building;
+- one-bedroom unit;
+- approximately 6% larger;
+- sold within the last six months;
+- similar floor and exposure.
+```
+
+**Agent editing:** remove a poor comparable · add another eligible comparable · change the radius ·
+adjust the recency window · change similarity criteria · reorder · add condition or renovation
+adjustments · add notes · select which comparables appear in the seller-facing report · regenerate.
+
+**Seller portal shows:** activity in the seller's building · comparable activity in the surrounding
+area · current competition · properties under contract · recent closed sales · pricing and
+market-position observations · the refresh date · the shared version and its shared date · the
+data-as-of date · the selected comparable set · whether a newer version is pending.
+
+**Workflow**
+
+```text
+Live Cotality data → automatic building and area sets → agent reviews and adjusts
+   → agent shares selected version → seller portal displays shared CMA
+   → system refreshes on market activity → agent alerted, may publish update
+```
+
+---
+
+# L. CONSENT AND MARKETING
+
+> **Depends on:** POL-2, AUZ · **Feeds:** PH-5 · **Status:** DEFERRED (MKT-2 blocks production)
+
+| ID | Requirement | Status |
+|---|---|---|
+| **MKT-1** | Consent is modeled as **contact × channel × purpose**, not a boolean. Both CAN-SPAM postures supported: **opt-in** recorded affirmatively, **opt-out** honored durably. | DECIDED |
+| **MKT-2** | Two items require an explicit data-model decision and approval: (a) durable consent **provenance** per contact — source, acquisition date, legal basis, evidence; (b) authorization to run **production bulk email**. Both need schema work and are gated. | DEFERRED |
+| **MKT-3** | Until MKT-2 is resolved the system **may**: audience classification · provenance review · suppression checks · unsubscribe processing · Fair Housing review · campaign preview · recipient count · dry run · **test sends to internal addresses only**. | DECIDED |
+| **MKT-4** | Until MKT-2 is resolved the system **may not** claim complete consent enforcement or release a live bulk campaign. No documentation, report, or interface may state that consent enforcement has been achieved. | DECIDED |
+| **MKT-5** | Existing fail-closed suppression behavior is retained unchanged. | DECIDED |
+| **MKT-6** | Releasing any production campaign requires a **reconciled** recipient report: `eligible`, `suppressed`, `unsubscribed`, `missing opt-in`, `pending review`, `Fair Housing blocked`, `invalid address`, `duplicate identity`. Counts must reconcile to the total audience; an unreconciled report blocks the send. | DECIDED |
+
+---
+
+# M. VERIFICATION REQUIREMENTS
+
+> **Depends on:** — · **Feeds:** every phase exit · **Status:** DECIDED
+
+| ID | Requirement |
+|---|---|
+| **VRF-1** | **Health checks** — operational probes proving the surface responds correctly, run before and after change. |
+| **VRF-2** | **Exact tests** — named commands, recorded raw output and exit codes, against a named commit, in a named environment. Tests fail before and pass after when behavior changes. |
+| **VRF-3** | **Production proof** — live evidence from production or an immutable preview: a real request producing a real response. Source reads and unit tests never substitute for a rendering or behavior claim. |
+| **VRF-4** | **Rollback** — a written, tested path back, verified before the change ships. |
+| **VRF-5** | A phase completes only when VRF-1..4 all exist for it, and each states what it proves **and what it does not**. |
+
+---
+
+# N. PHASES
+
+> **Depends on:** all of the above · **Status:** DECIDED
+
+## PH-1 — Verified inventory
+
+Produces a **decision artifact**, not merely an inventory.
+
+**PH-1.1 Route matrix — machine-readable, one row per route:**
+`route` · `transport_type` · `frontend_callers_found` · `authentication_method` · `actor_classes` ·
+`resource_authorization` · `request_schema` · `response_schema` · `domain_service` ·
+`data_authority` · `policy_gates` · `error_behavior` · `production_verification_status` ·
+`migration_disposition`
+
+**PH-1.2 Every route ends Phase 1 with a disposition:**
+
+| Disposition | Meaning |
+|---|---|
+| `MIGRATE` | Move onto the contract |
+| `KEEP_WITH_EXCEPTION` | Stays as-is with a registered transport exemption |
+| `CONSOLIDATE` | Overlaps another route; merge target identified |
+| `DEPRECATE_AFTER_PROOF` | Removal candidate **only after** positive proof of non-use |
+| `UNKNOWN_REQUIRES_TRACE` | Cannot be classified without a live trace |
+
+**PH-1.3** **Nothing is classified for deletion because no caller was found.** Absence of a textual
+caller yields `UNKNOWN_REQUIRES_TRACE` or `DEPRECATE_AFTER_PROOF`, never deletion.
+
+**PH-1.4** Live-trace the search experience: actual browser network activity on `/search`, the
+server-side data path, whether results render, and the true status of the `/api/results` dependency.
+Record the trace.
+
+**PH-1.5** Verify portal reality per role — authentication, authorization, response compatibility,
+data correctness, live operation. Replace all inferred status.
+
+**PH-1.6** Inventory listing provenance (PRV-8) and the consent/audience data actually present on
+contacts (MKT-2).
+
+**Exit:** matrix complete, every row carries a disposition, every status names its verification
+method, unverified items listed as unverified.
+
+## PH-2 — Contract foundation
+
+Build ARC, TRN, AUZ, POL interfaces, VER, AUD.
+
+**Exit:** foundation in place · audit baseline recorded (AUD-1) · at least one non-critical route
+migrated end to end through **both** clients · a demonstrated version-skew failure (VER-2).
+
+## PH-3 — Search integration
+
+Wire search to its domain service through the contract, informed by PH-1.4. Resolve `/api/results`.
+Support every PRV combination with `distribution_state` enforced.
+
+**PH-3.1 Acceptance — product behavior, not request success.** A 200 response and a valid envelope
+do **not** prove working search. All fifteen required:
+
+1. sale and rental separation
+2. correct totals **after** policy filtering
+3. pagination with no unreachable results
+4. URL state reflects the query
+5. back / forward navigation restores state
+6. map and list stay synchronized
+7. loading state
+8. no-results state, distinct from failure
+9. provider failure surfaced, not silently empty
+10. unsupported filter fails loudly
+11. stale-data warning
+12. mobile behavior
+13. public-field suppression
+14. Cotality attribution where required
+15. direct web-only listing behavior
+
+**Exit:** all fifteen proven live per audience.
+
+## PH-4 — Seller operating loop
+
+Seller portal on the contract: listing status, traffic, engagement, showings, offers, and CMA per §K.
+
+**Exit:** a seller sees their listing's real activity and the CMA their agent shared, proven live.
+
+## PH-5 — Marketing readiness
+
+MKT-3 capabilities on the contract, Fair Housing gate returning `not_evaluated` and routing to review.
+**No live bulk campaign** (MKT-4).
+
+**Exit:** the MKT-6 production-gate report can be produced in full and reconciles, with consent
+limitations stated.
+
+## PH-6 — Explainable intelligence
+
+Signals as structured records: signal type · evidence · source · source timestamp · confidence ·
+reason codes · policy status · expiration · recommended action · assigned person · human-approval
+requirement.
+
+No unexplained score is presented as truth. Any future AI layer is a **replaceable consumer** — it
+may summarize, rank, or draft, and must **never invent the underlying facts**. Model, prompt
+version, and cost are recorded; output requiring judgment requires human approval.
+
+**Exit:** signals visible with evidence and reason codes, each stating what it does and does not
+establish.
+
+---
+
+# O. OPEN QUESTIONS
+
+| ID | Question | Blocks |
+|---|---|---|
+| **O-1** | Do existing models express the four PRV dimensions, or is a schema change required? | PRV-8, PH-2 |
+| **O-2** | Which routes legitimately need a non-JSON transport class? | TRN-4, PH-1 |
+| **O-3** | What is the actual browser and server data path for `/search` today? | PH-3 |
+| **O-4** | What consent and audience data exists on contacts now, and what must be added? | MKT-2, PH-5 |
+| **O-5** | Market-area definition for the Area CMA — radius, neighborhood boundary, or both; configurable per listing? | CMA-2, PH-4 |
+| **O-6** | Should brokerage supervision of CMAs be enabled initially, or left off? | CMA-0, PH-4 |
+
+---
+
+# P. CHANGE LOG
+
+Per §A.4 step 3, every change to a `DECIDED` requirement is recorded here with its ID.
+
+| Rev | Date | ID | Change |
+|---|---|---|---|
+| 2 | 2026-07-28 | PRV-1..8 | Two-field origin model replaced by four independent dimensions |
+| 2 | 2026-07-28 | AUZ-1, AUZ-5 | Single authorization error split into three outcomes with non-disclosure |
+| 2 | 2026-07-28 | CMA-0..8 | Broker-approval gate **removed**; CMA is agent-owned, auto-populated, agent-shared |
+| 2 | 2026-07-28 | PH-1.1, PH-1.2 | Phase 1 produces a machine-readable matrix with mandatory dispositions |
+| 2 | 2026-07-28 | VER-1..5 | Version-skew controls and generated-client pipeline added |
+| 2 | 2026-07-28 | PH-3.1 | Search acceptance expanded to fifteen product-behavior checks |
+| 2 | 2026-07-28 | MKT-6 | Production gate requires a reconciled recipient report |
+| 3 | 2026-07-28 | — | Reorganized: stable IDs, dependency map (§B), status legend, change protocol (§A.4). No requirement changed. |
+
+---
+
+# Q. NON-GOALS
+
+Merging the two frontends · rewriting the static CRM · introducing a new AI provider · building the
+Fair Housing scanner · production bulk email · any schema migration (separately gated, requires
+explicit approval) · any repository-governance, historical-audit, or unrelated architecture work.
