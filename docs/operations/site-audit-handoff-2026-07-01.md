@@ -320,14 +320,7 @@ Do not rely on chat memory alone.
   Evidence: `docs/operations/neon-listing-media-backlog-index-2026-07-28.md`.
 - **PR #581** — OPEN, not merged. Operations documentation + replayable migration state.
   High-risk (contains a migration) per AGENTS.md §6.
-- **Migration resolve/status** — ⚠️ **NOT RUN.** `prisma migrate resolve --applied
-  20260728024522_add_listing_media_r2_backlog_id_idx` and `prisma migrate status` still
-  outstanding. Production migration history remains DRIFTED (index exists, migration
-  unapplied). Blocker: the pulled production env's `DATABASE_URL` no longer authenticates
-  and a fresh connection string could not be obtained without exposing the credential.
-  **MUST be run by an operator before #581 merges** — otherwise the next standard
-  `prisma migrate deploy` will attempt the plain `CREATE INDEX`, fail on the existing
-  index, and can leave a failed migration blocking all later deploys.
+- **Migration resolve/status** — ✅ **RESOLVE DONE 2026-07-28.** `prisma migrate resolve --applied 20260728024522_add_listing_media_r2_backlog_id_idx` succeeded against canonical production (`ep-cold-waterfall-adno3ao2`, verified by hostname only; the credential was never printed). The production index was **not** recreated or altered. ⚠️ **`prisma migrate status` is still NOT clean** — solely because of the unrelated, genuinely pending earlier migration `20260712120000_b1b1_canonical_identity_schema`. Read-only comparison proved all six of its tables are **absent** in production, so it requires **deliberate application with Maya approval**, NOT `migrate resolve`. It is outside PR #581.
 - **Unresolved, separate** — **#575** stable R2 object identity (`buildMediaR2Key` still
   keys on `Order`); **#577** `raw_data.PhotosChangeTimestamp` write churn (still live —
   the 02:50 cycle logged `raw_data_only: 19` of 21 listing writes).
