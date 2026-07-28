@@ -822,3 +822,130 @@ describe("r2_attempts — terminal-state-safe advance", () => {
     expect(advanceCall()).toBeUndefined();
   });
 });
+
+// ─── Simulated-database proofs of the terminal bound ──────────────────────
+//
+// The tests above inspect the Prisma object the code GENERATES. That proves
+// intent, not arithmetic. These two SIMULATE the database: a stateful
+// `updateMany` mock holds a stored value, evaluates the `lt` guard against
+// that CURRENT value, applies the increment, and reports how many rows
+// matched. So they prove the resulting stored number, and — for the
+// concurrency case — that atomicity is what prevents 9, rather than luck.
+describe("r2_attempts — simulated-database arithmetic", () => {
+  /**
+   * Stand in for one `listing_media` row. `apply` mirrors Postgres semantics
+   * for the statements this code issues: the WHERE is evaluated against the
+   * value stored RIGHT NOW, and only a matched row is written.
+   */
+  function makeSimulatedRow(initial: number | null) {
+    const state = { stored: initial as number | null, matchedUpdates: 0 };
+    const apply = (args: unknown) => {
+      const { where, data } = args as {
+        where: { r2_attempts?: unknown };
+        data: { r2_attempts?: unknown };
+      };
+      if (data?.r2_attempts === undefined) return { count: 0 }; // not a counter write
+
+      // Guard evaluated against the CURRENT stored value — this is the whole
+      // safety property.
+      let matches: boolean;
+      if (where.r2_attempts === null) {
+        matches = state.stored === null;
+      } else if (
+        typeof where.r2_attempts === "object" &&
+        where.r2_attempts !== null &&
+        "lt" in (where.r2_attempts as Record<string, unknown>)
+      ) {
+        const lt = (where.r2_attempts as { lt: number }).lt;
+        matches = state.stored !== null && state.stored < lt;
+      } else {
+        matches = false;
+      }
+      if (!matches) return { count: 0 };
+
+      if (typeof data.r2_attempts === "number") {
+        state.stored = data.r2_attempts;
+      } else if (
+        typeof data.r2_attempts === "object" &&
+        data.r2_attempts !== null &&
+        "increment" in (data.r2_attempts as Record<string, unknown>)
+      ) {
+        const inc = (data.r2_attempts as { increment: number }).increment;
+        state.stored = (state.stored ?? 0) + inc;
+      }
+      state.matchedUpdates++;
+      return { count: 1 };
+    };
+    return { state, apply };
+  }
+
+  const transientFailureDeps = () =>
+    makeDeps({
+      existsInR2: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false),
+      fetchFn: jest
+        .fn<Promise<Response>, FetchArgs>()
+        // 500 is TRANSIENT — must never tombstone.
+        .mockResolvedValue(makeFetchResponse({ status: 500 })),
+    });
+
+  const usedLiteralAssignment = () =>
+    mockListingMediaUpdateMany.mock.calls.some(
+      (c) => typeof (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts === "number",
+    );
+
+  const tombstoned = () =>
+    mockListingMediaUpdate.mock.calls.some(
+      (c) => (c[0] as { data?: { status?: string } })?.data?.status === "deleted",
+    );
+
+  it("ordinary progression: a failure at 6 advances the STORED value to exactly 7", async () => {
+    const sim = makeSimulatedRow(6);
+    mockListingMediaUpdateMany.mockImplementation(async (args) => sim.apply(args));
+
+    await mirrorMediaToR2(makeRow({ r2_attempts: 6 }), transientFailureDeps());
+
+    expect(sim.state.stored).toBe(7);
+    expect(sim.state.matchedUpdates).toBe(1);
+    // Advance is arithmetic on the stored value, never a JS-computed literal.
+    expect(usedLiteralAssignment()).toBe(false);
+    // Transient failure — must not tombstone.
+    expect(tombstoned()).toBe(false);
+  });
+
+  it("TWO CONCURRENT failures from 7 reach exactly 8 and can never reach 9", async () => {
+    // One shared row. BOTH callers carry the same STALE read of 7 — which is
+    // exactly the situation the old JS-side `(row.r2_attempts ?? 0) + 1` could
+    // not survive: both would have computed 8 and written it blind, and a third
+    // overlapping pass could have carried it past the terminal.
+    const sim = makeSimulatedRow(7);
+    mockListingMediaUpdateMany.mockImplementation(async (args) => sim.apply(args));
+
+    await Promise.all([
+      mirrorMediaToR2(makeRow({ r2_attempts: 7 }), transientFailureDeps()),
+      mirrorMediaToR2(makeRow({ r2_attempts: 7 }), transientFailureDeps()),
+    ]);
+
+    // First statement matched (7 < 8) and advanced to 8. The second was
+    // evaluated against the NEW stored value (8), failed `lt: 8`, and matched
+    // zero rows.
+    expect(sim.state.stored).toBe(8);
+    expect(sim.state.stored).not.toBe(9);
+    expect(sim.state.matchedUpdates).toBe(1);
+
+    // Both callers DID issue a guarded statement — the second was a genuine
+    // no-op in the database, not a call that was never made. That is what makes
+    // this test non-vacuous.
+    const counterWrites = mockListingMediaUpdateMany.mock.calls.filter(
+      (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
+    );
+    expect(counterWrites.length).toBe(2);
+    for (const [args] of counterWrites) {
+      expect((args as { where: Record<string, unknown> }).where).toMatchObject({
+        r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+      });
+    }
+
+    expect(usedLiteralAssignment()).toBe(false);
+    expect(tombstoned()).toBe(false);
+  });
+});
