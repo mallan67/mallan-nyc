@@ -91,6 +91,7 @@
 
 - **Confirmed (live):** SEO-001…011 (production HTTP/DOM captures + full-population Cotality join) · QUAL-001/002/003/005 (Playwright) · COMP-001 + PASS register (live sweeps) · PROD-001/002/003 (Vercel MCP + curl) · OPS-002/003 (live logs + live diff) · QUAL-006…009 (validator exit codes captured).
 - **Confirmed (static)** — code verifiably does this; production consequence not yet observed: OPS-007 (endpoint code vs writer actions; live all-null response not captured) · OPS-008/009/011/012/013/014 · BIZ-005 (no dispatcher exists in code — magnitude MEASURED live 2026-07-02: zero email/sms rows; see H-002) · BIZ-006/007/008 (filter code paths; needs one live filtered-search transcript to graduate) · BIZ-009…014 · PROD-004/005/007 · COMP-002/003. (OPS-006 removed from this class 2026-07-02 — Fixed/RW-004.)
+- **Confirmed (live, read-only DB + EXPLAIN on an isolated branch forked from production):** OPS-023 (both symptoms separately verified; see the OPS-023 row for the canonical description).
 - **Needs Verification (hypotheses):** OPS-001 contact errors (Hypothesis **H-004** — the earlier H-001 was **DISPROVED live 2026-07-02**) · PROD-006 (the *wide SELECT* is Confirmed-static; "leak" is only a future-refactor RISK — no live exposure observed; treat as hardening) · PROD-008 (`ALLOW_DEV_LOGIN` env state unknown until checked — Hypothesis H-003).
 - **Verified live 2026-07-02 (read-only DB session + Neon configuration API):** H-001 disproof · H-002 resolution · RW-004 guard baseline · OPS-016 Neon facts · OPS-017 schema drift. OPS-006 graduated to Fixed — Regression Watch (RW-004).
 - **Verified live 2026-07-25 (read-only pg_stat, PR #569):** OPS-010 + OPS-010A graduated from Confirmed-static to **live-measured** — `audit_events` append-only (89,867 rows) + rate 199→566/day; `sync_errors`=0; `listing_media` soft-deleted 28,664; cumulative tuple updates listing_media 3.40M / listings 1.40M; ~118 KB WAL/light cycle. Evidence: `docs/operations/neon-write-amplification-forensic-2026-07-25.md`.
@@ -105,6 +106,7 @@ does, not what production is doing.
 
 | ID(s) | Blast Radius | Detection | Technical Owner | Verification Owner |
 |---|---|---|---|---|
+| OPS-023 | Unbounded growth of the R2-backlog candidate set as listings leave the active-status set — index size and heap recheck grow with it; no user-facing impact observed | Read-only DB query + EXPLAIN on an isolated Neon branch | Claude (investigation) | Audit (independent verification) |
 | SEO-001 | 10,239 listing pages (10,069 wrong in sitemap) — all organic discovery of inventory | Population crawl + Cotality API | Claude | Audit (re-run population join) |
 | SEO-002 | All organic traffic to /buy + /rent (top-2 commercial pages) | Population crawl + Live smoke | Claude | Audit |
 | SEO-003 | 59 neighborhood pages — entire non-branded content moat | Population crawl | Claude | Audit |
@@ -213,6 +215,7 @@ Fixed and merged — held open until the defined clean window is observed. Do no
 
 | Score | Items | Missing fields (✗) |
 |---|---|---|
+| **8/10** | **OPS-023** — ✓ DB query (rejection breakdown by exact policy condition) ✓ environment (isolated branch forked from prod `br-crimson-frog-adr7g9gt`) ✓ timestamps ✓ frequency (every 10-min cycle) ✓ mechanism (predicates read from deployed SHA `ccfb4e85`) ✓ repro (SQL preserved in ops record) ✓ source-code path · ✗ no runtime success/upload counters collected ✗ sentinel-overflow root cause not traced | trace the `r2_attempts` > 9 increment path; collect runtime mirror success/upload counters |
 | **10/10** | SEO-001 (root cause — Evidence Score 10: full-population live join, replication 0 fails, thin-page transcripts captured, all 10 fields present) | — |
 | **9/10** | SEO-002/003/007, COMP-001, PASS-register rows, PROD-002/003, QUAL-006 | ✗ affected-users quantified (traffic impact not measured) |
 | **8/10** | SEO-004/005/006/008/009/010/011, QUAL-001/002/003, OPS-002/003, PROD-001, QUAL-007/008/009 | ✗ reproduction-after-fix baseline; ✗ user impact |
@@ -396,6 +399,7 @@ lint 0 err/11 warn. (Snapshot re-run 2026-07-03: 9/9 gates exit 0 — see change
 
 | Date (UTC) | Change |
 |---|---|
+| 2026-07-28 | **OPS-023 registered** (`listing_media` R2-backlog lifecycle + attempt-sentinel overflow, P2, Open). Companion partial index `listing_media_r2_backlog_id_idx` deployed to production 2026-07-28T02:45:22.752Z and documented in PR #581. |
 | 2026-07-01 | Backlog created from full-coverage SEO/UI/compliance audit. All items Open unless verified in-audit. |
 | 2026-07-01 | Comprehensive backend+ops+business+validator audit appended: BIZ-005…014, OPS-006…014, PROD-004…008, QUAL-006…009; BIZ-001/BIZ-004 statuses updated; PROD-001 refreshed with live Vercel 7d/24h evidence. |
 | 2026-07-01 | Governance upgrades (Maya directives): renamed to Platform Issue Registry; evidence classes; 9-field backend ledger; Evidence Scores (0–10) on all items; Hypothesis Register (H-001…H-003) + banned-language rule (mirrored AGENTS.md §5); OPS-001 reclassified from "root-caused" to Hypothesis H-001 / Needs Verification. |

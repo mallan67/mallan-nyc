@@ -300,4 +300,7 @@ db-keepalive redundancy separately (decision, not a fix now).
 3. Update [`docs/operations/site-audit-handoff-YYYY-MM-DD.md`](operations/) with the session narrative + exact stop point.
 4. Do not mark 🟢 without proof. Do not rely on chat memory.
 
-- **OPS-023** (P2, open) — `listing_media` R2-backlog lifecycle: 3,069 pre-policy backlog-shaped candidates were currently ineligible in the measured production snapshot (zero currently fully eligible; 2,647 tied to listings outside the active-status set), plus `r2_attempts` sentinel overflow on 60 rows. Companion index `listing_media_r2_backlog_id_idx` deployed 2026-07-28T02:45:22.752Z (`listing_media` seq_scan +6 -> +0/cycle). Canonical: `docs/PLATFORM-ISSUE-REGISTRY.md`.
+
+**OPS-023** — P2 · Open · lifecycle-policy decision required.
+Canonical details and evidence: `docs/PLATFORM-ISSUE-REGISTRY.md`.
+Companion backlog index deployed and under documented verification in PR #581.
