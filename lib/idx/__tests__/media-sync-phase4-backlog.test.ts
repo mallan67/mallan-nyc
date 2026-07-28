@@ -282,10 +282,22 @@ describe("Phase 4 — failure isolation and HARD per-run failure cap", () => {
     );
     expect(bWrites.length).toBe(1);
     const bData = (bWrites[0][0] as { data: Record<string, unknown> }).data;
-    expect(bData.r2_attempts).toBe(1);
     expect(bData.r2_last_attempt_at).toBeInstanceOf(Date);
     expect(bData).not.toHaveProperty("r2_key");
+    // Transient failure — MUST NOT tombstone.
     expect(bData).not.toHaveProperty("status");
+
+    // TERMINAL-STATE BEHAVIOUR: the counter is not written here as a blind
+    // literal. B started at NULL, so its FIRST failure is an atomic
+    // still-NULL-guarded write of 1 — guarded so a concurrent worker that
+    // already began counting cannot be reset back to 1.
+    expect(bData).not.toHaveProperty("r2_attempts");
+    const bAdvance = mockListingMediaUpdateMany.mock.calls
+      .map((c) => c[0] as { where: Record<string, unknown>; data: Record<string, unknown> })
+      .find((a) => a?.where?.media_key === b.media_key && a?.data?.r2_attempts !== undefined);
+    expect(bAdvance).toBeDefined();
+    expect(bAdvance!.data).toEqual({ r2_attempts: 1 });
+    expect(bAdvance!.where).toMatchObject({ media_key: b.media_key, r2_attempts: null });
   });
 
   it("HARD CAP: entering a chunk with 9 failures cannot overshoot — main failures never exceed the budget", async () => {

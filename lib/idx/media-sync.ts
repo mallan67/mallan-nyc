@@ -2131,6 +2131,13 @@ export async function mirrorMediaToR2(
       // Should never happen since callers select rows where media_key is set.
       return result;
     }
+    // NOT PERSISTED. Since the terminal-safe advance below, this projected
+    // value is used ONLY for the tombstone comparison against
+    // R2_TOMBSTONE_4XX_THRESHOLD (3). The value actually stored is computed
+    // atomically by the database and is bounded by the terminal sentinel.
+    // Capping it here would not change the tombstone decision (the rule is
+    // `>= 3` and the counter is monotonic), so it is deliberately left
+    // uncapped rather than implying it is what gets written.
     const newAttempts = (row.r2_attempts ?? 0) + 1;
     // Recovery attempts never advance the counter — see the `context` doc.
     const isRecoveryAttempt = context.recoveryAttempt === true;
@@ -2150,15 +2157,10 @@ export async function mirrorMediaToR2(
       /^HTTP (404|410)$/.test(result.error);
     const data: {
       r2_last_attempt_at: Date;
-      r2_attempts?: number;
       status?: string;
     } = {
       r2_last_attempt_at: new Date(),
     };
-    if (!isRecoveryAttempt) {
-      // Standard path: the consecutive-failure counter advances as before.
-      data.r2_attempts = newAttempts;
-    }
     // Recovery path: r2_attempts is intentionally ABSENT from the write —
     // it stays exactly at the failure-exhaustion threshold in the DB; the
     // refreshed r2_last_attempt_at alone restarts the long recovery
@@ -2179,6 +2181,68 @@ export async function mirrorMediaToR2(
       where: { media_key: row.media_key },
       data,
     });
+
+    // ── TERMINAL-STATE-SAFE COUNTER ADVANCE (#575 follow-up) ──────────────
+    //
+    // Previously this was `data.r2_attempts = (row.r2_attempts ?? 0) + 1` —
+    // an UNBOUNDED read-modify-write. `row.r2_attempts` is a value read
+    // earlier during batch selection, incremented in JS, then written back
+    // with no DB-side predicate. Two defects follow:
+    //
+    //   1. NO BOUND. Nothing stopped the value passing the terminal
+    //      sentinels. Production carries 80 rows above 9 (max 112), all
+    //      last touched between 2026-05-13 and 2026-06-10 — i.e. produced
+    //      before today's selection predicates existed. They are frozen, not
+    //      growing, but the unbounded arithmetic that created them is still
+    //      in the code.
+    //   2. NOT ATOMIC. A stale read plus a blind write means two workers
+    //      processing the same row could each write a value derived from the
+    //      same stale base, and neither write is bounded.
+    //
+    // The counter's three states (see R2_RETRY_EXHAUSTED_THRESHOLD and
+    // R2_POLICY_PARKED_ATTEMPTS):
+    //   NULL / 1..7  ordinary consecutive-failure count
+    //   8            retry-exhausted TERMINAL (RC3)
+    //   9            policy-parked TERMINAL (#534) — assigned, never reached
+    //                by arithmetic
+    //   >9           legacy overflow; no current path can produce it
+    //
+    // The advance below is bounded BY THE DATABASE, not by JS. The `lt`
+    // predicate is re-evaluated against the CURRENT stored value inside the
+    // same statement as the increment, so:
+    //   • an ordinary row advances at most to exactly 8;
+    //   • a row already at 8 does not match, and stays 8;
+    //   • a policy-parked 9 does not match, and stays exactly 9 — it is
+    //     never decremented toward 8 either, because the row is untouched;
+    //   • a legacy >9 row does not match, and is left EXACTLY as found —
+    //     this deliberately does not normalise production data;
+    //   • a stale JS read cannot cross the bound, and concurrent workers
+    //     cannot both push a row past the terminal, because the guard and
+    //     the arithmetic are one atomic statement.
+    //
+    // Recovery attempts still never advance the counter (see `context` doc),
+    // so they skip this block entirely.
+    if (!isRecoveryAttempt) {
+      if (row.r2_attempts === null || row.r2_attempts === undefined) {
+        // First failure. Guarded on still-NULL so a concurrent worker that
+        // already started the count cannot be double-counted back to 1.
+        await prisma.listingMedia.updateMany({
+          where: { media_key: row.media_key, r2_attempts: null },
+          data: { r2_attempts: 1 },
+        });
+      } else {
+        // Atomic DB-side `r2_attempts = r2_attempts + 1`, applied ONLY while
+        // the stored value is still below the terminal.
+        await prisma.listingMedia.updateMany({
+          where: {
+            media_key: row.media_key,
+            r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+          },
+          data: { r2_attempts: { increment: 1 } },
+        });
+      }
+    }
+
     return result;
   };
 

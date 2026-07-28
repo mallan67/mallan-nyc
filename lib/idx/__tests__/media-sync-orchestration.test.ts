@@ -105,6 +105,7 @@ import {
   runMediaSync,
   RESOURCE_MEDIA,
   R2_BACKLOG_BATCH_LIMIT,
+  R2_RETRY_EXHAUSTED_THRESHOLD,
 } from "../media-sync";
 
 beforeEach(() => {
@@ -1629,12 +1630,33 @@ describe("runMediaSync — Phase 3 cross-invocation cooldown filter", () => {
     expect(tombstoneCall).toBeDefined();
     const tombstoneArgs = tombstoneCall![0] as {
       where: { media_key: string };
-      data: { status: string; r2_attempts: number; r2_last_attempt_at: Date };
+      data: { status: string; r2_attempts?: number; r2_last_attempt_at: Date };
     };
     expect(tombstoneArgs.where.media_key).toBe("MK-X");
+    // TOMBSTONE CONTRACT UNCHANGED: a 3rd EFFECTIVE permanent 404 still sets
+    // status='deleted'.
     expect(tombstoneArgs.data.status).toBe("deleted");
-    expect(tombstoneArgs.data.r2_attempts).toBe(3);
     expect(tombstoneArgs.data.r2_last_attempt_at).toBeInstanceOf(Date);
+
+    // TERMINAL-STATE BEHAVIOUR (not a mechanical retarget): the counter must
+    // NOT ride on this unique-key update as a blind literal. That literal was
+    // computed in JS from a possibly stale read and carried no bound — the
+    // mechanism that produced the historical >9 rows.
+    expect(tombstoneArgs.data).not.toHaveProperty("r2_attempts");
+
+    // It is instead a bounded atomic statement: the row was at 2, and advances
+    // ONLY while the stored value is still below the retry-exhausted terminal.
+    // The guard is evaluated by the database inside the same statement as the
+    // increment, so 7 can reach 8 but nothing can reach 9.
+    const advance = mockListingMediaUpdateMany.mock.calls
+      .map((c) => c[0] as { where: Record<string, unknown>; data: Record<string, unknown> })
+      .find((a) => a?.data?.r2_attempts !== undefined);
+    expect(advance).toBeDefined();
+    expect(advance!.where).toMatchObject({
+      media_key: "MK-X",
+      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+    });
+    expect(advance!.data).toEqual({ r2_attempts: { increment: 1 } });
   });
 });
 

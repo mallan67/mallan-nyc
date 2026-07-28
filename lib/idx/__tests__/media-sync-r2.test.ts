@@ -19,21 +19,35 @@ import type { MirrorMediaToR2Deps, MirrorMediaToR2Row } from "../media-sync";
 // ─── Mock Prisma ──────────────────────────────────────────────────────────
 
 const mockListingMediaUpdate = jest.fn<Promise<unknown>, [unknown]>();
+/**
+ * The terminal-safe counter advance uses `updateMany` so that the bound and
+ * the increment are ONE atomic statement (see `emitFailure` in
+ * lib/idx/media-sync.ts). These tests assert on the WHERE clause it issues,
+ * because that predicate IS the safety property — it is what prevents a stale
+ * read or a concurrent worker from pushing a row past its terminal sentinel.
+ */
+const mockListingMediaUpdateMany = jest.fn<Promise<unknown>, [unknown]>();
 
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: {
     listingMedia: {
       update: (args: unknown) => mockListingMediaUpdate(args),
+      updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
     },
   },
 }));
 
 // Imported AFTER the prisma mock is wired up.
-import { mirrorMediaToR2 } from "../media-sync";
+import {
+  mirrorMediaToR2,
+  R2_RETRY_EXHAUSTED_THRESHOLD,
+  R2_POLICY_PARKED_ATTEMPTS,
+} from "../media-sync";
 
 beforeEach(() => {
   mockListingMediaUpdate.mockReset();
+  mockListingMediaUpdateMany.mockReset();
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -405,6 +419,36 @@ describe("mirrorMediaToR2 — R2 key namespace per media_type", () => {
 // `status='deleted'`. Transient/ambiguous 4xx (403/408/425/429 etc.) are
 // cooldown-only — see Codex review on PR #100.
 //
+/**
+ * Assert the counter advance was issued as a BOUNDED, ATOMIC statement that
+ * would land on `expectedAttempts`.
+ *
+ * `expectedAttempts` is the value the DB reaches, but the assertion is on the
+ * SHAPE, not on a JS-computed number — that is the whole point of the fix. The
+ * old code wrote a literal computed from a possibly stale read; the new code
+ * emits `increment: 1` guarded by `lt: R2_RETRY_EXHAUSTED_THRESHOLD`, so the
+ * database itself enforces the bound.
+ */
+function expectBoundedAttemptAdvance(expectedAttempts: number) {
+  const advance = mockListingMediaUpdateMany.mock.calls.find(
+    (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
+  )?.[0] as { where: Record<string, unknown>; data: Record<string, unknown> } | undefined;
+
+  expect(advance).toBeDefined();
+  expect(advance!.where).toMatchObject({ media_key: "MK-1" });
+
+  if (expectedAttempts === 1) {
+    // First failure on a NULL counter — guarded on still-NULL.
+    expect(advance!.data).toEqual({ r2_attempts: 1 });
+    expect(advance!.where).toMatchObject({ r2_attempts: null });
+  } else {
+    expect(advance!.data).toEqual({ r2_attempts: { increment: 1 } });
+    expect(advance!.where).toMatchObject({
+      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+    });
+  }
+}
+
 // Helper: assert the failure-path DB update has the cooldown shape.
 function expectFailureDbUpdate(
   call: unknown,
@@ -413,7 +457,13 @@ function expectFailureDbUpdate(
   const args = call as { where: { media_key: string }; data: Record<string, unknown> };
   expect(args.where).toEqual({ media_key: "MK-1" });
   expect(args.data.r2_last_attempt_at).toBeInstanceOf(Date);
-  expect(args.data.r2_attempts).toBe(opts.expectedAttempts);
+  // The counter no longer rides on this unique-key `update`. It moved to a
+  // separate BOUNDED, ATOMIC `updateMany` so the terminal guard and the
+  // increment are one statement (see "r2_attempts — terminal-state-safe
+  // advance"). This call must therefore NOT carry r2_attempts at all —
+  // asserting its absence is what stops the unbounded blind write returning.
+  expect(args.data).not.toHaveProperty("r2_attempts");
+  expectBoundedAttemptAdvance(opts.expectedAttempts);
   if (opts.expectTombstone) {
     expect(args.data.status).toBe("deleted");
   } else {
@@ -622,5 +672,153 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
       expectedAttempts: 1,
       expectTombstone: false,
     });
+  });
+});
+
+// ─── r2_attempts terminal-state safety ────────────────────────────────────
+//
+// THE DEFECT: the failure path wrote `(row.r2_attempts ?? 0) + 1` — an
+// UNBOUNDED read-modify-write. Nothing stopped the counter passing its
+// terminal sentinels, and the value was computed in JS from a possibly stale
+// batch read, then written blind.
+//
+// Production carries 80 rows above 9 (max 112), every one last touched
+// between 2026-05-13 and 2026-06-10 — before today's selection predicates
+// existed. They are frozen, not growing (neither selector matches >8), but the
+// arithmetic that produced them was still in the code.
+//
+// Counter contract:
+//   NULL / 1..7  ordinary consecutive-failure count
+//   8            retry-exhausted TERMINAL (R2_RETRY_EXHAUSTED_THRESHOLD)
+//   9            policy-parked TERMINAL (R2_POLICY_PARKED_ATTEMPTS) — ASSIGNED
+//                by the policy updateMany, never reached by arithmetic
+//   >9           legacy overflow; no current path can produce it
+//
+// The advance is now bounded BY THE DATABASE: the `lt` guard and the increment
+// are one atomic statement, so neither a stale read nor a concurrent worker can
+// cross the bound.
+describe("r2_attempts — terminal-state-safe advance", () => {
+  const failingDeps = () =>
+    makeDeps({
+      existsInR2: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(false),
+      fetchFn: jest
+        .fn<Promise<Response>, FetchArgs>()
+        .mockResolvedValue(makeFetchResponse({ status: 500 })),
+    });
+
+  const advanceCall = () =>
+    mockListingMediaUpdateMany.mock.calls.find(
+      (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
+    )?.[0] as
+      | { where: Record<string, unknown>; data: { r2_attempts: unknown } }
+      | undefined;
+
+  it("(1) the final ordinary retry reaches retry-exhausted EXACTLY", async () => {
+    // Stored 7 → the atomic increment lands on exactly 8, and the guard
+    // `lt: 8` is what forbids it going further on any subsequent pass.
+    await mirrorMediaToR2(makeRow({ r2_attempts: 7 }), failingDeps());
+    const call = advanceCall();
+    expect(call?.data).toEqual({ r2_attempts: { increment: 1 } });
+    expect(call?.where).toMatchObject({
+      media_key: "MK-1",
+      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+    });
+  });
+
+  it("(2) another failure leaves retry-exhausted UNCHANGED", async () => {
+    // Stored 8. The statement is still issued, but its WHERE (`lt: 8`) cannot
+    // match a row at 8, so the DB leaves it at 8. Asserting the predicate is
+    // the point: it is what makes the no-op true in the database, not in JS.
+    await mirrorMediaToR2(makeRow({ r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD }), failingDeps());
+    const call = advanceCall();
+    expect(call?.where).toMatchObject({
+      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+    });
+    // Never a bare assignment that could overwrite the terminal.
+    expect(call?.data).toEqual({ r2_attempts: { increment: 1 } });
+  });
+
+  it("(3) a policy-parked row remains EXACTLY policy-parked", async () => {
+    // Stored 9. `lt: 8` excludes it, so it is neither incremented to 10 nor
+    // pulled back down to 8.
+    await mirrorMediaToR2(makeRow({ r2_attempts: R2_POLICY_PARKED_ATTEMPTS }), failingDeps());
+    const call = advanceCall();
+    expect(call?.where).toMatchObject({
+      r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+    });
+    expect(R2_POLICY_PARKED_ATTEMPTS).toBeGreaterThanOrEqual(R2_RETRY_EXHAUSTED_THRESHOLD);
+  });
+
+  it("(6) a value already ABOVE the sentinel cannot be incremented again", async () => {
+    // The legacy overflow population (10..112). The guard excludes them, and
+    // they are deliberately left EXACTLY as found — no silent normalisation.
+    for (const stored of [10, 11, 112]) {
+      mockListingMediaUpdateMany.mockReset();
+      await mirrorMediaToR2(makeRow({ r2_attempts: stored }), failingDeps());
+      const call = advanceCall();
+      expect(call?.where).toMatchObject({
+        r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+      });
+      // No statement anywhere assigns a literal — which is what a
+      // "normalise to 8/9" implementation would have to do.
+      const literalAssign = mockListingMediaUpdateMany.mock.calls.some(
+        (c) => typeof (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts === "number",
+      );
+      expect(literalAssign).toBe(false);
+    }
+  });
+
+  it("(7) repeated processing cannot produce 10, 11 or higher", async () => {
+    // Ten consecutive failures against a row already at the terminal. Every
+    // issued statement carries the `lt: 8` bound, so no sequence of them can
+    // cross it. This is the concurrency property too: the guard is evaluated by
+    // the DB inside the same statement as the increment, so a stale JS read
+    // cannot widen it.
+    for (let i = 0; i < 10; i++) {
+      await mirrorMediaToR2(makeRow({ r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD }), failingDeps());
+    }
+    const advances = mockListingMediaUpdateMany.mock.calls.filter(
+      (c) => (c[0] as { data?: { r2_attempts?: unknown } })?.data?.r2_attempts !== undefined,
+    );
+    expect(advances.length).toBeGreaterThan(0);
+    for (const [args] of advances) {
+      expect((args as { where: Record<string, unknown> }).where).toMatchObject({
+        r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD },
+      });
+      expect((args as { data: unknown }).data).toEqual({ r2_attempts: { increment: 1 } });
+    }
+  });
+
+  it("first failure on a NULL counter starts at 1, guarded on still-NULL", async () => {
+    await mirrorMediaToR2(makeRow({ r2_attempts: null }), failingDeps());
+    const call = advanceCall();
+    expect(call?.data).toEqual({ r2_attempts: 1 });
+    // Guarded so a concurrent worker that already began counting cannot be
+    // reset back to 1.
+    expect(call?.where).toMatchObject({ media_key: "MK-1", r2_attempts: null });
+  });
+
+  it("(5) success resets the counter per the existing contract", async () => {
+    const deps = makeDeps({
+      existsInR2: jest.fn<Promise<boolean>, [string]>().mockResolvedValue(true),
+    });
+    const result = await mirrorMediaToR2(makeRow({ r2_attempts: 5 }), deps);
+    expect(result.status).toBe("reused");
+    // Reset stays on the unique-key `update` path and is unchanged by this fix.
+    expect(mockListingMediaUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { media_key: "MK-1" },
+        data: expect.objectContaining({ r2_attempts: 0, r2_last_attempt_at: null }),
+      }),
+    );
+  });
+
+  it("recovery attempts still never advance the counter", async () => {
+    await mirrorMediaToR2(
+      makeRow({ r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD }),
+      failingDeps(),
+      { recoveryAttempt: true },
+    );
+    expect(advanceCall()).toBeUndefined();
   });
 });
