@@ -53,15 +53,22 @@ Three `listing_media` queries run per media-sync cycle:
 | Q2 | `buildR2ParkedRecoveryWhere` — `media-sync.ts:~1870` | `r2_attempts = 8`, `ORDER BY r2_last_attempt_at, id LIMIT 5` |
 | Q3 | bounded remaining probe — `media-sync.ts:3704` | **no `ORDER BY`**, `LIMIT 2001` |
 
-**Q3 was the sequential-scan source.** With no `ORDER BY`, the planner chose a
+**Q3 was A sequential-scan source (evidence boundary below).** With no `ORDER BY`, the planner chose a
 `Parallel Seq Scan` with 2 workers → **3 `seq_scan` initiations and one full
 320,883-row pass per execution**. This reconciles exactly with the production
 delta measured over two independent cycles (W1 01:50, W3 02:10), both identical:
 
 ```
-seq_scan      +6        = 2 executions x 3 parallel participants
-seq_tup_read  +641,766  = 2 x 320,883 (one full pass each)
+seq_scan      +6        (measured, pre-index cycle windows W1 + W3)
+seq_tup_read  +641,766  (measured, pre-index cycle windows W1 + W3)
 ```
+
+**Evidence boundary (owner correction).** The `+6` / `+641,766` figures are MEASURED
+production deltas. Q3 was directly plan-confirmed as ONE parallel sequential table pass
+with three participants, so Q3 explains one `+3` scan-initiation / ~320,883-row component.
+The second scan-producing component within the same media-sync execution was NOT captured
+pre-index and MUST NOT be assigned Q3's worker count or plan shape. Post-index production
+measurement showed `seq_scan +0` and `seq_tup_read +0` across the three observed cycles.
 
 Q1 never produced a sequential scan — its `ORDER BY id` made the planner walk
 `listing_media_pkey`, filtering 317,814 rows inline.
@@ -179,7 +186,11 @@ One scheduled invocation, one `run_start`, one `run_end` per ten-minute cycle.
 All invocations HTTP 200. `exit_reason: "completed"`, `status: "ok"`. No lock error,
 no write regression, no failed job across the window.
 
-## 10. Remaining lifecycle defect — NOT fixed by this index
+## 10. Remaining lifecycle defect — OPS-023 (NOT fixed by this index)
+
+> Canonical definition: **OPS-023** in `docs/PLATFORM-ISSUE-REGISTRY.md`. That registry row
+> is the single source of truth; the summary below is a pointer, not a second definition.
+> GitHub #580 is a non-canonical mirror.
 
 Rejection breakdown of the 3,069 **pre-policy backlog-shaped candidates** measured on
 the isolated branch:
@@ -194,12 +205,15 @@ the isolated branch:
 | **listing status not Active/ActiveUnderContract/ComingSoon** | **2,647 (86%)** |
 | **final fully eligible** | **0** |
 
-**Zero candidates can currently be mirrored.** 2,647 of 3,069 belong to listings that
-are no longer on-market, yet their `listing_media` rows stay `status='active'` with
+**3,069 pre-policy backlog-shaped candidates were currently ineligible in the measured
+production snapshot** — zero currently fully eligible. 2,647 of 3,069 are tied to listings
+outside the active-status set, yet their `listing_media` rows stay `status='active'` with
 `r2_key IS NULL` indefinitely. The index makes the empty answer cheap; it does not stop
 stale rows accumulating in the candidate set.
 
-Tracked separately — this index deployment does not block or depend on it.
+Tracked as **OPS-023**. This index deployment does not block or depend on it. No R2 deletion
+is authorized. Rows must NOT be terminally marked merely for being currently off-market —
+they may become eligible again.
 
 ## 11. Explicitly out of scope
 
