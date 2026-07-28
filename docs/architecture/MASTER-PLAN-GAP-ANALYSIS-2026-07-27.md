@@ -24,9 +24,12 @@ An earlier draft of this document stated the master plan "was **not** previously
 citing:
 
 ```
-find . -iname "*Intelligence_Master_Plan*"          → 0 matches
-grep -rl "MALLAN INTELLIGENCE" --include="*.md" .   → 0 matches
+$ find . -iname "*Intelligence_Master_Plan*"         → no output;  exit 0 (find exits 0 when it finds nothing)
+$ grep -rl "MALLAN INTELLIGENCE" --include="*.md" .  → no output;  exit 1 (grep exits 1 when it finds nothing)
 ```
+
+Note the asymmetry, which is itself a trap: `find` returning nothing exits `0`, while `grep`
+returning nothing exits `1`. Neither code alone tells you what was found — the **output** does.
 
 **Those commands were run against the working tree of `fix/neon-write-amp-phase2a-media-reconcile-2026-07-26`.**
 They prove only that the file was absent **from that branch's working tree**. They do not prove
@@ -106,7 +109,9 @@ local working tree. Only the PR #579 version is authoritative.
 | Test files | **512** | `find . -path ./node_modules -prune -o \( -name "*.test.ts" -o -name "*.test.tsx" -o -name "*.spec.ts" \) -print \| wc -l` |
 | `lib/**/__tests__` dirs | **21** | `find lib -type d -name "__tests__" \| wc -l` |
 
-**EXIT CODE:** all commands `0`.
+**EXIT CODE:** all `0`. These are counting commands — `grep -c` with matches present, and
+`find … | wc -l` pipelines — so `0` is genuinely each command's own exit code, not a masked one.
+Contrast §2, where the searches find nothing and therefore exit `1`.
 **WHAT THIS PROVES:** file and declaration counts at that commit.
 **WHAT THIS DOES NOT PROVE:** that any route is reachable, that any model is populated in
 production, that any test passes, or that any capability is wired end-to-end. No test run was
@@ -122,16 +127,46 @@ describes is **not a rewrite of this** — it is a structural layer that does no
 
 ## 2. The four load-bearing absences
 
-Each tested by `grep -ril <term> lib app prisma scripts`. **EXIT CODE `0`; zero matching files.**
+> **EXIT-CODE CORRECTION, 2026-07-27.** This section previously read
+> *"**EXIT CODE `0`; zero matching files**"* for every search below. **That was wrong and is
+> withdrawn.** `grep` exits `0` when it **finds** a match and `1` when it finds **none**. A
+> "zero matching files" result is exit **`1`**.
+>
+> The `0` came from the wrappers actually used — `grep … | wc -l` and `grep … || echo "NONE FOUND"`
+> — whose *pipeline* exit code is `0` no matter what `grep` returned. Recording that as the search's
+> own exit code inverted the meaning of the evidence.
+>
+> Both forms are now shown below with the code each actually returns, re-verified at
+> `40ae3917`. The error is preserved rather than quietly overwritten: the evidence standard
+> requires the exact command **and** its actual exit code, and this is what happens when a
+> convenience wrapper is mistaken for the command.
 
 ### 2.1 No event/workflow substrate — Program 4 measured at zero
 
+**Bare searches — the commands, with their true exit codes:**
+
 ```
-grep -ril "outbox"                                 lib app prisma scripts → 0 files
-grep -ril "workflow_run"                           lib app prisma scripts → 0 files
-grep -ril "capability_registry\|capabilityRegistry" lib app prisma scripts → 0 files
-grep -n  "model WorkflowRun\|model Event"          prisma/schema.prisma   → NONE
+$ grep -rilE "outbox" lib app prisma scripts                        → no output;  exit 1
+$ grep -rilE "workflow_run" lib app prisma scripts                  → no output;  exit 1
+$ grep -rilE "capability_registry|capabilityRegistry" lib app prisma scripts
+                                                                    → no output;  exit 1
+$ grep -nE "model WorkflowRun|model Event" prisma/schema.prisma     → no output;  exit 1
 ```
+
+**Exit `1` is the finding.** It means "searched successfully, found nothing" — as distinct from
+exit `2`, which would mean a bad path or read error and would invalidate the result.
+
+**The counting wrapper originally used, for reference:**
+
+```
+$ n=$(grep -ril "outbox" lib app prisma scripts 2>/dev/null | wc -l); echo "$n"
+0
+$ echo $?
+0
+```
+
+Here `0` is `wc`'s exit code and `0` is also its *output* — two different zeros. Only the output
+carries the finding.
 
 **What plays this role today:** 23 fixed-schedule cron routes under `app/api/cron/`
 (`agent-metrics`, `conviction-scores`, `data-retention`, `db-keepalive`, `demand-signals`,
@@ -155,9 +190,13 @@ no substrate to run on. **Highest-leverage gap.**
 ### 2.2 No policy engine — Program 1's regulatory half measured at zero
 
 ```
-grep -ril "policy_registry\|policyEngine\|PolicyEngine" lib app prisma scripts → 0 files
-grep -in "contractVersion\|policyVersion\|contract_version\|policy_version" prisma/schema.prisma → NONE
+$ grep -rilE "policy_registry|policyEngine|PolicyEngine" lib app prisma scripts
+                                                                    → no output;  exit 1
+$ grep -inE "contractVersion|policyVersion|contract_version|policy_version" prisma/schema.prisma
+                                                                    → no output;  exit 1
 ```
+
+Exit `1` = searched successfully, found nothing. Re-verified at `40ae3917`.
 
 Compliance today is **strong but code-shaped, not data-shaped**. `lib/compliance/` holds 19 modules
 (`gates.ts`, `idx-display-gate.ts`, `rls-enforcement.ts`, `rls-rules.json`, `rebny-validator.ts`,
@@ -210,7 +249,8 @@ Present and real: `CanonicalProperty`, `CanonicalBuilding`, `CanonicalUnit`, `Li
 `IdentityMatchAudit`, `IdentityReviewQueue` — genuine identity-resolution machinery for **property**.
 
 ```
-grep -n "model Person\|model Household\|model Organization\|model Artifact" prisma/schema.prisma → NONE
+$ grep -nE "model Person|model Household|model Organization|model Artifact" prisma/schema.prisma
+                                                                    → no output;  exit 1
 ```
 
 | Plan §7 entity | Status |
@@ -354,7 +394,12 @@ an evidence field. A missing declared path is a **violation** for a promoted cap
 `assessment` and capability `status` are separate vocabularies and the validator rejects confusion
 between them (§26 C-5.2).
 
-**Evidence captured at PR head `6d2518b8`** (`docs/evidence/capability-evidence-2026-07-27.md`):
+**Test evidence was captured at prior PR head `6d2518b8`**, not at the current head.
+`git diff --name-only 6d2518b8 40ae3917` shows changes only to the capability registry, the
+validator, the master plan, this gap analysis, and the evidence document — **no `lib/search`,
+`lib/idx`, or `lib/compliance` application or test file changed between those commits**
+(`… | grep -E "^lib/|\.test\.|\.spec\."` → no output, exit `1`). The results below therefore remain
+valid for the code they tested. Full detail in `docs/evidence/capability-evidence-2026-07-27.md`.
 
 | Suite | Result | Exit |
 |---|---|---|
@@ -363,13 +408,30 @@ between them (§26 C-5.2).
 | `npx jest --config lib/compliance/jest.config.js --ci` | 14 suites / 381 tests passed | `0` |
 
 Negative evidence for the media split: `grep -rilE "editType|virtualStaging|aiModified|disclosureRequired"`
-over `lib/idx/ lib/media/` → **no matches**. Zero of the ten §17.5 provenance scope items exists.
+over `lib/idx/ lib/media/` → **no output, exit `1`** (no matches). Zero of the ten §17.5 provenance
+scope items exists.
 
 **The validator was negative-tested**, not merely run green — a validator that only ever passes
-proves nothing. Four induced faults each produced the correct blocking violation:
-program carrying `status` → `PROGRAM_USES_STATUS`; unearned `production` → `UNEARNED_STATUS`;
-missing path on a promoted capability → `PROMOTED_PATH_MISSING`; placeholder `exitCode` →
-`EVIDENCE_INCOMPLETE`. The registry was then restored `cmp`-identical and passes.
+proves nothing. Every run is preserved verbatim, with its raw output and exit code, in evidence
+**E-5** (`docs/evidence/capability-evidence-2026-07-27.md`):
+
+| Test | Induced fault | Violation raised | Exit |
+|---|---|---|---|
+| E-5.1 | none — positive control | — | `0` |
+| E-5.2 | program carries `status` | `PROGRAM_USES_STATUS`, `ILLEGAL_ASSESSMENT` | `1` |
+| E-5.3 | unearned `production` | `UNEARNED_STATUS` ×8, `NO_OWNER` | `1` |
+| E-5.4 | promoted path missing | `PROMOTED_PATH_MISSING` | `1` |
+| E-5.5 | placeholder `exitCode` | `EVIDENCE_INCOMPLETE` | `1` |
+| E-5.6 | restoration check | `cmp` byte-identical | `0` |
+
+E-5.3 is the informative one: `CAP-SEARCH-CANONICAL`, the strongest capability in the registry with
+a genuine 625-test pass, still **cannot** reach `production` on that evidence. It is short by eight
+distinct proofs plus a named owner.
+
+**Local evidence is sufficient for `implemented`** (ratified 2026-07-27) provided it carries
+command, output, exit code, **environment**, target SHA, and proof boundary — `environment` is now
+a required field of every evidence record. Durable CI and live-runtime evidence are required only
+for `limited_release` and `production`.
 
 **Not** wired into `.github/workflows/**` — that path is held pending Maya's approval
 (`CLAUDE.md` §A.7).

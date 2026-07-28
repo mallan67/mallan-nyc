@@ -2053,19 +2053,24 @@ A status may be claimed only when its evidence exists. `evidence` means a **comp
 
 ```text
 evidence: {
-  command:        exact command run
+  command:        EXACT command run, including any wrapper
   resultArtifact: durable capture (docs/evidence/… or CI run)
-  exitCode:       integer
+  exitCode:       integer — the code that command ACTUALLY returned
   testedAt:       date
   targetSha:      commit the run targeted
+  environment:    where it ran (local + runtime + OS, or the CI job)
   proves:         the narrow thing established
   doesNotProve:   what a reader might wrongly infer
 }
 ```
 
+**`exitCode` is the code the command actually returned, not the one a reader would assume.** A bare `grep` finding nothing exits `1`; `find` finding nothing exits `0`. If a `0` is recorded for a search that found nothing, the wrapper that produced it (`|| echo …`, `| wc -l`) must be visible in `command` — a pipeline's exit code is not its first stage's. Mistaking a convenience wrapper's `0` for the command's own result inverts the meaning of the evidence.
+
+**Local evidence is sufficient for `implemented`** (ratified 2026-07-27), provided it is exact, reproducible, and carries all eight fields above. Durable CI evidence and live-runtime evidence are required for `limited_release` and `production`, enforced by the table below — not at `implemented`.
+
 | Status | Requires |
 |---|---|
-| `implemented` | canonical files exist · exact test command · run against a named commit · exit code · captured result or durable CI evidence · statement of what the test does not prove |
+| `implemented` | canonical files exist · exact test command · run against a named commit · exit code · **environment** · captured result — **a local capture is sufficient** · statement of what the test does not prove |
 | `shadow_mode` | `implemented` + comparison against existing behavior + measured discrepancy results + observability + no user-facing authority |
 | `limited_release` | `shadow_mode` + named owner + bounded audience or feature flag + rollback procedure + monitored results |
 | `production` | `limited_release` + exact deployed SHA + live production probe + operational monitoring + rollback proof + no unresolved release blocker |

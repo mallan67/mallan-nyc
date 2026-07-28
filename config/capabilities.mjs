@@ -117,13 +117,26 @@ export const PROMOTION_PROOF = {
   degraded: ['previouslyProduction', 'issue', 'measuredImpairment'],
 };
 
-/** Every field an `evidence` record must carry. None may be empty. */
+/**
+ * Every field an `evidence` record must carry. None may be empty.
+ *
+ * `command` must be the EXACT command run, including any wrapper. `exitCode` is
+ * the exit code that command actually returned — not the one a reader would
+ * assume. A bare `grep` with no matches exits 1, not 0; if the recorded code is
+ * 0 the wrapper that produced it must be visible in `command`.
+ *
+ * `environment` is required because exact, reproducible LOCAL evidence is
+ * sufficient for `implemented` (ratified 2026-07-27) — but only when the reader
+ * can tell where it ran. Higher maturity levels additionally require durable CI
+ * and live-runtime evidence via PROMOTION_PROOF.
+ */
 export const EVIDENCE_FIELDS = [
   'command',
   'resultArtifact',
   'exitCode',
   'testedAt',
   'targetSha',
+  'environment',
   'proves',
   'doesNotProve',
 ];
@@ -189,6 +202,7 @@ export const capabilities = [
       exitCode: 0,
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',
       proves:
         '23 suites / 625 tests pass: canonical + visibility contracts, access decision, ' +
         'criteria-to-Prisma translation, public DTO (DB and Trestle paths), projection ' +
@@ -220,6 +234,7 @@ export const capabilities = [
       exitCode: 0,
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',
       proves:
         '39 suites / 784 tests pass: auth, fetch, field mapping, normalization, media sync and ' +
         'cursor telemetry, write suppression, DTO construction.',
@@ -254,6 +269,7 @@ export const capabilities = [
       exitCode: 0,
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',
       proves:
         '14 suites / 381 tests pass: IDX display gate, RLS eligibility and enforcement, status ' +
         'normalization including terminal statuses, auction banner and DTO handling, agent-info mapping.',
@@ -293,6 +309,7 @@ export const capabilities = [
       exitCode: 0,
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',
       proves:
         'Media sync, ordering, cursor telemetry, and write-cause accumulation behave as asserted ' +
         'within the 39-suite lib/idx run.',
@@ -333,13 +350,18 @@ export const capabilities = [
       'withdrawal status',
     ],
     negativeEvidence: {
+      // CORRECTED 2026-07-27: previously recorded exitCode 0. A bare grep with no
+      // matches exits 1. The original invocation was wrapped with `|| echo "NONE
+      // FOUND"`, whose pipeline returned 0 and masked the real code. The bare
+      // command and its true exit code are recorded here; E-4 shows both forms.
       command:
         'grep -rilE "editType|edit_type|virtualStaging|virtual_staging|aiModified|ai_modified|disclosureRequired" lib/idx/ lib/media/',
       resultArtifact:
         'docs/evidence/capability-evidence-2026-07-27.md#e-4--media-ai-provenance-fields-are-absent-negative-evidence',
-      exitCode: 0,
+      exitCode: 1,
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
+      environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',
       proves:
         'No AI-modification edit type, virtual-staging marker, provider/model attribution, or ' +
         'disclosure field exists under lib/idx/ or lib/media/ at this commit.',
