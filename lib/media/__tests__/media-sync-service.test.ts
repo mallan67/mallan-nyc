@@ -123,15 +123,20 @@ describe("media sync service", () => {
           { url: "https://api.cotality.com/media/b.jpg", mediaType: "Photo", order: 1 },
         ],
       };
+      const getAccessToken = jest.fn();
+      const existsInR2 = jest.fn();
+      const uploadToR2 = jest.fn();
+      const fetchFn = jest.fn();
+
       const result = await mirrorListingMediaBatch(
         [legacyShapeListing],
         { execute: false, logger: { warn, log: jest.fn(), error: jest.fn() } },
         {
           hasR2Config: () => true,
-          getAccessToken: jest.fn() as never,
-          existsInR2: jest.fn() as never,
-          uploadToR2: jest.fn() as never,
-          fetchFn: jest.fn() as never,
+          getAccessToken: getAccessToken as never,
+          existsInR2: existsInR2 as never,
+          uploadToR2: uploadToR2 as never,
+          fetchFn: fetchFn as never,
         },
       );
 
@@ -139,6 +144,17 @@ describe("media sync service", () => {
       expect(result.scanned_media).toBe(0);
       expect(result.would_copy).toBe(0);
       expect(result.copied).toBe(0);
+
+      // FAIL-CLOSED means NO WORK, not merely "no upload". A MediaKey-less item
+      // must not reach R2 or Trestle at all: no HEAD probe against a guessed
+      // key, no token minted, no media fetched, no object written. Counters
+      // alone would still pass if the code probed R2 with an Order-derived key
+      // and merely declined to upload — these four pin that it does not.
+      expect(existsInR2).not.toHaveBeenCalled();
+      expect(getAccessToken).not.toHaveBeenCalled();
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(uploadToR2).not.toHaveBeenCalled();
+
       // The operator must be told why, and where to source media from.
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("no MediaKey"));
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("listing_media"));
