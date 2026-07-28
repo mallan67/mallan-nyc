@@ -99,14 +99,116 @@ const DESTRUCTIVE_PATTERNS = [
   { id: 'TRUNCATE',     re: /\bTRUNCATE\b/i,                         description: 'TRUNCATE' },
 ];
 
+/**
+ * Remove SQL comments so the destructive scan only ever sees EXECUTABLE SQL.
+ *
+ * Why this exists: NEON.md §4 requires large-table index migrations to follow
+ * the manual-CONCURRENTLY pattern and to document their rollback. That
+ * rollback note is, unavoidably, a destructive statement sitting in a comment:
+ *
+ *   --   DROP INDEX CONCURRENTLY IF EXISTS listing_media_r2_backlog_id_idx;
+ *
+ * Scanning raw text meant that documenting the rollback — the very thing
+ * NEON.md asks for — is what failed the guardrail (PR #581 reported
+ * `migration discipline FAIL: 1` for a migration whose only statement is an
+ * additive CREATE INDEX).
+ *
+ * Postgres never executes a comment, so scanning comments is unsound: it
+ * cannot catch a destructive op that isn't also present in executable SQL, and
+ * it fires on prose. This change strictly REMOVES false positives — no
+ * migration that passed before can newly fail.
+ *
+ * String literals, quoted identifiers and dollar-quoted bodies are copied
+ * verbatim, because a `--` inside '...' is DATA, not a comment; treating it as
+ * one could swallow — and therefore hide — a real destructive statement later
+ * on the same line.
+ */
+function stripSqlComments(sql) {
+  if (!sql) return '';
+  let out = '';
+  let i = 0;
+  const n = sql.length;
+
+  while (i < n) {
+    const ch = sql[i];
+    const next = sql[i + 1];
+
+    // Single-quoted string literal — copy verbatim, honoring the '' escape.
+    if (ch === "'") {
+      out += ch;
+      i++;
+      while (i < n) {
+        if (sql[i] === "'" && sql[i + 1] === "'") { out += "''"; i += 2; continue; }
+        out += sql[i];
+        if (sql[i] === "'") { i++; break; }
+        i++;
+      }
+      continue;
+    }
+
+    // Double-quoted identifier — copy verbatim.
+    if (ch === '"') {
+      out += ch;
+      i++;
+      while (i < n) {
+        out += sql[i];
+        if (sql[i] === '"') { i++; break; }
+        i++;
+      }
+      continue;
+    }
+
+    // Dollar-quoted body ($$ … $$ / $tag$ … $tag$) — copy verbatim. A DO block
+    // or function body IS executable, so its contents must stay scannable.
+    if (ch === '$') {
+      const tag = /^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/.exec(sql.slice(i));
+      if (tag) {
+        const close = sql.indexOf(tag[0], i + tag[0].length);
+        const end = close === -1 ? n : close + tag[0].length;
+        out += sql.slice(i, end);
+        i = end;
+        continue;
+      }
+    }
+
+    // Line comment — drop through end of line, leaving the newline itself so
+    // downstream line structure is preserved.
+    if (ch === '-' && next === '-') {
+      while (i < n && sql[i] !== '\n') i++;
+      continue;
+    }
+
+    // Block comment — Postgres allows these to nest.
+    if (ch === '/' && next === '*') {
+      let depth = 1;
+      i += 2;
+      while (i < n && depth > 0) {
+        if (sql[i] === '/' && sql[i + 1] === '*') { depth++; i += 2; continue; }
+        if (sql[i] === '*' && sql[i + 1] === '/') { depth--; i += 2; continue; }
+        i++;
+      }
+      out += ' ';
+      continue;
+    }
+
+    out += ch;
+    i++;
+  }
+
+  return out;
+}
+
 function scanForDestructive(sql) {
   if (!sql) return [];
-  // Honor explicit opt-in: a comment line with @allow-destructive disables blocking
+  // Honor explicit opt-in: a comment line with @allow-destructive disables
+  // blocking. Read from the RAW text — that annotation only ever lives in a
+  // comment, so it must be checked BEFORE comments are stripped.
   const allowed = /@allow-destructive\b/i.test(sql);
   if (allowed) return [];
+  const executable = stripSqlComments(sql);
   const hits = [];
   for (const p of DESTRUCTIVE_PATTERNS) {
-    if (p.re.test(sql)) hits.push(p);
+    if (p.re.test(executable)) hits.push(p);
   }
   return hits;
 }
@@ -158,6 +260,12 @@ function checkLiveMigrationStatus() {
 }
 
 // ─── Run ─────────────────────────────────────────────────────────────────
+// Wrapped in main() so the pure helpers above (stripSqlComments /
+// scanForDestructive) can be unit-tested by `require()` without the CLI
+// running and calling process.exit() at import time — the same
+// extract-for-testability pattern as scripts/release-safety/
+// release-truth-verdict.js.
+function main() {
 const results = {
   timestamp: new Date().toISOString(),
   base: baseRef,
@@ -291,3 +399,8 @@ let exitCode = 0;
 if (results.summary.fail > 0) exitCode = 1;
 else if (strict && results.summary.partial > 0) exitCode = 2;
 process.exit(exitCode);
+}
+
+if (require.main === module) main();
+
+module.exports = { stripSqlComments, scanForDestructive, DESTRUCTIVE_PATTERNS };
