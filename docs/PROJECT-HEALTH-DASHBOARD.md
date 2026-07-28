@@ -23,12 +23,12 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-25T23:50:07Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-28T04:10:36Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `318925e9`; probed from branch `fix/neon-write-amplification-2026-07-25` |
-| Open PRs | 🟢 | 1 open (1 non-audit): #569 |
+| Repo / main HEAD | 🟢 | main `ccfb4e85`; probed from branch `fix/neon-write-amp-phase2a-media-reconcile-2026-07-26` |
+| Open PRs | 🟢 | 2 open (2 non-audit): #581, #579 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
@@ -300,7 +300,8 @@ db-keepalive redundancy separately (decision, not a fix now).
 3. Update [`docs/operations/site-audit-handoff-YYYY-MM-DD.md`](operations/) with the session narrative + exact stop point.
 4. Do not mark 🟢 without proof. Do not rely on chat memory.
 
-
 **OPS-023** — P2 · Open · lifecycle-policy decision required.
 Canonical details and evidence: `docs/PLATFORM-ISSUE-REGISTRY.md`.
-Companion backlog index deployed and under documented verification in PR #581.
+Companion backlog index deployed 2026-07-28T02:45:22.752Z; three-cycle production verification COMPLETE (evidence: `docs/operations/neon-listing-media-backlog-index-2026-07-28.md`). PR #581 open — sole remaining blocker is the operator-run production `prisma migrate resolve`.
+
+**Runtime errors (2026-07-28 capture, production, 24h window):** 22 across 6 routes — `/buildings/[slug]` 12 · `/buy` 4 · `/rent` 3 · `/resources/buyers-guide` 1 · `/` 1 · `/api/market` 1. Captured with `group_by=route` (counts only; no per-error messages or traces retrieved, none triaged). Supersedes the 2026-07-01 two-error assessed row for this session. Detail: `docs/operations/site-audit-handoff-2026-07-01.md`.
