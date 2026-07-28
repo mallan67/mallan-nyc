@@ -2186,11 +2186,24 @@ export async function mirrorMediaToR2(
     // transient or ambiguous and only earns a cooldown. 429 in particular
     // must never tombstone, given Trestle's 480/min media-URL ceiling.
     //
-    // The WHERE carries the canonical unmirrored predicate from
-    // `buildR2BacklogWhere` (`r2_key IS NULL OR media_url_cached IS NULL`),
-    // so a stale failure released after a successful mirror has committed
-    // matches ZERO rows and cannot clobber the mirrored columns, reset
-    // counter or cleared cooldown.
+    // The WHERE carries the SAME eligibility the selection used
+    // (`buildR2BacklogWhere`): `status = 'active'` AND the unmirrored
+    // predicate `(r2_key IS NULL OR media_url_cached IS NULL)`. A stale
+    // failure released after the row stopped being eligible matches ZERO
+    // rows, whichever way it stopped being eligible:
+    //
+    //   - a SUCCESSFUL mirror committed: the pointers are populated, so the
+    //     unmirrored half rejects it and the mirrored columns, reset counter
+    //     and cleared cooldown cannot be clobbered;
+    //   - the row was TOMBSTONED: `status='deleted'` with BOTH pointers still
+    //     NULL, which is exactly the state a proven-permanent 404 leaves
+    //     behind. The unmirrored half still matches such a row, so without
+    //     the status condition a stale worker would keep advancing the
+    //     counter and refreshing the cooldown on a row that is no longer
+    //     eligible to mirror at all.
+    //
+    // Both halves are load-bearing and neither subsumes the other. A write
+    // must never be bounded more loosely than the selection that produced it.
     //
     // Every `${...}` below is a Prisma bind parameter, NOT SQL text. The
     // media key is always data and can never alter the statement — proven by
@@ -2217,6 +2230,7 @@ export async function mirrorMediaToR2(
               ELSE status
             END
         WHERE media_key = ${row.media_key}
+          AND status = 'active'
           AND (r2_key IS NULL OR media_url_cached IS NULL)
         RETURNING r2_attempts, status
       `;
@@ -2240,6 +2254,7 @@ export async function mirrorMediaToR2(
               ELSE status
             END
         WHERE media_key = ${row.media_key}
+          AND status = 'active'
           AND (r2_key IS NULL OR media_url_cached IS NULL)
         RETURNING r2_attempts, status
       `;
