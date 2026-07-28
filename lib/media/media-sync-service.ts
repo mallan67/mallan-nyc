@@ -17,8 +17,17 @@ export interface MediaSyncItem {
   MediaURL?: string;
   mediaType?: string;
   MediaCategory?: string;
+  /** Presentation/display ordinal ONLY — never object identity (#575). */
   order?: number;
   Order?: number;
+  /**
+   * Trestle `Media.MediaKey` — the STABLE per-asset identity (#575). Both the
+   * Trestle-shape (`MediaKey`) and DB-shape (`media_key`) spellings are
+   * accepted because this interface is fed from both `Listing.media` JSON and
+   * `listing_media` rows.
+   */
+  MediaKey?: string;
+  media_key?: string;
 }
 
 export interface MediaSyncListing {
@@ -136,21 +145,115 @@ export function classifyTrestleMediaCategory(
   return "Photo";
 }
 
-export function buildMediaR2Key(listingId: string, mediaType: string, order: number): string {
-  const safeListingId = listingId.replace(/[^a-zA-Z0-9_-]/g, "_");
+/**
+ * Encode one path segment INJECTIVELY for use in an R2 object key.
+ *
+ * Why not `replace(/[^a-zA-Z0-9_-]/g, "_")`: that mapping is LOSSY. `"MK/1"`
+ * and `"MK_1"` both collapse to `"MK_1"`, so two distinct media identities
+ * would resolve to the SAME object key and silently overwrite each other —
+ * the exact class of bug #575 exists to eliminate. A sanitiser used for
+ * IDENTITY must be injective, not merely safe.
+ *
+ * Scheme: characters outside `[A-Za-z0-9_-]` are escaped as `~HH` per UTF-8
+ * byte. `~` itself is outside the set, so it escapes to `~7E` and the encoding
+ * stays unambiguous (prefix-free). Distinct inputs therefore always produce
+ * distinct outputs. `~` is an RFC 3986 unreserved character, so the result is
+ * safe both as an S3/R2 key and inside the public `media_url_cached` URL
+ * without further encoding.
+ *
+ * Also makes path traversal structurally impossible: `/` and `.` are escaped,
+ * so no segment can escape its prefix.
+ */
+export function encodeR2Segment(raw: string): string {
+  let out = "";
+  for (const ch of String(raw)) {
+    if (/^[A-Za-z0-9_-]$/.test(ch)) {
+      out += ch;
+      continue;
+    }
+    for (const byte of Buffer.from(ch, "utf8")) {
+      out += "~" + byte.toString(16).toUpperCase().padStart(2, "0");
+    }
+  }
+  return out;
+}
+
+/**
+ * Read the STABLE Trestle media identity off an item, or null when absent.
+ *
+ * Returns null rather than substituting anything, so every caller must make
+ * the fail-closed decision explicitly.
+ */
+export function getMediaKey(item: MediaSyncItem): string | null {
+  const raw = item.MediaKey ?? item.media_key;
+  if (raw === null || raw === undefined) return null;
+  const value = String(raw).trim();
+  return value.length > 0 ? value : null;
+}
+
+/**
+ * Build the R2 object key for a media asset, addressed by its STABLE Trestle
+ * `MediaKey`.
+ *
+ * THE BUG THIS REPLACES (#575):
+ *   The key used to be `{folder}/{listingId}/{order}.jpg`. Trestle's `Order` is
+ *   a PRESENTATION ordinal, not an identity — it is per-MediaCategory
+ *   sequential and the feed reassigns it whenever photos are reordered,
+ *   inserted or removed. Two consequences, both observed as unbounded R2
+ *   growth:
+ *
+ *     1. Reordering a gallery changed the key of an UNCHANGED asset, so the
+ *        same bytes were re-uploaded under a new key and the old object was
+ *        orphaned — one duplicate per reorder, forever.
+ *     2. Different assets across a listing's media history reused the same
+ *        ordinal key, so `photos/X/1.jpg` did not name one specific Cotality
+ *        asset over time.
+ *
+ *   `MediaKey` is Trestle's per-asset primary key and is `@unique` on
+ *   `listing_media.media_key`, so it is stable across reordering, across
+ *   signed-URL rotation, and across re-sync.
+ *
+ * `Order` remains display-order metadata (it still drives gallery sequence and
+ * hero selection) — it is simply no longer part of object IDENTITY.
+ *
+ * FAIL-CLOSED: `mediaKey` is required and this throws when it is missing.
+ * There is deliberately NO order-based fallback: falling back would silently
+ * reintroduce the defect for exactly the rows least likely to be noticed.
+ * Callers must SKIP such rows. Verified safe to require: all 320,913
+ * production `listing_media` rows have a non-null `media_key` (0 NULL,
+ * measured read-only 2026-07-28).
+ *
+ * MIGRATION NOTE: this changes the key only for media not yet mirrored.
+ * `mirrorMediaToR2` prefers an existing `row.r2_key` and derives one ONLY when
+ * absent, so already-mirrored objects keep their current key and are neither
+ * renamed, copied, nor re-uploaded.
+ *
+ * The mediaType→folder namespace is retained. With a globally-unique MediaKey
+ * it is no longer needed to prevent Photo/FloorPlan collisions, but
+ * `lib/ops/r2-orphan-plan.ts` keys its safety filters off exactly these four
+ * prefixes (`LISTING_MEDIA_PREFIXES`), so changing them would break orphan
+ * planning.
+ */
+export function buildMediaR2Key(listingId: string, mediaType: string, mediaKey: string): string {
+  const rawKey = String(mediaKey ?? "").trim();
+  if (!rawKey) {
+    throw new Error(
+      "buildMediaR2Key: mediaKey is required (#575 — Order is presentation, not identity). " +
+        "Callers must skip media without a MediaKey rather than fall back to Order.",
+    );
+  }
+  const safeListingId = encodeR2Segment(listingId);
+  const safeMediaKey = encodeR2Segment(rawKey);
   const canonical = classifyTrestleMediaCategory(mediaType);
   // Namespace by canonical mediaType. Photo→photos/, FloorPlan→floorplans/,
-  // Video→videos/, VirtualTour→virtualtours/. This guarantees that two media
-  // items with the same listingId + same Order but different mediaType
-  // (which is the common Trestle case — Photo Order=1 and FloorPlan Order=1
-  // both legitimately exist for the same listing) produce distinct R2 keys
-  // and cannot overwrite each other.
+  // Video→videos/, VirtualTour→virtualtours/. Must stay in sync with
+  // LISTING_MEDIA_PREFIXES in lib/ops/r2-orphan-plan.ts.
   const folder =
     canonical === "FloorPlan" ? "floorplans" :
     canonical === "Video" ? "videos" :
     canonical === "VirtualTour" ? "virtualtours" :
     "photos";
-  return `${folder}/${safeListingId}/${order}.jpg`;
+  return `${folder}/${safeListingId}/${safeMediaKey}.jpg`;
 }
 
 export function isTrestleMediaUrl(rawUrl: string): boolean {
@@ -269,9 +372,18 @@ export async function mirrorListingMediaBatch(
         item,
         url: getMediaUrl(item),
         mediaType: getMediaType(item),
+        // Retained for display/telemetry only — NOT used to derive the R2 key.
         order: getMediaOrder(item, idx),
+        // #575: object identity comes from MediaKey.
+        mediaKey: getMediaKey(item),
       }))
-      .filter(({ url }) => !!url && isTrestleMediaUrl(url));
+      // FAIL-CLOSED: an item without a stable MediaKey is skipped, never keyed
+      // by Order. Guessing a key here is what produced a duplicate object on
+      // every gallery reorder.
+      .filter(
+        (m): m is typeof m & { mediaKey: string } =>
+          !!m.url && isTrestleMediaUrl(m.url) && !!m.mediaKey,
+      );
 
     result.scanned_media += mediaItems.length;
     if (mediaItems.length === 0) continue;
@@ -279,8 +391,8 @@ export async function mirrorListingMediaBatch(
     for (let i = 0; i < mediaItems.length; i += batchSize) {
       const batch = mediaItems.slice(i, i + batchSize);
       await Promise.allSettled(
-        batch.map(async ({ url, mediaType, order }) => {
-          const key = buildMediaR2Key(listing.listing_id, mediaType, order);
+        batch.map(async ({ url, mediaType, mediaKey }) => {
+          const key = buildMediaR2Key(listing.listing_id, mediaType, mediaKey);
 
           try {
             if (await deps.existsInR2(key)) {
@@ -304,7 +416,10 @@ export async function mirrorListingMediaBatch(
               {
                 listing_id: listing.listing_id,
                 media_type: mediaType,
-                order,
+                // Log the stable identity, not the presentation ordinal —
+                // `order` changes between cycles, which made these lines
+                // impossible to correlate across runs.
+                media_key: mediaKey,
                 error: err instanceof Error ? err.message : String(err),
               },
             );
