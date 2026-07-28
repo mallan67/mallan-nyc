@@ -44,6 +44,7 @@
         "ucba:audit": "node scripts/ucba-compliance-audit.js",
         "ucba:audit:json": "node scripts/ucba-compliance-audit.js --json",
         "ucba:audit:fails": "node scripts/ucba-compliance-audit.js --fails",
+        "capability:audit": "node scripts/capability-audit.mjs",
         "validator:workflows": "node scripts/validate-workflow-completeness.js",
         "validator:workflows:json": "node scripts/validate-workflow-completeness.js --json",
         "validator:migration": "node scripts/validate-migration-discipline.js",

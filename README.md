@@ -1,3 +1,33 @@
+> # 🧭 START HERE → [`AI-START-HERE.md`](./AI-START-HERE.md)
+>
+> **Every contributor — human or AI (Claude, Codex, ChatGPT, Copilot, Gemini) — reads
+> [`AI-START-HERE.md`](./AI-START-HERE.md) first.** It is the universal entry point: required
+> reading order, the authority hierarchy that resolves document conflicts, the Cotality and REBNY
+> rules, the evidence standard, and the definition of done.
+>
+> Tool-specific memory, chat history, generated summaries, and local notes **do not override
+> repository truth.**
+>
+> | Read | For |
+> |---|---|
+> | [`AI-START-HERE.md`](./AI-START-HERE.md) | Universal entry point and authority hierarchy |
+> | [`AGENTS.md`](./AGENTS.md) | Cross-agent constitution, holds, operating rules |
+> | [`docs/architecture/Mallan_Intelligence_Master_Plan.md`](./docs/architecture/Mallan_Intelligence_Master_Plan.md) | Target architecture — **§26 carries the ratified corrections** |
+> | [`docs/PROJECT-HEALTH-DASHBOARD.md`](./docs/PROJECT-HEALTH-DASHBOARD.md) | Current operational status |
+> | [`docs/PLATFORM-ISSUE-REGISTRY.md`](./docs/PLATFORM-ISSUE-REGISTRY.md) | Canonical issue / incident / risk registry |
+> | [`docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`](./docs/compliance/COMPLIANCE-CANONICAL-INDEX.md) | Before **any** listing, CRM, lead, portal, media, search, or advertising work |
+> | [`NEON.md`](./NEON.md) | Before **any** database, Prisma, migration, Neon, cron, or storage work |
+> | [`CLAUDE.md`](./CLAUDE.md) | Claude-specific depth (supplements, never replaces, the above) |
+>
+> **A target architecture document does not prove implementation.** Existing code does not
+> automatically define the desired architecture. Production behavior must be proven separately.
+>
+> **Evidence standard — findings must be factual, tested, proven, and result-based. Three out of
+> four is a failure.** Canonical statement in [`AI-START-HERE.md`](./AI-START-HERE.md); enforcement
+> detail in [`memory/EVIDENCE-STANDARD-2026-07-27.md`](./memory/EVIDENCE-STANDARD-2026-07-27.md).
+
+---
+
 # Mallan Real Estate Inc. — New York City Brokerage Platform  
 **Compliance-First · Fast · Scalable**
 

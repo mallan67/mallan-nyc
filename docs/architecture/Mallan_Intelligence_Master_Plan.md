@@ -1817,6 +1817,19 @@ Only after trusted data, events, and workflows:
 - model evaluation and AI economics;
 - additional providers and channels.
 
+## Program 11 — Decommissioning and consolidation
+
+Added by ratified correction **C-4** (§26). Runs continuously alongside Programs 1–10, not after them: every strangler migration under §21.1 creates retirement work, and unowned retirement work is how parallel truth returns.
+
+Deliver:
+
+- classification of every candidate directory, module, script, document, and route as live, superseded-but-referenced, superseded-and-unreferenced, generated, or unknown — **with reference-search evidence, not impression**;
+- the obsolete-document list Program 0 promises but does not own;
+- bounded retirement PRs, one per group, each with rollback;
+- consolidation of duplicated surfaces onto their canonical owner per `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md`.
+
+Nothing is deleted on suspicion. Classification precedes retirement, always.
+
 ---
 
 # 23. First five closed-loop proofs
@@ -1946,3 +1959,122 @@ The system must be able to absorb:
 - additional brokerage services;
 
 without rebuilding its identity, property, relationship, policy, event, workflow, evidence, and approval foundations.
+---
+
+# 26. Ratified corrections
+
+**Ratified:** 2026-07-27
+**Evidence basis:** `docs/architecture/MASTER-PLAN-GAP-ANALYSIS-2026-07-27.md`
+**Status:** Normative. Where a correction below conflicts with an earlier section of this document, **the correction governs** and the earlier section is read as amended.
+
+These corrections exist because the sections they amend were written as target architecture without a measured reading of the current implementation. Each cites the measurement that produced it. None changes the plan's intent; together they make it executable.
+
+## C-1 — `audit_events` is not the §8.1 transactional outbox
+
+The repository already contains `model AuditEvent` (`prisma/schema.prisma`, table `audit_events`). It carries `action`, `entity_type`, `entity_id`, `user_type`, `user_id`, `changes`, `ip_address`, `created_at`, and is bounded to a 2-year rolling retention.
+
+§8.1 requires an event carrying `event_id`, `event_type`, `occurred_at` **and** `recorded_at` as distinct values, `actor`, `relationship_id`, `property_id`, `listing_id`, `agent_id`, `source`, `source_event_id`, `contract_version`, `policy_version`, `payload`, `sensitivity`, `correlation_id`, and `causation_id`.
+
+These are **two different systems with similar names.**
+
+- `audit_events` is a **retrospective compliance and PII-access record.** It answers "who changed what, when."
+- The §8.1 outbox is a **forward dispatch mechanism.** It answers "what work must now happen, caused by what, under which contract and policy version."
+
+**Ruling.** The outbox is **additive and separate**. `audit_events` is retained unchanged, keeps its 2-year bound, and **must not** be widened into an event bus. Any proposal to "just add columns to `audit_events`" is rejected by this correction. Compliance retention and workflow causality have different lifecycles, different sensitivity handling, and different deletion rules; merging them would make both incorrect.
+
+## C-2 — Cotality consolidates on `lib/idx/`; no parallel integration tree
+
+§5.3 presents a target structure at `lib/integrations/cotality/` and already instructs: "This target structure must be reconciled with existing canonical files before implementation. Do not create a second parallel integration tree if current canonical modules can be evolved."
+
+**This correction performs that reconciliation.**
+
+Measured: `lib/cotality/` contains exactly one file (`cotality-enums.ts`). The working Cotality/Trestle integration lives in **`lib/idx/` — 29 files** including `auth.ts`, `fetch.ts`, `trestle-mapper.ts`, `mapping.ts`, `sync.ts`, `media-sync.ts`, `public-dto.ts`, `db-to-public-dto.ts`, `display-adapter.ts`, `cotality-telemetry.ts`, `write-suppression.ts`, `media-reconcile-guard.ts`, `reconcile-decision.ts`, plus `__tests__/`.
+
+**Ruling.**
+
+1. **`lib/idx/` is the canonical Cotality adapter surface.** §5.3's tree is read as a *capability checklist*, not a directory specification.
+2. **`lib/integrations/cotality/` must not be created.** Doing so would violate `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` and `AI-START-HERE.md` "Do not create parallel truth."
+3. `lib/cotality/cotality-enums.ts` is folded into `lib/idx/` or explicitly retained with a documented reason. It must not become the seed of a second tree.
+4. The genuinely missing capabilities are added **inside `lib/idx/`**:
+   - `metadata-diff` — exists as `npm run trestle:diff`; **not yet a blocking gate**;
+   - `generated-contract` — absent;
+   - `capability-registry` — absent;
+   - `compatibility-tests` as a **blocking** §5.9 gate — absent;
+   - the `ListingProvider.*` domain interface of §5.2 — absent; callers currently reach into `lib/idx` directly.
+
+Extracting `ListingProvider` is a pure refactor with no migration and is the correct first step.
+
+## C-3 — Neon/R2 remediation is a hard dependency gate
+
+Line 13 of this document states the Neon/R2 campaign "is a separate infrastructure workstream. It must not be represented as fixed or silently folded into this architecture plan." That is a **reporting** rule. It is not a **sequencing** rule, and no other Neon/R2 reference exists in this document.
+
+Program 2 and Program 4 introduce `Person`, `Household`, `Organization`, `Artifact`, the event outbox, and `WorkflowRun`, plus `contract_version` and `policy_version` columns on existing tables. That is a **substantial write-volume and storage increase directed into the exact database currently under write-amplification remediation.**
+
+**Ruling.** This correction converts the reporting rule into a **gate**:
+
+> No Program 2 or Program 4 **schema** work begins until the Neon/R2 remediation workstream is verified complete against production evidence and Maya has approved the migration.
+
+Non-schema Program 2/4 work — interface design, contract definition, service shape, tests against in-memory fixtures — may proceed. Only tables, columns, indexes, and backfills are gated.
+
+This gate is additive to the existing standing hold on schema migrations (`CLAUDE.md` §A.7). Satisfying one does not satisfy the other; both are required.
+
+## C-4 — Program 11: Decommissioning and consolidation
+
+This document specifies what to build and never what to retire. §21.1 step 8 says "remove the old path" but assigns no owner and no program. Without one, the strangler migration of §21.1 accumulates strangled-but-never-removed paths — which is how parallel truth returns through the back door.
+
+**Ruling. Add Program 11 — Decommissioning and consolidation.**
+
+Deliverables, in order:
+
+1. **Classify** every candidate directory, module, script, document, and route as: live · superseded-but-referenced · superseded-and-unreferenced · generated · unknown. Classification requires evidence — a reference search, not an impression.
+2. **Produce the obsolete-document list** that Program 0 already promises but does not own.
+3. **Retire** only what is proven unreferenced, one bounded PR per group, with rollback.
+4. **Consolidate** duplicated surfaces onto their canonical owner per the source-of-truth charter.
+
+Observed candidates at repository root: `__pw-review/`, `__pw-review-v2/`, `__pw-review-v3/`, `__pw-shots/`, `archive/`, `backups/`, and the coexistence of `src/`, `backend/`, and `frontend/` alongside `app/` and `lib/`.
+
+**These are candidates, not conclusions.** Whether each is genuinely dead is **untested**. Program 11's first deliverable is classification with evidence. Nothing is deleted on suspicion.
+
+## C-5 — §24 acceptance criteria become machine-enforced
+
+§24 lists 26 acceptance items and §8.3 defines ten maturity statuses. Both are currently enforced by human memory, which drifts — and drift in an acceptance checklist silently converts "not done" into "done."
+
+**Ruling.** §24 and §8.3 become machine-checkable, using the pattern already proven in this repository by `ucba:audit`, `rls:validate`, `idx:validate`, and `compliance-check`:
+
+- **`config/capabilities.mjs`** — the capability registry (a module, not YAML: neither `js-yaml` nor `yaml` is a dependency, and a hand-rolled parser could silently mis-parse, making the validator itself untrustworthy). One entry per capability, carrying its §8.3 maturity status, its §24 acceptance evidence, and its owner.
+- **`scripts/capability-audit.mjs`** — the validator. Verifies structural completeness, that every claimed status is supported by declared evidence, and that no capability claims a promoted status without the proof that status requires.
+- **`npm run capability:audit`** — the entry point.
+
+The registry begins as a **static file with no schema and no migration**, so Program 0 can complete without touching the database and without triggering the C-3 gate. It becomes a runtime registry later, under §8.3, once the C-3 gate is satisfied.
+
+**Maturity status is assigned from evidence, never from intent or from volume of code written.** A capability with a route, a model, and a test but no wired loop is `implemented`, not `production`.
+
+CI enforcement is **not** included: `.github/workflows/**` is held pending Maya's approval (`CLAUDE.md` §A.7). Until then the validator is run manually and its result stated explicitly.
+
+## C-6 — AI-altered media provenance moves early, on existing-obligation grounds only
+
+§15.1 already requires "AI modification provenance" in the canonical media contract. §17.5 already requires preserving the original asset, derived analysis, edited version, edit type, provider/model, date, disclosure, approval, publication history, and withdrawal status. §17.5 currently sits in Program 10 — last.
+
+Separately, New York City has **signalled intent** to require disclosure of AI-altered listing media, as one of 23 actions in the July 2026 "Rental Ripoff Report," to be pursued through Department of Consumer and Worker Protection rulemaking.
+
+**That signal is not law, and this correction does not treat it as law.**
+
+Verified status: **proposed agency rulemaking. Not enacted. No published effective date. No Local Law number, no Intro number, and no rule citation obtained.** The official NYC.gov release returned HTTP 403 to automated fetch and was **not read directly**; the 68-page report was **not read**. All sourcing is secondary. Legal-industry commentary describes it as "a coming rule," preliminary and not yet binding on owners.
+
+**Ruling.**
+
+1. **Move the §15.1 / §17.5 media-provenance envelope into the early compliance program** — justified **today** by REBNY/RLS media rules and §3.2, entirely independent of any DCWP action. Virtual staging is already in industry use; provenance is already required. This is defensible on its own merits.
+2. **Register the DCWP item in the §6.1 policy registry as `review_status: monitoring`, `enforcement_mode: none`, with no `effective_date`.**
+3. **Do not implement a disclosure gate against hypothetical rule text.** Building enforcement against an unread rule violates §5.8 in spirit — never act on an unclassified value — and would produce a gate that fails in the wrong direction when the real text arrives.
+4. **Promotion out of `monitoring` requires a dated official source** per `CLAUDE.md` §E and §J.4: the NYC.gov release read directly, the report PDF, a City Record notice of proposed rulemaking, a Council Intro number, or a REBNY member notice.
+5. The same report's tenant-union recognition, repeat-offender enforcement, and building-registration items receive identical treatment: **monitor, do not implement.**
+
+## C-7 — Measured baselines are dated evidence, not architecture facts
+
+`MASTER-PLAN-GAP-ANALYSIS-2026-07-27.md` records a measured baseline — 77 Prisma models, 31 migrations, 288 API routes, 156 CRM routes, 40 portal routes, 23 cron routes, 512 test files.
+
+**Ruling.** Those numbers are **dated gap-analysis evidence, valid only for the commit and branch stated in that document.** They are not permanent architecture facts, not acceptance criteria, and not targets. They will go stale, and going stale is expected and correct.
+
+Per `AI-START-HERE.md`, current operational truth lives in `docs/PROJECT-HEALTH-DASHBOARD.md` and `docs/PLATFORM-ISSUE-REGISTRY.md`. Anyone citing a count from the gap analysis must **re-run the stated command** and cite their own result, not the recorded one.
+
+Counts prove declarations exist. They do not prove reachability, correctness, population, wiring, or that any test passes.
