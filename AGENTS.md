@@ -1,139 +1,176 @@
-# AGENTS.md — Cross-Agent Constitution (Claude · Codex · ChatGPT)
+# AGENTS.md — Cross-Agent Constitution
 
-> **Single shared source of truth for every AI agent working on `mallan67/mallan-nyc`.**
-> Claude reads this (pointer in `CLAUDE.md`), **Codex reads this natively** during PR review, and it
-> is **paste-ready for ChatGPT**. When any tool's private memory disagrees with this file, **this file
-> wins** — do not act on stale chat memory.
+> Single shared operating constitution for every AI agent working on `mallan67/mallan-nyc`.
+> When private memory, stale chat context, old handoffs, comments, or earlier plans disagree with the current repository, this file and the canonical platform plan win.
 
-This project is a **live Cotality/Trestle (REBNY IDX Plus) synchronization platform** — not "an IDX
-website." It has downstream consumers: search, CRM, portal, media, compliance, archive, email, contact.
+This repository is a live Cotality/Trestle REBNY IDX Plus synchronization and brokerage platform with downstream consumers including search, CRM, portals, media, compliance, archive, email, contacts, reporting, and seller workflows.
 
 ---
 
-## 0. How each tool gets on the same page
+## 0. Mandatory reading order
+
+Every agent must read these files before planning or changing platform behavior:
+
+1. [`AI-START-HERE.md`](AI-START-HERE.md)
+2. [`docs/architecture/MALLAN-PLATFORM-PLAN.md`](docs/architecture/MALLAN-PLATFORM-PLAN.md)
+3. this file
+4. [`docs/PROJECT-HEALTH-DASHBOARD.md`](docs/PROJECT-HEALTH-DASHBOARD.md)
+5. [`docs/PLATFORM-ISSUE-REGISTRY.md`](docs/PLATFORM-ISSUE-REGISTRY.md)
+6. the latest applicable handoff
+7. [`NEON.md`](NEON.md) before any database, Prisma, migration, sync, storage, or relevant Vercel work
+8. [`docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`](docs/compliance/COMPLIANCE-CANONICAL-INDEX.md) before any listing, search, display, media, CRM contact, marketing, or public-text work
+
+### Tool entry paths
 
 | Tool | Entry path |
 |---|---|
-| **Claude** | `CLAUDE.md` → this file → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff snapshot |
-| **Codex** | this file (`AGENTS.md`) + **review the CURRENT HEAD commit of a PR, never stale bot comments** |
-| **ChatGPT** | paste `AGENTS.md` + `docs/PROJECT-HEALTH-DASHBOARD.md` (it has no repo access) |
+| Claude | `CLAUDE.md` → `AI-START-HERE.md` → canonical platform plan → this file |
+| Codex | `AGENTS.md` → `AI-START-HERE.md` → canonical platform plan; review current PR HEAD, never stale comments |
+| ChatGPT | repository connector → `AI-START-HERE.md` → canonical platform plan → this file |
+| Copilot | `.github/copilot-instructions.md` → `AI-START-HERE.md` → canonical platform plan |
+| Other agents | `AI-START-HERE.md` → canonical platform plan → this file |
+
+The canonical platform plan is the one normative source for business rules, system architecture, listing identity, error governance, housekeeping, and implementation phases. Do not create parallel platform plans.
 
 ---
 
-## 1. Invariants (never violate)
+## 1. Listing identity invariants
 
-1. **Canonical Neon production** — project `hidden-mountain-87248164` ("neon-green-school", **Vercel-managed
-   org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
-   · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
-   `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
-   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
-   `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
-   comments, never the schedule**, unless Maya explicitly asks.
-3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
-   proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
-4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,
-   STOP and report; do not guess or extrapolate across feeds/fields.
-5. **Review the current HEAD** — a Codex/reviewer comment against an older commit is **not** a blocker if
-   the current HEAD already addresses it. Always check the PR's current head SHA first.
-6. **Compliance-first** — anything touching listings, IDX, syndication, CRM lead/contact, intake forms,
-   display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
-7. **Cotality is the sole authority — always live, never a copy, never a spot-check** (Maya law,
-   2026-07-05). Every listing **status, field name, and picklist value** must be verified against the
-   **live Cotality API** (`api.cotality.com/trestle` `$metadata`), NOT a snapshot (`artifacts/metadata.xml`),
-   NOT a hand-copied set, NOT another agent's list. The single generated source is
-   `data/cotality-enums.live.json` (regenerate with `npm run cotality:pull`; the drift guard
-   `npm run cotality:verify` fails if it or any code set diverges from live). If a status/field value is
-   wrong in one place it is almost certainly wrong in the copies elsewhere — **verify the whole surface,
-   never one file.** Known live truths (2026-07-05): `StandardStatus` = {Active, ActiveUnderContract,
-   Canceled, Closed, ComingSoon, Delete, Expired, Hold, Incomplete, Pending, Withdrawn} (spelling is
-   **`Canceled`**, one L — never "Cancelled"); "Sold"/"Rented" exist in **no** Cotality enum;
-   `Permission` has **no** "OwnerOptOut"; `PropertyType` is camelCase (`ResidentialLease`, never
-   "Residential Lease"). Full audit: `docs/audits/cotality-status-truth-audit-2026-07-05.md`.
+1. `SL-*` means a Mallan web **sale** listing.
+2. `RL-*` means a Mallan web **rental** listing.
+3. `RLS*` means a separate REBNY/Cotality provider record.
+4. The `SL-`/`RL-` prefix identifies transaction type; it does not prove whether a provider counterpart exists.
+5. A verified matched pair keeps the Mallan record as the canonical mallan.nyc public page.
+6. The provider counterpart remains read-only and retained internally.
+7. The provider duplicate is suppressed from Mallan public surfaces.
+8. No authority handover occurs.
+9. Current prefix-based ownership or dedupe inference is an implementation shortcut to inventory and correct, not a reason to redefine the business rule.
 
-## 2. Non-negotiable holds (require explicit Maya approval)
+---
 
-Gate 6 `--execute` / any archive-drain execute / 20K–80K batches · manual cron trigger · Vercel env
-changes · Neon reclaim/downgrade · `VACUUM FULL` · `rotate-db-keys` · production migrations
-(`prisma migrate deploy` / `db push`) · PR-5B · projection backfill · PageSpeed/media lane ·
-notification dispatcher · open-house v2 · admin merge bypass · force-push to main. (Full list + why:
-`CLAUDE.md` §C and the handoff snapshot.)
+## 2. Core invariants
 
-## 3. Where truth lives
+1. **Repository boundary** — this file applies only to `mallan67/mallan-nyc`. Mallan Integrated is outside scope.
+2. **Canonical Neon production** — project `hidden-mountain-87248164`, Vercel-managed org `Vercel: maya`, default branch `main = br-crimson-frog-adr7g9gt`, endpoint `ep-cold-waterfall-adno3ao2`. Stale/do-not-serve: `morning-bread-68708332` / `ep-royal-dawn-ad6eh8t2`. Full rules: `NEON.md`.
+3. **Intentional sync cadence** — source of truth is `vercel.json`. Route comments may be stale; fix comments, not schedules, unless Maya explicitly authorizes schedule changes.
+4. **Proof first** — a change is not done without a failing test that turns green, live or immutable-preview behavior proof, a direct source read for bounded static claims, or equivalent captured evidence. Grep alone never proves runtime behavior.
+5. **Fail closed** — if a REBNY, Cotality, Fair Housing, listing-display, consent, authorization, or canonical-file rule is unclear, stop and report. Do not guess.
+6. **Current HEAD** — review the current PR head SHA. A comment against an older commit is not automatically a current blocker.
+7. **Compliance first** — read the compliance canonical index before touching listings, search, display gates, syndication, CRM contacts, intake forms, media, marketing, or public text.
+8. **Live provider truth** — listing statuses, field names, picklists, relationships, and runtime behavior must be verified against the authenticated live Cotality API when the task depends on them. Generated mirrors support verification; old snapshots and copied lists do not replace it.
+9. **No client-side provider calls** — credentials and provider requests remain server-side.
+10. **No silent failure** — unsupported, stale, conflicting, unlicensed, and unverified states are explicit.
+11. **No deletion by absence alone** — “no caller found in searched paths” is not proof that code or a route is unused.
+12. **No merge or production release without Maya approval.**
 
-| Topic | File |
+---
+
+## 3. Non-negotiable holds
+
+Explicit Maya approval is required before any applicable:
+
+- archive-drain execution or large batch;
+- manual production cron trigger;
+- Vercel environment change;
+- Neon reclaim, downgrade, destructive maintenance, or `VACUUM FULL`;
+- database key rotation;
+- production migration, `prisma migrate deploy`, or `db push`;
+- projection backfill;
+- storage/media remediation execution;
+- notification dispatcher activation;
+- admin merge bypass;
+- force-push to `main`;
+- live bulk-marketing send;
+- other operation marked held in `CLAUDE.md`, `NEON.md`, the issue registry, the canonical platform plan, or a current handoff.
+
+A documentation or design statement does not release a hold.
+
+---
+
+## 4. Where truth lives
+
+| Topic | Source |
 |---|---|
-| Cross-agent constitution (this) | `AGENTS.md` |
-| Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
-| **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |
-| Dated session snapshot | `docs/operations/site-audit-handoff-YYYY-MM-DD.md` |
+| Mandatory agent entry | `AI-START-HERE.md` |
+| Business, architecture, listing identity, errors, housekeeping, phases | `docs/architecture/MALLAN-PLATFORM-PLAN.md` |
+| Cross-agent constitution | `AGENTS.md` |
+| Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` |
+| Issues, incidents, debt, and risks | `docs/PLATFORM-ISSUE-REGISTRY.md` |
+| Dated session state | latest applicable `docs/operations/*handoff*.md` |
 | Claude-specific command center | `CLAUDE.md` |
-| Neon / Prisma / DB rules | `NEON.md` |
-| Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
-| REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
-| **Cotality enum truth (status/field/picklist)** | `data/cotality-enums.live.json` (generated live via `npm run cotality:pull`; guarded by `npm run cotality:verify`). The live API is authority; this file is its verified mirror. |
+| Neon, Prisma, DB, sync safety | `NEON.md` |
+| Compliance navigation | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
+| Live Cotality mirror | `data/cotality-enums.live.json`, regenerated and verified by repository commands |
 
-### Canonical Documentation (Maya directive 2026-07-01)
+Do not create competing `STATUS.md`, `NOTES.md`, `TODO.md`, architecture revisions, addenda, or new master-plan files. Extend the canonical sources instead.
 
-These files are the authoritative operational documents for this repository:
+---
 
-1. `AGENTS.md`
-2. `docs/PROJECT-HEALTH-DASHBOARD.md`
-3. `docs/PLATFORM-ISSUE-REGISTRY.md`
-4. `docs/operations/site-audit-handoff-YYYY-MM-DD.md`
-5. `docs/operations/handoff-neon-gate6-YYYY-MM-DD.md`
+## 5. Evidence language
 
-**Do not create parallel governance documents** (no `STATUS.md`, `NOTES.md`, `TODO.md`, or other
-competing sources of truth). Extend or update these instead.
+- Do not present a hypothesis as a diagnosis.
+- “Root cause” requires strong captured evidence and an explicit evidence trail.
+- Every issue or status claim states what was checked, the exact commit/environment, what the evidence proves, and what it does not prove.
+- Every registry item uses its single canonical issue ID.
+- Changing an issue requires updating its derived summaries, dashboard, and handoff in the same PR when applicable.
+- Bounded negative evidence proves only the exact paths, names, and patterns searched.
+- Current production claims require production evidence; current-main claims require repository evidence.
 
-## 4. Handoff rule (binds every agent, every session)
+---
 
-Before ending a session or handing off:
-1. Run **`npm run health:probe`** (read-only) to refresh the dashboard's auto tier.
-2. Update any **assessed-tier** rows you actually verified (with evidence). Leave the rest ⚪ UNVERIFIED.
-3. Update the dated **handoff snapshot** with: date/time, main SHA, open PRs, latest prod deploy, last-24h
-   runtime errors, unresolved blockers, what changed, exact stop point.
-4. Never mark a status 🟢 without captured proof. Never rely on chat memory alone.
+## 6. Branch and diff discipline
 
-## 5. Evidence language rule (binds every agent, every report — Maya directive 2026-07-01)
+1. Use a clean worktree or clean branch for bounded work.
+2. Do not use `git add -A` in a tree containing unrelated work.
+3. Stage explicit paths.
+4. Diff against the intended base before commit and before push.
+5. One bounded capability per branch and PR.
+6. No unrelated Neon, R2, Prisma, migration, package, cron, environment, or sync changes in documentation or unrelated feature PRs.
+7. Do not rewrite shared branch history without explicit authorization.
+8. Preserve rollback and record the exact branch head.
 
-- The words **"probably," "likely," "appears," "root cause"** are FORBIDDEN in any issue entry or
-  status report, EXCEPT (a) prefixed **`Hypothesis H-###`** and entered in the Hypothesis Register
-  of `docs/PLATFORM-ISSUE-REGISTRY.md` with **Observed · Evidence · Missing · Confidence · Next
-  verification**, or (b) "root cause" backed by an Evidence Score ≥ 9 on the same line.
-- Every registry item carries an **Evidence Score (0–10)** — one point per captured field
-  (endpoint · source · request · response · stack trace/log · DB query · repro · user impact ·
-  frequency/timestamps · environment) with the ✗ fields listed. 9–10 act · 6–8 act naming the
-  gaps · ≤5 verify before touching production.
-- A hypothesis mistaken for a diagnosis is a process failure; wording must make the difference
-  impossible to miss across sessions and across agents.
-- **Derived-summary invariant (Maya 2026-07-02):** changing any issue requires updating every
-  derived summary in the same PR (Issue Row → Priority Table → P0/P1 Summary → Dashboard →
-  Handoff). Any stale layer = the PR is incomplete.
-- **Single-ID invariant (Maya 2026-07-02):** every issue has exactly one ID, defined in the
-  Platform Issue Registry; all other documents reference the ID instead of duplicating the
-  description.
+---
 
-## 6. Review policy (binds every merge decision — Maya directive 2026-07-03)
+## 7. Implementation sequence
 
-- **Codex is PREFERRED, not mandatory** — one strong reviewer, not the gatekeeper. The standard is
-  evidence-based and multi-reviewer.
-- **High-risk PRs** require EITHER a clean Codex review OR **two independent clean reviews plus a
-  written exception note.**
-- **High-risk** = migrations · env flags · cron · archive/shedding · billing/storage · public
-  compliance surfaces · contact/lead writes · seller-report attribution.
-- **Low-risk docs/read-only PRs** require: CI green · one independent review · no unrelated files ·
-  and no unresolved Codex finding if Codex is available.
-- **Any Codex finding** must be FIXED, proven PRE-EXISTING and split to its own issue, or
-  documented as future-gated / out-of-scope — never silently ignored.
+The canonical platform plan defines the program phases:
 
-## 7. Current status (pointer, not a copy)
+- **PH-1:** canonical truth, inventories, consolidation, static-CRM mapping, listing-identity mapping, error inventory, and housekeeping baseline.
+- **PH-2:** application services, authorization, contracts, error catalog, and explicit matched-pair identity.
+- **PH-3:** working compliant public search.
+- **PH-4:** dynamic CRM critical workflows, seller portal, live market activity, and agent-controlled CMA.
+- **PH-5:** marketing consent and production readiness.
+- **PH-6:** explainable intelligence and continuous cleanup.
 
-Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
-2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
-(`858da234`); the guard is under registry **RW-004** regression watch. **OPS-009 archive controls
-are IMPLEMENTED + deployed (#470) and the kill-switch proof is VERIFIED (OPS-020, 03:00:46Z).**
-**Gate 6 has NOT executed.** Next gate is Maya's `ARCHIVE_ENABLED=true` MAINTENANCE decision, then the
-5K pilot — which also requires a **FRESH rollback branch: the prior one was auto-pruned 2026-07-03
-(OPS-022), so no rollback branch currently exists.** Roadmap: SEO-001 ✅ · OPS-009 ✅ (awaiting flag) ·
-5K pilot (blocked on OPS-022 + flag) · OPS-017.
+Do not start PH-2 implementation before PH-1 findings are reviewed and approved.
+
+---
+
+## 8. Handoff rule
+
+Before ending a material session:
+
+1. run the applicable read-only health checks;
+2. update only statuses actually verified;
+3. update the current handoff with date/time, main SHA, branch/PR, deployment when relevant, captured errors, unresolved blockers, changed files, exact stop point, and next action;
+4. update the issue registry and derived summaries when an issue changed;
+5. never mark a status working or complete without captured proof;
+6. never rely on chat memory as the durable handoff.
+
+---
+
+## 9. Review policy
+
+- High-risk PRs require a clean strong review or two independent clean reviews plus a written exception.
+- High-risk includes migrations, environment flags, crons, archive/storage/billing, public compliance surfaces, contact/lead writes, seller attribution, listing identity, and provider-policy changes.
+- Low-risk documentation/read-only PRs require green applicable checks, one independent review, no unrelated files, and no unresolved current-head finding.
+- Every review finding must be fixed, proven pre-existing and separately tracked, or explicitly future-gated. Never ignore it silently.
+- Review the current diff and current head, not merely the PR description.
+
+---
+
+## 10. Current program direction
+
+The canonical platform plan is the active target. The immediate next program work is PH-1 only: document consolidation, route and entrypoint inventory, static-CRM workflow mapping, error and bloat inventory, `SL-`/`RL-` prefix-assumption inventory, matched-pair verification, and a reviewed PH-2 backlog.
+
+Operational status remains in the health dashboard and issue registry; do not duplicate it here.
