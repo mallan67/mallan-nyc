@@ -334,3 +334,29 @@ Do not rely on chat memory alone.
 - **Exact stop point** — PR #581 open at the pushed HEAD, awaiting (1) operator-run
   `migrate resolve` + clean `migrate status`, (2) repository check suite in an environment
   with dependencies installed, (3) a clean Codex verdict. No merge.
+
+### Production runtime-error snapshot — captured 2026-07-28
+
+Fresh capture for this session. **Does not reuse the 2026-07-25 snapshot.**
+
+- **Capture timestamp:** 2026-07-28 (this session, ~04:00Z)
+- **Project / environment:** `prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW` (mallan-nyc) · **production**
+- **Window:** the 24 hours preceding capture (`since=24h`), levels `error` + `fatal`
+- **Total runtime errors: 22**, grouped by route:
+
+| route | errors |
+|---|---|
+| `/buildings/[slug]` | 12 |
+| `/buy` | 4 |
+| `/rent` | 3 |
+| `/resources/buyers-guide` | 1 |
+| `/` | 1 |
+| `/api/market` | 1 |
+
+**Not zero.** The `/buildings/[slug]` cluster (12 of 22, 55%) is the dominant category.
+
+**Tool limitation:** this capture was taken with `group_by=route`, which returns counts
+only — **per-error timestamps, messages, stack traces and categories were NOT retrieved**,
+so no error was classified beyond its route. None of these errors has been triaged, and
+none is known to be related to the OPS-023 index deployment (which touched no application
+code). Triage is NOT part of this deployment and remains open work.
