@@ -96,7 +96,13 @@ async function loadListings(limit: number): Promise<MediaSyncListing[]> {
           'url',       lm.media_url_original,
           'mediaType', lm.media_type,
           'order',     lm."order",
-          'media_key', lm.media_key
+          'media_key', lm.media_key,
+          -- MUST be selected. Without it, every already-mirrored row would
+          -- have its key re-derived under the new MediaKey scheme, miss the
+          -- existsInR2 probe against its legacy Order-based object, and upload
+          -- a DUPLICATE. Preferring the stored key is what keeps the #575
+          -- format change non-disruptive.
+          'r2_key',    lm.r2_key
         )
         ORDER BY lm."order", lm.media_key
       ) AS media

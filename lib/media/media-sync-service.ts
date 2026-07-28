@@ -28,6 +28,16 @@ export interface MediaSyncItem {
    */
   MediaKey?: string;
   media_key?: string;
+  /**
+   * An ALREADY-MIRRORED object key for this asset, when one exists.
+   *
+   * Preferring it is what makes the #575 key-format change non-disruptive:
+   * media mirrored under the legacy Order-based scheme keeps its existing
+   * object rather than being re-fetched and re-uploaded under a new
+   * MediaKey-derived name. Mirrors `mirrorMediaToR2`'s resolution order in
+   * `lib/idx/media-sync.ts`.
+   */
+  r2_key?: string | null;
 }
 
 export interface MediaSyncListing {
@@ -197,6 +207,21 @@ export function encodeR2Segment(raw: string): string {
  */
 export function getMediaKey(item: MediaSyncItem): string | null {
   const raw = item.MediaKey ?? item.media_key;
+  if (raw === null || raw === undefined) return null;
+  const value = String(raw).trim();
+  return value.length > 0 ? value : null;
+}
+
+/**
+ * Read an ALREADY-MIRRORED R2 key off an item, or null when absent.
+ *
+ * Callers MUST prefer this over deriving a fresh key. `mirrorMediaToR2`
+ * (lib/idx/media-sync.ts) has always done so; this batch path must match, or
+ * the #575 key-format change would re-upload every object that was mirrored
+ * under the legacy Order-based scheme.
+ */
+export function getExistingR2Key(item: MediaSyncItem): string | null {
+  const raw = item.r2_key;
   if (raw === null || raw === undefined) return null;
   const value = String(raw).trim();
   return value.length > 0 ? value : null;
@@ -388,6 +413,8 @@ export async function mirrorListingMediaBatch(
         order: getMediaOrder(item, idx),
         // #575: object identity comes from MediaKey.
         mediaKey: getMediaKey(item),
+        // An already-mirrored key WINS over any derived key (see below).
+        existingR2Key: getExistingR2Key(item),
       }))
       .filter((m) => !!m.url && isTrestleMediaUrl(m.url));
 
@@ -402,8 +429,11 @@ export async function mirrorListingMediaBatch(
     // this function from that column would otherwise see `scanned_media: 0`
     // and read it as "nothing to do". Callers must source media from
     // `listing_media`, where `media_key` is unique and 100% populated.
+    // An item that ALREADY has a mirrored key needs no derivation at all, so it
+    // is never subject to the MediaKey requirement — matching
+    // `mirrorMediaToR2`, which skips only when BOTH are absent.
     const keyed = mediaItems.filter(
-      (m): m is typeof m & { mediaKey: string } => !!m.mediaKey,
+      (m): m is typeof m & { mediaKey: string } => !!m.mediaKey || !!m.existingR2Key,
     );
     const missingKeys = mediaItems.length - keyed.length;
     if (missingKeys > 0) {
@@ -422,8 +452,15 @@ export async function mirrorListingMediaBatch(
     for (let i = 0; i < mediaItemsToMirror.length; i += batchSize) {
       const batch = mediaItemsToMirror.slice(i, i + batchSize);
       await Promise.allSettled(
-        batch.map(async ({ url, mediaType, mediaKey }) => {
-          const key = buildMediaR2Key(listing.listing_id, mediaType, mediaKey);
+        batch.map(async ({ url, mediaType, mediaKey, existingR2Key }) => {
+          // PREFER THE ALREADY-MIRRORED KEY. This is what makes the #575
+          // key-format change non-disruptive: an asset mirrored under the
+          // legacy Order-based scheme keeps its existing object instead of
+          // being re-fetched and re-uploaded under a new MediaKey-derived
+          // name. Without this, every already-mirrored row would MISS the
+          // existsInR2 probe and duplicate itself — the exact outcome this PR
+          // exists to prevent. Same resolution order as `mirrorMediaToR2`.
+          const key = existingR2Key ?? buildMediaR2Key(listing.listing_id, mediaType, mediaKey);
 
           try {
             if (await deps.existsInR2(key)) {

@@ -176,6 +176,89 @@ describe("media sync service", () => {
       expect(result.scanned_media).toBe(1);
     });
 
+    // REGRESSION PIN (Codex P1 on ec75b82a): the batch path must PREFER an
+    // already-mirrored r2_key over deriving a new one.
+    //
+    // Without this, sourcing media from `listing_media` after the #575 format
+    // change would re-derive a MediaKey-based key for every already-mirrored
+    // row, MISS the existsInR2 probe against its legacy Order-based object, and
+    // upload a duplicate — mass duplication from the very change meant to
+    // prevent it. `mirrorMediaToR2` always had this precedence; this path must
+    // match it.
+    it("prefers an existing LEGACY r2_key over a derived one — no re-upload", async () => {
+      const existsInR2 = jest.fn<Promise<boolean>, [string]>().mockResolvedValue(true);
+      const getAccessToken = jest.fn();
+      const uploadToR2 = jest.fn();
+      const fetchFn = jest.fn();
+
+      const alreadyMirrored: MediaSyncListing = {
+        ...eligibleListing,
+        media: [
+          {
+            url: "https://api.cotality.com/media/a.jpg",
+            mediaType: "Photo",
+            order: 1,
+            media_key: "MK-NEW",
+            // Legacy Order-based object that already exists in R2.
+            r2_key: "photos/R123456/1.jpg",
+          },
+        ],
+      };
+
+      const result = await mirrorListingMediaBatch(
+        [alreadyMirrored],
+        { execute: true, logger: { warn: jest.fn(), log: jest.fn(), error: jest.fn() } },
+        {
+          hasR2Config: () => true,
+          getAccessToken: getAccessToken as never,
+          existsInR2: existsInR2 as never,
+          uploadToR2: uploadToR2 as never,
+          fetchFn: fetchFn as never,
+        },
+      );
+
+      // Probed the LEGACY key, never the MediaKey-derived one.
+      expect(existsInR2).toHaveBeenCalledWith("photos/R123456/1.jpg");
+      expect(existsInR2).not.toHaveBeenCalledWith("photos/R123456/MK-NEW.jpg");
+      expect(result.skipped_existing).toBe(1);
+      expect(result.copied).toBe(0);
+      // No re-fetch, no re-upload, no token minted.
+      expect(uploadToR2).not.toHaveBeenCalled();
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(getAccessToken).not.toHaveBeenCalled();
+    });
+
+    it("an item with an existing r2_key but NO MediaKey is still mirrored, not skipped", async () => {
+      // It needs no derivation, so the MediaKey requirement must not apply —
+      // matching mirrorMediaToR2, which skips only when BOTH are absent.
+      const existsInR2 = jest.fn<Promise<boolean>, [string]>().mockResolvedValue(true);
+      const legacyOnly: MediaSyncListing = {
+        ...eligibleListing,
+        media: [
+          {
+            url: "https://api.cotality.com/media/a.jpg",
+            mediaType: "Photo",
+            order: 1,
+            r2_key: "photos/R123456/1.jpg",
+          },
+        ],
+      };
+      const result = await mirrorListingMediaBatch(
+        [legacyOnly],
+        { execute: false, logger: { warn: jest.fn(), log: jest.fn(), error: jest.fn() } },
+        {
+          hasR2Config: () => true,
+          getAccessToken: jest.fn() as never,
+          existsInR2: existsInR2 as never,
+          uploadToR2: jest.fn() as never,
+          fetchFn: jest.fn() as never,
+        },
+      );
+      expect(result.skipped_no_media_key).toBe(0);
+      expect(result.scanned_media).toBe(1);
+      expect(existsInR2).toHaveBeenCalledWith("photos/R123456/1.jpg");
+    });
+
     it("getMediaKey reads both Trestle and DB spellings, else null", () => {
       expect(getMediaKey({ MediaKey: "MK-1" })).toBe("MK-1");
       expect(getMediaKey({ media_key: "MK-2" })).toBe("MK-2");
