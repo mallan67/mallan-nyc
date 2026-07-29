@@ -685,3 +685,121 @@ it("keeps source rows, unique-including-blocked and processable distinct", async
   expect(t.mt_halted_reason).toBeTruthy();
   expect(t.mt_cursor_before).toContain("bootstrap@");
 });
+
+// ── Watermark: create path + no regression ────────────────────────────────
+
+describe("compatibility watermark never fabricates or regresses", () => {
+  function payloads() {
+    const calls = mockSyncStateUpsert.mock.calls;
+    const a = calls[calls.length - 1][0] as {
+      create: Record<string, unknown>; update: Record<string, unknown>;
+    };
+    return a;
+  }
+
+  it("a first-ever EMPTY bootstrap run writes no watermark in create OR update", async () => {
+    wireTrestle([]);
+    mockSyncStateFindUnique.mockResolvedValue(null); // row does not exist yet
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const { create, update } = payloads();
+    // The create path used to seed batchWatermark (wall clock) unconditionally.
+    expect(create).not.toHaveProperty("last_watermark");
+    expect(update).not.toHaveProperty("last_watermark");
+  });
+
+  it("a first-ever run with one settled record puts the SOURCE time in create", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockResolvedValue(null);
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const { create } = payloads();
+    expect((create.last_watermark as Date).toISOString()).toBe("2026-07-02T00:00:00.000Z");
+  });
+
+  it("unreadable notes write no watermark in create or update", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockRejectedValue(new Error("read timeout"));
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const { create, update } = payloads();
+    expect(create).not.toHaveProperty("last_watermark");
+    expect(update).not.toHaveProperty("last_watermark");
+  });
+
+  it("does NOT regress when a far-ahead cursor did not move this run", async () => {
+    // MT is durably at Jul 30 and returns nothing; PCT advances Jul 10 -> Jul 11.
+    // Persisted state is {Jul 30, Jul 11}, so the watermark must stay Jul 30.
+    const start: PropertyCursorState = {
+      basis: "mt_pct_keyset_v1",
+      mt: { mode: "keyset", timestamp: "2026-07-30T00:00:00.000Z", listingKey: "MTFAR" },
+      pct: { mode: "keyset", timestamp: "2026-07-10T00:00:00.000Z", listingKey: "PCTOLD" },
+    };
+    wireTrestle([{ ListingKey: "PCTNEW", mt: "2026-01-01T00:00:00Z", pct: "2026-07-11T00:00:00Z" }]);
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: start, maxRecords: 500 });
+
+    const { update } = payloads();
+    expect((update.last_watermark as Date).toISOString()).toBe("2026-07-30T00:00:00.000Z");
+  });
+
+  it("advances when the MOVING cursor overtakes the stationary one", async () => {
+    const start: PropertyCursorState = {
+      basis: "mt_pct_keyset_v1",
+      mt: { mode: "keyset", timestamp: "2026-07-10T00:00:00.000Z", listingKey: "MTOLD" },
+      pct: { mode: "keyset", timestamp: "2026-07-12T00:00:00.000Z", listingKey: "PCTFAR" },
+    };
+    wireTrestle([{ ListingKey: "MTNEW", mt: "2026-07-20T00:00:00Z", pct: "2026-01-01T00:00:00Z" }]);
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: start, maxRecords: 500 });
+
+    const { update } = payloads();
+    expect((update.last_watermark as Date).toISOString()).toBe("2026-07-20T00:00:00.000Z");
+  });
+
+  it("a FAILED stream holding a later cursor still prevents regression", async () => {
+    const start: PropertyCursorState = {
+      basis: "mt_pct_keyset_v1",
+      mt: { mode: "keyset", timestamp: "2026-07-30T00:00:00.000Z", listingKey: "MTFAR" },
+      pct: { mode: "keyset", timestamp: "2026-07-10T00:00:00.000Z", listingKey: "PCTOLD" },
+    };
+    mockFetchFromTrestle.mockImplementation(async (opts: Record<string, unknown>) => {
+      if (String(opts.orderby).startsWith("ModificationTimestamp")) throw new Error("mt 503");
+      return {
+        records: [record({ ListingKey: "PCTNEW", mt: "2026-01-01T00:00:00Z", pct: "2026-07-11T00:00:00Z" })],
+        totalFetched: 1,
+      };
+    });
+    mockSyncStateUpsert.mockClear();
+
+    const res = await syncListings({ cursorState: start, maxRecords: 500 });
+
+    const { update } = payloads();
+    expect((update.last_watermark as Date).toISOString()).toBe("2026-07-30T00:00:00.000Z");
+    expect(res.run_status).toBe("partial");
+  });
+
+  it("omits the watermark when NEITHER stream advances", async () => {
+    const start: PropertyCursorState = {
+      basis: "mt_pct_keyset_v1",
+      mt: { mode: "keyset", timestamp: "2026-07-30T00:00:00.000Z", listingKey: "MTFAR" },
+      pct: { mode: "keyset", timestamp: "2026-07-10T00:00:00.000Z", listingKey: "PCTOLD" },
+    };
+    wireTrestle([]);
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: start, maxRecords: 500 });
+
+    const { create, update } = payloads();
+    expect(update).not.toHaveProperty("last_watermark");
+    expect(create).not.toHaveProperty("last_watermark");
+  });
+});

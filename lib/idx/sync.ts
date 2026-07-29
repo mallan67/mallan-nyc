@@ -1548,6 +1548,9 @@ export async function syncListings(
     // On empty batches, advance last_run_at but leave last_watermark alone —
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
+    // In TWO-STREAM mode the composite keyset notes are authoritative and this
+    // scalar is compatibility/UI state only; it is derived below from the
+    // cursors actually persisted, never from wall clock or the raw fetched rows.
     advanceWatermark = useTwoStream ? false : fetchResult.records.length > 0;
 
     // Correction 4 — contiguous-success watermark (fail-closed): when any
@@ -1688,19 +1691,20 @@ export async function syncListings(
         existingNotes !== null && typeof existingNotes === "object" && !Array.isArray(existingNotes)
           ? { ...(existingNotes as Record<string, unknown>) }
           : {};
-      // Compatibility watermark: the later of the two DURABLE stream cursors,
-      // and only for cursors that actually reached keyset mode. A bootstrap
-      // cursor sitting on the pinned epoch is not evidence that data was
-      // updated then, so it contributes nothing.
-      const cursorTimes: number[] = [];
-      for (const c of [nextMt, nextPct]) {
-        if (c.advanced && c.cursor.mode === "keyset") {
-          const t = new Date(c.cursor.timestamp).getTime();
-          if (Number.isFinite(t)) cursorTimes.push(t);
-        }
-      }
-      if (notesReadable && cursorTimes.length > 0) {
-        batchWatermark = new Date(Math.max(...cursorTimes));
+      // Compatibility watermark: the later timestamp among BOTH keyset cursors
+      // that will actually be persisted — including a cursor that did NOT move
+      // this run. Considering only the advanced streams made the watermark
+      // REGRESS: with MT durably at Jul 30 and PCT advancing Jul 10 -> Jul 11,
+      // the persisted state is {Jul 30, Jul 11} but the UI would have been told
+      // Jul 11, losing 19 days. A bootstrap cursor still contributes nothing —
+      // the pinned epoch is not evidence that data was updated then.
+      const anyCursorAdvanced = nextMt.advanced || nextPct.advanced;
+      const persistedKeysetTimes = [nextMt.cursor, nextPct.cursor]
+        .filter((c): c is { mode: "keyset"; timestamp: string; listingKey: string } => c.mode === "keyset")
+        .map((c) => Date.parse(c.timestamp))
+        .filter((t) => Number.isFinite(t));
+      if (notesReadable && anyCursorAdvanced && persistedKeysetTimes.length > 0) {
+        batchWatermark = new Date(Math.max(...persistedKeysetTimes));
         advanceWatermark = true;
       }
 
@@ -1763,11 +1767,16 @@ export async function syncListings(
 
     // Status now reflects settlement + advancement; the write records it.
     runStatus = deriveRunStatus();
+    // last_watermark is nullable. A newly CREATED row must not be seeded with a
+    // fabricated wall-clock value when no durable cursor advanced — the create
+    // path previously wrote batchWatermark unconditionally, so an empty first
+    // bootstrap run invented a "data updated" time Cotality never supplied.
+    const watermarkPatch = advanceWatermark ? { last_watermark: batchWatermark } : {};
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
         resource: "Property",
-        last_watermark: batchWatermark,
+        ...watermarkPatch,
         last_run_at: now,
         last_run_status: runStatus,
         last_run_duration_ms: durationMs,
@@ -1777,7 +1786,7 @@ export async function syncListings(
         ...(notesPayload !== null ? { notes: notesPayload } : {}),
       },
       update: {
-        ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
+        ...watermarkPatch,
         last_run_at: now,
         last_run_status: runStatus,
         last_run_duration_ms: durationMs,
