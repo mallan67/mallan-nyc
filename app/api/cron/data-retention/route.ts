@@ -18,7 +18,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
-import { SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS } from "@/lib/retention/system-diagnostic-actions";
+import { purgeExpiredDiagnostics, DIAGNOSTIC_MAX_PER_INVOCATION } from "@/lib/retention/system-diagnostic-cleanup";
 
 export const maxDuration = 60;
 
@@ -27,14 +27,16 @@ const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
 
 /**
- * SYSTEM-DIAGNOSTIC retention (see step 2b).
- *
- * 30 days, not 90: measured on production 2026-07-29, the eligible population
- * is 46,103 rows / ~30 MB and EVERY one of them is already older than 30 days,
- * while a 90-day cutoff would free only ~1.4 MB. The 2-year floor in step 2 is
- * a COMPLIANCE floor for audit evidence; these rows are neither.
+ * First-production-run canary control. `DIAGNOSTIC_MAX_ROWS` narrows a single
+ * invocation (e.g. 100) so the very first real deletion can be verified before
+ * the full bounded drain proceeds. Absent/invalid ⇒ the normal per-invocation
+ * ceiling. Never widens it beyond that ceiling.
  */
-const DIAGNOSTIC_RETENTION_DAYS = 30;
+function diagnosticMaxRowsOverride(): number {
+  const raw = Number(process.env.DIAGNOSTIC_MAX_ROWS);
+  if (!Number.isInteger(raw) || raw <= 0) return DIAGNOSTIC_MAX_PER_INVOCATION;
+  return Math.min(raw, DIAGNOSTIC_MAX_PER_INVOCATION);
+}
 
 const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
 
@@ -111,20 +113,27 @@ export async function GET(req: NextRequest) {
   // action keep the 2-year floor untouched.
   //
   // Measured 2026-07-29: 46,103 eligible rows / ~30 MB, all already >30 days.
-  const diagnosticCutoff = new Date(
-    now.getTime() - DIAGNOSTIC_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-  );
-  // ONE bounded statement, matching step 2's existing shape: no new Prisma
-  // surface is introduced, so every existing route mock keeps working. The
-  // population is small (a 92k-row table) and this is a one-time historical
-  // backlog — afterwards only a handful of rows age out per day.
-  const purgedDiagnostics = await prisma.auditEvent.deleteMany({
-    where: {
-      action: { in: [...SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS] },
-      created_at: { lt: diagnosticCutoff },
-    },
+  //
+  // BOUNDED, NOT ONE BIG DELETE. That backlog is deleted in independently
+  // committed batches of at most DIAGNOSTIC_BATCH_SIZE, capped at
+  // DIAGNOSTIC_MAX_PER_INVOCATION per cron run, ordered by (created_at, id) and
+  // claimed with FOR UPDATE SKIP LOCKED so overlapping invocations take
+  // disjoint rows. An interrupted run resumes on the next invocation from the
+  // oldest remaining row. See lib/retention/system-diagnostic-cleanup.ts.
+  //
+  // DIAGNOSTIC_DRY_RUN=true counts without deleting, using the identical
+  // predicate — for the first production verification.
+  const diagnosticPurge = await purgeExpiredDiagnostics(prisma, now, {
+    dryRun: process.env.DIAGNOSTIC_DRY_RUN === "true",
+    maxRows: diagnosticMaxRowsOverride(),
   });
-  results.audit_events_diagnostics_purged = purgedDiagnostics.count;
+  results.audit_events_diagnostics_purged = diagnosticPurge.rows;
+  results.audit_events_diagnostics_bytes = diagnosticPurge.bytes;
+  results.audit_events_diagnostics_batches = diagnosticPurge.batches;
+  results.audit_events_diagnostics_stopped = diagnosticPurge.stopped;
+  if (diagnosticPurge.error) {
+    results.audit_events_diagnostics_error = diagnosticPurge.error;
+  }
 
   // 3. Flag closed/terminal listings not yet marked (REBNY RLS Sec. 2.05: remove within 24h)
   // Note: filterDisplayableDbListings() already excludes non-active statuses in real-time,
