@@ -1922,7 +1922,143 @@ Every selected comparable is re-verified against its authority before a seller-f
 
 ---
 
-# 17. Transactions — the NYC brokerage role
+# 17. NYC brokerage engagements and compensation
+
+> **Depends on:** BUS, REB · **Feeds:** TXN, FIN, MKT, SEA, CRM · **Status:** `DECIDED`
+> **Verified against REBNY rules and New York law, 2026-07-28.**
+> **Rules source:** `data/UCBA-2026-Requirements.md` is the normative rule text. This section explains the business model those rules govern and states the system consequences. It does not restate the rule text.
+
+No agent working in this repository can be assumed to know how the New York City brokerage business operates. It differs materially from most United States markets, and several of the differences are recent. This section exists so that no agent has to infer the business model from code.
+
+## BIZ-1 — How a brokerage engagement begins
+
+**Status:** `DECIDED`
+
+A brokerage engagement is a written agreement. There are distinct kinds, and they determine entitlement to compensation:
+
+| Engagement | Meaning |
+|---|---|
+| Exclusive Right to Sell | The exclusive broker is entitled to compensation on a sale during the term regardless of who procures the buyer, including the owner. |
+| Exclusive Agency | The exclusive broker is entitled to compensation unless the owner procures the buyer directly without any broker. |
+| Open listing | No exclusivity. Compensation follows procurement. |
+| Co-exclusive | Two brokers share the exclusive. |
+| Buyer Broker Representation Agreement | The buyer's written engagement of a broker to represent the buyer. |
+| Rental exclusive | The landlord's written engagement for a rental listing. |
+
+The system records which engagement type governs each listing and each client relationship. Entitlement questions are answered from the executed agreement, never inferred from activity.
+
+## BIZ-2 — A written buyer agreement precedes showings
+
+**Status:** `DECIDED`
+
+A written buyer broker representation agreement must be executed **before any showing**. This is a required practice change, not a preference.
+
+The system treats "buyer represented under a written agreement" as a **precondition** on scheduling or recording a showing for a buyer client. An unrepresented buyer at showing stage is a visible, blocking condition rather than a silent gap.
+
+The agreement records at minimum the parties, the term, the agency relationship type, and the compensation terms, including how much the buyer pays, when compensation is earned and due, and the buyer's consent to any sharing of compensation with another broker or receipt from another party.
+
+Signed agreements are retained. The retention period follows the governing rule in force; the system does not choose a shorter one.
+
+## BIZ-3 — Compensation is decoupled
+
+**Status:** `DECIDED`
+
+This is the change most likely to be missed, and getting it wrong is a rules violation.
+
+- REBNY **removed all compensation fields from the RLS**, effective 1 August 2025.
+- A listing broker is **no longer permitted to make an offer of compensation to the buy-side broker**, including on the seller's or owner's behalf.
+- The RLS does **not** collect, display, set, recommend, or suggest compensation.
+
+## BIZ-4 — Who actually pays
+
+**Status:** `DECIDED`
+
+In a New York City sale, the seller customarily pays. What changed is the mechanism, not usually the payer.
+
+```text
+Before decoupling
+  seller → listing broker → shares with buyer's broker via an offer of compensation in the RLS
+
+After decoupling
+  seller → listing broker            separately negotiated
+  seller → buyer's broker            separately negotiated, directly, customarily at closing
+  or
+  buyer  → buyer's broker            per the buyer broker representation agreement
+```
+
+The listing broker no longer routes compensation to the buy side, and no offer of compensation may travel through the RLS. Each compensation arrangement is a separate negotiated agreement.
+
+**Consequence for the system:** compensation is a property of an **executed agreement between named parties**, never a property of a listing record and never a value carried in provider data.
+
+## BIZ-5 — Commission is earned only at closing
+
+**Status:** `DECIDED`
+
+Commission is earned upon closing as an absolute condition, and is customarily calculated on the net purchase price, less credits and concessions.
+
+The system never records commission as earned, receivable, or realized before closing. An accepted offer, a fully executed contract, and a board approval are all milestones, not earnings events (`TXN-6`).
+
+## BIZ-6 — Required disclosures
+
+**Status:** `DECIDED`
+
+Commissions are **not set by law and are fully negotiable**. This disclosure is required in listing agreements, buyer agreements, and pre-closing documents. Where a government form is used, a separate conspicuous disclosure is required.
+
+The system carries this disclosure as required content on the surfaces that need it and does not treat it as optional boilerplate.
+
+## BIZ-7 — Services may not be described as free
+
+**Status:** `DECIDED`
+
+Brokerage services may not be claimed to be free or at no cost unless **no compensation will be received from any source**.
+
+This is a content rule binding on every marketing surface, listing description, campaign, template, landing page, and generated text. It is enforced with the other compliance-sensitive surface rules in `POL-5`.
+
+## BIZ-8 — Compensation must never appear in listing content
+
+**Status:** `DECIDED`
+
+No broker fee, closing cost, or compensation information may appear in a property description, public remark, or listing comment.
+
+Combined with `BIZ-3`, the system consequence is absolute:
+
+**The system must not read, store, display, advertise, infer, reconstruct, or export any offer of compensation from provider data, and must not surface compensation anywhere in a listing, search result, portal, report, sitemap, feed, or campaign.**
+
+## BIZ-9 — Existing compensation references require inventory
+
+**Status:** `OPEN` — tracked as `Q-11`
+
+Compensation fields were removed from the RLS on 1 August 2025. A search of this repository found compensation-field references remaining in compliance DTOs, listing types, the field registry, and the generated provider vocabulary cache.
+
+Those references have **not** been individually examined. Some are expected to be suppression logic, which is correct and must be retained. Others may be reads of fields the provider no longer supplies, which under `COT-11` and `COT-12` are stale.
+
+PH-1 inventories every one and classifies it as suppression, stale read, or dead reference. **No such reference is removed before that classification exists** (`HYG-1`, `HYG-6`).
+
+## BIZ-10 — Agency relationship and disclosure
+
+**Status:** `DECIDED`
+
+New York requires disclosure of the agency relationship. The system records, per client relationship, which agency capacity applies — seller's agent, buyer's agent, landlord's agent, tenant's agent, dual agent, or dual agent with designated sales agent — together with the disclosure event and its date.
+
+Dual agency requires informed written consent. The system never infers an agency relationship from activity, and never allows a relationship to change silently.
+
+## BIZ-11 — Rentals
+
+**Status:** `DECIDED`
+
+Rental engagements follow the same written-agreement principle, and fee responsibility follows the FARE Act rule in `TXN-10`: the party who hires the broker pays, tenant-payable fees are disclosed in the listing, and unresolved fee attribution fails closed.
+
+## BIZ-12 — Both sides of a co-brokered deal
+
+**Status:** `DECIDED`
+
+Mallan may act as listing broker, as buyer's broker, or as both where dual agency is properly disclosed and consented.
+
+The system models compensation as **one receivable per executed agreement to which Mallan is a party**, not as a single deal-level commission. A co-brokered sale in which Mallan represents only the seller produces one Mallan receivable. A deal in which Mallan represents both sides under proper disclosure produces two, each traceable to its own agreement.
+
+---
+
+# 18. Transactions — the NYC brokerage role
 
 > **Depends on:** BUS, LST, REB, AUZ, POL · **Feeds:** FIN, SEL, CRM, INT · **Status:** `DECIDED`
 > **Verified against New York law and NYC market practice, 2026-07-28.**
@@ -2109,7 +2245,7 @@ Because the transaction cannot proceed without attorneys on both sides, "attorne
 
 ---
 
-# 18. Marketing and consent
+# 19. Marketing and consent
 
 > **Depends on:** AUZ, POL, CRM · **Feeds:** INT · **Status:** `DEFERRED` for production sending
 
@@ -2181,7 +2317,7 @@ Existing fail-closed suppression behavior is retained unchanged. Any bypass para
 
 ---
 
-# 19. Intelligence
+# 20. Intelligence
 
 > **Depends on:** LST, SEA, SEL, CMA, MKT, OPS · **Feeds:** — · **Status:** `DECIDED`
 
@@ -2238,7 +2374,7 @@ Each intelligence capability records model cost, human review time, failure rate
 
 ---
 
-# 20. Verification, health, release, and rollback
+# 21. Verification, health, release, and rollback
 
 > **Depends on:** — · **Feeds:** every phase exit · **Status:** `DECIDED`
 
@@ -2310,7 +2446,7 @@ Operational probes proving the affected surface responds correctly are run befor
 
 ---
 
-# 21. Implementation sequence
+# 22. Implementation sequence
 
 > **Depends on:** all above · **Feeds:** — · **Status:** `DECIDED`
 
@@ -2573,7 +2709,7 @@ Use trustworthy events and outcomes to assist agents without allowing AI or bloa
 
 ---
 
-# 22. Per-PR operating checklist
+# 23. Per-PR operating checklist
 
 > **Depends on:** HYG, OPS · **Feeds:** every change · **Status:** `DECIDED`
 
@@ -2597,7 +2733,7 @@ Why are there no unrelated files?
 
 ---
 
-# 23. Open questions and external gates
+# 24. Open questions and external gates
 
 > **Depends on:** — · **Feeds:** the requirements named · **Status:** `OPEN`
 
@@ -2613,12 +2749,13 @@ Why are there no unrelated files?
 | `Q-8` | Which entry points legitimately require a non-JSON transport class | TRN-4, PH-1 |
 | `Q-9` | Market-area definition for area comparables: radius, neighborhood boundary, or both, and whether it is configurable per listing | CMA-1, PH-4 |
 | `Q-10` | Whether public search currently applies cross-source matched-pair suppression | LST-17, SEA-7, PH-1 |
+| `Q-11` | Classification of every remaining compensation-field reference: suppression logic, stale read, or dead reference | BIZ-9, PH-1 |
 
 These are evidence gates. They are not permission to guess, and not a reason to write another plan.
 
 ---
 
-# 24. Completion definition
+# 25. Completion definition
 
 > **Depends on:** OPS · **Feeds:** every phase exit · **Status:** `DECIDED`
 
@@ -2642,7 +2779,7 @@ A capability is complete only when:
 
 ---
 
-# 25. Change protocol
+# 26. Change protocol
 
 > **Depends on:** DOC · **Feeds:** every requirement · **Status:** `DECIDED`
 
@@ -2783,8 +2920,9 @@ Remaining active as operating contracts or registry items, not competing plans:
 | `INT` | INT-1 … INT-6 | 6 |
 | `OPS` | OPS-1 … OPS-8 | 8 |
 | `TXN` | TXN-1 … TXN-12 | 12 |
+| `BIZ` | BIZ-1 … BIZ-12 | 12 |
 | `PH` | PH-1 … PH-6 | 6 |
-| `Q` | Q-1 … Q-10 | 10 |
+| `Q` | Q-1 … Q-11 | 11 |
 
 No identifier is retired at this revision.
 
