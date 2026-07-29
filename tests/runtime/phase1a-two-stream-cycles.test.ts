@@ -500,3 +500,87 @@ it("forceFull with MALFORMED stored notes also omits notes", async () => {
   const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
   expect(args.update).not.toHaveProperty("notes");
 });
+
+// ── The DURABLE audit must agree with the returned status ─────────────────
+
+function idxSyncAudit(): Record<string, unknown> | undefined {
+  const call = mockAuditCreate.mock.calls
+    .map((c) => c[0] as { data: { action: string; changes: Record<string, unknown> } })
+    .find((c) => c.data.action === "idx_sync");
+  return call?.data.changes;
+}
+
+describe("cursor-persistence failure is recorded consistently everywhere", () => {
+  it("a rejected syncState.upsert leaves the DURABLE audit partial, not ok", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateUpsert.mockRejectedValue(new Error("connection reset"));
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    expect(res.run_status).toBe("partial");
+    expect(res.property_cursor_persisted).toBe(false);
+    const audit = idxSyncAudit();
+    expect(audit).toBeDefined();
+    // Previously the audit was written BEFORE the final derivation and could
+    // record run_status "ok" next to property_cursor_persisted false.
+    expect(audit!.run_status).toBe("partial");
+    expect(audit!.property_cursor_persisted).toBe(false);
+  });
+});
+
+// ── Unreadable prior notes in a TWO-STREAM run ────────────────────────────
+
+describe("two-stream runs never claim persistence without a cursor payload", () => {
+  it("a throwing notes read omits notes and reports NOT persisted", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockRejectedValue(new Error("read timeout"));
+    mockSyncStateUpsert.mockClear();
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+    expect(args.update).not.toHaveProperty("notes"); // no cursor payload written
+    // The ROW write succeeded — but no cursor state went with it.
+    expect(res.property_cursor_persisted).toBe(false);
+    expect(res.run_status).toBe("partial");
+    expect(idxSyncAudit()!.property_cursor_persisted).toBe(false);
+    expect(idxSyncAudit()!.run_status).toBe("partial");
+  });
+
+  it("MALFORMED stored notes behave identically", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockResolvedValue({ notes: "{not json" });
+    mockSyncStateUpsert.mockClear();
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+    expect(args.update).not.toHaveProperty("notes");
+    expect(res.property_cursor_persisted).toBe(false);
+    expect(res.run_status).toBe("partial");
+  });
+
+  it("does not recover by re-reading: a persistently failing notes read stays not-persisted", async () => {
+    // syncListings makes several syncState.findUnique calls (the canary reads it
+    // too), so "the first call" is not necessarily the cursor read. What matters
+    // is that a notes read which ALWAYS fails never yields a persisted cursor.
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockRejectedValue(new Error("persistent read failure"));
+    mockSyncStateUpsert.mockClear();
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+    expect(args.update).not.toHaveProperty("notes");
+    expect(res.property_cursor_persisted).toBe(false);
+    expect(res.run_status).toBe("partial");
+  });
+
+  it("a clean two-stream run reports persisted true and ok", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+    expect(res.property_cursor_persisted).toBe(true);
+    expect(res.run_status).toBe("ok");
+    expect(idxSyncAudit()!.run_status).toBe("ok");
+  });
+});

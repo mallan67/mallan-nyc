@@ -1443,6 +1443,13 @@ export async function syncListings(
   let runStatus: SyncRunStatus = deriveRunStatus();
   /** Whether the two-stream cursor state reached the database this run. */
   let propertyCursorPersisted: boolean | null = null;
+  /**
+   * Whether a NEW two-stream cursor payload was actually built this run. A
+   * successful SyncState row write only means the ROW persisted — if the prior
+   * notes were unreadable there is no cursor payload in it, and reporting
+   * persistence would hide a system that is silently re-bootstrapping forever.
+   */
+  let cursorNotesPrepared = false;
 
   // The durable idx_sync AuditEvent is written AFTER the manifest warm (see
   // below) so its changes payload can carry the warm + canary + reason
@@ -1592,6 +1599,7 @@ export async function syncListings(
           ? { ...(existingNotes as Record<string, unknown>) }
           : {};
       if (notesReadable) {
+        cursorNotesPrepared = true;
         base[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
         nextCursorNotes = mergePropertyCursorIntoNotes(base, {
           // Never promote on a run whose prior notes could not be read.
@@ -1607,6 +1615,11 @@ export async function syncListings(
     let notesPayload: string | null;
     if (nextCursorNotes) {
       notesPayload = JSON.stringify(nextCursorNotes);
+    } else if (useTwoStream) {
+      // A two-stream run whose cursor payload could not be prepared omits
+      // `notes` entirely. It must not borrow the force-full fallback, which
+      // would write a notes value containing no new cursor state.
+      notesPayload = null;
     } else {
       let preserved: Record<string, unknown> | null = {};
       try {
@@ -1665,7 +1678,8 @@ export async function syncListings(
         ...(notesPayload !== null ? { notes: notesPayload } : {}),
       },
     });
-    if (useTwoStream) propertyCursorPersisted = true;
+    // The ROW persisted. Cursor state only persisted if a payload was built.
+    if (useTwoStream) propertyCursorPersisted = cursorNotesPrepared;
   } catch (err) {
     console.error("[IDX Sync] Failed to update SyncState watermark:", err);
     // Phase 1A: this is NO LONGER "UI only". SyncState.notes now carries the
@@ -1774,6 +1788,13 @@ export async function syncListings(
   // payload carries the warm + canary + change-reason counters (the audit
   // previously ran before the warm, which is why building_manifest_warm
   // never reached audit_events — Maya-approved allowlist fix, 2026-07-24).
+  // FINAL status derivation — after settlement, advancement AND the cursor
+  // persistence attempt, so the durable record below cannot carry a stale "ok"
+  // next to property_cursor_persisted:false. TWO stages are deliberate: the
+  // value written INSIDE the SyncState upsert is derived immediately before
+  // that write, because a failed upsert cannot update its own row.
+  runStatus = deriveRunStatus();
+
   try {
     await prisma.auditEvent.create({
       data: {
@@ -1821,8 +1842,8 @@ export async function syncListings(
     console.error("[IDX Sync] Failed to log audit event:", err);
   }
 
-  // FINAL derivation — after settlement, advancement and the persistence
-  // attempt. Everything downstream uses this one value.
+  // Already derived above the durable audit; recomputed only so a late
+  // warm/revalidation failure cannot leave the returned value behind.
   runStatus = deriveRunStatus();
 
   logger.durationMs = durationMs;
