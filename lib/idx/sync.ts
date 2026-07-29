@@ -466,11 +466,26 @@ export interface SyncResult {
   property_streams?: {
     mt_requests: number; pct_requests: number;
     mt_records_fetched: number; pct_records_fetched: number;
-    unique_after_dedupe: number; overlap_count: number;
+    /** Raw SOURCE rows across both streams (mt + pct). */
+    total_source_rows_fetched: number;
+    /** Unique merged ListingKeys, INCLUDING blocked/conflicted entries. */
+    unique_records_after_dedupe: number;
+    /** Entries that actually entered listing processing. */
+    processable_after_dedupe: number;
+    overlap_count: number;
     mt_at_live_edge: boolean; pct_at_live_edge: boolean;
     mt_frozen_reason: string | null; pct_frozen_reason: string | null;
     /** True when that stream's own request threw; its cursor stays pre-run. */
     mt_fetch_failed: boolean; pct_fetch_failed: boolean;
+    mt_fetch_succeeded: boolean; pct_fetch_succeeded: boolean;
+    mt_cursor_advanced: boolean; pct_cursor_advanced: boolean;
+    mt_settled_prefix_length: number; pct_settled_prefix_length: number;
+    mt_halted_reason: string | null; pct_halted_reason: string | null;
+    mt_cursor_before: string | null; mt_cursor_after: string | null;
+    pct_cursor_before: string | null; pct_cursor_after: string | null;
+    cursor_notes_prepared: boolean;
+    /** See the runtime comment: per-stream 429/retry attribution is unavailable. */
+    per_stream_429_retry_attribution: string;
     blocked_reasons: Record<string, number>;
   };
   legacy_media_batches?: {
@@ -614,7 +629,32 @@ export async function syncListings(
   const streamTelemetry = {
     mt_requests: 0, pct_requests: 0,
     mt_records_fetched: 0, pct_records_fetched: 0,
-    unique_after_dedupe: 0, overlap_count: 0,
+    /** mt_records_fetched + pct_records_fetched — raw SOURCE rows. */
+    total_source_rows_fetched: 0,
+    /** Unique merged ListingKeys INCLUDING blocked/conflicted entries. */
+    unique_records_after_dedupe: 0,
+    /** Entries that actually entered listing processing. */
+    processable_after_dedupe: 0,
+    overlap_count: 0,
+    mt_fetch_succeeded: false, pct_fetch_succeeded: false,
+    mt_cursor_advanced: false, pct_cursor_advanced: false,
+    mt_settled_prefix_length: 0, pct_settled_prefix_length: 0,
+    mt_halted_reason: null as string | null,
+    pct_halted_reason: null as string | null,
+    /** Bounded cursor metadata only — timestamps + ListingKeys, never payloads. */
+    mt_cursor_before: null as string | null, mt_cursor_after: null as string | null,
+    pct_cursor_before: null as string | null, pct_cursor_after: null as string | null,
+    cursor_notes_prepared: false,
+    /**
+     * NOT per-stream 429/retry counts. The Cotality collector is RUN-scoped via
+     * AsyncLocalStorage with aggregate `retries` / `http_429_count`; wrapping each
+     * stream in a nested collector would shadow the outer one and REMOVE those
+     * calls from the run-level counters other consumers rely on. Safe attribution
+     * needs a stream label threaded through recordCotalityHttp in the shared
+     * telemetry module. Until then the aggregate collector snapshot on the
+     * idx_sync_cron audit remains the source of truth — no fabricated zeros here.
+     */
+    per_stream_429_retry_attribution: "unavailable_run_scoped_collector" as const,
     mt_at_live_edge: false, pct_at_live_edge: false,
     mt_frozen_reason: null as string | null,
     pct_frozen_reason: null as string | null,
@@ -676,6 +716,10 @@ export async function syncListings(
 
     streamTelemetry.mt_records_fetched = mtRes.records.length;
     streamTelemetry.pct_records_fetched = pctRes.records.length;
+    streamTelemetry.total_source_rows_fetched =
+      streamTelemetry.mt_records_fetched + streamTelemetry.pct_records_fetched;
+    streamTelemetry.mt_fetch_succeeded = !streamTelemetry.mt_fetch_failed;
+    streamTelemetry.pct_fetch_succeeded = !streamTelemetry.pct_fetch_failed;
     // A SHORT page is the only evidence of the live edge. A full 250-row page
     // proves nothing — there may be more behind it.
     streamTelemetry.mt_at_live_edge =
@@ -701,12 +745,23 @@ export async function syncListings(
     const processable = streamMerge.entries
       .filter((e): e is Extract<typeof e, { kind: "processable" }> => e.kind === "processable")
       .map((e) => e.record);
-    streamTelemetry.unique_after_dedupe = processable.length;
-    fetchResult = { records: processable, totalFetched: processable.length };
+    streamTelemetry.processable_after_dedupe = processable.length;
+    // Unique merged listings INCLUDING blocked ones (a conflicted listing is
+    // still a distinct listing the run saw).
+    streamTelemetry.unique_records_after_dedupe = new Set(
+      streamMerge.entries.map((e) => e.listingKey).filter((k): k is string => typeof k === "string"),
+    ).size;
+    // `total_fetched` keeps its HISTORICAL source-row meaning so existing
+    // consumers and audits are not silently re-pointed at a different number.
+    fetchResult = {
+      records: processable,
+      totalFetched: streamTelemetry.total_source_rows_fetched,
+    };
     console.log(
       `[IDX Sync] two-stream: mt=${streamTelemetry.mt_records_fetched} ` +
         `pct=${streamTelemetry.pct_records_fetched} overlap=${streamTelemetry.overlap_count} ` +
-        `unique=${streamTelemetry.unique_after_dedupe}`,
+        `unique=${streamTelemetry.unique_records_after_dedupe} ` +
+        `processable=${streamTelemetry.processable_after_dedupe}`,
     );
   } else {
     fetchResult = (await fetchFromTrestle({
@@ -1478,7 +1533,12 @@ export async function syncListings(
     // two fields, so the watermark must reflect both — otherwise the next pass
     // would re-fetch every row whose PCT advanced past the (MT-only) watermark.
     // Single-column SyncState.last_watermark; no schema change.
-    for (const r of fetchResult.records) {
+    // Phase 1A: in TWO-STREAM mode the composite keyset notes are the
+    // authoritative incremental cursor. `last_watermark` is compatibility/UI
+    // state only and is derived BELOW from the cursor state actually persisted —
+    // never from wall clock, and never from the raw fetched rows (which include
+    // records whose processing blocked).
+    for (const r of useTwoStream ? [] : fetchResult.records) {
       const mt = r.ModificationTimestamp ? new Date(String(r.ModificationTimestamp)) : null;
       const pct = r.PhotosChangeTimestamp ? new Date(String(r.PhotosChangeTimestamp)) : null;
       for (const cand of [mt, pct]) {
@@ -1488,7 +1548,7 @@ export async function syncListings(
     // On empty batches, advance last_run_at but leave last_watermark alone —
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
-    advanceWatermark = fetchResult.records.length > 0;
+    advanceWatermark = useTwoStream ? false : fetchResult.records.length > 0;
 
     // Correction 4 — contiguous-success watermark (fail-closed): when any
     // record FAILED this run, the persisted watermark is capped 1ms BELOW the
@@ -1544,6 +1604,19 @@ export async function syncListings(
 
       // A stream that could not drain its whole page, or that froze, or that
       // hit a blocked record, leaves the run PARTIAL.
+      const boundedCursor = (c: { mode: string; timestamp: string; listingKey?: string }) =>
+        c.mode === "bootstrap" ? `bootstrap@${c.timestamp}` : `${c.timestamp}|${c.listingKey}`;
+      streamTelemetry.mt_cursor_before = boundedCursor(pre.mt);
+      streamTelemetry.pct_cursor_before = boundedCursor(pre.pct);
+      streamTelemetry.mt_cursor_after = boundedCursor(nextMt.cursor);
+      streamTelemetry.pct_cursor_after = boundedCursor(nextPct.cursor);
+      streamTelemetry.mt_cursor_advanced = nextMt.advanced;
+      streamTelemetry.pct_cursor_advanced = nextPct.advanced;
+      streamTelemetry.mt_settled_prefix_length = nextMt.settledPrefixLength;
+      streamTelemetry.pct_settled_prefix_length = nextPct.settledPrefixLength;
+      streamTelemetry.mt_halted_reason = nextMt.haltedBy;
+      streamTelemetry.pct_halted_reason = nextPct.haltedBy;
+
       if (nextMt.haltedBy !== "end_of_page" && nextMt.haltedBy !== "empty_page") runPartial = true;
       if (nextPct.haltedBy !== "end_of_page" && nextPct.haltedBy !== "empty_page") runPartial = true;
       if (streamMerge.entries.some((e) => e.kind === "blocked")) runPartial = true;
@@ -1572,34 +1645,68 @@ export async function syncListings(
       // legacy serializer replaces notes wholesale and would drop cursor state.
       let existingNotes: unknown = null;
       let notesReadable = true;
+      let notesFailReason: string | null = null;
       try {
         const cur = await prisma.syncState.findUnique({
           where: { resource: "Property" },
           select: { notes: true },
         });
         if (cur?.notes) {
+          let parsed: unknown;
           try {
-            existingNotes = JSON.parse(cur.notes) as unknown;
+            parsed = JSON.parse(cur.notes) as unknown;
           } catch {
             // Non-null notes that will not parse: unknown state. Overwriting it
             // could erase cursors we simply failed to read.
             notesReadable = false;
+            notesFailReason = "cursor_notes_unreadable";
+          }
+          if (notesReadable) {
+            // A successful parse is NOT sufficient. `"null"`, `"[]"`, `"7"`,
+            // `"true"` and `'"x"'` all parse cleanly but are not a notes object;
+            // spreading them yields {} and would silently overwrite whatever the
+            // row actually held.
+            if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+              notesReadable = false;
+              notesFailReason = "cursor_notes_invalid_shape";
+            } else {
+              existingNotes = parsed;
+            }
           }
         }
       } catch {
         notesReadable = false; // transient read failure — fail closed
+        notesFailReason = "cursor_notes_unreadable";
       }
       if (!notesReadable) {
         runPartial = true;
-        streamTelemetry.blocked_reasons.cursor_notes_unreadable =
-          (streamTelemetry.blocked_reasons.cursor_notes_unreadable ?? 0) + 1;
+        const reason = notesFailReason ?? "cursor_notes_unreadable";
+        streamTelemetry.blocked_reasons[reason] =
+          (streamTelemetry.blocked_reasons[reason] ?? 0) + 1;
       }
       const base =
         existingNotes !== null && typeof existingNotes === "object" && !Array.isArray(existingNotes)
           ? { ...(existingNotes as Record<string, unknown>) }
           : {};
+      // Compatibility watermark: the later of the two DURABLE stream cursors,
+      // and only for cursors that actually reached keyset mode. A bootstrap
+      // cursor sitting on the pinned epoch is not evidence that data was
+      // updated then, so it contributes nothing.
+      const cursorTimes: number[] = [];
+      for (const c of [nextMt, nextPct]) {
+        if (c.advanced && c.cursor.mode === "keyset") {
+          const t = new Date(c.cursor.timestamp).getTime();
+          if (Number.isFinite(t)) cursorTimes.push(t);
+        }
+      }
+      if (notesReadable && cursorTimes.length > 0) {
+        batchWatermark = new Date(Math.max(...cursorTimes));
+        advanceWatermark = true;
+      }
+
       if (notesReadable) {
         cursorNotesPrepared = true;
+        streamTelemetry.cursor_notes_prepared = true;
         base[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
         nextCursorNotes = mergePropertyCursorIntoNotes(base, {
           // Never promote on a run whose prior notes could not be read.
@@ -1618,8 +1725,10 @@ export async function syncListings(
     } else if (useTwoStream) {
       // A two-stream run whose cursor payload could not be prepared omits
       // `notes` entirely. It must not borrow the force-full fallback, which
-      // would write a notes value containing no new cursor state.
+      // would write a notes value containing no new cursor state — and it must
+      // not advance the compatibility watermark either.
       notesPayload = null;
+      advanceWatermark = false;
     } else {
       let preserved: Record<string, unknown> | null = {};
       try {

@@ -584,3 +584,104 @@ describe("two-stream runs never claim persistence without a cursor payload", () 
     expect(idxSyncAudit()!.run_status).toBe("ok");
   });
 });
+
+// ── Prior notes must be a PLAIN OBJECT, not merely valid JSON ─────────────
+
+describe("valid JSON that is not a notes object is treated as unknown state", () => {
+  const cases: Array<[string, string]> = [
+    ["array", "[]"],
+    ["string", '"hello"'],
+    ["number", "7"],
+    ["boolean", "true"],
+    ["null", "null"],
+  ];
+
+  it.each(cases)("stored notes of %s omits the write and reports not-persisted", async (_label, raw) => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockResolvedValue({ notes: raw });
+    mockSyncStateUpsert.mockClear();
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+    // Spreading any of these yields {} and would silently destroy the row value.
+    expect(args.update).not.toHaveProperty("notes");
+    expect(res.property_cursor_persisted).toBe(false);
+    expect(res.run_status).toBe("partial");
+    expect(res.property_streams?.blocked_reasons.cursor_notes_invalid_shape).toBe(1);
+  });
+});
+
+// ── Compatibility watermark is source-derived, never wall clock ───────────
+
+describe("last_watermark reflects durable cursor state, not wall clock", () => {
+  function writtenWatermark(): Date | undefined {
+    const calls = mockSyncStateUpsert.mock.calls;
+    if (!calls.length) return undefined;
+    const args = calls[calls.length - 1][0] as { update: { last_watermark?: Date } };
+    return args.update.last_watermark;
+  }
+
+  it("uses the SOURCE timestamp even though it is far older than now", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateUpsert.mockClear();
+    await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+    // Later of the two durable cursors, NOT Date.now().
+    expect(writtenWatermark()!.toISOString()).toBe("2026-07-02T00:00:00.000Z");
+  });
+
+  it("does NOT advance when cursor persistence fails", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateFindUnique.mockRejectedValue(new Error("read timeout"));
+    mockSyncStateUpsert.mockClear();
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+    expect(writtenWatermark()).toBeUndefined(); // field omitted entirely
+    expect(res.property_cursor_persisted).toBe(false);
+  });
+
+  it("an EMPTY cycle preserves the existing watermark", async () => {
+    wireTrestle([]);
+    mockSyncStateUpsert.mockClear();
+    await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+    expect(writtenWatermark()).toBeUndefined(); // neither cursor advanced
+  });
+
+  it("one healthy stream yields a watermark from that stream alone", async () => {
+    mockFetchFromTrestle.mockImplementation(async (opts: Record<string, unknown>) => {
+      const isMt = String(opts.orderby).startsWith("ModificationTimestamp");
+      if (isMt) throw new Error("mt upstream 503");
+      return {
+        records: [record({ ListingKey: "PCTONLY", mt: "2026-01-01T00:00:00Z", pct: "2026-07-05T00:00:00Z" })],
+        totalFetched: 1,
+      };
+    });
+    mockSyncStateUpsert.mockClear();
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+    expect(writtenWatermark()!.toISOString()).toBe("2026-07-05T00:00:00.000Z");
+    expect(res.run_status).toBe("partial");
+  });
+});
+
+// ── Telemetry semantics ───────────────────────────────────────────────────
+
+it("keeps source rows, unique-including-blocked and processable distinct", async () => {
+  // One conflicted listing (blocked) + one clean listing.
+  mockFetchFromTrestle.mockImplementation(async (opts: Record<string, unknown>) => {
+    const isMt = String(opts.orderby).startsWith("ModificationTimestamp");
+    const conflict = record({ ListingKey: "CONFLICT", mt: "2026-07-01T00:00:00Z", pct: "2026-07-01T00:00:00Z" });
+    conflict.ListPrice = isMt ? 750000 : 699000;
+    const clean = record({ ListingKey: "CLEAN", mt: "2026-07-02T00:00:00Z", pct: "2026-07-02T00:00:00Z" });
+    return { records: [conflict, clean], totalFetched: 2 };
+  });
+
+  const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+  const t = res.property_streams!;
+
+  expect(t.total_source_rows_fetched).toBe(4);      // 2 rows per stream
+  expect(t.unique_records_after_dedupe).toBe(2);    // CONFLICT counts, though blocked
+  expect(t.processable_after_dedupe).toBe(1);       // only CLEAN is processed
+  expect(res.total_fetched).toBe(4);                // historical source-row meaning kept
+  expect(t.per_stream_429_retry_attribution).toBe("unavailable_run_scoped_collector");
+  expect(t.mt_halted_reason).toBeTruthy();
+  expect(t.mt_cursor_before).toContain("bootstrap@");
+});
