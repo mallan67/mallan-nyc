@@ -369,3 +369,29 @@ The initial cursor must INCLUDE these; a bare `gt` would silently drop them.
 - `ne null` returned 12876.
 - the bootstrap therefore uses a timestamp 1 ms BEFORE the boundary with a plain `gt`, so it
   never depends on empty-string comparison semantics at all.
+
+---
+
+## Linux / LF validation (§F)
+
+Windows checkout showed one persistent failure,
+`tests/runtime/building-manifest-cache-size.test.ts`, which asserts a literal
+`\n`-containing source substring against `lib/buildings/public-building-data.ts`.
+That file is 0 files in this branch's diff. Re-run on an LF/Linux checkout of the
+same commit to confirm the failure was a checkout artifact and not a defect.
+
+Environment: WSL2 Ubuntu, node v20.19.6, npm 10.8.2. Clone taken with
+`core.autocrlf=false`; `lib/buildings/public-building-data.ts` contained **0 CR
+bytes**. Commit under test: `988980c8`.
+
+| command | exit |
+|---|---:|
+| `npm ci --no-audit --no-fund` | **0** |
+| `npx tsc --noEmit -p tsconfig.json` | **0** |
+| `npx jest tests/runtime/building-manifest-cache-size.test.ts` | **0** — 4/4 passed |
+| `npx jest lib/idx tests/runtime` | **0** — 283 suites, 4,514 passed, 0 failed |
+| `npx jest` (entire suite) | **0** — 338 suites, 5,795 passed, 0 failed |
+
+Conclusion: the manifest assertion **passes on LF/Linux**. The Windows failure was
+a line-ending artifact of the local checkout, exactly as diagnosed, and the branch
+has **zero test failures** on a Linux checkout.
