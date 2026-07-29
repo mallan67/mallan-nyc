@@ -435,6 +435,12 @@ export interface SyncResult {
     listings_complete_nonempty: number;
     listings_complete_empty: number;
     listings_incomplete: number;
+    /**
+     * TRANSPORT was complete and the material array was derived, but DATABASE
+     * reconciliation failed (write threw, or matched 0 / >1 rows). Distinct from
+     * `listings_incomplete`, which means the feed response itself was unusable.
+     */
+    listings_write_failed: number;
     incomplete_reasons: Record<string, number>;
   };
   /**
@@ -580,11 +586,12 @@ export async function syncListings(
   const legacyMediaBatchOutcomes: {
     batches_complete: number; batches_incomplete: number;
     listings_complete_nonempty: number; listings_complete_empty: number;
-    listings_incomplete: number; incomplete_reasons: Record<string, number>;
+    listings_incomplete: number; listings_write_failed: number;
+    incomplete_reasons: Record<string, number>;
   } = {
     batches_complete: 0, batches_incomplete: 0,
     listings_complete_nonempty: 0, listings_complete_empty: 0,
-    listings_incomplete: 0, incomplete_reasons: {},
+    listings_incomplete: 0, listings_write_failed: 0, incomplete_reasons: {},
   };
 
   // Change-reason attribution (2026-07-24): WHY each physical write happened.
@@ -1061,6 +1068,20 @@ export async function syncListings(
   const rawByRequestKey = new Map<string, Record<string, unknown>>();
   const allMediaRequestKeys: string[] = [];
   const mediaIncompleteMarked = new Set<string>();
+  // Explicit inverse of keyToIdMap so a failed listing_id maps back to its source
+  // record without guessing. An unmapped id freezes the watermark (fail closed).
+  const requestKeyByListingId = new Map<string, string>();
+  const capCursorForKey = (key: string) => {
+    const src = rawByRequestKey.get(key);
+    const fMt = src?.ModificationTimestamp ? new Date(String(src.ModificationTimestamp)) : null;
+    const fPct = src?.PhotosChangeTimestamp ? new Date(String(src.PhotosChangeTimestamp)) : null;
+    const fKey = Math.max(
+      fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
+      fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
+    );
+    if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
+    else watermarkFrozen = true; // unknown / unparseable cursor -> freeze
+  };
   /**
    * The single fail-closed operation for BOTH structured `incomplete` results and
    * thrown exceptions. Zero media writes, whole batch counted unreconciled, and
@@ -1077,17 +1098,25 @@ export async function syncListings(
     legacyMediaBatchOutcomes.incomplete_reasons[reason] =
       (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
     batchMediaCounters.rows_failed += fresh.length;
-    for (const key of fresh) {
-      const src = rawByRequestKey.get(key);
-      const fMt = src?.ModificationTimestamp ? new Date(String(src.ModificationTimestamp)) : null;
-      const fPct = src?.PhotosChangeTimestamp ? new Date(String(src.PhotosChangeTimestamp)) : null;
-      const fKey = Math.max(
-        fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
-        fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
-      );
-      if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
-      else watermarkFrozen = true; // cannot bound it -> freeze (fail closed)
-    }
+    for (const key of fresh) capCursorForKey(key);
+  };
+  /**
+   * PERSISTENCE failure for ONE listing after a COMPLETE fetch. Transport
+   * succeeded, so this is deliberately NOT counted as batches_incomplete — it
+   * increments listings_write_failed instead, keeping the two failure modes
+   * distinguishable. Idempotent against the transport marker, so a listing
+   * already unreconciled is never double-counted.
+   */
+  const markMainListingWriteFailed = (listingId: string, reason: string) => {
+    const key = requestKeyByListingId.get(listingId) ?? listingId;
+    if (mediaIncompleteMarked.has(key)) return;
+    mediaIncompleteMarked.add(key);
+    runPartial = true;
+    legacyMediaBatchOutcomes.listings_write_failed++;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed++;
+    capCursorForKey(key);
   };
 
   if (!useExpandMedia && listingCounters.rows_checked > 0) {
@@ -1106,11 +1135,13 @@ export async function syncListings(
           listingsNeedMedia.push(listingKey);
           rawByRequestKey.set(listingKey, r);
           allMediaRequestKeys.push(listingKey);
+          requestKeyByListingId.set(listingId, listingKey);
         } else if (listingId) {
           keyToIdMap.set(listingId, listingId);
           listingsNeedMedia.push(listingId);
           rawByRequestKey.set(listingId, r);
           allMediaRequestKeys.push(listingId);
+          requestKeyByListingId.set(listingId, listingId);
         }
       }
 
@@ -1184,14 +1215,24 @@ export async function syncListings(
                   continue;
                 }
                 batchMediaCounters.rows_materially_changed++;
-                await prisma.listing.updateMany({
+                // A complete fetch does not mean the listing was reconciled: the
+                // guarded write can legitimately match 0 rows (archived), and >1
+                // is an invariant violation since listing_id is unique.
+                const writeResult = await prisma.listing.updateMany({
                   where: archivedSafeMediaWhere(listingId),
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
+                if (writeResult.count !== 1) {
+                  markMainListingWriteFailed(
+                    listingId,
+                    writeResult.count === 0 ? "media_write_no_match" : "media_write_multi_match",
+                  );
+                  continue; // no rows_updated, no cache tag - nothing was written
+                }
                 batchMediaCounters.rows_updated++;
                 changedCacheTags.add(listingCacheTag(listingId)); // W1: media changed → refresh cached page
               } catch (mediaRowErr) {
-                batchMediaCounters.rows_failed++;
+                markMainListingWriteFailed(listingId, "media_write_error");
                 console.warn(
                   `[IDX Sync] Media write failed for ${listingId}:`,
                   mediaRowErr instanceof Error ? mediaRowErr.message : mediaRowErr,
@@ -1600,6 +1641,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   try {
     token = await getAccessToken();
   } catch {
+    // A token failure means EVERY selected listing is unreconciled — rows_failed
+    // must never stay zero while the function returns an error.
+    writeCounters.rows_failed += listings.length;
     console.error("[Media Backfill] Failed to get Trestle token");
     return { checked: listings.length, updated: 0, errors: 1, write_path: writeCounters, pages_revalidated: 0, revalidation_failures: 0 };
   }
@@ -1674,12 +1718,18 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
             continue;
           }
           writeCounters.rows_materially_changed++;
-          await prisma.listing.updateMany({
+          const writeResult = await prisma.listing.updateMany({
             // #415: archived-safe filter (defense-in-depth; the SELECT above already excludes
             // 'archived', so an archived row never reaches here — but never re-hydrate archived media).
             where: archivedSafeMediaWhere(listingId),
             data: { media: media as unknown as Prisma.InputJsonValue },
           });
+          if (writeResult.count !== 1) {
+            // 0 = archived/vanished; >1 = invariant violation. Neither is a write.
+            writeCounters.rows_failed++;
+            errors++;
+            continue; // no revalidation for a write that did not happen
+          }
           writeCounters.rows_updated++;
           updated++;
           changedCacheTags.add(listingCacheTag(listingId)); // W1
@@ -1689,6 +1739,8 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
         }
       }
     } catch (err) {
+      // rows_failed must never stay zero while the function reports an error.
+      writeCounters.rows_failed += requested.length;
       console.warn(`[Media Backfill] Batch error:`, err instanceof Error ? err.message : err);
       errors++;
     }
@@ -2013,6 +2065,44 @@ export async function syncAgentHistory(
   let skippedGates = 0;
   let skippedValidation = 0;
   let errors = 0;
+  // Phase 1A: agent history does NOT own the Property watermark, so it adds no
+  // cursor behaviour. Its obligation is honest status, a complete ledger and
+  // zero partial writes.
+  let runPartial = false;
+  const legacyMediaBatchOutcomes: {
+    batches_complete: number; batches_incomplete: number;
+    listings_complete_nonempty: number; listings_complete_empty: number;
+    listings_incomplete: number; listings_write_failed: number;
+    incomplete_reasons: Record<string, number>;
+  } = {
+    batches_complete: 0, batches_incomplete: 0,
+    listings_complete_nonempty: 0, listings_complete_empty: 0,
+    listings_incomplete: 0, listings_write_failed: 0, incomplete_reasons: {},
+  };
+  const agentMediaMarked = new Set<string>();
+  /** Transport failure for a whole batch: zero writes, whole batch unreconciled. */
+  const markAgentMediaBatchIncomplete = (keys: readonly string[], reason: string) => {
+    const fresh = keys.filter((k) => !agentMediaMarked.has(k));
+    if (fresh.length === 0) return;
+    for (const k of fresh) agentMediaMarked.add(k);
+    runPartial = true;
+    legacyMediaBatchOutcomes.batches_incomplete++;
+    legacyMediaBatchOutcomes.listings_incomplete += fresh.length;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed += fresh.length;
+  };
+  /** Persistence failure for ONE listing after a COMPLETE fetch. */
+  const markAgentListingWriteFailed = (listingId: string, reason: string) => {
+    if (agentMediaMarked.has(listingId)) return;
+    agentMediaMarked.add(listingId);
+    runPartial = true;
+    legacyMediaBatchOutcomes.listings_write_failed++;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed++;
+  };
+  const allAgentMediaRequestKeys: string[] = [];
   let agentMatched = 0;
 
   // Phase 3 write-suppression counters (physical writes only).
@@ -2283,9 +2373,11 @@ export async function syncAgentHistory(
         const listingId = String(r.ListingId || listingKey);
         if (listingKey) {
           agentKeyToIdMap.set(listingKey, listingId);
+          allAgentMediaRequestKeys.push(listingKey);
           listingsNeedMedia.push(listingKey);
         } else if (listingId) {
           agentKeyToIdMap.set(listingId, listingId);
+          allAgentMediaRequestKeys.push(listingId);
           listingsNeedMedia.push(listingId);
         }
       }
@@ -2323,8 +2415,7 @@ export async function syncAgentHistory(
               classifyMediaType: classifyTrestleMediaCategory,
             });
             if (batchResult.outcome === "incomplete") {
-              // Reflected in returned counters, not only in a warning log.
-              batchMediaCounters.rows_failed += batch.length;
+              markAgentMediaBatchIncomplete(batch, batchResult.reason);
               console.warn(
                 `[IDX Agent Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE ` +
                   `(${batchResult.reason}) — preserving stored media for ${batch.length} listings, zero writes`,
@@ -2335,6 +2426,11 @@ export async function syncAgentHistory(
             // Convert ResourceRecordKey back to listing_id via map.
             // Phase 3 (surface D): same suppression as the syncListings batch —
             // rotating signed URLs are not identity; unchanged media skips the write.
+            legacyMediaBatchOutcomes.batches_complete++;
+            for (const arr of batchResult.mediaByListingId.values()) {
+              if (arr.length === 0) legacyMediaBatchOutcomes.listings_complete_empty++;
+              else legacyMediaBatchOutcomes.listings_complete_nonempty++;
+            }
             for (const [listingId, media] of batchResult.mediaByListingId) {
               batchMediaCounters.rows_checked++;
               try {
@@ -2352,14 +2448,21 @@ export async function syncAgentHistory(
                   continue;
                 }
                 batchMediaCounters.rows_materially_changed++;
-                await prisma.listing.updateMany({
+                const writeResult = await prisma.listing.updateMany({
                   where: archivedSafeMediaWhere(listingId),
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
+                if (writeResult.count !== 1) {
+                  markAgentListingWriteFailed(
+                    listingId,
+                    writeResult.count === 0 ? "media_write_no_match" : "media_write_multi_match",
+                  );
+                  continue; // no rows_updated, no cache tag - nothing was written
+                }
                 batchMediaCounters.rows_updated++;
                 changedCacheTags.add(listingCacheTag(listingId)); // W1
               } catch (mediaRowErr) {
-                batchMediaCounters.rows_failed++;
+                markAgentListingWriteFailed(listingId, "media_write_error");
                 console.warn(
                   `[IDX Agent History] Media write failed for ${listingId}:`,
                   mediaRowErr instanceof Error ? mediaRowErr.message : mediaRowErr,
@@ -2367,12 +2470,14 @@ export async function syncAgentHistory(
               }
             }
           } catch (mediaErr) {
+            markAgentMediaBatchIncomplete(batch, "fetch_error");
             console.warn(`[IDX Agent History] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
         console.log("[IDX Agent History] Media batch-fetch complete");
       }
     } catch (mediaSyncErr) {
+      markAgentMediaBatchIncomplete(allAgentMediaRequestKeys, "fetch_error");
       console.warn("[IDX Agent History] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
     }
   }
@@ -2385,11 +2490,13 @@ export async function syncAgentHistory(
     safeRevalidateTags(changedCacheTags, revalidation);
   }
 
+  const agentRunStatus: SyncRunStatus = errors > 0 ? "error" : runPartial ? "partial" : "ok";
+
   // Audit log
   logger.durationMs = durationMs;
   logIDXAccess({
     ...logger,
-    resultStatus: errors > 0 ? "error" : "success",
+    resultStatus: errors > 0 ? "error" : agentRunStatus === "partial" ? "partial" : "success",
     errorMessage: errors > 0 ? `${errors} errors during agent history sync` : undefined,
   });
 
@@ -2411,6 +2518,9 @@ export async function syncAgentHistory(
           skipped_gates: skippedGates,
           skipped_validation: skippedValidation,
           errors,
+          // Phase 1A durable partial evidence (see syncListings / idx_sync).
+          run_status: agentRunStatus,
+          legacy_media_batches: legacyMediaBatchOutcomes,
           duration_ms: durationMs,
           // Change-reason attribution (2026-07-24) — same contract as idx_sync.
           listing_change_reasons: listingChangeReasons,
@@ -2429,6 +2539,8 @@ export async function syncAgentHistory(
     skipped_gates: skippedGates,
     skipped_validation: skippedValidation,
     errors,
+    run_status: agentRunStatus,
+    legacy_media_batches: legacyMediaBatchOutcomes,
     duration_ms: durationMs,
     write_paths: {
       listings: listingCounters,

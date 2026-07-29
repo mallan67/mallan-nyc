@@ -324,3 +324,125 @@ describe("incomplete legacy media leaves DURABLE evidence, not just a console wa
       .toBe(new Date(String(raw.ModificationTimestamp)).getTime() - 1);
   });
 });
+
+// ── Per-listing PERSISTENCE failure after a COMPLETE fetch ────────────────
+
+describe("a complete fetch whose DB write fails is NOT a reconciled listing", () => {
+  it("caps the watermark below only the failed listing and still writes the healthy one", async () => {
+    // A fails to write and carries the LATER timestamp, so a cap below A proves
+    // the boundary is the failed listing itself, not merely the batch minimum.
+    const MT_A = "2026-07-05T00:00:00.000Z";
+    const MT_B = "2026-07-02T00:00:00.000Z";
+    const rawA = rawRecord({ ModificationTimestamp: MT_A });
+    const rawB = rawRecord({
+      ListingId: "RLS100002", ListingKey: "KEY100002", ModificationTimestamp: MT_B,
+    });
+    const stale = (n: string) => [
+      { url: `https://api.cotality.com/trestle/Media/${n}.jpg?sig=OLD`, mediaType: "Photo", order: 0 },
+    ];
+    const state: StoredState = {
+      listings: new Map([
+        ["RLS100001", dbRowFromRaw(rawA)],
+        ["RLS100002", dbRowFromRaw(rawB)],
+      ]),
+      projections: new Map([
+        ["RLS100001", projectionRowFromRaw(rawA)],
+        ["RLS100002", projectionRowFromRaw(rawB)],
+      ]),
+      mediaByListingId: new Map([
+        ["RLS100001", stale("a-old")],
+        ["RLS100002", stale("b-old")],
+      ]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
+
+    // COMPLETE response covering both listings.
+    const mrow = (k: string, mk: string) => ({
+      ResourceRecordKey: k, MediaKey: mk,
+      MediaURL: `https://api.cotality.com/trestle/Media/${mk}.jpg?sig=NEW`,
+      MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false, MediaStatus: "Active",
+    });
+    const body = JSON.stringify({
+      "@odata.count": 2,
+      value: [mrow("KEY100001", "ma"), mrow("KEY100002", "mb")],
+    });
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200, text: async () => body,
+    })) as unknown as typeof fetch;
+
+    // Only listing A's media write fails.
+    mockUpdateMany.mockImplementation(async (args: { where: { listing_id: string } }) => {
+      if (args.where.listing_id === "RLS100001") throw new Error("deadlock detected");
+      return { count: 1 };
+    });
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    // B was written; A was not.
+    const written = mockUpdateMany.mock.calls.map(
+      (c) => (c[0] as { where: { listing_id: string } }).where.listing_id,
+    );
+    expect(written).toContain("RLS100001"); // attempted
+    expect(written).toContain("RLS100002");
+    expect(result.write_paths.batch_media.rows_updated).toBe(1); // only B counted
+    expect(result.write_paths.batch_media.rows_failed).toBe(1);
+
+    expect(result.run_status).toBe("partial");
+    expect(result.errors).toBe(0); // not a hard listing/projection failure
+    // Transport was complete — this is a PERSISTENCE failure, kept separate.
+    expect(result.legacy_media_batches?.batches_complete).toBe(1);
+    expect(result.legacy_media_batches?.batches_incomplete).toBe(0);
+    expect(result.legacy_media_batches?.listings_write_failed).toBe(1);
+    expect(result.legacy_media_batches?.incomplete_reasons.media_write_error).toBe(1);
+
+    // Watermark capped below the FAILED listing so it retries next run.
+    const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
+      update: { last_watermark?: Date; last_run_status: string };
+    };
+    expect(stateArgs.update.last_run_status).toBe("partial");
+    expect(stateArgs.update.last_watermark!.getTime()).toBe(new Date(MT_A).getTime() - 1);
+
+    // Durable evidence carries the persistence reason.
+    const audit = mockAuditCreate.mock.calls
+      .map((c) => c[0] as { data: { action: string; changes: Record<string, unknown> } })
+      .find((c) => c.data.action === "idx_sync");
+    const ledger = (audit!.data.changes as Record<string, unknown>)
+      .legacy_media_batches as Record<string, unknown>;
+    expect((ledger.incomplete_reasons as Record<string, number>).media_write_error).toBe(1);
+    expect(ledger.listings_write_failed).toBe(1);
+  });
+
+  it("updateMany.count === 0 marks the listing unreconciled and adds no cache tag", async () => {
+    const raw = rawRecord();
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+      mediaByListingId: new Map([["RLS100001", [
+        { url: "https://api.cotality.com/trestle/Media/old.jpg", mediaType: "Photo", order: 0 },
+      ]]]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [raw], totalFetched: 1 });
+    const body = JSON.stringify({
+      "@odata.count": 1,
+      value: [{
+        ResourceRecordKey: "KEY100001", MediaKey: "m1",
+        MediaURL: "https://api.cotality.com/trestle/Media/m1.jpg",
+        MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false, MediaStatus: "Active",
+      }],
+    });
+    global.fetch = jest.fn(async () => ({
+      ok: true, status: 200, text: async () => body,
+    })) as unknown as typeof fetch;
+    mockUpdateMany.mockResolvedValue({ count: 0 }); // archived between read and write
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.write_paths.batch_media.rows_updated).toBe(0);
+    expect(result.write_paths.batch_media.rows_failed).toBe(1);
+    expect(result.run_status).toBe("partial");
+    expect(result.errors).toBe(0);
+    expect(result.legacy_media_batches?.incomplete_reasons.media_write_no_match).toBe(1);
+  });
+});
