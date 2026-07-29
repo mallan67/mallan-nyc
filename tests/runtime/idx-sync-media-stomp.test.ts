@@ -69,14 +69,24 @@ describe('idx-sync source — non-regression (SUPPORTING, not the RED proof)', (
     expect(src).toContain('status_changed_at: new Date()');
   });
 
-  it('the batch-media loops are UNCHANGED from main — no deleted-at-source clearing in RC2', () => {
-    // RC2 deliberately does NOT touch the batch-media write loops (the
-    // clear-on-delete increment was reverted; it needs @odata.nextLink
-    // pagination = RC1). Lock that: the original Map-iterating loops remain, and
-    // no clearing helper / completeness gate leaked into RC2.
-    expect(src).toContain('for (const [key, media] of mediaByListing) {');
-    expect(src).toContain('for (const [key, media] of mediaByKey) {');
-    expect(src).not.toContain('resolveBatchMediaWrites');
-    expect(src).not.toContain('mediaResponseComplete');
+  it('all three legacy batch-media call sites route through the shared complete-response helper (Phase 1A / RC1)', () => {
+    // Phase 1A (2026-07-29) IS the RC1 work this tripwire was waiting for: the
+    // @odata.nextLink pagination + complete-response contract now exists, so the
+    // original hand-built Map-iterating loops are gone by design. The guard now
+    // locks the NEW invariant instead: exactly three legacy batch-media call
+    // sites, all routed through the one shared helper, with no hand-rolled
+    // grouping left behind.
+    expect(src.match(/await fetchLegacyMediaBatch\(/g)?.length).toBe(3);
+    expect(src).not.toContain('for (const [key, media] of mediaByListing) {');
+    expect(src).not.toContain('for (const [key, media] of mediaByKey) {');
+    expect(src).not.toContain('const mediaByListing = new Map');
+    expect(src).not.toContain('const mediaByListingId = new Map');
+    expect(src).not.toContain('const mediaByKey = new Map');
+    // The helper is the ONLY legacy batch-fetch implementation: no direct
+    // /odata/Media fetch may reappear in sync.ts.
+    expect(src).not.toContain('/odata/Media?');
+    // Guarded update patch + inline CREATE media path are untouched by Phase 1A.
+    expect(src).toContain('mediaUpdatePatch');
+    expect(src).toContain('archivedSafeMediaWhere');
   });
 });

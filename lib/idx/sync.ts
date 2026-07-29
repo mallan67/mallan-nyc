@@ -405,8 +405,38 @@ export interface SyncWritePaths {
   affected_manifest_shards?: string[];
 }
 
+/**
+ * Phase 1A run health. `partial` is the EXISTING yellow state the health layer
+ * already recognises (SyncState.last_run_status), not a new value:
+ *   error   — hard listing/projection/DB failures (errors > 0). Manifest warming
+ *             stays suppressed, as before.
+ *   partial — no hard errors, but >=1 legacy-media batch was incomplete. Stored
+ *             media preserved, watermark capped/frozen so those listings retry.
+ *             Successful listing changes still revalidate and warm their shards.
+ *   ok      — no hard errors and no incomplete media batches.
+ */
+export type SyncRunStatus = "ok" | "partial" | "error";
+
 export interface SyncResult {
   total_fetched: number;
+  /** See SyncRunStatus. Media incompleteness yields `partial`, never `error`. */
+  run_status?: SyncRunStatus;
+  /**
+   * Phase 1A legacy batch-media completeness observability. `batches_incomplete`
+   * means the whole batch preserved its stored `listings.media` and the Property
+   * watermark was capped below every affected record, so it is re-fetched next
+   * run. `listings_complete_empty` counts MATERIAL emptiness per listing (an
+   * empty reconciled array) — never `rowsFetched === 0`, which counts raw
+   * Cotality rows and cannot describe a mixed batch. See legacy-media-batch.ts.
+   */
+  legacy_media_batches?: {
+    batches_complete: number;
+    batches_incomplete: number;
+    listings_complete_nonempty: number;
+    listings_complete_empty: number;
+    listings_incomplete: number;
+    incomplete_reasons: Record<string, number>;
+  };
   /**
    * PHYSICAL listing writes this run (rows_inserted + rows_updated).
    * Phase 3: materially-unchanged records are suppressed and no longer
@@ -533,6 +563,10 @@ export async function syncListings(
   let skippedNewTerminal = 0;
   const skippedNewTerminalSample: string[] = [];
   let errors = 0;
+  // Media incompleteness is NOT a hard error: `errors` gates the building-manifest
+  // warm, and an incomplete media batch must not disable warming for unrelated
+  // price/insert/status/address changes. It is surfaced as `partial` instead.
+  let runPartial = false;
 
   // Phase 3 write-suppression counters (physical writes only).
   const listingCounters = newWritePathCounters();
@@ -540,10 +574,18 @@ export async function syncListings(
   const batchMediaCounters = newWritePathCounters();
   // Phase 1A: legacy batch-media completeness outcomes. `incomplete` means the
   // whole batch was preserved (zero listings.media writes), never partially applied.
+  // listings_complete_empty is counted from MATERIAL emptiness of each returned
+  // array — NOT from rowsFetched, which counts raw Cotality rows (including
+  // URL-less ones) and cannot distinguish per-listing emptiness in a mixed batch.
   const legacyMediaBatchOutcomes: {
-    complete: number; complete_empty: number; incomplete: number;
-    incomplete_reasons: Record<string, number>;
-  } = { complete: 0, complete_empty: 0, incomplete: 0, incomplete_reasons: {} };
+    batches_complete: number; batches_incomplete: number;
+    listings_complete_nonempty: number; listings_complete_empty: number;
+    listings_incomplete: number; incomplete_reasons: Record<string, number>;
+  } = {
+    batches_complete: 0, batches_incomplete: 0,
+    listings_complete_nonempty: 0, listings_complete_empty: 0,
+    listings_incomplete: 0, incomplete_reasons: {},
+  };
 
   // Change-reason attribution (2026-07-24): WHY each physical write happened.
   const listingChangeReasons = newListingChangeReasonCounters();
@@ -1020,15 +1062,20 @@ export async function syncListings(
         .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
       const keyToIdMap = new Map<string, string>();
       const listingsNeedMedia: string[] = [];
+      // Phase 1A: retain the SOURCE record per requested key so an incomplete
+      // media batch can cap the watermark below every affected record (below).
+      const rawByRequestKey = new Map<string, Record<string, unknown>>();
       for (const r of listingsNeedMediaRaw) {
         const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
         const listingId = String(r.ListingId || listingKey);
         if (listingKey) {
           keyToIdMap.set(listingKey, listingId);
           listingsNeedMedia.push(listingKey);
+          rawByRequestKey.set(listingKey, r);
         } else if (listingId) {
           keyToIdMap.set(listingId, listingId);
           listingsNeedMedia.push(listingId);
+          rawByRequestKey.set(listingId, r);
         }
       }
 
@@ -1065,17 +1112,39 @@ export async function syncListings(
             });
 
             if (batchResult.outcome === "incomplete") {
-              legacyMediaBatchOutcomes.incomplete++;
+              legacyMediaBatchOutcomes.batches_incomplete++;
+              legacyMediaBatchOutcomes.listings_incomplete += batch.length;
               legacyMediaBatchOutcomes.incomplete_reasons[batchResult.reason] =
                 (legacyMediaBatchOutcomes.incomplete_reasons[batchResult.reason] ?? 0) + 1;
+              // INCOMPLETE_OR_FAILED must not advance past the affected listings.
+              // Without this the Property watermark moves on even though media was
+              // never reconciled — and once PCT-only listing writes are suppressed
+              // there is no stored PCT marker left to re-select the listing, so a
+              // stale listings.media array could survive with no automatic retry.
+              batchMediaCounters.rows_failed += batch.length;
+              runPartial = true;
+              for (const key of batch) {
+                const src = rawByRequestKey.get(key);
+                const fMt = src?.ModificationTimestamp ? new Date(String(src.ModificationTimestamp)) : null;
+                const fPct = src?.PhotosChangeTimestamp ? new Date(String(src.PhotosChangeTimestamp)) : null;
+                const fKey = Math.max(
+                  fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
+                  fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
+                );
+                if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
+                else watermarkFrozen = true; // cannot bound it → freeze (fail closed)
+              }
               console.warn(
                 `[IDX Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
-                  `preserving stored media for ${batch.length} listings, zero writes`,
+                  `preserving stored media for ${batch.length} listings, zero writes, watermark capped`,
               );
               continue;
             }
-            legacyMediaBatchOutcomes.complete++;
-            if (batchResult.rowsFetched === 0) legacyMediaBatchOutcomes.complete_empty++;
+            legacyMediaBatchOutcomes.batches_complete++;
+            for (const arr of batchResult.mediaByListingId.values()) {
+              if (arr.length === 0) legacyMediaBatchOutcomes.listings_complete_empty++;
+              else legacyMediaBatchOutcomes.listings_complete_nonempty++;
+            }
 
             // Update DB records — the helper already keyed by listing_id.
             // Phase 3 (surface D): compare the stored legacy media JSON first and
@@ -1137,12 +1206,19 @@ export async function syncListings(
     safeRevalidateTags(changedCacheTags, revalidation);
   }
 
+  const runStatus: SyncRunStatus = errors > 0 ? "error" : runPartial ? "partial" : "ok";
+
   // Audit log
   logger.durationMs = durationMs;
   logIDXAccess({
     ...logger,
-    resultStatus: errors > 0 ? "error" : "success",
-    errorMessage: errors > 0 ? `${errors} errors during sync` : undefined,
+    resultStatus: errors > 0 ? "error" : runStatus === "partial" ? "partial" : "success",
+    errorMessage:
+      errors > 0
+        ? `${errors} errors during sync`
+        : runStatus === "partial"
+          ? `${legacyMediaBatchOutcomes.batches_incomplete} incomplete legacy-media batch(es); stored media preserved, watermark capped`
+          : undefined,
   });
 
   // The durable idx_sync AuditEvent is written AFTER the manifest warm (see
@@ -1207,7 +1283,7 @@ export async function syncListings(
         resource: "Property",
         last_watermark: batchWatermark,
         last_run_at: now,
-        last_run_status: errors > 0 ? "error" : "ok",
+        last_run_status: runStatus,
         last_run_duration_ms: durationMs,
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
@@ -1217,7 +1293,7 @@ export async function syncListings(
       update: {
         ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
         last_run_at: now,
-        last_run_status: errors > 0 ? "error" : "ok",
+        last_run_status: runStatus,
         last_run_duration_ms: durationMs,
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
@@ -1373,6 +1449,8 @@ export async function syncListings(
     skipped_new_terminal: skippedNewTerminal,
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
+    run_status: runStatus,
+    legacy_media_batches: legacyMediaBatchOutcomes,
     duration_ms: durationMs,
     write_paths: {
       listings: listingCounters,
@@ -1552,6 +1630,8 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
           `[Media Backfill] Batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
             `preserving stored media for ${requested.length} listings, zero writes`,
         );
+        // rows_failed must not stay zero while the function reports an error.
+        writeCounters.rows_failed += requested.length;
         errors++;
         continue;
       }
@@ -2218,6 +2298,8 @@ export async function syncAgentHistory(
               classifyMediaType: classifyTrestleMediaCategory,
             });
             if (batchResult.outcome === "incomplete") {
+              // Reflected in returned counters, not only in a warning log.
+              batchMediaCounters.rows_failed += batch.length;
               console.warn(
                 `[IDX Agent Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE ` +
                   `(${batchResult.reason}) — preserving stored media for ${batch.length} listings, zero writes`,

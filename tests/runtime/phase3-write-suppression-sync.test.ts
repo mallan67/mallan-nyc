@@ -559,6 +559,20 @@ describe("syncListings — $expand=Media rotation inside raw_data alone -> ZERO 
   });
 });
 
+/**
+ * Cursor key for a fixture record, mirroring sync.ts: max(MT, PCT). Phase 1A caps
+ * the watermark at (earliest cursor among ALL requested listings in an incomplete
+ * media batch) - 1ms, because the helper returns no writable map and performs zero
+ * writes for the whole batch — so every member is unreconciled. The next run
+ * re-fetches from the earliest incomplete batch member forward; duplicate listing
+ * work is safe and suppressed idempotently.
+ */
+function recordCursorMs(raw: Record<string, unknown>): number {
+  const mt = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)).getTime() : Number.NEGATIVE_INFINITY;
+  const pct = raw.PhotosChangeTimestamp ? new Date(String(raw.PhotosChangeTimestamp)).getTime() : Number.NEGATIVE_INFINITY;
+  return Math.max(mt, pct);
+}
+
 // ── Correction 4: fail-closed watermark (contiguous success) ──
 
 describe("syncListings — watermark never advances past a failed record", () => {
@@ -589,10 +603,17 @@ describe("syncListings — watermark never advances past a failed record", () =>
       create: { last_watermark: Date; last_run_status: string };
       update: { last_watermark?: Date; last_run_status: string };
     };
-    const expected = new Date(new Date(MT_B).getTime() - 1);
-    expect(stateArgs.update.last_watermark?.getTime()).toBe(expected.getTime());
-    expect(stateArgs.create.last_watermark.getTime()).toBe(expected.getTime());
+    // The default fixture 400s the media endpoint, so ALL THREE records are in an
+    // incomplete media batch and none was reconciled — the fail-closed boundary is
+    // the earliest cursor among them, which is below A (not merely below failed B).
+    const expectedCap = Math.min(...[rawA, rawB, rawC].map(recordCursorMs)) - 1;
+    expect(stateArgs.update.last_watermark?.getTime()).toBe(expectedCap);
+    expect(stateArgs.create.last_watermark.getTime()).toBe(expectedCap);
+    expect(result.write_paths.batch_media.rows_updated).toBe(0); // zero media writes
+    expect(result.legacy_media_batches?.listings_incomplete).toBe(3);
+    // Hard record failure still dominates: error > partial.
     expect(stateArgs.update.last_run_status).toBe("error");
+    expect(result.run_status).toBe("error");
   });
 
   it("no failures -> watermark behavior unchanged (advances; run ok)", async () => {
@@ -605,12 +626,23 @@ describe("syncListings — watermark never advances past a failed record", () =>
     wireMocks(state);
     mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
-    await syncListings({ fullSync: true });
+    const result = await syncListings({ fullSync: true });
     const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
       update: { last_watermark?: Date; last_run_status: string };
     };
     expect(stateArgs.update.last_watermark).toBeInstanceOf(Date);
-    expect(stateArgs.update.last_run_status).toBe("ok");
+    // Watermark does not advance past the earliest incomplete batch member.
+    expect(stateArgs.update.last_watermark?.getTime()).toBe(recordCursorMs(rawA) - 1);
+    expect(result.write_paths.batch_media.rows_updated).toBe(0);
+    expect(result.legacy_media_batches?.listings_incomplete).toBe(1);
+    // Phase 1A: no hard errors, but the default fixture 400s the media endpoint,
+    // so the legacy-media batch is INCOMPLETE -> `partial`. Stored media was
+    // preserved and the watermark capped so those listings retry next run.
+    expect(stateArgs.update.last_run_status).toBe("partial");
+    expect(result.run_status).toBe("partial");
+    expect(result.errors).toBe(0); // media incompleteness is NOT a hard error
+    expect(result.legacy_media_batches?.batches_incomplete).toBeGreaterThan(0);
+    expect(result.write_paths.batch_media.rows_failed).toBeGreaterThan(0);
   });
 });
 
