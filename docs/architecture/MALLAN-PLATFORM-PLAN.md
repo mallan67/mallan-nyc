@@ -497,11 +497,65 @@ Mallan web edits never rewrite the Cotality/provider row.
 
 Provider refreshes never erase Mallan presentation, local media, seller workflow, CRM history, marketing, notes, or other Mallan-owned data.
 
-## POL-1 — Compliance fails closed
+## POL-1 — Compliance fails closed, except where the feed is pre-filtered
 
 **Status:** `DECIDED`
 
 Unknown display permission, unresolved audience, missing required attribution, Participant Only, Owner Opt-Out, or unresolved compliance review may not silently proceed.
+
+**This rule is not uniform across the display gates, and applying it uniformly has already caused a production incident.**
+
+## POL-1.1 — Gate-by-gate null semantics
+
+**Status:** `DECIDED`
+
+| Gate | Field | Null means | Rule |
+|---|---|---|---|
+| 1 — Owner Opt-Out | `Permission = OwnerOptOut` / `MlsStatus = OwnerOptOut` | — | Fail closed. Never displayed anywhere. |
+| 2 — Participant Only | `Permission = Private` | — | Fail closed. Co-brokers only; never public or IDX. |
+| 3 — Internet Display | `InternetEntireListingDisplayYN` | **displayable** | Block only on explicit `false`. **Do not require affirmation.** |
+| 4 — Address Display | `InternetAddressDisplayYN` | **displayable** | Block only on explicit `false`. When `false`, suppress the address; the listing may still display. |
+| 5 — AVM Display | `InternetAutomatedValuationDisplayYN` | **blocked** | Require affirmation. Null denies. |
+| 6 — Consumer Comment | `InternetConsumerCommentYN` | **blocked** | Require affirmation. Null denies. |
+
+## POL-1.2 — Why gates 3 and 4 differ
+
+**Status:** `DECIDED`
+
+The provider's policy layer pre-filters non-displayable rows **before** they reach the licensed feed. A row that arrives has already passed the internet-display gate, so null means "already permitted upstream," not "unknown."
+
+Gates 5 and 6 are per-row opt-out flags the provider **does** populate at row level, so null legitimately means "not set" and must deny.
+
+## POL-1.3 — Recorded incident
+
+**Status:** `DECIDED`
+
+On 2026-04-30, applying affirmation logic to `InternetEntireListingDisplayYN` suppressed **7,594 rows that should have been displayable**. The incident record is `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`.
+
+Any change to gate-3 or gate-4 null handling must cite this requirement and that incident record, and must be covered by a test that fails when affirmation logic is reintroduced.
+
+## POL-1.4 — Aggregate display gate
+
+**Status:** `DECIDED`
+
+```text
+idx_display_yn =
+      rls_eligible
+  AND NOT terminal_status
+  AND internet_entire_listing_display_yn   (gate 3)
+  AND NOT participant_only                 (gate 2)
+  AND NOT owner_opt_out                    (gate 1)
+```
+
+`rls_eligible = false` — a Mallan web sale or rental listing, or a commercial record — forces `idx_display_yn = false` regardless of every other gate.
+
+## POL-1.5 — Terminal statuses
+
+**Status:** `DECIDED`
+
+Terminal statuses force `idx_display_yn = false`. The set is resolved from live provider status definitions per `COT-11`; it is not hardcoded in application logic. As observed at the last verification it comprised closed, sold, leased, rented, withdrawn, expired, and cancelled. A closed record is removed from public display within 24 hours.
+
+Status normalization folds case, resolves known aliases, and trims whitespace. **An unrecognized status value is preserved, never coerced to a familiar one** (`COT-10`).
 
 ## ERR-1 — Empty is not an error
 
@@ -2426,25 +2480,57 @@ This file is the stable address. Its contents evolve; its path does not.
 
 # Appendix A — Source-document coverage matrix
 
-Populated during PH-1. Each source document contributes rows before it may be retired per `DOC-6`.
+Per `DOC-6`, no source document is retired until its coverage rows exist here.
 
-| source_file | source_section | source_requirement | disposition | master_plan_destination | verification_source | notes |
-|---|---|---|---|---|---|---|
-| `Mallan_Intelligence_Master_Plan.md` | entire | Target product architecture across 26 sections | pending | sections 3, 8, 15, 16, 18 | PH-1 review | Contains no listing-identity model; must not be treated as authoritative for `LST` |
-| prior `MALLAN-PLATFORM-PLAN.md` drafts | entire | Integration architecture, identifiers, dependency map | accepted | sections 0, 2, 6, 8, 9, 10, 12, 20 | this consolidation | Superseded by this file |
-| `crm-search-agent-workflow-rebuild.md` | 5 | Field contract, supported vs unsupported | pending | section 14 `SEA-9` | PH-1 review | |
-| `crm-search-agent-workflow-rebuild.md` | 7 | Acceptance tests | pending | section 14 `SEA-10` | PH-1 review | |
-| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 1.5 | Typed contract decision, no HTTP in the contract | pending | sections 8, 11 | PH-1 review | Reconcile with `ERR-2` taxonomy |
-| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 1.6 | Deterministic parity definition | accepted | section 14 `SEA-6` | this consolidation | |
-| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 6.1 | Evidence classification for comparables | accepted | section 16 `CMA-2` | this consolidation | |
-| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 6 | Re-verification before report issuance | accepted | section 16 `CMA-10` | this consolidation | |
-| `COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | 8 | Local web listing rules | corrected | section 6 | this consolidation | Two-row withdraw-and-replace model superseded by `LST-7`, `LST-8` |
-| `COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | 11 | Media and photo contract | accepted | section 7 `COT-7`, `COT-8` | this consolidation | |
-| `COTALITY-COMPLETE-REFERENCE.md` | entire | Provider reference tables | evidence_only | section 7 | live verification | Cache subject to `COT-12` |
-| `SELLER-001-SPEC-2026-07-03.md` | 1 | Seller truth rules | accepted | section 16 `SEL-2` | this consolidation | Phase 1 shipped; remains a registry item |
-| `SELLER-001-SPEC-2026-07-03.md` | 3 | External presence data models | pending | section 16 | PH-1 review | Migration-gated |
+**Read status is stated per document, because `AGT-7` forbids describing a document that has not been read in full.** A document read only in part cannot be classified as fully covered, and saying so is a finding, not a placeholder.
 
----
+| Document | Lines | Read status | What was actually read |
+|---|---|---|---|
+| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 489 | **Partial** | All section headings; §1.5 typed contract decision, §1.6 deterministic parity, §6 comp pipeline, §6.1 evidence classes, §6.2 rules — read in full |
+| `COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | 378 | **Partial** | All section headings; §8 local web listing rules — read in full |
+| `Mallan_Intelligence_Master_Plan.md` | 2129 | **Partial** | All 26 section headings; verified by search that it contains no listing-identity model and no provider-transition model |
+| `crm-search-agent-workflow-rebuild.md` | 544 | **Headings only** | 12 section headings. No section read in full |
+| `SELLER-001-SPEC-2026-07-03.md` | 225 | **Partial** | All section headings; the matched-pair example line and the address-variant line |
+| `COTALITY-COMPLETE-REFERENCE.md` | unmeasured | **Not read** | Only targeted searches for prefix definitions |
+| prior `MALLAN-PLATFORM-PLAN.md` draft | 665 | **Full** | Entire file |
+| PR #585 plan | 1494 | **Full** | Entire file |
+
+## A.1 — Requirements transferred, with evidence
+
+These rows are based on text read in full and are safe to rely on.
+
+| source_file | source_section | source_requirement | disposition | destination | verification_source |
+|---|---|---|---|---|---|
+| prior `MALLAN-PLATFORM-PLAN.md` | A.1–A.5 | Identifier system, status legend, header convention, change protocol, governing evidence rule | accepted | 0.1–0.4, 24 | read in full |
+| prior `MALLAN-PLATFORM-PLAN.md` | B | Dependency map and blast radius | accepted | 2 | read in full |
+| prior `MALLAN-PLATFORM-PLAN.md` | G | Non-disclosure with timing bound | accepted | AUZ-4 | read in full |
+| prior `MALLAN-PLATFORM-PLAN.md` | I | Contract-versus-build version separation | accepted | VER-3 … VER-6 | read in full |
+| prior `MALLAN-PLATFORM-PLAN.md` | J | Contract audit baseline and ratchet | accepted | AUD-1 … AUD-5 | read in full |
+| PR #585 plan | 1–22 | Business truth, provider contract, error governance, housekeeping, CRM migration, seller truth levels, intelligence, per-PR checklist, completion definition | accepted | 3–23 | read in full |
+| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 1.6 | Deterministic parity holds within a fixed audience, scope, entitlement, and snapshot tuple — not across audiences | accepted | SEA-6 | §1.6 read in full |
+| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 6.1 | Evidence classification governing which comparables may drive value | accepted | CMA-2 | §6.1 read in full |
+| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 6 | Every comparable re-verified against its authority before issuance; provider failure fails closed | accepted | CMA-10 | §6 read in full |
+| `SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md` | 1.5 | Contract is pure, returns typed decisions, adapter maps to transport | accepted | ARC-5, ERR-2 | §1.5 read in full |
+| `COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | 8 | Local web listing distribution gates and reconciliation | **corrected** | 6 | §8 read in full |
+| `SELLER-001-SPEC-2026-07-03.md` | header | `SL-0004` and `RLS20093870` are the same unit | accepted | LST-6 | line read in full |
+
+## A.2 — Known-present but untransferred, with the specific gap
+
+These are real findings, not deferred work items. Each states what is known to exist and what is unknown about it.
+
+| Document | Known to contain | Not transferred because |
+|---|---|---|
+| `crm-search-agent-workflow-rebuild.md` | §5 "Field Contract — Supported vs Unsupported"; §6 Compliance Rules; §7 Acceptance Tests; §8 Implementation Phases; §11 Decision log | Only headings were read. `SEA-9` defines the field-contract *shape*; whether this document's actual field list conflicts with it is unknown. Its §8 phase model is a third sequencing scheme that must be reconciled against section 20 or explicitly discarded |
+| `Mallan_Intelligence_Master_Plan.md` | 26 sections including broker operating system, public growth journeys, communications architecture, build-versus-buy policy, security and governance, observability, and five closed-loop proofs | Only headings were read. **Six of its domains have no counterpart in this plan at all**: broker operating system, public growth journeys, communications and notification architecture, build-versus-buy policy, security and privacy governance, and observability. This plan is therefore narrower than that document in those six areas |
+| `COTALITY-COMPLETE-REFERENCE.md` | Provider reference tables including listing-type identifier tables | Not read. Content is a cache of provider vocabulary and is superseded as authority by `COT-11` and `COT-12`, but any non-vocabulary requirements it contains are unknown |
+| `SELLER-001-SPEC-2026-07-03.md` | §3 data models for listing events, external presence, campaign links, broker-network presence, owner reports — all migration-gated; §5 correctness-audit fields; §6 investor metrics | Only headings were read. Phase 1 of this spec is already shipped in production, so it describes live behavior this plan does not yet account for |
+| `COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | §1–7 and §9–15: ownership, auth, resources, address lookup, query patterns, site routes, CRM form rules, sync contract, featured listings, media contract, compliance, error handling, testing, change control | Only §8 was read in full. §11 media contract informed `COT-7` and `COT-8` by heading only. §15 imposes a change-control rule requiring PRs touching its files to cite it — that obligation is live and unincorporated |
+
+## A.3 — Consequence
+
+This plan is complete for the domains it covers and is **not yet a superset** of the documents in A.2. The named source documents therefore remain active and may not be retired under `DOC-6`. Retiring them now would delete requirements that were never read.
+
+Closing A.2 requires reading each document in full — a bounded, nameable task, not an open-ended one.
 
 # Appendix B — Conflict resolution matrix
 
