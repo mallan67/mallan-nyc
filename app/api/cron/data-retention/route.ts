@@ -18,12 +18,23 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
+import { SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS } from "@/lib/retention/system-diagnostic-actions";
 
 export const maxDuration = 60;
 
 // Batch caps to keep a single cron run under the 60s budget
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
+
+/**
+ * SYSTEM-DIAGNOSTIC retention (see step 2b).
+ *
+ * 30 days, not 90: measured on production 2026-07-29, the eligible population
+ * is 46,103 rows / ~30 MB and EVERY one of them is already older than 30 days,
+ * while a 90-day cutoff would free only ~1.4 MB. The 2-year floor in step 2 is
+ * a COMPLIANCE floor for audit evidence; these rows are neither.
+ */
+const DIAGNOSTIC_RETENTION_DAYS = 30;
 
 const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
 
@@ -82,6 +93,38 @@ export async function GET(req: NextRequest) {
     },
   });
   results.audit_events_purged_over_2yr = purgedAudit.count;
+
+  // 2b. Purge high-volume SYSTEM DIAGNOSTICS at 30 days.
+  //
+  // WHY THIS IS NOT A COMPLIANCE CHANGE. Step 2's 2-year cutoff is the REBNY
+  // RLS audit-evidence floor. The actions purged here are not audit evidence:
+  // they are opt-in high-volume operational diagnostics, already deduped and
+  // capped per run where they are produced. They are WRITE-ONLY — verified
+  // 2026-07-29, the only writer is lib/idx/sync.ts and no production code reads
+  // them back.
+  //
+  // Scope comes from `lib/retention/system-diagnostic-actions.ts`, which
+  // re-exports the producer's allowlist — see that file for why the indirection
+  // exists and for the parity test that stops the two drifting. Because it is
+  // an explicit allowlist and not a `LIKE 'idx_sync%'` pattern, per-run records
+  // (`idx_sync_cron`, `media_sync_cron`) and every business or compliance
+  // action keep the 2-year floor untouched.
+  //
+  // Measured 2026-07-29: 46,103 eligible rows / ~30 MB, all already >30 days.
+  const diagnosticCutoff = new Date(
+    now.getTime() - DIAGNOSTIC_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+  // ONE bounded statement, matching step 2's existing shape: no new Prisma
+  // surface is introduced, so every existing route mock keeps working. The
+  // population is small (a 92k-row table) and this is a one-time historical
+  // backlog — afterwards only a handful of rows age out per day.
+  const purgedDiagnostics = await prisma.auditEvent.deleteMany({
+    where: {
+      action: { in: [...SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS] },
+      created_at: { lt: diagnosticCutoff },
+    },
+  });
+  results.audit_events_diagnostics_purged = purgedDiagnostics.count;
 
   // 3. Flag closed/terminal listings not yet marked (REBNY RLS Sec. 2.05: remove within 24h)
   // Note: filterDisplayableDbListings() already excludes non-active statuses in real-time,
