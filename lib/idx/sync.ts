@@ -49,6 +49,26 @@ import {
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import { fetchLegacyMediaBatch, type LegacyMediaRequestedListing } from "@/lib/idx/legacy-media-batch";
 import {
+  buildStreamFilter,
+  streamOrderBy,
+  CURSOR_BASIS_BOOTSTRAP,
+  CURSOR_BASIS_LIVE,
+  mergePropertyCursorIntoNotes,
+  parsePropertyCursorNotes,
+  type PropertyCursorState,
+} from "@/lib/idx/property-cursor";
+import { mergePropertyStreams, type StreamName } from "@/lib/idx/property-stream-merge";
+import { advanceStreamCursor, type RecordSettlement } from "@/lib/idx/property-cursor-advance";
+
+/**
+ * Fixed per-stream page budget. 250 + 250 keeps the TOTAL scheduled Property
+ * processing ceiling at the historical 500 source rows while paying one extra
+ * request for correctness. Deliberately NOT dynamically reallocated: a fixed
+ * split is provable and prevents either stream starving the other.
+ */
+export const MT_LIMIT = 250;
+export const PCT_LIMIT = 250;
+import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
   beginSyncDiagnosticRun,
   bufferSyncDiagnostic,
@@ -360,6 +380,14 @@ export interface SyncOptions {
   maxRecords?: number;
   /** Whether to do a full sync (ignore since) */
   fullSync?: boolean;
+  /**
+   * Trusted two-stream keyset cursor state. When present (and not fullSync) the
+   * run uses two independent single-clock queries instead of the legacy scalar
+   * `since` OR-filter. Absent/malformed state must arrive here as a BOOTSTRAP
+   * state from the caller — it must never silently fall through to the old
+   * active-listing full sync.
+   */
+  cursorState?: PropertyCursorState;
 }
 
 /**
@@ -429,6 +457,15 @@ export interface SyncResult {
    * empty reconciled array) — never `rowsFetched === 0`, which counts raw
    * Cotality rows and cannot describe a mixed batch. See legacy-media-batch.ts.
    */
+  /** Phase 1A two-stream keyset telemetry (present only in two-stream mode). */
+  property_streams?: {
+    mt_requests: number; pct_requests: number;
+    mt_records_fetched: number; pct_records_fetched: number;
+    unique_after_dedupe: number; overlap_count: number;
+    mt_at_live_edge: boolean; pct_at_live_edge: boolean;
+    mt_frozen_reason: string | null; pct_frozen_reason: string | null;
+    blocked_reasons: Record<string, number>;
+  };
   legacy_media_batches?: {
     batches_complete: number;
     batches_incomplete: number;
@@ -535,13 +572,17 @@ export async function syncListings(
   }
 
   let filter: string;
+  const useTwoStream = !options.fullSync && !!options.cursorState;
 
-  if (options.fullSync || !options.since) {
+  if (options.fullSync || (!options.since && !useTwoStream)) {
     // Full sync: fetch all active listings
     filter = buildActiveFilter(options.type);
+  } else if (useTwoStream) {
+    // Two-stream keyset mode builds its own per-stream filters below.
+    filter = "(two-stream keyset)";
   } else {
-    // Incremental sync: only records modified since last sync
-    filter = buildIncrementalFilter(options.since, options.type);
+    // Legacy scalar-cursor path, retained for callers that still pass `since`.
+    filter = buildIncrementalFilter(options.since as Date, options.type);
   }
 
   console.log(`[IDX Sync] Starting sync with filter: ${filter}`);
@@ -555,11 +596,82 @@ export async function syncListings(
   // `if (!useExpandMedia && upserted > 0)` batch-media block further down.
   const useExpandMedia = false;
 
-  const fetchResult = await fetchFromTrestle({
-    filter,
-    maxTotal: maxRecords,
-    expandMedia: useExpandMedia,
-  });
+  // Two-stream telemetry — never claim the extra request is within quota
+  // without observed numbers.
+  const streamTelemetry = {
+    mt_requests: 0, pct_requests: 0,
+    mt_records_fetched: 0, pct_records_fetched: 0,
+    unique_after_dedupe: 0, overlap_count: 0,
+    mt_at_live_edge: false, pct_at_live_edge: false,
+    mt_frozen_reason: null as string | null,
+    pct_frozen_reason: null as string | null,
+    blocked_reasons: {} as Record<string, number>,
+  };
+
+  let fetchResult: { records: Record<string, unknown>[]; totalFetched: number };
+  let streamMerge: ReturnType<typeof mergePropertyStreams> | null = null;
+
+  if (useTwoStream) {
+    const cursors = options.cursorState as PropertyCursorState;
+    // Each stream is an ASCENDING single-clock keyset scan with its own cursor.
+    // `top` AND `maxTotal` are both set: fetchFromTrestle otherwise defaults
+    // $top to 500 and would download 500 rows before slicing to maxTotal.
+    const mtRes = await fetchFromTrestle({
+      filter: buildStreamFilter("ModificationTimestamp", cursors.mt),
+      orderby: streamOrderBy("ModificationTimestamp"),
+      top: MT_LIMIT,
+      maxTotal: MT_LIMIT,
+      expandMedia: useExpandMedia,
+    });
+    streamTelemetry.mt_requests++;
+    const pctRes = await fetchFromTrestle({
+      filter: buildStreamFilter("PhotosChangeTimestamp", cursors.pct),
+      orderby: streamOrderBy("PhotosChangeTimestamp"),
+      top: PCT_LIMIT,
+      maxTotal: PCT_LIMIT,
+      expandMedia: useExpandMedia,
+    });
+    streamTelemetry.pct_requests++;
+
+    streamTelemetry.mt_records_fetched = mtRes.records.length;
+    streamTelemetry.pct_records_fetched = pctRes.records.length;
+    // A SHORT page is the only evidence of the live edge. A full 250-row page
+    // proves nothing — there may be more behind it.
+    streamTelemetry.mt_at_live_edge = mtRes.records.length < MT_LIMIT;
+    streamTelemetry.pct_at_live_edge = pctRes.records.length < PCT_LIMIT;
+
+    streamMerge = mergePropertyStreams({
+      mt: mtRes.records as Record<string, unknown>[],
+      pct: pctRes.records as Record<string, unknown>[],
+    });
+    streamTelemetry.overlap_count = streamMerge.overlapCount;
+    streamTelemetry.mt_frozen_reason = streamMerge.frozen.mt;
+    streamTelemetry.pct_frozen_reason = streamMerge.frozen.pct;
+    for (const e of streamMerge.entries) {
+      if (e.kind === "blocked") {
+        streamTelemetry.blocked_reasons[e.reason] =
+          (streamTelemetry.blocked_reasons[e.reason] ?? 0) + 1;
+      }
+    }
+    // Only PROCESSABLE entries reach the database. Conflicts and unbounded rows
+    // are written nowhere and block their streams.
+    const processable = streamMerge.entries
+      .filter((e): e is Extract<typeof e, { kind: "processable" }> => e.kind === "processable")
+      .map((e) => e.record);
+    streamTelemetry.unique_after_dedupe = processable.length;
+    fetchResult = { records: processable, totalFetched: processable.length };
+    console.log(
+      `[IDX Sync] two-stream: mt=${streamTelemetry.mt_records_fetched} ` +
+        `pct=${streamTelemetry.pct_records_fetched} overlap=${streamTelemetry.overlap_count} ` +
+        `unique=${streamTelemetry.unique_after_dedupe}`,
+    );
+  } else {
+    fetchResult = (await fetchFromTrestle({
+      filter,
+      maxTotal: maxRecords,
+      expandMedia: useExpandMedia,
+    })) as { records: Record<string, unknown>[]; totalFetched: number };
+  }
 
   console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Trestle`);
 
@@ -638,7 +750,19 @@ export async function syncListings(
   const failedCursorKeys: number[] = [];
   let watermarkFrozen = false;
 
+  /**
+   * Per-ListingKey settlement for cursor advancement. A record is settled only
+   * when listing AND projection AND legacy media reconciliation all completed
+   * or were safely suppressed — media is folded in AFTER the batch phase below,
+   * never at the end of this loop.
+   */
+  const listingSettled = new Map<string, boolean>();
+
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
+    const settlementKey = typeof raw.ListingKey === "string" ? raw.ListingKey : "";
+    // Optimistic: an intentional validation/gate/terminal skip needs no retry and
+    // counts as settled. Only a THROWN failure (shared catch below) clears it.
+    if (settlementKey) listingSettled.set(settlementKey, true);
     // Stage marker so the shared catch attributes the failure to the write
     // path that actually threw (failure isolation — a failed row is counted
     // ONLY as failed, never as suppressed/inserted/updated).
@@ -994,6 +1118,8 @@ export async function syncListings(
       }
     } catch (err) {
       errors++;
+      // Not settled -> its stream cursor stops BEFORE this record.
+      if (settlementKey) listingSettled.set(settlementKey, false);
       // Failure isolation: attribute the failure to the write path that
       // threw; the row is never also counted as suppressed/inserted/updated.
       if (writeStage === "projection") {
@@ -1338,6 +1464,103 @@ export async function syncListings(
     // when errors === 0). Persisted in `notes` so the NEXT run's canary
     // probes exactly this set — see parseWarmedShardsFromNotes.
     const shardsToRecord = errors === 0 ? [...affectedManifestShards].sort() : [];
+
+    // ── Two-stream cursor advancement ────────────────────────────────────
+    // Settlement folds in the MEDIA outcome: a record whose legacy media batch
+    // was incomplete, or whose media write failed, is NOT settled even though
+    // its listing/projection succeeded.
+    let nextCursorNotes: Record<string, unknown> | null = null;
+    if (useTwoStream && streamMerge && options.cursorState) {
+      const pre = options.cursorState;
+      const settlementByEntryIndex = new Map<number, RecordSettlement>();
+      for (const [i, entry] of streamMerge.entries.entries()) {
+        if (entry.kind !== "processable") {
+          settlementByEntryIndex.set(i, "blocked"); // conflicts block BOTH streams
+          continue;
+        }
+        const listingOk = listingSettled.get(entry.listingKey) === true;
+        const mediaOk = !mediaIncompleteMarked.has(entry.listingKey);
+        settlementByEntryIndex.set(i, listingOk && mediaOk ? "settled" : "blocked");
+      }
+
+      const nextMt = advanceStreamCursor({
+        field: "ModificationTimestamp",
+        preRunCursor: pre.mt,
+        order: streamMerge.order.mt,
+        settlementByEntryIndex,
+        freezeReason: streamMerge.frozen.mt,
+      });
+      const nextPct = advanceStreamCursor({
+        field: "PhotosChangeTimestamp",
+        preRunCursor: pre.pct,
+        order: streamMerge.order.pct,
+        settlementByEntryIndex,
+        freezeReason: streamMerge.frozen.pct,
+      });
+
+      // A stream that could not drain its whole page, or that froze, or that
+      // hit a blocked record, leaves the run PARTIAL.
+      if (nextMt.haltedBy !== "end_of_page" && nextMt.haltedBy !== "empty_page") runPartial = true;
+      if (nextPct.haltedBy !== "end_of_page" && nextPct.haltedBy !== "empty_page") runPartial = true;
+      if (streamMerge.entries.some((e) => e.kind === "blocked")) runPartial = true;
+
+      // The basis stays BOOTSTRAP until BOTH streams have demonstrably reached
+      // the live edge. A full 250-row page is not proof: only a short page is.
+      const bothLive =
+        streamTelemetry.mt_at_live_edge &&
+        streamTelemetry.pct_at_live_edge &&
+        nextMt.cursor.mode === "keyset" &&
+        nextPct.cursor.mode === "keyset" &&
+        streamMerge.frozen.mt === null &&
+        streamMerge.frozen.pct === null;
+
+      // Read the CURRENT notes so unrelated recognised fields survive; the
+      // legacy serializer replaces notes wholesale and would drop cursor state.
+      let existingNotes: unknown = null;
+      try {
+        const cur = await prisma.syncState.findUnique({
+          where: { resource: "Property" },
+          select: { notes: true },
+        });
+        if (cur?.notes) existingNotes = JSON.parse(cur.notes) as unknown;
+      } catch {
+        existingNotes = null; // malformed/absent -> rebuilt below
+      }
+      const base =
+        existingNotes !== null && typeof existingNotes === "object" && !Array.isArray(existingNotes)
+          ? { ...(existingNotes as Record<string, unknown>) }
+          : {};
+      base[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
+      nextCursorNotes = mergePropertyCursorIntoNotes(base, {
+        basis: bothLive ? CURSOR_BASIS_LIVE : CURSOR_BASIS_BOOTSTRAP,
+        mt: nextMt.cursor,
+        pct: nextPct.cursor,
+      });
+    }
+    // A run that did NOT use the two streams (explicit forceFull, or a legacy
+    // scalar-cursor caller) must not destroy persisted cursor state. The legacy
+    // serializer replaces notes wholesale, so read-merge-write instead.
+    let notesPayload: string;
+    if (nextCursorNotes) {
+      notesPayload = JSON.stringify(nextCursorNotes);
+    } else {
+      let preserved: Record<string, unknown> = {};
+      try {
+        const cur = await prisma.syncState.findUnique({
+          where: { resource: "Property" },
+          select: { notes: true },
+        });
+        const parsed = cur?.notes ? (JSON.parse(cur.notes) as unknown) : null;
+        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+          preserved = { ...(parsed as Record<string, unknown>) };
+        }
+      } catch {
+        preserved = {};
+      }
+      preserved[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
+      notesPayload = JSON.stringify(preserved);
+    }
+
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -1349,7 +1572,7 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: serializeWarmedShardsToNotes(shardsToRecord),
+        notes: notesPayload,
       },
       update: {
         ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
@@ -1359,7 +1582,7 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: serializeWarmedShardsToNotes(shardsToRecord),
+        notes: notesPayload,
       },
     });
   } catch (err) {
@@ -1484,6 +1707,7 @@ export async function syncListings(
           // leave a permanent record of WHY reconciliation did not happen and
           // which listings were left unreconciled.
           run_status: runStatus,
+          property_streams: useTwoStream ? streamTelemetry : undefined,
           legacy_media_batches: legacyMediaBatchOutcomes,
           duration_ms: durationMs,
           // Phase 3 write-suppression accounting (physical writes only).
@@ -1517,6 +1741,7 @@ export async function syncListings(
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
     run_status: runStatus,
+    property_streams: useTwoStream ? streamTelemetry : undefined,
     legacy_media_batches: legacyMediaBatchOutcomes,
     duration_ms: durationMs,
     write_paths: {
@@ -1985,6 +2210,24 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
  * `findFirst` returns `null` when no row matches (e.g. a fresh DB
  * with no Trestle sync yet) — the caller handles that via `?? null`.
  */
+/**
+ * Trusted two-stream cursor state from SyncState.notes, or null when absent /
+ * legacy / malformed. Callers must BOOTSTRAP on null — never fall through to the
+ * old active-listing full sync, which would re-ingest the entire feed.
+ */
+export async function readPropertyCursorState(): Promise<PropertyCursorState | null> {
+  try {
+    const state = await prisma.syncState.findUnique({
+      where: { resource: "Property" },
+      select: { notes: true },
+    });
+    if (!state?.notes) return null;
+    return parsePropertyCursorNotes(JSON.parse(state.notes) as unknown);
+  } catch {
+    return null; // fail closed -> bootstrap
+  }
+}
+
 export async function getLastSyncTimestamp(): Promise<Date | null> {
   const latest = await prisma.listing.findFirst({
     where: {

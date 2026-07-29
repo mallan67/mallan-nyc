@@ -22,11 +22,13 @@ jest.mock("@/lib/idx/auth", () => ({
 }));
 
 const mockSyncListings = jest.fn();
-const mockGetLastSyncTimestamp = jest.fn();
+// Phase 1A: the member reads VERSIONED two-stream cursor state, not a scalar
+// timestamp. Absent state bootstraps; it never triggers the legacy full sync.
+const mockReadPropertyCursorState = jest.fn();
 jest.mock("@/lib/idx/sync", () => ({
   __esModule: true,
   syncListings: (a: unknown) => mockSyncListings(a),
-  getLastSyncTimestamp: () => mockGetLastSyncTimestamp(),
+  readPropertyCursorState: () => mockReadPropertyCursorState(),
 }));
 
 import { runIdxSyncMember } from "@/lib/idx/idx-sync-member";
@@ -55,7 +57,7 @@ beforeEach(() => {
   process.env.IDX_ENABLED = "true";
   jest.clearAllMocks();
   mockAuditCreate.mockResolvedValue({});
-  mockGetLastSyncTimestamp.mockResolvedValue(new Date("2026-07-01T00:00:00Z"));
+  mockReadPropertyCursorState.mockResolvedValue(null); // -> bootstrap
 });
 
 it("run_status partial with errors 0 yields a PARTIAL member, not ok", async () => {
@@ -103,7 +105,7 @@ it("a legacy result with NO run_status falls back to the errors heuristic", asyn
 
   jest.clearAllMocks();
   mockAuditCreate.mockResolvedValue({});
-  mockGetLastSyncTimestamp.mockResolvedValue(new Date("2026-07-01T00:00:00Z"));
+  mockReadPropertyCursorState.mockResolvedValue(null);
   mockSyncListings.mockResolvedValue(syncResult({ errors: 1 }));
   expect((await runIdxSyncMember({ forceFull: false, oneCycleRunId: "run-5" })).outcome).toBe("partial");
 });
