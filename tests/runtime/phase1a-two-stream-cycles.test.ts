@@ -355,3 +355,148 @@ it("an explicit forceFull does NOT advance or overwrite the cursors", async () =
   expect(after!.mt).toEqual({ mode: "keyset", timestamp: "2026-07-10T00:00:00.000Z", listingKey: "KEEPMT" });
   expect(after!.pct).toEqual({ mode: "keyset", timestamp: "2026-07-11T00:00:00.000Z", listingKey: "KEEPPCT" });
 });
+
+// ── Status is derived LAST ────────────────────────────────────────────────
+
+describe("failures discovered during cursor settlement still reach run_status", () => {
+  it("a cross-stream payload conflict is the ONLY failure -> errors 0, status partial", async () => {
+    // Same key, materially different price, one per stream.
+    mockFetchFromTrestle.mockImplementation(async (opts: Record<string, unknown>) => {
+      const isMt = String(opts.orderby).startsWith("ModificationTimestamp");
+      const r = record({ ListingKey: "CONFLICT", mt: "2026-07-01T00:00:00Z", pct: "2026-07-01T00:00:00Z" });
+      r.ListPrice = isMt ? 750000 : 699000;
+      return { records: [r], totalFetched: 1 };
+    });
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    expect(res.errors).toBe(0);
+    expect(res.run_status).toBe("partial"); // was "ok" before the ordering fix
+    expect(mockUpsert).not.toHaveBeenCalled(); // conflict writes nothing
+    expect(res.property_streams?.blocked_reasons.cross_stream_payload_conflict).toBe(1);
+  });
+
+  it("a blocked entry on a SHORT page keeps the bootstrap basis", async () => {
+    mockFetchFromTrestle.mockImplementation(async (opts: Record<string, unknown>) => {
+      const isMt = String(opts.orderby).startsWith("ModificationTimestamp");
+      const r = record({ ListingKey: "CONFLICT", mt: "2026-07-01T00:00:00Z", pct: "2026-07-01T00:00:00Z" });
+      r.ListPrice = isMt ? 750000 : 699000;
+      return { records: [r], totalFetched: 1 };
+    });
+    mockSyncStateUpsert.mockClear();
+
+    await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    // Short pages, but the cursor is parked before an unresolved listing.
+    expect(persistedCursor()!.basis).toBe("mt_pct_keyset_bootstrap_v1");
+  });
+});
+
+// ── Cursor persistence is load-bearing ────────────────────────────────────
+
+describe("failing to persist cursor state is never a successful run", () => {
+  it("reports partial and property_cursor_persisted false", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    mockSyncStateUpsert.mockRejectedValue(new Error("connection reset"));
+
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+
+    expect(res.run_status).toBe("partial"); // NOT ok — cursors did not advance durably
+    expect(res.property_cursor_persisted).toBe(false);
+  });
+
+  it("reports property_cursor_persisted true on a clean run", async () => {
+    wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+    const res = await syncListings({ cursorState: bootstrapCursorState(), maxRecords: 500 });
+    expect(res.property_cursor_persisted).toBe(true);
+    expect(res.run_status).toBe("ok");
+  });
+});
+
+// ── Independent stream fetch failure ──────────────────────────────────────
+
+describe("one stream failing does not kill the other", () => {
+  const corpus: Row[] = [
+    { ListingKey: "MTONLY", mt: "2026-07-01T00:00:00Z", pct: "2026-01-01T00:00:00Z" },
+    { ListingKey: "PCTONLY", mt: "2026-01-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" },
+  ];
+
+  function wireWithFailure(failing: "mt" | "pct" | "both") {
+    mockFetchFromTrestle.mockImplementation(async (opts: Record<string, unknown>) => {
+      const isMt = String(opts.orderby).startsWith("ModificationTimestamp");
+      const stream = isMt ? "mt" : "pct";
+      if (failing === "both" || failing === stream) throw new Error(`${stream} upstream 503`);
+      const row = corpus.find((r) => (isMt ? r.ListingKey === "MTONLY" : r.ListingKey === "PCTONLY"))!;
+      return { records: [record(row)], totalFetched: 1 };
+    });
+  }
+
+  it("MT fails, PCT still processes and advances", async () => {
+    wireWithFailure("mt");
+    const start = bootstrapCursorState();
+    mockSyncStateUpsert.mockClear();
+    const res = await syncListings({ cursorState: start, maxRecords: 500 });
+
+    expect(res.run_status).toBe("partial");
+    expect(res.errors).toBe(0);
+    expect(res.property_streams?.mt_fetch_failed).toBe(true);
+    expect(res.property_streams?.mt_at_live_edge).toBe(false); // never "live" on failure
+    const after = persistedCursor()!;
+    expect(after.mt).toEqual(start.mt);          // byte-identical pre-run cursor
+    expect(after.pct).toEqual({ mode: "keyset", timestamp: "2026-07-02T00:00:00.000Z", listingKey: "PCTONLY" });
+  });
+
+  it("PCT fails, MT still processes and advances", async () => {
+    wireWithFailure("pct");
+    const start = bootstrapCursorState();
+    mockSyncStateUpsert.mockClear();
+    const res = await syncListings({ cursorState: start, maxRecords: 500 });
+
+    expect(res.run_status).toBe("partial");
+    expect(res.property_streams?.pct_fetch_failed).toBe(true);
+    const after = persistedCursor()!;
+    expect(after.pct).toEqual(start.pct);
+    expect(after.mt).toEqual({ mode: "keyset", timestamp: "2026-07-01T00:00:00.000Z", listingKey: "MTONLY" });
+  });
+
+  it("BOTH streams failing is a hard error — no Property work happened", async () => {
+    wireWithFailure("both");
+    const start = bootstrapCursorState();
+    mockSyncStateUpsert.mockClear();
+    const res = await syncListings({ cursorState: start, maxRecords: 500 });
+
+    expect(res.errors).toBeGreaterThan(0);
+    expect(res.run_status).toBe("error");
+    const after = persistedCursor();
+    if (after) {
+      expect(after.mt).toEqual(start.mt);
+      expect(after.pct).toEqual(start.pct);
+    }
+  });
+});
+
+// ── Notes preservation fails closed ───────────────────────────────────────
+
+it("forceFull OMITS notes when the prior notes cannot be read, so cursors survive", async () => {
+  wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+  mockSyncStateFindUnique.mockRejectedValue(new Error("read timeout"));
+  mockSyncStateUpsert.mockClear();
+
+  const res = await syncListings({ fullSync: true, maxRecords: 500 });
+
+  const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+  // Writing ANY notes value here could erase cursor state we merely failed to read.
+  expect(args.update).not.toHaveProperty("notes");
+  expect(res.run_status).toBe("partial");
+});
+
+it("forceFull with MALFORMED stored notes also omits notes", async () => {
+  wireTrestle([{ ListingKey: "K1", mt: "2026-07-01T00:00:00Z", pct: "2026-07-02T00:00:00Z" }]);
+  mockSyncStateFindUnique.mockResolvedValue({ notes: "{not json" });
+  mockSyncStateUpsert.mockClear();
+
+  await syncListings({ fullSync: true, maxRecords: 500 });
+
+  const args = mockSyncStateUpsert.mock.calls[0][0] as { update: Record<string, unknown> };
+  expect(args.update).not.toHaveProperty("notes");
+});

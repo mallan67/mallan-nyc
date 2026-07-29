@@ -450,6 +450,11 @@ export interface SyncResult {
   /** See SyncRunStatus. Media incompleteness yields `partial`, never `error`. */
   run_status?: SyncRunStatus;
   /**
+   * Whether two-stream cursor state reached the database. `false` means the run
+   * did work whose cursor progress was NOT durably recorded — never `ok`.
+   */
+  property_cursor_persisted?: boolean;
+  /**
    * Phase 1A legacy batch-media completeness observability. `batches_incomplete`
    * means the whole batch preserved its stored `listings.media` and the Property
    * watermark was capped below every affected record, so it is re-fetched next
@@ -596,6 +601,12 @@ export async function syncListings(
   // `if (!useExpandMedia && upserted > 0)` batch-media block further down.
   const useExpandMedia = false;
 
+  let errors = 0;
+  // Media incompleteness is NOT a hard error: `errors` gates the building-manifest
+  // warm, and an incomplete media batch must not disable warming for unrelated
+  // price/insert/status/address changes. It is surfaced as `partial` instead.
+  let runPartial = false;
+
   // Two-stream telemetry — never claim the extra request is within quota
   // without observed numbers.
   const streamTelemetry = {
@@ -605,6 +616,8 @@ export async function syncListings(
     mt_at_live_edge: false, pct_at_live_edge: false,
     mt_frozen_reason: null as string | null,
     pct_frozen_reason: null as string | null,
+    mt_fetch_failed: false,
+    pct_fetch_failed: false,
     blocked_reasons: {} as Record<string, number>,
   };
 
@@ -616,29 +629,57 @@ export async function syncListings(
     // Each stream is an ASCENDING single-clock keyset scan with its own cursor.
     // `top` AND `maxTotal` are both set: fetchFromTrestle otherwise defaults
     // $top to 500 and would download 500 rows before slicing to maxTotal.
-    const mtRes = await fetchFromTrestle({
-      filter: buildStreamFilter("ModificationTimestamp", cursors.mt),
-      orderby: streamOrderBy("ModificationTimestamp"),
-      top: MT_LIMIT,
-      maxTotal: MT_LIMIT,
-      expandMedia: useExpandMedia,
-    });
+    // Each stream is attempted INDEPENDENTLY. One stream failing must leave the
+    // other free to process and advance its own contiguous settled prefix; a
+    // shared await would abort the whole run and strand the healthy stream.
+    const emptyPage = { records: [] as Record<string, unknown>[], totalFetched: 0 };
     streamTelemetry.mt_requests++;
-    const pctRes = await fetchFromTrestle({
-      filter: buildStreamFilter("PhotosChangeTimestamp", cursors.pct),
-      orderby: streamOrderBy("PhotosChangeTimestamp"),
-      top: PCT_LIMIT,
-      maxTotal: PCT_LIMIT,
-      expandMedia: useExpandMedia,
-    });
+    let mtRes = emptyPage;
+    try {
+      mtRes = (await fetchFromTrestle({
+        filter: buildStreamFilter("ModificationTimestamp", cursors.mt),
+        orderby: streamOrderBy("ModificationTimestamp"),
+        top: MT_LIMIT,
+        maxTotal: MT_LIMIT,
+        expandMedia: useExpandMedia,
+      })) as typeof emptyPage;
+    } catch (mtErr) {
+      streamTelemetry.mt_fetch_failed = true;
+      streamTelemetry.blocked_reasons.mt_fetch_error =
+        (streamTelemetry.blocked_reasons.mt_fetch_error ?? 0) + 1;
+      runPartial = true;
+      console.warn("[IDX Sync] MT stream fetch failed:", mtErr instanceof Error ? mtErr.message : mtErr);
+    }
     streamTelemetry.pct_requests++;
+    let pctRes = emptyPage;
+    try {
+      pctRes = (await fetchFromTrestle({
+        filter: buildStreamFilter("PhotosChangeTimestamp", cursors.pct),
+        orderby: streamOrderBy("PhotosChangeTimestamp"),
+        top: PCT_LIMIT,
+        maxTotal: PCT_LIMIT,
+        expandMedia: useExpandMedia,
+      })) as typeof emptyPage;
+    } catch (pctErr) {
+      streamTelemetry.pct_fetch_failed = true;
+      streamTelemetry.blocked_reasons.pct_fetch_error =
+        (streamTelemetry.blocked_reasons.pct_fetch_error ?? 0) + 1;
+      runPartial = true;
+      console.warn("[IDX Sync] PCT stream fetch failed:", pctErr instanceof Error ? pctErr.message : pctErr);
+    }
+    // Both streams down means no Property work happened at all -> hard error.
+    if (streamTelemetry.mt_fetch_failed && streamTelemetry.pct_fetch_failed) {
+      errors++;
+    }
 
     streamTelemetry.mt_records_fetched = mtRes.records.length;
     streamTelemetry.pct_records_fetched = pctRes.records.length;
     // A SHORT page is the only evidence of the live edge. A full 250-row page
     // proves nothing — there may be more behind it.
-    streamTelemetry.mt_at_live_edge = mtRes.records.length < MT_LIMIT;
-    streamTelemetry.pct_at_live_edge = pctRes.records.length < PCT_LIMIT;
+    streamTelemetry.mt_at_live_edge =
+      !streamTelemetry.mt_fetch_failed && mtRes.records.length < MT_LIMIT;
+    streamTelemetry.pct_at_live_edge =
+      !streamTelemetry.pct_fetch_failed && pctRes.records.length < PCT_LIMIT;
 
     streamMerge = mergePropertyStreams({
       mt: mtRes.records as Record<string, unknown>[],
@@ -680,11 +721,6 @@ export async function syncListings(
   let skippedValidation = 0;
   let skippedNewTerminal = 0;
   const skippedNewTerminalSample: string[] = [];
-  let errors = 0;
-  // Media incompleteness is NOT a hard error: `errors` gates the building-manifest
-  // warm, and an incomplete media batch must not disable warming for unrelated
-  // price/insert/status/address changes. It is surfaced as `partial` instead.
-  let runPartial = false;
 
   // Phase 3 write-suppression counters (physical writes only).
   const listingCounters = newWritePathCounters();
@@ -1393,20 +1429,18 @@ export async function syncListings(
     safeRevalidateTags(changedCacheTags, revalidation);
   }
 
-  const runStatus: SyncRunStatus = errors > 0 ? "error" : runPartial ? "partial" : "ok";
-
-  // Audit log
-  logger.durationMs = durationMs;
-  logIDXAccess({
-    ...logger,
-    resultStatus: errors > 0 ? "error" : runStatus === "partial" ? "partial" : "success",
-    errorMessage:
-      errors > 0
-        ? `${errors} errors during sync`
-        : runStatus === "partial"
-          ? `${legacyMediaBatchOutcomes.batches_incomplete} incomplete legacy-media batch(es); stored media preserved, watermark capped`
-          : undefined,
-  });
+  // Phase 1A: run status is derived LAST — after listing/projection work, media
+  // reconciliation, stream settlement, cursor advancement AND the cursor
+  // persistence attempt. Deriving it here (the old position) meant a
+  // cross-stream conflict, a stream freeze or a failed cursor write could set
+  // runPartial AFTER the status was already frozen at "ok", and the member
+  // trusts run_status — so the cycle reported success and released downstream
+  // media even though no cursor had durably advanced.
+  const deriveRunStatus = (): SyncRunStatus =>
+    errors > 0 ? "error" : runPartial ? "partial" : "ok";
+  let runStatus: SyncRunStatus = deriveRunStatus();
+  /** Whether the two-stream cursor state reached the database this run. */
+  let propertyCursorPersisted: boolean | null = null;
 
   // The durable idx_sync AuditEvent is written AFTER the manifest warm (see
   // below) so its changes payload can carry the warm + canary + reason
@@ -1488,14 +1522,15 @@ export async function syncListings(
         preRunCursor: pre.mt,
         order: streamMerge.order.mt,
         settlementByEntryIndex,
-        freezeReason: streamMerge.frozen.mt,
+        // A failed fetch pins the stream byte-identically at its pre-run cursor.
+        freezeReason: streamTelemetry.mt_fetch_failed ? "mt_fetch_error" : streamMerge.frozen.mt,
       });
       const nextPct = advanceStreamCursor({
         field: "PhotosChangeTimestamp",
         preRunCursor: pre.pct,
         order: streamMerge.order.pct,
         settlementByEntryIndex,
-        freezeReason: streamMerge.frozen.pct,
+        freezeReason: streamTelemetry.pct_fetch_failed ? "pct_fetch_error" : streamMerge.frozen.pct,
       });
 
       // A stream that could not drain its whole page, or that froze, or that
@@ -1506,61 +1541,104 @@ export async function syncListings(
 
       // The basis stays BOOTSTRAP until BOTH streams have demonstrably reached
       // the live edge. A full 250-row page is not proof: only a short page is.
+      // Promotion also requires that BOTH streams fully consumed their pages.
+      // A short page whose cursor stopped at a blocked record (listing failure,
+      // media failure, cross-stream conflict) is still positioned BEFORE an
+      // unresolved listing and must stay on the bootstrap basis.
+      const mtClean = nextMt.haltedBy === "end_of_page" || nextMt.haltedBy === "empty_page";
+      const pctClean = nextPct.haltedBy === "end_of_page" || nextPct.haltedBy === "empty_page";
+      const noBlockedEntries = !streamMerge.entries.some((e) => e.kind === "blocked");
       const bothLive =
         streamTelemetry.mt_at_live_edge &&
         streamTelemetry.pct_at_live_edge &&
+        mtClean && pctClean && noBlockedEntries &&
         nextMt.cursor.mode === "keyset" &&
         nextPct.cursor.mode === "keyset" &&
         streamMerge.frozen.mt === null &&
-        streamMerge.frozen.pct === null;
+        streamMerge.frozen.pct === null &&
+        !streamTelemetry.mt_fetch_failed &&
+        !streamTelemetry.pct_fetch_failed;
 
       // Read the CURRENT notes so unrelated recognised fields survive; the
       // legacy serializer replaces notes wholesale and would drop cursor state.
       let existingNotes: unknown = null;
+      let notesReadable = true;
       try {
         const cur = await prisma.syncState.findUnique({
           where: { resource: "Property" },
           select: { notes: true },
         });
-        if (cur?.notes) existingNotes = JSON.parse(cur.notes) as unknown;
+        if (cur?.notes) {
+          try {
+            existingNotes = JSON.parse(cur.notes) as unknown;
+          } catch {
+            // Non-null notes that will not parse: unknown state. Overwriting it
+            // could erase cursors we simply failed to read.
+            notesReadable = false;
+          }
+        }
       } catch {
-        existingNotes = null; // malformed/absent -> rebuilt below
+        notesReadable = false; // transient read failure — fail closed
+      }
+      if (!notesReadable) {
+        runPartial = true;
+        streamTelemetry.blocked_reasons.cursor_notes_unreadable =
+          (streamTelemetry.blocked_reasons.cursor_notes_unreadable ?? 0) + 1;
       }
       const base =
         existingNotes !== null && typeof existingNotes === "object" && !Array.isArray(existingNotes)
           ? { ...(existingNotes as Record<string, unknown>) }
           : {};
-      base[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
-      nextCursorNotes = mergePropertyCursorIntoNotes(base, {
-        basis: bothLive ? CURSOR_BASIS_LIVE : CURSOR_BASIS_BOOTSTRAP,
-        mt: nextMt.cursor,
-        pct: nextPct.cursor,
-      });
+      if (notesReadable) {
+        base[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
+        nextCursorNotes = mergePropertyCursorIntoNotes(base, {
+          // Never promote on a run whose prior notes could not be read.
+          basis: bothLive ? CURSOR_BASIS_LIVE : CURSOR_BASIS_BOOTSTRAP,
+          mt: nextMt.cursor,
+          pct: nextPct.cursor,
+        });
+      }
     }
     // A run that did NOT use the two streams (explicit forceFull, or a legacy
     // scalar-cursor caller) must not destroy persisted cursor state. The legacy
     // serializer replaces notes wholesale, so read-merge-write instead.
-    let notesPayload: string;
+    let notesPayload: string | null;
     if (nextCursorNotes) {
       notesPayload = JSON.stringify(nextCursorNotes);
     } else {
-      let preserved: Record<string, unknown> = {};
+      let preserved: Record<string, unknown> | null = {};
       try {
         const cur = await prisma.syncState.findUnique({
           where: { resource: "Property" },
           select: { notes: true },
         });
-        const parsed = cur?.notes ? (JSON.parse(cur.notes) as unknown) : null;
-        if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-          preserved = { ...(parsed as Record<string, unknown>) };
+        if (cur?.notes) {
+          try {
+            const parsed = JSON.parse(cur.notes) as unknown;
+            preserved =
+              parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+                ? { ...(parsed as Record<string, unknown>) }
+                : null; // unknown shape -> do not overwrite
+          } catch {
+            preserved = null; // malformed -> do not overwrite
+          }
         }
       } catch {
-        preserved = {};
+        preserved = null; // transient read failure -> do not overwrite
       }
-      preserved[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
-      notesPayload = JSON.stringify(preserved);
+      if (preserved === null) {
+        // Writing ANY notes value here could erase persisted cursor state we
+        // merely failed to read. Omit the field entirely and report partial.
+        notesPayload = null;
+        runPartial = true;
+      } else {
+        preserved[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
+        notesPayload = JSON.stringify(preserved);
+      }
     }
 
+    // Status now reflects settlement + advancement; the write records it.
+    runStatus = deriveRunStatus();
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -1572,7 +1650,7 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: notesPayload,
+        ...(notesPayload !== null ? { notes: notesPayload } : {}),
       },
       update: {
         ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
@@ -1582,13 +1660,21 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: notesPayload,
+        ...(notesPayload !== null ? { notes: notesPayload } : {}),
       },
     });
+    if (useTwoStream) propertyCursorPersisted = true;
   } catch (err) {
     console.error("[IDX Sync] Failed to update SyncState watermark:", err);
-    // Non-fatal — sync already succeeded; watermark-write failure degrades
-    // UI freshness display only.
+    // Phase 1A: this is NO LONGER "UI only". SyncState.notes now carries the
+    // authoritative MT/PCT cursors, so a failed write means database changes may
+    // have committed while cursor progress did NOT. The run must never be
+    // reported fully complete, or the member would release downstream media on
+    // a cycle whose cursors never durably advanced.
+    if (useTwoStream) {
+      propertyCursorPersisted = false;
+      runPartial = true;
+    }
     //
     // Best-effort diagnostic persist (see helper comment near top of file).
     // This is the catch that was silently swallowing the SyncState
@@ -1707,6 +1793,7 @@ export async function syncListings(
           // leave a permanent record of WHY reconciliation did not happen and
           // which listings were left unreconciled.
           run_status: runStatus,
+          property_cursor_persisted: propertyCursorPersisted ?? undefined,
           property_streams: useTwoStream ? streamTelemetry : undefined,
           legacy_media_batches: legacyMediaBatchOutcomes,
           duration_ms: durationMs,
@@ -1732,6 +1819,23 @@ export async function syncListings(
     console.error("[IDX Sync] Failed to log audit event:", err);
   }
 
+  // FINAL derivation — after settlement, advancement and the persistence
+  // attempt. Everything downstream uses this one value.
+  runStatus = deriveRunStatus();
+
+  logger.durationMs = durationMs;
+  logIDXAccess({
+    ...logger,
+    resultStatus: errors > 0 ? "error" : runStatus === "partial" ? "partial" : "success",
+    errorMessage:
+      errors > 0
+        ? `${errors} errors during sync`
+        : runStatus === "partial"
+          ? `partial run: cursor_persisted=${propertyCursorPersisted}, ` +
+            `incomplete_media_batches=${legacyMediaBatchOutcomes.batches_incomplete}`
+          : undefined,
+  });
+
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,
     upserted,
@@ -1741,6 +1845,7 @@ export async function syncListings(
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
     run_status: runStatus,
+    property_cursor_persisted: propertyCursorPersisted ?? undefined,
     property_streams: useTwoStream ? streamTelemetry : undefined,
     legacy_media_batches: legacyMediaBatchOutcomes,
     duration_ms: durationMs,
