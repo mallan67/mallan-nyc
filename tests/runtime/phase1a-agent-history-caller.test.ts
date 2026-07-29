@@ -356,3 +356,51 @@ it("a listing seen by BOTH the persistence and the outer transport path is count
     logSpy.mockRestore();
   }
 });
+
+// ── PCT provenance in the agent-history path ──────────────────────────────
+
+it("a PCT-only re-emit performs no listing write, but media reconciliation still runs", async () => {
+  const stored = [{ url: `${BASE}/Media/m1.jpg`, mediaType: "Photo", order: 1 }];
+
+  // PASS 1 — no existing row, so the listing is inserted. The `update` half of
+  // that upsert IS agentUpdateData, i.e. exactly what the suppression
+  // comparator will diff against next time. Deriving the fixture from the
+  // function's own payload avoids hardcoding LISTING_SYNC_COMPARE_SELECT.
+  mockFindUnique.mockResolvedValue(null);
+  storedMedia(stored);
+  mockFetchFromTrestle.mockResolvedValue({
+    records: [rawRecord({ PhotosChangeTimestamp: "2026-07-01T00:00:00Z" })],
+    totalFetched: 1,
+  });
+  pages([{ ok: true, count: 1, value: [mediaRow("KEY900001", "m1", 1)] }]);
+  await syncAgentHistory(OPTS);
+  const persisted = (mockUpsert.mock.calls[0][0] as { update: Record<string, unknown> }).update;
+
+  // PASS 2 — ONLY the photo clock advances against that persisted state.
+  jest.clearAllMocks();
+  mockGetAccessToken.mockResolvedValue("mock-token");
+  mockUpsert.mockResolvedValue({});
+  mockProjFindUnique.mockResolvedValue(null);
+  mockProjUpsert.mockResolvedValue({});
+  mockUpdateMany.mockResolvedValue({ count: 1 });
+  mockAuditCreate.mockResolvedValue({});
+  mockFindUnique.mockResolvedValue(persisted);
+  storedMedia(stored);
+  mockFetchFromTrestle.mockResolvedValue({
+    records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
+    totalFetched: 1,
+  });
+  pages([{ ok: true, count: 1, value: [mediaRow("KEY900001", "m1", 1)] }]);
+
+  const r = await syncAgentHistory(OPTS);
+
+  // PCT is provenance -> the physical listing write is suppressed.
+  expect(r.write_paths.listings.rows_suppressed_unchanged).toBe(1);
+  expect(r.write_paths.listings.rows_updated).toBe(0);
+  // ...and media reconciliation STILL ran: its gate is processed rows, not writes.
+  expect(r.write_paths.batch_media.rows_checked).toBe(1);
+  expect(r.legacy_media_batches?.batches_complete).toBe(1);
+  expect(mockUpdateMany).not.toHaveBeenCalled(); // materially identical gallery
+  expect(r.run_status).toBe("ok");
+  expect(r.errors).toBe(0);
+});

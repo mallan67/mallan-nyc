@@ -167,11 +167,14 @@ describe("exclusive provenance buckets", () => {
     expect(isProvenanceOnlyChange(reasons)).toBe(true);
   });
 
-  it("PhotosChangeTimestamp-only raw_data delta is NOT provenance — raw_data_only, still invalidates (Maya review of #561)", () => {
-    // The batch-media reconcile loop only processes listings that RETURN
-    // media rows: a gallery emptied to zero upstream never enters
-    // mediaByListing, so PCT is the ONLY signal for that case and its
-    // invalidation must never be suppressed.
+  it("PhotosChangeTimestamp-only raw_data delta IS provenance — nothing to invalidate (Phase 1A)", () => {
+    // Superseded the #561 fail-closed carve-out. That carve-out existed because
+    // the batch-media reconcile loop only processed listings that RETURNED media
+    // rows, so a gallery emptied to zero upstream never entered mediaByListing
+    // and PCT was the only signal for it. All three legacy writers now use the
+    // complete-response contract: an authoritatively empty gallery reconciles to
+    // [] and an INCOMPLETE response preserves everything, so the media layer —
+    // not a Property clock — carries that signal.
     const reasons = classifyListingChangeReasons(
       updatePayload({
         raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-24T09:00:00Z" },
@@ -180,8 +183,12 @@ describe("exclusive provenance buckets", () => {
         raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-19T09:00:00Z" },
       }),
     );
-    expect(reasons).toEqual(["raw_data_only"]);
-    expect(isProvenanceOnlyChange(reasons)).toBe(false);
+    // EMPTY, not ["modification_timestamp_only"]: with PCT stripped from both
+    // sides nothing material differs at all, so the physical listing write is
+    // suppressed outright. That is strictly stronger than provenance-only —
+    // provenance-only still writes the row and merely skips invalidation.
+    expect(reasons).toEqual([]);
+    expect(isProvenanceOnlyChange(reasons)).toBe(false); // no change != provenance change
   });
 
   it("clock bump + real raw_data content change → raw_data_only (fail-closed: still invalidates)", () => {

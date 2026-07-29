@@ -193,7 +193,13 @@ export function listingUpdateMateriallyUnchanged(
         // Compare through the media-aware canonicalizer so rotation alone
         // never forces a Listing write; every other raw_data change stays
         // material.
-        if (!rawDataMateriallyEqual(next, existing[key])) return false;
+        //
+        // Phase 1A: the approved provenance clocks are stripped from BOTH sides
+        // first. Using plain rawDataMateriallyEqual here would classify a
+        // PCT-only delta as provenance while STILL performing the physical
+        // listing write — i.e. it would fix the label and leave the write
+        // amplification (and the shard warm it triggers) untouched.
+        if (!rawDataEqualIgnoringProvenanceClocks(next, existing[key])) return false;
         continue;
       }
       if (!materialValuesEqual(next, existing[key])) return false;
@@ -537,7 +543,9 @@ export function changedMaterialListingFields(
       continue;
     }
     if (key === "raw_data") {
-      if (!rawDataMateriallyEqual(next, existing[key])) changed.push(key);
+      // Same provenance-stripped comparison as the physical-write comparator,
+      // so classification and the write decision can never disagree.
+      if (!rawDataEqualIgnoringProvenanceClocks(next, existing[key])) changed.push(key);
       continue;
     }
     if (!materialValuesEqual(next, existing[key])) changed.push(key);
@@ -556,20 +564,28 @@ export function changedMaterialListingFields(
  *
  * Deliberately minimal: StatusChangeTimestamp / PriceChangeTimestamp are
  * NOT here — when those move, the corresponding typed field moved too and
- * classification proceeds through its real category. PhotosChangeTimestamp
- * is NOT here either (Maya review of #561): the batch-media reconcile loop
- * only processes listings that RETURN media rows — a listing whose gallery
- * the provider emptied to zero never enters mediaByListing, so its stored
- * media is not cleared by that path. Treating a PCT move as provenance
- * would also have suppressed cache invalidation for exactly that case.
- * A PCT-only delta therefore classifies raw_data_only → still invalidates
- * (fail-closed). Reclassifying PCT as provenance requires true negative
- * media reconciliation (explicit empty-set handling + stored-media clear)
- * first — tracked in the unified feed/media plan, NOT done here.
+ * classification proceeds through its real category.
+ *
+ * PhotosChangeTimestamp WAS excluded (Maya review of #561) because the
+ * batch-media reconcile loop only processed listings that RETURNED media rows:
+ * a listing whose gallery the provider emptied to zero never entered
+ * mediaByListing, so its stored media was never cleared, and treating a PCT
+ * move as provenance would have suppressed the invalidation that masked it.
+ * That precondition — "true negative media reconciliation (explicit empty-set
+ * handling + stored-media clear)" — is now met: all three legacy
+ * `listings.media` writers use the complete-response contract in
+ * lib/idx/legacy-media-batch.ts, where an authoritatively empty gallery
+ * reconciles to [] and an INCOMPLETE response preserves everything and caps the
+ * watermark. PCT is therefore admitted here (Phase 1A, 2026-07-29).
+ *
+ * NOTE: membership here only makes a clock non-material. It is the
+ * `rawDataEqualIgnoringProvenanceClocks` comparison at BOTH the physical-write
+ * and classification call sites that actually stops the Neon write.
  */
 export const RAW_DATA_PROVENANCE_CLOCK_KEYS: ReadonlySet<string> = new Set([
   "ModificationTimestamp",
   "OriginalEntryTimestamp",
+  "PhotosChangeTimestamp",
 ]);
 
 /** raw_data equality with the top-level provenance clocks removed from both
