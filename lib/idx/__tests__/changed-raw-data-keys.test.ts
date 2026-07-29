@@ -115,9 +115,18 @@ describe("changedRawDataMaterialKeys — production material semantics, not stri
     expect(changedRawDataMaterialKeys(base, next)).toEqual([]);
   });
 
-  it("PhotosChangeTimestamp (NOT a provenance clock) change ⇒ reported", () => {
+  it("PhotosChangeTimestamp (now an approved provenance clock) ⇒ NOT reported", () => {
+    // Phase 1A (2026-07-29): PCT joined RAW_DATA_PROVENANCE_CLOCK_KEYS once the
+    // legacy writers gained complete-response reconciliation. This forensic
+    // helper answers "which raw_data keys caused a raw_data_only write?" — a
+    // clock that always moves is never the cause, so it is excluded.
     const next = { ...base, PhotosChangeTimestamp: "2026-07-26T00:00:00Z" };
-    expect(changedRawDataMaterialKeys(base, next)).toEqual(["PhotosChangeTimestamp"]);
+    expect(changedRawDataMaterialKeys(base, next)).toEqual([]);
+  });
+
+  it("a genuine content key alongside a PCT bump is still reported", () => {
+    const next = { ...base, PhotosChangeTimestamp: "2026-07-26T00:00:00Z", ListPrice: 749000 };
+    expect(changedRawDataMaterialKeys(base, next)).toEqual(["ListPrice"]);
   });
 
   it("non-object input ⇒ empty (fail-open, never throws)", () => {
