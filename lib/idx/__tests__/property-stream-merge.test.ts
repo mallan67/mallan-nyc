@@ -161,3 +161,139 @@ describe("empty streams", () => {
     expect(m.overlapCount).toBe(0);
   });
 });
+
+// ── §1 Each stream carries its OWN cursor position ────────────────────────
+
+describe("per-stream cursor positions are independent of the processed record", () => {
+  it("records each stream's own clock, even when the two rows disagree", () => {
+    // Crossed-ish but dominating: the PCT row is newer on both clocks.
+    const mtRow = rec("K1", "2026-07-09T00:00:00Z", "2026-07-05T00:00:00Z");
+    const pctRow = rec("K1", "2026-07-10T00:00:00Z", "2026-07-11T00:00:00Z");
+    const m = merge([mtRow], [pctRow]);
+
+    expect(m.entries.filter((e) => e.kind === "processable")).toHaveLength(1);
+    // MT stream advances on the MT response's MT value...
+    expect(m.order.mt[0].cursorTimestamp).toBe("2026-07-09T00:00:00.000Z");
+    // ...and PCT on the PCT response's PCT value.
+    expect(m.order.pct[0].cursorTimestamp).toBe("2026-07-11T00:00:00.000Z");
+  });
+
+  it("cursor timestamps do not change when the selected representation changes", () => {
+    const mtRow = rec("K1", "2026-07-09T00:00:00Z", "2026-07-05T00:00:00Z");
+    const dominating = rec("K1", "2026-07-10T00:00:00Z", "2026-07-11T00:00:00Z");
+    const a = merge([mtRow], [dominating]);
+    const b = merge([dominating], [mtRow]);
+    // Whichever representation wins, each stream's own position is unchanged.
+    expect(a.order.mt[0].cursorTimestamp).toBe("2026-07-09T00:00:00.000Z");
+    expect(a.order.pct[0].cursorTimestamp).toBe("2026-07-11T00:00:00.000Z");
+    expect(b.order.mt[0].cursorTimestamp).toBe("2026-07-10T00:00:00.000Z");
+    expect(b.order.pct[0].cursorTimestamp).toBe("2026-07-05T00:00:00.000Z");
+  });
+
+  it("normalises stream cursor timestamps to canonical UTC", () => {
+    const m = merge([rec("K1", "2026-05-15T11:12:44.223-00:00", "2026-01-01T00:00:00Z")], []);
+    expect(m.order.mt[0].cursorTimestamp).toBe("2026-05-15T11:12:44.223Z");
+  });
+});
+
+// ── §3 Dominance, not max() ───────────────────────────────────────────────
+
+describe("duplicate clock resolution uses DOMINANCE on both clocks", () => {
+  const A_DOM = () => rec("K1", "2026-07-10T00:00:00Z", "2026-07-10T00:00:00Z");
+  const B_LOW = () => rec("K1", "2026-07-09T00:00:00Z", "2026-07-09T00:00:00Z");
+
+  it("A dominates B on both clocks -> A is chosen", () => {
+    const m = merge([A_DOM()], [B_LOW()]);
+    const e = m.entries[0];
+    if (e.kind !== "processable") throw new Error("expected processable");
+    expect(e.record[MT]).toBe("2026-07-10T00:00:00Z");
+  });
+
+  it("B dominates A on both clocks -> B is chosen", () => {
+    const m = merge([B_LOW()], [A_DOM()]);
+    const e = m.entries[0];
+    if (e.kind !== "processable") throw new Error("expected processable");
+    expect(e.record[MT]).toBe("2026-07-10T00:00:00Z");
+  });
+
+  it("exactly equal clocks resolve deterministically to one processable entry", () => {
+    const m1 = merge([A_DOM()], [A_DOM()]);
+    const m2 = merge([A_DOM()], [A_DOM()]);
+    expect(m1.entries[0].kind).toBe("processable");
+    expect(JSON.stringify(m1.entries[0])).toBe(JSON.stringify(m2.entries[0]));
+  });
+
+  it("CROSSED clocks are a bounded conflict — neither snapshot dominates", () => {
+    // Each is newer on one clock; combining them would invent a snapshot the
+    // API never returned.
+    const m = merge(
+      [rec("K1", "2026-07-10T00:00:00Z", "2026-07-05T00:00:00Z")],
+      [rec("K1", "2026-07-09T00:00:00Z", "2026-07-11T00:00:00Z")],
+    );
+    const e = m.entries[0];
+    expect(e.kind).toBe("blocked");
+    if (e.kind !== "blocked") throw new Error("x");
+    expect(e.reason).toBe("cross_stream_clock_conflict");
+  });
+
+  it("swapping which row came from which stream yields the SAME crossed outcome", () => {
+    const x = rec("K1", "2026-07-10T00:00:00Z", "2026-07-05T00:00:00Z");
+    const y = rec("K1", "2026-07-09T00:00:00Z", "2026-07-11T00:00:00Z");
+    for (const m of [merge([x], [y]), merge([y], [x])]) {
+      const e = m.entries[0];
+      expect(e.kind).toBe("blocked");
+      if (e.kind !== "blocked") throw new Error("x");
+      expect(e.reason).toBe("cross_stream_clock_conflict");
+    }
+  });
+});
+
+// ── §4 Same-stream duplicates are NOT overlap ─────────────────────────────
+
+describe("same-stream duplicate keys block that stream", () => {
+  it("a repeated key inside the MT page blocks MT and is not overlap", () => {
+    const m = merge(
+      [rec("K1", "2026-07-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+       rec("K1", "2026-07-02T00:00:00Z", "2026-01-01T00:00:00Z")],
+      [],
+    );
+    expect(m.frozen.mt).toBe("duplicate_listing_key_in_stream");
+    expect(m.overlapCount).toBe(0);
+    const blocked = m.entries.find((e) => e.kind === "blocked");
+    expect(blocked).toBeDefined();
+    if (blocked!.kind !== "blocked") throw new Error("x");
+    expect(blocked!.reason).toBe("duplicate_listing_key_in_stream");
+    expect(blocked!.streams).toEqual(["mt"]); // never ["mt","mt"]
+  });
+
+  it("a repeated key inside the PCT page blocks PCT only", () => {
+    const m = merge(
+      [],
+      [rec("K1", "2026-01-01T00:00:00Z", "2026-07-01T00:00:00Z"),
+       rec("K1", "2026-01-01T00:00:00Z", "2026-07-02T00:00:00Z")],
+    );
+    expect(m.frozen.pct).toBe("duplicate_listing_key_in_stream");
+    expect(m.frozen.mt).toBeNull();
+    expect(m.overlapCount).toBe(0);
+  });
+
+  it("a genuine cross-stream duplicate still counts as overlap exactly once", () => {
+    const r = rec("K1", "2026-07-01T00:00:00Z", "2026-07-01T00:00:00Z");
+    const m = merge([r], [{ ...r }]);
+    expect(m.overlapCount).toBe(1);
+    const e = m.entries[0];
+    if (e.kind !== "processable") throw new Error("x");
+    expect(e.streams.sort()).toEqual(["mt", "pct"]);
+  });
+
+  it("emits no raw record data for a same-stream duplicate", () => {
+    const m = merge(
+      [rec("K1", "2026-07-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+       rec("K1", "2026-07-02T00:00:00Z", "2026-01-01T00:00:00Z")],
+      [],
+    );
+    const blocked = m.entries.filter((e) => e.kind === "blocked");
+    expect(JSON.stringify(blocked)).not.toContain("PublicRemarks");
+    expect(JSON.stringify(blocked)).not.toContain("750000");
+  });
+});

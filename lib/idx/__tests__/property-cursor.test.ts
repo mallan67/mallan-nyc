@@ -193,3 +193,119 @@ describe("notes merge preserves unrelated recognised fields", () => {
     expect(existing).toEqual({ manifest_warmed_shards: ["1"] });
   });
 });
+
+// ── §5 Bootstrap epoch is the ONLY legal keyless timestamp ────────────────
+
+describe("a keyless bootstrap cursor must sit exactly on the pinned epoch", () => {
+  it("rejects an arbitrary keyless timestamp (a moving bootstrap bound)", () => {
+    const s = parsePropertyCursorNotes({
+      property_cursor_basis: CURSOR_BASIS_BOOTSTRAP,
+      property_cursors: {
+        mt: { timestamp: "2026-07-15T00:00:00.000Z" }, // not the pinned epoch
+        pct: { timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH },
+      },
+    });
+    expect(s).toBeNull();
+  });
+
+  it("accepts the pinned epoch written in a non-canonical offset form", () => {
+    const s = parsePropertyCursorNotes({
+      property_cursor_basis: CURSOR_BASIS_BOOTSTRAP,
+      property_cursors: {
+        mt: { timestamp: "2026-06-28T23:59:59.999-00:00" },
+        pct: { timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH },
+      },
+    });
+    expect(s).not.toBeNull();
+    expect(s!.mt).toEqual({ mode: "bootstrap", timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH });
+  });
+});
+
+describe("timestamp normalisation and whitespace keys", () => {
+  it("normalises a persisted keyset timestamp to canonical UTC", () => {
+    const s = parsePropertyCursorNotes({
+      property_cursor_basis: CURSOR_BASIS_LIVE,
+      property_cursors: {
+        mt: { timestamp: "2026-05-15T11:12:44.223-00:00", listingKey: "K1" },
+        pct: { timestamp: "2026-07-02T00:00:00.000Z", listingKey: "K2" },
+      },
+    });
+    expect(s!.mt).toEqual({ mode: "keyset", timestamp: "2026-05-15T11:12:44.223Z", listingKey: "K1" });
+  });
+
+  it("emits a canonical UTC timestamp in the filter", () => {
+    const f = buildStreamFilter("ModificationTimestamp", {
+      mode: "keyset", timestamp: "2026-05-15T11:12:44.223-00:00", listingKey: "K1",
+    });
+    expect(f).toContain("2026-05-15T11:12:44.223Z");
+    expect(f).not.toContain("-00:00");
+  });
+
+  it("treats a whitespace-only ListingKey as missing", () => {
+    expect(parsePropertyCursorNotes({
+      property_cursor_basis: CURSOR_BASIS_LIVE,
+      property_cursors: {
+        mt: { timestamp: "2026-07-01T00:00:00.000Z", listingKey: "   " },
+        pct: { timestamp: "2026-07-02T00:00:00.000Z", listingKey: "K2" },
+      },
+    })).toBeNull();
+    expect(() => buildStreamFilter("ModificationTimestamp", {
+      mode: "keyset", timestamp: "2026-07-01T00:00:00.000Z", listingKey: "   ",
+    })).toThrow();
+  });
+});
+
+// ── §6 The REAL serialized notes seam ─────────────────────────────────────
+
+describe("round trip through a SERIALIZED notes string (the production seam)", () => {
+  /** SyncState.notes is stored as JSON text, so the seam is string -> object -> string. */
+  function updateSerializedNotes(notesJson: string, state: PropertyCursorState): string {
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(notesJson); } catch { parsed = null; }
+    // NB: merge the PARSED OBJECT, never the raw string — passing the string
+    // would drop every existing field on the floor.
+    return JSON.stringify(mergePropertyCursorIntoNotes(parsed, state));
+  }
+
+  it("preserves manifest_warmed_shards and unrelated fields across a string round trip", () => {
+    const before = JSON.stringify({
+      manifest_warmed_shards: ["1", "4"],
+      some_other_recognised_field: { keep: true },
+    });
+    const state: PropertyCursorState = {
+      basis: CURSOR_BASIS_BOOTSTRAP,
+      mt: { mode: "keyset", timestamp: "2026-07-01T00:00:00.000Z", listingKey: "K1" },
+      pct: { mode: "bootstrap", timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH },
+    };
+    const after = updateSerializedNotes(before, state);
+    const obj = JSON.parse(after) as Record<string, unknown>;
+
+    expect(obj.manifest_warmed_shards).toEqual(["1", "4"]);
+    expect(obj.some_other_recognised_field).toEqual({ keep: true });
+    // One stream live, one still bootstrapping — survives exactly.
+    expect(parsePropertyCursorNotes(obj)).toEqual(state);
+  });
+
+  it("survives repeated cycles without drifting", () => {
+    let notes = JSON.stringify({ manifest_warmed_shards: ["7"] });
+    for (let i = 1; i <= 3; i++) {
+      notes = updateSerializedNotes(notes, {
+        basis: CURSOR_BASIS_BOOTSTRAP,
+        mt: { mode: "keyset", timestamp: `2026-07-0${i}T00:00:00.000Z`, listingKey: `K${i}` },
+        pct: { mode: "bootstrap", timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH },
+      });
+    }
+    const obj = JSON.parse(notes) as Record<string, unknown>;
+    expect(obj.manifest_warmed_shards).toEqual(["7"]);
+    const s = parsePropertyCursorNotes(obj);
+    expect(s!.mt).toEqual({ mode: "keyset", timestamp: "2026-07-03T00:00:00.000Z", listingKey: "K3" });
+    expect(s!.pct.mode).toBe("bootstrap");
+  });
+
+  it("malformed notes JSON bootstraps rather than inventing a cursor", () => {
+    const after = updateSerializedNotes("{not json", bootstrapCursorState());
+    const obj = JSON.parse(after) as Record<string, unknown>;
+    const s = parsePropertyCursorNotes(obj);
+    expect(s!.mt).toEqual({ mode: "bootstrap", timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH });
+  });
+});

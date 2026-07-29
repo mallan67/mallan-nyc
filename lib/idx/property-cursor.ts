@@ -68,9 +68,23 @@ export function bootstrapCursorState(): PropertyCursorState {
 }
 
 function isValidTimestamp(v: unknown): v is string {
-  if (typeof v !== "string" || v.length === 0) return false;
+  if (typeof v !== "string" || v.trim().length === 0) return false;
   const t = new Date(v).getTime();
   return Number.isFinite(t) && !Number.isNaN(t);
+}
+
+/**
+ * Canonical UTC ISO form. Cotality returns mixed shapes (`...-00:00` as well as
+ * `...Z`); normalising before a filter or a notes write keeps persisted state and
+ * emitted predicates byte-stable across runs.
+ */
+export function normalizeCursorTimestamp(v: string): string {
+  return new Date(v).toISOString();
+}
+
+/** Whitespace-only keys are treated as missing, not as a usable tie value. */
+function isUsableListingKey(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length > 0;
 }
 
 /** OData string literals escape a single quote by doubling it. */
@@ -92,17 +106,18 @@ export function buildStreamFilter(field: PropertyStreamField, cursor: PropertyKe
     throw new Error(`[property-cursor] refusing to build a filter from a malformed ${field} cursor timestamp`);
   }
   if (cursor.mode === "bootstrap") {
-    return `${field} gt ${cursor.timestamp}`;
+    return `${field} gt ${normalizeCursorTimestamp(cursor.timestamp)}`;
   }
-  if (typeof cursor.listingKey !== "string" || cursor.listingKey.length === 0) {
+  if (!isUsableListingKey(cursor.listingKey)) {
     throw new Error(
       `[property-cursor] refusing to emit an empty-key tie clause for ${field}: ` +
         "Cotality does not evaluate empty-string comparison as a predicate",
     );
   }
+  const ts = normalizeCursorTimestamp(cursor.timestamp);
   return (
-    `(${field} gt ${cursor.timestamp} or ` +
-    `(${field} eq ${cursor.timestamp} and ListingKey gt ${odataStringLiteral(cursor.listingKey)}))`
+    `(${field} gt ${ts} or ` +
+    `(${field} eq ${ts} and ListingKey gt ${odataStringLiteral(cursor.listingKey)}))`
   );
 }
 
@@ -122,12 +137,17 @@ function parseOneCursor(raw: unknown, basis: string): PropertyKeysetCursor | nul
     // record, so an absent key is partially-missing state and must fail closed
     // rather than silently rescanning the whole bootstrap window.
     if (basis !== CURSOR_BASIS_BOOTSTRAP) return null;
-    return { mode: "bootstrap", timestamp: o.timestamp };
+    // ...and only at the PINNED epoch. An arbitrary keyless timestamp would be a
+    // moving bootstrap lower bound, which is exactly the defect being repaired.
+    if (normalizeCursorTimestamp(o.timestamp) !== normalizeCursorTimestamp(PROPERTY_CURSOR_BOOTSTRAP_EPOCH)) {
+      return null;
+    }
+    return { mode: "bootstrap", timestamp: PROPERTY_CURSOR_BOOTSTRAP_EPOCH };
   }
-  // An EMPTY key is not a usable tie value — reject rather than silently
-  // degrading to a bootstrap scan that would re-read the whole window.
-  if (typeof key !== "string" || key.length === 0) return null;
-  return { mode: "keyset", timestamp: o.timestamp, listingKey: key };
+  // An empty/whitespace key is not a usable tie value — reject rather than
+  // silently degrading to a bootstrap scan that would re-read the whole window.
+  if (!isUsableListingKey(key)) return null;
+  return { mode: "keyset", timestamp: normalizeCursorTimestamp(o.timestamp), listingKey: key };
 }
 
 /**
@@ -164,8 +184,8 @@ export function mergePropertyCursorIntoNotes(
       : {};
   const serialise = (c: PropertyKeysetCursor) =>
     c.mode === "bootstrap"
-      ? { timestamp: c.timestamp }
-      : { timestamp: c.timestamp, listingKey: c.listingKey };
+      ? { timestamp: normalizeCursorTimestamp(c.timestamp) }
+      : { timestamp: normalizeCursorTimestamp(c.timestamp), listingKey: c.listingKey };
   base.property_cursor_basis = state.basis;
   base.property_cursors = { mt: serialise(state.mt), pct: serialise(state.pct) };
   return base;
