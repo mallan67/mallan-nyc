@@ -1925,136 +1925,361 @@ Every selected comparable is re-verified against its authority before a seller-f
 # 17. NYC brokerage engagements and compensation
 
 > **Depends on:** BUS, REB · **Feeds:** TXN, FIN, MKT, SEA, CRM · **Status:** `DECIDED`
-> **Verified against REBNY rules and New York law, 2026-07-28.**
-> **Rules source:** `data/UCBA-2026-Requirements.md` is the normative rule text. This section explains the business model those rules govern and states the system consequences. It does not restate the rule text.
+> **Rules source:** `data/UCBA-2026-Requirements.md` holds the normative rule text. This section explains the business model those rules govern, labels each obligation by authority, and states system consequences. It does not restate rule text.
 
-No agent working in this repository can be assumed to know how the New York City brokerage business operates. It differs materially from most United States markets, and several of the differences are recent. This section exists so that no agent has to infer the business model from code.
+No agent working in this repository can be assumed to know how the New York City brokerage business operates. It differs materially from most United States markets, several differences are recent, and the obligations come from **different authorities that must not be conflated**.
 
-## BIZ-1 — How a brokerage engagement begins
+## BIZ-0 — Every obligation carries its authority
+
+**Status:** `DECIDED` · **Authority:** `BROKERAGE_POLICY`
+
+Every compliance requirement in this system records its authority explicitly:
+
+```text
+authority_type:
+  NY_STATUTE
+  NY_REGULATION
+  NYC_LAW
+  REBNY_UCBA
+  REBNY_RLS
+  NAR_MLS_POLICY
+  BROKERAGE_POLICY
+```
+
+**No generated text, marketing copy, disclosure, interface label, report, or agent response may describe an obligation as "required by New York law" when its actual source is REBNY, the UCBA, or MLS participation policy.** Misattributing authority produces incorrect legal statements, which is a compliance failure in itself.
+
+Where an obligation's authority has not been established, it is recorded as unverified rather than assigned a plausible one (`AGT-6`).
+
+## BIZ-1 — Compensation timeline: three separate changes
+
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`, `REBNY_RLS`
+
+These are distinct rule changes with distinct effective dates. They must never be merged into a single event, and a rule that began in 2024 must not be attributed to a 2026 revision.
+
+### BIZ-1.1 — 1 January 2024: compensation decoupling
+
+**Authority:** `REBNY_UCBA`
+
+- Any seller-side offer to the buyer's broker **originates from the seller or owner**.
+- The listing broker **may not make that offer**, even on the seller's behalf.
+- The listing broker **does not pay** the buyer's broker.
+- The seller **may compensate the buyer's broker directly**, customarily at closing.
+- Where the seller does not provide compensation, the buyer's broker **may negotiate payment from the buyer**.
+
+### BIZ-1.2 — 1 August 2025: RLS compensation field removal
+
+**Authority:** `REBNY_RLS`
+
+- REBNY removed all compensation fields from the RLS.
+- Compensation may not be represented as an RLS listing attribute or as a provider fact.
+
+This is the **later** removal of the fields. It is not the origin of the decoupling rules in `BIZ-1.1`.
+
+### BIZ-1.3 — 20 January 2026: 2026 UCBA revisions
+
+**Authority:** `REBNY_UCBA`
+
+- The 2026 UCBA revisions took effect on this date.
+- This date is recorded separately. **Rules that began in 2024 or 2025 are not attributed to the 2026 revisions.**
+
+## BIZ-2 — Written representation agreements and showing eligibility
+
+**Status:** `DECIDED` · **Authority:** `REBNY_RLS`, `NAR_MLS_POLICY`, `NYC_LAW` (rentals)
+
+The pre-tour written agreement requirement is an **RLS and MLS participation rule**, not a general New York statute. New York's Department of State requires brokers to publish standardized operating procedures; it does not independently impose a universal exclusive buyer-agreement requirement before all services.
+
+### BIZ-2.1 — Not a universal boolean
 
 **Status:** `DECIDED`
 
-A brokerage engagement is a written agreement. There are distinct kinds, and they determine entitlement to compensation:
+`representation_agreement_signed = false → block every showing` is **wrong and must not be implemented.**
+
+Showing eligibility is a **policy decision with a recorded reason**, evaluated from:
+
+```text
+transaction_type        sale | rental
+client_role             buyer | tenant | seller | landlord
+mallan_role             buyer/tenant representative | listing representative
+tour_type               agent_led_in_person | agent_led_live_virtual
+                        | open_house_attendance | unaccompanied
+governing_program       RLS participant | NAR MLS participant | non-participant
+representation_state    written agreement present | absent | expired | pending
+```
+
+The decision returns `permitted`, `blocked`, or `permitted_with_risk`, each with a reason code and its `authority_type`. A blocked decision names the rule that blocked it.
+
+### BIZ-2.2 — Required behaviors
+
+**Status:** `DECIDED`
+
+| # | Rule | Authority |
+|---|---|---|
+| 1 | A buyer working with an RLS or MLS participant must have the applicable written agreement **before an agent-led in-person or live virtual tour**. | `REBNY_RLS`, `NAR_MLS_POLICY` |
+| 2 | A consumer attending an **open house independently** does **not** require a buyer agreement merely to attend. | `REBNY_RLS`, `NAR_MLS_POLICY` |
+| 3 | For rentals, a listing broker **may not refuse to arrange a showing solely because the tenant's broker does not have or produce a tenant representation agreement**. | `NYC_LAW` (FARE Act guidance) |
+| 4 | A tenant broker without a representation or compensation agreement creates a **compensation risk**, which is not authority for the listing side to block the showing. | `NYC_LAW`, `REBNY_UCBA` |
+
+Rule 4 is recorded as a risk condition on the appointment, visible to the listing side, with no blocking effect.
+
+### BIZ-2.3 — Agreement contents
+
+**Status:** `DECIDED` · **Authority:** `NAR_MLS_POLICY`, `REBNY_UCBA`
+
+A buyer representation agreement records the parties, the term, the agency relationship type, and compensation terms including how much the buyer pays, when compensation is earned and due, the buyer's consent to any sharing with another broker or receipt from another party, and a **maximum** the broker may receive from all sources.
+
+Compensation must be **objectively ascertainable**. The broker may not receive more than the agreed amount or rate (`BIZ-4.3`).
+
+Signed agreements are retained for the period required by the governing rule in force. The system does not choose a shorter period.
+
+## BIZ-3 — Who pays
+
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`
+
+In a New York City sale the seller customarily pays. Decoupling changed the **mechanism**, not usually the payer.
+
+```text
+Before 2024-01-01
+  seller → listing broker → shares with buyer's broker
+                            via an offer of compensation carried in the RLS
+
+From 2024-01-01
+  seller → listing broker              separately negotiated
+  seller → buyer's broker              separately negotiated, directly, customarily at closing
+  or
+  buyer  → buyer's broker              per the buyer representation agreement
+  and
+  buyer  → buyer's broker              any permitted shortfall where seller compensation
+                                       is less than the agreed maximum
+```
+
+**Compensation is a property of an executed agreement between named parties. It is never a property of a listing record and never a value carried in provider data.**
+
+## BIZ-4 — Compensation arrangement model
+
+**Status:** `DECIDED` · **Authority:** `BROKERAGE_POLICY`, `REBNY_UCBA`, `NAR_MLS_POLICY`
+
+### BIZ-4.1 — Transaction-level, not listing-level
+
+**Status:** `DECIDED`
+
+Compensation is modelled as a transaction-level `compensation_arrangement` carrying at minimum:
+
+```text
+transaction_id
+property_id
+agreement_id
+authority_source_document
+payer_party_id
+recipient_brokerage_id
+represented_party_id
+arrangement_type
+amount
+rate
+objective_formula
+maximum_compensation
+payment_timing
+payment_status
+effective_at
+terminated_at
+provenance
+```
+
+### BIZ-4.2 — Multiple arrangements per transaction
+
+**Status:** `DECIDED`
+
+One transaction may carry several related arrangements, and all must be representable simultaneously:
+
+```text
+buyer obligation to buyer brokerage
+seller direct compensation to buyer brokerage
+buyer responsibility for any permitted shortfall
+listing-side compensation
+dual-agency or designated-agency arrangements
+rental arrangements subject to the FARE Act
+```
+
+### BIZ-4.3 — Enforced cap
+
+**Status:** `DECIDED` · **Authority:** `NAR_MLS_POLICY`
+
+```text
+total buyer-broker compensation from all sources
+  <= maximum compensation stated in the buyer representation agreement
+```
+
+This is an enforced invariant, not a report. An arrangement set that would breach it is rejected.
+
+### BIZ-4.4 — No assumed defaults
+
+**Status:** `DECIDED`
+
+The system assumes **no** universal split, **no** fixed percentage, and **no** default payer. A 50/50 split is not a default. Every arrangement is explicit and traceable to its source document.
+
+### BIZ-4.5 — One receivable per agreement
+
+**Status:** `DECIDED`
+
+Mallan may act as listing broker, as buyer's or tenant's broker, or as both where dual agency is properly disclosed and consented. Compensation is modelled as **one receivable per executed agreement to which Mallan is a party**, never as a single deal-level commission.
+
+## BIZ-5 — Engagement types
+
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`, `NY_STATUTE`
 
 | Engagement | Meaning |
 |---|---|
-| Exclusive Right to Sell | The exclusive broker is entitled to compensation on a sale during the term regardless of who procures the buyer, including the owner. |
-| Exclusive Agency | The exclusive broker is entitled to compensation unless the owner procures the buyer directly without any broker. |
+| Exclusive Right to Sell | Exclusive broker entitled to compensation on a sale during the term regardless of who procures the buyer, including the owner. |
+| Exclusive Agency | Exclusive broker entitled to compensation unless the owner procures the buyer directly without any broker. |
 | Open listing | No exclusivity. Compensation follows procurement. |
 | Co-exclusive | Two brokers share the exclusive. |
 | Buyer Broker Representation Agreement | The buyer's written engagement of a broker to represent the buyer. |
+| Tenant Representation Agreement | The tenant's written engagement of a broker. |
 | Rental exclusive | The landlord's written engagement for a rental listing. |
 
-The system records which engagement type governs each listing and each client relationship. Entitlement questions are answered from the executed agreement, never inferred from activity.
+Entitlement questions are answered from the executed agreement, never inferred from activity.
 
-## BIZ-2 — A written buyer agreement precedes showings
+## BIZ-6 — Commission is earned only at closing
 
-**Status:** `DECIDED`
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`
 
-A written buyer broker representation agreement must be executed **before any showing**. This is a required practice change, not a preference.
+Commission is earned upon closing as an absolute condition, and is customarily calculated on the net purchase price less credits and concessions.
 
-The system treats "buyer represented under a written agreement" as a **precondition** on scheduling or recording a showing for a buyer client. An unrepresented buyer at showing stage is a visible, blocking condition rather than a silent gap.
+The system never records commission as earned, receivable, or realized before closing. An accepted offer, a fully executed contract, and a board approval are milestones, not earnings events (`TXN-6`).
 
-The agreement records at minimum the parties, the term, the agency relationship type, and the compensation terms, including how much the buyer pays, when compensation is earned and due, and the buyer's consent to any sharing of compensation with another broker or receipt from another party.
+## BIZ-7 — Required negotiability disclosure
 
-Signed agreements are retained. The retention period follows the governing rule in force; the system does not choose a shorter one.
-
-## BIZ-3 — Compensation is decoupled
-
-**Status:** `DECIDED`
-
-This is the change most likely to be missed, and getting it wrong is a rules violation.
-
-- REBNY **removed all compensation fields from the RLS**, effective 1 August 2025.
-- A listing broker is **no longer permitted to make an offer of compensation to the buy-side broker**, including on the seller's or owner's behalf.
-- The RLS does **not** collect, display, set, recommend, or suggest compensation.
-
-## BIZ-4 — Who actually pays
-
-**Status:** `DECIDED`
-
-In a New York City sale, the seller customarily pays. What changed is the mechanism, not usually the payer.
-
-```text
-Before decoupling
-  seller → listing broker → shares with buyer's broker via an offer of compensation in the RLS
-
-After decoupling
-  seller → listing broker            separately negotiated
-  seller → buyer's broker            separately negotiated, directly, customarily at closing
-  or
-  buyer  → buyer's broker            per the buyer broker representation agreement
-```
-
-The listing broker no longer routes compensation to the buy side, and no offer of compensation may travel through the RLS. Each compensation arrangement is a separate negotiated agreement.
-
-**Consequence for the system:** compensation is a property of an **executed agreement between named parties**, never a property of a listing record and never a value carried in provider data.
-
-## BIZ-5 — Commission is earned only at closing
-
-**Status:** `DECIDED`
-
-Commission is earned upon closing as an absolute condition, and is customarily calculated on the net purchase price, less credits and concessions.
-
-The system never records commission as earned, receivable, or realized before closing. An accepted offer, a fully executed contract, and a board approval are all milestones, not earnings events (`TXN-6`).
-
-## BIZ-6 — Required disclosures
-
-**Status:** `DECIDED`
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`
 
 Commissions are **not set by law and are fully negotiable**. This disclosure is required in listing agreements, buyer agreements, and pre-closing documents. Where a government form is used, a separate conspicuous disclosure is required.
 
-The system carries this disclosure as required content on the surfaces that need it and does not treat it as optional boilerplate.
+The system carries this as required content, not optional boilerplate, and attributes it to `REBNY_UCBA` rather than to New York law.
 
-## BIZ-7 — Services may not be described as free
+## BIZ-8 — Services may not be described as free
 
-**Status:** `DECIDED`
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`
 
-Brokerage services may not be claimed to be free or at no cost unless **no compensation will be received from any source**.
+Brokerage services may not be claimed to be free or at no cost **when compensation will be received from any source**.
 
-This is a content rule binding on every marketing surface, listing description, campaign, template, landing page, and generated text. It is enforced with the other compliance-sensitive surface rules in `POL-5`.
+This binds every surface without exception:
 
-## BIZ-8 — Compensation must never appear in listing content
+```text
+website copy
+email templates
+text and SMS templates
+generated AI content
+listing descriptions and public remarks
+campaigns
+listing presentations
+buyer onboarding
+seller onboarding
+transaction documents
+```
 
-**Status:** `DECIDED`
+Enforced with the compliance-sensitive surfaces in `POL-5`.
+
+## BIZ-9 — Compensation must never appear in listing content
+
+**Status:** `DECIDED` · **Authority:** `REBNY_UCBA`, `REBNY_RLS`
 
 No broker fee, closing cost, or compensation information may appear in a property description, public remark, or listing comment.
 
-Combined with `BIZ-3`, the system consequence is absolute:
+**The system must not read, store, display, advertise, infer, reconstruct, or export any offer of compensation from provider data, and must not surface compensation in any listing, search result, portal, report, sitemap, feed, or campaign.**
 
-**The system must not read, store, display, advertise, infer, reconstruct, or export any offer of compensation from provider data, and must not surface compensation anywhere in a listing, search result, portal, report, sitemap, feed, or campaign.**
+This prohibition is **more important, not less, because compensation fields still exist in the provider metadata** — see `BIZ-10`.
 
-## BIZ-9 — Existing compensation references require inventory
+## BIZ-10 — Legacy compensation fields: live probe result
 
-**Status:** `OPEN` — tracked as `Q-11`
+**Status:** `DECIDED` for the finding · `OPEN` for classification, tracked as `Q-11`
 
-Compensation fields were removed from the RLS on 1 August 2025. A search of this repository found compensation-field references remaining in compliance DTOs, listing types, the field registry, and the generated provider vocabulary cache.
+REBNY removed compensation fields from the **RLS** on 1 August 2025. That is a REBNY policy action on the RLS. **It did not remove compensation fields from the Cotality/Trestle metadata**, which spans multiple listing organizations.
 
-Those references have **not** been individually examined. Some are expected to be suppression logic, which is correct and must be retained. Others may be reads of fields the provider no longer supplies, which under `COT-11` and `COT-12` are stale.
-
-PH-1 inventories every one and classifies it as suppression, stale read, or dead reference. **No such reference is removed before that classification exists** (`HYG-1`, `HYG-6`).
-
-## BIZ-10 — Agency relationship and disclosure
+### BIZ-10.1 — Live probe, 2026-07-29
 
 **Status:** `DECIDED`
+
+Read-only lookups against live Trestle `$metadata`:
+
+| Field | Live status | Type |
+|---|---|---|
+| `BuyerAgencyCompensation` | **ABSENT** | — |
+| `BuyerAgencyCompensationType` | **ABSENT** | — |
+| `BuyerBrokerageCompensation` | **PRESENT** | String(25), nullable |
+| `SubAgencyCompensation` | **PRESENT** | String(25), nullable |
+| `SubAgencyCompensationType` | **PRESENT** | Enum — Dollars, Mx, Other, Percent, SeeRemarks |
+| `TransactionBrokerCompensation` | **PRESENT** | String(25), nullable |
+
+**Consequence:** the fields are still reachable. `BIZ-9` is therefore an active guard, not a historical note. A future agent adding a field to a select list could reintroduce compensation into a public surface.
+
+**What this probe does not establish:** whether any present field is ever **populated** for Mallan's REBNY feed. Metadata presence is not population. Determining that requires a read-only data probe against Mallan's licensed account, which has not been run.
+
+### BIZ-10.2 — Classification is required before any removal
+
+**Status:** `OPEN` — `Q-11`
+
+Repository references, located by search and **not yet individually examined**:
+
+| File | Identifiers referenced |
+|---|---|
+| `lib/compliance/dto.ts` | `BuyerAgencyCompensation`, `BuyerAgencyCompensationType`, `SubAgencyCompensation`, `SubAgencyCompensationType`, `buyerAgentCompensation`, `buyerAgentCompensationType` |
+| `lib/types/listing.ts` | `buyerAgentCompensation`, `buyerAgentCompensationType` |
+| `lib/compliance/rebny-field-tables.ts` | `BuyerAgencyCompensation`, `BuyerAgencyCompensationType`, `SubAgencyCompensation`, `SubAgencyCompensationType` |
+| `data/FIELD_REGISTRY.json` | `BuyerBrokerageCompensation`, `BuyerBrokerageCompensationType` |
+| `data/cotality-enums.live.json` | `CompensationType`, `LeaseRenewalCompensation`, `WorkmansCompensation` |
+
+Note that `buyerAgentCompensation` and `buyerAgentCompensationType` are camelCase and are therefore **local DTO field names, not provider fields**. `LeaseRenewalCompensation` and `WorkmansCompensation` appear in an enum cache and are probably unrelated enum members rather than compensation fields.
+
+Every occurrence must be classified as exactly one of:
+
+```text
+ACTIVE_RUNTIME_READ
+ACTIVE_RUNTIME_WRITE
+PUBLIC_DTO
+INTERNAL_TYPE_ONLY
+HISTORICAL_PROVIDER_SCHEMA
+ENUM_SNAPSHOT
+TEST_FIXTURE
+DOCUMENTATION
+DEAD_OR_OBSOLETE
+UNKNOWN
+```
+
+And each present provider field must be resolved against live data as: absent from current metadata, present but never populated, a historical compatibility field, or still unexpectedly populated.
+
+**Nothing is removed, renamed, or repurposed on the strength of a search result** (`HYG-1`, `HYG-6`). Some of these references are expected to be suppression logic, which is correct and must be retained. PH-1 performs the classification.
+
+## BIZ-11 — Agency relationship and disclosure
+
+**Status:** `DECIDED` · **Authority:** `NY_STATUTE`, `NY_REGULATION`
 
 New York requires disclosure of the agency relationship. The system records, per client relationship, which agency capacity applies — seller's agent, buyer's agent, landlord's agent, tenant's agent, dual agent, or dual agent with designated sales agent — together with the disclosure event and its date.
 
-Dual agency requires informed written consent. The system never infers an agency relationship from activity, and never allows a relationship to change silently.
+Dual agency requires informed written consent. The system never infers an agency relationship from activity and never allows a relationship to change silently.
 
-## BIZ-11 — Rentals
+## BIZ-12 — Rentals
+
+**Status:** `DECIDED` · **Authority:** `NYC_LAW`, `REBNY_UCBA`
+
+Rental engagements follow the same written-agreement principle for the represented party, subject to the showing rules in `BIZ-2.2`.
+
+Fee responsibility follows the FARE Act rule in `TXN-10`: the party who hires the broker pays, tenant-payable fees are disclosed in the listing, and unresolved fee attribution fails closed.
+
+## BIZ-13 — Source register
 
 **Status:** `DECIDED`
 
-Rental engagements follow the same written-agreement principle, and fee responsibility follows the FARE Act rule in `TXN-10`: the party who hires the broker pays, tenant-payable fees are disclosed in the listing, and unresolved fee attribution fails closed.
+| Source | Governs | Effective |
+|---|---|---|
+| REBNY Decoupling Commissions FAQ | `BIZ-1.1` decoupling rules | 1 January 2024 |
+| REBNY RLS — Compensation Fields to Be Removed | `BIZ-1.2` field removal | 1 August 2025 |
+| REBNY 2026 UCBA Changes | `BIZ-1.3` revisions | 20 January 2026 |
+| REBNY FARE Act guidance | `BIZ-2.2` rule 3, `BIZ-12`, `TXN-10` | Local Law 119 of 2024 |
+| `data/UCBA-2026-Requirements.md` | Normative UCBA rule text | in repository |
+| NY DOS Legal Memorandum LI04 | `TXN-1` unauthorized practice of law | — |
+| NY Real Property Law §441-c, Judiciary Law §484 | `TXN-1` | — |
+| NYC Local Law 119 of 2024 (FARE Act) | `TXN-10`, `BIZ-12` | June 2025 |
+| Live Trestle `$metadata` | `COT-11`, `BIZ-10.1` | probed 2026-07-29 |
 
-## BIZ-12 — Both sides of a co-brokered deal
-
-**Status:** `DECIDED`
-
-Mallan may act as listing broker, as buyer's broker, or as both where dual agency is properly disclosed and consented.
-
-The system models compensation as **one receivable per executed agreement to which Mallan is a party**, not as a single deal-level commission. A co-brokered sale in which Mallan represents only the seller produces one Mallan receivable. A deal in which Mallan represents both sides under proper disclosure produces two, each traceable to its own agreement.
+**REBNY and RLS rules are recorded separately from New York statutes and NYC law.** A requirement's `authority_type` determines how it may be described in any generated text (`BIZ-0`).
 
 ---
 
@@ -2920,7 +3145,7 @@ Remaining active as operating contracts or registry items, not competing plans:
 | `INT` | INT-1 … INT-6 | 6 |
 | `OPS` | OPS-1 … OPS-8 | 8 |
 | `TXN` | TXN-1 … TXN-12 | 12 |
-| `BIZ` | BIZ-1 … BIZ-12 | 12 |
+| `BIZ` | BIZ-0 … BIZ-13 | 14 |
 | `PH` | PH-1 … PH-6 | 6 |
 | `Q` | Q-1 … Q-11 | 11 |
 
