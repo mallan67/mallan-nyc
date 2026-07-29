@@ -29,7 +29,39 @@
 import { Prisma } from "@prisma/client";
 import { SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS } from "./system-diagnostic-actions";
 
-/** Retention window. See the route's step 2b for why 30 and not 90. */
+/**
+ * FAIL-CLOSED COMPLIANCE GATE — default OFF. Read this before enabling.
+ *
+ * Audit retention is a §D compliance surface. `docs/compliance/
+ * COMPLIANCE-CANONICAL-INDEX.md` §15 states a BLANKET 2-year window for
+ * `AuditEvent` and draws NO distinction between operational diagnostics and
+ * consumer-facing compliance events.
+ *
+ * `docs/audits/neon-storage-cost-audit-2026-06-12.md` (R3) already identified
+ * this exact population — the ~46k `idx_sync_listing_upsert_failure` rows —
+ * and set the gate explicitly: "fail-closed if the canonical file doesn't
+ * distinguish operational vs compliance events."
+ *
+ * It does not distinguish them. So this purge stays INERT until the canonical
+ * retention policy is amended by Maya to carve out operational diagnostics.
+ * Deciding that carve-out here, in code, would be exactly the extrapolation
+ * CLAUDE.md §E forbids — and `docs/PLATFORM-ISSUE-REGISTRY.md` (OPS-010) still
+ * records this burst as purging under the 2-year rule around 2028-05.
+ *
+ * ENABLING THIS REQUIRES, IN ORDER:
+ *   1. Maya amends the canonical index to define an operational-diagnostic
+ *      retention window;
+ *   2. the OPS-010 registry row and derived status layers are updated;
+ *   3. `DIAGNOSTIC_RETENTION_ENABLED=true` is set.
+ *
+ * Absent/anything-but-"true" ⇒ OFF. The count/dry-run path stays available so
+ * the population can still be measured without deleting anything.
+ */
+export function diagnosticRetentionEnabled(): boolean {
+  return process.env.DIAGNOSTIC_RETENTION_ENABLED === "true";
+}
+
+/** Retention window, applied ONLY when the compliance gate above is open. */
 export const DIAGNOSTIC_RETENTION_DAYS = 30;
 /** Rows per independently-committed statement. */
 export const DIAGNOSTIC_BATCH_SIZE = 2000;
@@ -58,9 +90,11 @@ export interface DiagnosticPurgeResult {
    *   `drained`          — no eligible rows left
    *   `invocation_cap`   — hit DIAGNOSTIC_MAX_PER_INVOCATION; more remain
    *   `dry_run`          — counted only, nothing deleted
+   *   `compliance_gate_closed` — DIAGNOSTIC_RETENTION_ENABLED is not "true";
+   *                        counted only, nothing deleted (the default)
    *   `error`            — stopped on a database error; see `error`
    */
-  stopped: "drained" | "invocation_cap" | "dry_run" | "error";
+  stopped: "drained" | "invocation_cap" | "dry_run" | "compliance_gate_closed" | "error";
   /** Sanitized error label when `stopped === "error"`. Never a payload. */
   error?: string;
 }
@@ -106,9 +140,20 @@ export async function purgeExpiredDiagnostics(
   const batchSize = options.batchSize ?? DIAGNOSTIC_BATCH_SIZE;
   const maxRows = options.maxRows ?? DIAGNOSTIC_MAX_PER_INVOCATION;
 
+  // FAIL-CLOSED, and free: with the compliance gate shut this issues NO query
+  // at all. A feature that is off should not cost a database round-trip on
+  // every cron run, and the cron must not depend on a client surface it would
+  // never otherwise use.
+  //
+  // `dryRun` is the explicit opt-in to MEASURE the population without deleting
+  // — it is checked first, so the count remains available for the eventual
+  // production verification even while the gate is shut.
   if (options.dryRun) {
     const counted = await countExpiredDiagnostics(db, now);
     return { rows: counted.rows, bytes: counted.bytes, batches: 0, stopped: "dry_run" };
+  }
+  if (!diagnosticRetentionEnabled()) {
+    return { rows: 0, bytes: 0, batches: 0, stopped: "compliance_gate_closed" };
   }
 
   const cutoff = diagnosticCutoff(now);

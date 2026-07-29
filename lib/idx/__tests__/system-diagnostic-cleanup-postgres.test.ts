@@ -88,8 +88,15 @@ if (!EPHEMERAL_URL) {
 jest.setTimeout(180_000);
 
 runSuite("30-day system-diagnostic retention — real PostgreSQL", () => {
+  const GATE = "DIAGNOSTIC_RETENTION_ENABLED";
+  let previousGate: string | undefined;
+
   beforeAll(async () => {
     assertEphemeralTarget(EPHEMERAL_URL, EXPECTED_ENDPOINT);
+    // These cases exercise the DELETING path; the purge is fail-closed by
+    // default, so open the compliance gate for the suite and restore after.
+    previousGate = process.env[GATE];
+    process.env[GATE] = "true";
     db = new PrismaClient({ datasourceUrl: EPHEMERAL_URL });
     dbB = new PrismaClient({ datasourceUrl: EPHEMERAL_URL });
     await db.$connect();
@@ -97,6 +104,8 @@ runSuite("30-day system-diagnostic retention — real PostgreSQL", () => {
   });
 
   afterAll(async () => {
+    if (previousGate === undefined) delete process.env[GATE];
+    else process.env[GATE] = previousGate;
     if (db) {
       await db.auditEvent
         .deleteMany({ where: { entity_id: { startsWith: TEST_ENTITY_PREFIX } } })

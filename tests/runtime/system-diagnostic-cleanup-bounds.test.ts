@@ -27,6 +27,17 @@ import { SYNC_DIAGNOSTIC_DEDUPE_ACTIONS } from "@/lib/idx/diagnostic-recorder";
 
 const NOW = new Date("2026-07-29T00:00:00.000Z");
 
+// The purge is fail-closed by default (see the compliance gate in
+// system-diagnostic-cleanup.ts). These bounds tests exercise the DELETING
+// path, so they open the gate explicitly and restore it afterwards.
+const GATE = "DIAGNOSTIC_RETENTION_ENABLED";
+let previousGate: string | undefined;
+beforeEach(() => { previousGate = process.env[GATE]; process.env[GATE] = "true"; });
+afterEach(() => {
+  if (previousGate === undefined) delete process.env[GATE];
+  else process.env[GATE] = previousGate;
+});
+
 /** Captures every statement and replays a scripted per-batch row count. */
 function makeClient(batchCounts: number[]) {
   const captured: Prisma.Sql[] = [];
@@ -169,6 +180,28 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
     // Predicate parity: same bound allowlist and same bound cutoff on both paths.
     expect(boundActions(dry.captured[0])).toEqual(boundActions(live.captured[0]));
     expect(dry.captured[0].values[1]).toEqual(live.captured[0].values[1]);
+  });
+
+  it("is FAIL-CLOSED by default: without the compliance gate it counts and deletes nothing", async () => {
+    delete process.env[GATE];
+    const { client, captured } = makeClient([46103]);
+    const result = await purgeExpiredDiagnostics(client, NOW);
+    expect(result.stopped).toBe("compliance_gate_closed");
+    expect(result.batches).toBe(0);
+    expect(result.rows).toBe(0);
+    // ...and issues NO query at all: a disabled feature must not cost a
+    // database round-trip on every cron run.
+    expect(captured).toHaveLength(0);
+  });
+
+  it("dry run STILL measures while the gate is shut, without deleting", async () => {
+    delete process.env[GATE];
+    const { client, captured } = makeClient([46103]);
+    const result = await purgeExpiredDiagnostics(client, NOW, { dryRun: true });
+    expect(result.stopped).toBe("dry_run");
+    expect(result.rows).toBe(46103);
+    expect(captured).toHaveLength(1);
+    expect(captured[0].strings.join("")).not.toContain("DELETE");
   });
 
   it("countExpiredDiagnostics uses the same allowlist and cutoff as the delete", async () => {
