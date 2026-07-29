@@ -31,6 +31,7 @@ describe("accumulateMediaWriteCauses — nonzero multi-result accumulation", () 
     });
     expect(acc).toEqual({
       delivery_url_refreshed: 7,
+      suppressed_mirror_unreachable: 0,
       suppressed_url_signature_rotation: 10,
       suppressed_url_identity_changed: 17,
       write_failures: 3,
@@ -40,6 +41,7 @@ describe("accumulateMediaWriteCauses — nonzero multi-result accumulation", () 
   it("starts at zero and is order-independent", () => {
     expect(newMediaWriteCauseTotals()).toEqual({
       delivery_url_refreshed: 0,
+      suppressed_mirror_unreachable: 0,
       suppressed_url_signature_rotation: 0,
       suppressed_url_identity_changed: 0,
       write_failures: 0,
@@ -65,6 +67,7 @@ describe("accumulateMediaWriteCauses — nonzero multi-result accumulation", () 
     expect(a).toEqual(b);
     expect(a).toEqual({
       delivery_url_refreshed: 4,
+      suppressed_mirror_unreachable: 0,
       suppressed_url_signature_rotation: 9,
       suppressed_url_identity_changed: 2,
       write_failures: 6,

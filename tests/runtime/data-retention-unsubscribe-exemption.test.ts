@@ -101,14 +101,35 @@ describe("data-retention — email_unsubscribed suppression ledger is exempt fro
 
   it("regression guard: the durable suppression action is never deleted by ANY auditEvent.deleteMany", async () => {
     await runCron();
-    // No deleteMany may match email_unsubscribed rows: every capture either has no
-    // action filter AND no date purge, or explicitly excludes email_unsubscribed.
+    // No deleteMany may match email_unsubscribed rows. Any capture carrying a
+    // date cutoff must PROVABLY exclude the suppression action, in one of only
+    // two safe forms:
+    //
+    //   (a) explicit exclusion — `action: { not: "email_unsubscribed" }`
+    //       (the 2-year compliance purge), or
+    //   (b) explicit allowlist — `action: { in: [...] }` whose members are
+    //       enumerated and demonstrably do not include it (the 30-day
+    //       system-diagnostic purge).
+    //
+    // Anything else fails: no action filter, a pattern match, an empty
+    // allowlist, or an allowlist that contains the suppression action. Form (b)
+    // is checked by READING the list, so a careless edit that adds the action
+    // to an allowlist is caught here rather than silently making an opted-out
+    // recipient emailable again (CAN-SPAM).
     for (const where of auditDeleteWheres) {
-      const isTwoYearPurge =
+      const isDatedPurge =
         (where.created_at as Record<string, unknown> | undefined)?.lt instanceof Date;
-      if (isTwoYearPurge) {
-        expect(where.action).toEqual({ not: "email_unsubscribed" });
-      }
+      if (!isDatedPurge) continue;
+
+      const action = where.action as Record<string, unknown> | undefined;
+      const excludesExplicitly = action?.not === "email_unsubscribed";
+      const allowlist = action?.in;
+      const isSafeAllowlist =
+        Array.isArray(allowlist) &&
+        allowlist.length > 0 &&
+        !allowlist.includes("email_unsubscribed");
+
+      expect(excludesExplicitly || isSafeAllowlist).toBe(true);
     }
   });
 });

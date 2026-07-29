@@ -18,12 +18,25 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
+import { purgeExpiredDiagnostics, DIAGNOSTIC_MAX_PER_INVOCATION } from "@/lib/retention/system-diagnostic-cleanup";
 
 export const maxDuration = 60;
 
 // Batch caps to keep a single cron run under the 60s budget
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
+
+/**
+ * First-production-run canary control. `DIAGNOSTIC_MAX_ROWS` narrows a single
+ * invocation (e.g. 100) so the very first real deletion can be verified before
+ * the full bounded drain proceeds. Absent/invalid ⇒ the normal per-invocation
+ * ceiling. Never widens it beyond that ceiling.
+ */
+function diagnosticMaxRowsOverride(): number {
+  const raw = Number(process.env.DIAGNOSTIC_MAX_ROWS);
+  if (!Number.isInteger(raw) || raw <= 0) return DIAGNOSTIC_MAX_PER_INVOCATION;
+  return Math.min(raw, DIAGNOSTIC_MAX_PER_INVOCATION);
+}
 
 const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
 
@@ -82,6 +95,45 @@ export async function GET(req: NextRequest) {
     },
   });
   results.audit_events_purged_over_2yr = purgedAudit.count;
+
+  // 2b. Purge high-volume SYSTEM DIAGNOSTICS at 30 days.
+  //
+  // WHY THIS IS NOT A COMPLIANCE CHANGE. Step 2's 2-year cutoff is the REBNY
+  // RLS audit-evidence floor. The actions purged here are not audit evidence:
+  // they are opt-in high-volume operational diagnostics, already deduped and
+  // capped per run where they are produced. They are WRITE-ONLY — verified
+  // 2026-07-29, the only writer is lib/idx/sync.ts and no production code reads
+  // them back.
+  //
+  // Scope comes from `lib/retention/system-diagnostic-actions.ts`, which
+  // re-exports the producer's allowlist — see that file for why the indirection
+  // exists and for the parity test that stops the two drifting. Because it is
+  // an explicit allowlist and not a `LIKE 'idx_sync%'` pattern, per-run records
+  // (`idx_sync_cron`, `media_sync_cron`) and every business or compliance
+  // action keep the 2-year floor untouched.
+  //
+  // Measured 2026-07-29: 46,103 eligible rows / ~30 MB, all already >30 days.
+  //
+  // BOUNDED, NOT ONE BIG DELETE. That backlog is deleted in independently
+  // committed batches of at most DIAGNOSTIC_BATCH_SIZE, capped at
+  // DIAGNOSTIC_MAX_PER_INVOCATION per cron run, ordered by (created_at, id) and
+  // claimed with FOR UPDATE SKIP LOCKED so overlapping invocations take
+  // disjoint rows. An interrupted run resumes on the next invocation from the
+  // oldest remaining row. See lib/retention/system-diagnostic-cleanup.ts.
+  //
+  // DIAGNOSTIC_DRY_RUN=true counts without deleting, using the identical
+  // predicate — for the first production verification.
+  const diagnosticPurge = await purgeExpiredDiagnostics(prisma, now, {
+    dryRun: process.env.DIAGNOSTIC_DRY_RUN === "true",
+    maxRows: diagnosticMaxRowsOverride(),
+  });
+  results.audit_events_diagnostics_purged = diagnosticPurge.rows;
+  results.audit_events_diagnostics_bytes = diagnosticPurge.bytes;
+  results.audit_events_diagnostics_batches = diagnosticPurge.batches;
+  results.audit_events_diagnostics_stopped = diagnosticPurge.stopped;
+  if (diagnosticPurge.error) {
+    results.audit_events_diagnostics_error = diagnosticPurge.error;
+  }
 
   // 3. Flag closed/terminal listings not yet marked (REBNY RLS Sec. 2.05: remove within 24h)
   // Note: filterDisplayableDbListings() already excludes non-active statuses in real-time,
