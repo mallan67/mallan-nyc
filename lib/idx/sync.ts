@@ -47,7 +47,7 @@ import {
   type ManifestPersistenceProbe,
 } from "@/lib/buildings/public-building-data";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
-import { fetchLegacyMediaBatch } from "@/lib/idx/legacy-media-batch";
+import { fetchLegacyMediaBatch, type LegacyMediaRequestedListing } from "@/lib/idx/legacy-media-batch";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
   beginSyncDiagnosticRun,
@@ -1523,67 +1523,43 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     const batch = listings.slice(i, i + BATCH_SIZE);
     // Trestle guidance: use ResourceRecordKey (always unique), not ResourceRecordID (can duplicate across MLOs).
     // mls_id = ListingKey = Media.ResourceRecordKey. Fall back to listing_id → ResourceRecordID if mls_id is null.
-    const keyToId = new Map<string, string>();
-    const filterParts: string[] = [];
+    // Phase 1A: the RRK/RRID fallback is preserved verbatim — a listing with an
+    // mls_id (= ListingKey = Media.ResourceRecordKey) is matched on RRK; one
+    // without falls back to ResourceRecordID. The helper resolves response rows
+    // against BOTH identities and fails closed on ambiguity rather than guessing.
+    const requested: LegacyMediaRequestedListing[] = [];
     for (const l of batch) {
       if (l.mls_id) {
-        filterParts.push(`ResourceRecordKey eq '${l.mls_id.replace(/'/g, "''")}'`);
-        keyToId.set(l.mls_id, l.listing_id);
+        requested.push({ listingId: l.listing_id, filterKey: l.mls_id, filterField: "ResourceRecordKey" });
       } else if (l.listing_id) {
-        filterParts.push(`ResourceRecordID eq '${l.listing_id.replace(/'/g, "''")}'`);
-        keyToId.set(l.listing_id, l.listing_id);
+        requested.push({ listingId: l.listing_id, filterKey: l.listing_id, filterField: "ResourceRecordID" });
       }
     }
-    if (filterParts.length === 0) continue;
-
-    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-    const mediaFilter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
-    const mediaParams = new URLSearchParams();
-    mediaParams.set("$filter", mediaFilter);
-    mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-    mediaParams.set("$orderby", "Order asc");
-    mediaParams.set("$top", String(filterParts.length * 30));
+    if (requested.length === 0) continue;
 
     try {
-      const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      const batchResult = await fetchLegacyMediaBatch({
+        baseUrl: TRESTLE_API,
+        token,
+        requested,
+        pageSize: requested.length * 30, // page size, not a ceiling (probe 2026-07-29)
+        classifyMediaType: classifyTrestleMediaCategory,
       });
-      if (!res.ok) {
-        console.warn(`[Media Backfill] Batch ${i / BATCH_SIZE + 1} failed: ${res.status} ${res.statusText}`);
+      if (batchResult.outcome === "incomplete") {
+        // Preserve every stored value for the WHOLE batch — a later-page failure
+        // must never write the partial first page.
+        console.warn(
+          `[Media Backfill] Batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
+            `preserving stored media for ${requested.length} listings, zero writes`,
+        );
         errors++;
         continue;
       }
-      const data = await res.json();
 
-      // Group by listing_id directly by trying BOTH ResourceRecordKey and
-      // ResourceRecordID on every response row. Previously this code preferred
-      // ResourceRecordKey and then ran `keyToId.get(key) || key` — which
-      // silently failed when mls_id was null (we'd query by ResourceRecordID
-      // but Trestle's response had ResourceRecordKey as the preferred first
-      // key, so lookup returned undefined and we'd default to the numeric
-      // ResourceRecordKey as listing_id — never matching any DB row).
-      // Confirmed 2026-04-24: thousands of listings with mls_id=null were
-      // being re-written with `[]` on every cron pass.
-      const mediaByListingId = new Map<string, { url: string; mediaType: string; order: number }[]>();
-      for (const m of data.value || []) {
-        const byRRK = String(m.ResourceRecordKey || "");
-        const byRRID = String(m.ResourceRecordID || "");
-        const listingId = keyToId.get(byRRK) || keyToId.get(byRRID);
-        if (!listingId || !m.MediaURL) continue;
-        if (!mediaByListingId.has(listingId)) mediaByListingId.set(listingId, []);
-        // Use shared classifier — see classifyTrestleMediaCategory in
-        // lib/media/media-sync-service.ts for the floor-plan-as-photo bug
-        // this replaces.
-        const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-        const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-        mediaByListingId.get(listingId)!.push({
-          url: String(m.MediaURL),
-          mediaType,
-          order: isPreferred ? -1 : Number(m.Order ?? 0),
-        });
-      }
-
-      for (const [listingId, media] of mediaByListingId) {
+      // Every requested listing is present (empty ones as []), and each is
+      // compared against its stored value BEFORE any write, so a complete-empty
+      // result on an already-empty row stays suppressed rather than rewriting [].
+      for (const [listingId, media] of batchResult.mediaByListingId) {
         try {
           // Phase 3 (surface D): suppress the rewrite when the stored media is
           // materially identical (rotating signed URLs are not identity).
@@ -2225,50 +2201,34 @@ export async function syncAgentHistory(
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
 
-          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
-          const mediaParams = new URLSearchParams();
-          mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 30));
-
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
-
-            const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordKey || "");
-              if (!lid || !m.MediaURL) continue;
-              if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
-              // Use shared classifier — see classifyTrestleMediaCategory in
-              // lib/media/media-sync-service.ts for the floor-plan-as-photo
-              // bug this replaces.
-              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByKey.get(lid)!.push({
-                url: String(m.MediaURL),
-                mediaType,
-                order: isPreferred ? -1 : Number(m.Order ?? 0),
-              });
+            // Phase 1A: same complete-response contract as the other two legacy
+            // writers. Requested keys are initialized independently, so an
+            // agent-history listing whose gallery is authoritatively empty
+            // clears its stale populated `listings.media` instead of being
+            // skipped; an incomplete response preserves the whole batch.
+            const batchResult = await fetchLegacyMediaBatch({
+              baseUrl: TRESTLE_API,
+              token,
+              requested: batch.map((key) => ({
+                listingId: agentKeyToIdMap.get(key) || key,
+                filterKey: key,
+              })),
+              pageSize: batch.length * 30, // page size, not a ceiling (probe 2026-07-29)
+              classifyMediaType: classifyTrestleMediaCategory,
+            });
+            if (batchResult.outcome === "incomplete") {
+              console.warn(
+                `[IDX Agent Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE ` +
+                  `(${batchResult.reason}) — preserving stored media for ${batch.length} listings, zero writes`,
+              );
+              continue;
             }
 
             // Convert ResourceRecordKey back to listing_id via map.
             // Phase 3 (surface D): same suppression as the syncListings batch —
             // rotating signed URLs are not identity; unchanged media skips the write.
-            for (const [key, media] of mediaByKey) {
-              const listingId = agentKeyToIdMap.get(key) || key;
+            for (const [listingId, media] of batchResult.mediaByListingId) {
               batchMediaCounters.rows_checked++;
               try {
                 const existingMediaRow = await prisma.listing.findFirst({

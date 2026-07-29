@@ -49,6 +49,13 @@ export interface LegacyMediaItem {
 export interface LegacyMediaRequestedListing {
   listingId: string;
   filterKey: string;
+  /**
+   * Which Media field `filterKey` is matched against. The backfill path queries
+   * by ResourceRecordID when a listing has no mls_id (ListingKey); every other
+   * caller uses ResourceRecordKey per Trestle guidance 2026-04-07. Defaults to
+   * ResourceRecordKey so existing callers are unchanged.
+   */
+  filterField?: "ResourceRecordKey" | "ResourceRecordID";
   altKeys?: string[];
 }
 
@@ -190,7 +197,10 @@ export async function fetchLegacyMediaBatch(
   for (const r of requested) mediaByListingId.set(r.listingId, []);
 
   const idFilter = requested
-    .map((r) => `ResourceRecordKey eq '${r.filterKey.replace(/'/g, "''")}'`)
+    .map(
+      (r) =>
+        `${r.filterField ?? "ResourceRecordKey"} eq '${r.filterKey.replace(/'/g, "''")}'`,
+    )
     .join(" or ");
   const params = new URLSearchParams();
   params.set("$filter", `(${idFilter}) and MediaStatus ne 'Deleted'`);
@@ -280,8 +290,24 @@ export async function fetchLegacyMediaBatch(
       }
       const listingId = (byRrk ?? byRrid) as string;
 
-      // Rows without a usable URL still count toward @odata.count (Trestle
-      // counts the matched collection) but contribute no renderable item.
+      // URL-LESS SOURCE ROWS — two separate concerns, deliberately decoupled:
+      //
+      //   TRANSPORT completeness is measured in SOURCE rows, because that is
+      //   what `@odata.count` counts. A row Trestle returns without a MediaURL
+      //   is part of the matched collection. Excluding it from `rowsSeen` would
+      //   make `rowsSeen !== @odata.count` for every such batch, converting a
+      //   cosmetic source-data defect into a permanent reconciliation outage
+      //   (count_mismatch) that preserves stale galleries forever.
+      //
+      //   The MATERIAL gallery is derived independently, from displayable URLs
+      //   only. A URL-less row yields no item, so it cannot appear in
+      //   `listings.media` and cannot change the array's material shape. It
+      //   therefore cannot cause repeat physical writes on successive cycles —
+      //   `mediaArraysMateriallyEqual` sees an identical array either way.
+      //
+      // A valid existing item is removed ONLY when a COMPLETE authoritative
+      // response proves it is no longer present/displayable — never because a
+      // sibling row was malformed, since malformation never shortens the array.
       const rawUrl = row["MediaURL"];
       if (rawUrl == null || String(rawUrl) === "") continue;
 
