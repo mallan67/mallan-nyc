@@ -395,3 +395,48 @@ bytes**. Commit under test: `988980c8`.
 Conclusion: the manifest assertion **passes on LF/Linux**. The Windows failure was
 a line-ending artifact of the local checkout, exactly as diagnosed, and the branch
 has **zero test failures** on a Linux checkout.
+
+---
+
+## Final validation (Phase 1A sign-off)
+
+**Code SHA tested**
+
+```
+5197d5012e984f052a4c081c867010cf789680da
+```
+
+**Environment**
+
+```
+WSL2 Ubuntu
+Node v20.19.6
+core.autocrlf=false
+LF checkout
+```
+
+**Commands, exit codes and results for that SHA**
+
+```
+npx tsc --noEmit -p tsconfig.json
+exit 0
+
+npx jest tests/runtime/building-manifest-cache-size.test.ts
+exit 0
+
+npx jest
+exit 0
+339 suites
+5,814 passed
+0 failed
+```
+
+The previously-failing `building-manifest-cache-size` assertion passes on LF; the
+Windows failure was a line-ending artifact of the local checkout, not a defect.
+
+> **This evidence commit is docs-only.** It appends this section and changes
+> nothing under `lib/`, `app/`, `prisma/`, `scripts/` or `tests/`. It therefore
+> moves the branch head PAST the tested code SHA
+> `5197d5012e984f052a4c081c867010cf789680da` **without changing any application
+> or test code**. The validation above remains accurate for the application code
+> at the branch head.
