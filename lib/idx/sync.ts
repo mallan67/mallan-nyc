@@ -469,6 +469,8 @@ export interface SyncResult {
     unique_after_dedupe: number; overlap_count: number;
     mt_at_live_edge: boolean; pct_at_live_edge: boolean;
     mt_frozen_reason: string | null; pct_frozen_reason: string | null;
+    /** True when that stream's own request threw; its cursor stays pre-run. */
+    mt_fetch_failed: boolean; pct_fetch_failed: boolean;
     blocked_reasons: Record<string, number>;
   };
   legacy_media_batches?: {
