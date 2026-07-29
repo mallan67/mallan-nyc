@@ -245,7 +245,9 @@ export async function fetchLegacyMediaBatch(
     } catch {
       return incomplete("malformed_response", pages, "body unreadable");
     }
-    bytesSeen += text.length;
+    // Real UTF-8 byte count — String.length counts UTF-16 code units, which
+    // under-reports multi-byte characters and would let maxBytes be exceeded.
+    bytesSeen += Buffer.byteLength(text, "utf8");
     if (bytesSeen > maxBytes) return incomplete("byte_limit", pages);
 
     let body: Record<string, unknown>;
@@ -271,9 +273,18 @@ export async function fetchLegacyMediaBatch(
       }
     }
 
-    for (const row of value as Record<string, unknown>[]) {
+    for (const rawRow of value as unknown[]) {
       rowsSeen++;
       if (rowsSeen > maxRows) return incomplete("row_limit", pages);
+
+      // Shape-validate before ANY field access. `value: [null]` previously threw
+      // out of the helper instead of returning a structured incomplete result,
+      // which would have surfaced as an unhandled error at the call site rather
+      // than a fail-closed preserve-everything outcome.
+      if (rawRow === null || typeof rawRow !== "object" || Array.isArray(rawRow)) {
+        return incomplete("malformed_response", pages, "row is not an object");
+      }
+      const row = rawRow as Record<string, unknown>;
 
       const mediaKey = row["MediaKey"] == null ? "" : String(row["MediaKey"]).trim();
       if (!mediaKey) return incomplete("missing_media_key", pages);

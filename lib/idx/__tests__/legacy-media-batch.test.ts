@@ -384,3 +384,37 @@ it("mixes ResourceRecordKey and ResourceRecordID filters in one batch", async ()
   expect(seen[0]).toContain("ResourceRecordKey eq 'MLS1'");
   expect(seen[0]).toContain("ResourceRecordID eq 'RRID2'");
 });
+
+// ── Row-shape and byte-guard hardening ────────────────────────────────────
+
+it("a null row returns malformed_response instead of throwing", async () => {
+  expectIncomplete(
+    await call(REQ({ listingId: "L1", filterKey: "K1" }), pages([{ ok: true, count: 1, value: [null] }])),
+    "malformed_response",
+  );
+});
+
+it("a primitive row returns malformed_response", async () => {
+  expectIncomplete(
+    await call(REQ({ listingId: "L1", filterKey: "K1" }), pages([{ ok: true, count: 1, value: ["nope"] }])),
+    "malformed_response",
+  );
+});
+
+it("an array row returns malformed_response", async () => {
+  expectIncomplete(
+    await call(REQ({ listingId: "L1", filterKey: "K1" }), pages([{ ok: true, count: 1, value: [[]] }])),
+    "malformed_response",
+  );
+});
+
+it("the byte guard counts UTF-8 bytes, not UTF-16 code units", async () => {
+  // 400 * 3-byte characters = 1200 UTF-8 bytes but only 400 String.length units.
+  const fat = "の".repeat(400);
+  const r = await call(
+    REQ({ listingId: "L1", filterKey: "K1" }),
+    pages([{ ok: true, count: 1, value: [row("K1", "m1", 1, { Caption: fat })] }]),
+    { maxBytes: 700 }, // above the 400-unit length, below the 1200-byte reality
+  );
+  expectIncomplete(r, "byte_limit");
+});
