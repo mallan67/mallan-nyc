@@ -89,7 +89,15 @@ export async function runIdxSyncMember({
     // while the listing pass was incomplete. A partial IDX also HOLDS media
     // (Maya, 2026-07-25): the orchestrator's existing non-ok chain-stop already
     // budget-skips media, so the cycle is complete=false / success=false.
-    const semanticOutcome: MemberOutcome = result.errors > 0 ? "partial" : "ok";
+    // Phase 1A: `errors` alone is no longer the whole truth. syncListings now
+    // reports run_status "partial" for an INCOMPLETE legacy-media batch with
+    // errors === 0 — stored media preserved, watermark capped for retry. That is
+    // exactly the case the comment above describes, so it must hold media too.
+    // Fall back to the errors heuristic for any older result lacking run_status.
+    const semanticOutcome: MemberOutcome =
+      result.run_status !== undefined
+        ? (result.run_status === "ok" ? "ok" : "partial")
+        : (result.errors > 0 ? "partial" : "ok");
     const auditOutcome = semanticOutcome === "ok" ? "success" : semanticOutcome;
 
     await prisma.auditEvent.create({
