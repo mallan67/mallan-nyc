@@ -62,6 +62,10 @@ Every normative rule has a stable identifier. Cite the identifier, never the pro
 | `MKT` | Marketing and consent |
 | `INT` | Intelligence |
 | `OPS` | Verification, health, and rollback |
+| `PER` | Person, lead, and client lifecycle | 20 |
+| `IAM` | Identity, authentication, session | 21 |
+| `BRK` | Broker operations | 22 |
+| `GATE` | Enforced completion gate | 23 |
 | `PH` | Implementation phases |
 
 ## 0.2 Status legend
@@ -278,7 +282,12 @@ Read a row as: this block cannot be correct until `Depends on` holds, and changi
 | 16 — Seller and CMA | LST, COT, SEA, CRM, AUZ, POL | INT | 4 |
 | 17 — Marketing | AUZ, POL, CRM | INT | 5 |
 | 18 — Intelligence | LST, SEA, SEL, CMA, MKT, OPS | — | 6 |
-| 19 — Verification | — | every phase exit | all |
+| 19 — Actors and capacities | BUS, BIZ | AUZ, PER, BRK, IAM | 2 |
+| 20 — Person and lead lifecycle | ACT, BIZ, AUZ | SEA, SEL, CMA, MKT, TXN, CRM, INT | 2 → 4 |
+| 21 — Identity and session | ACT, PER | AUZ, every portal, CRM | 2 |
+| 22 — Broker operations | ACT, PER, BIZ, IAM | OPS, INT | 4 → 6 |
+| 23 — Completion gate | OPS, AUD, HYG, AGT | every phase exit | 2 |
+| 26 — Verification | — | every phase exit | all |
 | 20 — Phases | all above | — | — |
 
 **Critical path:** PH-1 → PH-2 → PH-3 → PH-4 → PH-5 → PH-6.
@@ -2470,7 +2479,458 @@ Because the transaction cannot proceed without attorneys on both sides, "attorne
 
 ---
 
-# 19. Marketing and consent
+# 19. Actors, identity, and access
+
+> **Depends on:** BUS, BIZ · **Feeds:** AUZ, PER, BRK, IAM, every entry point · **Status:** `DECIDED`
+
+## ACT-1 — Actor classes
+
+**Status:** `DECIDED`
+
+Every use case resolves an actor to exactly one class:
+
+```text
+anonymous            public web, no principal
+client               a person with roles, authenticated to a portal
+agent                producing capacity
+broker               supervisory and producing capacity
+system_job           cron, job, queue consumer
+service_identity     internal caller with a named service principal
+```
+
+`AUZ-1` uses the same set. These are the only actor classes; a surface that appears to need a seventh is a design question, not an implementation detail.
+
+## ACT-2 — Client actors are scoped by role and resource
+
+**Status:** `DECIDED`
+
+A `client` actor is scoped by **role** — buyer, tenant, seller, landlord — **and** by resource. Role alone never authorizes: a seller may read their own listing's activity and no one else's (`AUZ-5`).
+
+One person holding two roles is one actor with two role scopes, not two accounts (`PER-12`).
+
+## ACT-3 — Actor context is resolved once, by an adapter
+
+**Status:** `DECIDED`
+
+Actor context is resolved by an adapter — HTTP or internal — and passed to the application service **already resolved**. Application and domain services never re-derive identity from transport: not from a cookie, a header, a token, a query parameter, or a request property.
+
+A domain service that inspects transport to determine who is calling is a defect (`ARC-7`, `ARC-8`).
+
+## ACT-4 — Mallan is a broker-operated brokerage today
+
+**Status:** `DECIDED` · **Authority:** `BROKERAGE_POLICY`
+
+The principal broker also acts as a producing agent. Today one person holds both capacities. Additional agents join later.
+
+This is not a naming detail. It determines what gets built:
+
+- The system is **single-operator software that must not block multi-agent later**, not multi-agent software with one user.
+- `broker` and `agent` are **capacities held by a person**, not mutually exclusive account types. One account may hold both.
+- Nothing may assume a listing, client, or transaction has an owning agent **distinct from** the broker.
+- Nothing may assume the broker is a supervisor **only** — the broker produces.
+- No feature may require a second agent to exist in order to function.
+
+## ACT-5 — Capacity, not account type
+
+**Status:** `DECIDED`
+
+```text
+person
+  ├── holds capacities: [broker, agent, ...]
+  ├── license identity per capacity where applicable
+  └── acts in exactly one capacity per action, recorded on the action
+```
+
+Where a broker performs a producing-agent action, the action records `acting_capacity = agent`. Where the same person performs a supervisory action, it records `acting_capacity = broker`. Audit history distinguishes them even though the person is the same.
+
+## ACT-6 — Supervision is configurable and off by default
+
+**Status:** `DECIDED`
+
+Because the broker is currently the only producing agent, supervisory review of that broker's own work is a self-review and adds no control. Supervision is therefore **off by default** and becomes meaningful when additional agents exist.
+
+`CMA-4` already applies this to comparative market analyses. The same principle governs every review gate: a supervision requirement that would resolve to self-review is not enabled by default.
+
+## ACT-7 — Multi-agent readiness without multi-agent complexity
+
+**Status:** `DECIDED`
+
+Every record that will eventually need an owning agent carries the field from the start, populated with the acting person. No record is created without ownership on the assumption that ownership can be backfilled later.
+
+Conversely, no workflow requires assignment routing, load balancing, team hierarchy, or split rules to exist before they are needed.
+
+---
+
+# 20. Person, lead, and client lifecycle
+
+> **Depends on:** ACT, BIZ, AUZ · **Feeds:** SEA, SEL, CMA, MKT, TXN, CRM, INT · **Status:** `DECIDED`
+> **This is the spine.** Search, portals, marketing, transactions, and intelligence all attach to a person. Without it they have nothing to attach to.
+
+## PER-1 — Person is the identity, role is separate
+
+**Status:** `DECIDED`
+
+A person is a durable identity. A **role** is something a person does, in a context, for a period. One person may be a buyer now, a seller later, a landlord for one property and a tenant for another, and a referral source throughout.
+
+```text
+person
+  stable internal identifier
+  names and aliases
+  contact methods, each with provenance and verification state
+  identity confidence
+  communication restrictions
+  merge history
+```
+
+Lifecycle state belongs to the **role**, never to the person. A person is never globally "closed" because one role concluded.
+
+## PER-2 — Contact method is not identity
+
+**Status:** `DECIDED`
+
+Email and telephone are **supporting identifiers**, never the sole identity key. Two people may share an address. One person may have many. A person may change all of them.
+
+Identity resolution uses corroborating evidence and records its confidence. A merge is reversible and retains its history.
+
+## PER-3 — Household and decision group
+
+**Status:** `DECIDED`
+
+People who participate in one real-estate decision form a decision group, recording members, relationship, influence, legal authority, communication permissions, document access, joint-approval requirements, and active dates.
+
+Two spouses buying together are one decision group with two people. Correspondence, consent, and document access are per person; the decision is joint.
+
+## PER-4 — Organization
+
+**Status:** `DECIDED`
+
+NYC transactions run through entities. The system models organizations — limited liability company, corporation, trust, estate, partnership, co-operative corporation, condominium board, managing agent, law firm, lender, title company, vendor — with legal name, aliases, registration identifiers, representatives, authority relationships, addresses, and provenance.
+
+A transaction counterparty may be an organization rather than a person, and an authorized signatory is a person acting **for** an organization, recorded as such.
+
+## PER-5 — Lead is a role state, not a separate entity
+
+**Status:** `DECIDED`
+
+A lead is a person in an early relationship state. Converting a lead does not create a second record.
+
+```text
+role_state
+  inquiry_received
+  contacted
+  qualifying
+  represented          written agreement executed (BIZ-2)
+  active
+  under_agreement      in transaction
+  closed_won
+  closed_lost
+  dormant
+```
+
+`represented` is a distinct state because it is the precondition for agent-led tours under `BIZ-2.2`, and it is evidenced by an executed agreement, never by activity.
+
+## PER-6 — Lead source and provenance
+
+**Status:** `DECIDED`
+
+Every lead records how it arose: source, medium, campaign, landing surface, referring person or organization, first-seen timestamp, and the consent captured at capture time (`MKT-1`, `MKT-3`).
+
+Provenance is immutable. A later interaction never rewrites how a person first arrived.
+
+## PER-7 — Assignment
+
+**Status:** `DECIDED`
+
+A lead or client relationship has one accountable person at a time, recorded with the assigning actor, the timestamp, and the reason. Reassignment appends; it never overwrites.
+
+Under `ACT-4` the default assignee is the broker acting as agent. Routing rules are not required for the system to function (`ACT-7`).
+
+## PER-8 — Interaction timeline
+
+**Status:** `DECIDED`
+
+One canonical timeline per person records email, call, text, meeting, portal action, listing sent, listing viewed, saved search, showing, feedback, note, document exchange, report delivery, decision, and commitment — each with actor, timestamp, channel, and provenance.
+
+The timeline is append-only. Corrections are new entries referencing the corrected one.
+
+## PER-9 — Knowledge types must not be conflated
+
+**Status:** `DECIDED`
+
+The system distinguishes, and never silently promotes between:
+
+| Type | Meaning |
+|---|---|
+| Verified fact | Source-backed and actionable |
+| Client-stated preference | What the person said |
+| Observed behavior | What the person did |
+| Broker hypothesis | A labelled interpretation requiring confirmation |
+| Confirmed decision | An approved choice that may supersede an earlier preference while preserving history |
+
+An inference is never presented as a statement, and a statement is never presented as a verified fact (`INT-3`).
+
+## PER-10 — Commitment
+
+**Status:** `DECIDED`
+
+A promise to a client is structured: owner, recipient, description, due date, status, completion evidence, related interaction, related transaction. This is what makes "what Mallan owes this client" answerable.
+
+## PER-11 — Consent is per person, per channel, per purpose
+
+**Status:** `DERIVED` from MKT-1
+
+Consent attaches to the person, not to the lead record or the transaction, and survives role changes. A person who unsubscribes as a buyer prospect remains unsubscribed when they later become a seller, unless a lawful later change is recorded.
+
+## PER-12 — Portal identity maps to person
+
+**Status:** `DECIDED`
+
+A portal account authenticates a person and grants access scoped to that person's roles and resources (`AUZ-5`). One person with two roles sees both through one account, separated by role, not by holding two logins.
+
+---
+
+# 21. Identity, authentication, and session
+
+> **Depends on:** ACT, PER · **Feeds:** AUZ, every portal, CRM · **Status:** `DECIDED`
+
+## IAM-1 — Authentication is resolved by an adapter
+
+**Status:** `DERIVED` from ARC-2, ACT-3
+
+Authentication happens in the adapter layer. The application service receives an already-resolved actor and never re-derives identity from a cookie, header, or token (`ACT-3`).
+
+## IAM-2 — Distinct principal classes
+
+**Status:** `DECIDED`
+
+```text
+staff_principal     broker or agent — internal, capacity-bearing (ACT-5)
+client_principal    portal user — a person with roles (PER-12)
+service_principal   cron, job, queue consumer, internal caller
+anonymous           public web, no principal
+```
+
+A staff principal and a client principal are never the same credential, never share a session, and never share an authorization path, even where one human holds both.
+
+## IAM-3 — Session properties
+
+**Status:** `DECIDED`
+
+Every authenticated session records the principal, its class, the capacity in effect where applicable, issue time, expiry, and last activity. Sessions are revocable individually and in bulk. Revocation takes effect on the next request, not on next expiry.
+
+## IAM-4 — Invitation-based portal onboarding
+
+**Status:** `DECIDED`
+
+A client principal is created by invitation tied to a known person, not by open self-registration into a client relationship. An invitation is single-use, expiring, and records who issued it. Token validation fails closed.
+
+Where a person self-registers on the public site, that creates a lead (`PER-5`), not a portal principal with access to a relationship.
+
+## IAM-5 — Elevated capability requires stronger assurance
+
+**Status:** `DECIDED`
+
+Actions with elevated consequence — broker-capacity supervisory actions, bulk communication release, agreement execution, financial arrangement changes, permission changes — require stronger authentication assurance than reading a listing.
+
+The specific mechanism is an implementation decision. The requirement is that assurance level is **recorded on the action** and that a low-assurance session cannot perform a high-assurance action.
+
+## IAM-6 — Impersonation is explicit, bounded, and audited
+
+**Status:** `DECIDED`
+
+Where support requires acting as another principal, the session records both the acting principal and the impersonated principal, is time-bounded, is visible in audit history as impersonation, and cannot perform `IAM-5` elevated actions.
+
+## IAM-7 — Credential material is never in provider or client surfaces
+
+**Status:** `DECIDED`
+
+Tokens, secrets, session identifiers, and credential material never appear in a response body, a client-visible payload, a log line, an error message, a URL, or provider-bound telemetry.
+
+## IAM-8 — Rate limiting and abuse controls
+
+**Status:** `DECIDED`
+
+Unauthenticated surfaces — public search, listing detail, autocomplete, lead capture, unsubscribe — carry rate limits. Authentication attempts, invitation redemption, and token validation carry attempt limits with lockout and backoff.
+
+A rate-limited response uses `RATE_LIMITED` (`ERR-2`). It never presents as an empty result (`ERR-1`, `ERR-7`).
+
+## IAM-9 — Write idempotency
+
+**Status:** `DECIDED`
+
+Operations that must not double-apply — offer submission, showing request, agreement execution, campaign release, arrangement creation, document upload — accept an idempotency key and return the original outcome on replay rather than creating a duplicate.
+
+Absence of an idempotency key on such an operation is a contract violation caught by the audit (`AUD-3`).
+
+## IAM-10 — Retention and deletion
+
+**Status:** `DECIDED` for the requirement · `OPEN` for periods, tracked as `Q-12`
+
+Every personal-data category records its retention period, its legal basis, its deletion behavior, and whether a legal hold suspends deletion.
+
+Deletion never silently destroys audit history, compliance evidence, or transaction records that must be retained. Where retention and deletion conflict, the record is suppressed from use and retained for its required period, and the conflict is explicit.
+
+The concrete periods are unresolved. Governing constraints include NY SHIELD obligations and the retention period for executed agreements (`BIZ-2.3`). No period is chosen by assumption (`AGT-6`).
+
+---
+
+# 22. Broker operations
+
+> **Depends on:** ACT, PER, BIZ, IAM · **Feeds:** OPS, INT · **Status:** `DECIDED`
+
+## BRK-1 — Producing broker first
+
+**Status:** `DERIVED` from ACT-4
+
+Every capability available to an agent is available to the broker for the broker's own production. Broker-only capability is additive, never a replacement for producing tools.
+
+## BRK-2 — Roster and licensing
+
+**Status:** `DECIDED` · **Authority:** `NY_STATUTE`, `NY_REGULATION`
+
+The system records, per person holding a staff capacity: capacity held, license identity, license type, issuing authority, status, expiry, continuing-education state, and association memberships including REBNY.
+
+An expired or lapsed license is a blocking condition on capacity-bearing actions, surfaced before expiry rather than at it.
+
+## BRK-3 — Onboarding and offboarding
+
+**Status:** `DECIDED`
+
+Adding a staff principal records capacity, license verification, agreement execution, access grant, and the granting actor. Removing one revokes sessions (`IAM-3`), reassigns accountable relationships (`PER-7`), and preserves history rather than deleting it.
+
+Offboarding never orphans a client relationship, a listing, or an open commitment.
+
+## BRK-4 — Supervision when it becomes real
+
+**Status:** `DECIDED`
+
+When additional agents exist, supervision surfaces become meaningful: work requiring review, compliance exceptions, overdue commitments, unassigned leads, and agreement gaps.
+
+Per `ACT-6` these are off by default while the broker is the only producing agent. Enabling them is configuration, not a rebuild.
+
+## BRK-5 — Compliance exception register
+
+**Status:** `DECIDED`
+
+Compliance conditions that fail closed produce a visible, owned exception rather than a silent block: unresolved display permission, missing attribution, absent representation agreement where required, `not_evaluated` compliance state, unresolved fee attribution, expired license, or a compensation arrangement breaching its cap (`BIZ-4.3`).
+
+Each exception records what failed, its authority (`BIZ-0`), the affected record, the owner, and the resolution.
+
+## BRK-6 — Financial visibility, not accounting
+
+**Status:** `DECIDED`
+
+The system reports commission arrangements, expected receivables by transaction, earned commission at closing (`BIZ-6`), referral obligations, and per-agent production.
+
+It is **not** an accounting system, does not hold funds (`TXN-2`), does not produce tax filings, and does not make legal or tax determinations. Export to an accountant is a supported output; being the ledger of record is not.
+
+## BRK-7 — Business visibility
+
+**Status:** `DECIDED`
+
+Pipeline by stage, listing inventory and status, lead source performance, conversion at each stage, client retention and repeat business, referral sources, and open commitments — each drillable to the underlying records, never presented as a figure without a path to its evidence.
+
+---
+
+# 23. Enforced completion gate
+
+> **Depends on:** OPS, AUD, HYG, AGT · **Feeds:** every phase exit · **Status:** `DECIDED`
+
+`OPS-1` forbids an unsupported completion claim and section 25 defines completion. Neither is enforced. An agent can write "done" and nothing stops it. Every process failure recorded in this repository's history has that shape: a conclusion reported that the evidence did not support.
+
+A supervising agent does not fix this. A supervisor is another agent that can drift, producing two things not paying attention instead of one. What holds is a gate that cannot be talked past.
+
+## GATE-1 — Completion is a machine-checkable claim
+
+**Status:** `DECIDED`
+
+A capability may not be marked complete by prose. Completion is a structured claim that a validator accepts or rejects.
+
+```text
+capability_id
+claimed_status
+evidence[]
+  method            test | live_probe | runtime_log | source_read | negative_search
+  command           exact command or request, verbatim, including any wrapper
+  raw_output        captured, not summarized
+  exit_code         integer
+  target_sha        commit the evidence was produced against
+  environment       where it ran
+  observed_at
+  proves            the narrow thing established
+  does_not_prove    what a reader might wrongly infer
+rollback
+owner
+```
+
+## GATE-2 — What the gate rejects
+
+**Status:** `DECIDED`
+
+The validator rejects a completion claim when any of the following holds:
+
+| Rejection | Condition |
+|---|---|
+| `NO_EVIDENCE` | No evidence entry for a promoted status |
+| `PLACEHOLDER_EVIDENCE` | Any evidence field is empty or a placeholder — `unverified`, `tbd`, `pending`, `todo`, `n/a`, `none` |
+| `NO_COMMAND` | An evidence entry names no command |
+| `NO_EXIT_CODE` | `exit_code` is absent or not an integer |
+| `SUMMARIZED_OUTPUT` | `raw_output` is absent |
+| `UNANCHORED` | `target_sha` absent or not a commit identifier |
+| `NO_PROOF_BOUNDARY` | `does_not_prove` absent |
+| `SOURCE_READ_FOR_BEHAVIOR` | Method is `source_read` for a rendering, runtime, or behavior claim |
+| `GREP_FOR_ABSENCE` | Method is `negative_search` used to assert something does not exist rather than was not found in the searched paths |
+| `NO_ROLLBACK` | Rollback absent for a production-affecting claim |
+| `NO_OWNER` | No operational owner |
+| `STALE_EVIDENCE` | `target_sha` predates a change to a requirement the capability depends on |
+
+## GATE-3 — The exit code cannot be asserted
+
+**Status:** `DECIDED`
+
+An agent can write the word "done." It cannot write an exit code for a command it did not run and have that survive scrutiny, because `command` plus `target_sha` plus `environment` makes the claim reproducible by a third party.
+
+The gate does not verify that a recorded exit code is truthful — it cannot. It makes the claim **falsifiable**, which is the property that matters. A false claim becomes a discoverable error rather than an unverifiable opinion.
+
+## GATE-4 — Dependency staleness invalidates evidence
+
+**Status:** `DECIDED`
+
+When a requirement changes, every completion claim whose evidence predates the change and whose capability depends on that requirement is marked `EVIDENCE_STALE` and loses its promoted status until re-evidenced.
+
+This is the enforcement arm of the change protocol in section 26, step 7. Changing a decided requirement does not silently leave downstream capabilities claiming completion against a superseded rule.
+
+## GATE-5 — Negative findings are first-class
+
+**Status:** `DECIDED`
+
+A search that finds nothing is a legitimate evidence method and must record what was searched, where, and with what pattern. Its `proves` states *not found in the searched paths*; it may never state *does not exist* (`HYG-1`, `AGT-6`).
+
+A bare `grep` finding nothing exits `1`, not `0`. Where `0` is recorded for a no-match search, the wrapper that produced it must be visible in `command`.
+
+## GATE-6 — The gate states its own limits
+
+**Status:** `DECIDED`
+
+The validator reports what it proves and what it does not (`AUD-4`). It proves that every promoted status carries a complete, well-formed, anchored evidence record. It does not prove that any recorded output is truthful, that any test passes, that anything works in production, or that the capability inventory is complete.
+
+A green gate means the claims are honest in **form**. Substance is established by the evidence itself and by review.
+
+## GATE-7 — Ratchet
+
+**Status:** `DERIVED` from AUD-2
+
+The count of capabilities passing the gate is recorded as a baseline. The gate fails if that count decreases. A capability may not be quietly demoted to avoid producing evidence.
+
+## GATE-8 — One command
+
+**Status:** `DECIDED`
+
+The gate runs from one named command, reports per-capability results, and exits non-zero on any rejection. It converges into `platform:check` (`HYG-8`).
+
+---
+
+# 24. Marketing and consent
 
 > **Depends on:** AUZ, POL, CRM · **Feeds:** INT · **Status:** `DEFERRED` for production sending
 
@@ -2542,7 +3002,7 @@ Existing fail-closed suppression behavior is retained unchanged. Any bypass para
 
 ---
 
-# 20. Intelligence
+# 25. Intelligence
 
 > **Depends on:** LST, SEA, SEL, CMA, MKT, OPS · **Feeds:** — · **Status:** `DECIDED`
 
@@ -2599,7 +3059,7 @@ Each intelligence capability records model cost, human review time, failure rate
 
 ---
 
-# 21. Verification, health, release, and rollback
+# 26. Verification, health, release, and rollback
 
 > **Depends on:** — · **Feeds:** every phase exit · **Status:** `DECIDED`
 
@@ -2671,7 +3131,7 @@ Operational probes proving the affected surface responds correctly are run befor
 
 ---
 
-# 22. Implementation sequence
+# 27. Implementation sequence
 
 > **Depends on:** all above · **Feeds:** — · **Status:** `DECIDED`
 
@@ -2934,7 +3394,7 @@ Use trustworthy events and outcomes to assist agents without allowing AI or bloa
 
 ---
 
-# 23. Per-PR operating checklist
+# 28. Per-PR operating checklist
 
 > **Depends on:** HYG, OPS · **Feeds:** every change · **Status:** `DECIDED`
 
@@ -2958,7 +3418,7 @@ Why are there no unrelated files?
 
 ---
 
-# 24. Open questions and external gates
+# 29. Open questions and external gates
 
 > **Depends on:** — · **Feeds:** the requirements named · **Status:** `OPEN`
 
@@ -2974,13 +3434,14 @@ Why are there no unrelated files?
 | `Q-8` | Which entry points legitimately require a non-JSON transport class | TRN-4, PH-1 |
 | `Q-9` | Market-area definition for area comparables: radius, neighborhood boundary, or both, and whether it is configurable per listing | CMA-1, PH-4 |
 | `Q-10` | Whether public search currently applies cross-source matched-pair suppression | LST-17, SEA-7, PH-1 |
-| `Q-11` | Classification of every remaining compensation-field reference: suppression logic, stale read, or dead reference | BIZ-9, PH-1 |
+| `Q-11` | Classification of every remaining compensation-field reference: suppression logic, stale read, or dead reference | BIZ-10.2, PH-1 |
+| `Q-12` | Concrete retention periods per personal-data category, and which are suspended by legal hold | IAM-10, PH-1 |
 
 These are evidence gates. They are not permission to guess, and not a reason to write another plan.
 
 ---
 
-# 25. Completion definition
+# 30. Completion definition
 
 > **Depends on:** OPS · **Feeds:** every phase exit · **Status:** `DECIDED`
 
@@ -3004,7 +3465,7 @@ A capability is complete only when:
 
 ---
 
-# 26. Change protocol
+# 31. Change protocol
 
 > **Depends on:** DOC · **Feeds:** every requirement · **Status:** `DECIDED`
 
@@ -3146,8 +3607,12 @@ Remaining active as operating contracts or registry items, not competing plans:
 | `OPS` | OPS-1 … OPS-8 | 8 |
 | `TXN` | TXN-1 … TXN-12 | 12 |
 | `BIZ` | BIZ-0 … BIZ-13 | 14 |
+| `PER` | PER-1 … PER-12 | 12 |
+| `IAM` | IAM-1 … IAM-10 | 10 |
+| `BRK` | BRK-1 … BRK-7 | 7 |
+| `GATE` | GATE-1 … GATE-8 | 8 |
 | `PH` | PH-1 … PH-6 | 6 |
-| `Q` | Q-1 … Q-11 | 11 |
+| `Q` | Q-1 … Q-12 | 12 |
 
 No identifier is retired at this revision.
 
