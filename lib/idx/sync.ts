@@ -1215,9 +1215,10 @@ export async function syncListings(
                   continue;
                 }
                 batchMediaCounters.rows_materially_changed++;
-                // A complete fetch does not mean the listing was reconciled: the
-                // guarded write can legitimately match 0 rows (archived), and >1
-                // is an invariant violation since listing_id is unique.
+                // A complete fetch does not mean the listing was reconciled. The
+                // archived-safe findFirst above already ran, so count===0 here is
+                // a CONCURRENT archive/delete or predicate race; count>1 violates
+                // listing_id uniqueness. Neither is a physical write.
                 const writeResult = await prisma.listing.updateMany({
                   where: archivedSafeMediaWhere(listingId),
                   data: { media: media as unknown as Prisma.InputJsonValue },
@@ -1725,7 +1726,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
             data: { media: media as unknown as Prisma.InputJsonValue },
           });
           if (writeResult.count !== 1) {
-            // 0 = archived/vanished; >1 = invariant violation. Neither is a write.
+            // The archived-safe guard already ran, so count===0 here means a
+            // CONCURRENT archive/delete or a predicate race — not the ordinary
+            // archived case. count>1 violates listing_id uniqueness.
             writeCounters.rows_failed++;
             errors++;
             continue; // no revalidation for a write that did not happen
@@ -1882,11 +1885,16 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 
     if (changed) {
       try {
-        await prisma.listing.updateMany({
+        // The fourth legacy listings.media writer. count===0 means the row was
+        // concurrently archived/deleted (or the predicate no longer matches);
+        // count>1 violates the listing_id uniqueness invariant. Neither is a
+        // migration, so neither may increment `migrated`.
+        const writeResult = await prisma.listing.updateMany({
           where: { listing_id: listing.listing_id },
           data: { media: updatedMedia as unknown as Prisma.InputJsonValue },
         });
-        migrated++;
+        if (writeResult.count === 1) migrated++;
+        else errors++;
       } catch {
         errors++;
       }
@@ -2080,6 +2088,11 @@ export async function syncAgentHistory(
     listings_incomplete: 0, listings_write_failed: 0, incomplete_reasons: {},
   };
   const agentMediaMarked = new Set<string>();
+  // ONE canonical identity per requested listing. The transport marker receives
+  // request keys (ListingKey) while the persistence marker receives listing_ids;
+  // without this inverse map the same listing would occupy two entries in
+  // agentMediaMarked and could be counted twice.
+  const agentRequestKeyByListingId = new Map<string, string>();
   /** Transport failure for a whole batch: zero writes, whole batch unreconciled. */
   const markAgentMediaBatchIncomplete = (keys: readonly string[], reason: string) => {
     const fresh = keys.filter((k) => !agentMediaMarked.has(k));
@@ -2094,8 +2107,12 @@ export async function syncAgentHistory(
   };
   /** Persistence failure for ONE listing after a COMPLETE fetch. */
   const markAgentListingWriteFailed = (listingId: string, reason: string) => {
-    if (agentMediaMarked.has(listingId)) return;
-    agentMediaMarked.add(listingId);
+    // Resolve to the canonical request key before checking/marking. A listing
+    // with no mapping falls back to its own id deterministically, which is the
+    // same value the request builder would have used.
+    const key = agentRequestKeyByListingId.get(listingId) ?? listingId;
+    if (agentMediaMarked.has(key)) return;
+    agentMediaMarked.add(key);
     runPartial = true;
     legacyMediaBatchOutcomes.listings_write_failed++;
     legacyMediaBatchOutcomes.incomplete_reasons[reason] =
@@ -2374,10 +2391,12 @@ export async function syncAgentHistory(
         if (listingKey) {
           agentKeyToIdMap.set(listingKey, listingId);
           allAgentMediaRequestKeys.push(listingKey);
+          agentRequestKeyByListingId.set(listingId, listingKey);
           listingsNeedMedia.push(listingKey);
         } else if (listingId) {
           agentKeyToIdMap.set(listingId, listingId);
           allAgentMediaRequestKeys.push(listingId);
+          agentRequestKeyByListingId.set(listingId, listingId);
           listingsNeedMedia.push(listingId);
         }
       }

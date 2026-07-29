@@ -265,3 +265,94 @@ it("a hard listing failure remains error, outranking partial", async () => {
   expect(r.errors).toBeGreaterThan(0);
   expect(r.run_status).toBe("error");
 });
+
+// ── Remaining verified-write + identity cases ─────────────────────────────
+
+it("updateMany.count > 1 is an invariant violation and is durably recorded", async () => {
+  storedMedia([{ url: `${BASE}/Media/old.jpg`, mediaType: "Photo", order: 0 }]);
+  pages([{ ok: true, count: 1, value: [mediaRow("KEY900001", "m1", 1)] }]);
+  mockUpdateMany.mockResolvedValue({ count: 2 }); // listing_id must identify one row
+
+  const r = await syncAgentHistory(OPTS);
+
+  expect(r.run_status).toBe("partial");
+  expect(r.errors).toBe(0);
+  expect(r.write_paths.batch_media.rows_updated).toBe(0);
+  expect(r.write_paths.batch_media.rows_failed).toBe(1);
+  expect(r.legacy_media_batches?.listings_write_failed).toBe(1);
+
+  const audit = mockAuditCreate.mock.calls
+    .map((c) => c[0] as { data: { action: string; changes: Record<string, unknown> } })
+    .find((c) => c.data.action === "idx_sync_agent_history");
+  const ledger = (audit!.data.changes as Record<string, unknown>)
+    .legacy_media_batches as Record<string, unknown>;
+  expect((ledger.incomplete_reasons as Record<string, number>).media_write_multi_match).toBe(1);
+  expect(ledger.listings_write_failed).toBe(1);
+});
+
+it("a persistence failure reaches the durable agent-history AuditEvent", async () => {
+  storedMedia([{ url: `${BASE}/Media/old.jpg`, mediaType: "Photo", order: 0 }]);
+  pages([{ ok: true, count: 1, value: [mediaRow("KEY900001", "m1", 1)] }]);
+  mockUpdateMany.mockRejectedValue(new Error("deadlock detected"));
+
+  await syncAgentHistory(OPTS);
+
+  const audit = mockAuditCreate.mock.calls
+    .map((c) => c[0] as { data: { action: string; changes: Record<string, unknown> } })
+    .find((c) => c.data.action === "idx_sync_agent_history");
+  const changes = audit!.data.changes as Record<string, unknown>;
+  expect(changes.run_status).toBe("partial");
+  const ledger = changes.legacy_media_batches as Record<string, unknown>;
+  expect(ledger.listings_write_failed).toBe(1);
+  expect((ledger.incomplete_reasons as Record<string, number>).media_write_error).toBe(1);
+});
+
+it("a token/setup failure marks every requested listing incomplete", async () => {
+  storedMedia([{ url: `${BASE}/Media/old.jpg`, mediaType: "Photo", order: 0 }]);
+  mockGetAccessToken.mockRejectedValue(new Error("401 unauthorized"));
+
+  const r = await syncAgentHistory(OPTS);
+
+  expect(mockUpdateMany).not.toHaveBeenCalled(); // zero media writes
+  expect(r.run_status).toBe("partial");
+  expect(r.errors).toBe(0);
+  expect(r.write_paths.batch_media.rows_failed).toBe(1);
+  expect(r.legacy_media_batches?.listings_incomplete).toBe(1);
+  expect(r.legacy_media_batches?.incomplete_reasons.fetch_error).toBe(1);
+
+  const audit = mockAuditCreate.mock.calls
+    .map((c) => c[0] as { data: { action: string; changes: Record<string, unknown> } })
+    .find((c) => c.data.action === "idx_sync_agent_history");
+  const ledger = (audit!.data.changes as Record<string, unknown>)
+    .legacy_media_batches as Record<string, unknown>;
+  expect((ledger.incomplete_reasons as Record<string, number>).fetch_error).toBe(1);
+});
+
+it("a listing seen by BOTH the persistence and the outer transport path is counted once", async () => {
+  // The persistence marker receives a listing_id (RLS900001) while the transport
+  // marker receives a request key (KEY900001). Without the inverse map these are
+  // two identities for one listing and rows_failed would reach 2.
+  storedMedia([{ url: `${BASE}/Media/old.jpg`, mediaType: "Photo", order: 0 }]);
+  pages([{ ok: true, count: 1, value: [mediaRow("KEY900001", "m1", 1)] }]);
+  mockUpdateMany.mockRejectedValue(new Error("deadlock detected")); // inner persistence failure
+
+  // Force the OUTER media catch after the batch loop has already run.
+  const realLog = console.log;
+  const logSpy = jest.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes("Media batch-fetch complete")) {
+      throw new Error("forced outer failure");
+    }
+    realLog(...(args as []));
+  });
+
+  try {
+    const r = await syncAgentHistory(OPTS);
+    expect(r.write_paths.batch_media.rows_failed).toBe(1); // once, not twice
+    const reasons = r.legacy_media_batches?.incomplete_reasons ?? {};
+    const total = Object.values(reasons).reduce((a, b) => a + b, 0);
+    expect(total).toBe(1);
+    expect(r.run_status).toBe("partial");
+  } finally {
+    logSpy.mockRestore();
+  }
+});

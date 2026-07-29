@@ -183,7 +183,7 @@ it("a token failure reports EVERY selected listing as failed", async () => {
 it("updateMany.count === 0 is NOT reported as updated and triggers no revalidation", async () => {
   mockQueryRaw.mockResolvedValue([listingRow("L1", "MLS1")]);
   pages([{ ok: true, count: 1, value: [mediaRow("MLS1", "m1", 1)] }]);
-  mockUpdateMany.mockResolvedValue({ count: 0 }); // archived/vanished between read and write
+  mockUpdateMany.mockResolvedValue({ count: 0 }); // concurrent archive/delete or predicate race
 
   const r = await backfillEmptyMedia();
 

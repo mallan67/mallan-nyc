@@ -435,7 +435,7 @@ describe("a complete fetch whose DB write fails is NOT a reconciled listing", ()
     global.fetch = jest.fn(async () => ({
       ok: true, status: 200, text: async () => body,
     })) as unknown as typeof fetch;
-    mockUpdateMany.mockResolvedValue({ count: 0 }); // archived between read and write
+    mockUpdateMany.mockResolvedValue({ count: 0 }); // concurrent archive/delete or predicate race
 
     const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
 
