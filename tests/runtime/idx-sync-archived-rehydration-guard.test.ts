@@ -269,13 +269,14 @@ describe('archivedSafeMediaWhere — NULL-safe batch media guard (Codex #465 P2,
 describe('idx-sync source — batch media-refill archived guard wiring (SUPPORTING)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
-  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path reads + writes, backfill write)', () => {
+  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path reads + writes, backfill write, R2 migration write)', () => {
     // Phase 3 write-suppression added an archived-safe findFirst pre-read
     // next to each sync-path updateMany (2 reads + 2 writes) and kept the
-    // backfill write → 5 archived-safe where sites total. Every one of them
-    // must keep the guard.
+    // backfill write → 5 sites. Phase 1A (2026-07-29) added a 6th: the
+    // migrateMediaToR2 write, whose listing_id-only predicate could re-hydrate
+    // a row archived between its SELECT and its UPDATE. Every one must keep it.
     const matches = src.match(/where:\s*archivedSafeMediaWhere\(/g) || [];
-    expect(matches.length).toBe(5);
+    expect(matches.length).toBe(6);
   });
 
   it('no batch media updateMany writes media with a bare { listing_id } where (unguarded rehydration)', () => {
