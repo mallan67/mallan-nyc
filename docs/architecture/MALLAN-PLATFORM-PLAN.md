@@ -1922,7 +1922,194 @@ Every selected comparable is re-verified against its authority before a seller-f
 
 ---
 
-# 17. Marketing and consent
+# 17. Transactions — the NYC brokerage role
+
+> **Depends on:** BUS, LST, REB, AUZ, POL · **Feeds:** FIN, SEL, CRM, INT · **Status:** `DECIDED`
+> **Verified against New York law and NYC market practice, 2026-07-28.**
+
+New York is an **attorney state**. The brokerage role in a NYC residential transaction is narrower than in most United States markets, and the difference is a matter of law, not preference. A system that models a generic American brokerage transaction would encourage conduct that is prohibited here.
+
+## TXN-1 — Mallan does not draft or review contracts
+
+**Status:** `DECIDED`
+
+New York law prohibits real estate brokers and salespersons from drafting or reviewing contracts of sale. A broker who prepares documents containing terms requiring legal expertise commits the unauthorized practice of law and demonstrates untrustworthiness and incompetence under Real Property Law §441-c.
+
+Authorities: NY Department of State Legal Memorandum LI04; *Duncan & Hill Realty v. Department of State*; Judiciary Law §484; Real Property Law §441-c.
+
+**The system must not:**
+
+- draft, generate, assemble, or template a contract of sale;
+- review, annotate, red-line, or interpret contract language;
+- insert any provision requiring the exercise of legal expertise;
+- produce output that constitutes legal advice;
+- present a contract clause library, rider builder, or negotiation-language generator.
+
+Any feature that would produce contract language for a live transaction is prohibited regardless of how it is labelled.
+
+## TXN-2 — Mallan does not hold escrow or any transaction funds
+
+**Status:** `DECIDED`
+
+At contract signing the buyer wires the deposit — customarily ten percent of the purchase price — to the **seller's attorney's escrow account**. Mallan never receives, holds, controls, disburses, or reconciles transaction funds.
+
+**The system must not:**
+
+- record a deposit as held by Mallan;
+- model an escrow balance, escrow account, or trust account;
+- instruct any party to send funds to Mallan;
+- generate wire instructions;
+- represent Mallan as a party to the deposit.
+
+The system **may** record, as reported facts supplied by the attorneys: that a deposit was made, its date, and the responsible escrow holder's identity. These are milestone facts, never a Mallan-held balance.
+
+## TXN-3 — The deal sheet is the brokerage artifact
+
+**Status:** `DECIDED`
+
+When terms are agreed, the broker prepares a **deal sheet** summarizing the essential terms and transmits it to the attorneys, who then carry the transaction. The deal sheet is **not a contract and is not binding**.
+
+A deal sheet records at minimum:
+
+```text
+property and unit
+listing identifier
+purchase price and agreed terms
+buyer name and contact
+seller name and contact
+buyer's attorney name, firm, contact
+seller's attorney name, firm, contact
+buyer's mortgage broker or lender when applicable
+financing terms and whether financing is a contingency
+target contract date
+target closing date
+listing broker and salesperson, with brokerage attribution
+selling broker and salesperson
+commission terms as agreed
+building type and, for co-ops, board approval requirement
+```
+
+Every deal sheet must carry a visible statement that it is a summary of agreed terms, is not a contract, is not binding, and that the parties should be represented by counsel.
+
+## TXN-4 — Transaction state is observed, not owned
+
+**Status:** `DECIDED`
+
+After the deal sheet, the transaction is driven by attorneys, lenders, boards, and managing agents. Mallan's system **observes and coordinates**; it does not control state.
+
+Every transaction milestone therefore records who reported it and when. A milestone is a **reported fact with a source**, never a system-asserted truth.
+
+```text
+milestone
+reported_by        attorney | lender | board | managing agent | client | agent
+reported_at
+source_evidence
+confidence
+```
+
+`ARC-3` applies: an unknown milestone state is explicit, never assumed complete.
+
+## TXN-5 — Sale milestone sequence
+
+**Status:** `DECIDED`
+
+```text
+offer submitted
+offer accepted                      not binding
+deal sheet issued to attorneys
+buyer due diligence                 co-op or condo financials, minutes, offering plan
+contract issued by seller's attorney
+contract signed by buyer + deposit to seller's attorney escrow
+contract countersigned by seller    fully executed — now binding
+mortgage application
+mortgage commitment
+board package submitted             co-op and many condos
+board review
+board interview                     co-op
+board approval or waiver of right of first refusal   condo
+clear to close
+final walkthrough
+closing
+commission earned
+```
+
+Customary timelines observed in this market: co-op approximately sixty to ninety days from contract to closing; condominium approximately thirty to forty-five days. These are expectations for scheduling and alerting, not guarantees, and are not encoded as deadlines that assert legal consequence.
+
+## TXN-6 — Acceptance is not binding
+
+**Status:** `DECIDED`
+
+An accepted offer creates no binding obligation in this market. The transaction becomes binding when the contract is **fully executed** — signed by the buyer and countersigned by the seller.
+
+The system must never describe an accepted offer as a sale, a commitment, a binding agreement, or a closed transaction, in any interface, report, seller communication, marketing surface, or metric.
+
+## TXN-7 — Board approval is the principal deal risk
+
+**Status:** `DECIDED`
+
+Co-operative board approval is the largest single source of transaction failure in this market and must be modelled as a first-class risk, not a checklist row.
+
+The system tracks: package requirements, package assembly status, submission date, review status, interview scheduling, decision, and conditions attached to a conditional approval.
+
+Where a contract contains a board-approval contingency, an outright rejection ordinarily entitles the buyer to cancel and recover the deposit, absent bad faith. **The system states this as general market practice and never as advice on a specific transaction** — the governing terms are in the contract, which Mallan does not draft or interpret (`TXN-1`).
+
+## TXN-8 — Board package assistance has a boundary
+
+**Status:** `DECIDED`
+
+The brokerage customarily assists in assembling the board package. The system may support checklist tracking, document collection, completeness review against the building's stated requirements, and submission logistics.
+
+It must not generate financial statements, characterize a client's financial position, draft reference letters as though authored by the referee, or produce any representation to a board that did not originate with its actual author.
+
+## TXN-9 — Rental transactions
+
+**Status:** `DECIDED`
+
+Rentals follow a different sequence: application, income and credit verification, guarantor where required, lease preparation by the landlord or managing agent, and — in co-operative rentals and many condominiums — board approval.
+
+Verified market and legal parameters:
+
+- The **40x rule** — annual gross income of at least forty times the monthly rent — is a widespread market convention, **not a statute**. It must be described as a landlord requirement, never as a legal requirement.
+- A guarantor is customarily required to earn eighty times the monthly rent and to reside in New York, New Jersey, or Connecticut. Guarantor services are an alternative.
+- Application fees are capped at twenty dollars, with limited co-operative and condominium exceptions.
+- Upfront costs may not exceed the first month's rent plus one month's security.
+
+## TXN-10 — FARE Act fee attribution
+
+**Status:** `DECIDED`
+
+Under New York City Local Law 119 of 2024, the **party who hires the broker pays the broker fee**. In most NYC rentals the landlord engages the listing broker, so the landlord pays. A renter pays a broker fee only where the renter has explicitly engaged that broker.
+
+All fees payable by a prospective tenant must be **disclosed in the listing**. The system must carry fee attribution as an explicit field on every rental listing and must render the required disclosure on every public rental surface. Absent or unresolved fee attribution fails closed under `POL-1`: the listing does not publish.
+
+## TXN-11 — Prohibited surfaces
+
+**Status:** `DECIDED`
+
+The following must not be built, generated, or presented, in any phase:
+
+```text
+escrow ledger or trust accounting
+deposit custody records naming Mallan as holder
+contract drafting, assembly, or templating
+contract review, annotation, or clause interpretation
+rider or amendment generation
+legal advice, including any statement of what a party is entitled to under a contract
+wire instructions
+title insurance issuance or binding
+```
+
+Where a client needs any of the above, the system's correct behavior is to record the need and route it to the client's attorney.
+
+## TXN-12 — Referral to counsel is a first-class action
+
+**Status:** `DECIDED`
+
+Because the transaction cannot proceed without attorneys on both sides, "attorney engaged" is a tracked milestone with an owner and a date, and an unrepresented party at deal-sheet stage is a visible, actionable condition — not a silent gap.
+
+---
+
+# 18. Marketing and consent
 
 > **Depends on:** AUZ, POL, CRM · **Feeds:** INT · **Status:** `DEFERRED` for production sending
 
@@ -1994,7 +2181,7 @@ Existing fail-closed suppression behavior is retained unchanged. Any bypass para
 
 ---
 
-# 18. Intelligence
+# 19. Intelligence
 
 > **Depends on:** LST, SEA, SEL, CMA, MKT, OPS · **Feeds:** — · **Status:** `DECIDED`
 
@@ -2051,7 +2238,7 @@ Each intelligence capability records model cost, human review time, failure rate
 
 ---
 
-# 19. Verification, health, release, and rollback
+# 20. Verification, health, release, and rollback
 
 > **Depends on:** — · **Feeds:** every phase exit · **Status:** `DECIDED`
 
@@ -2123,7 +2310,7 @@ Operational probes proving the affected surface responds correctly are run befor
 
 ---
 
-# 20. Implementation sequence
+# 21. Implementation sequence
 
 > **Depends on:** all above · **Feeds:** — · **Status:** `DECIDED`
 
@@ -2386,7 +2573,7 @@ Use trustworthy events and outcomes to assist agents without allowing AI or bloa
 
 ---
 
-# 21. Per-PR operating checklist
+# 22. Per-PR operating checklist
 
 > **Depends on:** HYG, OPS · **Feeds:** every change · **Status:** `DECIDED`
 
@@ -2410,7 +2597,7 @@ Why are there no unrelated files?
 
 ---
 
-# 22. Open questions and external gates
+# 23. Open questions and external gates
 
 > **Depends on:** — · **Feeds:** the requirements named · **Status:** `OPEN`
 
@@ -2431,7 +2618,7 @@ These are evidence gates. They are not permission to guess, and not a reason to 
 
 ---
 
-# 23. Completion definition
+# 24. Completion definition
 
 > **Depends on:** OPS · **Feeds:** every phase exit · **Status:** `DECIDED`
 
@@ -2455,7 +2642,7 @@ A capability is complete only when:
 
 ---
 
-# 24. Change protocol
+# 25. Change protocol
 
 > **Depends on:** DOC · **Feeds:** every requirement · **Status:** `DECIDED`
 
@@ -2595,6 +2782,7 @@ Remaining active as operating contracts or registry items, not competing plans:
 | `MKT` | MKT-1 … MKT-8 | 8 |
 | `INT` | INT-1 … INT-6 | 6 |
 | `OPS` | OPS-1 … OPS-8 | 8 |
+| `TXN` | TXN-1 … TXN-12 | 12 |
 | `PH` | PH-1 … PH-6 | 6 |
 | `Q` | Q-1 … Q-10 | 10 |
 
