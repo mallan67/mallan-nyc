@@ -1791,6 +1791,9 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
     SELECT id, listing_id, media FROM "listings"
     WHERE media IS NOT NULL AND media::text != '[]' AND media::text != '{}'
       AND (media::text LIKE '%cotality.com%' OR media::text LIKE '%corelogic.com%')
+      -- #415 rehydration guard: never select an already-archived row. NULL-safe,
+      -- so legacy rows with sync_status IS NULL are still eligible.
+      AND sync_status IS DISTINCT FROM 'archived'
     ORDER BY modification_timestamp DESC NULLS LAST
     LIMIT ${limit}
   `;
@@ -1885,12 +1888,19 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 
     if (changed) {
       try {
-        // The fourth legacy listings.media writer. count===0 means the row was
-        // concurrently archived/deleted (or the predicate no longer matches);
-        // count>1 violates the listing_id uniqueness invariant. Neither is a
-        // migration, so neither may increment `migrated`.
+        // The fourth legacy listings.media writer.
+        //
+        // archivedSafeMediaWhere is the AUTHORITATIVE race guard: the selection
+        // above happens before the per-photo download/upload loop, so the T+180
+        // archiver can strip and archive the row in between. A listing_id-only
+        // predicate would still match, re-hydrate the archived row's media and
+        // report count===1 as a successful migration. With the archived-safe
+        // predicate the update matches ZERO rows instead.
+        //
+        // count===0 therefore means a concurrent archive/delete or predicate
+        // race; count>1 violates listing_id uniqueness. Neither is a migration.
         const writeResult = await prisma.listing.updateMany({
-          where: { listing_id: listing.listing_id },
+          where: archivedSafeMediaWhere(listing.listing_id),
           data: { media: updatedMedia as unknown as Prisma.InputJsonValue },
         });
         if (writeResult.count === 1) migrated++;

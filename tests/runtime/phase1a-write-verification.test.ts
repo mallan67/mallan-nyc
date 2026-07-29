@@ -291,13 +291,41 @@ describe("migrateMediaToR2 — the fourth legacy listings.media writer", () => {
     expect(r.errors).toBe(0);
   });
 
-  it("count === 0 is NOT reported as migrated", async () => {
+  it("excludes already-archived rows at SELECTION time", async () => {
     wireMigration();
-    mockUpdateMany.mockResolvedValue({ count: 0 }); // concurrent archive/delete
+
+    await migrateMediaToR2();
+
+    // $queryRaw is a tagged template: the SQL fragments arrive as the first arg.
+    const fragments = (mockQueryRaw.mock.calls[0][0] as string[]).join(" ");
+    expect(fragments).toContain("sync_status IS DISTINCT FROM 'archived'");
+  });
+
+  it("uses the ARCHIVED-SAFE predicate on the final update, not listing_id alone", async () => {
+    wireMigration();
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+
+    await migrateMediaToR2();
+
+    const where = (mockUpdateMany.mock.calls[0][0] as { where: Record<string, unknown> }).where;
+    expect(where.listing_id).toBe("RLS100001");
+    // archivedSafeMediaWhere adds the NULL-safe sync_status exclusion; a
+    // listing_id-only predicate would let a concurrently-archived row be
+    // re-hydrated and falsely reported as migrated.
+    expect(JSON.stringify(where)).toContain("sync_status");
+    expect(JSON.stringify(where)).toContain("archived");
+  });
+
+  it("a CONCURRENT archive between select and update is not a migration", async () => {
+    wireMigration();
+    // The archiver stripped + archived the row during the photo upload loop, so
+    // the archived-safe predicate now matches zero rows.
+    mockUpdateMany.mockResolvedValue({ count: 0 });
 
     const r = await migrateMediaToR2();
 
-    expect(r.migrated).toBe(0);
+    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
+    expect(r.migrated).toBe(0);          // never claimed
     expect(r.errors).toBe(1);
   });
 
