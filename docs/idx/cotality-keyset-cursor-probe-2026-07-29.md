@@ -205,8 +205,11 @@ which the PCT-only cohort showed is shared by more than one listing.
    `PhotosChangeTimestamp asc,ListingKey asc` both return HTTP 200 (§B).
 2. **The compound tie-filter shape is supported.** Both `X gt ts or (X eq ts and ListingKey gt
    key)` forms return HTTP 200 (§C).
-3. **`ListingKey` is present on every matched record** — 0 missing across every query in this
-   document.
+3. **`ListingKey` was present in every returned probe sample** — 0 missing across every row
+   returned by the queries in this document. This is a SAMPLE property, not a population
+   property: each probe returned between 1 and 10 rows, never the full 7,000-318,000 matched
+   set. Section H attempted a population count and could not establish one (see below), so the
+   missing-key population is **undetermined by probe** and the runtime guard is mandatory.
 4. **String `gt` on `ListingKey` is consistent** — proven against a real collision in §G, not
    merely asserted. The first attempt (§D1) returned 0 rows because its anchor timestamp was
    unique, so it proved nothing; §G repeats it against a timestamp shared by 1,203 records.
@@ -243,11 +246,126 @@ process most records twice.
 | 30 days | 12,674 | 51 | ~8h 30m |
 | 90 days | 318,326 | 1,274 | **~8.8 days** |
 
-**Chosen bootstrap lower bound: 30 days.**
+**Chosen bootstrap lower bound: 30 days — an approved bounded OPERATIONAL bootstrap.**
 
-30 days covers a full month of PCT drift and drains in about 8.5 hours at the fixed 250/cycle
-budget. The 90-day window is rejected: it is 25× larger for only 3× the time span, because a bulk
-re-stamp sits just outside 30 days — the §E1 PCT-only samples both carry
-`ModificationTimestamp = 2026-05-15T11:12:44.223`, the same timestamp §G shows is shared by 1,203
-listings. Bootstrapping to 90 days would re-ingest that entire bulk event over roughly nine days
-of continuous draining for no correctness gain.
+> Thirty days is the approved bounded operational bootstrap. It does not constitute a complete
+> repair of all older historical PCT drift.
+
+This is a COST decision, not a completeness proof. What the evidence supports:
+
+- 30 days is 12,674 records, nominally ~51 cycles (~8h30m) at the fixed 250/cycle budget;
+- 90 days is 318,326 records, nominally ~1,274 cycles (~8.8 days) of continuous draining;
+- a bulk re-stamp sits just outside 30 days — the §E1 PCT-only samples both carry
+  `ModificationTimestamp = 2026-05-15T11:12:44.223`, the timestamp §G shows is shared by 1,203
+  listings — which accounts for part, but demonstrably NOT all, of the 90-day population.
+
+What the evidence does NOT support: that processing the older records would yield no correctness
+gain. Some PCT events older than 30 days may still represent stale galleries. That population is
+recorded here as **deferred historical reconciliation**, a separate controlled obligation — not
+repaired, and not irrelevant.
+
+The ~8h30m figure is also a best-case nominal duration. Failures, partial batches, deployment
+gaps and newly arriving records all extend it.
+
+---
+
+## H. Missing / empty `ListingKey` count probes
+
+Requested because the earlier conclusion "ListingKey is present on every matched record"
+was drawn from the handful of rows each probe returned, not from the full matched
+population. These are count-only queries over the whole bootstrap window.
+
+- probe UTC: **2026-07-29T09:07:14.503Z**
+- bootstrap boundary used: `2026-06-29T00:00:00Z`
+- auth: OAuth2 `client_credentials`. **No tokens, Authorization headers or credential values in this file.**
+
+### H0 — MT stream total in window (denominator)
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### H1 — PCT stream total in window (denominator)
+- filter: `PhotosChangeTimestamp ge 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **12698**
+
+### H2 — MT stream, ListingKey eq null
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z and ListingKey eq null`
+- HTTP: **200**
+- `@odata.count`: **0**
+
+### H3 — MT stream, ListingKey eq ''
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z and ListingKey eq ''`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### H4 — PCT stream, ListingKey eq null
+- filter: `PhotosChangeTimestamp ge 2026-06-29T00:00:00Z and ListingKey eq null`
+- HTTP: **200**
+- `@odata.count`: **0**
+
+### H5 — PCT stream, ListingKey eq ''
+- filter: `PhotosChangeTimestamp ge 2026-06-29T00:00:00Z and ListingKey eq ''`
+- HTTP: **200**
+- `@odata.count`: **12698**
+
+## I. Records exactly ON the bootstrap boundary
+
+The initial cursor must INCLUDE these; a bare `gt` would silently drop them.
+
+### I1 — MT exactly on the boundary
+- filter: `ModificationTimestamp eq 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **0**
+
+### I2 — PCT exactly on the boundary
+- filter: `PhotosChangeTimestamp eq 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **0**
+
+### I3 — MT strictly greater than the boundary
+- filter: `ModificationTimestamp gt 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### I4 — MT greater than OR EQUAL to the boundary
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+## J. Empty-string comparison reliability + bootstrap boundary choice
+
+- probe UTC: **2026-07-29T09:08:21.062Z**
+- auth: OAuth2 `client_credentials`. **No tokens, headers or credential values recorded.**
+
+### J0 — MT total at/after boundary (denominator)
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### J1 — MT window AND `ListingKey gt ''`
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z and ListingKey gt ''`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### J2 — MT window AND `ListingKey ne null`
+- filter: `ModificationTimestamp ge 2026-06-29T00:00:00Z and ListingKey ne null`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### J3 — plain `gt` at a boundary 1ms EARLIER (the chosen bootstrap form)
+- filter: `ModificationTimestamp gt 2026-06-28T23:59:59.999Z`
+- HTTP: **200**
+- `@odata.count`: **12876**
+
+### Interpretation
+
+- `ListingKey eq ''` returned the FULL population in probe H, so Cotality does not evaluate
+  empty-string equality as a predicate. `eq null` returned 0, but because the sibling form is
+  provably mishandled, 0 cannot be read as proof that no null keys exist.
+- therefore the missing-key population is **UNDETERMINED by probe**, and the runtime guard is
+  mandatory rather than belt-and-braces.
+- `gt ''` returned 12876 against a denominator of 12876.
+- `ne null` returned 12876.
+- the bootstrap therefore uses a timestamp 1 ms BEFORE the boundary with a plain `gt`, so it
+  never depends on empty-string comparison semantics at all.
