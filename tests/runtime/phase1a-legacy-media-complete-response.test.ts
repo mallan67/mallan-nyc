@@ -254,3 +254,73 @@ describe("syncListings — COMPLETE empty batch-media response clears stale list
     expect(call.data.media).toEqual([]);
   });
 });
+
+// ── Durable partial evidence + centralised fail-closed accounting ─────────
+
+describe("incomplete legacy media leaves DURABLE evidence, not just a console warning", () => {
+  it("persists run_status/ledger/reason on the idx_sync AuditEvent with errors: 0", async () => {
+    const raw = rawRecord();
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+      mediaByListingId: new Map([["RLS100001", [
+        { url: "https://api.cotality.com/trestle/Media/a0.jpg?sig=OLD", mediaType: "Photo", order: -1 },
+      ]]]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [raw], totalFetched: 1 });
+    // Structured incomplete: HTTP 503 on the first page.
+    global.fetch = jest.fn(async () => ({
+      ok: false, status: 503, text: async () => "",
+    })) as unknown as typeof fetch;
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(result.run_status).toBe("partial");
+    expect(result.errors).toBe(0);
+    expect(mockUpdateMany).not.toHaveBeenCalled(); // zero media writes
+
+    const auditCall = mockAuditCreate.mock.calls
+      .map((c) => c[0] as { data: { action: string; changes: Record<string, unknown> } })
+      .find((c) => c.data.action === "idx_sync");
+    expect(auditCall).toBeDefined();
+    const changes = auditCall!.data.changes as Record<string, unknown>;
+    expect(changes.run_status).toBe("partial");
+    expect(changes.errors).toBe(0);
+    const ledger = changes.legacy_media_batches as Record<string, unknown>;
+    expect(ledger.batches_incomplete).toBe(1);
+    expect(ledger.listings_incomplete).toBe(1);
+    expect((ledger.incomplete_reasons as Record<string, number>).http_error).toBe(1);
+    const wp = changes.write_paths as { batch_media: { rows_failed: number } };
+    expect(wp.batch_media.rows_failed).toBe(1);
+  });
+
+  it("a THROWN media failure fails closed identically to a structured incomplete result", async () => {
+    const raw = rawRecord();
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+      mediaByListingId: new Map([["RLS100001", [
+        { url: "https://api.cotality.com/trestle/Media/a0.jpg?sig=OLD", mediaType: "Photo", order: -1 },
+      ]]]),
+    };
+    wireMocks(state);
+    mockFetchFromTrestle.mockResolvedValue({ records: [raw], totalFetched: 1 });
+    global.fetch = jest.fn(async () => { throw new Error("socket hang up"); }) as unknown as typeof fetch;
+
+    const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
+
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+    expect(result.run_status).toBe("partial");
+    expect(result.errors).toBe(0);
+    expect(result.legacy_media_batches?.listings_incomplete).toBe(1);
+    expect(result.write_paths.batch_media.rows_failed).toBe(1);
+    // Watermark capped below the affected record so it retries next run.
+    const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
+      update: { last_watermark?: Date; last_run_status: string };
+    };
+    expect(stateArgs.update.last_run_status).toBe("partial");
+    expect(stateArgs.update.last_watermark!.getTime())
+      .toBe(new Date(String(raw.ModificationTimestamp)).getTime() - 1);
+  });
+});

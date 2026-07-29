@@ -1054,6 +1054,42 @@ export async function syncListings(
   // Correction 1: gate on PROCESSED records (rows_checked — reached the write
   // decision), NOT on physical listing writes. A fully-suppressed batch must
   // still fetch + reconcile media; the media path has its own suppression.
+  // Phase 1A: hoisted so the OUTER catch (token/setup failure) can still mark
+  // every requested listing unreconciled. `mediaIncompleteMarked` makes the
+  // operation idempotent, so a batch that already returned a structured
+  // incomplete result is never double-counted by a subsequent throw.
+  const rawByRequestKey = new Map<string, Record<string, unknown>>();
+  const allMediaRequestKeys: string[] = [];
+  const mediaIncompleteMarked = new Set<string>();
+  /**
+   * The single fail-closed operation for BOTH structured `incomplete` results and
+   * thrown exceptions. Zero media writes, whole batch counted unreconciled, and
+   * the Property watermark capped below the earliest affected record (frozen if
+   * any lacks a parseable MT/PCT cursor).
+   */
+  const markMainMediaBatchIncomplete = (keys: readonly string[], reason: string) => {
+    const fresh = keys.filter((k) => !mediaIncompleteMarked.has(k));
+    if (fresh.length === 0) return;
+    for (const k of fresh) mediaIncompleteMarked.add(k);
+    runPartial = true;
+    legacyMediaBatchOutcomes.batches_incomplete++;
+    legacyMediaBatchOutcomes.listings_incomplete += fresh.length;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed += fresh.length;
+    for (const key of fresh) {
+      const src = rawByRequestKey.get(key);
+      const fMt = src?.ModificationTimestamp ? new Date(String(src.ModificationTimestamp)) : null;
+      const fPct = src?.PhotosChangeTimestamp ? new Date(String(src.PhotosChangeTimestamp)) : null;
+      const fKey = Math.max(
+        fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
+        fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
+      );
+      if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
+      else watermarkFrozen = true; // cannot bound it -> freeze (fail closed)
+    }
+  };
+
   if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
       // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
@@ -1062,9 +1098,6 @@ export async function syncListings(
         .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
       const keyToIdMap = new Map<string, string>();
       const listingsNeedMedia: string[] = [];
-      // Phase 1A: retain the SOURCE record per requested key so an incomplete
-      // media batch can cap the watermark below every affected record (below).
-      const rawByRequestKey = new Map<string, Record<string, unknown>>();
       for (const r of listingsNeedMediaRaw) {
         const listingKey = String(r.ListingKey || r.SourceSystemKey || "");
         const listingId = String(r.ListingId || listingKey);
@@ -1072,10 +1105,12 @@ export async function syncListings(
           keyToIdMap.set(listingKey, listingId);
           listingsNeedMedia.push(listingKey);
           rawByRequestKey.set(listingKey, r);
+          allMediaRequestKeys.push(listingKey);
         } else if (listingId) {
           keyToIdMap.set(listingId, listingId);
           listingsNeedMedia.push(listingId);
           rawByRequestKey.set(listingId, r);
+          allMediaRequestKeys.push(listingId);
         }
       }
 
@@ -1112,28 +1147,7 @@ export async function syncListings(
             });
 
             if (batchResult.outcome === "incomplete") {
-              legacyMediaBatchOutcomes.batches_incomplete++;
-              legacyMediaBatchOutcomes.listings_incomplete += batch.length;
-              legacyMediaBatchOutcomes.incomplete_reasons[batchResult.reason] =
-                (legacyMediaBatchOutcomes.incomplete_reasons[batchResult.reason] ?? 0) + 1;
-              // INCOMPLETE_OR_FAILED must not advance past the affected listings.
-              // Without this the Property watermark moves on even though media was
-              // never reconciled — and once PCT-only listing writes are suppressed
-              // there is no stored PCT marker left to re-select the listing, so a
-              // stale listings.media array could survive with no automatic retry.
-              batchMediaCounters.rows_failed += batch.length;
-              runPartial = true;
-              for (const key of batch) {
-                const src = rawByRequestKey.get(key);
-                const fMt = src?.ModificationTimestamp ? new Date(String(src.ModificationTimestamp)) : null;
-                const fPct = src?.PhotosChangeTimestamp ? new Date(String(src.PhotosChangeTimestamp)) : null;
-                const fKey = Math.max(
-                  fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
-                  fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
-                );
-                if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
-                else watermarkFrozen = true; // cannot bound it → freeze (fail closed)
-              }
+              markMainMediaBatchIncomplete(batch, batchResult.reason);
               console.warn(
                 `[IDX Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
                   `preserving stored media for ${batch.length} listings, zero writes, watermark capped`,
@@ -1185,12 +1199,17 @@ export async function syncListings(
               }
             }
           } catch (mediaErr) {
+            // A throw is as unreconciled as a structured incomplete result.
+            markMainMediaBatchIncomplete(batch, "fetch_error");
             console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
         console.log("[IDX Sync] Media batch-fetch complete");
       }
     } catch (mediaSyncErr) {
+      // Token/setup failure affects every requested media listing. Marked exactly
+      // once (batches already counted structurally are skipped by the Set).
+      markMainMediaBatchIncomplete(allMediaRequestKeys, "fetch_error");
       console.warn("[IDX Sync] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
     }
   }
@@ -1418,6 +1437,12 @@ export async function syncListings(
           skipped_gates: skippedGates,
           skipped_validation: skippedValidation,
           errors,
+          // Phase 1A: durable partial evidence. Console logs are transient and
+          // SyncResult is in-process only — an incomplete legacy-media batch must
+          // leave a permanent record of WHY reconciliation did not happen and
+          // which listings were left unreconciled.
+          run_status: runStatus,
+          legacy_media_batches: legacyMediaBatchOutcomes,
           duration_ms: durationMs,
           // Phase 3 write-suppression accounting (physical writes only).
           write_paths: {
