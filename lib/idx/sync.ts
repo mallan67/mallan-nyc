@@ -47,6 +47,7 @@ import {
   type ManifestPersistenceProbe,
 } from "@/lib/buildings/public-building-data";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
+import { fetchLegacyMediaBatch } from "@/lib/idx/legacy-media-batch";
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
   beginSyncDiagnosticRun,
@@ -537,6 +538,12 @@ export async function syncListings(
   const listingCounters = newWritePathCounters();
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
+  // Phase 1A: legacy batch-media completeness outcomes. `incomplete` means the
+  // whole batch was preserved (zero listings.media writes), never partially applied.
+  const legacyMediaBatchOutcomes: {
+    complete: number; complete_empty: number; incomplete: number;
+    incomplete_reasons: Record<string, number>;
+  } = { complete: 0, complete_empty: 0, incomplete: 0, incomplete_reasons: {} };
 
   // Change-reason attribution (2026-07-24): WHY each physical write happened.
   const listingChangeReasons = newListingChangeReasonCounters();
@@ -1041,56 +1048,42 @@ export async function syncListings(
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
 
-          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
-          const mediaParams = new URLSearchParams();
-          mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 30));
-
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
+            // Phase 1A: complete-response contract. The helper follows every
+            // @odata.nextLink, proves completeness against @odata.count (never
+            // against nextLink absence), and INITIALIZES every requested key so
+            // a listing whose gallery is authoritatively empty reconciles to []
+            // instead of vanishing from the map. On `incomplete` there is no
+            // writable map at all, so a later-page failure preserves stored
+            // media for the WHOLE batch. See lib/idx/legacy-media-batch.ts.
+            const batchResult = await fetchLegacyMediaBatch({
+              baseUrl: TRESTLE_API,
+              token,
+              requested: batch.map((key) => ({ listingId: keyToIdMap.get(key) || key, filterKey: key })),
+              pageSize: batch.length * 30, // page size, not a ceiling (probe 2026-07-29)
+              classifyMediaType: classifyTrestleMediaCategory,
+            });
 
-            // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
-            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordKey || "");
-              if (!lid || !m.MediaURL) continue;
-              if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-              // Use shared classifier — replaces the broken
-              // `cat.includes("floor plan")` (with space) check that
-              // mis-classified Trestle's actual "FloorPlan" enum value as
-              // "Photo". See lib/media/media-sync-service.ts for the full
-              // history of this bug.
-              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByListing.get(lid)!.push({
-                url: String(m.MediaURL),
-                mediaType,
-                order: isPreferred ? -1 : Number(m.Order ?? 0),
-              });
+            if (batchResult.outcome === "incomplete") {
+              legacyMediaBatchOutcomes.incomplete++;
+              legacyMediaBatchOutcomes.incomplete_reasons[batchResult.reason] =
+                (legacyMediaBatchOutcomes.incomplete_reasons[batchResult.reason] ?? 0) + 1;
+              console.warn(
+                `[IDX Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
+                  `preserving stored media for ${batch.length} listings, zero writes`,
+              );
+              continue;
             }
+            legacyMediaBatchOutcomes.complete++;
+            if (batchResult.rowsFetched === 0) legacyMediaBatchOutcomes.complete_empty++;
 
-            // Update DB records — convert ResourceRecordKey back to listing_id via map.
+            // Update DB records — the helper already keyed by listing_id.
             // Phase 3 (surface D): compare the stored legacy media JSON first and
             // SKIP the write when it is materially identical. Rotating signed
             // Trestle URLs are NOT identity (mediaArraysMateriallyEqual); true
             // inserts/deletions/ordering/hero/delivery-state changes still write.
             // Per-row try/catch keeps one bad row from aborting the batch.
-            for (const [key, media] of mediaByListing) {
-              const listingId = keyToIdMap.get(key) || key;
+            for (const [listingId, media] of batchResult.mediaByListingId) {
               batchMediaCounters.rows_checked++;
               try {
                 const existingMediaRow = await prisma.listing.findFirst({

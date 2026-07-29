@@ -219,10 +219,15 @@ function wireMocks(state: StoredState) {
 
 function mockMediaEndpoint(valueByRun: Array<Record<string, unknown>[]>) {
   let call = 0;
-  global.fetch = jest.fn(async () => ({
-    ok: true,
-    json: async () => ({ value: valueByRun[Math.min(call++, valueByRun.length - 1)] }),
-  })) as unknown as typeof fetch;
+  // Phase 1A: production now requests $count=true and proves completeness from
+  // @odata.count, so a successful fixture MUST carry it. These are single-page
+  // collections with no nextLink, so count === value.length. Tests that assert
+  // the missing_count failure build their own count-less body explicitly.
+  global.fetch = jest.fn(async () => {
+    const value = valueByRun[Math.min(call++, valueByRun.length - 1)];
+    const body = JSON.stringify({ "@odata.count": value.length, value });
+    return { ok: true, status: 200, text: async () => body, json: async () => JSON.parse(body) };
+  }) as unknown as typeof fetch;
 }
 
 beforeEach(() => {
@@ -391,11 +396,11 @@ describe("syncListings — batch media path suppresses rotation-only rewrites", 
     mockMediaEndpoint([
       [
         // A — same media, freshly rotated signatures (MUST be suppressed).
-        { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a0.jpg?sig=NEW1", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
-        { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a1.jpg?sig=NEW1", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false },
+        { ResourceRecordKey: "KEY100001", MediaKey: "KEY100001-a0", MediaURL: "https://api.cotality.com/trestle/Media/a0.jpg?sig=NEW1", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
+        { ResourceRecordKey: "KEY100001", MediaKey: "KEY100001-a1", MediaURL: "https://api.cotality.com/trestle/Media/a1.jpg?sig=NEW1", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false },
         // B — hero moved to the second photo (MUST be written).
-        { ResourceRecordKey: "KEY100002", MediaURL: "https://api.cotality.com/trestle/Media/b0.jpg?sig=NEW1", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: false },
-        { ResourceRecordKey: "KEY100002", MediaURL: "https://api.cotality.com/trestle/Media/b1.jpg?sig=NEW1", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: true },
+        { ResourceRecordKey: "KEY100002", MediaKey: "KEY100002-b0", MediaURL: "https://api.cotality.com/trestle/Media/b0.jpg?sig=NEW1", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: false },
+        { ResourceRecordKey: "KEY100002", MediaKey: "KEY100002-b1", MediaURL: "https://api.cotality.com/trestle/Media/b1.jpg?sig=NEW1", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: true },
       ],
     ]);
 
@@ -481,10 +486,10 @@ describe("syncListings — batch media gate is decoupled from physical listing w
     mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
     mockMediaEndpoint([
       [
-        { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
-        { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a1.jpg?sig=NEW", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false },
-        { ResourceRecordKey: "KEY100002", MediaURL: "https://api.cotality.com/trestle/Media/b0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: false },
-        { ResourceRecordKey: "KEY100002", MediaURL: "https://api.cotality.com/trestle/Media/b1.jpg?sig=NEW", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: true },
+        { ResourceRecordKey: "KEY100001", MediaKey: "KEY100001-a0", MediaURL: "https://api.cotality.com/trestle/Media/a0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
+        { ResourceRecordKey: "KEY100001", MediaKey: "KEY100001-a1", MediaURL: "https://api.cotality.com/trestle/Media/a1.jpg?sig=NEW", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false },
+        { ResourceRecordKey: "KEY100002", MediaKey: "KEY100002-b0", MediaURL: "https://api.cotality.com/trestle/Media/b0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: false },
+        { ResourceRecordKey: "KEY100002", MediaKey: "KEY100002-b1", MediaURL: "https://api.cotality.com/trestle/Media/b1.jpg?sig=NEW", MediaCategory: "Photo", Order: 1, PreferredPhotoYN: true },
       ],
     ]);
 
