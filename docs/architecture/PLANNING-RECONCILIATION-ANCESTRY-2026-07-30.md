@@ -207,7 +207,10 @@ the capability-registry question is live on two unmerged lines and must be decid
 
 Superseded by the measured Stage F0 inventory. The ledger
 (`MALLAN-PLATFORM-RECONCILIATION-LEDGER.md`) is authoritative; these are its
-actual totals, which sum to **600** inventoried rows:
+actual totals, which sum to **605** inventoried rows — the frozen baseline
+inventory, to which 3 post-baseline rows were later added (`OPS-026`,
+`CONFLICT-POL-GATE34-PORTAL`, `CONFLICT-CAPABILITY-VOCABULARY`) for a final
+ledger total of **608**:
 
 | source | rows |
 |---|---:|

@@ -1,7 +1,15 @@
 {
   "_README": [
     "Machine-readable reconciliation decisions for MALLAN-PLATFORM-RECONCILIATION-LEDGER.md.",
-    "The ledger markdown is GENERATED from the Stage F0 inventory plus this file.",
+    "This file records the source resolutions used during the reconciliation. The committed",
+    "ledger and canonical-plan summaries were originally produced from the Stage F0 inventory",
+    "plus this file DURING that reconciliation, but PR #585 does not include executable",
+    "generation or verification tooling. The committed reconciliation artifacts are now",
+    "maintained and reviewed MANUALLY: nothing regenerates them, nothing synchronises them",
+    "automatically, and no CI job validates them. The historical tooling prototype is",
+    "preserved only at the protected archival tag",
+    "archive/platform-plan-ledger-tooling-e96bbd2b; it is not normative and is not approved",
+    "for production or CI use.",
     "A requirement absent from this file stays `unresolved` in the ledger. That is the",
     "honest default: no disposition is ever inferred from silence.",
     "",
