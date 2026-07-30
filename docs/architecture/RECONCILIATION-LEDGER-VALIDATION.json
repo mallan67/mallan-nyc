@@ -1,5 +1,5 @@
 {
-  "total_rows": 600,
+  "total_rows": 605,
   "by_source": {
     "PR#579-capability-obligation": 1,
     "PR#579-capability-registry": 11,
@@ -12,7 +12,7 @@
     "PR#585-README.md": 11,
     "PR#585-plan": 141,
     "deep-audit": 12,
-    "recovered-plan": 243,
+    "recovered-plan": 248,
     "safe-main": 9
   },
   "by_family_top": {
@@ -24,6 +24,7 @@
     "TXN": 12,
     "PER": 12,
     "AUDIT": 12,
+    "POL": 11,
     "CAP": 11,
     "OPS": 10,
     "SEA": 10,
@@ -42,7 +43,6 @@
     "ACT": 7,
     "BRK": 7,
     "MAIN": 7,
-    "POL": 6,
     "AUZ": 6,
     "TRN": 6,
     "VER": 6,
@@ -62,28 +62,28 @@
   "blank_source_sections": [],
   "malformed_rows": [],
   "unrepresented_recovered_ids": [],
-  "recovered_heading_ids": 243,
+  "recovered_heading_ids": 248,
   "recovered_ids_referenced_anywhere": 247,
   "excluded_sections": 12,
-  "resolved_rows": 145,
-  "unresolved_rows": 455,
+  "resolved_rows": 197,
+  "unresolved_rows": 408,
   "by_disposition": {
-    "unresolved": 455,
-    "retained": 136,
+    "unresolved": 408,
+    "retained": 187,
     "deferred_with_gate": 5,
-    "combined": 3,
+    "combined": 4,
     "corrected": 1
   },
   "by_implementation_status": {
-    "unassessed": 455,
-    "not_started": 89,
-    "partially_implemented": 47,
-    "production_proven": 7,
+    "unassessed": 408,
+    "not_started": 127,
+    "partially_implemented": 60,
+    "production_proven": 8,
     "schema_only": 2
   },
   "by_verification_status": {
-    "inventory_only": 457,
-    "source_read": 83,
-    "code_verified": 60
+    "inventory_only": 410,
+    "source_read": 129,
+    "code_verified": 66
   }
 }

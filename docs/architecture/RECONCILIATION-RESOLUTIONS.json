@@ -20,7 +20,8 @@
     "batch-1: BIZ, ACT, PER, IAM, BRK",
     "batch-2: LST, SEA, COT, OPS-024, OPS-025",
     "batch-3: deep-audit findings, safe-main governance",
-    "batch-4: AUZ, CRM, SEL, TXN"
+    "batch-4: AUZ, CRM, SEL, TXN",
+    "batch-5: POL (incl. POL-1.1-1.5), REB, AUD, GATE, HYG, DOC, OPS"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -1326,6 +1327,505 @@
     "dependency": "TXN-3, TXN-11, BRK-5",
     "maturity": "decided",
     "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "_flagged_conflicts": [
+    {
+      "id": "CONFLICT-POL-GATE34-PORTAL",
+      "status": "OPEN — requires Maya's decision. NOT resolved by this reconciliation.",
+      "raised_by": "Stage F1 batch 5, while transferring POL-1.1",
+      "the_conflict": "POL-1.1 states that display gates 3 (InternetEntireListingDisplayYN) and 4 (InternetAddressDisplayYN) treat NULL AS DISPLAYABLE — block only on explicit false, and do NOT require affirmation. POL-1.3 records that applying affirmation logic to InternetEntireListingDisplayYN on 2026-04-30 suppressed 7,594 rows that should have been displayable. The current code applies affirmation to both fields.",
+      "facts_verified_read_only_at_04db1b99": [
+        "lib/compliance/gates.ts:71 affirmPermission() returns coerceStrictBool(), which returns true ONLY for explicit true/\"true\"/\"TRUE\"; null, undefined and missing all return false (deny).",
+        "lib/compliance/gates.ts docblock explicitly lists InternetEntireListingDisplayYN and InternetAddressDisplayYN under \"Use this for\".",
+        "lib/compliance/dto.ts:364, inside sanitizeListingForPortal (defined line 338), applies !affirmPermission(listing.internet_entire_listing_display_yn) and returns null. Its comment reads: \"Gate 3 — Internet display (fail-CLOSED). Was `=== false`; null/undefined now also blocks display.\"",
+        "lib/compliance/dto.ts:185, inside sanitizeForPortal (defined line 275), applies affirmPermission to InternetAddressDisplayYN. Its comment reads: \"Was `=== false` which only suppressed when explicitly false; null/undefined/missing passed through as displayable. Now uses canonical affirmPermission ... which treats ANY non-true value (including null, undefined, missing) as non-displayable.\"",
+        "Both comments show the tightening was DELIBERATE, not accidental.",
+        "lib/idx/db-to-public-dto.ts:279 applies affirmPermission to the already-computed aggregate idx_display_yn. That is a genuine boolean, so affirming it is correct and is NOT the raw-field affirmation POL-1.1 forbids.",
+        "The canonical incident record memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md is present in the repository."
+      ],
+      "why_this_is_not_asserted_to_be_a_live_defect": "Both affirming call sites are PORTAL DTO READ paths (sanitizeForPortal / sanitizeListingForPortal), not the sync WRITE path that computes idx_display_yn. The 2026-04-30 incident was a write-path suppression of 7,594 rows. A portal read path being stricter is a different surface with a different risk profile, and this reconciliation did NOT establish which behaviour is correct for the portal. Claiming a live production defect here would be exactly the extrapolation REB-3 and CLAUDE.md §E forbid.",
+      "what_was_not_verified": [
+        "Whether the sync write path that computes idx_display_yn applies affirmation to the RAW gate-3 field.",
+        "Whether internet_entire_listing_display_yn is in fact null for a material number of production rows.",
+        "Whether a regression test exists that FAILS when affirmation logic is reintroduced on gate 3 or 4 — POL-1.3 requires one; no such test was located, and per HYG-1 and GATE-5 that is 'not found in the searched paths', NOT 'does not exist'.",
+        "The contents of memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md were not re-read in this session."
+      ],
+      "decision_required_from_maya": "Either (a) POL-1.1 is correct and the portal paths must be relaxed to block only on explicit false, or (b) the portal surface is deliberately stricter than the IDX display gate, in which case POL-1.1 must be amended to say so explicitly and name the portal exception. Leaving both statements standing is the condition REB-3 and CLAUDE.md §E require us to stop and report rather than silently pick one.",
+      "actions_deliberately_not_taken": [
+        "No code was changed.",
+        "No test was added or removed.",
+        "No production database query was run.",
+        "No claim was made that production is currently non-compliant."
+      ]
+    }
+  ],
+  "POL-1": {
+    "canonical_destination": "§Policy — compliance fails closed, except where pre-filtered",
+    "disposition": "retained",
+    "reason_or_evidence": "The headline rule AND its exception in one statement: unknown display permission, unresolved audience, missing attribution, Participant Only, Owner Opt-Out or unresolved compliance review may not silently proceed — but the rule is NOT uniform across the display gates, and applying it uniformly has already caused a production incident. Both halves must survive together; the exception is not a softening, it is the correction that prevents recurrence.",
+    "dependency": "POL-1.1..POL-1.5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "POL-1.1": {
+    "canonical_destination": "§Policy — gate-by-gate null semantics",
+    "disposition": "retained",
+    "reason_or_evidence": "The six-gate table is the single most compliance-critical artefact in the plan and must be transferred VERBATIM, not paraphrased. Gates 1 (Owner Opt-Out) and 2 (Participant Only) fail closed absolutely. Gates 3 (InternetEntireListingDisplayYN) and 4 (InternetAddressDisplayYN): NULL MEANS DISPLAYABLE — block only on explicit false, do NOT require affirmation. Gates 5 (AVM) and 6 (Consumer Comment): null means BLOCKED — require affirmation, null denies. Any restatement that collapses these into one policy reintroduces the 2026-04-30 defect.",
+    "dependency": "POL-1.2 (rationale), POL-1.3 (incident)",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "POL-1.2": {
+    "canonical_destination": "§Policy — why gates 3 and 4 differ",
+    "disposition": "retained",
+    "reason_or_evidence": "The rationale, without which POL-1.1 reads as an arbitrary inconsistency a future agent would 'fix': the provider's policy layer pre-filters non-displayable rows BEFORE they reach the licensed feed, so a row that arrives has already passed the internet-display gate and null means 'already permitted upstream', not 'unknown'. Gates 5 and 6 are per-row opt-out flags the provider DOES populate at row level, so null there legitimately means 'not set' and must deny. Retaining the rationale is what makes the rule defensible rather than memorized.",
+    "dependency": "POL-1.1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "POL-1.3": {
+    "canonical_destination": "§Policy — recorded incident",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PRESENT: the canonical incident record memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md exists in the repository. On 2026-04-30 applying affirmation logic to InternetEntireListingDisplayYN suppressed 7,594 rows that should have been displayable. The requirement's enforcement clause must survive: any change to gate-3 or gate-4 null handling must cite this requirement and that incident record, and must be covered by a test that FAILS when affirmation logic is reintroduced. That regression test is the durable protection; the prose alone is not.",
+    "dependency": "POL-1.1, POL-CONFLICT-GATE34",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "POL-1.4": {
+    "canonical_destination": "§Policy — aggregate display gate",
+    "disposition": "retained",
+    "reason_or_evidence": "The composed formula: idx_display_yn = rls_eligible AND NOT terminal_status AND internet_entire_listing_display_yn (gate 3) AND NOT participant_only (gate 2) AND NOT owner_opt_out (gate 1). Plus the override that rls_eligible=false — a Mallan web sale/rental listing or a commercial record — forces idx_display_yn=false regardless of every other gate. CODE-VERIFIED CONSISTENT: lib/idx/db-to-public-dto.ts:279 affirms the already-computed idx_display_yn aggregate, which is a genuine boolean; affirming a computed boolean is correct and is NOT the gate-3 raw-field affirmation POL-1.1 forbids.",
+    "dependency": "POL-1.1, POL-1.5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "POL-1.5": {
+    "canonical_destination": "§Policy — terminal statuses",
+    "disposition": "retained",
+    "reason_or_evidence": "Terminal statuses force idx_display_yn=false, and the set is RESOLVED FROM LIVE PROVIDER STATUS DEFINITIONS per COT-11, explicitly not hardcoded in application logic. As last verified it comprised closed, sold, leased, rented, withdrawn, expired and cancelled, and a closed record leaves public display within 24 hours. Status normalization folds case, resolves known aliases and trims whitespace, but an UNRECOGNIZED status value is preserved and never coerced to a familiar one (COT-10). COT-15's recorded drift — seven MlsStatus values present live and absent from the committed copy — is precisely why this set must not be hardcoded.",
+    "dependency": "COT-10, COT-11, COT-15",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "POL-2": {
+    "canonical_destination": "§Policy — policy order",
+    "disposition": "retained",
+    "reason_or_evidence": "The application may load the MINIMUM record needed to evaluate policy, then applies authorization, listing restrictions, audience rules, field suppression, attribution and purpose-specific policy before returning protected data. The concession is deliberate and must survive: policy depending on record-specific facts cannot precede loading that record, and requiring every gate before every data access is not implementable. A stricter restatement would be unimplementable and would therefore be ignored.",
+    "dependency": "AUZ-2, POL-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "POL-3": {
+    "canonical_destination": "§Policy — Fair Housing state",
+    "disposition": "retained",
+    "reason_or_evidence": "Until a production scanner and workflow are connected and PROVED, the state is `not_evaluated`, NOT `allowed`. Compliance-sensitive public or marketing content requires human review when automated evaluation is unavailable or inconclusive, and `not_evaluated` is recorded ON THE ARTIFACT so anything produced while evaluation was unavailable stays identifiable afterwards. That last clause is what makes remediation possible later.",
+    "dependency": "POL-5, POL-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "POL-4": {
+    "canonical_destination": "§Policy — versioned policy",
+    "disposition": "retained",
+    "reason_or_evidence": "Fourteen attributes per operationalized policy including authority, official_source, effective_date, superseded_date, enforcement_mode and test_ids. This is the concrete answer to the deep-audit finding AUDIT-POLICY-VERSIONING: without it a display or compliance decision cannot be replayed against the rule version that produced it — which matters directly because COT-15 shows the provider vocabulary had already drifted.",
+    "dependency": "AUDIT-POLICY-VERSIONING, REB-2, BIZ-0",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "POL-5": {
+    "canonical_destination": "§Policy — compliance-sensitive surfaces",
+    "disposition": "retained",
+    "reason_or_evidence": "Five surface classes requiring the POL-3 review path, with an explicit boundary: purely internal, non-client-facing text is NOT gated. The boundary is as important as the list — gating internal text would flood reviewers and train them to dismiss findings. Category 5 ('any generated text destined for any of the above') is what binds AI output to the same standard as authored copy, and it is also the enforcement point for BIZ-8's no-free-services rule.",
+    "dependency": "POL-3, POL-6, BIZ-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "POL-6": {
+    "canonical_destination": "§Policy — evaluation receives context",
+    "disposition": "retained",
+    "reason_or_evidence": "A compliance evaluation receives the text, originating field, audience, surface and listing provenance — never a bare string. The stated reason must survive: without context an evaluation cannot distinguish a factual amenity description from a statement of preference about occupants, and will produce false results THAT TRAIN REVIEWERS TO IGNORE IT. A false-positive-heavy Fair Housing scanner is worse than none, because it manufactures consent to dismiss real findings.",
+    "dependency": "POL-3, POL-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "REB-1": {
+    "canonical_destination": "§REBNY — responsibility",
+    "disposition": "retained",
+    "reason_or_evidence": "REBNY controls the applicable RLS policy, participation rules, display obligations, feed rights, attribution requirements, status obligations and effective rule changes. The REBNY counterpart of COT-1, and the reason BIZ-0 must label REBNY_RLS and REBNY_UCBA obligations distinctly from NY statute.",
+    "dependency": "BIZ-0, COT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "REB-2": {
+    "canonical_destination": "§REBNY — effective dates",
+    "disposition": "retained",
+    "reason_or_evidence": "A REBNY rule applies according to its effective date; historical records are interpreted under the rule in force AT THE TIME OF THE ACTION, while current disclosures follow the current rule. This is what makes BIZ-1's three separate compensation dates operationally meaningful rather than trivia, and it requires the policy versioning of POL-4 to be implementable at all.",
+    "dependency": "BIZ-1, POL-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "REB-3": {
+    "canonical_destination": "§REBNY — fail closed on unclear requirements",
+    "disposition": "retained",
+    "reason_or_evidence": "Stop and report when a REBNY, RLS, IDX, display or attribution requirement is unclear, conflicting or absent from the canonical compliance source. Do not guess from memory; do not extrapolate from one field's handling to another's or from one market's behavior to another's. This is identical to CLAUDE.md §E, and the 2026-04-30 incident is exactly the extrapolation it forbids. It is also the rule this reconciliation applied when it declined to decide POL-CONFLICT-GATE34.",
+    "dependency": "POL-1, CLAUDE.md §E",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUD-1": {
+    "canonical_destination": "§Audit — baseline",
+    "disposition": "retained",
+    "reason_or_evidence": "The current count of conforming entry points is recorded once as a baseline, so conformance is measured against a real starting point rather than an aspiration.",
+    "dependency": "AUD-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUD-2": {
+    "canonical_destination": "§Audit — ratchet",
+    "disposition": "retained",
+    "reason_or_evidence": "The validator fails if conformance DECREASES. New entry points must conform; existing non-conforming ones migrate at any pace but are never added to. A ratchet permits incremental progress without permitting regression — the same shape as the ucba:audit REGRESSIONS=0 hard stop in CLAUDE.md §G.",
+    "dependency": "AUD-1, GATE-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUD-3": {
+    "canonical_destination": "§Audit — what the audit checks",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight checks: entry-point classification, transport-exception registration, envelope conformance, explicit result state on collection responses, error-catalog conformance, generated-client drift, application-service boundary per ARC-9, and provider-vocabulary drift per COT-12. It is also where IAM-9 says a missing idempotency key on a must-not-double-apply operation is caught.",
+    "dependency": "ARC-9, COT-12, IAM-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUD-4": {
+    "canonical_destination": "§Audit — the audit states its limits",
+    "disposition": "retained",
+    "reason_or_evidence": "The validator must state what it PROVES and what it DOES NOT: it verifies contract conformance; it does not verify correctness, authorization behavior or live operation. Identical in spirit to CLAUDE.md §J.8 ('no green-checks claim stands alone'). This ledger applies the same standard to itself via its verification_status column.",
+    "dependency": "GATE-6, CLAUDE.md §J.8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUD-5": {
+    "canonical_destination": "§Audit — audit failures block",
+    "disposition": "retained",
+    "reason_or_evidence": "An audit failure BLOCKS the change; it is not advisory output. Advisory validators are ignored under deadline pressure, which is the failure mode this row exists to prevent.",
+    "dependency": "AUD-3, GATE-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-1": {
+    "canonical_destination": "§Completion gate — machine-checkable claim",
+    "disposition": "retained",
+    "reason_or_evidence": "A capability may not be marked complete by prose; completion is a structured claim a validator accepts or rejects. The evidence record carries method, verbatim command INCLUDING ANY WRAPPER, raw (not summarized) output, integer exit_code, target_sha, environment, observed_at, and both `proves` and `does_not_prove`. The paired proves/does_not_prove fields are the innovation — they force the boundary of a claim to be stated at the moment it is made.",
+    "dependency": "OPS-1, OPS-2, GATE-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-2": {
+    "canonical_destination": "§Completion gate — what the gate rejects",
+    "disposition": "retained",
+    "reason_or_evidence": "Twelve rejection conditions. Two encode failures this project has actually made: SOURCE_READ_FOR_BEHAVIOR (a source read cannot support a rendering or runtime claim — the FARE Act finding of 2026-05-20) and GREP_FOR_ABSENCE (a negative search asserting something does not exist rather than was not found in the searched paths — HYG-1). PLACEHOLDER_EVIDENCE enumerates the exact tokens that must be rejected: unverified, tbd, pending, todo, n/a, none.",
+    "dependency": "GATE-1, HYG-1, GATE-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-3": {
+    "canonical_destination": "§Completion gate — the exit code cannot be asserted",
+    "disposition": "retained",
+    "reason_or_evidence": "The gate's honest self-assessment, and it must not be overstated in transfer: it does NOT verify that a recorded exit code is truthful — it cannot. It makes the claim FALSIFIABLE, because command plus target_sha plus environment makes it reproducible by a third party. A false claim becomes a discoverable error rather than an unverifiable opinion. Any restatement claiming the gate verifies truthfulness would be a false claim about the gate itself.",
+    "dependency": "GATE-1, GATE-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-4": {
+    "canonical_destination": "§Completion gate — dependency staleness",
+    "disposition": "retained",
+    "reason_or_evidence": "When a requirement changes, every completion claim whose evidence predates the change and whose capability depends on it is marked EVIDENCE_STALE and loses promoted status until re-evidenced. This is the enforcement arm of the change protocol: changing a decided requirement does not silently leave downstream capabilities claiming completion against a superseded rule.",
+    "dependency": "GATE-1, DOC-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-5": {
+    "canonical_destination": "§Completion gate — negative findings are first-class",
+    "disposition": "retained",
+    "reason_or_evidence": "A search finding nothing is legitimate evidence and must record what was searched, where, and with what pattern. Its `proves` states NOT FOUND IN THE SEARCHED PATHS and may never state DOES NOT EXIST. Carries a concrete operational detail worth preserving: a bare grep finding nothing exits 1, not 0, so where 0 is recorded for a no-match search the wrapper that produced it must be visible in `command`. This ledger's own negative findings (e.g. RESOURCE_NOT_AVAILABLE, acting_capacity) are phrased to this standard.",
+    "dependency": "HYG-1, AGT-6, GATE-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-6": {
+    "canonical_destination": "§Completion gate — the gate states its own limits",
+    "disposition": "retained",
+    "reason_or_evidence": "It proves every promoted status carries a complete, well-formed, anchored evidence record. It does NOT prove any recorded output is truthful, that any test passes, that anything works in production, or that the capability inventory is complete. 'A green gate means the claims are honest in FORM. Substance is established by the evidence itself and by review.' That sentence should transfer verbatim.",
+    "dependency": "AUD-4, GATE-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-7": {
+    "canonical_destination": "§Completion gate — ratchet",
+    "disposition": "retained",
+    "reason_or_evidence": "DERIVED from AUD-2. The count of capabilities passing the gate is a baseline and the gate fails if it decreases, so a capability may not be QUIETLY DEMOTED to avoid producing evidence. Without this clause the gate is trivially defeated by lowering a claim instead of evidencing it.",
+    "dependency": "AUD-2",
+    "maturity": "derived",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "GATE-8": {
+    "canonical_destination": "§Completion gate — one command",
+    "disposition": "retained",
+    "reason_or_evidence": "The gate runs from one named command, reports per-capability results and exits non-zero on any rejection, converging into platform:check (HYG-8). This is the row that connects the completion gate to PR #579's capability-audit machinery, so it must be decided ONCE across both unmerged lines.",
+    "dependency": "HYG-8, PR#579 machine governance",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-1": {
+    "canonical_destination": "§Hygiene — no deletion by grep alone",
+    "disposition": "retained",
+    "reason_or_evidence": "The absence of a discovered caller is not proof that a route, module, field, flag, job or document is safe to remove. Directly constrains this reconciliation: several rows here record 'no caller observed', and under HYG-1 none of them authorizes a deletion. It is also why BIZ-10.2 requires classification before any compensation-field removal.",
+    "dependency": "HYG-6, GATE-5, BIZ-10",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-2": {
+    "canonical_destination": "§Hygiene — what counts as bloat",
+    "disposition": "retained",
+    "reason_or_evidence": "Sixteen bloat categories including duplicate architecture documents (the condition this reconciliation exists to end), duplicate media or listing rows without reconciliation, and copied provider facts that become conflicting local truth. Closes with a protection that must survive: HISTORICAL MIGRATIONS ARE NOT BLOAT and must not be deleted merely to make the repository smaller.",
+    "dependency": "HYG-3, DOC-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-3": {
+    "canonical_destination": "§Hygiene — disposition states",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight cleanup states: KEEP_ACTIVE, MIGRATE, CONSOLIDATE, EVIDENCE_ONLY, HISTORICAL, DEPRECATE_AFTER_PROOF, DELETE_AFTER_PROOF, UNKNOWN_REQUIRES_TRACE. The two AFTER_PROOF states and UNKNOWN_REQUIRES_TRACE are what stop a cleanup pass from becoming a deletion pass. Structurally the same device as this ledger's disposition column, where `unresolved` plays the UNKNOWN_REQUIRES_TRACE role.",
+    "dependency": "HYG-2, HYG-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-4": {
+    "canonical_destination": "§Hygiene — required inventories",
+    "disposition": "retained",
+    "reason_or_evidence": "Twelve machine-readable or GENERATED inventories: normative documents, routes and methods, non-HTTP entry points, errors, flags, environment variables, crons and jobs, provider adapters, database models and fields, public assets, dependencies, temporary compatibility code. Generated rather than authored is the operative word — AUDIT-GOVERNANCE-DRIFT showed hand-authored counts drift.",
+    "dependency": "AUDIT-GOVERNANCE-DRIFT, HYG-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-5": {
+    "canonical_destination": "§Hygiene — temporary code contract",
+    "disposition": "retained",
+    "reason_or_evidence": "Every temporary item records owner, reason, introduced_at, removal_condition, latest_review_date and a test proving safe removal. 'There is no permanent temporary code.' Directly applicable to the in-flight media migration, where Listing.media remains the read path until the PR 4 reader swap — a temporary compatibility path that currently has no recorded deadline.",
+    "dependency": "AUDIT-MEDIA-DUPLICATION, HYG-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-6": {
+    "canonical_destination": "§Hygiene — safe removal proof",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight ordered steps before removal. Step 2 is the load-bearing one — DISTINGUISH 'no caller found in searched paths' FROM 'unused' — and steps 3-5 require replacement behavior, proof of it, and preserved rollback BEFORE the old path is removed. This is the procedure that makes HYG-1 actionable rather than merely prohibitive.",
+    "dependency": "HYG-1, OPS-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-7": {
+    "canonical_destination": "§Hygiene — per-change hygiene questions",
+    "disposition": "retained",
+    "reason_or_evidence": "Seven questions every PR answers, ending with 'What proves no unrelated files were included?' — which is the check that makes HYG-9 and OPS-6 verifiable rather than aspirational.",
+    "dependency": "HYG-9, OPS-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-8": {
+    "canonical_destination": "§Hygiene — platform check target",
+    "disposition": "retained",
+    "reason_or_evidence": "A progressive `npm run platform:check` converging on twelve validations. Explicitly a TARGET, not a claim of current state, and it carries its own honesty clause: the command must state what it currently proves and what remains planned. Converging point for GATE-8 and the PR #579 capability audit, so the two must not be built twice.",
+    "dependency": "GATE-8, AUD-3, PR#579 machine governance",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "HYG-9": {
+    "canonical_destination": "§Hygiene — one branch, one bounded capability",
+    "disposition": "retained",
+    "reason_or_evidence": "A branch contains one bounded capability; unrelated in-flight work is never swept into a commit; the staged set is inspected against intended scope before every commit. This reconciliation is being conducted in an isolated worktree for exactly this reason, leaving the Phase 1A and primary checkouts undisturbed.",
+    "dependency": "OPS-6, HYG-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "DOC-1": {
+    "canonical_destination": "§Documentation — single source of platform truth",
+    "disposition": "retained",
+    "reason_or_evidence": "Only the canonical plan may establish platform-wide architecture, business rules, implementation sequence or cross-system contracts. This is the requirement that makes the PR #585 / PR #579 reconciliation mandatory rather than optional — two normative plans cannot both satisfy DOC-1.",
+    "dependency": "DOC-2, DOC-4, MAIN-GOVERNANCE-004",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "DOC-2": {
+    "canonical_destination": "§Documentation — repository entry points",
+    "disposition": "retained",
+    "reason_or_evidence": "AGENTS.md, AI-START-HERE.md, CLAUDE.md, GEMINI.md, .github/copilot-instructions.md and README.md must identify the canonical plan as the first platform-plan read. They MAY summarize or route but MAY NOT duplicate a competing architecture. This is the exact decision the reconciliation must make for PR #585's four governance files and PR #579's four — route, do not duplicate.",
+    "dependency": "DOC-1, PR#585 governance files, PR#579 governance files",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "DOC-3": {
+    "canonical_destination": "§Documentation — amend in place",
+    "disposition": "retained",
+    "reason_or_evidence": "Names the exact forbidden filenames — PLAN-REV6, -FINAL, -NEW, -YYYY-MM-DD, -ADDENDUM. 'The path is stable. The contents evolve.' Identical in force to the source-of-truth charter's no-parallel-file rule, and it governs the output of this reconciliation: the result must be the SAME path, amended, not a new dated plan.",
+    "dependency": "MAIN-GOVERNANCE-004, DOC-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "DOC-4": {
+    "canonical_destination": "§Documentation — source-document consolidation",
+    "disposition": "retained",
+    "reason_or_evidence": "Names seven documents that contain useful requirements or evidence but must not remain competing normative plans, INCLUDING Mallan_Intelligence_Master_Plan.md — which is PR #579's plan. Prescribes exactly the seven-column coverage record this ledger implements (source_file, source_section, source_requirement, accepted|corrected|rejected|historical|evidence_only, master_plan_destination, verification_source, notes). Retirement means the file no longer calls itself authoritative; git history preserves it. This row is the specification this ledger is built to satisfy.",
+    "dependency": "DOC-6, DOC-7, PR#579 plan",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "DOC-5": {
+    "canonical_destination": "§Documentation — no silent document drift",
+    "disposition": "retained",
+    "reason_or_evidence": "A change to a decided requirement must recheck every dependent requirement, README summary, agent instruction, active issue and handoff affected by it. GATE-4 is the machine enforcement of this rule; without GATE-4 it depends on diligence alone.",
+    "dependency": "GATE-4, DOC-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "DOC-6": {
+    "canonical_destination": "§Documentation — coverage before retirement",
+    "disposition": "retained",
+    "reason_or_evidence": "No source document is retired until its coverage matrix row EXISTS and states where each requirement landed. Applied literally to this reconciliation: neither PR #585's plan nor PR #579's plan may be retired until every one of their sections has a resolved ledger row. As of this batch 460 rows remain unresolved, so no retirement is authorized.",
+    "dependency": "DOC-4, this ledger",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "DOC-7": {
+    "canonical_destination": "§Documentation — appendices stay inside the plan",
+    "disposition": "retained",
+    "reason_or_evidence": "Coverage matrices, conflict decisions, open questions, retired-document lists, requirement indexes and change history live in the plan's appendices and do not become separate documents. TENSION TO RESOLVE: this ledger and its resolutions file are currently separate documents. They are working artefacts of the reconciliation rather than appendices of the finished plan, but DOC-7 requires the final canonical plan to absorb the coverage matrix, conflict decisions and open questions. Recorded here so the final assembly step cannot overlook it.",
+    "dependency": "DOC-4, DOC-6, final canonical plan assembly",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "DOC-8": {
+    "canonical_destination": "§Documentation — retired identifiers",
+    "disposition": "retained",
+    "reason_or_evidence": "A withdrawn requirement KEEPS its identifier, marked RETIRED, with reason and replacement recorded; the identifier is NEVER REASSIGNED. This prevents the worst reconciliation failure mode — an identifier silently coming to mean something different, so that older evidence and audits appear to support a requirement they never addressed.",
+    "dependency": "DOC-4, GATE-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "OPS-1": {
+    "canonical_destination": "§Operations — no unsupported completion claim",
+    "disposition": "retained",
+    "reason_or_evidence": "A capability is not complete without exact tests, production or immutable-preview proof, health evidence, rollback, documentation and operational ownership. The source itself observes that OPS-1 was never enforced — 'an agent can write done and nothing stops it' — which is why the GATE family exists. Retained as the statement of the rule; GATE-1..GATE-8 are its enforcement.",
+    "dependency": "GATE-1..GATE-8, OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "OPS-2": {
+    "canonical_destination": "§Operations — evidence standard",
+    "disposition": "retained",
+    "reason_or_evidence": "Seven elements per claim: what was checked, exact command, raw output, exit code, exact commit and environment, what the evidence proves, what it does not prove. 'Three of these are not sufficient.' Identical to CLAUDE.md §F and to the memory/EVIDENCE-STANDARD-2026-07-27.md artefact that PR #579 also carries — so this rule exists on BOTH unmerged lines and must be decided once.",
+    "dependency": "GATE-1, PR#579 evidence standard",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "OPS-3": {
+    "canonical_destination": "§Operations — test layers",
+    "disposition": "retained",
+    "reason_or_evidence": "Nine applicable layers from pure contract and unit tests through preview or production smoke tests, health probes and data reconciliation queries. The breadth matters: OPS-024 passed 5,814 unit tests because every fixture fabricated ListingKey, so unit coverage alone cannot establish provider-contract correctness.",
+    "dependency": "OPS-4, OPS-024",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "OPS-4": {
+    "canonical_destination": "§Operations — production proof",
+    "disposition": "retained",
+    "reason_or_evidence": "Production proof includes deployed commit, deployment identity, exact endpoint or workflow, timestamp, observed response or behavior, and relevant logs or queries. 'A source read or a passing unit test never substitutes for a rendering or behavior claim.' This is precisely why TXN-10's FARE render is left unverified in this ledger — no live probe was run.",
+    "dependency": "TXN-10, GATE-2 (SOURCE_READ_FOR_BEHAVIOR)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "OPS-5": {
+    "canonical_destination": "§Operations — rollback",
+    "disposition": "retained",
+    "reason_or_evidence": "Every implementation PR states the rollback procedure AND verifies that rollback does not corrupt data, identity, policy or audit history. The second clause is the one usually skipped and the one OPS-024 exercised for real: recovery required both a Vercel rollback and a revert of main.",
+    "dependency": "OPS-024, CRM-4",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "OPS-6": {
+    "canonical_destination": "§Operations — no unrelated files",
+    "disposition": "combined",
+    "reason_or_evidence": "Each branch and PR contains one bounded capability, diffed against its intended base before push and before merge. Same requirement as HYG-9; combined onto HYG-9 as the canonical statement so the rule is not maintained in two places, with OPS-6 retained as the operations-side reference.",
+    "dependency": "HYG-9 (canonical)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "OPS-7": {
+    "canonical_destination": "§Operations — Maya approval",
+    "disposition": "retained",
+    "reason_or_evidence": "No merge or production release occurs without Maya's approval. Matches the standing holds in CLAUDE.md §C and governs the disposition of every deferred_with_gate row in this ledger. It is also the rule under which this branch remains unpushed.",
+    "dependency": "CLAUDE.md §C holds",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "OPS-8": {
+    "canonical_destination": "§Operations — health checks",
+    "disposition": "retained",
+    "reason_or_evidence": "Operational probes proving the affected surface responds correctly are run BEFORE AND AFTER a change, with output recorded. The before-probe is what distinguishes a regression from a pre-existing condition — the distinction OPS-025 needed in order to be classified as pre-existing rather than Phase 1A damage.",
+    "dependency": "OPS-4, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
     "verification_status": "source_read"
   }
 }
