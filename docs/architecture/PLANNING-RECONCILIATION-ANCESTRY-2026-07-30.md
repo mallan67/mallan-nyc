@@ -79,8 +79,21 @@ exist only on the recovered line.
 
 | line | distinct `XXX-###` identifiers |
 |---|---:|
-| PR #585 plan | **0** |
-| Recovered plan | **243**, across 29 families |
+| PR #585 plan | **122**, across 19 families |
+| Recovered plan | **248**, across 29 families |
+
+> **Correction (Stage F2) — this is the most consequential error in this
+> document.** An earlier revision stated that the PR #585 plan carries **0**
+> requirement identifiers and that its 141 headings are "prose sections". That
+> is false. PR #585's plan carries **122 identified requirements** using the
+> **same `XXX-N` scheme** as the recovered line, plus 19 unidentified
+> structural headings (the document title and the `Goal`/`Steps`/`Exit` blocks
+> of `PH-1`…`PH-6`).
+>
+> The consequence is that this is **not** a mapping of unidentified prose onto
+> identified requirements. It is a **version comparison between two revisions
+> of the same identified document**, which is a far more tractable problem and
+> admits a provable answer.
 
 Recovered families:
 
@@ -101,9 +114,45 @@ LST MKT OPS PER PH POL REB SEA SEL TRN TXN VER
 > date-suffixed `GATE-2026` token is spurious. All four excluded tokens are
 > recorded with their proving line in the ledger's excluded table.
 
-**Consequence for the ledger:** identifiers exist on the recovered side only.
-Reconciliation must map PR #585's 141 prose sections onto identified
-requirements, never the reverse, or 243 identifiers are lost.
+**Consequence for the ledger (corrected, Stage F2).** Comparing every `XXX-N`
+heading across `f51848b0` and `6e8ea2d9` gives a decisive result:
+
+| relation | count |
+|---|---:|
+| identifiers on PR #585 | 122 |
+| of those, present on the recovered line | **122 (all)** |
+| **unique to PR #585** | **0** |
+| identical title on both lines | 117 |
+| **same identifier, different requirement** | **5** |
+| present only on the recovered line | 139 |
+
+**PR #585's plan is a strict subset of the recovered line by identifier.**
+Nothing is lost by taking the recovered line as the base. The entire risk is
+concentrated in the five collisions:
+
+| id | PR #585 | recovered | nature |
+|---|---|---|---|
+| `ARC-1` | No client-side **MLS** calls | No client-side **provider** calls | wording; recovered is the correct generalization |
+| `BUS-5` | REBNY responsibility | Mallan responsibility | **identifier reassigned** |
+| `BUS-6` | Mallan responsibility | Repository boundary | **identifier reassigned** |
+| `BUS-7` | Repository boundary | No dependency on external listing-entry products | **identifier reassigned** |
+| `POL-1` | Compliance fails closed | Compliance fails closed, **except where the feed is pre-filtered** | **incident correction** |
+
+Two findings follow, and both must reach the canonical plan:
+
+1. **`BUS-5`/`BUS-6`/`BUS-7` were shifted down by one** when REBNY
+   responsibility moved out of `BUS` into `REB-1`. No requirement was lost, but
+   an identifier now means something different than it did — exactly what
+   `DOC-8` forbids. The canonical plan must carry a retired-identifier mapping
+   so that anything citing `BUS-5` from the PR #585 era resolves to today's
+   `REB-1`.
+
+2. **`POL-1` is the one place where merging PR #585 would cause harm.** Its
+   unqualified "compliance fails closed" is precisely the uniform reading that
+   produced the 2026-04-30 incident, in which affirmation logic applied to
+   `InternetEntireListingDisplayYN` suppressed **7,594 rows that should have
+   been displayable**. The recovered `POL-1` plus `POL-1.1`…`POL-1.5` is the
+   corrected statement and **supersedes it absolutely**.
 
 ## PR #579 — 12 changed files
 
@@ -162,8 +211,8 @@ actual totals, which sum to **600** inventoried rows:
 
 | source | rows |
 |---|---:|
-| Recovered plan (identified requirements) | 243 |
-| PR #585 plan (prose sections, unidentified) | 141 |
+| Recovered plan (identified requirements) | 248 |
+| PR #585 plan (122 identified + 19 structural) | 141 |
 | PR #579 master plan (headings) | 135 |
 | PR #579 program registry (`P0`…`P11`) | 12 |
 | PR #579 capability registry (`CAP-*`) | 11 |
@@ -175,7 +224,7 @@ actual totals, which sum to **600** inventoried rows:
 | PR #585 `.github/copilot-instructions.md` | 1 |
 | Safe `main` operational truth (incl. OPS-024, OPS-025) | 9 |
 | Deep system findings | 12 |
-| **TOTAL** | **600** |
+| **TOTAL** | **605** |
 
 ## Evidence commands
 

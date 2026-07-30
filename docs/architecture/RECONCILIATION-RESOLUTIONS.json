@@ -22,7 +22,8 @@
     "batch-3: deep-audit findings, safe-main governance",
     "batch-4: AUZ, CRM, SEL, TXN",
     "batch-5: POL (incl. POL-1.1-1.5), REB, AUD, GATE, HYG, DOC, OPS",
-    "batch-6: AGT, BUS, ARC, TRN, VER, ERR, CMA, MKT, INT, PH"
+    "batch-6: AGT, BUS, ARC, TRN, VER, ERR, CMA, MKT, INT, PH",
+    "Stage F2: PR #585 plan (141) + governance files (30)"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -2476,5 +2477,1544 @@
     "maturity": "decided",
     "implementation_status": "not_started",
     "verification_status": "source_read"
+  },
+  "P585-ONE-AUTHORITATIVE-001": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-DOC-1-001": {
+    "canonical_destination": "combined into recovered DOC-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `DOC-1` has a title IDENTICAL to the recovered line's `DOC-1` (\"Single source of platform truth\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered DOC-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-DOC-2-001": {
+    "canonical_destination": "combined into recovered DOC-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `DOC-2` has a title IDENTICAL to the recovered line's `DOC-2` (\"Repository entry points\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered DOC-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-DOC-3-001": {
+    "canonical_destination": "combined into recovered DOC-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `DOC-3` has a title IDENTICAL to the recovered line's `DOC-3` (\"Amend in place\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-DOC-4-001": {
+    "canonical_destination": "combined into recovered DOC-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `DOC-4` has a title IDENTICAL to the recovered line's `DOC-4` (\"Source-document consolidation\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered DOC-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-DOC-5-001": {
+    "canonical_destination": "combined into recovered DOC-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `DOC-5` has a title IDENTICAL to the recovered line's `DOC-5` (\"No silent document drift\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered DOC-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-1-001": {
+    "canonical_destination": "combined into recovered BUS-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `BUS-1` has a title IDENTICAL to the recovered line's `BUS-1` (\"What Mallan is building\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered BUS-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-2-001": {
+    "canonical_destination": "combined into recovered BUS-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `BUS-2` has a title IDENTICAL to the recovered line's `BUS-2` (\"Current data boundary\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered BUS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-3-001": {
+    "canonical_destination": "combined into recovered BUS-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `BUS-3` has a title IDENTICAL to the recovered line's `BUS-3` (\"Static CRM is temporary\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered BUS-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-4-001": {
+    "canonical_destination": "combined into recovered BUS-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `BUS-4` has a title IDENTICAL to the recovered line's `BUS-4` (\"One system does not mean one generic screen\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered BUS-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-5-001": {
+    "canonical_destination": "superseded by recovered BUS-5",
+    "disposition": "corrected",
+    "reason_or_evidence": "IDENTIFIER REASSIGNMENT — DOC-8 HAZARD. PR #585 BUS-5 = 'REBNY responsibility'. Recovered BUS-5 = 'Mallan responsibility'. The recovered line moved REBNY responsibility out of BUS into its own family as REB-1 and shifted BUS-5/6/7 down by one. No requirement is lost — REB-1 carries the REBNY content — but the identifier BUS-5 now means something different than it did on PR #585. DOC-8 forbids reassigning an identifier, so the canonical plan must record the reassignment explicitly: anything citing BUS-5 from the PR #585 era means today's REB-1.",
+    "dependency": "recovered BUS-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-1-001": {
+    "canonical_destination": "combined into recovered COT-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-1` has a title IDENTICAL to the recovered line's `COT-1` (\"Cotality responsibility\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-6-001": {
+    "canonical_destination": "superseded by recovered BUS-6",
+    "disposition": "corrected",
+    "reason_or_evidence": "IDENTIFIER REASSIGNMENT — DOC-8 HAZARD. PR #585 BUS-6 = 'Mallan responsibility'. Recovered BUS-6 = 'Repository boundary'. Part of the same BUS-5/6/7 downshift. PR #585's BUS-6 content is today's BUS-5. Must be recorded as a retired-identifier mapping, not silently absorbed.",
+    "dependency": "recovered BUS-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-2-001": {
+    "canonical_destination": "combined into recovered COT-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-2` has a title IDENTICAL to the recovered line's `COT-2` (\"Evidence precedence\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-3-001": {
+    "canonical_destination": "combined into recovered COT-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-3` has a title IDENTICAL to the recovered line's `COT-3` (\"Live verification\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-4-001": {
+    "canonical_destination": "combined into recovered COT-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-4` has a title IDENTICAL to the recovered line's `COT-4` (\"Field existence is not permission\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-1-001": {
+    "canonical_destination": "superseded by recovered ARC-1",
+    "disposition": "corrected",
+    "reason_or_evidence": "SAME ID, DIFFERENT WORDING. PR #585: 'No client-side MLS calls'. Recovered: 'No client-side provider calls'. The recovered wording is the correct generalization — the constraint applies to the Cotality/Trestle provider adapter, not to 'MLS' as a category, and COT-1 establishes the provider (not the MLS) as the transport authority. Take the recovered wording; no requirement is lost.",
+    "dependency": "recovered ARC-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-2-001": {
+    "canonical_destination": "combined into recovered ARC-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-2` has a title IDENTICAL to the recovered line's `ARC-2` (\"One application-service door\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-3-001": {
+    "canonical_destination": "combined into recovered ARC-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-3` has a title IDENTICAL to the recovered line's `ARC-3` (\"No silent failure\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-5-001": {
+    "canonical_destination": "combined into recovered COT-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-5` has a title IDENTICAL to the recovered line's `COT-5` (\"No provider guessing\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-1-001": {
+    "canonical_destination": "combined into recovered LST-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-1` has a title IDENTICAL to the recovered line's `LST-1` (\"No duplicate public matched pair\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-2-001": {
+    "canonical_destination": "combined into recovered LST-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-2` has a title IDENTICAL to the recovered line's `LST-2` (\"No local provider mutation\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-3-001": {
+    "canonical_destination": "combined into recovered LST-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-3` has a title IDENTICAL to the recovered line's `LST-3` (\"No provider overwrite of Mallan workflow\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-POL-1-001": {
+    "canonical_destination": "superseded by recovered POL-1",
+    "disposition": "corrected",
+    "reason_or_evidence": "THE MOST CONSEQUENTIAL DIFFERENCE BETWEEN THE TWO LINES. PR #585: 'Compliance fails closed'. Recovered: 'Compliance fails closed, EXCEPT WHERE THE FEED IS PRE-FILTERED', plus POL-1.1-POL-1.5 carrying the gate-by-gate null semantics, the rationale, the 7,594-row incident record, the aggregate formula and the terminal-status rule. PR #585's unqualified version is precisely the uniform reading that caused the 2026-04-30 incident: applying affirmation logic to InternetEntireListingDisplayYN suppressed 7,594 rows that should have been displayable. MERGING PR #585's POL-1 WOULD REINTRODUCE THE DEFECT. The recovered version supersedes it absolutely.",
+    "dependency": "recovered POL-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ERR-1-001": {
+    "canonical_destination": "combined into recovered ERR-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ERR-1` has a title IDENTICAL to the recovered line's `ERR-1` (\"Empty is not an error\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ERR-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-1-001": {
+    "canonical_destination": "combined into recovered HYG-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-1` has a title IDENTICAL to the recovered line's `HYG-1` (\"No deletion by grep alone\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-1-001": {
+    "canonical_destination": "combined into recovered OPS-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-1` has a title IDENTICAL to the recovered line's `OPS-1` (\"No unsupported completion claim\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-BUS-7-001": {
+    "canonical_destination": "superseded by recovered BUS-7",
+    "disposition": "corrected",
+    "reason_or_evidence": "IDENTIFIER REASSIGNMENT — DOC-8 HAZARD. PR #585 BUS-7 = 'Repository boundary'. Recovered BUS-7 = 'No dependency on external listing-entry products'. Part of the same downshift: PR #585's BUS-7 content is today's BUS-6. The recovered BUS-7 is genuinely NEW content with no PR #585 counterpart. Record the mapping explicitly.",
+    "dependency": "recovered BUS-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-4-001": {
+    "canonical_destination": "combined into recovered LST-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-4` has a title IDENTICAL to the recovered line's `LST-4` (\"Exact prefix definitions\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-5-001": {
+    "canonical_destination": "combined into recovered LST-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-5` has a title IDENTICAL to the recovered line's `LST-5` (\"Separate dimensions\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-6-001": {
+    "canonical_destination": "combined into recovered LST-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-6` has a title IDENTICAL to the recovered line's `LST-6` (\"Example\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-7-001": {
+    "canonical_destination": "combined into recovered LST-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-7` has a title IDENTICAL to the recovered line's `LST-7` (\"Matched-pair behavior\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-8-001": {
+    "canonical_destination": "combined into recovered LST-8",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-8` has a title IDENTICAL to the recovered line's `LST-8` (\"No authority handover\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-9-001": {
+    "canonical_destination": "combined into recovered LST-9",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-9` has a title IDENTICAL to the recovered line's `LST-9` (\"Current implementation shortcut\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-10-001": {
+    "canonical_destination": "combined into recovered LST-10",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-10` has a title IDENTICAL to the recovered line's `LST-10` (\"Match confidence\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-10",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-11-001": {
+    "canonical_destination": "combined into recovered LST-11",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-11` has a title IDENTICAL to the recovered line's `LST-11` (\"Ambiguity fails closed\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-11",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-12-001": {
+    "canonical_destination": "combined into recovered LST-12",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-12` has a title IDENTICAL to the recovered line's `LST-12` (\"Provider-controlled facts\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-12",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-13-001": {
+    "canonical_destination": "combined into recovered LST-13",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-13` has a title IDENTICAL to the recovered line's `LST-13` (\"Mallan-controlled facts\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-13",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-LST-14-001": {
+    "canonical_destination": "combined into recovered LST-14",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `LST-14` has a title IDENTICAL to the recovered line's `LST-14` (\"Discrepancy handling\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered LST-14",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-6-001": {
+    "canonical_destination": "combined into recovered COT-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-6` has a title IDENTICAL to the recovered line's `COT-6` (\"Preserve both provider identifiers\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-7-001": {
+    "canonical_destination": "combined into recovered COT-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-7` has a title IDENTICAL to the recovered line's `COT-7` (\"Media identity\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-8-001": {
+    "canonical_destination": "combined into recovered COT-8",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-8` has a title IDENTICAL to the recovered line's `COT-8` (\"Photo-first and media integrity\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-9-001": {
+    "canonical_destination": "combined into recovered COT-9",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-9` has a title IDENTICAL to the recovered line's `COT-9` (\"Freshness\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COT-10-001": {
+    "canonical_destination": "combined into recovered COT-10",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `COT-10` has a title IDENTICAL to the recovered line's `COT-10` (\"Unknown provider values\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered COT-10",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-4-001": {
+    "canonical_destination": "combined into recovered ARC-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-4` has a title IDENTICAL to the recovered line's `ARC-4` (\"Target layers\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-5-001": {
+    "canonical_destination": "combined into recovered ARC-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-5` has a title IDENTICAL to the recovered line's `ARC-5` (\"Thin adapters\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-6-001": {
+    "canonical_destination": "combined into recovered ARC-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-6` has a title IDENTICAL to the recovered line's `ARC-6` (\"Internal calls do not self-call HTTP\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-7-001": {
+    "canonical_destination": "combined into recovered ARC-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-7` has a title IDENTICAL to the recovered line's `ARC-7` (\"Domain services are not public entry points\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ARC-8-001": {
+    "canonical_destination": "combined into recovered ARC-8",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ARC-8` has a title IDENTICAL to the recovered line's `ARC-8` (\"Shared contract, not duplicated frontends\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ARC-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AUZ-1-001": {
+    "canonical_destination": "combined into recovered AUZ-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `AUZ-1` has a title IDENTICAL to the recovered line's `AUZ-1` (\"Actor resolution\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered AUZ-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AUZ-2-001": {
+    "canonical_destination": "combined into recovered AUZ-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `AUZ-2` has a title IDENTICAL to the recovered line's `AUZ-2` (\"Resource authorization\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered AUZ-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AUZ-3-001": {
+    "canonical_destination": "combined into recovered AUZ-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `AUZ-3` has a title IDENTICAL to the recovered line's `AUZ-3` (\"Broker role does not override provider restrictions\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered AUZ-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AUZ-4-001": {
+    "canonical_destination": "combined into recovered AUZ-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `AUZ-4` has a title IDENTICAL to the recovered line's `AUZ-4` (\"Non-disclosure\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered AUZ-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-POL-2-001": {
+    "canonical_destination": "combined into recovered POL-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `POL-2` has a title IDENTICAL to the recovered line's `POL-2` (\"Policy order\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered POL-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-POL-3-001": {
+    "canonical_destination": "combined into recovered POL-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `POL-3` has a title IDENTICAL to the recovered line's `POL-3` (\"Fair Housing state\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered POL-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-POL-4-001": {
+    "canonical_destination": "combined into recovered POL-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `POL-4` has a title IDENTICAL to the recovered line's `POL-4` (\"Versioned policy\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered POL-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-TRN-1-001": {
+    "canonical_destination": "combined into recovered TRN-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `TRN-1` has a title IDENTICAL to the recovered line's `TRN-1` (\"Success envelope\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered TRN-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-TRN-2-001": {
+    "canonical_destination": "combined into recovered TRN-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `TRN-2` has a title IDENTICAL to the recovered line's `TRN-2` (\"Empty envelope\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered TRN-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-TRN-3-001": {
+    "canonical_destination": "combined into recovered TRN-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `TRN-3` has a title IDENTICAL to the recovered line's `TRN-3` (\"Error envelope\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered TRN-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-TRN-4-001": {
+    "canonical_destination": "combined into recovered TRN-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `TRN-4` has a title IDENTICAL to the recovered line's `TRN-4` (\"Exceptions\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered TRN-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-VER-1-001": {
+    "canonical_destination": "combined into recovered VER-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `VER-1` has a title IDENTICAL to the recovered line's `VER-1` (\"Separate contract and build versions\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered VER-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-VER-2-001": {
+    "canonical_destination": "combined into recovered VER-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `VER-2` has a title IDENTICAL to the recovered line's `VER-2` (\"Compatibility failure\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered VER-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ERR-2-001": {
+    "canonical_destination": "combined into recovered ERR-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ERR-2` has a title IDENTICAL to the recovered line's `ERR-2` (\"One public error taxonomy\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ERR-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ERR-3-001": {
+    "canonical_destination": "combined into recovered ERR-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ERR-3` has a title IDENTICAL to the recovered line's `ERR-3` (\"Error catalog fields\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ERR-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ERR-4-001": {
+    "canonical_destination": "combined into recovered ERR-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ERR-4` has a title IDENTICAL to the recovered line's `ERR-4` (\"No arbitrary route strings\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ERR-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ERR-5-001": {
+    "canonical_destination": "combined into recovered ERR-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ERR-5` has a title IDENTICAL to the recovered line's `ERR-5` (\"Error lifecycle\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ERR-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-ERR-6-001": {
+    "canonical_destination": "combined into recovered ERR-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `ERR-6` has a title IDENTICAL to the recovered line's `ERR-6` (\"No hanging catches or warnings\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered ERR-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-2-001": {
+    "canonical_destination": "combined into recovered HYG-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-2` has a title IDENTICAL to the recovered line's `HYG-2` (\"What counts as bloat\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-3-001": {
+    "canonical_destination": "combined into recovered HYG-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-3` has a title IDENTICAL to the recovered line's `HYG-3` (\"Disposition states\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-4-001": {
+    "canonical_destination": "combined into recovered HYG-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-4` has a title IDENTICAL to the recovered line's `HYG-4` (\"Required inventories\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-5-001": {
+    "canonical_destination": "combined into recovered HYG-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-5` has a title IDENTICAL to the recovered line's `HYG-5` (\"Temporary code contract\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-6-001": {
+    "canonical_destination": "combined into recovered HYG-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-6` has a title IDENTICAL to the recovered line's `HYG-6` (\"Safe removal proof\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-7-001": {
+    "canonical_destination": "combined into recovered HYG-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-7` has a title IDENTICAL to the recovered line's `HYG-7` (\"Per-change hygiene questions\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-HYG-8-001": {
+    "canonical_destination": "combined into recovered HYG-8",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `HYG-8` has a title IDENTICAL to the recovered line's `HYG-8` (\"Platform check target\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered HYG-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-1-001": {
+    "canonical_destination": "combined into recovered SEA-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-1` has a title IDENTICAL to the recovered line's `SEA-1` (\"Separate products, shared meaning\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-2-001": {
+    "canonical_destination": "combined into recovered SEA-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-2` has a title IDENTICAL to the recovered line's `SEA-2` (\"Public search scope\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-3-001": {
+    "canonical_destination": "combined into recovered SEA-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-3` has a title IDENTICAL to the recovered line's `SEA-3` (\"Honest internal-search scope\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-4-001": {
+    "canonical_destination": "combined into recovered SEA-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-4` has a title IDENTICAL to the recovered line's `SEA-4` (\"One canonical pipeline\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-5-001": {
+    "canonical_destination": "combined into recovered SEA-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-5` has a title IDENTICAL to the recovered line's `SEA-5` (\"Unsupported criteria\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-6-001": {
+    "canonical_destination": "combined into recovered SEA-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-6` has a title IDENTICAL to the recovered line's `SEA-6` (\"Deterministic parity\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-7-001": {
+    "canonical_destination": "combined into recovered SEA-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-7` has a title IDENTICAL to the recovered line's `SEA-7` (\"Matched-pair suppression order\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-8-001": {
+    "canonical_destination": "combined into recovered SEA-8",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-8` has a title IDENTICAL to the recovered line's `SEA-8` (\"Search states\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEA-9-001": {
+    "canonical_destination": "combined into recovered SEA-9",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEA-9` has a title IDENTICAL to the recovered line's `SEA-9` (\"Field contract\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEA-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CRM-1-001": {
+    "canonical_destination": "combined into recovered CRM-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CRM-1` has a title IDENTICAL to the recovered line's `CRM-1` (\"Target\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CRM-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CRM-2-001": {
+    "canonical_destination": "combined into recovered CRM-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CRM-2` has a title IDENTICAL to the recovered line's `CRM-2` (\"Inventory first\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CRM-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CRM-3-001": {
+    "canonical_destination": "combined into recovered CRM-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CRM-3` has a title IDENTICAL to the recovered line's `CRM-3` (\"Vertical-slice migration\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CRM-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CRM-4-001": {
+    "canonical_destination": "combined into recovered CRM-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CRM-4` has a title IDENTICAL to the recovered line's `CRM-4` (\"Retirement gate\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CRM-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CRM-5-001": {
+    "canonical_destination": "combined into recovered CRM-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CRM-5` has a title IDENTICAL to the recovered line's `CRM-5` (\"Client identity\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CRM-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CRM-6-001": {
+    "canonical_destination": "combined into recovered CRM-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CRM-6` has a title IDENTICAL to the recovered line's `CRM-6` (\"Durable history\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CRM-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEL-1-001": {
+    "canonical_destination": "combined into recovered SEL-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEL-1` has a title IDENTICAL to the recovered line's `SEL-1` (\"Seller portal purpose\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEL-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEL-2-001": {
+    "canonical_destination": "combined into recovered SEL-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEL-2` has a title IDENTICAL to the recovered line's `SEL-2` (\"Truth levels\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEL-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEL-3-001": {
+    "canonical_destination": "combined into recovered SEL-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEL-3` has a title IDENTICAL to the recovered line's `SEL-3` (\"Live activity is separate from CMA\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEL-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-SEL-4-001": {
+    "canonical_destination": "combined into recovered SEL-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `SEL-4` has a title IDENTICAL to the recovered line's `SEL-4` (\"Live activity\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered SEL-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CMA-1-001": {
+    "canonical_destination": "combined into recovered CMA-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CMA-1` has a title IDENTICAL to the recovered line's `CMA-1` (\"Automatic starting set\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CMA-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CMA-2-001": {
+    "canonical_destination": "combined into recovered CMA-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CMA-2` has a title IDENTICAL to the recovered line's `CMA-2` (\"Evidence classification\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CMA-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CMA-3-001": {
+    "canonical_destination": "combined into recovered CMA-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CMA-3` has a title IDENTICAL to the recovered line's `CMA-3` (\"Agent control\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CMA-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CMA-4-001": {
+    "canonical_destination": "combined into recovered CMA-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CMA-4` has a title IDENTICAL to the recovered line's `CMA-4` (\"No central approval by default\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CMA-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CMA-5-001": {
+    "canonical_destination": "combined into recovered CMA-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CMA-5` has a title IDENTICAL to the recovered line's `CMA-5` (\"Facts versus judgment\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CMA-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-CMA-6-001": {
+    "canonical_destination": "combined into recovered CMA-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `CMA-6` has a title IDENTICAL to the recovered line's `CMA-6` (\"Versioning\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered CMA-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-1-001": {
+    "canonical_destination": "combined into recovered MKT-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-1` has a title IDENTICAL to the recovered line's `MKT-1` (\"Consent model\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-2-001": {
+    "canonical_destination": "combined into recovered MKT-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-2` has a title IDENTICAL to the recovered line's `MKT-2` (\"Durable opt-out\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-3-001": {
+    "canonical_destination": "combined into recovered MKT-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-3` has a title IDENTICAL to the recovered line's `MKT-3` (\"Contact provenance\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-4-001": {
+    "canonical_destination": "combined into recovered MKT-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-4` has a title IDENTICAL to the recovered line's `MKT-4` (\"Production hold\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-5-001": {
+    "canonical_destination": "combined into recovered MKT-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-5` has a title IDENTICAL to the recovered line's `MKT-5` (\"Sender separation\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-6-001": {
+    "canonical_destination": "combined into recovered MKT-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-6` has a title IDENTICAL to the recovered line's `MKT-6` (\"Recipient reconciliation\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-MKT-7-001": {
+    "canonical_destination": "combined into recovered MKT-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `MKT-7` has a title IDENTICAL to the recovered line's `MKT-7` (\"Content policy\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered MKT-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-INT-1-001": {
+    "canonical_destination": "combined into recovered INT-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `INT-1` has a title IDENTICAL to the recovered line's `INT-1` (\"Intelligence is a consumer, not the owner\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered INT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-INT-2-001": {
+    "canonical_destination": "combined into recovered INT-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `INT-2` has a title IDENTICAL to the recovered line's `INT-2` (\"Explainability\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered INT-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-INT-3-001": {
+    "canonical_destination": "combined into recovered INT-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `INT-3` has a title IDENTICAL to the recovered line's `INT-3` (\"No invented facts\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered INT-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-INT-4-001": {
+    "canonical_destination": "combined into recovered INT-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `INT-4` has a title IDENTICAL to the recovered line's `INT-4` (\"Replaceable providers\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered INT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-INT-5-001": {
+    "canonical_destination": "combined into recovered INT-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `INT-5` has a title IDENTICAL to the recovered line's `INT-5` (\"Outcome loop\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered INT-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-2-001": {
+    "canonical_destination": "combined into recovered OPS-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-2` has a title IDENTICAL to the recovered line's `OPS-2` (\"Evidence standard\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-3-001": {
+    "canonical_destination": "combined into recovered OPS-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-3` has a title IDENTICAL to the recovered line's `OPS-3` (\"Test layers\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-4-001": {
+    "canonical_destination": "combined into recovered OPS-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-4` has a title IDENTICAL to the recovered line's `OPS-4` (\"Production proof\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-5-001": {
+    "canonical_destination": "combined into recovered OPS-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-5` has a title IDENTICAL to the recovered line's `OPS-5` (\"Rollback\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-6-001": {
+    "canonical_destination": "combined into recovered OPS-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-6` has a title IDENTICAL to the recovered line's `OPS-6` (\"No unrelated files\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-OPS-7-001": {
+    "canonical_destination": "combined into recovered OPS-7",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `OPS-7` has a title IDENTICAL to the recovered line's `OPS-7` (\"Maya approval\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered OPS-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-PH-1-001": {
+    "canonical_destination": "combined into recovered PH-1",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `PH-1` has a title IDENTICAL to the recovered line's `PH-1` (\"Canonical truth, inventory, and cleanup baseline\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered PH-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-GOAL-001": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-STEPS-001": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-EXIT-001": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-PH-2-001": {
+    "canonical_destination": "combined into recovered PH-2",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `PH-2` has a title IDENTICAL to the recovered line's `PH-2` (\"Application foundation and identity\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered PH-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-GOAL-002": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-STEPS-002": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-EXIT-002": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-PH-3-001": {
+    "canonical_destination": "combined into recovered PH-3",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `PH-3` has a title IDENTICAL to the recovered line's `PH-3` (\"Working public search\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered PH-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-GOAL-003": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-STEPS-003": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-EXIT-003": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-PH-4-001": {
+    "canonical_destination": "combined into recovered PH-4",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `PH-4` has a title IDENTICAL to the recovered line's `PH-4` (\"Dynamic CRM, seller loop, and CMA\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered PH-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-GOAL-004": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-STEPS-004": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-EXIT-004": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-PH-5-001": {
+    "canonical_destination": "combined into recovered PH-5",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `PH-5` has a title IDENTICAL to the recovered line's `PH-5` (\"Marketing readiness\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered PH-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-GOAL-005": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-STEPS-005": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-EXIT-005": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-PH-6-001": {
+    "canonical_destination": "combined into recovered PH-6",
+    "disposition": "combined",
+    "reason_or_evidence": "PR #585 heading `PH-6` has a title IDENTICAL to the recovered line's `PH-6` (\"Explainable intelligence and continuous cleanup\"). Verified by comparing every XXX-N heading across f51848b0 and 6e8ea2d9: all 122 of PR #585's identifiers exist on the recovered line and NONE is unique to PR #585, so PR #585's plan is a strict subset by identifier. Combined into the recovered row, which is the fuller statement.",
+    "dependency": "recovered PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-GOAL-006": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-STEPS-006": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-EXIT-006": {
+    "canonical_destination": "structural — folded into its parent requirement",
+    "disposition": "combined",
+    "reason_or_evidence": "Structural subsection carrying no independent requirement — the document title, or a Goal/Steps/Exit block belonging to a PH-1..PH-6 phase section. The recovered line carries the same structure inside its PH rows, so this folds into the corresponding phase requirement rather than standing as a separate row.",
+    "dependency": "PH-1..PH-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P585-AI-START-001": {
+    "canonical_destination": "§Governance — AI entry point",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'AI START HERE (title)'. PR #585's AI-START-HERE.md is 43 lines; the recovered line's is 152. Both are routing documents pointing at the same canonical plan, and no section here states an architecture the plan does not. Combined into the single entry-point document rather than retained as a competing copy. 'Immediate program state' additionally carries operational facts that PREDATE OPS-024 and OPS-025 and must NOT be allowed to overwrite the incident record on safe main.",
+    "dependency": "DOC-2, MAIN-GOVERNANCE-001, OPS-024, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AI-START-002": {
+    "canonical_destination": "§Governance — AI entry point",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Governing rule'. PR #585's AI-START-HERE.md is 43 lines; the recovered line's is 152. Both are routing documents pointing at the same canonical plan, and no section here states an architecture the plan does not. Combined into the single entry-point document rather than retained as a competing copy. 'Immediate program state' additionally carries operational facts that PREDATE OPS-024 and OPS-025 and must NOT be allowed to overwrite the incident record on safe main.",
+    "dependency": "DOC-2, MAIN-GOVERNANCE-001, OPS-024, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AI-START-003": {
+    "canonical_destination": "§Governance — AI entry point",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Listing identity'. PR #585's AI-START-HERE.md is 43 lines; the recovered line's is 152. Both are routing documents pointing at the same canonical plan, and no section here states an architecture the plan does not. Combined into the single entry-point document rather than retained as a competing copy. 'Immediate program state' additionally carries operational facts that PREDATE OPS-024 and OPS-025 and must NOT be allowed to overwrite the incident record on safe main.",
+    "dependency": "DOC-2, MAIN-GOVERNANCE-001, OPS-024, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AI-START-004": {
+    "canonical_destination": "§Governance — AI entry point",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Scope and safety'. PR #585's AI-START-HERE.md is 43 lines; the recovered line's is 152. Both are routing documents pointing at the same canonical plan, and no section here states an architecture the plan does not. Combined into the single entry-point document rather than retained as a competing copy. 'Immediate program state' additionally carries operational facts that PREDATE OPS-024 and OPS-025 and must NOT be allowed to overwrite the incident record on safe main.",
+    "dependency": "DOC-2, MAIN-GOVERNANCE-001, OPS-024, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AI-START-005": {
+    "canonical_destination": "§Governance — AI entry point",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Immediate program state'. PR #585's AI-START-HERE.md is 43 lines; the recovered line's is 152. Both are routing documents pointing at the same canonical plan, and no section here states an architecture the plan does not. Combined into the single entry-point document rather than retained as a competing copy. 'Immediate program state' additionally carries operational facts that PREDATE OPS-024 and OPS-025 and must NOT be allowed to overwrite the incident record on safe main.",
+    "dependency": "DOC-2, MAIN-GOVERNANCE-001, OPS-024, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-001": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section 'AGENTS.md — Cross-Agent Constitution (title)'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-002": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '0. Mandatory reading order'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-003": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section 'Tool entry paths'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-004": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '1. Listing identity invariants'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-005": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '2. Core invariants'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-006": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '3. Non-negotiable holds'. This section is the one that MUST be reconciled against safe main rather than merged: the live CLAUDE.md §C hold table is authoritative and current, while PR #585's predates OPS-024. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-007": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '4. Where truth lives'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-008": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '5. Evidence language'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-009": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '6. Branch and diff discipline'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-010": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '7. Implementation sequence'. Carries operational/program state that predates the 2026-07-29 incident and the main revert. Stale on arrival; must not overwrite safe main. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-011": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '8. Handoff rule'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-012": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '9. Review policy'. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-AGENTS-013": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Safe `main` already carries a live AGENTS.md and CLAUDE.md (MAIN-GOVERNANCE-001), and the recovered line carries its own larger versions. Three candidate constitutions exist, so the reconciliation must produce ONE. Section '10. Current program direction'. Carries operational/program state that predates the 2026-07-29 incident and the main revert. Stale on arrival; must not overwrite safe main. Combined into the single reconciled AGENTS.md; PR #585's copy is not retained as a parallel constitution.",
+    "dependency": "DOC-2, DOC-1, MAIN-GOVERNANCE-001",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-001": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Mallan Real Estate Inc. — NYC Brokerage Platform (title)'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-002": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Start here'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-003": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Platform contract'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-004": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Listing identity'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-005": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'CRM direction'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-006": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Non-negotiable rules'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-007": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Implementation sequence'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-008": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Data, database, and infrastructure safety'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-009": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Compliance and licensed data'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-010": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Evidence and completion'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-README-011": {
+    "canonical_destination": "§Governance — repository README",
+    "disposition": "combined",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. Section 'Repository hygiene'. PR #585's README is 113 lines; the recovered line's is 952 — an 839-line difference that is a ROLE DECISION, not a merge: PR #585 treats README as a short stable entry point that routes to the canonical plan, the recovered line treats it as a substantial document in its own right. DOC-2 and DOC-1 settle it in favour of the short router — only the canonical plan may establish platform-wide architecture, so a 952-line README would itself be a competing normative document. Combined into a routing README.",
+    "dependency": "DOC-1, DOC-2, DOC-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P585-COPILOT-INSTRUCTIONS-001": {
+    "canonical_destination": "§Governance — Copilot entry point",
+    "disposition": "retained",
+    "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. This file exists ONLY on the PR #585 line — it is absent from the recovered line entirely (verified by diffing the two trees). It is therefore the one genuinely additive contribution PR #585's governance set makes, and DOC-2 explicitly names .github/copilot-instructions.md as a required entry point. RETAINED — dropping it would lose the only Copilot routing document and leave a named DOC-2 entry point unsatisfied.",
+    "dependency": "DOC-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
   }
 }
