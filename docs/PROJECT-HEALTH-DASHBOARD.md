@@ -80,6 +80,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 
 Canonical detail lives in [`docs/operations/site-audit-handoff-2026-07-01.md`](operations/site-audit-handoff-2026-07-01.md).
 
+- ✅ RESOLVED (production) 2026-07-29 — **OPS-024**: PR #587 Phase 1A froze Property ingestion for 4 cycles (19:10–19:40 UTC; 500 rows/cycle rejected `missing_listing_key`, 0 processed). Vercel rolled back to `e113a1ef`; ingestion recovered 19:50. `main` reverted by PR #588 (tree byte-identical to `e113a1ef`). Corrected Phase 1A pending as a separate draft PR. Secondary **OPS-025** (`mls_id` possibly null feed-wide) is pre-existing and NOT in scope.
 - ✅ RESOLVED 2026-07-02 — PR #465 merged after 4 Codex rounds on current HEAD; guard live on `858da234`; now registry **RW-004** regression watch (to 2026-07-09).
 - **P1** — Neon DB reachability instability (`db-keepalive` 500) — OPS-002 Monitoring; note OPS-015/OPS-016: compute + retention now verified directly from Neon configuration.
 - 🟡 DOWNGRADED — Contact funnel: H-001 DISPROVED live 2026-07-02; now H-004 (06-28 connectivity cluster), OPS-001 **P2 Monitoring**; zero errors since 06-28.
@@ -166,7 +167,8 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 3 · Cotality sync
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Ingestion freshness | 🟢 | 2026-07-01 | max lag 6m vs 10m cadence (auto tier) | health:probe |
+| Ingestion freshness | 🟢 (post-rollback) | 2026-07-29 | recovered after **OPS-024** 4-cycle freeze; cycles normal since 19:50 UTC on `e113a1ef` | health:probe + `audit_events` idx_sync |
+| Two-stream keyset cursor | 🔴 not deployed | 2026-07-29 | **OPS-024** — reverted; raw-provider contract fix pending review | corrected draft PR |
 | Dropped/skipped records | 🟡 | 2026-07-01 | 148/159 pattern traced: validation-skips + upsert errors; persistent-throw watermark edge (registry OPS notes) | sync_errors + diagnostics query |
 | Duplicate records | 🟢(static) | 2026-07-01 | CRM-vs-IDX dedupe verified in sitemap+search paths | dedupe tests |
 | Media sync / orphans | 🟡 | 2026-07-01 | ghost-skip edge (OPS-012); media-backfill lane dead (OPS-008) | listing_media vs feed join |
