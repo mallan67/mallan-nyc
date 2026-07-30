@@ -19,7 +19,8 @@
   "_batches_resolved": [
     "batch-1: BIZ, ACT, PER, IAM, BRK",
     "batch-2: LST, SEA, COT, OPS-024, OPS-025",
-    "batch-3: deep-audit findings, safe-main governance"
+    "batch-3: deep-audit findings, safe-main governance",
+    "batch-4: AUZ, CRM, SEL, TXN"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -1055,6 +1056,276 @@
     "dependency": "BIZ-4, PER-1, PER-4, LST-16",
     "maturity": "decided",
     "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "AUZ-1": {
+    "canonical_destination": "§Authorization — actor resolution",
+    "disposition": "combined",
+    "reason_or_evidence": "Identical six-class actor set to ACT-1, which the source itself states ('AUZ-1 uses the same set'). Combined onto ACT-1 as the single definition so the two cannot drift; AUZ-1 remains as the authorization-side reference to it. Same code-verified gap as ACT-1: Session.user_type admits only \"agent\"|\"lead\" and there is no system_job or service_identity representation.",
+    "dependency": "ACT-1 (canonical definition)",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "AUZ-2": {
+    "canonical_destination": "§Authorization — resource authorization",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight authorization inputs: actor role, resource ownership, brokerage relationship, client relationship, listing relationship, portal entitlement, field-level visibility, action-level permission. Field-level visibility is the one most easily lost in implementation and is the basis of the portal DTO tiers.",
+    "dependency": "AUZ-5, ACT-2",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "AUZ-3": {
+    "canonical_destination": "§Authorization — broker role does not override provider restrictions",
+    "disposition": "retained",
+    "reason_or_evidence": "Broker permissions may expand Mallan OPERATIONAL access but cannot bypass REBNY, license, provider, privacy or legal restrictions. This is the rule that prevents an internal admin surface from becoming an IDX-compliance bypass — a broker role is not a display-gate override.",
+    "dependency": "COT-4, POL family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUZ-4": {
+    "canonical_destination": "§Authorization — non-disclosure",
+    "disposition": "retained",
+    "reason_or_evidence": "Unauthorized and nonexistent identifier-addressed resources must be indistinguishable to prevent enumeration: same status, same body shape, same application-controlled path. The source is unusually precise and that precision must survive — it explicitly concedes that byte-identical wall-clock timing is NOT achievable and NOT required, and narrows the requirement to 'the application does not branch in a way an observer can measure'. A looser restatement would make the rule untestable; a stricter one would make it unimplementable.",
+    "dependency": "AUZ-6, ERR family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AUZ-5": {
+    "canonical_destination": "§Authorization — listing entitlement",
+    "disposition": "retained",
+    "reason_or_evidence": "Entitlement for listing-bearing operations is evaluated against record_source, mallan_web_id, provider_identity, reconciliation_status, ownership, representation and audience — i.e. against the LST-5 dimensions. Role alone never authorizes a listing operation. Currently unenforceable as specified because the LST-5 dimensions are not modelled (AUDIT-PROPERTY-IDENTITY: canonical identity is schema-only with no proven readers).",
+    "dependency": "LST-5, AUDIT-PROPERTY-IDENTITY",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "AUZ-6": {
+    "canonical_destination": "§Authorization — three distinct outcomes",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: the required response code RESOURCE_NOT_AVAILABLE does not appear anywhere in lib/ or app/. AUZ-6 requires four outcomes to stay distinct — authorized-but-empty (success with explicit empty state), FORBIDDEN for a missing broad feature permission, RESOURCE_NOT_AVAILABLE for an identifier-addressed mismatch, and the applicable error code for a real failure — with the invariant that an authorized-but-empty result is never expressed as a denial and a denial is never expressed as an empty result. That invariant is the same one IAM-8 and SEA-5/SEA-8 depend on.",
+    "dependency": "ERR-1, ERR-2, ERR-7, SEA-8, IAM-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CRM-1": {
+    "canonical_destination": "§CRM — target architecture",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED CURRENT STATE: the CRM is still static — public/crm/ contains index.html, dashboard.html, BUYER-DEAL-FORM.html and others. The target is a dynamic Next.js CRM sharing the same application services, authorization, policy, contracts and error system as the rest of the site. public/crm/** is a standing Maya-approval hold, so this row is gated on that hold rather than on engineering readiness.",
+    "dependency": "CRM-frontend hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CRM-2": {
+    "canonical_destination": "§CRM — inventory first",
+    "disposition": "retained",
+    "reason_or_evidence": "Eleven attributes to record per static workflow before migrating it, including current production evidence and an explicit retirement gate. Inventory-before-migration is the same discipline this reconciliation ledger applies to requirements.",
+    "dependency": "CRM-3, CRM-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CRM-3": {
+    "canonical_destination": "§CRM — vertical-slice migration",
+    "disposition": "retained",
+    "reason_or_evidence": "Ten bounded slices from listing workspace through brokerage oversight. Vertical slices keep each migration independently provable, which is what makes CRM-4's retirement gate enforceable per slice rather than as one large cutover.",
+    "dependency": "CRM-2, CRM-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CRM-4": {
+    "canonical_destination": "§CRM — retirement gate",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight conditions before a static workflow may be retired: data parity, authorization parity, policy parity, success AND failure tests, production or preview proof, rollback proof, no unresolved callers, documentation update. This is the same proof-first standard as CLAUDE.md §F, and the rollback-proof condition is what the 2026-07-29 incident showed to be load-bearing.",
+    "dependency": "CRM-2, OPS-024",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CRM-5": {
+    "canonical_destination": "§CRM — client identity",
+    "disposition": "combined",
+    "reason_or_evidence": "Restates PER-1 and PER-2 for the CRM surface: clients persist over time, may hold multiple roles, and email/phone support identity but are never the sole identity key. Combined onto PER-1/PER-2 as the canonical statement so identity is defined once; CRM-5 remains as the CRM-side reference. Same code-verified gap — no Person model exists.",
+    "dependency": "PER-1, PER-2 (canonical)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CRM-6": {
+    "canonical_destination": "§CRM — durable history",
+    "disposition": "combined",
+    "reason_or_evidence": "Restates PER-8's canonical timeline for the CRM surface across communications, listing interactions, showings, feedback, offers, tasks, decisions, documents, campaigns, transactions and outcomes. Combined onto PER-8 so there is one timeline requirement, not two — PER-8 already records that at least six separate event stores exist today with no canonical timeline.",
+    "dependency": "PER-8 (canonical)",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "CRM-7": {
+    "canonical_destination": "§CRM — listing creation and matched-pair display",
+    "disposition": "retained",
+    "reason_or_evidence": "The dynamic CRM creates and edits Mallan SL-/RL- records, displays any matched provider counterpart READ-ONLY, and surfaces reconciliation discrepancies with the LST-15 controls. This is the operator-facing half of LST-7 and LST-15 and the only place a broken match can actually be repaired.",
+    "dependency": "LST-7, LST-15, CRM-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEL-1": {
+    "canonical_destination": "§Seller portal — purpose",
+    "disposition": "retained",
+    "reason_or_evidence": "Truthful evidence of activity, market context, communications, documents and next actions WITHOUT inflating or inventing exposure. The anti-inflation clause is the substantive requirement — a seller portal that overstates exposure is an advertising and trust exposure, not merely inaccurate.",
+    "dependency": "SEL-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEL-2": {
+    "canonical_destination": "§Seller portal — truth levels",
+    "disposition": "retained",
+    "reason_or_evidence": "Five truth levels (VERIFIED_MALLAN_TRAFFIC, TRACKED_CAMPAIGN, PORTAL_REPORTED, EXTERNAL_PRESENCE, MARKET_PROXY) that must not be collapsed, plus two rules: external presence proves APPEARANCE not traffic volume, and anonymous traffic stays aggregate unless the person self-identifies. The second is a privacy rule as much as an accuracy one. Parallels PER-9's knowledge types.",
+    "dependency": "PER-9, SEL-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEL-3": {
+    "canonical_destination": "§Seller portal — live activity separate from CMA",
+    "disposition": "retained",
+    "reason_or_evidence": "Live market activity updates independently of the last shared CMA in BOTH directions: a stale shared CMA never freezes live activity, and refreshing live activity never alters a shared CMA version. Preserving the bidirectional statement matters — enforcing only one direction silently mutates a document the seller was already shown.",
+    "dependency": "SEL-5, CMA family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEL-4": {
+    "canonical_destination": "§Seller portal — live activity",
+    "disposition": "retained",
+    "reason_or_evidence": "Ten activity categories shown WHERE LICENSED AND PERMITTED, with status categories drawn from live provider status definitions per COT-11 and no hardcoded status label. The licence conditional and the COT-11 binding are both load-bearing: building-level 'recently sold' and 'under contract' are exactly the data whose display permission the licence governs.",
+    "dependency": "COT-11, COT-4, AUZ-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEL-5": {
+    "canonical_destination": "§Seller portal — seller sees only shared versions",
+    "disposition": "retained",
+    "reason_or_evidence": "The seller sees the deliberately shared CMA version, shared date, data-as-of date, selected comparable set, and whether a newer version is pending. Internal drafts, EXCLUDED COMPARABLES and private notes stay private unless published. Excluded comparables are the sensitive item — exposing them would reveal professional judgement the seller was never shown.",
+    "dependency": "SEL-3, CMA family, AUZ-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-1": {
+    "canonical_destination": "§Transactions — no contract drafting or review",
+    "disposition": "retained",
+    "reason_or_evidence": "NY law prohibits brokers from drafting or reviewing contracts of sale; doing so is unauthorized practice of law and demonstrates untrustworthiness and incompetence under RPL §441-c. Authorities cited: NY DOS Legal Memorandum LI04, Duncan & Hill Realty v. Department of State, Judiciary Law §484, RPL §441-c. Five prohibited system behaviors enumerated, closing with the catch-all that any feature producing contract language for a live transaction is prohibited REGARDLESS OF HOW IT IS LABELLED — which is the clause that survives a future 'AI clause assistant' proposal.",
+    "dependency": "TXN-11, BIZ-0 (authority is NY_STATUTE)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-2": {
+    "canonical_destination": "§Transactions — no escrow or transaction funds",
+    "disposition": "retained",
+    "reason_or_evidence": "The buyer wires the deposit (customarily 10%) to the SELLER'S ATTORNEY'S escrow account; Mallan never receives, holds, controls, disburses or reconciles transaction funds. Five prohibitions including modelling an escrow balance and generating wire instructions. The permitted carve-out is precise and must survive: the system MAY record, as reported facts from the attorneys, that a deposit was made, its date, and the escrow holder's identity — milestone facts, never a Mallan-held balance.",
+    "dependency": "TXN-11, BRK-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-3": {
+    "canonical_destination": "§Transactions — the deal sheet",
+    "disposition": "retained",
+    "reason_or_evidence": "The deal sheet is the brokerage artifact — a summary of agreed terms transmitted to the attorneys, explicitly NOT a contract and NOT binding. Fifteen minimum fields enumerated. Every deal sheet must carry a visible statement that it is not a contract, is not binding, and that the parties should be represented by counsel. That visible statement is what keeps the artifact on the correct side of TXN-1.",
+    "dependency": "TXN-1, TXN-6, TXN-12",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-4": {
+    "canonical_destination": "§Transactions — state is observed, not owned",
+    "disposition": "retained",
+    "reason_or_evidence": "After the deal sheet the transaction is driven by attorneys, lenders, boards and managing agents; Mallan observes and coordinates but does not control state. Every milestone records reported_by, reported_at, source_evidence and confidence — a REPORTED FACT WITH A SOURCE, never a system-asserted truth. ARC-3 applies: an unknown milestone state is explicit, never assumed complete. Directly parallels PER-9's refusal to promote an inference into a fact.",
+    "dependency": "ARC-3, PER-9, TXN-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-5": {
+    "canonical_destination": "§Transactions — sale milestone sequence",
+    "disposition": "retained",
+    "reason_or_evidence": "Seventeen-step NYC sale sequence from offer submitted through commission earned, with 'contract countersigned by seller' explicitly marked as the point it becomes binding. Customary timelines (co-op ~60-90 days contract-to-closing, condo ~30-45) are recorded as SCHEDULING EXPECTATIONS, explicitly not guarantees and not encoded as deadlines asserting legal consequence — a distinction that must survive into any alerting feature.",
+    "dependency": "TXN-6, TXN-7, BIZ-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-6": {
+    "canonical_destination": "§Transactions — acceptance is not binding",
+    "disposition": "retained",
+    "reason_or_evidence": "An accepted offer creates NO binding obligation in this market; the transaction becomes binding on full execution (buyer signs, seller countersigns). The system must never describe an accepted offer as a sale, commitment, binding agreement or closed transaction in ANY interface, report, seller communication, marketing surface or metric. The 'or metric' clause is the one most easily violated — a pipeline dashboard counting accepted offers as closed volume breaches this.",
+    "dependency": "TXN-5, BIZ-6, BRK-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-7": {
+    "canonical_destination": "§Transactions — board approval as principal risk",
+    "disposition": "retained",
+    "reason_or_evidence": "Co-op board approval is the largest single source of transaction failure in this market and is modelled as a first-class risk, not a checklist row: package requirements, assembly status, submission date, review status, interview scheduling, decision, and conditions on a conditional approval. The deposit-recovery consequence is stated as GENERAL MARKET PRACTICE and never as advice on a specific transaction, because the governing terms are in the contract Mallan does not draft or interpret (TXN-1).",
+    "dependency": "TXN-1, TXN-8, TXN-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-8": {
+    "canonical_destination": "§Transactions — board package boundary",
+    "disposition": "retained",
+    "reason_or_evidence": "The brokerage may support checklist tracking, document collection, completeness review against the building's stated requirements, and submission logistics. It must NOT generate financial statements, characterize a client's financial position, draft reference letters as though authored by the referee, or produce any representation to a board that did not originate with its actual author. The reference-letter prohibition is an authorship-integrity rule that directly constrains AI generation features.",
+    "dependency": "TXN-7, TXN-1, PER-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-9": {
+    "canonical_destination": "§Transactions — rental transactions",
+    "disposition": "retained",
+    "reason_or_evidence": "Distinct rental sequence, with four verified market/legal parameters carrying an explicit authority distinction that must not be lost: the 40x income rule is a WIDESPREAD MARKET CONVENTION, NOT A STATUTE, and must be described as a landlord requirement rather than a legal one — exactly the BIZ-0 misattribution failure mode. Guarantor convention ~80x and NY/NJ/CT residency; application fees capped at $20 with limited co-op/condo exceptions; upfront costs capped at first month plus one month security.",
+    "dependency": "BIZ-0, TXN-10, BIZ-12",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-10": {
+    "canonical_destination": "§Transactions — FARE Act fee attribution",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL — the WRITE gate is real and fail-closed. NYC LL 119/2024: the party who hires the broker pays. app/api/crm/listings/[id]/route.ts:186-203 and app/api/crm/listings/[id]/status/route.ts:137-146 both block a rental from becoming display-ready without fee disclosure, returning code FARE_FEE_DISCLOSURE on field MoveInCostsAmount; app/components/FareActFeeBadge.tsx exists for rendering; app/api/idx/search/route.ts:68 handles rental fee transparency. NOT VERIFIED IN THIS SESSION: that the disclosure actually RENDERS on public rental listing pages. CLAUDE.md §F records a 2026-05-20 audit where the FARE source-grep passed while the conditional did not render on production rentals — a $1,800-2,000-per-violation exposure. Verifying the render requires a live URL probe, which was not run here. Left partially_implemented for that reason and NOT claimed as satisfied.",
+    "dependency": "POL-1 (fails closed), BIZ-12, live-probe verification outstanding",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "TXN-11": {
+    "canonical_destination": "§Transactions — prohibited surfaces",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight surfaces that must not be built, generated or presented in ANY phase: escrow ledger or trust accounting, deposit custody naming Mallan as holder, contract drafting/assembly/templating, contract review/annotation/clause interpretation, rider or amendment generation, legal advice including any statement of what a party is entitled to under a contract, wire instructions, title insurance issuance or binding. The correct behavior where a client needs any of these is to RECORD THE NEED AND ROUTE IT TO COUNSEL — a positive instruction, not just a prohibition.",
+    "dependency": "TXN-1, TXN-2, TXN-12",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TXN-12": {
+    "canonical_destination": "§Transactions — referral to counsel",
+    "disposition": "retained",
+    "reason_or_evidence": "Because the transaction cannot proceed without attorneys on both sides, 'attorney engaged' is a tracked milestone with an owner and a date, and an unrepresented party at deal-sheet stage is a VISIBLE, ACTIONABLE condition rather than a silent gap. This is the constructive counterpart to TXN-1 and TXN-11 and parallels BRK-5's exception register.",
+    "dependency": "TXN-3, TXN-11, BRK-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
     "verification_status": "source_read"
   }
 }
