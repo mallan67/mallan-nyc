@@ -39,6 +39,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 
@@ -210,15 +211,32 @@ for (const cap of capabilities) {
   // registry so the registry's data stays owned by its authors.
   const RETIREMENT_STATES = new Set(['retiring', 'retired', 'deprecated']);
   if (RETIREMENT_STATES.has(cap.status)) {
-    if (!hasEvidence(cap.evidence)) {
+    // Presence of SOME evidence is not enough. A capability's implementation
+    // unit-test record says a thing WORKS; it says nothing about whether it was
+    // safely removed. Retirement therefore needs its own record, so an
+    // implementation test can never be reused as decommissioning proof.
+    if (!hasEvidence(cap.retirementEvidence)) {
       violation(
         id,
         'RETIREMENT_WITHOUT_EVIDENCE',
-        `status \`${cap.status}\` asserts decommissioning has happened, but no \`evidence\` ` +
-          'record is present. Retirement is a stronger claim than implementation: §17 requires ' +
+        `status \`${cap.status}\` asserts decommissioning has happened, but there is no ` +
+          '`retirementEvidence` record. An implementation `evidence` record does NOT qualify: ' +
+          'it shows the capability worked, not that it was safely removed. §17 requires ' +
           'reader/writer inventory, parity proof, retention review, rollback and approval. ' +
-          'Supply the evidence or lower the status.',
+          'Supply retirementEvidence or lower the status.',
       );
+    } else {
+      for (const f of EVIDENCE_FIELDS) {
+        if (!(f === 'exitCode' ? Number.isInteger(cap.retirementEvidence[f])
+                               : hasEvidence(cap.retirementEvidence[f]))) {
+          violation(
+            id,
+            'RETIREMENT_EVIDENCE_INCOMPLETE',
+            `\`retirementEvidence.${f}\` is missing or a placeholder. Retirement evidence must ` +
+              'be as complete as promotion evidence.',
+          );
+        }
+      }
     }
     if (!hasEvidence(cap.rollback)) {
       violation(
@@ -370,6 +388,32 @@ for (const cap of capabilities) {
     }
     if (hasEvidence(ev.targetSha) && !/^[0-9a-f]{7,40}$/i.test(String(ev.targetSha))) {
       violation(id, 'EVIDENCE_BAD_SHA', `\`${key}.targetSha\` is not a commit sha: ${ev.targetSha}`);
+    } else if (hasEvidence(ev.targetSha)) {
+      // Shape alone proves nothing: a well-formed hex string that no commit
+      // matches is an unanchored claim. Resolve it. This is a WARNING, not a
+      // violation, because resolvability depends on what the checkout fetched —
+      // a shallow or single-branch CI clone can legitimately lack a commit that
+      // exists upstream. A warning surfaces the unanchored evidence without
+      // failing a build for an environment difference.
+      let resolved = false;
+      try {
+        const out = spawnSync('git', ['cat-file', '-t', String(ev.targetSha)], {
+          cwd: REPO_ROOT,
+          encoding: 'utf8',
+        });
+        resolved = out.status === 0 && String(out.stdout).trim() === 'commit';
+      } catch {
+        resolved = false;
+      }
+      if (!resolved) {
+        warn(
+          id,
+          'EVIDENCE_SHA_UNRESOLVED',
+          `\`${key}.targetSha\` \`${ev.targetSha}\` does not resolve to a commit in this ` +
+            'checkout. Either the evidence is unanchored, or this clone does not have that ' +
+            'branch fetched. Verify before citing this record as proof.',
+        );
+      }
     }
   }
 
