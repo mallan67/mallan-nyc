@@ -32,10 +32,10 @@ jest.mock("@/lib/idx/machine-claim", () => ({
 }));
 
 const syncListings = jest.fn();
-const getLastSyncTimestamp = jest.fn(async () => new Date("2026-07-20T00:00:00Z"));
+const readPropertyCursorState = jest.fn(async () => null); // absent -> bootstrap
 jest.mock("@/lib/idx/sync", () => ({
   syncListings: (...a: unknown[]) => syncListings(...a),
-  getLastSyncTimestamp: () => getLastSyncTimestamp(),
+  readPropertyCursorState: () => readPropertyCursorState(),
 }));
 
 const runMediaSync = jest.fn();

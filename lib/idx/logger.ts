@@ -47,8 +47,11 @@ export function logIDXAccess(entry: IDXAuditLogEntry): void {
     return;
   }
 
+  // 'partial' is a degraded-but-recoverable run (incomplete legacy-media batch:
+  // stored media preserved, watermark capped for retry) — warn, never error.
   const level: LogLevel = entry.resultStatus === 'error' ? 'error' :
-                          entry.resultStatus === 'disabled' ? 'warn' : 'info';
+                          entry.resultStatus === 'disabled' ? 'warn' :
+                          entry.resultStatus === 'partial' ? 'warn' : 'info';
 
   const formatted = formatLogEntry(level, entry);
 
