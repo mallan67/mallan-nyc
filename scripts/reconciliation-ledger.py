@@ -32,7 +32,10 @@ enforces structure, completeness and baseline integrity. Substance comes from
 the per-row evidence and from review (cf. GATE-6).
 """
 
-import io, re, subprocess, collections, json, os, pathlib, hashlib
+import io, re, subprocess, collections, json, os, pathlib, hashlib, sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import reconciliation_ledger_contract as C  # shared with ledger:verify
 
 # Derived from this file's location so the generator is not bound to one
 # machine's checkout path.
@@ -303,17 +306,9 @@ assert not unaccounted_headings, (
 # A requirement absent from the resolutions file stays `unresolved`. Silence is
 # never read as a decision.
 NL = chr(10)
-RES_VOCAB = {
-    "disposition": {"retained", "combined", "corrected", "historical_only",
-                    "deferred_with_gate", "rejected_with_reason", "unresolved"},
-    "maturity": {"decided", "derived", "open", "unassessed"},
-    "implementation_status": {"not_started", "planned", "schema_only",
-                             "partially_implemented", "implemented", "integrated",
-                             "limited_release", "production_proven", "retiring",
-                             "retired", "unassessed"},
-    "verification_status": {"inventory_only", "source_read", "code_verified",
-                           "live_probe_verified"},
-}
+# Vocabularies live in the shared contract so the generator and the verifier
+# cannot disagree about what a legal value is.
+RES_VOCAB = C.VOCABULARIES
 RES_FIELDS = ("canonical_destination", "disposition", "reason_or_evidence",
               "dependency", "maturity", "implementation_status", "verification_status")
 RES_PATH = os.path.join(WT, "docs", "architecture", "RECONCILIATION-RESOLUTIONS.json")
@@ -355,8 +350,8 @@ baseline_ids, baseline_missing, baseline_unresolved, added_ids = [], [], [], []
 # and rewrite the plan as 604 baseline + 4 additions, defeating the guard
 # entirely. Pin the count and a digest of the ID set in CODE, so tampering with
 # the file is what fails.
-BASELINE_COUNT = 605
-BASELINE_SHA256 = "69cf9edf1b0dfcac1e7baebb0cb4d94cb32d4dfef4d25b4f0e2b933bac220092"
+BASELINE_COUNT = C.BASELINE_COUNT
+BASELINE_SHA256 = C.BASELINE_SHA256
 if not os.path.exists(_bl_path):
     raise SystemExit(
         "reconciliation-ledger: RECONCILIATION-LEDGER-BASELINE-605.json is missing.\n"
@@ -458,57 +453,37 @@ io.open(os.path.join(WT, "docs", "architecture",
                      "RECONCILIATION-LEDGER-VALIDATION.json"),
         "w", encoding="utf-8").write(json.dumps(report, indent=2))
 
-# ── STAMP THE GENERATED TOTALS INTO THE CANONICAL PLAN ─────────────────
-# §0.5 says counts are generated, not asserted. An earlier revision hand-wrote
-# them into the plan header and they went stale within one commit — the exact
-# failure §0.5 exists to prevent. Rewriting the delimited block from the ledger
-# makes the claim true rather than aspirational.
+# ── STAMP THE GENERATED BLOCKS INTO THE CANONICAL PLAN ─────────────────
+# Both blocks are rendered by the SHARED CONTRACT, which `ledger:verify` also
+# uses to re-render and compare. There is deliberately no second rendering
+# implementation here: when the generator owned its own copy, the verifier
+# could only spot-check it with hand-picked regexes, and a fabricated additions
+# summary passed as long as one unrelated phrase survived.
 _plan = os.path.join(WT, "docs", "architecture", "MALLAN-PLATFORM-PLAN.md")
 if os.path.exists(_plan):
-    _deferred = sorted(r["requirement_id"] for r in ROWS
-                       if r["disposition"] == "deferred_with_gate")
-    _added = sorted(added_ids)
-    _plural = "s" if len(_added) != 1 else ""
-    _lines = [
-        "<!-- GENERATED:LEDGER-TOTALS — do not hand-edit; rewritten by the ledger generator -->",
-        "**Ledger totals (generated):** {} rows — {} baseline plus {} later addition{}".format(
-            len(ROWS), len(baseline_ids), len(_added), _plural),
-        "({}) —".format(", ".join("`{}`".format(i) for i in _added)),
-        "{} with a reasoned disposition, **{} unresolved**. Baseline integrity:".format(
-            len(resolved_ids), len(still_unresolved)),
-        "{} present / {} missing / {} regressed.".format(
-            len(baseline_ids) - len(baseline_missing), len(baseline_missing),
-            len(baseline_unresolved)),
-        "",
-        "> **A `deferred_with_gate` row is accounted for in the ledger. It is *not* a",
-        "> settled product or policy decision.** **{}** rows are deferred:".format(len(_deferred)),
-        "> {}.".format(", ".join("`{}`".format(i) for i in _deferred)),
-        "> This plan records what is decided, what is deferred, and what is contested,",
-        "> and never presents the second or third as the first.",
-        "<!-- /GENERATED:LEDGER-TOTALS -->",
-    ]
-    _block = "\n".join(_lines)
+    _contract_rows = [
+        {"id": r["requirement_id"], "source": r["source"],
+         "source_commit_or_pr": r["source_commit_or_pr"],
+         "source_section": r["source_section"], "requirement": r["requirement"],
+         "canonical_destination": r["canonical_destination"],
+         "disposition": r["disposition"], "reason_or_evidence": r["reason_or_evidence"],
+         "dependency": r["dependency"], "maturity": r["maturity"],
+         "implementation_status": r["implementation_status"],
+         "verification_status": r["verification_status"]}
+        for r in ROWS]
     _txt = io.open(_plan, encoding="utf-8").read()
-    _pat = re.compile(r"<!-- GENERATED:LEDGER-TOTALS.*?<!-- /GENERATED:LEDGER-TOTALS -->", re.S)
-    assert _pat.search(_txt), "canonical plan is missing the GENERATED:LEDGER-TOTALS block"
-    _new = _pat.sub(lambda _m: _block, _txt)
-    # The provenance footer repeats the same numbers; keep it in step so the
-    # document cannot disagree with itself.
-    _new = re.sub(r"\(\d+ rows, \d+ resolved,\s*\n\d+ unresolved\)",
-                  "({} rows, {} resolved,\n{} unresolved)".format(
-                      len(ROWS), len(resolved_ids), len(still_unresolved)),
-                  _new)
-    # §18 repeats the deferred set; generate it too. It drifted once already.
-    _dg = [
-        "<!-- GENERATED:DEFERRED-GATES — do not hand-edit; rewritten by the ledger generator -->",
-        "**Deferred and unresolved — accounted for in the ledger, NOT decided ({}):**".format(len(_deferred)),
-        "{}.".format(", ".join("`{}`".format(i) for i in _deferred)),
-        "<!-- /GENERATED:DEFERRED-GATES -->",
-    ]
-    _dgpat = re.compile(r"<!-- GENERATED:DEFERRED-GATES.*?<!-- /GENERATED:DEFERRED-GATES -->", re.S)
-    assert _dgpat.search(_new), "canonical plan is missing the GENERATED:DEFERRED-GATES block"
-    _dgtext = chr(10).join(_dg)
-    _new = _dgpat.sub(lambda _m: _dgtext, _new)
+    _new = _txt
+    for _name, _rendered in (
+            ("LEDGER-TOTALS", C.render_totals_block(_contract_rows, baseline_ids)),
+            ("DEFERRED-GATES", C.render_deferred_block(_contract_rows))):
+        _pat = C.BLOCK_PATTERNS[_name]
+        assert _pat.search(_new), "canonical plan is missing the GENERATED:%s block" % _name
+        _new = _pat.sub(lambda _m, _r=_rendered: _r, _new)
+    # Provenance footer repeats the same numbers; keep it in step.
+    _prov_pat = r"\(\d+ rows, \d+ resolved," + r"\s*" + chr(10) + r"\d+ unresolved\)"
+    _prov_new = "({} rows, {} resolved,{}{} unresolved)".format(
+        len(ROWS), len(resolved_ids), chr(10), len(still_unresolved))
+    _new = re.sub(_prov_pat, _prov_new, _new)
     if _new != _txt:
         io.open(_plan, "w", encoding="utf-8").write(_new)
 
