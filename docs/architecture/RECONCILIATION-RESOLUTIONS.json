@@ -18,7 +18,8 @@
   ],
   "_batches_resolved": [
     "batch-1: BIZ, ACT, PER, IAM, BRK",
-    "batch-2: LST, SEA, COT, OPS-024, OPS-025"
+    "batch-2: LST, SEA, COT, OPS-024, OPS-025",
+    "batch-3: deep-audit findings, safe-main governance"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -884,5 +885,176 @@
     "maturity": "decided",
     "implementation_status": "not_started",
     "verification_status": "code_verified"
+  },
+  "AUDIT-MEDIA-DUPLICATION": {
+    "canonical_destination": "§Media — one media truth",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED, EXACT. The same media is representable in FIVE places: prisma Listing.media (Json @default(\"[]\"), line 42), Listing.raw_data (Json?, line 51) which carries the provider Media array, the promoted columns primary_photo_url / primary_photo_r2_key / photos_change_timestamp (lines 58-60), the relational ListingMedia table, and R2 objects. The schema's own comment states the migration is IN FLIGHT — 'Populated incrementally by lib/idx/media-sync.ts (PR 3). Readers continue to use the media JSON column until PR 4 swaps them.' So this is a known transitional state, not accidental sprawl, but it is also the direct cause of the write-amplification and storage cost this reconciliation was opened to address. No fallback may be removed as part of planning work.",
+    "dependency": "AUDIT-PROJECTION-MIGRATION; R2 remediation; PR 4 reader swap",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-PROJECTION-MIGRATION": {
+    "canonical_destination": "§Search — projection migration",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED: four non-test modules reference listingSearchProjection — lib/idx/sync.ts (the writer), lib/search/listing-search-projection.ts, lib/search/core.ts and app/api/crm/saved-searches/route.ts. The public reader swap (listings.idx_display_yn to listing_search_projection.idx_display_yn) is PR 5B, which is a standing Maya-approval HOLD recorded in CLAUDE.md §C. Retained as a requirement whose completion is gated on that hold, not on engineering readiness.",
+    "dependency": "PR 5B hold",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-PROPERTY-IDENTITY": {
+    "canonical_destination": "§Canonical identity — property",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED AND STRONGER THAN ORIGINALLY STATED: `CanonicalProperty` has ZERO non-test references anywhere in app/ or lib/. Together with CanonicalBuilding, CanonicalUnit, ListingIdentity, IdentityMatchAudit and IdentityReviewQueue it exists purely as schema with no proven writer and no proven reader on any live path. This is the structural reason LST-16 (Q-3) cannot be closed by reading the schema alone, and why LST-9's prefix shortcut is still load-bearing in production.",
+    "dependency": "LST-16 (Q-3), LST-9",
+    "maturity": "decided",
+    "implementation_status": "schema_only",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-PROVIDER-BOUNDARY": {
+    "canonical_destination": "§Provider authority — raw boundary",
+    "disposition": "retained",
+    "reason_or_evidence": "The cursor and merge layers read RAW provider rows before normalization, so any field the mapper renames is absent at that point. This is the exact mechanism of OPS-024: the streams selected SourceSystemKey (renamed to ListingKey only AFTER the fetch) while the cursor layer read raw rows, so every row was rejected missing_listing_key. Retained as the architectural rule that makes COT-6 enforceable rather than aspirational.",
+    "dependency": "COT-6, OPS-024",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-PORTAL-ACTOR-SUBJECT": {
+    "canonical_destination": "§Authorization — actor vs subject",
+    "disposition": "retained",
+    "reason_or_evidence": "requirePortalRole permits agent and broker principals, while routes reinterpret auth.userId as Lead.id — conflating the ACTOR performing a request with the SUBJECT whose data is being read. ACT-2 (client actors scoped by role AND resource), PER-12 (portal identity maps to person) and IAM-2 (principal classes never share an authorization path) all bear on this. CODE-VERIFIED CONTEXT: Session.user_type admits only \"agent\"|\"lead\" and Session.user_id is a single BigInt, so the schema cannot currently distinguish the two.",
+    "dependency": "ACT-2, PER-12, IAM-2, AUZ-5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-NEON-POOL": {
+    "canonical_destination": "§Operations — database reachability",
+    "disposition": "retained",
+    "reason_or_evidence": "Observed Neon reachability and pool pressure: multi-second Prisma waits against a small pool, with the pooler intermittently unreachable. Carried forward as an operational condition. NOT re-verified in this session — no production database probe was run, and Neon settings are a standing Maya-approval hold. Recorded as an open operational condition rather than a closed finding.",
+    "dependency": "NEON.md; Neon-settings hold",
+    "maturity": "open",
+    "implementation_status": "not_started",
+    "verification_status": "inventory_only"
+  },
+  "AUDIT-SEARCH-DUAL-RUNTIME": {
+    "canonical_destination": "§Search — dual runtime equivalence",
+    "disposition": "retained",
+    "reason_or_evidence": "The /api/listings DB path and the live Cotality fallback are not semantically equivalent, so the same criteria can yield different results depending on which branch serves the request — which SEA-6 (deterministic parity within a fixed audience/scope/entitlement/snapshot tuple) forbids. CODE-VERIFIED SUPPORT: the two branches are built by different modules, lib/search/public-listing-db.ts (Prisma where/orderBy) and lib/search/public-listing-trestle.ts (OData $filter), and the SEA-7 ordering defect was confirmed only in the DB branch — the fallback branch ordering was NOT verified.",
+    "dependency": "SEA-4, SEA-6, SEA-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-PERSON-ORG-IDENTITY": {
+    "canonical_destination": "§Canonical identity — person and organization",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED: no Person model and no Organization model exist in prisma/schema.prisma. Lead is the de-facto person record. Confirms PER-1 and PER-4, both of which are deferred_with_gate on the schema-migration hold. This is the single largest structural gap in the plan: PER declares itself 'the spine' that search, portals, marketing, transactions and intelligence attach to, and it does not exist.",
+    "dependency": "PER-1, PER-4; schema-migration hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-WORKFLOW-OUTBOX": {
+    "canonical_destination": "§Events and workflow",
+    "disposition": "retained",
+    "reason_or_evidence": "No domain-event / outbox / workflow separation exists, and AuditEvent must NOT be repurposed as one — audit history is compliance evidence with its own retention obligations, and overloading it would couple workflow retries to an evidentiary record. Relates to PER-8, where at least six separate event stores already exist (ActivityLog, PortalEvent, BehavioralEvent, IntentEvent, AuditEvent, OutreachEvent) without a canonical timeline.",
+    "dependency": "PER-8, IAM-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-POLICY-VERSIONING": {
+    "canonical_destination": "§Policy — decision provenance",
+    "disposition": "retained",
+    "reason_or_evidence": "No policy or provider-contract version provenance is recorded on decisions, so a display or compliance decision cannot be replayed against the rule version that produced it. This matters concretely: COT-15 records that the committed provider vocabulary had ALREADY drifted from live on 2026-07-28, and MlsStatus and ListingPermission drive display gating — so decisions made before and after a vocabulary refresh are not distinguishable today.",
+    "dependency": "COT-12, COT-15, POL family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-IDX-GOD-MODULE": {
+    "canonical_destination": "§Architecture — IDX module decomposition",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED WITH MEASUREMENTS: lib/idx/sync.ts is 2,419 lines and lib/idx/media-sync.ts is 4,002 lines — 6,421 lines across two modules concentrating fetch, map, persist, media, cache and cursor concerns. This concentration is why OPS-024 was possible: the select list, the mapper rename and the raw-row cursor read all live close enough together to look consistent while being contract-incompatible. Decomposition is a design requirement, not a tidiness preference.",
+    "dependency": "AUDIT-PROVIDER-BOUNDARY, OPS-024",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "AUDIT-GOVERNANCE-DRIFT": {
+    "canonical_destination": "§Governance — keeping documents true",
+    "disposition": "retained",
+    "reason_or_evidence": "Governance documents carry stale operational statements. DEMONSTRATED WITHIN THIS RECONCILIATION: the ancestry document committed at f1984477 asserted '247 identifiers across 33 families' and '12 capability entries', both of which were wrong (243 across 29; 12 programs + 11 capabilities + 1 nested obligation) and both corrected at 209543b4. A governance document is not self-verifying, so the canonical plan must carry its counts as generated output rather than as prose assertions.",
+    "dependency": "MAIN-GOVERNANCE-001..006",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "MAIN-SCHEDULES-001": {
+    "canonical_destination": "§Operations — schedules",
+    "disposition": "retained",
+    "reason_or_evidence": "Active cron schedules in vercel.json, including a one-cycle-every-10-minutes ingestion cadence. Carried forward as current operational truth from safe main 04db1b99. Cron configuration is a standing Maya-approval hold and no manual trigger was performed; this row records the schedules, it does not propose changing them.",
+    "dependency": "cron-config hold",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "inventory_only"
+  },
+  "MAIN-GOVERNANCE-001": {
+    "canonical_destination": "§Governance — cross-agent constitution",
+    "disposition": "retained",
+    "reason_or_evidence": "AGENTS.md is the cross-agent constitution for Claude, Codex and ChatGPT; CLAUDE.md is the Claude-specific depth, and the two are required to stay in sync. Both planning lines propose their own entry-point documents, so this row is the constraint that the reconciliation must not produce a THIRD competing constitution.",
+    "dependency": "PR#585 governance files; PR#579 governance files",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "MAIN-GOVERNANCE-002": {
+    "canonical_destination": "§Governance — health dashboard",
+    "disposition": "retained",
+    "reason_or_evidence": "docs/PROJECT-HEALTH-DASHBOARD.md carries current operational status, with an auto tier refreshed by `npm run health:probe` (read-only) before every handoff. Its auto tier is generated, which is the pattern AUDIT-GOVERNANCE-DRIFT concludes the canonical plan should follow for its own counts.",
+    "dependency": "AUDIT-GOVERNANCE-DRIFT",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "MAIN-GOVERNANCE-003": {
+    "canonical_destination": "§Governance — issue registry",
+    "disposition": "retained",
+    "reason_or_evidence": "docs/PLATFORM-ISSUE-REGISTRY.md is the canonical issue record and carries the evidence scoring. It holds OPS-024 (P0) and OPS-025. Both planning lines predate those entries; the reconciliation must not overwrite them, and this row is where that constraint is recorded.",
+    "dependency": "OPS-024, OPS-025",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "code_verified"
+  },
+  "MAIN-GOVERNANCE-004": {
+    "canonical_destination": "§Governance — source-of-truth charter",
+    "disposition": "retained",
+    "reason_or_evidence": "docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md defines file ownership and the no-parallel-file rule (no *-v2 / *-new / *-final). This directly governs the reconciliation outcome: producing a second platform plan alongside an existing one would violate it, which is why PR #585 and PR #579 must reconcile into ONE canonical plan rather than coexist.",
+    "dependency": "the canonical-plan decision itself",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "MAIN-GOVERNANCE-005": {
+    "canonical_destination": "§Governance — compliance index",
+    "disposition": "retained",
+    "reason_or_evidence": "docs/compliance/COMPLIANCE-CANONICAL-INDEX.md holds 18 numbered compliance areas, each with canonical file, backup, validator, when-to-read and a fail-closed instruction. The canonical plan must POINT to it rather than restate any rule, so that a compliance rule never exists in two places with two revision histories.",
+    "dependency": "POL, REB, BIZ families",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "MAIN-GOVERNANCE-006": {
+    "canonical_destination": "§Governance — database rules",
+    "disposition": "retained",
+    "reason_or_evidence": "NEON.md holds the database rules and the canonical Neon project facts (hidden-mountain-87248164 / ep-cold-waterfall-adno3ao2 / branch main is production; morning-bread is stale/do-not-serve). Required reading before any schema, migration, cron-DB or build-command work. Several rows in this ledger are deferred_with_gate precisely because closing them needs a migration governed by this document.",
+    "dependency": "BIZ-4, PER-1, PER-4, LST-16",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
   }
 }
