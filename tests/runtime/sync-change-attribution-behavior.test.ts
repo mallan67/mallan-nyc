@@ -561,16 +561,10 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
     ]);
   });
 
-  it("PCT + COMPLETE empty gallery: the listing write is suppressed, and the MEDIA is cleared", async () => {
-    // Supersedes the #561 "zero-media hole" carve-out. That test locked
-    // PCT-as-content because the legacy batch loop could not clear a gallery
-    // emptied upstream, so the PCT-driven invalidation was the only safeguard —
-    // while the stale media JSON survived. Phase 1A inverts both halves: the
-    // complete-response contract CLEARS the gallery, and PCT (now a provenance
-    // clock) no longer forces a listing write. Invalidation still fires, but for
-    // the honest reason: the media actually changed.
+  it("CRITICAL (zero-media hole): PhotosChangeTimestamp advances and the media endpoint succeeds with NO rows — the change is NOT provenance-only and invalidation fires", async () => {
     const raw = rawRecord({ PhotosChangeTimestamp: "2026-07-10T00:00:00Z" });
     const dbRow = dbRowFromRaw(raw);
+    // The listing HAS stored media from a previous cycle.
     (dbRow as Record<string, unknown>).media = [
       { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "photo", order: 0 },
     ];
@@ -579,144 +573,36 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
       projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
     };
     wireMocks(state);
-    // The archived-safe pre-read must SEE the stale gallery; the suite default
-    // returns null, which the writer correctly treats as archived/missing.
-    mockFindFirst.mockResolvedValue({
-      media: [{ url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "photo", order: 0 }],
-    });
+    // Feed re-emits with ONLY the photo clock advanced…
     mockFetchFromTrestle.mockResolvedValue({
       records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
       totalFetched: 1,
     });
-    // AUTHORITATIVE empty gallery: 200, well-formed, @odata.count 0, no nextLink.
-    const body = JSON.stringify({ "@odata.count": 0, value: [] });
+    // …and the media endpoint SUCCEEDS but returns zero rows for it.
     global.fetch = jest.fn(async () => ({
-      ok: true, status: 200, text: async () => body,
+      ok: true,
+      json: async () => ({ value: [] }),
     })) as unknown as typeof fetch;
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
     expect(result.errors).toBe(0);
-    expect(result.run_status).toBe("ok");
-    // PCT-only => NO physical listing write of any kind.
+    // NOT provenance-only: classified raw_data_only, fail-closed.
     expect(result.write_paths.listing_change_reasons).toMatchObject({
-      raw_data_only: 0,
+      raw_data_only: 1,
       modification_timestamp_only: 0,
     });
-    // The stale gallery IS cleared — the limitation the old test documented.
-    expect(mockUpdateMany).toHaveBeenCalledTimes(1);
-    expect((mockUpdateMany.mock.calls[0][0] as { data: { media: unknown[] } }).data.media).toEqual([]);
-    // Invalidation fires because the MEDIA changed, not because of the clock.
+    // Cache invalidation FIRES (listing tag + shard tag + coarse search).
     const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
     expect(revalidated).toContain("listing:RLS100001");
-  });
-
-  it("PCT-only with UNCHANGED media: zero listing write, zero invalidation, zero warm — but media reconciliation still runs", async () => {
-    // CASE A end-to-end. The media reconcile must still execute even though the
-    // listing write is suppressed: its gate is processed rows, not physical writes.
-    const raw = rawRecord({ PhotosChangeTimestamp: "2026-07-10T00:00:00Z" });
-    const dbRow = dbRowFromRaw(raw);
-    const stored = [
-      { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "Photo", order: 1 },
-    ];
-    (dbRow as Record<string, unknown>).media = stored;
-    const state: StoredState = {
-      listings: new Map([["RLS100001", dbRow]]),
-      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
-    };
-    wireMocks(state);
-    // Pre-read returns the stored gallery, so a skipped write proves MATERIAL
-    // EQUALITY rather than an archived/missing row.
-    mockFindFirst.mockResolvedValue({ media: stored });
-    mockFetchFromTrestle.mockResolvedValue({
-      records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
-      totalFetched: 1,
-    });
-    // Complete response describing the SAME single photo (rotated signature).
-    const body = JSON.stringify({
-      "@odata.count": 1,
-      value: [{
-        ResourceRecordKey: "KEY100001", MediaKey: "m1",
-        MediaURL: "https://api.cotality.com/trestle/media/1.jpg?sig=new",
-        MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false, MediaStatus: "Active",
-      }],
-    });
-    global.fetch = jest.fn(async () => ({
-      ok: true, status: 200, text: async () => body,
-    })) as unknown as typeof fetch;
-
-    const result = await syncListings({ fullSync: true, maxRecords: 10 });
-
-    expect(result.errors).toBe(0);
-    expect(result.write_paths.listing_change_reasons).toMatchObject({
-      raw_data_only: 0,
-      modification_timestamp_only: 0,
-    });
-    expect(mockUpsert).not.toHaveBeenCalled();      // zero listing write
-    expect(mockProjUpsert).not.toHaveBeenCalled();  // zero projection write
-    expect(mockUpdateMany).not.toHaveBeenCalled();  // media materially identical
-    // The media pipeline DID run — that is the whole point of the gate.
-    expect(global.fetch).toHaveBeenCalled();
-    expect(result.write_paths.batch_media.rows_checked).toBe(1);
-    expect(result.legacy_media_batches?.batches_complete).toBe(1);
-    // Nothing invalidated, no shard marked, no warm.
-    expect(mockRevalidateTag).not.toHaveBeenCalled();
-    expect(mockWarm).not.toHaveBeenCalled();
-  });
-
-  it("CASE B — PCT plus the typed modification_timestamp: provenance write, zero invalidation, zero warm", async () => {
-    // The typed source revision clock stays material, so the row IS written —
-    // suppression must never hide a source revision. But with PCT stripped from
-    // raw_data the ONLY material delta is modification_timestamp, so the change
-    // classifies as provenance-only and invalidates nothing.
-    const raw = rawRecord({
-      ModificationTimestamp: "2026-07-01T00:00:00Z",
-      PhotosChangeTimestamp: "2026-07-10T00:00:00Z",
-    });
-    const dbRow = dbRowFromRaw(raw);
-    const stored = [
-      { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "Photo", order: 1 },
-    ];
-    (dbRow as Record<string, unknown>).media = stored;
-    const state: StoredState = {
-      listings: new Map([["RLS100001", dbRow]]),
-      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
-    };
-    wireMocks(state);
-    mockFindFirst.mockResolvedValue({ media: stored });
-    // BOTH clocks advance; nothing visible changes.
-    mockFetchFromTrestle.mockResolvedValue({
-      records: [rawRecord({
-        ModificationTimestamp: "2026-07-20T00:00:00Z",
-        PhotosChangeTimestamp: "2026-07-20T00:00:00Z",
-      })],
-      totalFetched: 1,
-    });
-    const body = JSON.stringify({
-      "@odata.count": 1,
-      value: [{
-        ResourceRecordKey: "KEY100001", MediaKey: "m1",
-        MediaURL: "https://api.cotality.com/trestle/media/1.jpg?sig=new",
-        MediaCategory: "Photo", Order: 1, PreferredPhotoYN: false, MediaStatus: "Active",
-      }],
-    });
-    global.fetch = jest.fn(async () => ({
-      ok: true, status: 200, text: async () => body,
-    })) as unknown as typeof fetch;
-
-    const result = await syncListings({ fullSync: true, maxRecords: 10 });
-
-    expect(result.errors).toBe(0);
-    // The provenance write happens...
-    expect(result.write_paths.listing_change_reasons).toMatchObject({
-      modification_timestamp_only: 1,
-      raw_data_only: 0,
-    });
-    // ...and invalidates nothing: no tags, no shard mark, no warm.
-    expect(mockRevalidateTag).not.toHaveBeenCalled();
-    expect(mockWarm).not.toHaveBeenCalled();
-    // Media reconciliation still executed and found nothing material.
-    expect(result.write_paths.batch_media.rows_checked).toBe(1);
+    expect(revalidated).toContain("building-manifest-shard:4");
+    expect(revalidated).toContain("search");
+    expect(mockWarm).toHaveBeenCalledTimes(1);
+    // Honest limitation (pre-existing, unchanged by this PR): the stored
+    // media JSON is NOT cleared — the batch loop only processes listings
+    // that RETURN media rows. True negative reconciliation is tracked in
+    // the unified feed/media plan; until then invalidation (proven above)
+    // is the fail-closed guarantee.
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 });
