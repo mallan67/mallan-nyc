@@ -64,5 +64,22 @@
   "unrepresented_recovered_ids": [],
   "recovered_heading_ids": 243,
   "recovered_ids_referenced_anywhere": 247,
-  "excluded_sections": 12
+  "excluded_sections": 12,
+  "resolved_rows": 50,
+  "unresolved_rows": 550,
+  "by_disposition": {
+    "unresolved": 550,
+    "retained": 46,
+    "deferred_with_gate": 4
+  },
+  "by_implementation_status": {
+    "unassessed": 550,
+    "not_started": 29,
+    "partially_implemented": 21
+  },
+  "by_verification_status": {
+    "inventory_only": 550,
+    "code_verified": 27,
+    "source_read": 23
+  }
 }
