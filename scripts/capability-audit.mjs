@@ -207,14 +207,23 @@ for (const cap of capabilities) {
     // entry legitimately has no canonicalFiles and no tests yet. PROMOTION_PROOF
     // already requires those to be non-empty before promotion, so flagging them
     // here would punish accurate reporting of work not started.
+    // Only `canonicalFiles` and `tests` are legitimately empty lists (a
+    // `discovered` capability has no files and no tests yet, and PROMOTION_PROOF
+    // already requires them before promotion). Exempting arrays GENERALLY was
+    // too broad: `owner: []` passed, and so would an array in any other scalar
+    // slot. Every other required field is a scalar and an array there is a
+    // type error, not an honest empty.
+    const LIST_FIELDS = new Set(['canonicalFiles', 'tests']);
     const empty = v === null || v === undefined
-      || (typeof v === 'string' && v.trim() === '');
+      || (typeof v === 'string' && v.trim() === '')
+      || (Array.isArray(v) && !LIST_FIELDS.has(field));
     if (empty) {
       violation(
         id,
         'REQUIRED_FIELD_BLANK',
-        `field \`${field}\` is present but empty (${JSON.stringify(v)}). An empty value ` +
-          'silently disables the checks that depend on it.',
+        `field \`${field}\` is present but empty or of the wrong shape ` +
+          `(${JSON.stringify(v)}). An empty value silently disables the checks that depend ` +
+          'on it; an array in a scalar slot is a type error, not an honest empty.',
       );
     } else if (IDENTITY_FIELDS.has(field) && !hasEvidence(v)) {
       violation(
@@ -261,6 +270,19 @@ for (const cap of capabilities) {
     // records section numbers that no longer exist. Validating those would
     // force us to delete the audit trail to satisfy the check.
     const activeRef = String(cap.planRef).split('[')[0];
+    // A planRef with no `§N` token at all previously bypassed the whole check,
+    // because the loop below only validates matches and there were none. A typo
+    // that drops the marker must not silently disable canonical-reference
+    // validation.
+    if (!/§\d/.test(activeRef)) {
+      violation(
+        id,
+        'PLANREF_NO_SECTION',
+        `\`planRef\` (${JSON.stringify(activeRef.trim())}) contains no §N reference. ` +
+          'It must cite at least one canonical plan section, or the reference check ' +
+          'silently passes on prose.',
+      );
+    }
     for (const ref of activeRef.matchAll(/§(\d+(?:\.\d+)*)/g)) {
       const full = ref[1];
       // Validate the WHOLE reference, not just its leading number. Checking only
@@ -378,6 +400,21 @@ for (const cap of capabilities) {
     // exempting EVERY non-zero code let a broken probe — e.g. command-not-found
     // exit 127 — substantiate an absence claim. It must declare the exact code
     // it expects, exactly like promotion evidence.
+    // A declared expectation is checked against the ACTUAL code no matter what
+    // that code is. Checking only non-zero actuals meant flipping the bounded
+    // search from 1 to 0 passed — but exit 0 means the search FOUND a match,
+    // which directly contradicts the absence claim it substantiates.
+    if (Number.isInteger(ev.expectedExitCode) && Number.isInteger(ev.exitCode)
+        && ev.expectedExitCode !== ev.exitCode) {
+      violation(
+        id,
+        'EVIDENCE_UNEXPECTED_EXIT',
+        `\`${key}.expectedExitCode\` is ${ev.expectedExitCode} but \`exitCode\` is ` +
+          `${ev.exitCode}. The command did not behave as declared, so this is an ` +
+          'unexplained result, not a verified one. For a negative finding, exit 0 means ' +
+          'the search MATCHED and the absence claim is contradicted.',
+      );
+    }
     if (Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
       // A bare boolean escape hatch is not enough: `expectedNonZeroExit: true`
       // let ANY non-zero code through, so `exitCode: 127` (command not found)
@@ -393,14 +430,6 @@ for (const cap of capabilities) {
             'A promoted status may not be justified by a failed command. Either record a ' +
             'successful run, or declare the intended failure with an integer ' +
             '`expectedExitCode` plus an `expectedOutcomeReason`.',
-        );
-      } else if (ev.expectedExitCode !== ev.exitCode) {
-        violation(
-          id,
-          'EVIDENCE_UNEXPECTED_EXIT',
-          `\`${key}.expectedExitCode\` is ${ev.expectedExitCode} but \`exitCode\` is ` +
-            `${ev.exitCode}. The command did not fail in the declared way, so this is an ` +
-            'unexplained failure, not a verified negative result.',
         );
       } else if (!hasEvidence(ev.expectedOutcomeReason)) {
         violation(
