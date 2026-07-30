@@ -199,11 +199,17 @@ itself authoritative**; git history preserves it and nothing is deleted
 - **`OPS-026`** (confirmed 2026-07-30) — public listing pagination occurs
   before final display and matched-pair filtering. Full evidence in §6.3.
 
-### 1.2 Open contested item
+### 1.2 Open contested items
 
-- **`CONFLICT-POL-GATE34-PORTAL`** — portal gate 3/4 null semantics. Ledger
-  disposition `deferred_with_gate`: **ledger-resolved, policy-unresolved.**
-  See §11.3. No code change is authorized.
+Both are `deferred_with_gate` — **ledger-resolved, policy-unresolved** — and both
+are rendered in full in the ledger's flagged-conflicts section (2).
+
+- **`CONFLICT-POL-GATE34-PORTAL`** — portal gate 3/4 null semantics. See §11.3.
+  No code change is authorized.
+- **`CONFLICT-CAPABILITY-VOCABULARY`** — capability maturity vocabulary: the
+  archived prototype registry and §16 use different status lists. See §16.
+  **Neither list is adopted**, and it must be settled before any machine
+  enforcement returns. Decision owner **Maya**.
 
 ### 1.3 Holds
 

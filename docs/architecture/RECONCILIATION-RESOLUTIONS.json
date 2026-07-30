@@ -1372,8 +1372,8 @@
     },
     {
       "id": "CONFLICT-CAPABILITY-VOCABULARY",
-      "ledger_disposition": "deferred_with_gate - Ledger-resolved, POLICY-UNRESOLVED. The row is accounted for; the vocabulary decision is not made.",
-      "ledger_vs_policy": "LEDGER-RESOLVED, POLICY-UNRESOLVED",
+      "ledger_disposition": "deferred_with_gate",
+      "ledger_vs_policy": "Ledger-resolved, POLICY-UNRESOLVED. The row is accounted for; the vocabulary decision is not made.",
       "status": "OPEN - requires Maya approval. NOT decided by this reconciliation.",
       "raised_by": "Codex review at head 3be70fa4, verified by direct read",
       "current_code_behavior": "No capability registry and no capability:audit command are present in this repository at this head, so NOTHING enforces either vocabulary today. The ARCHIVED prototype registry used STATUSES = [discovered, designed, contracted, implemented, shadow_mode, limited_release, production, degraded, deprecated, retired].",

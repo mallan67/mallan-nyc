@@ -64,6 +64,12 @@ PR 5B reader swap · external inventory · syndication exports · R2 operations.
 - **`CONFLICT-POL-GATE34-PORTAL`** — portal gate 3/4 null semantics. The plan and
   the code disagree. **Preserve current deployed behavior; make no code change**
   until authoritative compliance verification plus Maya approval.
+- **`CONFLICT-CAPABILITY-VOCABULARY`** — capability maturity vocabulary. The
+  archived prototype registry and canonical plan §16 use different status lists.
+  `deferred_with_gate`, **open**, decision owner **Maya**. **Neither list is
+  adopted**; no capability registry, validator or `capability:audit` command
+  exists in this repository. It must be settled **before** any machine
+  enforcement returns.
 
 ---
 
