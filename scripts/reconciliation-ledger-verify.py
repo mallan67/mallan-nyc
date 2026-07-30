@@ -95,11 +95,19 @@ rows = []
 for line in ledger_md.splitlines():
     if not line.startswith("| "):
         continue
-    c = [x.strip() for x in line.split("|")]
+    # Split on UNESCAPED pipes only. A naive split("|") breaks every row whose
+    # text contains an escaped pipe: ACT-1 yielded 20 columns instead of 13 and
+    # every field after `reason_or_evidence` was read from the wrong cell — so
+    # the earlier disposition-only check was silently comparing garbage on those
+    # rows rather than validating them.
+    c = [x.strip() for x in re.split(r"(?<!\\)\|", line)]
     if len(c) < 13 or c[1] in ("requirement_id",) or c[1].startswith("---"):
         continue
     rows.append({"id": c[1], "source": c[2], "section": c[4],
-                 "requirement": c[5], "disposition": c[7]})
+                 "requirement": c[5], "canonical_destination": c[6],
+                 "disposition": c[7], "reason_or_evidence": c[8],
+                 "dependency": c[9], "maturity": c[10],
+                 "implementation_status": c[11], "verification_status": c[12]})
 
 by_id = {r["id"]: r for r in rows}
 check("ledger rows parsed", len(rows) > 0, "parsed %d" % len(rows))
@@ -134,10 +142,27 @@ res_only = sorted(res_ids - set(by_id))
 check("every resolution names a ledger row", not res_only, ", ".join(res_only[:8]))
 unres_rows = sorted(set(by_id) - res_ids)
 check("every ledger row has a resolution", not unres_rows, ", ".join(unres_rows[:8]))
-mismatched = sorted(k for k in res_ids & set(by_id)
-                    if resolutions[k]["disposition"] != by_id[k]["disposition"])
-check("dispositions agree between ledger and resolutions", not mismatched,
-      ", ".join(mismatched[:8]))
+# Compare EVERY resolution field, not just `disposition`. Checking one field let
+# a stale `reason_or_evidence`, destination, dependency, maturity or status
+# survive an omitted rebuild while verification still reported "the artefacts
+# agree" — which is the exact drift this verifier exists to catch.
+RES_FIELDS = ("canonical_destination", "disposition", "reason_or_evidence",
+              "dependency", "maturity", "implementation_status", "verification_status")
+
+
+def _norm(v):
+    # The markdown table escapes pipes and flattens newlines; normalise both
+    # sides so formatting alone never reports a false mismatch.
+    return " ".join(str(v).replace("\\|", "|").split())
+
+
+mismatched = []
+for k in sorted(res_ids & set(by_id)):
+    for f in RES_FIELDS:
+        if _norm(resolutions[k].get(f, "")) != _norm(by_id[k].get(f, "")):
+            mismatched.append("%s.%s" % (k, f))
+check("every resolution field agrees with the ledger", not mismatched,
+      "%d mismatch(es): %s" % (len(mismatched), ", ".join(mismatched[:6])))
 
 # ── ledger agrees with the committed validation JSON ──────────────────────
 check("validation.total_rows matches the table", validation["total_rows"] == total,
@@ -169,14 +194,27 @@ if totals_block:
                     totals_block) is not None)
 
 deferred = sorted(r["id"] for r in rows if r["disposition"] == "deferred_with_gate")
-if gates_block:
-    listed = set(re.findall(r"`([A-Za-z0-9._-]+)`", gates_block))
-    check("generated deferred list matches the ledger",
-          set(deferred) == (listed & (set(deferred) | listed)) and set(deferred) == listed,
-          "ledger=%s block=%s" % (deferred, sorted(listed)))
-    check("generated deferred count matches",
-          re.search(r"NOT decided \(%d\)" % len(deferred), gates_block) is not None,
-          "expected NOT decided (%d)" % len(deferred))
+
+# BOTH generated blocks carry the deferred set, so BOTH are validated. Checking
+# only DEFERRED-GATES let the LEDGER-TOTALS header drift back out of step with
+# §18 and the ledger — the same stale-summary defect, one block over.
+for _name, _blk in (("LEDGER-TOTALS", totals_block), ("DEFERRED-GATES", gates_block)):
+    if not _blk:
+        continue
+    # Scope extraction to the DEFERRED sentence. The LEDGER-TOTALS block also
+    # names the post-baseline additions in backticks, and those are not deferred
+    # rows — pulling every backticked token from the whole block reported OPS-026
+    # as a spurious extra.
+    _stop = chr(10) + r">\s*This plan|" + chr(10) + "<!--"
+    _m = re.search(r"rows are deferred:(.*?)(?:" + _stop + ")", _blk, re.S)
+    _scope = _m.group(1) if _m else _blk
+    listed = {i for i in re.findall(r"`([A-Za-z0-9._-]+)`", _scope) if i in by_id}
+    check("%s deferred list matches the ledger" % _name, listed == set(deferred),
+          "missing=%s extra=%s" % (sorted(set(deferred) - listed), sorted(listed - set(deferred))))
+    check("%s deferred count matches" % _name,
+          re.search(r"\*\*%d\*\* rows are deferred|NOT decided \(%d\)"
+                    % (len(deferred), len(deferred)), _blk) is not None,
+          "expected %d" % len(deferred))
 
 # ── report ────────────────────────────────────────────────────────────────
 line = "-" * 74

@@ -79,8 +79,8 @@
   ],
   "by_disposition": {
     "combined": 297,
-    "retained": 267,
-    "deferred_with_gate": 38,
+    "retained": 268,
+    "deferred_with_gate": 37,
     "corrected": 6
   },
   "by_implementation_status": {
