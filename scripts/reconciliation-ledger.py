@@ -35,8 +35,48 @@ import io, re, subprocess, collections, json, os, pathlib
 WT = str(pathlib.Path(__file__).resolve().parent.parent)
 
 def git(*a):
-    return subprocess.run(["git"] + list(a), cwd=WT, capture_output=True, text=True,
-                          encoding="utf-8", errors="replace").stdout
+    r = subprocess.run(["git"] + list(a), cwd=WT, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    if r.returncode != 0:
+        # Never convert a failed lookup into empty input. Doing so produced an
+        # empty inventory that failed 200 lines later at an unrelated assertion,
+        # with no hint that the real cause was a missing object.
+        raise SystemExit(
+            "reconciliation-ledger: `git %s` failed (exit %d).\n  %s"
+            % (" ".join(a), r.returncode, (r.stderr or "").strip()[:300]))
+    return r.stdout
+
+
+# ── PREFLIGHT: the inventory sources must actually be present ──────────────
+# This generator reconstructs the ledger from three commits that are NOT
+# ancestors of this branch: the recovered planning line, the PR #585 head and
+# the PR #579 head. A single-branch or shallow clone of this head will not have
+# them, and `git show` requires its <object> to exist. Check up front and say
+# exactly how to fix it, rather than failing obscurely much later.
+SOURCE_OBJECTS = {
+    "6e8ea2d9": "recovered planning line (design/frontend-backend-integration-clean-2026-07-28)",
+    "f51848b0": "PR #585 head, preserved at backup/pr585-f51848b0-before-reconciliation",
+    "7c15b1d5": "PR #579 head (docs/unified-ai-master-plan-2026-07-27)",
+}
+_missing = []
+for _obj, _what in SOURCE_OBJECTS.items():
+    _r = subprocess.run(["git", "cat-file", "-e", _obj + "^{commit}"], cwd=WT,
+                        capture_output=True, text=True)
+    if _r.returncode != 0:
+        _missing.append((_obj, _what))
+if _missing:
+    raise SystemExit(
+        "reconciliation-ledger: required source commits are not in this checkout.\n\n"
+        + "".join("  MISSING %s  — %s\n" % (o, w) for o, w in _missing)
+        + "\nNone of these is an ancestor of the current head, so a single-branch or\n"
+          "shallow clone will not contain them. Fetch them and re-run:\n\n"
+          "    git fetch origin "
+          "'refs/heads/*:refs/remotes/origin/*' --no-tags\n"
+          "    git fetch origin backup/pr585-f51848b0-before-reconciliation\n"
+          "    npm run ledger:build\n\n"
+          "The ledger and its validation JSON are committed, so a clean checkout can\n"
+          "READ them without this command. `ledger:build` is the REGENERATION and\n"
+          "integrity path, and it requires the inventory sources by construction.\n")
 
 ROWS = []          # each: dict with the 12 fields
 EXCLUDED = []      # (id_or_heading, source, reason)

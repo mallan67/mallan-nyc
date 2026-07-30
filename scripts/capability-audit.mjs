@@ -225,19 +225,9 @@ for (const cap of capabilities) {
           'reader/writer inventory, parity proof, retention review, rollback and approval. ' +
           'Supply retirementEvidence or lower the status.',
       );
-    } else {
-      for (const f of EVIDENCE_FIELDS) {
-        if (!(f === 'exitCode' ? Number.isInteger(cap.retirementEvidence[f])
-                               : hasEvidence(cap.retirementEvidence[f]))) {
-          violation(
-            id,
-            'RETIREMENT_EVIDENCE_INCOMPLETE',
-            `\`retirementEvidence.${f}\` is missing or a placeholder. Retirement evidence must ` +
-              'be as complete as promotion evidence.',
-          );
-        }
-      }
     }
+    // Completeness, failed-command, artifact, fragment and SHA checks for
+    // retirementEvidence are applied by the shared evidence loop below.
     if (!hasEvidence(cap.rollback)) {
       violation(
         id,
@@ -265,7 +255,12 @@ for (const cap of capabilities) {
   }
 
   // ---- evidence records must be COMPLETE, not merely present -------------
-  for (const key of ['evidence', 'negativeEvidence']) {
+  // `retirementEvidence` gets the SAME substantive validation as promotion
+  // evidence. Checking only that its fields are populated let a retirement
+  // record cite `command: 'false'`, `exitCode: 1`, a nonexistent artifact
+  // fragment and an unresolvable SHA and still PASS — a failed or fictional
+  // decommissioning proof authorizing a `retired` status.
+  for (const key of ['evidence', 'negativeEvidence', 'retirementEvidence']) {
     const ev = cap[key];
     if (!ev) continue;
     if (typeof ev !== 'object' || Array.isArray(ev)) {
@@ -293,7 +288,9 @@ for (const cap of capabilities) {
     // records a non-zero exit (GATE-5 — a bare grep that matches nothing exits
     // 1), and `expectedNonZeroExit: true` lets a deliberate failure case be
     // declared rather than smuggled in.
-    if (key === 'evidence' && Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
+    // Applies to `evidence` AND `retirementEvidence`; only `negativeEvidence`
+    // is exempt, because a negative finding legitimately exits non-zero.
+    if (key !== 'negativeEvidence' && Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
       // A bare boolean escape hatch is not enough: `expectedNonZeroExit: true`
       // let ANY non-zero code through, so `exitCode: 127` (command not found)
       // or an unrelated test failure could still justify a promotion. A
