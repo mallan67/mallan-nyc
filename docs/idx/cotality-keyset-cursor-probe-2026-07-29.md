@@ -440,3 +440,77 @@ Windows failure was a line-ending artifact of the local checkout, not a defect.
 > `5197d5012e984f052a4c081c867010cf789680da` **without changing any application
 > or test code**. The validation above remains accurate for the application code
 > at the branch head.
+
+---
+
+## Final validation — corrected Phase 1A (PR #589)
+
+Supersedes nothing above; this section covers the **corrected** branch, not the
+reverted PR #587 work.
+
+### Tested-SHA distinction
+
+| | |
+|---|---|
+| Linux/LF validation first run at | `c7f6f45842ca73a3dd4deeac17734500674476b0` |
+| Final PR #589 head | `aaefeab1ba8266cad37aa0c11ab09d358068a90b` |
+| Commits in between | 1 — `aaefeab1 docs(ops): synchronise OPS-025 status across registry and dashboard` |
+| Files changed in between | 2, **both under `docs/`** |
+| Non-documentation files changed | **0** |
+
+Verified with:
+
+```
+git diff --name-only c7f6f45842ca73a3dd4deeac17734500674476b0..aaefeab1ba8266cad37aa0c11ab09d358068a90b
+  docs/PLATFORM-ISSUE-REGISTRY.md
+  docs/PROJECT-HEALTH-DASHBOARD.md
+```
+
+Because the intervening commit is documentation-only, the earlier run remained
+valid — but the suite was **re-run directly at the final head** so the evidence
+below requires no inference.
+
+### Environment
+
+```
+WSL2 Ubuntu
+node  v20.19.6
+npm   10.8.2
+core.autocrlf  (unset — LF default on Linux)
+LF checkout confirmed: lib/buildings/public-building-data.ts contains 0 CR bytes
+```
+
+### Commands, exit codes and results — captured at `aaefeab1`
+
+```
+git rev-parse HEAD
+  aaefeab1ba8266cad37aa0c11ab09d358068a90b
+
+npx tsc --noEmit -p tsconfig.json
+  exit 0
+
+npx jest
+  exit 0
+  Test Suites: 6 skipped, 340 passed, 340 of 346 total
+  Tests:       32 skipped, 5826 passed, 5858 total
+  FAIL lines in output: 0
+```
+
+**Suites passed 340 · tests passed 5,826 · tests failed 0 · suites failed 0.**
+These figures are transcribed from the captured command output at the final head,
+not carried forward from the earlier run.
+
+The `building-manifest-cache-size` assertion — the only failure on a Windows
+checkout — passes here, confirming it is a line-ending artifact rather than a
+defect.
+
+### What this does and does not prove
+
+Proven: the corrected code type-checks and the entire suite passes on an LF
+checkout at the exact PR head, including the OPS-024 regression suite that fails
+against the defective `039c173e`.
+
+**Not proven:** production behaviour. PR #589 is draft, unmerged and undeployed.
+Cursor advancement, ingestion recovery and media settlement remain
+**production-unproven** until an approved deployment is observed over several
+scheduled cycles. `implemented` ≠ `merged` ≠ `deployed` ≠ `production_proven`.
