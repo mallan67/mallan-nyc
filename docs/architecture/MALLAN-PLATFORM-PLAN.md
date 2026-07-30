@@ -7,8 +7,8 @@ This is the **single** normative platform plan. It was not taken wholesale from
 either unmerged planning line. It was built from the
 [reconciliation ledger](./MALLAN-PLATFORM-RECONCILIATION-LEDGER.md).
 
-<!-- GENERATED:LEDGER-TOTALS — do not hand-edit; rewritten by the ledger generator -->
-**Ledger totals (generated):** 608 rows — 605 baseline plus 3 later additions
+<!-- LEDGER-TOTALS — derived from the ledger; no generator exists in this repository -->
+**Ledger totals (derived from the ledger):** 608 rows — 605 baseline plus 3 later additions
 (`CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `OPS-026`) —
 608 with a reasoned disposition, **0 unresolved**. Baseline integrity:
 605 present / 0 missing / 0 regressed.
@@ -18,12 +18,18 @@ either unmerged planning line. It was built from the
 > `BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD`, `P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD`, `P579-FILE-PACKAGE-JSON`, `P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
 > This plan records what is decided, what is deferred, and what is contested,
 > and never presents the second or third as the first.
-<!-- /GENERATED:LEDGER-TOTALS -->
+<!-- /LEDGER-TOTALS -->
 
-> **These counts are generated, not asserted** (§0.5). The block above is
-> rewritten from the ledger on every regeneration; an earlier revision hand-wrote
-> them and went stale within one commit, which is the failure §0.5 exists to
-> prevent.
+> **These counts were derived from the ledger, not asserted from memory** (§0.5)
+> — but **no tooling in this repository regenerates or verifies them.** The
+> prototype that produced them was removed from this PR and preserved at the tag
+> `archive/platform-plan-ledger-tooling-e96bbd2b`; it is not normative and is not
+> approved for CI use. Until a contract-first replacement is reviewed and merged,
+> **the ledger is the only authority** and this block is maintained by hand
+> against it — treat any disagreement as this block being wrong. An earlier
+> revision wrote these counts from memory and went stale within one commit; that
+> is the failure §0.5 exists to prevent, and hand-maintenance against the ledger
+> is not a substitute for verification.
 
 Every section below names the ledger families and requirement IDs it
 implements. Where this plan and the ledger disagree, **the ledger is the
@@ -110,7 +116,9 @@ against. This rule has already been proven necessary twice inside this
 reconciliation: the provider vocabulary had already drifted from the committed
 copy when checked (`COT-15`), and the ancestry document's own counts were wrong
 twice and had to be corrected (`AUDIT-GOVERNANCE-DRIFT`). **Counts in this plan
-are generated, not asserted.**
+are derived from the ledger, not asserted from memory** — and, because no
+verification tooling ships in this repository, the ledger is the authority
+whenever the two disagree.
 
 ### 0.6 Implementation, production and completion evidence
 
@@ -1083,10 +1091,10 @@ storage headroom may not be promoted before Neon/R2 remediation clears.
 > registry states **what is**, and neither silently overwrites the other
 > (§0.2).
 
-<!-- GENERATED:DEFERRED-GATES — do not hand-edit; rewritten by the ledger generator -->
+<!-- DEFERRED-GATES — derived from the ledger; no generator exists in this repository -->
 **Deferred and unresolved — accounted for in the ledger, NOT decided (37):**
 `BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD`, `P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD`, `P579-FILE-PACKAGE-JSON`, `P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
-<!-- /GENERATED:DEFERRED-GATES -->
+<!-- /DEFERRED-GATES -->
 
 Read with the gloss: `BIZ-4` compensation arrangement model · `PER-1`/`PER-4`
 person and organization identity · `IAM-10` retention periods (`Q-12`) ·

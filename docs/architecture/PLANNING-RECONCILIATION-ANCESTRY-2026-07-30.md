@@ -240,6 +240,76 @@ git log --oneline 60581e51..6e8ea2d9    -> 12 commits
 All commands are read-only. No credentials or machine-specific sensitive paths
 are recorded.
 
+## Deferred reconciliation-tooling workstream
+
+The reconciliation ledger in this PR was produced with a **prototype tooling
+set** — a rebuild generator, a clean-checkout verifier, a shared contract module
+and a mutation test harness. **That prototype has been removed from this PR.**
+It is not deleted: it is preserved in full at the annotated, protected tag
+
+```text
+archive/platform-plan-ledger-tooling-e96bbd2b -> e96bbd2b63b154851b7caa85eaa281c2dba57a2c
+```
+
+**It is not normative, and it is not approved for production or CI use.**
+
+### Why it was removed rather than corrected again
+
+The tooling was reviewed nine times. The canonical-plan reconciliation stayed
+stable across every round; the findings kept arriving against the tooling
+imported alongside it, and several were defects introduced while fixing earlier
+ones. The final round produced six findings that share one shape — **the
+verifier and generator treat required state as optional and validate selected
+fragments rather than one complete, deterministic contract.** Six independent
+symptoms of a single design gap is a contract problem. Continuing to patch it
+inside a documentation PR would keep producing the same class of finding.
+
+The six findings are recorded here so the future workstream starts from them
+rather than rediscovering them. Each was reproduced read-only before this
+decision — every one exits `0` where it should fail:
+
+| review thread | location | defect |
+|---|---|---|
+| `b86VLIoW` | `reconciliation-ledger.py:552` | the rebuild path never enforces `REQUIRED_METADATA` — zero references to it |
+| `b86VLIob` | `reconciliation-ledger-verify.py:161` | `_deferred_capability_governance_workstream` set to `{}` passes as present |
+| `b86VLIoc` | `reconciliation-ledger-verify.py:183` | blank nested fields pass, because `"" in text` is always true |
+| `b86VLIof` | `reconciliation_ledger_contract.py:257` | a duplicated generated block is ignored — `search()` matches only the first |
+| `b86VLIoj` | `reconciliation-ledger-verify.py:224` | Python `bool` subclasses `int`, so `true` satisfies an `int` schema slot |
+| `b86VLIol` | `reconciliation_ledger_contract.py:140` | an extra 13th table cell is silently discarded rather than rejected |
+
+### Prerequisites before any replacement is proposed
+
+Contract first — **the contract is designed and reviewed before code is
+written**, which is the step this prototype skipped:
+
+1. A **written, reviewed contract** defining the complete artefact set, every
+   controlled vocabulary, and the exact required-versus-optional status of every
+   structure — approved before implementation begins.
+2. **Required state fails closed by construction.** No `if key in artefact`
+   guard may stand between required data and its check; absence, empty
+   containers and blank strings are failures, not passes.
+3. **Exact type checking**, including the `bool`/`int` subclass case, and exact
+   structural checking, including duplicate blocks, extra cells and unknown
+   keys — rejection rather than silent truncation.
+4. **One shared definition** used by both the generator and the verifier, so
+   the two cannot diverge; every rule enforced on both paths.
+5. **A mutation harness committed with it**, with a documented negative case for
+   each of the six findings above and a positive control, run against temporary
+   copies so the working checkout is never mutated.
+6. **Independent review of the contract itself**, separate from review of the
+   implementation.
+7. **Clean-checkout behaviour proven** — no historical objects, no extra
+   branches, no network — with any non-recomputable metric declared as such in
+   the output rather than skipped silently.
+8. **An explicit decision on CI wiring.** Adding a workflow is out of scope for
+   any documentation PR and requires Maya's approval separately.
+
+Until that work lands, **the ledger and its committed artefacts are the sole
+authority**, maintained and reviewed by hand. The generated-block markers in the
+canonical plan have been relabelled accordingly: they record that the values
+were derived from the ledger, and that **nothing in this repository verifies
+them.**
+
 ## Status
 
 **Inspection only.** Nothing has been rebased, cherry-picked, force-pushed or
