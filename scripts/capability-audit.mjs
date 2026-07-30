@@ -199,6 +199,37 @@ for (const cap of capabilities) {
 
   const promoted = statusSet.has(cap.status) && idx(cap.status) >= IMPLEMENTED;
 
+  // ---- RETIREMENT ALSO REQUIRES PROOF -------------------------------------
+  // `PROMOTION_PROOF` stops at `degraded`, so `deprecated` and `retired` had NO
+  // evidence requirement at all while their index still made them count as
+  // promoted. A capability could therefore be moved straight to `retired` — a
+  // claim that decommissioning COMPLETED — and pass with `exitCode: undefined`.
+  // Retirement is a stronger claim than implementation, not a weaker one: per
+  // the canonical plan §17 it needs reader/writer inventory, parity proof,
+  // retention review, rollback and approval. Enforced here rather than in the
+  // registry so the registry's data stays owned by its authors.
+  const RETIREMENT_STATES = new Set(['retiring', 'retired', 'deprecated']);
+  if (RETIREMENT_STATES.has(cap.status)) {
+    if (!hasEvidence(cap.evidence)) {
+      violation(
+        id,
+        'RETIREMENT_WITHOUT_EVIDENCE',
+        `status \`${cap.status}\` asserts decommissioning has happened, but no \`evidence\` ` +
+          'record is present. Retirement is a stronger claim than implementation: §17 requires ' +
+          'reader/writer inventory, parity proof, retention review, rollback and approval. ' +
+          'Supply the evidence or lower the status.',
+      );
+    }
+    if (!hasEvidence(cap.rollback)) {
+      violation(
+        id,
+        'RETIREMENT_WITHOUT_ROLLBACK',
+        `status \`${cap.status}\` requires a stated \`rollback\`; removing a path without a way ` +
+          'back is the failure HYG-6 exists to prevent.',
+      );
+    }
+  }
+
   // ---- THE CORE RULE: promotion requires proof (C-5) ----------------------
   const required = PROMOTION_PROOF[cap.status];
   if (required) {
@@ -245,14 +276,36 @@ for (const cap of capabilities) {
     // 1), and `expectedNonZeroExit: true` lets a deliberate failure case be
     // declared rather than smuggled in.
     if (key === 'evidence' && Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
-      if (ev.expectedNonZeroExit !== true) {
+      // A bare boolean escape hatch is not enough: `expectedNonZeroExit: true`
+      // let ANY non-zero code through, so `exitCode: 127` (command not found)
+      // or an unrelated test failure could still justify a promotion. A
+      // deliberate failure case must therefore DECLARE the exact code it
+      // expects and say why, and the declared code must match what was
+      // recorded.
+      if (!Number.isInteger(ev.expectedExitCode)) {
         violation(
           id,
           'EVIDENCE_COMMAND_FAILED',
           `\`${key}.exitCode\` is ${ev.exitCode}, so the recorded acceptance command FAILED. ` +
             'A promoted status may not be justified by a failed command. Either record a ' +
-            'successful run, or set `expectedNonZeroExit: true` to declare the non-zero exit ' +
-            'as the intended outcome.',
+            'successful run, or declare the intended failure with an integer ' +
+            '`expectedExitCode` plus an `expectedOutcomeReason`.',
+        );
+      } else if (ev.expectedExitCode !== ev.exitCode) {
+        violation(
+          id,
+          'EVIDENCE_UNEXPECTED_EXIT',
+          `\`${key}.expectedExitCode\` is ${ev.expectedExitCode} but \`exitCode\` is ` +
+            `${ev.exitCode}. The command did not fail in the declared way, so this is an ` +
+            'unexplained failure, not a verified negative result.',
+        );
+      } else if (!hasEvidence(ev.expectedOutcomeReason)) {
+        violation(
+          id,
+          'EVIDENCE_NO_EXPECTED_OUTCOME',
+          `\`${key}\` declares \`expectedExitCode: ${ev.expectedExitCode}\` but gives no ` +
+            '`expectedOutcomeReason`. State why a non-zero exit is the correct outcome, or ' +
+            'the declaration is indistinguishable from suppressing a real failure.',
         );
       }
     }

@@ -1,13 +1,25 @@
 /**
  * Mallan capability registry.
  *
- * Authority : docs/architecture/Mallan_Intelligence_Master_Plan.md
- *             §8.3 (maturity statuses), §24 (acceptance criteria),
- *             §26 correction C-5 (machine enforcement).
+ * Authority : docs/architecture/MALLAN-PLATFORM-PLAN.md
+ *             §16 (capability maturity), §15 (testing and evidence classes),
+ *             §0.6 (implementation vs production evidence), §17 (decommissioning).
+ *             It incorporates correction C-5 (machine enforcement).
+ *             NOTE (2026-07-30): this header previously named
+ *             docs/architecture/Mallan_Intelligence_Master_Plan.md, which is NOT
+ *             normative and is NOT present in this repository (DOC-1, DOC-4).
  * Validator : npm run capability:audit  ->  scripts/capability-audit.mjs
- * Evidence  : AI-START-HERE.md "Evidence standard";
- *             memory/EVIDENCE-STANDARD-2026-07-27.md
- *             docs/evidence/capability-evidence-2026-07-27.md
+ * Evidence  : docs/architecture/MALLAN-PLATFORM-PLAN.md §0.6 and §15 (binding);
+ *             AGENTS.md §5 (evidence language);
+ *             docs/evidence/capability-evidence-2026-07-27.md (dated evidence).
+ *             NOTE (2026-07-30): this header previously routed to an
+ *             "Evidence standard" section of AI-START-HERE.md that does not
+ *             exist, and to memory/EVIDENCE-STANDARD-2026-07-27.md, which is now
+ *             marked HISTORICAL / NOT BINDING.
+ *
+ * STATUSES below still differ from the canonical plan §16 vocabulary. That
+ * divergence is recorded as CONFLICT-CAPABILITY-VOCABULARY (deferred_with_gate,
+ * decision owner Maya) and is deliberately NOT resolved here.
  *
  * ---------------------------------------------------------------------------
  * THIS FILE IS DATA. NOTHING ELSE.

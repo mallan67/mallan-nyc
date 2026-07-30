@@ -1034,10 +1034,16 @@ Phase 6 — advanced intelligence
 **`C-3` is a hard dependency gate:** capabilities depending on database or
 storage headroom may not be promoted before Neon/R2 remediation clears.
 
-**Deferred and unresolved at the time of writing** — accounted for, not decided:
-`BIZ-4` (compensation arrangement model), `PER-1` and `PER-4` (person and
-organization), `IAM-10` (retention periods, `Q-12`), `LST-16` (durable match,
-`Q-3`), `MKT-4` (marketing production hold), `CONFLICT-POL-GATE34-PORTAL`.
+<!-- GENERATED:DEFERRED-GATES — do not hand-edit; rewritten by the ledger generator -->
+**Deferred and unresolved — accounted for in the ledger, NOT decided (8):**
+`BIZ-4`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `PER-1`, `PER-4`.
+<!-- /GENERATED:DEFERRED-GATES -->
+
+Read with the gloss: `BIZ-4` compensation arrangement model · `PER-1`/`PER-4`
+person and organization identity · `IAM-10` retention periods (`Q-12`) ·
+`LST-16` durable match relationship (`Q-3`) · `MKT-4` marketing production hold ·
+`CONFLICT-POL-GATE34-PORTAL` portal gate 3/4 null semantics ·
+`CONFLICT-CAPABILITY-VOCABULARY` registry vs plan maturity vocabulary.
 
 ---
 
