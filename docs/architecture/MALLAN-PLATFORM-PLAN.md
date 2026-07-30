@@ -61,6 +61,17 @@ copy of provider vocabulary is a **cache, never an authority** (`COT-12`);
 unreachable is **not** unchanged (`COT-13`); detected drift **blocks**
 (`COT-14`). **Field existence is not permission** (`COT-4`).
 
+**License limits are cumulative, not ranked.** `COT-2`'s precedence order breaks
+*ties between conflicting sources*; it does **not** mean a general REBNY rule
+overrides a narrower restriction in Mallan's executed IDX Plus licence. Where a
+general rule permits a use and the licence or written authorization restricts it
+— narrower inventory, a field usable internally but not publicly, an export not
+covered — **the narrower constraint governs and every applicable constraint must
+be satisfied simultaneously.** Reading precedence as "the higher source wins,
+so the licence can be ignored" would authorize use beyond what Mallan actually
+licensed. When the licence's scope for a specific use is unclear, `REB-3`
+applies: stop and report.
+
 ### 0.4 Compliance authority
 
 REBNY controls RLS policy, participation, display obligations, feed rights,
@@ -1033,6 +1044,18 @@ Phase 6 — advanced intelligence
 
 **`C-3` is a hard dependency gate:** capabilities depending on database or
 storage headroom may not be promoted before Neon/R2 remediation clears.
+
+> **This sequence does not halt work already in flight.** It orders *this plan's*
+> structural programme; it is not a freeze on active business tracks.
+> `SELLER-001` and `SELLER-002` are recorded **In progress (P1 business)** in
+> `docs/PLATFORM-ISSUE-REGISTRY.md` and continue under their own Maya
+> directives. Phase 1 establishes **one planning authority** — it does not gate
+> delivery behind a documentation milestone, and nothing here supersedes the
+> registry's live status. Where a phase boundary and an active track genuinely
+> conflict, the conflict is recorded and taken to Maya rather than resolved by
+> assuming the plan outranks the registry: the plan states **what must be**, the
+> registry states **what is**, and neither silently overwrites the other
+> (§0.2).
 
 <!-- GENERATED:DEFERRED-GATES — do not hand-edit; rewritten by the ledger generator -->
 **Deferred and unresolved — accounted for in the ledger, NOT decided (8):**
