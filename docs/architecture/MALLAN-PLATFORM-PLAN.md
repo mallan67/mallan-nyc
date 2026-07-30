@@ -867,7 +867,7 @@ never coerced** (`COT-10`). A closed record leaves public display within 24 hour
 > hardcoded** — the illustrative list has already drifted from the mirror, which
 > is `C-7` in action. **Whether the live feed currently exposes `Sold`/`Rented`
 > at all, and the authoritative spelling of `Canceled`, is a Class B question
-> under `AGENTS.md` §J.3** and cannot be settled from the repository or from a
+> under `CLAUDE.md` §J.3–§J.4** and cannot be settled from the repository or from a
 > static reviewer. It requires an independent live Cotality pull
 > (`npm run cotality:pull` / `cotality:verify`), which **was not run** in this
 > reconciliation.
