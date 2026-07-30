@@ -60,9 +60,26 @@ Every obligation records its authority explicitly — `NY_STATUTE`,
 `BROKERAGE_POLICY` (`BIZ-0`). **No generated text may describe a REBNY, UCBA or
 MLS obligation as "required by New York law."**
 
-Per-area canonical rules live in `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`.
-This plan points at it and does not restate a compliance rule, so no rule exists
-in two places with two revision histories.
+Per-area canonical rules live in `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`,
+**which is the authority for compliance rule text.** This plan points at it
+rather than maintaining a parallel rule set.
+
+**One deliberate exception, stated rather than hidden.** §13.2 reproduces the
+`POL-1.1` gate-by-gate null-semantics table in full. That is not an oversight
+and not a second authority — it is there because `POL-1.3` requires that any
+change to gate-3 or gate-4 null handling **cite this requirement**, and because
+paraphrasing that table is precisely what produced the 2026-04-30 incident. The
+authority model for it is therefore explicit:
+
+- `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` and the canonical file it
+  points to remain **authoritative for the rule**;
+- §13.2 is a **verbatim, non-paraphrasable transfer** carried here so that the
+  requirement is unmissable at the point of architectural decision;
+- **if the two ever differ, the canonical compliance file wins and §13.2 is the
+  defect** — fix §13.2, never the canonical file, and record the correction;
+- no other compliance rule is reproduced in this plan.
+
+Everywhere else, this plan carries **requirement IDs and pointers only**.
 
 ### 0.5 Dated evidence
 
@@ -802,6 +819,26 @@ gate.
 definitions (`COT-11`), never hardcoded. An unrecognized status is **preserved,
 never coerced** (`COT-10`). A closed record leaves public display within 24 hours.
 
+> **Do not treat the example set as provider truth.** `POL-1.5` records
+> "closed, sold, leased, rented, withdrawn, expired, and cancelled" as *observed
+> at the last verification*. The repository's own generated live mirror
+> `data/cotality-enums.live.json` **does not agree with that list**: it contains
+> `Canceled` (single L) and **zero** occurrences of `Cancelled`, `"Sold"` or
+> `"Rented"`, while `Closed`, `Withdrawn`, `Expired` and `Leased` are present.
+>
+> This is exactly why `POL-1.5` says the set is resolved live and **not
+> hardcoded** — the illustrative list has already drifted from the mirror, which
+> is `C-7` in action. **Whether the live feed currently exposes `Sold`/`Rented`
+> at all, and the authoritative spelling of `Canceled`, is a Class B question
+> under `AGENTS.md` §J.3** and cannot be settled from the repository or from a
+> static reviewer. It requires an independent live Cotality pull
+> (`npm run cotality:pull` / `cotality:verify`), which **was not run** in this
+> reconciliation.
+>
+> Until that probe is run: **resolve terminal statuses from the live source at
+> runtime, never from the example list above, and never from the committed
+> mirror without a drift check** (`COT-12`, `COT-13`, `COT-14`).
+
 > §11.3's conflict concerns the **portal** application of gates 3 and 4 and is
 > unresolved. The gate table above states the plan's requirement; it does not
 > authorize a code change.
@@ -885,6 +922,35 @@ evidence and from review (`GATE-6`, `AUD-4`).
 discovered → designed → schema_only → implemented → integrated
 → limited_release → production_proven → retiring → retired
 ```
+
+> **UNRESOLVED — the enforced vocabulary does not match this one.**
+> `config/capabilities.mjs` exports a different `STATUSES` array, and it is the
+> one `npm run capability:audit` actually enforces:
+>
+> ```text
+> registry : discovered · designed · contracted · implemented · shadow_mode
+>            · limited_release · production · degraded · deprecated · retired
+> plan     : discovered · designed · schema_only · implemented · integrated
+>            · limited_release · production_proven · retiring · retired
+> ```
+>
+> The registry has no `schema_only`, `integrated`, `production_proven` or
+> `retiring`; this plan has no `contracted`, `shadow_mode`, `production`,
+> `degraded` or `deprecated`. The two lists came from the two different planning
+> lines and **the reconciliation did not catch the divergence** — it was found by
+> review at head `3be70fa4`.
+>
+> The practical consequence is concrete: `CAP-CANONICAL-PROPERTY` is
+> `contracted` in the registry while this plan and §9 describe that capability as
+> **`schema_only`**. So `capability:audit` can pass a registry that contradicts
+> the plan it is supposed to enforce.
+>
+> **Neither list is adopted here.** Picking one silently would be exactly the
+> failure this reconciliation exists to prevent, and aligning them changes
+> machine-governance behavior. Recorded as
+> **`CONFLICT-CAPABILITY-VOCABULARY`**, `deferred_with_gate`, decision owner
+> **Maya**. Until it is resolved, read a registry status as *the registry's*
+> word, not this plan's.
 
 > **Program assessment is a separate vocabulary from capability maturity**
 > (`C-5.2`). The registry holds **12 programs** (`P0`…`P11`, with an

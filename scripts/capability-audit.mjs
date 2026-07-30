@@ -235,6 +235,27 @@ for (const cap of capabilities) {
         );
       }
     }
+    // A promoted status may not cite a FAILED command as its evidence.
+    // Previously `exitCode` only had to be an integer, so `exitCode: 1` — a
+    // command that failed — still produced RESULT: PASS. "We do not rerun
+    // tests" explains why this validator cannot confirm a recorded SUCCESS; it
+    // does not justify accepting a recorded FAILURE as proof a status was
+    // earned. `negativeEvidence` is exempt: a negative finding legitimately
+    // records a non-zero exit (GATE-5 — a bare grep that matches nothing exits
+    // 1), and `expectedNonZeroExit: true` lets a deliberate failure case be
+    // declared rather than smuggled in.
+    if (key === 'evidence' && Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
+      if (ev.expectedNonZeroExit !== true) {
+        violation(
+          id,
+          'EVIDENCE_COMMAND_FAILED',
+          `\`${key}.exitCode\` is ${ev.exitCode}, so the recorded acceptance command FAILED. ` +
+            'A promoted status may not be justified by a failed command. Either record a ' +
+            'successful run, or set `expectedNonZeroExit: true` to declare the non-zero exit ' +
+            'as the intended outcome.',
+        );
+      }
+    }
     if (hasEvidence(ev.resultArtifact)) {
       const artifactPath = String(ev.resultArtifact).split('#')[0];
       if (isPathLike(artifactPath) && !existsSync(join(REPO_ROOT, artifactPath))) {

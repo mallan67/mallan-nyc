@@ -1,5 +1,5 @@
 {
-  "total_rows": 607,
+  "total_rows": 608,
   "by_source": {
     "PR#579-capability-obligation": 1,
     "PR#579-capability-registry": 11,
@@ -14,7 +14,8 @@
     "deep-audit": 12,
     "recovered-plan": 248,
     "safe-main": 9,
-    "stage-G-finding": 2
+    "stage-G-finding": 2,
+    "stage-L-review": 1
   },
   "by_family_top": {
     "P585": 171,
@@ -52,11 +53,11 @@
     "AUD": 5,
     "SEL": 5,
     "REB": 3,
+    "CONFLICT": 2,
     "P0": 1,
     "P1": 1,
     "P2": 1,
-    "P3": 1,
-    "P4": 1
+    "P3": 1
   },
   "duplicate_ids": [],
   "blank_requirement_text": [],
@@ -66,31 +67,32 @@
   "recovered_heading_ids": 248,
   "recovered_ids_referenced_anywhere": 247,
   "excluded_sections": 12,
-  "resolved_rows": 607,
+  "resolved_rows": 608,
   "unresolved_rows": 0,
   "baseline_605_present": 605,
   "baseline_605_missing": [],
   "baseline_605_regressed_to_unresolved": [],
   "rows_added_after_baseline": [
+    "CONFLICT-CAPABILITY-VOCABULARY",
     "CONFLICT-POL-GATE34-PORTAL",
     "OPS-026"
   ],
   "by_disposition": {
     "combined": 298,
     "retained": 293,
-    "deferred_with_gate": 7,
+    "deferred_with_gate": 8,
     "corrected": 6,
     "historical_only": 3
   },
   "by_implementation_status": {
-    "not_started": 521,
+    "not_started": 522,
     "partially_implemented": 71,
     "production_proven": 13,
     "schema_only": 2
   },
   "by_verification_status": {
     "source_read": 340,
-    "code_verified": 265,
+    "code_verified": 266,
     "inventory_only": 2
   }
 }
