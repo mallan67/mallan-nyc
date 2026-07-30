@@ -977,9 +977,13 @@ discovered → designed → schema_only → implemented → integrated
 > Until then the maturity ladder above is a **definition**, not an enforced
 > contract, and no `capability:audit` command exists in this repository.
 
-> **UNRESOLVED — the enforced vocabulary does not match this one.**
-> `config/capabilities.mjs` exports a different `STATUSES` array, and it is the
-> one `npm run capability:audit` actually enforces:
+> **UNRESOLVED — the archived registry's vocabulary does not match this one.**
+> The archived capability-governance prototype used the registry vocabulary
+> shown below: `config/capabilities.mjs` exported a different `STATUSES` array,
+> and that prototype included a `capability:audit` command which enforced it.
+> **No capability registry, validator or `capability:audit` command is
+> introduced by PR #585**, and nothing in this repository enforces either list
+> today:
 >
 > ```text
 > registry : discovered · designed · contracted · implemented · shadow_mode
@@ -997,10 +1001,12 @@ discovered → designed → schema_only → implemented → integrated
 > returns, because the validator would otherwise enforce a vocabulary this plan
 > does not adopt.
 >
-> The practical consequence is concrete: `CAP-CANONICAL-PROPERTY` is
-> `contracted` in the registry while this plan and §9 describe that capability as
-> **`schema_only`**. So `capability:audit` can pass a registry that contradicts
-> the plan it is supposed to enforce.
+> The practical consequence is concrete: `CAP-CANONICAL-PROPERTY` was
+> `contracted` in the archived registry while this plan and §9 describe that
+> capability as **`schema_only`**. In the archived prototype `capability:audit`
+> would therefore have passed a registry contradicting the plan it was meant to
+> enforce — which is why the vocabulary must be settled before any machine
+> enforcement returns.
 >
 > **Neither list is adopted here.** Picking one silently would be exactly the
 > failure this reconciliation exists to prevent, and aligning them changes

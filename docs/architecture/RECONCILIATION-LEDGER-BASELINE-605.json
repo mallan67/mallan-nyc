@@ -1,5 +1,5 @@
 {
-  "_purpose": "Frozen manifest of the 605 requirement IDs as of commit 652f99b3, when the ledger reached 605 resolved / 0 unresolved. Stage K asserts every one of these is still present and still resolved. Rows added after that point (OPS-026) are additions ON TOP of this baseline and are counted separately, so 'nothing was rewritten' is provable rather than asserted.",
+  "_purpose": "This manifest freezes the 605 requirement IDs that formed the reconciliation baseline as of commit 652f99b3, when the ledger reached 605 resolved / 0 unresolved. During the HISTORICAL reconciliation and tooling phase, this baseline was compared with the resulting ledger. PR #585 does NOT include executable Stage K, ledger-generation or ledger-verification tooling; the committed baseline and reconciliation artifacts are now MAINTAINED AND REVIEWED MANUALLY. The pinned ID-set digest records the reviewed baseline set as a historical integrity reference; it is NOT automatically enforced by any command or CI job in this PR. The historical tooling prototype is preserved at archive/platform-plan-ledger-tooling-e96bbd2b and is not normative and not approved for production or CI use.",
   "_frozen_at_commit": "652f99b3",
   "_count": 605,
   "ids": [
@@ -608,5 +608,16 @@
     "VER-4",
     "VER-5",
     "VER-6"
-  ]
+  ],
+  "_post_baseline_additions": {
+    "_note": "Rows added AFTER this frozen baseline. They are additions ON TOP of the 605 and are counted separately; they are deliberately NOT part of the frozen ids array, so the pinned digest is unaffected.",
+    "baseline_ids": 605,
+    "post_baseline_additions": 3,
+    "final_ledger_rows": 608,
+    "ids": [
+      "OPS-026",
+      "CONFLICT-POL-GATE34-PORTAL",
+      "CONFLICT-CAPABILITY-VOCABULARY"
+    ]
+  }
 }
