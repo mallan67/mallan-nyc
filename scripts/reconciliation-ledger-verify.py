@@ -119,9 +119,23 @@ blank_req = [r["id"] for r in rows if not r["requirement"]]
 check("blank requirements == 0", not blank_req, ", ".join(blank_req[:8]))
 malformed = [r["id"] for r in rows if not r["id"] or not r["source"] or not r["disposition"]]
 check("malformed rows == 0", not malformed, ", ".join(malformed[:8]))
-unknown_disp = sorted({r["disposition"] for r in rows} - DISPOSITIONS)
-check("all dispositions use the declared vocabulary", not unknown_disp,
-      ", ".join(unknown_disp))
+# Every controlled vocabulary is validated HERE, because `ledger:rebuild` — which
+# also validates them — is unavailable in a normal checkout. Checking only
+# `disposition` let an invalid `implementation_status` such as `production_prove`
+# pass in both artefacts simultaneously.
+VOCAB = {
+    "disposition": DISPOSITIONS,
+    "maturity": {"decided", "derived", "open", "unassessed"},
+    "implementation_status": {"not_started", "planned", "schema_only",
+                              "partially_implemented", "implemented", "integrated",
+                              "limited_release", "production_proven", "retiring",
+                              "retired", "unassessed"},
+    "verification_status": {"inventory_only", "source_read", "code_verified",
+                            "live_probe_verified"},
+}
+for _f, _allowed in VOCAB.items():
+    _bad = sorted({r[_f] for r in rows} - _allowed)
+    check("all %s values use the declared vocabulary" % _f, not _bad, ", ".join(_bad[:8]))
 unresolved = [r["id"] for r in rows if r["disposition"] == "unresolved"]
 check("unresolved rows == 0", not unresolved, ", ".join(unresolved[:8]))
 
@@ -164,12 +178,65 @@ for k in sorted(res_ids & set(by_id)):
 check("every resolution field agrees with the ledger", not mismatched,
       "%d mismatch(es): %s" % (len(mismatched), ", ".join(mismatched[:6])))
 
+# ── generated METADATA must agree with its rendered ledger sections ───────
+# `_identifier_retirement_map` and `_flagged_conflicts` are excluded from the
+# row comparison by the `_`-prefix filter, so they could be edited without a
+# rebuild while the ledger kept the old rendered text. Compare them explicitly:
+# retired-identifier and open-conflict evidence must not drift silently.
+_ret = resolutions.get("_identifier_retirement_map")
+if _ret:
+    _missing_bits = []
+    if _norm(_ret.get("_rule", "")) not in _norm(ledger_md):
+        _missing_bits.append("_rule text")
+    for _e in _ret.get("entries", []):
+        for _f2 in ("old_identifier", "new_canonical_identifier", "old_meaning",
+                    "new_meaning", "retirement_reason", "replacement_destination"):
+            if _norm(_e.get(_f2, "")) not in _norm(ledger_md):
+                _missing_bits.append("%s.%s" % (_e.get("old_identifier"), _f2))
+    check("identifier retirement map matches the rendered ledger", not _missing_bits,
+          "%d not rendered: %s" % (len(_missing_bits), ", ".join(_missing_bits[:6])))
+
+_conf = resolutions.get("_flagged_conflicts")
+if _conf:
+    _cmiss = []
+    for _c1 in _conf:
+        for _f3 in ("id", "current_code_behavior", "recovered_plan_behavior",
+                    "affected_scope", "temporary_operational_rule", "decision_gate"):
+            if _norm(_c1.get(_f3, "")) not in _norm(ledger_md):
+                _cmiss.append("%s.%s" % (_c1.get("id"), _f3))
+    check("flagged conflicts match the rendered ledger", not _cmiss,
+          "%d not rendered: %s" % (len(_cmiss), ", ".join(_cmiss[:6])))
+
 # ── ledger agrees with the committed validation JSON ──────────────────────
+# Recompute EVERY metric the committed validation artefact reports, rather than
+# only its totals. Checking the sum alone let a row be moved between categories,
+# `by_source` be fabricated, and a blank source section be invented, all while
+# the sum stayed correct and verification passed.
+import collections as _c
 check("validation.total_rows matches the table", validation["total_rows"] == total,
       "json=%s table=%d" % (validation["total_rows"], total))
 check("validation.unresolved_rows == 0", validation["unresolved_rows"] == 0)
-check("validation dispositions sum to total",
-      sum(validation["by_disposition"].values()) == validation["total_rows"])
+for _key, _actual in (
+        ("by_disposition", dict(_c.Counter(r["disposition"] for r in rows))),
+        ("by_source", dict(_c.Counter(r["source"] for r in rows))),
+        ("by_implementation_status", dict(_c.Counter(r["implementation_status"] for r in rows))),
+        ("by_verification_status", dict(_c.Counter(r["verification_status"] for r in rows)))):
+    if _key not in validation:
+        continue
+    check("validation.%s matches the ledger" % _key,
+          {k: v for k, v in validation[_key].items()} == _actual,
+          "json=%s recomputed=%s" % (validation[_key], _actual))
+for _key, _actual in (("duplicate_ids", dupes), ("malformed_rows", malformed),
+                      ("blank_requirement_text", blank_req)):
+    if _key in validation:
+        check("validation.%s matches the ledger" % _key,
+              sorted(validation[_key]) == sorted(_actual),
+              "json=%s recomputed=%s" % (validation[_key], _actual))
+for _key, _actual in (("resolved_rows", total - len(unresolved)),
+                      ("baseline_605_present", len(ids) - len(missing))):
+    if _key in validation:
+        check("validation.%s matches the ledger" % _key, validation[_key] == _actual,
+              "json=%s recomputed=%s" % (validation[_key], _actual))
 
 # ── the plan's generated blocks match the ledger ──────────────────────────
 def block(name):
@@ -208,7 +275,10 @@ for _name, _blk in (("LEDGER-TOTALS", totals_block), ("DEFERRED-GATES", gates_bl
     _stop = chr(10) + r">\s*This plan|" + chr(10) + "<!--"
     _m = re.search(r"rows are deferred:(.*?)(?:" + _stop + ")", _blk, re.S)
     _scope = _m.group(1) if _m else _blk
-    listed = {i for i in re.findall(r"`([A-Za-z0-9._-]+)`", _scope) if i in by_id}
+    # Compare the COMPLETE extracted set. Filtering through `if i in by_id`
+    # discarded exactly the unknown extras the equality check exists to reject,
+    # so the plan could advertise a nonexistent deferred gate and still pass.
+    listed = set(re.findall(r"`([A-Za-z0-9._-]+)`", _scope))
     check("%s deferred list matches the ledger" % _name, listed == set(deferred),
           "missing=%s extra=%s" % (sorted(set(deferred) - listed), sorted(listed - set(deferred))))
     check("%s deferred count matches" % _name,

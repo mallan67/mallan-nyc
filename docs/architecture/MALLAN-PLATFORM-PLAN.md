@@ -527,8 +527,8 @@ Order in `app/api/listings/route.ts` (DB branch):
 | further narrowing | — | `applyPublicListingPostFilters`, optional open-house filter |
 | response | 589-593 | `count: annotatedListings.length` (post-filter) but `total: dbTotal`, `hasMore: skip + limit < dbTotal` |
 
-**No refill and no recomputation exists.** `dbTotal` appears in exactly three
-places — 332, 590, 593 — and flows unmodified into the response.
+**No refill and no recomputation exists.** `dbTotal` is referenced at exactly
+three lines — 332, 590, 593 — and flows unmodified into the response.
 
 **Consequences.** A page may contain fewer records than the limit even when later
 eligible records exist; the reported total can exceed the displayable result set;
