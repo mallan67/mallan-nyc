@@ -3,37 +3,46 @@
 **Repository:** `mallan67/mallan-nyc` · **Base:** safe `main` `04db1b99` ·
 **Reconstructed:** 2026-07-30
 
-This is the **single** normative platform plan. It was not taken wholesale from
-either unmerged planning line. It was built from the
-[reconciliation ledger](./MALLAN-PLATFORM-RECONCILIATION-LEDGER.md).
+This is the **single** normative platform plan and **the only normative
+document in this change**. It was not taken wholesale from either unmerged
+planning line: it was built from a per-requirement reconciliation of both.
 
-<!-- LEDGER-TOTALS — derived from the ledger; no generator exists in this repository -->
-**Ledger totals (derived from the ledger):** 608 rows — 605 baseline plus 3 later additions
-(`CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `OPS-026`) —
-608 with a reasoned disposition, **0 unresolved**. Baseline integrity:
-605 present / 0 missing / 0 regressed.
+> **The reconciliation working materials are HISTORICAL and NON-NORMATIVE, and
+> they are not part of this repository.** The 608-row ledger, its machine-readable
+> dispositions, its frozen baseline, its validation artifact and the ancestry
+> evidence are preserved at the protected archival tag
+> `archive/platform-plan-reconciliation-corpus-53688877`.
+> They are **evidence of how this plan was assembled, not an authority over it**,
+> and they carry known unvalidated defects recorded in that tag's annotation.
+> **Where this plan and any archived material differ, this plan governs.**
 
-> **A `deferred_with_gate` row is accounted for in the ledger. It is *not* a
-> settled product or policy decision.** **37** rows are deferred:
-> `BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD`, `P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD`, `P579-FILE-PACKAGE-JSON`, `P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
-> This plan records what is decided, what is deferred, and what is contested,
-> and never presents the second or third as the first.
-<!-- /LEDGER-TOTALS -->
+> **A `deferred_with_gate` item is accounted for. It is *not* a settled product
+> or policy decision.** **31** requirements are deferred:
+>
+> `BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
+>
 
-> **These counts were derived from the ledger, not asserted from memory** (§0.5)
-> — but **no tooling in this repository regenerates or verifies them.** The
-> prototype that produced them was removed from this PR and preserved at the tag
-> `archive/platform-plan-ledger-tooling-e96bbd2b`; it is not normative and is not
-> approved for CI use. Until a contract-first replacement is reviewed and merged,
-> **the ledger is the only authority** and this block is maintained by hand
-> against it — treat any disagreement as this block being wrong. An earlier
-> revision wrote these counts from memory and went stale within one commit; that
-> is the failure §0.5 exists to prevent, and hand-maintenance against the ledger
-> is not a substitute for verification.
+>
+> Separately, **6 machine-governance artefacts** from the PR #579 line are deferred
+> with them — `config/capabilities.mjs`, `scripts/capability-audit.mjs`, the
+> `package.json` `capability:audit` entry and three evidence documents. They are
+> files, not requirements, and are preserved by PR #579's archival tag.
+>
+> This plan records what is decided, what is deferred, and what is contested, and
+> never presents the second or third as the first. The per-row evidence behind
+> these dispositions is historical and lives only at the archival tag; **this
+> list is normative, the archived evidence is not**.
 
-Every section below names the ledger families and requirement IDs it
-implements. Where this plan and the ledger disagree, **the ledger is the
-evidence and this plan is wrong** — file the correction against both.
+> **These figures are stated by this plan and are not machine-verified.** No
+> generator, verifier or CI job in this repository recomputes them. They were
+> derived from the reconciliation materials now preserved at the archival tag,
+> and they are maintained and reviewed **by hand**. Treat them as dated evidence
+> under §0.5, not as an automatically enforced invariant.
+
+Every section below names the requirement families and IDs it implements.
+Those identifiers are **defined by this plan**; the archived reconciliation
+materials record how each was resolved but do not override anything stated
+here.
 
 ---
 
@@ -116,9 +125,10 @@ against. This rule has already been proven necessary twice inside this
 reconciliation: the provider vocabulary had already drifted from the committed
 copy when checked (`COT-15`), and the ancestry document's own counts were wrong
 twice and had to be corrected (`AUDIT-GOVERNANCE-DRIFT`). **Counts in this plan
-are derived from the ledger, not asserted from memory** — and, because no
-verification tooling ships in this repository, the ledger is the authority
-whenever the two disagree.
+were derived from the reconciliation materials rather than asserted from
+memory** — but no verification tooling ships in this repository, so they are
+**hand-maintained and unverified**, and they are dated evidence rather than
+architecture facts.
 
 ### 0.6 Implementation, production and completion evidence
 
@@ -153,7 +163,8 @@ a side; a conflict resolved by quiet preference is not resolved.
 A withdrawn or reassigned requirement **keeps its identifier**, marked
 `RETIRED`, with reason and replacement recorded. **An identifier is never
 reassigned to a different requirement without an entry in the identifier
-retirement map** (`DOC-8`). The map is normative and lives in the ledger.
+retirement map** (`DOC-8`). **The map below is normative and lives in this
+plan.**
 
 Currently retired/remapped: `BUS-5` → `REB-1`, `BUS-6` → `BUS-5`,
 `BUS-7` → `BUS-6` (with `BUS-7` then reused for new content, disambiguated in
@@ -201,8 +212,8 @@ itself authoritative**; git history preserves it and nothing is deleted
 
 ### 1.2 Open contested items
 
-Both are `deferred_with_gate` — **ledger-resolved, policy-unresolved** — and both
-are rendered in full in the ledger's flagged-conflicts section (2).
+Both are `deferred_with_gate` — **accounted for but policy-unresolved**. Both
+are **open** and both require Maya's decision.
 
 - **`CONFLICT-POL-GATE34-PORTAL`** — portal gate 3/4 null semantics. See §11.3.
   No code change is authorized.
@@ -544,10 +555,27 @@ Order in `app/api/listings/route.ts` (DB branch):
 **No refill and no recomputation exists.** `dbTotal` is referenced at exactly
 three lines — 332, 590, 593 — and flows unmodified into the response.
 
+**The live-Cotality fallback branch shares the defect** (same file, verified by
+direct read at `04db1b99`). It filters *before* slicing — `filtered.slice(skip,
+skip + limit)` at 940 — which is the correct order. But its **total selection is
+incomplete**:
+
+| line | code | effect |
+|---:|---|---|
+| 937-939 | ``totalCount = (boundsParam \|\| borough \|\| neighborhood) ? filtered.length : (result.odataCount ?? filtered.length)`` | the provider's **pre-filter** `odataCount` is used unless bounds, borough or neighborhood is set |
+| 1086 | `total: totalCount + …` | pre-filter total reaches the response |
+| 1089 | `hasMore: skip + limit < totalCount \|\| result.hasMore` | pre-filter total drives paging |
+
+The condition omits every other server-side post-filter — **open house, amenity,
+subtype and new development** among them. For those requests the fallback also
+reports rows it filtered out. **The fallback is therefore NOT categorically
+correct**: it is correct only for the three filters named in that condition.
+
 **Consequences.** A page may contain fewer records than the limit even when later
 eligible records exist; the reported total can exceed the displayable result set;
 page boundaries are inconsistent between the two runtimes; matched-pair
-suppression removes records after the page is cut. **`SEA-10` criterion 3
+suppression removes records after the page is cut; and **both** runtimes can
+report a pre-filter total, producing phantom pages. **`SEA-10` criterion 3
 ("pagination with no unreachable results") is not satisfied.**
 
 **Proof limitations.** No production probe was run — no claim is made about how
@@ -969,8 +997,9 @@ discovered → designed → schema_only → implemented → integrated
 > needs its own contract and test work rather than more incremental hardening
 > inside a documentation PR.
 >
-> Nothing is lost: the requirements stay in the ledger as `deferred_with_gate`,
-> and the implementation is preserved on PR #579 and in git history. **Production
+> Nothing is lost: the requirements remain `deferred_with_gate` in this plan,
+> and the implementation is preserved by PR #579's archival tag and in git
+> history. **Production
 > impact is none** — nothing in `app/` or `lib/` imported either file, and no
 > route, job or cron invoked them.
 >
@@ -1103,10 +1132,8 @@ storage headroom may not be promoted before Neon/R2 remediation clears.
 > registry states **what is**, and neither silently overwrites the other
 > (§0.2).
 
-<!-- DEFERRED-GATES — derived from the ledger; no generator exists in this repository -->
-**Deferred and unresolved — accounted for in the ledger, NOT decided (37):**
-`BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD`, `P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD`, `P579-FILE-PACKAGE-JSON`, `P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
-<!-- /DEFERRED-GATES -->
+**Deferred and unresolved — accounted for here, NOT decided (31):**
+`BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
 
 Read with the gloss: `BIZ-4` compensation arrangement model · `PER-1`/`PER-4`
 person and organization identity · `IAM-10` retention periods (`Q-12`) ·
@@ -1118,9 +1145,35 @@ person and organization identity · `IAM-10` retention periods (`Q-12`) ·
 
 ## Provenance
 
-Built from `MALLAN-PLATFORM-RECONCILIATION-LEDGER.md` (608 rows, 608 resolved,
-0 unresolved), whose per-row evidence, identifier retirement map and flagged
-conflicts are the authority for every claim above. Ancestry evidence:
-`PLANNING-RECONCILIATION-ANCESTRY-2026-07-30.md`.
-Machine-readable dispositions: `RECONCILIATION-RESOLUTIONS.json`.
-Frozen baseline: `RECONCILIATION-LEDGER-BASELINE-605.json`.
+This plan was assembled by a per-requirement reconciliation of two divergent
+planning lines whose merge-base was an older `main` (`60581e51`), so neither
+could be rebased onto the other and no whole-document "ours/theirs" resolution
+was admissible.
+
+**The reconciliation working materials are HISTORICAL and NON-NORMATIVE and are
+deliberately not carried in this repository.** They are preserved at the
+protected archival tag:
+
+```text
+archive/platform-plan-reconciliation-corpus-53688877
+```
+
+containing the 608-row ledger, `RECONCILIATION-RESOLUTIONS.json`, the frozen
+605-ID baseline, the validation artifact and the ancestry evidence. Two further
+tags preserve the source plans and the removed tooling prototype:
+
+```text
+archive/platform-plan-recovered-6e8ea2d9
+archive/platform-plan-pr585-f51848b0
+archive/platform-plan-pr579-7c15b1d5
+archive/platform-plan-ledger-tooling-e96bbd2b
+```
+
+**Those materials are evidence, not authority.** They carry known unvalidated
+defects — recorded in the corpus tag's annotation — including symbolic
+`canonical_destination` values that resolve to no heading here, one incorrect
+identifier count, one stale unresolved-row statement and one dependency naming a
+retired identifier. They were removed from this change rather than corrected
+because validating a 608-row audit trail is separate work from publishing this
+plan. **Nothing in this plan depends on them being correct**, and where this plan
+and any archived material differ, **this plan governs**.

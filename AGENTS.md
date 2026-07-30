@@ -84,7 +84,8 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | Topic | File |
 |---|---|
 | **Platform architecture, business rules, cross-system contracts, implementation sequence** | **`docs/architecture/MALLAN-PLATFORM-PLAN.md` — the single normative plan (`DOC-1`)** |
-| **Per-requirement reconciliation evidence, retired identifiers, open conflicts** | `docs/architecture/MALLAN-PLATFORM-RECONCILIATION-LEDGER.md` |
+| **Retired identifiers, open conflicts, deferred items** | `docs/architecture/MALLAN-PLATFORM-PLAN.md` §0.8, §1.2, §18 — normative |
+| Historical reconciliation evidence (**non-normative**, not in this repo) | archival tag `archive/platform-plan-reconciliation-corpus-53688877` |
 | Cross-agent constitution (this) | `AGENTS.md` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
 | **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |

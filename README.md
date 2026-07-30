@@ -29,7 +29,8 @@ and where the two appear to differ the plan wins.
 | Architecture, business rules, sequence | `docs/architecture/MALLAN-PLATFORM-PLAN.md` |
 | Agent invariants, holds, evidence rules | `AGENTS.md` |
 | The fastest safe orientation | `AI-START-HERE.md` |
-| Per-requirement evidence, retired identifiers, open conflicts | `docs/architecture/MALLAN-PLATFORM-RECONCILIATION-LEDGER.md` |
+| Retired identifiers, open conflicts, deferred items | `docs/architecture/MALLAN-PLATFORM-PLAN.md` §0.8, §1.2, §18 |
+| Historical reconciliation evidence (non-normative) | archival tag `archive/platform-plan-reconciliation-corpus-53688877` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` |
 | Tracked issues and incidents | `docs/PLATFORM-ISSUE-REGISTRY.md` |
 | Database rules | `NEON.md` |

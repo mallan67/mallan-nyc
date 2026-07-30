@@ -18,9 +18,12 @@ This file has **one purpose: routing**. It states no architecture of its own.
 4. **`docs/PROJECT-HEALTH-DASHBOARD.md`** — live operational status.
 5. **`docs/PLATFORM-ISSUE-REGISTRY.md`** — tracked issues and incidents.
 
-For a per-requirement audit trail — evidence, retired identifiers, open
-conflicts — read
-**`docs/architecture/MALLAN-PLATFORM-RECONCILIATION-LEDGER.md`**.
+Retired identifiers, open conflicts and deferred items are **normative in the
+canonical plan** — §0.8, §1.2 and §18. The per-requirement reconciliation
+evidence behind them is **historical, non-normative and not in this
+repository**; it is preserved at the archival tag
+**`archive/platform-plan-reconciliation-corpus-53688877`**
+and carries known unvalidated defects. **The plan governs.**
 
 ---
 
