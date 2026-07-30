@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * capability-audit — machine enforcement of the master plan's §24 acceptance
- * criteria and §8.3 maturity statuses.
+ * capability-audit — machine enforcement of the canonical plan's capability
+ * maturity vocabulary (§16) and evidence classes (§15).
  *
  * Authority : docs/architecture/MALLAN-PLATFORM-PLAN.md §16 (capability maturity),
  *             which incorporates correction C-5. Mallan_Intelligence_Master_Plan.md is
@@ -283,7 +283,7 @@ for (const cap of capabilities) {
     violation(
       id,
       'ILLEGAL_STATUS',
-      `status \`${cap.status}\` is not one of §8.3: ${STATUSES.join(', ')}.${hint}`,
+      `status \`${cap.status}\` is not one of §16: ${STATUSES.join(', ')}.${hint}`,
     );
   }
 
@@ -477,6 +477,18 @@ for (const cap of capabilities) {
     }
     if (hasEvidence(ev.resultArtifact)) {
       const raw = String(ev.resultArtifact);
+      // `resultArtifact` is where the CAPTURED OUTPUT lives, so a command string
+      // cannot substantiate it. `isPathLike` exists for `tests` entries, where a
+      // command is legitimate; applying it here let `resultArtifact: 'npm test'`
+      // skip existence AND fragment validation entirely.
+      if (!isPathLike(raw)) {
+        violation(
+          id,
+          'EVIDENCE_ARTIFACT_NOT_A_PATH',
+          `\`${key}.resultArtifact\` is ${JSON.stringify(raw)}, which is a command, not an ` +
+            'artifact. It must point at the file holding the captured output.',
+        );
+      }
       const artifactPath = raw.split('#')[0];
       const fragment = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1).trim() : '';
       if (isPathLike(artifactPath) && !existsSync(join(REPO_ROOT, artifactPath))) {
@@ -583,6 +595,18 @@ for (const cap of capabilities) {
     ['tests', cap.tests ?? []],
   ]) {
     for (const entry of list) {
+      // `['']` previously passed: the array was non-empty, and join(REPO_ROOT, '')
+      // resolves to the repository root, which exists. A placeholder element
+      // must not satisfy promotion proof.
+      if (typeof entry !== 'string' || entry.trim() === '') {
+        violation(
+          id,
+          'PATH_LIST_BLANK_ENTRY',
+          `\`${listName}\` contains a blank or non-string entry (${JSON.stringify(entry)}). ` +
+            'An empty element names no file while still passing the non-empty check.',
+        );
+        continue;
+      }
       if (!isPathLike(entry)) continue;
       if (existsSync(join(REPO_ROOT, entry))) continue;
       const detail = `declared ${listName} path \`${entry}\` does not exist at this commit`;
@@ -634,7 +658,7 @@ if (coverage && coverage.capabilitiesRegistered !== capabilities.length) {
 // ---------------------------------------------------------------------------
 const line = '─'.repeat(74);
 console.log(line);
-console.log('capability:audit — master plan §24 / §8.3 / §26 C-5');
+console.log('capability:audit — canonical plan §16 (maturity) / §15 (evidence) / §17 (decommissioning)');
 console.log(line);
 console.log(`registry     : config/capabilities.mjs (v${meta?.version ?? '?'})`);
 console.log(`baseline     : ${meta?.baselineCommit ?? '?'}`);
