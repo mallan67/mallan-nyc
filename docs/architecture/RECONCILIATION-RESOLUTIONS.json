@@ -16,61 +16,873 @@
     "maturity mirrors the source plan's own declared Status (DECIDED / DERIVED / OPEN)",
     "rather than a maturity invented here."
   ],
-  "_batches_resolved": ["batch-1: BIZ, ACT, PER, IAM, BRK"],
+  "_batches_resolved": [
+    "batch-1: BIZ, ACT, PER, IAM, BRK",
+    "batch-2: LST, SEA, COT, OPS-024, OPS-025"
+  ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
-
-  "BIZ-0": {"canonical_destination": "§Business model — authority labelling", "disposition": "retained", "reason_or_evidence": "Authority-labelling rule (NY_STATUTE/NY_REGULATION/NYC_LAW/REBNY_UCBA/REBNY_RLS/NAR_MLS_POLICY/BROKERAGE_POLICY). No competing statement in PR #585 or PR #579. Governs how every other BIZ row may be described.", "dependency": "none — foundational", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-1": {"canonical_destination": "§Business model — compensation timeline", "disposition": "retained", "reason_or_evidence": "Three distinct effective dates (2024-01-01 decoupling, 2025-08-01 RLS field removal, 2026-01-20 UCBA revisions) that must not be merged. Sub-rules BIZ-1.1/1.2/1.3 carry the dates.", "dependency": "BIZ-0 (authority labels)", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-2": {"canonical_destination": "§Business model — representation agreements & showing eligibility", "disposition": "retained", "reason_or_evidence": "Pre-tour written agreement is an RLS/MLS participation rule, not a NY statute. Sub-rules BIZ-2.1 (not a boolean), 2.2 (4 behaviours), 2.3 (contents).", "dependency": "BIZ-0, PER-5 (`represented` state)", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-3": {"canonical_destination": "§Business model — who pays", "disposition": "retained", "reason_or_evidence": "Decoupling changed the mechanism, not usually the payer. Establishes that compensation is a property of an executed agreement, never of a listing record — the premise BIZ-9 enforces.", "dependency": "BIZ-1.1", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-4": {"canonical_destination": "§Business model — compensation arrangement model", "disposition": "deferred_with_gate", "reason_or_evidence": "CODE-VERIFIED GAP: no `CompensationArrangement` model exists in prisma/schema.prisma. The nearest model, `CommissionPayment`, is DEAL-level (deal_id, payment_type, amount, status) and carries no agreement_id, no maximum_compensation and no objective_formula. It therefore cannot express BIZ-4.1 (transaction-level), BIZ-4.3 (enforced cap) or BIZ-4.5 (one receivable per agreement, never deal-level commission) — BIZ-4.5 is directly contradicted by the current shape. Gate: schema change requires explicit Maya approval.", "dependency": "TXN family; schema-migration hold", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "BIZ-5": {"canonical_destination": "§Business model — engagement types", "disposition": "retained", "reason_or_evidence": "Seven engagement types. Entitlement answered from the executed agreement, never inferred from activity.", "dependency": "BIZ-4 (arrangements attach to engagements)", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-6": {"canonical_destination": "§Business model — commission earned at closing", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED RISK: `CommissionPayment.status` defaults to \"pending\" with payment_type \"received\", and nothing observed ties either to a closing event. The invariant \"never earned before closing\" is therefore not enforced by the current schema; retained as a requirement the implementation must satisfy.", "dependency": "TXN-6, BIZ-4", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "BIZ-7": {"canonical_destination": "§Business model — negotiability disclosure", "disposition": "retained", "reason_or_evidence": "Commissions not set by law and fully negotiable; required content in listing agreements, buyer agreements and pre-closing documents. Attributed to REBNY_UCBA, not to NY law (BIZ-0).", "dependency": "BIZ-0", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-8": {"canonical_destination": "§Business model — no \"free\" services claim", "disposition": "retained", "reason_or_evidence": "Binds every generated and authored surface where compensation will be received from any source. Enforced via the compliance-sensitive surface list in POL-5.", "dependency": "POL-5", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-9": {"canonical_destination": "§Business model — compensation never in listing content", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: suppression exists and is real — lib/compliance/dto.ts:60-65 `REMOVED_FIELDS` lists the four RLS compensation fields; dto.ts:174-179 blanks nested `buyer.buyerAgentCompensation`/`Type`; lib/compliance/rebny-field-tables.ts:1162-1165 marks them `{raw:false, removed:true}`; lib/compliance/idx-display-gate.ts:93-94 blanks the DTO fields. NOT verified: that no export, feed, sitemap, report or campaign path bypasses these lists. Retained as an ACTIVE guard, not a historical note.", "dependency": "BIZ-10 (fields still reachable in provider metadata)", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "BIZ-10": {"canonical_destination": "§Business model — legacy compensation fields", "disposition": "retained", "reason_or_evidence": "REBNY removed compensation fields from the RLS on 2025-08-01; that did NOT remove them from Cotality/Trestle metadata, which spans multiple listing organizations. This is why BIZ-9 is an active guard.", "dependency": "COT-11", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-11": {"canonical_destination": "§Business model — agency relationship & disclosure", "disposition": "retained", "reason_or_evidence": "NY requires agency-relationship disclosure; system records capacity per client relationship plus the disclosure event and date. Dual agency requires informed written consent; relationships never inferred from activity nor changed silently.", "dependency": "PER-1, BIZ-5", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-12": {"canonical_destination": "§Business model — rentals", "disposition": "retained", "reason_or_evidence": "Rental engagements follow the same written-agreement principle subject to BIZ-2.2; fee responsibility follows the FARE Act rule in TXN-10, and unresolved fee attribution fails closed.", "dependency": "TXN-10, BIZ-2.2", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BIZ-13": {"canonical_destination": "§Business model — source register", "disposition": "retained", "reason_or_evidence": "Nine-row register binding each rule to its governing source and effective date, keeping REBNY/RLS rules separate from NY statute and NYC law. This is the lookup BIZ-0 depends on.", "dependency": "BIZ-0", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-
-  "ACT-1": {"canonical_destination": "§Actors — actor classes", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED GAP: the plan defines six actor classes (anonymous, client, agent, broker, system_job, service_identity). prisma/schema.prisma `model Session` carries only `user_type` (\"agent\"|\"lead\") plus a `role` string mixing staff and client roles (\"BROKER\"|\"AGENT\"|\"buyer\"|\"tenant\"|\"seller\"|\"landlord\"). system_job and service_identity have no representation.", "dependency": "AUZ-1 uses the same set", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "ACT-2": {"canonical_destination": "§Actors — client scoping", "disposition": "retained", "reason_or_evidence": "Client actors scoped by role AND resource; role alone never authorizes. Directly relevant to the audit finding AUDIT-PORTAL-ACTOR-SUBJECT, where routes reinterpret auth.userId as Lead.id.", "dependency": "AUZ-5, PER-12", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "source_read"},
-  "ACT-3": {"canonical_destination": "§Actors — actor context resolved once", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: an adapter layer exists (lib/auth/middleware.ts, lib/auth/index.ts, lib/portal/listing-ownership.ts all reference requirePortalRole). NOT verified: that no domain service re-derives identity from transport. Requirement retained as the rule that makes AUDIT-PORTAL-ACTOR-SUBJECT a defect rather than a style preference.", "dependency": "ARC-7, ARC-8", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "ACT-4": {"canonical_destination": "§Actors — broker-operated brokerage", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED CONSISTENT: prisma `model Agent` carries license_type (\"broker\"|\"salesperson\") and Session.role admits both BROKER and AGENT, so one person holding both capacities is representable. Constrains every later feature: single-operator software that must not block multi-agent later.", "dependency": "none — foundational", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "ACT-5": {"canonical_destination": "§Actors — capacity, not account type", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED GAP: `acting_capacity`/`actingCapacity` appears nowhere in lib/ or app/. No action records which capacity it was performed in, so audit history cannot distinguish a broker's producing action from a supervisory one — the precise distinction ACT-5 requires.", "dependency": "ACT-4", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "ACT-6": {"canonical_destination": "§Actors — supervision off by default", "disposition": "retained", "reason_or_evidence": "A supervision requirement that would resolve to self-review is not enabled by default while the broker is the only producing agent. CMA-4 already applies this; ACT-6 generalizes it.", "dependency": "ACT-4, CMA-4", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "ACT-7": {"canonical_destination": "§Actors — multi-agent readiness", "disposition": "retained", "reason_or_evidence": "Ownership field carried from the start and populated with the acting person; no backfill assumption. Conversely no routing/load-balancing/team-hierarchy/split-rule machinery before it is needed.", "dependency": "ACT-4, PER-7", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-
-  "PER-1": {"canonical_destination": "§Person — person is the identity", "disposition": "deferred_with_gate", "reason_or_evidence": "CODE-VERIFIED GAP: no `Person` model exists in prisma/schema.prisma. `Lead` is the de-facto person record and carries `roles String[]` (buyer/renter/seller/landlord), which partially expresses multi-role, but lifecycle state lives on the Lead (`status`) rather than on the role — the exact conflation PER-1 forbids. Confirms deep-audit AUDIT-PERSON-ORG-IDENTITY. Gate: schema change requires explicit Maya approval.", "dependency": "schema-migration hold; spine for SEA, SEL, CMA, MKT, TXN, CRM, INT", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "PER-2": {"canonical_destination": "§Person — contact method is not identity", "disposition": "retained", "reason_or_evidence": "Email and telephone are supporting identifiers, never the sole identity key; identity resolution records confidence and merges are reversible with retained history. No merge-history structure exists today (no Person model).", "dependency": "PER-1", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "PER-3": {"canonical_destination": "§Person — household / decision group", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: `FamilyMember` and `LeadParty` models exist and express some multi-party structure, but neither carries the decision-group attributes PER-3 requires (influence, legal authority, joint-approval requirements, document access, active dates).", "dependency": "PER-1", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-4": {"canonical_destination": "§Person — organization", "disposition": "deferred_with_gate", "reason_or_evidence": "CODE-VERIFIED GAP: no `Organization` model exists. NYC transactions run through LLCs, trusts, estates, co-op corporations, managing agents, law firms, lenders and title companies; none is representable today, so a transaction counterparty cannot be an organization. Gate: schema change requires explicit Maya approval.", "dependency": "PER-1; schema-migration hold", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "PER-5": {"canonical_destination": "§Person — lead is a role state", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED GAP: PER-5 defines nine role states including `represented`. prisma `model Lead.status` defaults to \"new\" with documented values new/contacted/active/closed — four states, and no `represented`. `represented` is the precondition for agent-led tours under BIZ-2.2, so its absence means showing eligibility cannot currently be evaluated from state.", "dependency": "BIZ-2.2, PER-1", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-6": {"canonical_destination": "§Person — lead source and provenance", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: `Lead.consent_captured_at` exists (TCPA/CAN-SPAM consent timestamp), so consent-at-capture is partly present. Full provenance (source, medium, campaign, landing surface, referring person/org, first-seen) not verified as a single immutable structure.", "dependency": "MKT-1, MKT-3", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-7": {"canonical_destination": "§Person — assignment", "disposition": "retained", "reason_or_evidence": "One accountable person at a time, recorded with assigning actor, timestamp and reason; reassignment appends rather than overwrites. `LeadAssignmentRule` exists in schema but append-only reassignment history was not verified.", "dependency": "ACT-4 (default assignee is broker-as-agent), ACT-7", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-8": {"canonical_destination": "§Person — interaction timeline", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED FRAGMENTATION: PER-8 requires ONE canonical append-only timeline per person. Today at least five separate event stores exist — `ActivityLog`, `PortalEvent`, `BehavioralEvent`, `IntentEvent`, `AuditEvent` — plus `OutreachEvent`. No single canonical timeline exists, and AuditEvent must not be repurposed as one (deep-audit AUDIT-WORKFLOW-OUTBOX).", "dependency": "PER-1", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-9": {"canonical_destination": "§Person — knowledge types not conflated", "disposition": "retained", "reason_or_evidence": "Five knowledge types (verified fact, client-stated preference, observed behavior, broker hypothesis, confirmed decision) that are never silently promoted between. An inference is never presented as a statement. Directly governs INT-3 and every AI-generated surface.", "dependency": "INT-3", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "PER-10": {"canonical_destination": "§Person — commitment", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: `FollowUpTask` exists and covers part of the shape, but PER-10 requires completion evidence, related interaction and related transaction so that \"what Mallan owes this client\" is answerable. Not verified as satisfied.", "dependency": "PER-1, PER-8", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-11": {"canonical_destination": "§Person — consent per person/channel/purpose", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: `NotificationPreference` and `Lead.consent_captured_at` exist, but PER-11 requires consent to attach to the PERSON and survive role changes. With no Person model (PER-1), consent is attached to the Lead, so the stated guarantee — unsubscribed as a buyer stays unsubscribed when later a seller — is not structurally guaranteed.", "dependency": "PER-1, MKT-1", "maturity": "derived", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "PER-12": {"canonical_destination": "§Person — portal identity maps to person", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED TENSION: `Session.user_type` is \"agent\"|\"lead\" and `Session.user_id` is a BigInt, so a portal session resolves to a Lead, not to a person holding roles. One person with two roles seeing both through one account is therefore not structurally guaranteed. Relates to deep-audit AUDIT-PORTAL-ACTOR-SUBJECT.", "dependency": "PER-1, AUZ-5, ACT-2", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-
-  "IAM-1": {"canonical_destination": "§Identity — authentication resolved by adapter", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: adapter layer present (lib/auth/middleware.ts, lib/auth/index.ts). Restates ACT-3 for the authentication path; kept as a DERIVED row rather than merged so the auth surface carries the rule explicitly.", "dependency": "ARC-2, ACT-3", "maturity": "derived", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-2": {"canonical_destination": "§Identity — principal classes", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED GAP: IAM-2 requires four principal classes that never share a credential, session or authorization path. `model Session.user_type` admits only \"agent\"|\"lead\"; there is no service_principal, and staff/client roles are mixed in one `role` string column on one table. The \"never share a session\" guarantee is therefore not enforced at the schema level.", "dependency": "ACT-5, PER-12", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-3": {"canonical_destination": "§Identity — session properties", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED GAP: `model Session` records token, user_type, user_id, role, expires_at, created_at, ip_address, user_agent. It does NOT record the capacity in effect (ACT-5), last activity, or a revocation flag. IAM-3 requires revocation to take effect on the NEXT REQUEST rather than at next expiry; with only `expires_at` there is no observed mechanism for that.", "dependency": "ACT-5", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-4": {"canonical_destination": "§Identity — invitation-based portal onboarding", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: an invitation flow exists — lib/email/templates.ts:82-86 builds `/portal/accept?token=...`. NOT verified: single-use enforcement, expiry, issuer recording, or fail-closed token validation. Self-registration must create a lead (PER-5), not a portal principal.", "dependency": "PER-5, PER-12", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-5": {"canonical_destination": "§Identity — elevated capability assurance", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: `model MfaSession` exists, so a stronger-assurance mechanism is present. NOT verified: that assurance level is RECORDED ON THE ACTION, which is the substantive half of IAM-5 (the mechanism itself is explicitly left as an implementation decision).", "dependency": "IAM-3, ACT-5", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-6": {"canonical_destination": "§Identity — impersonation", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PARTIAL: impersonation exists — app/api/auth/impersonation/stop/route.ts terminates an impersonation session and logs the end. NOT verified: that the session records BOTH principals, is time-bounded, is visible in audit history as impersonation, and cannot perform IAM-5 elevated actions.", "dependency": "IAM-3, IAM-5", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-7": {"canonical_destination": "§Identity — credential material never exposed", "disposition": "retained", "reason_or_evidence": "Tokens, secrets, session identifiers and credential material never appear in a response body, client-visible payload, log line, error message, URL or provider-bound telemetry. Enforcement is an audit obligation, not a single code site.", "dependency": "AUD family", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "IAM-8": {"canonical_destination": "§Identity — rate limiting and abuse controls", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED PRESENT: lib/middleware/rate-limiter.ts exists. NOT verified: coverage of every unauthenticated surface named (public search, listing detail, autocomplete, lead capture, unsubscribe), nor attempt limits with lockout/backoff on authentication, invitation redemption and token validation. The ERR-2 requirement — a rate-limited response must never present as an empty result — is the compliance-critical half.", "dependency": "ERR-1, ERR-2, ERR-7", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "IAM-9": {"canonical_destination": "§Identity — write idempotency", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED GAP: idempotency exists only in narrow places — lib/idx/media-sync.ts (listing_media upsert) and an ad-hoc duplicate check in app/api/crm/convert/route.ts:169. There is NO general idempotency-key contract for the operations IAM-9 names (offer submission, showing request, agreement execution, campaign release, arrangement creation, document upload), and no audit catches its absence.", "dependency": "AUD-3", "maturity": "decided", "implementation_status": "not_started", "verification_status": "code_verified"},
-  "IAM-10": {"canonical_destination": "§Identity — retention and deletion", "disposition": "deferred_with_gate", "reason_or_evidence": "Source declares Status DECIDED for the requirement but OPEN for the concrete periods, tracked as Q-12. Governing constraints include NY SHIELD obligations and the retention period for executed agreements (BIZ-2.3). Carried forward as an open question — no period is chosen by assumption (AGT-6).", "dependency": "BIZ-2.3, Q-12", "maturity": "open", "implementation_status": "not_started", "verification_status": "source_read"},
-
-  "BRK-1": {"canonical_destination": "§Broker operations — producing broker first", "disposition": "retained", "reason_or_evidence": "Every capability available to an agent is available to the broker for the broker's own production; broker-only capability is additive, never a replacement. DERIVED from ACT-4 and kept as its own row because it constrains feature design directly.", "dependency": "ACT-4", "maturity": "derived", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BRK-2": {"canonical_destination": "§Broker operations — roster and licensing", "disposition": "retained", "reason_or_evidence": "CODE-VERIFIED SPLIT: the schema is largely present — prisma `model Agent` carries license_no, license_type, license_expiry, status and trestle_mls_id, plus ethics_training_expires_at. Ethics training IS enforced (lib/compliance/ethics-training-status.ts checks expiry NOT NULL and >= now). LICENSE expiry is NOT: every observed use of license_expiry is CRUD (app/api/crm/agents/me, /agents, /agents/[id]) with no blocking gate on capacity-bearing actions and no advance-of-expiry surfacing, which is what BRK-2 requires.", "dependency": "ACT-5, BRK-5", "maturity": "decided", "implementation_status": "partially_implemented", "verification_status": "code_verified"},
-  "BRK-3": {"canonical_destination": "§Broker operations — onboarding and offboarding", "disposition": "retained", "reason_or_evidence": "Offboarding must revoke sessions (IAM-3), reassign accountable relationships (PER-7) and preserve history rather than delete it, never orphaning a client relationship, listing or open commitment. IAM-3 has no verified revocation mechanism, so this depends on that gap closing.", "dependency": "IAM-3, PER-7", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BRK-4": {"canonical_destination": "§Broker operations — supervision when real", "disposition": "retained", "reason_or_evidence": "Supervision surfaces (work requiring review, compliance exceptions, overdue commitments, unassigned leads, agreement gaps) become meaningful only when additional agents exist. Off by default per ACT-6; enabling them is configuration, not a rebuild.", "dependency": "ACT-6, BRK-5", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BRK-5": {"canonical_destination": "§Broker operations — compliance exception register", "disposition": "retained", "reason_or_evidence": "Fail-closed conditions must produce a VISIBLE OWNED exception rather than a silent block, each recording what failed, its authority (BIZ-0), the affected record, the owner and the resolution. This is the operational counterpart to the fail-closed rule and covers the BIZ-4.3 cap breach case.", "dependency": "BIZ-0, BIZ-4.3, BRK-2", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BRK-6": {"canonical_destination": "§Broker operations — financial visibility, not accounting", "disposition": "retained", "reason_or_evidence": "Explicit scope boundary: reports arrangements, expected receivables, earned commission at closing (BIZ-6), referral obligations and per-agent production; is NOT an accounting system, holds no funds (TXN-2), produces no tax filings and makes no legal or tax determinations. Export to an accountant is supported; being the ledger of record is not.", "dependency": "BIZ-4, BIZ-6, TXN-2", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"},
-  "BRK-7": {"canonical_destination": "§Broker operations — business visibility", "disposition": "retained", "reason_or_evidence": "Pipeline, inventory, lead-source performance, stage conversion, retention, referral sources and open commitments — each DRILLABLE to underlying records, never a figure without a path to its evidence. That drill-through constraint is the substantive requirement.", "dependency": "PER-8, PER-10, BRK-6", "maturity": "decided", "implementation_status": "not_started", "verification_status": "source_read"}
+  "BIZ-0": {
+    "canonical_destination": "§Business model — authority labelling",
+    "disposition": "retained",
+    "reason_or_evidence": "Authority-labelling rule (NY_STATUTE/NY_REGULATION/NYC_LAW/REBNY_UCBA/REBNY_RLS/NAR_MLS_POLICY/BROKERAGE_POLICY). No competing statement in PR #585 or PR #579. Governs how every other BIZ row may be described.",
+    "dependency": "none — foundational",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-1": {
+    "canonical_destination": "§Business model — compensation timeline",
+    "disposition": "retained",
+    "reason_or_evidence": "Three distinct effective dates (2024-01-01 decoupling, 2025-08-01 RLS field removal, 2026-01-20 UCBA revisions) that must not be merged. Sub-rules BIZ-1.1/1.2/1.3 carry the dates.",
+    "dependency": "BIZ-0 (authority labels)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-2": {
+    "canonical_destination": "§Business model — representation agreements & showing eligibility",
+    "disposition": "retained",
+    "reason_or_evidence": "Pre-tour written agreement is an RLS/MLS participation rule, not a NY statute. Sub-rules BIZ-2.1 (not a boolean), 2.2 (4 behaviours), 2.3 (contents).",
+    "dependency": "BIZ-0, PER-5 (`represented` state)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-3": {
+    "canonical_destination": "§Business model — who pays",
+    "disposition": "retained",
+    "reason_or_evidence": "Decoupling changed the mechanism, not usually the payer. Establishes that compensation is a property of an executed agreement, never of a listing record — the premise BIZ-9 enforces.",
+    "dependency": "BIZ-1.1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-4": {
+    "canonical_destination": "§Business model — compensation arrangement model",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "CODE-VERIFIED GAP: no `CompensationArrangement` model exists in prisma/schema.prisma. The nearest model, `CommissionPayment`, is DEAL-level (deal_id, payment_type, amount, status) and carries no agreement_id, no maximum_compensation and no objective_formula. It therefore cannot express BIZ-4.1 (transaction-level), BIZ-4.3 (enforced cap) or BIZ-4.5 (one receivable per agreement, never deal-level commission) — BIZ-4.5 is directly contradicted by the current shape. Gate: schema change requires explicit Maya approval.",
+    "dependency": "TXN family; schema-migration hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "BIZ-5": {
+    "canonical_destination": "§Business model — engagement types",
+    "disposition": "retained",
+    "reason_or_evidence": "Seven engagement types. Entitlement answered from the executed agreement, never inferred from activity.",
+    "dependency": "BIZ-4 (arrangements attach to engagements)",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-6": {
+    "canonical_destination": "§Business model — commission earned at closing",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED RISK: `CommissionPayment.status` defaults to \"pending\" with payment_type \"received\", and nothing observed ties either to a closing event. The invariant \"never earned before closing\" is therefore not enforced by the current schema; retained as a requirement the implementation must satisfy.",
+    "dependency": "TXN-6, BIZ-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "BIZ-7": {
+    "canonical_destination": "§Business model — negotiability disclosure",
+    "disposition": "retained",
+    "reason_or_evidence": "Commissions not set by law and fully negotiable; required content in listing agreements, buyer agreements and pre-closing documents. Attributed to REBNY_UCBA, not to NY law (BIZ-0).",
+    "dependency": "BIZ-0",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-8": {
+    "canonical_destination": "§Business model — no \"free\" services claim",
+    "disposition": "retained",
+    "reason_or_evidence": "Binds every generated and authored surface where compensation will be received from any source. Enforced via the compliance-sensitive surface list in POL-5.",
+    "dependency": "POL-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-9": {
+    "canonical_destination": "§Business model — compensation never in listing content",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: suppression exists and is real — lib/compliance/dto.ts:60-65 `REMOVED_FIELDS` lists the four RLS compensation fields; dto.ts:174-179 blanks nested `buyer.buyerAgentCompensation`/`Type`; lib/compliance/rebny-field-tables.ts:1162-1165 marks them `{raw:false, removed:true}`; lib/compliance/idx-display-gate.ts:93-94 blanks the DTO fields. NOT verified: that no export, feed, sitemap, report or campaign path bypasses these lists. Retained as an ACTIVE guard, not a historical note.",
+    "dependency": "BIZ-10 (fields still reachable in provider metadata)",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "BIZ-10": {
+    "canonical_destination": "§Business model — legacy compensation fields",
+    "disposition": "retained",
+    "reason_or_evidence": "REBNY removed compensation fields from the RLS on 2025-08-01; that did NOT remove them from Cotality/Trestle metadata, which spans multiple listing organizations. This is why BIZ-9 is an active guard.",
+    "dependency": "COT-11",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-11": {
+    "canonical_destination": "§Business model — agency relationship & disclosure",
+    "disposition": "retained",
+    "reason_or_evidence": "NY requires agency-relationship disclosure; system records capacity per client relationship plus the disclosure event and date. Dual agency requires informed written consent; relationships never inferred from activity nor changed silently.",
+    "dependency": "PER-1, BIZ-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-12": {
+    "canonical_destination": "§Business model — rentals",
+    "disposition": "retained",
+    "reason_or_evidence": "Rental engagements follow the same written-agreement principle subject to BIZ-2.2; fee responsibility follows the FARE Act rule in TXN-10, and unresolved fee attribution fails closed.",
+    "dependency": "TXN-10, BIZ-2.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BIZ-13": {
+    "canonical_destination": "§Business model — source register",
+    "disposition": "retained",
+    "reason_or_evidence": "Nine-row register binding each rule to its governing source and effective date, keeping REBNY/RLS rules separate from NY statute and NYC law. This is the lookup BIZ-0 depends on.",
+    "dependency": "BIZ-0",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ACT-1": {
+    "canonical_destination": "§Actors — actor classes",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: the plan defines six actor classes (anonymous, client, agent, broker, system_job, service_identity). prisma/schema.prisma `model Session` carries only `user_type` (\"agent\"|\"lead\") plus a `role` string mixing staff and client roles (\"BROKER\"|\"AGENT\"|\"buyer\"|\"tenant\"|\"seller\"|\"landlord\"). system_job and service_identity have no representation.",
+    "dependency": "AUZ-1 uses the same set",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "ACT-2": {
+    "canonical_destination": "§Actors — client scoping",
+    "disposition": "retained",
+    "reason_or_evidence": "Client actors scoped by role AND resource; role alone never authorizes. Directly relevant to the audit finding AUDIT-PORTAL-ACTOR-SUBJECT, where routes reinterpret auth.userId as Lead.id.",
+    "dependency": "AUZ-5, PER-12",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "ACT-3": {
+    "canonical_destination": "§Actors — actor context resolved once",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: an adapter layer exists (lib/auth/middleware.ts, lib/auth/index.ts, lib/portal/listing-ownership.ts all reference requirePortalRole). NOT verified: that no domain service re-derives identity from transport. Requirement retained as the rule that makes AUDIT-PORTAL-ACTOR-SUBJECT a defect rather than a style preference.",
+    "dependency": "ARC-7, ARC-8",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "ACT-4": {
+    "canonical_destination": "§Actors — broker-operated brokerage",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED CONSISTENT: prisma `model Agent` carries license_type (\"broker\"|\"salesperson\") and Session.role admits both BROKER and AGENT, so one person holding both capacities is representable. Constrains every later feature: single-operator software that must not block multi-agent later.",
+    "dependency": "none — foundational",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "ACT-5": {
+    "canonical_destination": "§Actors — capacity, not account type",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: `acting_capacity`/`actingCapacity` appears nowhere in lib/ or app/. No action records which capacity it was performed in, so audit history cannot distinguish a broker's producing action from a supervisory one — the precise distinction ACT-5 requires.",
+    "dependency": "ACT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "ACT-6": {
+    "canonical_destination": "§Actors — supervision off by default",
+    "disposition": "retained",
+    "reason_or_evidence": "A supervision requirement that would resolve to self-review is not enabled by default while the broker is the only producing agent. CMA-4 already applies this; ACT-6 generalizes it.",
+    "dependency": "ACT-4, CMA-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ACT-7": {
+    "canonical_destination": "§Actors — multi-agent readiness",
+    "disposition": "retained",
+    "reason_or_evidence": "Ownership field carried from the start and populated with the acting person; no backfill assumption. Conversely no routing/load-balancing/team-hierarchy/split-rule machinery before it is needed.",
+    "dependency": "ACT-4, PER-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PER-1": {
+    "canonical_destination": "§Person — person is the identity",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "CODE-VERIFIED GAP: no `Person` model exists in prisma/schema.prisma. `Lead` is the de-facto person record and carries `roles String[]` (buyer/renter/seller/landlord), which partially expresses multi-role, but lifecycle state lives on the Lead (`status`) rather than on the role — the exact conflation PER-1 forbids. Confirms deep-audit AUDIT-PERSON-ORG-IDENTITY. Gate: schema change requires explicit Maya approval.",
+    "dependency": "schema-migration hold; spine for SEA, SEL, CMA, MKT, TXN, CRM, INT",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "PER-2": {
+    "canonical_destination": "§Person — contact method is not identity",
+    "disposition": "retained",
+    "reason_or_evidence": "Email and telephone are supporting identifiers, never the sole identity key; identity resolution records confidence and merges are reversible with retained history. No merge-history structure exists today (no Person model).",
+    "dependency": "PER-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "PER-3": {
+    "canonical_destination": "§Person — household / decision group",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: `FamilyMember` and `LeadParty` models exist and express some multi-party structure, but neither carries the decision-group attributes PER-3 requires (influence, legal authority, joint-approval requirements, document access, active dates).",
+    "dependency": "PER-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-4": {
+    "canonical_destination": "§Person — organization",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "CODE-VERIFIED GAP: no `Organization` model exists. NYC transactions run through LLCs, trusts, estates, co-op corporations, managing agents, law firms, lenders and title companies; none is representable today, so a transaction counterparty cannot be an organization. Gate: schema change requires explicit Maya approval.",
+    "dependency": "PER-1; schema-migration hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "PER-5": {
+    "canonical_destination": "§Person — lead is a role state",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: PER-5 defines nine role states including `represented`. prisma `model Lead.status` defaults to \"new\" with documented values new/contacted/active/closed — four states, and no `represented`. `represented` is the precondition for agent-led tours under BIZ-2.2, so its absence means showing eligibility cannot currently be evaluated from state.",
+    "dependency": "BIZ-2.2, PER-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-6": {
+    "canonical_destination": "§Person — lead source and provenance",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: `Lead.consent_captured_at` exists (TCPA/CAN-SPAM consent timestamp), so consent-at-capture is partly present. Full provenance (source, medium, campaign, landing surface, referring person/org, first-seen) not verified as a single immutable structure.",
+    "dependency": "MKT-1, MKT-3",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-7": {
+    "canonical_destination": "§Person — assignment",
+    "disposition": "retained",
+    "reason_or_evidence": "One accountable person at a time, recorded with assigning actor, timestamp and reason; reassignment appends rather than overwrites. `LeadAssignmentRule` exists in schema but append-only reassignment history was not verified.",
+    "dependency": "ACT-4 (default assignee is broker-as-agent), ACT-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-8": {
+    "canonical_destination": "§Person — interaction timeline",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED FRAGMENTATION: PER-8 requires ONE canonical append-only timeline per person. Today at least five separate event stores exist — `ActivityLog`, `PortalEvent`, `BehavioralEvent`, `IntentEvent`, `AuditEvent` — plus `OutreachEvent`. No single canonical timeline exists, and AuditEvent must not be repurposed as one (deep-audit AUDIT-WORKFLOW-OUTBOX).",
+    "dependency": "PER-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-9": {
+    "canonical_destination": "§Person — knowledge types not conflated",
+    "disposition": "retained",
+    "reason_or_evidence": "Five knowledge types (verified fact, client-stated preference, observed behavior, broker hypothesis, confirmed decision) that are never silently promoted between. An inference is never presented as a statement. Directly governs INT-3 and every AI-generated surface.",
+    "dependency": "INT-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PER-10": {
+    "canonical_destination": "§Person — commitment",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: `FollowUpTask` exists and covers part of the shape, but PER-10 requires completion evidence, related interaction and related transaction so that \"what Mallan owes this client\" is answerable. Not verified as satisfied.",
+    "dependency": "PER-1, PER-8",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-11": {
+    "canonical_destination": "§Person — consent per person/channel/purpose",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: `NotificationPreference` and `Lead.consent_captured_at` exist, but PER-11 requires consent to attach to the PERSON and survive role changes. With no Person model (PER-1), consent is attached to the Lead, so the stated guarantee — unsubscribed as a buyer stays unsubscribed when later a seller — is not structurally guaranteed.",
+    "dependency": "PER-1, MKT-1",
+    "maturity": "derived",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PER-12": {
+    "canonical_destination": "§Person — portal identity maps to person",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED TENSION: `Session.user_type` is \"agent\"|\"lead\" and `Session.user_id` is a BigInt, so a portal session resolves to a Lead, not to a person holding roles. One person with two roles seeing both through one account is therefore not structurally guaranteed. Relates to deep-audit AUDIT-PORTAL-ACTOR-SUBJECT.",
+    "dependency": "PER-1, AUZ-5, ACT-2",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-1": {
+    "canonical_destination": "§Identity — authentication resolved by adapter",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: adapter layer present (lib/auth/middleware.ts, lib/auth/index.ts). Restates ACT-3 for the authentication path; kept as a DERIVED row rather than merged so the auth surface carries the rule explicitly.",
+    "dependency": "ARC-2, ACT-3",
+    "maturity": "derived",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-2": {
+    "canonical_destination": "§Identity — principal classes",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: IAM-2 requires four principal classes that never share a credential, session or authorization path. `model Session.user_type` admits only \"agent\"|\"lead\"; there is no service_principal, and staff/client roles are mixed in one `role` string column on one table. The \"never share a session\" guarantee is therefore not enforced at the schema level.",
+    "dependency": "ACT-5, PER-12",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-3": {
+    "canonical_destination": "§Identity — session properties",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: `model Session` records token, user_type, user_id, role, expires_at, created_at, ip_address, user_agent. It does NOT record the capacity in effect (ACT-5), last activity, or a revocation flag. IAM-3 requires revocation to take effect on the NEXT REQUEST rather than at next expiry; with only `expires_at` there is no observed mechanism for that.",
+    "dependency": "ACT-5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-4": {
+    "canonical_destination": "§Identity — invitation-based portal onboarding",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: an invitation flow exists — lib/email/templates.ts:82-86 builds `/portal/accept?token=...`. NOT verified: single-use enforcement, expiry, issuer recording, or fail-closed token validation. Self-registration must create a lead (PER-5), not a portal principal.",
+    "dependency": "PER-5, PER-12",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-5": {
+    "canonical_destination": "§Identity — elevated capability assurance",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: `model MfaSession` exists, so a stronger-assurance mechanism is present. NOT verified: that assurance level is RECORDED ON THE ACTION, which is the substantive half of IAM-5 (the mechanism itself is explicitly left as an implementation decision).",
+    "dependency": "IAM-3, ACT-5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-6": {
+    "canonical_destination": "§Identity — impersonation",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PARTIAL: impersonation exists — app/api/auth/impersonation/stop/route.ts terminates an impersonation session and logs the end. NOT verified: that the session records BOTH principals, is time-bounded, is visible in audit history as impersonation, and cannot perform IAM-5 elevated actions.",
+    "dependency": "IAM-3, IAM-5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-7": {
+    "canonical_destination": "§Identity — credential material never exposed",
+    "disposition": "retained",
+    "reason_or_evidence": "Tokens, secrets, session identifiers and credential material never appear in a response body, client-visible payload, log line, error message, URL or provider-bound telemetry. Enforcement is an audit obligation, not a single code site.",
+    "dependency": "AUD family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "IAM-8": {
+    "canonical_destination": "§Identity — rate limiting and abuse controls",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PRESENT: lib/middleware/rate-limiter.ts exists. NOT verified: coverage of every unauthenticated surface named (public search, listing detail, autocomplete, lead capture, unsubscribe), nor attempt limits with lockout/backoff on authentication, invitation redemption and token validation. The ERR-2 requirement — a rate-limited response must never present as an empty result — is the compliance-critical half.",
+    "dependency": "ERR-1, ERR-2, ERR-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "IAM-9": {
+    "canonical_destination": "§Identity — write idempotency",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: idempotency exists only in narrow places — lib/idx/media-sync.ts (listing_media upsert) and an ad-hoc duplicate check in app/api/crm/convert/route.ts:169. There is NO general idempotency-key contract for the operations IAM-9 names (offer submission, showing request, agreement execution, campaign release, arrangement creation, document upload), and no audit catches its absence.",
+    "dependency": "AUD-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "IAM-10": {
+    "canonical_destination": "§Identity — retention and deletion",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "Source declares Status DECIDED for the requirement but OPEN for the concrete periods, tracked as Q-12. Governing constraints include NY SHIELD obligations and the retention period for executed agreements (BIZ-2.3). Carried forward as an open question — no period is chosen by assumption (AGT-6).",
+    "dependency": "BIZ-2.3, Q-12",
+    "maturity": "open",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BRK-1": {
+    "canonical_destination": "§Broker operations — producing broker first",
+    "disposition": "retained",
+    "reason_or_evidence": "Every capability available to an agent is available to the broker for the broker's own production; broker-only capability is additive, never a replacement. DERIVED from ACT-4 and kept as its own row because it constrains feature design directly.",
+    "dependency": "ACT-4",
+    "maturity": "derived",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BRK-2": {
+    "canonical_destination": "§Broker operations — roster and licensing",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED SPLIT: the schema is largely present — prisma `model Agent` carries license_no, license_type, license_expiry, status and trestle_mls_id, plus ethics_training_expires_at. Ethics training IS enforced (lib/compliance/ethics-training-status.ts checks expiry NOT NULL and >= now). LICENSE expiry is NOT: every observed use of license_expiry is CRUD (app/api/crm/agents/me, /agents, /agents/[id]) with no blocking gate on capacity-bearing actions and no advance-of-expiry surfacing, which is what BRK-2 requires.",
+    "dependency": "ACT-5, BRK-5",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "BRK-3": {
+    "canonical_destination": "§Broker operations — onboarding and offboarding",
+    "disposition": "retained",
+    "reason_or_evidence": "Offboarding must revoke sessions (IAM-3), reassign accountable relationships (PER-7) and preserve history rather than delete it, never orphaning a client relationship, listing or open commitment. IAM-3 has no verified revocation mechanism, so this depends on that gap closing.",
+    "dependency": "IAM-3, PER-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BRK-4": {
+    "canonical_destination": "§Broker operations — supervision when real",
+    "disposition": "retained",
+    "reason_or_evidence": "Supervision surfaces (work requiring review, compliance exceptions, overdue commitments, unassigned leads, agreement gaps) become meaningful only when additional agents exist. Off by default per ACT-6; enabling them is configuration, not a rebuild.",
+    "dependency": "ACT-6, BRK-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BRK-5": {
+    "canonical_destination": "§Broker operations — compliance exception register",
+    "disposition": "retained",
+    "reason_or_evidence": "Fail-closed conditions must produce a VISIBLE OWNED exception rather than a silent block, each recording what failed, its authority (BIZ-0), the affected record, the owner and the resolution. This is the operational counterpart to the fail-closed rule and covers the BIZ-4.3 cap breach case.",
+    "dependency": "BIZ-0, BIZ-4.3, BRK-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BRK-6": {
+    "canonical_destination": "§Broker operations — financial visibility, not accounting",
+    "disposition": "retained",
+    "reason_or_evidence": "Explicit scope boundary: reports arrangements, expected receivables, earned commission at closing (BIZ-6), referral obligations and per-agent production; is NOT an accounting system, holds no funds (TXN-2), produces no tax filings and makes no legal or tax determinations. Export to an accountant is supported; being the ledger of record is not.",
+    "dependency": "BIZ-4, BIZ-6, TXN-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BRK-7": {
+    "canonical_destination": "§Broker operations — business visibility",
+    "disposition": "retained",
+    "reason_or_evidence": "Pipeline, inventory, lead-source performance, stage conversion, retention, referral sources and open commitments — each DRILLABLE to underlying records, never a figure without a path to its evidence. That drill-through constraint is the substantive requirement.",
+    "dependency": "PER-8, PER-10, BRK-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-1": {
+    "canonical_destination": "§Provider authority — Cotality responsibility",
+    "disposition": "retained",
+    "reason_or_evidence": "Cotality/Trestle controls transport, resources, fields, types, enums, relationships, pagination, throttling and errors for Mallan's licensed account. Foundational premise for the whole COT family and for CLAUDE.md §J (Codex is not live field authority).",
+    "dependency": "none — foundational",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-2": {
+    "canonical_destination": "§Provider authority — evidence precedence",
+    "disposition": "retained",
+    "reason_or_evidence": "Six-level precedence order placing the current effective REBNY rule first and dated reference documents / historical audits last. This is the tie-breaker every other reconciliation row depends on when sources disagree.",
+    "dependency": "COT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-3": {
+    "canonical_destination": "§Provider authority — live verification",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PRESENT: both commands exist — package.json:76 `cotality:pull` (scripts/cotality/pull-enums.mjs) and package.json:77 `cotality:verify` (scripts/cotality-verify.mjs). NOT verified: that a verification record captures all twelve required elements (verified_at, repository_sha, feed/license identity, metadata checksum, resources/fields/enums observed, filter and pagination probes, rejected operations, changes from prior). Rule that credentials-unavailable must be STATED, never guessed, is retained.",
+    "dependency": "COT-12",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "COT-4": {
+    "canonical_destination": "§Provider authority — field existence is not permission",
+    "disposition": "retained",
+    "reason_or_evidence": "A field appearing in the feed does not prove permission for public display, internal use, seller display, CMA use, analytics, storage, export or redistribution; the executed license and REBNY authorization govern. This is the rule that makes BIZ-10.1 (compensation fields present in metadata) non-alarming and BIZ-9 necessary.",
+    "dependency": "COT-1, BIZ-9, BIZ-10",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-5": {
+    "canonical_destination": "§Non-negotiable rules — no provider guessing",
+    "disposition": "retained",
+    "reason_or_evidence": "Use only verified fields and values; never invent a provider field, enum, status, permission, media type or query behavior. Restated operationally by COT-11's prohibition list.",
+    "dependency": "COT-11",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-6": {
+    "canonical_destination": "§Provider authority — preserve both identifiers",
+    "disposition": "retained",
+    "reason_or_evidence": "DIRECTLY VALIDATED BY OPS-024: the adapter must preserve BOTH the provider canonical key and the human/source listing identifier, and local code must not silently treat one as the other. The 2026-07-29 production incident was exactly this failure — SourceSystemKey was renamed to ListingKey after the fetch while the cursor layer read raw rows before the rename. Highest-priority row in the COT family.",
+    "dependency": "OPS-024",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "COT-7": {
+    "canonical_destination": "§Provider authority — media identity",
+    "disposition": "retained",
+    "reason_or_evidence": "Media relationships must use verified provider keys and exact provider URLs, never constructed by guessing; nine provenance attributes enumerated. Aligns with the REBNY rule that media uses ResourceRecordKey, not ResourceRecordID.",
+    "dependency": "COT-11, MED family",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "COT-8": {
+    "canonical_destination": "§Provider authority — photo-first and media integrity",
+    "disposition": "retained",
+    "reason_or_evidence": "Preserve provider ordering, select the correct primary photo, distinguish photos/floor plans/videos/virtual tours, never substitute a floor plan as primary, retain provider timestamps, detect media-set changes, fail clearly when media is missing.",
+    "dependency": "COT-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "COT-9": {
+    "canonical_destination": "§Provider authority — freshness",
+    "disposition": "retained",
+    "reason_or_evidence": "Every provider-derived output carries retrieval time, source modification time where available, and an explicit freshness state. Connects to SEA-8's `stale` search state.",
+    "dependency": "SEA-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-10": {
+    "canonical_destination": "§Provider authority — unknown provider values",
+    "disposition": "retained",
+    "reason_or_evidence": "Unknown values preserved raw, logged, reported and QUARANTINED from affected regulated outputs until classified; never silently mapped. The quarantine clause is the compliance-critical half — silent mapping is how a display gate gets the wrong answer.",
+    "dependency": "COT-11, POL family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-11": {
+    "canonical_destination": "§Provider authority — everything provider-derived is pulled live",
+    "disposition": "retained",
+    "reason_or_evidence": "Platform-wide blast radius, stated as such in the source. Enumerates seven prohibited shortcuts including copying a value from another market/provider/standards document/prior audit/code comment/agent memory, and inferring a value from a field name. This is the single most load-bearing provider rule and matches CLAUDE.md §J.3-J.5 (Codex is not authority for live field truth; B/C/D findings need independent proof).",
+    "dependency": "COT-5, COT-17",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-12": {
+    "canonical_destination": "§Provider authority — committed snapshots are caches",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PRESENT: package.json:77 `cotality:verify` exists as the drift check. Any committed copy of provider vocabulary is a cache, never an authority. Exit 0 = matches live, 1 = drift, 2 = unreachable. NOT verified in this session: that the script's exit codes match this contract.",
+    "dependency": "COT-3, COT-13, COT-14",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "COT-13": {
+    "canonical_destination": "§Provider authority — unreachable is not unchanged",
+    "disposition": "retained",
+    "reason_or_evidence": "Exit 2 means UNVERIFIED, not confirmed-unchanged. Work depending on provider truth stops rather than proceeding on the cached copy. This is a fail-closed rule and matches the CLAUDE.md §E fail-closed instruction.",
+    "dependency": "COT-12",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-14": {
+    "canonical_destination": "§Provider authority — drift is blocking",
+    "disposition": "retained",
+    "reason_or_evidence": "Detected drift blocks any change touching the drifted vocabulary; it is not a warning to note and pass. Paired with COT-15, which records that drift was actually present.",
+    "dependency": "COT-12, COT-15",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-15": {
+    "canonical_destination": "§Provider authority — recorded drift evidence",
+    "disposition": "retained",
+    "reason_or_evidence": "Records a live drift check executed 2026-07-28 that found the committed vocabulary ALREADY drifted, with named missing values across MlsStatus (7 values), ListingPermission/Permission (ComingSoon), SyndicateTo (3) and Disclosures (OwnerIsanAgent). MlsStatus and ListingPermission drive DISPLAY GATING, so this is the concrete justification for COT-11..COT-14. NOT re-verified in this session — the recorded date and result are carried forward as the source states them, not re-probed.",
+    "dependency": "COT-14",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-16": {
+    "canonical_destination": "§Provider authority — attribution is provider-derived",
+    "disposition": "retained",
+    "reason_or_evidence": "Listing agent name, listing office name and every displayed attribution string are provider-derived and subject to COT-11: never composed locally, never defaulted, never carried forward from a stale copy when the provider row refreshes. Attribution is a NY DOS §175.25 and REBNY display-rule surface, so a stale or composed value is a compliance exposure, not a cosmetic one.",
+    "dependency": "COT-11, REB family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "COT-17": {
+    "canonical_destination": "§Provider authority — mapping tables are generated",
+    "disposition": "retained",
+    "reason_or_evidence": "Field maps, enum maps and classification maps are GENERATED from live provider metadata and regenerated when the provider changes; a hand-authored mapping table is a cache subject to COT-12 and a drift check. Matches CLAUDE.md §J.6 (generated-artifact PRs must prove the generator ran).",
+    "dependency": "COT-11, COT-12",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "LST-1": {
+    "canonical_destination": "§Listings — no duplicate public matched pair",
+    "disposition": "retained",
+    "reason_or_evidence": "A verified Mallan/provider matched pair produces exactly one Mallan public result and one canonical Mallan page. The headline invariant the whole LST family exists to protect; SEA-7 and SEA-10 criterion 15 restate it for search.",
+    "dependency": "LST-7, SEA-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "LST-2": {
+    "canonical_destination": "§Listings — no local provider mutation",
+    "disposition": "retained",
+    "reason_or_evidence": "Mallan web edits never rewrite the Cotality/provider row. Read-only-display discipline for IDX data.",
+    "dependency": "LST-12",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-3": {
+    "canonical_destination": "§Listings — no provider overwrite of Mallan workflow",
+    "disposition": "retained",
+    "reason_or_evidence": "Provider refreshes never erase Mallan presentation, local media, seller workflow, CRM history, marketing or notes. The converse of LST-2 and the reason provider sync must be additive.",
+    "dependency": "LST-13",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-4": {
+    "canonical_destination": "§Listings — exact prefix definitions",
+    "disposition": "retained",
+    "reason_or_evidence": "SL-* = Mallan web SALE, RL-* = Mallan web RENTAL, RLS* = provider record. Explicitly warns that RL- is NOT an abbreviation of RLS: treating RL- as a provider prefix would apply Mallan-owned display handling to provider records, a compliance failure. The prefix identifies transaction type ONLY and does not establish whether a Cotality counterpart exists.",
+    "dependency": "LST-5, LST-9",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "LST-5": {
+    "canonical_destination": "§Listings — separate dimensions",
+    "disposition": "retained",
+    "reason_or_evidence": "Seven dimensions that must be represented SEPARATELY rather than overloaded onto the prefix: transaction_type, record_source, mallan_web_id, provider_identity, reconciliation_status (6 values), public_canonical_source. This is the structural fix for the LST-9 shortcut.",
+    "dependency": "LST-4, LST-9, LST-16",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-6": {
+    "canonical_destination": "§Listings — worked example",
+    "disposition": "retained",
+    "reason_or_evidence": "Concrete matched-pair example (333 East 46th Street Apt 2G: SL-0004 / RLS20093870, verified_match, provider duplicate suppressed, provider row retained read-only). Kept as the canonical worked example. NOTE: `SL-0004` is a listing record identifier, not a requirement ID — recorded in the ledger's excluded table for that reason.",
+    "dependency": "LST-4, LST-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-7": {
+    "canonical_destination": "§Listings — matched-pair behavior",
+    "disposition": "retained",
+    "reason_or_evidence": "Six behaviors on verified match. Names the exact surfaces the provider duplicate must be suppressed from: public results, cards, sitemaps, canonical URLs, agent listing pages, featured listings and similar-listing results. CODE-VERIFIED that four of these have suppression wired — app/api/listings/route.ts:11, app/api/agents/[slug]/listings/route.ts:10, app/api/listings/similar/route.ts:5, app/sitemap.ts:3 — plus lib/featured/featured-ordering.ts:37 importing the address-key helper.",
+    "dependency": "LST-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "LST-8": {
+    "canonical_destination": "§Listings — no authority handover",
+    "disposition": "retained",
+    "reason_or_evidence": "Matching does not convert the Mallan record into a provider-owned record and does not withdraw the Mallan page. Contains an explicit supersession clause: any document saying to withdraw the SL-/RL- record or replace it publicly with RLS* is superseded. That clause governs conflicts with older planning documents during this reconciliation.",
+    "dependency": "LST-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-9": {
+    "canonical_destination": "§Listings — current implementation shortcut",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED PRESENT: the shortcut is real and live — lib/search/public-listing-db.ts:219-223 filters `exclusive=mallan` by `listing_id startsWith \"SL-\"` OR `\"RL-\"`, using the prefix as a proxy for Mallan ownership. The source correctly labels this an implementation shortcut, not the business definition. PH-1 must inventory every prefix inference; PH-2 must replace unsafe ones with explicit source/ownership/reconciliation fields.",
+    "dependency": "LST-4, LST-5, PH-1, PH-2",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "LST-10": {
+    "canonical_destination": "§Listings — match confidence",
+    "disposition": "retained",
+    "reason_or_evidence": "A verified match requires sufficient identity evidence (normalized address atoms, unit, postal code, listing class, known provider identity, agent/office relationship, effective dates, corroborating data). Email, a loose address string, or one coincidental attribute is explicitly not enough.",
+    "dependency": "LST-11",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "LST-11": {
+    "canonical_destination": "§Listings — ambiguity fails closed",
+    "disposition": "retained",
+    "reason_or_evidence": "Possible, conflicting or broken matches may NOT suppress either record as though the match were verified; they require review. Fail-closed rule — suppressing on an unverified match would hide a legitimate listing.",
+    "dependency": "LST-10, LST-15",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-12": {
+    "canonical_destination": "§Listings — provider-controlled facts",
+    "disposition": "retained",
+    "reason_or_evidence": "The provider counterpart stays authoritative for its own returned facts: provider identifiers, timestamps, status, attribution, permissions and media metadata.",
+    "dependency": "COT-11, LST-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-13": {
+    "canonical_destination": "§Listings — Mallan-controlled facts",
+    "disposition": "retained",
+    "reason_or_evidence": "The Mallan record stays authoritative for presentation and workflow: headline, Mallan-owned media and ordering, seller portal content, marketing plan/history, notes, showings/feedback, offers/tasks, documents, CMA selection and professional adjustments, featured ordering when permitted.",
+    "dependency": "LST-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-14": {
+    "canonical_destination": "§Listings — discrepancy handling",
+    "disposition": "retained",
+    "reason_or_evidence": "Compare material facts on a verified pair (status, price, address/unit, listing class, public remarks, attribution, open houses, material dates, provider display permission). A discrepancy creates a VISIBLE reconciliation condition; serious public or compliance discrepancies block or degrade publication rather than being hidden.",
+    "dependency": "LST-15, BRK-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-15": {
+    "canonical_destination": "§Listings — reconciliation controls",
+    "disposition": "retained",
+    "reason_or_evidence": "CRM must let an authorized agent or broker see the pairing, inspect field-level discrepancies, confirm a possible match, reject an incorrect one, repair a broken one, and record who resolved it and when. Operator-facing counterpart to LST-11 and LST-14.",
+    "dependency": "LST-11, LST-14",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "LST-16": {
+    "canonical_destination": "§Listings — durable match relationship",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "Source declares this OPEN, tracked as Q-3: whether the data model expresses the match relationship explicitly or infers it at query time. PARTIAL CODE EVIDENCE: prisma/schema.prisma carries `ListingIdentity`, `IdentityMatchAudit` and `IdentityReviewQueue` models, so an explicit identity layer EXISTS in schema. Whether it is populated and read on the public path was NOT verified, so the question is narrowed but not closed. Resolving it may require a schema change, which is a standing Maya-approval hold.",
+    "dependency": "Q-3, PH-1; schema-migration hold",
+    "maturity": "open",
+    "implementation_status": "schema_only",
+    "verification_status": "code_verified"
+  },
+  "LST-17": {
+    "canonical_destination": "§Listings — existing implementation, verified",
+    "disposition": "corrected",
+    "reason_or_evidence": "CORRECTED BY CODE READ. The source records an open doubt — 'Not verified: whether lib/search/public-listing-db.ts and lib/search/public-listing-trestle.ts apply cross-source suppression. No caller was observed in those paths.' Both files EXIST and neither imports the dedupe module, but that is not a defect: both are QUERY BUILDERS, not result pipelines. public-listing-db.ts returns {where, orderBy} (a Prisma query shape) and public-listing-trestle.ts builds an OData $filter string; neither ever sees result rows, so suppression cannot belong there. Their caller app/api/listings/route.ts imports BOTH (lines 17-18) and applies preferCrmExclusiveOverIdxDuplicate at line 441. The open doubt is therefore resolved in the architecture's favour. A SEPARATE and real defect was found in the same read — see SEA-7.",
+    "dependency": "SEA-7, LST-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "SEA-1": {
+    "canonical_destination": "§Search — separate products, shared meaning",
+    "disposition": "retained",
+    "reason_or_evidence": "Public and authenticated agent search may differ in inventory, permissions, fields, ranking and actions but share stable filter definitions and provider mappings.",
+    "dependency": "SEA-9",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "SEA-2": {
+    "canonical_destination": "§Search — public search scope",
+    "disposition": "retained",
+    "reason_or_evidence": "Public search uses only inventory and fields authorized for public display. CODE-VERIFIED SUPPORT: lib/search/public-listing-db.ts imports buildSearchDisplayWhere and SEARCH_DISPLAY_GATE from lib/search/listing-access-decision, so a display gate is applied at query-build time.",
+    "dependency": "COT-4, POL family",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "SEA-3": {
+    "canonical_destination": "§Search — honest internal-search scope",
+    "disposition": "retained",
+    "reason_or_evidence": "Do not claim full-market or full-RLS coverage without a separately authorized feed, proved. The interface must state ACTUAL scope. Directly relevant to the external-inventory hold (OneKey / NY-State MLS), where claiming coverage before authorization would be an advertising exposure.",
+    "dependency": "external-inventory hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEA-4": {
+    "canonical_destination": "§Search — one canonical pipeline",
+    "disposition": "retained",
+    "reason_or_evidence": "Each visible control maps end to end across ten stages from UI control through criteria schema, application service, provider/local query, field mapping, policy decision, DTO, rendering, saved-search version and alert replay. Relevant to the deep-audit finding AUDIT-SEARCH-DUAL-RUNTIME, where the DB path and the live Cotality fallback are not semantically equivalent.",
+    "dependency": "AUDIT-SEARCH-DUAL-RUNTIME, SEA-9",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "SEA-5": {
+    "canonical_destination": "§Search — unsupported criteria",
+    "disposition": "retained",
+    "reason_or_evidence": "Unsupported or unpermitted criteria produce an EXPLICIT decision; never silently dropped and never a silent zero. A silently dropped filter returns listings the user excluded, which on a Fair Housing-adjacent filter is a compliance exposure, not just a UX bug.",
+    "dependency": "ERR-1, ERR-7, SEA-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEA-6": {
+    "canonical_destination": "§Search — deterministic parity",
+    "disposition": "retained",
+    "reason_or_evidence": "Determinism holds WITHIN a fixed (criteria, audience, inventory scope, entitlement set, as-of snapshot) tuple — the source explicitly corrects the naive reading that public and agent results should match. Kept with that correction intact.",
+    "dependency": "SEA-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEA-7": {
+    "canonical_destination": "§Search — matched-pair suppression order",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED DEFECT — the current DB path violates this ordering. SEA-7 requires identity reconciliation and public suppression BEFORE final totals, pagination, saved-search replay, sitemap output and similar-listing output. In app/api/listings/route.ts the order is inverted: pagination is applied inside the query (`skip: dbSkip, take: dbTake`, lines 332-337); the total comes from `prisma.listing.count({ where: dbWhere })` on the SAME where clause with no suppression (line 415); then filterDisplayableDbListings runs on the already-cut page (line 434) and preferCrmExclusiveOverIdxDuplicate runs after it (line 441). Consequences that follow structurally: the reported total overstates by every suppressed duplicate and non-displayable row across the full result set, and a page can return fewer than `limit` items — which SEA-10 criterion 3 ('pagination with no unreachable results') forbids. Line 1086 adjusts the total from page-local counts, which cannot correct a full-set overstatement. NOT verified: the live-Trestle fallback branch ordering, and whether any production query currently contains a matched pair spanning a page boundary.",
+    "dependency": "LST-1, LST-7, SEA-10",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "SEA-8": {
+    "canonical_destination": "§Search — search states",
+    "disposition": "retained",
+    "reason_or_evidence": "Nine distinct states the interface must separate: loading, success, empty, unsupported, not authorized, stale, provider unavailable, partial/degraded, contract incompatible. The critical separations are empty-vs-failure and empty-vs-not-authorized; collapsing them is how a provider outage silently reads as 'no listings match'.",
+    "dependency": "ERR-1, ERR-7, SEA-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEA-9": {
+    "canonical_destination": "§Search — field contract",
+    "disposition": "retained",
+    "reason_or_evidence": "Thirteen attributes per searchable/filterable field, including separate public/agent/portal visibility, fallback behavior, source timestamp and verification status. Every provider-side entry is populated from live provider metadata per COT-11 and COT-17 — i.e. the contract is generated, not authored.",
+    "dependency": "COT-11, COT-17, SEA-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "SEA-10": {
+    "canonical_destination": "§Search — acceptance criteria",
+    "disposition": "retained",
+    "reason_or_evidence": "Fifteen acceptance criteria, opening with the rule that a 200 status and a well-formed envelope do NOT prove working search — the same proof-first standard as CLAUDE.md §F. Criterion 3 (pagination with no unreachable results) and criterion 15 (one matched pair produces one public result and one canonical Mallan URL) are both currently at risk from the SEA-7 ordering defect.",
+    "dependency": "SEA-7, LST-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "OPS-024": {
+    "canonical_destination": "§Operations — incident register",
+    "disposition": "retained",
+    "reason_or_evidence": "Production incident 2026-07-29 (PR #587): the two keyset Property streams shipped using the default IDX_PLUS_SELECT_FIELDS, which requests SourceSystemKey — renamed to ListingKey by mapTrestleToPrisma AFTER the fetch — and not ListingKey itself. SourceSystemKey is null feed-wide, the cursor/merge layer reads RAW rows before that rename, so every row was rejected missing_listing_key, both streams froze on the bootstrap epoch and four consecutive cycles processed zero records. Recovered by rollback plus revert of main. Must survive reconciliation intact: both planning lines predate it and neither may overwrite it. It is also the empirical proof of COT-6.",
+    "dependency": "COT-6; safe main 04db1b99",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "OPS-025": {
+    "canonical_destination": "§Operations — incident register",
+    "disposition": "retained",
+    "reason_or_evidence": "mls_id IS NULL on 22,809 of 23,980 IDX listings (95.1%) — pre-existing and explicitly NOT in the Phase 1A scope. Carried into the canonical plan as a known open condition rather than silently folded into provider-identity work, so that a later agent does not mistake it for regression caused by this reconciliation.",
+    "dependency": "provider-identity family",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  }
 }
