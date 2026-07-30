@@ -38,7 +38,7 @@
  * Exit codes: 0 = pass, 1 = one or more violations, 2 = validator error.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 
@@ -257,13 +257,62 @@ for (const cap of capabilities) {
       }
     }
     if (hasEvidence(ev.resultArtifact)) {
-      const artifactPath = String(ev.resultArtifact).split('#')[0];
+      const raw = String(ev.resultArtifact);
+      const artifactPath = raw.split('#')[0];
+      const fragment = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1).trim() : '';
       if (isPathLike(artifactPath) && !existsSync(join(REPO_ROOT, artifactPath))) {
         violation(
           id,
           'EVIDENCE_ARTIFACT_MISSING',
           `\`${key}.resultArtifact\` -> \`${artifactPath}\` does not exist`,
         );
+      } else if (isPathLike(artifactPath) && fragment) {
+        // A fragment must actually resolve. Previously the fragment was split
+        // off and discarded, so `README.md#missing-evidence` passed on the
+        // strength of README.md existing while the referenced evidence section
+        // did not exist at all. Match the fragment against the file's headings,
+        // GitHub-style anchor slugs, and explicit anchor ids.
+        let body = '';
+        try {
+          body = readFileSync(join(REPO_ROOT, artifactPath), 'utf8');
+        } catch {
+          body = '';
+        }
+        const slugs = new Set();
+        for (const line of body.split('\n')) {
+          const h = /^#{1,6}\s+(.*?)\s*$/.exec(line);
+          if (!h) continue;
+          const text = h[1].replace(/`/g, '').trim();
+          slugs.add(text);
+          // GitHub's anchor algorithm: lowercase, drop characters that are not
+          // word/space/hyphen, then convert EACH remaining space to a hyphen —
+          // runs are NOT collapsed. `## E-1 — \`lib/search\` suite` therefore
+          // becomes `e-1--libsearch-suite` (the double hyphen comes from the
+          // two spaces left behind by the removed em dash). Collapsing runs
+          // here produced a false EVIDENCE_FRAGMENT_UNRESOLVED against
+          // genuinely valid anchors.
+          const gh = text
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '')
+            .trim()
+            .replace(/\s/g, '-');
+          slugs.add(gh);
+          // Also accept the run-collapsed form, so a hand-written anchor that
+          // omits the doubled hyphen is not rejected on a technicality.
+          slugs.add(gh.replace(/-{2,}/g, '-'));
+        }
+        for (const m of body.matchAll(/(?:id|name)=["']([^"']+)["']/g)) slugs.add(m[1]);
+        const wanted = fragment.toLowerCase();
+        const hit = [...slugs].some((s) => s === fragment || String(s).toLowerCase() === wanted);
+        if (!hit) {
+          violation(
+            id,
+            'EVIDENCE_FRAGMENT_UNRESOLVED',
+            `\`${key}.resultArtifact\` -> \`${artifactPath}#${fragment}\`: the file exists but the ` +
+              `fragment \`#${fragment}\` matches no heading or anchor in it. A promoted status may ` +
+              `not point at an evidence section that does not exist.`,
+          );
+        }
       }
     }
     if (hasEvidence(ev.targetSha) && !/^[0-9a-f]{7,40}$/i.test(String(ev.targetSha))) {

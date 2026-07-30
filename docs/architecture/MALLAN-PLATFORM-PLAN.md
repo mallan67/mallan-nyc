@@ -5,15 +5,25 @@
 
 This is the **single** normative platform plan. It was not taken wholesale from
 either unmerged planning line. It was built from the
-[reconciliation ledger](./MALLAN-PLATFORM-RECONCILIATION-LEDGER.md), which
-carries **607 rows — 605 baseline plus `OPS-026` and
-`CONFLICT-POL-GATE34-PORTAL` — all with a reasoned disposition and none
-unresolved**.
+[reconciliation ledger](./MALLAN-PLATFORM-RECONCILIATION-LEDGER.md).
+
+<!-- GENERATED:LEDGER-TOTALS — do not hand-edit; rewritten by the ledger generator -->
+**Ledger totals (generated):** 608 rows — 605 baseline plus 3 later additions
+(`CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `OPS-026`) —
+608 with a reasoned disposition, **0 unresolved**. Baseline integrity:
+605 present / 0 missing / 0 regressed.
 
 > **A `deferred_with_gate` row is accounted for in the ledger. It is *not* a
-> settled product or policy decision.** Seven rows are deferred. This plan
-> records what is decided, what is deferred, and what is contested, and never
-> presents the second or third as the first.
+> settled product or policy decision.** **8** rows are deferred:
+> `BIZ-4`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `PER-1`, `PER-4`.
+> This plan records what is decided, what is deferred, and what is contested,
+> and never presents the second or third as the first.
+<!-- /GENERATED:LEDGER-TOTALS -->
+
+> **These counts are generated, not asserted** (§0.5). The block above is
+> rewritten from the ledger on every regeneration; an earlier revision hand-wrote
+> them and went stale within one commit, which is the failure §0.5 exists to
+> prevent.
 
 Every section below names the ledger families and requirement IDs it
 implements. Where this plan and the ledger disagree, **the ledger is the
@@ -115,7 +125,9 @@ When a REBNY/RLS/IDX/display/attribution requirement is unclear, conflicting or
 absent from the canonical source: **stop and report** (`REB-3`, and CLAUDE.md
 §E). Do not guess from memory. Do not extrapolate from one field's handling to
 another's. Contested items become explicit conflict records with a decision
-owner and a gate — see §11.3 and `CONFLICT-POL-GATE34-PORTAL`.
+owner and a gate — currently `CONFLICT-POL-GATE34-PORTAL` (§11.3) and
+`CONFLICT-CAPABILITY-VOCABULARY` (§16). Both are recorded **without** selecting
+a side; a conflict resolved by quiet preference is not resolved.
 
 ### 0.8 Identifier integrity
 
@@ -1031,7 +1043,7 @@ organization), `IAM-10` (retention periods, `Q-12`), `LST-16` (durable match,
 
 ## Provenance
 
-Built from `MALLAN-PLATFORM-RECONCILIATION-LEDGER.md` (607 rows, 607 resolved,
+Built from `MALLAN-PLATFORM-RECONCILIATION-LEDGER.md` (608 rows, 608 resolved,
 0 unresolved), whose per-row evidence, identifier retirement map and flagged
 conflicts are the authority for every claim above. Ancestry evidence:
 `PLANNING-RECONCILIATION-ANCESTRY-2026-07-30.md`.

@@ -1,9 +1,32 @@
+> # ⚠️ HISTORICAL — NOT BINDING. DO NOT FOLLOW THE POINTERS IN THIS FILE.
+>
+> **Retained as dated evidence (2026-07-27) only.** Reconciled 2026-07-30 with
+> disposition **`combined`**: its substance now lives in the canonical plan as
+> **`OPS-2`** (the seven-element evidence standard) and **`GATE-1`** (the
+> structured, machine-checkable completion claim). It is kept because it is the
+> dated artefact those requirements were reconciled from — per `C-7`, measured
+> and dated statements are evidence, not architecture.
+>
+> **Its governance chain is broken and must not be followed:**
+>
+> - It declares **`AI-START-HERE.md` §Evidence standard** canonical and says
+>   "on conflict, `AI-START-HERE.md` wins." **That section does not exist.**
+>   The current `AI-START-HERE.md` is a routing document with no evidence
+>   section, so this file points at a target that cannot arbitrate.
+> - It treats **`docs/architecture/Mallan_Intelligence_Master_Plan.md`** as
+>   defining the target system. **That document is not normative and is not
+>   present in this repository** (`DOC-1`, `DOC-4`).
+>
+> **Binding authority is now:** `docs/architecture/MALLAN-PLATFORM-PLAN.md`
+> §0.5–§0.6 and §15, plus `AGENTS.md` §5 for evidence language. Where this file
+> and the canonical plan differ, **the plan wins and this file is simply old.**
+
 # EVIDENCE STANDARD — All agent findings must be factual, tested, proven, result-based
 
 **Date established:** 2026-07-27
 **Authority:** Maya Allan (standing directive)
 **Scope:** Every agent, subagent, skill, reviewer, and automated reporter operating on `mallan-nyc` — Claude, Codex, ChatGPT, CodeRabbit, cloud review agents, and any future agent.
-**Status:** BINDING. Supersedes any agent's default reporting behavior.
+**Status:** ~~BINDING~~ → **HISTORICAL / NON-BINDING as of 2026-07-30.** See the banner above.
 
 ---
 
