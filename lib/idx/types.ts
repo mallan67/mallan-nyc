@@ -238,12 +238,7 @@ export interface IDXAuditLogEntry {
   action: 'fetch' | 'cache_hit' | 'cache_miss' | 'error';
   endpoint: string;
   listingId?: string;
-  /**
-   * 'partial' (Phase 1A): the run completed with no hard errors but at least one
-   * legacy-media batch was INCOMPLETE — stored media preserved and the watermark
-   * capped so those listings retry. Logged at warning level, never as an error.
-   */
-  resultStatus: 'success' | 'error' | 'partial' | 'disabled' | 'no_credentials';
+  resultStatus: 'success' | 'error' | 'disabled' | 'no_credentials';
   durationMs?: number;
   errorMessage?: string;
 }

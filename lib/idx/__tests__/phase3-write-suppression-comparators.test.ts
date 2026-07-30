@@ -147,25 +147,13 @@ describe("listingUpdateMateriallyUnchanged — listings upsert identity", () => 
     ).toBe(false);
   });
 
-  it("raw_data CONTENT change → CHANGED", () => {
-    expect(
-      listingUpdateMateriallyUnchanged(
-        { ...base, raw_data: { ...base.raw_data, PublicRemarks: "Renovated kitchen." } },
-        existing,
-      ),
-    ).toBe(false);
-  });
-
-  it("PhotosChangeTimestamp-only raw_data bump → UNCHANGED (no physical write)", () => {
-    // Phase 1A: PCT is an approved provenance clock and BOTH the physical-write
-    // comparator and the classifier strip it. Stripping it only in the
-    // classifier would relabel the change while still writing the row.
+  it("raw_data change (e.g. PhotosChangeTimestamp bump) → CHANGED", () => {
     expect(
       listingUpdateMateriallyUnchanged(
         { ...base, raw_data: { ...base.raw_data, PhotosChangeTimestamp: "2026-07-03" } },
         existing,
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("field present in the update but MISSING from the existing select → fail-closed CHANGED", () => {
