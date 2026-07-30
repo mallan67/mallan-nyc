@@ -80,18 +80,30 @@ exist only on the recovered line.
 | line | distinct `XXX-###` identifiers |
 |---|---:|
 | PR #585 plan | **0** |
-| Recovered plan | **247**, across 33 families |
+| Recovered plan | **243**, across 29 families |
 
 Recovered families:
 
 ```
 ACT AGT ARC AUD AUZ BIZ BRK BUS CMA COT CRM DOC ERR GATE HYG IAM INT
-LST MKT OPS PER PH POL REB SEA SEL SL SPEC TRN TXN UCBA VER
+LST MKT OPS PER PH POL REB SEA SEL TRN TXN VER
 ```
+
+> **Correction (Stage F0).** An earlier revision of this document said **247
+> identifiers across 33 families** and listed `SL`, `SPEC` and `UCBA` as
+> families. That was a regex artefact, not a fact. Scanning the plan for the
+> `XXX-####` *shape* matches 247 tokens, but four of them are not requirements:
+> `GATE-2026` (from the filename `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`),
+> `SPEC-2026` (`SELLER-001-SPEC-2026-07-03.md`), `UCBA-2026`
+> (`data/UCBA-2026-Requirements.md`) and `SL-0004` (a Mallan listing record).
+> Counting only `## XXX-N — title` headings gives **243 identifiers in 29
+> families**. `GATE` *is* a real family (`GATE-1`…`GATE-8`); only the
+> date-suffixed `GATE-2026` token is spurious. All four excluded tokens are
+> recorded with their proving line in the ledger's excluded table.
 
 **Consequence for the ledger:** identifiers exist on the recovered side only.
 Reconciliation must map PR #585's 141 prose sections onto identified
-requirements, never the reverse, or 247 identifiers are lost.
+requirements, never the reverse, or 243 identifiers are lost.
 
 ## PR #579 — 12 changed files
 
@@ -100,7 +112,7 @@ requirements, never the reverse, or 247 identifiers are lost.
 AGENTS.md
 AI-START-HERE.md
 README.md
-config/capabilities.mjs                                  (12 capability entries)
+config/capabilities.mjs                                  (see correction below)
 docs/architecture/MASTER-PLAN-GAP-ANALYSIS-2026-07-27.md
 docs/architecture/Mallan_Intelligence_Master_Plan.md     (135 headings)
 docs/evidence/capability-evidence-2026-07-27-e57.md
@@ -109,6 +121,22 @@ memory/EVIDENCE-STANDARD-2026-07-27.md
 package.json
 scripts/capability-audit.mjs
 ```
+
+> **Correction (Stage F0).** An earlier revision said `config/capabilities.mjs`
+> holds **12 capability entries**. It does not. The file holds **three distinct
+> kinds of identifier**, and a flat `id:` scan conflates them into a misleading
+> single count of 24:
+>
+> | export block | kind | count |
+> |---|---|---:|
+> | `export const programs` | program/phase entries `P0`…`P11` | **12** |
+> | `export const capabilities` | capability entries `CAP-*` | **11** |
+> | nested inside `CAP-MEDIA-AI-PROVENANCE` | one compliance obligation, `NYC-DCWP-AI-MEDIA-DISCLOSURE` | **1** |
+>
+> The "12" was the *program* count, not the capability count. The ledger carries
+> these as three separate sources (`PR#579-program-registry`,
+> `PR#579-capability-registry`, `PR#579-capability-obligation`) so a program is
+> never reconciled as though it were a capability.
 
 Machine-governance files (`config/capabilities.mjs`, `scripts/capability-audit.mjs`,
 the `package.json` script) appear on **both** PR #579 and the recovered line, so
@@ -128,14 +156,26 @@ the capability-registry question is live on two unmerged lines and must be decid
 
 ## Measured reconciliation scope
 
-| source | requirement-bearing units |
+Superseded by the measured Stage F0 inventory. The ledger
+(`MALLAN-PLATFORM-RECONCILIATION-LEDGER.md`) is authoritative; these are its
+actual totals, which sum to **600** inventoried rows:
+
+| source | rows |
 |---|---:|
-| Recovered plan | 247 identified requirements |
-| PR #585 plan | 141 prose sections (unidentified) |
-| PR #579 master plan | 135 headings |
-| PR #579 capability registry | 12 entries |
-| Safe `main` operational truth | OPS-024, OPS-025 |
+| Recovered plan (identified requirements) | 243 |
+| PR #585 plan (prose sections, unidentified) | 141 |
+| PR #579 master plan (headings) | 135 |
+| PR #579 program registry (`P0`…`P11`) | 12 |
+| PR #579 capability registry (`CAP-*`) | 11 |
+| PR #579 capability obligation (nested) | 1 |
+| PR #579 machine-governance / evidence artefacts | 6 |
+| PR #585 `AGENTS.md` | 13 |
+| PR #585 `README.md` | 11 |
+| PR #585 `AI-START-HERE.md` | 5 |
+| PR #585 `.github/copilot-instructions.md` | 1 |
+| Safe `main` operational truth (incl. OPS-024, OPS-025) | 9 |
 | Deep system findings | 12 |
+| **TOTAL** | **600** |
 
 ## Evidence commands
 
