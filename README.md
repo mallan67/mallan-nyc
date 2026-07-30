@@ -16,6 +16,27 @@ This repository is the **single source of truth** for the Mallan NYC brokerage p
 
 ---
 
+## 📐 Start here — the canonical platform plan
+
+**[`docs/architecture/MALLAN-PLATFORM-PLAN.md`](docs/architecture/MALLAN-PLATFORM-PLAN.md)
+is the single normative platform plan.** Platform-wide architecture, business
+rules, cross-system contracts and implementation sequence live **only** there
+(`DOC-1`). This README describes and routes; it does not define architecture,
+and where the two appear to differ the plan wins.
+
+| I need… | Read |
+|---|---|
+| Architecture, business rules, sequence | `docs/architecture/MALLAN-PLATFORM-PLAN.md` |
+| Agent invariants, holds, evidence rules | `AGENTS.md` |
+| The fastest safe orientation | `AI-START-HERE.md` |
+| Per-requirement evidence, retired identifiers, open conflicts | `docs/architecture/MALLAN-PLATFORM-RECONCILIATION-LEDGER.md` |
+| Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` |
+| Tracked issues and incidents | `docs/PLATFORM-ISSUE-REGISTRY.md` |
+| Database rules | `NEON.md` |
+| Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
+
+---
+
 ## 🗄️ DB / Neon / Prisma Work — READ `NEON.md` FIRST
 
 **Before any commit that touches `prisma/schema.prisma`, `prisma/migrations/`, `vercel.json`, `lib/prisma*`, or `lib/idx/sync.ts`:**
