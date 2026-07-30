@@ -168,6 +168,17 @@ for (const p of programs) {
 // ---------------------------------------------------------------------------
 // Capabilities
 // ---------------------------------------------------------------------------
+// Section numbers actually present in the canonical plan, parsed from its
+// headings. Used to reject a `planRef` pointing at a section that does not exist.
+const PLAN_SECTIONS = new Set();
+try {
+  const planTxt = readFileSync(join(REPO_ROOT, 'docs/architecture/MALLAN-PLATFORM-PLAN.md'), 'utf8');
+  for (const m of planTxt.matchAll(/^##\s+(\d+)\./gm)) PLAN_SECTIONS.add(m[1]);
+} catch {
+  // If the plan cannot be read, do not invent violations — leave the set empty
+  // and skip the check rather than failing every capability.
+}
+
 const seenIds = new Set();
 
 for (const cap of capabilities) {
@@ -196,6 +207,34 @@ for (const cap of capabilities) {
 
   if (cap.program && !programIds.has(cap.program)) {
     violation(id, 'UNKNOWN_PROGRAM', `program \`${cap.program}\` is not declared in programs[]`);
+  }
+
+  // `planRef` must point at a section that EXISTS in the canonical plan.
+  // Checking only that it is populated let every entry keep the retired master
+  // plan's numbering: the search capability pointed at §9.1/§9.7 while the
+  // canonical plan puts search in §6, §9 is property identity, and §9.7 does
+  // not exist at all — so a maintainer following the reference landed on an
+  // unrelated or nonexistent requirement while the audit passed.
+  if (hasEvidence(cap.planRef)) {
+    // Only the ACTIVE reference is validated. Anything inside a trailing
+    // `[...]` note is retained provenance — e.g. "[retargeted 2026-07-30; was
+    // §5.2, §5.3, §26 C-2 of the retired master plan]" — and deliberately
+    // records section numbers that no longer exist. Validating those would
+    // force us to delete the audit trail to satisfy the check.
+    const activeRef = String(cap.planRef).split('[')[0];
+    for (const ref of activeRef.matchAll(/§(\d+)(?:\.\d+)*/g)) {
+      const top = ref[1];
+      // Only the leading section number is checked; the plan's subsections are
+      // prose-numbered and not all are headings.
+      if (PLAN_SECTIONS.size > 0 && !PLAN_SECTIONS.has(top)) {
+        violation(
+          id,
+          'PLANREF_UNRESOLVED',
+          `\`planRef\` cites §${top}, which is not a section of ` +
+            'docs/architecture/MALLAN-PLATFORM-PLAN.md. Retarget it to the canonical plan.',
+        );
+      }
+    }
   }
 
   const promoted = statusSet.has(cap.status) && idx(cap.status) >= IMPLEMENTED;

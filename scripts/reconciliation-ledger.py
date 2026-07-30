@@ -28,7 +28,7 @@ enforces structure, completeness and baseline integrity. Substance comes from
 the per-row evidence and from review (cf. GATE-6).
 """
 
-import io, re, subprocess, collections, json, os, pathlib
+import io, re, subprocess, collections, json, os, pathlib, hashlib
 
 # Derived from this file's location so the generator is not bound to one
 # machine's checkout path.
@@ -307,8 +307,36 @@ for rid, res in resolutions.items():
 # separately as additions on top of the baseline.
 _bl_path = os.path.join(WT, "docs", "architecture", "RECONCILIATION-LEDGER-BASELINE-605.json")
 baseline_ids, baseline_missing, baseline_unresolved, added_ids = [], [], [], []
-if os.path.exists(_bl_path):
-    baseline_ids = json.load(io.open(_bl_path, encoding="utf-8"))["ids"]
+# The baseline file cannot be its own authority. If an ID were deleted from it,
+# deriving the expected set FROM it would report "no missing baseline row" and
+# silently reclassify the omitted ID as a later addition — the run would exit 0
+# and rewrite the plan as 604 baseline + 4 additions, defeating the guard
+# entirely. Pin the count and a digest of the ID set in CODE, so tampering with
+# the file is what fails.
+BASELINE_COUNT = 605
+BASELINE_SHA256 = "69cf9edf1b0dfcac1e7baebb0cb4d94cb32d4dfef4d25b4f0e2b933bac220092"
+if not os.path.exists(_bl_path):
+    raise SystemExit(
+        "reconciliation-ledger: RECONCILIATION-LEDGER-BASELINE-605.json is missing.\n"
+        "  It is the regression guard; generating without it would produce an\n"
+        "  unguarded ledger. Restore it from git.")
+if True:
+    _bl = json.load(io.open(_bl_path, encoding="utf-8"))
+    baseline_ids = _bl["ids"]
+    _declared = _bl.get("_count")
+    _digest = hashlib.sha256("\n".join(sorted(baseline_ids)).encode("utf-8")).hexdigest()
+    if len(baseline_ids) != BASELINE_COUNT or _declared != BASELINE_COUNT:
+        raise SystemExit(
+            "reconciliation-ledger: the frozen baseline has been altered.\n"
+            "  expected %d ids and _count %d; file has %d ids and _count %r.\n"
+            "  The 605-row baseline is immutable — restore it from git rather than\n"
+            "  editing it." % (BASELINE_COUNT, BASELINE_COUNT, len(baseline_ids), _declared))
+    if _digest != BASELINE_SHA256:
+        raise SystemExit(
+            "reconciliation-ledger: the frozen baseline ID SET has changed.\n"
+            "  expected sha256 %s\n  actual   sha256 %s\n"
+            "  The count matches but the membership does not, so an id was swapped.\n"
+            "  Restore the baseline from git." % (BASELINE_SHA256, _digest))
     _by = {r["requirement_id"]: r for r in ROWS}
     baseline_missing = [i for i in baseline_ids if i not in _by]
     baseline_unresolved = [i for i in baseline_ids
@@ -331,6 +359,33 @@ blank_req = [r["requirement_id"] for r in ROWS if not r["requirement"].strip()]
 blank_sec = [r["requirement_id"] for r in ROWS if not r["source_section"].strip()]
 malformed = [r["requirement_id"] for r in ROWS if any(not str(r[k]).strip() for k in r)]
 unrep = sorted(rec_ids - set(ids))
+
+# Structural errors must BLOCK, not merely be reported. Previously duplicates,
+# blank requirements and malformed rows were written into the validation JSON
+# and the Markdown table with a "required 0 / actual N" line, while the run
+# still exited 0 — a structural check whose stated requirement was violated and
+# whose only consequence was a number in a table. Duplicating a resolved ID even
+# satisfied the resolved/unresolved partition assertion, so nothing caught it.
+_structural = []
+if dupes:
+    _structural.append("duplicate requirement IDs: %s" % ", ".join(dupes[:10]))
+if blank_req:
+    _structural.append("blank requirement text: %s" % ", ".join(blank_req[:10]))
+if blank_sec:
+    _structural.append("blank source sections: %s" % ", ".join(blank_sec[:10]))
+if malformed:
+    _structural.append("malformed rows: %s" % ", ".join(malformed[:10]))
+if unrep:
+    _structural.append("unrepresented recovered identifiers: %s" % ", ".join(unrep[:10]))
+if _structural:
+    _nl = chr(10)
+    raise SystemExit(
+        "reconciliation-ledger: STRUCTURAL VIOLATIONS — refusing to write artefacts." + _nl
+        + "".join("  - " + v + _nl for v in _structural)
+        + _nl
+        + "These are the checks the ledger reports as 'required 0'. Emitting them" + _nl
+        + "into the table while exiting 0 would let a source change silently break" + _nl
+        + "the inventory. Fix the source or the resolutions and re-run." + _nl)
 
 by_source = collections.Counter(r["source"] for r in ROWS)
 by_family = collections.Counter(re.match(r"^([A-Za-z0-9]+)", r["requirement_id"]).group(1) for r in ROWS)
