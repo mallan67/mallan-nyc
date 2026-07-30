@@ -21,7 +21,8 @@
     "batch-2: LST, SEA, COT, OPS-024, OPS-025",
     "batch-3: deep-audit findings, safe-main governance",
     "batch-4: AUZ, CRM, SEL, TXN",
-    "batch-5: POL (incl. POL-1.1-1.5), REB, AUD, GATE, HYG, DOC, OPS"
+    "batch-5: POL (incl. POL-1.1-1.5), REB, AUD, GATE, HYG, DOC, OPS",
+    "batch-6: AGT, BUS, ARC, TRN, VER, ERR, CMA, MKT, INT, PH"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -1826,6 +1827,654 @@
     "dependency": "OPS-4, OPS-025",
     "maturity": "decided",
     "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "AGT-1": {
+    "canonical_destination": "§Agent rules — absolute exhaustiveness",
+    "disposition": "retained",
+    "reason_or_evidence": "Verbatim system rule forbidding brevity optimization, placeholders, TODO tags, ellipses and truncation. The source states the agent rules are 'quoted verbatim and are not subject to interpretation, optimization, or abbreviation', so this block transfers character-for-character. Paraphrasing an anti-paraphrase rule would defeat it.",
+    "dependency": "AGT-3, AGT-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AGT-2": {
+    "canonical_destination": "§Agent rules — strict boundary anchoring",
+    "disposition": "retained",
+    "reason_or_evidence": "Verbatim system rule: operate solely within the prompt's explicit boundaries; introduce no unsolicited paradigms, alternatives or features; fulfil a constraint exactly as written even where it conflicts with baseline training. Transfers verbatim per the section preamble.",
+    "dependency": "AGT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AGT-3": {
+    "canonical_destination": "§Agent rules — thought explicitness",
+    "disposition": "retained",
+    "reason_or_evidence": "Verbatim system rule requiring step-by-step decomposition, verification of sub-task N before N+1, and a final review of the output against the original constraints before rendering. Transfers verbatim.",
+    "dependency": "AGT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AGT-4": {
+    "canonical_destination": "§Agent rules — atomic continuation",
+    "disposition": "retained",
+    "reason_or_evidence": "Verbatim continuation instruction for an output-token ceiling: do not apologize, summarize or recap; resume from the exact cut-off character preserving formatting and depth. Operationally necessary for a plan of this size, where a truncated-then-summarized section silently loses requirements.",
+    "dependency": "AGT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AGT-5": {
+    "canonical_destination": "§Agent rules — no spot patching",
+    "disposition": "retained",
+    "reason_or_evidence": "A defect class must be fixed at every instance in the same change, or the uncorrected instances recorded explicitly with their locations. Same rule as COT-11's prohibition on spot-patching one mapping while leaving equivalents stale. Applied in this session: the POL-1.x omission was fixed by correcting the extraction rule and adding a structural check, not by hand-adding the five rows.",
+    "dependency": "COT-11, HYG-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AGT-6": {
+    "canonical_destination": "§Agent rules — no assumption substitution",
+    "disposition": "retained",
+    "reason_or_evidence": "When an agent lacks a fact it STATES that it lacks the fact; it does not substitute a plausible, remembered, cross-system or name-inferred value. 'Absence of evidence is recorded as not verified, never as absence.' This is the single most load-bearing agent rule in the plan and the direct basis for GATE-5, HYG-1, IAM-10's open periods and this ledger's `unresolved` default.",
+    "dependency": "GATE-5, HYG-1, IAM-10",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "AGT-7": {
+    "canonical_destination": "§Agent rules — read before claiming",
+    "disposition": "retained",
+    "reason_or_evidence": "An agent may not describe, summarize, assess or modify a document it has not read in full; spot-checking is not reading; file counts, line counts and name patterns are not evidence of content. Directly governs this reconciliation, where each batch's source sections were extracted and read in full before any disposition was assigned.",
+    "dependency": "AGT-6, GATE-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BUS-1": {
+    "canonical_destination": "§Business truth — what Mallan is building",
+    "disposition": "retained",
+    "reason_or_evidence": "One dynamic NYC brokerage operating system with twelve distinct experiences that share ONE application foundation, identity model, contract vocabulary, policy system, error model, event history and audit trail. The shared-foundation clause is what makes the ARC layering and the PER identity spine mandatory rather than optional.",
+    "dependency": "ARC-4, PER-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "BUS-2": {
+    "canonical_destination": "§Business truth — current data boundary",
+    "disposition": "retained",
+    "reason_or_evidence": "Mallan consumes its licensed Cotality/Trestle feed and maintains Mallan-owned records; it does NOT write listing changes back to Cotality. Consistent with LST-2 (no local provider mutation) and with the read-only-display posture recorded in CLAUDE.md.",
+    "dependency": "LST-2, BUS-7",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "BUS-3": {
+    "canonical_destination": "§Business truth — static CRM is temporary",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED CURRENT STATE: public/crm/*.html still exists. Five obligations — inventory, freeze except for critical safety or production defects, migrate by bounded vertical slices, keep available until each replacement proves parity, retire only after data/authorization/workflow/production/rollback proof. The freeze-except-critical clause matters: it permits safety fixes without permitting feature drift on a system being retired.",
+    "dependency": "CRM-1, CRM-4, public/crm hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "BUS-4": {
+    "canonical_destination": "§Business truth — one system is not one generic screen",
+    "disposition": "retained",
+    "reason_or_evidence": "Buyer, tenant, seller, landlord, agent, broker and public experiences remain DISTINCT products sharing foundations, without collapsing into one renamed portal. The necessary counterweight to BUS-1 — shared foundations are not an argument for a single generic interface.",
+    "dependency": "BUS-1, ARC-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "BUS-5": {
+    "canonical_destination": "§Business truth — Mallan responsibility",
+    "disposition": "retained",
+    "reason_or_evidence": "Enumerates what Mallan controls: SL-/RL- website records, page presentation, CRM records, clients and relationships, communications and consent, portals, campaigns, showings/feedback/offers/tasks/documents/transactions, local media and ordering, and reports/decisions/events/evidence/audit history. The ownership half of the LST-12 / LST-13 split.",
+    "dependency": "LST-13",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "BUS-6": {
+    "canonical_destination": "§Business truth — repository boundary",
+    "disposition": "retained",
+    "reason_or_evidence": "This plan and repository apply only to mallan67/mallan-nyc; Mallan Integrated is OUTSIDE SCOPE. Honoured throughout this reconciliation — Mallan Integrated was not inspected, referenced as work product, or touched in any way.",
+    "dependency": "none — boundary",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "BUS-7": {
+    "canonical_destination": "§Business truth — no dependency on external listing-entry products",
+    "disposition": "retained",
+    "reason_or_evidence": "The website architecture is complete without reference to any external listing-entry product; provider records arrive through the licensed Cotality feed, and how a provider record came to exist upstream is outside this system's boundary. Consistent with the external-inventory hold (OneKey / NY-State MLS) recorded in CLAUDE.md §C.",
+    "dependency": "BUS-2, external-inventory hold, SEA-3",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "ARC-1": {
+    "canonical_destination": "§Architecture — no client-side provider calls",
+    "disposition": "retained",
+    "reason_or_evidence": "All Cotality calls occur server-side through a controlled provider adapter. Non-negotiable: a client-side provider call would expose licensed credentials and bypass every display gate simultaneously.",
+    "dependency": "IAM-7, COT-1",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "ARC-2": {
+    "canonical_destination": "§Architecture — one application-service door",
+    "disposition": "retained",
+    "reason_or_evidence": "Platform-wide blast radius per the source. HTTP routes, Server Components, jobs, crons and internal tools must resolve an actor and call the SAME application/use-case service, and may not bypass authorization or policy by calling raw domain services directly. This is the structural guarantee that a display gate cannot be skipped by choosing a different entry point.",
+    "dependency": "ARC-7, ARC-9, ACT-3",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "ARC-3": {
+    "canonical_destination": "§Architecture — no silent failure",
+    "disposition": "retained",
+    "reason_or_evidence": "Unknown, unsupported, stale, conflicting, unlicensed and unverified states must be EXPLICIT. The general form of ERR-7, SEA-5, SEA-8, COT-13 and TXN-4; every one of those is a specialization of this rule to a particular surface.",
+    "dependency": "ERR-7, SEA-8, COT-13, TXN-4",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "ARC-4": {
+    "canonical_destination": "§Architecture — target layers",
+    "disposition": "retained",
+    "reason_or_evidence": "Five-layer target: Interfaces, Adapters, Application, Domain and policy, Infrastructure — with the concrete membership of each enumerated. The layering is what makes AUDIT-IDX-GOD-MODULE actionable: lib/idx/sync.ts (2,419 lines) and media-sync.ts (4,002) currently span adapter, application, domain and infrastructure concerns at once.",
+    "dependency": "AUDIT-IDX-GOD-MODULE, ARC-2",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "ARC-5": {
+    "canonical_destination": "§Architecture — thin adapters",
+    "disposition": "retained",
+    "reason_or_evidence": "HTTP routes decode input, resolve actor and context, invoke an application service and encode output; they contain no duplicated business policy. CODE-VERIFIED TENSION: app/api/listings/route.ts is over 1,100 lines and carries suppression, display filtering, pagination, media backfill and total computation directly in the route — the SEA-7 ordering defect lives in exactly that concentration.",
+    "dependency": "ARC-2, SEA-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "ARC-6": {
+    "canonical_destination": "§Architecture — internal calls do not self-call HTTP",
+    "disposition": "retained",
+    "reason_or_evidence": "Server Components, jobs and crons call application services directly with an explicit actor and context; they do not make internal HTTP requests to the application's own API. Self-HTTP loses the actor, doubles the latency and makes authorization depend on transport.",
+    "dependency": "ARC-2, ACT-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ARC-7": {
+    "canonical_destination": "§Architecture — domain services are not public entry points",
+    "disposition": "retained",
+    "reason_or_evidence": "Raw domain services and repositories may not be called from arbitrary routes, UI code or jobs. Paired with ARC-2 as the two conditions ARC-9 machine-checks.",
+    "dependency": "ARC-2, ARC-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ARC-8": {
+    "canonical_destination": "§Architecture — shared contract, not duplicated frontends",
+    "disposition": "retained",
+    "reason_or_evidence": "The static CRM migrates into the dynamic application; public and authenticated products may remain different interfaces but not permanently disconnected implementations with COMPETING CONTRACTS. The contract clause is the operative one — separate interfaces are fine, separate vocabularies are not.",
+    "dependency": "BUS-3, BUS-4, CRM-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ARC-9": {
+    "canonical_destination": "§Architecture — enforced by audit",
+    "disposition": "retained",
+    "reason_or_evidence": "DERIVED from ARC-2 and ARC-7. Conformance is machine-checked by the contract audit: a direct domain-service call from a route, Server Component, cron or job is an AUDIT VIOLATION, not a style preference. Without this row ARC-2 and ARC-7 are advice; with it they are enforceable. Listed in AUD-3's check set.",
+    "dependency": "ARC-2, ARC-7, AUD-3",
+    "maturity": "derived",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TRN-1": {
+    "canonical_destination": "§Transport — success envelope",
+    "disposition": "retained",
+    "reason_or_evidence": "Success envelope {ok:true, data, meta:{resultState:\"success\", contractVersion, requestId}}. Platform-wide blast radius per the source: TRN-1..TRN-3 apply to EVERY JSON response.",
+    "dependency": "TRN-2, TRN-3, VER-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TRN-2": {
+    "canonical_destination": "§Transport — empty envelope",
+    "disposition": "retained",
+    "reason_or_evidence": "Empty envelope carries ok:true with resultState \"empty\" — an explicit state, distinct from both success-with-data and any error. This is the transport-level mechanism that makes ERR-1 ('empty is not an error') and AUZ-6 ('an authorized-but-empty result is never a denial') expressible rather than merely asserted.",
+    "dependency": "ERR-1, AUZ-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TRN-3": {
+    "canonical_destination": "§Transport — error envelope",
+    "disposition": "retained",
+    "reason_or_evidence": "Error envelope {ok:false, error:{code, message, retryable}, meta:{contractVersion, requestId}}. The `retryable` flag is what lets a client distinguish a transient provider failure from a permanent policy block without parsing prose.",
+    "dependency": "ERR-2, ERR-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TRN-4": {
+    "canonical_destination": "§Transport — exceptions",
+    "disposition": "retained",
+    "reason_or_evidence": "Six registered exception classes — file, stream, redirect, auth_callback, webhook, health — may use transport-specific responses, but their behavior and error contract must still be documented and REGISTERED. An unregistered non-JSON response is an audit violation. The registry is what keeps the exception list from becoming an unbounded escape hatch.",
+    "dependency": "TRN-1, AUD-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TRN-5": {
+    "canonical_destination": "§Transport — envelope metadata is not persisted state",
+    "disposition": "retained",
+    "reason_or_evidence": "`meta` is response metadata: the envelope introduces NO database column and requires NO migration. Worth retaining explicitly because it removes the schema-migration hold as an objection to adopting the envelope — this is a transport change, not a data change.",
+    "dependency": "TRN-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "TRN-6": {
+    "canonical_destination": "§Transport — no arbitrary response shapes",
+    "disposition": "retained",
+    "reason_or_evidence": "DERIVED from ERR-4. A route may not return an ad hoc object outside the envelope and the error catalog.",
+    "dependency": "ERR-4, TRN-1",
+    "maturity": "derived",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "VER-1": {
+    "canonical_destination": "§Versioning — separate contract and build versions",
+    "disposition": "retained",
+    "reason_or_evidence": "Five distinct version fields. 'A build identifier is not a contract version.' Conflating them makes every deployment look like a compatibility change and trains clients to ignore the signal.",
+    "dependency": "VER-3, TRN-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "VER-2": {
+    "canonical_destination": "§Versioning — compatibility failure",
+    "disposition": "retained",
+    "reason_or_evidence": "Incompatible clients receive an explicit contract error, not a generic 500 or silently altered behavior. Maps to the CONTRACT_INCOMPATIBLE code in the ERR-2 taxonomy and the matching SEA-8 search state.",
+    "dependency": "ERR-2, SEA-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "VER-3": {
+    "canonical_destination": "§Versioning — compatibility by contract version only",
+    "disposition": "retained",
+    "reason_or_evidence": "clientContractVersion determines compatibility; clientBuildVersion is retained for diagnostics, deployment tracing and support and NEVER determines schema compatibility. Prevents a deploy-time build bump from being read as a breaking contract change.",
+    "dependency": "VER-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "VER-4": {
+    "canonical_destination": "§Versioning — every response advertises versions",
+    "disposition": "retained",
+    "reason_or_evidence": "Every response states the contract version used, supported versions, minimum supported version, and whether the client must refresh or upgrade — checked on the ENVELOPE with NO SEPARATE ROUND TRIP. The no-round-trip constraint is what makes this cheap enough to apply universally.",
+    "dependency": "TRN-1, VER-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "VER-5": {
+    "canonical_destination": "§Versioning — clients never silently parse unknown shapes",
+    "disposition": "retained",
+    "reason_or_evidence": "A client receiving an unrecognized envelope raises an explicit error and does NOT coerce the response into a plausible-looking object. Client-side counterpart of COT-10 and AGT-6: coercion into a plausible shape is assumption substitution at the transport layer.",
+    "dependency": "AGT-6, COT-10, VER-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "VER-6": {
+    "canonical_destination": "§Versioning — generated client lifecycle",
+    "disposition": "retained",
+    "reason_or_evidence": "Six properties for a generated client where a frontend cannot run a build step: produced by ONE named command, DETERMINISTIC (same contract in, byte-identical output), stamped with contract and build version, committed so it loads without a build step, NEVER hand-edited, and drift-checked by regenerating and comparing with failure on any difference. 'Publication is the commit.' Same generated-not-authored discipline as COT-17 and HYG-4.",
+    "dependency": "COT-17, HYG-4, AUD-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ERR-1": {
+    "canonical_destination": "§Errors — empty is not an error",
+    "disposition": "retained",
+    "reason_or_evidence": "A valid search that finds no records returns SUCCESS with an explicit empty state. The most frequently violated rule in the set: it is the shared premise of AUZ-6, SEA-5, SEA-8, IAM-8 and ERR-7, each of which fails the moment empty and error are conflated.",
+    "dependency": "TRN-2, AUZ-6, ERR-7",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "ERR-2": {
+    "canonical_destination": "§Errors — one public error taxonomy",
+    "disposition": "retained",
+    "reason_or_evidence": "CODE-VERIFIED GAP: a closed twelve-code taxonomy (VALIDATION, AUTHENTICATION, FORBIDDEN, RESOURCE_NOT_AVAILABLE, CONFLICT, POLICY_BLOCKED, NOT_EVALUATED, PROVIDER_UNAVAILABLE, DATA_STALE, CONTRACT_INCOMPATIBLE, RATE_LIMITED, INTERNAL). RESOURCE_NOT_AVAILABLE was searched for and not found anywhere in lib/ or app/ — per GATE-5 that is 'not found in the searched paths', not 'does not exist'. NOT_EVALUATED is notable: it gives POL-3's Fair Housing not_evaluated state a transport representation, so an ungated artifact can be surfaced rather than silently treated as allowed.",
+    "dependency": "AUZ-6, POL-3, TRN-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "ERR-3": {
+    "canonical_destination": "§Errors — error catalog fields",
+    "disposition": "retained",
+    "reason_or_evidence": "Thirteen fields per error code including fail-closed behavior, health-check coverage, runbook or remediation, owner and deprecation state. Fail-closed behavior as a per-code attribute is what lets POL-1's non-uniform gate semantics be expressed in the catalog rather than buried in call sites.",
+    "dependency": "ERR-2, POL-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ERR-4": {
+    "canonical_destination": "§Errors — no arbitrary route strings",
+    "disposition": "retained",
+    "reason_or_evidence": "Routes may not invent one-off {error: \"some string\"} contracts outside the error catalog. CODE-VERIFIED EXAMPLE of the pattern this forbids: app/api/crm/listings/[id]/route.ts:203 returns {error: feeCheck.reason, field, code:\"FARE_FEE_DISCLOSURE\"} — a compliance-correct gate returning an ad hoc shape rather than a catalog code. The gate is right; the envelope is not yet.",
+    "dependency": "ERR-2, TRN-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "ERR-5": {
+    "canonical_destination": "§Errors — error lifecycle",
+    "disposition": "retained",
+    "reason_or_evidence": "Seven lifecycle states from ACTIVE_DEFECT to CLOSED_PROVED, with every non-closed item requiring owner, first-seen, last-verified, affected files, impact, next action and closure proof. RESOLVED_PENDING_PROOF is the important state — it prevents a fix from being recorded as closed before its evidence exists. Same shape as docs/PLATFORM-ISSUE-REGISTRY.md, where OPS-024 and OPS-025 already live.",
+    "dependency": "MAIN-GOVERNANCE-003, GATE-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "ERR-6": {
+    "canonical_destination": "§Errors — no hanging catches or warnings",
+    "disposition": "retained",
+    "reason_or_evidence": "Temporary catches, fallback branches, warnings, debug logs and error comments require a disposition and a removal condition and may not remain indefinitely without ownership. The error-handling case of HYG-5's 'there is no permanent temporary code'.",
+    "dependency": "HYG-5, ERR-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "ERR-7": {
+    "canonical_destination": "§Errors — provider failure is never a false empty",
+    "disposition": "retained",
+    "reason_or_evidence": "A provider error, timeout, throttle or authentication failure returns PROVIDER_UNAVAILABLE and NEVER an empty success, because 'an empty result asserts that the provider was reached and matched nothing'. That sentence states precisely what an empty result MEANS and should transfer verbatim. Compliance-relevant: a Cotality outage silently rendering as 'no listings match' misrepresents inventory to the public.",
+    "dependency": "ERR-1, ERR-2, COT-13, SEA-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-1": {
+    "canonical_destination": "§CMA — automatic starting set",
+    "disposition": "retained",
+    "reason_or_evidence": "The system proposes comparables from verified facts AND EXPLAINS WHY EACH WAS SELECTED. Building activity covers active, under contract, recently sold and where useful withdrawn or expired units in the subject building, prioritized across ten attributes; area comparables cover type, configuration, price range, radius, recency and building/amenity characteristics.",
+    "dependency": "CMA-7, CMA-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-2": {
+    "canonical_destination": "§CMA — evidence classification",
+    "disposition": "retained",
+    "reason_or_evidence": "Six evidence classes (COTALITY_VERIFIED, AGENT_CONFIRMED, DERIVED, EXTERNAL_REFERENCE, UNSUPPORTED, STALE) with the rule that ONLY QUALIFIED EVIDENCE may drive seller-facing factual conclusions. The CMA specialization of PER-9's knowledge types and SEL-2's truth levels — the same never-silently-promote discipline applied to valuation evidence.",
+    "dependency": "PER-9, SEL-2, CMA-10",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-3": {
+    "canonical_destination": "§CMA — agent control",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight authorized-agent capabilities: add/remove, reorder, adjust radius/recency/similarity, add condition or renovation adjustments, add notes, select seller-visible comparables, regenerate, share a version. Professional judgement stays with the licensed agent; the system proposes rather than decides.",
+    "dependency": "CMA-5, SEL-5",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-4": {
+    "canonical_destination": "§CMA — no central approval by default",
+    "disposition": "retained",
+    "reason_or_evidence": "Routine seller CMAs require no central or Maya approval; broker review applies only where supervision is explicitly configured, a compliance condition triggers it, the product is a separate paid or external valuation product, or the agent escalates. ACT-6 generalizes this to every review gate — a supervision requirement resolving to self-review is not enabled by default.",
+    "dependency": "ACT-6, BRK-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-5": {
+    "canonical_destination": "§CMA — facts versus judgment",
+    "disposition": "retained",
+    "reason_or_evidence": "Provider facts remain UNALTERED; agent adjustments and professional judgments are stored and presented SEPARATELY and remain distinguishable from provider values. Enforces LST-12 and COT-11 inside the CMA: an adjusted comparable must never be mistakable for a provider fact.",
+    "dependency": "COT-11, LST-12, PER-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-6": {
+    "canonical_destination": "§CMA — versioning",
+    "disposition": "retained",
+    "reason_or_evidence": "Eight preserved elements including system_generated_set, agent_selected_set, EXCLUDED_COMPARABLES, manual_adjustments and the generated/modified/shared timestamps. Preserving the excluded set alongside the selected set is what makes a valuation decision reconstructable later; SEL-5 keeps that set private from the seller.",
+    "dependency": "SEL-5, SEL-3, CMA-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-7": {
+    "canonical_destination": "§CMA — selection reasons",
+    "disposition": "retained",
+    "reason_or_evidence": "Each proposed comparable carries the reasons it was selected (same building, unit configuration, relative size, recency, floor and exposure). The CMA instance of INT-2's explainability rule: no unexplained score is presented as truth.",
+    "dependency": "CMA-1, INT-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-8": {
+    "canonical_destination": "§CMA — subject record authority",
+    "disposition": "retained",
+    "reason_or_evidence": "Subject-listing facts come from the subject record's OWN source: a Mallan web sale or rental listing is NEVER described as provider-sourced, while comparable facts and status categories come from verified provider data. Applies the LST-4/LST-5 record_source separation inside the report, where mislabelling a Mallan record as provider-sourced would misattribute the data's authority.",
+    "dependency": "LST-4, LST-5, LST-13",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-9": {
+    "canonical_destination": "§CMA — refresh and alert",
+    "disposition": "retained",
+    "reason_or_evidence": "The system detects when market activity makes a shared CMA outdated and alerts the responsible agent, but THE SELLER-VISIBLE VERSION DOES NOT CHANGE UNTIL THE AGENT SHARES IT. Enforces SEL-3's bidirectional separation: detection may not silently mutate a document the seller was already shown.",
+    "dependency": "SEL-3, SEL-5, CMA-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "CMA-10": {
+    "canonical_destination": "§CMA — re-verification before issuance",
+    "disposition": "retained",
+    "reason_or_evidence": "Every selected comparable is re-verified against its authority before a seller-facing report issues, and A PROVIDER FAILURE AT ISSUANCE TIME FAILS CLOSED — no report is issued rather than one built on unverified comparables. The CMA instance of COT-13 ('unreachable is not unchanged') and the correct application of POL-1's fail-closed default to a surface where it genuinely applies.",
+    "dependency": "COT-13, CMA-2, POL-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "MKT-1": {
+    "canonical_destination": "§Marketing — consent model",
+    "disposition": "retained",
+    "reason_or_evidence": "Consent is contact BY CHANNEL BY PURPOSE with source, timestamp, evidence and later opt-out. Mallan policy requires affirmative OPT-IN for the applicable channel and purpose and permanently honors later opt-out; both states and their provenance must be durable. Affirmative opt-in is stricter than several legal minimums and is a brokerage-policy choice per BIZ-0.",
+    "dependency": "PER-11, PER-6, MKT-2",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "MKT-2": {
+    "canonical_destination": "§Marketing — durable opt-out",
+    "disposition": "retained",
+    "reason_or_evidence": "Unsubscribe and opt-out are PERMANENT suppression events for the applicable channel and purpose unless a lawful, explicit later change is recorded. PER-11 adds that this survives role changes — a person unsubscribed as a buyer prospect stays unsubscribed when they later become a seller.",
+    "dependency": "PER-11, MKT-1",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "source_read"
+  },
+  "MKT-3": {
+    "canonical_destination": "§Marketing — contact provenance",
+    "disposition": "retained",
+    "reason_or_evidence": "Every marketing contact retains source provenance and identity confidence; a PURCHASED OR GUESSED contact may not be silently treated as a consented relationship. Directly a TCPA and CAN-SPAM exposure, and the marketing instance of AGT-6's no-assumption-substitution rule.",
+    "dependency": "PER-6, MKT-1, AGT-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "MKT-4": {
+    "canonical_destination": "§Marketing — production hold",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "Source status is DEFERRED, blocked on the consent and provenance data-model decision. Until that model and its enforcement are approved AND PROVED, the system may support classification, suppression, unsubscribe, previews, dry runs and internal test sends only, and may NOT perform live bulk marketing. The documentation clause is the one that binds this reconciliation: 'No documentation, report, or interface may state that consent enforcement has been achieved while this requirement is deferred' — so the canonical plan may not describe consent enforcement as complete.",
+    "dependency": "MKT-1, MKT-3, PER-1 (no Person model)",
+    "maturity": "open",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "MKT-5": {
+    "canonical_destination": "§Marketing — sender separation",
+    "disposition": "retained",
+    "reason_or_evidence": "Transactional and marketing sending must be operationally separable so campaign problems do not impair transaction communication. A marketing-driven reputation or deliverability failure must not prevent a client from receiving a showing confirmation or a deal-sheet notification.",
+    "dependency": "MKT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "MKT-6": {
+    "canonical_destination": "§Marketing — recipient reconciliation",
+    "disposition": "retained",
+    "reason_or_evidence": "Nine-line reconciliation before any production campaign (source audience, eligible, suppressed, unsubscribed, invalid, missing consent, policy blocked, duplicates removed, final recipients). THE TOTALS MUST RECONCILE EXACTLY and an unreconciled report BLOCKS THE SEND. Structurally identical to the exclusive object-and-byte reconciliation standard applied to the R2 storage work — every item classified exactly once, totals reconciling exactly, fail closed on any unclassified item.",
+    "dependency": "MKT-4, MKT-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "MKT-7": {
+    "canonical_destination": "§Marketing — content policy",
+    "disposition": "retained",
+    "reason_or_evidence": "Marketing content must pass attribution, listing permission, Participant Only, Owner Opt-Out, Fair Housing, unsubscribe and brokerage-policy gates. Note the display gates apply to MARKETING surfaces, not only to public search — BIZ-9's prohibition on compensation in listing content explicitly extends to campaigns.",
+    "dependency": "POL-1, POL-5, BIZ-9, BIZ-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "MKT-8": {
+    "canonical_destination": "§Marketing — existing suppression retained",
+    "disposition": "retained",
+    "reason_or_evidence": "Existing fail-closed suppression behavior is retained UNCHANGED, and any bypass parameter remains restricted to transactional sending and is NEVER enabled for marketing. A no-regression clause: the reconciliation and any later refactor may not weaken suppression that already works. Consistent with the standing instruction not to remove existing safety fallbacks.",
+    "dependency": "MKT-4, MKT-7",
+    "maturity": "decided",
+    "implementation_status": "production_proven",
+    "verification_status": "source_read"
+  },
+  "INT-1": {
+    "canonical_destination": "§Intelligence — consumer, not owner",
+    "disposition": "retained",
+    "reason_or_evidence": "AI and analytics CONSUME verified system data; they do not own listing facts, identities, consent, policy or workflow state. The boundary that keeps every compliance gate upstream of the model rather than dependent on it.",
+    "dependency": "INT-3, INT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "INT-2": {
+    "canonical_destination": "§Intelligence — explainability",
+    "disposition": "retained",
+    "reason_or_evidence": "Ten attributes per recommendation or signal including evidence, source timestamps, confidence, reason codes, policy status, expiration, assigned person, human approval requirement, and MODEL/PROVIDER/VERSION WHEN AI IS USED. 'No unexplained score is presented as truth.' Model provenance is the AI counterpart of POL-4's policy versioning — without it a recommendation cannot be replayed against the model that produced it.",
+    "dependency": "POL-4, PER-9, INT-3",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "INT-3": {
+    "canonical_destination": "§Intelligence — no invented facts",
+    "disposition": "retained",
+    "reason_or_evidence": "AI MAY draft, summarize, explain, prioritize or suggest. It MAY NOT invent listing facts, legal conclusions, consent, identity or completed actions. Each prohibition maps to a specific exposure: invented listing facts breach COT-11, invented legal conclusions breach TXN-1, invented consent breaches MKT-1, invented completed actions breach OPS-1. The permitted/prohibited split must transfer intact — a blanket prohibition would be unusable and a vague one unenforceable.",
+    "dependency": "COT-11, TXN-1, MKT-1, PER-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "INT-4": {
+    "canonical_destination": "§Intelligence — replaceable providers",
+    "disposition": "retained",
+    "reason_or_evidence": "AI providers remain replaceable ADAPTERS; core business records and workflows remain company-owned. Same adapter discipline ARC-4 applies to the Cotality provider — no vendor becomes the system of record.",
+    "dependency": "ARC-4, INT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "INT-5": {
+    "canonical_destination": "§Intelligence — outcome loop",
+    "disposition": "retained",
+    "reason_or_evidence": "Records whether recommendations led to contact, showing, decision, offer, agreement, transaction, referral or no action, WITHOUT REWRITING PRIOR EVIDENCE. The append-only clause matches PER-8's timeline discipline: measuring an outcome must not retroactively edit the recommendation that produced it.",
+    "dependency": "PER-8, INT-2, INT-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "INT-6": {
+    "canonical_destination": "§Intelligence — cost and usefulness ledger",
+    "disposition": "retained",
+    "reason_or_evidence": "Each intelligence capability records model cost, human review time, failure rate, revision rate, approval rate and observed outcome; capabilities that do not create measurable value are DISABLED OR REDESIGNED. An explicit kill criterion, which is rare and worth preserving — it prevents accumulating AI features that are never evaluated.",
+    "dependency": "INT-5, INT-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PH-1": {
+    "canonical_destination": "§Phases — PH-1 canonical truth, inventory, cleanup baseline",
+    "disposition": "retained",
+    "reason_or_evidence": "Twenty-one steps establishing an evidence-backed map before implementation, plus an eighteen-column entry-point matrix and five dispositions. Two clauses are load-bearing and must transfer verbatim: step 20, 'Do not remove code merely because no caller was found', and the matrix rule that 'Nothing is classified for deletion because no caller was found — absence of a discovered caller yields UNKNOWN_REQUIRES_TRACE or DEPRECATE_AFTER_PROOF'. Steps 1-2 and 4-5 are exactly what this reconciliation is executing; step 14 (run cotality:verify and record drift) is where COT-15's recorded drift came from.",
+    "dependency": "HYG-1, DOC-4, DOC-6, COT-12",
+    "maturity": "decided",
+    "implementation_status": "partially_implemented",
+    "verification_status": "code_verified"
+  },
+  "PH-2": {
+    "canonical_destination": "§Phases — PH-2 application foundation and identity",
+    "disposition": "retained",
+    "reason_or_evidence": "Second phase on the critical path PH-1 → PH-2 → ... → PH-6, producing the bounded implementation backlog from PH-1's verified findings and establishing the application foundation and identity model. Blocked in practice by the schema-migration hold, since PER-1 and PER-4 (no Person, no Organization model) sit inside it.",
+    "dependency": "PH-1, PER-1, PER-4, schema-migration hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PH-3": {
+    "canonical_destination": "§Phases — PH-3",
+    "disposition": "retained",
+    "reason_or_evidence": "Third phase on the critical path. Per the dependency map, phase 3 is search (block 14: LST, COT, ARC, AUZ, POL, TRN feeding SEL, CMA, INT). The SEA-7 ordering defect found in this reconciliation is PH-3 scope.",
+    "dependency": "PH-2, SEA-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PH-4": {
+    "canonical_destination": "§Phases — PH-4",
+    "disposition": "retained",
+    "reason_or_evidence": "Fourth phase on the critical path. Per the dependency map, phase 4 covers CRM migration (block 15) and seller/CMA (block 16), and begins broker operations (block 22). Gated on the public/crm/** hold.",
+    "dependency": "PH-3, CRM-1, public/crm hold",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PH-5": {
+    "canonical_destination": "§Phases — PH-5",
+    "disposition": "retained",
+    "reason_or_evidence": "Fifth phase on the critical path. Per the dependency map, phase 5 is marketing (block 17). MKT-4's production hold means this phase may deliver classification, suppression, previews and dry runs but not live bulk sending until the consent and provenance model is approved and proved.",
+    "dependency": "PH-4, MKT-4",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "PH-6": {
+    "canonical_destination": "§Phases — PH-6",
+    "disposition": "retained",
+    "reason_or_evidence": "Final phase on the critical path. Per the dependency map, phase 6 is intelligence (block 18: LST, SEA, SEL, CMA, MKT, OPS feeding nothing further). Correctly last — INT-1 makes intelligence a consumer of verified system data, so it cannot precede the systems that produce that data.",
+    "dependency": "PH-5, INT-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
     "verification_status": "source_read"
   }
 }

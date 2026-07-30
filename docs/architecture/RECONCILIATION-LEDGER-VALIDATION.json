@@ -65,25 +65,25 @@
   "recovered_heading_ids": 248,
   "recovered_ids_referenced_anywhere": 247,
   "excluded_sections": 12,
-  "resolved_rows": 197,
-  "unresolved_rows": 408,
+  "resolved_rows": 269,
+  "unresolved_rows": 336,
   "by_disposition": {
-    "unresolved": 408,
-    "retained": 187,
-    "deferred_with_gate": 5,
+    "unresolved": 336,
+    "retained": 258,
+    "deferred_with_gate": 6,
     "combined": 4,
     "corrected": 1
   },
   "by_implementation_status": {
-    "unassessed": 408,
-    "not_started": 127,
-    "partially_implemented": 60,
-    "production_proven": 8,
+    "unassessed": 336,
+    "not_started": 183,
+    "partially_implemented": 71,
+    "production_proven": 13,
     "schema_only": 2
   },
   "by_verification_status": {
-    "inventory_only": 410,
-    "source_read": 129,
-    "code_verified": 66
+    "inventory_only": 338,
+    "source_read": 195,
+    "code_verified": 72
   }
 }
