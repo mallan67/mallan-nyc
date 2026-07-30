@@ -41,10 +41,15 @@ the architecture.
    **`/api/cron/one-cycle`** job on **`*/10 * * * *`** (every 10 minutes). **`vercel.json` is the source
    of truth**; verify against it, never against prose. Some route-file **comments are stale** (say
    "4 hours" / "4 minutes"). **Fix the comments, never the schedule**, unless Maya explicitly asks.
-   *(Corrected 2026-07-30: this entry previously named `/api/cron/idx-sync`, `/api/cron/media-sync` and
-   `/api/cron/db-keepalive` with separate cadences. **None of those three paths exists in `vercel.json`** —
-   ingestion was consolidated into `one-cycle`. Recorded per `C-7`: measured statements are dated
-   evidence and they drift.)*
+   *(Corrected 2026-07-30, restated after review: this entry previously named `/api/cron/idx-sync`,
+   `/api/cron/media-sync` and `/api/cron/db-keepalive` as separately scheduled jobs. Verified directly
+   against `vercel.json` at `04db1b99`: **`/api/cron/one-cycle` is the only scheduled ingestion cron**;
+   **`/api/cron/idx-sync` and `/api/cron/media-sync` are still PRESENT in `vercel.json` under the
+   `functions` block** as route-specific duration overrides, but are **not independently scheduled under
+   `crons`**; **`/api/cron/db-keepalive` is absent from `vercel.json` entirely**. An earlier revision of
+   this note said none of the three appears in the file at all — that was false for the first two and
+   could lead an agent to overlook live route configuration. Recorded per `C-7`: measured statements are
+   dated evidence and they drift.)*
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
 4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,

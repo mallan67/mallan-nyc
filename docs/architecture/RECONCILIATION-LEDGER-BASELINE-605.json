@@ -1,5 +1,5 @@
 {
-  "_purpose": "This manifest freezes the 605 requirement IDs that formed the reconciliation baseline as of commit 652f99b3, when the ledger reached 605 resolved / 0 unresolved. During the HISTORICAL reconciliation and tooling phase, this baseline was compared with the resulting ledger. PR #585 does NOT include executable Stage K, ledger-generation or ledger-verification tooling; the committed baseline and reconciliation artifacts are now MAINTAINED AND REVIEWED MANUALLY. The pinned ID-set digest records the reviewed baseline set as a historical integrity reference; it is NOT automatically enforced by any command or CI job in this PR. The historical tooling prototype is preserved at archive/platform-plan-ledger-tooling-e96bbd2b and is not normative and not approved for production or CI use.",
+  "_purpose": "This manifest freezes the 605 requirement IDs that formed the reconciliation baseline as of commit 652f99b3, when the ledger reached 605 resolved / 0 unresolved. During the HISTORICAL reconciliation and tooling phase, this baseline was compared with the resulting ledger. PR #585 does NOT include executable Stage K, ledger-generation or ledger-verification tooling; the committed baseline and reconciliation artifacts are now MAINTAINED AND REVIEWED MANUALLY. The ID-set digest recorded in _baseline_id_set_digest (value, algorithm and exact canonicalization) records the reviewed baseline set as a historical integrity reference; it is NOT automatically enforced by any command or CI job in this PR. The historical tooling prototype is preserved at archive/platform-plan-ledger-tooling-e96bbd2b and is not normative and not approved for production or CI use.",
   "_frozen_at_commit": "652f99b3",
   "_count": 605,
   "ids": [
@@ -619,5 +619,14 @@
       "CONFLICT-POL-GATE34-PORTAL",
       "CONFLICT-CAPABILITY-VOCABULARY"
     ]
+  },
+  "_baseline_id_set_digest": {
+    "algorithm": "SHA-256",
+    "value": "69cf9edf1b0dfcac1e7baebb0cb4d94cb32d4dfef4d25b4f0e2b933bac220092",
+    "canonicalization": "Take the `ids` array of this file. Sort it with Python's default string ordering (ascending Unicode code point, no locale, no case folding). Join the sorted values with a single LF (U+000A) separator, with NO trailing newline. Encode as UTF-8. SHA-256 the resulting bytes and render as lowercase hexadecimal. Equivalent to: hashlib.sha256(chr(10).join(sorted(ids)).encode('utf-8')).hexdigest()",
+    "covers": "the 605 baseline IDs only - NOT _post_baseline_additions, and not this file's bytes",
+    "frozen_at_commit": "652f99b3",
+    "recovered_from": "archive/platform-plan-ledger-tooling-e96bbd2b, scripts/reconciliation-ledger-verify.py line 103",
+    "enforcement": "MANUALLY REVIEWED. No command, script or CI job in this repository recomputes or enforces this digest. It is a historical integrity reference a reviewer can reproduce by hand using the canonicalization above; it is not an automated gate."
   }
 }

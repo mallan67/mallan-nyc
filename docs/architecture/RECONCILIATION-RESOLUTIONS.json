@@ -1369,6 +1369,31 @@
         "No claim was made that production is currently non-compliant.",
         "Neither the recovered plan nor the current code was selected as the permanent target."
       ]
+    },
+    {
+      "id": "CONFLICT-CAPABILITY-VOCABULARY",
+      "ledger_disposition": "deferred_with_gate - Ledger-resolved, POLICY-UNRESOLVED. The row is accounted for; the vocabulary decision is not made.",
+      "ledger_vs_policy": "LEDGER-RESOLVED, POLICY-UNRESOLVED",
+      "status": "OPEN - requires Maya approval. NOT decided by this reconciliation.",
+      "raised_by": "Codex review at head 3be70fa4, verified by direct read",
+      "current_code_behavior": "No capability registry and no capability:audit command are present in this repository at this head, so NOTHING enforces either vocabulary today. The ARCHIVED prototype registry used STATUSES = [discovered, designed, contracted, implemented, shadow_mode, limited_release, production, degraded, deprecated, retired].",
+      "recovered_plan_behavior": "Canonical plan section 16 states [discovered, designed, schema_only, implemented, integrated, limited_release, production_proven, retiring, retired]. The registry has no schema_only / integrated / production_proven / retiring; the plan has no contracted / shadow_mode / production / degraded / deprecated.",
+      "affected_scope": "Capability-governance vocabulary only. NO application code, route, job or compliance gate depends on either list.",
+      "not_currently_proven": "Which vocabulary is correct for future machine enforcement. OBSERVED PROVENANCE ONLY (not a scored diagnosis per AGENTS.md section 5): the registry list originates on the PR #579 line and the section 16 list on the recovered line; Stage F reconciled neither against the other, so the divergence reached this head unrecorded.",
+      "temporary_operational_rule": "NEITHER LIST IS ADOPTED. Read a registry status as the registry's word, not the plan's. Make no registry, vocabulary or code change. Picking one silently is the failure mode this reconciliation exists to prevent, and aligning them changes machine-governance behaviour.",
+      "decision_gate": "Maya. Must be settled BEFORE any machine enforcement returns, because a validator would otherwise enforce a vocabulary the canonical plan does not adopt.",
+      "supporting_facts_verified_read_only_at_04db1b99": [
+        "The divergence was found by Codex review at head 3be70fa4 and confirmed by direct read of config/capabilities.mjs STATUSES against canonical plan section 16.",
+        "Neither config/capabilities.mjs nor scripts/capability-audit.mjs is tracked at this head, and package.json has no capability:audit script.",
+        "CONCRETE INSTANCE: CAP-CANONICAL-PROPERTY was `contracted` in the archived registry while the canonical plan and section 9 describe that capability as schema_only.",
+        "The capability registry and validator were removed from PR #585 on 2026-07-30 and deferred to a separate governance-tooling workstream."
+      ],
+      "canonical_plan_obligation": "The canonical plan MUST NOT adopt either vocabulary. Section 16 defines the maturity concepts, states that machine enforcement is deferred, records that no capability:audit command exists in this repository, and names this conflict as the gate.",
+      "actions_deliberately_not_taken": [
+        "Neither vocabulary was selected.",
+        "No registry, validator or capability:audit command was restored.",
+        "No capability status was changed."
+      ]
     }
   ],
   "POL-1": {
