@@ -65,25 +65,24 @@
   "recovered_heading_ids": 248,
   "recovered_ids_referenced_anywhere": 247,
   "excluded_sections": 12,
-  "resolved_rows": 440,
-  "unresolved_rows": 165,
+  "resolved_rows": 605,
+  "unresolved_rows": 0,
   "by_disposition": {
-    "retained": 259,
-    "combined": 169,
-    "unresolved": 165,
+    "combined": 298,
+    "retained": 292,
     "deferred_with_gate": 6,
-    "corrected": 6
+    "corrected": 6,
+    "historical_only": 3
   },
   "by_implementation_status": {
-    "not_started": 354,
-    "unassessed": 165,
+    "not_started": 519,
     "partially_implemented": 71,
     "production_proven": 13,
     "schema_only": 2
   },
   "by_verification_status": {
-    "code_verified": 224,
-    "source_read": 214,
-    "inventory_only": 167
+    "source_read": 340,
+    "code_verified": 263,
+    "inventory_only": 2
   }
 }

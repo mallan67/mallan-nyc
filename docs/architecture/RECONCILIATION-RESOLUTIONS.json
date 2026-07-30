@@ -23,7 +23,8 @@
     "batch-4: AUZ, CRM, SEL, TXN",
     "batch-5: POL (incl. POL-1.1-1.5), REB, AUD, GATE, HYG, DOC, OPS",
     "batch-6: AGT, BUS, ARC, TRN, VER, ERR, CMA, MKT, INT, PH",
-    "Stage F2: PR #585 plan (141) + governance files (30)"
+    "Stage F2: PR #585 plan (141) + governance files (30)",
+    "Stage F3: PR #579 plan (135) + registries (24) + machinery (6)"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -4013,6 +4014,1491 @@
     "disposition": "retained",
     "reason_or_evidence": "DOC-2 governs this file: repository entry points must identify the canonical plan as the first platform-plan read, and MAY summarize or route but MAY NOT duplicate a competing architecture. This file exists ONLY on the PR #585 line — it is absent from the recovered line entirely (verified by diffing the two trees). It is therefore the one genuinely additive contribution PR #585's governance set makes, and DOC-2 explicitly names .github/copilot-instructions.md as a required entry point. RETAINED — dropping it would lose the only Copilot routing document and leave a named DOC-2 entry point unsatisfied.",
     "dependency": "DOC-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-1": {
+    "canonical_destination": "Events and workflow - audit_events is not the outbox",
+    "disposition": "retained",
+    "reason_or_evidence": "CONVERGENT FINDING - PR #579 reached this independently of the recovered line, from a different starting point. Independent convergence is corroboration, not duplication, and raises confidence in both. C-1 states that `audit_events` is not the transactional outbox. This is the SAME conclusion as the deep-audit finding AUDIT-WORKFLOW-OUTBOX (no domain-event/outbox/workflow separation; AuditEvent must not be repurposed). Retained as the canonical statement of the rule, with AUDIT-WORKFLOW-OUTBOX as supporting evidence. The reason must transfer: audit history is compliance evidence with its own retention obligations, so coupling workflow retries to it would make an evidentiary record mutable for operational reasons.",
+    "dependency": "AUDIT-WORKFLOW-OUTBOX, PER-8, IAM-9",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-2": {
+    "canonical_destination": "Architecture - Cotality consolidates on lib/idx/",
+    "disposition": "retained",
+    "reason_or_evidence": "CONVERGENT FINDING - PR #579 reached this independently of the recovered line, from a different starting point. Independent convergence is corroboration, not duplication, and raises confidence in both. C-2 requires Cotality integration to consolidate on `lib/idx/` with no parallel integration tree. Complements rather than contradicts AUDIT-IDX-GOD-MODULE: that finding says lib/idx/ concentrates too many CONCERNS (sync.ts 2,419 lines plus media-sync.ts 4,002), while C-2 says the answer is to decompose WITHIN one integration tree, not to grow a second one. Both are needed - without C-2 a decomposition could become a parallel tree, which is the ARC-8 competing-contracts failure.",
+    "dependency": "AUDIT-IDX-GOD-MODULE, ARC-4, ARC-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-3": {
+    "canonical_destination": "Operations - Neon/R2 remediation is a hard dependency gate",
+    "disposition": "retained",
+    "reason_or_evidence": "CONVERGENT FINDING - PR #579 reached this independently of the recovered line, from a different starting point. Independent convergence is corroboration, not duplication, and raises confidence in both. C-3 makes Neon/R2 remediation a HARD DEPENDENCY GATE rather than parallel work. Corroborated by AUDIT-NEON-POOL and by AUDIT-MEDIA-DUPLICATION, which found the same media representable in five places (Listing.media, raw_data, promoted columns, ListingMedia, R2) as an in-flight migration. Retained as a gate: capabilities depending on storage or database headroom may not be promoted before it clears. Neon settings and R2 data are standing Maya-approval holds, so the gate is also a governance boundary.",
+    "dependency": "AUDIT-NEON-POOL, AUDIT-MEDIA-DUPLICATION, Neon/R2 holds",
+    "maturity": "open",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-4": {
+    "canonical_destination": "Hygiene - Program 11: decommissioning and consolidation",
+    "disposition": "retained",
+    "reason_or_evidence": "C-4 establishes decommissioning and consolidation as a first-class program (P11) rather than residual cleanup. Complements the HYG family, which supplies the METHOD (HYG-3 disposition states, HYG-6 safe-removal proof, HYG-1 no deletion by grep alone) while C-4 supplies the MANDATE and a place in the sequence. Retained; the HYG rules govern how it is executed, and HYG-1 in particular constrains it.",
+    "dependency": "HYG-1, HYG-3, HYG-6, P11",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-5": {
+    "canonical_destination": "Completion gate - acceptance criteria become machine-enforced",
+    "disposition": "combined",
+    "reason_or_evidence": "CONVERGENT FINDING - PR #579 reached this independently of the recovered line, from a different starting point. Independent convergence is corroboration, not duplication, and raises confidence in both. C-5 requires the plan's acceptance criteria to become MACHINE-ENFORCED rather than prose. This is the same conclusion the recovered line reached in its GATE family, which is substantially more developed: GATE-1 (structured completion claim), GATE-2 (twelve named rejection conditions including SOURCE_READ_FOR_BEHAVIOR and GREP_FOR_ABSENCE), GATE-3 (falsifiability, not truthfulness), GATE-4 (dependency staleness), GATE-5 (negative findings), GATE-6 (the gate states its limits), GATE-7 (ratchet), GATE-8 (one command). Combined INTO the GATE family as the fuller statement; C-5's contribution is the machine-enforcement mandate, which GATE-8 carries.",
+    "dependency": "GATE-1..GATE-8",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-5.1": {
+    "canonical_destination": "Completion gate - promotion thresholds",
+    "disposition": "combined",
+    "reason_or_evidence": "Promotion thresholds for capability status. Combined into GATE-7 (the ratchet: the count of capabilities passing the gate is a baseline and may not decrease, so a capability may not be quietly demoted to avoid producing evidence) together with GATE-1's evidence record, which is what a threshold is evaluated against.",
+    "dependency": "GATE-7, GATE-1",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-5.2": {
+    "canonical_destination": "Completion gate - program assessment vs capability maturity",
+    "disposition": "retained",
+    "reason_or_evidence": "C-5.2 insists PROGRAM ASSESSMENT is a separate vocabulary from CAPABILITY MATURITY. CODE-VERIFIED AND VINDICATED INDEPENDENTLY: config/capabilities.mjs contains exactly this separation - `export const programs` holds 12 program entries (P0..P11) with an assessment field, while `export const capabilities` holds 11 CAP-* entries with their own maturity vocabulary. This reconciliation initially conflated them, reporting 24 capabilities from a flat id: scan, and had to be corrected. C-5.2 is therefore not pedantry - it names a distinction that a reader demonstrably gets wrong. RETAINED as a distinct requirement.",
+    "dependency": "PR#579-program-registry, PR#579-capability-registry, AUDIT-GOVERNANCE-DRIFT",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-6": {
+    "canonical_destination": "Media - AI-altered media provenance",
+    "disposition": "retained",
+    "reason_or_evidence": "C-6 moves AI-altered media provenance EARLY, and explicitly ON EXISTING-OBLIGATION GROUNDS ONLY. The qualification is the important half and must transfer verbatim: the work is justified by obligations that already exist, not by anticipating a future rule. It is carried in the registry as the nested obligation NYC-DCWP-AI-MEDIA-DISCLOSURE inside CAP-MEDIA-AI-PROVENANCE. Consistent with BIZ-0 (every obligation carries its authority) and INT-3 (AI may not invent listing facts).",
+    "dependency": "NYC-DCWP-AI-MEDIA-DISCLOSURE, BIZ-0, INT-3, COT-7",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "C-7": {
+    "canonical_destination": "Evidence - measured baselines are dated evidence",
+    "disposition": "retained",
+    "reason_or_evidence": "CONVERGENT FINDING - PR #579 reached this independently of the recovered line, from a different starting point. Independent convergence is corroboration, not duplication, and raises confidence in both. C-7 states that measured baselines are DATED EVIDENCE, not architecture facts. Directly corroborated twice inside this reconciliation: COT-15's drift check (live vocabulary had already moved past the committed copy) and AUDIT-GOVERNANCE-DRIFT (this document set's own counts were wrong twice and had to be corrected). Retained; it is the rule that requires GATE-4 staleness invalidation and HYG-4 generated inventories.",
+    "dependency": "GATE-4, HYG-4, COT-15, AUDIT-GOVERNANCE-DRIFT",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-UNIFIED-PRODUCT-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Unified Product, Data, Technology, Compliance, and Implementation Mast' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-2-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '2.1 Public growth experience' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-2-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '2.2 Agent operating system' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-2-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '2.3 Broker operating system' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-2-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '2.4 Client portals' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-2-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '2.5 Shared foundation, different interfaces' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-3-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '3.1 Technology supports human judgment' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-3-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '3.2 One canonical owner per concept' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-3-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '3.3 No silent failure' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-3-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '3.4 Build closed loops' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-3-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '3.5 Preserve evidence and history' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.1 Authority model' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.2 Adapter boundary' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.3 Recommended integration structure' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.4 Live metadata and contract cycle' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.5 Change classification' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-ADDITIVE-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Additive' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-DEPRECATION-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Deprecation' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-BREAKING-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Breaking' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-BEHAVIORAL-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Behavioral' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.6 Canonical field registry' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.7 Anti-corruption layer' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-8-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.8 Unknown values' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-5-9-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '5.9 Cotality change gate' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-6-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '6.1 Versioned policy registry' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-6-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '6.2 Central policy decisions' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-6-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '6.3 Policy change process' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-6-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '6.4 Effective-date behavior' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-6-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '6.5 Fail-closed boundaries' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.1 Person' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.2 Household or decision group' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.3 Organization' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.4 Property graph' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.5 Client relationship' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.6 Relationship knowledge types' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-7-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '7.7 Commitments' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.1 Transactional event outbox' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.2 Runtime workflow engine' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.3 Capability registry' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.4 Human-service levels' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-LEVEL-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Level 1 — Safe automation' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-LEVEL-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Level 2 — Prepare for human' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-LEVEL-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Level 3 — Human approval required' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-LEVEL-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Level 4 — Human only' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.5 Artifact lifecycle' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.6 Artifact evidence' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-8-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '8.7 Dependency and staleness' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.1 Shared search contract' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.2 Public search' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.3 Agent search' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.4 Broker search' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.5 Portal search' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.6 Saved-search contract' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-9-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '9.7 Execution rules' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-10-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '10.1 Objective' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-10-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '10.2 Buyer and renter journeys' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-10-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '10.3 Seller journey' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-10-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '10.4 Landlord journey' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-10-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '10.5 Contextual calls to action' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-10-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '10.6 Progressive lead capture' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.1 Agent home' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.2 Client workspace' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.3 Buyer tools' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.4 Seller tools' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.5 Tenant tools' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.6 Landlord tools' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-11-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '11.7 Relationship brief' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-12-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '12.1 Signals' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-12-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '12.2 Signal contract' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-12-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '12.3 Explainable, not manipulative' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-12-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '12.4 Contradiction intelligence' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-13-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '13.1 Shared framework' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-13-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '13.2 Buyer portal' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-13-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '13.3 Tenant portal' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-13-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '13.4 Seller portal' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-13-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '13.5 Landlord portal' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.1 Producing-broker mode' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.2 Agent management' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.3 Agent performance' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.4 Lead and client governance' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.5 Listing governance' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.6 Compliance and law center' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.7 Forms center' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-8-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.8 Commission and referral center' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-9-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.9 Accounting and tax-support center' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-10-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.10 Technology center' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-14-11-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '14.11 Business command center' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-15-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '15.1 Media' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-15-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '15.2 Documents' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-15-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '15.3 Transaction intelligence' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-15-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '15.4 Decision support' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-15-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '15.5 Property passport' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-16-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '16.1 Canonical communication record' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-16-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '16.2 Notification dispatcher' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-16-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '16.3 Unsubscribe' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-16-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '16.4 Outlook' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.1 One supervisor and registered capabilities' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.2 Model abstraction' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.3 AI output contract' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.4 Voice' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.5 Multimodal property intelligence' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.6 Future protocols and providers' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-17-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '17.7 AI economics' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-MALLAN-MUST-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Mallan must own' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-MALLAN-MAY-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Mallan may buy' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-21-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '21.1 Strangler migration' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-21-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '21.2 Feature flags' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-21-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '21.3 Shadow mode' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-21-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section '21.4 Compatibility windows' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-0-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 0 — Adopt and reconcile the authority' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 1 — Provider and policy adaptability' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 2 — Canonical graph and identity' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 3 — Canonical search runtime' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 4 — Events, workflows, artifacts, and approvals' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 5 — Public growth system' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-6-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 6 — Agent service system' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-7-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 7 — Client portals' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-8-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 8 — Broker operating system' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-9-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 9 — Transactions and after-close' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-10-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 10 — Advanced intelligence' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROGRAM-11-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Program 11 — Decommissioning and consolidation' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROOF-1-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Proof 1 — Seller opportunity' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROOF-2-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Proof 2 — Buyer demand' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROOF-3-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Proof 3 — Listing launch' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROOF-4-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Proof 4 — Transaction' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P579-PROOF-5-001": {
+    "canonical_destination": "combined into the canonical plan's corresponding family",
+    "disposition": "combined",
+    "reason_or_evidence": "Prose section 'Proof 5 — Property passport' from Mallan_Intelligence_Master_Plan.md. DOC-4 names this document BY NAME as one that contains useful requirements or evidence but MUST NOT remain a competing normative plan after consolidation. The PR #579 plan carries ZERO XXX-N requirement identifiers - its 126 prose sections use decimal numbering (2.1, 5.3, 7.1) that collides with nothing and identifies nothing durably. Its substantive, uniquely identified contributions are the C-1..C-7 corrections, resolved individually. This section is combined into the canonical plan's corresponding identified family rather than retained as a parallel normative statement. Per DOC-4, retirement means the file no longer calls itself authoritative; git history preserves it, and nothing is deleted.",
+    "dependency": "DOC-1, DOC-4, DOC-6",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "source_read"
+  },
+  "P0": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P0 (Adopt and reconcile the authority), registry assessment 'designed'. This program IS the work this ledger performs. Its assessment 'designed' is accurate: the reconciliation is designed and in progress, not complete. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P1": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P1 (Provider and policy adaptability), registry assessment 'partial'. Corresponds to the COT and POL families. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P2": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P2 (Canonical graph and identity), registry assessment 'partial'. blockedBy C-3 in the registry. Corroborated by AUDIT-PROPERTY-IDENTITY and AUDIT-PERSON-ORG-IDENTITY: CanonicalProperty has ZERO non-test references and no Person or Organization model exists, so 'partial' is if anything generous - the schema exists but has no proven reader or writer. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P3": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P3 (Canonical search runtime), registry assessment 'implemented'. Registry marks this 'implemented' with evidence E-1. TREAT WITH CAUTION: the SEA-7 ordering defect found in this reconciliation (suppression and totals computed after pagination in app/api/listings/route.ts) is in exactly this program's scope, so an 'implemented' assessment is not equivalent to conforming. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P4": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P4 (Events, workflows, artifacts, approvals), registry assessment 'not_started'. blockedBy C-3. Corroborated by AUDIT-WORKFLOW-OUTBOX and C-1. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P5": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P5 (Public growth system), registry assessment 'partial'. Corresponds to the MKT and public-surface families. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P6": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P6 (Agent service system), registry assessment 'partial'. Corresponds to the CRM and agent-facing families. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P7": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P7 (Client portals), registry assessment 'shell'. 'shell' is consistent with AUDIT-PORTAL-ACTOR-SUBJECT and with PER-12, where Session.user_type admits only agent|lead so portal identity does not yet map to a person holding roles. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P8": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P8 (Broker operating system), registry assessment 'discovered'. Corresponds to the BRK family, all of which is not_started. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P9": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P9 (Transactions and after-close), registry assessment 'partial'. Corresponds to the TXN family. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P10": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P10 (Advanced intelligence), registry assessment 'partial'. Corresponds to the INT family. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P11": {
+    "canonical_destination": "Programs - phase/program registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Program registry entry P11 (Decommissioning and consolidation), registry assessment 'discovered'. Established by C-4 and executed under the HYG rules. C-5.2 requires PROGRAM ASSESSMENT to remain a separate vocabulary from CAPABILITY MATURITY, so this row is kept in its own source group and is never reconciled as though it were a capability. Registry assessments are DATED EVIDENCE per C-7, not architecture facts; they are carried forward as recorded, not re-derived.",
+    "dependency": "C-5.2, C-7, PR#579-capability-registry",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-SEARCH-CANONICAL": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-SEARCH-CANONICAL. Scope includes the SEA family. The SEA-7 ordering defect is in this capability's scope and must gate its promotion. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-IDX-COTALITY-ADAPTER": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-IDX-COTALITY-ADAPTER. Scope includes COT-6 (preserve both provider identifiers), the rule OPS-024 proves empirically, and C-2 (consolidate on lib/idx/). Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-COMPLIANCE-GATES": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-COMPLIANCE-GATES. Scope includes POL-1 and POL-1.1-POL-1.5. CONFLICT-POL-GATE34-PORTAL is open in this capability's scope and must be resolved before promotion. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-MEDIA-SYNC": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-MEDIA-SYNC. Scope includes COT-7, COT-8 and AUDIT-MEDIA-DUPLICATION (media representable in five places, mid-migration). Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-MEDIA-AI-PROVENANCE": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-MEDIA-AI-PROVENANCE. Scope includes C-6 and carries the nested obligation NYC-DCWP-AI-MEDIA-DISCLOSURE. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-EVENT-OUTBOX": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-EVENT-OUTBOX. Scope includes C-1 and AUDIT-WORKFLOW-OUTBOX. Registry marks P4 not_started, consistent. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-WORKFLOW-ENGINE": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-WORKFLOW-ENGINE. Scope includes the workflow half of C-1; blocked behind the outbox separation. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-POLICY-REGISTRY": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-POLICY-REGISTRY. Scope includes POL-4 (fourteen-attribute versioned policy) and AUDIT-POLICY-VERSIONING. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-CANONICAL-PROPERTY": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-CANONICAL-PROPERTY. Scope includes AUDIT-PROPERTY-IDENTITY: CanonicalProperty has ZERO non-test references in app/ or lib/, so this capability is schema-only today. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-CANONICAL-PERSON": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-CANONICAL-PERSON. Scope includes PER-1 and AUDIT-PERSON-ORG-IDENTITY: no Person model exists. Deferred behind the schema-migration hold. Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "CAP-CLIENT-PORTALS": {
+    "canonical_destination": "Capabilities - capability registry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability registry entry CAP-CLIENT-PORTALS. Scope includes PER-12, AUZ-5 and AUDIT-PORTAL-ACTOR-SUBJECT (routes reinterpret auth.userId as Lead.id). Retained as a registry entry, NOT as a requirement: the capability names a unit of work whose obligations are stated by the identified requirements it depends on. Its maturity is established only by GATE-1 evidence, and per GATE-6 a green gate proves the claims are honest in FORM, not that the capability works.",
+    "dependency": "GATE-1, GATE-6, C-5.2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "NYC-DCWP-AI-MEDIA-DISCLOSURE": {
+    "canonical_destination": "Compliance - AI-altered media disclosure",
+    "disposition": "retained",
+    "reason_or_evidence": "A COMPLIANCE OBLIGATION nested inside CAP-MEDIA-AI-PROVENANCE, not a capability. This reconciliation initially mis-counted it as one of '24 capabilities' from a flat id: scan and had to be corrected - which is exactly the conflation C-5.2 warns against. Retained in its own source group so it is reconciled as an obligation. Per BIZ-0 it carries its authority explicitly (NYC DCWP), and per C-6 it is justified on EXISTING-obligation grounds only, never on anticipation of a future rule.",
+    "dependency": "C-6, BIZ-0, CAP-MEDIA-AI-PROVENANCE",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS": {
+    "canonical_destination": "Machine governance - scripts/capability-audit.mjs",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. The validator that makes C-5 machine-enforcement real and that GATE-8 requires ('the gate runs from one named command, reports per-capability results, and exits non-zero on any rejection'). RETAINED as THE implementation - building a second validator for the recovered line's GATE family would be the duplicate-machinery outcome HYG-2 calls bloat. It must converge into platform:check per HYG-8 and GATE-8.",
+    "dependency": "GATE-8, HYG-8, C-5, OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-FILE-PACKAGE-JSON": {
+    "canonical_destination": "Machine governance - package.json capability-audit entry",
+    "disposition": "retained",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. The named command GATE-8 requires. Retained. NOTE: package.json is a shared file present on both lines and on safe main, so this is a MERGE POINT, not a file replacement - the entry is added, and nothing else in package.json is taken from either planning line.",
+    "dependency": "GATE-8, HYG-8, C-5, OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD": {
+    "canonical_destination": "Machine governance - memory/EVIDENCE-STANDARD-2026-07-27.md",
+    "disposition": "combined",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. The evidence standard. Substantively the same rule as OPS-2 (seven elements per claim: what was checked, exact command, raw output, exit code, commit and environment, what it proves, what it does not prove) and as GATE-1's evidence record. Combined so ONE evidence standard exists; a second copy would drift from the plan's GATE family.",
+    "dependency": "GATE-8, HYG-8, C-5, OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD": {
+    "canonical_destination": "Machine governance - docs/architecture/MASTER-PLAN-GAP-ANALYSIS-2026-07-27.md",
+    "disposition": "historical_only",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. The gap analysis that produced the registry assessments. Per C-7 its measurements are DATED EVIDENCE, not architecture facts, and several are already superseded by this reconciliation's code-verified findings. Kept as dated evidence under its 2026-07-27 date; it must not be treated as current state.",
+    "dependency": "GATE-8, HYG-8, C-5, OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD": {
+    "canonical_destination": "Machine governance - docs/evidence/capability-evidence-2026-07-27.md",
+    "disposition": "historical_only",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Capability evidence records supporting the registry assessments (e.g. E-1 for P3). Dated evidence per C-7 and subject to GATE-4 staleness: any claim whose target_sha predates a change to a requirement it depends on loses promoted status until re-evidenced. Several such changes have since occurred.",
+    "dependency": "GATE-8, HYG-8, C-5, OPS-2",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD": {
+    "canonical_destination": "Machine governance - docs/evidence/capability-evidence-2026-07-27-e57.md",
+    "disposition": "historical_only",
+    "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Second evidence file, distinguished from the first only by its -e57 suffix. NOTE: these two filenames collapsed to the same slug in an earlier revision of the ledger generator and were silently deduplicated to one row; the generator now uses the full path so each artefact keeps its own row. Dated evidence per C-7.",
+    "dependency": "GATE-8, HYG-8, C-5, OPS-2",
     "maturity": "decided",
     "implementation_status": "not_started",
     "verification_status": "code_verified"
