@@ -4,7 +4,7 @@
 
 import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter } from "./fetch";
-import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
+import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields, IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
@@ -59,6 +59,61 @@ import {
 } from "@/lib/idx/property-cursor";
 import { mergePropertyStreams, type StreamName } from "@/lib/idx/property-stream-merge";
 import { advanceStreamCursor, type RecordSettlement } from "@/lib/idx/property-cursor-advance";
+
+/**
+ * The RAW provider fields the two keyset streams MUST request.
+ *
+ * OPS-024 (production incident 2026-07-29): the streams shipped using the
+ * default IDX_PLUS_SELECT_FIELDS, which requests `SourceSystemKey` — the RESO
+ * name `mapTrestleToPrisma` renames to `ListingKey` AFTER the fetch — and does
+ * NOT request `ListingKey` itself. A read-only Cotality probe found
+ * `SourceSystemKey` **null on every sampled record**, so the rename produced
+ * nothing and no RAW row ever carried a key. The cursor/merge layer operates on
+ * RAW rows, BEFORE that rename, so all 500 rows per cycle were rejected as
+ * `missing_listing_key`, both streams froze on the bootstrap epoch, and four
+ * consecutive production cycles processed zero records.
+ *
+ * The fail-closed design was correct — it froze rather than skipping records and
+ * wrote nothing. The REQUEST was wrong.
+ *
+ * `SourceSystemKey`, `ListingId`, `ResourceRecordID`, address and row position
+ * are deliberately NOT identity substitutes: the first is null feed-wide and the
+ * rest are not the provider's stable record key.
+ */
+export const PROPERTY_STREAM_REQUIRED_RAW_FIELDS = [
+  "ListingKey",
+  "ModificationTimestamp",
+  "PhotosChangeTimestamp",
+] as const;
+
+/**
+ * IDX Plus selection plus the raw fields the keyset streams require.
+ *
+ * Computed LAZILY, not at module load: evaluating an imported constant at import
+ * time makes this module fail to load entirely for any caller that partially
+ * mocks `trestle-mapper` (`IDX_PLUS_SELECT_FIELDS is not iterable`). A function
+ * keeps the contract while leaving the module import-safe.
+ */
+export function propertyStreamSelectFields(): string[] {
+  const base = Array.isArray(IDX_PLUS_SELECT_FIELDS) ? IDX_PLUS_SELECT_FIELDS : [];
+  return Array.from(new Set([...base, ...PROPERTY_STREAM_REQUIRED_RAW_FIELDS]));
+}
+
+/**
+ * Fail-closed invariant: a stream request may not be issued unless every raw
+ * field the cursor/merge layer depends on is actually in the `$select`. This is
+ * the guard that would have stopped OPS-024 before it reached production.
+ */
+export function assertStreamSelectIsComplete(select: readonly string[]): void {
+  const missing = PROPERTY_STREAM_REQUIRED_RAW_FIELDS.filter((f) => !select.includes(f));
+  if (missing.length > 0) {
+    throw new Error(
+      `[IDX Sync] refusing to issue a Property stream request: $select is missing required raw ` +
+        `field(s) ${missing.join(", ")}. The cursor/merge layer reads RAW rows before mapping, so ` +
+        `an absent field silently rejects every record (see OPS-024).`,
+    );
+  }
+}
 
 /**
  * Fixed per-stream page budget. 250 + 250 keeps the TOTAL scheduled Property
@@ -674,6 +729,9 @@ export async function syncListings(
     // Each stream is attempted INDEPENDENTLY. One stream failing must leave the
     // other free to process and advance its own contiguous settled prefix; a
     // shared await would abort the whole run and strand the healthy stream.
+    // OPS-024 guard — throws before any Cotality call if the select is incomplete.
+    const streamSelect = propertyStreamSelectFields();
+    assertStreamSelectIsComplete(streamSelect);
     const emptyPage = { records: [] as Record<string, unknown>[], totalFetched: 0 };
     streamTelemetry.mt_requests++;
     let mtRes = emptyPage;
@@ -681,6 +739,7 @@ export async function syncListings(
       mtRes = (await fetchFromTrestle({
         filter: buildStreamFilter("ModificationTimestamp", cursors.mt),
         orderby: streamOrderBy("ModificationTimestamp"),
+        select: streamSelect,
         top: MT_LIMIT,
         maxTotal: MT_LIMIT,
         expandMedia: useExpandMedia,
@@ -698,6 +757,7 @@ export async function syncListings(
       pctRes = (await fetchFromTrestle({
         filter: buildStreamFilter("PhotosChangeTimestamp", cursors.pct),
         orderby: streamOrderBy("PhotosChangeTimestamp"),
+        select: streamSelect,
         top: PCT_LIMIT,
         maxTotal: PCT_LIMIT,
         expandMedia: useExpandMedia,
@@ -1708,6 +1768,38 @@ export async function syncListings(
         advanceWatermark = true;
       }
 
+      // ── CORRECTION 3 — MONOTONIC PERSISTENCE GUARD (OPS-024 follow-up) ──
+      // A trusted stored cursor may never be replaced by a bootstrap position, an
+      // older timestamp, or a lower ListingKey at the same timestamp. Evaluated
+      // INDEPENDENTLY per stream. Bounded reason only — never a raw payload.
+      const priorTrusted = parsePropertyCursorNotes(existingNotes);
+      const movesBackward = (
+        prior: PropertyCursorState["mt"] | undefined,
+        next: typeof nextMt.cursor,
+      ): boolean => {
+        if (!prior || prior.mode !== "keyset") return false;
+        if (next.mode === "bootstrap") return true;                    // live -> bootstrap
+        const pt = Date.parse(prior.timestamp);
+        const nt = Date.parse(next.timestamp);
+        if (!Number.isFinite(pt) || !Number.isFinite(nt)) return true; // unverifiable
+        if (nt < pt) return true;                                      // older timestamp
+        if (nt === pt && next.listingKey < prior.listingKey) return true; // lower tie key
+        return false;
+      };
+      const mtRegresses = movesBackward(priorTrusted?.mt, nextMt.cursor);
+      const pctRegresses = movesBackward(priorTrusted?.pct, nextPct.cursor);
+      if (notesReadable && (mtRegresses || pctRegresses)) {
+        notesReadable = false;      // -> notes omitted, cursor payload not prepared
+        advanceWatermark = false;   // -> compatibility watermark must not move either
+        runPartial = true;
+        streamTelemetry.blocked_reasons.cursor_regression_rejected =
+          (streamTelemetry.blocked_reasons.cursor_regression_rejected ?? 0) + 1;
+        console.warn(
+          "[IDX Sync] cursor_regression_rejected: refusing to move a trusted cursor backward " +
+            `(mt=${mtRegresses} pct=${pctRegresses})`,
+        );
+      }
+
       if (notesReadable) {
         cursorNotesPrepared = true;
         streamTelemetry.cursor_notes_prepared = true;
@@ -2461,16 +2553,35 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
  * legacy / malformed. Callers must BOOTSTRAP on null — never fall through to the
  * old active-listing full sync, which would re-ingest the entire feed.
  */
-export async function readPropertyCursorState(): Promise<PropertyCursorState | null> {
+export type PropertyCursorReadResult =
+  /** Read succeeded. `state` is null for genuinely absent / legacy / malformed notes. */
+  | { ok: true; state: PropertyCursorState | null }
+  /** STORAGE failure — the cursor is UNKNOWN, not absent. */
+  | { ok: false; reason: "cursor_state_unreadable" };
+
+/**
+ * OPS-024 follow-up (Codex P1): these five states must never collapse into one
+ * `null`. Returning `null` for a transient database failure made the caller
+ * bootstrap from the pinned 30-day epoch; if the later end-of-run notes read then
+ * succeeded, the run would overwrite a LIVE cursor with that old position and
+ * force ~51 capped catch-up cycles.
+ */
+export async function readPropertyCursorState(): Promise<PropertyCursorReadResult> {
+  let notes: string | null;
   try {
     const state = await prisma.syncState.findUnique({
       where: { resource: "Property" },
       select: { notes: true },
     });
-    if (!state?.notes) return null;
-    return parsePropertyCursorNotes(JSON.parse(state.notes) as unknown);
+    notes = state?.notes ?? null;
   } catch {
-    return null; // fail closed -> bootstrap
+    return { ok: false, reason: "cursor_state_unreadable" };
+  }
+  if (!notes) return { ok: true, state: null };            // genuinely absent
+  try {
+    return { ok: true, state: parsePropertyCursorNotes(JSON.parse(notes) as unknown) };
+  } catch {
+    return { ok: true, state: null };                      // malformed -> may bootstrap
   }
 }
 

@@ -7,7 +7,7 @@
 // There is no header / query / bearer combination that reaches this function
 // over HTTP without a claim — only a direct in-process import can.
 import { syncListings, readPropertyCursorState } from "@/lib/idx/sync";
-import { bootstrapCursorState } from "@/lib/idx/property-cursor";
+import { bootstrapCursorState, type PropertyCursorState } from "@/lib/idx/property-cursor";
 import { hasCredentials } from "@/lib/idx/auth";
 import {
   createCotalityCollector,
@@ -77,7 +77,22 @@ export async function runIdxSyncMember({
     // streams — it must NOT fall through to the old active-listing full sync,
     // which would re-ingest the whole feed. Explicit forceFull stays isolated:
     // it runs the legacy full sync and never advances or overwrites the cursors.
-    const cursorState = forceFull ? null : (await readPropertyCursorState()) ?? bootstrapCursorState();
+    // OPS-024 follow-up: a STORAGE failure is not "no cursor yet". Abort before
+    // any Cotality request — zero listing/projection/media/cursor/watermark
+    // writes — rather than bootstrap over possibly-live state.
+    let cursorState: PropertyCursorState | null = null;
+    if (!forceFull) {
+      const read = await readPropertyCursorState();
+      if (!read.ok) {
+        console.warn("[IDX Sync Member] cursor state unreadable — skipping run, preserving cursor");
+        return {
+          status: 200,
+          outcome: "partial",
+          body: { skipped: true, reason: read.reason },
+        };
+      }
+      cursorState = read.state ?? bootstrapCursorState();
+    }
 
     const result = await runWithCotalityTelemetry(cotalityCollector, () =>
       syncListings({

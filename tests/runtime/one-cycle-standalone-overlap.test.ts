@@ -32,7 +32,9 @@ jest.mock("@/lib/idx/machine-claim", () => ({
 }));
 
 const syncListings = jest.fn();
-const readPropertyCursorState = jest.fn(async () => null); // absent -> bootstrap
+// OPS-024: the read now returns a discriminated result so a STORAGE failure
+// cannot masquerade as "no cursor yet". ok:true + state:null = genuinely absent.
+const readPropertyCursorState = jest.fn(async () => ({ ok: true, state: null }));
 jest.mock("@/lib/idx/sync", () => ({
   syncListings: (...a: unknown[]) => syncListings(...a),
   readPropertyCursorState: () => readPropertyCursorState(),
