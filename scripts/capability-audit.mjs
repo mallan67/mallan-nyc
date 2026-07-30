@@ -176,9 +176,22 @@ try {
   // Top-level sections from `## N.` headings, subsections from `### N.M`.
   for (const m of planTxt.matchAll(/^##\s+(\d+)\./gm)) PLAN_SECTIONS.add(m[1]);
   for (const m of planTxt.matchAll(/^#{3,4}\s+(\d+(?:\.\d+)+)/gm)) PLAN_SECTIONS.add(m[1]);
-} catch {
-  // If the plan cannot be read, do not invent violations — leave the set empty
-  // and skip the check rather than failing every capability.
+} catch (err) {
+  // A missing or unreadable canonical plan must be FATAL, not a silent skip.
+  // Leaving PLAN_SECTIONS empty made the `size > 0` guard disable every
+  // reference check, so deleting the sole normative plan made all planRef
+  // values look valid — the loudest possible failure reported as success.
+  console.error('capability:audit — CANNOT READ THE CANONICAL PLAN');
+  console.error(`  docs/architecture/MALLAN-PLATFORM-PLAN.md: ${err.message}`);
+  console.error('  planRef validation depends on it, so this is a validator error (exit 2),');
+  console.error('  not a pass. Restore the plan and re-run.');
+  process.exit(2);
+}
+if (PLAN_SECTIONS.size === 0) {
+  console.error('capability:audit — the canonical plan parsed to ZERO sections.');
+  console.error('  Either its heading format changed or the file is empty; planRef');
+  console.error('  validation would silently pass everything. Refusing to continue.');
+  process.exit(2);
 }
 
 const seenIds = new Set();
@@ -214,9 +227,30 @@ for (const cap of capabilities) {
     // slot. Every other required field is a scalar and an array there is a
     // type error, not an honest empty.
     const LIST_FIELDS = new Set(['canonicalFiles', 'tests']);
+    // Type first, then emptiness. Special-casing arrays still let `owner: {}`,
+    // `owner: 0` and `owner: false` through, because the check asked "is this an
+    // array in a scalar slot?" instead of "is this the declared shape?".
+    if (LIST_FIELDS.has(field)) {
+      if (!Array.isArray(v)) {
+        violation(
+          id,
+          'REQUIRED_FIELD_WRONG_TYPE',
+          `field \`${field}\` must be an array; got ${JSON.stringify(v)}.`,
+        );
+        continue;
+      }
+    } else if (typeof v !== 'string') {
+      violation(
+        id,
+        'REQUIRED_FIELD_WRONG_TYPE',
+        `field \`${field}\` must be a string; got ${JSON.stringify(v)} ` +
+          `(${Array.isArray(v) ? 'array' : typeof v}). A non-scalar in a scalar slot ` +
+          'passes emptiness checks while carrying no usable value.',
+      );
+      continue;
+    }
     const empty = v === null || v === undefined
-      || (typeof v === 'string' && v.trim() === '')
-      || (Array.isArray(v) && !LIST_FIELDS.has(field));
+      || (typeof v === 'string' && v.trim() === '');
     if (empty) {
       violation(
         id,
@@ -288,7 +322,7 @@ for (const cap of capabilities) {
       // Validate the WHOLE reference, not just its leading number. Checking only
       // the top level let `§6.999` pass because `6` exists — a stale or invented
       // subsection link stayed machine-approved in the sole normative plan.
-      if (PLAN_SECTIONS.size > 0 && !PLAN_SECTIONS.has(full)) {
+      if (!PLAN_SECTIONS.has(full)) {
         const top = full.split('.')[0];
         const hint = PLAN_SECTIONS.has(top)
           ? ` §${top} exists but §${full} does not.`
