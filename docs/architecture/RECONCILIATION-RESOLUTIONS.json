@@ -24,7 +24,8 @@
     "batch-5: POL (incl. POL-1.1-1.5), REB, AUD, GATE, HYG, DOC, OPS",
     "batch-6: AGT, BUS, ARC, TRN, VER, ERR, CMA, MKT, INT, PH",
     "Stage F2: PR #585 plan (141) + governance files (30)",
-    "Stage F3: PR #579 plan (135) + registries (24) + machinery (6)"
+    "Stage F3: PR #579 plan (135) + registries (24) + machinery (6)",
+    "Stage G: OPS-026 confirmed and added; conflict record and identifier-retirement map"
   ],
   "_verification_baseline": "code_verified rows were checked against worktree commit 04db1b99 (safe main), read-only",
   "BIZ-0": {
@@ -1335,31 +1336,30 @@
   "_flagged_conflicts": [
     {
       "id": "CONFLICT-POL-GATE34-PORTAL",
-      "status": "OPEN — requires Maya's decision. NOT resolved by this reconciliation.",
-      "raised_by": "Stage F1 batch 5, while transferring POL-1.1",
-      "the_conflict": "POL-1.1 states that display gates 3 (InternetEntireListingDisplayYN) and 4 (InternetAddressDisplayYN) treat NULL AS DISPLAYABLE — block only on explicit false, and do NOT require affirmation. POL-1.3 records that applying affirmation logic to InternetEntireListingDisplayYN on 2026-04-30 suppressed 7,594 rows that should have been displayable. The current code applies affirmation to both fields.",
-      "facts_verified_read_only_at_04db1b99": [
-        "lib/compliance/gates.ts:71 affirmPermission() returns coerceStrictBool(), which returns true ONLY for explicit true/\"true\"/\"TRUE\"; null, undefined and missing all return false (deny).",
-        "lib/compliance/gates.ts docblock explicitly lists InternetEntireListingDisplayYN and InternetAddressDisplayYN under \"Use this for\".",
-        "lib/compliance/dto.ts:364, inside sanitizeListingForPortal (defined line 338), applies !affirmPermission(listing.internet_entire_listing_display_yn) and returns null. Its comment reads: \"Gate 3 — Internet display (fail-CLOSED). Was `=== false`; null/undefined now also blocks display.\"",
-        "lib/compliance/dto.ts:185, inside sanitizeForPortal (defined line 275), applies affirmPermission to InternetAddressDisplayYN. Its comment reads: \"Was `=== false` which only suppressed when explicitly false; null/undefined/missing passed through as displayable. Now uses canonical affirmPermission ... which treats ANY non-true value (including null, undefined, missing) as non-displayable.\"",
-        "Both comments show the tightening was DELIBERATE, not accidental.",
-        "lib/idx/db-to-public-dto.ts:279 applies affirmPermission to the already-computed aggregate idx_display_yn. That is a genuine boolean, so affirming it is correct and is NOT the raw-field affirmation POL-1.1 forbids.",
-        "The canonical incident record memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md is present in the repository."
+      "ledger_disposition": "deferred_with_gate",
+      "ledger_vs_policy": "Ledger-resolved, POLICY-UNRESOLVED. The row is accounted for; the product and compliance decision is not made.",
+      "status": "OPEN — requires authoritative verification plus Maya approval. NOT decided by this reconciliation.",
+      "raised_by": "Stage F1 batch 5, while transferring POL-1.1; restated to the required shape in Stage G",
+      "current_code_behavior": "null -> DENY",
+      "recovered_plan_behavior": "null -> DISPLAYABLE for gates 3 and 4",
+      "affected_scope": "Portal DTO / read paths only, based on current evidence. Both affirming call sites are portal read paths — dto.ts:364 inside sanitizeListingForPortal (defined line 338) and dto.ts:185 inside sanitizeForPortal (defined line 275). The sync WRITE path that computes idx_display_yn was NOT shown to affirm the raw gate-3 field, and db-to-public-dto.ts:279 affirms the already-computed idx_display_yn aggregate, which is a genuine boolean and is correct.",
+      "not_currently_proven": "Whether the recovered rule is correct under the governing provider and compliance contract. Also unproven: whether the write path affirms the raw gate-3 field; whether internet_entire_listing_display_yn is null for a material number of production rows; and whether the regression test POL-1.3 requires exists — no such test was located, which per HYG-1 and GATE-5 is 'not found in the searched paths', NOT 'does not exist'. memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md was confirmed present but not re-read in this session.",
+      "temporary_operational_rule": "PRESERVE CURRENT DEPLOYED CODE BEHAVIOUR. Make no code change. The deployed behaviour is the stricter one (deny on null), so preserving it cannot cause an over-disclosure; the risk it carries is under-display, which is recoverable, whereas changing it on an unverified reading is not.",
+      "decision_gate": "Authoritative REBNY / Cotality / compliance-source verification, plus Maya approval. REB-3 and CLAUDE.md §E both require stopping and reporting rather than selecting a reading.",
+      "supporting_facts_verified_read_only_at_04db1b99": [
+        "lib/compliance/gates.ts:71 affirmPermission() wraps coerceStrictBool(), true ONLY for explicit true/\"true\"/\"TRUE\"; null, undefined and missing all return false (deny).",
+        "lib/compliance/gates.ts docblock lists InternetEntireListingDisplayYN and InternetAddressDisplayYN explicitly under \"Use this for\".",
+        "lib/compliance/dto.ts:364 comment: \"Gate 3 — Internet display (fail-CLOSED). Was `=== false`; null/undefined now also blocks display.\" — the tightening was deliberate.",
+        "lib/compliance/dto.ts:185 comment records the same deliberate change for gate 4.",
+        "memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md is present in the repository."
       ],
-      "why_this_is_not_asserted_to_be_a_live_defect": "Both affirming call sites are PORTAL DTO READ paths (sanitizeForPortal / sanitizeListingForPortal), not the sync WRITE path that computes idx_display_yn. The 2026-04-30 incident was a write-path suppression of 7,594 rows. A portal read path being stricter is a different surface with a different risk profile, and this reconciliation did NOT establish which behaviour is correct for the portal. Claiming a live production defect here would be exactly the extrapolation REB-3 and CLAUDE.md §E forbid.",
-      "what_was_not_verified": [
-        "Whether the sync write path that computes idx_display_yn applies affirmation to the RAW gate-3 field.",
-        "Whether internet_entire_listing_display_yn is in fact null for a material number of production rows.",
-        "Whether a regression test exists that FAILS when affirmation logic is reintroduced on gate 3 or 4 — POL-1.3 requires one; no such test was located, and per HYG-1 and GATE-5 that is 'not found in the searched paths', NOT 'does not exist'.",
-        "The contents of memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md were not re-read in this session."
-      ],
-      "decision_required_from_maya": "Either (a) POL-1.1 is correct and the portal paths must be relaxed to block only on explicit false, or (b) the portal surface is deliberately stricter than the IDX display gate, in which case POL-1.1 must be amended to say so explicitly and name the portal exception. Leaving both statements standing is the condition REB-3 and CLAUDE.md §E require us to stop and report rather than silently pick one.",
+      "canonical_plan_obligation": "The canonical plan MUST NOT state either null behaviour as universally correct. It must describe: (1) current behaviour, (2) the conflicting proposed behaviour, (3) scope, (4) required evidence, (5) decision owner, (6) the prohibition on implementation until resolved.",
       "actions_deliberately_not_taken": [
         "No code was changed.",
         "No test was added or removed.",
         "No production database query was run.",
-        "No claim was made that production is currently non-compliant."
+        "No claim was made that production is currently non-compliant.",
+        "Neither the recovered plan nor the current code was selected as the permanent target."
       ]
     }
   ],
@@ -5500,6 +5500,75 @@
     "reason_or_evidence": "DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Second evidence file, distinguished from the first only by its -e57 suffix. NOTE: these two filenames collapsed to the same slug in an earlier revision of the ledger generator and were silently deduplicated to one row; the generator now uses the full path so each artefact keeps its own row. Dated evidence per C-7.",
     "dependency": "GATE-8, HYG-8, C-5, OPS-2",
     "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "OPS-026": {
+    "canonical_destination": "§6 Search architecture · §1 Current verified system baseline",
+    "disposition": "retained",
+    "reason_or_evidence": "CONFIRMED BY DIRECT CODE READ at 04db1b99 (safe main), read-only. Public listing pagination occurs BEFORE final display and matched-pair filtering, and the reported total never accounts for either. DB branch order in app/api/listings/route.ts: pagination is applied inside the query (skip: dbSkip, take: dbTake, lines 336-337); the total comes from prisma.listing.count({where: dbWhere}) on the SAME where clause with no display or suppression filtering (line 415); filterDisplayableDbListings then runs on the already-cut page (line 434); preferCrmExclusiveOverIdxDuplicate runs after it (line 441); applyPublicListingPostFilters and an optional open-house filter narrow the page further still. NO REFILL AND NO RECOMPUTATION EXISTS: dbTotal is referenced in exactly three places (lines 332, 590, 593) and flows unmodified into total: dbTotal (590) and hasMore: skip + limit < dbTotal (593), while the actually returned count: annotatedListings.length (589) is computed after all filtering. DECISIVE ASYMMETRY: the live-Cotality fallback branch is ordered the OPPOSITE way and is correct — it filters first, derives totalCount from filtered.length (or odataCount), and only then slices (pageListings = filtered.slice(skip, skip + limit), line 940). The two runtimes therefore disagree on pagination semantics, which is SEA-6's determinism guarantee broken across branches and a concrete instance of AUDIT-SEARCH-DUAL-RUNTIME. NOT PROVEN: no production probe was run, so no claim is made about how many production queries currently span a matched pair across a page boundary, nor about observed user impact. NO TEST asserting total against the displayable count was found in lib/search/__tests__/ or tests/runtime/ — per GATE-5 that is 'not found in the searched paths', NOT 'does not exist'. NO CORRECTION IS INCLUDED IN THIS PLANNING BRANCH; no application code was changed.",
+    "dependency": "SEA-6, SEA-7, SEA-10 criterion 3, LST-1, LST-7, AUDIT-SEARCH-DUAL-RUNTIME",
+    "maturity": "decided",
+    "implementation_status": "not_started",
+    "verification_status": "code_verified"
+  },
+  "_identifier_retirement_map": {
+    "_rule": "DOC-8 is normative: a withdrawn or reassigned requirement KEEPS its identifier, marked RETIRED, with the reason and replacement recorded. An identifier is NEVER reassigned to a different requirement without an entry here. No existing identifier may be reused without this mapping.",
+    "_cause": "The recovered line moved REBNY responsibility out of the BUS family into its own family as REB-1 and shifted BUS-5/6/7 down by one. No requirement was lost, but three identifiers now denote different requirements than they did on the PR #585 line — exactly what DOC-8 forbids doing silently.",
+    "entries": [
+      {
+        "old_identifier": "BUS-5",
+        "old_meaning": "REBNY responsibility",
+        "new_canonical_identifier": "REB-1",
+        "new_meaning": "REBNY responsibility",
+        "retirement_reason": "Content moved out of the BUS family into the dedicated REB family. BUS-5 now denotes 'Mallan responsibility'.",
+        "source_commit": "f51848b0 (old) -> 6e8ea2d9 (new)",
+        "replacement_destination": "§2 Product and business platform -> REB-1"
+      },
+      {
+        "old_identifier": "BUS-6",
+        "old_meaning": "Mallan responsibility",
+        "new_canonical_identifier": "BUS-5",
+        "new_meaning": "Mallan responsibility",
+        "retirement_reason": "Downshifted by one when REBNY responsibility left the BUS family.",
+        "source_commit": "f51848b0 (old) -> 6e8ea2d9 (new)",
+        "replacement_destination": "§2 Product and business platform -> BUS-5"
+      },
+      {
+        "old_identifier": "BUS-7",
+        "old_meaning": "Repository boundary",
+        "new_canonical_identifier": "BUS-6",
+        "new_meaning": "Repository boundary",
+        "retirement_reason": "Downshifted by one. NOTE: the identifier BUS-7 was then REUSED on the recovered line for genuinely new content ('No dependency on external listing-entry products') that has no PR #585 counterpart — so BUS-7 is both retired-as-old-meaning and live-as-new-meaning, and this entry is what disambiguates them.",
+        "source_commit": "f51848b0 (old) -> 6e8ea2d9 (new)",
+        "replacement_destination": "§2 Product and business platform -> BUS-6"
+      },
+      {
+        "old_identifier": "ARC-1",
+        "old_meaning": "No client-side MLS calls",
+        "new_canonical_identifier": "ARC-1",
+        "new_meaning": "No client-side provider calls",
+        "retirement_reason": "NOT a reassignment — same requirement, corrected wording. Recorded here so the wording change is traceable and is not mistaken for a reassignment. The constraint binds the Cotality/Trestle provider adapter, not 'MLS' as a category.",
+        "source_commit": "f51848b0 (old) -> 6e8ea2d9 (new)",
+        "replacement_destination": "§4 Provider contract architecture -> ARC-1"
+      },
+      {
+        "old_identifier": "POL-1",
+        "old_meaning": "Compliance fails closed",
+        "new_canonical_identifier": "POL-1",
+        "new_meaning": "Compliance fails closed, except where the feed is pre-filtered",
+        "retirement_reason": "NOT a reassignment — same identifier, SUPERSEDED statement. The unqualified form is the uniform reading that produced the 2026-04-30 incident (7,594 rows suppressed). The qualified form plus POL-1.1..POL-1.5 supersedes it ABSOLUTELY. Recorded so that any artefact citing the PR #585-era POL-1 is known to cite the superseded statement.",
+        "source_commit": "f51848b0 (superseded) -> 6e8ea2d9 (current)",
+        "replacement_destination": "§13 Compliance and policy versioning -> POL-1, POL-1.1..POL-1.5"
+      }
+    ]
+  },
+  "CONFLICT-POL-GATE34-PORTAL": {
+    "canonical_destination": "§11 CRM and portals · §13 Compliance and policy versioning",
+    "disposition": "deferred_with_gate",
+    "reason_or_evidence": "LEDGER-RESOLVED, POLICY-UNRESOLVED. Current code: null -> DENY (lib/compliance/gates.ts:71 affirmPermission wraps coerceStrictBool; null/undefined/missing all deny). Recovered plan POL-1.1: null -> DISPLAYABLE for gates 3 and 4, block only on explicit false. Affected scope on current evidence is PORTAL DTO/READ PATHS ONLY — dto.ts:364 in sanitizeListingForPortal and dto.ts:185 in sanitizeForPortal; the sync WRITE path was not shown to affirm the raw gate-3 field, and db-to-public-dto.ts:279 affirms the already-computed idx_display_yn aggregate, which is a genuine boolean and correct. NOT PROVEN: whether the recovered rule is correct under the governing provider/compliance contract. TEMPORARY OPERATIONAL RULE: preserve current deployed code behaviour, make no code change — the deployed behaviour is the stricter one, so preserving it cannot cause over-disclosure. DECISION GATE: authoritative REBNY/Cotality/compliance-source verification plus Maya approval. Neither the recovered plan nor the current code has been selected as the permanent target. Full record in the ledger's flagged-conflicts section.",
+    "dependency": "POL-1, POL-1.1, POL-1.3, REB-3, CLAUDE.md §E; Maya approval",
+    "maturity": "open",
     "implementation_status": "not_started",
     "verification_status": "code_verified"
   }

@@ -1,6 +1,6 @@
 # Mallan platform — reconciliation ledger
 
-> **Complete inventory: 605 rows. Resolved so far: 605. Still unresolved: 0.**
+> **Complete inventory: 607 rows. Resolved so far: 607. Still unresolved: 0.**
 >
 > A row is `unresolved` until it appears in `RECONCILIATION-RESOLUTIONS.json`.
 > **Silence is never read as a decision** — an unresolved row means no
@@ -13,7 +13,7 @@
 > Rows marked `source_read` are policy statements with nothing in code to verify.
 
 
-**Total inventoried requirements: 605**
+**Total inventoried requirements: 607**
 
 
 ## Resolution progress
@@ -21,14 +21,14 @@
 | disposition | rows |
 |---|---:|
 | `combined` | 298 |
-| `retained` | 292 |
+| `retained` | 293 |
+| `deferred_with_gate` | 7 |
 | `corrected` | 6 |
-| `deferred_with_gate` | 6 |
 | `historical_only` | 3 |
 
 | implementation status | rows |
 |---|---:|
-| `not_started` | 519 |
+| `not_started` | 521 |
 | `partially_implemented` | 71 |
 | `production_proven` | 13 |
 | `schema_only` | 2 |
@@ -36,7 +36,7 @@
 | verification status | rows |
 |---|---:|
 | `source_read` | 340 |
-| `code_verified` | 263 |
+| `code_verified` | 265 |
 | `inventory_only` | 2 |
 
 ## Totals by source
@@ -56,7 +56,8 @@
 | `deep-audit` | 12 |
 | `recovered-plan` | 248 |
 | `safe-main` | 9 |
-| **TOTAL** | **605** |
+| `stage-G-finding` | 2 |
+| **TOTAL** | **607** |
 
 ## Totals by requirement family
 
@@ -71,10 +72,10 @@
 | `PER` | 12 |
 | `TXN` | 12 |
 | `CAP` | 11 |
+| `OPS` | 11 |
 | `POL` | 11 |
 | `CMA` | 10 |
 | `IAM` | 10 |
-| `OPS` | 10 |
 | `SEA` | 10 |
 | `ARC` | 9 |
 | `C` | 9 |
@@ -97,6 +98,7 @@
 | `AUD` | 5 |
 | `SEL` | 5 |
 | `REB` | 3 |
+| `CONFLICT` | 1 |
 | `NYC` | 1 |
 | `P0` | 1 |
 | `P1` | 1 |
@@ -718,6 +720,8 @@
 | P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD | PR#579-machinery | 7c15b1d5 | docs/evidence/capability-evidence-2026-07-27-e57.md | Machine-governance / evidence artefact: docs/evidence/capability-evidence-2026-07-27-e57.md | Machine governance - docs/evidence/capability-evidence-2026-07-27-e57.md | historical_only | DECIDED ONCE, HERE. The machine-governance question is live on BOTH unmerged lines - config/capabilities.mjs, scripts/capability-audit.mjs and the package.json entry appear on the recovered line as well as on PR #579 - so it must be settled in the ledger rather than twice in two branches. Second evidence file, distinguished from the first only by its -e57 suffix. NOTE: these two filenames collapsed to the same slug in an earlier revision of the ledger generator and were silently deduplicated to one row; the generator now uses the full path so each artefact keeps its own row. Dated evidence per C-7. | GATE-8, HYG-8, C-5, OPS-2 | decided | not_started | code_verified |
 | OPS-024 | safe-main | 04db1b99 | docs/PLATFORM-ISSUE-REGISTRY.md | Phase 1A froze Property ingestion for 4 cycles; rollback + main revert; corrected code unmerged | §Operations — incident register | retained | Production incident 2026-07-29 (PR #587): the two keyset Property streams shipped using the default IDX_PLUS_SELECT_FIELDS, which requests SourceSystemKey — renamed to ListingKey by mapTrestleToPrisma AFTER the fetch — and not ListingKey itself. SourceSystemKey is null feed-wide, the cursor/merge layer reads RAW rows before that rename, so every row was rejected missing_listing_key, both streams froze on the bootstrap epoch and four consecutive cycles processed zero records. Recovered by rollback plus revert of main. Must survive reconciliation intact: both planning lines predate it and neither may overwrite it. It is also the empirical proof of COT-6. | COT-6; safe main 04db1b99 | decided | not_started | code_verified |
 | OPS-025 | safe-main | 04db1b99 | docs/PLATFORM-ISSUE-REGISTRY.md | mls_id IS NULL on 22,809/23,980 IDX listings (95.1%) — pre-existing, not in scope | §Operations — incident register | retained | mls_id IS NULL on 22,809 of 23,980 IDX listings (95.1%) — pre-existing and explicitly NOT in the Phase 1A scope. Carried into the canonical plan as a known open condition rather than silently folded into provider-identity work, so that a later agent does not mistake it for regression caused by this reconciliation. | provider-identity family | decided | not_started | code_verified |
+| OPS-026 | stage-G-finding | 04db1b99 | app/api/listings/route.ts | Public listing pagination occurs before final display and matched-pair filtering | §6 Search architecture · §1 Current verified system baseline | retained | CONFIRMED BY DIRECT CODE READ at 04db1b99 (safe main), read-only. Public listing pagination occurs BEFORE final display and matched-pair filtering, and the reported total never accounts for either. DB branch order in app/api/listings/route.ts: pagination is applied inside the query (skip: dbSkip, take: dbTake, lines 336-337); the total comes from prisma.listing.count({where: dbWhere}) on the SAME where clause with no display or suppression filtering (line 415); filterDisplayableDbListings then runs on the already-cut page (line 434); preferCrmExclusiveOverIdxDuplicate runs after it (line 441); applyPublicListingPostFilters and an optional open-house filter narrow the page further still. NO REFILL AND NO RECOMPUTATION EXISTS: dbTotal is referenced in exactly three places (lines 332, 590, 593) and flows unmodified into total: dbTotal (590) and hasMore: skip + limit < dbTotal (593), while the actually returned count: annotatedListings.length (589) is computed after all filtering. DECISIVE ASYMMETRY: the live-Cotality fallback branch is ordered the OPPOSITE way and is correct — it filters first, derives totalCount from filtered.length (or odataCount), and only then slices (pageListings = filtered.slice(skip, skip + limit), line 940). The two runtimes therefore disagree on pagination semantics, which is SEA-6's determinism guarantee broken across branches and a concrete instance of AUDIT-SEARCH-DUAL-RUNTIME. NOT PROVEN: no production probe was run, so no claim is made about how many production queries currently span a matched pair across a page boundary, nor about observed user impact. NO TEST asserting total against the displayable count was found in lib/search/__tests__/ or tests/runtime/ — per GATE-5 that is 'not found in the searched paths', NOT 'does not exist'. NO CORRECTION IS INCLUDED IN THIS PLANNING BRANCH; no application code was changed. | SEA-6, SEA-7, SEA-10 criterion 3, LST-1, LST-7, AUDIT-SEARCH-DUAL-RUNTIME | decided | not_started | code_verified |
+| CONFLICT-POL-GATE34-PORTAL | stage-G-finding | 04db1b99 | lib/compliance/gates.ts + lib/compliance/dto.ts | Portal gate 3/4 null semantics: current code denies on null, recovered plan says displayable | §11 CRM and portals · §13 Compliance and policy versioning | deferred_with_gate | LEDGER-RESOLVED, POLICY-UNRESOLVED. Current code: null -> DENY (lib/compliance/gates.ts:71 affirmPermission wraps coerceStrictBool; null/undefined/missing all deny). Recovered plan POL-1.1: null -> DISPLAYABLE for gates 3 and 4, block only on explicit false. Affected scope on current evidence is PORTAL DTO/READ PATHS ONLY — dto.ts:364 in sanitizeListingForPortal and dto.ts:185 in sanitizeForPortal; the sync WRITE path was not shown to affirm the raw gate-3 field, and db-to-public-dto.ts:279 affirms the already-computed idx_display_yn aggregate, which is a genuine boolean and correct. NOT PROVEN: whether the recovered rule is correct under the governing provider/compliance contract. TEMPORARY OPERATIONAL RULE: preserve current deployed code behaviour, make no code change — the deployed behaviour is the stricter one, so preserving it cannot cause over-disclosure. DECISION GATE: authoritative REBNY/Cotality/compliance-source verification plus Maya approval. Neither the recovered plan nor the current code has been selected as the permanent target. Full record in the ledger's flagged-conflicts section. | POL-1, POL-1.1, POL-1.3, REB-3, CLAUDE.md §E; Maya approval | open | not_started | code_verified |
 | MAIN-SCHEDULES-001 | safe-main | 04db1b99 | vercel.json | Active cron schedules including one-cycle every 10 minutes | §Operations — schedules | retained | Active cron schedules in vercel.json, including a one-cycle-every-10-minutes ingestion cadence. Carried forward as current operational truth from safe main 04db1b99. Cron configuration is a standing Maya-approval hold and no manual trigger was performed; this row records the schedules, it does not propose changing them. | cron-config hold | decided | production_proven | inventory_only |
 | MAIN-GOVERNANCE-001 | safe-main | 04db1b99 | AGENTS.md / CLAUDE.md | Cross-agent constitution and Claude-specific depth | §Governance — cross-agent constitution | retained | AGENTS.md is the cross-agent constitution for Claude, Codex and ChatGPT; CLAUDE.md is the Claude-specific depth, and the two are required to stay in sync. Both planning lines propose their own entry-point documents, so this row is the constraint that the reconciliation must not produce a THIRD competing constitution. | PR#585 governance files; PR#579 governance files | decided | production_proven | source_read |
 | MAIN-GOVERNANCE-002 | safe-main | 04db1b99 | docs/PROJECT-HEALTH-DASHBOARD.md | Current operational status tier | §Governance — health dashboard | retained | docs/PROJECT-HEALTH-DASHBOARD.md carries current operational status, with an auto tier refreshed by `npm run health:probe` (read-only) before every handoff. Its auto tier is generated, which is the pattern AUDIT-GOVERNANCE-DRIFT concludes the canonical plan should follow for its own counts. | AUDIT-GOVERNANCE-DRIFT | decided | production_proven | source_read |
@@ -738,6 +742,22 @@
 | AUDIT-IDX-GOD-MODULE | deep-audit | 2026-07-30 | system audit | lib/idx/sync.ts concentrates fetch, map, persist, media, cache, cursor concerns | §Architecture — IDX module decomposition | retained | CODE-VERIFIED WITH MEASUREMENTS: lib/idx/sync.ts is 2,419 lines and lib/idx/media-sync.ts is 4,002 lines — 6,421 lines across two modules concentrating fetch, map, persist, media, cache and cursor concerns. This concentration is why OPS-024 was possible: the select list, the mapper rename and the raw-row cursor read all live close enough together to look consistent while being contract-incompatible. Decomposition is a design requirement, not a tidiness preference. | AUDIT-PROVIDER-BOUNDARY, OPS-024 | decided | not_started | code_verified |
 | AUDIT-GOVERNANCE-DRIFT | deep-audit | 2026-07-30 | system audit | Governance documents carry stale operational statements | §Governance — keeping documents true | retained | Governance documents carry stale operational statements. DEMONSTRATED WITHIN THIS RECONCILIATION: the ancestry document committed at f1984477 asserted '247 identifiers across 33 families' and '12 capability entries', both of which were wrong (243 across 29; 12 programs + 11 capabilities + 1 nested obligation) and both corrected at 209543b4. A governance document is not self-verifying, so the canonical plan must carry its counts as generated output rather than as prose assertions. | MAIN-GOVERNANCE-001..006 | decided | partially_implemented | code_verified |
 
+## Identifier retirement map
+
+> DOC-8 is normative: a withdrawn or reassigned requirement KEEPS its identifier, marked RETIRED, with the reason and replacement recorded. An identifier is NEVER reassigned to a different requirement without an entry here. No existing identifier may be reused without this mapping.
+
+
+The recovered line moved REBNY responsibility out of the BUS family into its own family as REB-1 and shifted BUS-5/6/7 down by one. No requirement was lost, but three identifiers now denote different requirements than they did on the PR #585 line — exactly what DOC-8 forbids doing silently.
+
+
+| old id | old meaning | new canonical id | new meaning | reason | source commit | destination |
+|---|---|---|---|---|---|---|
+| `BUS-5` | REBNY responsibility | `REB-1` | REBNY responsibility | Content moved out of the BUS family into the dedicated REB family. BUS-5 now denotes 'Mallan responsibility'. | `f51848b0 (old) -> 6e8ea2d9 (new)` | §2 Product and business platform -> REB-1 |
+| `BUS-6` | Mallan responsibility | `BUS-5` | Mallan responsibility | Downshifted by one when REBNY responsibility left the BUS family. | `f51848b0 (old) -> 6e8ea2d9 (new)` | §2 Product and business platform -> BUS-5 |
+| `BUS-7` | Repository boundary | `BUS-6` | Repository boundary | Downshifted by one. NOTE: the identifier BUS-7 was then REUSED on the recovered line for genuinely new content ('No dependency on external listing-entry products') that has no PR #585 counterpart — so BUS-7 is both retired-as-old-meaning and live-as-new-meaning, and this entry is what disambiguates them. | `f51848b0 (old) -> 6e8ea2d9 (new)` | §2 Product and business platform -> BUS-6 |
+| `ARC-1` | No client-side MLS calls | `ARC-1` | No client-side provider calls | NOT a reassignment — same requirement, corrected wording. Recorded here so the wording change is traceable and is not mistaken for a reassignment. The constraint binds the Cotality/Trestle provider adapter, not 'MLS' as a category. | `f51848b0 (old) -> 6e8ea2d9 (new)` | §4 Provider contract architecture -> ARC-1 |
+| `POL-1` | Compliance fails closed | `POL-1` | Compliance fails closed, except where the feed is pre-filtered | NOT a reassignment — same identifier, SUPERSEDED statement. The unqualified form is the uniform reading that produced the 2026-04-30 incident (7,594 rows suppressed). The qualified form plus POL-1.1..POL-1.5 supersedes it ABSOLUTELY. Recorded so that any artefact citing the PR #585-era POL-1 is known to cite the superseded statement. | `f51848b0 (superseded) -> 6e8ea2d9 (current)` | §13 Compliance and policy versioning -> POL-1, POL-1.1..POL-1.5 |
+
 ## Flagged conflicts — OPEN, requiring Maya's decision (1)
 
 > These are conflicts this reconciliation **deliberately did not resolve**.
@@ -747,34 +767,30 @@
 
 ### CONFLICT-POL-GATE34-PORTAL
 
-**Status:** OPEN — requires Maya's decision. NOT resolved by this reconciliation.  
-**Raised by:** Stage F1 batch 5, while transferring POL-1.1
+**Ledger disposition:** `deferred_with_gate` — Ledger-resolved, POLICY-UNRESOLVED. The row is accounted for; the product and compliance decision is not made.  
+
+**Status:** OPEN — requires authoritative verification plus Maya approval. NOT decided by this reconciliation.  
+**Raised by:** Stage F1 batch 5, while transferring POL-1.1; restated to the required shape in Stage G
 
 
-**The conflict.** POL-1.1 states that display gates 3 (InternetEntireListingDisplayYN) and 4 (InternetAddressDisplayYN) treat NULL AS DISPLAYABLE — block only on explicit false, and do NOT require affirmation. POL-1.3 records that applying affirmation logic to InternetEntireListingDisplayYN on 2026-04-30 suppressed 7,594 rows that should have been displayable. The current code applies affirmation to both fields.
+| aspect | statement |
+|---|---|
+| **current code behavior** | null -> DENY |
+| **recovered-plan behavior** | null -> DISPLAYABLE for gates 3 and 4 |
+| **affected scope** | Portal DTO / read paths only, based on current evidence. Both affirming call sites are portal read paths — dto.ts:364 inside sanitizeListingForPortal (defined line 338) and dto.ts:185 inside sanitizeForPortal (defined line 275). The sync WRITE path that computes idx_display_yn was NOT shown to affirm the raw gate-3 field, and db-to-public-dto.ts:279 affirms the already-computed idx_display_yn aggregate, which is a genuine boolean and is correct. |
+| **not currently proven** | Whether the recovered rule is correct under the governing provider and compliance contract. Also unproven: whether the write path affirms the raw gate-3 field; whether internet_entire_listing_display_yn is null for a material number of production rows; and whether the regression test POL-1.3 requires exists — no such test was located, which per HYG-1 and GATE-5 is 'not found in the searched paths', NOT 'does not exist'. memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md was confirmed present but not re-read in this session. |
+| **temporary operational rule** | PRESERVE CURRENT DEPLOYED CODE BEHAVIOUR. Make no code change. The deployed behaviour is the stricter one (deny on null), so preserving it cannot cause an over-disclosure; the risk it carries is under-display, which is recoverable, whereas changing it on an unverified reading is not. |
+| **decision gate** | Authoritative REBNY / Cotality / compliance-source verification, plus Maya approval. REB-3 and CLAUDE.md §E both require stopping and reporting rather than selecting a reading. |
 
+**Supporting facts verified (read-only, at `04db1b99`):**
 
-**Facts verified (read-only, at `04db1b99`):**
+- lib/compliance/gates.ts:71 affirmPermission() wraps coerceStrictBool(), true ONLY for explicit true/"true"/"TRUE"; null, undefined and missing all return false (deny).
+- lib/compliance/gates.ts docblock lists InternetEntireListingDisplayYN and InternetAddressDisplayYN explicitly under "Use this for".
+- lib/compliance/dto.ts:364 comment: "Gate 3 — Internet display (fail-CLOSED). Was `=== false`; null/undefined now also blocks display." — the tightening was deliberate.
+- lib/compliance/dto.ts:185 comment records the same deliberate change for gate 4.
+- memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md is present in the repository.
 
-- lib/compliance/gates.ts:71 affirmPermission() returns coerceStrictBool(), which returns true ONLY for explicit true/"true"/"TRUE"; null, undefined and missing all return false (deny).
-- lib/compliance/gates.ts docblock explicitly lists InternetEntireListingDisplayYN and InternetAddressDisplayYN under "Use this for".
-- lib/compliance/dto.ts:364, inside sanitizeListingForPortal (defined line 338), applies !affirmPermission(listing.internet_entire_listing_display_yn) and returns null. Its comment reads: "Gate 3 — Internet display (fail-CLOSED). Was `=== false`; null/undefined now also blocks display."
-- lib/compliance/dto.ts:185, inside sanitizeForPortal (defined line 275), applies affirmPermission to InternetAddressDisplayYN. Its comment reads: "Was `=== false` which only suppressed when explicitly false; null/undefined/missing passed through as displayable. Now uses canonical affirmPermission ... which treats ANY non-true value (including null, undefined, missing) as non-displayable."
-- Both comments show the tightening was DELIBERATE, not accidental.
-- lib/idx/db-to-public-dto.ts:279 applies affirmPermission to the already-computed aggregate idx_display_yn. That is a genuine boolean, so affirming it is correct and is NOT the raw-field affirmation POL-1.1 forbids.
-- The canonical incident record memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md is present in the repository.
-
-**Why this is NOT asserted to be a live defect.** Both affirming call sites are PORTAL DTO READ paths (sanitizeForPortal / sanitizeListingForPortal), not the sync WRITE path that computes idx_display_yn. The 2026-04-30 incident was a write-path suppression of 7,594 rows. A portal read path being stricter is a different surface with a different risk profile, and this reconciliation did NOT establish which behaviour is correct for the portal. Claiming a live production defect here would be exactly the extrapolation REB-3 and CLAUDE.md §E forbid.
-
-
-**What was NOT verified:**
-
-- Whether the sync write path that computes idx_display_yn applies affirmation to the RAW gate-3 field.
-- Whether internet_entire_listing_display_yn is in fact null for a material number of production rows.
-- Whether a regression test exists that FAILS when affirmation logic is reintroduced on gate 3 or 4 — POL-1.3 requires one; no such test was located, and per HYG-1 and GATE-5 that is 'not found in the searched paths', NOT 'does not exist'.
-- The contents of memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md were not re-read in this session.
-
-**Decision required from Maya.** Either (a) POL-1.1 is correct and the portal paths must be relaxed to block only on explicit false, or (b) the portal surface is deliberately stricter than the IDX display gate, in which case POL-1.1 must be amended to say so explicitly and name the portal exception. Leaving both statements standing is the condition REB-3 and CLAUDE.md §E require us to stop and report rather than silently pick one.
+**Obligation on the canonical plan.** The canonical plan MUST NOT state either null behaviour as universally correct. It must describe: (1) current behaviour, (2) the conflicting proposed behaviour, (3) scope, (4) required evidence, (5) decision owner, (6) the prohibition on implementation until resolved.
 
 
 **Actions deliberately not taken:**
@@ -783,6 +799,7 @@
 - No test was added or removed.
 - No production database query was run.
 - No claim was made that production is currently non-compliant.
+- Neither the recovered plan nor the current code was selected as the permanent target.
 
 ## Excluded sections (12)
 
