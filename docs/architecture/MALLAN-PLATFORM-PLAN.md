@@ -14,8 +14,8 @@ either unmerged planning line. It was built from the
 605 present / 0 missing / 0 regressed.
 
 > **A `deferred_with_gate` row is accounted for in the ledger. It is *not* a
-> settled product or policy decision.** **8** rows are deferred:
-> `BIZ-4`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `PER-1`, `PER-4`.
+> settled product or policy decision.** **38** rows are deferred:
+> `BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `NYC-DCWP-AI-MEDIA-DISCLOSURE`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD`, `P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD`, `P579-FILE-PACKAGE-JSON`, `P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
 > This plan records what is decided, what is deferred, and what is contested,
 > and never presents the second or third as the first.
 <!-- /GENERATED:LEDGER-TOTALS -->
@@ -946,6 +946,29 @@ discovered → designed → schema_only → implemented → integrated
 → limited_release → production_proven → retiring → retired
 ```
 
+> **MACHINE ENFORCEMENT IS DEFERRED — this section defines the concepts only.**
+> The capability registry (`config/capabilities.mjs`) and the validator
+> (`scripts/capability-audit.mjs`) were **removed from the reconciliation PR on
+> 2026-07-30** and carried to a separate governance-tooling workstream. Eight
+> consecutive review rounds left the canonical-plan reconciliation stable while
+> nearly every new finding came from that validator, which is the signal that it
+> needs its own contract and test work rather than more incremental hardening
+> inside a documentation PR.
+>
+> Nothing is lost: the requirements stay in the ledger as `deferred_with_gate`,
+> and the implementation is preserved on PR #579 and in git history. **Production
+> impact is none** — nothing in `app/` or `lib/` imported either file, and no
+> route, job or cron invoked them.
+>
+> **Required before any future merge of machine enforcement:** an explicit
+> vocabulary decision (below) · a declared registry data schema · focused
+> automated tests · clean-checkout behaviour · evidence-field type validation ·
+> artifact validation (a regular file, not a directory) · retirement-evidence
+> validation · independent review. Contract first, implementation second.
+>
+> Until then the maturity ladder above is a **definition**, not an enforced
+> contract, and no `capability:audit` command exists in this repository.
+
 > **UNRESOLVED — the enforced vocabulary does not match this one.**
 > `config/capabilities.mjs` exports a different `STATUSES` array, and it is the
 > one `npm run capability:audit` actually enforces:
@@ -960,8 +983,11 @@ discovered → designed → schema_only → implemented → integrated
 > The registry has no `schema_only`, `integrated`, `production_proven` or
 > `retiring`; this plan has no `contracted`, `shadow_mode`, `production`,
 > `degraded` or `deprecated`. The two lists came from the two different planning
-> lines and **the reconciliation did not catch the divergence** — it was found by
-> review at head `3be70fa4`.
+> lines; the divergence was found by review at head `3be70fa4`. The registry is
+> no longer in this PR, so the divergence is now a **pending decision** rather
+> than a live inconsistency — but it must be settled BEFORE machine enforcement
+> returns, because the validator would otherwise enforce a vocabulary this plan
+> does not adopt.
 >
 > The practical consequence is concrete: `CAP-CANONICAL-PROPERTY` is
 > `contracted` in the registry while this plan and §9 describe that capability as
@@ -1058,8 +1084,8 @@ storage headroom may not be promoted before Neon/R2 remediation clears.
 > (§0.2).
 
 <!-- GENERATED:DEFERRED-GATES — do not hand-edit; rewritten by the ledger generator -->
-**Deferred and unresolved — accounted for in the ledger, NOT decided (8):**
-`BIZ-4`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `PER-1`, `PER-4`.
+**Deferred and unresolved — accounted for in the ledger, NOT decided (38):**
+`BIZ-4`, `CAP-CANONICAL-PERSON`, `CAP-CANONICAL-PROPERTY`, `CAP-CLIENT-PORTALS`, `CAP-COMPLIANCE-GATES`, `CAP-EVENT-OUTBOX`, `CAP-IDX-COTALITY-ADAPTER`, `CAP-MEDIA-AI-PROVENANCE`, `CAP-MEDIA-SYNC`, `CAP-POLICY-REGISTRY`, `CAP-SEARCH-CANONICAL`, `CAP-WORKFLOW-ENGINE`, `CONFLICT-CAPABILITY-VOCABULARY`, `CONFLICT-POL-GATE34-PORTAL`, `IAM-10`, `LST-16`, `MKT-4`, `NYC-DCWP-AI-MEDIA-DISCLOSURE`, `P0`, `P1`, `P10`, `P11`, `P2`, `P3`, `P4`, `P5`, `P579-FILE-DOCS-ARCHITECTURE-MASTER-PLAN-GAP-ANALYSIS-2026-07-27-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-E57-MD`, `P579-FILE-DOCS-EVIDENCE-CAPABILITY-EVIDENCE-2026-07-27-MD`, `P579-FILE-MEMORY-EVIDENCE-STANDARD-2026-07-27-MD`, `P579-FILE-PACKAGE-JSON`, `P579-FILE-SCRIPTS-CAPABILITY-AUDIT-MJS`, `P6`, `P7`, `P8`, `P9`, `PER-1`, `PER-4`.
 <!-- /GENERATED:DEFERRED-GATES -->
 
 Read with the gloss: `BIZ-4` compensation arrangement model · `PER-1`/`PER-4`

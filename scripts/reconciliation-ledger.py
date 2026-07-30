@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Reconciliation ledger generator — the tool that makes the canonical plan's
+"""Reconciliation ledger REBUILDER (maintainer-only) — the tool that makes the canonical plan's
 "generated, not asserted" claim true (§0.5).
 
-Run:  npm run ledger:build      (or: python scripts/reconciliation-ledger.py)
+Run:  npm run ledger:rebuild    MAINTAINER-ONLY. NOT CI-runnable.
+
+For normal-checkout validation of the COMMITTED reconciliation use
+`npm run ledger:verify` (scripts/reconciliation-ledger-verify.py), which needs
+none of the historical source objects.
 
 Rebuilds, from the two unmerged planning lines plus safe `main`:
     docs/architecture/MALLAN-PLATFORM-RECONCILIATION-LEDGER.md
@@ -53,30 +57,43 @@ def git(*a):
 # the PR #579 head. A single-branch or shallow clone of this head will not have
 # them, and `git show` requires its <object> to exist. Check up front and say
 # exactly how to fix it, rather than failing obscurely much later.
+# Named through ANNOTATED ARCHIVAL TAGS rather than bare short SHAs, so the
+# sources are documented and durable instead of undocumented hex. Each tag's
+# annotation states explicitly that the plan it points at is NOT normative —
+# the tags preserve reproducibility WITHOUT putting competing plan documents
+# back into the canonical tree (DOC-1, DOC-4).
 SOURCE_OBJECTS = {
-    "6e8ea2d9": "recovered planning line (design/frontend-backend-integration-clean-2026-07-28)",
-    "f51848b0": "PR #585 head, preserved at backup/pr585-f51848b0-before-reconciliation",
-    "7c15b1d5": "PR #579 head (docs/unified-ai-master-plan-2026-07-27)",
+    "6e8ea2d9": ("archive/platform-plan-recovered-6e8ea2d9",
+                 "recovered planning line, reconciliation source"),
+    "f51848b0": ("archive/platform-plan-pr585-f51848b0",
+                 "PR #585 pre-reconciliation head, reconciliation source"),
+    "7c15b1d5": ("archive/platform-plan-pr579-7c15b1d5",
+                 "PR #579 head, reconciliation source"),
 }
 _missing = []
-for _obj, _what in SOURCE_OBJECTS.items():
-    _r = subprocess.run(["git", "cat-file", "-e", _obj + "^{commit}"], cwd=WT,
-                        capture_output=True, text=True)
-    if _r.returncode != 0:
-        _missing.append((_obj, _what))
+for _obj, (_tag, _what) in SOURCE_OBJECTS.items():
+    # Prefer the archival tag; fall back to the raw sha so a maintainer worktree
+    # that already holds the objects but not the tags still works.
+    _ok = any(
+        subprocess.run(["git", "cat-file", "-e", _ref + "^{commit}"], cwd=WT,
+                       capture_output=True, text=True).returncode == 0
+        for _ref in (_tag, _obj))
+    if not _ok:
+        _missing.append((_obj, _tag + "  " + _what))
 if _missing:
     raise SystemExit(
         "reconciliation-ledger: required source commits are not in this checkout.\n\n"
         + "".join("  MISSING %s  — %s\n" % (o, w) for o, w in _missing)
         + "\nNone of these is an ancestor of the current head, so a single-branch or\n"
-          "shallow clone will not contain them. Fetch them and re-run:\n\n"
-          "    git fetch origin "
-          "'refs/heads/*:refs/remotes/origin/*' --no-tags\n"
-          "    git fetch origin backup/pr585-f51848b0-before-reconciliation\n"
-          "    npm run ledger:build\n\n"
+          "shallow clone will not contain them. Fetch the archival tags and re-run:\n\n"
+          "    git fetch origin 'refs/tags/archive/*:refs/tags/archive/*'\n"
+          "    npm run ledger:rebuild\n\n"
+          "  ledger:verify   normal-checkout validation of the COMMITTED reconciliation.\n"
+          "                  Needs NONE of these objects. Use this in review and CI.\n"
+          "  ledger:rebuild  MAINTAINER-ONLY regeneration from the historical sources.\n"
+          "                  Requires them by construction and is NOT CI-runnable.\n\n"
           "The ledger and its validation JSON are committed, so a clean checkout can\n"
-          "READ them without this command. `ledger:build` is the REGENERATION and\n"
-          "integrity path, and it requires the inventory sources by construction.\n")
+          "READ and VERIFY everything with `npm run ledger:verify`.\n")
 
 ROWS = []          # each: dict with the 12 fields
 EXCLUDED = []      # (id_or_heading, source, reason)

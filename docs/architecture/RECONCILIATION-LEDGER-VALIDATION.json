@@ -78,11 +78,10 @@
     "OPS-026"
   ],
   "by_disposition": {
-    "combined": 298,
-    "retained": 293,
-    "deferred_with_gate": 8,
-    "corrected": 6,
-    "historical_only": 3
+    "combined": 297,
+    "retained": 267,
+    "deferred_with_gate": 38,
+    "corrected": 6
   },
   "by_implementation_status": {
     "not_started": 522,
