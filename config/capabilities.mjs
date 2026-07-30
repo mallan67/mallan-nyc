@@ -371,6 +371,9 @@ export const capabilities = [
       resultArtifact:
         'docs/evidence/capability-evidence-2026-07-27.md#e-4--bounded-search-for-ai-media-provenance-identifiers-negative-evidence',
       exitCode: 1,
+      expectedExitCode: 1,
+      expectedOutcomeReason:
+        'Bounded identifier search that intentionally matches nothing. A bare grep with no match exits 1, so 1 IS the expected outcome and is what substantiates the absence claim. Any other non-zero code (e.g. 127, command not found) would mean the probe never ran and must NOT be read as evidence of absence.',
       testedAt: '2026-07-27',
       targetSha: '6d2518b829c45f018337120c41811e4bdf11f7fa',
       environment: 'local; Node 20.x; Windows 11; git bash; node_modules junctioned from primary working tree',

@@ -173,7 +173,9 @@ for (const p of programs) {
 const PLAN_SECTIONS = new Set();
 try {
   const planTxt = readFileSync(join(REPO_ROOT, 'docs/architecture/MALLAN-PLATFORM-PLAN.md'), 'utf8');
+  // Top-level sections from `## N.` headings, subsections from `### N.M`.
   for (const m of planTxt.matchAll(/^##\s+(\d+)\./gm)) PLAN_SECTIONS.add(m[1]);
+  for (const m of planTxt.matchAll(/^#{3,4}\s+(\d+(?:\.\d+)+)/gm)) PLAN_SECTIONS.add(m[1]);
 } catch {
   // If the plan cannot be read, do not invent violations — leave the set empty
   // and skip the check rather than failing every capability.
@@ -184,8 +186,45 @@ const seenIds = new Set();
 for (const cap of capabilities) {
   const id = cap.id ?? '<missing id>';
 
+  // Presence alone is not enough: `id: ''`, `name: ''`, `planRef: ''` all passed,
+  // and a blank planRef additionally bypassed every reference check below.
+  //
+  // But EMPTY is not the same as `'unverified'`. The registry documents
+  // `'unverified'` as a legal, honest value — "a field left unverified is
+  // honest; a field asserted without evidence is a process failure" — so
+  // rejecting it wholesale would punish exactly the honesty the registry asks
+  // for. Empty/whitespace values and empty arrays are rejected everywhere;
+  // `'unverified'` is additionally rejected only on IDENTITY fields, which
+  // nothing can be honest about not knowing.
+  const IDENTITY_FIELDS = new Set(['id', 'name', 'program', 'planRef', 'status']);
   for (const field of REQUIRED_FIELDS) {
-    if (!(field in cap)) violation(id, 'REQUIRED_FIELD_MISSING', `field \`${field}\` is absent`);
+    if (!(field in cap)) {
+      violation(id, 'REQUIRED_FIELD_MISSING', `field \`${field}\` is absent`);
+      continue;
+    }
+    const v = cap[field];
+    // An empty ARRAY is honest on an unpromoted capability: a `discovered`
+    // entry legitimately has no canonicalFiles and no tests yet. PROMOTION_PROOF
+    // already requires those to be non-empty before promotion, so flagging them
+    // here would punish accurate reporting of work not started.
+    const empty = v === null || v === undefined
+      || (typeof v === 'string' && v.trim() === '');
+    if (empty) {
+      violation(
+        id,
+        'REQUIRED_FIELD_BLANK',
+        `field \`${field}\` is present but empty (${JSON.stringify(v)}). An empty value ` +
+          'silently disables the checks that depend on it.',
+      );
+    } else if (IDENTITY_FIELDS.has(field) && !hasEvidence(v)) {
+      violation(
+        id,
+        'REQUIRED_FIELD_PLACEHOLDER',
+        `identity field \`${field}\` is a placeholder (${JSON.stringify(v)}). ` +
+          '`unverified` is legal for evidence-bearing fields, but not for identity: ' +
+          'a capability cannot honestly not know its own id, name, program, planRef or status.',
+      );
+    }
   }
 
   if (seenIds.has(cap.id)) {
@@ -222,16 +261,21 @@ for (const cap of capabilities) {
     // records section numbers that no longer exist. Validating those would
     // force us to delete the audit trail to satisfy the check.
     const activeRef = String(cap.planRef).split('[')[0];
-    for (const ref of activeRef.matchAll(/§(\d+)(?:\.\d+)*/g)) {
-      const top = ref[1];
-      // Only the leading section number is checked; the plan's subsections are
-      // prose-numbered and not all are headings.
-      if (PLAN_SECTIONS.size > 0 && !PLAN_SECTIONS.has(top)) {
+    for (const ref of activeRef.matchAll(/§(\d+(?:\.\d+)*)/g)) {
+      const full = ref[1];
+      // Validate the WHOLE reference, not just its leading number. Checking only
+      // the top level let `§6.999` pass because `6` exists — a stale or invented
+      // subsection link stayed machine-approved in the sole normative plan.
+      if (PLAN_SECTIONS.size > 0 && !PLAN_SECTIONS.has(full)) {
+        const top = full.split('.')[0];
+        const hint = PLAN_SECTIONS.has(top)
+          ? ` §${top} exists but §${full} does not.`
+          : ` §${top} is not a section of the plan.`;
         violation(
           id,
           'PLANREF_UNRESOLVED',
-          `\`planRef\` cites §${top}, which is not a section of ` +
-            'docs/architecture/MALLAN-PLATFORM-PLAN.md. Retarget it to the canonical plan.',
+          `\`planRef\` cites §${full}, which is not a heading in ` +
+            `docs/architecture/MALLAN-PLATFORM-PLAN.md.${hint} Retarget it.`,
         );
       }
     }
@@ -329,7 +373,12 @@ for (const cap of capabilities) {
     // declared rather than smuggled in.
     // Applies to `evidence` AND `retirementEvidence`; only `negativeEvidence`
     // is exempt, because a negative finding legitimately exits non-zero.
-    if (key !== 'negativeEvidence' && Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
+    // `negativeEvidence` is no longer blanket-exempt. A negative finding does
+    // legitimately exit non-zero (a bare grep with no match exits 1), but
+    // exempting EVERY non-zero code let a broken probe — e.g. command-not-found
+    // exit 127 — substantiate an absence claim. It must declare the exact code
+    // it expects, exactly like promotion evidence.
+    if (Number.isInteger(ev.exitCode) && ev.exitCode !== 0) {
       // A bare boolean escape hatch is not enough: `expectedNonZeroExit: true`
       // let ANY non-zero code through, so `exitCode: 127` (command not found)
       // or an unrelated test failure could still justify a promotion. A

@@ -193,7 +193,7 @@
   "ACT-5": {
     "canonical_destination": "§Actors — capacity, not account type",
     "disposition": "retained",
-    "reason_or_evidence": "CODE-VERIFIED GAP: `acting_capacity`/`actingCapacity` appears nowhere in lib/ or app/. No action records which capacity it was performed in, so audit history cannot distinguish a broker's producing action from a supervisory one — the precise distinction ACT-5 requires.",
+    "reason_or_evidence": "CODE-VERIFIED, BOUNDED SEARCH RESULT. Searched `lib/` and `app/` for the identifiers `acting_capacity` and `actingCapacity`: 0 matches. Per GATE-5 and HYG-1 that establishes NOT FOUND IN THE SEARCHED PATHS, not absence — the search covered those two identifier spellings in those two directories only, and did not cover other spellings, other directories, database columns, or runtime behaviour. What ACT-5 requires (each action recording the capacity it was performed in, so audit history distinguishes a broker's producing action from a supervisory one) is therefore NOT evidenced as implemented by this search, and is also not disproved by it. Confirming the requirement is unmet needs a wider trace than was run here.",
     "dependency": "ACT-4",
     "maturity": "decided",
     "implementation_status": "not_started",

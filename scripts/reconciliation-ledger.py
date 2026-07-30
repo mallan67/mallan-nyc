@@ -285,6 +285,18 @@ assert not unaccounted_headings, (
 # ── APPLY RESOLUTIONS ──────────────────────────────────────────────────
 # A requirement absent from the resolutions file stays `unresolved`. Silence is
 # never read as a decision.
+NL = chr(10)
+RES_VOCAB = {
+    "disposition": {"retained", "combined", "corrected", "historical_only",
+                    "deferred_with_gate", "rejected_with_reason", "unresolved"},
+    "maturity": {"decided", "derived", "open", "unassessed"},
+    "implementation_status": {"not_started", "planned", "schema_only",
+                             "partially_implemented", "implemented", "integrated",
+                             "limited_release", "production_proven", "retiring",
+                             "retired", "unassessed"},
+    "verification_status": {"inventory_only", "source_read", "code_verified",
+                           "live_probe_verified"},
+}
 RES_FIELDS = ("canonical_destination", "disposition", "reason_or_evidence",
               "dependency", "maturity", "implementation_status", "verification_status")
 RES_PATH = os.path.join(WT, "docs", "architecture", "RECONCILIATION-RESOLUTIONS.json")
@@ -300,6 +312,19 @@ for rid, res in resolutions.items():
     missing = [f for f in RES_FIELDS if f not in res]
     assert not missing, f"resolution {rid} is missing required fields: {missing}"
     by_id[rid].update({f: res[f] for f in RES_FIELDS})
+    # A mistyped value such as `deferred_with_gat` was previously accepted
+    # verbatim: the counters then reported it as its own category and the
+    # generated deferred list silently dropped that gate, while generation still
+    # exited 0. Every controlled field is validated against its vocabulary.
+    for _f, _allowed in RES_VOCAB.items():
+        _v = res[_f]
+        if _v not in _allowed:
+            raise SystemExit(
+                "reconciliation-ledger: resolution %s has an unknown %s value %r." % (rid, _f, _v)
+                + NL + "  allowed: " + ", ".join(sorted(_allowed)) + NL
+                + "  A mistyped disposition silently drops the row from the generated"
+                + NL + "  summaries, so this is fatal rather than a warning." + NL)
+
 
 # The frozen 605-row baseline must survive intact. Asserting it here makes
 # "nothing was rewritten" provable rather than asserted: every baseline ID must
