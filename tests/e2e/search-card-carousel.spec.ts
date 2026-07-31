@@ -385,29 +385,30 @@ test.describe('Interactive markup — arrows are not inside the listing link', (
     const next = card!.getByRole('button', { name: 'Next photo' });
     const prev = card!.getByRole('button', { name: 'Previous photo' });
 
-    // Focusable by keyboard at all.
-    await next.focus();
-    expect(await next.evaluate((el) => el === document.activeElement)).toBe(true);
+    // Wait on the state change rather than a fixed delay — under
+    // parallel workers a fixed 400 ms is not reliably enough.
+    const advancesOn = async (key: string, control: typeof next) => {
+      const before = await img.getAttribute('src');
+      await control.focus();
+      expect(
+        await control.evaluate((el) => el === document.activeElement),
+        'control must be keyboard-focusable',
+      ).toBe(true);
+      await page.keyboard.press(key);
+      await expect
+        .poll(() => img.getAttribute('src'), { timeout: 5000 })
+        .not.toBe(before);
+    };
 
-    // Enter advances.
-    const before = await img.getAttribute('src');
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(400);
-    const afterEnter = await img.getAttribute('src');
-    expect(afterEnter, 'Enter on Next must advance the photo').not.toBe(before);
+    await advancesOn('Enter', next);
+    expect(page.url(), 'Enter on an arrow must not navigate').toContain('/search');
+
+    // Space activates a native <button> too.
+    await advancesOn('Space', next);
     expect(page.url()).toContain('/search');
 
-    // Space advances too (native <button> behavior).
-    await next.focus();
-    await page.keyboard.press('Space');
-    await page.waitForTimeout(400);
-    expect(await img.getAttribute('src')).not.toBe(afterEnter);
-
     // Previous is reachable and works by keyboard as well.
-    await prev.focus();
-    expect(await prev.evaluate((el) => el === document.activeElement)).toBe(true);
-    await page.keyboard.press('Enter');
-    await page.waitForTimeout(400);
+    await advancesOn('Enter', prev);
     expect(page.url(), 'keyboard arrow activation must never navigate').toContain('/search');
   });
 
