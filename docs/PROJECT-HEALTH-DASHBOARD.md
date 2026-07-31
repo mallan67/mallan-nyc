@@ -213,7 +213,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 7 · Search
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Listing search correctness (filtered) | 🔴(static) | 2026-07-30 | post-pagination filtering, both runtimes (**BIZ-006**; BIZ-008 superseded) | live filtered-search transcript |
+| Listing search correctness (filtered) | 🔴(static) | 2026-07-30 | DB path filters an already-cut page (post-pagination); the Cotality fallback filters **before** slicing, so its pages are correct but its `total`/`hasMore` are not (**BIZ-006**; BIZ-008 superseded) | live filtered-search transcript on both paths |
 | CRM IDX search filters | 🔴(static) | 2026-07-01 | silent filter drops (BIZ-007) | live CRM query transcript |
 | Count/pagination integrity | 🔴(static) | 2026-07-30 | wrong `total`/`hasMore` on both paths — counted pre-reduction, or from a truncated candidate prefix (**BIZ-006**) | same |
 | Map / autocomplete / suggest / building / agent search · performance (P95) | ⚪ | — | never measured | production probes w/ timings |

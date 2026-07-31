@@ -173,6 +173,24 @@ None confirmed as active site-down issues in this pass.
    - Vercel shows contact submission DB errors on 2026-06-28.
    - Run a controlled contact-form smoke test or inspect logs after a test submission.
 
+4. **`BIZ-006` — public search `total`/`hasMore` are wrong on BOTH runtimes.** *(Added
+   2026-07-30 per the Derived-summary invariant; `BIZ-008` is superseded by `BIZ-006` — do not
+   verify or close it separately.)*
+   - **DB path:** pagination is inside the query; the count is taken before display filtering and
+     matched-pair suppression, which then run on the already-cut page. The total is never
+     recomputed.
+   - **Cotality fallback:** local filtering happens *before* slicing, so pages are filtered
+     correctly — but the total is not. Outside the bounds/borough/neighborhood condition it uses
+     the provider's pre-filter `odataCount`; inside it, `filtered.length` counts a candidate
+     prefix capped at 1,000 (`fetchTop`), so it can undercount.
+   - **Effect:** incomplete pages, inflated *or* undercounted totals, wrong `hasMore`, phantom
+     pages, unreachable eligible rows.
+   - **Evidence Score 3/10 — VERIFY FIRST.** Static code read at `04db1b99` only: no production
+     request/response capture, no reproduction, no affected-user count, no frequency/timestamps.
+   - **Next step:** capture a live filtered-search request/response transcript on **both** paths
+     before any production change. **No runtime fix is authorized or included** — the correction
+     belongs in a separate, tested application PR covering every server-side post-filter.
+
 ### P2 / Medium priority
 
 4. SODA/DOB query drift in `seller-scoring` and `demand-signals`.
