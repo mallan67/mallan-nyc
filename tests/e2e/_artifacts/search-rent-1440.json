@@ -1,0 +1,314 @@
+[
+  {
+    "i": 0,
+    "addr": "815 5th Avenue, DUPLEX",
+    "card": {
+      "x": 8,
+      "y": 262,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": -2,
+      "y": 254,
+      "w": 394,
+      "h": 263
+    },
+    "container": {
+      "x": 8,
+      "y": 262,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x213",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 1,
+    "addr": "401 West Street, PH",
+    "card": {
+      "x": 392,
+      "y": 262,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": 354,
+      "y": 237,
+      "w": 451,
+      "h": 301
+    },
+    "container": {
+      "x": 392,
+      "y": 262,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x180",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 2,
+    "addr": "67 E 82nd Street",
+    "card": {
+      "x": 8,
+      "y": 672,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": -86,
+      "y": 609,
+      "w": 564,
+      "h": 376
+    },
+    "container": {
+      "x": 8,
+      "y": 672,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x180",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 3,
+    "addr": "401 West Street, 6",
+    "card": {
+      "x": 392,
+      "y": 672,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": 343,
+      "y": 639,
+      "w": 473,
+      "h": 316
+    },
+    "container": {
+      "x": 392,
+      "y": 672,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x180",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 4,
+    "addr": "15 W 68th Street",
+    "card": {
+      "x": 8,
+      "y": 1082,
+      "w": 376,
+      "h": 422
+    },
+    "img": {
+      "x": 8,
+      "y": 1082,
+      "w": 376,
+      "h": 251
+    },
+    "container": {
+      "x": 8,
+      "y": 1082,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x212",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 5,
+    "addr": "32 W 87th Street, MAIN",
+    "card": {
+      "x": 392,
+      "y": 1082,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": 392,
+      "y": 1082,
+      "w": 376,
+      "h": 251
+    },
+    "container": {
+      "x": 392,
+      "y": 1082,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x480",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 6,
+    "addr": "49 Chambers Street, PHB",
+    "card": {
+      "x": 8,
+      "y": 1512,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": -30,
+      "y": 1487,
+      "w": 451,
+      "h": 301
+    },
+    "container": {
+      "x": 8,
+      "y": 1512,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x180",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 7,
+    "addr": "1228 Madison Avenue, 2",
+    "card": {
+      "x": 392,
+      "y": 1512,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": 392,
+      "y": 1512,
+      "w": 376,
+      "h": 251
+    },
+    "container": {
+      "x": 392,
+      "y": 1512,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x216",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 8,
+    "addr": "414 E 50th Street",
+    "card": {
+      "x": 8,
+      "y": 1922,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": -86,
+      "y": 1860,
+      "w": 564,
+      "h": 376
+    },
+    "container": {
+      "x": 8,
+      "y": 1922,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x180",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 9,
+    "addr": "75 Warren Street",
+    "card": {
+      "x": 392,
+      "y": 1922,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": 392,
+      "y": 1922,
+      "w": 376,
+      "h": 251
+    },
+    "container": {
+      "x": 392,
+      "y": 1922,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x213",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 10,
+    "addr": "401 West Street, 5B",
+    "card": {
+      "x": 8,
+      "y": 2333,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": -30,
+      "y": 2307,
+      "w": 451,
+      "h": 301
+    },
+    "container": {
+      "x": 8,
+      "y": 2333,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x180",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  },
+  {
+    "i": 11,
+    "addr": "461 W 126th Street, 2",
+    "card": {
+      "x": 392,
+      "y": 2333,
+      "w": 376,
+      "h": 402
+    },
+    "img": {
+      "x": 392,
+      "y": 2333,
+      "w": 376,
+      "h": 251
+    },
+    "container": {
+      "x": 392,
+      "y": 2333,
+      "w": 376,
+      "h": 251
+    },
+    "containerClass": "notranslate relative overflow-hidden aspect-[3/2] transition-transform duration-500 group-hover:scale-105",
+    "natural": "320x270",
+    "fit": "cover",
+    "containerAspect": "1.500"
+  }
+]

@@ -35,12 +35,17 @@
 
 /**
  * Widths requested for the srcset. All are drawn from Next's default
- * `imageSizes` (16-384) and `deviceSizes` (640-3840) — next.config sets
- * neither, so the defaults apply and every width below is valid. Cards
- * render ~350 CSS px, so 384 covers 1x and 750 covers 2x DPR; the larger
- * entries serve the wide/hero aspects and 3x displays.
+ * `imageSizes` (16-384) and `deviceSizes` (640/750/828/1080/1200/1920/
+ * 2048/3840) — next.config sets neither, so the defaults apply and every
+ * width below is valid.
+ *
+ * The range is driven by MEASURED card widths (preview, 2026-07-31, see
+ * CARD_SIZES): the smallest slot is the 256px list rail and the largest
+ * is the ~610px all-listings card, which needs ~1220px at 2x DPR. Hence
+ * the top entries — without them a retina all-listings card would be
+ * served an under-resolved image, which is its own quality regression.
  */
-export const CARD_IMAGE_WIDTHS = [256, 384, 640, 750, 1080] as const;
+export const CARD_IMAGE_WIDTHS = [256, 384, 640, 828, 1080, 1200, 1920] as const;
 
 /** Quality matching Next's default. Kept explicit so it is reviewable. */
 export const CARD_IMAGE_QUALITY = 75;
@@ -51,12 +56,23 @@ export const CARD_IMAGE_QUALITY = 75;
  * the bug this module exists to fix).
  */
 export const CARD_SIZES = {
-  /** Grid: 1 col mobile, 2 col md, 3 col xl — ~350px at desktop. */
-  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px',
-  /** List: fixed 12rem / 16rem rail. */
-  list: '(max-width: 640px) 12rem, 16rem',
-  /** Split view: 2-col inside a narrow panel. */
-  split: '(max-width: 768px) 50vw, 320px',
+  /**
+   * GridCard. Serves TWO layouts, so this must cover the wider one:
+   *   all-listings — max-w-6xl, 2 col : measured 564-610px (1440 & 1920)
+   *   grid view    — max-w-7xl, 3 col : measured 400-433px
+   * Declaring the 3-col width would under-resolve every all-listings card
+   * by ~1.6x, so the wider layout wins. 620px slightly over-declares the
+   * grid view, which costs a little bandwidth and never costs sharpness.
+   */
+  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 620px',
+  /** ListCard: w-48 / sm:w-64 rail — measured 256-275px. */
+  list: '(max-width: 640px) 12rem, 18rem',
+  /**
+   * SplitCard: 2 col inside the ~55% listings panel. Measured 376-405px
+   * at 1440 and 508-544px at 1920, so a fixed px value is wrong at one
+   * end or the other — this scales with the viewport instead.
+   */
+  split: '(max-width: 768px) 50vw, 30vw',
   /** Full-bleed detail hero. */
   hero: '100vw',
 } as const;

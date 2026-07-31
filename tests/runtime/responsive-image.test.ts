@@ -72,12 +72,24 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
     expect(src).toContain('&w=640');
   });
 
-  it('offers a candidate small enough for a ~350px card slot', () => {
-    // The whole point: at 1x DPR a 350px slot should be able to pick a
-    // ≤384px candidate. Without one, the browser is forced upward.
-    expect(Math.min(...CARD_IMAGE_WIDTHS)).toBeLessThanOrEqual(384);
-    // …and a candidate large enough for a 2x display of the same slot.
-    expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(750);
+  it('spans the measured card range at 1x through 2x DPR', () => {
+    // Smallest real slot is the 256px list rail; largest is the ~610px
+    // all-listings card, which needs ~1220px at 2x. A srcSet that stops
+    // short at either end trades one defect for another.
+    expect(Math.min(...CARD_IMAGE_WIDTHS)).toBeLessThanOrEqual(256);
+    expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(1200);
+  });
+
+  it('requests only widths Next will actually serve', () => {
+    // next.config sets neither deviceSizes nor imageSizes, so Next's
+    // defaults apply. A width outside them is rejected with a 400.
+    const NEXT_DEFAULT_WIDTHS = new Set([
+      16, 32, 48, 64, 96, 128, 256, 384,
+      640, 750, 828, 1080, 1200, 1920, 2048, 3840,
+    ]);
+    for (const w of CARD_IMAGE_WIDTHS) {
+      expect(NEXT_DEFAULT_WIDTHS.has(w)).toBe(true);
+    }
   });
 
   it('never emits the raw original as a srcSet candidate', () => {
@@ -162,16 +174,24 @@ describe('optimizedUrl', () => {
 });
 
 describe('CARD_SIZES — the hint must describe the REAL rendered width', () => {
-  it('caps the desktop grid card near its measured ~350px slot', () => {
-    // A `sizes` of 100vw on a 360px card is the classic way to keep
-    // downloading oversized images while looking like it was fixed.
-    expect(CARD_SIZES.grid).toMatch(/360px$/);
+  // Widths measured on the preview 2026-07-31 at 1440 and 1920:
+  //   all-listings 564-610 · grid 400-433 · split 376-544 · list 256-275
+  it('declares the WIDER of the two GridCard layouts', () => {
+    // GridCard serves all-listings (≈610px) and grid view (≈433px).
+    // Declaring the narrower one under-resolves every all-listings card.
+    expect(CARD_SIZES.grid).toMatch(/620px$/);
     expect(CARD_SIZES.grid).not.toBe('100vw');
   });
 
-  it('describes the list card rail and the split-view column', () => {
-    expect(CARD_SIZES.list).toContain('16rem');
-    expect(CARD_SIZES.split).toContain('320px');
+  it('covers the measured list rail, including its 275px maximum', () => {
+    // 16rem = 256px would under-declare the observed 275px.
+    expect(CARD_SIZES.list).toContain('18rem');
+  });
+
+  it('scales the split card with the viewport instead of pinning a px', () => {
+    // Split cards measured 405px at 1440 and 544px at 1920 — no single
+    // px value is right at both ends.
+    expect(CARD_SIZES.split).toMatch(/vw$/);
   });
 
   it('keeps the full-bleed hero at 100vw', () => {

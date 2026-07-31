@@ -250,12 +250,14 @@ test.describe('Image delivery — cards must not download originals', () => {
         'card photos must be requested through the image optimizer, not as raw originals',
       ).toEqual([]);
 
-      // A ~360px card slot on a 1x display must not pull a 1920/3200px
-      // candidate. 1080 is the ceiling that still covers a 3x DPR card.
-      const oversized = photoRequests.filter((r) => r.width !== null && r.width > 1080);
+      // These runs are 1x DPR, and the widest card measured is ~610px
+      // (all-listings), so nothing should need more than an 828 candidate.
+      // The 1200/1920 entries in CARD_IMAGE_WIDTHS exist for retina and
+      // must NOT be selected here — if they are, `sizes` is over-declaring.
+      const oversized = photoRequests.filter((r) => r.width !== null && r.width > 828);
       expect(
         oversized.map((r) => `${r.width}px ${r.url.slice(0, 90)}`),
-        'no card photo should be fetched above 1080px wide',
+        'no card photo should be fetched above 828px wide at 1x DPR',
       ).toEqual([]);
     });
   }
@@ -264,9 +266,9 @@ test.describe('Image delivery — cards must not download originals', () => {
     await page.goto('/search?tab=buy-residential');
     await waitForCards(page);
 
-    // The pre-fix measurement was 1,437,336 bytes for ONE card photo.
-    // Anything under 300 KB proves a real transform happened rather than
-    // a `sizes` hint bolted onto a full-resolution source.
+    // The pre-fix measurement was 1,443,781 bytes for ONE card photo
+    // (3239x2160). Anything under 200 KB proves a real transform happened
+    // rather than a `sizes` hint bolted onto a full-resolution source.
     const sizes = await page.evaluate(async () => {
       const imgs = Array.from(document.querySelectorAll<HTMLImageElement>('.glass-card img'))
         .filter((i) => i.currentSrc)
@@ -282,7 +284,7 @@ test.describe('Image delivery — cards must not download originals', () => {
 
     expect(sizes.length).toBeGreaterThan(0);
     for (const s of sizes) {
-      expect(s.bytes, `${s.src} rendered at ${s.rendered}px`).toBeLessThan(300_000);
+      expect(s.bytes, `${s.src} rendered at ${s.rendered}px`).toBeLessThan(200_000);
     }
   });
 });
