@@ -61,10 +61,17 @@ export const CARD_SIZES = {
    *   all-listings — max-w-6xl, 2 col : measured 564-610px (1440 & 1920)
    *   grid view    — max-w-7xl, 3 col : measured 400-433px
    * Declaring the 3-col width would under-resolve every all-listings card
-   * by ~1.6x, so the wider layout wins. 620px slightly over-declares the
+   * by ~1.6x, so the wider layout wins. This slightly over-declares the
    * grid view, which costs a little bandwidth and never costs sharpness.
+   *
+   * 600px, not 620px, is deliberate — it is tuned to Next's candidate
+   * ladder. At 2x DPR, 620 asks for 1240, and the smallest candidate at
+   * or above that is 1920 (1200 falls just short), so cards fetched
+   * 361 KB instead of ~180 KB. 600 asks for exactly 1200 and lands on
+   * that candidate. The 8-12px it under-declares against the measured
+   * 608-612px render is ~1.5%, i.e. invisible.
    */
-  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 620px',
+  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px',
   /** ListCard: w-48 / sm:w-64 rail — measured 256-275px. */
   list: '(max-width: 640px) 12rem, 18rem',
   /**

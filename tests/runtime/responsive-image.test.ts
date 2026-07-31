@@ -179,8 +179,16 @@ describe('CARD_SIZES — the hint must describe the REAL rendered width', () => 
   it('declares the WIDER of the two GridCard layouts', () => {
     // GridCard serves all-listings (≈610px) and grid view (≈433px).
     // Declaring the narrower one under-resolves every all-listings card.
-    expect(CARD_SIZES.grid).toMatch(/620px$/);
+    expect(CARD_SIZES.grid).toMatch(/600px$/);
     expect(CARD_SIZES.grid).not.toBe('100vw');
+  });
+
+  it('lands the grid card on a candidate instead of overshooting to 1920', () => {
+    // Tuned to the ladder: declared x 2 (DPR) must BE a candidate, not
+    // sit just above one. 620 -> 1240 -> forces 1920 (361 KB observed);
+    // 600 -> 1200 -> exact hit (~180 KB).
+    const declared = Number(CARD_SIZES.grid.match(/(\d+)px$/)![1]);
+    expect(CARD_IMAGE_WIDTHS).toContain(declared * 2);
   });
 
   it('covers the measured list rail, including its 275px maximum', () => {
