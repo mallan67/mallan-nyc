@@ -281,3 +281,4 @@ artifacts/gate6-archive-touched-*.jsonl
 # Playwright run artifacts (traces, screenshots, error contexts)
 test-results/
 playwright-report/
+tests/e2e/_artifacts/
