@@ -23,12 +23,12 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-28T04:10:36Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-31T04:18:55Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `ccfb4e85`; probed from branch `fix/neon-write-amp-phase2a-media-reconcile-2026-07-26` |
-| Open PRs | 🟢 | 2 open (2 non-audit): #581, #579 |
+| Repo / main HEAD | 🟢 | main `04db1b99`; probed from branch `docs/register-ops-026` |
+| Open PRs | 🟢 | 3 open (3 non-audit): #590, #589, #585 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
@@ -53,7 +53,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Area | Status | Verified (UTC) | Evidence / how to refresh |
 |------|--------|----------------|---------------------------|
 | Vercel production deploy | 🟢 | 2026-07-02 | Vercel MCP: production `dpl_2o8LWxcQQmkUkYVZjfdbUxm3KNdK` READY on main@`858da234` (#465 + #466 merged); /api/health 200 post-deploy |
-| Vercel runtime errors (24h/7d) | 🔴 | 2026-07-31 | Vercel MCP `get_runtime_errors` (`since=24h`, captured 2026-07-31 ~03:2xZ): **9 error groups, now triaged.** Largest: `[public-cache] cache layer error — degrading to live read` ×12 / 11 users on `/buildings/[slug]`, `/rent.rsc`, `/buy.rsc` — cause **Neon connection-pool timeout (limit 5, timeout 10s)** and `Can't reach database server at ep-cold-waterfall-adno3ao2-pooler`. Then `/api/media/proxy` aborted ×7; `/api/market` ×7 and `/api/listings/similar` ×6 with **`Environment variable not found: DATABASE_URL`** (deployment `dpl_29Kmkr77mh2uw1V9tRXeGn84xvhV`); `P1017 Server has closed the connection` on `/listing/[...slug]` ×4. Supersedes the untriaged 2026-07-28 count-only capture. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` → 2026-07-31 block | Vercel MCP |
+| Vercel runtime errors (24h/7d) | 🔴 | 2026-07-31 | Vercel MCP `get_runtime_errors` (`since=24h`, **single capture 2026-07-31 03:2xZ**). **PRODUCTION (`dpl_BVgQ…`):** `[public-cache]` degrade-to-live ×12 / 11 users — Neon connection-pool timeout (limit 5) + pooler unreachable; media-proxy aborted ×7; `P1017` ×4. **PREVIEW-ONLY, NOT PRODUCTION (`dpl_29Km…`, PR #149 branch, `target: null`):** `DATABASE_URL` missing on `/api/market` ×7 and `/api/listings/similar` ×6 — these fail before connecting and are excluded from production triage. Supersedes the untriaged 2026-07-28 count-only capture, which mixed both. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` → 2026-07-31 block | Vercel MCP |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
 | Media pipeline | 🟢 (Regression Watch) | 2026-07-03 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden, population re-verified through 07-03 03:00 run (registry RW-004, watch to 2026-07-09). OPS-008 footgun RESOLVED via #471 (route deleted; script --execute refuses; deferred tail: route-catalog regen, tracked in OPS-008 row — the repo-audit-bot guardrail lines were removed by the 2026-07-25 Sentinel decommission) |
 | Search projection | 🟡 | 2026-07-01 | dual-write is best-effort/non-transactional (backlog OPS-011) — heal before any PR-5B reader swap; PR-5B HELD |
