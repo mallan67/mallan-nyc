@@ -299,14 +299,26 @@ export default function IDXImage({
 
   const shouldAnimate = loaded && visible;
 
-  // Responsive candidates. When the optimizer already failed for this
-  // src we fall straight back to the raw URL (no srcSet) so the photo
-  // still renders at full size rather than not at all.
+  // Responsive candidates — STRICTLY OPT-IN.
+  //
+  // Optimization happens only when the caller passed an explicit
+  // `sizeProfile`, i.e. only on a surface whose rendered width has been
+  // measured and audited. Without a profile there is no honest `sizes`
+  // value to emit, and guessing one trades an oversized download for a
+  // blurry image. A profile-less surface therefore keeps byte-for-byte
+  // the pre-PR behavior: original URL, no srcSet, no sizes.
+  //
+  // The second condition is the failure path: once an optimized
+  // candidate has failed for this src we stop optimizing it and serve
+  // the raw URL, so the photo renders full-size rather than not at all.
   const useRaw = rawFallbackFor === src;
-  const sources = useRaw ? { src, srcSet: undefined } : buildImageSources(src);
+  const shouldOptimize = Boolean(sizeProfile) && !useRaw;
+  const sources = shouldOptimize ? buildImageSources(src) : { src, srcSet: undefined };
   const imgSrc = sources.src;
   const imgSrcSet = sources.srcSet;
-  const sizesAttr = sizeProfile ? CARD_SIZES[sizeProfile] : '100vw';
+  // Only meaningful alongside a srcSet, and only ever a measured profile —
+  // never a `100vw` guess on an unaudited surface.
+  const sizesAttr = sizeProfile ? CARD_SIZES[sizeProfile] : undefined;
   // NOTE on crossOrigin (unchanged below): the optimized candidates are
   // same-origin `/_next/image` URLs, so `crossOrigin="anonymous"` is a
   // no-op there (same-origin responses pass the CORS check without an

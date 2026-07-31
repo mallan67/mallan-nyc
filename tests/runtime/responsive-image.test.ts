@@ -24,29 +24,55 @@ import {
   optimizedUrl,
   unwrapProxiedMediaUrl,
   CARD_IMAGE_WIDTHS,
+  CARD_IMAGE_QUALITY,
   CARD_SIZES,
+  OPTIMIZER_TRUSTED_HOSTS,
 } from '../../lib/media/responsive-image';
 
+// The only two media hosts observed across 120 production listings.
 const R2 = 'https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/listings/SL-0004/hero.webp';
 const TRESTLE = 'https://api.cotality.com/trestle/Media/1234.jpg';
 
-describe('isOptimizableSource — only allow-listed absolute hosts', () => {
-  it('accepts the hosts next.config allow-lists', () => {
+describe('isOptimizableSource — EXACT host trust, no wildcards', () => {
+  it('accepts exactly the two hosts observed in production', () => {
     expect(isOptimizableSource(R2)).toBe(true);
     expect(isOptimizableSource(TRESTLE)).toBe(true);
-    expect(isOptimizableSource('https://images.mallan.nyc/x.webp')).toBe(true);
-    expect(isOptimizableSource('https://cdn.trestle.com/x.jpg')).toBe(true);
+    expect(OPTIMIZER_TRUSTED_HOSTS).toHaveLength(2);
   });
 
-  it('rejects relative paths — the local placeholder must never be optimized', () => {
+  it('rejects arbitrary R2 public buckets', () => {
+    // *.r2.dev is a shared Cloudflare suffix, not a Mallan namespace —
+    // a wildcard here would admit any stranger's public bucket.
+    expect(isOptimizableSource('https://pub-deadbeef.r2.dev/photo.jpg')).toBe(false);
+    expect(isOptimizableSource('https://pub-xyz.r2.dev/photos/x.jpg')).toBe(false);
+    expect(isOptimizableSource('https://r2.dev/photo.jpg')).toBe(false);
+  });
+
+  it('rejects Cotality lookalikes and subdomain confusion', () => {
+    expect(isOptimizableSource('https://api.cotality.com.evil.com/x.jpg')).toBe(false);
+    expect(isOptimizableSource('https://evil.api.cotality.com/x.jpg')).toBe(false);
+    expect(isOptimizableSource('https://apicotality.com/x.jpg')).toBe(false);
+    expect(isOptimizableSource('https://api-cotality.com/x.jpg')).toBe(false);
+    // The dropped wildcard must stay dropped.
+    expect(isOptimizableSource('https://cdn.trestle.com/x.jpg')).toBe(false);
+  });
+
+  it('rejects URLs carrying credentials', () => {
+    // These would otherwise be re-emitted inside a browser-visible
+    // /_next/image?url=… value.
+    expect(isOptimizableSource(`https://user:pass@api.cotality.com/x.jpg`)).toBe(false);
+    expect(isOptimizableSource(`https://token@api.cotality.com/x.jpg`)).toBe(false);
+  });
+
+  it('rejects non-HTTPS', () => {
+    expect(isOptimizableSource('http://api.cotality.com/x.jpg')).toBe(false);
+    expect(isOptimizableSource('data:image/png;base64,iVBORw0KGgo=')).toBe(false);
+    expect(isOptimizableSource('javascript:alert(1)')).toBe(false);
+  });
+
+  it('rejects relative paths — placeholder and media proxy are never optimized', () => {
     expect(isOptimizableSource('/images/listing-placeholder.svg')).toBe(false);
-  });
-
-  it('rejects unknown hosts (an un-allow-listed host would 400 and blank the card)', () => {
-    expect(isOptimizableSource('https://example.com/photo.jpg')).toBe(false);
-    // Substring lookalikes must not slip through the host pattern.
-    expect(isOptimizableSource('https://r2.dev.evil.com/photo.jpg')).toBe(false);
-    expect(isOptimizableSource('https://notr2.dev/photo.jpg')).toBe(false);
+    expect(isOptimizableSource('/api/media/proxy?url=x')).toBe(false);
   });
 
   it('rejects empty / malformed input instead of throwing', () => {
@@ -54,6 +80,72 @@ describe('isOptimizableSource — only allow-listed absolute hosts', () => {
     expect(isOptimizableSource(null)).toBe(false);
     expect(isOptimizableSource(undefined)).toBe(false);
     expect(isOptimizableSource('not a url')).toBe(false);
+  });
+
+  it('is case-insensitive on the host, as DNS is', () => {
+    expect(isOptimizableSource('https://API.COTALITY.COM/x.jpg')).toBe(true);
+  });
+});
+
+describe('config drift — helper vs next.config must agree', () => {
+  // The helper used to carry its own host regex and assume Next's
+  // built-in size defaults. A host the helper approved but Next rejected
+  // would 400 EVERY card photo; a width outside Next's ladder does the
+  // same. Both now read config/image-optimization.json, and these tests
+  // prove next.config.js actually consumes it.
+  const nextConfigSrc = readFileSync(
+    resolve(__dirname, '../../next.config.js'),
+    'utf8',
+  );
+  const cfg = require('../../config/image-optimization.json');
+
+  it('next.config.js reads the shared file rather than duplicating values', () => {
+    expect(nextConfigSrc).toMatch(/require\(["']\.\/config\/image-optimization\.json["']\)/);
+    expect(nextConfigSrc).toMatch(/deviceSizes: IMAGE_CONFIG\.deviceSizes/);
+    expect(nextConfigSrc).toMatch(/imageSizes: IMAGE_CONFIG\.imageSizes/);
+    expect(nextConfigSrc).toMatch(/qualities: IMAGE_CONFIG\.qualities/);
+    expect(nextConfigSrc).toMatch(/minimumCacheTTL: IMAGE_CONFIG\.minimumCacheTTL/);
+    expect(nextConfigSrc).toMatch(/IMAGE_CONFIG\.optimizerTrustedHosts/);
+  });
+
+  it('every host the helper trusts is admitted by next.config remotePatterns', () => {
+    for (const host of OPTIMIZER_TRUSTED_HOSTS) {
+      expect(cfg.optimizerTrustedHosts).toContain(host);
+    }
+  });
+
+  it('no wildcard survives in the configured remote hosts', () => {
+    for (const host of [...cfg.optimizerTrustedHosts, ...cfg.otherRemoteHosts]) {
+      expect(host).not.toContain('*');
+    }
+    // And the old broad patterns are gone from next.config entirely.
+    expect(nextConfigSrc).not.toMatch(/'\*\.r2\.dev'/);
+    expect(nextConfigSrc).not.toMatch(/'\*\.trestle\.com'/);
+  });
+
+  it('every card width is servable by the configured ladder', () => {
+    const servable = new Set([...cfg.deviceSizes, ...cfg.imageSizes]);
+    for (const w of CARD_IMAGE_WIDTHS) {
+      expect(servable.has(w)).toBe(true);
+    }
+  });
+
+  it('the requested card quality is in the configured allow-list', () => {
+    // Next 400s a quality outside images.qualities.
+    expect(cfg.qualities).toContain(CARD_IMAGE_QUALITY);
+  });
+
+  it('the non-default quality values other surfaces use are allowed too', () => {
+    // HeroSearch uses 85; the buy/sell landing heroes use 90.
+    expect(cfg.qualities).toEqual(expect.arrayContaining([75, 85, 90]));
+  });
+
+  it('cache TTL is explicit and long, which the URL scheme makes safe', () => {
+    // Both media hosts mint a NEW url when a photo changes (R2 embeds an
+    // epoch-ms stamp; Cotality embeds a Unix timestamp + signature), and
+    // the optimizer cache key is the source URL — so a stale transform is
+    // unreachable rather than served.
+    expect(cfg.minimumCacheTTL).toBeGreaterThanOrEqual(60 * 60 * 24 * 7);
   });
 });
 
@@ -73,23 +165,20 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
   });
 
   it('spans the measured card range at 1x through 2x DPR', () => {
-    // Smallest real slot is the 256px list rail; largest is the ~610px
-    // all-listings card, which needs ~1220px at 2x. A srcSet that stops
-    // short at either end trades one defect for another.
-    expect(Math.min(...CARD_IMAGE_WIDTHS)).toBeLessThanOrEqual(256);
+    // Narrowest declared slot is the 288px list rail (1x -> 384);
+    // widest is the ~616px all-listings card (2x -> 1232, covered by
+    // 1200). A ladder that stops short at either end trades one defect
+    // for another.
+    expect(Math.min(...CARD_IMAGE_WIDTHS)).toBeLessThanOrEqual(384);
     expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(1200);
   });
 
-  it('requests only widths Next will actually serve', () => {
-    // next.config sets neither deviceSizes nor imageSizes, so Next's
-    // defaults apply. A width outside them is rejected with a 400.
-    const NEXT_DEFAULT_WIDTHS = new Set([
-      16, 32, 48, 64, 96, 128, 256, 384,
-      640, 750, 828, 1080, 1200, 1920, 2048, 3840,
-    ]);
-    for (const w of CARD_IMAGE_WIDTHS) {
-      expect(NEXT_DEFAULT_WIDTHS.has(w)).toBe(true);
-    }
+  it('carries no unused 1920/2048 candidate', () => {
+    // The widest card need is 1232 device px (616px slot at 2x), which
+    // 1200 covers. Those larger entries remain in next.config only for
+    // the full-bleed non-card surfaces that declare sizes="100vw".
+    expect(CARD_IMAGE_WIDTHS).not.toContain(1920);
+    expect(CARD_IMAGE_WIDTHS).not.toContain(2048);
   });
 
   it('never emits the raw original as a srcSet candidate', () => {
@@ -161,7 +250,9 @@ describe('unwrapProxiedMediaUrl — the path every real card photo takes', () =>
       resolve(__dirname, '../../app/components/IDXImage.tsx'),
       'utf8',
     );
-    expect(card).toMatch(/useRaw \? \{ src, srcSet: undefined \}/);
+    expect(card).toMatch(
+      /const sources = shouldOptimize \? buildImageSources\(src\) : \{ src, srcSet: undefined \}/,
+    );
   });
 });
 
@@ -207,17 +298,76 @@ describe('CARD_SIZES — the hint must describe the REAL rendered width', () => 
   });
 });
 
+describe('optimization is OPT-IN — only audited surfaces change', () => {
+  const idx = readFileSync(
+    resolve(__dirname, '../../app/components/IDXImage.tsx'),
+    'utf8',
+  );
+
+  it('optimizes only when an explicit sizeProfile is passed', () => {
+    // Without this gate, buildImageSources() runs for EVERY IDXImage
+    // surface — including any future one — silently changing image
+    // delivery well beyond the cards audited in this PR.
+    expect(idx).toMatch(/const shouldOptimize = Boolean\(sizeProfile\) && !useRaw/);
+    expect(idx).toMatch(
+      /const sources = shouldOptimize \? buildImageSources\(src\) : \{ src, srcSet: undefined \}/,
+    );
+  });
+
+  it('emits no srcSet and no sizes when sizeProfile is absent', () => {
+    // `sizes` must never fall back to a guessed 100vw: on a 350px card
+    // that would pick a candidate ~3x too large, and on an unaudited
+    // surface we do not know the rendered width at all.
+    expect(idx).toMatch(/const sizesAttr = sizeProfile \? CARD_SIZES\[sizeProfile\] : undefined/);
+    expect(idx).not.toMatch(/sizeProfile \? CARD_SIZES\[sizeProfile\] : '100vw'/);
+    expect(idx).toMatch(/sizes=\{imgSrcSet \? sizesAttr : undefined\}/);
+    expect(idx).toMatch(/srcSet=\{imgSrcSet\}/);
+  });
+
+  it('every IDXImage call site in the repo is accounted for', () => {
+    // Inventory pin. If a new IDXImage surface appears, this fails and
+    // forces an explicit decision about whether it should be optimized.
+    const files = [
+      'app/components/SearchListingCard.tsx',
+      'app/components/FeaturedListings.tsx',
+      'app/components/CompareProperties.tsx',
+    ];
+    const found: Array<{ file: string; hasProfile: boolean }> = [];
+    for (const f of files) {
+      const body = readFileSync(resolve(__dirname, '../../', f), 'utf8');
+      for (const block of body.match(/<IDXImage\b[\s\S]*?\/>/g) ?? []) {
+        found.push({ file: f, hasProfile: /sizeProfile=/.test(block) });
+      }
+    }
+    // 3 search cards + 1 featured gallery + 1 compare tile = 5.
+    expect(found).toHaveLength(5);
+    // All five are audited card surfaces, so all five opt in.
+    expect(found.filter((f) => !f.hasProfile)).toEqual([]);
+  });
+
+  it('the listing-detail hero and gallery do NOT use IDXImage at all', () => {
+    // They render via ListingMediaGallery (next/image for the
+    // placeholder, raw <img> for photos), so this PR cannot have
+    // changed them. Pinned so a future move into IDXImage is a
+    // deliberate, reviewed act rather than an accident.
+    const gallery = readFileSync(
+      resolve(__dirname, '../../app/components/ListingMediaGallery.tsx'),
+      'utf8',
+    );
+    expect(gallery).not.toMatch(/IDXImage/);
+    const detail = readFileSync(
+      resolve(__dirname, '../../app/listing/[...slug]/page.tsx'),
+      'utf8',
+    );
+    expect(detail).not.toMatch(/IDXImage/);
+  });
+});
+
 describe('IDXImage wiring', () => {
   const src = readFileSync(
     resolve(__dirname, '../../app/components/IDXImage.tsx'),
     'utf8',
   );
-
-  it('renders srcSet + sizes from the shared builder', () => {
-    expect(src).toMatch(/buildImageSources/);
-    expect(src).toMatch(/srcSet=\{imgSrcSet\}/);
-    expect(src).toMatch(/sizes=\{imgSrcSet \? sizesAttr : undefined\}/);
-  });
 
   it('retries the RAW source when an optimized candidate fails', () => {
     // Sizing must never be able to blank a photo that would otherwise

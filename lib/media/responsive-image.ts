@@ -1,147 +1,148 @@
 /**
- * responsive-image — correctly sized card/gallery photos.
+ * responsive-image — correctly sized card photos.
  *
- * MEASURED PROBLEM (production, 2026-07-31): search cards render at
- * ~343-356 CSS px but download the untouched R2 original. One card photo
- * measured 3239 x ... at 1,437,336 bytes. The DTO's `thumbUrl` is byte-
- * identical to `url` (verified against /api/listings), so there is no
- * pre-generated small variant to switch to, and `/cdn-cgi/image/...` is
- * not available on the `pub-*.r2.dev` host (404).
+ * MEASURED PROBLEM (2026-07-31): search cards render at 209-616 CSS px
+ * but downloaded the untouched source. One card photo measured
+ * 3239x2160 at 1,443,781 bytes. The DTO's `thumbUrl` is byte-identical
+ * to `url`, so there is no pre-generated small variant to switch to, and
+ * `/cdn-cgi/image/...` is not available on the R2 host (404).
  *
- * The one working lever on this deployment is the Next.js image
- * optimizer, which IS enabled and already allow-lists the photo hosts in
- * next.config (`*.r2.dev`, `*.trestle.com`, `api.cotality.com`,
- * `images.mallan.nyc`). Measured on production:
+ * The one working lever is the Next.js image optimizer. Measured:
  *
- *     direct R2 original          1,437,336 bytes
- *     /_next/image?w=384&q=75        19,145 bytes   (~75x smaller)
+ *     raw source                     1,443,781 bytes
+ *     /_next/image?w=384&q=75           19,509 bytes   (~74x smaller)
+ *
+ * OPT-IN ONLY. `buildImageSources` is called by IDXImage exclusively
+ * when the caller passes an explicit `sizeProfile`. A surface with no
+ * profile keeps byte-for-byte the pre-existing raw-source behavior. This
+ * matters because `sizes` is meaningless without a known rendered width:
+ * optimizing an un-audited surface under a guessed `sizes` would trade
+ * an oversized download for a blurry image. See IDXImage's `shouldOptimize`.
  *
  * COST NOTE — this reverses a documented decision. IDXImage's header
- * states that next/image was avoided to dodge Vercel Image Optimization
- * charges ($5 per 1000 source images beyond the free monthly tier).
- * That trade is now explicit and must be reviewed, not assumed: the
- * optimizer bills per SOURCE image (then caches transforms), whereas the
- * status quo ships ~1.4 MB per card to every visitor on every cold
- * cache — a 100-card search page transfers on the order of 140 MB.
- * If the billing is judged worse than the bandwidth, revert to the raw
- * URL by having buildImageSources() return `{ src, srcSet: undefined }`.
+ * previously stated that next/image was avoided to dodge Vercel Image
+ * Optimization charges. The Mallan team's actual billing model was
+ * verified on 2026-07-31 (Pro, billingVersion 2): transformations plus
+ * cache reads/writes, NOT the legacy per-source-image model. The
+ * trade-off is real but is now measured rather than assumed — see the
+ * PR body. To revert, have buildImageSources() return
+ * `{ src, srcSet: undefined }`.
  *
  * SAFETY: callers keep the ORIGINAL url as a fallback. If an optimized
  * request fails for any reason (optimizer disabled, host removed from
- * remotePatterns, transform error) IDXImage retries the raw source once
- * before showing its error state, so images can never go blank because
- * of this module.
+ * remotePatterns, upstream 401/403/404, non-image body, timeout),
+ * IDXImage retries the raw source exactly once before showing its error
+ * state, so images can never go blank because of this module.
  */
+import IMAGE_CONFIG from '@/config/image-optimization.json';
 
 /**
- * Widths requested for the srcset. All are drawn from Next's default
- * `imageSizes` (16-384) and `deviceSizes` (640/750/828/1080/1200/1920/
- * 2048/3840) — next.config sets neither, so the defaults apply and every
- * width below is valid.
+ * Minimal candidate ladder covering every measured card width at 1x and
+ * 2x DPR. Deliberately excludes 1920/2048 — the widest card need is
+ * 1232 device px, which 1200 covers. See the JSON's $comment keys.
+ */
+export const CARD_IMAGE_WIDTHS: readonly number[] = IMAGE_CONFIG.cardImageWidths;
+
+/** Quality requested for card transforms. Must be in `images.qualities`. */
+export const CARD_IMAGE_QUALITY: number = IMAGE_CONFIG.cardImageQuality;
+
+/**
+ * EXACT hosts the optimizer may be handed. Shared with next.config.js via
+ * config/image-optimization.json so the two cannot drift; a helper-approved
+ * host that Next rejects would 400 every card photo.
  *
- * The range is driven by MEASURED card widths (preview, 2026-07-31, see
- * CARD_SIZES): the smallest slot is the 256px list rail and the largest
- * is the ~610px all-listings card, which needs ~1220px at 2x DPR. Hence
- * the top entries — without them a retina all-listings card would be
- * served an under-resolved image, which is its own quality regression.
+ * No wildcards, by design — `*.r2.dev` is a shared Cloudflare suffix, not
+ * a Mallan namespace, so it would admit any stranger's public bucket.
  */
-export const CARD_IMAGE_WIDTHS = [256, 384, 640, 828, 1080, 1200, 1920] as const;
-
-/** Quality matching Next's default. Kept explicit so it is reviewable. */
-export const CARD_IMAGE_QUALITY = 75;
+export const OPTIMIZER_TRUSTED_HOSTS: readonly string[] =
+  IMAGE_CONFIG.optimizerTrustedHosts;
 
 /**
- * `sizes` values per card aspect. These MUST describe the real rendered
- * width or the browser will pick a candidate that is too large (which is
- * the bug this module exists to fix).
+ * `sizes` values per card profile. These MUST describe the real rendered
+ * width or the browser picks a wrong candidate — too large (the original
+ * defect) or too small (a blurriness defect). Widths measured on preview
+ * across Grid/List/Split at 390/1440/1920 viewports.
  */
 export const CARD_SIZES = {
   /**
    * GridCard. Serves TWO layouts, so this must cover the wider one:
-   *   all-listings — max-w-6xl, 2 col : measured 564-610px (1440 & 1920)
-   *   grid view    — max-w-7xl, 3 col : measured 400-433px
-   * Declaring the 3-col width would under-resolve every all-listings card
-   * by ~1.6x, so the wider layout wins. This slightly over-declares the
-   * grid view, which costs a little bandwidth and never costs sharpness.
+   *   all-listings — max-w-6xl, 2 col : measured 564-616px
+   *   grid view    — max-w-7xl, 3 col : measured 385-437px
+   * Declaring the narrower one would under-resolve every all-listings
+   * card by ~1.6x, so the wider layout wins.
    *
-   * 600px, not 620px, is deliberate — it is tuned to Next's candidate
-   * ladder. At 2x DPR, 620 asks for 1240, and the smallest candidate at
-   * or above that is 1920 (1200 falls just short), so cards fetched
-   * 361 KB instead of ~180 KB. 600 asks for exactly 1200 and lands on
-   * that candidate. The 8-12px it under-declares against the measured
-   * 608-612px render is ~1.5%, i.e. invisible.
+   * 600px, not 620px, is deliberate — it is tuned to the candidate
+   * ladder. At 2x DPR, 620 asks for 1240 and the smallest candidate at
+   * or above that is 1920, so cards fetched 361 KB instead of ~153 KB.
+   * 600 asks for exactly 1200 and lands on that candidate.
    */
   grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px',
-  /** ListCard: w-48 / sm:w-64 rail — measured 256-275px. */
+  /** ListCard: w-48 / sm:w-64 rail — measured 209-283px. */
   list: '(max-width: 640px) 12rem, 18rem',
   /**
    * SplitCard: 2 col inside the ~55% listings panel. Measured 376-405px
-   * at 1440 and 508-544px at 1920, so a fixed px value is wrong at one
-   * end or the other — this scales with the viewport instead.
+   * at 1440 and 508-544px at 1920, so no fixed px is right at both ends.
    */
   split: '(max-width: 768px) 50vw, 30vw',
-  /** Full-bleed detail hero. */
+  /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
 } as const;
 
 export type CardSizeKey = keyof typeof CARD_SIZES;
 
-/** Hosts the Next optimizer is configured to accept (next.config images.remotePatterns). */
-const OPTIMIZABLE_HOST = /(^|\.)r2\.dev$|(^|\.)trestle\.com$|^api\.cotality\.com$|^images\.mallan\.nyc$/i;
+/**
+ * True when `src` is an absolute HTTPS URL on an exactly-approved host.
+ *
+ * Rejects, deliberately:
+ *   - relative paths (the local placeholder, and the media proxy — the
+ *     optimizer only accepts relative URLs that resolve to static build
+ *     assets, verified: /api/health returns INVALID_IMAGE_OPTIMIZE_REQUEST)
+ *   - http:// (downgrade)
+ *   - embedded credentials (user:pass@host)
+ *   - any host not byte-equal to an approved one, which covers
+ *     lookalikes (`api.cotality.com.evil.com`), subdomain confusion
+ *     (`evil.api.cotality.com`), and arbitrary R2 buckets
+ */
+export function isOptimizableSource(src: string | null | undefined): boolean {
+  if (!src || typeof src !== 'string') return false;
+  let u: URL;
+  try {
+    u = new URL(src);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:') return false;
+  // Never forward credentials into a browser-visible optimizer URL.
+  if (u.username || u.password) return false;
+  return OPTIMIZER_TRUSTED_HOSTS.includes(u.hostname.toLowerCase());
+}
 
 /**
  * Unwrap `/api/media/proxy?url=<absolute>` to the absolute media URL.
  *
- * WHY THIS IS NECESSARY (measured on the preview, 2026-07-31): every
- * card photo on /search is a proxy URL — 612 of 612 sampled, zero direct
- * R2. Without unwrapping, the sizing work below applies to nothing.
+ * WHY: Trestle photos reach the browser as proxy URLs. On production that
+ * is ~13% of card photos (218 of 1638 sampled); on preview it is 100%,
+ * because preview serves the un-mirrored feed. Either way the proxy path
+ * itself CANNOT be optimized — Vercel's optimizer accepts a relative
+ * `url` only when it resolves to a STATIC build asset:
  *
- * The proxy path itself CANNOT be optimized. Vercel's optimizer accepts
- * a relative `url` only when it resolves to a static build asset:
- *   /_next/image?url=/images/hero.jpg   → 200 (2,501,994 → 56,724 bytes)
- *   /_next/image?url=/api/health        → 400 INVALID_IMAGE_OPTIMIZE_REQUEST
- *   /_next/image?url=/api/media/proxy?… → 400 INVALID_IMAGE_OPTIMIZE_REQUEST
- * So neither the current proxy nor a path-segment variant of it is
- * addressable by the optimizer. Unwrapping to the inner absolute URL —
- * already allow-listed as `api.cotality.com` in next.config — is the
- * only route that works.
+ *   /_next/image?url=/images/hero.jpg   -> 200 (2,501,994 -> 56,724 bytes)
+ *   /_next/image?url=/api/health        -> 400 INVALID_IMAGE_OPTIMIZE_REQUEST
+ *   /_next/image?url=/api/media/proxy?… -> 400 INVALID_IMAGE_OPTIMIZE_REQUEST
  *
- * RISK, stated plainly: `/api/media/proxy` exists because a browser
- * <img> cannot send the Trestle Bearer header. Optimizing the inner URL
- * means Vercel's optimizer fetches Cotality SERVER-SIDE instead. Live
- * verification on 2026-07-31: the signed media URL answers an
- * unauthenticated request with a 302 to a fetchable object, and
- * /_next/image returns a real 19,509-byte JPEG for it. That is observed
- * live-feed behavior, not a documented guarantee — if Trestle tightens
- * it, these requests start failing.
+ * so a path-segment variant of the proxy would not work either.
+ * Unwrapping to the inner absolute URL is the only route that works.
  *
- * MITIGATION: IDXImage retries the ORIGINAL src (the authenticated
- * proxy URL) once on any optimized-candidate failure. A Trestle change
- * therefore degrades to today's behavior — full-size photos that still
- * render — rather than breaking IDX imagery.
+ * The inner URL is validated by `isOptimizableSource` before use, so an
+ * untrusted inner host falls back to the proxy rather than being fetched.
  */
 export function unwrapProxiedMediaUrl(src: string): string {
   if (!src.startsWith('/api/media/proxy?')) return src;
   try {
     const inner = new URLSearchParams(src.slice(src.indexOf('?') + 1)).get('url');
-    return inner && OPTIMIZABLE_HOST.test(new URL(inner).hostname) ? inner : src;
+    return inner && isOptimizableSource(inner) ? inner : src;
   } catch {
     return src;
-  }
-}
-
-/**
- * True when `src` is an absolute URL on a host the optimizer allows.
- * Relative paths (the local placeholder SVG) and unknown hosts are left
- * untouched — optimizing them would 400 and blank the image.
- */
-export function isOptimizableSource(src: string | null | undefined): boolean {
-  if (!src || typeof src !== 'string') return false;
-  if (!src.startsWith('http://') && !src.startsWith('https://')) return false;
-  try {
-    return OPTIMIZABLE_HOST.test(new URL(src).hostname);
-  } catch {
-    return false;
   }
 }
 
@@ -153,17 +154,19 @@ export function optimizedUrl(src: string, width: number, quality = CARD_IMAGE_QU
 /**
  * Build the `src` + `srcSet` pair for a photo.
  *
- * Returns the raw source unchanged (and no srcSet) when the host is not
- * optimizable, so the placeholder SVG and any future CDN keep working.
+ * Returns the raw source unchanged (and no srcSet) when the source is not
+ * on the exact trust list, so the placeholder and any future CDN keep
+ * working untouched.
+ *
+ * Only ever called for surfaces with an explicit `sizeProfile`.
  */
 export function buildImageSources(
   src: string | null | undefined,
   widths: readonly number[] = CARD_IMAGE_WIDTHS,
 ): { src: string; srcSet?: string } {
   const raw = src || '';
-  // Proxied Trestle photos must be unwrapped to their inner absolute URL
-  // first — the proxy path is not addressable by the optimizer. R2 and
-  // other allow-listed absolute URLs pass through unchanged.
+  // Proxied Trestle photos must be unwrapped first; R2 and other
+  // approved absolute URLs pass through unchanged.
   const target = unwrapProxiedMediaUrl(raw);
   if (!isOptimizableSource(target)) return { src: raw };
   return {

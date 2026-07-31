@@ -124,11 +124,42 @@ describe('SearchListingCard wiring — ONE carousel implementation, three cards'
     expect((src.match(/<CardPhotoCounter\b/g) || [])).toHaveLength(3);
   });
 
+  it('no card wraps the whole card in an anchor any more', () => {
+    // The HTML content model forbids interactive content inside <a>.
+    // GridCard and ListCard used to wrap everything — carousel buttons
+    // and FavoriteButton included — in a single <Link>, which put
+    // <button> inside <a> and gave the buttons link semantics in the
+    // accessibility tree. All three cards are now a plain container with
+    // the links inside it.
+    expect(src).not.toMatch(/<Link\s+href=\{listingHref\(listing\)\}\s*\n\s*\/\/[\s\S]*?className=\{`block glass-card/);
+    expect(src).not.toMatch(/className=\{`block glass-card/);
+    expect(src).not.toMatch(/className=\{`glass-card[^`]*`\}\s*\n\s*onMouseEnter[\s\S]{0,120}?onClick=\{carousel\.swipe\.cancelIfSwiping\}/);
+    // Each card's outer element is a <div> carrying glass-card.
+    expect((src.match(/className=\{`(?:group )?glass-card/g) || [])).toHaveLength(3);
+  });
+
+  it('each card exposes exactly one keyboard-reachable listing link', () => {
+    // The photo link is duplicated navigation for pointer users; it is
+    // hidden from the a11y tree and the tab order so screen-reader and
+    // keyboard users get ONE link per card (the info block, which
+    // carries the address) rather than two identical ones.
+    expect((src.match(/aria-hidden="true"\s*\n\s*tabIndex=\{-1\}/g) || [])).toHaveLength(3);
+  });
+
   it('all three cards wire touch swipe to the photo area', () => {
     expect((src.match(/carousel\.swipe\.onTouchStart/g) || [])).toHaveLength(3);
     expect((src.match(/carousel\.swipe\.onTouchEnd/g) || [])).toHaveLength(3);
-    // …and suppress the navigation click at the end of a swipe.
-    expect((src.match(/carousel\.swipe\.cancelIfSwiping/g) || [])).toHaveLength(3);
+    // …and every photo link suppresses the navigation click that would
+    // otherwise fire at the end of a swipe. Checked per photo link
+    // rather than by a global count, because each card also has a
+    // separate info link and the totals would drift with layout.
+    const photoLinks = src.match(
+      /<Link[\s\S]{0,400}?aria-hidden="true"\s*\n\s*tabIndex=\{-1\}/g,
+    ) || [];
+    expect(photoLinks).toHaveLength(3);
+    for (const link of photoLinks) {
+      expect(link).toMatch(/onClick=\{carousel\.swipe\.cancelIfSwiping\}/);
+    }
   });
 
   it('all three cards declare a rendered-size profile so cards stop downloading originals', () => {
@@ -157,10 +188,10 @@ describe('CardPhotoNav — arrow clicks must not open the listing', () => {
     expect((nav.match(/type="button"/g) || []).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('the shared click handlers cancel the surrounding listing link', () => {
-    // GridCard/ListCard nest the arrows inside the card's <Link>, so BOTH
-    // preventDefault (stops the <a> default) and stopPropagation (stops
-    // React's delegated Link onClick) are required.
+  it('the shared click handlers cancel any surrounding listing link', () => {
+    // Belt and braces. The arrows are no longer anchor descendants (see
+    // the structural test below), but preventDefault + stopPropagation
+    // stay so a future re-nesting cannot silently make an arrow navigate.
     expect(hook).toMatch(/e\.preventDefault\(\)/);
     expect(hook).toMatch(/e\.stopPropagation\(\)/);
   });

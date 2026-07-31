@@ -337,8 +337,212 @@ test.describe('No console or hydration errors block interaction', () => {
   }
 });
 
-test.describe('Failed photo fallback', () => {
+test.describe('Interactive markup — arrows are not inside the listing link', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('no carousel button is a descendant of an anchor', async ({ page }) => {
+    await page.goto('/search?tab=buy-residential');
+    await waitForCards(page);
+
+    // The HTML content model forbids interactive content inside <a>.
+    // GridCard and ListCard used to wrap the entire card — buttons
+    // included — in a single <Link>.
+    const nested = await page.evaluate(() => {
+      const bad: string[] = [];
+      for (const b of Array.from(document.querySelectorAll('button'))) {
+        if (b.closest('a')) bad.push(b.getAttribute('aria-label') || b.className.slice(0, 40));
+      }
+      return bad;
+    });
+    expect(nested, 'buttons found inside an <a>').toEqual([]);
+  });
+
+  test('each card exposes exactly one keyboard-reachable listing link', async ({ page }) => {
+    await page.goto('/search?tab=buy-residential');
+    await waitForCards(page);
+
+    const perCard = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.glass-card'))
+        .slice(0, 6)
+        .map((c) =>
+          Array.from(c.querySelectorAll('a[href^="/listing/"]')).filter(
+            (a) => a.getAttribute('tabindex') !== '-1' && a.getAttribute('aria-hidden') !== 'true',
+          ).length,
+        ),
+    );
+    expect(perCard.length).toBeGreaterThan(0);
+    for (const n of perCard) expect(n).toBe(1);
+  });
+
+  test('Tab reaches both arrows; Enter and Space advance the photo', async ({ page }) => {
+    await page.goto('/search?tab=buy-residential');
+    await waitForCards(page);
+
+    const card = await firstMultiPhotoCard(page);
+    test.skip(card === null, 'no multi-photo listing on this page right now');
+
+    const img = card!.locator('img').first();
+    const next = card!.getByRole('button', { name: 'Next photo' });
+    const prev = card!.getByRole('button', { name: 'Previous photo' });
+
+    // Focusable by keyboard at all.
+    await next.focus();
+    expect(await next.evaluate((el) => el === document.activeElement)).toBe(true);
+
+    // Enter advances.
+    const before = await img.getAttribute('src');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+    const afterEnter = await img.getAttribute('src');
+    expect(afterEnter, 'Enter on Next must advance the photo').not.toBe(before);
+    expect(page.url()).toContain('/search');
+
+    // Space advances too (native <button> behavior).
+    await next.focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(400);
+    expect(await img.getAttribute('src')).not.toBe(afterEnter);
+
+    // Previous is reachable and works by keyboard as well.
+    await prev.focus();
+    expect(await prev.evaluate((el) => el === document.activeElement)).toBe(true);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(400);
+    expect(page.url(), 'keyboard arrow activation must never navigate').toContain('/search');
+  });
+
+  test('Enter on the listing link opens the listing', async ({ page }) => {
+    await page.goto('/search?tab=buy-residential');
+    await waitForCards(page);
+
+    const link = page
+      .locator('.glass-card a[href^="/listing/"]')
+      .filter({ hasNot: page.locator('[tabindex="-1"]') })
+      .first();
+    const href = await link.getAttribute('href');
+    await link.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(2500);
+
+    expect(page.url()).toContain(href!.split('?')[0]);
+  });
+
+  test('FavoriteButton stays independently usable', async ({ page }) => {
+    await page.goto('/search?tab=buy-residential');
+    await waitForCards(page);
+
+    const fav = page.locator('.glass-card button[aria-label*="avorite"]').first();
+    test.skip((await fav.count()) === 0, 'no favorite control rendered');
+
+    const urlBefore = page.url();
+    await fav.click();
+    await page.waitForTimeout(600);
+    expect(page.url(), 'favoriting must not navigate to the listing').toBe(urlBefore);
+  });
+});
+
+test.describe('Optimizer failure modes — exactly one fallback, never blank', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  /**
+   * Card photo delivery depends on the Next optimizer being able to fetch
+   * the media URL. `/api/media/proxy` still exists because a browser
+   * <img> cannot send the Trestle Bearer header — the optimizer fetches
+   * server-side instead. If that ever stops working (Trestle tightens
+   * access, host de-listed, transform error), IDXImage must fall back to
+   * the authenticated proxy EXACTLY ONCE and the card must still render.
+   *
+   * Each case below breaks `/_next/image` a different way and asserts:
+   *   - the card still shows a real image or the labelled placeholder;
+   *   - the fallback is attempted at most once per photo (no retry loop).
+   */
+  const FAILURE_MODES: Array<{ name: string; apply: (page: Page) => Promise<unknown> }> = [
+    {
+      name: '401 unauthorized',
+      apply: (page) =>
+        page.route('**/_next/image**', (r) => r.fulfill({ status: 401, body: 'Unauthorized' })),
+    },
+    {
+      name: '403 forbidden',
+      apply: (page) =>
+        page.route('**/_next/image**', (r) => r.fulfill({ status: 403, body: 'Forbidden' })),
+    },
+    {
+      name: '404 not found',
+      apply: (page) =>
+        page.route('**/_next/image**', (r) => r.fulfill({ status: 404, body: 'Not Found' })),
+    },
+    {
+      name: 'non-image response body',
+      apply: (page) =>
+        page.route('**/_next/image**', (r) =>
+          r.fulfill({ status: 200, contentType: 'text/html', body: '<html>not an image</html>' }),
+        ),
+    },
+    {
+      name: 'timeout / connection failure',
+      apply: (page) => page.route('**/_next/image**', (r) => r.abort('timedout')),
+    },
+  ];
+
+  for (const mode of FAILURE_MODES) {
+    test(`optimizer ${mode.name} — falls back to the proxy, card still renders`, async ({ page }) => {
+      const optimizerReqs: string[] = [];
+      const rawReqs: string[] = [];
+      page.on('request', (r) => {
+        if (r.resourceType() !== 'image') return;
+        const u = r.url();
+        if (u.includes('/_next/image')) optimizerReqs.push(u);
+        else if (u.includes('/api/media/proxy') || /r2\.dev|cotality\.com/.test(u)) rawReqs.push(u);
+      });
+
+      await mode.apply(page);
+      await page.goto('/search?tab=buy-residential');
+      await page.waitForSelector('.glass-card', { timeout: 30_000 });
+      await page.waitForTimeout(4000);
+
+      // 1. No blank card — every card shows a real <img> with pixels, or
+      //    IDXImage's labelled placeholder. Never an empty box.
+      const state = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll('.glass-card')).slice(0, 6);
+        return cards.map((c) => {
+          const img = c.querySelector<HTMLImageElement>('img');
+          const placeholder = c.querySelector('[role="img"]');
+          const el = (img ?? placeholder) as HTMLElement | null;
+          const rect = el?.getBoundingClientRect();
+          return {
+            hasVisual: Boolean(el),
+            width: rect?.width ?? 0,
+            height: rect?.height ?? 0,
+            // A loaded <img> has real pixels; the placeholder has none but
+            // is a valid rendered state.
+            loadedPixels: img ? img.naturalWidth > 0 : null,
+            isPlaceholder: !img && Boolean(placeholder),
+          };
+        });
+      });
+
+      expect(state.length).toBeGreaterThan(0);
+      for (const s of state) {
+        expect(s.hasVisual, 'card lost its photo area entirely').toBe(true);
+        expect(s.width).toBeGreaterThan(0);
+        expect(s.height).toBeGreaterThan(0);
+      }
+
+      // 2. The raw source WAS attempted — proving the fallback fired
+      //    rather than the card silently giving up.
+      expect(rawReqs.length, 'expected a fallback to the original source').toBeGreaterThan(0);
+
+      // 3. Exactly one fallback per photo, no retry loop. If IDXImage
+      //    re-entered optimization after failing, optimizer requests would
+      //    grow without bound; cap them at one per distinct URL.
+      const uniqueOptimizer = new Set(optimizerReqs);
+      expect(
+        optimizerReqs.length,
+        'optimizer was retried — indicates a fallback loop',
+      ).toBeLessThanOrEqual(uniqueOptimizer.size);
+    });
+  }
 
   test('/search?tab=buy-residential — a broken photo never leaves a card blank', async ({ page }) => {
     // Force every optimizer request to fail so BOTH recovery layers run:

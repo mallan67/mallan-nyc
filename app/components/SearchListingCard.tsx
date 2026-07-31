@@ -107,24 +107,25 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
   const carousel = useCardPhotoCarousel(listing.media);
 
   return (
-    <Link
-      href={listingHref(listing)}
-      // `block` is load-bearing — without it the <a> renders inline and
-      // grows to the photo's max-content (1920 px Trestle source), which
-      // pushes the card past the mobile viewport (583 px at 390 px wide).
-      // The all-listings grid that backs the mobile /search view (page.tsx
-      // line 1153, `grid md:grid-cols-2 gap-6` → 1-col on mobile) only
-      // constrains a block-level child to the track width. See
-      // docs/mobile-search-card-overflow-audit-2026-05-17.md §E (F1).
-      className={`block glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group ${
+    // Non-interactive wrapper (2026-07-31). This was previously a single
+    // <a> wrapping the whole card, which put the carousel <button>s and
+    // FavoriteButton INSIDE an anchor — invalid per the HTML content
+    // model ("no interactive content descendant") and a real a11y
+    // problem: the buttons inherited link semantics in the accessibility
+    // tree. The card is now a plain container with two explicit links,
+    // matching the structure SplitCard already used.
+    //
+    // Block-level is still load-bearing — as an inline <a> the card grew
+    // to the photo's max-content (1920 px source) and overflowed the
+    // mobile viewport (583 px at 390 px wide). A <div> is block by
+    // default, so the original `block` class is no longer needed. See
+    // docs/mobile-search-card-overflow-audit-2026-05-17.md §E (F1).
+    <div
+      className={`glass-card rounded-3xl overflow-hidden hover:-translate-y-1 hover:shadow-[0_16px_40px_rgba(0,0,0,0.06)] transition-all duration-300 group ${
         isHighlighted ? 'ring-2 ring-brand-gold shadow-lg' : ''
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
-      // Suppresses the navigation click that would otherwise fire at the
-      // end of a photo swipe. No-op for ordinary clicks, so tapping the
-      // card anywhere except an arrow still opens the listing.
-      onClick={carousel.swipe.cancelIfSwiping}
     >
       <div
         className="relative overflow-hidden touch-pan-y"
@@ -132,16 +133,30 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
         onTouchMove={carousel.swipe.onTouchMove}
         onTouchEnd={carousel.swipe.onTouchEnd}
       >
-        <IDXImage
-          src={carousel.currentSrc}
-          alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-          aspect="card"
-          sizeProfile="grid"
-          priority={priority}
-          className="group-hover:scale-105 transition-transform duration-700"
-          onError={carousel.handlePhotoError}
-          autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
-        />
+        {/* Photo is a link so clicking the image still opens the listing.
+            aria-hidden + tabIndex=-1 keep it out of the a11y tree and tab
+            order, so the card exposes exactly ONE listing link (the info
+            block below, which carries the address) instead of two
+            duplicates. `onClick` cancels the navigation that would
+            otherwise fire at the end of a swipe. */}
+        <Link
+          href={listingHref(listing)}
+          className="block"
+          onClick={carousel.swipe.cancelIfSwiping}
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          <IDXImage
+            src={carousel.currentSrc}
+            alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
+            aspect="card"
+            sizeProfile="grid"
+            priority={priority}
+            className="group-hover:scale-105 transition-transform duration-700"
+            onError={carousel.handlePhotoError}
+            autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
+          />
+        </Link>
         {formatComingSoonBadge(listing) ? (
           <span className="absolute top-3 left-3 px-3 py-1 bg-amber-500 text-white text-xs rounded-xl z-10">
             {formatComingSoonBadge(listing)}
@@ -160,10 +175,17 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
             <CardPhotoCounter carousel={carousel} withIcon showSingle className="text-[11px] px-2 py-1 !rounded-lg" />
           </div>
         )}
+        {/* Arrows are siblings of the photo link, never descendants. */}
         <CardPhotoNav carousel={carousel} size="md" />
         <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-10" />
       </div>
-      <div className="p-4 sm:p-5">
+      {/* The card's ONE real listing link: keyboard-reachable, carries the
+          address, and is what Enter activates. */}
+      <Link
+        href={listingHref(listing)}
+        className="block p-4 sm:p-5"
+        onClick={carousel.swipe.cancelIfSwiping}
+      >
         <p className="text-2xl font-display font-bold text-brand-dark">
           {formatPrice(listing.listPrice, isRental)}
         </p>
@@ -228,8 +250,8 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
             </span>
           </p>
         )}
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -238,14 +260,14 @@ export function ListCard({ listing, isRental, isHighlighted, onHover, priority =
   const carousel = useCardPhotoCarousel(listing.media);
 
   return (
-    <Link
-      href={listingHref(listing)}
+    // Non-interactive wrapper — see the note on GridCard. Carousel
+    // buttons and FavoriteButton must not be anchor descendants.
+    <div
       className={`glass-card rounded-2xl overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 flex group ${
         isHighlighted ? 'ring-2 ring-brand-gold shadow-lg' : ''
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
-      onClick={carousel.swipe.cancelIfSwiping}
     >
       <div
         className="relative w-48 sm:w-64 flex-shrink-0 overflow-hidden touch-pan-y"
@@ -253,16 +275,24 @@ export function ListCard({ listing, isRental, isHighlighted, onHover, priority =
         onTouchMove={carousel.swipe.onTouchMove}
         onTouchEnd={carousel.swipe.onTouchEnd}
       >
-        <IDXImage
-          src={carousel.currentSrc}
-          alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
-          aspect="card"
-          sizeProfile="list"
-          priority={priority}
-          className="group-hover:scale-105 transition-transform duration-700"
-          onError={carousel.handlePhotoError}
-          autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
-        />
+        <Link
+          href={listingHref(listing)}
+          className="block"
+          onClick={carousel.swipe.cancelIfSwiping}
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          <IDXImage
+            src={carousel.currentSrc}
+            alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
+            aspect="card"
+            sizeProfile="list"
+            priority={priority}
+            className="group-hover:scale-105 transition-transform duration-700"
+            onError={carousel.handlePhotoError}
+            autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
+          />
+        </Link>
         {formatComingSoonBadge(listing) ? (
           <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-lg z-10">
             {formatComingSoonBadge(listing)}
@@ -282,7 +312,11 @@ export function ListCard({ listing, isRental, isHighlighted, onHover, priority =
         <CardPhotoNav carousel={carousel} size="sm" />
         <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-2 left-2 z-10" />
       </div>
-      <div className="p-4 flex-1 min-w-0">
+      <Link
+        href={listingHref(listing)}
+        className="block p-4 flex-1 min-w-0"
+        onClick={carousel.swipe.cancelIfSwiping}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xl font-display font-bold text-brand-dark">
@@ -356,8 +390,8 @@ export function ListCard({ listing, isRental, isHighlighted, onHover, priority =
             </span>
           </p>
         )}
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -383,7 +417,15 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover, priority 
         onTouchMove={carousel.swipe.onTouchMove}
         onTouchEnd={carousel.swipe.onTouchEnd}
       >
-        <Link href={listingHref(listing)} className="block w-full" onClick={carousel.swipe.cancelIfSwiping}>
+        {/* aria-hidden + tabIndex=-1: the info link below is the card's
+            single keyboard-reachable listing link, same as Grid/List. */}
+        <Link
+          href={listingHref(listing)}
+          className="block w-full"
+          onClick={carousel.swipe.cancelIfSwiping}
+          aria-hidden="true"
+          tabIndex={-1}
+        >
           <IDXImage
             src={carousel.currentSrc}
             alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
