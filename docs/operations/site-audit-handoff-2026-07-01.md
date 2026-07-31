@@ -1,6 +1,31 @@
 # MAllan Website — Site Audit Handoff
 
-> **2026-07-30 UPDATE:** **`BIZ-006`** (public search `total`/`hasMore`) is now the **single canonical ID** for the public-search pagination/count-integrity defect across the DB and Cotality-fallback runtimes; **`BIZ-008` is superseded by it** — do not verify or close `BIZ-008` separately. Rescored to **Evidence Score 3/10 — VERIFY FIRST** (was 6/10; the earlier score counted non-ledger fields). **Static code read only — no production reproduction, no affected-user count, no runtime fix authorized or included.** Next step: capture a live filtered-search request/response transcript on **both** the DB and Cotality-fallback paths before any production change. Full description and evidence: **`docs/PLATFORM-ISSUE-REGISTRY.md` → `BIZ-006`** (per the Single-ID invariant, not duplicated here).
+## 2026-07-31 CURRENT HANDOFF (03:30Z)
+
+> **This block is the current handoff. Everything from `# MAllan Website` through the end of the
+> file below the 2026-07-02 update is the PRESERVED 2026-07-01 SNAPSHOT — do not edit it.**
+
+| field | value |
+|---|---|
+| **Date / time** | 2026-07-31 03:30Z |
+| **Current `main` SHA** | `04db1b9921130cc1150f29508101567537573acb` |
+| **Open PRs** | **#590** (draft) registry consolidation — this one · **#589** (draft) OPS-024 raw-provider contract + cursor guards, undeployed · **#585** (draft) canonical platform plan, 5 files |
+| **Latest production deployment** | GitHub Deployments API: id `5667100304`, sha `04db1b992113`, `state=success`, 2026-07-30T00:34:02Z. **BUT** recent runtime errors report `lastDeployment=dpl_BVgQhFFdiTf1RU77iHFppvZ5PuSk` — the OPS-024 rollback deployment. **Which deployment actually serves production is NOT established here** and is the subject of the deployment-promotion lane. |
+| **Runtime errors, last 24h** | Captured read-only 2026-07-31 03:2xZ (Vercel, 24h window): **9 groups.** Largest — `[public-cache] cache layer error — degrading to live read` ×12 / 11 users on `/buildings/[slug]`, `/rent.rsc`, `/buy.rsc`, cause **Neon connection-pool timeout (limit 5, timeout 10s)** and `Can't reach database server at ep-cold-waterfall-adno3ao2-pooler`. Then `/api/media/proxy` aborted ×7; `/api/market` ×7 and `/api/listings/similar` ×6 with **`Environment variable not found: DATABASE_URL`** on `dpl_29Kmkr77mh2uw1V9tRXeGn84xvhV`; `P1017 Server has closed the connection` on `/listing/[...slug]` ×4. |
+| **Unresolved blockers** | `BIZ-006` (see below) · reset-sync destructive-route protection **not started** · deployment promotion **not started** · Neon CPU/storage and R2 growth **not remediated** · `#585` compliance P1 (gate 5/6 taxonomy) open |
+| **What changed** | Registry-only consolidation: `OPS-026` withdrawn, `BIZ-006` made canonical, `BIZ-008` superseded, Evidence Score corrected to 3/10, derived layers synchronized. **No application, schema, migration, workflow, cron, environment, Neon or R2 change.** |
+| **Exact stopping point** | PR #590 at head `71370b13`, draft, awaiting one exact-head review then merge. Nothing merged, nothing deployed, no production write performed. |
+
+**Issue propagation (Derived-summary invariant).** **`BIZ-006`** is the **single canonical ID** for
+the public-search pagination/count-integrity defect across the DB and Cotality-fallback runtimes;
+**`BIZ-008` is superseded by it** — do not verify or close `BIZ-008` separately. Rescored to
+**Evidence Score 3/10 — VERIFY FIRST** (was 6/10; the earlier score counted non-ledger fields).
+**Static code read only — no production reproduction, no affected-user count, no runtime fix
+authorized or included.** Next step: capture a live filtered-search request/response transcript on
+**both** runtimes before any production change. Full description and evidence:
+**`docs/PLATFORM-ISSUE-REGISTRY.md` → `BIZ-006`** (per the Single-ID invariant, not duplicated here).
+
+---
 
 > **2026-07-02 UPDATE (supersedes the #465/#466 directives below):** PR #466 merged 01:33Z; PR #465 merged 02:35Z after 4 Codex rounds on current HEADs (final HEAD `abc8d613`, not `65b9507a`); guard deployed `858da234`, live-baselined under registry **RW-004**. PR #468 (SEO-001) merged 19:49Z — Verified Fixed (MISMATCH 10,069→0). Gate 6 stays paused: OPS-009 two-flag controls are now **IMPLEMENTED + deployed + kill-switch VERIFIED** (#470 / OPS-020, 2026-07-03); the remaining 5K prerequisites are **`ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle AND a fresh protected rollback branch (OPS-022 — the prior one was auto-pruned 2026-07-03)**. Live status → dashboard + Platform Issue Registry; the lines below are the 2026-07-01 snapshot kept for history.
 

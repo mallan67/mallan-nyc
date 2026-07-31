@@ -113,7 +113,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
 | OPS-010A | Operations | Storage churn suppression (diff-before-write). **Phase-1 telemetry MERGED (PR #569 → `2fecd4f3`, 2026-07-26; prod deploy `dpl_5N2e` READY) + production capture COMPLETE (3 natural cycles):** media cause counters + flag-gated raw_data histogram; capture `docs/operations/neon-write-amplification-capture-2026-07-26.md` (raw_data_only = PhotosChangeTimestamp; media = material + delivery-refresh; multi-day WAL/billed trend still unmeasured); audit_events 199→566/day (~2.8×) post-`*/10`. **Base material-diff suppression already DEPLOYED** (`listingMediaRowUnchanged`/`listingUpdateMateriallyUnchanged`); Phase-2 target is the narrower `raw_data_only` + `delivery_url_refreshed` causes (HELD). | P1 | Open — base diff-suppression deployed; Phase-2 = raw_data_only + delivery-refresh (HELD) | Claude |
 | OPS-022 | Operations | **Gate-6 rollback branch AUTO-PRUNED** (2026-07-03; main only) — a fresh PROTECTED rollback branch is a HARD prerequisite before the 5K execute (one-way strip, 6h PITR) | P1 | **BLOCKER for 5K — needs Maya (create + protect branch)** | Maya |
-| BIZ-006 | Business | Public search `total`/`hasMore` wrong on both runtimes; fallback pages can also be short (capped candidate prefix). Canonical entry — full description in the Platform Issue Registry (**BIZ-008 superseded**). Static-only, Evidence Score 3/10 — verify first | P1 | Open — unfixed; runtime PR not yet raised | Claude |
+| BIZ-006 | Business | Canonical public-search pagination/count-integrity defect (**BIZ-008 superseded**). Full description in the Platform Issue Registry. Static-only, Evidence Score 3/10 — verify first | P1 | Open — unfixed; runtime PR not yet raised | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
 | COMP-001 | Compliance | /buildings hub missing §175.25 footer identity | P1 | Open | Claude |
@@ -213,9 +213,9 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 7 · Search
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Listing search correctness (filtered) | 🔴(static) | 2026-07-30 | DB path filters an already-cut page; fallback filters a capped candidate prefix (**BIZ-006**; BIZ-008 superseded) | live filtered-search transcript on both paths |
+| Listing search correctness (filtered) | 🔴(static) | 2026-07-30 | **BIZ-006** (BIZ-008 superseded) | live filtered-search transcript on both runtimes |
 | CRM IDX search filters | 🔴(static) | 2026-07-01 | silent filter drops (BIZ-007) | live CRM query transcript |
-| Count/pagination integrity | 🔴(static) | 2026-07-30 | `total`/`hasMore` counted pre-reduction or from a truncated prefix (**BIZ-006**) | same |
+| Count/pagination integrity | 🔴(static) | 2026-07-30 | **BIZ-006** | same |
 | Map / autocomplete / suggest / building / agent search · performance (P95) | ⚪ | — | never measured | production probes w/ timings |
 
 ### 8 · Performance
