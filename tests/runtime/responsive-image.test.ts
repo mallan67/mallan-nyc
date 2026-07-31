@@ -22,6 +22,7 @@ import {
   buildImageSources,
   isOptimizableSource,
   optimizedUrl,
+  unwrapProxiedMediaUrl,
   CARD_IMAGE_WIDTHS,
   CARD_SIZES,
 } from '../../lib/media/responsive-image';
@@ -103,6 +104,52 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
   it('handles null/undefined without producing an "undefined" URL', () => {
     expect(buildImageSources(null)).toEqual({ src: '' });
     expect(buildImageSources(undefined)).toEqual({ src: '' });
+  });
+});
+
+describe('unwrapProxiedMediaUrl — the path every real card photo takes', () => {
+  // Measured on the preview 2026-07-31: 612 of 612 sampled card photos
+  // were `/api/media/proxy?url=…`, zero were direct R2. Without this
+  // unwrap the whole sizing change applies to nothing.
+  const PROXIED = `/api/media/proxy?url=${encodeURIComponent(TRESTLE)}`;
+
+  it('extracts the inner absolute URL from a proxied photo', () => {
+    expect(unwrapProxiedMediaUrl(PROXIED)).toBe(TRESTLE);
+  });
+
+  it('makes a proxied photo optimizable end-to-end', () => {
+    const { src, srcSet } = buildImageSources(PROXIED);
+    expect(srcSet).toBeDefined();
+    expect(src).toContain(encodeURIComponent(TRESTLE));
+    expect(src).not.toContain('media%2Fproxy');
+  });
+
+  it('refuses to unwrap to a host the optimizer does not allow', () => {
+    const evil = `/api/media/proxy?url=${encodeURIComponent('https://example.com/x.jpg')}`;
+    expect(unwrapProxiedMediaUrl(evil)).toBe(evil);
+    expect(buildImageSources(evil)).toEqual({ src: evil });
+  });
+
+  it('leaves non-proxy sources alone', () => {
+    expect(unwrapProxiedMediaUrl(R2)).toBe(R2);
+    expect(unwrapProxiedMediaUrl('/images/listing-placeholder.svg')).toBe(
+      '/images/listing-placeholder.svg',
+    );
+  });
+
+  it('survives a malformed proxy URL without throwing', () => {
+    expect(unwrapProxiedMediaUrl('/api/media/proxy?url=')).toBe('/api/media/proxy?url=');
+    expect(unwrapProxiedMediaUrl('/api/media/proxy?nourl=1')).toBe('/api/media/proxy?nourl=1');
+  });
+
+  it('keeps the ORIGINAL proxy URL as the fallback src', () => {
+    // IDXImage falls back to `src` (the authenticated proxy) when an
+    // optimized candidate fails, so the unwrap can never strand a photo.
+    const card = readFileSync(
+      resolve(__dirname, '../../app/components/IDXImage.tsx'),
+      'utf8',
+    );
+    expect(card).toMatch(/useRaw \? \{ src, srcSet: undefined \}/);
   });
 });
 

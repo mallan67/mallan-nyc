@@ -67,6 +67,47 @@ export type CardSizeKey = keyof typeof CARD_SIZES;
 const OPTIMIZABLE_HOST = /(^|\.)r2\.dev$|(^|\.)trestle\.com$|^api\.cotality\.com$|^images\.mallan\.nyc$/i;
 
 /**
+ * Unwrap `/api/media/proxy?url=<absolute>` to the absolute media URL.
+ *
+ * WHY THIS IS NECESSARY (measured on the preview, 2026-07-31): every
+ * card photo on /search is a proxy URL — 612 of 612 sampled, zero direct
+ * R2. Without unwrapping, the sizing work below applies to nothing.
+ *
+ * The proxy path itself CANNOT be optimized. Vercel's optimizer accepts
+ * a relative `url` only when it resolves to a static build asset:
+ *   /_next/image?url=/images/hero.jpg   → 200 (2,501,994 → 56,724 bytes)
+ *   /_next/image?url=/api/health        → 400 INVALID_IMAGE_OPTIMIZE_REQUEST
+ *   /_next/image?url=/api/media/proxy?… → 400 INVALID_IMAGE_OPTIMIZE_REQUEST
+ * So neither the current proxy nor a path-segment variant of it is
+ * addressable by the optimizer. Unwrapping to the inner absolute URL —
+ * already allow-listed as `api.cotality.com` in next.config — is the
+ * only route that works.
+ *
+ * RISK, stated plainly: `/api/media/proxy` exists because a browser
+ * <img> cannot send the Trestle Bearer header. Optimizing the inner URL
+ * means Vercel's optimizer fetches Cotality SERVER-SIDE instead. Live
+ * verification on 2026-07-31: the signed media URL answers an
+ * unauthenticated request with a 302 to a fetchable object, and
+ * /_next/image returns a real 19,509-byte JPEG for it. That is observed
+ * live-feed behavior, not a documented guarantee — if Trestle tightens
+ * it, these requests start failing.
+ *
+ * MITIGATION: IDXImage retries the ORIGINAL src (the authenticated
+ * proxy URL) once on any optimized-candidate failure. A Trestle change
+ * therefore degrades to today's behavior — full-size photos that still
+ * render — rather than breaking IDX imagery.
+ */
+export function unwrapProxiedMediaUrl(src: string): string {
+  if (!src.startsWith('/api/media/proxy?')) return src;
+  try {
+    const inner = new URLSearchParams(src.slice(src.indexOf('?') + 1)).get('url');
+    return inner && OPTIMIZABLE_HOST.test(new URL(inner).hostname) ? inner : src;
+  } catch {
+    return src;
+  }
+}
+
+/**
  * True when `src` is an absolute URL on a host the optimizer allows.
  * Relative paths (the local placeholder SVG) and unknown hosts are left
  * untouched — optimizing them would 400 and blank the image.
@@ -97,11 +138,15 @@ export function buildImageSources(
   widths: readonly number[] = CARD_IMAGE_WIDTHS,
 ): { src: string; srcSet?: string } {
   const raw = src || '';
-  if (!isOptimizableSource(raw)) return { src: raw };
+  // Proxied Trestle photos must be unwrapped to their inner absolute URL
+  // first — the proxy path is not addressable by the optimizer. R2 and
+  // other allow-listed absolute URLs pass through unchanged.
+  const target = unwrapProxiedMediaUrl(raw);
+  if (!isOptimizableSource(target)) return { src: raw };
   return {
     // Default candidate for browsers that ignore srcSet — deliberately a
     // card-sized width, never the original.
-    src: optimizedUrl(raw, 640),
-    srcSet: widths.map((w) => `${optimizedUrl(raw, w)} ${w}w`).join(', '),
+    src: optimizedUrl(target, 640),
+    srcSet: widths.map((w) => `${optimizedUrl(target, w)} ${w}w`).join(', '),
   };
 }

@@ -37,6 +37,57 @@ async function waitForCards(page: Page) {
  * false negative. Returns the card locator, or null if the page happens
  * to serve only single-photo listings.
  */
+/**
+ * Read the "n/N" position readout.
+ *
+ * Must target the counter element, NOT the card's textContent: the badge
+ * abuts the "3D Tour" pill with no separator, so a card renders
+ * `1/343D Tour…` and a `\b\d+\/\d+\b` regex over the text finds nothing.
+ */
+async function counterText(card: ReturnType<Page['locator']>) {
+  const el = card.locator('[aria-live]').first();
+  return (await el.count()) > 0 ? (await el.textContent())?.trim() : undefined;
+}
+
+/**
+ * Simulate a horizontal swipe with real TouchEvents.
+ *
+ * `locator.dispatchEvent` does not produce Touch objects that React's
+ * synthetic handler can read `touches[0].clientX` from, so the events are
+ * constructed in the page. `direction: 'left'` advances to the next photo.
+ */
+async function swipe(page: Page, selector: string, direction: 'left' | 'right') {
+  await page.evaluate(
+    ({ selector, direction }) => {
+      const img = document.querySelector<HTMLImageElement>(selector);
+      if (!img) throw new Error(`no element for ${selector}`);
+      const area = (img.closest('.touch-pan-y') as HTMLElement) ?? img.parentElement!;
+      const r = area.getBoundingClientRect();
+      const y = r.top + r.height / 2;
+      const from = direction === 'left' ? r.right - 20 : r.left + 20;
+      const to = direction === 'left' ? r.left + 20 : r.right - 20;
+      const fire = (type: string, x: number) => {
+        const t = new Touch({ identifier: 1, target: area, clientX: x, clientY: y });
+        const empty = type === 'touchend';
+        area.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches: empty ? [] : [t],
+            targetTouches: empty ? [] : [t],
+            changedTouches: [t],
+          }),
+        );
+      };
+      fire('touchstart', from);
+      fire('touchmove', to);
+      fire('touchend', to);
+    },
+    { selector, direction },
+  );
+  await page.waitForTimeout(600);
+}
+
 async function firstMultiPhotoCard(page: Page) {
   const cards = page.locator('.glass-card');
   const n = Math.min(await cards.count(), 12);
@@ -73,7 +124,8 @@ test.describe('Card carousel — desktop', () => {
 
       const img = card!.locator('img').first();
       const before = await img.getAttribute('src');
-      const counterBefore = (await card!.textContent())?.match(/\b(\d+)\/(\d+)\b/)?.[0];
+      const counterBefore = await counterText(card!);
+      expect(counterBefore, 'a multi-photo card must show a position counter').toMatch(/^1\//);
 
       await card!.hover();
       await card!.getByRole('button', { name: 'Next photo' }).click();
@@ -83,7 +135,7 @@ test.describe('Card carousel — desktop', () => {
       const after = await img.getAttribute('src');
       expect(after, 'clicking Next must change the displayed image').not.toBe(before);
 
-      const counterAfter = (await card!.textContent())?.match(/\b(\d+)\/(\d+)\b/)?.[0];
+      const counterAfter = await counterText(card!);
       expect(counterAfter, 'the n/N counter must advance').not.toBe(counterBefore);
       expect(counterAfter).toMatch(/^2\//);
     });
@@ -149,25 +201,20 @@ test.describe('Card carousel — mobile swipe', () => {
     const card = page.locator('.glass-card').first();
     const img = card.locator('img').first();
     const before = await img.getAttribute('src');
+    const counterBefore = await counterText(card);
 
-    const box = await img.boundingBox();
-    expect(box).not.toBeNull();
-    const y = box!.y + box!.height / 2;
-    // Swipe further than useSwipe's 40px threshold.
-    await page.touchscreen.tap(box!.x + box!.width * 0.8, y);
-    await page.locator('body').dispatchEvent('touchstart');
-    await img.dispatchEvent('touchstart', {
-      touches: [{ clientX: box!.x + box!.width * 0.85, clientY: y }],
-    });
-    await img.dispatchEvent('touchmove', {
-      touches: [{ clientX: box!.x + box!.width * 0.15, clientY: y }],
-    });
-    await img.dispatchEvent('touchend', { touches: [] });
-    await page.waitForTimeout(500);
+    await swipe(page, '.glass-card img', 'left');
 
     // FAILS PRE-FIX: GridCard had no touch handlers at all on mobile.
     const after = await img.getAttribute('src');
     expect(after, 'a left swipe must advance to the next photo').not.toBe(before);
+    if (counterBefore) {
+      expect(await counterText(card), 'the counter must follow the swipe').not.toBe(counterBefore);
+    }
+
+    // …and swiping back returns to the first photo.
+    await swipe(page, '.glass-card img', 'right');
+    expect(await img.getAttribute('src')).toBe(before);
   });
 });
 
@@ -261,10 +308,27 @@ test.describe('No console or hydration errors block interaction', () => {
         await page.waitForTimeout(400);
       }
 
-      // Image 404s from individual dead R2 objects are a data problem, not
-      // a code problem — the card handles them via the error fallback.
+      // Two classes of noise are excluded, both verified pre-existing on
+      // PRODUCTION (mallan.nyc) on 2026-07-31, i.e. not introduced here:
+      //
+      //  1. The Google Translate widget's `translate-pa.googleapis.com`
+      //     fetch is blocked by the site CSP (`script-src` omits that
+      //     host). Byte-identical error on production. Site-config issue,
+      //     tracked separately.
+      //  2. Resource-load failures. On preview deployments the
+      //     `/listing/...` route 500s — reproduced on a preview built from
+      //     `main` BEFORE this branch existed, and 200 on production — so
+      //     it is a preview-environment problem, not a code defect. Dead
+      //     individual photo objects also land here and are handled by the
+      //     card's error fallback by design.
+      //
+      // Everything else — React hydration mismatches, thrown errors,
+      // anything the carousel interaction could produce — still fails.
       const relevant = errors.filter(
-        (e) => !/Failed to load resource/i.test(e) && !/net::ERR/i.test(e),
+        (e) =>
+          !/Failed to load resource/i.test(e) &&
+          !/net::ERR/i.test(e) &&
+          !/translate-pa\.googleapis\.com/i.test(e),
       );
       expect(relevant, `console errors: ${JSON.stringify(relevant.slice(0, 5))}`).toEqual([]);
     });
