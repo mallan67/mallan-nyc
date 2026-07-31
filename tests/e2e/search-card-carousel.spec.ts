@@ -313,10 +313,15 @@ test.describe('No console or hydration errors block interaction', () => {
       // Two classes of noise are excluded, both verified pre-existing on
       // PRODUCTION (mallan.nyc) on 2026-07-31, i.e. not introduced here:
       //
-      //  1. The Google Translate widget's `translate-pa.googleapis.com`
-      //     fetch is blocked by the site CSP (`script-src` omits that
-      //     host). Byte-identical error on production. Site-config issue,
-      //     tracked separately.
+      //  1. The Google Translate widget's script loads are blocked by the
+      //     site CSP, which omits those hosts from `script-src`. Verified
+      //     byte-identical on production (mallan.nyc), so it is a
+      //     pre-existing site-config issue, not something this PR causes.
+      //     It surfaces under several hosts — `translate-pa.googleapis.com`
+      //     normally, and `www.google.com/sorry/...` once repeated
+      //     automated runs trip Google's rate limiter and it redirects to
+      //     the interstitial — so the whole widget is excluded rather
+      //     than one hostname.
       //  2. Resource-load failures. On preview deployments the
       //     `/listing/...` route 500s — reproduced on a preview built from
       //     `main` BEFORE this branch existed, and 200 on production — so
@@ -330,7 +335,7 @@ test.describe('No console or hydration errors block interaction', () => {
         (e) =>
           !/Failed to load resource/i.test(e) &&
           !/net::ERR/i.test(e) &&
-          !/translate-pa\.googleapis\.com/i.test(e),
+          !/translate-pa\.googleapis\.com|translate\.google\.com|google\.com\/sorry/i.test(e),
       );
       expect(relevant, `console errors: ${JSON.stringify(relevant.slice(0, 5))}`).toEqual([]);
     });
