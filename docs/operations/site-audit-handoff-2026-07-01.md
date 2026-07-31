@@ -1,5 +1,7 @@
 # MAllan Website — Site Audit Handoff
 
+> **2026-07-30 UPDATE:** **`BIZ-006`** (public search `total`/`hasMore`) is now the **single canonical ID** for the post-pagination search-count defect; **`BIZ-008` is superseded by it** — do not verify or close `BIZ-008` separately. Rescored to **Evidence Score 3/10 — VERIFY FIRST** (was 6/10; the earlier score counted non-ledger fields). **Static code read only — no production reproduction, no affected-user count, no runtime fix authorized or included.** Next step: capture a live filtered-search request/response transcript on **both** the DB and Cotality-fallback paths before any production change. Full description and evidence: **`docs/PLATFORM-ISSUE-REGISTRY.md` → `BIZ-006`** (per the Single-ID invariant, not duplicated here).
+
 > **2026-07-02 UPDATE (supersedes the #465/#466 directives below):** PR #466 merged 01:33Z; PR #465 merged 02:35Z after 4 Codex rounds on current HEADs (final HEAD `abc8d613`, not `65b9507a`); guard deployed `858da234`, live-baselined under registry **RW-004**. PR #468 (SEO-001) merged 19:49Z — Verified Fixed (MISMATCH 10,069→0). Gate 6 stays paused: OPS-009 two-flag controls are now **IMPLEMENTED + deployed + kill-switch VERIFIED** (#470 / OPS-020, 2026-07-03); the remaining 5K prerequisites are **`ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle AND a fresh protected rollback branch (OPS-022 — the prior one was auto-pruned 2026-07-03)**. Live status → dashboard + Platform Issue Registry; the lines below are the 2026-07-01 snapshot kept for history.
 
 Date: 2026-07-01
@@ -172,24 +174,6 @@ None confirmed as active site-down issues in this pass.
 3. Contact funnel health not proven.
    - Vercel shows contact submission DB errors on 2026-06-28.
    - Run a controlled contact-form smoke test or inspect logs after a test submission.
-
-4. **`BIZ-006` — public search `total`/`hasMore` are wrong on BOTH runtimes.** *(Added
-   2026-07-30 per the Derived-summary invariant; `BIZ-008` is superseded by `BIZ-006` — do not
-   verify or close it separately.)*
-   - **DB path:** pagination is inside the query; the count is taken before display filtering and
-     matched-pair suppression, which then run on the already-cut page. The total is never
-     recomputed.
-   - **Cotality fallback:** local filtering happens *before* slicing, so pages are filtered
-     correctly — but the total is not. Outside the bounds/borough/neighborhood condition it uses
-     the provider's pre-filter `odataCount`; inside it, `filtered.length` counts a candidate
-     prefix capped at 1,000 (`fetchTop`), so it can undercount.
-   - **Effect:** incomplete pages, inflated *or* undercounted totals, wrong `hasMore`, phantom
-     pages, unreachable eligible rows.
-   - **Evidence Score 3/10 — VERIFY FIRST.** Static code read at `04db1b99` only: no production
-     request/response capture, no reproduction, no affected-user count, no frequency/timestamps.
-   - **Next step:** capture a live filtered-search request/response transcript on **both** paths
-     before any production change. **No runtime fix is authorized or included** — the correction
-     belongs in a separate, tested application PR covering every server-side post-filter.
 
 ### P2 / Medium priority
 
