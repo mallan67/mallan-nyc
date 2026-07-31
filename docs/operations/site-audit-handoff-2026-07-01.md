@@ -1,5 +1,36 @@
 # MAllan Website — Site Audit Handoff
 
+## 2026-07-31 CURRENT HANDOFF (04:20Z)
+
+> **This block is the current handoff. Everything from `# MAllan Website` through the end of the
+> file below the 2026-07-02 update is the PRESERVED 2026-07-01 SNAPSHOT — do not edit it.**
+
+| field | value |
+|---|---|
+| **Date / time** | 2026-07-31 04:20Z (advanced from 03:30Z — this block now carries probe evidence generated at 04:18:55Z) |
+| **Current `main` SHA** | `04db1b9921130cc1150f29508101567537573acb` |
+| **Open PRs** | **#590** (draft) registry consolidation — this one · **#589** (draft) OPS-024 raw-provider contract + cursor guards, undeployed · **#585** (draft) canonical platform plan, 5 files |
+| **Latest production deployment** | **`dpl_BVgQhFFdiTf1RU77iHFppvZ5PuSk`**, git SHA **`e113a1effad018ed0767e0df6aa94fcac06387bd`**, `target: production`, holding the live aliases `mallan.nyc` / `www.mallan.nyc` / `mallannyhomes.com` / `mallan-nyc.vercel.app` (Vercel API, 2026-07-31). Current `main` is `04db1b99`, so **the production alias is pinned to an older SHA.** **However, no application code is un-promoted:** `git diff e113a1ef 04db1b99` touches only `docs/PLATFORM-ISSUE-REGISTRY.md` and `docs/PROJECT-HEALTH-DASHBOARD.md` (6 net lines); **zero** app/, lib/, prisma/, workflow, env, cron or config files differ. Production and `main` are **runtime-source equivalent**; their full trees are not identical. **Why the alias was not advanced is NOT established** — that is the deployment-promotion lane, and it is a release-control risk, not evidence of divergent runtime code. |
+| **Runtime errors, last 24h** | **Single capture, 2026-07-31 between 03:20Z and 03:29Z** (exact retrieval time not recorded by the tool; the block containing it was written at 03:30Z) (Vercel `get_runtime_errors`, `since=24h`) — values below are from that one retrieval and are not mixed with later reads. **PRODUCTION (`dpl_BVgQ…`):** `[public-cache] cache layer error — degrading to live read` ×12 / 11 users on `/buildings/[slug]`, `/rent.rsc`, `/buy.rsc` — **Neon connection-pool timeout (limit 5, timeout 10s)** and `Can't reach database server at ep-cold-waterfall-adno3ao2-pooler`; `/api/media/proxy` aborted ×7; `P1017 Server has closed the connection` on `/listing/[...slug]` ×4. **PREVIEW ONLY — NOT PRODUCTION (`dpl_29Kmkr77mh2uw1V9tRXeGn84xvhV`, branch `feat/adaptive-white-border-crop`, PR #149, `target: null`, branch-preview alias only, created 2026-05-17):** `/api/market` ×7 and `/api/listings/similar` ×6 with `Environment variable not found: DATABASE_URL`. Those fail **before** Prisma opens a connection, so they do **not** contribute to the production pool exhaustion. A 2½-month-old preview still erroring is worth its own look. |
+| **Unresolved blockers** | `BIZ-006` (see below) · reset-sync destructive-route protection **not started** · deployment promotion **not started** · Neon CPU/storage and R2 growth **not remediated** · `#585` compliance P1 (gate 5/6 taxonomy) open |
+| **What changed** | Registry-only consolidation: `OPS-026` withdrawn, `BIZ-006` made canonical, `BIZ-008` superseded, Evidence Score corrected to 3/10, derived layers synchronized. **No application, schema, migration, workflow, cron, environment, Neon or R2 change.** |
+| **Exact stopping point** | PR #590 draft, awaiting one exact-head review then merge. **Its head is the commit that contains this block** — deliberately not written as a literal SHA, because any SHA named here is invalidated by the commit that writes it. Read the head from the PR. Nothing merged, nothing deployed, no production write performed. |
+
+**Dashboard auto tier REFRESHED.** `npm ci` then `npm run health:probe` completed at **2026-07-31T04:18:55Z**, refreshing 11 generated cells in `docs/PROJECT-HEALTH-DASHBOARD.md`. The block now reports `main` **`04db1b99`** and **3 open PRs (#590, #589, #585)**, replacing the stale 2026-07-28 values. **Three cells remain ⚪ unverified by design** — Cotality sync-attempt freshness, last-run outcome and DB growth/archive state — because no canonical `DATABASE_URL` was present in the environment; that is the probe's own fail-open marker, not a skipped check.
+
+> **Execution note.** The first probe run was discarded and re-run: this worktree's local `main` ref was stale at `e113a1ef`, and `scripts/health/probe.ts` reads the SHA from the local ref, so the first output reported `main e113a1ef`. The local ref was updated to `origin/main` and the probe re-run; the committed block reflects the corrected run. This was a **local environment condition in one worktree**, corrected in place; the committed dashboard is from the corrected run, so nothing incorrect was published. **No registry issue is opened here — that is a recorded decision, not an oversight:** Maya directed that this PR not be expanded with a new issue after eleven commits, and under the Single-ID invariant a durable finding needs a registry ID, evidence score and derived-summary propagation. **Owner: Maya — to be raised separately if the local-ref behaviour is to be tracked as a repository defect.**
+
+**Issue propagation (Derived-summary invariant).** **`BIZ-006`** is the **single canonical ID** for
+the public-search pagination/count-integrity defect across the DB and Cotality-fallback runtimes;
+**`BIZ-008` is superseded by it** — do not verify or close `BIZ-008` separately. Rescored to
+**Evidence Score 3/10 — VERIFY FIRST** (was 6/10; the earlier score counted non-ledger fields).
+**Static code read only — no production reproduction, no affected-user count, no runtime fix
+authorized or included.** Next step: capture a live filtered-search request/response transcript on
+**both** runtimes before any production change. Full description and evidence:
+**`docs/PLATFORM-ISSUE-REGISTRY.md` → `BIZ-006`** (per the Single-ID invariant, not duplicated here).
+
+---
+
 > **2026-07-02 UPDATE (supersedes the #465/#466 directives below):** PR #466 merged 01:33Z; PR #465 merged 02:35Z after 4 Codex rounds on current HEADs (final HEAD `abc8d613`, not `65b9507a`); guard deployed `858da234`, live-baselined under registry **RW-004**. PR #468 (SEO-001) merged 19:49Z — Verified Fixed (MISMATCH 10,069→0). Gate 6 stays paused: OPS-009 two-flag controls are now **IMPLEMENTED + deployed + kill-switch VERIFIED** (#470 / OPS-020, 2026-07-03); the remaining 5K prerequisites are **`ARCHIVE_ENABLED=true` + one clean MAINTENANCE cycle AND a fresh protected rollback branch (OPS-022 — the prior one was auto-pruned 2026-07-03)**. Live status → dashboard + Platform Issue Registry; the lines below are the 2026-07-01 snapshot kept for history.
 
 Date: 2026-07-01

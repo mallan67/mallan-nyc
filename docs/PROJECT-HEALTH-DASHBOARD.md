@@ -23,12 +23,12 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-28T04:10:36Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-07-31T04:18:55Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `ccfb4e85`; probed from branch `fix/neon-write-amp-phase2a-media-reconcile-2026-07-26` |
-| Open PRs | 🟢 | 2 open (2 non-audit): #581, #579 |
+| Repo / main HEAD | 🟢 | main `04db1b99`; probed from branch `docs/register-ops-026` |
+| Open PRs | 🟢 | 3 open (3 non-audit): #590, #589, #585 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
@@ -52,8 +52,8 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 
 | Area | Status | Verified (UTC) | Evidence / how to refresh |
 |------|--------|----------------|---------------------------|
-| Vercel production deploy | 🟢 | 2026-07-02 | Vercel MCP: production `dpl_2o8LWxcQQmkUkYVZjfdbUxm3KNdK` READY on main@`858da234` (#465 + #466 merged); /api/health 200 post-deploy |
-| Vercel runtime errors (24h/7d) | 🟡 | 2026-07-28 | Vercel MCP `get_runtime_logs` (production, `since=24h`, levels error+fatal, `group_by=route`): **22 errors across 6 routes** — `/buildings/[slug]` 12 · `/buy` 4 · `/rent` 3 · `/resources/buyers-guide` 1 · `/` 1 · `/api/market` 1. Counts only — no per-error messages, timestamps or stack traces retrieved; **none triaged**. Supersedes the 2026-07-01 snapshot. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` |
+| Vercel production deploy | 🟡 | 2026-07-31 | Vercel API: production is **`dpl_BVgQhFFdiTf1RU77iHFppvZ5PuSk`** on **`e113a1ef`**, `target: production`, holding `mallan.nyc` / `www.mallan.nyc` / `mallannyhomes.com`. Current `main` is `04db1b99`, so **the alias is pinned to an older SHA** — but `git diff e113a1ef 04db1b99` touches **only** the issue registry and this dashboard (6 net lines, **zero** app/lib/prisma/workflow/env/cron/config). Production and `main` are **runtime-source equivalent**; the un-advanced alias is a **release-control** concern, cause NOT established. Supersedes the 2026-07-02 `dpl_2o8LW…`/`858da234` entry |
+| Vercel runtime errors (24h/7d) | 🔴 | 2026-07-31 | Vercel MCP `get_runtime_errors` (`since=24h`, **single capture 2026-07-31, 03:20Z–03:29Z**). **PRODUCTION (`dpl_BVgQ…`):** `[public-cache]` degrade-to-live ×12 / 11 users — Neon connection-pool timeout (limit 5) + pooler unreachable; media-proxy aborted ×7; `P1017` ×4. **PREVIEW-ONLY, NOT PRODUCTION (`dpl_29Km…`, PR #149 branch, `target: null`):** `DATABASE_URL` missing on `/api/market` ×7 and `/api/listings/similar` ×6 — these fail before connecting and are excluded from production triage. Supersedes the untriaged 2026-07-28 count-only capture, which mixed both. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` → 2026-07-31 block | Vercel MCP |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
 | Media pipeline | 🟢 (Regression Watch) | 2026-07-03 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden, population re-verified through 07-03 03:00 run (registry RW-004, watch to 2026-07-09). OPS-008 footgun RESOLVED via #471 (route deleted; script --execute refuses; deferred tail: route-catalog regen, tracked in OPS-008 row — the repo-audit-bot guardrail lines were removed by the 2026-07-25 Sentinel decommission) |
 | Search projection | 🟡 | 2026-07-01 | dual-write is best-effort/non-transactional (backlog OPS-011) — heal before any PR-5B reader swap; PR-5B HELD |
@@ -113,7 +113,7 @@ BIZ-005 → P2 after live zero-backlog count; **SEO-001 → Verified Fixed** (PR
 | OPS-009 | Operations | Archive controls IMPLEMENTED + deployed (#470); kill-switch proof VERIFIED (OPS-020, 03:00:46Z) | P1 | **Awaiting Maya: ARCHIVE_ENABLED=true (MAINTENANCE) decision** | Maya |
 | OPS-010A | Operations | Storage churn suppression (diff-before-write). **Phase-1 telemetry MERGED (PR #569 → `2fecd4f3`, 2026-07-26; prod deploy `dpl_5N2e` READY) + production capture COMPLETE (3 natural cycles):** media cause counters + flag-gated raw_data histogram; capture `docs/operations/neon-write-amplification-capture-2026-07-26.md` (raw_data_only = PhotosChangeTimestamp; media = material + delivery-refresh; multi-day WAL/billed trend still unmeasured); audit_events 199→566/day (~2.8×) post-`*/10`. **Base material-diff suppression already DEPLOYED** (`listingMediaRowUnchanged`/`listingUpdateMateriallyUnchanged`); Phase-2 target is the narrower `raw_data_only` + `delivery_url_refreshed` causes (HELD). | P1 | Open — base diff-suppression deployed; Phase-2 = raw_data_only + delivery-refresh (HELD) | Claude |
 | OPS-022 | Operations | **Gate-6 rollback branch AUTO-PRUNED** (2026-07-03; main only) — a fresh PROTECTED rollback branch is a HARD prerequisite before the 5K execute (one-way strip, 6h PITR) | P1 | **BLOCKER for 5K — needs Maya (create + protect branch)** | Maya |
-| BIZ-006 | Business | Public search filters applied after pagination → incomplete results, wrong totals | P1 | Open | Claude |
+| BIZ-006 | Business | Canonical public-search pagination/count-integrity defect (**BIZ-008 superseded**). Full description in the Platform Issue Registry. Static-only, Evidence Score 3/10 — verify first | P1 | Open — unfixed; runtime PR not yet raised | Claude |
 | BIZ-012 | Business | Unsubscribe paths diverge — CAN-SPAM suppression field not always written | P1 | Open | Claude |
 | PROD-004 | Production | No root middleware — authZ is per-route opt-in on 284 routes | P1 | Open | Claude |
 | COMP-001 | Compliance | /buildings hub missing §175.25 footer identity | P1 | Open | Claude |
@@ -142,7 +142,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 1 · Infrastructure
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Vercel production deploy | 🟢 | 2026-07-02 | main@7643ccb0 (#468) live — proven by regenerated production sitemap (full-street slugs, MISMATCH 0); prior build dpl_2o8LW… (#465/#466 baseline 858da234) READY | Vercel MCP + live sitemap proof |
+| Vercel production deploy | 🟡 | 2026-07-31 | Superseded — see the current production row above: `dpl_BVgQ…` on `e113a1ef`, runtime-source equivalent to `main` `04db1b99`. The 2026-07-02 `main@7643ccb0` (#468) entry is historical |
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
 | Neon canonical identity | 🟢 | 2026-07-01 | auto tier (health:probe) | `npm run health:probe` |
 | Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
@@ -213,9 +213,9 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 ### 7 · Search
 | Component | Status | Last verified | Evidence / Registry | Verify via |
 |---|---|---|---|---|
-| Listing search correctness (filtered) | 🔴(static) | 2026-07-01 | post-pagination filtering (BIZ-006/008) | live filtered-search transcript |
+| Listing search correctness (filtered) | 🔴(static) | 2026-07-30 | **BIZ-006** (BIZ-008 superseded) | live filtered-search transcript on both runtimes |
 | CRM IDX search filters | 🔴(static) | 2026-07-01 | silent filter drops (BIZ-007) | live CRM query transcript |
-| Count/pagination integrity | 🔴(static) | 2026-07-01 | total vs page divergence (BIZ-006) | same |
+| Count/pagination integrity | 🔴(static) | 2026-07-30 | **BIZ-006** | same |
 | Map / autocomplete / suggest / building / agent search · performance (P95) | ⚪ | — | never measured | production probes w/ timings |
 
 ### 8 · Performance
