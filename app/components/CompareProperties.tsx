@@ -190,6 +190,8 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
                         src={entry.photoUrl || '/images/listing-placeholder.svg'}
                         alt={entry.address}
                         aspect="card"
+                        // Compare tiles are the narrowest card slot on the site.
+                        sizeProfile="split"
                       />
                     </div>
                     <p className="text-base font-display font-bold text-brand-dark text-center">

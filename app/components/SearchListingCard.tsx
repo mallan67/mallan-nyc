@@ -1,21 +1,15 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import IDXImage from '@/app/components/IDXImage';
 import FavoriteButton from '@/app/components/FavoriteButton';
 import FareActFeeBadge from '@/app/components/FareActFeeBadge';
 import OpenHouseBanner from '@/app/components/OpenHouseBanner';
+import { CardPhotoNav, CardPhotoCounter } from '@/app/components/CardPhotoNav';
 import { type DisplayListing, listingHref, hasVirtualTour, hasVideo } from '@/lib/idx/display-adapter';
-import { useSwipe } from '@/lib/hooks/useSwipe';
+import { useCardPhotoCarousel } from '@/lib/hooks/useCardPhotoCarousel';
 import { formatBathrooms } from '@/lib/format/bathrooms';
-import {
-  LISTING_PLACEHOLDER_IMAGE,
-  countPhotoMedia,
-  getHeroPhoto,
-  getValidPhotoMedia,
-  shouldAutoCropWhiteBorder,
-} from '@/lib/media/listing-card-media';
+import { shouldAutoCropWhiteBorder } from '@/lib/media/listing-card-media';
 
 function formatPrice(price: number, isRental: boolean): string {
   if (isRental) return `$${price.toLocaleString()}/mo`;
@@ -100,17 +94,17 @@ interface CardProps {
   isRental: boolean;
   isHighlighted?: boolean;
   onHover?: (id: string | null) => void;
+  /**
+   * Above-the-fold hint. Passed by the search page for the first row of
+   * results so those photos load eagerly instead of waiting on the lazy
+   * loader; every other card stays lazy. See `IDXImage`'s `priority`.
+   */
+  priority?: boolean;
 }
 
 /** Grid card — standard card with photo on top */
-export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
-  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
-  const heroSrc = getHeroPhoto(listing.media, failedPhotoUrls);
-  const photoCount = countPhotoMedia(listing.media);
-  const handlePhotoError = useCallback(() => {
-    if (heroSrc === LISTING_PLACEHOLDER_IMAGE) return;
-    setFailedPhotoUrls(prev => new Set(prev).add(heroSrc));
-  }, [heroSrc]);
+export function GridCard({ listing, isRental, isHighlighted, onHover, priority = false }: CardProps) {
+  const carousel = useCardPhotoCarousel(listing.media);
 
   return (
     <Link
@@ -127,14 +121,25 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
+      // Suppresses the navigation click that would otherwise fire at the
+      // end of a photo swipe. No-op for ordinary clicks, so tapping the
+      // card anywhere except an arrow still opens the listing.
+      onClick={carousel.swipe.cancelIfSwiping}
     >
-      <div className="relative overflow-hidden">
+      <div
+        className="relative overflow-hidden touch-pan-y"
+        onTouchStart={carousel.swipe.onTouchStart}
+        onTouchMove={carousel.swipe.onTouchMove}
+        onTouchEnd={carousel.swipe.onTouchEnd}
+      >
         <IDXImage
-          src={heroSrc}
+          src={carousel.currentSrc}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           aspect="card"
+          sizeProfile="grid"
+          priority={priority}
           className="group-hover:scale-105 transition-transform duration-700"
-          onError={handlePhotoError}
+          onError={carousel.handlePhotoError}
           autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
         />
         {formatComingSoonBadge(listing) ? (
@@ -146,17 +151,16 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
             <FavoriteButton listing={listing} />
           </div>
         )}
-        {(photoCount > 0 || hasVirtualTour(listing) || hasVideo(listing)) && (
+        {(carousel.count > 0 || hasVirtualTour(listing) || hasVideo(listing)) && (
           <div className="absolute top-3 right-3 flex gap-1.5 z-10">
             {(hasVirtualTour(listing) || hasVideo(listing)) && <TourBadge video={!hasVirtualTour(listing)} />}
-            {photoCount > 0 && (
-              <span className="flex items-center gap-1 bg-black/50 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                {photoCount}
-              </span>
-            )}
+            {/* Was a static total ("12"). Now the live position ("3/12")
+                so the badge reflects the carousel the user can actually
+                drive. Falls back to the bare count for single-photo cards. */}
+            <CardPhotoCounter carousel={carousel} withIcon showSingle className="text-[11px] px-2 py-1 !rounded-lg" />
           </div>
         )}
+        <CardPhotoNav carousel={carousel} size="md" />
         <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-10" />
       </div>
       <div className="p-4 sm:p-5">
@@ -230,13 +234,8 @@ export function GridCard({ listing, isRental, isHighlighted, onHover }: CardProp
 }
 
 /** List card — horizontal layout */
-export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
-  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
-  const heroSrc = getHeroPhoto(listing.media, failedPhotoUrls);
-  const handlePhotoError = useCallback(() => {
-    if (heroSrc === LISTING_PLACEHOLDER_IMAGE) return;
-    setFailedPhotoUrls(prev => new Set(prev).add(heroSrc));
-  }, [heroSrc]);
+export function ListCard({ listing, isRental, isHighlighted, onHover, priority = false }: CardProps) {
+  const carousel = useCardPhotoCarousel(listing.media);
 
   return (
     <Link
@@ -246,14 +245,22 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
       }`}
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
+      onClick={carousel.swipe.cancelIfSwiping}
     >
-      <div className="relative w-48 sm:w-64 flex-shrink-0">
+      <div
+        className="relative w-48 sm:w-64 flex-shrink-0 overflow-hidden touch-pan-y"
+        onTouchStart={carousel.swipe.onTouchStart}
+        onTouchMove={carousel.swipe.onTouchMove}
+        onTouchEnd={carousel.swipe.onTouchEnd}
+      >
         <IDXImage
-          src={heroSrc}
+          src={carousel.currentSrc}
           alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
           aspect="card"
+          sizeProfile="list"
+          priority={priority}
           className="group-hover:scale-105 transition-transform duration-700"
-          onError={handlePhotoError}
+          onError={carousel.handlePhotoError}
           autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
         />
         {formatComingSoonBadge(listing) ? (
@@ -268,6 +275,11 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
         {(hasVirtualTour(listing) || hasVideo(listing)) && (
           <div className="absolute top-2 right-2 z-10"><TourBadge compact video={!hasVirtualTour(listing)} /></div>
         )}
+        <CardPhotoCounter
+          carousel={carousel}
+          className="absolute bottom-1.5 right-1.5 text-[10px] px-1.5 py-0.5 z-10"
+        />
+        <CardPhotoNav carousel={carousel} size="sm" />
         <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-2 left-2 z-10" />
       </div>
       <div className="p-4 flex-1 min-w-0">
@@ -350,58 +362,39 @@ export function ListCard({ listing, isRental, isHighlighted, onHover }: CardProp
 }
 
 /** Split-view card — compact card for 2-col grid with photo carousel + touch swipe */
-export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardProps) {
-  const [photoIdx, setPhotoIdx] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
-  const photos = getValidPhotoMedia(listing.media).filter((m) => !failedPhotoUrls.has(String(m.url)));
-  const safePhotoIdx = photos.length > 0 ? Math.min(photoIdx, photos.length - 1) : 0;
-  const currentSrc = photos[safePhotoIdx]?.url || LISTING_PLACEHOLDER_IMAGE;
-  const hasMultiple = photos.length > 1;
-
-  const goPrev = useCallback(() => setPhotoIdx(i => (photos.length > 0 && i > 0 ? i - 1 : Math.max(photos.length - 1, 0))), [photos.length]);
-  const goNext = useCallback(() => setPhotoIdx(i => (photos.length > 0 && i < photos.length - 1 ? i + 1 : 0)), [photos.length]);
-  const swipe = useSwipe(goNext, goPrev);
-  const handlePhotoError = useCallback(() => {
-    if (currentSrc === LISTING_PLACEHOLDER_IMAGE) return;
-    setFailedPhotoUrls(prev => new Set(prev).add(currentSrc));
-    setPhotoIdx(0);
-  }, [currentSrc]);
-
-  const prev = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    goPrev();
-  }, [goPrev]);
-
-  const next = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    goNext();
-  }, [goNext]);
+export function SplitCard({ listing, isRental, isHighlighted, onHover, priority = false }: CardProps) {
+  // Same hook as GridCard/ListCard — this card's former inline
+  // implementation is what the hook was extracted from, so behavior here
+  // is unchanged apart from the hover reveal moving to CSS.
+  const carousel = useCardPhotoCarousel(listing.media);
 
   return (
     <div
-      className={`glass-card rounded-xl overflow-hidden hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] transition-all duration-300 ${
+      className={`group glass-card rounded-xl overflow-hidden hover:shadow-[0_6px_20px_rgba(0,0,0,0.06)] transition-all duration-300 ${
         isHighlighted ? 'ring-2 ring-brand-gold shadow-lg' : ''
       }`}
-      onMouseEnter={() => { onHover?.(listing.id); setHovered(true); }}
-      onMouseLeave={() => { onHover?.(null); setHovered(false); }}
+      onMouseEnter={() => onHover?.(listing.id)}
+      onMouseLeave={() => onHover?.(null)}
     >
       {/* Photo with carousel + touch swipe */}
       <div
         className="relative overflow-hidden touch-pan-y"
-        onTouchStart={swipe.onTouchStart}
-        onTouchMove={swipe.onTouchMove}
-        onTouchEnd={swipe.onTouchEnd}
+        onTouchStart={carousel.swipe.onTouchStart}
+        onTouchMove={carousel.swipe.onTouchMove}
+        onTouchEnd={carousel.swipe.onTouchEnd}
       >
-        <Link href={listingHref(listing)} className="block w-full" onClick={swipe.cancelIfSwiping}>
+        <Link href={listingHref(listing)} className="block w-full" onClick={carousel.swipe.cancelIfSwiping}>
           <IDXImage
-            src={currentSrc}
+            src={carousel.currentSrc}
             alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
             aspect="wide"
-            className={`transition-transform duration-500 ${hovered ? 'scale-105' : ''}`}
-            onError={handlePhotoError}
+            sizeProfile="split"
+            priority={priority}
+            // Hover zoom moved from a `hovered` useState to `group-hover`
+            // so the card carries no state that CSS can express — same
+            // visual result, one fewer re-render per pointer enter/leave.
+            className="transition-transform duration-500 group-hover:scale-105"
+            onError={carousel.handlePhotoError}
             autoCropWhiteBorder={shouldAutoCropWhiteBorder(listing._source)}
           />
         </Link>
@@ -415,42 +408,16 @@ export function SplitCard({ listing, isRental, isHighlighted, onHover }: CardPro
         <div className="absolute top-1.5 right-1.5 z-10">
           <FavoriteButton listing={listing} size="sm" />
         </div>
-        {/* Photo count badge */}
-        {photos.length > 1 && (
-          <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-md z-10">
-            {safePhotoIdx + 1}/{photos.length}
-          </span>
-        )}
+        {/* Photo position badge */}
+        <CardPhotoCounter
+          carousel={carousel}
+          className="absolute bottom-1.5 right-1.5 text-[10px] px-1.5 py-0.5 z-10"
+        />
         {(hasVirtualTour(listing) || hasVideo(listing)) && (
           <div className="absolute bottom-1.5 left-1.5 z-10"><TourBadge compact video={!hasVirtualTour(listing)} /></div>
         )}
-        {/* Photo nav arrows — visible on hover */}
-        {hasMultiple && hovered && (
-          <>
-            <button
-              onClick={prev}
-              className="absolute left-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white z-20"
-              aria-label="Previous photo"
-            >
-              <svg className="w-3 h-3 text-brand-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <button
-              onClick={next}
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white z-20"
-              aria-label="Next photo"
-            >
-              <svg className="w-3 h-3 text-brand-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </>
-        )}
-        {/* Dot indicators */}
-        {hasMultiple && (
-          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-0.5 z-10">
-            {photos.slice(0, 5).map((_, i) => (
-              <span key={i} className={`w-1 h-1 rounded-full transition-colors ${i === safePhotoIdx ? 'bg-white' : 'bg-white/40'}`} />
-            ))}
-          </div>
-        )}
+        {/* Photo nav arrows + dots — shared with GridCard/ListCard */}
+        <CardPhotoNav carousel={carousel} size="sm" />
       </div>
       {/* Info */}
       <Link href={listingHref(listing)} className="block px-3.5 py-3">
