@@ -28,13 +28,18 @@ import {
  * the oversized-download defect: R2 stores ONE Sharp-processed WebP at
  * full resolution (2,000-3,200 px) and the DTO's `thumbUrl` is
  * byte-identical to `url`, so a ~350 px card slot downloaded a
- * 1,437,336-byte original. There is no smaller stored variant to point
- * at. IDXImage therefore now emits a `srcSet` of Next-optimizer
- * candidates plus a `sizes` hint (see `lib/media/responsive-image.ts`,
- * which documents the measurement and the cost trade-off this
- * reintroduces). If an optimized candidate fails, the raw source is
- * retried once before the error state — sizing can never blank a photo
- * that would otherwise have rendered.
+ * 1,443,781-byte original. There is no smaller stored variant to point
+ * at. IDXImage therefore emits a `srcSet` of Next-optimizer candidates
+ * plus a `sizes` hint — but ONLY when the caller passes an explicit
+ * `sizeProfile` (see `shouldOptimize` below). If an optimized candidate
+ * fails, the raw source is retried once before the error state, so
+ * sizing can never blank a photo that would otherwise have rendered.
+ *
+ * The old header also cited "$5/1000 after the free 5000/mo tier" as
+ * the reason to avoid the optimizer. That is legacy source-image
+ * pricing and does not apply to this account. See
+ * `lib/media/responsive-image.ts` and
+ * docs/operations/vercel-image-optimization-billing-evidence-2026-08-01.md
  *
  * Optional `autoCropWhiteBorder` (added 2026-05-16): when true, the
  * loaded image is analyzed for baked-in white canvas borders. If

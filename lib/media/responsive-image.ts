@@ -21,12 +21,26 @@
  *
  * COST NOTE — this reverses a documented decision. IDXImage's header
  * previously stated that next/image was avoided to dodge Vercel Image
- * Optimization charges. The Mallan team's actual billing model was
- * verified on 2026-07-31 (Pro, billingVersion 2): transformations plus
- * cache reads/writes, NOT the legacy per-source-image model. The
- * trade-off is real but is now measured rather than assumed — see the
- * PR body. To revert, have buildImageSources() return
- * `{ src, srcSet: undefined }`.
+ * Optimization charges at "$5 per 1,000 after 5,000 free". That figure
+ * is obsolete: it describes legacy source-image pricing, which this
+ * account is not on.
+ *
+ * Verified 2026-07-31 and re-verified 2026-08-01 against the team's own
+ * billing object — Pro, billingVersion 2, with exactly three image line
+ * items (transformation, cache read, cache write) and NO legacy
+ * source-image item. Captured evidence, method, and the limits of what
+ * it proves:
+ *   docs/operations/vercel-image-optimization-billing-evidence-2026-08-01.md
+ *
+ * Two honest caveats, because they change the conclusion if wrong:
+ *   - The $20/month included credit is SHARED across functions, data
+ *     transfer, ISR and other metered products. It is not reserved for
+ *     images, so "inside the allocation" holds only if total account
+ *     usage leaves room.
+ *   - Current usage counters could not be retrieved via the API and
+ *     must be read from the dashboard before relying on any headroom.
+ *
+ * To revert, have buildImageSources() return `{ src, srcSet: undefined }`.
  *
  * SAFETY: callers keep the ORIGINAL url as a fallback. If an optimized
  * request fails for any reason (optimizer disabled, host removed from
