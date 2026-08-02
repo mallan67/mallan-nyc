@@ -24,4 +24,7 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   });
 }
 
+// Named export supports infrastructure modules that need an explicit,
+// mockable dependency while preserving the long-standing default export.
+export { redis };
 export default redis;
