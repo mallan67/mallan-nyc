@@ -33,7 +33,11 @@ const finalizePreflight: jest.MockedFunction<
     completion: OneCycleCompletionInput,
     now?: Date,
   ) => Promise<void>
-> = jest.fn(async () => undefined);
+> = jest.fn(async (
+  _decision: OneCyclePreflightDecision,
+  _completion: OneCycleCompletionInput,
+  _now?: Date,
+) => undefined);
 
 jest.mock("@/app/api/cron/one-cycle/route", () => ({
   GET: (req: NextRequest) => runOneCycle(req),
