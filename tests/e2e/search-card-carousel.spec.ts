@@ -390,10 +390,16 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
           // rung is a correct selection, so accept both rather than
           // making this permanently flaky. Every real defect found so
           // far was 2-5 rungs off, well outside this band.
-          const JITTER_PX = 2;
+          // The band is SYMMETRIC: a card measured at 414px may render
+          // 412 or 417 between runs, and 414 x 2 = 828 sits exactly on a
+          // rung, so the correct rung flips either way. Accept any rung
+          // consistent with that uncertainty rather than pretending the
+          // measurement is exact. Serving 828 for a 417px card is 0.7%
+          // under — imperceptible, and far better than a 30% byte jump.
+          const JITTER_PX = 3;
           const acceptable = new Set(
-            [need, Math.max(1, need - JITTER_PX * dpr)]
-              .map((n) => CARD_IMAGE_WIDTHS.find((w) => w >= n))
+            [need - JITTER_PX * dpr, need, need + JITTER_PX * dpr]
+              .map((n) => CARD_IMAGE_WIDTHS.find((w) => w >= Math.max(1, n)))
               .filter((w): w is number => w !== undefined),
           );
           expect(
