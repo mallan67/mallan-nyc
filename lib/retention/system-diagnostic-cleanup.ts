@@ -12,12 +12,11 @@ import { Prisma } from "@prisma/client";
 import { SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS } from "./system-diagnostic-actions";
 
 /**
- * Approved default: ON. The explicit string "false" is the emergency kill
- * switch. This replaces the former default-off gate after Maya's 2026-08-02
- * approval of the narrow 30-day operational-diagnostic policy.
+ * Explicit gate. The approved deployment sets this to "true" in vercel.json;
+ * removing it or setting any other value stops deletion without a code change.
  */
 export function diagnosticRetentionEnabled(): boolean {
-  return process.env.DIAGNOSTIC_RETENTION_ENABLED !== "false";
+  return process.env.DIAGNOSTIC_RETENTION_ENABLED === "true";
 }
 
 export const DIAGNOSTIC_RETENTION_DAYS = 30;
@@ -59,12 +58,6 @@ export async function countExpiredDiagnostics(
   return { rows: first?.rows ?? 0, bytes: Number(first?.bytes ?? 0) };
 }
 
-/**
- * Each loop iteration is one independently committed statement:
- * claim oldest eligible rows with SKIP LOCKED, delete exactly those rows, and
- * return the actual row/payload counts. Interrupted runs resume on the next
- * daily invocation.
- */
 export async function purgeExpiredDiagnostics(
   db: DiagnosticCleanupClient,
   now: Date,
@@ -77,14 +70,9 @@ export async function purgeExpiredDiagnostics(
     const counted = await countExpiredDiagnostics(db, now);
     return { rows: counted.rows, bytes: counted.bytes, batches: 0, stopped: "dry_run" };
   }
-
-  // Exact false is the emergency stop. Preserve the historical result label so
-  // existing operations consumers do not break while the policy meaning has
-  // changed from "approval missing" to "explicitly disabled".
   if (!diagnosticRetentionEnabled()) {
     return { rows: 0, bytes: 0, batches: 0, stopped: "compliance_gate_closed" };
   }
-
   if (!Number.isInteger(batchSize) || batchSize <= 0 || !Number.isInteger(maxRows) || maxRows <= 0) {
     return { rows: 0, bytes: 0, batches: 0, stopped: "error", error: "invalid_bounds" };
   }
@@ -139,7 +127,6 @@ export async function purgeExpiredDiagnostics(
     batches += 1;
     rows += batchRows;
     bytes += batchBytes;
-
     if (batchRows < take) {
       return { rows, bytes, batches, stopped: "drained" };
     }
