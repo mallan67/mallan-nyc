@@ -18,6 +18,13 @@
  *
  * Run:
  *   PLAYWRIGHT_BASE_URL=<preview-url> npx playwright test tests/e2e/search-card-carousel.spec.ts
+ *
+ * If you need machine-readable output, write it into an ALREADY-IGNORED
+ * artifact directory rather than the repo root — a stray reporter file
+ * at the root once got committed, and the "fix" of ignoring its filename
+ * repo-wide was worse than the problem (`sw*.json` would swallow a real
+ * swagger.json, `r2.json` a real Cloudflare config):
+ *   … --reporter=json > test-results/run.json
  */
 import { test, expect, type Page, type Request } from '@playwright/test';
 // The ladder is the single source of truth for the expected rung — the
@@ -380,10 +387,11 @@ test.describe('Card images stay within the premium resolution tolerance, without
               `(ladder tops out at ${Math.max(...CARD_IMAGE_WIDTHS)})`,
           ).toBeDefined();
 
-          // Assert the EXACT rung, both directions. `>= need` alone
-          // prevents blur but silently permits gross over-download — it
-          // passed a 1920 candidate for a 369px card at the 768px
-          // boundary. Exact-rung catches both failure modes.
+          // Assert the correct rung WITHOUT upward escalation, allowing
+          // the immediately lower rung only within the measured jitter
+          // band below. `>= need` alone prevents blur but silently
+          // permits gross over-download — it passed a 1920 candidate for
+          // a 369px card at the 768px boundary.
           // Rendered width jitters by a pixel or two between runs
           // (scrollbar presence, sub-pixel layout). When `need` sits
           // within that jitter of a rung boundary, either neighbouring

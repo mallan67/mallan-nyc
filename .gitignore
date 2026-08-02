@@ -282,13 +282,3 @@ artifacts/gate6-archive-touched-*.jsonl
 test-results/
 playwright-report/
 tests/e2e/_artifacts/
-
-# Stray Playwright JSON reporter output
-*.json.pwreport
-r2.json
-q[0-9].json
-r[0-9].json
-f[0-9].json
-s[0-9].json
-pw*.json
-sw*.json
