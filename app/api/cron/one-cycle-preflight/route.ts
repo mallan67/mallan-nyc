@@ -37,11 +37,18 @@ function completionFromBody(body: unknown): OneCycleCompletionInput | null {
     if (!isRecord(raw) || typeof raw.member !== 'string' || typeof raw.status !== 'string') {
       return null;
     }
-    members.push({
-      member: raw.member,
-      status: raw.status,
-      summary: isRecord(raw.summary) ? raw.summary : {},
-    });
+    const summary = isRecord(raw.summary) ? { ...raw.summary } : {};
+    // The existing One Cycle roll-up intentionally whitelists `listings_*`
+    // counters. Translate the capped-fetch alias back to the preflight's
+    // canonical key so a 500-row batch always forces another drain cycle.
+    if (
+      raw.member === 'idx-sync' &&
+      typeof summary.listings_fetched === 'number' &&
+      typeof summary.total_fetched !== 'number'
+    ) {
+      summary.total_fetched = summary.listings_fetched;
+    }
+    members.push({ member: raw.member, status: raw.status, summary });
   }
 
   return {
@@ -55,11 +62,11 @@ function completionFromBody(body: unknown): OneCycleCompletionInput | null {
 /**
  * Scheduled 10-minute entrypoint.
  *
- * The lightweight Cotality + Redis preflight runs before importing any Prisma
- * work. A verified no-change poll returns here with `neon_touched:false`:
- * no advisory lock, no sync cursor read, no audit row, and no Neon wake.
- * Every uncertain condition fails open to the existing proven One Cycle route,
- * which remains the sole owner of claims, member ordering, writes, and audits.
+ * The lightweight Cotality + Redis preflight runs before any Prisma work.
+ * A verified no-change poll returns here with `neon_touched:false`: no advisory
+ * lock, no sync cursor read, no audit row, and no Neon wake. Every uncertain
+ * condition fails open to the existing proven One Cycle route, which remains
+ * the sole owner of claims, member ordering, writes, and audits.
  */
 export async function GET(req: NextRequest) {
   if (!authorized(req)) {
