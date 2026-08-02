@@ -1,46 +1,67 @@
 /// <reference types="jest" />
 /**
  * ONE MACHINE — unified 10-minute cadence with a Neon-free no-change path.
- *
- * The scheduled route is the external Cotality/Redis preflight. It either:
- *   - proves no source/backlog work and returns without invoking One Cycle; or
- *   - fails open to the existing One Cycle orchestrator, which alone owns the
- *     Neon claim, sequential IDX→media execution, and durable audits.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { NextRequest, NextResponse } from "next/server";
+import type {
+  OneCycleCompletionInput,
+  OneCyclePreflightDecision,
+} from "@/lib/idx/one-cycle-preflight";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-const runOneCycle = jest.fn(async () => NextResponse.json({
-  success: true,
-  complete: true,
-  outcome: "success",
-  members: [
-    { member: "idx-sync", status: "ok", summary: { listings_fetched: 0 } },
-    { member: "media-sync", status: "ok", summary: { backlog_remaining: 0 } },
-  ],
-}));
-const decidePreflight = jest.fn();
-const finalizePreflight = jest.fn(async () => undefined);
+const runOneCycle: jest.MockedFunction<(req: NextRequest) => Promise<NextResponse>> = jest.fn(
+  async (_req: NextRequest) => NextResponse.json({
+    success: true,
+    complete: true,
+    outcome: "success",
+    members: [
+      { member: "idx-sync", status: "ok", summary: { listings_fetched: 0 } },
+      { member: "media-sync", status: "ok", summary: { backlog_remaining: 0 } },
+    ],
+  }),
+);
+const decidePreflight: jest.MockedFunction<
+  (now?: Date) => Promise<OneCyclePreflightDecision>
+> = jest.fn();
+const finalizePreflight: jest.MockedFunction<
+  (
+    decision: OneCyclePreflightDecision,
+    completion: OneCycleCompletionInput,
+    now?: Date,
+  ) => Promise<void>
+> = jest.fn(async () => undefined);
 
 jest.mock("@/app/api/cron/one-cycle/route", () => ({
   GET: (req: NextRequest) => runOneCycle(req),
 }));
 jest.mock("@/lib/idx/one-cycle-preflight", () => ({
-  decideOneCyclePreflight: (...args: unknown[]) => decidePreflight(...args),
-  finalizeOneCyclePreflight: (...args: unknown[]) => finalizePreflight(...args),
+  decideOneCyclePreflight: (now?: Date) => decidePreflight(now),
+  finalizeOneCyclePreflight: (
+    decision: OneCyclePreflightDecision,
+    completion: OneCycleCompletionInput,
+    now?: Date,
+  ) => finalizePreflight(decision, completion, now),
 }));
 
 process.env.CRON_SECRET = "unit-secret";
 const AUTH = "Bearer unit-secret";
-const { GET } = require("@/app/api/cron/one-cycle-preflight/route");
+const { GET } = require("@/app/api/cron/one-cycle-preflight/route") as {
+  GET: (req: NextRequest) => Promise<NextResponse>;
+};
 const makeReq = (auth?: string) =>
   new NextRequest("https://mallan.nyc/api/cron/one-cycle-preflight", {
     headers: auth ? { authorization: auth } : {},
   });
+
+const sourceSnapshot = {
+  modification: { timestamp: "2026-08-02T05:50:00.000Z", listingKey: "M-1", populationAtHead: 1 },
+  photos: { timestamp: "2026-08-02T05:45:00.000Z", listingKey: "P-1", populationAtHead: 1 },
+  capturedAt: "2026-08-02T06:00:00.000Z",
+};
 
 beforeEach(() => {
   runOneCycle.mockClear();
@@ -89,9 +110,9 @@ describe("Neon-free skip contract", () => {
     decidePreflight.mockResolvedValue({
       shouldRun: false,
       reason: "source_unchanged_no_backlog_due",
-      snapshot: { capturedAt: "2026-08-02T06:00:00.000Z" },
+      snapshot: sourceSnapshot,
       snapshotTrusted: true,
-      priorState: {},
+      priorState: null,
     });
     const response = await GET(makeReq(AUTH));
     const body = await response.json();
@@ -103,7 +124,7 @@ describe("Neon-free skip contract", () => {
   });
 
   it("uncertain/change decisions fail open to the existing orchestrator", async () => {
-    const decision = {
+    const decision: OneCyclePreflightDecision = {
       shouldRun: true,
       reason: "source_probe_failed",
       snapshot: null,
@@ -118,10 +139,10 @@ describe("Neon-free skip contract", () => {
   });
 
   it("translates the whitelisted capped-fetch alias before finalizing", async () => {
-    const decision = {
+    const decision: OneCyclePreflightDecision = {
       shouldRun: true,
       reason: "source_changed",
-      snapshot: { capturedAt: "2026-08-02T06:00:00.000Z" },
+      snapshot: sourceSnapshot,
       snapshotTrusted: true,
       priorState: null,
     };
@@ -136,7 +157,8 @@ describe("Neon-free skip contract", () => {
       ],
     }));
     await GET(makeReq(AUTH));
-    const completion = finalizePreflight.mock.calls[0][1];
-    expect(completion.members[0].summary.total_fetched).toBe(500);
+    const completion = finalizePreflight.mock.calls.at(0)?.[1];
+    expect(completion).toBeDefined();
+    expect(completion!.members[0].summary.total_fetched).toBe(500);
   });
 });
