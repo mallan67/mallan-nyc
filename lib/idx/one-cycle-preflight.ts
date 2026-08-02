@@ -20,6 +20,34 @@ export const DEFAULT_BACKLOG_INTERVAL_SECONDS = 60 * 60;
 const MIN_BACKLOG_INTERVAL_SECONDS = 10 * 60;
 const MAX_BACKLOG_INTERVAL_SECONDS = 24 * 60 * 60;
 
+/**
+ * FRESHNESS HEARTBEAT — maximum silence before an authoritative Neon-backed
+ * One Cycle is forced, even when every Cotality probe reports "unchanged".
+ *
+ * WHY THIS EXISTS. The seven fail-open branches below cover ERRORS. They do
+ * not cover a probe that succeeds and is silently WRONG: a persistent false
+ * "unchanged" would skip Neon forever, and REBNY UCBA Art. I §6 requires
+ * Trestle status changes to propagate within 24h. This is the backstop.
+ *
+ * WHY ONE HOUR — measured, not guessed. Over 7 days / 147 natural quiet runs
+ * on this feed (2026-08-02):
+ *     average quiet run  18.7 min
+ *     p95                40 min
+ *     longest observed   120 min (once)
+ *     runs >= 60 min     6 of 147  (4%)
+ *     runs >= 240 min    0
+ * One hour sits above p95, so ~96% of genuine quiet periods are never
+ * interrupted, while leaving 24x margin under the regulatory bound. 30 min
+ * would fire through a large share of normal quiet and erode the saving;
+ * 2h would gain almost nothing (one run in seven days) while doubling how
+ * long a false-unchanged defect could persist.
+ *
+ * DELIBERATELY NOT CONFIGURABLE. No env override: the compliance guarantee
+ * must not depend on an unreviewed Vercel setting that could be widened to
+ * days. Change it here, in review, or not at all.
+ */
+export const ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS = 60 * 60;
+
 const SOURCE_FIELDS = ['ModificationTimestamp', 'PhotosChangeTimestamp'] as const;
 type SourceField = (typeof SOURCE_FIELDS)[number];
 
@@ -44,7 +72,16 @@ export interface OneCyclePreflightState {
   /** Media/R2 backlog still exists, but is drained on a bounded lower cadence. */
   backlogPending: boolean;
   nextBacklogRunAt: string | null;
+  /** Last cycle that FINISHED, whatever its outcome. Not the heartbeat. */
   lastCompletedAt: string | null;
+  /**
+   * Last cycle that finished SUCCESSFULLY AND COMPLETELY. This is the
+   * heartbeat clock. Kept separate from `lastCompletedAt` because that
+   * field advances on partial and incomplete outcomes too, so it cannot
+   * express "the machine is definitely healthy". A partial cycle must not
+   * buy another hour of silence.
+   */
+  lastSuccessfulFullCycleAt: string | null;
   lastOutcome: 'success' | 'partial' | 'incomplete' | null;
 }
 
@@ -56,6 +93,7 @@ export interface OneCyclePreflightDecision {
     | 'source_probe_failed'
     | 'forced_retry'
     | 'source_changed'
+  | 'freshness_heartbeat_due'
     | 'backlog_due'
     | 'source_unchanged_no_backlog_due';
   snapshot: SourceSnapshot | null;
@@ -129,6 +167,14 @@ export function parseOneCyclePreflightState(value: unknown): OneCyclePreflightSt
   const nextBacklogRunAt = validIsoOrNull(value.nextBacklogRunAt);
   const lastCompletedAt = validIsoOrNull(value.lastCompletedAt);
   if (nextBacklogRunAt === undefined || lastCompletedAt === undefined) return null;
+  // Absent on state written before the heartbeat shipped. Treated as null,
+  // which forces one authoritative cycle — the safe direction — so no state
+  // version bump (and no forced cold start) is required.
+  const lastSuccessfulFullCycleAt =
+    value.lastSuccessfulFullCycleAt === undefined
+      ? null
+      : validIsoOrNull(value.lastSuccessfulFullCycleAt);
+  if (lastSuccessfulFullCycleAt === undefined) return null;
   const lastOutcome = value.lastOutcome;
   if (
     lastOutcome !== null &&
@@ -143,6 +189,7 @@ export function parseOneCyclePreflightState(value: unknown): OneCyclePreflightSt
     backlogPending: value.backlogPending,
     nextBacklogRunAt,
     lastCompletedAt,
+    lastSuccessfulFullCycleAt,
     lastOutcome,
   };
 }
@@ -310,6 +357,29 @@ export async function decideOneCyclePreflight(now: Date = new Date()): Promise<O
     };
   }
 
+  // ── FRESHNESS HEARTBEAT ─────────────────────────────────────────────
+  // Evaluated before the skip branch. Forces an authoritative cycle when
+  // the last SUCCESSFUL FULL cycle is missing, unparseable, in the future,
+  // or older than the bound. A future timestamp is treated as defective
+  // rather than "very recent" — otherwise a clock skew or a corrupted
+  // write could buy unlimited silence, which is the exact failure this
+  // guard exists to prevent.
+  const heartbeatAt = priorState.lastSuccessfulFullCycleAt;
+  const heartbeatMs = heartbeatAt ? Date.parse(heartbeatAt) : NaN;
+  const heartbeatExpired =
+    !Number.isFinite(heartbeatMs) ||
+    heartbeatMs > now.getTime() ||
+    now.getTime() - heartbeatMs >= ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS * 1000;
+  if (heartbeatExpired) {
+    return {
+      shouldRun: true,
+      reason: 'freshness_heartbeat_due',
+      snapshot,
+      snapshotTrusted: true,
+      priorState,
+    };
+  }
+
   const backlogDue = priorState.backlogPending && (
     priorState.nextBacklogRunAt === null ||
     new Date(priorState.nextBacklogRunAt).getTime() <= now.getTime()
@@ -383,6 +453,14 @@ export async function finalizeOneCyclePreflight(
     snapshot: decision.snapshot,
     ...followup,
     lastCompletedAt: now.toISOString(),
+    // Heartbeat advances ONLY on a successful, complete cycle. A partial or
+    // incomplete run must not buy another hour of silence — it carries the
+    // prior value forward (or stays null), so the next poll keeps forcing a
+    // run until the machine is genuinely healthy again.
+    lastSuccessfulFullCycleAt:
+      completion.success && completion.complete
+        ? now.toISOString()
+        : decision.priorState?.lastSuccessfulFullCycleAt ?? null,
     lastOutcome: completion.outcome,
   };
   try {
