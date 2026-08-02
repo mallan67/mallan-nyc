@@ -97,6 +97,23 @@ Junk/zero/negative falls back to the canary, never the maximum.
 **Rollout:** merge → deploy → one nightly run at 100 → review the
 response counters and log line → only then set the env to `10000`.
 
+**A caller-level bypass had to be removed (`d18aaace` → next).** The first
+canary revision was correct in the library and *false in production*:
+`app/api/cron/data-retention/route.ts` computed its own cap via
+`diagnosticMaxRowsOverride()` and passed it **explicitly** as `maxRows`,
+which skipped `resolveRetentionCap` entirely. With the env unset that
+resolved to the full **10,000**, so the first production deletion would
+have been unconstrained — while every unit test still reported 100,
+because they call the module directly. The override and the superseded
+`DIAGNOSTIC_MAX_ROWS` control are gone; the module is now the sole
+authority, matching the tombstone design. Caller-level regression tests
+added and **adversarially verified** — reintroducing either the explicit
+`maxRows` or the old env name fails the suite.
+
+**Lesson worth keeping:** a green library suite proves nothing about what
+the scheduled route does. Cap/kill-switch contracts need assertions on the
+*production call site*, not just the helper.
+
 ## 3. Compliance enforcement
 
 The REBNY check was failing because the known freshness driver

@@ -18,25 +18,13 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
-import { purgeExpiredDiagnostics, DIAGNOSTIC_MAX_PER_INVOCATION } from "@/lib/retention/system-diagnostic-cleanup";
+import { purgeExpiredDiagnostics } from "@/lib/retention/system-diagnostic-cleanup";
 
 export const maxDuration = 60;
 
 // Batch caps to keep a single cron run under the 60s budget
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
-
-/**
- * First-production-run canary control. `DIAGNOSTIC_MAX_ROWS` narrows a single
- * invocation (e.g. 100) so the very first real deletion can be verified before
- * the full bounded drain proceeds. Absent/invalid ⇒ the normal per-invocation
- * ceiling. Never widens it beyond that ceiling.
- */
-function diagnosticMaxRowsOverride(): number {
-  const raw = Number(process.env.DIAGNOSTIC_MAX_ROWS);
-  if (!Number.isInteger(raw) || raw <= 0) return DIAGNOSTIC_MAX_PER_INVOCATION;
-  return Math.min(raw, DIAGNOSTIC_MAX_PER_INVOCATION);
-}
 
 const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
 
@@ -123,9 +111,18 @@ export async function GET(req: NextRequest) {
   //
   // DIAGNOSTIC_DRY_RUN=true counts without deleting, using the identical
   // predicate — for the first production verification.
+  // NO explicit maxRows. The cleanup module is the SOLE authority on the
+  // invocation cap, so the shared canary contract actually governs the
+  // scheduled path: unset RETENTION_DIAGNOSTIC_MAX_ROWS => 100 rows, a set
+  // value widens it, and it is clamped to the reviewed ceiling.
+  //
+  // A previous revision computed the cap here and passed it explicitly. That
+  // silently BYPASSED the canary — with the env unset it resolved to the full
+  // 10,000, so the first production deletion would have been unconstrained
+  // while unit tests (which call the module directly) still showed 100.
+  // Caller-level regression coverage: tests/runtime/retention-canary.test.ts.
   const diagnosticPurge = await purgeExpiredDiagnostics(prisma, now, {
     dryRun: process.env.DIAGNOSTIC_DRY_RUN === "true",
-    maxRows: diagnosticMaxRowsOverride(),
   });
   results.audit_events_diagnostics_purged = diagnosticPurge.rows;
   results.audit_events_diagnostics_bytes = diagnosticPurge.bytes;
