@@ -1,6 +1,5 @@
 import { timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { GET as runOneCycle } from '@/app/api/cron/one-cycle/route';
 import {
   decideOneCyclePreflight,
   finalizeOneCyclePreflight,
@@ -38,9 +37,6 @@ function completionFromBody(body: unknown): OneCycleCompletionInput | null {
       return null;
     }
     const summary = isRecord(raw.summary) ? { ...raw.summary } : {};
-    // The existing One Cycle roll-up intentionally whitelists `listings_*`
-    // counters. Translate the capped-fetch alias back to the preflight's
-    // canonical key so a 500-row batch always forces another drain cycle.
     if (
       raw.member === 'idx-sync' &&
       typeof summary.listings_fetched === 'number' &&
@@ -62,11 +58,11 @@ function completionFromBody(body: unknown): OneCycleCompletionInput | null {
 /**
  * Scheduled 10-minute entrypoint.
  *
- * The lightweight Cotality + Redis preflight runs before any Prisma work.
- * A verified no-change poll returns here with `neon_touched:false`: no advisory
- * lock, no sync cursor read, no audit row, and no Neon wake. Every uncertain
- * condition fails open to the existing proven One Cycle route, which remains
- * the sole owner of claims, member ordering, writes, and audits.
+ * The lightweight Cotality + Redis preflight runs before Prisma is even
+ * imported. A verified no-change poll returns with `neon_touched:false`: no
+ * client instantiation, advisory lock, cursor read, audit row, or Neon wake.
+ * Every uncertain condition dynamically loads the existing proven One Cycle,
+ * which remains the sole owner of claims, member ordering, writes, and audits.
  */
 export async function GET(req: NextRequest) {
   if (!authorized(req)) {
@@ -96,6 +92,8 @@ export async function GET(req: NextRequest) {
     snapshot_trusted: decision.snapshotTrusted,
   }));
 
+  // Dynamic by design: the skip path must not evaluate the Prisma-backed route.
+  const { GET: runOneCycle } = await import('@/app/api/cron/one-cycle/route');
   const response = await runOneCycle(req);
   try {
     const body = await response.clone().json();
