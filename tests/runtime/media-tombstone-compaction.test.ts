@@ -6,24 +6,23 @@ import {
   MEDIA_TOMBSTONE_BATCH_SIZE,
   MEDIA_TOMBSTONE_MAX_PER_INVOCATION,
   MEDIA_TOMBSTONE_RETENTION_DAYS,
+  type MediaTombstoneCompactionClient,
 } from '@/lib/retention/media-tombstone-compaction';
 
-const NOW = new Date('2026-08-02T07:00:00.000Z');
+const TOMBSTONE_NOW = new Date('2026-08-02T07:00:00.000Z');
 
 function makeClient(batchCounts: number[]) {
   const captured: Prisma.Sql[] = [];
   let i = 0;
-  return {
-    captured,
-    client: {
-      $queryRaw: async (query: Prisma.Sql) => {
-        captured.push(query);
-        const rows = batchCounts[i] ?? 0;
-        i += 1;
-        return [{ rows, bytes: BigInt(rows * 500) }];
-      },
+  const client: MediaTombstoneCompactionClient = {
+    $queryRaw: async <T>(query: Prisma.Sql): Promise<T> => {
+      captured.push(query);
+      const rows = batchCounts[i] ?? 0;
+      i += 1;
+      return [{ rows, bytes: BigInt(rows * 500) }] as T;
     },
   };
+  return { captured, client };
 }
 
 const text = (q: Prisma.Sql) => q.strings.join('').replace(/\s+/g, ' ');
@@ -31,19 +30,19 @@ const text = (q: Prisma.Sql) => q.strings.join('').replace(/\s+/g, ' ');
 describe('media tombstone compaction', () => {
   it('uses the exact deleted-status and 30-day predicates', async () => {
     const { client, captured } = makeClient([0]);
-    await compactExpiredMediaTombstones(client, NOW);
+    await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
     const sql = text(captured[0]);
     expect(sql).toContain("status = 'deleted'");
     expect(sql).toContain('updated_at <');
-    expect(captured[0].values[0]).toEqual(mediaTombstoneCutoff(NOW));
-    expect(NOW.getTime() - mediaTombstoneCutoff(NOW).getTime()).toBe(
+    expect(captured[0].values[0]).toEqual(mediaTombstoneCutoff(TOMBSTONE_NOW));
+    expect(TOMBSTONE_NOW.getTime() - mediaTombstoneCutoff(TOMBSTONE_NOW).getTime()).toBe(
       MEDIA_TOMBSTONE_RETENTION_DAYS * 24 * 60 * 60 * 1000,
     );
   });
 
   it('never hard-deletes and clears only delivery payload fields', async () => {
     const { client, captured } = makeClient([0]);
-    await compactExpiredMediaTombstones(client, NOW);
+    await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
     const sql = text(captured[0]);
     expect(sql).not.toContain('DELETE FROM listing_media');
     for (const field of ['media_url_original', 'media_url_cached', 'r2_key', 'width', 'height']) {
@@ -56,7 +55,7 @@ describe('media tombstone compaction', () => {
 
   it('orders oldest-first and uses SKIP LOCKED', async () => {
     const { client, captured } = makeClient([0]);
-    await compactExpiredMediaTombstones(client, NOW);
+    await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
     const sql = text(captured[0]);
     expect(sql).toContain('ORDER BY updated_at, id');
     expect(sql).toContain('FOR UPDATE SKIP LOCKED');
@@ -64,7 +63,7 @@ describe('media tombstone compaction', () => {
 
   it('is bounded per statement and per invocation', async () => {
     const { client, captured } = makeClient(new Array(20).fill(MEDIA_TOMBSTONE_BATCH_SIZE));
-    const result = await compactExpiredMediaTombstones(client, NOW);
+    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
     expect(result.rows).toBe(MEDIA_TOMBSTONE_MAX_PER_INVOCATION);
     expect(result.stopped).toBe('invocation_cap');
     const requested = captured.reduce((sum, q) => sum + Number(q.values[1]), 0);
@@ -73,14 +72,14 @@ describe('media tombstone compaction', () => {
 
   it('stops on a short final batch and reports actual payload bytes', async () => {
     const { client, captured } = makeClient([2000, 37]);
-    const result = await compactExpiredMediaTombstones(client, NOW);
+    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
     expect(result).toMatchObject({ rows: 2037, bytes: 2037 * 500, batches: 2, stopped: 'drained' });
     expect(captured).toHaveLength(2);
   });
 
   it('fails closed on invalid bounds', async () => {
     const { client, captured } = makeClient([1]);
-    const result = await compactExpiredMediaTombstones(client, NOW, { maxRows: 0 });
+    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW, { maxRows: 0 });
     expect(result).toMatchObject({ rows: 0, stopped: 'error', error: 'invalid_bounds' });
     expect(captured).toHaveLength(0);
   });
