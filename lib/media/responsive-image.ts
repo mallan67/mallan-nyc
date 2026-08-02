@@ -85,14 +85,23 @@ export const CARD_SIZES = {
    * Declaring the narrower one would under-resolve every all-listings
    * card by ~1.6x, so the wider layout wins.
    *
-   * 640px, tuned to the candidate ladder (premium standard, 2026-08-01):
-   *   @1x -> 640  (1.04x of the 616px render)
-   *   @2x -> 1280 (2.08x — true retina coverage)
-   * The previous 600px landed on 1200, which was 2.6% SHORT of the
-   * 1232 a 616px card needs at 2x. 640 is the smallest declaration that
-   * reaches the new 1280 rung without overshooting to 1920.
+   * BREAKPOINTS MUST MATCH THE CSS, NOT LOOK PLAUSIBLE (fixed 2026-08-02).
+   * The first branch was `(max-width: 640px)`, but every GridCard layout
+   * switches to two columns at Tailwind `md` = 768px:
+   *   all-listings  `grid-cols-1 md:grid-cols-2`
+   *   grid view     `grid md:grid-cols-2 lg:grid-cols-3`
+   * So across 641-767px the card is FULL WIDTH while `sizes` claimed
+   * 50vw. Measured on production before the fix:
+   *   700px viewport @1x -> rendered 693, received 384  = 0.55x
+   *   700px viewport @2x -> rendered 695, received 828  = 0.60x
+   * Visibly soft on tablet portrait. Caught by Codex review; my own
+   * test matrix (390/1440/1920) skipped the entire 641-1023 band.
+   *
+   * Above 768px the card is half the container, and above 1024px it is
+   * a third (grid view) or half (all-listings) — 640px covers the wider
+   * all-listings case at ~616px, landing on 1280 at 2x.
    */
-  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 640px',
+  grid: '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 640px',
   /**
    * ListCard: w-48 / sm:w-64 rail — measured 207-283px.
    * The mobile branch was 12rem (192px) against a 207px render, i.e. 7%
@@ -101,10 +110,19 @@ export const CARD_SIZES = {
    */
   list: '(max-width: 640px) 14rem, 18rem',
   /**
-   * SplitCard: 2 col inside the ~55% listings panel. Measured 376-405px
-   * at 1440 and 508-544px at 1920, so no fixed px is right at both ends.
+   * SplitCard: 2 col inside the ~55% listings panel, measured 376-405px
+   * at 1440 and 508-544px at 1920 — no fixed px is right at both ends.
+   *
+   * The split grid is `grid-cols-1 lg:grid-cols-2` and the map is
+   * `hidden lg:block`, so SplitCard only ever renders two-up at >=1024px.
+   * Below that the page renders GridCards instead — verified live at
+   * 700/800/900/1000px, where the grid profile was the applied `sizes`.
+   * The <=1024px branch is therefore a defensive full-width declaration
+   * rather than a live path: if the layout ever renders SplitCard on a
+   * narrow screen it will be one column and near-full-width, and must
+   * not inherit a 30vw hint.
    */
-  split: '(max-width: 768px) 50vw, 30vw',
+  split: '(max-width: 1024px) 100vw, 30vw',
   /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
 } as const;

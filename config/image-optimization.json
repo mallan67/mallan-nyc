@@ -48,12 +48,18 @@
     "         2.6% short and the only alternative was 1920, a 2.4x byte",
     "         jump for no visible gain. 1280 covers it at 2.08x.",
     "",
-    "1920/2048/3840 remain ABSENT from the card ladder — no card needs",
-    "more than 1280. They stay in deviceSizes only for the full-bleed",
-    "non-card surfaces, and an e2e assertion pins that cards never",
-    "select one."
+    "1920 was ADDED 2026-08-02, reversing the earlier 'no card needs",
+    "more than 1280'. That claim was only true because the sizes hint",
+    "wrongly switched to 50vw at 641px. Once the grid profile was",
+    "corrected to hold 100vw through the real md=768px layout",
+    "breakpoint, a full-width card on a 768px tablet at 2x DPR needs",
+    "1536 — above the old 1280 ceiling. 1920 is the covering rung.",
+    "It is selected ONLY in the <=768px full-width retina case; an e2e",
+    "assertion still pins that no card exceeds 828 at 1x DPR.",
+    "2048/3840 remain absent — they stay in deviceSizes purely for the",
+    "full-bleed non-card surfaces."
   ],
-  "cardImageWidths": [384, 448, 640, 828, 1080, 1280],
+  "cardImageWidths": [384, 448, 640, 828, 1080, 1280, 1920],
 
   "$comment_cardImageQuality": [
     "85, not Next's default 75 (Maya directive 2026-08-01: premium",

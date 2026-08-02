@@ -294,6 +294,70 @@ test.describe('Image delivery — cards must not download originals', () => {
   });
 });
 
+test.describe('Card images are never under-resolved at ANY viewport', () => {
+  /**
+   * REGRESSION GUARD for the 641-767px blur (found by Codex review,
+   * 2026-08-02; live on production until fixed).
+   *
+   * Every GridCard layout is one column until Tailwind md = 768px, but
+   * the `sizes` hint switched to 50vw at 641px. Cards in that band were
+   * full width and received a half-width image:
+   *   700px @1x -> rendered 693, received 384  = 0.55x
+   *   700px @2x -> rendered 695, received 828  = 0.60x
+   *
+   * The original test matrix was 390/1440/1920 and skipped the entire
+   * 641-1023 band, which is exactly why this shipped. This sweep walks
+   * the breakpoint edges so a `sizes` value that disagrees with the CSS
+   * cannot pass again.
+   */
+  const VIEWPORTS = [360, 640, 700, 767, 768, 800, 900, 1023, 1024, 1440];
+
+  for (const width of VIEWPORTS) {
+    for (const dpr of [1, 2]) {
+      test(`${width}px @${dpr}x — card gets at least its rendered width x DPR`, async ({ browser }) => {
+        const ctx = await browser.newContext({
+          viewport: { width, height: 900 },
+          deviceScaleFactor: dpr,
+        });
+        const page = await ctx.newPage();
+        try {
+          await page.goto('/search?tab=buy-residential');
+          await page.waitForSelector('.glass-card img', { timeout: 30_000 });
+          await page
+            .waitForFunction(
+              () => {
+                const i = document.querySelector<HTMLImageElement>('.glass-card img');
+                return Boolean(i?.currentSrc?.includes('/_next/image'));
+              },
+              { timeout: 15_000 },
+            )
+            .catch(() => {});
+
+          const r = await page.evaluate(() => {
+            const i = document.querySelector<HTMLImageElement>('.glass-card img');
+            if (!i?.currentSrc.includes('/_next/image')) return null;
+            const u = new URL(i.currentSrc, location.origin);
+            return {
+              rendered: Math.round(i.getBoundingClientRect().width),
+              chosen: Number(u.searchParams.get('w')),
+              sizes: i.getAttribute('sizes'),
+            };
+          });
+          test.skip(r === null, 'no optimizer-served card image on this page');
+
+          const need = Math.round(r!.rendered * dpr);
+          expect(
+            r!.chosen,
+            `${width}px @${dpr}x: card rendered ${r!.rendered}px (needs ${need}px) but received ${r!.chosen}px — sizes="${r!.sizes}"`,
+          ).toBeGreaterThanOrEqual(need);
+        } finally {
+          await ctx.close();
+        }
+      });
+    }
+  }
+});
+
 test.describe('No console or hydration errors block interaction', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 

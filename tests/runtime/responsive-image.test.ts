@@ -173,12 +173,32 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
     expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(1200);
   });
 
-  it('carries no unused 1920/2048 candidate', () => {
-    // The widest card need is 1232 device px (616px slot at 2x), which
-    // 1200 covers. Those larger entries remain in next.config only for
-    // the full-bleed non-card surfaces that declare sizes="100vw".
-    expect(CARD_IMAGE_WIDTHS).not.toContain(1920);
+  it('covers the full-width tablet card at 2x, and stops there', () => {
+    // A card is full width up to the md=768px layout breakpoint, so at
+    // 2x DPR it needs 1536 — 1920 is the covering rung. This reverses an
+    // earlier assertion that no card needed more than 1280; that was
+    // only true while the grid `sizes` wrongly claimed 50vw from 641px.
+    expect(CARD_IMAGE_WIDTHS).toContain(1920);
+    // Nothing larger is ever justified for a card.
     expect(CARD_IMAGE_WIDTHS).not.toContain(2048);
+    expect(CARD_IMAGE_WIDTHS).not.toContain(3840);
+  });
+
+  it('every sizes breakpoint matches a real Tailwind layout breakpoint', () => {
+    // The 641px regression: `sizes` switched to 50vw at 640px while the
+    // CSS stayed one-column until md=768px, so 641-767px cards received
+    // a half-width image for a full-width slot (measured 0.55x).
+    // Tailwind: sm=640 md=768 lg=1024 xl=1280.
+    const TAILWIND = new Set([640, 768, 1024, 1280, 1536]);
+    for (const profile of [CARD_SIZES.grid, CARD_SIZES.list, CARD_SIZES.split]) {
+      for (const m of profile.matchAll(/max-width:\s*(\d+)px/g)) {
+        expect(TAILWIND.has(Number(m[1]))).toBe(true);
+      }
+    }
+    // GridCard is one column until md — never sm.
+    expect(CARD_SIZES.grid).toMatch(/^\(max-width: 768px\) 100vw/);
+    // SplitCard only goes two-up at lg.
+    expect(CARD_SIZES.split).toMatch(/^\(max-width: 1024px\) 100vw/);
   });
 
   it('never emits the raw original as a srcSet candidate', () => {
