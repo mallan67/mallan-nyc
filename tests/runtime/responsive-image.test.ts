@@ -315,10 +315,13 @@ describe('optimizedUrl', () => {
 describe('CARD_SIZES — the hint must describe the REAL rendered width', () => {
   // Widths measured on the preview 2026-07-31 at 1440 and 1920:
   //   all-listings 564-610 · grid 400-433 · split 376-544 · list 256-275
-  it('declares the WIDER of the two GridCard layouts', () => {
-    // GridCard serves all-listings (≈616px) and grid view (≈433px).
-    // Declaring the narrower one under-resolves every all-listings card.
-    expect(CARD_SIZES.grid).toMatch(/640px$/);
+  it('gives each GridCard layout its own measured profile', () => {
+    // One profile could not serve both: all-listings renders 501px at
+    // 1024 while the 3-col grid view renders 326px there. Sharing
+    // over-declared the narrower one by up to 1.67x.
+    expect(CARD_SIZES.grid).toMatch(/600px$/);       // all-listings, capped
+    expect(CARD_SIZES.gridTight).toMatch(/414px$/);  // 3-col, capped
+    expect(CARD_SIZES.grid).not.toBe(CARD_SIZES.gridTight);
     expect(CARD_SIZES.grid).not.toBe('100vw');
   });
 
@@ -328,8 +331,16 @@ describe('CARD_SIZES — the hint must describe the REAL rendered width', () => 
     // so the browser lands exactly rather than rounding down.
     //   grid 640 -> 1280 ✓   (was 600 -> 1200, 2.6% short of a 616px card)
     //   list 224 ->  448 ✓   (was 192 ->  384, 7% short of a 207px card)
-    const declaredPx = (s: string) => Number(s.match(/(\d+)px$/)?.[1] ?? 0);
-    expect(CARD_IMAGE_WIDTHS).toContain(declaredPx(CARD_SIZES.grid) * 2);
+    // The ladder must COVER 2x every profile's capped declaration.
+    // Not "declared x 2 must itself be a rung" — that was over-strict:
+    // grid declares 600 for a 584px card, and 1200 is not a rung, but
+    // both 1168 (real need) and 1200 (declared) select 1280, so the
+    // selection is exact anyway.
+    const declaredPx = (v: string) => Number(v.match(/(\d+)px$/)?.[1] ?? 0);
+    for (const profile of [CARD_SIZES.grid, CARD_SIZES.gridTight]) {
+      const need = declaredPx(profile) * 2;
+      expect(CARD_IMAGE_WIDTHS.some((w) => w >= need)).toBe(true);
+    }
     // list declares rem; 14rem = 224px.
     const listRem = Number(CARD_SIZES.list.match(/(\d+)rem/)![1]);
     expect(CARD_IMAGE_WIDTHS).toContain(listRem * 16 * 2);

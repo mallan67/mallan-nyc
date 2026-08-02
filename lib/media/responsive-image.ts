@@ -114,14 +114,19 @@ export const CARD_SIZES = {
    *
    * This profile is the ALL-LISTINGS layout (2-col within max-w-6xl).
    * Measured: 367@768, 435@900, 501@1023, 501@1024, then fixed at
-   * 584 from 1280 up as max-w-6xl caps. 640px lands on the exact rung
-   * at every one of those widths, at 1x and 2x.
+   * 584 from 1280 up as max-w-6xl caps — i.e. 49vw until the container
+   * caps, then a constant.
+   *
+   * A flat 640px was one rung too high at 1024@2x (a 502px card needs
+   * 1004, which 1080 covers; 640x2=1280 was selected). Splitting into
+   * `49vw` below the cap and `600px` above it lands on the exact rung
+   * at every measured width, 1x and 2x.
    *
    * The 3-col grid view is NARROWER and now has its own `gridTight`
    * profile — see below. Sharing this one over-declared it by up to
    * 1.67x (a 326px card receiving 640).
    */
-  grid: '(max-width: 767px) 100vw, (max-width: 1023px) 48vw, 640px',
+  grid: '(max-width: 767px) 100vw, (max-width: 1279px) 49vw, 600px',
 
   /**
    * GridCard in the 3-COLUMN grid view (`md:grid-cols-2 lg:grid-cols-3`
@@ -135,7 +140,7 @@ export const CARD_SIZES = {
    *
    * 1279 is xl(1280) - 1, complementary like every other branch here.
    */
-  gridTight: '(max-width: 767px) 100vw, (max-width: 1023px) 48vw, (max-width: 1279px) 32vw, 420px',
+  gridTight: '(max-width: 767px) 100vw, (max-width: 1023px) 48vw, (max-width: 1279px) 32vw, 414px',
   /**
    * ListCard: `w-48 sm:w-64` rail — measured 199-283px.
    *
