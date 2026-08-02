@@ -15,6 +15,11 @@
 //     `sentry.edge.config.ts`; this wrapper does not touch that.
 const { withSentryConfig } = require("@sentry/nextjs");
 
+// Single source of truth for image optimization, shared verbatim with
+// lib/media/responsive-image.ts. See the $comment_* keys in that file for
+// the measurement behind every value.
+const IMAGE_CONFIG = require("./config/image-optimization.json");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -31,16 +36,34 @@ const nextConfig = {
   // upstream SRI defect is fixed. All CSP directives + security headers live in
   // lib/middleware/security-headers.ts; the root layout does NOT read headers()/x-nonce.
 
-  // Remote image domains for next/image optimization
+  // ── next/image configuration ──────────────────────────────────────
+  //
+  // Every value comes from config/image-optimization.json. Previously the
+  // card helper carried its own host regex and assumed Next's built-in
+  // size defaults; the two could drift apart silently, and a
+  // helper-approved host that Next rejected would 400 every card photo.
+  // tests/runtime/responsive-image.test.ts now enforces agreement in both
+  // directions.
+  //
+  // remotePatterns is EXACT-HOST only. The previous `*.r2.dev` and
+  // `*.trestle.com` wildcards admitted every public Cloudflare R2 bucket
+  // on the internet and any trestle.com subdomain — both are shared
+  // suffixes, not Mallan namespaces. Live measurement across 120
+  // production listings found exactly two media hosts in use, and zero
+  // trestle.com URLs anywhere in the code or the feed.
+  //
+  // `images.mallan.nyc` was dropped: configured but non-resolving
+  // (verified), and referenced only in comments and test fixtures.
+  // Re-add it here AND to optimizerTrustedHosts if it is ever stood up.
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'picsum.photos', pathname: '/**' },
-      { protocol: 'https', hostname: '*.trestle.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'api.cotality.com', pathname: '/**' },
-      { protocol: 'https', hostname: '*.r2.dev', pathname: '/**' },
-      { protocol: 'https', hostname: 'images.mallan.nyc', pathname: '/**' },
-    ],
+      ...IMAGE_CONFIG.optimizerTrustedHosts,
+      ...IMAGE_CONFIG.otherRemoteHosts,
+    ].map((hostname) => ({ protocol: 'https', hostname, pathname: '/**' })),
+    deviceSizes: IMAGE_CONFIG.deviceSizes,
+    imageSizes: IMAGE_CONFIG.imageSizes,
+    qualities: IMAGE_CONFIG.qualities,
+    minimumCacheTTL: IMAGE_CONFIG.minimumCacheTTL,
   },
 
   // /buy and /rent serve the search page directly (no redirect round-trip)

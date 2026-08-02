@@ -1122,7 +1122,7 @@ function SearchClient() {
                   `lg:grid-cols-2` restores the desktop 2-col layout that
                   pairs with the 45% map column. */}
               <div className="p-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
-                {sortedListings.map((listing) => (
+                {sortedListings.map((listing, i) => (
                   <div
                     key={listing.id}
                     ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}
@@ -1133,6 +1133,11 @@ function SearchClient() {
                       isRental={isRental}
                       isHighlighted={highlightedId === listing.id}
                       onHover={setHighlightedId}
+                      // First two rows of this 2-col grid are above the
+                      // fold — load them eagerly so the visible photos
+                      // don't wait on the lazy loader. Everything below
+                      // stays lazy.
+                      priority={i < 4}
                     />
                   </div>
                 ))}
@@ -1173,9 +1178,10 @@ function SearchClient() {
                 at line 1113. The `md:grid-cols-2` breakpoint is unchanged —
                 tablet+ keeps the 2-col layout. */}
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-              {sortedListings.map((listing) => (
+              {sortedListings.map((listing, i) => (
                 <div key={listing.id} ref={(el) => { if (el) cardRefs.current.set(listing.id, el); }}>
-                  <GridCard listing={listing} isRental={isRental} isHighlighted={highlightedId === listing.id} onHover={setHighlightedId} />
+                  {/* Above-fold rows load eagerly; the rest stay lazy. */}
+                  <GridCard listing={listing} isRental={isRental} isHighlighted={highlightedId === listing.id} onHover={setHighlightedId} priority={i < 4} />
                 </div>
               ))}
             </div>
@@ -1213,8 +1219,9 @@ function SearchClient() {
           <section className="py-6">
             <div className="max-w-7xl mx-auto px-4">
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sortedListings.map((listing) => (
-                  <GridCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} />
+                {sortedListings.map((listing, i) => (
+                  // 3-col at lg — first two rows are above the fold.
+                  <GridCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} priority={i < 6} />
                 ))}
               </div>
               {hasMore && (
@@ -1236,8 +1243,9 @@ function SearchClient() {
           <section className="py-6">
             <div className="max-w-7xl mx-auto px-4">
               <div className="flex flex-col gap-4">
-                {sortedListings.map((listing) => (
-                  <ListCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} />
+                {sortedListings.map((listing, i) => (
+                  // Single column — only the first few rows are visible.
+                  <ListCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} priority={i < 3} />
                 ))}
               </div>
               <p className="text-[9px] text-brand-dark/30 text-center py-4 leading-relaxed">

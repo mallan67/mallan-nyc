@@ -6,20 +6,40 @@ import {
   computeAdaptiveCropScale,
   WHITE_BORDER_THRESHOLDS,
 } from '@/lib/media/white-border-detector';
+import {
+  buildImageSources,
+  CARD_SIZES,
+  type CardSizeKey,
+} from '@/lib/media/responsive-image';
 
 /**
  * IDXImage — native <img> for all listing photos (IDX + R2).
  *
- * Uses <img> instead of next/image so photos load directly from
- * their source CDN without Vercel Image Optimization charges
- * ($5/1000 after the free 5000/mo tier).
+ * Uses a native <img> (not next/image) to keep full control over the
+ * loading, error-fallback and white-border-crop behavior below.
  *
  * Two image sources:
  *   - Exclusive listings → IDX/Trestle CDN (*.trestle.com)
  *   - All other photos   → Cloudflare R2 (*.r2.dev / images.mallan.nyc)
  *
- * Both sources serve pre-optimized images, so Vercel re-optimization
- * is unnecessary. R2 images are Sharp-processed WebP at upload time.
+ * SIZING (revised 2026-07-31) — this block previously claimed both
+ * sources "serve pre-optimized images, so Vercel re-optimization is
+ * unnecessary." That is FALSE for card surfaces and was the cause of
+ * the oversized-download defect: R2 stores ONE Sharp-processed WebP at
+ * full resolution (2,000-3,200 px) and the DTO's `thumbUrl` is
+ * byte-identical to `url`, so a ~350 px card slot downloaded a
+ * 1,443,781-byte original. There is no smaller stored variant to point
+ * at. IDXImage therefore emits a `srcSet` of Next-optimizer candidates
+ * plus a `sizes` hint — but ONLY when the caller passes an explicit
+ * `sizeProfile` (see `shouldOptimize` below). If an optimized candidate
+ * fails, the raw source is retried once before the error state, so
+ * sizing can never blank a photo that would otherwise have rendered.
+ *
+ * The old header also cited "$5/1000 after the free 5000/mo tier" as
+ * the reason to avoid the optimizer. That is legacy source-image
+ * pricing and does not apply to this account. See
+ * `lib/media/responsive-image.ts` and
+ * docs/operations/vercel-image-optimization-billing-evidence-2026-08-01.md
  *
  * Optional `autoCropWhiteBorder` (added 2026-05-16): when true, the
  * loaded image is analyzed for baked-in white canvas borders. If
@@ -90,6 +110,13 @@ interface IDXImageProps {
    * sees the original framing.
    */
   autoCropWhiteBorder?: boolean;
+  /**
+   * Which rendered-width profile this image occupies. Drives the `sizes`
+   * attribute so the browser picks a card-sized candidate instead of the
+   * multi-megabyte original. See `lib/media/responsive-image.ts` for the
+   * measured justification. Omit for full-bleed images.
+   */
+  sizeProfile?: CardSizeKey;
 }
 
 export default function IDXImage({
@@ -100,10 +127,17 @@ export default function IDXImage({
   className = '',
   onError,
   autoCropWhiteBorder = false,
+  sizeProfile,
 }: IDXImageProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  // Optimizer fallback: if the /_next/image candidate fails for ANY
+  // reason (optimizer disabled, host dropped from remotePatterns,
+  // transform error) we retry the RAW source once before surfacing the
+  // error state. This guarantees the sizing change can never blank an
+  // image that would otherwise have rendered.
+  const [rawFallbackFor, setRawFallbackFor] = useState<string | null>(null);
   // White-border verdict + ADAPTIVE crop scale are stored together,
   // keyed on the src they were computed for. When `src` changes (e.g.
   // SplitCard carousel advance), `borderedState.src` continues to
@@ -270,6 +304,34 @@ export default function IDXImage({
 
   const shouldAnimate = loaded && visible;
 
+  // Responsive candidates — STRICTLY OPT-IN.
+  //
+  // Optimization happens only when the caller passed an explicit
+  // `sizeProfile`, i.e. only on a surface whose rendered width has been
+  // measured and audited. Without a profile there is no honest `sizes`
+  // value to emit, and guessing one trades an oversized download for a
+  // blurry image. A profile-less surface therefore keeps byte-for-byte
+  // the pre-PR behavior: original URL, no srcSet, no sizes.
+  //
+  // The second condition is the failure path: once an optimized
+  // candidate has failed for this src we stop optimizing it and serve
+  // the raw URL, so the photo renders full-size rather than not at all.
+  const useRaw = rawFallbackFor === src;
+  const shouldOptimize = Boolean(sizeProfile) && !useRaw;
+  const sources = shouldOptimize ? buildImageSources(src) : { src, srcSet: undefined };
+  const imgSrc = sources.src;
+  const imgSrcSet = sources.srcSet;
+  // Only meaningful alongside a srcSet, and only ever a measured profile —
+  // never a `100vw` guess on an unaudited surface.
+  const sizesAttr = sizeProfile ? CARD_SIZES[sizeProfile] : undefined;
+  // NOTE on crossOrigin (unchanged below): the optimized candidates are
+  // same-origin `/_next/image` URLs, so `crossOrigin="anonymous"` is a
+  // no-op there (same-origin responses pass the CORS check without an
+  // ACAO header) and the white-border canvas stays untainted either way.
+  // The attribute stays gated on `autoCropWhiteBorder` exactly as the
+  // 2026-05-16 R2-CORS incident fix specified — see the regression pin in
+  // tests/runtime/white-border-detector.test.ts.
+
   return (
     <div
       ref={wrapperRef}
@@ -283,7 +345,9 @@ export default function IDXImage({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}
-        src={src}
+        src={imgSrc}
+        srcSet={imgSrcSet}
+        sizes={imgSrcSet ? sizesAttr : undefined}
         alt={alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding={priority ? 'sync' : 'async'}
@@ -313,6 +377,15 @@ export default function IDXImage({
         crossOrigin={autoCropWhiteBorder ? 'anonymous' : undefined}
         onLoad={handleLoad}
         onError={() => {
+          // Optimizer failure is RECOVERABLE: retry the raw source once
+          // before showing the error state. Only a raw-source failure is
+          // terminal, which preserves the pre-existing fallback contract
+          // (IDXImage's placeholder + the caller's onError, which drops
+          // the photo from the carousel).
+          if (!useRaw && imgSrc !== src) {
+            setRawFallbackFor(src);
+            return;
+          }
           setFailedSrc(src);
           onError?.();
         }}

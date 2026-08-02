@@ -277,3 +277,8 @@ __pw-review*/
 artifacts/gate3-backfill-touched-*.jsonl
 # Gate 6 archive-drain touched-id logs (operational audit artifacts, not repo history)
 artifacts/gate6-archive-touched-*.jsonl
+
+# Playwright run artifacts (traces, screenshots, error contexts)
+test-results/
+playwright-report/
+tests/e2e/_artifacts/

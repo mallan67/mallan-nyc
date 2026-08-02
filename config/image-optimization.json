@@ -1,0 +1,136 @@
+{
+  "$comment": [
+    "SINGLE SOURCE OF TRUTH for Next.js image optimization.",
+    "Consumed by BOTH next.config.js (CommonJS require) and",
+    "lib/media/responsive-image.ts (resolveJsonModule import), so the",
+    "optimizer trust set cannot drift from what Next actually accepts.",
+    "tests/runtime/responsive-image.test.ts enforces that in both",
+    "directions. Every value below is justified from measurement, not",
+    "from Next's defaults — see the per-key notes."
+  ],
+
+  "$comment_optimizerTrustedHosts": [
+    "EXACT hosts the card helper is allowed to hand to /_next/image.",
+    "No wildcards: a wildcard would admit any Cloudflare R2 public",
+    "bucket on the internet (*.r2.dev is a shared suffix, not a Mallan",
+    "namespace) and any *.trestle.com lookalike.",
+    "Measured on production 2026-07-31 across 60 buy + 60 rent listings",
+    "(/api/listings) — these are the only two media hosts that occur:",
+    "  pub-c05d...r2.dev          1420 photo URLs (mirrored R2 media)",
+    "  api.cotality.com (proxied)  218 photo URLs (Trestle fallback)",
+    "Deliberately NOT included:",
+    "  *.trestle.com     — zero occurrences in code or live data",
+    "  images.mallan.nyc — configured but unresolvable (verified),",
+    "                      and referenced only in comments/fixtures",
+    "  *.r2.dev          — see wildcard note above"
+  ],
+  "optimizerTrustedHosts": [
+    "pub-c05d6bb7575841e88a1f634081aaf714.r2.dev",
+    "api.cotality.com"
+  ],
+
+  "$comment_cardImageWidths": [
+    "PREMIUM STANDARD (2026-08-01, Maya directive): every card must be",
+    "served a candidate at or above its rendered width x device pixel",
+    "ratio. Under-resolving is not acceptable on a listing photo.",
+    "",
+    "Measured card widths across Grid/List/Split at 390/1440/1920:",
+    "  list          207-283 px",
+    "  split         376-544 px",
+    "  grid          385-437 px",
+    "  all-listings  564-616 px",
+    "",
+    "Two candidates were ADDED to reach true 2x coverage:",
+    "  448  — the 207 px mobile list rail needs 414 at 2x. Previously it",
+    "         declared 12rem (192) and received 384, i.e. 7% SHORT. The",
+    "         next rung up was 640, a 3.1x overshoot. 448 fits exactly.",
+    "  1280 — the 616 px all-listings card needs 1232 at 2x. 1200 was",
+    "         2.6% short and the only alternative was 1920, a 2.4x byte",
+    "         jump for no visible gain. 1280 covers it at 2.08x.",
+    "",
+    "1920/2048/3840 remain ABSENT from the card ladder — no card needs",
+    "more than 1280. They stay in deviceSizes only for the full-bleed",
+    "non-card surfaces, and an e2e assertion pins that cards never",
+    "select one."
+  ],
+  "cardImageWidths": [384, 448, 640, 828, 1080, 1280],
+
+  "$comment_cardImageQuality": [
+    "85, not Next's default 75 (Maya directive 2026-08-01: premium",
+    "standard). These are luxury-market listing photos where compression",
+    "artefacts in brickwork, window mullions and fabric are visible and",
+    "unacceptable. 85 is already in the qualities allow-list because",
+    "HeroSearch uses it.",
+    "",
+    "BILLING, stated precisely. Quality does NOT add candidate widths, so",
+    "it does not multiply the ladder. But quality IS part of the",
+    "optimizer cache key, so raising it:",
+    "  - abandons the entire existing q=75 card cache, and",
+    "  - costs ONE new transformation + ONE cache write per",
+    "    source-width pair, the first time each is requested at q=85.",
+    "Repeat requests are then cache reads. So this is a one-time",
+    "re-population, not a recurring charge — but it is NOT 'bytes only',",
+    "and the scenario costs recorded in",
+    "docs/operations/vercel-image-optimization-billing-evidence-2026-08-01.md",
+    "ARE that re-population cost, incurred as traffic touches each pair."
+  ],
+  "cardImageQuality": 85,
+
+  "$comment_deviceSizes": [
+    "Set explicitly rather than inherited. Kept WIDER than the card",
+    "ladder because 14 non-card next/image surfaces declare",
+    "sizes=\"100vw\" (full-bleed marketing/hero images); on a 1920 px",
+    "display at 2x DPR those legitimately need 3840. Narrowing this to",
+    "the card ladder would silently degrade them — a regression outside",
+    "this PR's audited scope."
+  ],
+  "deviceSizes": [640, 828, 1080, 1200, 1280, 1920, 2048, 3840],
+
+  "$comment_imageSizes": [
+    "Explicit. 384 and 448 are required by the card ladder (448 added",
+    "2026-08-01 for the mobile list rail at 2x); 96 and 128 by the",
+    "sizes=\"96px\" / \"100px\" avatar surfaces; the rest are retained so",
+    "small next/image consumers keep a tight fit."
+  ],
+  "imageSizes": [16, 32, 48, 64, 96, 128, 256, 384, 448],
+
+  "$comment_qualities": [
+    "Explicit allow-list. Next rejects a quality outside this set with a",
+    "400, so it must cover every value actually requested: 75 (cards +",
+    "default) and 85/90 (HeroSearch and the buy/sell landing heroes)."
+  ],
+  "qualities": [75, 85, 90],
+
+  "$comment_minimumCacheTTL": [
+    "31 days (2678400 s).",
+    "SAFE BECAUSE THE CACHE KEY IS THE SOURCE URL, AND BOTH MEDIA HOSTS",
+    "MINT A NEW URL WHEN THE UNDERLYING PHOTO CHANGES:",
+    "  R2       — object keys embed an epoch-ms mint stamp, e.g.",
+    "             /listings/SL-0004/1780109874725-hero.webp",
+    "  Cotality — the MediaURL path embeds a Unix timestamp; the segment",
+    "             'MjAvMjE1MjYvMTc4NTQ5MDYzMA' base64-decodes to",
+    "             '20/21526/1785490630' (2026-07-31), alongside a",
+    "             per-object signature segment",
+    "So a replaced or re-synced photo produces a DIFFERENT optimizer",
+    "cache key, and a short TTL would only re-transform identical bytes",
+    "under a new cache-write charge.",
+    "",
+    "SCOPE OF THAT GUARANTEE — stated precisely, because the earlier",
+    "wording was too absolute. This TTL cannot mask a changed source URL",
+    "ONCE THE DTO HANDS THE NEW URL TO THE OPTIMIZER. It says nothing",
+    "about whether the stored URL was refreshed in the first place.",
+    "The known #586 defect can leave media_url_original unrefreshed on",
+    "active, unmirrored, parked rows; in that case the DTO keeps handing",
+    "the optimizer an obsolete URL and the image is stale at source, not",
+    "in this cache. Media freshness is a SEPARATE contract, fixed by the",
+    "media_url_original freshness hotfix — not by anything in this file."
+  ],
+  "minimumCacheTTL": 2678400,
+
+  "$comment_otherRemoteHosts": [
+    "Non-listing image hosts required by marketing pages. Listed here so",
+    "next.config.js has exactly one place to read remote patterns from.",
+    "The card helper does NOT trust these."
+  ],
+  "otherRemoteHosts": ["images.unsplash.com", "picsum.photos"]
+}

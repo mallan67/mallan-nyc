@@ -137,6 +137,10 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
         src={currentSrc}
         alt={alt}
         aspect="card"
+        // Featured cards sit in the same ~360px grid slot as the search
+        // grid card, so they shared the oversized-download defect even
+        // though their carousel already worked.
+        sizeProfile="grid"
         onError={handlePhotoError}
       />
       {images.length > 1 && (
