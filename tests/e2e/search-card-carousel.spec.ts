@@ -266,7 +266,8 @@ test.describe('Image delivery — cards must not download originals', () => {
     await page.goto('/search?tab=buy-residential');
     await waitForCards(page);
 
-    // The pre-fix measurement was 1,443,781 bytes for ONE card photo
+    // Premium standard q=85 raises bytes ~40-60% vs q=75; the pre-fix
+    // measurement was 1,443,781 bytes for ONE card photo
     // (3239x2160). Anything under 200 KB proves a real transform happened
     // rather than a `sizes` hint bolted onto a full-resolution source.
     const sizes = await page.evaluate(async () => {
@@ -284,7 +285,11 @@ test.describe('Image delivery — cards must not download originals', () => {
 
     expect(sizes.length).toBeGreaterThan(0);
     for (const s of sizes) {
-      expect(s.bytes, `${s.src} rendered at ${s.rendered}px`).toBeLessThan(200_000);
+      // Threshold accounts for the premium q=85 standard, which costs
+      // roughly 40-60% more bytes than Next's default q=75. Still an
+      // order of magnitude below the 1,443,781-byte original this
+      // replaced — the point is right-sizing, not maximum compression.
+      expect(s.bytes, `${s.src} rendered at ${s.rendered}px`).toBeLessThan(250_000);
     }
   });
 });

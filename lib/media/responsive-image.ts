@@ -85,14 +85,21 @@ export const CARD_SIZES = {
    * Declaring the narrower one would under-resolve every all-listings
    * card by ~1.6x, so the wider layout wins.
    *
-   * 600px, not 620px, is deliberate — it is tuned to the candidate
-   * ladder. At 2x DPR, 620 asks for 1240 and the smallest candidate at
-   * or above that is 1920, so cards fetched 361 KB instead of ~153 KB.
-   * 600 asks for exactly 1200 and lands on that candidate.
+   * 640px, tuned to the candidate ladder (premium standard, 2026-08-01):
+   *   @1x -> 640  (1.04x of the 616px render)
+   *   @2x -> 1280 (2.08x — true retina coverage)
+   * The previous 600px landed on 1200, which was 2.6% SHORT of the
+   * 1232 a 616px card needs at 2x. 640 is the smallest declaration that
+   * reaches the new 1280 rung without overshooting to 1920.
    */
-  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px',
-  /** ListCard: w-48 / sm:w-64 rail — measured 209-283px. */
-  list: '(max-width: 640px) 12rem, 18rem',
+  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 640px',
+  /**
+   * ListCard: w-48 / sm:w-64 rail — measured 207-283px.
+   * The mobile branch was 12rem (192px) against a 207px render, i.e. 7%
+   * short, and at 2x it received 384 for a 414px need. 14rem (224px)
+   * reaches the new 448 rung: 2.16x coverage instead of 0.93x.
+   */
+  list: '(max-width: 640px) 14rem, 18rem',
   /**
    * SplitCard: 2 col inside the ~55% listings panel. Measured 376-405px
    * at 1440 and 508-544px at 1920, so no fixed px is right at both ends.

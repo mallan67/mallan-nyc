@@ -156,7 +156,7 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
     const entries = srcSet!.split(', ');
     expect(entries).toHaveLength(CARD_IMAGE_WIDTHS.length);
     for (const w of CARD_IMAGE_WIDTHS) {
-      expect(srcSet).toContain(`&w=${w}&q=75 ${w}w`);
+      expect(srcSet).toContain(`&w=${w}&q=${CARD_IMAGE_QUALITY} ${w}w`);
     }
     // The default candidate is card-sized, NOT the original — browsers
     // that ignore srcSet must still avoid the 1.4 MB download.
@@ -259,7 +259,7 @@ describe('unwrapProxiedMediaUrl — the path every real card photo takes', () =>
 describe('optimizedUrl', () => {
   it('builds a well-formed optimizer request', () => {
     expect(optimizedUrl(R2, 384)).toBe(
-      `/_next/image?url=${encodeURIComponent(R2)}&w=384&q=75`,
+      `/_next/image?url=${encodeURIComponent(R2)}&w=384&q=${CARD_IMAGE_QUALITY}`,
     );
   });
 });
@@ -268,18 +268,29 @@ describe('CARD_SIZES — the hint must describe the REAL rendered width', () => 
   // Widths measured on the preview 2026-07-31 at 1440 and 1920:
   //   all-listings 564-610 · grid 400-433 · split 376-544 · list 256-275
   it('declares the WIDER of the two GridCard layouts', () => {
-    // GridCard serves all-listings (≈610px) and grid view (≈433px).
+    // GridCard serves all-listings (≈616px) and grid view (≈433px).
     // Declaring the narrower one under-resolves every all-listings card.
-    expect(CARD_SIZES.grid).toMatch(/600px$/);
+    expect(CARD_SIZES.grid).toMatch(/640px$/);
     expect(CARD_SIZES.grid).not.toBe('100vw');
   });
 
-  it('lands the grid card on a candidate instead of overshooting to 1920', () => {
-    // Tuned to the ladder: declared x 2 (DPR) must BE a candidate, not
-    // sit just above one. 620 -> 1240 -> forces 1920 (361 KB observed);
-    // 600 -> 1200 -> exact hit (~180 KB).
-    const declared = Number(CARD_SIZES.grid.match(/(\d+)px$/)![1]);
-    expect(CARD_IMAGE_WIDTHS).toContain(declared * 2);
+  it('PREMIUM: every card profile reaches a true 2x candidate', () => {
+    // Premium standard — a card must never receive fewer pixels than
+    // its rendered width x DPR. Declared x 2 must itself be a candidate,
+    // so the browser lands exactly rather than rounding down.
+    //   grid 640 -> 1280 ✓   (was 600 -> 1200, 2.6% short of a 616px card)
+    //   list 224 ->  448 ✓   (was 192 ->  384, 7% short of a 207px card)
+    const declaredPx = (s: string) => Number(s.match(/(\d+)px$/)?.[1] ?? 0);
+    expect(CARD_IMAGE_WIDTHS).toContain(declaredPx(CARD_SIZES.grid) * 2);
+    // list declares rem; 14rem = 224px.
+    const listRem = Number(CARD_SIZES.list.match(/(\d+)rem/)![1]);
+    expect(CARD_IMAGE_WIDTHS).toContain(listRem * 16 * 2);
+  });
+
+  it('PREMIUM: quality is 85, not the default 75', () => {
+    // Luxury-market photography — compression artefacts in brickwork,
+    // mullions and fabric are visible at 75 and unacceptable.
+    expect(CARD_IMAGE_QUALITY).toBe(85);
   });
 
   it('covers the measured list rail, including its 275px maximum', () => {

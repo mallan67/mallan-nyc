@@ -30,22 +30,41 @@
   ],
 
   "$comment_cardImageWidths": [
-    "The MINIMAL ladder that covers every measured card width at 1x and",
-    "2x DPR. Measured on preview across Grid/List/Split at 390/1440/1920:",
-    "  list          209-283 px  -> declared 18rem (288) -> 384 @1x, 640 @2x",
-    "  split         376-544 px  -> declared 30vw        -> 640 @1x, 1080 @2x",
-    "  grid          385-437 px  -> declared 600px       -> 640 @1x, 1200 @2x",
-    "  all-listings  564-616 px  -> declared 600px       -> 640 @1x, 1200 @2x",
-    "  mobile 390 @2x                                    -> 828",
-    "1920 and 2048 are intentionally ABSENT: the widest card need is",
-    "1232 device px (616 @2x), which 1200 covers. They remain in",
-    "deviceSizes below only because full-bleed non-card surfaces use",
-    "them — cards must never select one, which an e2e assertion pins.",
-    "256 is absent too: the narrowest declared slot is 288 px, so 384 is",
-    "always the 1x pick."
+    "PREMIUM STANDARD (2026-08-01, Maya directive): every card must be",
+    "served a candidate at or above its rendered width x device pixel",
+    "ratio. Under-resolving is not acceptable on a listing photo.",
+    "",
+    "Measured card widths across Grid/List/Split at 390/1440/1920:",
+    "  list          207-283 px",
+    "  split         376-544 px",
+    "  grid          385-437 px",
+    "  all-listings  564-616 px",
+    "",
+    "Two candidates were ADDED to reach true 2x coverage:",
+    "  448  — the 207 px mobile list rail needs 414 at 2x. Previously it",
+    "         declared 12rem (192) and received 384, i.e. 7% SHORT. The",
+    "         next rung up was 640, a 3.1x overshoot. 448 fits exactly.",
+    "  1280 — the 616 px all-listings card needs 1232 at 2x. 1200 was",
+    "         2.6% short and the only alternative was 1920, a 2.4x byte",
+    "         jump for no visible gain. 1280 covers it at 2.08x.",
+    "",
+    "1920/2048/3840 remain ABSENT from the card ladder — no card needs",
+    "more than 1280. They stay in deviceSizes only for the full-bleed",
+    "non-card surfaces, and an e2e assertion pins that cards never",
+    "select one."
   ],
-  "cardImageWidths": [384, 640, 828, 1080, 1200],
-  "cardImageQuality": 75,
+  "cardImageWidths": [384, 448, 640, 828, 1080, 1280],
+
+  "$comment_cardImageQuality": [
+    "85, not Next's default 75 (Maya directive 2026-08-01: premium",
+    "standard). These are luxury-market listing photos where compression",
+    "artefacts in brickwork, window mullions and fabric are visible and",
+    "unacceptable. 85 is already in the qualities allow-list because",
+    "HeroSearch uses it. Costs bytes, not transformations — Vercel bills",
+    "per transformation, and quality is part of the cache key, so this is",
+    "a one-time re-transform of each image, not a recurring charge."
+  ],
+  "cardImageQuality": 85,
 
   "$comment_deviceSizes": [
     "Set explicitly rather than inherited. Kept WIDER than the card",
@@ -55,14 +74,15 @@
     "the card ladder would silently degrade them — a regression outside",
     "this PR's audited scope."
   ],
-  "deviceSizes": [640, 828, 1080, 1200, 1920, 2048, 3840],
+  "deviceSizes": [640, 828, 1080, 1200, 1280, 1920, 2048, 3840],
 
   "$comment_imageSizes": [
-    "Explicit. 384 is required by the card ladder; 96 and 128 by the",
+    "Explicit. 384 and 448 are required by the card ladder (448 added",
+    "2026-08-01 for the mobile list rail at 2x); 96 and 128 by the",
     "sizes=\"96px\" / \"100px\" avatar surfaces; the rest are retained so",
     "small next/image consumers keep a tight fit."
   ],
-  "imageSizes": [16, 32, 48, 64, 96, 128, 256, 384],
+  "imageSizes": [16, 32, 48, 64, 96, 128, 256, 384, 448],
 
   "$comment_qualities": [
     "Explicit allow-list. Next rejects a quality outside this set with a",
