@@ -4,8 +4,11 @@
   "installCommand": "npm ci",
   "framework": "nextjs",
   "regions": ["iad1"],
+  "env": {
+    "DIAGNOSTIC_RETENTION_ENABLED": "true"
+  },
   "crons": [
-    { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/data-retention-finalize", "schedule": "0 3 * * *" },
     { "path": "/api/cron/neon-branch-prune", "schedule": "0 4 * * *" },
     { "path": "/api/cron/feed-reconcile", "schedule": "30 3 * * *" },
     { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
@@ -29,6 +32,9 @@
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "app/api/cron/data-retention-finalize/route.ts": {
+      "maxDuration": 120
     },
     "app/api/cron/one-cycle-preflight/route.ts": {
       "maxDuration": 300
