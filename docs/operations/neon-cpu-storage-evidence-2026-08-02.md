@@ -11,7 +11,7 @@ durable artifact: exact SQL, exact output, exact metadata.
 | Database | `neondb` on `hidden-mountain-87248164`, branch `main` (`br-crimson-frog-adr7g9gt`), endpoint `ep-cold-waterfall-adno3ao2` |
 | Engine | PostgreSQL 17.10 |
 | Access | Neon MCP `run_sql`, read-only SELECT. No writes. |
-| Branch under review | `agent/finalize-neon-cpu-storage` @ `5da1a705` |
+| Branch under review | `agent/finalize-neon-cpu-storage` @ `2f695234` (heartbeat added; see Census D) |
 | DB size at measurement | 555 MB |
 
 **These values move.** Every census below was run twice, ~7 hours apart,
@@ -156,11 +156,84 @@ separate numbers, measured after the cleanup settles — never as one.
 | `PublicListingDTO` is JSON-safe | Zero `Decimal`/`BigInt`/`Date` in the interface |
 | #523 cause was Upstash-no-store-in-ISR | PR #528 body, verbatim — **not** the Decimal/BigInt serialization the code comments claim |
 
-## Exact-head CI status at `5da1a705`
+## Census D — calibrating the freshness heartbeat
 
-`pr-check` **fails**. Jest, type-check, RLS validator, UCBA audit, CRM
-tests and form-mapping all **pass**; the single failing step is
-**`CI compliance check`** (REBNY UCBA Art. I §6 — no orchestrator
-found). `REBNY display compliance audit` and `Build` are **skipped**
-because the job halts there. `npm run build` was verified **locally**
-(exit 0); CI has never built this branch.
+The heartbeat interval was chosen from the distribution of NATURAL quiet
+runs, not by judgement. If the bound sits below normal quiet, it fires
+during legitimate silence and erodes the whole saving.
+
+```sql
+WITH w AS (
+  SELECT generate_series(date_trunc('hour', now() - interval '7 days'),
+                         date_trunc('hour', now()), interval '10 minutes') AS ts
+), ch AS (
+  SELECT date_trunc('hour', modification_timestamp)
+         + floor(extract(minute FROM modification_timestamp)/10)*interval '10 minutes' AS ts
+  FROM listings WHERE modification_timestamp > now() - interval '7 days' GROUP BY 1
+), flagged AS (
+  SELECT w.ts, (ch.ts IS NULL) AS quiet FROM w LEFT JOIN ch ON ch.ts = w.ts
+), grp AS (
+  SELECT ts, quiet,
+         row_number() OVER (ORDER BY ts)
+         - row_number() OVER (PARTITION BY quiet ORDER BY ts) AS run_id
+  FROM flagged
+), runs AS (
+  SELECT run_id, count(*) AS windows_in_run FROM grp WHERE quiet GROUP BY run_id
+)
+SELECT count(*) AS quiet_runs,
+       max(windows_in_run)*10 AS longest_min,
+       round(avg(windows_in_run)*10,1) AS avg_min,
+       percentile_disc(0.95) WITHIN GROUP (ORDER BY windows_in_run)*10 AS p95_min,
+       count(*) FILTER (WHERE windows_in_run*10 >= 60)  AS runs_ge_60min,
+       count(*) FILTER (WHERE windows_in_run*10 >= 120) AS runs_ge_120min,
+       count(*) FILTER (WHERE windows_in_run*10 >= 240) AS runs_ge_240min
+FROM runs;
+```
+
+Run 2026-08-02, 7-day window:
+
+| quiet_runs | longest | avg | p95 | ≥60 min | ≥120 min | ≥240 min |
+|---|---|---|---|---|---|---|
+| 147 | 120 min | 18.7 min | 40 min | **6 (4%)** | 1 | **0** |
+
+**Conclusion — one hour.** It sits above p95 (40 min), so ~96% of genuine
+quiet periods are never interrupted, and it fires in only 4% of quiet
+runs, while leaving 24x margin under the REBNY 24-hour bound.
+
+- **30 min would be too short.** With avg 18.7 and p95 40, it would fire
+  through a large share of normal quiet and erode the saving.
+- **2 h would be too long.** Only one run in seven days reached it, so it
+  gains almost nothing — while doubling how long a false-unchanged defect
+  could persist undetected.
+
+Same caveats as Census A: this is our ingested `modification_timestamp`,
+a proxy for the Cotality head, listing stream only.
+
+**Cost posture.** Worst case on a totally quiet system, the heartbeat
+allows at most 24 forced cycles/day instead of 144 ten-minute wakes. On
+the 5-minute / 0.25 CU tail assumption that is roughly 15 CU-hours per
+30-day month versus ~90. **A planning estimate, not a billing guarantee** —
+real cycle duration, overlap and actual Neon active intervals must be
+measured after deployment.
+
+---
+
+## Exact-head CI status at `2f695234`
+
+`pr-check` **passes**. Every previously blocked or skipped step now runs:
+
+| Step | Before (`5da1a705`) | Now (`2f695234`) |
+|---|---|---|
+| Jest tests | success | **success** |
+| CI compliance check | **failure** | **success** |
+| REBNY display compliance audit | skipped | **success** |
+| Build | **skipped** | **success** |
+
+The compliance check now validates the heartbeat CONTRACT rather than the
+route name. Adversarially verified — each tamper was blocked:
+
+| Tamper | Result |
+|---|---|
+| bound widened to 6 h | FAIL — "exceeds the approved 3600s maximum" |
+| stop reading the timestamp | FAIL — "the decision never READS lastSuccessfulFullCycleAt" |
+| drop the future-timestamp guard | FAIL — "a FUTURE heartbeat does not force a cycle" |
