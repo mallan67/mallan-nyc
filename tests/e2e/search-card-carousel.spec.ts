@@ -297,7 +297,7 @@ test.describe('Image delivery — cards must not download originals', () => {
   });
 });
 
-test.describe('Card images are never under-resolved at ANY viewport', () => {
+test.describe('Card images stay within the premium resolution tolerance, without rung escalation', () => {
   /**
    * REGRESSION GUARD for the 641-767px blur (found by Codex review,
    * 2026-08-02; live on production until fixed).
@@ -327,7 +327,7 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
   for (const mode of MODES) {
   for (const width of mode.widths) {
     for (const dpr of [1, 2]) {
-      test(`${mode.view} ${width}px @${dpr}x — exact rung`, async ({ browser }) => {
+      test(`${mode.view} ${width}px @${dpr}x — correct rung (no escalation)`, async ({ browser }) => {
         const ctx = await browser.newContext({
           viewport: { width, height: 900 },
           deviceScaleFactor: dpr,
@@ -390,17 +390,27 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
           // rung is a correct selection, so accept both rather than
           // making this permanently flaky. Every real defect found so
           // far was 2-5 rungs off, well outside this band.
-          // The band is SYMMETRIC: a card measured at 414px may render
-          // 412 or 417 between runs, and 414 x 2 = 828 sits exactly on a
-          // rung, so the correct rung flips either way. Accept any rung
-          // consistent with that uncertainty rather than pretending the
-          // measurement is exact. Serving 828 for a 417px card is 0.7%
-          // under — imperceptible, and far better than a 30% byte jump.
+          // TOLERANCE IS ONE-SIDED, TOWARD THE SMALLER RUNG.
+          //
+          // A card measured at 414px may render 412 or 417 between runs,
+          // and 414 x 2 = 828 sits exactly on a rung, so the "correct"
+          // rung flips with sub-pixel jitter. Accepting the next rung
+          // DOWN absorbs that: serving 828 for an 834px need is 0.7%
+          // under, imperceptible.
+          //
+          // Accepting the next rung UP would not be symmetric-and-fair,
+          // it would be a loophole. With a two-sided band, a need of 825
+          // accepts {828, 1080} — so a 30% over-download passes merely
+          // by sitting near a boundary, which is exactly the defect
+          // class this assertion exists to expose. One-sided keeps 828
+          // for 834 while still rejecting 1080 for 825.
           const JITTER_PX = 3;
+          const exact = CARD_IMAGE_WIDTHS.find((w) => w >= need);
+          const toleratedLower = CARD_IMAGE_WIDTHS.find(
+            (w) => w >= Math.max(1, need - JITTER_PX * dpr),
+          );
           const acceptable = new Set(
-            [need - JITTER_PX * dpr, need, need + JITTER_PX * dpr]
-              .map((n) => CARD_IMAGE_WIDTHS.find((w) => w >= Math.max(1, n)))
-              .filter((w): w is number => w !== undefined),
+            [exact, toleratedLower].filter((w): w is number => w !== undefined),
           );
           expect(
             acceptable.has(r!.chosen),

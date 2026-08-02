@@ -1,0 +1,3309 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\MayaAllan\\Desktop\\mallan-cards\\playwright.config.ts",
+    "rootDir": "C:/Users/MayaAllan/Desktop/mallan-cards/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/MayaAllan/Desktop/mallan-cards/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/MayaAllan/Desktop/mallan-cards/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.60.0",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "search-card-carousel.spec.ts",
+      "file": "search-card-carousel.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Card carousel — desktop",
+          "file": "search-card-carousel.spec.ts",
+          "line": 106,
+          "column": 6,
+          "specs": [
+            {
+              "title": "/search?tab=buy-residential — multi-photo cards expose photo navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4189,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:17.831Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-0a5811566d1365328f1f",
+              "file": "search-card-carousel.spec.ts",
+              "line": 110,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=buy-residential — Next advances the image and the counter",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6963,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:22.262Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-ec3456b686d29d97b528",
+              "file": "search-card-carousel.spec.ts",
+              "line": 121,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=buy-residential — Previous walks back to the first photo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7163,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:29.284Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-3f27f7697c46416c28c7",
+              "file": "search-card-carousel.spec.ts",
+              "line": 146,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=buy-residential — an arrow click must NOT navigate to the listing",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6662,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:36.493Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-90c95702ae20c3fe3c70",
+              "file": "search-card-carousel.spec.ts",
+              "line": 165,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=buy-residential — a non-arrow click still opens the listing",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6331,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:43.211Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-2590e695a773a47d0c34",
+              "file": "search-card-carousel.spec.ts",
+              "line": 182,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — multi-photo cards expose photo navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5376,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:49.604Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-4173c7213d56f4943a01",
+              "file": "search-card-carousel.spec.ts",
+              "line": 110,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — Next advances the image and the counter",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6910,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:22:55.022Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-549e1342d981b5f6171a",
+              "file": "search-card-carousel.spec.ts",
+              "line": 121,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — Previous walks back to the first photo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7263,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:01.970Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-523c87a87c3f0c296c75",
+              "file": "search-card-carousel.spec.ts",
+              "line": 146,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — an arrow click must NOT navigate to the listing",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6684,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:09.270Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-02826df1f9464403cc14",
+              "file": "search-card-carousel.spec.ts",
+              "line": 165,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — a non-arrow click still opens the listing",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6217,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:15.993Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-b1867c52ea6d59f8a57a",
+              "file": "search-card-carousel.spec.ts",
+              "line": 182,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Card carousel — mobile swipe",
+          "file": "search-card-carousel.spec.ts",
+          "line": 197,
+          "column": 6,
+          "specs": [
+            {
+              "title": "/search?tab=buy-residential — swiping left advances the photo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5503,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:22.257Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-152ec83c9a5506b3870e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 200,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Image delivery — cards must not download originals",
+          "file": "search-card-carousel.spec.ts",
+          "line": 224,
+          "column": 6,
+          "specs": [
+            {
+              "title": "/search?tab=buy-residential — no card requests an oversized source image",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4692,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:27.804Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-ceb0de61aa1e5dbbc4aa",
+              "file": "search-card-carousel.spec.ts",
+              "line": 228,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — no card requests an oversized source image",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4834,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:32.532Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-f11a6eb4ab76547c33f3",
+              "file": "search-card-carousel.spec.ts",
+              "line": 228,
+              "column": 9
+            },
+            {
+              "title": "/buy — no card requests an oversized source image",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5202,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:37.398Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-c89a202aaba260476c1e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 228,
+              "column": 9
+            },
+            {
+              "title": "/rent — no card requests an oversized source image",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5220,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:42.632Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-b8447a7992e7f879e9f6",
+              "file": "search-card-carousel.spec.ts",
+              "line": 228,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=buy-residential — the delivered bytes are card-sized",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5073,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:47.886Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-d1e08d0f54a03b32760d",
+              "file": "search-card-carousel.spec.ts",
+              "line": 268,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Card images are never under-resolved at ANY viewport",
+          "file": "search-card-carousel.spec.ts",
+          "line": 300,
+          "column": 6,
+          "specs": [
+            {
+              "title": "all-listings 360px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2557,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:53.000Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-f098ef966febf8591f31",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 360px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3060,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:55.594Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-a442ebe2c885f573b936",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 639px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2777,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:23:58.685Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-de5755dbb2fff517cdb3",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 639px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3507,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:01.504Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-0b7f9bd0d2e563da02c8",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 640px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2768,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:05.048Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-4dd9632153da4a372212",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 640px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3784,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:07.848Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-22e8ec5cb7662bce7ecb",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 700px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3100,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:11.663Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-5cb688cc9454ae1568c5",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 700px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3916,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:14.794Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-328b25513e896948ec96",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 767px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2666,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:18.744Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-53cd4598f3bd97b4bf5b",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 767px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4060,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:21.440Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-964cb0daa0bf685da693",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 768px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4587,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:25.541Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-6e172a13387e3f7af726",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 768px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3791,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:30.186Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-fd956e6edfa165e18fbe",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 800px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3152,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:34.015Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-39b43473cc5043ccbc7e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 800px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3444,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:37.204Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-ba5686fcab0a869cdb03",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 900px @1x — exact rung",
+              "ok": false,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "timedOut",
+                      "duration": 30016,
+                      "error": {
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                      },
+                      "errors": [
+                        {
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded.\u001b[39m"
+                        },
+                        {
+                          "location": {
+                            "file": "C:\\Users\\MayaAllan\\Desktop\\mallan-cards\\tests\\e2e\\search-card-carousel.spec.ts",
+                            "column": 32,
+                            "line": 335
+                          },
+                          "message": "Error: browserContext.newPage: Test ended.\n\n  333 |           deviceScaleFactor: dpr,\n  334 |         });\n> 335 |         const page = await ctx.newPage();\n      |                                ^\n  336 |         try {\n  337 |           await page.goto(`/search?tab=buy-residential${mode.url}`);\n  338 |           await page.waitForSelector('.glass-card img', { timeout: 30_000 });\n    at C:\\Users\\MayaAllan\\Desktop\\mallan-cards\\tests\\e2e\\search-card-carousel.spec.ts:335:32"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:24:40.685Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\MayaAllan\\Desktop\\mallan-cards\\test-results\\search-card-carousel-Card--797f0-tings-900px-1x-—-exact-rung-chromium\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\MayaAllan\\Desktop\\mallan-cards\\test-results\\search-card-carousel-Card--797f0-tings-900px-1x-—-exact-rung-chromium\\trace.zip"
+                        }
+                      ]
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-45bb7fd44b67a4aa86aa",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 900px @2x — exact rung",
+              "ok": false,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "failed",
+                      "duration": 0,
+                      "error": {
+                        "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
+                      },
+                      "errors": [
+                        {
+                          "message": "Error: worker process exited unexpectedly (code=3221225794, signal=null)"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-016120db8811d01f8ab5",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1023px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-a1f02d41e51472a37fb0",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1023px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-5d173f3ecbac2d043b87",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1024px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-6b38a16f7c6155d0ca06",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1024px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-d3f7eab55d5c062f5892",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1440px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-0ebc26fc0cde1ac74e77",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1440px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-1501576f7ea98ace2ec9",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1920px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-5c244ce3a17eaafd56f1",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "all-listings 1920px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-b068af2770fbcfdb40ac",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 768px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-681c748a64c7453c6596",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 768px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-85a416b2521bbfab1a61",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 900px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-193df4945242edc7cc07",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 900px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-edace903cc7a00fdaa5d",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1023px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-dc873687fffdc2ab5e48",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1023px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-fece1bbe080073cefdc0",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1024px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-956623b2e427b9a63776",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1024px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-49216ffd7215ab9855c5",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1280px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-6e416b5bddf48afda109",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1280px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-2f33392d5115e993d95e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1440px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-eb06934336c00a25b7ef",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1440px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-7df80857cb93577f7f4f",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1920px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-9b725ea75ab910556173",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "grid 1920px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-8132abd210baf52d7572",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 360px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-52ad7373a8b14533ce24",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 360px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-ca94275a00924e1e649d",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 639px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-70b76400ec3a72612c51",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 639px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-3da1964da5fbf1081121",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 640px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-d69bf41ec74ea4793b12",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 640px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-bb81518cb089c511c678",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 768px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-7619a285dd352e0789d3",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 768px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-6401c43a698552170fcb",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 1024px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-0b5f116c57c1947c88d1",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 1024px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-899dde9bd987f603cf92",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 1440px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-6463debf2102d8e35361",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 1440px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-f4ca28287ecc60e2856e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 1920px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-cf6f85a1050ddffda30e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "list 1920px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-e015e94b166a713fe1cd",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1024px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-36f97856514205b2a26c",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1024px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-eb1258681feaf6dd9600",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1280px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-34bb21d596ae56b3a9eb",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1280px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-f901006b9c4b95db4974",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1440px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-b96b6272178228c46d6b",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1440px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-4501f6a07afba3133c58",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1920px @1x — exact rung",
+              "ok": true,
+              "tags": [
+                "1x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-f2f5c8199330c179771c",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            },
+            {
+              "title": "split 1920px @2x — exact rung",
+              "ok": true,
+              "tags": [
+                "2x"
+              ],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-a761323c90e4fc006de7",
+              "file": "search-card-carousel.spec.ts",
+              "line": 330,
+              "column": 11
+            }
+          ]
+        },
+        {
+          "title": "No console or hydration errors block interaction",
+          "file": "search-card-carousel.spec.ts",
+          "line": 419,
+          "column": 6,
+          "specs": [
+            {
+              "title": "/search?tab=buy-residential — clean console through a carousel interaction",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-d78be8831bfe618f483c",
+              "file": "search-card-carousel.spec.ts",
+              "line": 423,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=rent-residential — clean console through a carousel interaction",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-ef5fe76fa6b8fb350ef0",
+              "file": "search-card-carousel.spec.ts",
+              "line": 423,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Interactive markup — arrows are not inside the listing link",
+          "file": "search-card-carousel.spec.ts",
+          "line": 472,
+          "column": 6,
+          "specs": [
+            {
+              "title": "no carousel button is a descendant of an anchor",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-e07267e8804651c9a10e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 475,
+              "column": 7
+            },
+            {
+              "title": "each card exposes exactly one keyboard-reachable listing link",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-b767e13a7a049fc05d85",
+              "file": "search-card-carousel.spec.ts",
+              "line": 492,
+              "column": 7
+            },
+            {
+              "title": "Tab reaches both arrows; Enter and Space advance the photo",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-d5222ba720f37642475b",
+              "file": "search-card-carousel.spec.ts",
+              "line": 509,
+              "column": 7
+            },
+            {
+              "title": "Enter on the listing link opens the listing",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-33eb195be3e0e7885223",
+              "file": "search-card-carousel.spec.ts",
+              "line": 547,
+              "column": 7
+            },
+            {
+              "title": "FavoriteButton stays independently usable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-73687a8fb2e19eed78d8",
+              "file": "search-card-carousel.spec.ts",
+              "line": 563,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Optimizer failure modes — exactly one fallback, never blank",
+          "file": "search-card-carousel.spec.ts",
+          "line": 577,
+          "column": 6,
+          "specs": [
+            {
+              "title": "optimizer 401 unauthorized — falls back to the proxy, card still renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-d8795c4ef746f319ba6e",
+              "file": "search-card-carousel.spec.ts",
+              "line": 622,
+              "column": 9
+            },
+            {
+              "title": "optimizer 403 forbidden — falls back to the proxy, card still renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-f020ba3414a7ee44b769",
+              "file": "search-card-carousel.spec.ts",
+              "line": 622,
+              "column": 9
+            },
+            {
+              "title": "optimizer 404 not found — falls back to the proxy, card still renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-429ded45f983cb88d8c6",
+              "file": "search-card-carousel.spec.ts",
+              "line": 622,
+              "column": 9
+            },
+            {
+              "title": "optimizer non-image response body — falls back to the proxy, card still renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-2aa309e5c23e3ebf274b",
+              "file": "search-card-carousel.spec.ts",
+              "line": 622,
+              "column": 9
+            },
+            {
+              "title": "optimizer timeout / connection failure — falls back to the proxy, card still renders",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-dbfa6433ddced11290d0",
+              "file": "search-card-carousel.spec.ts",
+              "line": 622,
+              "column": 9
+            },
+            {
+              "title": "/search?tab=buy-residential — a broken photo never leaves a card blank",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-08-02T05:25:13.769Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "361d80fdea89ecdc29e8-17a75bf29843cef5e430",
+              "file": "search-card-carousel.spec.ts",
+              "line": 680,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-08-02T05:22:16.437Z",
+    "duration": 177336.088,
+    "expected": 30,
+    "skipped": 57,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

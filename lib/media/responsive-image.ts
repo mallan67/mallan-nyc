@@ -81,50 +81,41 @@ export const OPTIMIZER_TRUSTED_HOSTS: readonly string[] =
  */
 export const CARD_SIZES = {
   /**
-   * GridCard. Serves TWO layouts, so this must cover the wider one:
-   *   all-listings — max-w-6xl, 2 col : measured 564-616px
-   *   grid view    — max-w-7xl, 3 col : measured 385-437px
-   * Declaring the narrower one would under-resolve every all-listings
-   * card by ~1.6x, so the wider layout wins.
+   * ALL-LISTINGS layout only (2-col within max-w-6xl).
    *
-   * BREAKPOINTS MUST BE COMPLEMENTARY TO TAILWIND, NOT EQUAL TO IT.
-   * Tailwind breakpoints are `min-width` rules, so `md` applies AT
-   * 768px. A `sizes` branch of `(max-width: 768px)` is inclusive and
-   * therefore OVERLAPS md by exactly one pixel-width. Both errors were
-   * measured on preview:
+   * This profile used to serve the 3-column grid view as well. It no
+   * longer does — that view has its own `gridTight` below. Do NOT
+   * recombine them: sharing one profile over-declared the narrower
+   * layout by up to 1.67x (a 326px card receiving 640).
    *
-   *   (max-width: 640px) — under-resolution across 641-767px, where the
-   *     layout is still one column but sizes claimed 50vw:
-   *       700px @1x -> rendered 693, received 384 = 0.55x
-   *       700px @2x -> rendered 695, received 828 = 0.60x
-   *   (max-width: 768px) — over-download AT exactly 768px, where md has
-   *     already made it two columns but sizes still claimed 100vw:
-   *       768px @1x -> rendered 370, needed 384, received 828
-   *       768px @2x -> rendered 369, needed 738, received 1920
-   *
-   * So the branch must end one pixel BELOW the Tailwind breakpoint:
-   *   767  = md(768)  - 1     full width below md
-   *   1023 = lg(1024) - 1     half width below lg
-   *
-   * The mid-band is 48vw, not 50vw. Two columns minus gap and container
-   * padding renders at ~47.9-49.1vw (measured 383/800, 436/900,
-   * 502/1023). Declaring the round 50vw pushed the browser one rung too
-   * far — 448 for a 383px card, 640 for a 436px card. 48vw lands on the
-   * exact rung at every tested width.
-   *
-   * This profile is the ALL-LISTINGS layout (2-col within max-w-6xl).
-   * Measured: 367@768, 435@900, 501@1023, 501@1024, then fixed at
-   * 584 from 1280 up as max-w-6xl caps — i.e. 49vw until the container
+   * Measured: 367@768, 435@900, 501@1023, 501@1024, then fixed at 584
+   * from 1280 up as max-w-6xl caps. So: a vw ratio until the container
    * caps, then a constant.
    *
-   * A flat 640px was one rung too high at 1024@2x (a 502px card needs
-   * 1004, which 1080 covers; 640x2=1280 was selected). Splitting into
-   * `49vw` below the cap and `600px` above it lands on the exact rung
-   * at every measured width, 1x and 2x.
+   * TWO RULES THIS ENCODES, both learned from measured defects.
    *
-   * The 3-col grid view is NARROWER and now has its own `gridTight`
-   * profile — see below. Sharing this one over-declared it by up to
-   * 1.67x (a 326px card receiving 640).
+   * 1. BREAKPOINTS MUST BE COMPLEMENTARY TO TAILWIND, NOT EQUAL TO IT.
+   *    Tailwind breakpoints are `min-width`, so `md` applies AT 768px.
+   *    An inclusive `(max-width: 768px)` overlaps it by one pixel-width.
+   *    Both directions were measured on preview:
+   *      (max-width: 640px) -> 641-767px UNDER-resolved, still one
+   *        column but claiming 50vw: 700@1x rendered 693, got 384 =
+   *        0.55x; 700@2x rendered 695, got 828 = 0.60x
+   *      (max-width: 768px) -> AT 768px OVER-downloaded, md already
+   *        two columns but still claiming 100vw: @2x rendered 369,
+   *        needed 738, got 1920
+   *    Hence 767 = md-1 and 1279 = xl-1.
+   *
+   * 2. USE THE MEASURED RATIO, NOT A ROUND ONE. The column is
+   *    47.8-49.0vw once gap and padding are subtracted (367/768,
+   *    435/900, 501/1023). A round 50vw selected 448 for a 383px card
+   *    and 640 for a 436px card; 49vw still over-declared at 800 (392
+   *    against a 383px render). 48vw satisfies every measured point.
+   *
+   * The 600px cap is likewise measured, not rounded: the card settles
+   * at 584 once max-w-6xl binds. A flat 640px was one rung too high at
+   * 1024@2x (502px card needs 1004, which 1080 covers; 640x2=1280 was
+   * selected instead).
    */
   grid: '(max-width: 767px) 100vw, (max-width: 1279px) 48vw, 600px',
 
