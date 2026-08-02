@@ -1,4 +1,9 @@
 /// <reference types="jest" />
+import type {
+  OneCycleCompletionInput,
+  OneCyclePreflightState,
+  SourceSnapshot,
+} from '@/lib/idx/one-cycle-preflight';
 
 const redisGet = jest.fn();
 const redisSet = jest.fn();
@@ -14,8 +19,8 @@ jest.mock('@/lib/idx/fetch', () => ({
 
 const preflight = require('@/lib/idx/one-cycle-preflight') as typeof import('@/lib/idx/one-cycle-preflight');
 
-const NOW = new Date('2026-08-02T07:00:00.000Z');
-const snapshot = {
+const PREFLIGHT_NOW = new Date('2026-08-02T07:00:00.000Z');
+const snapshot: SourceSnapshot = {
   modification: {
     timestamp: '2026-08-02T06:55:00.000Z',
     listingKey: 'M-2',
@@ -29,7 +34,7 @@ const snapshot = {
   capturedAt: '2026-08-02T06:56:00.000Z',
 };
 
-const state = {
+const state: OneCyclePreflightState = {
   version: 1,
   snapshot,
   forceRun: false,
@@ -87,7 +92,7 @@ describe('one-cycle preflight state', () => {
   it('skips Neon only when source is unchanged and no backlog is due', async () => {
     redisGet.mockResolvedValue(state);
     mockSameHeads();
-    const decision = await preflight.decideOneCyclePreflight(NOW);
+    const decision = await preflight.decideOneCyclePreflight(PREFLIGHT_NOW);
     expect(decision).toMatchObject({
       shouldRun: false,
       reason: 'source_unchanged_no_backlog_due',
@@ -98,7 +103,7 @@ describe('one-cycle preflight state', () => {
   it('fails open when the source probe fails', async () => {
     redisGet.mockResolvedValue(state);
     fetchFromTrestle.mockRejectedValue(new Error('source unavailable'));
-    const decision = await preflight.decideOneCyclePreflight(NOW);
+    const decision = await preflight.decideOneCyclePreflight(PREFLIGHT_NOW);
     expect(decision).toMatchObject({
       shouldRun: true,
       reason: 'source_probe_failed',
@@ -113,16 +118,19 @@ describe('one-cycle preflight state', () => {
       nextBacklogRunAt: '2026-08-02T06:59:00.000Z',
     });
     mockSameHeads();
-    const decision = await preflight.decideOneCyclePreflight(NOW);
+    const decision = await preflight.decideOneCyclePreflight(PREFLIGHT_NOW);
     expect(decision).toMatchObject({ shouldRun: true, reason: 'backlog_due' });
   });
 });
 
 describe('completion follow-up', () => {
-  const completed = (idxSummary: Record<string, unknown>, mediaSummary: Record<string, unknown> = {}) => ({
+  const completed = (
+    idxSummary: Record<string, unknown>,
+    mediaSummary: Record<string, unknown> = {},
+  ): OneCycleCompletionInput => ({
     success: true,
     complete: true,
-    outcome: 'success' as const,
+    outcome: 'success',
     members: [
       { member: 'idx-sync', status: 'ok', summary: idxSummary },
       { member: 'media-sync', status: 'ok', summary: mediaSummary },
@@ -130,20 +138,20 @@ describe('completion follow-up', () => {
   });
 
   it('forces an immediate retry when the 500-row listing cap is filled', () => {
-    expect(preflight.deriveOneCycleFollowup(completed({ total_fetched: 500 }), true, NOW).forceRun).toBe(true);
-    expect(preflight.deriveOneCycleFollowup(completed({ total_fetched: 499 }), true, NOW).forceRun).toBe(false);
+    expect(preflight.deriveOneCycleFollowup(completed({ total_fetched: 500 }), true, PREFLIGHT_NOW).forceRun).toBe(true);
+    expect(preflight.deriveOneCycleFollowup(completed({ total_fetched: 499 }), true, PREFLIGHT_NOW).forceRun).toBe(false);
   });
 
   it('forces retry on incomplete, failed, or untrusted cycles', () => {
-    expect(preflight.deriveOneCycleFollowup({ ...completed({}), success: false, outcome: 'partial' }, true, NOW).forceRun).toBe(true);
-    expect(preflight.deriveOneCycleFollowup(completed({}), false, NOW).forceRun).toBe(true);
+    expect(preflight.deriveOneCycleFollowup({ ...completed({}), success: false, outcome: 'partial' }, true, PREFLIGHT_NOW).forceRun).toBe(true);
+    expect(preflight.deriveOneCycleFollowup(completed({}), false, PREFLIGHT_NOW).forceRun).toBe(true);
   });
 
   it('defers a remaining media backlog without weakening 10-minute source checks', () => {
     const next = preflight.deriveOneCycleFollowup(
       completed({}, { backlog_remaining: 25 }),
       true,
-      NOW,
+      PREFLIGHT_NOW,
     );
     expect(next.forceRun).toBe(false);
     expect(next.backlogPending).toBe(true);
@@ -155,7 +163,7 @@ describe('completion follow-up', () => {
     await preflight.finalizeOneCyclePreflight(
       { shouldRun: true, reason: 'source_changed', snapshot, snapshotTrusted: true, priorState: state },
       completed({ total_fetched: 0 }),
-      NOW,
+      PREFLIGHT_NOW,
     );
     expect(redisSet).toHaveBeenCalledTimes(1);
     expect(redisSet.mock.calls[0][1]).toMatchObject({
