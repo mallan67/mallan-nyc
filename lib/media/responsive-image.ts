@@ -126,7 +126,7 @@ export const CARD_SIZES = {
    * profile — see below. Sharing this one over-declared it by up to
    * 1.67x (a 326px card receiving 640).
    */
-  grid: '(max-width: 767px) 100vw, (max-width: 1279px) 49vw, 600px',
+  grid: '(max-width: 767px) 100vw, (max-width: 1279px) 48vw, 600px',
 
   /**
    * GridCard in the 3-COLUMN grid view (`md:grid-cols-2 lg:grid-cols-3`
