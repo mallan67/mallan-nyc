@@ -4,7 +4,7 @@
 
 import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter } from "./fetch";
-import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
+import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields, IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
@@ -47,6 +47,82 @@ import {
   type ManifestPersistenceProbe,
 } from "@/lib/buildings/public-building-data";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
+import { fetchLegacyMediaBatch, type LegacyMediaRequestedListing } from "@/lib/idx/legacy-media-batch";
+import {
+  buildStreamFilter,
+  streamOrderBy,
+  CURSOR_BASIS_BOOTSTRAP,
+  CURSOR_BASIS_LIVE,
+  mergePropertyCursorIntoNotes,
+  parsePropertyCursorNotes,
+  type PropertyCursorState,
+} from "@/lib/idx/property-cursor";
+import { mergePropertyStreams, type StreamName } from "@/lib/idx/property-stream-merge";
+import { advanceStreamCursor, type RecordSettlement } from "@/lib/idx/property-cursor-advance";
+
+/**
+ * The RAW provider fields the two keyset streams MUST request.
+ *
+ * OPS-024 (production incident 2026-07-29): the streams shipped using the
+ * default IDX_PLUS_SELECT_FIELDS, which requests `SourceSystemKey` — the RESO
+ * name `mapTrestleToPrisma` renames to `ListingKey` AFTER the fetch — and does
+ * NOT request `ListingKey` itself. A read-only Cotality probe found
+ * `SourceSystemKey` **null on every sampled record**, so the rename produced
+ * nothing and no RAW row ever carried a key. The cursor/merge layer operates on
+ * RAW rows, BEFORE that rename, so all 500 rows per cycle were rejected as
+ * `missing_listing_key`, both streams froze on the bootstrap epoch, and four
+ * consecutive production cycles processed zero records.
+ *
+ * The fail-closed design was correct — it froze rather than skipping records and
+ * wrote nothing. The REQUEST was wrong.
+ *
+ * `SourceSystemKey`, `ListingId`, `ResourceRecordID`, address and row position
+ * are deliberately NOT identity substitutes: the first is null feed-wide and the
+ * rest are not the provider's stable record key.
+ */
+export const PROPERTY_STREAM_REQUIRED_RAW_FIELDS = [
+  "ListingKey",
+  "ModificationTimestamp",
+  "PhotosChangeTimestamp",
+] as const;
+
+/**
+ * IDX Plus selection plus the raw fields the keyset streams require.
+ *
+ * Computed LAZILY, not at module load: evaluating an imported constant at import
+ * time makes this module fail to load entirely for any caller that partially
+ * mocks `trestle-mapper` (`IDX_PLUS_SELECT_FIELDS is not iterable`). A function
+ * keeps the contract while leaving the module import-safe.
+ */
+export function propertyStreamSelectFields(): string[] {
+  const base = Array.isArray(IDX_PLUS_SELECT_FIELDS) ? IDX_PLUS_SELECT_FIELDS : [];
+  return Array.from(new Set([...base, ...PROPERTY_STREAM_REQUIRED_RAW_FIELDS]));
+}
+
+/**
+ * Fail-closed invariant: a stream request may not be issued unless every raw
+ * field the cursor/merge layer depends on is actually in the `$select`. This is
+ * the guard that would have stopped OPS-024 before it reached production.
+ */
+export function assertStreamSelectIsComplete(select: readonly string[]): void {
+  const missing = PROPERTY_STREAM_REQUIRED_RAW_FIELDS.filter((f) => !select.includes(f));
+  if (missing.length > 0) {
+    throw new Error(
+      `[IDX Sync] refusing to issue a Property stream request: $select is missing required raw ` +
+        `field(s) ${missing.join(", ")}. The cursor/merge layer reads RAW rows before mapping, so ` +
+        `an absent field silently rejects every record (see OPS-024).`,
+    );
+  }
+}
+
+/**
+ * Fixed per-stream page budget. 250 + 250 keeps the TOTAL scheduled Property
+ * processing ceiling at the historical 500 source rows while paying one extra
+ * request for correctness. Deliberately NOT dynamically reallocated: a fixed
+ * split is provable and prevents either stream starving the other.
+ */
+export const MT_LIMIT = 250;
+export const PCT_LIMIT = 250;
 import {
   SYNC_DIAGNOSTIC_DEDUPE_ACTIONS,
   beginSyncDiagnosticRun,
@@ -359,6 +435,14 @@ export interface SyncOptions {
   maxRecords?: number;
   /** Whether to do a full sync (ignore since) */
   fullSync?: boolean;
+  /**
+   * Trusted two-stream keyset cursor state. When present (and not fullSync) the
+   * run uses two independent single-clock queries instead of the legacy scalar
+   * `since` OR-filter. Absent/malformed state must arrive here as a BOOTSTRAP
+   * state from the caller — it must never silently fall through to the old
+   * active-listing full sync.
+   */
+  cursorState?: PropertyCursorState;
 }
 
 /**
@@ -404,8 +488,75 @@ export interface SyncWritePaths {
   affected_manifest_shards?: string[];
 }
 
+/**
+ * Phase 1A run health. `partial` is the EXISTING yellow state the health layer
+ * already recognises (SyncState.last_run_status), not a new value:
+ *   error   — hard listing/projection/DB failures (errors > 0). Manifest warming
+ *             stays suppressed, as before.
+ *   partial — no hard errors, but >=1 legacy-media batch was incomplete. Stored
+ *             media preserved, watermark capped/frozen so those listings retry.
+ *             Successful listing changes still revalidate and warm their shards.
+ *   ok      — no hard errors and no incomplete media batches.
+ */
+export type SyncRunStatus = "ok" | "partial" | "error";
+
 export interface SyncResult {
   total_fetched: number;
+  /** See SyncRunStatus. Media incompleteness yields `partial`, never `error`. */
+  run_status?: SyncRunStatus;
+  /**
+   * Whether two-stream cursor state reached the database. `false` means the run
+   * did work whose cursor progress was NOT durably recorded — never `ok`.
+   */
+  property_cursor_persisted?: boolean;
+  /**
+   * Phase 1A legacy batch-media completeness observability. `batches_incomplete`
+   * means the whole batch preserved its stored `listings.media` and the Property
+   * watermark was capped below every affected record, so it is re-fetched next
+   * run. `listings_complete_empty` counts MATERIAL emptiness per listing (an
+   * empty reconciled array) — never `rowsFetched === 0`, which counts raw
+   * Cotality rows and cannot describe a mixed batch. See legacy-media-batch.ts.
+   */
+  /** Phase 1A two-stream keyset telemetry (present only in two-stream mode). */
+  property_streams?: {
+    mt_requests: number; pct_requests: number;
+    mt_records_fetched: number; pct_records_fetched: number;
+    /** Raw SOURCE rows across both streams (mt + pct). */
+    total_source_rows_fetched: number;
+    /** Unique merged ListingKeys, INCLUDING blocked/conflicted entries. */
+    unique_records_after_dedupe: number;
+    /** Entries that actually entered listing processing. */
+    processable_after_dedupe: number;
+    overlap_count: number;
+    mt_at_live_edge: boolean; pct_at_live_edge: boolean;
+    mt_frozen_reason: string | null; pct_frozen_reason: string | null;
+    /** True when that stream's own request threw; its cursor stays pre-run. */
+    mt_fetch_failed: boolean; pct_fetch_failed: boolean;
+    mt_fetch_succeeded: boolean; pct_fetch_succeeded: boolean;
+    mt_cursor_advanced: boolean; pct_cursor_advanced: boolean;
+    mt_settled_prefix_length: number; pct_settled_prefix_length: number;
+    mt_halted_reason: string | null; pct_halted_reason: string | null;
+    mt_cursor_before: string | null; mt_cursor_after: string | null;
+    pct_cursor_before: string | null; pct_cursor_after: string | null;
+    cursor_notes_prepared: boolean;
+    /** See the runtime comment: per-stream 429/retry attribution is unavailable. */
+    per_stream_429_retry_attribution: string;
+    blocked_reasons: Record<string, number>;
+  };
+  legacy_media_batches?: {
+    batches_complete: number;
+    batches_incomplete: number;
+    listings_complete_nonempty: number;
+    listings_complete_empty: number;
+    listings_incomplete: number;
+    /**
+     * TRANSPORT was complete and the material array was derived, but DATABASE
+     * reconciliation failed (write threw, or matched 0 / >1 rows). Distinct from
+     * `listings_incomplete`, which means the feed response itself was unusable.
+     */
+    listings_write_failed: number;
+    incomplete_reasons: Record<string, number>;
+  };
   /**
    * PHYSICAL listing writes this run (rows_inserted + rows_updated).
    * Phase 3: materially-unchanged records are suppressed and no longer
@@ -498,13 +649,17 @@ export async function syncListings(
   }
 
   let filter: string;
+  const useTwoStream = !options.fullSync && !!options.cursorState;
 
-  if (options.fullSync || !options.since) {
+  if (options.fullSync || (!options.since && !useTwoStream)) {
     // Full sync: fetch all active listings
     filter = buildActiveFilter(options.type);
+  } else if (useTwoStream) {
+    // Two-stream keyset mode builds its own per-stream filters below.
+    filter = "(two-stream keyset)";
   } else {
-    // Incremental sync: only records modified since last sync
-    filter = buildIncrementalFilter(options.since, options.type);
+    // Legacy scalar-cursor path, retained for callers that still pass `since`.
+    filter = buildIncrementalFilter(options.since as Date, options.type);
   }
 
   console.log(`[IDX Sync] Starting sync with filter: ${filter}`);
@@ -518,11 +673,163 @@ export async function syncListings(
   // `if (!useExpandMedia && upserted > 0)` batch-media block further down.
   const useExpandMedia = false;
 
-  const fetchResult = await fetchFromTrestle({
-    filter,
-    maxTotal: maxRecords,
-    expandMedia: useExpandMedia,
-  });
+  let errors = 0;
+  // Media incompleteness is NOT a hard error: `errors` gates the building-manifest
+  // warm, and an incomplete media batch must not disable warming for unrelated
+  // price/insert/status/address changes. It is surfaced as `partial` instead.
+  let runPartial = false;
+
+  // Two-stream telemetry — never claim the extra request is within quota
+  // without observed numbers.
+  const streamTelemetry = {
+    mt_requests: 0, pct_requests: 0,
+    mt_records_fetched: 0, pct_records_fetched: 0,
+    /** mt_records_fetched + pct_records_fetched — raw SOURCE rows. */
+    total_source_rows_fetched: 0,
+    /** Unique merged ListingKeys INCLUDING blocked/conflicted entries. */
+    unique_records_after_dedupe: 0,
+    /** Entries that actually entered listing processing. */
+    processable_after_dedupe: 0,
+    overlap_count: 0,
+    mt_fetch_succeeded: false, pct_fetch_succeeded: false,
+    mt_cursor_advanced: false, pct_cursor_advanced: false,
+    mt_settled_prefix_length: 0, pct_settled_prefix_length: 0,
+    mt_halted_reason: null as string | null,
+    pct_halted_reason: null as string | null,
+    /** Bounded cursor metadata only — timestamps + ListingKeys, never payloads. */
+    mt_cursor_before: null as string | null, mt_cursor_after: null as string | null,
+    pct_cursor_before: null as string | null, pct_cursor_after: null as string | null,
+    cursor_notes_prepared: false,
+    /**
+     * NOT per-stream 429/retry counts. The Cotality collector is RUN-scoped via
+     * AsyncLocalStorage with aggregate `retries` / `http_429_count`; wrapping each
+     * stream in a nested collector would shadow the outer one and REMOVE those
+     * calls from the run-level counters other consumers rely on. Safe attribution
+     * needs a stream label threaded through recordCotalityHttp in the shared
+     * telemetry module. Until then the aggregate collector snapshot on the
+     * idx_sync_cron audit remains the source of truth — no fabricated zeros here.
+     */
+    per_stream_429_retry_attribution: "unavailable_run_scoped_collector" as const,
+    mt_at_live_edge: false, pct_at_live_edge: false,
+    mt_frozen_reason: null as string | null,
+    pct_frozen_reason: null as string | null,
+    mt_fetch_failed: false,
+    pct_fetch_failed: false,
+    blocked_reasons: {} as Record<string, number>,
+  };
+
+  let fetchResult: { records: Record<string, unknown>[]; totalFetched: number };
+  let streamMerge: ReturnType<typeof mergePropertyStreams> | null = null;
+
+  if (useTwoStream) {
+    const cursors = options.cursorState as PropertyCursorState;
+    // Each stream is an ASCENDING single-clock keyset scan with its own cursor.
+    // `top` AND `maxTotal` are both set: fetchFromTrestle otherwise defaults
+    // $top to 500 and would download 500 rows before slicing to maxTotal.
+    // Each stream is attempted INDEPENDENTLY. One stream failing must leave the
+    // other free to process and advance its own contiguous settled prefix; a
+    // shared await would abort the whole run and strand the healthy stream.
+    // OPS-024 guard — throws before any Cotality call if the select is incomplete.
+    const streamSelect = propertyStreamSelectFields();
+    assertStreamSelectIsComplete(streamSelect);
+    const emptyPage = { records: [] as Record<string, unknown>[], totalFetched: 0 };
+    streamTelemetry.mt_requests++;
+    let mtRes = emptyPage;
+    try {
+      mtRes = (await fetchFromTrestle({
+        filter: buildStreamFilter("ModificationTimestamp", cursors.mt),
+        orderby: streamOrderBy("ModificationTimestamp"),
+        select: streamSelect,
+        top: MT_LIMIT,
+        maxTotal: MT_LIMIT,
+        expandMedia: useExpandMedia,
+      })) as typeof emptyPage;
+    } catch (mtErr) {
+      streamTelemetry.mt_fetch_failed = true;
+      streamTelemetry.blocked_reasons.mt_fetch_error =
+        (streamTelemetry.blocked_reasons.mt_fetch_error ?? 0) + 1;
+      runPartial = true;
+      console.warn("[IDX Sync] MT stream fetch failed:", mtErr instanceof Error ? mtErr.message : mtErr);
+    }
+    streamTelemetry.pct_requests++;
+    let pctRes = emptyPage;
+    try {
+      pctRes = (await fetchFromTrestle({
+        filter: buildStreamFilter("PhotosChangeTimestamp", cursors.pct),
+        orderby: streamOrderBy("PhotosChangeTimestamp"),
+        select: streamSelect,
+        top: PCT_LIMIT,
+        maxTotal: PCT_LIMIT,
+        expandMedia: useExpandMedia,
+      })) as typeof emptyPage;
+    } catch (pctErr) {
+      streamTelemetry.pct_fetch_failed = true;
+      streamTelemetry.blocked_reasons.pct_fetch_error =
+        (streamTelemetry.blocked_reasons.pct_fetch_error ?? 0) + 1;
+      runPartial = true;
+      console.warn("[IDX Sync] PCT stream fetch failed:", pctErr instanceof Error ? pctErr.message : pctErr);
+    }
+    // Both streams down means no Property work happened at all -> hard error.
+    if (streamTelemetry.mt_fetch_failed && streamTelemetry.pct_fetch_failed) {
+      errors++;
+    }
+
+    streamTelemetry.mt_records_fetched = mtRes.records.length;
+    streamTelemetry.pct_records_fetched = pctRes.records.length;
+    streamTelemetry.total_source_rows_fetched =
+      streamTelemetry.mt_records_fetched + streamTelemetry.pct_records_fetched;
+    streamTelemetry.mt_fetch_succeeded = !streamTelemetry.mt_fetch_failed;
+    streamTelemetry.pct_fetch_succeeded = !streamTelemetry.pct_fetch_failed;
+    // A SHORT page is the only evidence of the live edge. A full 250-row page
+    // proves nothing — there may be more behind it.
+    streamTelemetry.mt_at_live_edge =
+      !streamTelemetry.mt_fetch_failed && mtRes.records.length < MT_LIMIT;
+    streamTelemetry.pct_at_live_edge =
+      !streamTelemetry.pct_fetch_failed && pctRes.records.length < PCT_LIMIT;
+
+    streamMerge = mergePropertyStreams({
+      mt: mtRes.records as Record<string, unknown>[],
+      pct: pctRes.records as Record<string, unknown>[],
+    });
+    streamTelemetry.overlap_count = streamMerge.overlapCount;
+    streamTelemetry.mt_frozen_reason = streamMerge.frozen.mt;
+    streamTelemetry.pct_frozen_reason = streamMerge.frozen.pct;
+    for (const e of streamMerge.entries) {
+      if (e.kind === "blocked") {
+        streamTelemetry.blocked_reasons[e.reason] =
+          (streamTelemetry.blocked_reasons[e.reason] ?? 0) + 1;
+      }
+    }
+    // Only PROCESSABLE entries reach the database. Conflicts and unbounded rows
+    // are written nowhere and block their streams.
+    const processable = streamMerge.entries
+      .filter((e): e is Extract<typeof e, { kind: "processable" }> => e.kind === "processable")
+      .map((e) => e.record);
+    streamTelemetry.processable_after_dedupe = processable.length;
+    // Unique merged listings INCLUDING blocked ones (a conflicted listing is
+    // still a distinct listing the run saw).
+    streamTelemetry.unique_records_after_dedupe = new Set(
+      streamMerge.entries.map((e) => e.listingKey).filter((k): k is string => typeof k === "string"),
+    ).size;
+    // `total_fetched` keeps its HISTORICAL source-row meaning so existing
+    // consumers and audits are not silently re-pointed at a different number.
+    fetchResult = {
+      records: processable,
+      totalFetched: streamTelemetry.total_source_rows_fetched,
+    };
+    console.log(
+      `[IDX Sync] two-stream: mt=${streamTelemetry.mt_records_fetched} ` +
+        `pct=${streamTelemetry.pct_records_fetched} overlap=${streamTelemetry.overlap_count} ` +
+        `unique=${streamTelemetry.unique_records_after_dedupe} ` +
+        `processable=${streamTelemetry.processable_after_dedupe}`,
+    );
+  } else {
+    fetchResult = (await fetchFromTrestle({
+      filter,
+      maxTotal: maxRecords,
+      expandMedia: useExpandMedia,
+    })) as { records: Record<string, unknown>[]; totalFetched: number };
+  }
 
   console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Trestle`);
 
@@ -531,12 +838,26 @@ export async function syncListings(
   let skippedValidation = 0;
   let skippedNewTerminal = 0;
   const skippedNewTerminalSample: string[] = [];
-  let errors = 0;
 
   // Phase 3 write-suppression counters (physical writes only).
   const listingCounters = newWritePathCounters();
   const projectionCounters = newWritePathCounters();
   const batchMediaCounters = newWritePathCounters();
+  // Phase 1A: legacy batch-media completeness outcomes. `incomplete` means the
+  // whole batch was preserved (zero listings.media writes), never partially applied.
+  // listings_complete_empty is counted from MATERIAL emptiness of each returned
+  // array — NOT from rowsFetched, which counts raw Cotality rows (including
+  // URL-less ones) and cannot distinguish per-listing emptiness in a mixed batch.
+  const legacyMediaBatchOutcomes: {
+    batches_complete: number; batches_incomplete: number;
+    listings_complete_nonempty: number; listings_complete_empty: number;
+    listings_incomplete: number; listings_write_failed: number;
+    incomplete_reasons: Record<string, number>;
+  } = {
+    batches_complete: 0, batches_incomplete: 0,
+    listings_complete_nonempty: 0, listings_complete_empty: 0,
+    listings_incomplete: 0, listings_write_failed: 0, incomplete_reasons: {},
+  };
 
   // Change-reason attribution (2026-07-24): WHY each physical write happened.
   const listingChangeReasons = newListingChangeReasonCounters();
@@ -582,7 +903,19 @@ export async function syncListings(
   const failedCursorKeys: number[] = [];
   let watermarkFrozen = false;
 
+  /**
+   * Per-ListingKey settlement for cursor advancement. A record is settled only
+   * when listing AND projection AND legacy media reconciliation all completed
+   * or were safely suppressed — media is folded in AFTER the batch phase below,
+   * never at the end of this loop.
+   */
+  const listingSettled = new Map<string, boolean>();
+
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
+    const settlementKey = typeof raw.ListingKey === "string" ? raw.ListingKey : "";
+    // Optimistic: an intentional validation/gate/terminal skip needs no retry and
+    // counts as settled. Only a THROWN failure (shared catch below) clears it.
+    if (settlementKey) listingSettled.set(settlementKey, true);
     // Stage marker so the shared catch attributes the failure to the write
     // path that actually threw (failure isolation — a failed row is counted
     // ONLY as failed, never as suppressed/inserted/updated).
@@ -938,6 +1271,8 @@ export async function syncListings(
       }
     } catch (err) {
       errors++;
+      // Not settled -> its stream cursor stops BEFORE this record.
+      if (settlementKey) listingSettled.set(settlementKey, false);
       // Failure isolation: attribute the failure to the write path that
       // threw; the row is never also counted as suppressed/inserted/updated.
       if (writeStage === "projection") {
@@ -1005,6 +1340,64 @@ export async function syncListings(
   // Correction 1: gate on PROCESSED records (rows_checked — reached the write
   // decision), NOT on physical listing writes. A fully-suppressed batch must
   // still fetch + reconcile media; the media path has its own suppression.
+  // Phase 1A: hoisted so the OUTER catch (token/setup failure) can still mark
+  // every requested listing unreconciled. `mediaIncompleteMarked` makes the
+  // operation idempotent, so a batch that already returned a structured
+  // incomplete result is never double-counted by a subsequent throw.
+  const rawByRequestKey = new Map<string, Record<string, unknown>>();
+  const allMediaRequestKeys: string[] = [];
+  const mediaIncompleteMarked = new Set<string>();
+  // Explicit inverse of keyToIdMap so a failed listing_id maps back to its source
+  // record without guessing. An unmapped id freezes the watermark (fail closed).
+  const requestKeyByListingId = new Map<string, string>();
+  const capCursorForKey = (key: string) => {
+    const src = rawByRequestKey.get(key);
+    const fMt = src?.ModificationTimestamp ? new Date(String(src.ModificationTimestamp)) : null;
+    const fPct = src?.PhotosChangeTimestamp ? new Date(String(src.PhotosChangeTimestamp)) : null;
+    const fKey = Math.max(
+      fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
+      fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
+    );
+    if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
+    else watermarkFrozen = true; // unknown / unparseable cursor -> freeze
+  };
+  /**
+   * The single fail-closed operation for BOTH structured `incomplete` results and
+   * thrown exceptions. Zero media writes, whole batch counted unreconciled, and
+   * the Property watermark capped below the earliest affected record (frozen if
+   * any lacks a parseable MT/PCT cursor).
+   */
+  const markMainMediaBatchIncomplete = (keys: readonly string[], reason: string) => {
+    const fresh = keys.filter((k) => !mediaIncompleteMarked.has(k));
+    if (fresh.length === 0) return;
+    for (const k of fresh) mediaIncompleteMarked.add(k);
+    runPartial = true;
+    legacyMediaBatchOutcomes.batches_incomplete++;
+    legacyMediaBatchOutcomes.listings_incomplete += fresh.length;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed += fresh.length;
+    for (const key of fresh) capCursorForKey(key);
+  };
+  /**
+   * PERSISTENCE failure for ONE listing after a COMPLETE fetch. Transport
+   * succeeded, so this is deliberately NOT counted as batches_incomplete — it
+   * increments listings_write_failed instead, keeping the two failure modes
+   * distinguishable. Idempotent against the transport marker, so a listing
+   * already unreconciled is never double-counted.
+   */
+  const markMainListingWriteFailed = (listingId: string, reason: string) => {
+    const key = requestKeyByListingId.get(listingId) ?? listingId;
+    if (mediaIncompleteMarked.has(key)) return;
+    mediaIncompleteMarked.add(key);
+    runPartial = true;
+    legacyMediaBatchOutcomes.listings_write_failed++;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed++;
+    capCursorForKey(key);
+  };
+
   if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
       // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
@@ -1019,9 +1412,15 @@ export async function syncListings(
         if (listingKey) {
           keyToIdMap.set(listingKey, listingId);
           listingsNeedMedia.push(listingKey);
+          rawByRequestKey.set(listingKey, r);
+          allMediaRequestKeys.push(listingKey);
+          requestKeyByListingId.set(listingId, listingKey);
         } else if (listingId) {
           keyToIdMap.set(listingId, listingId);
           listingsNeedMedia.push(listingId);
+          rawByRequestKey.set(listingId, r);
+          allMediaRequestKeys.push(listingId);
+          requestKeyByListingId.set(listingId, listingId);
         }
       }
 
@@ -1041,56 +1440,43 @@ export async function syncListings(
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
 
-          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
-          const mediaParams = new URLSearchParams();
-          mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 30));
-
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
+            // Phase 1A: complete-response contract. The helper follows every
+            // @odata.nextLink, proves completeness against @odata.count (never
+            // against nextLink absence), and INITIALIZES every requested key so
+            // a listing whose gallery is authoritatively empty reconciles to []
+            // instead of vanishing from the map. On `incomplete` there is no
+            // writable map at all, so a later-page failure preserves stored
+            // media for the WHOLE batch. See lib/idx/legacy-media-batch.ts.
+            const batchResult = await fetchLegacyMediaBatch({
+              baseUrl: TRESTLE_API,
+              token,
+              requested: batch.map((key) => ({ listingId: keyToIdMap.get(key) || key, filterKey: key })),
+              pageSize: batch.length * 30, // page size, not a ceiling (probe 2026-07-29)
+              classifyMediaType: classifyTrestleMediaCategory,
+            });
 
-            // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
-            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordKey || "");
-              if (!lid || !m.MediaURL) continue;
-              if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
-              // Use shared classifier — replaces the broken
-              // `cat.includes("floor plan")` (with space) check that
-              // mis-classified Trestle's actual "FloorPlan" enum value as
-              // "Photo". See lib/media/media-sync-service.ts for the full
-              // history of this bug.
-              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByListing.get(lid)!.push({
-                url: String(m.MediaURL),
-                mediaType,
-                order: isPreferred ? -1 : Number(m.Order ?? 0),
-              });
+            if (batchResult.outcome === "incomplete") {
+              markMainMediaBatchIncomplete(batch, batchResult.reason);
+              console.warn(
+                `[IDX Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
+                  `preserving stored media for ${batch.length} listings, zero writes, watermark capped`,
+              );
+              continue;
+            }
+            legacyMediaBatchOutcomes.batches_complete++;
+            for (const arr of batchResult.mediaByListingId.values()) {
+              if (arr.length === 0) legacyMediaBatchOutcomes.listings_complete_empty++;
+              else legacyMediaBatchOutcomes.listings_complete_nonempty++;
             }
 
-            // Update DB records — convert ResourceRecordKey back to listing_id via map.
+            // Update DB records — the helper already keyed by listing_id.
             // Phase 3 (surface D): compare the stored legacy media JSON first and
             // SKIP the write when it is materially identical. Rotating signed
             // Trestle URLs are NOT identity (mediaArraysMateriallyEqual); true
             // inserts/deletions/ordering/hero/delivery-state changes still write.
             // Per-row try/catch keeps one bad row from aborting the batch.
-            for (const [key, media] of mediaByListing) {
-              const listingId = keyToIdMap.get(key) || key;
+            for (const [listingId, media] of batchResult.mediaByListingId) {
               batchMediaCounters.rows_checked++;
               try {
                 const existingMediaRow = await prisma.listing.findFirst({
@@ -1108,14 +1494,25 @@ export async function syncListings(
                   continue;
                 }
                 batchMediaCounters.rows_materially_changed++;
-                await prisma.listing.updateMany({
+                // A complete fetch does not mean the listing was reconciled. The
+                // archived-safe findFirst above already ran, so count===0 here is
+                // a CONCURRENT archive/delete or predicate race; count>1 violates
+                // listing_id uniqueness. Neither is a physical write.
+                const writeResult = await prisma.listing.updateMany({
                   where: archivedSafeMediaWhere(listingId),
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
+                if (writeResult.count !== 1) {
+                  markMainListingWriteFailed(
+                    listingId,
+                    writeResult.count === 0 ? "media_write_no_match" : "media_write_multi_match",
+                  );
+                  continue; // no rows_updated, no cache tag - nothing was written
+                }
                 batchMediaCounters.rows_updated++;
                 changedCacheTags.add(listingCacheTag(listingId)); // W1: media changed → refresh cached page
               } catch (mediaRowErr) {
-                batchMediaCounters.rows_failed++;
+                markMainListingWriteFailed(listingId, "media_write_error");
                 console.warn(
                   `[IDX Sync] Media write failed for ${listingId}:`,
                   mediaRowErr instanceof Error ? mediaRowErr.message : mediaRowErr,
@@ -1123,12 +1520,17 @@ export async function syncListings(
               }
             }
           } catch (mediaErr) {
+            // A throw is as unreconciled as a structured incomplete result.
+            markMainMediaBatchIncomplete(batch, "fetch_error");
             console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
         console.log("[IDX Sync] Media batch-fetch complete");
       }
     } catch (mediaSyncErr) {
+      // Token/setup failure affects every requested media listing. Marked exactly
+      // once (batches already counted structurally are skipped by the Set).
+      markMainMediaBatchIncomplete(allMediaRequestKeys, "fetch_error");
       console.warn("[IDX Sync] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
     }
   }
@@ -1144,13 +1546,25 @@ export async function syncListings(
     safeRevalidateTags(changedCacheTags, revalidation);
   }
 
-  // Audit log
-  logger.durationMs = durationMs;
-  logIDXAccess({
-    ...logger,
-    resultStatus: errors > 0 ? "error" : "success",
-    errorMessage: errors > 0 ? `${errors} errors during sync` : undefined,
-  });
+  // Phase 1A: run status is derived LAST — after listing/projection work, media
+  // reconciliation, stream settlement, cursor advancement AND the cursor
+  // persistence attempt. Deriving it here (the old position) meant a
+  // cross-stream conflict, a stream freeze or a failed cursor write could set
+  // runPartial AFTER the status was already frozen at "ok", and the member
+  // trusts run_status — so the cycle reported success and released downstream
+  // media even though no cursor had durably advanced.
+  const deriveRunStatus = (): SyncRunStatus =>
+    errors > 0 ? "error" : runPartial ? "partial" : "ok";
+  let runStatus: SyncRunStatus = deriveRunStatus();
+  /** Whether the two-stream cursor state reached the database this run. */
+  let propertyCursorPersisted: boolean | null = null;
+  /**
+   * Whether a NEW two-stream cursor payload was actually built this run. A
+   * successful SyncState row write only means the ROW persisted — if the prior
+   * notes were unreadable there is no cursor payload in it, and reporting
+   * persistence would hide a system that is silently re-bootstrapping forever.
+   */
+  let cursorNotesPrepared = false;
 
   // The durable idx_sync AuditEvent is written AFTER the manifest warm (see
   // below) so its changes payload can carry the warm + canary + reason
@@ -1179,7 +1593,12 @@ export async function syncListings(
     // two fields, so the watermark must reflect both — otherwise the next pass
     // would re-fetch every row whose PCT advanced past the (MT-only) watermark.
     // Single-column SyncState.last_watermark; no schema change.
-    for (const r of fetchResult.records) {
+    // Phase 1A: in TWO-STREAM mode the composite keyset notes are the
+    // authoritative incremental cursor. `last_watermark` is compatibility/UI
+    // state only and is derived BELOW from the cursor state actually persisted —
+    // never from wall clock, and never from the raw fetched rows (which include
+    // records whose processing blocked).
+    for (const r of useTwoStream ? [] : fetchResult.records) {
       const mt = r.ModificationTimestamp ? new Date(String(r.ModificationTimestamp)) : null;
       const pct = r.PhotosChangeTimestamp ? new Date(String(r.PhotosChangeTimestamp)) : null;
       for (const cand of [mt, pct]) {
@@ -1189,7 +1608,10 @@ export async function syncListings(
     // On empty batches, advance last_run_at but leave last_watermark alone —
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
-    advanceWatermark = fetchResult.records.length > 0;
+    // In TWO-STREAM mode the composite keyset notes are authoritative and this
+    // scalar is compatibility/UI state only; it is derived below from the
+    // cursors actually persisted, never from wall clock or the raw fetched rows.
+    advanceWatermark = useTwoStream ? false : fetchResult.records.length > 0;
 
     // Correction 4 — contiguous-success watermark (fail-closed): when any
     // record FAILED this run, the persisted watermark is capped 1ms BELOW the
@@ -1208,34 +1630,277 @@ export async function syncListings(
     // when errors === 0). Persisted in `notes` so the NEXT run's canary
     // probes exactly this set — see parseWarmedShardsFromNotes.
     const shardsToRecord = errors === 0 ? [...affectedManifestShards].sort() : [];
+
+    // ── Two-stream cursor advancement ────────────────────────────────────
+    // Settlement folds in the MEDIA outcome: a record whose legacy media batch
+    // was incomplete, or whose media write failed, is NOT settled even though
+    // its listing/projection succeeded.
+    let nextCursorNotes: Record<string, unknown> | null = null;
+    if (useTwoStream && streamMerge && options.cursorState) {
+      const pre = options.cursorState;
+      const settlementByEntryIndex = new Map<number, RecordSettlement>();
+      for (const [i, entry] of streamMerge.entries.entries()) {
+        if (entry.kind !== "processable") {
+          settlementByEntryIndex.set(i, "blocked"); // conflicts block BOTH streams
+          continue;
+        }
+        const listingOk = listingSettled.get(entry.listingKey) === true;
+        const mediaOk = !mediaIncompleteMarked.has(entry.listingKey);
+        settlementByEntryIndex.set(i, listingOk && mediaOk ? "settled" : "blocked");
+      }
+
+      const nextMt = advanceStreamCursor({
+        field: "ModificationTimestamp",
+        preRunCursor: pre.mt,
+        order: streamMerge.order.mt,
+        settlementByEntryIndex,
+        // A failed fetch pins the stream byte-identically at its pre-run cursor.
+        freezeReason: streamTelemetry.mt_fetch_failed ? "mt_fetch_error" : streamMerge.frozen.mt,
+      });
+      const nextPct = advanceStreamCursor({
+        field: "PhotosChangeTimestamp",
+        preRunCursor: pre.pct,
+        order: streamMerge.order.pct,
+        settlementByEntryIndex,
+        freezeReason: streamTelemetry.pct_fetch_failed ? "pct_fetch_error" : streamMerge.frozen.pct,
+      });
+
+      // A stream that could not drain its whole page, or that froze, or that
+      // hit a blocked record, leaves the run PARTIAL.
+      const boundedCursor = (c: { mode: string; timestamp: string; listingKey?: string }) =>
+        c.mode === "bootstrap" ? `bootstrap@${c.timestamp}` : `${c.timestamp}|${c.listingKey}`;
+      streamTelemetry.mt_cursor_before = boundedCursor(pre.mt);
+      streamTelemetry.pct_cursor_before = boundedCursor(pre.pct);
+      streamTelemetry.mt_cursor_after = boundedCursor(nextMt.cursor);
+      streamTelemetry.pct_cursor_after = boundedCursor(nextPct.cursor);
+      streamTelemetry.mt_cursor_advanced = nextMt.advanced;
+      streamTelemetry.pct_cursor_advanced = nextPct.advanced;
+      streamTelemetry.mt_settled_prefix_length = nextMt.settledPrefixLength;
+      streamTelemetry.pct_settled_prefix_length = nextPct.settledPrefixLength;
+      streamTelemetry.mt_halted_reason = nextMt.haltedBy;
+      streamTelemetry.pct_halted_reason = nextPct.haltedBy;
+
+      if (nextMt.haltedBy !== "end_of_page" && nextMt.haltedBy !== "empty_page") runPartial = true;
+      if (nextPct.haltedBy !== "end_of_page" && nextPct.haltedBy !== "empty_page") runPartial = true;
+      if (streamMerge.entries.some((e) => e.kind === "blocked")) runPartial = true;
+
+      // The basis stays BOOTSTRAP until BOTH streams have demonstrably reached
+      // the live edge. A full 250-row page is not proof: only a short page is.
+      // Promotion also requires that BOTH streams fully consumed their pages.
+      // A short page whose cursor stopped at a blocked record (listing failure,
+      // media failure, cross-stream conflict) is still positioned BEFORE an
+      // unresolved listing and must stay on the bootstrap basis.
+      const mtClean = nextMt.haltedBy === "end_of_page" || nextMt.haltedBy === "empty_page";
+      const pctClean = nextPct.haltedBy === "end_of_page" || nextPct.haltedBy === "empty_page";
+      const noBlockedEntries = !streamMerge.entries.some((e) => e.kind === "blocked");
+      const bothLive =
+        streamTelemetry.mt_at_live_edge &&
+        streamTelemetry.pct_at_live_edge &&
+        mtClean && pctClean && noBlockedEntries &&
+        nextMt.cursor.mode === "keyset" &&
+        nextPct.cursor.mode === "keyset" &&
+        streamMerge.frozen.mt === null &&
+        streamMerge.frozen.pct === null &&
+        !streamTelemetry.mt_fetch_failed &&
+        !streamTelemetry.pct_fetch_failed;
+
+      // Read the CURRENT notes so unrelated recognised fields survive; the
+      // legacy serializer replaces notes wholesale and would drop cursor state.
+      let existingNotes: unknown = null;
+      let notesReadable = true;
+      let notesFailReason: string | null = null;
+      try {
+        const cur = await prisma.syncState.findUnique({
+          where: { resource: "Property" },
+          select: { notes: true },
+        });
+        if (cur?.notes) {
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(cur.notes) as unknown;
+          } catch {
+            // Non-null notes that will not parse: unknown state. Overwriting it
+            // could erase cursors we simply failed to read.
+            notesReadable = false;
+            notesFailReason = "cursor_notes_unreadable";
+          }
+          if (notesReadable) {
+            // A successful parse is NOT sufficient. `"null"`, `"[]"`, `"7"`,
+            // `"true"` and `'"x"'` all parse cleanly but are not a notes object;
+            // spreading them yields {} and would silently overwrite whatever the
+            // row actually held.
+            if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+              notesReadable = false;
+              notesFailReason = "cursor_notes_invalid_shape";
+            } else {
+              existingNotes = parsed;
+            }
+          }
+        }
+      } catch {
+        notesReadable = false; // transient read failure — fail closed
+        notesFailReason = "cursor_notes_unreadable";
+      }
+      if (!notesReadable) {
+        runPartial = true;
+        const reason = notesFailReason ?? "cursor_notes_unreadable";
+        streamTelemetry.blocked_reasons[reason] =
+          (streamTelemetry.blocked_reasons[reason] ?? 0) + 1;
+      }
+      const base =
+        existingNotes !== null && typeof existingNotes === "object" && !Array.isArray(existingNotes)
+          ? { ...(existingNotes as Record<string, unknown>) }
+          : {};
+      // Compatibility watermark: the later timestamp among BOTH keyset cursors
+      // that will actually be persisted — including a cursor that did NOT move
+      // this run. Considering only the advanced streams made the watermark
+      // REGRESS: with MT durably at Jul 30 and PCT advancing Jul 10 -> Jul 11,
+      // the persisted state is {Jul 30, Jul 11} but the UI would have been told
+      // Jul 11, losing 19 days. A bootstrap cursor still contributes nothing —
+      // the pinned epoch is not evidence that data was updated then.
+      const anyCursorAdvanced = nextMt.advanced || nextPct.advanced;
+      const persistedKeysetTimes = [nextMt.cursor, nextPct.cursor]
+        .filter((c): c is { mode: "keyset"; timestamp: string; listingKey: string } => c.mode === "keyset")
+        .map((c) => Date.parse(c.timestamp))
+        .filter((t) => Number.isFinite(t));
+      if (notesReadable && anyCursorAdvanced && persistedKeysetTimes.length > 0) {
+        batchWatermark = new Date(Math.max(...persistedKeysetTimes));
+        advanceWatermark = true;
+      }
+
+      // ── CORRECTION 3 — MONOTONIC PERSISTENCE GUARD (OPS-024 follow-up) ──
+      // A trusted stored cursor may never be replaced by a bootstrap position, an
+      // older timestamp, or a lower ListingKey at the same timestamp. Evaluated
+      // INDEPENDENTLY per stream. Bounded reason only — never a raw payload.
+      const priorTrusted = parsePropertyCursorNotes(existingNotes);
+      const movesBackward = (
+        prior: PropertyCursorState["mt"] | undefined,
+        next: typeof nextMt.cursor,
+      ): boolean => {
+        if (!prior || prior.mode !== "keyset") return false;
+        if (next.mode === "bootstrap") return true;                    // live -> bootstrap
+        const pt = Date.parse(prior.timestamp);
+        const nt = Date.parse(next.timestamp);
+        if (!Number.isFinite(pt) || !Number.isFinite(nt)) return true; // unverifiable
+        if (nt < pt) return true;                                      // older timestamp
+        if (nt === pt && next.listingKey < prior.listingKey) return true; // lower tie key
+        return false;
+      };
+      const mtRegresses = movesBackward(priorTrusted?.mt, nextMt.cursor);
+      const pctRegresses = movesBackward(priorTrusted?.pct, nextPct.cursor);
+      if (notesReadable && (mtRegresses || pctRegresses)) {
+        notesReadable = false;      // -> notes omitted, cursor payload not prepared
+        advanceWatermark = false;   // -> compatibility watermark must not move either
+        runPartial = true;
+        streamTelemetry.blocked_reasons.cursor_regression_rejected =
+          (streamTelemetry.blocked_reasons.cursor_regression_rejected ?? 0) + 1;
+        console.warn(
+          "[IDX Sync] cursor_regression_rejected: refusing to move a trusted cursor backward " +
+            `(mt=${mtRegresses} pct=${pctRegresses})`,
+        );
+      }
+
+      if (notesReadable) {
+        cursorNotesPrepared = true;
+        streamTelemetry.cursor_notes_prepared = true;
+        base[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
+        nextCursorNotes = mergePropertyCursorIntoNotes(base, {
+          // Never promote on a run whose prior notes could not be read.
+          basis: bothLive ? CURSOR_BASIS_LIVE : CURSOR_BASIS_BOOTSTRAP,
+          mt: nextMt.cursor,
+          pct: nextPct.cursor,
+        });
+      }
+    }
+    // A run that did NOT use the two streams (explicit forceFull, or a legacy
+    // scalar-cursor caller) must not destroy persisted cursor state. The legacy
+    // serializer replaces notes wholesale, so read-merge-write instead.
+    let notesPayload: string | null;
+    if (nextCursorNotes) {
+      notesPayload = JSON.stringify(nextCursorNotes);
+    } else if (useTwoStream) {
+      // A two-stream run whose cursor payload could not be prepared omits
+      // `notes` entirely. It must not borrow the force-full fallback, which
+      // would write a notes value containing no new cursor state — and it must
+      // not advance the compatibility watermark either.
+      notesPayload = null;
+      advanceWatermark = false;
+    } else {
+      let preserved: Record<string, unknown> | null = {};
+      try {
+        const cur = await prisma.syncState.findUnique({
+          where: { resource: "Property" },
+          select: { notes: true },
+        });
+        if (cur?.notes) {
+          try {
+            const parsed = JSON.parse(cur.notes) as unknown;
+            preserved =
+              parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+                ? { ...(parsed as Record<string, unknown>) }
+                : null; // unknown shape -> do not overwrite
+          } catch {
+            preserved = null; // malformed -> do not overwrite
+          }
+        }
+      } catch {
+        preserved = null; // transient read failure -> do not overwrite
+      }
+      if (preserved === null) {
+        // Writing ANY notes value here could erase persisted cursor state we
+        // merely failed to read. Omit the field entirely and report partial.
+        notesPayload = null;
+        runPartial = true;
+      } else {
+        preserved[SYNC_NOTES_WARMED_SHARDS_KEY] = [...shardsToRecord];
+        notesPayload = JSON.stringify(preserved);
+      }
+    }
+
+    // Status now reflects settlement + advancement; the write records it.
+    runStatus = deriveRunStatus();
+    // last_watermark is nullable. A newly CREATED row must not be seeded with a
+    // fabricated wall-clock value when no durable cursor advanced — the create
+    // path previously wrote batchWatermark unconditionally, so an empty first
+    // bootstrap run invented a "data updated" time Cotality never supplied.
+    const watermarkPatch = advanceWatermark ? { last_watermark: batchWatermark } : {};
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
         resource: "Property",
-        last_watermark: batchWatermark,
+        ...watermarkPatch,
         last_run_at: now,
-        last_run_status: errors > 0 ? "error" : "ok",
+        last_run_status: runStatus,
         last_run_duration_ms: durationMs,
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: serializeWarmedShardsToNotes(shardsToRecord),
+        ...(notesPayload !== null ? { notes: notesPayload } : {}),
       },
       update: {
-        ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
+        ...watermarkPatch,
         last_run_at: now,
-        last_run_status: errors > 0 ? "error" : "ok",
+        last_run_status: runStatus,
         last_run_duration_ms: durationMs,
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: serializeWarmedShardsToNotes(shardsToRecord),
+        ...(notesPayload !== null ? { notes: notesPayload } : {}),
       },
     });
+    // The ROW persisted. Cursor state only persisted if a payload was built.
+    if (useTwoStream) propertyCursorPersisted = cursorNotesPrepared;
   } catch (err) {
     console.error("[IDX Sync] Failed to update SyncState watermark:", err);
-    // Non-fatal — sync already succeeded; watermark-write failure degrades
-    // UI freshness display only.
+    // Phase 1A: this is NO LONGER "UI only". SyncState.notes now carries the
+    // authoritative MT/PCT cursors, so a failed write means database changes may
+    // have committed while cursor progress did NOT. The run must never be
+    // reported fully complete, or the member would release downstream media on
+    // a cycle whose cursors never durably advanced.
+    if (useTwoStream) {
+      propertyCursorPersisted = false;
+      runPartial = true;
+    }
     //
     // Best-effort diagnostic persist (see helper comment near top of file).
     // This is the catch that was silently swallowing the SyncState
@@ -1333,6 +1998,13 @@ export async function syncListings(
   // payload carries the warm + canary + change-reason counters (the audit
   // previously ran before the warm, which is why building_manifest_warm
   // never reached audit_events — Maya-approved allowlist fix, 2026-07-24).
+  // FINAL status derivation — after settlement, advancement AND the cursor
+  // persistence attempt, so the durable record below cannot carry a stale "ok"
+  // next to property_cursor_persisted:false. TWO stages are deliberate: the
+  // value written INSIDE the SyncState upsert is derived immediately before
+  // that write, because a failed upsert cannot update its own row.
+  runStatus = deriveRunStatus();
+
   try {
     await prisma.auditEvent.create({
       data: {
@@ -1349,6 +2021,14 @@ export async function syncListings(
           skipped_gates: skippedGates,
           skipped_validation: skippedValidation,
           errors,
+          // Phase 1A: durable partial evidence. Console logs are transient and
+          // SyncResult is in-process only — an incomplete legacy-media batch must
+          // leave a permanent record of WHY reconciliation did not happen and
+          // which listings were left unreconciled.
+          run_status: runStatus,
+          property_cursor_persisted: propertyCursorPersisted ?? undefined,
+          property_streams: useTwoStream ? streamTelemetry : undefined,
+          legacy_media_batches: legacyMediaBatchOutcomes,
           duration_ms: durationMs,
           // Phase 3 write-suppression accounting (physical writes only).
           write_paths: {
@@ -1372,6 +2052,23 @@ export async function syncListings(
     console.error("[IDX Sync] Failed to log audit event:", err);
   }
 
+  // Already derived above the durable audit; recomputed only so a late
+  // warm/revalidation failure cannot leave the returned value behind.
+  runStatus = deriveRunStatus();
+
+  logger.durationMs = durationMs;
+  logIDXAccess({
+    ...logger,
+    resultStatus: errors > 0 ? "error" : runStatus === "partial" ? "partial" : "success",
+    errorMessage:
+      errors > 0
+        ? `${errors} errors during sync`
+        : runStatus === "partial"
+          ? `partial run: cursor_persisted=${propertyCursorPersisted}, ` +
+            `incomplete_media_batches=${legacyMediaBatchOutcomes.batches_incomplete}`
+          : undefined,
+  });
+
   const result: SyncResult = {
     total_fetched: fetchResult.totalFetched,
     upserted,
@@ -1380,6 +2077,10 @@ export async function syncListings(
     skipped_new_terminal: skippedNewTerminal,
     skipped_new_terminal_sample: skippedNewTerminalSample,
     errors,
+    run_status: runStatus,
+    property_cursor_persisted: propertyCursorPersisted ?? undefined,
+    property_streams: useTwoStream ? streamTelemetry : undefined,
+    legacy_media_batches: legacyMediaBatchOutcomes,
     duration_ms: durationMs,
     write_paths: {
       listings: listingCounters,
@@ -1504,6 +2205,9 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   try {
     token = await getAccessToken();
   } catch {
+    // A token failure means EVERY selected listing is unreconciled — rows_failed
+    // must never stay zero while the function returns an error.
+    writeCounters.rows_failed += listings.length;
     console.error("[Media Backfill] Failed to get Trestle token");
     return { checked: listings.length, updated: 0, errors: 1, write_path: writeCounters, pages_revalidated: 0, revalidation_failures: 0 };
   }
@@ -1530,67 +2234,45 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     const batch = listings.slice(i, i + BATCH_SIZE);
     // Trestle guidance: use ResourceRecordKey (always unique), not ResourceRecordID (can duplicate across MLOs).
     // mls_id = ListingKey = Media.ResourceRecordKey. Fall back to listing_id → ResourceRecordID if mls_id is null.
-    const keyToId = new Map<string, string>();
-    const filterParts: string[] = [];
+    // Phase 1A: the RRK/RRID fallback is preserved verbatim — a listing with an
+    // mls_id (= ListingKey = Media.ResourceRecordKey) is matched on RRK; one
+    // without falls back to ResourceRecordID. The helper resolves response rows
+    // against BOTH identities and fails closed on ambiguity rather than guessing.
+    const requested: LegacyMediaRequestedListing[] = [];
     for (const l of batch) {
       if (l.mls_id) {
-        filterParts.push(`ResourceRecordKey eq '${l.mls_id.replace(/'/g, "''")}'`);
-        keyToId.set(l.mls_id, l.listing_id);
+        requested.push({ listingId: l.listing_id, filterKey: l.mls_id, filterField: "ResourceRecordKey" });
       } else if (l.listing_id) {
-        filterParts.push(`ResourceRecordID eq '${l.listing_id.replace(/'/g, "''")}'`);
-        keyToId.set(l.listing_id, l.listing_id);
+        requested.push({ listingId: l.listing_id, filterKey: l.listing_id, filterField: "ResourceRecordID" });
       }
     }
-    if (filterParts.length === 0) continue;
-
-    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-    const mediaFilter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
-    const mediaParams = new URLSearchParams();
-    mediaParams.set("$filter", mediaFilter);
-    mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-    mediaParams.set("$orderby", "Order asc");
-    mediaParams.set("$top", String(filterParts.length * 30));
+    if (requested.length === 0) continue;
 
     try {
-      const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      const batchResult = await fetchLegacyMediaBatch({
+        baseUrl: TRESTLE_API,
+        token,
+        requested,
+        pageSize: requested.length * 30, // page size, not a ceiling (probe 2026-07-29)
+        classifyMediaType: classifyTrestleMediaCategory,
       });
-      if (!res.ok) {
-        console.warn(`[Media Backfill] Batch ${i / BATCH_SIZE + 1} failed: ${res.status} ${res.statusText}`);
+      if (batchResult.outcome === "incomplete") {
+        // Preserve every stored value for the WHOLE batch — a later-page failure
+        // must never write the partial first page.
+        console.warn(
+          `[Media Backfill] Batch ${i / BATCH_SIZE + 1} INCOMPLETE (${batchResult.reason}) — ` +
+            `preserving stored media for ${requested.length} listings, zero writes`,
+        );
+        // rows_failed must not stay zero while the function reports an error.
+        writeCounters.rows_failed += requested.length;
         errors++;
         continue;
       }
-      const data = await res.json();
 
-      // Group by listing_id directly by trying BOTH ResourceRecordKey and
-      // ResourceRecordID on every response row. Previously this code preferred
-      // ResourceRecordKey and then ran `keyToId.get(key) || key` — which
-      // silently failed when mls_id was null (we'd query by ResourceRecordID
-      // but Trestle's response had ResourceRecordKey as the preferred first
-      // key, so lookup returned undefined and we'd default to the numeric
-      // ResourceRecordKey as listing_id — never matching any DB row).
-      // Confirmed 2026-04-24: thousands of listings with mls_id=null were
-      // being re-written with `[]` on every cron pass.
-      const mediaByListingId = new Map<string, { url: string; mediaType: string; order: number }[]>();
-      for (const m of data.value || []) {
-        const byRRK = String(m.ResourceRecordKey || "");
-        const byRRID = String(m.ResourceRecordID || "");
-        const listingId = keyToId.get(byRRK) || keyToId.get(byRRID);
-        if (!listingId || !m.MediaURL) continue;
-        if (!mediaByListingId.has(listingId)) mediaByListingId.set(listingId, []);
-        // Use shared classifier — see classifyTrestleMediaCategory in
-        // lib/media/media-sync-service.ts for the floor-plan-as-photo bug
-        // this replaces.
-        const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-        const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-        mediaByListingId.get(listingId)!.push({
-          url: String(m.MediaURL),
-          mediaType,
-          order: isPreferred ? -1 : Number(m.Order ?? 0),
-        });
-      }
-
-      for (const [listingId, media] of mediaByListingId) {
+      // Every requested listing is present (empty ones as []), and each is
+      // compared against its stored value BEFORE any write, so a complete-empty
+      // result on an already-empty row stays suppressed rather than rewriting [].
+      for (const [listingId, media] of batchResult.mediaByListingId) {
         try {
           // Phase 3 (surface D): suppress the rewrite when the stored media is
           // materially identical (rotating signed URLs are not identity).
@@ -1600,12 +2282,20 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
             continue;
           }
           writeCounters.rows_materially_changed++;
-          await prisma.listing.updateMany({
+          const writeResult = await prisma.listing.updateMany({
             // #415: archived-safe filter (defense-in-depth; the SELECT above already excludes
             // 'archived', so an archived row never reaches here — but never re-hydrate archived media).
             where: archivedSafeMediaWhere(listingId),
             data: { media: media as unknown as Prisma.InputJsonValue },
           });
+          if (writeResult.count !== 1) {
+            // The archived-safe guard already ran, so count===0 here means a
+            // CONCURRENT archive/delete or a predicate race — not the ordinary
+            // archived case. count>1 violates listing_id uniqueness.
+            writeCounters.rows_failed++;
+            errors++;
+            continue; // no revalidation for a write that did not happen
+          }
           writeCounters.rows_updated++;
           updated++;
           changedCacheTags.add(listingCacheTag(listingId)); // W1
@@ -1615,6 +2305,8 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
         }
       }
     } catch (err) {
+      // rows_failed must never stay zero while the function reports an error.
+      writeCounters.rows_failed += requested.length;
       console.warn(`[Media Backfill] Batch error:`, err instanceof Error ? err.message : err);
       errors++;
     }
@@ -1662,6 +2354,9 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
     SELECT id, listing_id, media FROM "listings"
     WHERE media IS NOT NULL AND media::text != '[]' AND media::text != '{}'
       AND (media::text LIKE '%cotality.com%' OR media::text LIKE '%corelogic.com%')
+      -- #415 rehydration guard: never select an already-archived row. NULL-safe,
+      -- so legacy rows with sync_status IS NULL are still eligible.
+      AND sync_status IS DISTINCT FROM 'archived'
     ORDER BY modification_timestamp DESC NULLS LAST
     LIMIT ${limit}
   `;
@@ -1756,11 +2451,23 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 
     if (changed) {
       try {
-        await prisma.listing.updateMany({
-          where: { listing_id: listing.listing_id },
+        // The fourth legacy listings.media writer.
+        //
+        // archivedSafeMediaWhere is the AUTHORITATIVE race guard: the selection
+        // above happens before the per-photo download/upload loop, so the T+180
+        // archiver can strip and archive the row in between. A listing_id-only
+        // predicate would still match, re-hydrate the archived row's media and
+        // report count===1 as a successful migration. With the archived-safe
+        // predicate the update matches ZERO rows instead.
+        //
+        // count===0 therefore means a concurrent archive/delete or predicate
+        // race; count>1 violates listing_id uniqueness. Neither is a migration.
+        const writeResult = await prisma.listing.updateMany({
+          where: archivedSafeMediaWhere(listing.listing_id),
           data: { media: updatedMedia as unknown as Prisma.InputJsonValue },
         });
-        migrated++;
+        if (writeResult.count === 1) migrated++;
+        else errors++;
       } catch {
         errors++;
       }
@@ -1841,6 +2548,43 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
  * `findFirst` returns `null` when no row matches (e.g. a fresh DB
  * with no Trestle sync yet) — the caller handles that via `?? null`.
  */
+/**
+ * Trusted two-stream cursor state from SyncState.notes, or null when absent /
+ * legacy / malformed. Callers must BOOTSTRAP on null — never fall through to the
+ * old active-listing full sync, which would re-ingest the entire feed.
+ */
+export type PropertyCursorReadResult =
+  /** Read succeeded. `state` is null for genuinely absent / legacy / malformed notes. */
+  | { ok: true; state: PropertyCursorState | null }
+  /** STORAGE failure — the cursor is UNKNOWN, not absent. */
+  | { ok: false; reason: "cursor_state_unreadable" };
+
+/**
+ * OPS-024 follow-up (Codex P1): these five states must never collapse into one
+ * `null`. Returning `null` for a transient database failure made the caller
+ * bootstrap from the pinned 30-day epoch; if the later end-of-run notes read then
+ * succeeded, the run would overwrite a LIVE cursor with that old position and
+ * force ~51 capped catch-up cycles.
+ */
+export async function readPropertyCursorState(): Promise<PropertyCursorReadResult> {
+  let notes: string | null;
+  try {
+    const state = await prisma.syncState.findUnique({
+      where: { resource: "Property" },
+      select: { notes: true },
+    });
+    notes = state?.notes ?? null;
+  } catch {
+    return { ok: false, reason: "cursor_state_unreadable" };
+  }
+  if (!notes) return { ok: true, state: null };            // genuinely absent
+  try {
+    return { ok: true, state: parsePropertyCursorNotes(JSON.parse(notes) as unknown) };
+  } catch {
+    return { ok: true, state: null };                      // malformed -> may bootstrap
+  }
+}
+
 export async function getLastSyncTimestamp(): Promise<Date | null> {
   const latest = await prisma.listing.findFirst({
     where: {
@@ -1939,6 +2683,53 @@ export async function syncAgentHistory(
   let skippedGates = 0;
   let skippedValidation = 0;
   let errors = 0;
+  // Phase 1A: agent history does NOT own the Property watermark, so it adds no
+  // cursor behaviour. Its obligation is honest status, a complete ledger and
+  // zero partial writes.
+  let runPartial = false;
+  const legacyMediaBatchOutcomes: {
+    batches_complete: number; batches_incomplete: number;
+    listings_complete_nonempty: number; listings_complete_empty: number;
+    listings_incomplete: number; listings_write_failed: number;
+    incomplete_reasons: Record<string, number>;
+  } = {
+    batches_complete: 0, batches_incomplete: 0,
+    listings_complete_nonempty: 0, listings_complete_empty: 0,
+    listings_incomplete: 0, listings_write_failed: 0, incomplete_reasons: {},
+  };
+  const agentMediaMarked = new Set<string>();
+  // ONE canonical identity per requested listing. The transport marker receives
+  // request keys (ListingKey) while the persistence marker receives listing_ids;
+  // without this inverse map the same listing would occupy two entries in
+  // agentMediaMarked and could be counted twice.
+  const agentRequestKeyByListingId = new Map<string, string>();
+  /** Transport failure for a whole batch: zero writes, whole batch unreconciled. */
+  const markAgentMediaBatchIncomplete = (keys: readonly string[], reason: string) => {
+    const fresh = keys.filter((k) => !agentMediaMarked.has(k));
+    if (fresh.length === 0) return;
+    for (const k of fresh) agentMediaMarked.add(k);
+    runPartial = true;
+    legacyMediaBatchOutcomes.batches_incomplete++;
+    legacyMediaBatchOutcomes.listings_incomplete += fresh.length;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed += fresh.length;
+  };
+  /** Persistence failure for ONE listing after a COMPLETE fetch. */
+  const markAgentListingWriteFailed = (listingId: string, reason: string) => {
+    // Resolve to the canonical request key before checking/marking. A listing
+    // with no mapping falls back to its own id deterministically, which is the
+    // same value the request builder would have used.
+    const key = agentRequestKeyByListingId.get(listingId) ?? listingId;
+    if (agentMediaMarked.has(key)) return;
+    agentMediaMarked.add(key);
+    runPartial = true;
+    legacyMediaBatchOutcomes.listings_write_failed++;
+    legacyMediaBatchOutcomes.incomplete_reasons[reason] =
+      (legacyMediaBatchOutcomes.incomplete_reasons[reason] ?? 0) + 1;
+    batchMediaCounters.rows_failed++;
+  };
+  const allAgentMediaRequestKeys: string[] = [];
   let agentMatched = 0;
 
   // Phase 3 write-suppression counters (physical writes only).
@@ -2209,9 +3000,13 @@ export async function syncAgentHistory(
         const listingId = String(r.ListingId || listingKey);
         if (listingKey) {
           agentKeyToIdMap.set(listingKey, listingId);
+          allAgentMediaRequestKeys.push(listingKey);
+          agentRequestKeyByListingId.set(listingId, listingKey);
           listingsNeedMedia.push(listingKey);
         } else if (listingId) {
           agentKeyToIdMap.set(listingId, listingId);
+          allAgentMediaRequestKeys.push(listingId);
+          agentRequestKeyByListingId.set(listingId, listingId);
           listingsNeedMedia.push(listingId);
         }
       }
@@ -2232,50 +3027,40 @@ export async function syncAgentHistory(
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
 
-          const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-          const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
-          const mediaParams = new URLSearchParams();
-          mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
-          mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
-          mediaParams.set("$top", String(batch.length * 30));
-
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
-
-            const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
-              const lid = String(m.ResourceRecordKey || "");
-              if (!lid || !m.MediaURL) continue;
-              if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
-              // Use shared classifier — see classifyTrestleMediaCategory in
-              // lib/media/media-sync-service.ts for the floor-plan-as-photo
-              // bug this replaces.
-              const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
-              const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              mediaByKey.get(lid)!.push({
-                url: String(m.MediaURL),
-                mediaType,
-                order: isPreferred ? -1 : Number(m.Order ?? 0),
-              });
+            // Phase 1A: same complete-response contract as the other two legacy
+            // writers. Requested keys are initialized independently, so an
+            // agent-history listing whose gallery is authoritatively empty
+            // clears its stale populated `listings.media` instead of being
+            // skipped; an incomplete response preserves the whole batch.
+            const batchResult = await fetchLegacyMediaBatch({
+              baseUrl: TRESTLE_API,
+              token,
+              requested: batch.map((key) => ({
+                listingId: agentKeyToIdMap.get(key) || key,
+                filterKey: key,
+              })),
+              pageSize: batch.length * 30, // page size, not a ceiling (probe 2026-07-29)
+              classifyMediaType: classifyTrestleMediaCategory,
+            });
+            if (batchResult.outcome === "incomplete") {
+              markAgentMediaBatchIncomplete(batch, batchResult.reason);
+              console.warn(
+                `[IDX Agent Sync] Media batch ${i / BATCH_SIZE + 1} INCOMPLETE ` +
+                  `(${batchResult.reason}) — preserving stored media for ${batch.length} listings, zero writes`,
+              );
+              continue;
             }
 
             // Convert ResourceRecordKey back to listing_id via map.
             // Phase 3 (surface D): same suppression as the syncListings batch —
             // rotating signed URLs are not identity; unchanged media skips the write.
-            for (const [key, media] of mediaByKey) {
-              const listingId = agentKeyToIdMap.get(key) || key;
+            legacyMediaBatchOutcomes.batches_complete++;
+            for (const arr of batchResult.mediaByListingId.values()) {
+              if (arr.length === 0) legacyMediaBatchOutcomes.listings_complete_empty++;
+              else legacyMediaBatchOutcomes.listings_complete_nonempty++;
+            }
+            for (const [listingId, media] of batchResult.mediaByListingId) {
               batchMediaCounters.rows_checked++;
               try {
                 const existingMediaRow = await prisma.listing.findFirst({
@@ -2292,14 +3077,21 @@ export async function syncAgentHistory(
                   continue;
                 }
                 batchMediaCounters.rows_materially_changed++;
-                await prisma.listing.updateMany({
+                const writeResult = await prisma.listing.updateMany({
                   where: archivedSafeMediaWhere(listingId),
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
+                if (writeResult.count !== 1) {
+                  markAgentListingWriteFailed(
+                    listingId,
+                    writeResult.count === 0 ? "media_write_no_match" : "media_write_multi_match",
+                  );
+                  continue; // no rows_updated, no cache tag - nothing was written
+                }
                 batchMediaCounters.rows_updated++;
                 changedCacheTags.add(listingCacheTag(listingId)); // W1
               } catch (mediaRowErr) {
-                batchMediaCounters.rows_failed++;
+                markAgentListingWriteFailed(listingId, "media_write_error");
                 console.warn(
                   `[IDX Agent History] Media write failed for ${listingId}:`,
                   mediaRowErr instanceof Error ? mediaRowErr.message : mediaRowErr,
@@ -2307,12 +3099,14 @@ export async function syncAgentHistory(
               }
             }
           } catch (mediaErr) {
+            markAgentMediaBatchIncomplete(batch, "fetch_error");
             console.warn(`[IDX Agent History] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
         console.log("[IDX Agent History] Media batch-fetch complete");
       }
     } catch (mediaSyncErr) {
+      markAgentMediaBatchIncomplete(allAgentMediaRequestKeys, "fetch_error");
       console.warn("[IDX Agent History] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
     }
   }
@@ -2325,11 +3119,13 @@ export async function syncAgentHistory(
     safeRevalidateTags(changedCacheTags, revalidation);
   }
 
+  const agentRunStatus: SyncRunStatus = errors > 0 ? "error" : runPartial ? "partial" : "ok";
+
   // Audit log
   logger.durationMs = durationMs;
   logIDXAccess({
     ...logger,
-    resultStatus: errors > 0 ? "error" : "success",
+    resultStatus: errors > 0 ? "error" : agentRunStatus === "partial" ? "partial" : "success",
     errorMessage: errors > 0 ? `${errors} errors during agent history sync` : undefined,
   });
 
@@ -2351,6 +3147,9 @@ export async function syncAgentHistory(
           skipped_gates: skippedGates,
           skipped_validation: skippedValidation,
           errors,
+          // Phase 1A durable partial evidence (see syncListings / idx_sync).
+          run_status: agentRunStatus,
+          legacy_media_batches: legacyMediaBatchOutcomes,
           duration_ms: durationMs,
           // Change-reason attribution (2026-07-24) — same contract as idx_sync.
           listing_change_reasons: listingChangeReasons,
@@ -2369,6 +3168,8 @@ export async function syncAgentHistory(
     skipped_gates: skippedGates,
     skipped_validation: skippedValidation,
     errors,
+    run_status: agentRunStatus,
+    legacy_media_batches: legacyMediaBatchOutcomes,
     duration_ms: durationMs,
     write_paths: {
       listings: listingCounters,

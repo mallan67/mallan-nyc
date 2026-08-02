@@ -6,7 +6,8 @@
 //   - by the public GET wrapper, which ALWAYS takes claimMachine() first.
 // There is no header / query / bearer combination that reaches this function
 // over HTTP without a claim — only a direct in-process import can.
-import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
+import { syncListings, readPropertyCursorState } from "@/lib/idx/sync";
+import { bootstrapCursorState, type PropertyCursorState } from "@/lib/idx/property-cursor";
 import { hasCredentials } from "@/lib/idx/auth";
 import {
   createCotalityCollector,
@@ -71,13 +72,33 @@ export async function runIdxSyncMember({
   const cotalityCollector = createCotalityCollector("idx-sync", oneCycleRunId);
 
   try {
-    const since = forceFull ? null : await getLastSyncTimestamp();
+    // Phase 1A: the scheduled cursor is versioned two-stream keyset state, not a
+    // scalar timestamp. Absent/legacy/malformed state BOOTSTRAPS the two fixed
+    // streams — it must NOT fall through to the old active-listing full sync,
+    // which would re-ingest the whole feed. Explicit forceFull stays isolated:
+    // it runs the legacy full sync and never advances or overwrites the cursors.
+    // OPS-024 follow-up: a STORAGE failure is not "no cursor yet". Abort before
+    // any Cotality request — zero listing/projection/media/cursor/watermark
+    // writes — rather than bootstrap over possibly-live state.
+    let cursorState: PropertyCursorState | null = null;
+    if (!forceFull) {
+      const read = await readPropertyCursorState();
+      if (!read.ok) {
+        console.warn("[IDX Sync Member] cursor state unreadable — skipping run, preserving cursor");
+        return {
+          status: 200,
+          outcome: "partial",
+          body: { skipped: true, reason: read.reason },
+        };
+      }
+      cursorState = read.state ?? bootstrapCursorState();
+    }
 
     const result = await runWithCotalityTelemetry(cotalityCollector, () =>
       syncListings({
-        since: since || undefined,
+        ...(cursorState ? { cursorState } : {}),
         maxRecords: SCHEDULED_MAX_RECORDS,
-        fullSync: forceFull || !since, // Full sync if forced or no previous sync
+        fullSync: forceFull, // ONLY an explicit request, never "no state yet"
       }),
     );
 
@@ -89,7 +110,15 @@ export async function runIdxSyncMember({
     // while the listing pass was incomplete. A partial IDX also HOLDS media
     // (Maya, 2026-07-25): the orchestrator's existing non-ok chain-stop already
     // budget-skips media, so the cycle is complete=false / success=false.
-    const semanticOutcome: MemberOutcome = result.errors > 0 ? "partial" : "ok";
+    // Phase 1A: `errors` alone is no longer the whole truth. syncListings now
+    // reports run_status "partial" for an INCOMPLETE legacy-media batch with
+    // errors === 0 — stored media preserved, watermark capped for retry. That is
+    // exactly the case the comment above describes, so it must hold media too.
+    // Fall back to the errors heuristic for any older result lacking run_status.
+    const semanticOutcome: MemberOutcome =
+      result.run_status !== undefined
+        ? (result.run_status === "ok" ? "ok" : "partial")
+        : (result.errors > 0 ? "partial" : "ok");
     const auditOutcome = semanticOutcome === "ok" ? "success" : semanticOutcome;
 
     await prisma.auditEvent.create({
@@ -101,8 +130,10 @@ export async function runIdxSyncMember({
         user_id: null,
         changes: {
           ...result,
-          incremental: !!since,
-          since: since?.toISOString() ?? null,
+          incremental: !forceFull,
+          // The scheduled cursor is versioned keyset state, not a scalar clock.
+          since: null,
+          property_cursor_basis: cursorState?.basis ?? null,
           outcome: auditOutcome,
           one_cycle_run_id: oneCycleRunId,
           cotality: snapshotCollector(cotalityCollector),

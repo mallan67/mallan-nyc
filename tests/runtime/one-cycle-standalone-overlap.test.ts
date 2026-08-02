@@ -32,10 +32,12 @@ jest.mock("@/lib/idx/machine-claim", () => ({
 }));
 
 const syncListings = jest.fn();
-const getLastSyncTimestamp = jest.fn(async () => new Date("2026-07-20T00:00:00Z"));
+// OPS-024: the read now returns a discriminated result so a STORAGE failure
+// cannot masquerade as "no cursor yet". ok:true + state:null = genuinely absent.
+const readPropertyCursorState = jest.fn(async () => ({ ok: true, state: null }));
 jest.mock("@/lib/idx/sync", () => ({
   syncListings: (...a: unknown[]) => syncListings(...a),
-  getLastSyncTimestamp: () => getLastSyncTimestamp(),
+  readPropertyCursorState: () => readPropertyCursorState(),
 }));
 
 const runMediaSync = jest.fn();

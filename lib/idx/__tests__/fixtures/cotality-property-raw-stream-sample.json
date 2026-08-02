@@ -1,0 +1,96 @@
+{
+  "_meta": {
+    "purpose": "Raw Cotality Property rows exactly as the two keyset streams receive them. OPS-024 regression fixture.",
+    "captured_utc": "2026-07-30T03:22:03.842Z",
+    "endpoint": "https://api.cotality.com/trestle/odata/Property",
+    "method": "GET (read-only)",
+    "authoritative_source": "The live Cotality API is authoritative; this file is a captured sample, not a substitute.",
+    "sanitization": "Captured with a minimal $select containing ONLY key + identity + the two clocks. No address, remarks, agent/owner PII, price or media were requested, so none can be present. No credentials, tokens or Authorization headers are recorded. Field names and null-ness are preserved EXACTLY as returned; nothing is normalized or renamed.",
+    "raw_not_normalized": true,
+    "observed_nullability": {
+      "ListingKey": "populated on every sampled row (only when explicitly selected)",
+      "SourceSystemKey": "null on 6 of 6 sampled rows",
+      "note": "Production IDX_PLUS_SELECT_FIELDS requests SourceSystemKey and NOT ListingKey — the OPS-024 defect."
+    }
+  },
+  "mt_stream": {
+    "label": "mt_stream",
+    "request": {
+      "select": [
+        "ListingKey",
+        "ListingId",
+        "SourceSystemKey",
+        "ModificationTimestamp",
+        "PhotosChangeTimestamp"
+      ],
+      "filter": "ModificationTimestamp gt 2026-07-25T00:00:00Z",
+      "orderby": "ModificationTimestamp asc,ListingKey asc",
+      "top": 3
+    },
+    "http": 200,
+    "count": 5434,
+    "rows": [
+      {
+        "SourceSystemKey": null,
+        "ListingId": "RLS20028534",
+        "PhotosChangeTimestamp": "2026-07-25T00:06:05.727-00:00",
+        "ModificationTimestamp": "2026-07-25T00:04:55.893-00:00",
+        "ListingKey": "1114858451"
+      },
+      {
+        "SourceSystemKey": null,
+        "ListingId": "RLS20080000",
+        "PhotosChangeTimestamp": "2026-07-25T00:06:05.727-00:00",
+        "ModificationTimestamp": "2026-07-25T00:05:25.857-00:00",
+        "ListingKey": "1156098141"
+      },
+      {
+        "SourceSystemKey": null,
+        "ListingId": "RLS20080422",
+        "PhotosChangeTimestamp": "2026-07-25T00:07:58.900-00:00",
+        "ModificationTimestamp": "2026-07-25T00:07:04.340-00:00",
+        "ListingKey": "1156380499"
+      }
+    ]
+  },
+  "pct_stream": {
+    "label": "pct_stream",
+    "request": {
+      "select": [
+        "ListingKey",
+        "ListingId",
+        "SourceSystemKey",
+        "ModificationTimestamp",
+        "PhotosChangeTimestamp"
+      ],
+      "filter": "PhotosChangeTimestamp gt 2026-07-25T00:00:00Z",
+      "orderby": "PhotosChangeTimestamp asc,ListingKey asc",
+      "top": 3
+    },
+    "http": 200,
+    "count": 5367,
+    "rows": [
+      {
+        "SourceSystemKey": null,
+        "ListingId": "RLS20028534",
+        "PhotosChangeTimestamp": "2026-07-25T00:06:05.727-00:00",
+        "ModificationTimestamp": "2026-07-25T00:04:55.893-00:00",
+        "ListingKey": "1114858451"
+      },
+      {
+        "SourceSystemKey": null,
+        "ListingId": "RLS20080000",
+        "PhotosChangeTimestamp": "2026-07-25T00:06:05.727-00:00",
+        "ModificationTimestamp": "2026-07-25T00:05:25.857-00:00",
+        "ListingKey": "1156098141"
+      },
+      {
+        "SourceSystemKey": null,
+        "ListingId": "RLS20053173",
+        "PhotosChangeTimestamp": "2026-07-25T00:07:58.900-00:00",
+        "ModificationTimestamp": "2026-07-25T00:07:35.180-00:00",
+        "ListingKey": "1146467238"
+      }
+    ]
+  }
+}
