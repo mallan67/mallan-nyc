@@ -313,18 +313,28 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
    * the breakpoint edges so a `sizes` value that disagrees with the CSS
    * cannot pass again.
    */
-  const VIEWPORTS = [360, 639, 640, 700, 767, 768, 800, 900, 1023, 1024, 1440, 1920];
+  // Each view mode uses a DIFFERENT sizeProfile, so string-level unit
+  // tests are not a substitute for selecting each layout in a browser.
+  // The default URL only ever exercises all-listings (below lg) and
+  // split (at lg+), which left list and the 3-col grid view untested.
+  const MODES: Array<{ view: string; url: string; widths: number[] }> = [
+    { view: 'all-listings', url: '&view=all-listings', widths: [360, 639, 640, 700, 767, 768, 800, 900, 1023, 1024, 1440, 1920] },
+    { view: 'grid',         url: '&view=grid',         widths: [768, 900, 1023, 1024, 1280, 1440, 1920] },
+    { view: 'list',         url: '&view=list',         widths: [360, 639, 640, 768, 1024, 1440, 1920] },
+    { view: 'split',        url: '&view=split',        widths: [1024, 1280, 1440, 1920] },
+  ];
 
-  for (const width of VIEWPORTS) {
+  for (const mode of MODES) {
+  for (const width of mode.widths) {
     for (const dpr of [1, 2]) {
-      test(`${width}px @${dpr}x — card gets at least its rendered width x DPR`, async ({ browser }) => {
+      test(`${mode.view} ${width}px @${dpr}x — exact rung`, async ({ browser }) => {
         const ctx = await browser.newContext({
           viewport: { width, height: 900 },
           deviceScaleFactor: dpr,
         });
         const page = await ctx.newPage();
         try {
-          await page.goto('/search?tab=buy-residential');
+          await page.goto(`/search?tab=buy-residential${mode.url}`);
           await page.waitForSelector('.glass-card img', { timeout: 30_000 });
           await page
             .waitForFunction(
@@ -360,7 +370,15 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
           ).toBe(true);
 
           const need = Math.round(r!.rendered * dpr);
-          const expected = CARD_IMAGE_WIDTHS.find((w) => w >= need) ?? Math.max(...CARD_IMAGE_WIDTHS);
+          // FAIL CLOSED. The previous `?? Math.max(...)` fallback meant a
+          // need larger than the whole ladder would "expect" the biggest
+          // rung and PASS — i.e. genuine under-resolution reported green.
+          const expected = CARD_IMAGE_WIDTHS.find((w) => w >= need);
+          expect(
+            expected,
+            `${width}px @${dpr}x: no configured candidate covers ${need}px ` +
+              `(ladder tops out at ${Math.max(...CARD_IMAGE_WIDTHS)})`,
+          ).toBeDefined();
 
           // Assert the EXACT rung, both directions. `>= need` alone
           // prevents blur but silently permits gross over-download — it
@@ -376,6 +394,7 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
         }
       });
     }
+  }
   }
 });
 
