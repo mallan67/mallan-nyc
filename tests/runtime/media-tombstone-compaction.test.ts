@@ -63,7 +63,12 @@ describe('media tombstone compaction', () => {
 
   it('is bounded per statement and per invocation', async () => {
     const { client, captured } = makeClient(new Array(20).fill(MEDIA_TOMBSTONE_BATCH_SIZE));
-    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
+    // The steady-state ceiling is passed EXPLICITLY: the default is now the
+    // 100-row first-production canary (see retention-canary.test.ts), so
+    // relying on the default here would test the canary, not the cap logic.
+    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW, {
+      maxRows: MEDIA_TOMBSTONE_MAX_PER_INVOCATION,
+    });
     expect(result.rows).toBe(MEDIA_TOMBSTONE_MAX_PER_INVOCATION);
     expect(result.stopped).toBe('invocation_cap');
     const requested = captured.reduce((sum, q) => sum + Number(q.values[1]), 0);
@@ -72,9 +77,20 @@ describe('media tombstone compaction', () => {
 
   it('stops on a short final batch and reports actual payload bytes', async () => {
     const { client, captured } = makeClient([2000, 37]);
-    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
+    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW, {
+      maxRows: MEDIA_TOMBSTONE_MAX_PER_INVOCATION,
+    });
     expect(result).toMatchObject({ rows: 2037, bytes: 2037 * 500, batches: 2, stopped: 'drained' });
     expect(captured).toHaveLength(2);
+  });
+
+  it('defaults to the 100-row first-production canary, NOT the 10,000 ceiling', async () => {
+    // Merging arms a nightly production mutation. An unconstrained first run
+    // would clear up to 10,000 tombstone payloads before anyone reviewed a
+    // single production result.
+    const { client } = makeClient([100]);
+    const result = await compactExpiredMediaTombstones(client, TOMBSTONE_NOW);
+    expect(result.rows).toBe(100);
   });
 
   it('fails closed on invalid bounds', async () => {

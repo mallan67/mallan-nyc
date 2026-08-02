@@ -10,6 +10,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { SYSTEM_DIAGNOSTIC_RETENTION_ACTIONS } from "./system-diagnostic-actions";
+import { resolveRetentionCap } from "./retention-canary";
 
 /**
  * Explicit gate. The approved deployment sets this to "true" in vercel.json;
@@ -63,8 +64,12 @@ export async function purgeExpiredDiagnostics(
   now: Date,
   options: { dryRun?: boolean; maxRows?: number; batchSize?: number } = {},
 ): Promise<DiagnosticPurgeResult> {
+  // Canary-by-default: unset env => 100 rows. RETENTION_DIAGNOSTIC_MAX_ROWS
+  // raises it, clamped to the reviewed DIAGNOSTIC_MAX_PER_INVOCATION.
   const batchSize = options.batchSize ?? DIAGNOSTIC_BATCH_SIZE;
-  const maxRows = options.maxRows ?? DIAGNOSTIC_MAX_PER_INVOCATION;
+  const maxRows =
+    options.maxRows ??
+    resolveRetentionCap('RETENTION_DIAGNOSTIC_MAX_ROWS', DIAGNOSTIC_MAX_PER_INVOCATION);
 
   if (options.dryRun) {
     const counted = await countExpiredDiagnostics(db, now);

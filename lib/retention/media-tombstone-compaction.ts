@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
 
+import { resolveRetentionCap } from './retention-canary';
+
 export const MEDIA_TOMBSTONE_RETENTION_DAYS = 30;
 export const MEDIA_TOMBSTONE_BATCH_SIZE = 2000;
 export const MEDIA_TOMBSTONE_MAX_PER_INVOCATION = 10000;
@@ -32,7 +34,12 @@ export async function compactExpiredMediaTombstones(
   options: { maxRows?: number; batchSize?: number } = {},
 ): Promise<MediaTombstoneCompactionResult> {
   const batchSize = options.batchSize ?? MEDIA_TOMBSTONE_BATCH_SIZE;
-  const maxRows = options.maxRows ?? MEDIA_TOMBSTONE_MAX_PER_INVOCATION;
+  // Canary-by-default, same contract as the diagnostic purge: unset env =>
+  // 100 rows. RETENTION_TOMBSTONE_MAX_ROWS raises it, clamped to the
+  // reviewed MEDIA_TOMBSTONE_MAX_PER_INVOCATION.
+  const maxRows =
+    options.maxRows ??
+    resolveRetentionCap('RETENTION_TOMBSTONE_MAX_ROWS', MEDIA_TOMBSTONE_MAX_PER_INVOCATION);
   if (!Number.isInteger(batchSize) || batchSize <= 0 || !Number.isInteger(maxRows) || maxRows <= 0) {
     return { rows: 0, bytes: 0, batches: 0, stopped: 'error', error: 'invalid_bounds' };
   }

@@ -146,10 +146,14 @@ separate numbers, measured after the cleanup settles — never as one.
 
 ## Independently verified code facts (not quantities)
 
+> **Corrected 2026-08-02.** This table previously carried a "No heartbeat"
+> row. That was true at `5da1a705` and became false at `2f695234`; it is
+> replaced below and now agrees with Census D and the shipped code.
+
 | Fact | Evidence |
 |---|---|
 | Prisma not statically reachable from the preflight | Full static import closure traced: 14 modules, zero hits. Only the dynamic `import()` on the non-skip branch reaches it |
-| No heartbeat | `lastCompletedAt` declared `:47`, parsed `:130`, written `:385`, **never read** in `decideOneCyclePreflight` |
+| **One-hour heartbeat implemented** (`2f695234`) | `lastSuccessfulFullCycleAt` is READ by `decideOneCyclePreflight` and advances only after a `success && complete` cycle. Bound is a literal `60 * 60`, no env override. Forces a run on missing / null / malformed / **future** / expired. Reason `freshness_heartbeat_due`. Was previously absent — `lastCompletedAt` was written but never read, which is what the REBNY check caught. |
 | 7 fail-open branches, 1 skip branch | `one-cycle-preflight.ts:245-328` |
 | Upstash configured in Production | `vercel env ls production` from the linked repo — both vars, all environments, 141d |
 | `/api/listings` caches only the count | `route.ts:415` wraps `count()`; `:333` `findMany` live; `:105` process-local `Map`; `:363` `raw_data: true`. Line 97 admits it |

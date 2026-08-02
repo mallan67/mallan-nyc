@@ -68,7 +68,9 @@ function boundLimit(q: Prisma.Sql): unknown {
 describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
   it("binds the allowlist as a PARAMETER and never interpolates an action", async () => {
     const { client, captured } = makeClient([0]);
-    await purgeExpiredDiagnostics(client, NOW);
+    await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     const sql = captured[0];
     expect(boundActions(sql)).toEqual([...SYNC_DIAGNOSTIC_DEDUPE_ACTIONS]);
     // The literal action names must appear NOWHERE in the statement text.
@@ -80,7 +82,9 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
 
   it("uses a 30-day cutoff, bound as a parameter", async () => {
     const { client, captured } = makeClient([0]);
-    await purgeExpiredDiagnostics(client, NOW);
+    await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     const cutoff = captured[0].values[1] as Date;
     expect(cutoff).toEqual(diagnosticCutoff(NOW));
     expect(NOW.getTime() - cutoff.getTime()).toBe(
@@ -90,7 +94,9 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
 
   it("orders deterministically and claims with SKIP LOCKED", async () => {
     const { client, captured } = makeClient([0]);
-    await purgeExpiredDiagnostics(client, NOW);
+    await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     const text = captured[0].strings.join("").replace(/\s+/g, " ");
     expect(text).toContain("ORDER BY created_at, id");
     expect(text).toContain("FOR UPDATE SKIP LOCKED");
@@ -99,7 +105,9 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
   it("never asks for more than DIAGNOSTIC_BATCH_SIZE in one statement", async () => {
     // Five full batches then a short one.
     const { client, captured } = makeClient([2000, 2000, 2000, 2000, 2000, 1]);
-    await purgeExpiredDiagnostics(client, NOW);
+    await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     for (const q of captured) {
       expect(boundLimit(q) as number).toBeLessThanOrEqual(DIAGNOSTIC_BATCH_SIZE);
     }
@@ -108,7 +116,12 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
   it("never deletes more than DIAGNOSTIC_MAX_PER_INVOCATION in one invocation", async () => {
     // Always-full batches: the loop must stop at the invocation ceiling.
     const { client, captured } = makeClient(new Array(50).fill(DIAGNOSTIC_BATCH_SIZE));
-    const result = await purgeExpiredDiagnostics(client, NOW);
+    // Steady-state ceiling passed EXPLICITLY: the default is now the 100-row
+    // first-production canary (retention-canary.test.ts), so relying on the
+    // default here would test the canary rather than the cap logic.
+    const result = await purgeExpiredDiagnostics(client, NOW, {
+      maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+    });
     expect(result.rows).toBe(DIAGNOSTIC_MAX_PER_INVOCATION);
     expect(result.stopped).toBe("invocation_cap");
     const requested = captured.reduce((n, q) => n + (boundLimit(q) as number), 0);
@@ -121,9 +134,19 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
     expect(captured.map(boundLimit)).toEqual([2000, 2000, 500]);
   });
 
+  it("defaults to the 100-row first-production canary, NOT the 10,000 ceiling", async () => {
+    // Merging arms a nightly production DELETE. An unconstrained first run
+    // would remove up to 10,000 audit rows before anyone reviewed a result.
+    const { client } = makeClient([100]);
+    const result = await purgeExpiredDiagnostics(client, NOW);
+    expect(result.rows).toBe(100);
+  });
+
   it("stops as soon as a short batch shows the backlog is drained", async () => {
     const { client, captured } = makeClient([2000, 37]);
-    const result = await purgeExpiredDiagnostics(client, NOW);
+    const result = await purgeExpiredDiagnostics(client, NOW, {
+      maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+    });
     expect(result.rows).toBe(2037);
     expect(result.batches).toBe(2);
     expect(result.stopped).toBe("drained");
@@ -132,7 +155,9 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
 
   it("reports rows and bytes from what the DATABASE returned, not what was asked", async () => {
     const { client } = makeClient([2000, 500]);
-    const result = await purgeExpiredDiagnostics(client, NOW);
+    const result = await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     expect(result.rows).toBe(2500);
     expect(result.bytes).toBe(2500 * 700);
   });
@@ -149,7 +174,9 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
         throw err;
       },
     };
-    const result = await purgeExpiredDiagnostics(client, NOW);
+    const result = await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     expect(result.stopped).toBe("error");
     expect(result.error).toBe("PrismaClientKnownRequestError");
     expect(result.rows).toBe(2000); // the committed first batch is kept
@@ -185,7 +212,9 @@ describe("system-diagnostic cleanup — bounded deletion guarantees", () => {
   it("is FAIL-CLOSED by default: without the compliance gate it counts and deletes nothing", async () => {
     delete process.env[GATE];
     const { client, captured } = makeClient([46103]);
-    const result = await purgeExpiredDiagnostics(client, NOW);
+    const result = await purgeExpiredDiagnostics(client, NOW, {
+          maxRows: DIAGNOSTIC_MAX_PER_INVOCATION,
+        });
     expect(result.stopped).toBe("compliance_gate_closed");
     expect(result.batches).toBe(0);
     expect(result.rows).toBe(0);
