@@ -106,13 +106,19 @@ export const CARD_SIZES = {
    *   767  = md(768)  - 1     full width below md
    *   1023 = lg(1024) - 1     half width below lg
    *
+   * The mid-band is 48vw, not 50vw. Two columns minus gap and container
+   * padding renders at ~47.9-49.1vw (measured 383/800, 436/900,
+   * 502/1023). Declaring the round 50vw pushed the browser one rung too
+   * far — 448 for a 383px card, 640 for a 436px card. 48vw lands on the
+   * exact rung at every tested width.
+   *
    * GridCard serves two layouts (all-listings 2-col at md within
    * max-w-6xl; grid view 3-col at lg within max-w-7xl). 640px covers the
    * wider all-listings case (~616px, landing on 1280 at 2x). The grid
    * view at lg+ is narrower (~326-418px) and is therefore over-declared;
    * splitting this into two profiles is a tracked follow-up.
    */
-  grid: '(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 640px',
+  grid: '(max-width: 767px) 100vw, (max-width: 1023px) 48vw, 640px',
   /**
    * ListCard: `w-48 sm:w-64` rail — measured 199-283px.
    *
@@ -138,8 +144,12 @@ export const CARD_SIZES = {
    * inclusive `(max-width: 1024px)` overlapped it. Measured at exactly
    * 1024px: rendered 274, needed 548, received 1920 — a 3.5x
    * over-download caused by one pixel of overlap.
+   *
+   * 28vw, not 30vw. Measured 394/1440 = 27.4vw and 531/1920 = 27.7vw;
+   * the round 30vw pushed one rung too far (1080 where 828 fits, 1280
+   * where 1080 fits).
    */
-  split: '(max-width: 1023px) 100vw, 30vw',
+  split: '(max-width: 1023px) 100vw, 28vw',
   /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
 } as const;
