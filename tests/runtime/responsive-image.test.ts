@@ -173,32 +173,60 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
     expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(1200);
   });
 
-  it('covers the full-width tablet card at 2x, and stops there', () => {
-    // A card is full width up to the md=768px layout breakpoint, so at
-    // 2x DPR it needs 1536 — 1920 is the covering rung. This reverses an
-    // earlier assertion that no card needed more than 1280; that was
-    // only true while the grid `sizes` wrongly claimed 50vw from 641px.
-    expect(CARD_IMAGE_WIDTHS).toContain(1920);
-    // Nothing larger is ever justified for a card.
+  it('tops out at the tightest rung covering a full-width tablet card', () => {
+    // Full width applies up to 767px, so the largest card need is
+    // 767 x 2 = 1534. 1600 covers it at 1.04x; 1920 covers it at 1.25x
+    // and downloads 25% more for nothing.
+    expect(CARD_IMAGE_WIDTHS).toContain(1600);
+    expect(CARD_IMAGE_WIDTHS).not.toContain(1920);
     expect(CARD_IMAGE_WIDTHS).not.toContain(2048);
-    expect(CARD_IMAGE_WIDTHS).not.toContain(3840);
+    expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(767 * 2);
   });
 
-  it('every sizes breakpoint matches a real Tailwind layout breakpoint', () => {
-    // The 641px regression: `sizes` switched to 50vw at 640px while the
-    // CSS stayed one-column until md=768px, so 641-767px cards received
-    // a half-width image for a full-width slot (measured 0.55x).
-    // Tailwind: sm=640 md=768 lg=1024 xl=1280.
-    const TAILWIND = new Set([640, 768, 1024, 1280, 1536]);
-    for (const profile of [CARD_SIZES.grid, CARD_SIZES.list, CARD_SIZES.split]) {
+  it('1600 is admitted by the Next config, not just by the card ladder', () => {
+    // cardImageWidths is NOT the optimizer allowlist — Next validates `w`
+    // against deviceSizes + imageSizes and 400s anything else. 1600 is
+    // not a Next default, so it had to be added explicitly.
+    const cfg = require('../../config/image-optimization.json');
+    expect([...cfg.deviceSizes, ...cfg.imageSizes]).toContain(1600);
+  });
+
+  it('every sizes breakpoint is COMPLEMENTARY to Tailwind, never equal', () => {
+    // Tailwind breakpoints are min-width rules, so `md` applies AT
+    // 768px. A `sizes` branch of `(max-width: 768px)` is inclusive and
+    // overlaps md by one pixel-width. Both failure directions were
+    // measured on preview:
+    //   (max-width: 640px) -> 641-767px UNDER-resolved  (700@1x = 0.55x)
+    //   (max-width: 768px) -> exactly 768px OVER-downloaded (1920 for a
+    //                         369px card needing 738)
+    // The branch must therefore end one pixel BELOW the breakpoint.
+    const TAILWIND = [640, 768, 1024, 1280, 1536];
+    const COMPLEMENTARY = new Set(TAILWIND.map((b) => b - 1));
+
+    // Collect every offender first so the failure message names them all
+    // rather than stopping at the first.
+    const overlapping: string[] = [];
+    const misaligned: string[] = [];
+    for (const [name, profile] of Object.entries(CARD_SIZES)) {
+      if (name === 'hero') continue;
       for (const m of profile.matchAll(/max-width:\s*(\d+)px/g)) {
-        expect(TAILWIND.has(Number(m[1]))).toBe(true);
+        const px = Number(m[1]);
+        if (TAILWIND.includes(px)) {
+          overlapping.push(`${name}: (max-width: ${px}px) overlaps Tailwind ${px} — use ${px - 1}`);
+        } else if (!COMPLEMENTARY.has(px)) {
+          misaligned.push(`${name}: (max-width: ${px}px) is not one below any Tailwind breakpoint`);
+        }
       }
     }
-    // GridCard is one column until md — never sm.
-    expect(CARD_SIZES.grid).toMatch(/^\(max-width: 768px\) 100vw/);
-    // SplitCard only goes two-up at lg.
-    expect(CARD_SIZES.split).toMatch(/^\(max-width: 1024px\) 100vw/);
+    expect(overlapping).toEqual([]);
+    expect(misaligned).toEqual([]);
+
+    // GridCard is one column until md(768) -> branch ends at 767.
+    expect(CARD_SIZES.grid).toMatch(/^\(max-width: 767px\) 100vw/);
+    // ListCard's rail widens at sm(640) -> branch ends at 639.
+    expect(CARD_SIZES.list).toMatch(/^\(max-width: 639px\)/);
+    // SplitCard only goes two-up at lg(1024) -> branch ends at 1023.
+    expect(CARD_SIZES.split).toMatch(/^\(max-width: 1023px\) 100vw/);
   });
 
   it('never emits the raw original as a srcSet candidate', () => {

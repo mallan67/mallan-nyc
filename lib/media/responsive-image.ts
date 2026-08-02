@@ -52,8 +52,10 @@ import IMAGE_CONFIG from '@/config/image-optimization.json';
 
 /**
  * Minimal candidate ladder covering every measured card width at 1x and
- * 2x DPR. Deliberately excludes 1920/2048 — the widest card need is
- * 1232 device px, which 1200 covers. See the JSON's $comment keys.
+ * 2x DPR. Tops out at 1600: with the full-width branch ending at 767px,
+ * the largest card need is 767 x 2 = 1534 device px, which 1600 covers
+ * at 1.04x. 1920 would cover it at 1.25x and download 25% more for no
+ * visible gain. See the JSON's $comment keys.
  */
 export const CARD_IMAGE_WIDTHS: readonly number[] = IMAGE_CONFIG.cardImageWidths;
 
@@ -85,30 +87,44 @@ export const CARD_SIZES = {
    * Declaring the narrower one would under-resolve every all-listings
    * card by ~1.6x, so the wider layout wins.
    *
-   * BREAKPOINTS MUST MATCH THE CSS, NOT LOOK PLAUSIBLE (fixed 2026-08-02).
-   * The first branch was `(max-width: 640px)`, but every GridCard layout
-   * switches to two columns at Tailwind `md` = 768px:
-   *   all-listings  `grid-cols-1 md:grid-cols-2`
-   *   grid view     `grid md:grid-cols-2 lg:grid-cols-3`
-   * So across 641-767px the card is FULL WIDTH while `sizes` claimed
-   * 50vw. Measured on production before the fix:
-   *   700px viewport @1x -> rendered 693, received 384  = 0.55x
-   *   700px viewport @2x -> rendered 695, received 828  = 0.60x
-   * Visibly soft on tablet portrait. Caught by Codex review; my own
-   * test matrix (390/1440/1920) skipped the entire 641-1023 band.
+   * BREAKPOINTS MUST BE COMPLEMENTARY TO TAILWIND, NOT EQUAL TO IT.
+   * Tailwind breakpoints are `min-width` rules, so `md` applies AT
+   * 768px. A `sizes` branch of `(max-width: 768px)` is inclusive and
+   * therefore OVERLAPS md by exactly one pixel-width. Both errors were
+   * measured on preview:
    *
-   * Above 768px the card is half the container, and above 1024px it is
-   * a third (grid view) or half (all-listings) — 640px covers the wider
-   * all-listings case at ~616px, landing on 1280 at 2x.
+   *   (max-width: 640px) — under-resolution across 641-767px, where the
+   *     layout is still one column but sizes claimed 50vw:
+   *       700px @1x -> rendered 693, received 384 = 0.55x
+   *       700px @2x -> rendered 695, received 828 = 0.60x
+   *   (max-width: 768px) — over-download AT exactly 768px, where md has
+   *     already made it two columns but sizes still claimed 100vw:
+   *       768px @1x -> rendered 370, needed 384, received 828
+   *       768px @2x -> rendered 369, needed 738, received 1920
+   *
+   * So the branch must end one pixel BELOW the Tailwind breakpoint:
+   *   767  = md(768)  - 1     full width below md
+   *   1023 = lg(1024) - 1     half width below lg
+   *
+   * GridCard serves two layouts (all-listings 2-col at md within
+   * max-w-6xl; grid view 3-col at lg within max-w-7xl). 640px covers the
+   * wider all-listings case (~616px, landing on 1280 at 2x). The grid
+   * view at lg+ is narrower (~326-418px) and is therefore over-declared;
+   * splitting this into two profiles is a tracked follow-up.
    */
-  grid: '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 640px',
+  grid: '(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 640px',
   /**
-   * ListCard: w-48 / sm:w-64 rail — measured 207-283px.
-   * The mobile branch was 12rem (192px) against a 207px render, i.e. 7%
-   * short, and at 2x it received 384 for a 414px need. 14rem (224px)
-   * reaches the new 448 rung: 2.16x coverage instead of 0.93x.
+   * ListCard: `w-48 sm:w-64` rail — measured 199-283px.
+   *
+   * Two boundary fixes:
+   *   12rem -> 14rem : 192px declared against a 207px render was 7%
+   *     short, and at 2x received 384 for a 414px need.
+   *   640 -> 639     : Tailwind `sm` is min-width 640, so `sm:w-64`
+   *     (256px) applies AT 640px while an inclusive `(max-width: 640px)`
+   *     still declared 14rem. Measured: 640px @2x rendered 265, needed
+   *     530, received 448 = 0.85x. One pixel of overlap, visibly soft.
    */
-  list: '(max-width: 640px) 14rem, 18rem',
+  list: '(max-width: 639px) 14rem, 18rem',
   /**
    * SplitCard: 2 col inside the ~55% listings panel, measured 376-405px
    * at 1440 and 508-544px at 1920 — no fixed px is right at both ends.
@@ -117,12 +133,13 @@ export const CARD_SIZES = {
    * `hidden lg:block`, so SplitCard only ever renders two-up at >=1024px.
    * Below that the page renders GridCards instead — verified live at
    * 700/800/900/1000px, where the grid profile was the applied `sizes`.
-   * The <=1024px branch is therefore a defensive full-width declaration
-   * rather than a live path: if the layout ever renders SplitCard on a
-   * narrow screen it will be one column and near-full-width, and must
-   * not inherit a 30vw hint.
+   *
+   * The branch ends at 1023, not 1024: `lg` is min-width 1024, so an
+   * inclusive `(max-width: 1024px)` overlapped it. Measured at exactly
+   * 1024px: rendered 274, needed 548, received 1920 — a 3.5x
+   * over-download caused by one pixel of overlap.
    */
-  split: '(max-width: 1024px) 100vw, 30vw',
+  split: '(max-width: 1023px) 100vw, 30vw',
   /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
 } as const;

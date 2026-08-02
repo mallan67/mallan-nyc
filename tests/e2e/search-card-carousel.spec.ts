@@ -20,6 +20,9 @@
  *   PLAYWRIGHT_BASE_URL=<preview-url> npx playwright test tests/e2e/search-card-carousel.spec.ts
  */
 import { test, expect, type Page, type Request } from '@playwright/test';
+// The ladder is the single source of truth for the expected rung — the
+// test must not hardcode widths that can drift from the config.
+import { CARD_IMAGE_WIDTHS } from '../../lib/media/responsive-image';
 
 /** Every search surface that renders a card variant. */
 const GRID_PAGES = ['/search?tab=buy-residential', '/search?tab=rent-residential'];
@@ -310,7 +313,7 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
    * the breakpoint edges so a `sizes` value that disagrees with the CSS
    * cannot pass again.
    */
-  const VIEWPORTS = [360, 640, 700, 767, 768, 800, 900, 1023, 1024, 1440];
+  const VIEWPORTS = [360, 639, 640, 700, 767, 768, 800, 900, 1023, 1024, 1440, 1920];
 
   for (const width of VIEWPORTS) {
     for (const dpr of [1, 2]) {
@@ -335,21 +338,39 @@ test.describe('Card images are never under-resolved at ANY viewport', () => {
 
           const r = await page.evaluate(() => {
             const i = document.querySelector<HTMLImageElement>('.glass-card img');
-            if (!i?.currentSrc.includes('/_next/image')) return null;
+            if (!i) return null;
             const u = new URL(i.currentSrc, location.origin);
             return {
               rendered: Math.round(i.getBoundingClientRect().width),
               chosen: Number(u.searchParams.get('w')),
               sizes: i.getAttribute('sizes'),
+              currentSrc: i.currentSrc,
+              optimized: i.currentSrc.includes('/_next/image'),
             };
           });
-          test.skip(r === null, 'no optimizer-served card image on this page');
+
+          // MUST NOT SKIP. Optimizer delivery is part of the contract for
+          // these audited card surfaces — an earlier revision of this test
+          // returned null and skipped when currentSrc was not an optimizer
+          // URL, which turned every delivery failure into a false green.
+          expect(r, 'no card image rendered at all').not.toBeNull();
+          expect(
+            r!.optimized,
+            `${width}px @${dpr}x: card was NOT optimizer-served — currentSrc=${r!.currentSrc.slice(0, 120)}`,
+          ).toBe(true);
 
           const need = Math.round(r!.rendered * dpr);
+          const expected = CARD_IMAGE_WIDTHS.find((w) => w >= need) ?? Math.max(...CARD_IMAGE_WIDTHS);
+
+          // Assert the EXACT rung, both directions. `>= need` alone
+          // prevents blur but silently permits gross over-download — it
+          // passed a 1920 candidate for a 369px card at the 768px
+          // boundary. Exact-rung catches both failure modes.
           expect(
             r!.chosen,
-            `${width}px @${dpr}x: card rendered ${r!.rendered}px (needs ${need}px) but received ${r!.chosen}px — sizes="${r!.sizes}"`,
-          ).toBeGreaterThanOrEqual(need);
+            `${width}px @${dpr}x: rendered ${r!.rendered}px, needs ${need}px, ` +
+              `expected rung ${expected}, received ${r!.chosen} — sizes="${r!.sizes}"`,
+          ).toBe(expected);
         } finally {
           await ctx.close();
         }
