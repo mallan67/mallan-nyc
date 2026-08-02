@@ -133,43 +133,97 @@ object.
 
 ---
 
-## Cost scenarios (transformation model, `iad1`, ~10,249 active listings)
+## Cost scenarios — REVISED 2026-08-01 (six widths, measured populations)
 
-Gross metered amounts, **before** the shared $20 credit. These are scenarios,
-not bounds — actual usage is demand-driven.
+**Two corrections to the first version of this table.** It used a **five**-width
+ladder (the premium change made it **six**: 384/448/640/828/1080/1280), and it
+used **10,249** as the listing population — a figure from
+`PLATFORM-ISSUE-REGISTRY.md:81` dated 2026-07-01.
 
-| Scenario | Transformations | Transform cost | Cache-write cost | Gross |
+Populations re-measured directly against production Neon on 2026-08-01:
+
+| Population | Count | Query basis |
+|---|---|---|
+| All listing rows | 24,190 | `listings` |
+| Passing display gates | 15,694 | `idx_display_yn` + `participant_only` + `owner_opt_out` |
+| **Displayable WITH ≥1 active photo** | **15,104** | the correct "hero" population |
+| **Total displayable active photos** | **211,556** | the correct "all photos" ceiling |
+
+Gross metered amounts at `iad1` ($0.00005/transformation, $0.000004/cache
+write), **before** the shared $20 credit:
+
+| Scenario | Transformations | Transform | Cache write | Gross |
 |---|---|---|---|---|
-| Every hero, 1 width | 10,249 | $0.51 | $0.04 | **$0.55** |
-| Every hero, 3 widths | 30,747 | $1.54 | $0.12 | **$1.66** |
-| Every hero, all 5 widths | 51,245 | $2.56 | $0.20 | **$2.77** |
-| 3 photos/listing, all 5 widths | 153,735 | $7.69 | $0.61 | **$8.30** |
+| Every hero, 1 width | 15,104 | $0.76 | $0.06 | **$0.82** |
+| Every hero, 3 widths | 45,312 | $2.27 | $0.18 | **$2.45** |
+| Every hero, all 6 widths | 90,624 | $4.53 | $0.36 | **$4.89** |
+| 3 photos/listing, all 6 widths | 271,872 | $13.59 | $1.09 | **$14.68** |
+| **Ceiling — every displayable photo × 6 widths** | **1,269,336** | **$63.47** | **$5.08** | **$68.55** |
 | 1,000,000 cache reads | — | — | — | **$0.40** |
 
-A transformation is billed when a browser first requests a specific photo at a
-specific width; the 31-day `minimumCacheTTL` then serves subsequent requests as
-cache reads. Lazy-loaded cards never scrolled into view are never transformed.
-The five configured widths are *candidates* — a given browser selects one per
-image, so "all five widths" only occurs across a mix of viewports and DPRs
-over time.
+The ceiling row is stated deliberately. It is **not** a forecast — reaching it
+would require every one of 211,556 photos to be requested at all six widths —
+but it is the honest upper edge, and it sits above the $20 credit. The
+realistic rows do not.
 
-Only ~3 distinct widths were observed across the full tested matrix
-(390/1440 viewports × DPR 1/2 × four view modes): 384, 640, 828, 1080, 1200
-appear, but never more than one per image per client.
+### What actually triggers a charge
+
+A transformation is billed when a browser first requests a specific
+**(source, width, quality)** triple; the 31-day TTL then serves repeats as
+cache reads. Cards render one carousel photo at a time, and lazy-loaded cards
+never scrolled into view are never transformed — so real usage tracks the
+hero-focused rows, not the ceiling.
+
+The six widths are *candidates*: a given client selects exactly one per image.
+"All six" only accrues across a mix of viewports and DPRs over time. Across the
+full tested matrix (390/1440 × DPR 1/2 × four view modes) each client selected
+one width per image, spanning 384/448/640/828/1080/1280.
+
+### The q=75 → q=85 switch is a one-time re-population
+
+Quality is part of the cache key, so raising it **abandons the entire existing
+q=75 card cache**. The scenario figures above therefore are not an abstract
+model — they are the actual one-time re-population cost that will be incurred
+as traffic touches each source-width pair at the new quality. After that,
+repeats are cache reads.
 
 ---
 
 ## Recommendation
 
 Do **not** set a hard spend limit. Vercel's Spend Management can pause
-production projects when a hard cap is reached, which would take mallan.nyc
-offline — an unacceptable failure mode for a brokerage site whose listings
-carry regulatory display obligations.
-
-Instead:
+production projects when a hard cap is reached. Every card, featured card,
+compare tile and hero now routes through `/_next/image`, so a pause would
+break imagery **site-wide** — an unacceptable failure mode for a brokerage
+site whose listings carry regulatory display obligations. Alerting is the
+correct control; automatic pausing is not.
 
 1. Enable **Image Optimization usage notifications** with a low warning
    threshold.
 2. Leave automatic project pausing **disabled**.
-3. Record the current counters (see "does not settle" #1) before merge.
-4. Re-check usage after the first full production cycle with real traffic.
+3. Re-check usage after the first full production cycle with real traffic.
+
+### These are monitoring, not merge gates
+
+Per Maya's direction 2026-08-01, the three outstanding billing items —
+current usage counters, dashboard pricing confirmation, and notification
+setup — are **post-merge monitoring**, not blockers. The evidence above
+materially supports transformation/cache billing; the dashboard remains the
+easiest operator-facing confirmation but is not a precondition.
+
+The modelled cost does not justify holding a picture repair.
+
+## What this PR does NOT fix
+
+`#591` is a premium **card-image delivery** improvement. It is not the closure
+of all picture problems:
+
+- **Stale source URLs (#586).** If `media_url_original` is left unrefreshed on
+  active, unmirrored, parked rows, the DTO hands the optimizer an obsolete
+  Cotality URL. The image is then stale or dead **at source** — nothing in the
+  optimizer or its cache can fix that. Requires the media-freshness hotfix.
+- **Detail thumbnail strip.** `ListingMediaGallery.tsx:222` renders
+  `img.thumbUrl || img.url`, and `thumbUrl` is byte-identical to `url`, so an
+  88×60 thumbnail downloads the full available file. Wasteful, not blurry.
+  Separate bounded follow-up: optimize the strip only, ~192–256 physical px,
+  q=85, leaving the main viewer and fullscreen lightbox untouched.

@@ -315,7 +315,13 @@ export default function ListingMediaGallery({
             {photoIdx + 1} / {sortedImages.length}
           </span>
 
-          {/* Photo — full resolution, no cropping */}
+          {/* Photo — the UNOPTIMIZED highest-available display URL, no
+              cropping. Deliberately not routed through /_next/image, so
+              the card optimizer never downsizes the lightbox.
+              "Highest-available" is the accurate claim, not "original
+              camera resolution": listing-media-resolver picks per row
+              between the Cotality asset, an R2 mirror and a generated
+              hero variant, so which one this is varies by listing. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={currentImage.url}

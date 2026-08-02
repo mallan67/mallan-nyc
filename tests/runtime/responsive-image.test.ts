@@ -356,6 +356,27 @@ describe('optimization is OPT-IN — only audited surfaces change', () => {
     expect(found.filter((f) => !f.hasProfile)).toEqual([]);
   });
 
+  it('the detail viewer and lightbox are never routed through the optimizer', () => {
+    // Precise claim: they render the UNOPTIMIZED highest-available
+    // display URL. Not "original camera resolution" — the resolver picks
+    // per row between the Cotality asset, an R2 mirror and a generated
+    // hero variant. What this pins is that the CARD optimizer never
+    // downsizes them.
+    // Strip comments first — the file explains in prose that it is NOT
+    // routed through the optimizer, and that explanation must not itself
+    // trip the assertion.
+    const gallery = readFileSync(
+      resolve(__dirname, '../../app/components/ListingMediaGallery.tsx'),
+      'utf8',
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+    expect(gallery).not.toMatch(/_next\/image/);
+    expect(gallery).not.toMatch(/buildImageSources|sizeProfile/);
+    // The lightbox renders the resolver's URL directly.
+    expect(gallery).toMatch(/src=\{currentImage\.url\}/);
+  });
+
   it('the listing-detail hero and gallery do NOT use IDXImage at all', () => {
     // They render via ListingMediaGallery (next/image for the
     // placeholder, raw <img> for photos), so this PR cannot have
