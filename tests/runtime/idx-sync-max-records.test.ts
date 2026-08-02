@@ -111,9 +111,17 @@ describe('idx-sync cron · maxRecords cap (PR-S.5)', () => {
       // machine shares ONE 10-minute timeline.
       const crons = vercelJson.crons ?? [];
       expect(crons.find(c => c.path === '/api/cron/idx-sync')).toBeUndefined();
-      const oneCycle = crons.find(c => c.path === '/api/cron/one-cycle');
-      expect(oneCycle).toBeDefined();
-      expect(oneCycle!.schedule).toBe('*/10 * * * *');
+      // PR #593: the */10 scheduled entry is now the PREFLIGHT gate, which runs
+      // the unchanged One Cycle orchestrator on every non-skip path. Unified
+      // cadence intact — 10 minutes, one orchestrator, no independent member
+      // crons — so this pins the new entry point AND the delegation.
+      const scheduled = crons.find(c => c.path === '/api/cron/one-cycle-preflight');
+      expect(scheduled).toBeDefined();
+      expect(scheduled!.schedule).toBe('*/10 * * * *');
+      expect(crons.find(c => c.path === '/api/cron/one-cycle')).toBeUndefined();
+      expect(
+        readFileSync(path.resolve(__dirname, '../../app/api/cron/one-cycle-preflight/route.ts'), 'utf8'),
+      ).toMatch(/import\(['"]@\/app\/api\/cron\/one-cycle\/route['"]\)/);
     });
 
     it("keeps useExpandMedia = false in lib/idx/sync.ts (Trestle $expand=Media disabled by PR #127)", () => {

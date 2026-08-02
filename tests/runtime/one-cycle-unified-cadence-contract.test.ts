@@ -96,9 +96,18 @@ describe("schedule and duration", () => {
 
   it("preserves the 600-second canonical cadence and listing ISR fallback", () => {
     const { SYNC_CADENCE_SECONDS } = require("@/lib/cache/public-cache");
-    const orchestrator = require("@/app/api/cron/one-cycle/route");
     expect(SYNC_CADENCE_SECONDS).toBe(600);
-    expect(orchestrator.CYCLE_INTERVAL_MS).toBe(600_000);
+
+    // Read CYCLE_INTERVAL_MS from SOURCE rather than require()ing the
+    // module. This file mocks "@/app/api/cron/one-cycle/route" so the
+    // delegation tests never execute the real Prisma-backed cycle, and
+    // that mock factory exports only GET — so require() returned
+    // undefined here. Asserting the source text proves the real constant
+    // and cannot be satisfied by the mock, which is what a cadence
+    // contract must guarantee.
+    expect(read("app/api/cron/one-cycle/route.ts")).toMatch(
+      /export const CYCLE_INTERVAL_MS = 600_000;/,
+    );
     expect(read("app/listing/[...slug]/page.tsx")).toMatch(/export const revalidate = 600;/);
   });
 });
