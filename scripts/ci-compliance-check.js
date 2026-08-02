@@ -357,11 +357,71 @@ if (fs.existsSync(vercelJsonPath)) {
   const vercelJson = fs.readFileSync(vercelJsonPath, 'utf8');
   const idxSyncMatch = vercelJson.match(/"\/api\/cron\/idx-sync",\s*"schedule":\s*"([^"]+)"/);
   const oneCycleMatch = vercelJson.match(/"\/api\/cron\/one-cycle",\s*"schedule":\s*"([^"]+)"/);
+  const preflightMatch = vercelJson.match(/"\/api\/cron\/one-cycle-preflight",\s*"schedule":\s*"([^"]+)"/);
+
+  // PR #593: the scheduled entry may be the PREFLIGHT gate, which skips Neon
+  // when Cotality reports no change. That is ONLY acceptable as a REBNY
+  // freshness driver if it cannot skip forever.
+  //
+  // Merely accepting the route name here would create exactly the loophole
+  // this section exists to prevent: a preflight that always answers
+  // "unchanged" would silently stop propagating Trestle status changes while
+  // CI stayed green. So the heartbeat CONTRACT is verified in source, and any
+  // missing element fails the build.
+  let preflightDriver = null;
+  if (preflightMatch) {
+    const pfLib = path.join(ROOT, 'lib/idx/one-cycle-preflight.ts');
+    const pfRoute = path.join(ROOT, 'app/api/cron/one-cycle-preflight/route.ts');
+    const pfTest = path.join(ROOT, 'tests/runtime/one-cycle-preflight.test.ts');
+    const lib = fs.existsSync(pfLib) ? fs.readFileSync(pfLib, 'utf8') : '';
+    const route = fs.existsSync(pfRoute) ? fs.readFileSync(pfRoute, 'utf8') : '';
+    const tst = fs.existsSync(pfTest) ? fs.readFileSync(pfTest, 'utf8') : '';
+
+    // (4) statically bounded, literal, and at most one hour.
+    const boundMatch = lib.match(/export const ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS\s*=\s*([^;]+);/);
+    let boundSeconds = null;
+    if (boundMatch) {
+      const expr = boundMatch[1].trim();
+      if (/^[0-9*+\s]+$/.test(expr)) { try { boundSeconds = eval(expr); } catch { boundSeconds = null; } }
+    }
+    // No env override anywhere near the heartbeat.
+    const envOverride = /process\.env\.[A-Z_]*HEARTBEAT[A-Z_]*/.test(lib);
+
+    const missing = [];
+    if (!boundMatch) missing.push('ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS literal is absent');
+    if (boundSeconds === null) missing.push('heartbeat bound is not a static literal expression');
+    else if (boundSeconds > 3600) missing.push(`heartbeat bound ${boundSeconds}s exceeds the approved 3600s maximum`);
+    if (envOverride) missing.push('heartbeat interval is environment-configurable (must be code-bound)');
+    // (2) the last SUCCESSFUL FULL cycle timestamp is read, not just written.
+    if (!/lastSuccessfulFullCycleAt/.test(lib)) missing.push('lastSuccessfulFullCycleAt is absent');
+    if (!/const heartbeatAt = priorState\.lastSuccessfulFullCycleAt/.test(lib)) {
+      missing.push('the decision never READS lastSuccessfulFullCycleAt');
+    }
+    // (3) missing / invalid / future / expired all force a cycle.
+    if (!/!Number\.isFinite\(heartbeatMs\)/.test(lib)) missing.push('missing/invalid heartbeat does not force a cycle');
+    if (!/heartbeatMs > now\.getTime\(\)/.test(lib)) missing.push('a FUTURE heartbeat does not force a cycle');
+    if (!/freshness_heartbeat_due/.test(lib)) missing.push('freshness_heartbeat_due reason is absent');
+    // (6) the route still delegates to the authoritative orchestrator.
+    if (!/import\(['"]@\/app\/api\/cron\/one-cycle\/route['"]\)/.test(route)) {
+      missing.push('the preflight route does not invoke the One Cycle orchestrator');
+    }
+    // (5) runtime tests exercise the threshold in both directions.
+    if (!/freshness heartbeat/.test(tst)) missing.push('no runtime tests for the heartbeat');
+    if (!/ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS/.test(tst)) missing.push('heartbeat tests do not exercise the bound');
+
+    if (missing.length) {
+      fail(`one-cycle-preflight is scheduled but its freshness-heartbeat contract is incomplete (UCBA Art. I §6): ${missing.join('; ')}`);
+    } else {
+      pass(`one-cycle-preflight heartbeat contract verified (bound ${boundSeconds}s, forces on missing/invalid/future/expired)`);
+      preflightDriver = { label: 'one-cycle-preflight (heartbeat-bound, drives one-cycle)', cron: preflightMatch[1] };
+    }
+  }
+
   const driver = idxSyncMatch
     ? { label: 'idx-sync', cron: idxSyncMatch[1] }
     : oneCycleMatch
       ? { label: 'one-cycle (drives idx-sync)', cron: oneCycleMatch[1] }
-      : null;
+      : preflightDriver;
   if (!driver) {
     fail('No idx-sync cron and no one-cycle orchestrator scheduled — Trestle status changes cannot propagate within REBNY 24h (UCBA Art. I §6)');
   } else {

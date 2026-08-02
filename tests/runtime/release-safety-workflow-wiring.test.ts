@@ -123,7 +123,14 @@ describe('release-safety P2 — workflow wiring pins', () => {
     );
     expect(bySchedule['/api/cron/idx-sync']).toBeUndefined();
     expect(bySchedule['/api/cron/media-sync']).toBeUndefined();
-    expect(bySchedule['/api/cron/one-cycle']).toBe('*/10 * * * *');
+    // PR #593: the */10 scheduled entry is now the PREFLIGHT gate, which runs
+    // the unchanged One Cycle orchestrator on every non-skip path. Unified
+    // cadence intact — 10 minutes, one orchestrator, no independent member
+    // crons — so this pins the new entry point AND the delegation.
+    expect(bySchedule['/api/cron/one-cycle-preflight']).toBe('*/10 * * * *');
+    expect(bySchedule['/api/cron/one-cycle']).toBeUndefined();
+    expect(read('app/api/cron/one-cycle-preflight/route.ts'))
+      .toMatch(/import\(['"]@\/app\/api\/cron\/one-cycle\/route['"]\)/);
   });
 
   test('P2 scripts exist where the runbook points', () => {

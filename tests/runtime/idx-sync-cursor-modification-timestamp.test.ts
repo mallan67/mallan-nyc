@@ -278,9 +278,19 @@ describe('infrastructure non-changes around PR-S.6', () => {
     // deployed for manual triggering.
     const crons = vercelJson.crons ?? [];
     expect(crons.find(c => c.path === '/api/cron/idx-sync')).toBeUndefined();
-    const oneCycle = crons.find(c => c.path === '/api/cron/one-cycle');
-    expect(oneCycle).toBeDefined();
-    expect(oneCycle!.schedule).toBe('*/10 * * * *');
+    // PR #593: the */10 scheduled entry is now the PREFLIGHT gate, which
+    // runs the unchanged One Cycle orchestrator on every non-skip path.
+    // The unified-cadence contract is intact — 10-minute cadence, one
+    // orchestrator, no independent member crons — so this pins the new
+    // entry point AND the delegation, rather than dropping the check.
+    const scheduled = crons.find(c => c.path === '/api/cron/one-cycle-preflight');
+    expect(scheduled).toBeDefined();
+    expect(scheduled!.schedule).toBe('*/10 * * * *');
+    // one-cycle is no longer independently scheduled; it is invoked BY the preflight.
+    expect(crons.find(c => c.path === '/api/cron/one-cycle')).toBeUndefined();
+    expect(
+      readFileSync(path.resolve(__dirname, '../../app/api/cron/one-cycle-preflight/route.ts'), 'utf8'),
+    ).toMatch(/import\(['\"]@\/app\/api\/cron\/one-cycle\/route['\"]\)/);
   });
 
   it("vercel.json does NOT contain /api/cron/media-backfill — paused for 2026-05-21 P0 Neon/media incident (PR #176)", () => {
@@ -321,9 +331,19 @@ describe('infrastructure non-changes around PR-S.6', () => {
     // protection). The route stays deployed for manual triggering.
     const crons = vercelJson.crons ?? [];
     expect(crons.find(c => c.path === '/api/cron/media-sync')).toBeUndefined();
-    const oneCycle = crons.find(c => c.path === '/api/cron/one-cycle');
-    expect(oneCycle).toBeDefined();
-    expect(oneCycle!.schedule).toBe('*/10 * * * *');
+    // PR #593: the */10 scheduled entry is now the PREFLIGHT gate, which
+    // runs the unchanged One Cycle orchestrator on every non-skip path.
+    // The unified-cadence contract is intact — 10-minute cadence, one
+    // orchestrator, no independent member crons — so this pins the new
+    // entry point AND the delegation, rather than dropping the check.
+    const scheduled = crons.find(c => c.path === '/api/cron/one-cycle-preflight');
+    expect(scheduled).toBeDefined();
+    expect(scheduled!.schedule).toBe('*/10 * * * *');
+    // one-cycle is no longer independently scheduled; it is invoked BY the preflight.
+    expect(crons.find(c => c.path === '/api/cron/one-cycle')).toBeUndefined();
+    expect(
+      readFileSync(path.resolve(__dirname, '../../app/api/cron/one-cycle-preflight/route.ts'), 'utf8'),
+    ).toMatch(/import\(['\"]@\/app\/api\/cron\/one-cycle\/route['\"]\)/);
   });
 
   it("idx-sync member still passes SCHEDULED_MAX_RECORDS = 500 (PR-S.5 cap preserved)", () => {

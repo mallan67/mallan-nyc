@@ -40,7 +40,7 @@ export interface MemberRunResult {
 // syncListings does per-record sequential DB work (~80ms) + a media batch
 // follow-up; 500 records ≈ 65s. Manual ?full=true uses the same cap — invoke
 // repeatedly to drain a large backlog; do NOT raise the cap inline.
-const SCHEDULED_MAX_RECORDS = 500;
+export const SCHEDULED_MAX_RECORDS = 500;
 
 /**
  * Run the IDX-sync member. Correlates its durable Cotality telemetry with the
@@ -55,10 +55,6 @@ export async function runIdxSyncMember({
   forceFull: boolean;
 }): Promise<MemberRunResult> {
   if (process.env.IDX_ENABLED !== "true" || !hasCredentials()) {
-    // PRECONDITION FAILURE — no sync work ran. This is NOT success: it must stop
-    // the chain before media and force machine complete=false / success=false.
-    // The HTTP body stays backward-compatible (200 skipped); the explicit
-    // `outcome: "skipped"` is what the orchestrator + completion ledger use.
     return {
       status: 200,
       outcome: "skipped",
@@ -66,8 +62,6 @@ export async function runIdxSyncMember({
     };
   }
 
-  // Run-scoped, isolated collector — concurrent Cotality calls in other async
-  // contexts cannot alter these counters.
   const cotalityCollector = createCotalityCollector("idx-sync", oneCycleRunId);
 
   try {
@@ -77,18 +71,10 @@ export async function runIdxSyncMember({
       syncListings({
         since: since || undefined,
         maxRecords: SCHEDULED_MAX_RECORDS,
-        fullSync: forceFull || !since, // Full sync if forced or no previous sync
+        fullSync: forceFull || !since,
       }),
     );
 
-    // SEMANTIC outcome — machine truth, NOT HTTP status. syncListings catches
-    // per-record listing/projection failures and resolves with `errors > 0`
-    // (the watermark is capped/frozen so those rows are re-fetched next run)
-    // instead of throwing. A nonzero error count is a PARTIAL pass and must not
-    // be reported as full success — otherwise the machine would report success
-    // while the listing pass was incomplete. A partial IDX also HOLDS media
-    // (Maya, 2026-07-25): the orchestrator's existing non-ok chain-stop already
-    // budget-skips media, so the cycle is complete=false / success=false.
     const semanticOutcome: MemberOutcome = result.errors > 0 ? "partial" : "ok";
     const auditOutcome = semanticOutcome === "ok" ? "success" : semanticOutcome;
 
@@ -113,7 +99,16 @@ export async function runIdxSyncMember({
     return {
       status: 200,
       outcome: semanticOutcome,
-      body: { success: true, ...result, cotality: snapshotCollector(cotalityCollector) },
+      body: {
+        success: true,
+        ...result,
+        // One Cycle's summary allowlist carries `listings_*` keys. This alias
+        // lets the external preflight detect a full 500-row batch and force an
+        // immediate follow-up instead of falsely declaring the source drained.
+        listings_fetched: result.total_fetched,
+        listings_batch_limit: SCHEDULED_MAX_RECORDS,
+        cotality: snapshotCollector(cotalityCollector),
+      },
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
@@ -127,8 +122,6 @@ export async function runIdxSyncMember({
           entity_id: "bulk",
           user_type: "system",
           user_id: null,
-          // Telemetry persists on FAILURE too — a 429 / retry / token refresh /
-          // timeout / thrown request stays visible in the durable error audit.
           changes: {
             error: msg,
             outcome: "error",
@@ -137,7 +130,7 @@ export async function runIdxSyncMember({
           } as unknown as Prisma.InputJsonValue,
         },
       })
-      .catch(() => {}); // Don't let audit failure mask the real error
+      .catch(() => {});
 
     return { status: 500, outcome: "error", body: { error: `Sync failed: ${msg}` } };
   }
