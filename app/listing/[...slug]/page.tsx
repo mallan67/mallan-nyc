@@ -51,7 +51,8 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 import prisma from '@/lib/prisma';
 import { attachListingCacheTags } from '@/lib/cache/public-cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto, proxyTrestleUrl } from '@/lib/media/listing-media-resolver';
+import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -110,7 +111,7 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
  * `proxyTrestleUrl` is idempotent by construction: it parses with `new URL()`,
  * which throws on an already-proxied relative URL, and returns it unchanged.
  */
-const proxyDetailMediaUrl = proxyTrestleUrl;
+const proxyDetailMediaUrl = toPublicMediaUrl;
 
 interface LastSaleInfo {
   closePrice: number;
