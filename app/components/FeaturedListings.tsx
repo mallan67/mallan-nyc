@@ -13,6 +13,8 @@ import {
   LISTING_PLACEHOLDER_IMAGE,
   getValidPhotoMedia,
 } from '@/lib/media/listing-card-media';
+import { buildFeaturedListingMedia, type FeaturedListingMedia } from '@/lib/media/featured-listing-media';
+import { toEmbedUrl } from '@/lib/media/embed-url';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 import {
   orderFeaturedListings,
@@ -54,6 +56,10 @@ interface FeaturedListing {
   livingArea: number | null;
   listOfficeName: string;
   media: { url: string; mediaType: string; order: number }[];
+  /** Host-split playable video from the DTO (UCBA Art. I §5(C) unbranded-preferred). */
+  videoUrl?: string;
+  /** Host-split interactive 3D tour from the DTO. */
+  virtualTourURL?: string;
   photosCount?: number;
   monthlyCommonCharges?: number;
   monthlyMaintenance?: number;
@@ -107,13 +113,36 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: string; order?: number }[]; alt: string }) {
+/**
+ * Featured-card media surface.
+ *
+ * DOM CONTRACT (the hydration fix): NO interactive control may be a descendant
+ * of an <a>. Previously `ListingCard` wrapped this entire gallery -- buttons and
+ * all -- in a Next `Link`. A <button> inside an <a> is invalid HTML; React
+ * reports an invalid-nesting hydration error and the client component never
+ * finishes hydrating, which is why photos, video and 3D all disappeared at once
+ * rather than one media type failing.
+ *
+ * The link now covers ONLY the non-interactive photo area, and every control is
+ * a sibling of it. The warning is not suppressed -- the structure is corrected.
+ */
+function PhotoGallery({
+  media,
+  alt,
+  href,
+}: {
+  media: FeaturedListingMedia;
+  alt: string;
+  href: string;
+}) {
   const [idx, setIdx] = useState(0);
   const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
-  const validPhotos = getValidPhotoMedia(photos).filter((m) => !failedPhotoUrls.has(String(m.url)));
+  const [overlay, setOverlay] = useState<null | 'video' | '3d'>(null);
+
+  const validPhotos = media.photos.filter((m) => !failedPhotoUrls.has(String(m.url)));
   const images = validPhotos.length > 0
     ? validPhotos
-    : [{ url: LISTING_PLACEHOLDER_IMAGE, mediaType: 'Photo' }];
+    : [{ url: LISTING_PLACEHOLDER_IMAGE, order: 0 }];
   const safeIdx = Math.min(idx, images.length - 1);
   const currentSrc = images[safeIdx]?.url || LISTING_PLACEHOLDER_IMAGE;
 
@@ -126,43 +155,115 @@ function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: strin
     setIdx(0);
   }, [currentSrc]);
 
+  const hasControls = media.hasVideo || media.hasVirtualTour;
+  const isHostedVideo = (u: string) => /youtube\.com|youtu\.be|vimeo\.com|wistia\.com/.test(u);
+
   return (
-    <div
-      className="relative overflow-hidden aspect-[4/3] bg-gray-100 touch-pan-y"
-      onTouchStart={swipe.onTouchStart}
-      onTouchMove={swipe.onTouchMove}
-      onTouchEnd={swipe.onTouchEnd}
-    >
-      <IDXImage
-        src={currentSrc}
-        alt={alt}
-        aspect="card"
-        // Featured cards sit in the same ~360px grid slot as the search
-        // grid card, so they shared the oversized-download defect even
-        // though their carousel already worked.
-        sizeProfile="grid"
-        onError={handlePhotoError}
-      />
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(e) => { e.stopPropagation(); goPrev(); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
-            aria-label="Previous photo"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); goNext(); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
-            aria-label="Next photo"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
-          <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
-            {safeIdx + 1}/{images.length}
-          </span>
-        </>
+    <div className="relative">
+      <div
+        className="relative overflow-hidden aspect-[4/3] bg-gray-100 touch-pan-y"
+        onTouchStart={swipe.onTouchStart}
+        onTouchMove={swipe.onTouchMove}
+        onTouchEnd={swipe.onTouchEnd}
+      >
+        {/* Link wraps ONLY the passive photo surface -- never a control. */}
+        <Link href={href} className="block cursor-pointer group" aria-label={alt}>
+          <IDXImage
+            src={currentSrc}
+            alt={alt}
+            aspect="card"
+            sizeProfile="grid"
+            onError={handlePhotoError}
+          />
+        </Link>
+
+        {/* Controls are SIBLINGS of the link, never descendants. */}
+        {images.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); goPrev(); }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
+              aria-label="Previous photo"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); goNext(); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
+              aria-label="Next photo"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+            <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
+              {safeIdx + 1}/{images.length}
+            </span>
+          </>
+        )}
+
+        {/* Video / 3D player -- rendered ONLY once opened (no eager iframe, no
+            autoplay) and mounted outside every Link. */}
+        {overlay && (
+          <div className="absolute inset-0 z-40 bg-black">
+            {overlay === 'video' && media.videoUrl && (
+              isHostedVideo(media.videoUrl) ? (
+                <iframe
+                  src={toEmbedUrl(media.videoUrl)}
+                  className="absolute inset-0 w-full h-full"
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Video tour"
+                />
+              ) : (
+                <video src={media.videoUrl} className="absolute inset-0 w-full h-full object-contain" controls playsInline preload="metadata" title="Video tour" />
+              )
+            )}
+            {overlay === '3d' && media.virtualTourUrl && (
+              <iframe
+                src={toEmbedUrl(media.virtualTourUrl)}
+                className="absolute inset-0 w-full h-full"
+                allow="fullscreen; xr-spatial-tracking"
+                allowFullScreen
+                title="3D tour"
+              />
+            )}
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverlay(null); }}
+              className="absolute top-2 right-2 z-50 px-3 py-1.5 rounded-full bg-white/90 text-brand-dark text-[12px] font-medium hover:bg-white"
+              aria-label="Close media and return to photos"
+            >
+              Back to photos
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Media-type row -- discoverable without paging through every photo.
+          Only controls backed by REAL media are rendered; no disabled tabs. */}
+      {hasControls && !overlay && (
+        <div className="flex items-center gap-2 px-3 py-2 text-[12px] border-t border-black/5 bg-white">
+          <span className="text-brand-dark/70">Photos {media.photoCount}</span>
+          {media.hasVideo && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverlay('video'); }}
+              className="px-2 py-0.5 rounded border border-black/10 hover:bg-black/5 transition"
+            >
+              Video
+            </button>
+          )}
+          {media.hasVirtualTour && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverlay('3d'); }}
+              className="px-2 py-0.5 rounded border border-black/10 hover:bg-black/5 transition"
+            >
+              3D Tour
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -244,11 +345,12 @@ function RentVsBuyCalc({ monthlyRent }: { monthlyRent: number }) {
 
 function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: boolean }) {
   const isRental = listing.listingType === 'rent';
-  const photos = getValidPhotoMedia(listing.media).map((m) => ({
-    url: String(m.url),
-    mediaType: m.mediaType || 'Photo',
-    order: m.order ?? undefined,
-  }));
+  // Full media model — photos PLUS video and 3D. The old path ran
+  // getValidPhotoMedia() here and again inside PhotoGallery, stripping Video,
+  // VirtualTour and FloorPlan before the gallery ever saw them, so Cotality
+  // video/3D could never render. getValidPhotoMedia stays unchanged; it is
+  // correctly scoped to photo-only hero selection and is still used elsewhere.
+  const media = buildFeaturedListingMedia(listing);
   // Single badge: Mallan-owned exclusives → "Mallan Exclusive" (accurate
   // tooltip, never an RLS/syndication claim); pinned third-party IDX/RLS →
   // "Featured". Mallan-owned wins, so a pinned exclusive shows ONE badge.
@@ -277,12 +379,19 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
         activationDate={listing.activationDate}
         className="absolute top-4 right-4 z-30 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[60%]"
       />
-      <Link href={featuredCardHref(listing)} className="block cursor-pointer group relative">
-        <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
+      {/* NO outer Link here. The gallery owns its own link over the passive
+          photo surface only; wrapping the whole gallery put <button> controls
+          inside an <a>, which is invalid DOM and broke hydration outright. */}
+      <div className="relative">
+        <PhotoGallery
+          media={media}
+          href={featuredCardHref(listing)}
+          alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()}
+        />
         {/* Open-house banner — bottom-left of the photo, clear of the gold badge (top-left), the
             Coming Soon badge (top-right), the title (below), and the photo counter (bottom-right). */}
-        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-30" />
-      </Link>
+        <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-30 pointer-events-none" />
+      </div>
 
       <div className="p-5 md:p-6">
         <Link href={featuredCardHref(listing)} className="block cursor-pointer">
