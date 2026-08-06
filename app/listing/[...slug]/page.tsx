@@ -51,7 +51,7 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 import prisma from '@/lib/prisma';
 import { attachListingCacheTags } from '@/lib/cache/public-cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto, proxyTrestleUrl } from '@/lib/media/listing-media-resolver';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -84,11 +84,33 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
   return [];
 }
 
-function proxyDetailMediaUrl(rawUrl: string): string {
-  return rawUrl.includes('cotality.com') || rawUrl.includes('corelogic.com')
-    ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
-    : rawUrl;
-}
+/**
+ * Public media URL policy for the detail route.
+ *
+ * DELEGATES to the canonical `proxyTrestleUrl` — this route no longer owns a
+ * second, independent implementation.
+ *
+ * THE DEFECT THIS REPLACES: the previous local version tested the WHOLE string
+ * for `cotality.com` / `corelogic.com`. But `resolveDbListingMedia` has ALREADY
+ * proxied every relational Cotality row, so the hostname is still present inside
+ * the encoded `url=` parameter of an already-proxied relative URL. It matched,
+ * and wrapped a second time:
+ *
+ *   /api/media/proxy?url=%2Fapi%2Fmedia%2Fproxy%3Furl%3Dhttps%253A%252F%252F...
+ *
+ * The proxy route requires an ABSOLUTE URL on an approved host. The nested value
+ * is relative, so the allowlist rejected it and returned 403 — proven live on
+ * production 2026-08-06 (nested -> 403, single-proxied -> 200, 1,356,147 bytes).
+ *
+ * The R2 hero carries no `cotality.com` substring, so it alone survived. On a
+ * post-policy listing (1 R2 hero + N Cotality-only rows, 6.3% mirrored since
+ * 2026-07-24) that renders as "67 photos" with exactly one usable image — the
+ * reported symptom, with no truncation anywhere in the chain.
+ *
+ * `proxyTrestleUrl` is idempotent by construction: it parses with `new URL()`,
+ * which throws on an already-proxied relative URL, and returns it unchanged.
+ */
+const proxyDetailMediaUrl = proxyTrestleUrl;
 
 interface LastSaleInfo {
   closePrice: number;
