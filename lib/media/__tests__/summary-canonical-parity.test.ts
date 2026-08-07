@@ -127,26 +127,20 @@ describe('C. media_category null + MediaClassification Document + DOCUMENT-Pdf U
   });
 
   /**
-   * ❌ PARITY FAILS HERE — PROVEN DIVERGENCE, NOT A TEST BUG.
+   * ✅ PARITY RESTORED 2026-08-07 (commit 7A).
    *
-   *   canonical photoCount = 1  (DOCUMENT-Pdf classified as FloorPlan)
-   *   summary  photo_count = 2  (counts it, because media_type === 'Photo')
-   *
-   * `SummarySourceRow` carries no media_category / media_classification, so
-   * `filterActivePhotoRows` cannot see the evidence the canonical classifier
-   * uses. A card reading `Listing.photo_count` would advertise 2 photos for a
-   * listing whose gallery shows 1.
-   *
-   * CONSEQUENCE: the persisted summary columns are NOT authoritative and MUST
-   * NOT back the card/list contract until the summary derivation delegates to
-   * canonical classification. Asserted as a DIVERGENCE so the suite stays
-   * honest; replace with `toBe(canonical.photoCount)` once fixed — do not delete.
+   * This previously DIVERGED: canonical 1 vs summary 2, because
+   * `filterActivePhotoRows` tested only `media_type === 'photo'` while the
+   * canonical reader also weighed MediaClassification and the DOCUMENT-* URL
+   * shape. `SummarySourceRow` now carries media_category /
+   * media_classification and the filter DELEGATES to `classifyMediaItem`.
+   * Kept as an EQUALITY test, not deleted — it is the regression guard.
    */
-  it('DOCUMENTED DIVERGENCE: summary over-counts vs canonical', () => {
+  it('PARITY: summary photo_count EQUALS canonical photoCount', () => {
     const { summary, canonical } = bothViews(rows);
     expect(canonical.photoCount).toBe(1);
-    expect(summary.photo_count).toBe(2);
-    expect(summary.photo_count).not.toBe(canonical.photoCount);
+    expect(summary.photo_count).toBe(1);
+    expect(summary.photo_count).toBe(canonical.photoCount);
   });
 });
 
@@ -157,12 +151,12 @@ describe('D. media_category null + floorplan-shaped URL', () => {
       media_url_original: DOC_PDF, order: 1, preferred_photo_yn: false, status: 'active' },
   ];
 
-  /** Same divergence via URL shape alone. See case C. */
-  it('DOCUMENTED DIVERGENCE: summary over-counts vs canonical', () => {
+  /** Same case via URL shape alone — parity restored with C. See case C. */
+  it('PARITY: summary photo_count EQUALS canonical photoCount', () => {
     const { summary, canonical } = bothViews(rows);
     expect(canonical.photoCount).toBe(1);
-    expect(summary.photo_count).toBe(2);
-    expect(summary.photo_count).not.toBe(canonical.photoCount);
+    expect(summary.photo_count).toBe(1);
+    expect(summary.photo_count).toBe(canonical.photoCount);
   });
 });
 

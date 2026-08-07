@@ -233,9 +233,15 @@ describe("updateListingMediaSummary (DB-backed)", () => {
     // findMany call shape
     const findArgs = mockFindMany.mock.calls[0][0] as { where: Record<string, unknown>; select: Record<string, unknown> };
     expect(findArgs.where).toEqual({ listing_id: "RLS20012345" });
-    // Selects only the 8 columns the summary needs (efficient projection).
+    // Selects only the columns the summary needs (efficient projection).
+    // media_category + media_classification added 2026-08-07 (commit 7A):
+    // without them `filterActivePhotoRows` could only test media_type, so a
+    // floor plan arriving with no MediaCategory (stored as Photo by
+    // classifyTrestleMediaCategory) was counted as a photo and
+    // Listing.photo_count exceeded the public gallery. Two scalar columns on
+    // rows already being read — no extra query, no join.
     expect(Object.keys(findArgs.select).sort()).toEqual(
-      ["media_modification_ts", "media_type", "media_url_original", "modification_ts", "order", "preferred_photo_yn", "r2_key", "status"].sort(),
+      ["media_category", "media_classification", "media_modification_ts", "media_type", "media_url_original", "modification_ts", "order", "preferred_photo_yn", "r2_key", "status"].sort(),
     );
 
     // listing.update call shape

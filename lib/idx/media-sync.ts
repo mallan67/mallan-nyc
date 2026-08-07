@@ -28,6 +28,9 @@
 //   touching this row.
 
 import prisma from "@/lib/prisma";
+// Canonical media classification — REUSED here so the persisted summary and the
+// public reader cannot disagree. Do not reimplement it in this module.
+import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
@@ -1253,6 +1256,23 @@ export interface SummarySourceRow {
   r2_key: string | null;
   media_modification_ts: Date | null;
   modification_ts: Date | null;
+  /**
+   * Classification evidence required for PARITY with the canonical public
+   * reader. Added 2026-08-07 (commit 7A).
+   *
+   * Without these the summary could only test `media_type === 'Photo'`, while
+   * the canonical resolver also weighs category, classification and the Trestle
+   * DOCUMENT-* URL shape. Because `classifyTrestleMediaCategory` defaults a
+   * MISSING MediaCategory to Photo, a row could be STORED as Photo while being
+   * CANONICALLY a FloorPlan — so `Listing.photo_count` reported 2 where the
+   * public gallery showed 1 (proven: summary-canonical-parity fixtures C/D).
+   *
+   * OPTIONAL so callers that have not widened their select still compile. When
+   * absent, `classifyMediaItem` falls back to `media_type`, i.e. exactly the
+   * previous behaviour — a narrower caller is no worse off than before.
+   */
+  media_category?: string | null;
+  media_classification?: string | null;
 }
 
 /**
@@ -1291,13 +1311,38 @@ export interface HeroPhotoCandidate {
   order: number;
 }
 
-/** Active-Photo eligibility filter shared by hero selection and photo_count. */
+/**
+ * Active-Photo eligibility filter shared by hero selection and photo_count.
+ *
+ * DELEGATES to the canonical `classifyMediaItem` (commit 7A). It previously
+ * tested only `String(r.media_type).toLowerCase() === 'photo'`, which the
+ * canonical public reader does not — the reader also weighs MediaCategory,
+ * MediaClassification and the Trestle DOCUMENT-* URL shape.
+ *
+ * That gap was real, not theoretical: `classifyTrestleMediaCategory` defaults a
+ * MISSING MediaCategory to Photo, so a floor plan arriving with no category was
+ * STORED as `media_type='Photo'` and counted here, while the public gallery
+ * correctly classified it as a FloorPlan from its `DOCUMENT-Pdf` URL. The card
+ * then advertised one more photo than the gallery contained.
+ *
+ * The classifier is REUSED, not reimplemented — a second copy would drift.
+ */
 function filterActivePhotoRows<T extends HeroPhotoCandidate>(rows: readonly T[]): T[] {
-  return rows.filter(
-    (r) =>
-      String(r.status).toLowerCase() === "active" &&
-      String(r.media_type).toLowerCase() === "photo",
-  );
+  return rows.filter((r) => {
+    if (String(r.status).toLowerCase() !== "active") return false;
+    const row = r as unknown as SummarySourceRow;
+    return (
+      classifyMediaItem({
+        // `classifyMediaItem` reads category first and falls back to mediaType,
+        // so a row whose caller has not widened its select behaves exactly as
+        // it did before this change.
+        mediaCategory: row.media_category ?? undefined,
+        mediaClassification: row.media_classification ?? undefined,
+        mediaType: row.media_type,
+        url: row.media_url_original ?? "",
+      }) === "photo"
+    );
+  });
 }
 
 /**
@@ -1517,6 +1562,13 @@ export async function updateListingMediaSummary(
       r2_key: true,
       media_modification_ts: true,
       modification_ts: true,
+      // Classification evidence — commit 7A. Without these the summary could
+      // only see `media_type`, and a floor plan that arrived with no
+      // MediaCategory (stored as Photo by classifyTrestleMediaCategory) was
+      // counted as a photo, so Listing.photo_count exceeded the public gallery.
+      // Two scalar columns on rows already being read: no extra query, no join.
+      media_category: true,
+      media_classification: true,
     },
   });
 
