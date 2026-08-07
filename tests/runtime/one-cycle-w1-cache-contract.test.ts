@@ -105,7 +105,10 @@ describe("W1 — data-changing pipelines revalidate (positive contract)", () => 
   ])("%s calls safeRevalidateTags", (rel) => {
     const src = read(rel as string);
     expect(src).toMatch(/safeRevalidateTags\(/);
-    expect(src).toMatch(/listingCacheTag\(/);
+    // The listing tag may be named DIRECTLY or produced by the canonical owner
+    // `publicListingChangeTags` (commit 7B-2A), which every media/listing writer
+    // now delegates to so the EXPIRED tag set cannot diverge between them.
+    expect(src).toMatch(/listingCacheTag\(|publicListingChangeTags\(/);
   });
 
   it("idx-sync bumps the coarse search tag at most once per run (set-based)", () => {

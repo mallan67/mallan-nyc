@@ -83,12 +83,37 @@ describe("thin pure-read building route + direct page accessor", () => {
 // cache-level eviction semantics in neon-quiet-distinct-buildings.
 
 describe("writer invalidation contract — every building-visible writer names its buildings", () => {
-  it("idx-sync + agent-history sync: OLD + NEW building tags at all three mapped sites", () => {
+  /**
+   * UPDATED 2026-08-07 (commit 7B-2A). This previously counted literal
+   * `buildingInvalidationTags(existing?.address, mapped.address)` occurrences
+   * inside sync.ts — i.e. it pinned the IMPLEMENTATION SHAPE, three inlined
+   * copies of the same logic.
+   *
+   * Those three copies had already drifted: the full-sync/agent-history copy
+   * expired shard tags but never recorded them in `affectedManifestShards`, so
+   * shards were invalidated and then never warmed. Counting copies could not
+   * detect that; only reading all three could.
+   *
+   * The computation now lives in ONE owner
+   * (lib/cache/public-listing-change-tags.ts) and every site delegates via
+   * `recordPublicListingChange`. The INVARIANT is unchanged and now stronger:
+   * every building-visible writer names BOTH buildings on an address change.
+   */
+  it("idx-sync + agent-history sync: OLD + NEW building tags at all mapped sites", () => {
     const sync = read("lib/idx/sync.ts");
-    const calls = sync.split("buildingInvalidationTags(existing?.address, mapped.address)").length - 1;
-    const clockCalls = sync.split("buildingInvalidationTags(existingForClock?.address, mapped.address)").length - 1;
-    expect(calls).toBe(2); // listing upsert + projection (incremental path)
-    expect(clockCalls).toBe(1); // full-sync/agent-history path
+    // Every delegating site passes an OLD address and a NEW address.
+    const listingUpsert = (sync.match(/existing\?\.address,[\s\S]{0,40}?mapped\.address,/g) || []).length;
+    const clockPath = (sync.match(/existingForClock\?\.address,[\s\S]{0,40}?mapped\.address,/g) || []).length;
+    expect(listingUpsert).toBe(2); // listing upsert + projection (incremental path)
+    expect(clockPath).toBe(1); // full-sync/agent-history path
+    // ...and no site re-inlines the computation.
+    expect(sync).not.toMatch(/buildingInvalidationTags\(/);
+  });
+
+  it("the shared owner expires BOTH buildings on an address transition", () => {
+    const owner = read("lib/cache/public-listing-change-tags.ts");
+    expect(owner).toMatch(/buildingInvalidationTags\(previousAddress, nextAddress\)/);
+    expect(owner).toMatch(/for \(const addr of \[previousAddress, nextAddress\]\)/);
   });
 
   it("listing-expiration: expired exclusive drops from its building in the same cycle", () => {

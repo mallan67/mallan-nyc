@@ -31,6 +31,7 @@ import prisma from "@/lib/prisma";
 // Canonical media classification — REUSED here so the persisted summary and the
 // public reader cannot disagree. Do not reimplement it in this module.
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
@@ -1439,6 +1440,16 @@ export interface StoredListingMediaSummary {
   primary_photo_r2_key: string | null;
   photo_count: number | null;
   photos_change_timestamp: Date | null;
+  /**
+   * Current address — used ONLY to decide which building / manifest shard to
+   * expire when the summary materially changes.
+   *
+   * Deliberately NOT part of `listingMediaSummaryUnchanged`: an address is not
+   * summary state, and comparing it would suppress or force summary writes for
+   * the wrong reason. Optional so existing callers and fixtures that do not
+   * select it still compile and behave exactly as before.
+   */
+  address?: unknown;
 }
 
 /**
@@ -1586,6 +1597,10 @@ export async function updateListingMediaSummary(
         primary_photo_r2_key: true,
         photo_count: true,
         photos_change_timestamp: true,
+        // `address` on the EXISTING pre-read (no new query, no N+1): a summary
+        // change alters public photo state, which the BUILDING payload and the
+        // manifest shard carry (primary_photo_url) — so they must expire too.
+        address: true,
       },
     });
   } catch {
@@ -1613,7 +1628,14 @@ export async function updateListingMediaSummary(
   // One Cycle W1: the summary (hero/count/photo-revision) materially changed
   // → refresh this listing's cached public page. Never throws; a suppressed
   // (unchanged) summary above performs NO revalidation.
-  safeRevalidateTags([listingCacheTag(listingId)], options?.revalidation);
+  // Same canonical tag set the listing/legacy-media writers use, so the three
+  // writers cannot hold three opinions about what a public media change
+  // expires. A summary change never moves a listing between buildings, so the
+  // current address is both sides — no query to invent a transition.
+  safeRevalidateTags(
+    publicListingChangeTags(listingId, stored?.address, stored?.address).tags,
+    options?.revalidation,
+  );
 
   return summary;
 }

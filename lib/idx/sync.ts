@@ -11,6 +11,9 @@ import { logIDXAccess, createAuditEntry } from "./logger";
 // media-sync uses. Reused, never re-implemented: two pagination loops
 // would be two opinions about what "complete" means.
 import { paginateMedia } from "./media-sync";
+// ONE definition of what expires on a publicly-visible listing change —
+// shared with the normalized media-summary writer so they cannot drift.
+import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import {
   buildListingSearchProjectionFromListing,
@@ -459,6 +462,43 @@ export function parseWarmedShardsFromNotes(notes: string | null | undefined): st
 }
 
 /**
+ * ONE owner for "a publicly-visible listing change happened — expire what
+ * depends on it".
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Building-manifest payloads carry public photo state (`primary_photo_url`), so
+ * a MEDIA change can alter a building payload with no material Listing
+ * source-field write at all. The invalidation logic previously lived only inside
+ * the Listing-write branch, so media-only changes expired the listing tag but
+ * never the building or manifest-shard tags.
+ *
+ * That coupling was invisible while every PCT movement forced a Listing write.
+ * Suppressing that write (7B-2B) would have exposed it as a stale-manifest bug —
+ * a cost saving paid for with a correctness regression. Fixing the coupling
+ * FIRST is what makes the write suppression safe.
+ *
+ * `changedCacheTags` and `affectedManifestShards` are Sets, so repeated calls in
+ * one cycle (e.g. an address change AND a media change on the same listing)
+ * dedupe naturally and no invalidation is lost.
+ *
+ * `previousAddress` may be undefined for a media-only change: a media change
+ * never moves a listing between buildings, so only the current address matters
+ * and no extra query is performed to invent a transition.
+ */
+function recordPublicListingChange(
+  listingId: string,
+  previousAddress: unknown,
+  nextAddress: unknown,
+  changedCacheTags: Set<string>,
+  affectedManifestShards: Set<string>,
+): void {
+  const { tags, shards } = publicListingChangeTags(listingId, previousAddress, nextAddress);
+  for (const t of tags) changedCacheTags.add(t);
+  for (const sh of shards) affectedManifestShards.add(sh);
+}
+
+/**
  * Sync listings from Trestle to local Prisma DB.
  * 1. Fetch from Trestle (paginated)
  * 2. For each record: validate → check gates → map → upsert
@@ -834,23 +874,13 @@ export async function syncListings(
           rawDataOnlyWritesSampled++;
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
-          changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
-          // Building-Neon-wake: EXACT building revalidation — BOTH the previous
-          // and the new building expire on an address change (the listing must
-          // LEAVE the old cached payload and APPEAR in the new one, same cycle).
-          for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
-            changedCacheTags.add(bTag);
-          }
-          for (const addr of [existing?.address, mapped.address]) {
-            const shard = manifestShardForAddress(addr);
-            if (shard) {
-              affectedManifestShards.add(shard);
-              // Per-shard manifest invalidation (Maya review of #561):
-              // manifest pages no longer carry the coarse `search` tag, so
-              // the writer expires exactly the affected shard's pages.
-              changedCacheTags.add(manifestShardTag(shard));
-            }
-          }
+          recordPublicListingChange(
+            mapped.listing_id,
+            existing?.address,
+            mapped.address,
+            changedCacheTags,
+            affectedManifestShards,
+          );
         }
       }
 
@@ -922,23 +952,14 @@ export async function syncListings(
         } else {
           projectionCounters.rows_inserted++;
         }
-        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: projection changes affect search surfaces
-        {
-          // Building-Neon-wake: exact building revalidation (old + new address).
-          for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
-            changedCacheTags.add(bTag);
-          }
-          for (const addr of [existing?.address, mapped.address]) {
-            const shard = manifestShardForAddress(addr);
-            if (shard) {
-              affectedManifestShards.add(shard);
-              // Per-shard manifest invalidation (Maya review of #561):
-              // manifest pages no longer carry the coarse `search` tag, so
-              // the writer expires exactly the affected shard's pages.
-              changedCacheTags.add(manifestShardTag(shard));
-            }
-          }
-        }
+        // W1: projection changes affect search surfaces. Same canonical tag set.
+        recordPublicListingChange(
+          mapped.listing_id,
+          existing?.address,
+          mapped.address,
+          changedCacheTags,
+          affectedManifestShards,
+        );
       }
     } catch (err) {
       errors++;
@@ -1132,7 +1153,10 @@ export async function syncListings(
                 const existingMediaRow = await prisma.listing.findFirst({
                   // #415: archived-safe filter — an archived row must not have its media re-hydrated.
                   where: archivedSafeMediaWhere(listingId),
-                  select: { media: true },
+                  // `address` widened onto the EXISTING per-listing read (no new
+                  // query, no N+1) so a media-only change can invalidate the exact
+                  // building + manifest shard it affects.
+                  select: { media: true, address: true },
                 });
                 if (!existingMediaRow) {
                   // Archived or missing row: the guarded write would match 0 rows.
@@ -1149,7 +1173,18 @@ export async function syncListings(
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
                 batchMediaCounters.rows_updated++;
-                changedCacheTags.add(listingCacheTag(listingId)); // W1: media changed → refresh cached page
+                // Media changed => the building payload and manifest shard can
+                // change too (they carry primary_photo_url). Same canonical
+                // helper the Listing-write path uses, so the two cannot drift.
+                // A media change never moves a listing between buildings, so the
+                // current address is passed as both sides.
+                recordPublicListingChange(
+                  listingId,
+                  existingMediaRow.address,
+                  existingMediaRow.address,
+                  changedCacheTags,
+                  affectedManifestShards,
+                );
               } catch (mediaRowErr) {
                 batchMediaCounters.rows_failed++;
                 console.warn(
@@ -2142,16 +2177,21 @@ export async function syncAgentHistory(
           for (const reason of changeReasons) listingChangeReasons[reason]++;
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
-          changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
-          // Building-Neon-wake: exact building revalidation (old + new address).
-          for (const bTag of buildingInvalidationTags(existingForClock?.address, mapped.address)) {
-            changedCacheTags.add(bTag);
-          }
-          // Per-shard manifest invalidation (Maya review of #561).
-          for (const addr of [existingForClock?.address, mapped.address]) {
-            const shard = manifestShardForAddress(addr);
-            if (shard) changedCacheTags.add(manifestShardTag(shard));
-          }
+          // Canonical tag set — shared with the listing/media writers so the
+          // EXPIRED tags cannot diverge again.
+          //
+          // This function performs no manifest WARMING (it has no
+          // `affectedManifestShards` accumulator and never did), so the shard
+          // list is collected into a local sink and discarded. Behaviour is
+          // therefore unchanged here; only the tag computation is now shared.
+          // Wiring warming into this path would be scope creep, not a fix.
+          recordPublicListingChange(
+            mapped.listing_id,
+            existingForClock?.address,
+            mapped.address,
+            changedCacheTags,
+            new Set<string>(),
+          );
         }
       }
 

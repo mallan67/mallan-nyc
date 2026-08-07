@@ -244,11 +244,18 @@ describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
 
   it("SOURCE: sync derives EXACT building tags at every mapped listing-change site", () => {
     const sync = read("lib/idx/sync.ts");
-    // round 2: sites derive BOTH old + new tags via buildingInvalidationTags
-    const incr = sync.split("buildingInvalidationTags(existing?.address, mapped.address)").length - 1;
-    const clock = sync.split("buildingInvalidationTags(existingForClock?.address, mapped.address)").length - 1;
+    // UPDATED 2026-08-07 (commit 7B-2A): the three inlined copies of this
+    // computation were replaced by ONE owner
+    // (lib/cache/public-listing-change-tags.ts) that every site delegates to via
+    // `recordPublicListingChange`. Counting literal `buildingInvalidationTags(`
+    // calls pinned the implementation shape; it also could not detect that the
+    // full-sync copy expired shard tags without ever recording them for warming.
+    // Each site still passes an OLD and a NEW address, which is the invariant.
+    const incr = (sync.match(/existing\?\.address,[\s\S]{0,40}?mapped\.address,/g) || []).length;
+    const clock = (sync.match(/existingForClock\?\.address,[\s\S]{0,40}?mapped\.address,/g) || []).length;
     expect(incr).toBe(2); // listing upsert + projection
     expect(clock).toBe(1); // full-sync/agent-history clock path
+    expect(sync).not.toMatch(/buildingInvalidationTags\(/); // no re-inlining
   });
 });
 
