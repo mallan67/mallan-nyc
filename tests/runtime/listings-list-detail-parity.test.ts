@@ -27,6 +27,7 @@ import { mapRESOToInternal } from '../../lib/idx/mapping';
 import { toPublicDTO } from '../../lib/idx/public-dto';
 import {
   dbListingToPublicDTO,
+  buildSourceAndCompliance,
   type DbListing,
 } from '../../lib/idx/db-to-public-dto';
 
@@ -243,6 +244,60 @@ describe('public identity semantics across source paths', () => {
  * `MALLAN_OFFICE_MLS_IDS` is `[]`, so today every listing is third-party and
  * NOTHING may fall back to a Mallan attribution on a public surface.
  */
+/**
+ * SHARED SOURCE + COMPLIANCE POLICY (commit 3b).
+ *
+ * `app/listing/[...slug]/page.tsx` previously hard-coded three values in its
+ * own inline DTO, each wrong for a third-party row:
+ *
+ *   _source: 'db'                              (no provenance classification)
+ *   attributionText: 'Listing data from REBNY RLS'  (never named the broker)
+ *   comingSoon / comingSoonDate: never set     (so the Coming Soon banner at
+ *                                               page.tsx:1153, which reads
+ *                                               `_displayCompliance.comingSoonDate`,
+ *                                               could never render)
+ *
+ * It now delegates to `buildSourceAndCompliance` — the SAME function
+ * `dbListingToPublicDTO` uses. These tests pin that shared contract.
+ */
+describe('shared source + compliance policy (one owner for both DB paths)', () => {
+  const agentInfo = { ListOfficeName: 'Compass', ListAgentFullName: 'Carl Gambino' };
+
+  it('third-party: real provenance, ACTUAL broker attribution, disclaimer', () => {
+    const out = buildSourceAndCompliance(DB_ROW_BASE, agentInfo, false, undefined);
+    expect(out._source).toBe('db+idx');
+    expect(out._displayCompliance.attributionText).toBe('Listing courtesy of Compass');
+    expect(out._displayCompliance.attributionText).not.toBe('Listing data from REBNY RLS');
+    expect(out._displayCompliance.disclaimerRequired).toBe(true);
+  });
+
+  it('third-party: NO _assignedAgent — gates third-party agent PII off the page', () => {
+    const out = buildSourceAndCompliance(DB_ROW_BASE, agentInfo, false, undefined);
+    expect(out._assignedAgent).toBeUndefined();
+  });
+
+  it('coming-soon metadata is populated, so the detail banner can render', () => {
+    const comingSoon = { ...DB_ROW_BASE, status: 'ComingSoon' };
+    const out = buildSourceAndCompliance(comingSoon, agentInfo, true, '2026-09-01');
+    expect(out._displayCompliance.comingSoon).toBe(true);
+    expect(out._displayCompliance.comingSoonDate).toBe('2026-09-01');
+  });
+
+  it('the DTO builder and the detail page consume the SAME policy output', () => {
+    // dbListingToPublicDTO spreads buildSourceAndCompliance; page.tsx now does
+    // too. Equal inputs must therefore yield equal source/compliance.
+    const direct = buildSourceAndCompliance(DB_ROW_BASE, agentInfo, false, undefined);
+    const viaDto = dbListingToPublicDTO(DB_ROW_BASE);
+    expect(viaDto._source).toBe(direct._source);
+    expect(viaDto._displayCompliance.attributionText).toBe(
+      direct._displayCompliance.attributionText,
+    );
+    expect(viaDto._displayCompliance.disclaimerRequired).toBe(
+      direct._displayCompliance.disclaimerRequired,
+    );
+  });
+});
+
 describe('third-party listings are never attributed to Mallan', () => {
   const FORBIDDEN = /Mallan Real Estate/i;
 

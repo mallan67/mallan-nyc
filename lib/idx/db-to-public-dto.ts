@@ -539,7 +539,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
  * - `website-only` → same as mallan-exclusive but for commercial rows that
  *   bypass RLS entirely; no RLS disclaimer because the data is not RLS-sourced.
  */
-function buildSourceAndCompliance(
+export function buildSourceAndCompliance(
   listing: DbListing,
   agentInfo: DbAgentInfo,
   isComingSoon: boolean,

@@ -54,6 +54,10 @@ import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/lis
 import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { publicListOfficeName } from '@/lib/idx/public-attribution';
+import {
+  buildSourceAndCompliance,
+  type DbListing as DbListingForPolicy,
+} from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -474,6 +478,19 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       // mismatch with the agent/card URL → "Listing Not Available". (2026-05-29)
       internetAddressDisplayYN: !suppressAddress,
     });
+    // Coming-soon derivation kept byte-identical to db-to-public-dto.ts:323-327
+    // so both paths agree on the banner state.
+    const isComingSoon = dbListing.status === 'ComingSoon';
+    const comingSoonDate = isComingSoon
+      ? (rawData.ActivationDate as string | undefined) || undefined
+      : undefined;
+    const sourceAndCompliance = buildSourceAndCompliance(
+      dbListing as unknown as DbListingForPolicy,
+      agentInfo,
+      isComingSoon,
+      comingSoonDate,
+    );
+
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
       mlsId: dbListing.mls_id || dbListing.listing_id,
@@ -576,19 +593,32 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       // buildAuctionPublic() returns null unless auction_yn === true AND the
       // mandatory type+endDate fields are set (validator AU-001..AU-005).
       auction: buildAuctionPublic(dbListing),
-      _source: 'db',
-      _displayCompliance: {
-        requiresAttribution: true,
-        attributionText: 'Listing data from REBNY RLS',
-        disclaimerRequired: true,
-      },
-      // Assigned listing-agent contact card — populated ONLY for Mallan
-      // exclusives (SL-/RL- prefix or website-only rls_eligible === false),
-      // where Mallan IS the listing broker and the named agent is our own
-      // licensee. For third-party IDX/RLS rows this stays undefined so we
-      // never surface another brokerage's agent PII. Built from whatever
-      // agent_info actually carries — blank fields are omitted, never invented.
-      ...(assignedAgentDisplay ? { _assignedAgent: assignedAgentDisplay } : {}),
+      // ── source + compliance policy: ONE owner ──────────────────────────
+      // Delegates to the canonical `buildSourceAndCompliance` (the same
+      // function `dbListingToPublicDTO` uses), replacing three hard-coded
+      // values that were each wrong for third-party rows:
+      //
+      //   _source: 'db'          -> real provenance ('db+idx' | 'exclusive')
+      //   attributionText        -> was the fixed string 'Listing data from
+      //                             REBNY RLS', which NEVER named the actual
+      //                             listing broker. UCBA Art. III §2(C)
+      //                             requires the ACTUAL broker; the canonical
+      //                             owner emits `Listing courtesy of <office>`.
+      //   comingSoon/-Date       -> were never set at all, so the Coming Soon
+      //                             banner (rendered from
+      //                             `_displayCompliance.comingSoonDate`) could
+      //                             never appear on a detail page.
+      ...sourceAndCompliance,
+      // Assigned listing-agent contact card. The detail page carries a RICHER
+      // card than the shared builder (photo, slug, title), so it keeps its own
+      // display object — but exposure is now GATED by the canonical policy:
+      // we publish it only when `buildSourceAndCompliance` also returns an
+      // `_assignedAgent`, i.e. never for third-party IDX/RLS rows. That keeps
+      // another brokerage's agent PII off the page by construction rather than
+      // by a second, independently-maintained rule.
+      ...(assignedAgentDisplay && sourceAndCompliance._assignedAgent
+        ? { _assignedAgent: assignedAgentDisplay }
+        : {}),
     };
 
     return {
