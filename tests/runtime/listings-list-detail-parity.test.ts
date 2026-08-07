@@ -260,6 +260,98 @@ describe('public identity semantics across source paths', () => {
  * It now delegates to `buildSourceAndCompliance` — the SAME function
  * `dbListingToPublicDTO` uses. These tests pin that shared contract.
  */
+/**
+ * ADDRESS-SUPPRESSION PARITY (commit 3b step 2) — seller opt-out exposure.
+ *
+ * Both paths call the SAME gate (`canDisplayListingAddress` is a thin alias for
+ * `isAddressDisplayable`), but they exempt DIFFERENT listings from it:
+ *
+ *   app/listing/[...slug]/page.tsx:356,461
+ *     isRlsBacked      = rls_eligible !== false
+ *     suppressAddress  = isRlsBacked && !canDisplayListingAddress(listing)
+ *
+ *   lib/idx/db-to-public-dto.ts:321-322
+ *     isCrmExclusive   = listing_id startsWith 'SL-' | 'RL-'
+ *     suppressAddress  = isCrmExclusive ? false : !isAddressDisplayable(listing)
+ *
+ * These are NOT equivalent. For an RLS-ELIGIBLE `SL-`/`RL-` listing carrying an
+ * explicit `internet_address_display_yn = false`, the prefix bypass wins in the
+ * DB builder and the address is PUBLISHED — on cards, search, /api/listings and
+ * Featured — while the detail page correctly suppresses it.
+ *
+ * page.tsx:455-460 documents that this exact prefix bypass was already found
+ * unsafe and reverted THERE: "Earlier draft unconditionally bypassed by SL-/RL-
+ * prefix — that exposed RLS-eligible opt-out addresses; reverted." The fix was
+ * never carried across to the canonical DB builder.
+ *
+ * Correct rule (the one page.tsx uses): only a listing that is NOT RLS-backed
+ * (`rls_eligible === false`, i.e. Mallan website-only inventory) may bypass the
+ * IDX address opt-out. A prefix must never override a seller suppression.
+ */
+describe('address suppression parity — RLS-eligible exclusives respect opt-out', () => {
+  /** RLS-eligible Mallan exclusive whose seller opted OUT of address display. */
+  const RLS_ELIGIBLE_EXCLUSIVE_OPTED_OUT: DbListing = {
+    ...DB_ROW_BASE,
+    listing_id: 'SL-0007',
+    rls_eligible: true,                     // RLS-backed -> opt-out MUST be honoured
+    internet_entire_listing_display_yn: true,
+    internet_address_display_yn: false,     // explicit seller suppression
+  };
+
+  /** Website-only Mallan inventory — legitimately outside RLS, may show address. */
+  const WEBSITE_ONLY_EXCLUSIVE: DbListing = {
+    ...DB_ROW_BASE,
+    listing_id: 'SL-0004',
+    rls_eligible: false,                    // NOT RLS-backed -> bypass is correct
+    internet_entire_listing_display_yn: true,
+    internet_address_display_yn: false,
+  };
+
+  it('RLS-eligible SL- exclusive with opt-out SUPPRESSES the street address', () => {
+    const dto = dbListingToPublicDTO(RLS_ELIGIBLE_EXCLUSIVE_OPTED_OUT);
+    expect(dto.address.streetName).toBe('Address Undisclosed');
+    expect(dto.address.streetNumber).toBe('');
+  });
+
+  it('RLS-eligible SL- exclusive with opt-out publishes NO unit number', () => {
+    const dto = dbListingToPublicDTO(RLS_ELIGIBLE_EXCLUSIVE_OPTED_OUT);
+    expect(dto.address.unitNumber).toBeNull();
+  });
+
+  it('RLS-eligible SL- exclusive with opt-out leaks NO coordinates', () => {
+    const withCoords: DbListing = {
+      ...RLS_ELIGIBLE_EXCLUSIVE_OPTED_OUT,
+      address: {
+        ...(RLS_ELIGIBLE_EXCLUSIVE_OPTED_OUT.address as Record<string, unknown>),
+        Latitude: 40.7654,
+        Longitude: -73.9866,
+      },
+    };
+    const dto = dbListingToPublicDTO(withCoords);
+    expect(dto.address.latitude).toBeUndefined();
+    expect(dto.address.longitude).toBeUndefined();
+  });
+
+  it('RLS-eligible SL- exclusive with opt-out leaks no address in the URL', () => {
+    const dto = dbListingToPublicDTO(RLS_ELIGIBLE_EXCLUSIVE_OPTED_OUT);
+    expect(dto.url.toLowerCase()).not.toContain('57th');
+    expect(dto.url.toLowerCase()).not.toContain('monroe');
+  });
+
+  it('website-only (rls_eligible === false) MAY still show its address', () => {
+    // Not RLS-backed, so the IDX opt-out does not bind. This must keep working —
+    // the fix must not over-suppress Mallan's own website-only inventory.
+    const dto = dbListingToPublicDTO(WEBSITE_ONLY_EXCLUSIVE);
+    expect(dto.address.streetName).not.toBe('Address Undisclosed');
+  });
+
+  it('third-party IDX row with address allowed still shows its address', () => {
+    const dto = dbListingToPublicDTO(DB_ROW_BASE);
+    expect(dto.address.streetName).not.toBe('Address Undisclosed');
+    expect(dto.address.unitNumber).toBe('127/128');
+  });
+});
+
 describe('shared source + compliance policy (one owner for both DB paths)', () => {
   const agentInfo = { ListOfficeName: 'Compass', ListAgentFullName: 'Carl Gambino' };
 

@@ -137,8 +137,45 @@ describe('listing-detail page renders the card with the existing style', () => {
     expect(page).toMatch(/\/agents\/\$\{listing\._assignedAgent\.slug\}/);
   });
 
-  it('keeps the §175.25 brokerage attribution and Schedule/Request/Call actions', () => {
-    expect(page).toContain('Mallan Real Estate Inc.');
+  /**
+   * UPDATED 2026-08-06 (commit 3b step 2).
+   *
+   * This previously asserted `expect(page).toContain('Mallan Real Estate Inc.')`
+   * — a raw source-grep for a hard-coded literal. That literal WAS the defect:
+   * `page.tsx` used `|| 'Mallan Real Estate Inc.'` as the per-listing brokerage
+   * fallback, so a THIRD-PARTY listing with no office name was attributed to
+   * Mallan. That is a false claim of brokerage under NY DOS 19 NYCRR §175.25
+   * ("no misleading/false/deceptive claims") and violates REBNY UCBA
+   * Art. III §2(C), which requires the ACTUAL listing broker.
+   *
+   * The test's INTENT (§175.25 brokerage attribution must exist) is still
+   * enforced — but §175.25 attribution for Mallan as the DISPLAYING broker is
+   * owned sitewide by the footer, which is proven present:
+   *   app/components/Footer.tsx:25-29  companyName 'Mallan Real Estate Inc.',
+   *                                    license '10991205323', phone, address
+   *   app/layout.tsx:379               <Footer /> in the ROOT layout, so it
+   *                                    renders on every page incl. listing detail
+   * Compliance canon §9 names Footer.tsx as the canonical owner of exactly this.
+   *
+   * Feed-level/global attribution and per-listing broker attribution are
+   * SEPARATE obligations. The per-listing block must name the actual listing
+   * broker; it must not substitute a generic or displaying-broker name.
+   *
+   * Mallan attribution still reaches the page for genuine Mallan exclusives via
+   * `_assignedAgent.company` (populated only when provenance proves Mallan is
+   * the listing broker) — not via a hard-coded string.
+   */
+  it('per-listing attribution uses the canonical policy, never a hard-coded Mallan fallback', () => {
+    // The false-attribution fallback must be gone from the detail page.
+    expect(page).not.toContain("|| 'Mallan Real Estate Inc.'");
+    // ...replaced by the single policy owner.
+    expect(page).toMatch(/publicListOfficeName\(/);
+    expect(page).toMatch(
+      /import \{ publicListOfficeName \} from '@\/lib\/idx\/public-attribution'/,
+    );
+  });
+
+  it('keeps the Schedule/Request/Call actions', () => {
     expect(page).toContain('Schedule a Showing');
     expect(page).toContain('Request Information');
     expect(page).toMatch(/href=\{`tel:/);

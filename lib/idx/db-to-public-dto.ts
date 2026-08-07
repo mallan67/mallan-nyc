@@ -318,8 +318,25 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // CRM-created exclusives always show address — IDX gate is for RLS-distributed only.
   // Use listing_id prefix (always selected, always present) instead of mls_id
   // which may not be selected by every caller.
-  const isCrmExclusive = listing.listing_id.startsWith('SL-') || listing.listing_id.startsWith('RL-');
-  const suppressAddress = isCrmExclusive ? false : !isAddressDisplayable(listing);
+  // Address suppression — the ONLY legitimate bypass is "not RLS-backed".
+  //
+  // This previously keyed off an `SL-`/`RL-` listing_id PREFIX, which meant an
+  // RLS-ELIGIBLE Mallan exclusive carrying an explicit
+  // `internet_address_display_yn = false` had its seller opt-out OVERRIDDEN and
+  // its street address, unit, coordinates and address-derived slug published on
+  // cards, search, /api/listings and Featured.
+  //
+  // A prefix is not a permission. Only inventory that is genuinely outside RLS
+  // (`rls_eligible === false` — Mallan's website-only listings) may bypass the
+  // IDX address gate; an RLS-backed row must always honour it.
+  //
+  // app/listing/[...slug]/page.tsx:455-461 already found this exact prefix
+  // bypass unsafe and reverted it ("Earlier draft unconditionally bypassed by
+  // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted").
+  // That correction was never carried across to this canonical builder, so the
+  // two paths disagreed for the same listing. They now use the same rule.
+  const isRlsBacked = listing.rls_eligible !== false;
+  const suppressAddress = isRlsBacked && !isAddressDisplayable(listing);
   const isComingSoon = listing.status === 'ComingSoon';
   const rawData = (listing.raw_data || {}) as Record<string, unknown>;
   const comingSoonDate = isComingSoon

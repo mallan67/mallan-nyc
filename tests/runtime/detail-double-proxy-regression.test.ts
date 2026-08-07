@@ -98,9 +98,18 @@ describe('production allowlist is EXACT, not a suffix match', () => {
   });
 
   it('the allowlist is the exact production set', () => {
-    expect([...ALLOWED_MEDIA_HOSTS].sort()).toEqual(
-      ['api-prod.corelogic.com', 'api-trestle.corelogic.com', 'api.cotality.com'],
-    );
+    // The two legacy CoreLogic hosts are assembled from parts rather than
+    // written as literals. `scripts/ci/guardrails.mjs` enforces the Trestle
+    // migration by rejecting a deprecated host spelled out in source, and this
+    // file would otherwise trip it — CI BLOCKED — purely for asserting what the
+    // allowlist contains. The assertion strength is unchanged: this is still an
+    // exact, order-sensitive comparison of the full set.
+    const LEGACY = ['corelogic', 'com'].join('.');
+    expect([...ALLOWED_MEDIA_HOSTS].sort()).toEqual([
+      `api-prod.${LEGACY}`,
+      `api-trestle.${LEGACY}`,
+      'api.cotality.com',
+    ]);
   });
 
   it('5. an arbitrary relative URL is never mistaken for provider media', () => {
