@@ -7,6 +7,10 @@ import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgent
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
+// SHARED OData media page-follower — the SAME completeness contract
+// media-sync uses. Reused, never re-implemented: two pagination loops
+// would be two opinions about what "complete" means.
+import { paginateMedia } from "./media-sync";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import {
   buildListingSearchProjectionFromListing,
@@ -1037,6 +1041,10 @@ export async function syncListings(
         // firing successfully — every batch silently 400'd.
         const BATCH_SIZE = 15;
 
+        // Batches whose Media pagination could not be proven COMPLETE. Those
+        // batches perform NO reconciliation (no clear, no tombstone) — a key
+        // absent from an incomplete response is not proven empty at source.
+        let mediaBatchesIncompleteSkipped = 0;
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
@@ -1051,21 +1059,49 @@ export async function syncListings(
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
+            // COMPLETENESS via the SHARED follower (`paginateMedia` — the same one
+            // media-sync uses). One nextLink implementation, one runaway guard,
+            // one definition of "complete". No second pagination loop.
+            //
+            // `complete: false` (a page failed, or the runaway guard tripped)
+            // means a requested key absent from the rows is NOT proven empty at
+            // source, so this batch performs NO reconciliation at all. Fail closed.
+            const { rows: mediaRows, complete } = await paginateMedia(
+              `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+              async (url: string) => {
+                const _mc = new AbortController();
+                const _mt = setTimeout(() => _mc.abort(), 15_000);
+                try {
+                  const res = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                    signal: _mc.signal,
+                  });
+                  if (!res.ok) throw new Error(`Media page HTTP ${res.status}`);
+                  const data = await res.json();
+                  return {
+                    value: (data.value || []) as unknown[],
+                    nextLink: (data["@odata.nextLink"] as string | undefined) ?? null,
+                  };
+                } finally {
+                  clearTimeout(_mt);
+                }
+              },
+            );
+            if (!complete) {
+              mediaBatchesIncompleteSkipped++;
+              continue; // incomplete ⇒ never clear, never tombstone
+            }
 
             // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
             const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
+            // PRE-SEED every REQUESTED key so a complete-but-empty result is
+            // represented as `[]` instead of vanishing from the map. Previously
+            // "the provider returned no media for this listing" was
+            // indistinguishable from "we never asked", so an emptied gallery was
+            // never reconciled. Only reached once the fetch proved COMPLETE, so
+            // `[]` here means AUTHORITATIVE empty.
+            for (const key of batch) mediaByListing.set(String(key), []);
+            for (const m of mediaRows as unknown as Record<string, unknown>[]) {
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
@@ -1126,7 +1162,9 @@ export async function syncListings(
             console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
-        console.log("[IDX Sync] Media batch-fetch complete");
+        console.log(
+          `[IDX Sync] Media batch-fetch complete (incomplete batches skipped: ${mediaBatchesIncompleteSkipped})`,
+        );
       }
     } catch (mediaSyncErr) {
       console.warn("[IDX Sync] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
