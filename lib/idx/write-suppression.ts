@@ -344,9 +344,44 @@ export function mediaArraysMateriallyEqual(existing: unknown, next: LegacyMediaI
  * non-media raw_data change stay fully material. Stable (non-feed) URLs are
  * left byte-exact.
  */
+/**
+ * THE deprecated provider provenance clock in `raw_data`.
+ *
+ * `Property.PhotosChangeTimestamp` is a media-change TRIGGER and a media-sync
+ * CURSOR input — its durable home is `media_sync_state.last_photos_change`. It
+ * is no longer persisted in `raw_data` (commit 7B-2B removed it from
+ * RAW_DATA_KEEP_FIELDS), and its last stored-value consumer — the eligibility
+ * predicate in the unreachable legacy `backfillEmptyMedia()` — was removed with
+ * it.
+ *
+ * Historical rows still physically contain the key and NO cleanup backfill is
+ * authorised, so it MUST be canonicalized away on BOTH sides of the comparison:
+ *
+ *   existing { ...X, PhotosChangeTimestamp: T1 }  ==  incoming { ...X }
+ *   existing { ...X, PhotosChangeTimestamp: T1 }  ==  incoming { ...X, PCT: T2 }
+ *
+ * Without that, the first deployment would rewrite the entire table purely to
+ * drop a key — the exact write storm this change exists to avoid.
+ *
+ * Deliberately ONE named key. This is not "timestamps are non-material":
+ * ModificationTimestamp, StatusChangeTimestamp and every other clock remain
+ * fully material.
+ */
+const DEPRECATED_RAW_DATA_PROVENANCE_KEYS = ['PhotosChangeTimestamp'] as const;
+
 function canonicalizeRawDataMedia(raw: Record<string, unknown>): Record<string, unknown> {
-  const media = raw.Media;
-  if (!Array.isArray(media)) return raw;
+  // Strip the deprecated provenance clock FIRST so it is removed even when the
+  // row carries no Media array (the early return below).
+  let base = raw;
+  for (const key of DEPRECATED_RAW_DATA_PROVENANCE_KEYS) {
+    if (key in base) {
+      const { [key]: _dropped, ...rest } = base;
+      base = rest;
+    }
+  }
+  const raw_ = base;
+  const media = raw_.Media;
+  if (!Array.isArray(media)) return raw_;
   const canonMedia = media.map((item) => {
     if (typeof item !== "object" || item === null || Array.isArray(item)) return item;
     const rec = item as Record<string, unknown>;
@@ -359,7 +394,7 @@ function canonicalizeRawDataMedia(raw: Record<string, unknown>): Record<string, 
     }
     return out;
   });
-  return { ...raw, Media: canonMedia };
+  return { ...raw_, Media: canonMedia };
 }
 
 /**

@@ -173,7 +173,22 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // audit can pivot to ListingMedia in a follow-up. For now we keep
   // raw.Media to stay reader-compatible.
   'Media',
-  'PhotosChangeTimestamp',
+  // 'PhotosChangeTimestamp' REMOVED 2026-08-07 (commit 7B-2B).
+  //
+  // It sat in this group but was NOT one of the consumers the comment above
+  // names — those are `raw.Media` (audit photo count) and the VirtualTour URL
+  // fields (public DTO). Adjacency in a keep list is not evidence of a consumer,
+  // and it should not have been read as one.
+  //
+  // Its only real consumer was the SQL eligibility predicate in the legacy,
+  // unreachable `backfillEmptyMedia()`. PCT freshness is owned by the canonical
+  // chain instead: Property.PhotosChangeTimestamp -> incremental source trigger
+  // -> complete media reconciliation -> media_sync_state.last_photos_change.
+  //
+  // Historical rows still physically contain the key. NO cleanup backfill is
+  // authorised; `rawDataMateriallyEqual` canonicalizes the deprecated key away
+  // on BOTH sides so a legacy row and a canonical slim row compare EQUAL — that
+  // is what prevents a one-time whole-table rewrite storm on first deploy.
   'PhotosCount',
   'VirtualTourURLBranded',
   'VirtualTourURLUnbranded',

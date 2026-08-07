@@ -24,7 +24,10 @@ const base: Record<string, unknown> = {
   ListingKey: "L1",
   ModificationTimestamp: "2026-07-25T00:00:00Z", // provenance clock
   PublicRemarks: "Sunny 2BR",
-  PhotosChangeTimestamp: "2026-07-20T00:00:00Z", // NOT a provenance clock (deliberate)
+  // Deprecated legacy provenance copy (commit 7B-2B) — stripped from BOTH
+  // sides of canonical comparison. The LIVE Property PCT still drives the
+  // incremental fetch filter and the media-sync cursor.
+  PhotosChangeTimestamp: "2026-07-20T00:00:00Z",
   Media: [mediaItem("https://api.cotality.com/trestle/media/photo1.jpg?sig=AAA", 0)],
 };
 
@@ -115,9 +118,48 @@ describe("changedRawDataMaterialKeys — production material semantics, not stri
     expect(changedRawDataMaterialKeys(base, next)).toEqual([]);
   });
 
-  it("PhotosChangeTimestamp (NOT a provenance clock) change ⇒ reported", () => {
+  /**
+   * CONTRACT INVERTED 2026-08-07 (commit 7B-2B). This asserted PCT was reported
+   * as a changed material key, because at the time the stored value had a real
+   * consumer AND the gallery-emptied case had no other reconciliation path.
+   *
+   * Both premises are gone:
+   *   - the stored-value consumer (the SQL eligibility predicate in the legacy,
+   *     unreachable `backfillEmptyMedia()`) was removed;
+   *   - 7B-1's complete fetch + requested-key pre-seeding now reconciles an
+   *     emptied gallery, and 7B-2A moved invalidation out of the Listing-write
+   *     branch — so PCT no longer has to force a write to keep the system safe.
+   *
+   * `Property.PhotosChangeTimestamp` is STILL a live sync/media trigger and the
+   * media-sync keyset cursor. Only its LEGACY COPY inside `Listing.raw_data` is
+   * non-authoritative, and canonical comparison strips it from BOTH sides so a
+   * historical row and a canonical slim row compare equal (no backfill, no
+   * first-deploy write storm).
+   *
+   * This is ONE named key — see the sibling tests: every other field, including
+   * other timestamps, keeps its existing semantics.
+   */
+  it("legacy raw_data PhotosChangeTimestamp change ⇒ NOT reported (deprecated)", () => {
     const next = { ...base, PhotosChangeTimestamp: "2026-07-26T00:00:00Z" };
-    expect(changedRawDataMaterialKeys(base, next)).toEqual(["PhotosChangeTimestamp"]);
+    expect(changedRawDataMaterialKeys(base, next)).toEqual([]);
+  });
+
+  it("a row that has DROPPED the legacy key equals one that still carries it", () => {
+    // Historical rows keep the key; canonical slim rows no longer write it.
+    // These must be equal or the first deploy rewrites the whole table.
+    const { PhotosChangeTimestamp: _dropped, ...slim } = base;
+    expect(changedRawDataMaterialKeys(base, slim)).toEqual([]);
+    expect(changedRawDataMaterialKeys(slim, base)).toEqual([]);
+  });
+
+  it("PCT must NOT mask a real field changing in the SAME object", () => {
+    // The deprecation strips one key; it must not swallow anything alongside it.
+    const next = {
+      ...base,
+      PhotosChangeTimestamp: "2026-07-26T00:00:00Z",
+      PublicRemarks: "Sunny 2BR with new roof",
+    };
+    expect(changedRawDataMaterialKeys(base, next)).toEqual(["PublicRemarks"]);
   });
 
   it("non-object input ⇒ empty (fail-open, never throws)", () => {

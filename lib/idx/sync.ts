@@ -1526,10 +1526,35 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   //     Video-only, VirtualTour-only — pre-Fix-#1 these rendered the wrong
   //     hero; post-Fix-#1 they render the placeholder; either way the
   //     row needs a Photo refetch when the broker uploads)
-  //   - rows where Trestle's PhotosChangeTimestamp is newer than our DB
-  //     modification_timestamp (Cotality routinely bumps PCT without
-  //     bumping MT — empirical 18,411-row drift audit on 2026-05-08).
-  //     The new media array overwrites the stale one in the same upsert.
+  //
+  // REMOVED 2026-08-07 (commit 7B-2B) — the PCT eligibility branch:
+  //     raw_data ? 'PhotosChangeTimestamp'
+  //     AND (raw_data->>'PhotosChangeTimestamp')::timestamp > modification_timestamp
+  //
+  // It existed because Cotality routinely bumps PhotosChangeTimestamp without
+  // bumping ModificationTimestamp (18,411-row drift audit, 2026-05-08), and this
+  // was the only mechanism that noticed. That is no longer true, and it was the
+  // last consumer of the STORED raw_data PCT value.
+  //
+  // PCT freshness is now owned end-to-end by the canonical chain:
+  //     Property.PhotosChangeTimestamp
+  //       -> incremental source trigger (fetch.ts:391 filters on
+  //          `ModificationTimestamp gt T or PhotosChangeTimestamp gt T`)
+  //       -> complete, pre-seeded batch media reconciliation (7B-1)
+  //       -> media-sync PCT keyset cursor + complete per-listing Media fetch
+  //          (media_sync_state.last_photos_change)
+  // NOT the stored Listing.raw_data.PhotosChangeTimestamp, which this function
+  // was reading back out of the row it had itself written.
+  //
+  // This function is UNREACHABLE legacy code (its only caller,
+  // /api/cron/media-backfill, was removed by PR #176 on 2026-05-21) — pinned by
+  // tests/runtime/backfill-empty-media-reachability.test.ts. The clause is
+  // removed rather than left in place so a future caller cannot silently
+  // resurrect a dependency on a field the system no longer maintains.
+  //
+  // The genuine repair predicates below are UNCHANGED: null media, malformed
+  // object-shaped media, empty array, zero-Photo arrays, plus the gate and
+  // archived-row protections.
   //
   // The `jsonb_typeof(media) != 'array'` clause catches the object-shaped
   // malformed data. Without it, 8,082+ production rows with
@@ -1548,12 +1573,6 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
             SELECT 1 FROM jsonb_array_elements(media) elem
             WHERE LOWER(COALESCE(elem->>'mediaType', '')) IN ('photo', 'image', '')
           )
-        )
-        OR (
-          raw_data ? 'PhotosChangeTimestamp'
-          AND NULLIF(raw_data->>'PhotosChangeTimestamp', '') IS NOT NULL
-          AND modification_timestamp IS NOT NULL
-          AND (raw_data->>'PhotosChangeTimestamp')::timestamp > modification_timestamp
         )
       )
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
