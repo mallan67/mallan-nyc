@@ -193,7 +193,27 @@ export function toDisplayListing(raw: any): DisplayListing {
     return fromPublicDTO(raw as PublicListingDTO);
   }
 
-  // Local fallback: Listing shape (deeply nested)
+  // ── LEGACY / DEAD PATH — local fallback: Listing shape (deeply nested) ────
+  //
+  // REACHABILITY PROVEN 2026-08-07: this branch does not execute in production.
+  // The only callers of `toDisplayListing` are lib/hooks/useListings.ts:217 and
+  // :263, both mapping `data.listings` from `/api/listings`, which returns
+  // PublicListingDTO with a TOP-LEVEL numeric `listPrice` (verified live:
+  // 128000000, no nested `price` object). The guard above is therefore always
+  // true and control never reaches here.
+  //
+  // That matters because this block hard-codes `internetAddressDisplayYN: true`
+  // below. If it ever BECOMES reachable with RLS-backed or seller-suppressed
+  // inventory, that hard-coded `true` is a FAIL-OPEN defect — it would build an
+  // address-bearing slug for a listing whose address must be withheld.
+  // "Local" is not a synonym for "permission granted."
+  //
+  // Left unchanged deliberately: altering an unexecuted branch's semantics is
+  // risk without benefit. Guarded instead by
+  // tests/runtime/display-adapter-fallback-reachability.test.ts, which fails if
+  // a new caller appears or the DTO shape contract changes. If you make this
+  // reachable, route the decision through
+  // `lib/compliance/db-address-decision.ts` FIRST.
   const localSlug = generateListingSlug({
     address: {
       streetNumber: raw.address?.streetNumber || '',
