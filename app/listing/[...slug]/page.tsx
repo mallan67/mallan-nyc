@@ -53,6 +53,7 @@ import { attachListingCacheTags } from '@/lib/cache/public-cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { publicListOfficeName } from '@/lib/idx/public-attribution';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -522,7 +523,10 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       livingArea: dbListing.living_area ? Number(dbListing.living_area) : null,
       lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
       yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
-      listOfficeName: resolvedAgent.officeName || 'Mallan Real Estate Inc.',
+      // §175.25 / UCBA Art. III §2(C): name the ACTUAL listing broker. An
+      // unknown office falls back to the neutral feed attribution, never to
+      // Mallan — claiming a brokerage we are not is a false claim.
+      listOfficeName: publicListOfficeName(resolvedAgent.officeName),
       media: mediaArr.map(m => ({
         ...m,
         url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
@@ -1865,7 +1869,7 @@ export default async function ListingPage({ params }: Props) {
                         )}
                         {/* §175.25 brokerage attribution — never dropped. */}
                         <p className="text-brand-dark/50 text-[12px] leading-tight mt-0.5">
-                          {listing._assignedAgent.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                          {publicListOfficeName(listing._assignedAgent.company || listing.listOfficeName)}
                         </p>
                       </div>
                     </div>
@@ -1873,7 +1877,7 @@ export default async function ListingPage({ params }: Props) {
                     /* Third-party IDX/RLS or no assigned agent — brokerage-only
                        block (no agent PII). §175.25 attribution still shown. */
                     <p className="text-brand-dark/50 text-[12px] mb-5 mt-1">
-                      {listing._assignedAgent?.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                      {publicListOfficeName(listing._assignedAgent?.company || listing.listOfficeName)}
                     </p>
                   )}
                   <div className="space-y-2.5">
@@ -1962,7 +1966,7 @@ export default async function ListingPage({ params }: Props) {
       <section className="border-t border-black/[0.06] py-5 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="text-[13px] text-brand-dark/55">
-            RLS · Listing Courtesy of <span className="font-medium text-brand-dark/70">{listing.listOfficeName || 'Mallan Real Estate Inc.'}</span>
+            RLS · Listing Courtesy of <span className="font-medium text-brand-dark/70">{publicListOfficeName(listing.listOfficeName)}</span>
           </p>
           <span className="text-brand-dark/20">|</span>
           <p className="text-[13px] text-brand-dark/45">

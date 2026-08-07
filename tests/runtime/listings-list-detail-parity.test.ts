@@ -30,9 +30,25 @@ import {
   type DbListing,
 } from '../../lib/idx/db-to-public-dto';
 
+/**
+ * PRODUCTION-REALISTIC provider identity (corrected 2026-08-06).
+ *
+ * This fixture previously set `ListingKey: 'RLS20059088'` — identical to
+ * `ListingId`. That is NOT the live shape, and it made a real public-contract
+ * divergence untestable: when both fields carry the same value the two DTO
+ * builders appear to agree on `mlsId` when in production they do not.
+ *
+ * Live Cotality/Trestle returns a NUMERIC `ListingKey`. Observed 2026-08-06 on
+ * the bbc559bd preview — which serves live Trestle precisely because it has no
+ * DATABASE_URL, so its response is unmediated provider shape:
+ *     id: "RLS20059088"   mlsId: "1146011469"
+ * The same numeric shape appears in production media proxy URLs (media key
+ * `1178013994`), consistent with canon §8: `Property.ListingKey =
+ * Media.ResourceRecordKey`.
+ */
 const TRESTLE_RAW_BASE: Record<string, unknown> = {
   ListingId: 'RLS20059088',
-  ListingKey: 'RLS20059088',
+  ListingKey: '1146011469', // numeric provider key — NOT the RLS ListingId
   StandardStatus: 'Active',
   StreetNumber: '217',
   StreetName: '57th',
@@ -163,5 +179,103 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
     const idxListing = mapRESOToInternal(trestleRaw);
     const detailDto = toPublicDTO(idxListing!);
     expect(detailDto._displayCompliance.disclaimerRequired).toBe(true);
+  });
+});
+
+/**
+ * PUBLIC IDENTITY CONTRACT (added 2026-08-06).
+ *
+ * Two builders assign `mlsId` from different provider fields:
+ *
+ *   lib/idx/mapping.ts:302        mlsId = String(ListingKey || listingId)
+ *   lib/idx/db-to-public-dto.ts:339/386   mlsId = listing.listing_id
+ *
+ * With a production-realistic numeric `ListingKey` these disagree publicly for
+ * the SAME logical listing. Compliance canon §8 states the DB column `mls_id`
+ * stores `ListingKey` and that `Property.ListingKey = Media.ResourceRecordKey`
+ * — so `mls_id` and `listing_id` are genuinely different identifiers, and
+ * `db-to-public-dto` publishes `listing_id` under the name `mlsId`.
+ *
+ * WHICH VALUE IS PUBLICLY CANONICAL IS NOT DECIDED HERE. Doing so requires the
+ * live Property shape for ListingId / ListingKey / ListingKeyNumeric /
+ * SourceSystemKey, which needs Trestle credentials not available in this
+ * environment. Per the fail-closed rule these tests PIN AND DOCUMENT current
+ * behaviour so the divergence is visible and cannot regress silently; they do
+ * not normalize it away.
+ */
+describe('public identity semantics across source paths', () => {
+  const trestleRaw = {
+    ...TRESTLE_RAW_BASE,
+    InternetEntireListingDisplayYN: true,
+    InternetAddressDisplayYN: true,
+  };
+
+  it('public `id` AGREES across both paths — this is the stable public identity', () => {
+    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const listDto = dbListingToPublicDTO(DB_ROW_BASE);
+    expect(detailDto.id).toBe('RLS20059088');
+    expect(listDto.id).toBe('RLS20059088');
+    expect(detailDto.id).toBe(listDto.id);
+  });
+
+  it('DOCUMENTED DIVERGENCE: `mlsId` does NOT agree across paths', () => {
+    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const listDto = dbListingToPublicDTO(DB_ROW_BASE);
+
+    // Trestle path publishes the numeric provider ListingKey.
+    expect(detailDto.mlsId).toBe('1146011469');
+    // DB path publishes listing_id — the RLS id, not the provider key.
+    expect(listDto.mlsId).toBe('RLS20059088');
+
+    // The divergence is real. When it is resolved, this assertion must be
+    // replaced by an equality assertion — NOT deleted.
+    expect(detailDto.mlsId).not.toBe(listDto.mlsId);
+  });
+});
+
+/**
+ * BROKER ATTRIBUTION — NY DOS §175.25 (compliance canon §9 + §11).
+ *
+ * Fail-closed rule: "No misleading/false/deceptive claims." Attributing a
+ * THIRD-PARTY listing (here: Compass) to Mallan Real Estate Inc. is a false
+ * claim of brokerage, and "Agent name NEVER appears without brokerage name."
+ *
+ * `MALLAN_OFFICE_MLS_IDS` is `[]`, so today every listing is third-party and
+ * NOTHING may fall back to a Mallan attribution on a public surface.
+ */
+describe('third-party listings are never attributed to Mallan', () => {
+  const FORBIDDEN = /Mallan Real Estate/i;
+
+  it('DB path: office name and attribution both name the ACTUAL brokerage', () => {
+    const listDto = dbListingToPublicDTO(DB_ROW_BASE);
+    expect(listDto.listOfficeName).toBe('Compass');
+    expect(listDto._displayCompliance.attributionText).toBe(
+      'Listing courtesy of Compass',
+    );
+    expect(listDto._displayCompliance.attributionText).not.toMatch(FORBIDDEN);
+  });
+
+  it('Trestle path: attribution never claims Mallan for a Compass listing', () => {
+    const detailDto = toPublicDTO(
+      mapRESOToInternal({
+        ...TRESTLE_RAW_BASE,
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      })!,
+    );
+    expect(detailDto.listOfficeName).toBe('Compass');
+    expect(detailDto._displayCompliance.attributionText).not.toMatch(FORBIDDEN);
+  });
+
+  it('a MISSING office name falls back to neutral REBNY RLS, never to Mallan', () => {
+    // The canonical neutral fallback (db-to-public-dto.ts:457/550) — the
+    // behaviour app/listing/[...slug]/page.tsx must match.
+    const noOffice = {
+      ...DB_ROW_BASE,
+      agent_info: { ListAgentFullName: 'Carl Gambino' },
+    };
+    const listDto = dbListingToPublicDTO(noOffice);
+    expect(listDto.listOfficeName).not.toMatch(FORBIDDEN);
+    expect(listDto._displayCompliance.attributionText).not.toMatch(FORBIDDEN);
   });
 });

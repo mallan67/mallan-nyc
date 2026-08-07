@@ -18,6 +18,7 @@
 import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
+import { publicListOfficeName } from './public-attribution';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
@@ -547,7 +548,7 @@ function buildSourceAndCompliance(
   const provenance = classifyDbListing(listing);
   // Phase B: typed-first agent attribution (JSON fallback). Exposure rules unchanged.
   const resolved = resolveListingAgentInfo(listing);
-  const officeName = resolved.officeName || 'REBNY RLS';
+  const officeName = publicListOfficeName(resolved.officeName);
 
   if (provenance === 'third-party-idx') {
     return {
