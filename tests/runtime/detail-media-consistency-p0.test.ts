@@ -321,9 +321,32 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
     expect(call).not.toMatch(/ownerClientId/);
     expect(call).not.toMatch(/mlsId/);
   });
-  it('fetches listing_media across ALL statuses (all-status hadRelationalRows)', () => {
+  /**
+   * REPLACED 2026-08-07 (commit 4). This previously asserted the detail page
+   * fetched listing_media across ALL STATUSES, because the row array was then
+   * the all-status existence signal.
+   *
+   * The page now fetches ACTIVE rows only and takes existence from an
+   * all-status `_count` aggregate — same contract as /api/listings:393-412.
+   *
+   * NOTE ON THE OLD ASSERTION: it was
+   *   expect(detailPage).not.toMatch(/listing_media:\s*\{\s*where:\s*\{\s*status:…/)
+   * which requires `where` to immediately follow `{`. After the change a
+   * comment block sits between them, so the negative regex still "passed" —
+   * a FALSE GREEN that would have let the contract flip silently. Replaced with
+   * assertions over comment-stripped source that state the intended contract
+   * positively.
+   */
+  it('fetches ACTIVE listing_media only, with an all-status _count for existence', () => {
     expect(detailPage).toMatch(/LISTING_MEDIA_INCLUDE/);
-    expect(detailPage).not.toMatch(/listing_media:\s*\{\s*where:\s*\{\s*status:\s*['"]active['"]\s*\}/);
+    // Comment-stripped, so an intervening comment cannot mask the shape.
+    expect(code).toMatch(/listing_media:\s*\{[\s\S]{0,200}?where:\s*\{\s*status:\s*['"]active['"]/);
+    expect(code).toMatch(/_count:\s*\{\s*select:\s*\{\s*listing_media:\s*true/);
+  });
+
+  it('derives all-status existence from _count, never from the fetched rows', () => {
+    expect(code).toMatch(/dbListing\._count\?\.listing_media/);
+    expect(code).not.toMatch(/hadRelationalRows:\s*listingMediaRows\.length/);
   });
   it('reintroduces NO live Cotality media call (PR #511 intact)', () => {
     expect(code).not.toMatch(/fetchListingMedia\s*\(/);

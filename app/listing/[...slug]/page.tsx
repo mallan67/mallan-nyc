@@ -196,12 +196,21 @@ interface ListingFetchResult {
 // so we don't over-fetch R2 timestamps, retry counters, or audit fields.
 const LISTING_MEDIA_INCLUDE = {
   listing_media: {
-    // Fetch ALL statuses (the resolver filters to active for display). This
-    // lets the reader distinguish "no rows ever imported" (→ fall back to the
-    // legacy media JSON) from "rows existed but all deleted" (→ authoritative
-    // empty). Filtering to active-only here resurrected soft-deleted CRM media
-    // via the JSON fallback once the last active row was deleted. (Codex media
-    // P0 finding #2.)
+    // ACTIVE ROWS ONLY — the gallery payload carries no deleted or replaced
+    // media. This page previously fetched EVERY status and let the resolver
+    // filter, which transferred soft-deleted and superseded rows on every
+    // detail render purely to answer an existence question.
+    //
+    // Existence is now answered by `_count` below instead. Those two changes
+    // are ATOMIC and must never be separated: `_count` supplies the ALL-STATUS
+    // signal that the row array can no longer provide. Narrowing this `where`
+    // WITHOUT `_count` would make an all-deleted listing look like "no rows
+    // ever imported" and resurrect soft-deleted CRM media through the legacy
+    // JSON fallback — Codex media P0 finding #2, the exact regression the old
+    // all-status fetch existed to prevent.
+    //
+    // Same contract `/api/listings` already uses (route.ts:393-412).
+    where: { status: 'active' as const },
     orderBy: [{ order: 'asc' as const }, { id: 'asc' as const }],
     select: {
       media_url_original: true,
@@ -215,6 +224,11 @@ const LISTING_MEDIA_INCLUDE = {
       media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Trestle rows
     },
   },
+  // ALL-STATUS existence signal. A Prisma aggregate subquery inside the SAME
+  // query — not a per-listing round-trip, so no N+1. This is what lets the
+  // reader distinguish "no row ever imported" (legacy fallback permitted) from
+  // "rows existed but all deleted" (authoritative empty).
+  _count: { select: { listing_media: true } },
 } satisfies Prisma.ListingInclude;
 
 async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
@@ -400,18 +414,23 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // no longer owns proxying, classification, ordering, hero selection, dedupe
     // or photo counting — it consumes the result unchanged.
     //
-    // `hadRelationalRows` is `listingMediaRows.length > 0` ONLY because
-    // LISTING_MEDIA_INCLUDE fetches ALL statuses, which makes the fetched length
-    // a genuine all-status existence signal. If that query is ever narrowed to
-    // active-only rows, this MUST switch to an all-status `_count` in the SAME
-    // change — otherwise an all-deleted Mallan listing reads as "never imported"
-    // and its deleted media is resurrected from the legacy JSON.
+    // `hadRelationalRows` comes from the ALL-STATUS `_count`, never from the
+    // fetched row array. The array now holds ACTIVE rows only, so its length
+    // reflects the active count, not existence: deriving from it would read
+    // "all deleted" as "never imported" and resurrect deleted Mallan media via
+    // the legacy JSON fallback. When `_count` is absent this is `undefined`
+    // (unknown), and the resolver fails closed for Mallan-owned media.
+    const hadRelationalRows =
+      typeof dbListing._count?.listing_media === 'number'
+        ? dbListing._count.listing_media > 0
+        : undefined;
+
     const { media: mediaArr, photoCount: canonicalPhotoCount } = composeDbPublicMedia({
       listingId: dbListing.listing_id,
       rlsEligible: dbListing.rls_eligible,
       tableRows: listingMediaRows,
       legacyMedia: rawMedia,
-      hadRelationalRows: listingMediaRows.length > 0,
+      hadRelationalRows,
     });
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
