@@ -19,6 +19,12 @@ module.exports = {
     // media-sync-service.test.ts had been orphaned from CI. Wiring it in
     // here as part of PR-E.1.a fixes that gap.
     '<rootDir>/lib/media/jest.config.js',
+    // lib/crm tests (ts-jest) — fee disclosure, growth tools, and the public
+    // listing-URL address gate. SAME ORPHANING BUG as lib/media above: the
+    // per-directory jest.config.js existed but was never added to this
+    // projects list, so fee-disclosure.test.ts and growth-tools.test.ts had
+    // been running nowhere. Wired in 2026-08-07.
+    '<rootDir>/lib/crm/jest.config.js',
     // lib/email + /api/unsubscribe (ts-jest) — email compliance hardening:
     // fail-closed suppression, signed HMAC unsubscribe token, dry-run/test/batch.
     '<rootDir>/lib/email/jest.config.js',

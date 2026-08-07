@@ -347,6 +347,10 @@ export async function PATCH(
     listing_id: listing.listing_id,
     status: newStatus,
     address: listing.address as Record<string, unknown> | null,
+    // Required by the canonical public-address decision: a prefix is not
+    // permission, and a null IDX flag must fail closed on a DB row.
+    rls_eligible: listing.rls_eligible,
+    internet_entire_listing_display_yn: listing.internet_entire_listing_display_yn,
     internet_address_display_yn: listing.internet_address_display_yn,
   });
 

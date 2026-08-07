@@ -191,6 +191,11 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
         StateOrProvince: 'NY',
         PostalCode: '10017',
       },
+      // Website-only Mallan CRM exclusive (rls_eligible === false): the IDX
+      // display booleans do not bind. Added 2026-08-07 — buildListingUrls now
+      // uses the canonical DB address decision, under which UNKNOWN provenance
+      // fails closed. These SL- rows are first-party inventory, not RLS.
+      rls_eligible: false,
       internet_address_display_yn: true,
     });
     expect(urls.publicUrl).not.toBeNull();
@@ -232,6 +237,11 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
       listing_id: 'SL-9999',
       status: 'Active',
       address: {},
+      // Website-only Mallan CRM exclusive (rls_eligible === false): the IDX
+      // display booleans do not bind. Added 2026-08-07 — buildListingUrls now
+      // uses the canonical DB address decision, under which UNKNOWN provenance
+      // fails closed. These SL- rows are first-party inventory, not RLS.
+      rls_eligible: false,
       internet_address_display_yn: true,
     });
     // Either null (refused) or a best-effort address slug — but NEVER /listing/sl-9999
@@ -252,6 +262,11 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
         City: 'New York',
         PostalCode: '10017',
       },
+      // Website-only Mallan CRM exclusive (rls_eligible === false): the IDX
+      // display booleans do not bind. Added 2026-08-07 — buildListingUrls now
+      // uses the canonical DB address decision, under which UNKNOWN provenance
+      // fails closed. These SL- rows are first-party inventory, not RLS.
+      rls_eligible: false,
       internet_address_display_yn: true,
     });
     expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/sl-0004');
