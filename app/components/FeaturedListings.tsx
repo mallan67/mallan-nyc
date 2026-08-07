@@ -8,7 +8,9 @@ import { ComingSoonBadge } from '@/app/components/ComingSoonBadge';
 import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import type { NextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
-import { useSwipe } from '@/lib/hooks/useSwipe';
+// `useSwipe` is no longer imported: swipe existed only to navigate the in-card
+// carousel, which the SUMMARY contract replaced with a single canonical hero.
+// The detail gallery keeps its own swipe handling.
 import {
   LISTING_PLACEHOLDER_IMAGE,
   getValidPhotoMedia,
@@ -107,62 +109,71 @@ function formatPrice(price: number, isRental: boolean): string {
   }).format(price);
 }
 
-function PhotoGallery({ photos, alt }: { photos: { url: string; mediaType: string; order?: number }[]; alt: string }) {
-  const [idx, setIdx] = useState(0);
-  const [failedPhotoUrls, setFailedPhotoUrls] = useState<Set<string>>(new Set());
-  const validPhotos = getValidPhotoMedia(photos).filter((m) => !failedPhotoUrls.has(String(m.url)));
-  const images = validPhotos.length > 0
-    ? validPhotos
-    : [{ url: LISTING_PLACEHOLDER_IMAGE, mediaType: 'Photo' }];
-  const safeIdx = Math.min(idx, images.length - 1);
-  const currentSrc = images[safeIdx]?.url || LISTING_PLACEHOLDER_IMAGE;
+/**
+ * CARD HERO — one canonical photo. Replaces the former in-card carousel.
+ *
+ * WHY THIS IS NO LONGER A CAROUSEL
+ * --------------------------------
+ * `/api/listings` is now a SUMMARY contract: one canonical hero plus the true
+ * `photosCount`. A card that navigated `listing.media` required the list
+ * endpoint to ship the whole gallery — 68 media objects so a card could show
+ * one image. The card's UI must not dictate the endpoint's payload; the detail
+ * page owns the gallery.
+ *
+ * IT ALSO FIXES INVALID DOM (the valid half of PR #596)
+ * -----------------------------------------------------
+ * The prev/next `<button>`s rendered INSIDE the card's `<Link>`, i.e. an
+ * interactive element nested in an interactive element. That is invalid HTML,
+ * a known hydration-warning source, and it needed `e.stopPropagation()` on
+ * every control just to stop a control click from navigating. Removing the
+ * controls removes the nesting BY CONSTRUCTION rather than by patching event
+ * handlers.
+ *
+ * PR #596's DEDUPE IS DELIBERATELY NOT CARRIED OVER. It normalized proxied URLs
+ * by path, so `/api/media/proxy?url=<A>` and `/api/media/proxy?url=<B>` — two
+ * genuinely different photos — collapsed to one identity and a whole gallery
+ * became a single image. Photo identity comes from the ENCODED SOURCE, never
+ * the shared proxy path.
+ *
+ * The photo-error fallback is preserved: a hero that fails to load falls back
+ * to LISTING_PLACEHOLDER_IMAGE, exactly as before.
+ */
+function CardHero({
+  photos,
+  alt,
+  photosCount,
+}: {
+  photos: { url: string; mediaType: string; order?: number }[];
+  alt: string;
+  photosCount?: number;
+}) {
+  const [heroFailed, setHeroFailed] = useState(false);
+  // Canonical hero via the shared card helper, whose `isPhotoMedia` delegates
+  // to `classifyMediaItem` — so a FloorPlan can never be promoted to hero.
+  const hero = getValidPhotoMedia(photos)[0];
+  const currentSrc = !heroFailed && hero?.url ? String(hero.url) : LISTING_PLACEHOLDER_IMAGE;
 
-  const goPrev = useCallback(() => setIdx(i => i === 0 ? images.length - 1 : i - 1), [images.length]);
-  const goNext = useCallback(() => setIdx(i => i === images.length - 1 ? 0 : i + 1), [images.length]);
-  const swipe = useSwipe(goNext, goPrev);
-  const handlePhotoError = useCallback(() => {
-    if (currentSrc === LISTING_PLACEHOLDER_IMAGE) return;
-    setFailedPhotoUrls(prev => new Set(prev).add(currentSrc));
-    setIdx(0);
-  }, [currentSrc]);
+  const handlePhotoError = useCallback(() => setHeroFailed(true), []);
 
   return (
-    <div
-      className="relative overflow-hidden aspect-[4/3] bg-gray-100 touch-pan-y"
-      onTouchStart={swipe.onTouchStart}
-      onTouchMove={swipe.onTouchMove}
-      onTouchEnd={swipe.onTouchEnd}
-    >
+    <div className="relative overflow-hidden aspect-[4/3] bg-gray-100">
       <IDXImage
         src={currentSrc}
         alt={alt}
         aspect="card"
         // Featured cards sit in the same ~360px grid slot as the search
-        // grid card, so they shared the oversized-download defect even
-        // though their carousel already worked.
+        // grid card, so they shared the oversized-download defect.
         sizeProfile="grid"
         onError={handlePhotoError}
       />
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(e) => { e.stopPropagation(); goPrev(); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
-            aria-label="Previous photo"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); goNext(); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition z-20"
-            aria-label="Next photo"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
-          <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
-            {safeIdx + 1}/{images.length}
-          </span>
-        </>
+      {/* The card still advertises the TRUE gallery size — `photosCount` comes
+          from the full canonical DTO, not from the contracted media array — so
+          a 67-photo listing reads "67 photos" while shipping one image. Plain
+          text, not a control: no interactive element inside the Link. */}
+      {typeof photosCount === 'number' && photosCount > 1 && (
+        <span className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
+          {photosCount} photos
+        </span>
       )}
     </div>
   );
@@ -278,7 +289,11 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
         className="absolute top-4 right-4 z-30 bg-blue-600 text-white text-[12px] font-semibold px-2.5 py-1 rounded leading-tight max-w-[60%]"
       />
       <Link href={featuredCardHref(listing)} className="block cursor-pointer group relative">
-        <PhotoGallery photos={photos} alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()} />
+        <CardHero
+          photos={photos}
+          alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()}
+          photosCount={listing.photosCount}
+        />
         {/* Open-house banner — bottom-left of the photo, clear of the gold badge (top-left), the
             Coming Soon badge (top-right), the title (below), and the photo counter (bottom-right). */}
         <OpenHouseBanner openHouse={listing.nextOpenHouse} className="absolute bottom-3 left-3 z-30" />
