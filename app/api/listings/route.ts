@@ -10,7 +10,7 @@ import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
-import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
@@ -318,12 +318,14 @@ export async function GET(request: Request) {
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
           if (excludeUndisclosed) {
+            // Canonical DB-side address-disclosure gate, ANDed BEFORE pagination.
+            // This previously ORed in `listing_id startsWith 'SL-' | 'RL-'`, so a
+            // PREFIX satisfied a filter whose whole purpose is "only listings
+            // whose address I may show" — an RLS-eligible Mallan exclusive with a
+            // seller address opt-out was returned anyway. A prefix is provenance,
+            // never permission. See ADDRESS_DISCLOSED_GATE.
             const w = dbWhere as Record<string, unknown>;
-            const andClause = { OR: [
-              { listing_id: { startsWith: 'SL-' } },
-              { listing_id: { startsWith: 'RL-' } },
-              { internet_address_display_yn: true },
-            ] };
+            const andClause = ADDRESS_DISCLOSED_GATE;
             w.AND = Array.isArray(w.AND) ? [...w.AND, andClause] : w.AND ? [w.AND, andClause] : [andClause];
           }
           const dbTake = limit;
@@ -565,7 +567,10 @@ export async function GET(request: Request) {
             let annotatedListings = annotateCoListedSiblings(publicListings);
             if (excludeUndisclosed) {
               annotatedListings = annotatedListings.filter(
-                l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
+                // No `_source === 'exclusive'` exemption. Provenance is not address
+                // permission: once the canonical DTO says 'Address Undisclosed', a
+                // Mallan exclusive is exactly as undisclosed as any other listing.
+                l => l.address?.streetName !== 'Address Undisclosed'
               );
             }
 
@@ -1076,7 +1081,9 @@ export async function GET(request: Request) {
         let annotatedMerged = annotateCoListedSiblings(mergedListings);
         if (excludeUndisclosed) {
           annotatedMerged = annotatedMerged.filter(
-            l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
+            // No `_source === 'exclusive'` exemption — provenance is not address
+            // permission. See ADDRESS_DISCLOSED_GATE.
+            l => l.address?.streetName !== 'Address Undisclosed'
           );
         }
 

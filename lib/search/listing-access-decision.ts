@@ -19,6 +19,45 @@ export const SEARCH_DISPLAY_GATE: Prisma.ListingWhereInput = {
   internet_entire_listing_display_yn: true,
 };
 
+/**
+ * DB-side predicate for `excludeUndisclosed=true`: keep only listings whose
+ * canonical PUBLIC address is displayable.
+ *
+ * WHAT THIS REPLACES
+ * ------------------
+ * `/api/listings` previously used:
+ *
+ *     OR: [ { listing_id: { startsWith: 'SL-' } },
+ *           { listing_id: { startsWith: 'RL-' } },
+ *           { internet_address_display_yn: true } ]
+ *
+ * so an `SL-`/`RL-` PREFIX satisfied the filter regardless of the address flag.
+ * A prefix is PROVENANCE; it is never address permission. An RLS-eligible Mallan
+ * exclusive whose seller opted out of address display was returned by a filter
+ * whose entire purpose is "only listings whose address I may show".
+ *
+ * THE RULE
+ * --------
+ *   WEBSITE-ONLY (`rls_eligible: false`) — not RLS inventory, so the IDX address
+ *     flag does not bind; Mallan's own first-party policy applies.
+ *   RLS-BACKED (`rls_eligible: true`) — `internet_address_display_yn` must be true.
+ *
+ * `rls_eligible` is `Boolean @default(true)` (NON-NULL) in the Prisma schema, so
+ * these two branches are exhaustive — no nullable-provenance semantics are
+ * invented for this query.
+ *
+ * idx_display_yn, owner_opt_out, participant_only and entire-listing display are
+ * already enforced for RLS-backed rows by `SEARCH_DISPLAY_GATE` in the base
+ * where-clause. This narrows further and is ANDed BEFORE pagination, so DB-side
+ * paging stays correct — it is deliberately NOT a JS post-filter.
+ */
+export const ADDRESS_DISCLOSED_GATE: Prisma.ListingWhereInput = {
+  OR: [
+    { rls_eligible: false },
+    { internet_address_display_yn: true },
+  ],
+};
+
 // Distribution-gate filter for the listing_search_projection table.
 //
 // Four of the five Listing-side gate columns are mirrored on the projection
