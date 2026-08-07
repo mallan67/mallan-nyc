@@ -33,6 +33,23 @@ module.exports = {
     '<rootDir>/lib/middleware/jest.config.js',
     // lib/rls-validator tests (ts-jest) — commented out: config missing
     // '<rootDir>/lib/rls-validator/jest.config.js',
+    // ── Configs wired in 2026-08-07 after a full jest-config audit ──────────
+    // CI runs ONLY `npx jest --ci --forceExit` (.github/workflows/pr-check.yml:135),
+    // i.e. root Jest. Any per-directory jest.config.js absent from THIS list is
+    // outside CI regardless of whether an npm script exists for it. The audit
+    // found 8 such configs holding 415 passing tests that CI never executed —
+    // most significantly lib/scanner (323 Fair Housing scanner tests) and
+    // lib/geo (67). `test:scanner` / `test:corridor` remain for targeted local
+    // runs; CI does not invoke them, so wiring these here does not double-run
+    // anything in CI.
+    '<rootDir>/lib/scanner/jest.config.js',        // 323 — Fair Housing scanner
+    '<rootDir>/lib/geo/jest.config.js',            //  67 — corridor/geocode
+    '<rootDir>/lib/tracking/jest.config.js',       //   7
+    '<rootDir>/lib/external-listings/jest.config.js', // 7
+    '<rootDir>/lib/rental-signals/jest.config.js',  //  4
+    '<rootDir>/lib/seller-signals/jest.config.js',  //  3
+    '<rootDir>/lib/buyer-intent/jest.config.js',    //  2
+    '<rootDir>/lib/buyer-priorities/jest.config.js',//  2
     // tests/runtime — release-truth side-effect proof for high-risk routes
     // (validator framework Phase 3). Wired here so `npx jest --ci` picks
     // them up as a release gate, not just `npm run test:runtime`.
