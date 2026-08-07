@@ -428,7 +428,22 @@ const hostScanExcludes = [
   /db-to-public-dto\.ts$/,
   /public-dto\.ts$/,
   /media\/proxy/,
-  /__tests__\//,
+  // ── Real test files ────────────────────────────────────────────────────
+  // The comment above already declares test fixtures a legitimate place to
+  // reference deprecated hosts. The implementation recognised ONLY `__tests__/`
+  // directories, so an equally legitimate fixture under `tests/runtime/` was
+  // still blocked — a CLASSIFICATION DEFECT, not a policy decision.
+  // (Found 2026-08-06: tests/runtime/detail-double-proxy-regression.test.ts
+  // pins the production media allowlist and must therefore name the
+  // warranty-era hosts; guardrails reported "2 error(s) found. CI BLOCKED.")
+  //
+  // Deliberately NARROW — this is NOT "exclude anything under tests/". A file
+  // qualifies only if it sits in a `__tests__/` directory, or it lives under a
+  // `test`/`tests` directory AND carries a real Jest/Vitest filename
+  // (`*.test.*` / `*.spec.*`). A helper, fixture or config under tests/ that is
+  // not itself a test file is still scanned, and application code is untouched.
+  /(^|\/)__tests__\//,
+  /(^|\/)tests?\/.*\.(test|spec)\.[cm]?[jt]sx?$/,
 ];
 
 const hostScanFiles = allFiles.filter((f) => {

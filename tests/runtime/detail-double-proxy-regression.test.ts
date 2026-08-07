@@ -98,16 +98,20 @@ describe('production allowlist is EXACT, not a suffix match', () => {
   });
 
   it('the allowlist is the exact production set', () => {
-    // The two legacy CoreLogic hosts are assembled from parts rather than
-    // written as literals. `scripts/ci/guardrails.mjs` enforces the Trestle
-    // migration by rejecting a deprecated host spelled out in source, and this
-    // file would otherwise trip it — CI BLOCKED — purely for asserting what the
-    // allowlist contains. The assertion strength is unchanged: this is still an
-    // exact, order-sensitive comparison of the full set.
-    const LEGACY = ['corelogic', 'com'].join('.');
+    // The legacy CoreLogic hosts are written as LITERALS on purpose. This is a
+    // regression test for the production allowlist, and `scripts/ci/guardrails.mjs`
+    // already documents that "Test fixtures verify the proxy/resolver continues
+    // to handle the legacy URLs correctly during the 2026 warranty period".
+    //
+    // An earlier revision of this test assembled the hostnames from string parts
+    // so the lexical scanner could not see them. That was coding AROUND the
+    // guardrail, not satisfying it — it hid a forbidden string rather than
+    // reconciling the scanner with its own stated intent. Reverted deliberately.
+    // The real defect was the scanner's path classification (it recognised only
+    // `__tests__/`, not `tests/runtime/`); that is fixed in guardrails.mjs.
     expect([...ALLOWED_MEDIA_HOSTS].sort()).toEqual([
-      `api-prod.${LEGACY}`,
-      `api-trestle.${LEGACY}`,
+      'api-prod.corelogic.com',
+      'api-trestle.corelogic.com',
       'api.cotality.com',
     ]);
   });
