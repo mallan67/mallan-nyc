@@ -16,6 +16,7 @@ import {
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
   try {
@@ -596,7 +597,11 @@ export async function GET(request: Request) {
               skip,
               limit,
               hasMore: skip + limit < dbTotal,
-              listings: annotatedListings,
+              // SUMMARY CONTRACTION at the response boundary — cards get the
+              // canonical hero + full photosCount, never the whole gallery.
+              // Applied AFTER post-filters/dedupe/geocode/live-fallback and
+              // annotation, so nothing upstream loses complete media.
+              listings: toPublicListingSummaries(annotatedListings),
               _compliance: {
                 source: envelopeSource,
                 idxEnabled: true,
@@ -1094,7 +1099,11 @@ export async function GET(request: Request) {
           skip,
           limit,
           hasMore: skip + limit < totalCount || result.hasMore,
-          listings: annotatedMerged,
+          // SUMMARY CONTRACTION at the response boundary — cards get the
+          // canonical hero + full photosCount, never the whole gallery.
+          // Applied AFTER post-filters/dedupe/geocode/live-fallback and
+          // annotation, so nothing upstream loses complete media.
+          listings: toPublicListingSummaries(annotatedMerged),
           _compliance: {
             source: 'idx+exclusive',
             idxEnabled: true,
@@ -1180,7 +1189,11 @@ export async function GET(request: Request) {
         skip: 0,
         limit,
         hasMore: false,
-        listings: exclusiveListings,
+        // SUMMARY CONTRACTION at the response boundary — cards get the
+        // canonical hero + full photosCount, never the whole gallery.
+        // Applied AFTER post-filters/dedupe/geocode/live-fallback and
+        // annotation, so nothing upstream loses complete media.
+        listings: toPublicListingSummaries(exclusiveListings),
         _compliance: {
           source: exclusiveListings.length > 0 ? 'exclusive' : 'none',
           idxEnabled: false,
