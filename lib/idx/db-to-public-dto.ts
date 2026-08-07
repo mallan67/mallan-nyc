@@ -19,6 +19,8 @@ import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
+import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { generateListingSlug } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
@@ -213,20 +215,18 @@ const STATUS_DISPLAY: Record<string, string> = {
   Rented: 'Rented',
 };
 
-const DB_TRESTLE_PROXY_HOSTS = new Set(['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com']);
-
-function proxyDbMediaUrl(rawUrl: string): string {
-  if (!rawUrl) return rawUrl;
-  try {
-    const parsed = new URL(rawUrl);
-    if (DB_TRESTLE_PROXY_HOSTS.has(parsed.hostname)) {
-      return `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`;
-    }
-  } catch {
-    return rawUrl;
-  }
-  return rawUrl;
-}
+// REMOVED 2026-08-07 — `DB_TRESTLE_PROXY_HOSTS` + `proxyDbMediaUrl`.
+//
+// This was a THIRD independent copy of the media-URL policy (alongside
+// `proxy-url-policy.ts` and the resolver's suffix rule). Three owners meant
+// three chances to drift apart from what the proxy route actually accepts.
+//
+// The canonical `toPublicMediaUrl` — imported by the proxy route itself — now
+// owns this. It is additionally IDEMPOTENT, which the local copy was not:
+// re-applying it to an already-proxied relative URL returns it unchanged rather
+// than nesting a second wrapper (the defect that produced the 403s on the
+// listing detail page).
+const proxyDbMediaUrl = toPublicMediaUrl;
 
 /**
  * Provenance of a DB-cached listing row.
@@ -390,14 +390,15 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     typeof listing._count?.listing_media === 'number'
       ? listing._count.listing_media > 0
       : undefined;
-  const resolved = resolveDbListingMedia(tableRows, mediaArr, {
+  // ONE canonical composition — shared with the listing-detail page so the two
+  // cannot derive different media, URLs or photo counts for the same listing.
+  const { media, photoCount } = composeDbPublicMedia({
     listingId: listing.listing_id,
     rlsEligible: listing.rls_eligible,
-  }, { hadRelationalRows, legacyMapUrl: proxyDbMediaUrl });
-  // Photo-first serialization: `order` = resolved index, `isPrimary` = resolved hero flag,
-  // so no downstream surface can hero a FloorPlan via media[0] or an order re-sort.
-  const media = toDtoMedia(resolved);
-  const photoCount = media.filter((m) => m.mediaType === 'Photo').length;
+    tableRows,
+    legacyMedia: mediaArr,
+    hadRelationalRows,
+  });
 
   return {
     id: listing.listing_id,

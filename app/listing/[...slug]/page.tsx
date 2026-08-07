@@ -51,8 +51,14 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 import prisma from '@/lib/prisma';
 import { attachListingCacheTags } from '@/lib/cache/public-cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+// `classifyMediaItem`, `resolveDbListingMedia` and `toDtoMedia` are deliberately
+// NOT imported here any more. Composing media — resolving, proxying, classifying,
+// ordering, hero selection, dedupe and photo counting — is owned solely by
+// `composeDbPublicMedia`. The getters below are read-only VIEWS over an already
+// composed result, not a second composition.
+import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { publicListOfficeName } from '@/lib/idx/public-attribution';
 import {
   buildSourceAndCompliance,
@@ -390,17 +396,23 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // stamps agent_id on third-party IDX rows). This page fetches ALL statuses
     // (LISTING_MEDIA_INCLUDE has no active-only filter), so the fetched rows are
     // the reliable all-status existence signal (hadRelationalRows).
-    const mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
-      resolveDbListingMedia(
-        listingMediaRows,
-        rawMedia,
-        {
-          listingId: dbListing.listing_id,
-          rlsEligible: dbListing.rls_eligible,
-        },
-        { hadRelationalRows: listingMediaRows.length > 0, legacyMapUrl: rawUrl => rawUrl },
-      ),
-    );
+    // ONE canonical composition, shared with `dbListingToPublicDTO`. This page
+    // no longer owns proxying, classification, ordering, hero selection, dedupe
+    // or photo counting — it consumes the result unchanged.
+    //
+    // `hadRelationalRows` is `listingMediaRows.length > 0` ONLY because
+    // LISTING_MEDIA_INCLUDE fetches ALL statuses, which makes the fetched length
+    // a genuine all-status existence signal. If that query is ever narrowed to
+    // active-only rows, this MUST switch to an all-status `_count` in the SAME
+    // change — otherwise an all-deleted Mallan listing reads as "never imported"
+    // and its deleted media is resurrected from the legacy JSON.
+    const { media: mediaArr, photoCount: canonicalPhotoCount } = composeDbPublicMedia({
+      listingId: dbListing.listing_id,
+      rlsEligible: dbListing.rls_eligible,
+      tableRows: listingMediaRows,
+      legacyMedia: rawMedia,
+      hadRelationalRows: listingMediaRows.length > 0,
+    });
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
     // contact card (typed: dbListing + resolvedAgent below); the legacy JSON base is now empty.
@@ -544,12 +556,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       // unknown office falls back to the neutral feed attribution, never to
       // Mallan — claiming a brokerage we are not is a false claim.
       listOfficeName: publicListOfficeName(resolvedAgent.officeName),
-      media: mediaArr.map(m => ({
-        ...m,
-        url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
-        thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
-      })),
-      photosCount: mediaArr.filter(m => classifyMediaItem(m) === 'photo').length,
+      // Consumed UNCHANGED from the canonical composition. The URLs are already
+      // mapped exactly once, inside resolution; re-mapping here is what produced
+      // the nested `/api/media/proxy?url=%2Fapi%2Fmedia%2Fproxy%3F...` URLs that
+      // the allowlist rejected with 403.
+      media: mediaArr,
+      photosCount: canonicalPhotoCount,
       // Video / virtual tour: on the live REBNY IDX Plus feed there are NO video Media
       // rows — video is delivered as the YouTube/Vimeo URL in Property.VirtualTourURL*
       // (VideosCount>0), while Matterport etc. is the true 3D tour. Host-split them so

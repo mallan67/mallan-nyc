@@ -36,6 +36,7 @@
 // show first; it does NOT decide whether the listing is displayable at all.
 
 import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
+import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 
 export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
 
@@ -47,16 +48,17 @@ const CLASS_PRIORITY: Record<MediaClass, number> = {
   unknown: 4,
 };
 
-/**
- * Hostnames whose URLs require server-side Bearer auth and must be proxied.
- *
- * We match the second-level domain (cotality.com / corelogic.com) so any
- * subdomain — `api.cotality.com`, `img.cotality.com`, future CDN hosts —
- * routes through the proxy. Mirrors the prior substring-matching behavior at
- * lib/search/crm-idx-mapper.ts and lib/idx/public-dto.ts which the resolver
- * replaces.
- */
-const TRESTLE_PROXY_HOST_SUFFIXES = ['cotality.com', 'corelogic.com'];
+// REMOVED 2026-08-07 — `TRESTLE_PROXY_HOST_SUFFIXES`.
+//
+// It listed second-level domains ('cotality.com' / 'corelogic.com') and matched
+// any subdomain, on the assumption that "future CDN hosts" should route through
+// the proxy automatically. But the proxy ROUTE validates against an EXACT
+// allowlist, so a subdomain match here produced a proxy URL the route refused —
+// a guaranteed 403 rather than a working image. Widening reach on this side
+// without widening the route's allowlist can only break, never help.
+//
+// The single owner is now `lib/media/proxy-url-policy.ts`, which the proxy route
+// itself imports. Adding a genuinely-live media host is a one-line change THERE.
 
 /**
  * Trestle URL convention for FloorPlan media. Trestle stores floor-plan
@@ -283,22 +285,30 @@ function unwrapProxyUrl(url: string): string {
   }
 }
 
-/** Wrap Trestle/CoreLogic media URLs with the bearer-auth proxy. Pass through otherwise. */
-export function proxyTrestleUrl(url: string): string {
-  if (!url) return url;
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    const matches = TRESTLE_PROXY_HOST_SUFFIXES.some(
-      (suffix) => host === suffix || host.endsWith('.' + suffix),
-    );
-    if (matches) {
-      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
-    }
-  } catch {
-    return url;
-  }
-  return url;
-}
+/**
+ * Wrap approved Trestle/CoreLogic media URLs with the bearer-auth proxy.
+ * Pass through otherwise.
+ *
+ * THIN DELEGATE — the canonical policy lives in `lib/media/proxy-url-policy.ts`,
+ * the SAME module `app/api/media/proxy/route.ts` imports. This function owns no
+ * host list of its own, so the resolver and the proxy route cannot disagree.
+ *
+ * WHY THE SUFFIX RULE WAS REMOVED (2026-08-07)
+ * --------------------------------------------
+ * This previously matched `host === suffix || host.endsWith('.' + suffix)` over
+ * `['cotality.com', 'corelogic.com']`. The proxy ROUTE accepts only an EXACT
+ * allowlist, so any other subdomain — `img.cotality.com`, `cdn.cotality.com`,
+ * `evil.cotality.com` — was wrapped into a proxy URL the route then REFUSED.
+ * The suffix rule could only ever manufacture a guaranteed 403; it could never
+ * make such a host load. Passing the URL through unchanged is strictly better,
+ * and declining to mint a proxy request for an unapproved host is the
+ * security-correct behaviour.
+ *
+ * If a legitimate Cotality media subdomain is ever confirmed live, the fix is to
+ * ADD it to `ALLOWED_MEDIA_HOSTS` in the canonical policy — ONE place, which the
+ * proxy route also reads — NOT to reintroduce suffix matching here.
+ */
+export const proxyTrestleUrl = toPublicMediaUrl;
 
 /**
  * Normalise + sort a media list so consumers can render it directly.

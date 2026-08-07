@@ -267,13 +267,44 @@ describe('resolveListingMedia — photo-first ordering', () => {
     expect(sorted[1].url).toBe('https://pub-xyz.r2.dev/photos/x.jpg');
   });
 
-  it('proxies all *.cotality.com subdomains (api, img, future CDNs)', () => {
-    expect(proxyTrestleUrl('https://img.cotality.com/Media/x.jpg')).toContain('/api/media/proxy?url=');
-    expect(proxyTrestleUrl('https://cdn.cotality.com/x.jpg')).toContain('/api/media/proxy?url=');
+  /**
+   * CORRECTED 2026-08-07 — was "proxies all *.cotality.com subdomains".
+   *
+   * `proxyTrestleUrl` used a SUFFIX rule (`host === s || host.endsWith('.'+s)`)
+   * over ['cotality.com','corelogic.com'], wrapping ANY subdomain. But the proxy
+   * ROUTE (app/api/media/proxy/route.ts) validates against an EXACT allowlist —
+   * api.cotality.com, api-trestle.corelogic.com, api-prod.corelogic.com — and
+   * rejects everything else.
+   *
+   * The suffix rule could therefore only manufacture URLs the route REFUSES:
+   * `/api/media/proxy?url=…img.cotality.com…` -> 403. It could never make such a
+   * host load. Passing through unproxied is strictly not worse, and may actually
+   * load if the host is publicly readable.
+   *
+   * `proxyTrestleUrl` is now a thin delegate to the canonical `toPublicMediaUrl`
+   * — the same module the proxy route imports — so mapper and route cannot
+   * disagree.
+   *
+   * OPEN (Class B — needs live verification, do NOT guess): if `img.cotality.com`
+   * or another subdomain genuinely serves live IDX Plus media, the fix is to ADD
+   * it to `ALLOWED_MEDIA_HOSTS` in lib/media/proxy-url-policy.ts — ONE place,
+   * which widens the route too — NOT to restore suffix matching here.
+   */
+  it('proxies ONLY exactly-approved hosts (matching what the proxy route accepts)', () => {
+    expect(proxyTrestleUrl('https://api.cotality.com/trestle/Media/x.jpg')).toContain(
+      '/api/media/proxy?url=',
+    );
   });
 
-  it('proxies bare cotality.com host (no subdomain)', () => {
-    expect(proxyTrestleUrl('https://cotality.com/x.jpg')).toContain('/api/media/proxy?url=');
+  it('does NOT proxy unapproved cotality subdomains — the route would 403 them', () => {
+    for (const u of [
+      'https://img.cotality.com/Media/x.jpg',
+      'https://cdn.cotality.com/x.jpg',
+      'https://cotality.com/x.jpg',
+      'https://evil.cotality.com/x.jpg',
+    ]) {
+      expect(proxyTrestleUrl(u)).toBe(u);
+    }
   });
 
   it('does NOT proxy lookalike domains', () => {

@@ -292,11 +292,29 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
   const detailPage = read('app/listing/[...slug]/page.tsx');
   const code = detailPage.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
-  it('uses resolveDbListingMedia for the render media', () => {
-    expect(code).toMatch(/resolveDbListingMedia\s*\(/);
+  /**
+   * UPDATED 2026-08-07 — the detail page no longer calls `resolveDbListingMedia`
+   * DIRECTLY. It calls `composeDbPublicMedia`, the ONE canonical DB→public media
+   * composition, which performs that resolution plus the canonical URL mapping
+   * and photo count. `dbListingToPublicDTO` calls the SAME composition, so the
+   * two paths can no longer derive different media, URLs or counts.
+   *
+   * The invariant is unchanged — the detail page must use the shared canonical
+   * resolution and must not pass agent/owner signals as media-ownership signals.
+   * Only the name of the shared entry point moved.
+   */
+  it('uses the canonical shared media composition for the render media', () => {
+    expect(code).toMatch(/composeDbPublicMedia\s*\(/);
+  });
+  it('does NOT re-resolve or re-map media itself (single composition)', () => {
+    // A second URL map over already-proxied relative URLs is exactly what
+    // produced the nested-proxy 403s on production.
+    expect(code).not.toMatch(/resolveDbListingMedia\s*\(/);
+    expect(code).not.toMatch(/proxyDetailMediaUrl\(m\.url\)/);
+    expect(code).not.toMatch(/classifyMediaItem\s*\(/);
   });
   it('does NOT pass agentId/ownerClientId/mlsId (agent_id is not a media-ownership signal)', () => {
-    const call = code.slice(code.indexOf('resolveDbListingMedia('), code.indexOf('resolveDbListingMedia(') + 500);
+    const call = code.slice(code.indexOf('composeDbPublicMedia('), code.indexOf('composeDbPublicMedia(') + 500);
     expect(call).toMatch(/listingId:\s*dbListing\.listing_id/);
     expect(call).toMatch(/rlsEligible:\s*dbListing\.rls_eligible/);
     expect(call).not.toMatch(/agentId/);
