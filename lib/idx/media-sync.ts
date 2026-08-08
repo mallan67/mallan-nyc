@@ -3030,7 +3030,17 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   return rows;
 }
 
-const defaultFetchDeps: MediaSyncFetchDeps = {
+/**
+ * The production fetch dependencies.
+ *
+ * EXPORTED so a caller overriding ONE dependency can spread these and keep the
+ * rest canonical. `runMediaSync` resolves `options.fetchDeps ?? defaultFetchDeps`,
+ * so a PARTIAL object silently replaces the WHOLE set: overriding
+ * `fetchProperties` alone leaves `fetchMedia` undefined and every listing fails
+ * (observed as `failed:1`, `status:partial`, zero rows checked). Spreading this
+ * makes "keep production media fetching" explicit and impossible to half-do.
+ */
+export const defaultFetchDeps: MediaSyncFetchDeps = {
   fetchProperties: defaultFetchProperties,
   fetchMedia: defaultFetchMedia,
 };
