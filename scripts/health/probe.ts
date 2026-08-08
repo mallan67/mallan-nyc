@@ -133,12 +133,25 @@ tryProbe(() => {
   const vercel = JSON.parse(readFileSync(path.resolve("vercel.json"), "utf8")) as { crons?: Array<{ path: string; schedule: string }> };
   const crons = vercel.crons ?? [];
   const find = (p: string) => crons.find((c) => c.path === p)?.schedule ?? "MISSING";
-  const idx = find("/api/cron/idx-sync");
-  const media = find("/api/cron/media-sync");
-  const keep = find("/api/cron/db-keepalive");
-  const cadenceOk = idx === "*/10 * * * *" && media === "*/15 * * * *" && keep === "*/15 * * * *";
+  // CORRECTED 2026-08-07 (commit 8C). This expected idx-sync `*/10`,
+  // media-sync `*/15` and db-keepalive `*/15` as DIRECT schedules. All three
+  // are now stale and the probe reported a permanent amber:
+  //   - idx-sync / media-sync are MEMBERS of /api/cron/one-cycle, which is
+  //     itself driven by the scheduled /api/cron/one-cycle-preflight (the
+  //     pre-Neon skip boundary). Neither has its own entry BY DESIGN.
+  //   - db-keepalive was REMOVED in the approved 2026-07 compute reduction
+  //     (PR #481) so the endpoint can autosuspend —
+  //     docs/architecture/NEON-COST-CONTROL-POLICY.md:32. Its ABSENCE is the
+  //     healthy state; monitoring must never flag it as unhealthy.
+  // Same "green = stays out of vercel.json" pattern already used for
+  // media-backfill below. Newer canonical cost policy wins over older
+  // operational prose.
+  const preflight = find("/api/cron/one-cycle-preflight");
+  const keepaliveAbsent = find("/api/cron/db-keepalive") === "MISSING";
+  const cadenceOk = preflight === "*/10 * * * *" && keepaliveAbsent;
   add("Cron cadence (live Cotality)", cadenceOk ? "🟢" : "🟡",
-    `${crons.length} crons; idx-sync \`${idx}\`, media-sync \`${media}\`, db-keepalive \`${keep}\``);
+    `${crons.length} crons; one-cycle-preflight \`${preflight}\` (drives idx-sync + media-sync); ` +
+    `db-keepalive intentionally absent: ${keepaliveAbsent ? "yes" : "NO — unexpected schedule present"}`);
   // QUAL-006/OPS-008 resolved 2026-07-02: the media-backfill route was DELETED
   // (unscheduled since PR #176). Green = stays out of vercel.json; a schedule
   // entry reappearing without a route is the idx:validate "SCHEDULED BUT

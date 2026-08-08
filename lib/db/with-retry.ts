@@ -4,7 +4,8 @@ import { Prisma } from '@prisma/client';
  * Retry a DB operation on TRANSIENT Neon cold-start errors.
  *
  * The production compute is 0.25 CU fixed and auto-suspends after ~5 min idle; the
- * db-keepalive cron (every 15 min) does not prevent that, so a request landing on a cold DB gets
+ * the db-keepalive cron did not prevent that, and was REMOVED in the approved 2026-07
+ * compute reduction (PR #481) so Neon can autosuspend — so a request landing on a cold DB gets
  * `P1001 Can't reach database server` before compute wakes. Verified live: `/api/contact`
  * lead submissions and several crons fail this way (Vercel runtime errors, 2026-06/07).
  * The FIRST attempt wakes the compute, so a short retry succeeds. This wraps only the calls
