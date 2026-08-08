@@ -97,10 +97,21 @@ export async function GET(request: Request, { params }: Props) {
           // Trestle Media fetch. Compliance gates already ran on the raw
           // Trestle payload above; this block only sources image URLs.
           if (!publicListing.media || publicListing.media.length === 0) {
-            const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
+            // TWO DIFFERENT IDENTITIES — do not reuse one variable for both.
+            //
+            // The DB row is keyed by the PUBLIC listing id (`RLS20105333`).
+            // Trestle Media is keyed by the PROVIDER record key
+            // (`1178013994` — Property.ListingKey / SourceSystemKey).
+            // Live-verified on this specimen:
+            //   ResourceRecordKey eq '1178013994'  -> 68 rows
+            //   ResourceRecordKey eq 'RLS20105333' ->  0 rows
+            // The previous single `listingKey` put the NUMERIC provider key
+            // into `where: { listing_id: ... }`, so the DB lookup missed and
+            // the relational-media path silently fell through to a live fetch.
+            const listingId = String(raw.ListingId || id);
             try {
               const dbRow = await prisma.listing.findUnique({
-                where: { listing_id: listingKey },
+                where: { listing_id: listingId },
                 select: {
                   media: true,
                   listing_media: {
@@ -140,8 +151,13 @@ export async function GET(request: Request, { params }: Props) {
           }
           if (!publicListing.media || publicListing.media.length === 0) {
             try {
-              const listingKey = String(raw.SourceSystemKey || raw.ListingId || id);
-              const mediaItems = await fetchListingMedia(listingKey);
+              // PROVIDER record key — NOT the public listing id. Canonical
+              // relation: Property.ListingKey / SourceSystemKey -> Media
+              // ResourceRecordKey. `ListingId` stays last-resort only.
+              const mediaResourceKey = String(
+                raw.ListingKey || raw.SourceSystemKey || raw.ListingId || id,
+              );
+              const mediaItems = await fetchListingMedia(mediaResourceKey);
               if (mediaItems.length > 0) {
                 publicListing.media = mediaItems.map(m => ({
                   ...m,

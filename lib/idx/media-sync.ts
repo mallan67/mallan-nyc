@@ -2968,45 +2968,21 @@ async function defaultFetchProperties(
   return (data.value || []) as TrestleProperty[];
 }
 
-/** One page of an OData Media response. `nextLink` is `@odata.nextLink` or null. */
-export interface MediaPage {
-  value: unknown[];
-  nextLink: string | null;
-}
-
-/**
- * RC1 — follow `@odata.nextLink` until the Media response is exhausted, so the
- * caller has the COMPLETE current media set for a listing before it writes or
- * tombstones. Returns `complete: false` (and whatever rows were gathered) when
- * any page fetch fails OR the page count exceeds `maxPages` (runaway guard) —
- * the caller MUST then preserve existing media and NOT tombstone (a missing key
- * on an incomplete response is not proven deleted at source).
- *
- * Pure over an injected `fetchPage` so the pagination loop is unit-testable
- * without the network. Production wraps `defaultFetchMediaPage`.
- */
-export async function paginateMedia(
-  firstUrl: string,
-  fetchPage: (url: string) => Promise<MediaPage>,
-  maxPages = 50,
-): Promise<{ rows: UpsertListingMediaInput[]; complete: boolean }> {
-  const rows: UpsertListingMediaInput[] = [];
-  let url: string | null = firstUrl;
-  let pages = 0;
-  while (url) {
-    if (pages >= maxPages) return { rows, complete: false }; // fail closed on runaway
-    let page: MediaPage;
-    try {
-      page = await fetchPage(url);
-    } catch {
-      return { rows, complete: false }; // a failed page ⇒ incomplete ⇒ no destructive write
-    }
-    for (const r of page.value) rows.push(r as UpsertListingMediaInput);
-    url = page.nextLink;
-    pages++;
-  }
-  return { rows, complete: true };
-}
+// ONE DEFINITION OF ODATA MEDIA COMPLETENESS.
+//
+// `paginateMedia` + `MediaPage` now live in `./fetch` so that ALL THREE callers
+// — this module's `defaultFetchMedia`, `sync.ts` batch-media, and
+// `fetch.ts`'s `fetchListingMedia` — share the SAME page follower. They are
+// re-exported here so every existing importer (and its tests) keeps working
+// against a single definition rather than a copy.
+//
+// Direction matters: the follower moved DOWN into `fetch` (which has no Prisma
+// import) rather than `fetch` importing this Prisma-backed module, so the
+// pre-Neon skip boundary proven in commit 8 is not weakened.
+export { paginateMedia, type MediaPage } from "./media-pagination";
+// Also imported for this module's OWN use (`defaultFetchMedia` /
+// `defaultFetchMediaPage`): a re-export does not bring names into local scope.
+import { paginateMedia, type MediaPage } from "./media-pagination";
 
 async function defaultFetchMediaPage(url: string): Promise<MediaPage> {
   const token = await defaultGetAccessToken();
@@ -3043,7 +3019,11 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));
 
   const firstUrl = `${TRESTLE_API}/odata/Media?${params.toString()}`;
-  const { rows, complete } = await paginateMedia(firstUrl, defaultFetchMediaPage);
+  // The shared follower is generic; this caller's rows are Media upsert inputs.
+  const { rows, complete } = await paginateMedia<UpsertListingMediaInput>(
+    firstUrl,
+    defaultFetchMediaPage,
+  );
   if (!complete) {
     throw new Error(`Media pagination incomplete for ResourceRecordKey='${resourceRecordKey}'`);
   }
