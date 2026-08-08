@@ -37,10 +37,19 @@
  * PURE — no Prisma, no I/O.
  */
 
-import {
-  R2_RETRY_EXHAUSTED_THRESHOLD,
-  R2_POLICY_PARKED_ATTEMPTS,
-} from '@/lib/idx/media-sync';
+/**
+ * R2 retry/policy semantic constants are OWNED HERE.
+ *
+ * They used to live in media-sync and be imported upward, which made it
+ * impossible for media-sync to consume this interpreter without a circular
+ * import — and that is exactly why the URL-refresh decision ended up with its
+ * own r2_attempts arithmetic instead of asking the one owner. media-sync now
+ * imports these (and re-exports them for existing callers).
+ */
+/** Consecutive REAL mirror failures after which retries are exhausted. */
+export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
+/** LEGACY policy-parked sentinel written by the pre-cutover writer. */
+export const R2_POLICY_PARKED_ATTEMPTS = 9;
 
 /** The R2 columns this module interprets. */
 export interface R2StateRow {
@@ -48,8 +57,9 @@ export interface R2StateRow {
   r2_key?: string | null;
   r2_last_attempt_at?: Date | null;
   /**
-   * FUTURE explicit policy state. Not yet in the Prisma schema — the migration
-   * is prepared but HELD (CLAUDE.md §C holds schema migrations). Optional here
+   * Explicit policy state. The column EXISTS in this PR (migration
+   * 20260808020000, applied to the isolated Preview DB; PRODUCTION application
+   * remains HELD per CLAUDE.md §C). Optional here
    * so this seam is already correct on the day the column lands: readers keep
    * working, and only the writers change.
    */

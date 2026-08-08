@@ -31,6 +31,18 @@ import prisma from "@/lib/prisma";
 // Canonical media classification — REUSED here so the persisted summary and the
 // public reader cannot disagree. Do not reimplement it in this module.
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+// THE one R2 policy/retry interpreter. The semantic constants are OWNED there so
+// this module can consume the interpreter without a circular import — that cycle
+// is exactly why the URL-refresh decision below ended up doing its own
+// `r2_attempts` arithmetic instead of asking the owner.
+import {
+  isR2PolicyExcluded,
+  R2_RETRY_EXHAUSTED_THRESHOLD,
+  R2_POLICY_PARKED_ATTEMPTS,
+} from "@/lib/media/r2-policy-state";
+// Re-exported for existing importers and their tests: one definition, two import
+// paths, no copy.
+export { R2_RETRY_EXHAUSTED_THRESHOLD, R2_POLICY_PARKED_ATTEMPTS };
 import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
 import {
   SEARCH_CACHE_TAG,
@@ -691,6 +703,20 @@ export interface ExistingMediaRowForCompare {
    * never lose a needed URL refresh.
    */
   r2_attempts?: number | null;
+  /**
+   * EXPLICIT R2 policy exclusion.
+   *
+   * Required here after the writer cutover: a policy-excluded row can now carry
+   * a LOW or NULL `r2_attempts`, so `r2_attempts > 8` alone no longer identifies
+   * "no R2 consumer will ever read this locator". Without it the backlog says
+   * DO-NOT-MIRROR (it filters on `r2_policy_excluded_at: null`) while this
+   * decision says STILL-WAITING-FOR-MIRROR and rewrites the locator forever —
+   * permanent Neon churn on exactly the rows policy removed from delivery.
+   *
+   * OPTIONAL and fail-safe in the same way as `r2_attempts`: absent/null ⇒ NOT
+   * excluded. Explicit non-null state is required to suppress.
+   */
+  r2_policy_excluded_at?: Date | null;
 }
 
 /**
@@ -1026,6 +1052,10 @@ export async function upsertListingMedia(
         // READ-only: lets the URL-refresh exception skip rows no R2 selector
         // can ever reach (see mediaRowMirrorUnreachable).
         r2_attempts: true,
+        // READ-only: EXPLICIT policy exclusion. `buildR2BacklogWhere` already
+        // filters on `r2_policy_excluded_at: null`, so a non-null value proves
+        // no R2 selector can consume a refreshed locator.
+        r2_policy_excluded_at: true,
       },
     });
     if (existing) {
@@ -1065,7 +1095,24 @@ export async function upsertListingMedia(
       // and keeps refreshing.
       const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
       const mirrorUnreachable = mediaRowMirrorUnreachable(existing);
-      if (materialUnchanged && (mediaRowDelivered(existing) || mirrorUnreachable)) {
+      // (1) THE MISSING NO-OP GATE. The material comparator deliberately
+      // EXCLUDES the URL, so "material unchanged" says nothing about the
+      // locator. Nothing above ever compared the locator itself, which meant a
+      // BYTE-IDENTICAL `media_url_original` on a pending row still fell through
+      // to a physical `update()` every cycle. There is nothing to refresh when
+      // no new locator was received — that is a pure no-op write.
+      const locatorIdentical =
+        (existing.media_url_original ?? null) === (row.mediaUrlOriginal ?? null);
+      // (2) EXPLICIT POLICY EXCLUSION. Delegated to the ONE interpreter rather
+      // than re-deriving `=== 9` here: it understands the explicit column AND
+      // the exact-9 legacy sentinel, and it never treats the >9 overflow as
+      // policy. A policy-excluded row is filtered out of the backlog, so a
+      // refreshed locator has no consumer — same reasoning as
+      // `mirrorUnreachable`, extended to the post-cutover state.
+      const policyExcluded = isR2PolicyExcluded(existing);
+      const locatorHasNoConsumer =
+        mediaRowDelivered(existing) || mirrorUnreachable || policyExcluded;
+      if (materialUnchanged && (locatorIdentical || locatorHasNoConsumer)) {
         skippedUnchanged++;
         if (mirrorUnreachable && !mediaRowDelivered(existing)) suppressedMirrorUnreachable++;
         // Split (Codex P2): the URL is excluded from the material decision, so a
@@ -1700,7 +1747,7 @@ export const R2_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
  * `R2_TOMBSTONE_4XX_THRESHOLD` (3) so transient failures get MORE retries than a
  * permanent 404/410 before parking.
  */
-export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
+// Owned by lib/media/r2-policy-state (see the re-export near the imports).
 
 /**
  * R2-1 Blocker-1 — POLICY-PARKED sentinel value for `r2_attempts`.
@@ -1737,7 +1784,7 @@ export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
  * any failure path. 9 can therefore ONLY be produced by the policy-parking
  * `updateMany` in `runMediaSync` Phase 3.
  */
-export const R2_POLICY_PARKED_ATTEMPTS = 9;
+// Owned by lib/media/r2-policy-state (see the re-export near the imports).
 
 // ─── R2-1 — mirror admission policy (approved by Maya, R2-0, 2026-07) ─────
 //
