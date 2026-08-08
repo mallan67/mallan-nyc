@@ -241,10 +241,31 @@ describe('R2 lifecycle validator — V7 rejection MUST write parking state (Bloc
     expect(parkPushes.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('the parking flush writes the sentinel via ONE batched updateMany over the collected ids', () => {
+  it('the parking flush writes the EXPLICIT policy column via ONE batched updateMany over the collected ids', () => {
+    // CONTRACT INVERTED (writer cutover). This previously pinned the sentinel
+    // form `data: { r2_attempts: R2_POLICY_PARKED_ATTEMPTS, r2_last_attempt_at:
+    // ... }`. That shape WAS the defect: a policy decision written into the
+    // FAILURE counter, plus a cooldown stamp for an attempt never made.
+    //
+    // What this validator actually guards is unchanged and still asserted here:
+    // the park is ONE batched updateMany over the collected ids, never per-row.
     expect(mediaSyncCode).toMatch(
-      /updateMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*policyParkIds\s*\}\s*\},\s*data:\s*\{\s*r2_attempts:\s*R2_POLICY_PARKED_ATTEMPTS,\s*r2_last_attempt_at:/,
+      /updateMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*policyParkIds\s*\}\s*\},\s*data:\s*\{\s*r2_policy_excluded_at:/,
     );
+  });
+
+  it('the parking flush no longer touches the failure counter or the cooldown', () => {
+    // `mediaSyncCode` is ALREADY comment-stripped, so a comment marker such as
+    // "// ── PHASE 4" does not exist in it: bounding the slice with one would
+    // silently return -1 and sweep in the rest of the file's unrelated writes.
+    // Both bounds are therefore code, and both are asserted to be real.
+    const start = mediaSyncCode.indexOf('if (policyParkIds.length > 0)');
+    const end = mediaSyncCode.indexOf('mirrorRejectedPolicyParked = parked.count');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const flush = mediaSyncCode.slice(start, end);
+    expect(flush).not.toMatch(/r2_attempts\s*:/);
+    expect(flush).not.toMatch(/r2_last_attempt_at\s*:/);
   });
 
   it('the parked outcome is surfaced as a counter (mirror_rejected_policy_parked) for audit', () => {

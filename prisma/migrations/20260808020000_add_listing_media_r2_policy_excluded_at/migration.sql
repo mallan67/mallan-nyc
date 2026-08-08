@@ -1,0 +1,28 @@
+-- R2 DELIVERY-POLICY STATE, separated from retry/failure state.
+--
+-- `listing_media.r2_attempts` had been overloaded: the sentinel 9
+-- (R2_POLICY_PARKED_ATTEMPTS) encoded "current mirror policy declines to mirror
+-- this asset" inside a column whose name, type and selector semantics all say
+-- FAILURE. A policy exclusion is not a failure -- it must never look
+-- retry-exhausted, never inflate a failure count it did not earn, and never
+-- block later re-admission.
+--
+--   NULL     = not excluded by policy
+--   non-NULL = excluded by policy at that wall-clock time; the age gives a
+--              bounded re-evaluation window without needing a second column
+--
+-- ONE nullable timestamp covers all three required states. Nullable, NO DEFAULT,
+-- NOT NULL-free, reversible -- NEON.md section 4 "Good SQL patterns". Adding a
+-- nullable column with no default is metadata-only on PG >= 11: no table
+-- rewrite, no long lock, no compute spike.
+--
+-- Rollback: ALTER TABLE "listing_media" DROP COLUMN "r2_policy_excluded_at";
+-- (safe while no writer populates it -- readers in lib/media/r2-policy-state.ts
+-- treat the column as optional and fall back to the legacy exact-9 sentinel.)
+--
+-- SCOPE: exactly ONE column, deliberately. `prisma migrate diff` against this
+-- branch also reported PRE-EXISTING production-vs-repo schema drift (5 tables to
+-- drop, 6 to create, 3 indexes, 3 column defaults). NONE of that belongs to this
+-- change and NONE of it is included here. See the handoff -- that drift is a
+-- separate, unresolved finding and a hard blocker on any production migration.
+ALTER TABLE "listing_media" ADD COLUMN "r2_policy_excluded_at" TIMESTAMP(3);

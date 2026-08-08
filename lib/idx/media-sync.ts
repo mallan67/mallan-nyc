@@ -1943,12 +1943,25 @@ export function buildR2BacklogWhere(
       // RC3 retry-exhausted exclusion — park non-permanent rows that keep
       // failing so they stop consuming Phase-3 budget. The row stays active
       // (photo still serves via the media_url_original proxy) — NOT deleted.
+      //
+      // This clause ALSO still excludes LEGACY rows parked at the old
+      // `r2_attempts = 9` sentinel (9 is not < 8), which is what makes the
+      // writer cutover safe without a backfill or a sentinel conversion.
       {
         OR: [
           { r2_attempts: null },
           { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
         ],
       },
+      // R2 DELIVERY-POLICY exclusion (explicit column).
+      //
+      // The sentinel used to do double duty: it recorded the policy decision
+      // AND removed the row from this SELECT. Now that a policy exclusion
+      // writes its own column, THIS is what keeps a parked row out of the
+      // backlog. Without it, dropping the sentinel write would resurface every
+      // parked row on the next firing to be re-fetched, re-rejected and
+      // re-parked forever — strictly worse than the overload it replaces.
+      { r2_policy_excluded_at: null },
       // R2-1 admission control (cheap DB-side part — see
       // buildR2MirrorPolicyMediaWhere; hero-only refinement happens in code).
       buildR2MirrorPolicyMediaWhere(),
@@ -3952,11 +3965,28 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // parked. Batched: one updateMany over all ids collected this run.
   if (policyParkIds.length > 0) {
     try {
+      // WRITER CUTOVER: a policy exclusion records itself in its OWN column.
+      //
+      // It no longer assigns `r2_attempts = R2_POLICY_PARKED_ATTEMPTS`, so a
+      // deliberate policy decision can never again be read as nine failures,
+      // can never look retry-exhausted, and can never inflate a failure count
+      // the asset did not earn. Whatever REAL failure history the row already
+      // has is left exactly as it stands.
+      //
+      // It also no longer stamps `r2_last_attempt_at`: no attempt was made, and
+      // recording a fake cooldown was the same category error in the adjacent
+      // column. Exclusion from the backlog now comes from
+      // `buildR2BacklogWhere`'s explicit `r2_policy_excluded_at: null` clause,
+      // not from a side effect of the counter.
+      //
+      // LEGACY rows already parked at 9 are NOT converted and NOT backfilled —
+      // they stay excluded by the untouched `r2_attempts < 8` clause, and
+      // `lib/media/r2-policy-state.ts` still reads exact-9 as a policy
+      // exclusion for compatibility.
       const parked = await prisma.listingMedia.updateMany({
         where: { id: { in: policyParkIds } },
         data: {
-          r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
-          r2_last_attempt_at: new Date(now()),
+          r2_policy_excluded_at: new Date(now()),
         },
       });
       mirrorRejectedPolicyParked = parked.count;

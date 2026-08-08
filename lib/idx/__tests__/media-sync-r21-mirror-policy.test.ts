@@ -126,6 +126,10 @@ interface PoolRow {
   r2_key: string | null;
   media_url_cached: string | null;
   r2_attempts: number | null;
+  // Writer cutover: the harness must model the EXPLICIT policy column, or the
+  // starvation proof below would keep "proving" a mechanism the writer no
+  // longer uses.
+  r2_policy_excluded_at: Date | null;
   media_modification_ts: Date | null;
   modification_ts: Date | null;
   listing: MirrorPolicyListing;
@@ -148,6 +152,7 @@ function makePoolRow(
     r2_key: null,
     media_url_cached: null,
     r2_attempts: null,
+    r2_policy_excluded_at: null,
     media_modification_ts: null,
     modification_ts: null,
     listing,
@@ -199,6 +204,10 @@ function installPool(
         .filter(
           (r) => r.r2_attempts === null || r.r2_attempts < R2_RETRY_EXHAUSTED_THRESHOLD,
         )
+        // Explicit policy exclusion — the clause that NOW keeps a parked row out
+        // of the backlog (legacy exact-9 rows are still caught by the line
+        // above, which is what makes the cutover safe without a backfill).
+        .filter((r) => r.r2_policy_excluded_at === null)
         .filter((r) => !excluded.has(String(r.id)))
         .slice(0, a.take ?? 5);
     }
@@ -212,13 +221,16 @@ function installPool(
   mockListingMediaUpdateMany.mockImplementation(async (args: unknown) => {
     const a = args as {
       where: { id: { in: bigint[] } };
-      data: { r2_attempts?: number; r2_last_attempt_at?: Date };
+      data: { r2_attempts?: number; r2_last_attempt_at?: Date; r2_policy_excluded_at?: Date };
     };
     const ids = new Set((a.where.id.in ?? []).map(String));
     let count = 0;
     for (const r of pool) {
       if (ids.has(String(r.id))) {
         if (typeof a.data.r2_attempts === "number") r.r2_attempts = a.data.r2_attempts;
+        if (a.data.r2_policy_excluded_at instanceof Date) {
+          r.r2_policy_excluded_at = a.data.r2_policy_excluded_at;
+        }
         count++;
       }
     }
@@ -340,19 +352,27 @@ describe("R2-1 — third-party displayable listing mirrors the canonical hero ON
     expect(mirrorWrites).toEqual(["MK-7"]);
 
     // Blocker-1: the 9 non-hero rejections are DETERMINISTIC ⇒ every one is
-    // POLICY-PARKED in ONE batched updateMany (r2_attempts = 9 sentinel +
-    // r2_last_attempt_at), so none of them can ever refill the candidate set.
+    // POLICY-PARKED in ONE batched updateMany, so none of them can ever refill
+    // the candidate set.
+    //
+    // CONTRACT INVERTED (writer cutover). This previously asserted the park
+    // wrote `r2_attempts = 9` + `r2_last_attempt_at`. Both were the overload:
+    // a POLICY decision recorded in the FAILURE counter, plus a cooldown stamp
+    // for an attempt that was never made. The park now writes its own column.
+    // Batching, the id set and the parked COUNT are unchanged — only the
+    // durable representation of the decision changed.
     expect(result.mirror_rejected_policy_parked).toBe(9);
     expect(mockListingMediaUpdateMany).toHaveBeenCalledTimes(1);
     const park = mockListingMediaUpdateMany.mock.calls[0][0] as {
       where: { id: { in: bigint[] } };
-      data: { r2_attempts: number; r2_last_attempt_at: Date };
+      data: { r2_policy_excluded_at?: Date; r2_attempts?: number; r2_last_attempt_at?: Date };
     };
     expect(park.where.id.in.map(Number).sort((a, b) => a - b)).toEqual([
       1, 2, 3, 4, 5, 6, 8, 9, 10,
     ]);
-    expect(park.data.r2_attempts).toBe(R2_POLICY_PARKED_ATTEMPTS);
-    expect(park.data.r2_last_attempt_at).toBeInstanceOf(Date);
+    expect(park.data.r2_policy_excluded_at).toBeInstanceOf(Date);
+    expect(park.data.r2_attempts).toBeUndefined();
+    expect(park.data.r2_last_attempt_at).toBeUndefined();
   });
 
   it("hero parity with computeListingMediaSummary (the primary_photo_url source)", () => {
@@ -455,10 +475,13 @@ describe("R2-1 — Mallan-owned listing mirrors its COMPLETE active media set", 
     expect(result.mirror_rejected_policy_parked).toBe(3);
     const park = mockListingMediaUpdateMany.mock.calls[0][0] as {
       where: { id: { in: bigint[] } };
-      data: { r2_attempts: number };
+      data: { r2_policy_excluded_at?: Date; r2_attempts?: number };
     };
     expect(park.where.id.in.map(Number).sort((a, b) => a - b)).toEqual([14, 15, 16]);
-    expect(park.data.r2_attempts).toBe(R2_POLICY_PARKED_ATTEMPTS);
+    // CONTRACT INVERTED (writer cutover): rejected videos/tours are still parked
+    // in one batch, but the decision no longer masquerades as a failure count.
+    expect(park.data.r2_policy_excluded_at).toBeInstanceOf(Date);
+    expect(park.data.r2_attempts).toBeUndefined();
   });
 
   it("rls_eligible === false (website-only) is ALSO Mallan-owned ⇒ all active admitted", async () => {
@@ -568,11 +591,16 @@ describe("R2-1 Blocker-1 — parked rejections can NEVER refill the bounded cand
     expect(mockListingMediaUpdateMany).toHaveBeenCalledTimes(1);
     const park1 = mockListingMediaUpdateMany.mock.calls[0][0] as {
       where: { id: { in: bigint[] } };
-      data: { r2_attempts: number; r2_last_attempt_at: Date };
+      data: { r2_policy_excluded_at?: Date; r2_attempts?: number; r2_last_attempt_at?: Date };
     };
     expect(park1.where.id.in.map(Number).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
-    expect(park1.data.r2_attempts).toBe(R2_POLICY_PARKED_ATTEMPTS);
-    expect(park1.data.r2_last_attempt_at).toBeInstanceOf(Date);
+    // CONTRACT INVERTED (writer cutover). The STARVATION GUARANTEE this test
+    // exists to prove is unchanged — parked rows must never refill the bounded
+    // candidate set. Only the mechanism changed: the explicit policy column now
+    // carries the exclusion instead of the failure counter's side effect.
+    expect(park1.data.r2_policy_excluded_at).toBeInstanceOf(Date);
+    expect(park1.data.r2_attempts).toBeUndefined();
+    expect(park1.data.r2_last_attempt_at).toBeUndefined();
 
     // ── RUN 2: parked state persisted ⇒ the EXISTING backlog predicate
     // (r2_attempts IS NULL OR < R2_RETRY_EXHAUSTED_THRESHOLD) excludes rows
@@ -634,10 +662,12 @@ describe("R2-1 Blocker-1 — parked rejections can NEVER refill the bounded cand
     expect(mockListingMediaUpdateMany).toHaveBeenCalledTimes(1);
     const park = mockListingMediaUpdateMany.mock.calls[0][0] as {
       where: { id: { in: bigint[] } };
-      data: { r2_attempts: number };
+      data: { r2_policy_excluded_at?: Date; r2_attempts?: number };
     };
     expect(park.where.id.in.map(Number).sort((a, b) => a - b)).toEqual([2, 3, 4]);
-    expect(park.data.r2_attempts).toBe(R2_POLICY_PARKED_ATTEMPTS);
+    // CONTRACT INVERTED (writer cutover) — same parked ids, new durable column.
+    expect(park.data.r2_policy_excluded_at).toBeInstanceOf(Date);
+    expect(park.data.r2_attempts).toBeUndefined();
   });
 });
 
