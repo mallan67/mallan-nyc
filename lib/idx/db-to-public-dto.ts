@@ -74,6 +74,13 @@ interface DbFeatures {
   StoriesTotal?: number | string;
   Rooms?: number | string;
   PublicRemarks?: string;
+  /**
+   * B13_BUILDING owns BuildingName, and `mapTrestleToPrisma` spreads
+   * `pick(raw, B13_BUILDING)` into `features` (trestle-mapper.ts:1073), while
+   * `address` is `pick(raw, B1_ADDRESS)` — which does NOT contain it. Synced
+   * rows therefore carry BuildingName HERE, not on the address JSON.
+   */
+  BuildingName?: string;
   AssociationFee?: number | string;
   AssociationFeeFrequency?: string;
   TaxAnnualAmount?: number | string;
@@ -476,14 +483,26 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     listOfficeName: resolvedAgent.officeName || 'REBNY RLS',
     media,
     photosCount: photoCount,
-    publicRemarks: features.PublicRemarks || undefined,
+    // S1 (#415) storage correction: `mapTrestleToPrisma` does NOT put
+    // B7_REMARKS into `features`, and the redundant Trestle `compliance` JSON
+    // copy is no longer persisted — so on a SYNCED row PublicRemarks lives in
+    // `raw_data`. Reading only `features` returned undefined for every synced
+    // listing. `features` still wins first for CRM/legacy rows that carry it.
+    publicRemarks:
+      features.PublicRemarks ||
+      (typeof rawData.PublicRemarks === 'string' ? rawData.PublicRemarks : undefined) ||
+      undefined,
     listingContractDate: listing.listing_contract_date
       ? new Date(listing.listing_contract_date).toISOString()
       : new Date(listing.created_at).toISOString(),
     modificationTimestamp: new Date(listing.modification_timestamp || listing.updated_at).toISOString(),
     onMarketDate: rawData.OnMarketDate ? String(rawData.OnMarketDate) : undefined,
     closeDate: rawData.CloseDate ? String(rawData.CloseDate) : undefined,
-    buildingName: addr.BuildingName,
+    // B13_BUILDING owns BuildingName and lands in `features`; B1_ADDRESS does
+    // not carry it, so reading `addr` alone was empty for synced rows. The
+    // address fallback is retained deliberately for historical/CRM rows that
+    // stored it there — not deleted on assumption.
+    buildingName: features.BuildingName || addr.BuildingName,
     architecturalStyle: features.ArchitecturalStyle ? String(features.ArchitecturalStyle) : undefined,
     // Amenity fields from features JSON (PascalCase keys from Trestle sync)
     buildingFeatures: features.BuildingFeatures ? String(features.BuildingFeatures) : undefined,
