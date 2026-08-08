@@ -19,6 +19,13 @@ module.exports = {
     // media-sync-service.test.ts had been orphaned from CI. Wiring it in
     // here as part of PR-E.1.a fixes that gap.
     '<rootDir>/lib/media/jest.config.js',
+    // lib/monitoring (ts-jest) — health verdict algebra + R2 mirror health.
+    // Registered IN THE SAME COMMIT that creates the directory: an unregistered
+    // per-directory config is invisible to `npx jest --ci` (the only thing CI
+    // runs), which is exactly how lib/media, lib/crm and 8 further configs
+    // silently held tests that never executed. A monitoring module whose own
+    // tests do not run would be the worst possible instance of that bug.
+    '<rootDir>/lib/monitoring/jest.config.js',
     // lib/crm tests (ts-jest) — fee disclosure, growth tools, and the public
     // listing-URL address gate. SAME ORPHANING BUG as lib/media above: the
     // per-directory jest.config.js existed but was never added to this
