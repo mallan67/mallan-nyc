@@ -67,8 +67,16 @@ describe('detail page — address suppression respects opt-outs, slug from the s
     expect(page).toMatch(/const isRlsBacked = dbListing\.rls_eligible !== false/);
   });
 
-  it('detail-page slug derives from !suppressAddress, NOT the raw internet_address_display_yn column', () => {
-    expect(page).toMatch(/internetAddressDisplayYN:\s*!suppressAddress/);
+  it('slug derives from the suppression DECISION, NOT the raw column (canonical owner)', () => {
+    // CONTRACT MOVED (DTO collapse). The page no longer builds its own slug; it
+    // delegates to dbListingToPublicDTO, which derives the slug from the same
+    // suppression decision it uses for the address text. The invariant is
+    // unchanged and now asserted where it lives — plus the page must not have
+    // regrown a slug build, and must never key the slug off the raw column.
+    const dtoSrc = read('lib/idx/db-to-public-dto.ts');
+    expect(dtoSrc).toMatch(/internetAddressDisplayYN:\s*!suppressAddress/);
+    expect(dtoSrc).not.toMatch(/internetAddressDisplayYN:\s*listing\.internet_address_display_yn/);
+    expect(page).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     expect(page).not.toMatch(/internetAddressDisplayYN:\s*dbListing\.internet_address_display_yn/);
   });
 });

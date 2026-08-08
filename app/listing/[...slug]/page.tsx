@@ -37,9 +37,8 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // that live dependency is what forced the route dynamic (no-store, cache MISS on
 // every request). Live Cotality calls live in the sync jobs and operational tools,
 // not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
-import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
-import { buildAuctionPublic, resolveMoveInFees, mapPropertyTypeToDisplay, type PublicListingDTO } from '@/lib/idx/public-dto';
-import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
+import type { PublicListingDTO } from '@/lib/idx/public-dto';
+import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
@@ -56,14 +55,11 @@ import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/lis
 // ordering, hero selection, dedupe and photo counting — is owned solely by
 // `composeDbPublicMedia`. The getters below are read-only VIEWS over an already
 // composed result, not a second composition.
-import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { publicListOfficeName } from '@/lib/idx/public-attribution';
-import {
-  buildSourceAndCompliance,
-  type DbListing as DbListingForPolicy,
-} from '@/lib/idx/db-to-public-dto';
+import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -491,174 +487,28 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted.)
     const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
-    const dtoSlug = generateListingSlug({
-      address: {
-        streetNumber: addr.StreetNumber || '',
-        streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase(composeSlugStreetName(addr) || ''),
-        unitNumber: addr.UnitNumber || null,
-        city: addr.City || '',
-        stateOrProvince: addr.StateOrProvince || 'NY',
-        postalCode: addr.PostalCode || dbListing.postal_code || '',
-      },
-      id: dbListing.listing_id,
-      // PUBLIC identity, not the provider key. `mls_id` carries the NUMERIC
-      // provider ListingKey (mapTrestleToPrisma: `mls_id = ListingKey`), and
-      // every PublicListingDTO producer and consumer treats `mlsId` as the
-      // PUBLIC listing id — dbListingToPublicDTO, crm/listing-urls and
-      // public-building-data all set it to `listing_id`, reso-mapper maps it
-      // back to `ListingId`, and featured-ordering / open-houses / the agent
-      // page all match it against `listing_id`. Passing the provider key here
-      // was the outlier that fed a `listing-<ListingKey>` slug.
-      mlsId: dbListing.listing_id,
-      // Drive the slug from the SAME suppression decision used for the address
-      // text (and matching dbListingToPublicDTO), NOT the raw column. Using the
-      // raw internet_address_display_yn here made a CRM exclusive show its
-      // address text but build a suppressed `listing-{id}` slug → canonical
-      // mismatch with the agent/card URL → "Listing Not Available". (2026-05-29)
-      internetAddressDisplayYN: !suppressAddress,
-    });
-    // Coming-soon derivation kept byte-identical to db-to-public-dto.ts:323-327
-    // so both paths agree on the banner state.
-    const isComingSoon = dbListing.status === 'ComingSoon';
-    const comingSoonDate = isComingSoon
-      ? (rawData.ActivationDate as string | undefined) || undefined
-      : undefined;
-    const sourceAndCompliance = buildSourceAndCompliance(
-      dbListing as unknown as DbListingForPolicy,
-      agentInfo,
-      isComingSoon,
-      comingSoonDate,
-    );
+    // ── ONE PUBLIC DTO OWNER ────────────────────────────────────────────
+    // The base public DTO now comes from the canonical builder instead of being
+    // rebuilt here. The detail query already supplies exactly what it consumes:
+    // the full Listing row, ACTIVE listing_media, and the all-status _count.
+    //
+    // The ~130 lines this replaces had DRIFTED from the canonical owner, and the
+    // differences were stale rather than intentional: raw `status` instead of
+    // the canonical display status, `originalListPrice` pinned to the CURRENT
+    // list price, `closePrice` hardcoded null, contract/modification dates read
+    // from the features JSON instead of the typed columns, and a separately
+    // composed source/compliance block. Deleting them is the fix; reproducing
+    // them would have preserved the drift.
+    const baseDto = dbListingToPublicDTO(dbListing);
 
     const dto: PublicListingDTO = {
-      id: dbListing.listing_id,
-      // Matches dbListingToPublicDTO exactly (`mlsId: listing.listing_id`).
-      // See the note above: `mls_id` is the provider ListingKey, which is media
-      // lookup identity — never the public id this field carries.
-      mlsId: dbListing.listing_id,
-      slug: dtoSlug,
-      url: buildCanonicalListingPath({ slug: dtoSlug, id: dbListing.listing_id }),
-      status: dbListing.status,
-      listingType: dbListing.listing_type as 'sale' | 'rent',
-      address: suppressAddress
-        ? {
-            streetNumber: '',
-            streetName: 'Address Undisclosed',
-            unitNumber: null,
-            city: addr.City || '',
-            stateOrProvince: addr.StateOrProvince || 'NY',
-            postalCode: addr.PostalCode || '',
-            county: addr.CountyOrParish || '',
-            neighborhood: dbListing.neighborhood || undefined,
-          }
-        : {
-            streetNumber: addr.StreetNumber || '',
-            streetName: normalizeStreetCase(composeSlugStreetName(addr) || ''),
-            unitNumber: addr.UnitNumber || null,
-            city: addr.City || '',
-            stateOrProvince: addr.StateOrProvince || 'NY',
-            postalCode: addr.PostalCode || '',
-            county: addr.CountyOrParish || '',
-            neighborhood: dbListing.neighborhood || undefined,
-            latitude: addr.Latitude ? Number(addr.Latitude) : undefined,
-            longitude: addr.Longitude ? Number(addr.Longitude) : undefined,
-          },
-      listPrice: Number(dbListing.list_price),
-      originalListPrice: Number(dbListing.list_price),
-      closePrice: null,
-      // Ownership-aware display type (CommonInterest-first), consistent with db-to-public-dto and the
-      // exclusive/card paths: a condo unit's PropertySubType is "Apartment", so keying off the sub-type
-      // alone mislabeled condos/co-ops as "Apartment" — which broke the co-op fee label AND made
-      // Similar Properties classify the subject as a generic apartment (emptying the section).
-      propertyType: mapPropertyTypeToDisplay(
-        features.CommonInterest as string | undefined,
-        dbListing.property_sub_type,
-        dbListing.property_type || undefined,
-      ) || 'Residential',
-      propertySubType: dbListing.property_sub_type || null,
-      bedroomsTotal: dbListing.bedrooms_total || 0,
-      bathroomsFull: dbListing.bathrooms_full || 0,
-      bathroomsHalf: dbListing.bathrooms_half || 0,
-      livingArea: dbListing.living_area ? Number(dbListing.living_area) : null,
-      lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
-      yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
-      // §175.25 / UCBA Art. III §2(C): name the ACTUAL listing broker. An
-      // unknown office falls back to the neutral feed attribution, never to
-      // Mallan — claiming a brokerage we are not is a false claim.
-      listOfficeName: publicListOfficeName(resolvedAgent.officeName),
-      // Consumed UNCHANGED from the canonical composition. The URLs are already
-      // mapped exactly once, inside resolution; re-mapping here is what produced
-      // the nested `/api/media/proxy?url=%2Fapi%2Fmedia%2Fproxy%3F...` URLs that
-      // the allowlist rejected with 403.
-      media: mediaArr,
-      photosCount: canonicalPhotoCount,
-      // Video / virtual tour: on the live REBNY IDX Plus feed there are NO video Media
-      // rows — video is delivered as the YouTube/Vimeo URL in Property.VirtualTourURL*
-      // (VideosCount>0), while Matterport etc. is the true 3D tour. Host-split them so
-      // a video URL populates `videoUrl` (Video tab) and a 3D URL populates
-      // `virtualTourURL` (3D tab) — the SAME split the card/search DTO uses
-      // (db-to-public-dto.ts). Unbranded-preferred per UCBA Art. I §5(C). Previously
-      // this inline DB DTO set virtualTourURL only, so a DB-backed YouTube listing
-      // rendered under 3D Tour and the Video tab was always absent. (Codex #482)
-      ...tourUrlsForDto(
-        [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
-        rawData.VirtualTourURLBranded,
-      ),
-      publicRemarks: String(features.PublicRemarks || rawData.PublicRemarks || ''),
-      listingContractDate: String(features.ListingContractDate || ''),
-      modificationTimestamp: String(features.ModificationTimestamp || ''),
-      associationFee: features.AssociationFee ? Number(features.AssociationFee) : undefined,
-      taxAnnualAmount: features.TaxAnnualAmount ? Number(features.TaxAnnualAmount) : undefined,
-      buildingName: features.BuildingName ? String(features.BuildingName) : undefined,
-      interiorFeatures: features.InteriorFeatures ? String(features.InteriorFeatures) : undefined,
-      buildingFeatures: features.BuildingFeatures ? String(features.BuildingFeatures) : undefined,
-      associationAmenities: features.AssociationAmenities ? String(features.AssociationAmenities) : undefined,
-      parkingFeatures: features.ParkingFeatures ? String(features.ParkingFeatures) : undefined,
-      heating: features.Heating ? String(features.Heating) : undefined,
-      cooling: features.Cooling ? String(features.Cooling) : undefined,
-      laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
-      petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
-      moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
-      // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
-      ...resolveMoveInFees(features as Record<string, unknown>),
-      ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
-      tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
-      appliances: features.Appliances ? String(features.Appliances) : undefined,
-      exteriorFeatures: features.ExteriorFeatures ? String(features.ExteriorFeatures) : undefined,
-      communityFeatures: features.CommunityFeatures ? String(features.CommunityFeatures) : undefined,
-      securityFeatures: features.SecurityFeatures ? String(features.SecurityFeatures) : undefined,
-      poolFeatures: features.PoolFeatures ? String(features.PoolFeatures) : undefined,
-      spaFeatures: features.SpaFeatures ? String(features.SpaFeatures) : undefined,
-      attendanceType: features.AttendanceType ? String(features.AttendanceType) : undefined,
-      // Auction (UCBA Art. I exception path) — null on non-auction listings.
-      // The five auction columns are top-level on the Listing model (PR #50);
-      // buildAuctionPublic() returns null unless auction_yn === true AND the
-      // mandatory type+endDate fields are set (validator AU-001..AU-005).
-      auction: buildAuctionPublic(dbListing),
-      // ── source + compliance policy: ONE owner ──────────────────────────
-      // Delegates to the canonical `buildSourceAndCompliance` (the same
-      // function `dbListingToPublicDTO` uses), replacing three hard-coded
-      // values that were each wrong for third-party rows:
-      //
-      //   _source: 'db'          -> real provenance ('db+idx' | 'exclusive')
-      //   attributionText        -> was the fixed string 'Listing data from
-      //                             REBNY RLS', which NEVER named the actual
-      //                             listing broker. UCBA Art. III §2(C)
-      //                             requires the ACTUAL broker; the canonical
-      //                             owner emits `Listing courtesy of <office>`.
-      //   comingSoon/-Date       -> were never set at all, so the Coming Soon
-      //                             banner (rendered from
-      //                             `_displayCompliance.comingSoonDate`) could
-      //                             never appear on a detail page.
-      ...sourceAndCompliance,
-      // Assigned listing-agent contact card. The detail page carries a RICHER
-      // card than the shared builder (photo, slug, title), so it keeps its own
-      // display object — but exposure is now GATED by the canonical policy:
-      // we publish it only when `buildSourceAndCompliance` also returns an
-      // `_assignedAgent`, i.e. never for third-party IDX/RLS rows. That keeps
-      // another brokerage's agent PII off the page by construction rather than
-      // by a second, independently-maintained rule.
-      ...(assignedAgentDisplay && sourceAndCompliance._assignedAgent
+      ...baseDto,
+      // DETAIL-ONLY enrichment. The page shows a richer Mallan-owned agent card
+      // (photo, title, license type, public slug) than the shared builder emits.
+      // Exposure stays gated by the CANONICAL base: if the base DTO withheld
+      // `_assignedAgent` — as it does for every third-party IDX/RLS row — the
+      // detail page may not invent one. One policy owner, not two.
+      ...(assignedAgentDisplay && baseDto._assignedAgent
         ? { _assignedAgent: assignedAgentDisplay }
         : {}),
     };

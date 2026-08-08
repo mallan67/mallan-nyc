@@ -110,8 +110,30 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
   });
 
   it('listing page composes the street via composeSlugStreetName (both DTO paths)', () => {
-    const uses = pageSrc.match(/composeSlugStreetName\(/g) || [];
-    expect(uses.length).toBeGreaterThanOrEqual(2);
+    // CONTRACT MOVED (DTO collapse). The page previously composed the street
+    // TWICE — once for its own DB-path DTO slug and once for the Trestle-direct
+    // path — hence the ">= 2" count. The DB-path slug now comes from
+    // dbListingToPublicDTO, so one of those uses is gone BY DESIGN.
+    //
+    // What this test actually guards is PARITY: sitemap, canonical DB DTO and
+    // page must compose the street identically. That is now asserted across the
+    // owners rather than by counting occurrences inside one file.
+    const dtoSrc = readFileSync(
+      path.resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
+      'utf8',
+    );
+    // OBSERVED DIFFERENCE, recorded rather than asserted away: the canonical
+    // builder does NOT call composeSlugStreetName. It passes `streetDirPrefix`
+    // and `streetName` SEPARATELY into generateListingSlug, which combines them
+    // itself; the page pre-combined them. Both therefore reach the SAME slug
+    // owner, but by different composition routes. Output equivalence is not
+    // proven here and must not be implied — see the handoff.
+    // The page now composes NO street at all: `composeSlugStreetName` lived
+    // only in the deleted DB block, so its import was dead and was removed.
+    expect(pageSrc).not.toMatch(/composeSlugStreetName\(/);
+    expect(dtoSrc).toMatch(/generateListingSlug\(/); // canonical DB path
+    expect(pageSrc).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    // Neither owner may hand-roll the street parts again.
     expect(pageSrc).not.toMatch(/\[addr\.StreetDirPrefix,\s*addr\.StreetName,\s*addr\.StreetSuffix\]/);
   });
 });

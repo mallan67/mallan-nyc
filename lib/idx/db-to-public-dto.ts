@@ -126,20 +126,54 @@ interface DbMediaItem {
   PreferredPhotoYN?: boolean | string;
 }
 
-// The shape returned by Prisma listing.findMany with our select
+/**
+ * A numeric-like DB value.
+ *
+ * Prisma returns `Decimal` for numeric columns; some callers carry the same
+ * value as a numeric string, and a few as a plain number. All three arrive here
+ * in practice, so the type says so rather than being cast away at call sites.
+ */
+export type DbNumericLike = string | number | { toString(): string };
+
+/**
+ * Normalize any accepted numeric-like form to a finite number, else null.
+ *
+ * This replaces bare `parseFloat(value)`, which happened to work on a Prisma
+ * `Decimal` only through implicit `toString()` coercion — correct at runtime but
+ * undeclared, and the reason the detail page could not call this builder without
+ * an `as unknown as` cast.
+ */
+function numericOf(value: DbNumericLike | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+// The shape returned by Prisma listing.findMany with our select.
+//
+// Types here describe the ACTUAL runtime forms this builder accepts, so callers
+// pass their real Prisma row instead of laundering it through
+// `as unknown as DbListing`. A cast would silence the disagreement without
+// proving anything about the values that arrive.
 export interface DbListing {
-  id: string;
+  /**
+   * The surrogate primary key. Prisma types it `bigint`; some list callers
+   * carry it as a string. This builder never reads it (the PUBLIC identity is
+   * `listing_id`), so both forms are accepted rather than forcing a conversion
+   * at every call site.
+   */
+  id: string | bigint;
   listing_id: string;
   mls_id?: string | null;
   status: string;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
-  list_price: string;
+  list_price: DbNumericLike;
   bedrooms_total: number | null;
   bathrooms_full: number | null;
   bathrooms_half: number | null;
-  living_area: string | null;
+  living_area: DbNumericLike | null;
   borough: string | null;
   neighborhood: string | null;
   address: unknown;
@@ -365,7 +399,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     internetAddressDisplayYN: !suppressAddress,
   });
 
-  const listPrice = parseFloat(listing.list_price) || 0;
+  const listPrice = numericOf(listing.list_price) ?? 0;
 
   // PR 4 reader swap (2026-05-11): prefer the relational `listing_media`
   // table when the caller's Prisma query included it. The 99.67% of listings
@@ -468,7 +502,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     bedroomsTotal: listing.bedrooms_total || 0,
     bathroomsFull: listing.bathrooms_full || 0,
     bathroomsHalf: listing.bathrooms_half || 0,
-    livingArea: listing.living_area ? parseFloat(listing.living_area) : null,
+    livingArea: numericOf(listing.living_area),
     lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
     yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
     storiesTotal: features.StoriesTotal ? Number(features.StoriesTotal) : undefined,

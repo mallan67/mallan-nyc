@@ -121,7 +121,15 @@ describe("S1 (#445 Codex P1) — authored compliance preserved on Trestle UPDATE
 describe("S1 — public render repoint (listing detail)", () => {
   const page = read("app/listing/[...slug]/page.tsx");
   it("PublicRemarks reads features → raw_data, NOT compliance", () => {
-    expect(page).toMatch(/publicRemarks:\s*String\(\s*features\.PublicRemarks\s*\|\|\s*rawData\.PublicRemarks/);
+    // CONTRACT MOVED (DTO collapse). The page delegates to
+    // dbListingToPublicDTO, which now owns the features → raw_data rule
+    // (asserted against db-to-public-dto.ts below). The S1 invariant itself is
+    // UNCHANGED and still enforced: the compliance column is never read for
+    // render, on either file.
+    const dtoSrc = read("lib/idx/db-to-public-dto.ts");
+    expect(dtoSrc).toMatch(/publicRemarks:[\s\S]{0,200}?features\.PublicRemarks[\s\S]{0,200}?rawData\.PublicRemarks/);
+    expect(dtoSrc).not.toMatch(/compliance\.PublicRemarks/);
+    expect(page).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     expect(page).not.toMatch(/compliance\.PublicRemarks/);
   });
   it("does not read the compliance column for render; reads raw_data instead", () => {
