@@ -45,6 +45,11 @@ export function composeSlugStreetName(addr: Record<string, unknown>): string {
     pick('StreetDirPrefix', 'streetDirPrefix'),
     pick('StreetName', 'streetName'),
     pick('StreetSuffix', 'streetSuffix'),
+    // StreetDirSuffix was missing here while the canonical DB DTO composed it
+    // independently — so a "N Main Street NW" address produced DIFFERENT slugs
+    // from the sitemap and the DTO. Included so this helper is the ONE street
+    // composition, which is the whole reason it exists.
+    pick('StreetDirSuffix', 'streetDirSuffix'),
   ].filter(Boolean).join(' ');
 }
 

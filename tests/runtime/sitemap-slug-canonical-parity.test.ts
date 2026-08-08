@@ -122,16 +122,18 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
       path.resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
       'utf8',
     );
-    // OBSERVED DIFFERENCE, recorded rather than asserted away: the canonical
-    // builder does NOT call composeSlugStreetName. It passes `streetDirPrefix`
-    // and `streetName` SEPARATELY into generateListingSlug, which combines them
-    // itself; the page pre-combined them. Both therefore reach the SAME slug
-    // owner, but by different composition routes. Output equivalence is not
-    // proven here and must not be implied — see the handoff.
-    // The page now composes NO street at all: `composeSlugStreetName` lived
-    // only in the deleted DB block, so its import was dead and was removed.
+    // RESOLVED. The earlier revision of this test recorded that the canonical
+    // builder did NOT use composeSlugStreetName and that output equivalence was
+    // therefore unproven. That gap is now closed: the builder consumes the
+    // helper, and OUTPUT parity between the two real compositions is proven
+    // directly in tests/runtime/slug-street-composition-parity.test.ts
+    // (fixtures A–G, including StreetDirSuffix and legacy camelCase keys).
+    //
+    // The page composes NO street at all now — composeSlugStreetName lived only
+    // in the deleted DB block, so its import was dead and was removed.
     expect(pageSrc).not.toMatch(/composeSlugStreetName\(/);
-    expect(dtoSrc).toMatch(/generateListingSlug\(/); // canonical DB path
+    expect(dtoSrc).toMatch(/composeSlugStreetName\(/); // canonical DB path uses THE owner
+    expect(dtoSrc).toMatch(/generateListingSlug\(/);
     expect(pageSrc).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     // Neither owner may hand-roll the street parts again.
     expect(pageSrc).not.toMatch(/\[addr\.StreetDirPrefix,\s*addr\.StreetName,\s*addr\.StreetSuffix\]/);

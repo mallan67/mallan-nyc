@@ -40,8 +40,14 @@ export function composeAddressDisplay(address: unknown, fallback: string): strin
   };
   const street = [
     pick('StreetNumber', 'streetNumber'),
+    // StreetDirSuffix is NO LONGER appended separately here. Codex #472 r13 had
+    // to add it because composeSlugStreetName omitted it; the helper now
+    // composes all four canonical components (DirPrefix + Name + Suffix +
+    // DirSuffix) so the sitemap and the canonical DB DTO cannot emit different
+    // slugs. Keeping the extra append would DOUBLE it — "160 Central Park S S".
+    // The #472 requirement is unchanged and still satisfied: the direction still
+    // appears, exactly once, from the one owner.
     composeSlugStreetName(a),
-    pick('StreetDirSuffix', 'streetDirSuffix'),
   ].filter(Boolean).join(' ');
   const unitVal = pick('UnitNumber', 'unitNumber');
   const unit = unitVal ? ` ${unitVal}` : '';

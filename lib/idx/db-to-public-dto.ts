@@ -21,7 +21,7 @@ import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
-import { generateListingSlug } from '@/lib/listing-slug';
+import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
@@ -340,7 +340,14 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const resolvedAgent = resolveListingAgentInfo(listing);
   const mediaArr = (Array.isArray(listing.media) ? listing.media : []) as DbMediaItem[];
 
-  const streetNumber = addr.StreetNumber || '';
+  // Case-tolerant like composeSlugStreetName: legacy/mixed address JSON stores
+  // some rows in camelCase. PascalCase-only reads silently DROPPED the street
+  // number and postal code from the canonical slug on those rows, so the DTO
+  // and the sitemap emitted different URLs for the same listing.
+  const legacyAddr = addr as unknown as Record<string, unknown>;
+  const camel = (key: string): string =>
+    typeof legacyAddr[key] === 'string' ? (legacyAddr[key] as string).trim() : '';
+  const streetNumber = addr.StreetNumber || camel('streetNumber');
   const streetDirPrefix = addr.StreetDirPrefix || '';
   const streetNameRaw = [
     addr.StreetName,
@@ -349,8 +356,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   ].filter(Boolean).join(' ') || '';
   const streetName = normalizeStreetCase(streetNameRaw);
   const unitNumber = addr.UnitNumber || null;
-  const city = addr.City || listing.borough || 'New York';
-  const postalCode = addr.PostalCode || '';
+  const city = addr.City || camel('city') || listing.borough || 'New York';
+  const postalCode = addr.PostalCode || camel('postalCode');
   const borough = (addr.Borough || listing.borough || '').toLowerCase();
   const county = BOROUGH_TO_COUNTY[borough] || borough || 'New York';
   // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
@@ -384,11 +391,24 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     ? (rawData.ActivationDate as string | undefined) || undefined
     : undefined;
 
+  // SLUG STREET — composed by the ONE owner, `composeSlugStreetName`, which the
+  // sitemap also uses. This builder previously did its own composition
+  // (StreetName + StreetSuffix + StreetDirSuffix, PascalCase only) and passed
+  // `streetDirPrefix` separately, so the two routes could disagree: the helper
+  // omitted StreetDirSuffix while this one omitted the camelCase fallback.
+  //
+  // NOTE the prefix is NOT passed separately below — the helper already
+  // includes StreetDirPrefix, and passing both would double it ("W W 20th St").
+  // The DISPLAY address further down keeps its own `streetDirPrefix + streetName`
+  // composition, which is a different concern and is deliberately untouched.
+  const slugStreet = normalizeStreetCase(
+    composeSlugStreetName(addr as unknown as Record<string, unknown>),
+  );
+
   const slug = generateListingSlug({
     address: {
       streetNumber,
-      streetDirPrefix,
-      streetName,
+      streetName: slugStreet,
       unitNumber,
       city,
       stateOrProvince: 'NY',
