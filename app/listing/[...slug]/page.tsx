@@ -501,7 +501,15 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         postalCode: addr.PostalCode || dbListing.postal_code || '',
       },
       id: dbListing.listing_id,
-      mlsId: dbListing.mls_id || undefined,
+      // PUBLIC identity, not the provider key. `mls_id` carries the NUMERIC
+      // provider ListingKey (mapTrestleToPrisma: `mls_id = ListingKey`), and
+      // every PublicListingDTO producer and consumer treats `mlsId` as the
+      // PUBLIC listing id — dbListingToPublicDTO, crm/listing-urls and
+      // public-building-data all set it to `listing_id`, reso-mapper maps it
+      // back to `ListingId`, and featured-ordering / open-houses / the agent
+      // page all match it against `listing_id`. Passing the provider key here
+      // was the outlier that fed a `listing-<ListingKey>` slug.
+      mlsId: dbListing.listing_id,
       // Drive the slug from the SAME suppression decision used for the address
       // text (and matching dbListingToPublicDTO), NOT the raw column. Using the
       // raw internet_address_display_yn here made a CRM exclusive show its
@@ -524,7 +532,10 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     const dto: PublicListingDTO = {
       id: dbListing.listing_id,
-      mlsId: dbListing.mls_id || dbListing.listing_id,
+      // Matches dbListingToPublicDTO exactly (`mlsId: listing.listing_id`).
+      // See the note above: `mls_id` is the provider ListingKey, which is media
+      // lookup identity — never the public id this field carries.
+      mlsId: dbListing.listing_id,
       slug: dtoSlug,
       url: buildCanonicalListingPath({ slug: dtoSlug, id: dbListing.listing_id }),
       status: dbListing.status,

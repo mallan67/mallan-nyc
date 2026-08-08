@@ -94,7 +94,7 @@ export function generateListingSlug(listing: {
   // If seller opted out of address display, the address CANNOT appear in the URL.
   // This prevents address leakage via the URL path. Violation = incurable UCBA penalty.
   if (listing.internetAddressDisplayYN === false) {
-    return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+    return publicIdSlug(listing.id || listing.mlsId || 'unknown');
   }
 
   const { streetNumber, streetDirPrefix, streetName, unitNumber, city, stateOrProvince, postalCode } = listing.address;
@@ -120,7 +120,7 @@ export function generateListingSlug(listing: {
         if (altSlug) return `${altSlug}${idSuffix}`;
       }
     }
-    return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+    return publicIdSlug(listing.id || listing.mlsId || 'unknown');
   }
 
   const parts: string[] = [];
@@ -155,7 +155,7 @@ export function generateListingSlug(listing: {
     // eslint-disable-next-line no-console
     console.warn(`[listing-slug] CRM exclusive ${idStr} produced empty address slug after sanitization — falling back to MLS-ID slug (BAD for SEO)`);
   }
-  return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+  return publicIdSlug(listing.id || listing.mlsId || 'unknown');
 }
 
 /**
@@ -230,9 +230,24 @@ export function extractMlsIdFromSlug(slug: string): string | null {
   return slug.replace(/^listing-/, '');
 }
 
-/** Convert MLS ID to fallback slug */
-function mlsIdSlug(mlsId: string): string {
-  return `listing-${slugify(mlsId)}`;
+/**
+ * The address-suppressed PUBLIC fallback slug.
+ *
+ * OWNERSHIP RULE: the suffix is the CANONICAL PUBLIC ROUTE KEY (`listing.id` /
+ * `listing_id`, e.g. `RLS20105333`) — never the provider key.
+ *
+ * This was `mlsId || id`. But `mlsId` legitimately carries the NUMERIC PROVIDER
+ * ListingKey (`mapTrestleToPrisma` sets `mls_id = ListingKey`; on RLS20105333
+ * that is `1178013994`). The old order therefore emitted `listing-1178013994`,
+ * while the detail page resolves a `listing-*` suffix as a DB `listing_id` —
+ * so the canonical URL could never resolve its own row, and the compliance
+ * fallback silently became a dead link.
+ *
+ * Provider ListingKey is media-lookup identity and display metadata. It is NOT
+ * a route key. The parameter is named for what it must be.
+ */
+function publicIdSlug(publicId: string): string {
+  return `listing-${slugify(publicId)}`;
 }
 
 /**
