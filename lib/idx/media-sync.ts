@@ -2194,28 +2194,45 @@ export function buildR2MirrorPolicyMediaWhere(): Prisma.ListingMediaWhereInput {
  * 135.8 GiB. It is intentionally NOT reachable anymore — every backlog SELECT
  * goes through this function, which always ANDs the policy filter.
  */
-export function buildR2BacklogWhere(
-  cooldownThreshold: Date,
-  attemptedIds: bigint[],
-): Prisma.ListingMediaWhereInput {
+/**
+ * THE MIRRORABLE BACKLOG UNIVERSE — the single definition of "R2 work that
+ * still genuinely exists".
+ *
+ * Extracted 2026-08-09 after an independent audit found the Phase-4
+ * `backlog_remaining` probe had hand-rebuilt this universe and drifted from the
+ * real selector, omitting `media_key: { not: null }` and
+ * `r2_policy_excluded_at: null`. That omission was masked while a policy
+ * exclusion also stamped `r2_attempts = 9`; the writer cutover deliberately
+ * stopped writing that sentinel, so parked rows began passing the probe's
+ * attempts clause and were counted as backlog forever.
+ *
+ * The count is a CONTROL-PLANE input, not just telemetry:
+ *   backlog_remaining -> deriveOneCycleFollowup -> backlogPending
+ *     -> nextBacklogRunAt -> preflight `backlog_due` -> another One Cycle wake
+ * and -> measureBacklogInflow -> computeAdaptiveDrainLimit. A phantom backlog
+ * therefore wakes Neon forever and inflates every drain batch.
+ *
+ * Both consumers MUST layer on this base so they cannot diverge again:
+ *   * {@link buildR2BacklogWhere}   adds cooldown + per-invocation exclusions
+ *   * the Phase-4 probe             uses this base verbatim
+ *
+ * COOLDOWN IS DELIBERATELY NOT HERE. A cooldown-deferred row is temporally
+ * deferred, not excluded — it is still outstanding work, so it MUST count as
+ * backlog pending even though this invocation skips it. Putting the cooldown in
+ * the shared base would make the control plane report an empty backlog while
+ * real work remained.
+ */
+export function buildR2MirrorableBacklogUniverseWhere(): Prisma.ListingMediaWhereInput {
   return {
     status: "active",
     media_url_original: { not: null },
     // Unmirrorable rows (media_key IS NULL — schema-legal on legacy/remediation
     // rows) can never be written by the mirror (update-by-media_key), so they
-    // would monopolize the fixed bounded window forever (Codex post-merge).
+    // would monopolize the fixed bounded window forever (Codex post-merge) and
+    // would inflate backlog_remaining with work no code can ever perform.
     media_key: { not: null },
     OR: [{ r2_key: null }, { media_url_cached: null }],
-    // Exclude rows already attempted this invocation (empty ⇒ no filter).
-    ...(attemptedIds.length > 0 ? { id: { notIn: attemptedIds } } : {}),
     AND: [
-      // Cross-invocation 6h cooldown.
-      {
-        OR: [
-          { r2_last_attempt_at: null },
-          { r2_last_attempt_at: { lt: cooldownThreshold } },
-        ],
-      },
       // RC3 retry-exhausted exclusion — park non-permanent rows that keep
       // failing so they stop consuming Phase-3 budget. The row stays active
       // (photo still serves via the media_url_original proxy) — NOT deleted.
@@ -2232,15 +2249,39 @@ export function buildR2BacklogWhere(
       // R2 DELIVERY-POLICY exclusion (explicit column).
       //
       // The sentinel used to do double duty: it recorded the policy decision
-      // AND removed the row from this SELECT. Now that a policy exclusion
-      // writes its own column, THIS is what keeps a parked row out of the
-      // backlog. Without it, dropping the sentinel write would resurface every
-      // parked row on the next firing to be re-fetched, re-rejected and
-      // re-parked forever — strictly worse than the overload it replaces.
+      // AND removed the row from the SELECT. Now that a policy exclusion writes
+      // its own column, THIS is what keeps a parked row out of the backlog —
+      // and, equally, out of the backlog COUNT.
       { r2_policy_excluded_at: null },
       // R2-1 admission control (cheap DB-side part — see
       // buildR2MirrorPolicyMediaWhere; hero-only refinement happens in code).
       buildR2MirrorPolicyMediaWhere(),
+    ],
+  };
+}
+
+export function buildR2BacklogWhere(
+  cooldownThreshold: Date,
+  attemptedIds: bigint[],
+): Prisma.ListingMediaWhereInput {
+  const universe = buildR2MirrorableBacklogUniverseWhere();
+  const universeAnd = (universe.AND as Prisma.ListingMediaWhereInput[]) ?? [];
+  return {
+    ...universe,
+    // Exclude rows already attempted this invocation (empty ⇒ no filter).
+    ...(attemptedIds.length > 0 ? { id: { notIn: attemptedIds } } : {}),
+    AND: [
+      // Cross-invocation 6h cooldown — the ONE predicate that belongs to the
+      // candidate selector and NOT to the backlog universe. Kept FIRST so the
+      // established positional assertion in media-sync-phase4-backlog.test.ts
+      // continues to address the same clause.
+      {
+        OR: [
+          { r2_last_attempt_at: null },
+          { r2_last_attempt_at: { lt: cooldownThreshold } },
+        ],
+      },
+      ...universeAnd,
     ],
   };
 }
@@ -2383,6 +2424,17 @@ export function buildR2ParkedRecoveryWhere(
     // EXACT match — see doc above (#534 policy sentinel lives at 9+).
     r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD,
     r2_last_attempt_at: { lt: parkedCooldownThreshold },
+    // EXPLICIT POLICY EXCLUSION also applies here (2026-08-09 audit).
+    //
+    // Recovery runs its chunk through the SAME `mirrorChunk`, which pushes
+    // deterministic admission rejections onto `policyParkIds` even when
+    // `recoveryAttempt` is true. So an exactly-8 row can acquire
+    // `r2_policy_excluded_at` while KEEPING attempts = 8 — the park writer
+    // deliberately no longer touches the counter. Without this clause recovery
+    // re-selects that row every cooldown cycle to re-fetch, re-reject and
+    // re-park it: the exact "resurface forever" loop the explicit column was
+    // introduced to end, left open on the recovery path.
+    r2_policy_excluded_at: null,
     // R2-1: recovery must never re-admit media the mirror policy would
     // reject — the same listing-scoped admission filter as the main
     // backlog SELECT (defense-in-depth; the in-chunk filter re-verifies).
@@ -4322,30 +4374,22 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     // fix is the proposed (NOT applied) partial index — see the PR's
     // index-proposal section.
     const probe = await prisma.listingMedia.findMany({
-      where: {
-        status: "active",
-        media_url_original: { not: null },
-        OR: [{ r2_key: null }, { media_url_cached: null }],
-        // R2-1: count only the policy-admissible universe — an unscoped count
-        // would report the entire feed's never-to-be-mirrored media as
-        // "backlog" forever. Blocker-1: also exclude parked rows
-        // (policy-parked = 9, failure-exhausted = 8; both >=
-        // R2_RETRY_EXHAUSTED_THRESHOLD) — they are permanently out of the
-        // backlog SELECT, so counting them would report a "backlog" that can
-        // never drain. Remaining slack: non-hero photos of displayable
-        // third-party listings that have NOT YET been fetched-and-parked
-        // still match; each is counted at most until its one-time parking
-        // write, so this count converges to the true mirrorable backlog.
-        AND: [
-          {
-            OR: [
-              { r2_attempts: null },
-              { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
-            ],
-          },
-          buildR2MirrorPolicyMediaWhere(),
-        ],
-      },
+      // THE SHARED BACKLOG UNIVERSE — identical base to the Phase-3 candidate
+      // selector, by construction (see buildR2MirrorableBacklogUniverseWhere).
+      //
+      // This query previously rebuilt the universe by hand and drifted: it
+      // omitted `media_key: { not: null }` and `r2_policy_excluded_at: null`.
+      // Its old comment claimed parked rows were covered "policy-parked = 9,
+      // failure-exhausted = 8; both >= R2_RETRY_EXHAUSTED_THRESHOLD" — true
+      // only BEFORE the writer cutover stopped stamping the 9 sentinel. After
+      // the cutover a parked row keeps NULL/low attempts, so it passed this
+      // filter and was counted as backlog forever, waking One Cycle
+      // indefinitely via backlogPending. Reusing the base is what makes that
+      // class of drift impossible rather than merely fixed once.
+      //
+      // Cooldown is intentionally absent here: a cooldown-deferred row is still
+      // outstanding work and must count as backlog pending.
+      where: buildR2MirrorableBacklogUniverseWhere(),
       select: { id: true },
       take: R2_BACKLOG_PROBE_CAP + 1,
     });
