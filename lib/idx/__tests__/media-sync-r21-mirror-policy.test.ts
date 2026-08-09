@@ -181,8 +181,9 @@ function makePoolRow(
 function installPool(
   pool: PoolRow[],
   opts: { backlogFetchLimitPerRun?: number } = {},
-): { heroQueries: () => number; newRun: () => void } {
+): { heroQueries: () => number; summaryReads: () => number; newRun: () => void } {
   let heroQueryCount = 0;
+  let summaryReadCount = 0;
   let backlogFetches = 0;
   mockListingMediaFindMany.mockImplementation(async (args: unknown) => {
     const a = args as {
@@ -212,7 +213,17 @@ function installPool(
         .slice(0, a.take ?? 5);
     }
     if (a?.where?.listing_id) {
-      heroQueryCount++;
+      // Two DIFFERENT per-listing reads now exist, and conflating them would
+      // make this counter dishonest:
+      //   1. the ADMISSION hero lookup (hero_only scope) — narrow select
+      //      {media_key, media_type, status, preferred_photo_yn, order};
+      //   2. Phase-3b `updateListingMediaSummary`, which reads a SUPERSET
+      //      (media_url_original, r2_key, media_modification_ts, ...) to refresh
+      //      the Listing summary in the SAME invocation after a mirror.
+      // Only (1) is a "hero query" for the admission assertions below.
+      const sel = (args as { select?: Record<string, unknown> }).select ?? {};
+      if ('media_url_original' in sel || 'r2_key' in sel) summaryReadCount++;
+      else heroQueryCount++;
       return pool.filter((r) => r.listing_id === a.where!.listing_id);
     }
     return [];
@@ -255,6 +266,8 @@ function installPool(
   });
   return {
     heroQueries: () => heroQueryCount,
+    /** Phase-3b summary refreshes performed after a successful mirror. */
+    summaryReads: () => summaryReadCount,
     newRun: () => {
       backlogFetches = 0;
     },
@@ -433,10 +446,19 @@ describe("R2-1 — Mallan-owned listing mirrors its COMPLETE active media set", 
         makePoolRow(i + 11, MALLAN_SL, { media_type: "FloorPlan" }),
       ),
     ];
-    const { heroQueries } = installPool(pool);
+    const { heroQueries, summaryReads } = installPool(pool);
     const mirrorDeps = makeMirrorDeps();
 
     const result = await runMediaSync(makeOptions(mirrorDeps));
+
+    // PHASE-3b: mirroring this listing's rows refreshes its Listing summary in
+    // the SAME invocation. Without it `primary_photo_r2_key` would stay stale
+    // until some future Phase-1 pass, so the manifest/cards would keep serving
+    // the rotating Cotality locator after the hero was already mirrored.
+    // Deduped: 13 mirrored rows, ONE listing, one summary refresh.
+    expect(summaryReads()).toBe(1);
+    expect(result.summary_propagation_refreshed).toBe(1);
+    expect(result.summary_propagation_skipped_budget).toBe(0);
 
     expect(result.mirror_allowed).toBe(13);
     expect(result.mirror_rejected_policy).toBe(0);

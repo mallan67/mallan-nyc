@@ -6,6 +6,40 @@ import {
   ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 
+/**
+ * READ-SIDE public URL base. Requires ONLY `R2_PUBLIC_URL`.
+ *
+ * Building a public object URL needs the public base and a key — nothing else.
+ * `getR2Config()` demands the full WRITE credential set, so calling it from a
+ * public read path made rendering depend on `R2_ACCESS_KEY_ID` /
+ * `R2_SECRET_ACCESS_KEY` and threw wherever those are intentionally absent
+ * (Preview, any read-only runtime). That is why the building manifest could not
+ * consume durable R2 heroes and stayed pinned to the rotating source locator.
+ *
+ * Returns null rather than throwing, so callers FAIL SAFE to their source
+ * fallback. Write/head/delete paths still go through `getR2Config()` and keep
+ * full credential validation — this does NOT weaken them.
+ */
+export function getR2PublicBaseUrlForRead(): string | null {
+  const publicUrl = process.env.R2_PUBLIC_URL;
+  if (typeof publicUrl !== 'string' || publicUrl.trim() === '') return null;
+  return publicUrl.trim().replace(/\/+$/, '');
+}
+
+/**
+ * Public URL for an R2 object key, usable from a READ-ONLY runtime.
+ *
+ * Returns null when the public base is unavailable or the key is empty, so the
+ * caller falls back to its source locator instead of crashing.
+ */
+export function r2PublicUrlForKeyRead(key: string | null | undefined): string | null {
+  const base = getR2PublicBaseUrlForRead();
+  if (!base) return null;
+  const k = typeof key === 'string' ? key.trim().replace(/^\/+/, '') : '';
+  if (!k) return null;
+  return `${base}/${k}`;
+}
+
 function getR2Config() {
   const accountId = process.env.R2_ACCOUNT_ID;
   const accessKeyId = process.env.R2_ACCESS_KEY_ID;

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
 import {
   classifySuggestQuery,
   isAddressDisplayablePerSuggest,
@@ -85,6 +86,11 @@ export const SUGGEST_SELECT_FIELDS = [
   'Permission',
   'InternetEntireListingDisplayYN',
   'InternetAddressDisplayYN',
+  // AUTHORITATIVE LIST-SIDE IDENTITY. Required to recognise a Mallan RLS
+  // return-copy (CHARTER Section 1A). Without this field the route cannot
+  // classify provenance at all and would suggest Mallan's own returned Cotality
+  // row as a public listing. Never inferred from brokerage-name text.
+  'ListOfficeMlsId',
   'CloseDate',
   'ActivationDate',
   // Address components used in suggestion labels
@@ -391,7 +397,18 @@ export async function GET(request: Request) {
           });
 
           const displayable = result.records.filter(
-            (raw) => checkDistributionGates(raw).displayable
+            (raw) =>
+              checkDistributionGates(raw).displayable &&
+              // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+              // Mallan's own returned Cotality row is not the public canonical
+              // listing, so it must never be suggested. Third-party IDX
+              // suggestions are unaffected: the classifier fails closed on
+              // SUPPRESSION, so an absent/blank office id stays visible.
+              !isMallanRlsReturnCopy({
+                listing_id: raw.ListingId ? String(raw.ListingId) : null,
+                list_office_mls_id: raw.ListOfficeMlsId ? String(raw.ListOfficeMlsId) : null,
+                rls_eligible: true,
+              })
           );
 
           const seen = new Set<string>();

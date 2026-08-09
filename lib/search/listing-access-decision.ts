@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import {
   ACTIVE_DISPLAY_VALUES,
   normalizeStatus,
@@ -106,6 +107,21 @@ export function buildSearchDisplayWhere(statusInput?: unknown): Prisma.ListingWh
   return {
     ...SEARCH_DISPLAY_GATE,
     status: statuses.length > 0 ? { in: statuses } : { in: [] },
+    // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+    //
+    // Mallan's own listing returns through Cotality as an `RLS*` row. The LOCAL
+    // `SL-`/`RL-` row stays canonical; the returned copy is retained internally
+    // for audit/reconciliation but is never a PUBLIC listing.
+    //
+    // Applied HERE, inside the canonical public gate, so it lands BEFORE
+    // `count`, `skip` and `take` in every caller. Filtering after pagination is
+    // page-local: a local row on one page and its twin on another would let the
+    // twin surface, and `total`/`hasMore` would describe the pre-suppression
+    // population. One owner, so no emitter can forget it.
+    //
+    // Fail-closed on SUPPRESSION, not on display — a row with unknown
+    // provenance (no `list_office_mls_id`) keeps normal public treatment.
+    AND: [excludeMallanRlsReturnCopies()],
   };
 }
 

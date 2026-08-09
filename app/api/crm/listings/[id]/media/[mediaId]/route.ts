@@ -10,7 +10,17 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { isCrmMediaKey, importJsonMediaToRows, crmListingTouchData } from "@/lib/media/crm-media";
+import {
+  isCrmMediaKey,
+  importJsonMediaToRows,
+  crmListingTouchData,
+  CRM_MEDIA_KEY_PREFIX,
+} from "@/lib/media/crm-media";
+import {
+  listingCapabilities,
+  CAPABILITY_DENIED,
+  CAPABILITY_LISTING_SELECT,
+} from "@/lib/auth/listing-capabilities";
 import type { SessionUser } from "@/lib/auth/session";
 
 async function resolveOwnedListing(
@@ -22,20 +32,33 @@ async function resolveOwnedListing(
   if (!isNaN(numericId)) {
     listing = await prisma.listing.findUnique({
       where: { id: BigInt(numericId) },
-      select: { id: true, listing_id: true, agent_id: true, media: true, last_synced_from_trestle: true },
+      select: { id: true, media: true, ...CAPABILITY_LISTING_SELECT },
     });
   }
   if (!listing) {
     listing = await prisma.listing.findUnique({
       where: { listing_id: id },
-      select: { id: true, listing_id: true, agent_id: true, media: true, last_synced_from_trestle: true },
+      select: { id: true, media: true, ...CAPABILITY_LISTING_SELECT },
     });
   }
-  if (!listing) return { error: NextResponse.json({ error: "Listing not found" }, { status: 404 }) };
-  if (auth.role.toUpperCase() !== "BROKER" && listing.agent_id !== auth.userId) {
-    return { error: NextResponse.json({ error: "Access denied" }, { status: 403 }) };
+  // Explicit `kind` discriminant. Without it TypeScript infers
+  // `{ error: NextResponse; listing?: undefined } | { error?: undefined; listing: L }`,
+  // and `"error" in resolved` does NOT discriminate that union (the key is
+  // present-but-optional on both members), so `resolved.error` stayed
+  // `NextResponse | undefined` and every caller's return type leaked an
+  // `undefined`. A literal discriminant narrows cleanly.
+  if (!listing) {
+    return { kind: "denied" as const, error: NextResponse.json({ error: "Listing not found" }, { status: 404 }) };
   }
-  return { listing };
+  // Namespace-scoped: both verbs already require a `crm:` media_key, so the
+  // per-ITEM source protection is in place. This gate is the actor check —
+  // broker or the listing's associated agent — and stays permissive across
+  // source classes so genuine historical `crm:` media on an RLS row remains
+  // deletable and re-heroable.
+  if (!listingCapabilities(auth, listing).mayManageLocalMedia) {
+    return { kind: "denied" as const, error: NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 }) };
+  }
+  return { kind: "resolved" as const, listing };
 }
 
 export async function DELETE(
@@ -57,10 +80,14 @@ export async function DELETE(
   }
 
   const resolved = await resolveOwnedListing(id, auth);
-  if ("error" in resolved) return resolved.error;
+  if (resolved.kind === "denied") return resolved.error;
   const { listing } = resolved;
 
-  await importJsonMediaToRows(prisma, { listing_id: listing.listing_id, media: listing.media });
+  await importJsonMediaToRows(prisma, {
+    listing_id: listing.listing_id,
+    media: listing.media,
+    last_synced_from_trestle: listing.last_synced_from_trestle,
+  });
 
   // Soft-delete (audit trail preserved), scoped to this listing.
   const res = await prisma.listingMedia.updateMany({
@@ -124,10 +151,14 @@ export async function PATCH(
   }
 
   const resolved = await resolveOwnedListing(id, auth);
-  if ("error" in resolved) return resolved.error;
+  if (resolved.kind === "denied") return resolved.error;
   const { listing } = resolved;
 
-  await importJsonMediaToRows(prisma, { listing_id: listing.listing_id, media: listing.media });
+  await importJsonMediaToRows(prisma, {
+    listing_id: listing.listing_id,
+    media: listing.media,
+    last_synced_from_trestle: listing.last_synced_from_trestle,
+  });
 
   // The target must be an existing active Photo on this listing (floor plans /
   // videos can never be the hero).
@@ -145,10 +176,28 @@ export async function PATCH(
     );
   }
 
-  // Exactly one preferred photo: clear siblings, set this one.
+  // Exactly one CRM-preferred photo: clear `crm:` siblings only, then set this
+  // one.
+  //
+  // The clear is deliberately NAMESPACE-SCOPED. It previously cleared every
+  // active sibling including Trestle feed rows, but `preferred_photo_yn` on a
+  // feed row is source-owned: media-sync rewrites it from `PreferredPhotoYN` on
+  // every complete set (media-sync.ts:1263/1293) and scores a difference as a
+  // MATERIAL change (media-sync.ts:975). So the wide clear mutated source
+  // metadata, was reverted on the next sync — silently undoing this very
+  // set-main — and rewrote every feed row each sync (write amplification).
+  //
+  // The agent's choice is now honored by HERO PRECEDENCE instead: a `crm:`
+  // preferred row outranks a feed-preferred row in `selectHeroPhoto`, with no
+  // write to any feed row at all.
   await prisma.$transaction([
     prisma.listingMedia.updateMany({
-      where: { listing_id: listing.listing_id, status: "active", preferred_photo_yn: true },
+      where: {
+        listing_id: listing.listing_id,
+        status: "active",
+        preferred_photo_yn: true,
+        media_key: { startsWith: CRM_MEDIA_KEY_PREFIX },
+      },
       data: { preferred_photo_yn: false },
     }),
     prisma.listingMedia.updateMany({

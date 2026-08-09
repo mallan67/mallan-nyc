@@ -132,8 +132,22 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
     // The page composes NO street at all now — composeSlugStreetName lived only
     // in the deleted DB block, so its import was dead and was removed.
     expect(pageSrc).not.toMatch(/composeSlugStreetName\(/);
-    expect(dtoSrc).toMatch(/composeSlugStreetName\(/); // canonical DB path uses THE owner
-    expect(dtoSrc).toMatch(/generateListingSlug\(/);
+    expect(dtoSrc).toMatch(/composeSlugStreetName\(/); // display address still uses THE owner
+
+    // MOVED AGAIN (2026-08-09). The DB-row SLUG composition now lives in
+    // `buildListingSlugFromDbRow` (lib/listing-slug.ts) so the RLS return-copy
+    // redirect reuses the identical formula instead of re-deriving it. The
+    // parity guarantee is unchanged — it is asserted at the new owner, and the
+    // DTO must DELEGATE rather than keep its own `generateListingSlug` call
+    // (two calls would be two formulas again).
+    const slugOwnerSrc = readFileSync(
+      path.resolve(__dirname, '../../lib/listing-slug.ts'),
+      'utf8',
+    );
+    expect(slugOwnerSrc).toMatch(/composeSlugStreetName\(/);
+    expect(slugOwnerSrc).toMatch(/generateListingSlug\(\{/);
+    expect(dtoSrc).toMatch(/buildListingSlugFromDbRow\(/);
+    expect(dtoSrc).not.toMatch(/generateListingSlug\(\{/);
     expect(pageSrc).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     // Neither owner may hand-roll the street parts again.
     expect(pageSrc).not.toMatch(/\[addr\.StreetDirPrefix,\s*addr\.StreetName,\s*addr\.StreetSuffix\]/);

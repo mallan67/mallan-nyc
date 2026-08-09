@@ -180,7 +180,14 @@ describe("hotfix req 4: preserve URL refresh where genuinely required for delive
     mockUpdate.mockResolvedValueOnce(undefined);
     const r = await upsertListingMedia("RLS20012345", [makeRow()]);
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(mockUpdate.mock.calls[0][0]).toMatchObject({ data: { media_url_original: ROTATED_URL, status: "active" } });
+    // NARROW LOCATOR REFRESH. The payload is now media_url_original ONLY.
+    // The old assertion also expected status:"active" to be replayed, but that
+    // is redundant: listingMediaRowUnchanged returns FALSE when status is not
+    // active (see "resurrect must write"), so a material-unchanged row is
+    // already active. Replaying it — and the material/provenance columns —
+    // was the write amplification this refresh path exists to avoid.
+    expect(mockUpdate.mock.calls[0][0]).toMatchObject({ data: { media_url_original: ROTATED_URL } });
+    expect(Object.keys((mockUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data)).toEqual(["media_url_original"]);
     expect(r.deliveryUrlRefreshed).toBe(1);
     expect(r.updatedChanged).toBe(0);
   });

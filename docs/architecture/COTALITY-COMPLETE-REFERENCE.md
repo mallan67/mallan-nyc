@@ -1083,7 +1083,7 @@ Uses existing `/listing/<slug>` detail route. No separate `/exclusives` route.
 | Phase | Action |
 |---|---|
 | Before feed arrives | Show manual `SL-*` listing. Pin in FeaturedConfig. |
-| After feed arrives | Withdraw `SL-*` (status → Withdrawn). Pin official `RLS*` in FeaturedConfig. Update RealPlus Listing Url to official `/listing/<slug>-rls*`. |
+| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. RealPlus URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
 
 Manual process. No automated dedup. `SL-*` and `RLS*` are separate DB rows.
 
@@ -1118,7 +1118,7 @@ Add `SL-*` listing_id to `pinned_ids`. Pinned listings sort first.
 
 ### Transition
 
-Replace `SL-*` with `RLS*` in `pinned_ids` when official feed listing arrives.
+Keep the local `SL-*`/`RL-*` in `pinned_ids` when the official feed listing arrives. The returned `RLS*` copy is publicly suppressed and must NOT be pinned in its place (CHARTER Section 1A).
 
 ### Forbidden
 

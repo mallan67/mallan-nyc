@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
+import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
@@ -38,7 +40,7 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // every request). Live Cotality calls live in the sync jobs and operational tools,
 // not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
 import type { PublicListingDTO } from '@/lib/idx/public-dto';
-import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug } from '@/lib/listing-slug';
+import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
@@ -180,6 +182,19 @@ interface ListingFetchResult {
   listing: PublicListingDTO;
   tax: TrestleExtraFields;
   rawStreetName?: string;
+  /**
+   * Set when the requested row is a Mallan RLS return-copy with exactly one
+   * proven local physical-unit twin (CHARTER Section 1A).
+   *
+   * Carried as DATA rather than by calling `redirect()` inside `fetchFromDB`
+   * on purpose. `redirect()` signals by THROWING, and `fetchFromDB` wraps its
+   * body in a try/catch that logs anything thrown as a
+   * "database/infrastructure error"; `fetchListing` then memoizes through
+   * React `cache()`, and `generateMetadata` calls the same function. Throwing
+   * from in there would produce a misleading infra log and a cached throw on a
+   * path that is not the render. The page component performs the redirect.
+   */
+  canonicalRedirect?: string;
 }
 
 /**
@@ -372,6 +387,61 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const isRlsBacked = dbListing.rls_eligible !== false;
     if (isRlsBacked && !isListingDisplayable(dbListing)) {
       return null;
+    }
+
+    // MALLAN RLS RETURN-COPY CANONICALIZATION (CHARTER Section 1A).
+    //
+    // Public suppression keeps the returned Cotality twin out of search,
+    // sitemap, agent pages, comps, autocomplete and the building manifest — but
+    // a DIRECT hit on its own URL bypassed all of that, leaving one physical
+    // unit publicly reachable at two URLs with the wrong attribution.
+    //
+    // Exactly one PROVEN local twin -> redirect to the local canonical URL.
+    // Zero or several -> fail closed (404). Identity comes from the repo's
+    // existing physical-unit key, which requires a UnitNumber, so different
+    // units are never merged. The stored return-copy row is never touched.
+    //
+    // The candidate query runs ONLY for a verified return-copy — a rare, already
+    // suppressed URL — so it adds no cost to normal detail renders. It is
+    // deliberately uncapped: a `take` could hide the very twin being sought and
+    // silently downgrade a redirect into a 404.
+    if (isMallanRlsReturnCopy(dbListing)) {
+      const localCandidates = await prisma.listing.findMany({
+        where: {
+          OR: [
+            { listing_id: { startsWith: 'SL-' } },
+            { listing_id: { startsWith: 'RL-' } },
+            { rls_eligible: false },
+          ],
+        },
+        select: {
+          listing_id: true,
+          rls_eligible: true,
+          list_office_mls_id: true,
+          address: true,
+          borough: true,
+          // Gate columns `isAddressDisplayable` reads, so the twin's slug obeys
+          // the same address-suppression rule the DTO applies.
+          internet_address_display_yn: true,
+          internet_entire_listing_display_yn: true,
+          idx_display_yn: true,
+          status: true,
+        },
+      });
+      // `slug` is DERIVED, not a column. Use the shared owner so the redirect
+      // target is byte-identical to the URL the DTO/sitemap emit for that row.
+      const target = resolveReturnCopyCanonicalTarget(
+        dbListing,
+        localCandidates.map((c) => ({ ...c, slug: buildListingSlugFromDbRow(c) })),
+      );
+      if (target.kind === 'fail-closed') return null;
+      if (target.kind === 'redirect') {
+        return {
+          listing: { id: dbListing.listing_id } as unknown as PublicListingDTO,
+          tax: { taxBlock: null, taxLot: null },
+          canonicalRedirect: target.path,
+        };
+      }
     }
 
     // Convert DB record to PublicListingDTO
@@ -676,6 +746,16 @@ export default async function ListingPage({ params }: Props) {
 
   if (!result) {
     notFound();
+  }
+
+  // Mallan RLS return-copy with exactly one proven local twin: send the visitor
+  // to the canonical local listing. Performed HERE, not inside fetchFromDB —
+  // `redirect()` signals by throwing, and fetchFromDB's catch would log it as a
+  // database error while React `cache()` memoized the throw for generateMetadata
+  // too. 308 (permanent) is Next's default for redirect() in a server component,
+  // which is correct: the return-copy URL is never the canonical one.
+  if (result.canonicalRedirect) {
+    redirect(result.canonicalRedirect);
   }
 
   const listing = result.listing;

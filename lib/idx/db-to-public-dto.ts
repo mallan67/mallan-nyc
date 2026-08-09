@@ -21,7 +21,7 @@ import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
-import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
+import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
@@ -405,18 +405,18 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     composeSlugStreetName(addr as unknown as Record<string, unknown>),
   );
 
-  const slug = generateListingSlug({
-    address: {
-      streetNumber,
-      streetName: slugStreet,
-      unitNumber,
-      city,
-      stateOrProvince: 'NY',
-      postalCode,
-    },
-    id: listing.listing_id,
-    mlsId: listing.listing_id,
-    internetAddressDisplayYN: !suppressAddress,
+  // ONE owner for the DB-row slug (extracted 2026-08-09). The RLS return-copy
+  // redirect must land on exactly the URL this builder emits, and a second
+  // derivation over there would be a fresh way for the canonical URL and the
+  // redirect target to diverge — the same class of bug the composeSlugStreetName
+  // extraction (SEO-001) was created to end. `buildListingSlugFromDbRow` performs
+  // the identical composition, including the `suppressAddress` gate. `slugStreet`
+  // is retained above because it also feeds the DISPLAY address below.
+  const slug = buildListingSlugFromDbRow(listing as unknown as {
+    listing_id: string;
+    rls_eligible?: boolean | null;
+    address?: unknown;
+    borough?: string | null;
   });
 
   const listPrice = numericOf(listing.list_price) ?? 0;

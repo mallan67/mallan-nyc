@@ -397,6 +397,11 @@ export async function GET(request: Request) {
                   where: { status: 'active' },
                   orderBy: [{ order: 'asc' }, { id: 'asc' }],
                   select: {
+                    // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+                    // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+                    // JSON rather than as the whole gallery; without this column that case is
+                    // undetectable and one CRM upload hides the entire feed gallery.
+                    media_key: true,
                     media_url_original: true,
                     media_url_cached: true,
                     media_type: true,
@@ -1021,6 +1026,11 @@ export async function GET(request: Request) {
                     where: { status: 'active' },
                     orderBy: [{ order: 'asc' }, { id: 'asc' }],
                     select: {
+                      // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+                      // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+                      // JSON rather than as the whole gallery; without this column that case is
+                      // undetectable and one CRM upload hides the entire feed gallery.
+                      media_key: true,
                       media_url_original: true,
                       media_url_cached: true,
                       media_type: true,
@@ -1320,6 +1330,11 @@ async function fetchExclusiveListings(
           where: { status: 'active' },
           orderBy: [{ order: 'asc' }, { id: 'asc' }],
           select: {
+            // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+            // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+            // JSON rather than as the whole gallery; without this column that case is
+            // undetectable and one CRM upload hides the entire feed gallery.
+            media_key: true,
             media_url_original: true,
             media_url_cached: true,
             media_type: true,
@@ -1361,7 +1376,10 @@ async function fetchExclusiveListings(
 /**
  * Merge local exclusive listings with Trestle IDX results.
  * Deduplicates by listing_id — if a listing exists in both Trestle and local DB,
- * the Trestle version takes precedence (it has more complete data from RLS).
+ * the LOCAL Mallan row is canonical (CHARTER Section 1A). The returned Cotality
+ * RLS copy is retained internally for source/audit but must NOT become the public
+ * canonical listing. This comment previously said the Trestle version took
+ * precedence, which is the reversed model.
  */
 async function mergeExclusiveListings(
   trestleListings: PublicListingDTO[],

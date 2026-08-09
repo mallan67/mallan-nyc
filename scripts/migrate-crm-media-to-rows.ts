@@ -43,12 +43,16 @@ async function main() {
     where: ONLY_LISTING
       ? { listing_id: ONLY_LISTING }
       : { OR: [{ listing_id: { startsWith: "SL-" } }, { listing_id: { startsWith: "RL-" } }] },
-    select: { listing_id: true, media: true },
+    // `last_synced_from_trestle` drives the importer's provenance gate. It is
+    // REQUIRED: omitting it makes the importer fail closed (unknown sync state)
+    // and silently migrate nothing. See lib/media/media-provenance.ts.
+    select: { listing_id: true, media: true, last_synced_from_trestle: true },
   });
 
   let totalPlanned = 0;
   let totalImported = 0;
   let totalSkipped = 0;
+  let totalSkippedByProvenance = 0;
   let listingsWithJson = 0;
 
   for (const listing of listings) {
@@ -58,12 +62,17 @@ async function main() {
 
     const res = await importJsonMediaToRows(
       prisma,
-      { listing_id: listing.listing_id, media: listing.media },
+      {
+        listing_id: listing.listing_id,
+        media: listing.media,
+        last_synced_from_trestle: listing.last_synced_from_trestle,
+      },
       { apply: APPLY },
     );
     totalPlanned += res.planned.length;
     totalImported += res.imported;
     totalSkipped += res.skipped;
+    totalSkippedByProvenance += res.skippedByProvenance;
 
     if (res.planned.length > 0 || res.skipped > 0) {
       console.log(`• ${listing.listing_id}: ${items.length} JSON item(s) → ` +
@@ -78,6 +87,10 @@ async function main() {
   console.log(`  CRM listings with JSON media: ${listingsWithJson}`);
   console.log(`  rows ${APPLY ? "imported" : "to import"}: ${APPLY ? totalImported : totalPlanned}`);
   console.log(`  skipped (already rows):       ${totalSkipped}`);
+  // Never a silent drop: items refused by the provenance gate are reported, so
+  // a run that migrates less than expected is visibly explained rather than
+  // looking like "there was nothing to do".
+  console.log(`  refused (not provably Mallan-owned): ${totalSkippedByProvenance}`);
   if (!APPLY) {
     console.log(`\n[migrate-crm-media] DRY RUN — re-run with --apply (Maya-approved) to write. listing.media JSON is left intact.`);
   } else {

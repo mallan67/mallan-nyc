@@ -230,7 +230,14 @@ describe("warm contract — single read per page, targeted shards", () => {
     expect(findManyMock.mock.calls.length).toBe(neonBefore + 1);
     const probedShards = findManyMock.mock.calls
       .slice(neonBefore)
-      .map((c) => c[0]?.where?.AND?.at(-1)?.address?.string_starts_with);
+      // SHAPE-based, not positional. This read `AND.at(-1)`, which silently
+      // returned undefined the moment another gate clause was appended after the
+      // shard selector. Find the address clause by its shape instead.
+      .map((c) =>
+        (c[0]?.where?.AND ?? []).find(
+          (x: { address?: { string_starts_with?: string } }) => x?.address?.string_starts_with !== undefined,
+        )?.address?.string_starts_with,
+      );
     expect(probedShards).toEqual(["4"]);
   });
 

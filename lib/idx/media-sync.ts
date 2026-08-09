@@ -61,7 +61,7 @@ import {
   uploadToR2 as defaultUploadToR2,
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
-import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";
+import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 // R2-1 mirror-admission policy — canonical helpers ONLY (no local re-derivation):
 //   - Ownership: `isMallanExclusiveListing` (SL-/RL- listing_id prefix OR
 //     rls_eligible === false). NEVER agent_id / owner_client_id — per the
@@ -720,6 +720,97 @@ export interface ExistingMediaRowForCompare {
 }
 
 /**
+ * What a reconciliation cycle must physically do with one existing media row.
+ *
+ * `reason` is a bounded aggregate label — safe for counters and telemetry. It
+ * carries no URL, MediaKey, address or other per-row value.
+ */
+export type MediaRowPersistenceDecision =
+  | { kind: 'suppress'; reason: 'locator-identical' | 'delivered-durable' }
+  | {
+      kind: 'refresh-locator';
+      /**
+       * `reason` is the DECISION. `deliveryState` is OBSERVATIONAL ONLY — it
+       * never affects the outcome, and exists so a future measurement can see
+       * how many refreshes land on rows that already have durable R2 delivery.
+       * That is the population a corrected hero/manifest contract could later
+       * suppress; it is NOT suppressible today (see below).
+       */
+      reason: 'pending' | 'exact8-recovery';
+      deliveryState: 'r2-delivered' | 'policy-excluded' | 'unreachable-overflow' | 'pending';
+    }
+  | { kind: 'material-write'; reason: 'material-change' };
+
+/**
+ * THE production media-row write decision. ONE owner.
+ *
+ * Production calls this; regressions call this. Extracted because the test that
+ * previously pinned this behaviour recomposed the expression itself, which meant
+ * the suite could stay green while production drifted underneath it — the tests
+ * would have been asserting their own copy.
+ *
+ * The material comparator deliberately EXCLUDES the locator, so
+ * `materialUnchanged` says nothing about the URL. Both facts are needed here.
+ */
+export function decideMediaRowPersistence(args: {
+  materialUnchanged: boolean;
+  existingLocator: string | null;
+  incomingLocator: string | null;
+  existing: ExistingMediaRowForCompare;
+}): MediaRowPersistenceDecision {
+  const { materialUnchanged, existingLocator, incomingLocator, existing } = args;
+
+  // Real provider truth always wins. Delivery policy must NEVER freeze a
+  // genuine material change out of the database.
+  if (!materialUnchanged) return { kind: 'material-write', reason: 'material-change' };
+
+  // The ONLY safe suppression today: no new locator was received, so there is
+  // literally nothing to persist.
+  if ((existingLocator ?? null) === (incomingLocator ?? null)) {
+    return { kind: 'suppress', reason: 'locator-identical' };
+  }
+
+  // ── DURABLE PUBLIC DELIVERY SUPPRESSES A CHANGED LOCATOR ────────────────
+  //
+  // The question is NOT "can an R2 selector consume this locator" — it is
+  // "does any PUBLIC consumer still read it". Those are different, and an
+  // earlier revision of this function conflated them in BOTH directions.
+  //
+  // A DELIVERED row (`r2_key` AND `media_url_cached` both present) has a durable
+  // public copy, and every consumer now prefers it:
+  //   * public gallery — `pickFullSizeUrl(cached, original)` is cached-first;
+  //   * building manifest — reads `primary_photo_r2_key` and serves the durable
+  //     object, falling back to the source locator only when no key exists;
+  //   * CRM `heroUrl` — now the same `pickFullSizeUrl`, so a delivered Cotality
+  //     row returns the durable R2 copy instead of the rotating locator.
+  // With no reader left, persisting a re-signed locator is a pure no-op write.
+  // This is the #530/#541 write-amplification win and it is RESTORED here.
+  //
+  // R2 PROCESSING STATE IS NOT A PUBLIC-DELIVERY PROOF. `policy-excluded`,
+  // legacy exact-9 and the `>9` overflow all mean "no R2 selector will fetch
+  // this" — they do NOT mean the public gallery stopped falling back to
+  // `media_url_original`. Those rows are UNMIRRORED, so their locator is the
+  // only thing serving the photo and MUST stay fresh. Suppressing them would
+  // trade Neon writes for stale provider URLs and broken images.
+  if (mediaRowDelivered(existing)) {
+    return { kind: 'suppress', reason: 'delivered-durable' };
+  }
+
+  const deliveryState: 'policy-excluded' | 'unreachable-overflow' | 'pending' =
+    isR2PolicyExcluded(existing)
+      ? 'policy-excluded'
+      : mediaRowMirrorUnreachable(existing)
+        ? 'unreachable-overflow'
+        : 'pending';
+
+  // Exactly 8 stays recovery-reachable in media-sync. Labelled separately for
+  // observability; the outcome is the same refresh either way.
+  const reason =
+    existing.r2_attempts === R2_RETRY_EXHAUSTED_THRESHOLD ? 'exact8-recovery' : 'pending';
+  return { kind: 'refresh-locator', reason, deliveryState };
+}
+
+/**
  * TRUE when an un-mirrored row can never be selected by EITHER R2 selector, so
  * refreshing its rotating signed URL has no consumer.
  *
@@ -997,6 +1088,10 @@ export async function upsertListingMedia(
   let skippedUnchanged = 0;
   let deliveryUrlRefreshed = 0; // material-unchanged but written to refresh a not-yet-mirrored URL
   let suppressedMirrorUnreachable = 0; // suppressed: un-mirrored but no R2 selector can reach it (>8)
+  // BOUNDED AGGREGATE observability so a future Production measurement can tell
+  // the suppression reasons apart. Counts only — no URL, MediaKey, address or
+  // any other per-row value, and no new DB writer.
+  const persistenceReasons: Record<string, number> = {};
   let suppressedUrlSignatureRotation = 0; // suppressed: URL query/sig rotated (origin+pathname identical)
   let suppressedUrlIdentityChanged = 0; // suppressed: URL origin/pathname changed (potential asset replacement)
   let writeFailures = 0; // per-row create/update failures (isolated; batch continues, listing fails closed)
@@ -1112,18 +1207,48 @@ export async function upsertListingMedia(
       const policyExcluded = isR2PolicyExcluded(existing);
       const locatorHasNoConsumer =
         mediaRowDelivered(existing) || mirrorUnreachable || policyExcluded;
-      if (materialUnchanged && (locatorIdentical || locatorHasNoConsumer)) {
+      const decision = decideMediaRowPersistence({
+        materialUnchanged,
+        existingLocator: existing.media_url_original ?? null,
+        incomingLocator: row.mediaUrlOriginal ?? null,
+        existing,
+      });
+      persistenceReasons[decision.reason] = (persistenceReasons[decision.reason] ?? 0) + 1;
+      if (decision.kind === 'refresh-locator') {
+        // OBSERVATIONAL: how many refreshes land on rows that already have
+        // durable R2 delivery. That is the population a corrected hero/manifest
+        // contract could later suppress — recorded, not acted on.
+        const k = `refresh_while_${decision.deliveryState}`;
+        persistenceReasons[k] = (persistenceReasons[k] ?? 0) + 1;
+      }
+
+      if (decision.kind === 'suppress') {
         skippedUnchanged++;
-        if (mirrorUnreachable && !mediaRowDelivered(existing)) suppressedMirrorUnreachable++;
+        // Retained counter: the un-mirrored-and-unreachable population is now
+        // only suppressed when the locator is IDENTICAL, so this counts that
+        // subset rather than the old blanket suppression.
+        if (mediaRowMirrorUnreachable(existing) && !mediaRowDelivered(existing)) suppressedMirrorUnreachable++;
         // Split (Codex P2): the URL is excluded from the material decision, so a
         // suppressed row may differ by a harmless signature rotation OR a real
         // origin/pathname change. Attribute each precisely (mutually exclusive:
         // media_url_exact === identity + identity_equivalent).
         if (mm.media_url_identity_equivalent) suppressedUrlSignatureRotation++;
         if (mm.media_url_identity) suppressedUrlIdentityChanged++;
-        continue; // no material change + already delivered → skip the write
+        continue;
       }
       try {
+        if (decision.kind === 'refresh-locator') {
+          // NARROW BY CONTRACT. A locator refresh is NOT a material refresh:
+          // every material/provenance field was already proven unchanged, so
+          // rewriting them would manufacture the churn this decision exists to
+          // remove. Only the delivery locator is persisted.
+          await prisma.listingMedia.update({
+            where: { media_key: row.mediaKey },
+            data: { media_url_original: row.mediaUrlOriginal },
+          });
+          deliveryUrlRefreshed++;
+          continue;
+        }
         await prisma.listingMedia.update({
           where: { media_key: row.mediaKey },
           data: {
@@ -1142,10 +1267,10 @@ export async function upsertListingMedia(
             status: "active",
           },
         });
-        // A genuine material change vs. a delivery-only URL refresh (material
-        // unchanged but not yet mirrored → the fresh URL is genuinely needed).
-        if (materialUnchanged) deliveryUrlRefreshed++;
-        else updatedChanged++;
+        // Reaching here means `decision.kind === 'material-write'`; the
+        // locator-refresh branch above already `continue`d after its narrow
+        // write, so this counter is no longer ambiguous.
+        updatedChanged++;
       } catch {
         // Isolate the failure to this row — count it and continue so one bad
         // write cannot drop the rest of the listing's media. No URL/id logged.
@@ -1305,6 +1430,12 @@ export interface SummarySourceRow {
   media_modification_ts: Date | null;
   modification_ts: Date | null;
   /**
+   * Namespace evidence for HERO AUTHORITY — an explicit `crm:` set-main
+   * outranks the feed's PreferredPhotoYN hint. Optional so existing callers
+   * that have not widened their select keep byte-identical hero ordering.
+   */
+  media_key?: string | null;
+  /**
    * Classification evidence required for PARITY with the canonical public
    * reader. Added 2026-08-07 (commit 7A).
    *
@@ -1357,6 +1488,14 @@ export interface HeroPhotoCandidate {
   status: string;
   preferred_photo_yn: boolean;
   order: number;
+  /**
+   * OPTIONAL so callers that have not widened their `select` keep their exact
+   * pre-existing ordering: with no key present, no row can be identified as a
+   * CRM choice and the comparator falls through to the original
+   * preferred/order logic. Present, it enables the CRM-choice precedence
+   * documented on {@link selectHeroPhoto}.
+   */
+  media_key?: string | null;
 }
 
 /**
@@ -1416,6 +1555,24 @@ export function selectHeroPhoto<T extends HeroPhotoCandidate>(
   // input order for the "first-encountered" tiebreak.
   const indexedPhotos = photos.map((row, idx) => ({ row, idx }));
   indexedPhotos.sort((a, b) => {
+    // HERO AUTHORITY, rank 1: an explicit CRM choice outranks the feed hint.
+    //
+    // A `crm:` row with preferred_photo_yn=true is the agent's deliberate
+    // set-main. Previously it tied with a feed row that also had
+    // PreferredPhotoYN=true and then LOST on `order` (feed rows occupy 0..N,
+    // CRM uploads are appended after) — so the agent's choice silently
+    // reverted. The old set-main "fixed" that by clearing preferred_photo_yn
+    // on the feed rows, which mutated source-owned metadata that media-sync
+    // rewrites from the feed on every complete set (:1263/:1293) and counts as
+    // a MATERIAL change (:975) — a revert plus per-sync write amplification.
+    //
+    // Ranking here instead makes the choice durable with NO write to any feed
+    // row. Rows without a media_key are never CRM-preferred, so a caller that
+    // has not widened its select keeps byte-identical ordering.
+    const aCrm = a.row.preferred_photo_yn && isCrmMediaKey(a.row.media_key);
+    const bCrm = b.row.preferred_photo_yn && isCrmMediaKey(b.row.media_key);
+    if (aCrm !== bCrm) return aCrm ? -1 : 1;
+
     if (a.row.preferred_photo_yn !== b.row.preferred_photo_yn) {
       return a.row.preferred_photo_yn ? -1 : 1;
     }
@@ -1620,6 +1777,12 @@ export async function updateListingMediaSummary(
       r2_key: true,
       media_modification_ts: true,
       modification_ts: true,
+      // HERO AUTHORITY (namespace). `selectHeroPhoto` ranks an explicit `crm:`
+      // set-main above the feed's PreferredPhotoYN hint. Without media_key the
+      // summary's hero could not see that choice, while the Phase-3 mirror hero
+      // (which DOES select media_key) would — and the comment there asserts the
+      // two populations decide an IDENTICAL hero. Selecting it keeps that true.
+      media_key: true,
       // Classification evidence — commit 7A. Without these the summary could
       // only see `media_type`, and a floor plan that arrived with no
       // MediaCategory (stored as Photo by classifyTrestleMediaCategory) was
@@ -1685,6 +1848,72 @@ export async function updateListingMediaSummary(
   );
 
   return summary;
+}
+
+/** Accounting for {@link propagateMirroredHeroSummaries}. */
+export interface MirroredSummaryPropagation {
+  listings_refreshed: number;
+  listings_skipped_budget: number;
+  listings_failed: number;
+}
+
+/**
+ * Refresh the `Listing` media summary for every listing touched by the Phase-3
+ * R2 drain, IN THE SAME INVOCATION.
+ *
+ * WHY THIS EXISTS. The drain wrote `listing_media.r2_key` and stopped. Nothing
+ * updated the Listing summary, so `primary_photo_r2_key` stayed stale until some
+ * future Phase-1 pass happened to call `updateListingMediaSummary` for that
+ * listing — possibly never, for a listing whose feed rows are not changing. The
+ * PUBLIC surfaces read the summary, not the media rows: the building manifest
+ * serves its durable hero from `primary_photo_r2_key` and cards/detail read
+ * `primary_photo_url`. So a hero could be mirrored to R2 while the site kept
+ * serving the rotating Cotality locator.
+ *
+ * WRITE-SAFE BY CONSTRUCTION. `updateListingMediaSummary` pre-reads and
+ * suppresses a no-op write (`listingMediaSummaryUnchanged`), so a listing whose
+ * summary did not actually change costs one read and produces no write and no
+ * revalidation. Only genuine changes write and expire cache tags.
+ *
+ * NO SILENT CAP. When the time budget runs out the remainder is REPORTED in
+ * `listings_skipped_budget` rather than dropped quietly — a truncated pass must
+ * not read as "everything was refreshed". Skipped listings are picked up by the
+ * next run.
+ */
+export async function propagateMirroredHeroSummaries(
+  listingIds: readonly string[],
+  deps: {
+    updateSummary: (listingId: string) => Promise<unknown>;
+    remainingMs: () => number;
+    reserveMs?: number;
+  },
+): Promise<MirroredSummaryPropagation> {
+  const reserveMs = deps.reserveMs ?? 0;
+  // Dedupe: one drain chunk commonly mirrors several rows of the SAME listing,
+  // and the summary is per-listing.
+  const unique = [...new Set(listingIds.filter(Boolean))];
+
+  let refreshed = 0;
+  let failed = 0;
+  let index = 0;
+
+  for (; index < unique.length; index++) {
+    if (deps.remainingMs() <= reserveMs) break;
+    try {
+      await deps.updateSummary(unique[index]);
+      refreshed++;
+    } catch {
+      // Never fail the sync run for a summary refresh: the row-level R2 work is
+      // already committed, and the next run retries this listing.
+      failed++;
+    }
+  }
+
+  return {
+    listings_refreshed: refreshed,
+    listings_skipped_budget: unique.length - index,
+    listings_failed: failed,
+  };
 }
 
 // ─── Checkpoint 4 — R2 upload + reuse behavior ──────────────────────────
@@ -2871,6 +3100,15 @@ export interface RunMediaSyncResult {
   /** One Cycle W1 — bounded aggregate cache-revalidation counters. */
   pages_revalidated: number;
   revalidation_failures: number;
+  /**
+   * Phase-3b: Listing summaries refreshed in the SAME invocation as the R2
+   * mirror that changed them. `skipped_budget > 0` means the pass ran out of
+   * time with listings still stale — surfaced rather than silently dropped, so
+   * a truncated run cannot be mistaken for a complete one.
+   */
+  summary_propagation_refreshed: number;
+  summary_propagation_skipped_budget: number;
+  summary_propagation_failed: number;
   // ── One Cycle W3 — durable drain counters ──
   /** Measured backlog inflow since the prior run (null = history unusable → MIN fallback). */
   backlog_inflow_since_last_run: number | null;
@@ -3355,6 +3593,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_failed: 0,
       pages_revalidated: 0,
       revalidation_failures: 0,
+      // Source fetch failed before Phase 3 ran, so nothing was mirrored and
+      // nothing is pending: zero refreshed AND zero skipped is accurate here.
+      summary_propagation_refreshed: 0,
+      summary_propagation_skipped_budget: 0,
+      summary_propagation_failed: 0,
       backlog_inflow_since_last_run: null,
       rows_selected: 0,
       rows_attempted: 0,
@@ -3666,6 +3909,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // Without this write the rejected rows would re-match the backlog where on
   // every firing and starve valid heroes (no select-then-reject-without-state).
   const policyParkIds: bigint[] = [];
+  /**
+   * Listings whose media rows actually gained (or reused) an R2 object this run.
+   * Their `Listing` summary is refreshed before the run returns — see
+   * {@link propagateMirroredHeroSummaries}. Deduped there, not here.
+   */
+  const mirroredListingIds: string[] = [];
   const backlogSelect = {
     // `id` is required for de-duplication — never passed to mirrorMediaToR2.
     id: true,
@@ -3844,15 +4093,25 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       }),
     );
     let failedInChunk = 0;
-    for (const r of results) {
+    // Indexed so each result can be attributed back to its row: `results` is
+    // positionally parallel to `admittedRows` (Promise.allSettled preserves
+    // input order), which is what lets a mirrored row record its listing for
+    // the same-invocation summary refresh below.
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
       if (r.status === "fulfilled") {
         const v = r.value;
         if (v.status === "uploaded") {
           r2Uploaded++;
           r2Mirrored++; // legacy aggregate = uploaded + reused
+          mirroredListingIds.push(admittedRows[i].listing_id);
         } else if (v.status === "reused") {
           r2Reused++;
           r2Mirrored++;
+          // REUSE COUNTS. An existing R2 object being adopted still moves this
+          // row's delivery state from "no r2_key" to "has r2_key", so the
+          // listing summary can change even though nothing was uploaded.
+          mirroredListingIds.push(admittedRows[i].listing_id);
         } else if (v.status === "skipped") r2Skipped++;
         else if (v.status === "failed") {
           r2Failed++;
@@ -3992,6 +4251,28 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     exitReason = "budget_phase2";
   }
 
+  // ── PHASE 3b: propagate mirrored heroes into the Listing summary ──────
+  //
+  // SAME INVOCATION, deliberately. The drain above wrote `listing_media.r2_key`;
+  // without this step the `Listing` summary keeps pointing at the rotating
+  // Cotality locator until some future Phase-1 pass happens to refresh that
+  // listing — which may never happen for a listing whose feed rows are stable.
+  // The public surfaces read the SUMMARY (the building manifest serves its
+  // durable hero from `primary_photo_r2_key`; cards/detail read
+  // `primary_photo_url`), so cards, detail and manifest would otherwise
+  // disagree with the media rows for an unbounded period.
+  //
+  // Write-safe: `updateListingMediaSummary` pre-reads and suppresses an
+  // unchanged summary, so listings whose hero did not actually move cost a read
+  // and produce no write and no revalidation. Budget-aware, and the skipped
+  // remainder is reported rather than silently dropped.
+  const summaryPropagation = await propagateMirroredHeroSummaries(mirroredListingIds, {
+    updateSummary: (listingId) =>
+      updateListingMediaSummary(listingId, { counters: summaryWrites, revalidation }),
+    remainingMs,
+    reserveMs: phase2ReserveMs,
+  });
+
   // ── R2-1 Blocker-1: policy-parking flush (ONE statement per run) ──────
   // Write-churn justification (N-program write-reduction goals): this is a
   // ONE-TIME-PER-ROW convergence write — a parked row is permanently excluded
@@ -4110,6 +4391,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     summary_writes: summaryWrites,
     pages_revalidated: revalidation.pages_revalidated,
     revalidation_failures: revalidation.revalidation_failures,
+    // Phase-3b same-invocation summary propagation. `skipped_budget > 0` means
+    // the pass ran out of time with listings still stale — reported, never
+    // silently dropped, so a truncated run cannot read as a complete one.
+    summary_propagation_refreshed: summaryPropagation.listings_refreshed,
+    summary_propagation_skipped_budget: summaryPropagation.listings_skipped_budget,
+    summary_propagation_failed: summaryPropagation.listings_failed,
     backlog_inflow_since_last_run: backlogInflow,
     rows_selected: r2BacklogBatchSelected + r2ParkedRecoverySelected,
     rows_attempted: rowsAttemptedTotal,

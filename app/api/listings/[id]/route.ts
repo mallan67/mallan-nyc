@@ -118,6 +118,11 @@ export async function GET(request: Request, { params }: Props) {
                     where: { status: 'active' },
                     orderBy: [{ order: 'asc' }, { id: 'asc' }],
                     select: {
+                      // MIXED-GALLERY COMPOSITION: an all-`crm:` relational set
+                      // is a SUPPLEMENT to the legacy Cotality feed JSON, not
+                      // the whole gallery. Without this column that case is
+                      // undetectable and one CRM upload hides the feed gallery.
+                      media_key: true,
                       media_url_original: true,
                       media_url_cached: true,
                       media_type: true,

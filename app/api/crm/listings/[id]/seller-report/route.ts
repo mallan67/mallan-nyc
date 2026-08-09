@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { loadSellerReport } from "@/lib/seller-report/load-report";
+import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +48,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Ownership: agents see only their own listings; broker sees all.
-  // Same rule as GET /api/crm/listings/[id].
-  // Codex #472 r4: normalize before the broker bypass — requireRole()
-  // uppercases on entry, so a legacy lowercase "broker" session would
-  // otherwise be treated as an agent and 403 on unassigned listings.
-  if (String(auth.role).toUpperCase() !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // SELLER-SIDE AUTHORITY, not association. Mallan represents the seller only
+  // on its own LOCAL listings, so the report is a local-listing capability.
+  //
+  // What this closes: `syncAgentHistory` stamps `agent_id` from BuyerAgentMlsId
+  // too, so an agent who was merely the BUYER-side agent on a third-party
+  // listing previously received that listing's seller intelligence report
+  // (views, inquiries, showings). A broker previously received it for EVERY row
+  // in the table, including inventory Mallan does not list.
+  //
+  // Role normalization (Codex #472 r4) is preserved inside listingCapabilities().
+  const caps = listingCapabilities(auth, listing);
+  if (!caps.mayViewSellerReport) {
+    return NextResponse.json(
+      caps.mayViewHistory ? CAPABILITY_DENIED.SOURCE_OWNED : CAPABILITY_DENIED.ACCESS,
+      { status: 403 },
+    );
   }
 
   const report = await loadSellerReport(listing);

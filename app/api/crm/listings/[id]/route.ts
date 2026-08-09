@@ -24,6 +24,7 @@ import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-as
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -58,8 +59,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // READ: history/association visibility. A synced row (return-copy or
+  // third-party) stays internally READABLE for reconciliation and audit — that
+  // is exactly what `agent_id` legitimately records. Mutation is gated
+  // separately in PATCH/DELETE below.
+  if (!listingCapabilities(auth, listing).mayViewHistory) {
+    return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
   // CRM sanitization: strips removed compensation fields, serializes BigInt
@@ -102,8 +107,19 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // WRITE: this handler mutates source-derived columns (property_type,
+  // list_price, bedrooms_total, borough, the display gates) AND stamps
+  // `modification_timestamp: new Date()`. On a synced row that is both a local
+  // divergence the next sync silently overwrites AND a poisoned Trestle cursor
+  // (getLastSyncTimestamp takes MAX(modification_timestamp) over rows with
+  // last_synced_from_trestle NOT NULL). Only Mallan-authored local rows are
+  // manageable here — for every role, broker included.
+  const patchCaps = listingCapabilities(auth, listing);
+  if (!patchCaps.mayManageMallanLocalListing) {
+    return NextResponse.json(
+      patchCaps.mayViewHistory ? CAPABILITY_DENIED.SOURCE_OWNED : CAPABILITY_DENIED.ACCESS,
+      { status: 403 },
+    );
   }
 
   let body: Record<string, unknown>;
@@ -580,8 +596,15 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // Soft-delete writes status + modification_timestamp — same cursor and
+  // source-ownership reasoning as PATCH. The `listing.mls_id` guard below is
+  // retained as a second, narrower defense.
+  const deleteCaps = listingCapabilities(auth, listing);
+  if (!deleteCaps.mayManageMallanLocalListing) {
+    return NextResponse.json(
+      deleteCaps.mayViewHistory ? CAPABILITY_DENIED.SOURCE_OWNED : CAPABILITY_DENIED.ACCESS,
+      { status: 403 },
+    );
   }
 
   if (listing.mls_id) {

@@ -19,6 +19,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -65,8 +66,16 @@ export async function PATCH(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // `status` on a synced row is source-owned: Cotality supplies MlsStatus and
+  // the next sync overwrites any local transition. Writing it here would also
+  // stamp `modification_timestamp` and poison the incremental cursor. Status
+  // transitions are therefore a LOCAL-listing capability only.
+  const caps = listingCapabilities(auth, listing);
+  if (!caps.mayManageMallanLocalListing) {
+    return NextResponse.json(
+      caps.mayViewHistory ? CAPABILITY_DENIED.SOURCE_OWNED : CAPABILITY_DENIED.ACCESS,
+      { status: 403 },
+    );
   }
 
   let body: { status: string };

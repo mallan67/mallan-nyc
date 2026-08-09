@@ -13,6 +13,7 @@ import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingExpirationEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { buildMallanOwnedListingWhere } from "@/lib/idx/media-sync";
 // Imported per the compliance gate at scripts/ci-compliance-check.js:184-194
 // (every file that imports sendEmail/sendgrid must reference escapeHtml).
 // Aliased to `_escapeHtml` so ESLint accepts it as intentionally unused —
@@ -172,12 +173,36 @@ export async function GET(req: NextRequest) {
   }
 
   // --- Task 3: Listing expired — create ProtectedPeriod ---
+  //
+  // OWNERSHIP SCOPING (post-correction audit, 2026-08-09). This is the only
+  // MUTATING task in this cron: it writes `status: "Expired"`,
+  // `idx_display_yn: false` and `modification_timestamp` on the matched rows.
+  //
+  // It previously scoped ownership with `agent_id: { not: null }` alone. But
+  // `syncAgentHistory` stamps `agent_id` on THIRD-PARTY feed rows (it matches
+  // BuyerAgentMlsId as well as ListAgentMlsId), so this cron could expire
+  // another brokerage's listing — a source mutation Mallan has no authority to
+  // make — and, because those rows carry a non-null `last_synced_from_trestle`,
+  // the `modification_timestamp` bump also poisoned the Trestle incremental
+  // cursor (the same hazard the comment below already names as the "H1
+  // ping-pong").
+  //
+  // `buildMallanOwnedListingWhere()` is the canonical ownership predicate
+  // (`SL-`/`RL-` prefix OR `rls_eligible === false`) — the same one the R2
+  // mirror policy uses. `agent_id: { not: null }` is RETAINED, but now as what
+  // it actually is: a data requirement, because ProtectedPeriod needs an
+  // assigned agent. On a Mallan-owned row that assignment is legitimate.
+  //
+  // Scoping to Mallan-owned rows also makes the MT bump below safe by
+  // construction: those rows are CRM-authored and leave
+  // `last_synced_from_trestle` NULL, so they sit outside the cursor query.
   const expired = await prisma.listing.findMany({
     where: {
       status: { in: ["Active", "ActiveUnderContract", "ComingSoon", "Pending"] },
       expiration_date: { not: null, lte: now },
       agent_id: { not: null },
       protected_period: null, // No existing protected period
+      AND: [buildMallanOwnedListingWhere()],
     },
     select: {
       id: true,

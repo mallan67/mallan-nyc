@@ -97,6 +97,11 @@ const LISTING_SELECT = {
     where: { status: "active" },
     orderBy: [{ order: "asc" as const }, { id: "asc" as const }],
     select: {
+      // MIXED-GALLERY COMPOSITION: resolveDbListingMedia treats an all-`crm:`
+      // relational set as a SUPPLEMENT to the legacy Cotality feed JSON rather
+      // than as the whole gallery. Without this column that case is
+      // undetectable and one CRM upload hides the entire feed gallery.
+      media_key: true,
       media_url_original: true,
       media_url_cached: true,
       media_type: true,

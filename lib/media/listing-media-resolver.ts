@@ -37,6 +37,7 @@
 
 import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { isCrmMediaKey } from '@/lib/media/crm-media';
 
 export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
 
@@ -482,6 +483,17 @@ export interface ListingMediaTableRow {
   order: number;
   preferred_photo_yn: boolean;
   status: string;
+  /**
+   * Namespace evidence for MIXED-GALLERY COMPOSITION (`resolveDbListingMedia`):
+   * a non-`crm:` key means the feed is materialized relationally and is
+   * authoritative; an all-`crm:` set is a supplement to the legacy feed JSON.
+   *
+   * OPTIONAL, and its ABSENCE deliberately reproduces the previous behavior —
+   * with no key the set cannot be shown to be CRM-only, so the relational rows
+   * are treated as authoritative exactly as before. Public callers select it so
+   * the supplement case is actually reachable.
+   */
+  media_key?: string | null;
 }
 
 /**
@@ -732,12 +744,70 @@ export function resolveDbListingMedia(
   options: { hadRelationalRows?: boolean; legacyMapUrl?: (rawUrl: string) => string } = {},
 ): ResolvedMedia[] {
   const relational = resolveListingMediaFromRows(rows);
-  if (relational.length > 0) return relational;
+  if (relational.length > 0) {
+    // MIXED-GALLERY COMPOSITION. Having SOME relational rows does not mean the
+    // relational set IS the gallery.
+    //
+    // If any ACTIVE relational row is a FEED row (non-`crm:` media_key), the
+    // feed has been materialized relationally and is authoritative: return it
+    // and do NOT replay the legacy JSON, or tombstoned/deleted feed photos
+    // would resurrect.
+    //
+    // If every active relational row is `crm:`, they are a SUPPLEMENT, not the
+    // gallery — this listing's Cotality photos still live only in the legacy
+    // JSON. Returning just the CRM rows made a single upload hide the entire
+    // Cotality gallery. That was masked while `importJsonMediaToRows` copied the
+    // feed JSON into `crm:` rows; the provenance gate correctly stops that, so
+    // the composition has to be right on its own now.
+    const hasFeedRow = rows.some(
+      (r) => r && r.status === 'active' && !isCrmMediaKey(r.media_key),
+    );
+    if (hasFeedRow) return relational;
+
+    // Mallan-owned listings keep authoritative deletions: the same predicate
+    // that governs the zero-relational case governs the supplement case, so a
+    // deleted Mallan photo is never restored from its own legacy JSON.
+    if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return relational;
+
+    const legacy = resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
+    if (legacy.length === 0) return relational;
+    return mergeGalleryByVisualIdentity(legacy, relational);
+  }
   // Pass the all-status signal THROUGH (undefined when the caller omitted it) —
   // do NOT coerce from `rows.length`, which for active-only callers is the active
   // count, not existence, and would resurrect deleted Mallan media.
   if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return [];
   return resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
+}
+
+/**
+ * Merge the legacy feed gallery with a relational CRM supplement, keeping ONE
+ * entry per visual identity.
+ *
+ * `relational` wins a collision: a historical contamination clone (the same feed
+ * image ALSO present as a `crm:` row) must render once, and the relational row
+ * carries the better URLs (R2/cached variants). Feed order is preserved and the
+ * CRM supplement is appended, then the combined set is re-run through the
+ * canonical pipeline so photo-first ordering and `isPrimary` are computed over
+ * the WHOLE gallery rather than over either half.
+ */
+function mergeGalleryByVisualIdentity(
+  legacy: ResolvedMedia[],
+  relational: ResolvedMedia[],
+): ResolvedMedia[] {
+  const identityOf = (m: ResolvedMedia) => visualIdentity('', unwrapProxyUrl(m.url));
+  const relationalIds = new Set(relational.map(identityOf));
+  const feedOnly = legacy.filter((m) => !relationalIds.has(identityOf(m)));
+
+  const combined = [...feedOnly, ...relational].map((m, i) => ({
+    MediaURL: m.url,
+    ThumbURL: m.thumbUrl,
+    MediaCategory: m.mediaType,
+    mediaType: m.mediaType,
+    Order: i,
+    PreferredPhotoYN: m.preferred === true,
+  }));
+  return resolveListingMedia(combined, { skipDedupe: true });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

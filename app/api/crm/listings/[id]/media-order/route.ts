@@ -4,6 +4,11 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { importJsonMediaToRows, isCrmMediaKey, crmListingTouchData } from "@/lib/media/crm-media";
+import {
+  listingCapabilities,
+  CAPABILITY_DENIED,
+  CAPABILITY_LISTING_SELECT,
+} from "@/lib/auth/listing-capabilities";
 
 export async function PATCH(
   req: NextRequest,
@@ -35,24 +40,31 @@ export async function PATCH(
   // Find listing by listing_id (string ID like "SL-0001")
   const listing = await prisma.listing.findUnique({
     where: { listing_id: id },
-    select: { id: true, listing_id: true, agent_id: true, media: true, last_synced_from_trestle: true },
+    select: { id: true, media: true, ...CAPABILITY_LISTING_SELECT },
   });
 
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Ownership check: agents can only edit their own listings, broker can edit any
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "You can only reorder media on your own listings" },
-      { status: 403 }
-    );
+  // Namespace-scoped: managing EXISTING Mallan-owned media is allowed wherever
+  // genuine `crm:` rows live, including historical uploads on RLS rows. The
+  // SOURCE protection is per-ITEM via isCrmMediaKey() below, and the cursor
+  // protection is crmListingTouchData() at the end of this handler.
+  if (!listingCapabilities(auth, listing).mayManageLocalMedia) {
+    return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
 
   // Ensure legacy JSON is in rows so the keys we reorder exist (idempotent).
-  await importJsonMediaToRows(prisma, { listing_id: listing.listing_id, media: listing.media });
+  // `last_synced_from_trestle` is REQUIRED: without it the importer fails closed
+  // and would refuse genuine local media (see lib/media/media-provenance.ts).
+  await importJsonMediaToRows(prisma, {
+    listing_id: listing.listing_id,
+    media: listing.media,
+    last_synced_from_trestle: listing.last_synced_from_trestle,
+  });
 
   // Persist per-item order onto the Cotality-shaped rows the public resolver
   // actually reads (replaces the old raw_data.media_order, which the resolver

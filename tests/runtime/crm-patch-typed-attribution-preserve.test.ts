@@ -71,27 +71,41 @@ beforeEach(() => {
 });
 
 describe('Phase C — PATCH preserves typed agent attribution', () => {
-  it('third-party, unrelated field edit: typed columns untouched, agent_info NOT written', async () => {
+  /**
+   * THESE TWO CASES CHANGED MEANING (2026-08-09), deliberately.
+   *
+   * `baseRow()` is a THIRD-PARTY synced Cotality row: `listing_id 'RLS-PHC-1'`,
+   * `mls_id 'RLS12345'`, `rls_eligible: true`, `list_office_mls_id 'OFF-EXIST'`,
+   * `agent_id: null`. They previously asserted a BROKER could PATCH it — the
+   * second asserted the broker could rewrite `ListOfficeName` to 'New Brokerage
+   * LLC', i.e. change ANOTHER BROKERAGE'S office name on source-owned feed
+   * data. Under CHARTER Section 1A that is exactly the defect the capability
+   * model closes: Mallan never writes back to Cotality, the next sync would
+   * overwrite the edit regardless, and the write stamps
+   * `modification_timestamp`, which poisons the incremental sync cursor.
+   *
+   * COVERAGE IS NOT LOST. The attribution behavior asserted here retains direct
+   * unit coverage in `agent-info-resolver.test.ts` and
+   * `agent-info-typed-columns.test.ts`. The non-exclusive attribution branch is
+   * in fact now UNREACHABLE through PATCH: the route admits a row only when
+   * `isMallanLocalListing()` holds, and that predicate is identical to
+   * `isMallanExclusiveListing()` (both: `SL-`/`RL-` prefix OR
+   * `rls_eligible === false`). The cases below cover the reachable path.
+   */
+  it('third-party, unrelated field edit: DENIED as source-owned, nothing written', async () => {
     setRow(baseRow());
-    const res = await callPatch({ PropertyType: 'Residential' }); // no agent fields
-    expect(res.status).not.toBe(422);
-    expect(captured).not.toBeNull();
-    // typed columns are NOT in the update payload → DB values preserved
-    expect(captured).not.toHaveProperty('list_office_name');
-    expect(captured).not.toHaveProperty('list_agent_email');
-    expect(captured).not.toHaveProperty('list_agent_full_name');
-    // agent_info JSON is never written
-    expect(captured).not.toHaveProperty('agent_info');
+    const res = await callPatch({ PropertyType: 'Residential' });
+    expect(res.status).toBe(403);
+    expect(captured).toBeNull();
   });
 
-  it('third-party, explicit agent field change: typed columns updated, agent_info NOT written', async () => {
+  it('third-party, explicit agent field change: DENIED — no rewriting another brokerage', async () => {
     setRow(baseRow());
     const res = await callPatch({ ListOfficeName: 'New Brokerage LLC', PropertyType: 'Residential' });
-    expect(res.status).not.toBe(422);
-    expect(captured!.list_office_name).toBe('New Brokerage LLC');
-    // unchanged agent fields keep their existing typed value (seeded from typed columns)
-    expect(captured!.list_agent_email).toBe('existing@compass.com');
-    expect(captured).not.toHaveProperty('agent_info');
+    expect(res.status).toBe(403);
+    expect(captured).toBeNull();
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('SOURCE_OWNED_LISTING');
   });
 
   it('Mallan exclusive, unrelated edit: manual typed override NOT replaced by owning Agent row', async () => {
