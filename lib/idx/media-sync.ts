@@ -2442,6 +2442,280 @@ export function buildR2ParkedRecoveryWhere(
   };
 }
 
+// ─── R2 policy exclusion — bounded re-admission ──────────────────────────
+
+/**
+ * How long a policy-parked row waits before its exclusion is reconsidered.
+ *
+ * The column's schema contract already promised this ("the age gives a bounded
+ * re-evaluation window without a second column"); nothing consumed it until
+ * now, which is the whole defect. 14 days is chosen against the measured
+ * Production population: ~24k rows will eventually be parked, so a 14-day
+ * sweep costs ~1.7k single-column updates/day spread across media-sync
+ * firings — small next to the sync's own upsert volume, and it bounds how long
+ * a photo that has become the canonical hero can stay unmirrored.
+ */
+export const R2_POLICY_REEVAL_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Rows reconsidered per run. Every scanned row is written exactly once, so this
+ * is also the hard per-run write bound for the pass.
+ */
+export const R2_POLICY_REEVAL_BATCH_LIMIT = 60;
+
+/**
+ * THE RE-ADMISSION SELECTOR — a dedicated, bounded owner.
+ *
+ * It is deliberately NOT an age clause bolted onto
+ * {@link buildR2MirrorableBacklogUniverseWhere}. A parked row must stay out of
+ * the backlog AND out of `backlog_remaining` until something actually re-admits
+ * it; widening the universe by age would re-create the phantom backlog that
+ * wakes One Cycle forever — the exact failure the explicit column was
+ * introduced to end.
+ *
+ * MUTABLE vs IMMUTABLE. `buildR2MirrorPolicyMediaWhere()` is ANDed in, so the
+ * only rows selectable are ones the mirror policy would still consider at all.
+ * A media_type outside the scope's approved set (a third-party FloorPlan or
+ * Video) matches neither branch and is therefore never reconsidered — the
+ * immutable class cannot churn. What remains is the genuinely mutable case: a
+ * third-party Photo parked only because it was not the canonical hero when it
+ * was examined, and hero identity moves with `PreferredPhotoYN` / `order` / the
+ * current hero leaving.
+ *
+ * BOTH PARK ENCODINGS. Two writers have parked rows:
+ *   * `r2_policy_excluded_at` non-null — the current writer.
+ *   * `r2_attempts = R2_POLICY_PARKED_ATTEMPTS` (9) with a NULL column — the
+ *     LEGACY writer. Production holds ~20k of these and every currently
+ *     stranded hero is one of them, so re-admission that ignored them would fix
+ *     almost nothing. The legacy branch ages off `r2_last_attempt_at` (the old
+ *     writer stamped it on every park) and requires the new column to be null,
+ *     so a migrated row can only ever match one branch.
+ *
+ * Exactly-8 (real retry exhaustion) and >9 (legacy fail-closed) are NOT policy
+ * parks and are never selected here.
+ */
+export function buildR2PolicyReevaluationWhere(
+  reevalThreshold: Date,
+): Prisma.ListingMediaWhereInput {
+  return {
+    status: "active",
+    media_url_original: { not: null },
+    // Same reason as the backlog universe: the mirror updates by media_key, so
+    // a null key can never be written and must never be reconsidered.
+    media_key: { not: null },
+    OR: [{ r2_key: null }, { media_url_cached: null }],
+    AND: [
+      {
+        OR: [
+          // Current writer — the column IS the age clock.
+          { r2_policy_excluded_at: { lt: reevalThreshold } },
+          // Legacy writer — sentinel + the cooldown stamp it wrote alongside.
+          {
+            r2_policy_excluded_at: null,
+            r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
+            OR: [
+              { r2_last_attempt_at: null },
+              { r2_last_attempt_at: { lt: reevalThreshold } },
+            ],
+          },
+        ],
+      },
+      buildR2MirrorPolicyMediaWhere(),
+    ],
+  };
+}
+
+export interface R2PolicyReevaluationOptions {
+  /** Injectable clock — the caller passes the run's single clock. */
+  now?: () => number;
+  batchLimit?: number;
+  intervalMs?: number;
+}
+
+export interface R2PolicyReevaluationResult {
+  /** Rows reconsidered this run. Also the number of rows written. */
+  scanned: number;
+  /** Policy exclusion cleared — the row rejoins the ordinary backlog. */
+  readmitted: number;
+  /** Still excluded; its re-evaluation clock restarted. */
+  kept_parked: number;
+  /** Undecidable (hero read failed); clock restarted so the sweep still advances. */
+  deferred: number;
+}
+
+/**
+ * Reconsider a bounded batch of policy-parked rows.
+ *
+ * This pass performs NO R2 work. It only decides whether an exclusion still
+ * holds; re-admitted rows are mirrored later by the ordinary Phase-3 drain
+ * under its existing write and failure caps. It therefore cannot spike R2
+ * writes, cannot forge an attempt or a cooldown, and cannot reset a real
+ * failure count.
+ *
+ * FORWARD PROGRESS. Every scanned row is written exactly once — re-admitted or
+ * re-stamped. A re-stamped row is not due again for a full interval, so the
+ * same row cannot churn between firings, and one listing whose hero read keeps
+ * failing cannot pin the front of the sweep and starve the rest.
+ *
+ * LEGACY SENTINEL. On re-admission `r2_attempts = 9` is cleared to null. That
+ * is not erasing failure history: the failure path caps the counter at 8
+ * (`CASE WHEN r2_attempts < 8 THEN r2_attempts + 1`), so 9 is unreachable by
+ * failure and is purely the legacy policy marker. Leaving it would keep the row
+ * out of the backlog through the untouched `r2_attempts < 8` clause and make
+ * the re-admission a no-op. A genuine 0-7 count is never touched.
+ */
+export async function reevaluateR2PolicyExclusions(
+  options: R2PolicyReevaluationOptions = {},
+): Promise<R2PolicyReevaluationResult> {
+  const nowFn = options.now ?? (() => Date.now());
+  const batchLimit = options.batchLimit ?? R2_POLICY_REEVAL_BATCH_LIMIT;
+  const intervalMs = options.intervalMs ?? R2_POLICY_REEVAL_INTERVAL_MS;
+  const result: R2PolicyReevaluationResult = {
+    scanned: 0,
+    readmitted: 0,
+    kept_parked: 0,
+    deferred: 0,
+  };
+
+  type ReevalRow = {
+    id: bigint;
+    listing_id: string;
+    media_key: string | null;
+    media_type: string;
+    r2_attempts: number | null;
+    listing: MirrorPolicyListing | null;
+  };
+
+  let candidates: ReevalRow[];
+  try {
+    candidates = (await prisma.listingMedia.findMany({
+      where: buildR2PolicyReevaluationWhere(new Date(nowFn() - intervalMs)),
+      select: {
+        id: true,
+        listing_id: true,
+        media_key: true,
+        media_type: true,
+        r2_attempts: true,
+        listing: {
+          select: {
+            listing_id: true,
+            rls_eligible: true,
+            status: true,
+            idx_display_yn: true,
+            owner_opt_out: true,
+            participant_only: true,
+            internet_entire_listing_display_yn: true,
+          },
+        },
+      },
+      // Deterministic and listing-clustered, so ONE hero read serves every
+      // parked row of the same listing.
+      orderBy: [{ listing_id: "asc" }, { id: "asc" }],
+      take: batchLimit,
+    })) as unknown as ReevalRow[];
+  } catch {
+    return result; // never fails the run
+  }
+  if (candidates.length === 0) return result;
+  result.scanned = candidates.length;
+
+  /** Re-admit, preserving real failure history. */
+  const readmitPlain: bigint[] = [];
+  /** Re-admit AND clear the legacy sentinel (9 is not failure history). */
+  const readmitLegacy: bigint[] = [];
+  /** Still excluded, or undecidable — the clock restarts either way. */
+  const restamp: bigint[] = [];
+
+  const heroKeyCache = new Map<string, string | null>();
+
+  for (const row of candidates) {
+    const scope = decideMirrorAdmissionScope(row.listing);
+    const approvedTypes =
+      scope === "all_active" ? MALLAN_MIRROR_MEDIA_TYPES : FEED_MIRROR_MEDIA_TYPES;
+
+    // Fail-closed: a listing that is no longer admissible, or a media_type the
+    // scope does not approve, stays parked. (The DB-side filter already
+    // excludes both; re-checked here so a drifted where can never widen
+    // re-admission.)
+    if (scope === "none" || !approvedTypes.includes(row.media_type)) {
+      restamp.push(row.id);
+      result.kept_parked++;
+      continue;
+    }
+
+    if (scope === "all_active") {
+      // Mallan-owned: the complete active Photo + FloorPlan set is retained, so
+      // hero identity is irrelevant to admission.
+      (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
+      result.readmitted++;
+      continue;
+    }
+
+    // hero_only — the mutable case. Resolve the listing's canonical hero with
+    // the SAME production resolver the summary and the mirror use, so a
+    // re-admitted row is one the mirror will actually accept.
+    let heroKey: string | null;
+    if (heroKeyCache.has(row.listing_id)) {
+      heroKey = heroKeyCache.get(row.listing_id) ?? null;
+    } else {
+      try {
+        const listingRows = await prisma.listingMedia.findMany({
+          where: { listing_id: row.listing_id },
+          select: {
+            media_key: true,
+            media_type: true,
+            status: true,
+            preferred_photo_yn: true,
+            order: true,
+          },
+        });
+        heroKey = selectHeroPhoto(listingRows)?.media_key ?? null;
+      } catch {
+        heroKeyCache.set(row.listing_id, null);
+        restamp.push(row.id);
+        result.deferred++;
+        continue;
+      }
+      heroKeyCache.set(row.listing_id, heroKey);
+    }
+
+    if (heroKey !== null && row.media_key === heroKey) {
+      (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
+      result.readmitted++;
+    } else {
+      restamp.push(row.id);
+      result.kept_parked++;
+    }
+  }
+
+  // At most three statements per run, regardless of batch size.
+  try {
+    if (readmitPlain.length > 0) {
+      await prisma.listingMedia.updateMany({
+        where: { id: { in: readmitPlain } },
+        data: { r2_policy_excluded_at: null },
+      });
+    }
+    if (readmitLegacy.length > 0) {
+      await prisma.listingMedia.updateMany({
+        where: { id: { in: readmitLegacy } },
+        data: { r2_policy_excluded_at: null, r2_attempts: null },
+      });
+    }
+    if (restamp.length > 0) {
+      await prisma.listingMedia.updateMany({
+        where: { id: { in: restamp } },
+        data: { r2_policy_excluded_at: new Date(nowFn()) },
+      });
+    }
+  } catch {
+    // Non-fatal and idempotent: an unwritten row is simply reconsidered on a
+    // later firing. Never fails the run.
+  }
+
+  return result;
+}
+
 /**
  * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
  * injected so tests can stub them without ever touching the live R2
@@ -3119,11 +3393,22 @@ export interface RunMediaSyncResult {
    * rejections (hero lookup failure; scope-'none' select/re-check race) are
    * NOT parked and re-surface next firing. Parked rows stay `status='active'`
    * and keep serving through the `/api/media/proxy` fallback. This is a
-   * one-time-per-row convergence write: a parked row never re-enters the
-   * candidate set, so per-row it happens at most once ever and the per-run
-   * count converges to zero.
+   * convergence write. Per-row it is one write per park; a parked row leaves
+   * the candidate set until PHASE 4a (`reevaluateR2PolicyExclusions`) decides
+   * the exclusion no longer holds, so the per-run count converges to zero once
+   * the historical gallery backlog is parked.
    */
   mirror_rejected_policy_parked: number;
+  /**
+   * PHASE 4a: policy-parked rows whose exclusion was reconsidered this run.
+   * Every one of them was written exactly once, so this is also the pass's
+   * per-run write count.
+   */
+  r2_policy_reevaluated: number;
+  /** Subset of `r2_policy_reevaluated` re-admitted to the ordinary backlog. */
+  r2_policy_readmitted: number;
+  /** Subset still excluded (or undecidable); their re-evaluation clock restarted. */
+  r2_policy_kept_parked: number;
   /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
   /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
@@ -3565,6 +3850,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let mirrorAllowed = 0;
   let mirrorRejectedPolicy = 0;
   let mirrorRejectedPolicyParked = 0;
+  // PHASE 4a — bounded policy re-admission telemetry.
+  let r2PolicyReevaluated = 0;
+  let r2PolicyReadmitted = 0;
+  let r2PolicyKeptParked = 0;
   let r2Mirrored = 0;
   let r2Uploaded = 0;
   let r2Reused = 0;
@@ -3639,6 +3928,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       mirror_allowed: 0,
       mirror_rejected_policy: 0,
       mirror_rejected_policy_parked: 0,
+      r2_policy_reevaluated: 0,
+      r2_policy_readmitted: 0,
+      r2_policy_kept_parked: 0,
       r2_mirrored: 0,
       r2_uploaded: 0,
       r2_reused: 0,
@@ -4366,6 +4658,30 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     }
   }
 
+  // ── PHASE 4a: bounded policy re-admission ────────────────────────────
+  //
+  // Runs AFTER the park flush (so rows parked THIS run carry a fresh clock and
+  // cannot be reconsidered immediately) and BEFORE the backlog probe (so a row
+  // re-admitted here is counted as the genuine new work it now is).
+  //
+  // It performs no R2 work and consumes no part of the Phase-3 drain or failure
+  // budget; re-admitted rows are mirrored by the ordinary drain on a later
+  // firing. Skipped entirely when the run is out of time — the sweep is
+  // resumable by construction, so a skipped pass costs only latency.
+  //
+  // Also skipped when the drain was skipped for OVERLAP: that firing
+  // deliberately issues zero candidate-selection queries because another
+  // invocation already holds the advisory lock, and this pass reads and writes
+  // the same rows. Its writes are idempotent, so an overlap would be wasteful
+  // rather than corrupting — but doing extra work at the one moment the
+  // scheduler is avoiding it would defeat the posture.
+  if (queryPathClassification !== "skipped_overlap" && remainingMs() > phase2ReserveMs) {
+    const reeval = await reevaluateR2PolicyExclusions({ now });
+    r2PolicyReevaluated = reeval.scanned;
+    r2PolicyReadmitted = reeval.readmitted;
+    r2PolicyKeptParked = reeval.kept_parked + reeval.deferred;
+  }
+
   // ── PHASE 4: finalize + return ───────────────────────────────────────
   try {
     // One Cycle W3 — BOUNDED probe replaces the unbounded COUNT: select at
@@ -4459,6 +4775,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     mirror_allowed: mirrorAllowed,
     mirror_rejected_policy: mirrorRejectedPolicy,
     mirror_rejected_policy_parked: mirrorRejectedPolicyParked,
+    r2_policy_reevaluated: r2PolicyReevaluated,
+    r2_policy_readmitted: r2PolicyReadmitted,
+    r2_policy_kept_parked: r2PolicyKeptParked,
     r2_mirrored: r2Mirrored,
     r2_uploaded: r2Uploaded,
     r2_reused: r2Reused,
