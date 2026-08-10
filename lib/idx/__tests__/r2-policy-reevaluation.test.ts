@@ -423,14 +423,14 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
 
     await reevaluateR2PolicyExclusions({ now });
 
-    expect(mockUpdateMany.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(mockUpdateMany.mock.calls.length).toBeLessThanOrEqual(4);
     expect(writes().reduce((n, w) => n + w.ids.length, 0)).toBe(22);
   });
 
   it('25. no rows due ⇒ no writes at all', async () => {
     installPool([row(), parked({ r2_policy_excluded_at: FRESH })]);
     const res = await reevaluateR2PolicyExclusions({ now });
-    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0 });
+    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0 });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
@@ -478,8 +478,61 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
   it('29. a selector failure is contained — the pass reports zero, never throws', async () => {
     mockFindMany.mockRejectedValue(new Error('db down'));
     await expect(reevaluateR2PolicyExclusions({ now })).resolves.toEqual({
-      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0,
+      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0,
     });
+  });
+
+  it('31. counters report PERSISTED state — a rejected write is reported as failed, not done', async () => {
+    // Codex P2. The counters previously came from the decision loop, so a
+    // rejected updateMany left the run reporting rows as re-admitted or
+    // re-stamped that were never written — and `runMediaSync` still returned
+    // "ok". A silently-wrong counter on THIS pass is especially bad because it
+    // is the only observable for the re-admission sweep in Production.
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const keeps = Array.from({ length: 4 }, (_, i) => legacyParked({ order: i + 10 }));
+    installPool([heroRow, ...keeps]);
+    mockUpdateMany.mockRejectedValue(new Error('write rejected'));
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.scanned).toBe(4);
+    expect(res.kept_parked).toBe(0);
+    expect(res.readmitted).toBe(0);
+    expect(res.write_failed).toBe(4);
+  });
+
+  it('32. a PARTIAL write failure is attributed correctly, not rounded up', async () => {
+    // The re-admit statement succeeds and the re-stamp statement fails: the
+    // run must report one re-admitted, zero kept-parked, one failed.
+    const listingB = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
+    const hero = legacyParked({ listing_id: 'RLS20099238', listing: listingB, preferred_photo_yn: true });
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const keep = legacyParked({ order: 11 });
+    installPool([heroRow, keep, hero]);
+    mockUpdateMany.mockImplementation(async (args) => {
+      const a = args as { data: Record<string, unknown>; where: { id: { in: unknown[] } } };
+      if (a.data.r2_policy_excluded_at instanceof Date) throw new Error('re-stamp rejected');
+      return { count: a.where.id.in.length };
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.scanned).toBe(2);
+    expect(res.readmitted).toBe(1);
+    expect(res.kept_parked).toBe(0);
+    expect(res.write_failed).toBe(1);
+  });
+
+  it('33. a short updateMany count (rows vanished) is reported honestly', async () => {
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    installPool([heroRow, ...Array.from({ length: 3 }, (_, i) => legacyParked({ order: i + 10 }))]);
+    mockUpdateMany.mockImplementation(async () => ({ count: 1 })); // 2 rows disappeared
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.scanned).toBe(3);
+    expect(res.kept_parked).toBe(1);
+    expect(res.write_failed).toBe(2);
   });
 
   it('30. the CRM hero-authority rule is respected on re-admission', async () => {

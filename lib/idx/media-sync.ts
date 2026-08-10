@@ -2532,15 +2532,25 @@ export interface R2PolicyReevaluationOptions {
   intervalMs?: number;
 }
 
+/**
+ * Every count except `scanned` is PERSISTED state, read back from each
+ * `updateMany`'s own `count` — not from the decision loop. A rejected or short
+ * write is reported in `write_failed`, never as work that happened. The
+ * distinction matters because these counters are the only observable for this
+ * pass in Production: a decision-level counter would let the run report rows as
+ * re-admitted while the exclusion was still in the table.
+ */
 export interface R2PolicyReevaluationResult {
-  /** Rows reconsidered this run. Also the number of rows written. */
+  /** Rows reconsidered this run — the DECISION count. */
   scanned: number;
-  /** Policy exclusion cleared — the row rejoins the ordinary backlog. */
+  /** CONFIRMED written: policy exclusion cleared, row rejoins the backlog. */
   readmitted: number;
-  /** Still excluded; its re-evaluation clock restarted. */
+  /** CONFIRMED written: still excluded, re-evaluation clock restarted. */
   kept_parked: number;
-  /** Undecidable (hero read failed); clock restarted so the sweep still advances. */
+  /** CONFIRMED written: undecidable (hero read failed); clock restarted anyway. */
   deferred: number;
+  /** Scanned rows whose write did NOT persist (statement rejected, or row gone). */
+  write_failed: number;
 }
 
 /**
@@ -2575,6 +2585,7 @@ export async function reevaluateR2PolicyExclusions(
     readmitted: 0,
     kept_parked: 0,
     deferred: 0,
+    write_failed: 0,
   };
 
   type ReevalRow = {
@@ -2619,12 +2630,16 @@ export async function reevaluateR2PolicyExclusions(
   if (candidates.length === 0) return result;
   result.scanned = candidates.length;
 
+  // INTENT lists. The result counters are filled in later from what the
+  // database actually confirms, so a rejected write cannot be reported as done.
   /** Re-admit, preserving real failure history. */
   const readmitPlain: bigint[] = [];
   /** Re-admit AND clear the legacy sentinel (9 is not failure history). */
   const readmitLegacy: bigint[] = [];
-  /** Still excluded, or undecidable — the clock restarts either way. */
-  const restamp: bigint[] = [];
+  /** Still excluded — clock restarts. */
+  const keptParked: bigint[] = [];
+  /** Undecidable (hero read failed) — clock restarts so the sweep advances. */
+  const deferred: bigint[] = [];
 
   const heroKeyCache = new Map<string, string | null>();
 
@@ -2638,8 +2653,7 @@ export async function reevaluateR2PolicyExclusions(
     // excludes both; re-checked here so a drifted where can never widen
     // re-admission.)
     if (scope === "none" || !approvedTypes.includes(row.media_type)) {
-      restamp.push(row.id);
-      result.kept_parked++;
+      keptParked.push(row.id);
       continue;
     }
 
@@ -2647,7 +2661,6 @@ export async function reevaluateR2PolicyExclusions(
       // Mallan-owned: the complete active Photo + FloorPlan set is retained, so
       // hero identity is irrelevant to admission.
       (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
-      result.readmitted++;
       continue;
     }
 
@@ -2672,8 +2685,7 @@ export async function reevaluateR2PolicyExclusions(
         heroKey = selectHeroPhoto(listingRows)?.media_key ?? null;
       } catch {
         heroKeyCache.set(row.listing_id, null);
-        restamp.push(row.id);
-        result.deferred++;
+        deferred.push(row.id);
         continue;
       }
       heroKeyCache.set(row.listing_id, heroKey);
@@ -2681,37 +2693,44 @@ export async function reevaluateR2PolicyExclusions(
 
     if (heroKey !== null && row.media_key === heroKey) {
       (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
-      result.readmitted++;
     } else {
-      restamp.push(row.id);
-      result.kept_parked++;
+      keptParked.push(row.id);
     }
   }
 
-  // At most three statements per run, regardless of batch size.
-  try {
-    if (readmitPlain.length > 0) {
-      await prisma.listingMedia.updateMany({
-        where: { id: { in: readmitPlain } },
-        data: { r2_policy_excluded_at: null },
-      });
+  /**
+   * Persist one intent group and report what the DATABASE confirms.
+   *
+   * Each group gets its own statement and its own guard, so a rejection is
+   * attributed to that group instead of silently truncating the rest — and the
+   * returned count, not the intent size, is what the caller sees. A short count
+   * (row deleted between select and write) is reported the same honest way.
+   * Failure stays non-fatal and idempotent: an unwritten row is simply
+   * reconsidered on a later firing.
+   */
+  const persist = async (
+    ids: bigint[],
+    data: Prisma.ListingMediaUpdateManyMutationInput,
+  ): Promise<number> => {
+    if (ids.length === 0) return 0;
+    try {
+      const written = await prisma.listingMedia.updateMany({ where: { id: { in: ids } }, data });
+      return written.count;
+    } catch {
+      return 0;
     }
-    if (readmitLegacy.length > 0) {
-      await prisma.listingMedia.updateMany({
-        where: { id: { in: readmitLegacy } },
-        data: { r2_policy_excluded_at: null, r2_attempts: null },
-      });
-    }
-    if (restamp.length > 0) {
-      await prisma.listingMedia.updateMany({
-        where: { id: { in: restamp } },
-        data: { r2_policy_excluded_at: new Date(nowFn()) },
-      });
-    }
-  } catch {
-    // Non-fatal and idempotent: an unwritten row is simply reconsidered on a
-    // later firing. Never fails the run.
-  }
+  };
+
+  const restampAt = new Date(nowFn());
+  // At most four statements per run (three when nothing was deferred),
+  // regardless of batch size.
+  result.readmitted =
+    (await persist(readmitPlain, { r2_policy_excluded_at: null })) +
+    (await persist(readmitLegacy, { r2_policy_excluded_at: null, r2_attempts: null }));
+  result.kept_parked = await persist(keptParked, { r2_policy_excluded_at: restampAt });
+  result.deferred = await persist(deferred, { r2_policy_excluded_at: restampAt });
+  result.write_failed =
+    result.scanned - (result.readmitted + result.kept_parked + result.deferred);
 
   return result;
 }
@@ -3400,15 +3419,22 @@ export interface RunMediaSyncResult {
    */
   mirror_rejected_policy_parked: number;
   /**
-   * PHASE 4a: policy-parked rows whose exclusion was reconsidered this run.
-   * Every one of them was written exactly once, so this is also the pass's
-   * per-run write count.
+   * PHASE 4a: policy-parked rows whose exclusion was reconsidered this run —
+   * the DECISION count, and the pass's per-run write bound.
    */
   r2_policy_reevaluated: number;
-  /** Subset of `r2_policy_reevaluated` re-admitted to the ordinary backlog. */
+  /** CONFIRMED written: re-admitted to the ordinary backlog. */
   r2_policy_readmitted: number;
-  /** Subset still excluded (or undecidable); their re-evaluation clock restarted. */
+  /** CONFIRMED written: still excluded (or undecidable); clock restarted. */
   r2_policy_kept_parked: number;
+  /**
+   * Reconsidered rows whose write did NOT persist. Read back from each
+   * `updateMany`'s own count rather than from the decision loop, so a rejected
+   * statement can never be reported as work that happened (Codex P2, #599).
+   * Non-zero is not a run failure — those rows are simply reconsidered later —
+   * but a sustained non-zero means the sweep is not converging.
+   */
+  r2_policy_write_failed: number;
   /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
   /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
@@ -3854,6 +3880,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2PolicyReevaluated = 0;
   let r2PolicyReadmitted = 0;
   let r2PolicyKeptParked = 0;
+  let r2PolicyWriteFailed = 0;
   let r2Mirrored = 0;
   let r2Uploaded = 0;
   let r2Reused = 0;
@@ -3931,6 +3958,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_policy_reevaluated: 0,
       r2_policy_readmitted: 0,
       r2_policy_kept_parked: 0,
+      r2_policy_write_failed: 0,
       r2_mirrored: 0,
       r2_uploaded: 0,
       r2_reused: 0,
@@ -4680,6 +4708,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2PolicyReevaluated = reeval.scanned;
     r2PolicyReadmitted = reeval.readmitted;
     r2PolicyKeptParked = reeval.kept_parked + reeval.deferred;
+    r2PolicyWriteFailed = reeval.write_failed;
   }
 
   // ── PHASE 4: finalize + return ───────────────────────────────────────
@@ -4778,6 +4807,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_policy_reevaluated: r2PolicyReevaluated,
     r2_policy_readmitted: r2PolicyReadmitted,
     r2_policy_kept_parked: r2PolicyKeptParked,
+    r2_policy_write_failed: r2PolicyWriteFailed,
     r2_mirrored: r2Mirrored,
     r2_uploaded: r2Uploaded,
     r2_reused: r2Reused,
