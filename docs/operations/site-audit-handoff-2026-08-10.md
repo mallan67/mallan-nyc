@@ -86,7 +86,7 @@ tooling used). Two branches exist (see leftover branch above).
 |---|---|
 | `main` SHA | `2d121daaf6dbcd3d027d6d337901a18e43c03ad8` (PR #598 merge) |
 | Production SHA / deployment | `2d121daa` · `dpl_Ey4rGtD26mij3ULsgJvrs88md6yy` · alias `mallan.nyc` · Release Truth `PROD_PROVEN` |
-| PR #599 exact head | **`__HEAD__`** |
+| PR #599 exact head | **`b5371db262049dcc19ff997a62ca7cd5ee9aa66d`** |
 | Branch | `fix/r2-policy-reevaluation-2026-08-10` |
 | PR state | OPEN · not draft · MERGEABLE · 0 unresolved review threads · **UNMERGED** |
 
