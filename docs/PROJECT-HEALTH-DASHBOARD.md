@@ -129,7 +129,7 @@ compliance → archive → search → website) incl. every cron, queue, webhook,
 **New this cycle (2026-08-10) — P2, so deliberately not in the P0/P1 queue above:** **OPS-026** —
 historical `Listing` media-summary drift, 4,847 of 20,721 photo-bearing listings, recomputed
 read-only against the production summary owners (not a hand-written `media_type='Photo'` proxy).
-New drift is **STOPPED** post-#597 (62/62 heroes correct since the 2026-08-10 01:35Z deploy).
+New drift is **STOPPED** post-#597 (62/62 heroes correct since the 2026-08-10 01:35Z deploy). **Two severities:** the 4,832-row `primary_photo_r2_key` class is cost-only; **12 `primary_photo_url` rows are a correctness defect (8 a genuinely different asset, 4 live)**.
 Remediation **design CLOSED**; **Production backfill HELD** pending Maya's explicit authorization
 (≈17.1% of one day's ~28,351 DB row writes). Canonical row, blast radius and Evidence Score 8/10 in
 the registry; measurements at `docs/operations/r2-policy-and-drift-production-evidence-2026-08-10.md`.

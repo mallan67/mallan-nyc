@@ -27,7 +27,7 @@ path plus the corrections listed under "Open risks" below.
 |---|---|
 | Canonical listing redirects return **HTTP 200 with a client-side RSC redirect**, not 308 | Pre-existing and **NOT fixed**. The route is ISR (`revalidate = 600`), so `permanentRedirect()` is serialised into the flight payload. Mitigated by `noindex, follow` + a correct `<link rel=canonical>`; the client router completes the redirect. Non-JS clients and `curl -L` do not follow. Affects every id-only listing URL, which the site never emits internally. |
 | Mallan local listings absent from search and sitemap | 0 of 8,692 sitemap listing URLs are `SL-`/`RL-`. Both gates require `idx_display_yn = true`; both Active SL rows have it `false`, yet their detail pages serve `index, follow`. Needs a REBNY display-gate + exclusives-launch decision — **not touched**. |
-| **OPS-026** historical media-summary drift (4,847 listings, production URL rule) | Design CLOSED, **Production backfill HELD**. |
+| **OPS-026** historical media-summary drift (4,847 listings, production URL rule) | Design CLOSED, **Production backfill HELD**. **Two severities:** 4,832 cost-only; **12 `primary_photo_url` rows are a correctness defect — 8 render a genuinely different asset, 4 are live.** |
 | 43 stranded R2 heroes | Fix built and validated in #599; **not deployed**. |
 | CPU reduction | **Still not proven functioning.** The last captured preflight reason is `external_state_unavailable` (handoff 2026-08-02, runtime logs). It was **not re-captured this session** — the Vercel MCP token is expired — so the *current* reason is unconfirmed. What is measured today: 144 One Cycle runs in 24h out of 144 possible 10-minute preflights, i.e. **zero skips**. |
 | Leftover Neon branch | `preview-pr597-commit11` (`br-old-dust-ad3idcf6`), created 2026-08-08, 36 MiB logical, still `ready`. |
@@ -86,7 +86,7 @@ tooling used). Two branches exist (see leftover branch above).
 |---|---|
 | `main` SHA | `2d121daaf6dbcd3d027d6d337901a18e43c03ad8` (PR #598 merge) |
 | Production SHA / deployment | `2d121daa` · `dpl_Ey4rGtD26mij3ULsgJvrs88md6yy` · alias `mallan.nyc` · Release Truth `PROD_PROVEN` |
-| PR #599 last CODE head | **`b5371db262049dcc19ff997a62ca7cd5ee9aa66d`** â the commit carrying the twelve-item correction pass. Documentation-only commits may sit on top of it (recording a SHA necessarily creates a later one). |
+| PR #599 last CODE head | **`b5371db262049dcc19ff997a62ca7cd5ee9aa66d`** — the commit carrying the twelve-item correction pass. Documentation-only commits may sit on top of it (recording a SHA necessarily creates a later one). |
 | PR #599 exact head at hand-off | Read it live: `gh pr view 599 --repo mallan67/mallan-nyc --json headRefOid`. Do not infer it from this file. |
 | Branch | `fix/r2-policy-reevaluation-2026-08-10` |
 | PR state | OPEN · not draft · MERGEABLE · 0 unresolved review threads · **UNMERGED** |

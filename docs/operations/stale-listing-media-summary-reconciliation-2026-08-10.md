@@ -63,9 +63,25 @@ summary fields `computeListingMediaSummary` owns.
 | — of the total, Mallan-owned (`SL-`/`RL-`/`rls_eligible=false`) | 4 |
 | — of the total, on a live listing (Active/AUC/ComingSoon/Pending) | 2,573 |
 
-**Directionality.** Every `primary_photo_r2_key` case is *hero has an `r2_key`, summary has NULL*.
-The reverse — a summary asserting a key the hero does not have, which would serve a wrong or missing
-object — is **0**. That is why this is a cost defect and not a correctness defect.
+**Directionality — TWO different severities, not one.**
+
+*The `primary_photo_r2_key` class (4,832) is cost-only.* Every case is *hero has an `r2_key`, summary
+has NULL*. The reverse — a summary asserting a key the hero does not have — is **0**. A NULL key
+makes the card fall back to the proxy: correct image, slower and more expensive.
+
+*The `primary_photo_url` class (12) is a CORRECTNESS defect.* Corrected 2026-08-10 after review — an
+earlier version of this document called the whole issue "cost-only", which was wrong for these rows.
+`primary_photo_url` is read directly as the rendered image source (e.g.
+`lib/buildings/public-building-data.ts:542` builds the building-manifest card image from it), so a
+stale value does not merely reroute the right photo — it can surface a **different** one. Measured:
+
+| | listings |
+|---|---|
+| URL mismatches | **12** |
+| — pointing at a genuinely **different asset** (different origin+path, not a rotated signature) | **8** |
+| — summary URL NULL (no image from the summary) | **4** |
+| — signature-only difference (benign) | **0** |
+| — of the 12, on a **live** listing | **4** |
 
 ### Classifier equivalence
 
@@ -81,12 +97,22 @@ Two bounded, stated divergences: the classifier's `ShortDescription`/caption bra
 call site (the caller passes only category, classification, type and URL), and `unwrapProxyUrl` is a
 no-op on stored Trestle locators, which are never proxied at rest.
 
-## 3. Impact — why this is not urgent
+## 3. Impact — two classes, two severities
 
-A NULL `primary_photo_r2_key` makes the card/hero fall back to `media_url_original` through
-`/api/media/proxy`. The image is **correct**; it is served from Cotality instead of R2. The cost is
-proxy egress and latency on up to 2,573 live listings, not wrong or missing content. No display
-gate, attribution, disclosure or price field is involved, so there is no compliance surface.
+**Bulk class (4,832 + 42 + 13 = cost).** A NULL `primary_photo_r2_key` makes the card/hero fall back
+to `media_url_original` through `/api/media/proxy`. The image is **correct**; it is served from
+Cotality instead of R2. The cost is proxy egress and latency on up to 2,573 live listings. A stale
+`photo_count` or `photos_change_timestamp` likewise misstates a count or a freshness marker, not the
+picture.
+
+**Small class (12 = correctness).** A stale `primary_photo_url` can render a **different photo** than
+the canonical hero — 8 of the 12 point at a genuinely different asset and 4 carry NULL; **4 of the 12
+are live listings**. This is small in volume and real in kind, and it is why the overall issue is
+**not** classified as cost-only.
+
+No display gate, attribution, disclosure or price field is involved in either class, so there is no
+compliance surface — but "wrong hero photo on a live listing" is a public-facing defect on its own
+terms, and the 12 should be corrected ahead of the bulk if the backfill is ever split.
 
 ## 4. Selector
 
