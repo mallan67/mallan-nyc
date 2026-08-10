@@ -1,7 +1,9 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { notFound, redirect } from 'next/navigation';
+// `redirect` (307) is deliberately NOT imported: every redirect this route
+// performs is a canonicalization, and canonicalization is permanent (308).
+import { notFound, permanentRedirect } from 'next/navigation';
 import { isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
 import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
@@ -178,23 +180,57 @@ interface TrestleExtraFields {
 // synchronized Neon row, including the FARE move-in fee disclosure via resolveMoveInFees.
 
 /** Combined listing result: DTO + extra fields (tax is null on the DB-only path). */
-interface ListingFetchResult {
+/**
+ * A resolved listing request has exactly TWO shapes, and the type says so.
+ *
+ * The redirect outcome previously masqueraded as a listing:
+ *   `listing: { id } as unknown as PublicListingDTO`
+ * `ListingPage` narrowed on `canonicalRedirect` first and worked, but
+ * `generateMetadata` consumes the SAME cached result and dereferenced
+ * `listing.listPrice` / `listing.address` / `listing.media` before any redirect
+ * could run — a hard 500 on every return-copy URL with a proven local twin
+ * (production SHA 881182f9).
+ *
+ * Guarding the one consumer would have left the invalid state in the type
+ * system for the next consumer to trip over. A discriminated union removes the
+ * lie instead: a redirect result CANNOT expose `.listing`, and a listing result
+ * ALWAYS carries a complete DTO. TypeScript now forces every consumer to narrow.
+ */
+type ListingFetchResult = ListingFetchListing | ListingFetchRedirect;
+
+interface ListingFetchListing {
+  kind: 'listing';
   listing: PublicListingDTO;
   tax: TrestleExtraFields;
   rawStreetName?: string;
+}
+
+/**
+ * The requested row is a Mallan RLS return-copy with exactly one proven local
+ * physical-unit twin (CHARTER Section 1A), so the canonical URL is the LOCAL
+ * listing's.
+ *
+ * Carried as DATA rather than by calling a redirect inside `fetchFromDB` on
+ * purpose. Next's redirect helpers signal by THROWING, and `fetchFromDB` wraps
+ * its body in a try/catch whose contract is "anything thrown here is an
+ * infrastructure error"; `fetchListing` then memoizes through React `cache()`,
+ * and `generateMetadata` calls the same function. Throwing from in there would
+ * produce a misleading infra log and a cached throw on a path that is not the
+ * render. The page component performs the redirect.
+ *
+ * NOTE there is deliberately NO `listing` field: a redirect has no DTO, and the
+ * absence is what makes the old 500 unrepresentable.
+ */
+interface ListingFetchRedirect {
+  kind: 'redirect';
+  canonicalRedirect: string;
   /**
-   * Set when the requested row is a Mallan RLS return-copy with exactly one
-   * proven local physical-unit twin (CHARTER Section 1A).
-   *
-   * Carried as DATA rather than by calling `redirect()` inside `fetchFromDB`
-   * on purpose. `redirect()` signals by THROWING, and `fetchFromDB` wraps its
-   * body in a try/catch that logs anything thrown as a
-   * "database/infrastructure error"; `fetchListing` then memoizes through
-   * React `cache()`, and `generateMetadata` calls the same function. Throwing
-   * from in there would produce a misleading infra log and a cached throw on a
-   * path that is not the render. The page component performs the redirect.
+   * The RETURN-COPY's own listing_id. Retained because the previous fabricated
+   * DTO incidentally supplied it to `attachListingCacheTags`, so the source
+   * row's cache tag was attached to the render. Dropping it would silently
+   * remove that invalidation.
    */
-  canonicalRedirect?: string;
+  sourceListingId: string;
 }
 
 /**
@@ -436,10 +472,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       );
       if (target.kind === 'fail-closed') return null;
       if (target.kind === 'redirect') {
+        // No fabricated DTO — see ListingFetchRedirect. The `sourceListingId`
+        // preserves the cache tag the old fake `listing.id` supplied.
         return {
-          listing: { id: dbListing.listing_id } as unknown as PublicListingDTO,
-          tax: { taxBlock: null, taxLot: null },
+          kind: 'redirect',
           canonicalRedirect: target.path,
+          sourceListingId: dbListing.listing_id,
         };
       }
     }
@@ -584,6 +622,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     };
 
     return {
+      kind: 'listing',
       listing: dto,
       tax: { taxBlock: null, taxLot: null },
       rawStreetName: addr.StreetName || '',
@@ -638,12 +677,19 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
   // the route's cache dependency graph (see attachListingCacheTags for the
   // verified Next 16.2.4 semantics). Fail-open: attach errors never block
   // the render; the 30-min ISR window remains the fallback.
-  if (result?.listing?.id) {
+  if (result?.kind === 'listing' && result.listing?.id) {
     await attachListingCacheTags(String(result.listing.id), {
       streetNumber: result.listing.address?.streetNumber,
       streetName: result.listing.address?.streetName,
       postalCode: result.listing.address?.postalCode,
     });
+  } else if (result?.kind === 'redirect') {
+    // PRESERVED, not added: the old fabricated DTO carried the return-copy's
+    // listing_id into this call, so `listing:{id}` was already on the render's
+    // dependency graph. Address atoms were undefined then and stay omitted now
+    // — the building/manifest tag was never attached on this path, and this
+    // hotfix deliberately does not broaden cache behavior.
+    await attachListingCacheTags(result.sourceListingId, {});
   }
   return result;
 });
@@ -659,6 +705,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!result) {
     return { title: 'Listing Not Found | Mallan Real Estate' };
+  }
+
+  // NARROW BEFORE DEREFERENCING. A return-copy resolves to a redirect outcome
+  // that has no DTO; reading listPrice/address/media here is what produced the
+  // production 500. Emit only the canonical signal pointing at the LOCAL
+  // listing — the page redirects, so this metadata is transitional and must not
+  // invent a title, price or address from a listing that does not exist here.
+  if (result.kind === 'redirect') {
+    return {
+      title: 'Mallan Real Estate',
+      robots: { index: false, follow: true },
+      alternates: { canonical: `https://mallan.nyc${result.canonicalRedirect}` },
+    };
   }
 
   const listing = result.listing;
@@ -750,12 +809,17 @@ export default async function ListingPage({ params }: Props) {
 
   // Mallan RLS return-copy with exactly one proven local twin: send the visitor
   // to the canonical local listing. Performed HERE, not inside fetchFromDB —
-  // `redirect()` signals by throwing, and fetchFromDB's catch would log it as a
-  // database error while React `cache()` memoized the throw for generateMetadata
-  // too. 308 (permanent) is Next's default for redirect() in a server component,
-  // which is correct: the return-copy URL is never the canonical one.
-  if (result.canonicalRedirect) {
-    redirect(result.canonicalRedirect);
+  // the redirect helpers signal by throwing, and fetchFromDB's catch would log
+  // that as a database error while React `cache()` memoized the throw for
+  // generateMetadata too.
+  //
+  // `permanentRedirect` (308), NOT `redirect` (307). An earlier comment claimed
+  // redirect() was already 308; it is not — outside Server Actions Next issues
+  // 307 Temporary. Under CHARTER Section 1A the return-copy is NEVER the public
+  // canonical URL once exactly one local twin is proven, so the correct signal
+  // to crawlers is permanent.
+  if (result.kind === 'redirect') {
+    permanentRedirect(result.canonicalRedirect);
   }
 
   const listing = result.listing;
@@ -778,11 +842,22 @@ export default async function ListingPage({ params }: Props) {
   // Canonical enforcement is now UNCONDITIONAL: the former ?key= debug override
   // (internal ListingKey lookup) was removed so the page renders statically / ISR
   // without reading searchParams. All public URLs resolve by slug/id.
+  //
+  // `permanentRedirect` (308), NOT `redirect` (307) — corrected 2026-08-10. The
+  // block above has always DOCUMENTED "308 to canonical", but `redirect()` emits
+  // 307 Temporary outside Server Actions, so the implementation contradicted its
+  // own contract and told crawlers the legacy/hybrid URL was still valid. SEO
+  // consolidation is the stated purpose of this block, and consolidation
+  // requires a permanent signal.
+  //
+  // Loop-safe by construction: the redirect only fires when
+  // `currentPath !== canonicalPath`, and the target IS `canonicalPath`, so the
+  // next request compares equal and renders.
   {
     const canonicalPath = buildCanonicalListingPath({ slug: listing.slug || '', id: listing.id || '' });
     const currentPath = `/listing/${slugParts.join('/')}`;
     if (currentPath !== canonicalPath) {
-      redirect(canonicalPath);
+      permanentRedirect(canonicalPath);
     }
   }
 
