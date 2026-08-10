@@ -110,6 +110,84 @@ function authedCronRequest() {
   });
 }
 
+// ─── OWNERSHIP-AWARE listing.findMany mock ──────────────────────────────
+//
+// The previous mock returned its fixture whenever `where.expiration_7d_notified
+// === false`, IGNORING the rest of the query. Once Tasks 1 and 2 gained
+// `AND: [buildMallanOwnedListingWhere()]`, that seam let the test pass while
+// modelling a row Production Prisma would now reject — and the positive
+// "exclusive" fixtures were in fact third-party `RLS*` ids. A false-positive
+// seam on the exact predicate under test.
+//
+// The mock now evaluates the fixture against the ACTUAL `where` the route
+// supplies. Ownership rules are never restated here: `matchesWhere` is a
+// generic Prisma-where interpreter, so if the route ever stopped sending the
+// predicate the negative tests below would fail.
+
+/** Generic interpreter for the Prisma operators these queries use. */
+function matchesWhere(row: Record<string, unknown>, where: Record<string, unknown>): boolean {
+  for (const [key, cond] of Object.entries(where)) {
+    if (key === 'AND') {
+      if (!(cond as Record<string, unknown>[]).every((c) => matchesWhere(row, c))) return false;
+      continue;
+    }
+    if (key === 'OR') {
+      if (!(cond as Record<string, unknown>[]).some((c) => matchesWhere(row, c))) return false;
+      continue;
+    }
+    // Only identity/ownership keys are enforced. The window keys (status,
+    // expiration_date, notified flag) are the fixture's own premise and are
+    // asserted by the surrounding test rather than re-derived here.
+    if (!['listing_id', 'rls_eligible', 'agent_id'].includes(key)) continue;
+    const value = row[key];
+    if (cond === null) {
+      if (value != null) return false;
+      continue;
+    }
+    if (cond !== null && typeof cond === 'object') {
+      const c = cond as Record<string, unknown>;
+      if ('startsWith' in c) {
+        if (!(typeof value === 'string' && value.startsWith(c.startsWith as string))) return false;
+      } else if ('not' in c) {
+        if (c.not === null ? value == null : value === c.not) return false;
+      } else if ('in' in c) {
+        if (!(c.in as unknown[]).includes(value)) return false;
+      }
+      continue;
+    }
+    if (value !== cond) return false;
+  }
+  return true;
+}
+
+/** Capture of the `where` each expiration task actually issued. */
+const capturedWheres: Record<string, unknown>[] = [];
+
+/**
+ * Serve `row` to the task whose `where` carries `flagKey: false`, but ONLY when
+ * the row satisfies the REAL query — ownership included.
+ */
+function serveIfOwned(
+  flagKey: 'expiration_7d_notified' | 'expiration_30d_notified',
+  row: Record<string, unknown>,
+) {
+  return (async (args: { where?: Record<string, unknown> }) => {
+    const where = (args?.where ?? {}) as Record<string, unknown>;
+    capturedWheres.push(where);
+    if (where[flagKey] !== false) return [];
+    return matchesWhere(row, where) ? [row] : [];
+  }) as never;
+}
+
+/** A genuinely Mallan-owned listing: `SL-` prefix AND website-only. */
+const MALLAN_OWNED = { listing_id: 'SL-0421', rls_eligible: false } as const;
+/**
+ * A third-party feed row satisfying EVERY other warning requirement — active
+ * window, flag false, agent_id present, agent email present. Ownership is the
+ * ONLY reason it must be excluded.
+ */
+const THIRD_PARTY_FEED = { listing_id: 'RLS20078109', rls_eligible: true } as const;
+
 // ═══════════════════════════════════════════════════════════════════════
 // 1. Listing-expiration cron — 7-day urgent branch
 // ═══════════════════════════════════════════════════════════════════════
@@ -118,26 +196,21 @@ describe('listing-expiration cron — 7-day urgent branch', () => {
   it('sends email AND creates in-app notification when an exclusive expires within 7 days', async () => {
     const expirationDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
 
-    listingFindManyMock.mockImplementation((async (args: { where?: { expiration_7d_notified?: boolean } }) => {
-      // Only Task 2's query has expiration_7d_notified: false in the where
-      if (args?.where?.expiration_7d_notified === false) {
-        return [
-          {
-            id: 100n,
-            listing_id: 'RLS20078109',
-            address: { StreetNumber: '400', StreetName: 'East 90th Street' },
-            expiration_date: expirationDate,
-            agent_id: 42n,
-            agent: {
-              email: 'agent@mallan.nyc',
-              first_name: 'Maya',
-              last_name: 'Allan',
-            },
-          },
-        ];
-      }
-      return [];
-    }) as never);
+    // Mallan-OWNED fixture: only such a row can be an "exclusive" at all.
+    listingFindManyMock.mockImplementation(
+      serveIfOwned('expiration_7d_notified', {
+        id: 100n,
+        ...MALLAN_OWNED,
+        address: { StreetNumber: '400', StreetName: 'East 90th Street' },
+        expiration_date: expirationDate,
+        agent_id: 42n,
+        agent: {
+          email: 'agent@mallan.nyc',
+          first_name: 'Maya',
+          last_name: 'Allan',
+        },
+      }),
+    );
 
     const { GET } = await import('@/app/api/cron/listing-expiration/route');
     const res = await GET(authedCronRequest());
@@ -162,28 +235,24 @@ describe('listing-expiration cron — 7-day urgent branch', () => {
     expect(to).toBe('agent@mallan.nyc');
     expect(subject).toMatch(/expires in 7 days/i);
     expect(html).toContain('400 East 90th Street');
-    expect(html).toContain('RLS20078109');
+    expect(html).toContain('SL-0421');
     expect(html).toMatch(/UCBA Art\. I/i);
     // Sent transactional + company channel
     expect(opts).toEqual(expect.objectContaining({ channel: 'company', transactional: true }));
   });
 
   it('does NOT send email when listing has agent_id but no email on the agent record', async () => {
-    listingFindManyMock.mockImplementation((async (args: { where?: { expiration_7d_notified?: boolean } }) => {
-      if (args?.where?.expiration_7d_notified === false) {
-        return [
-          {
-            id: 101n,
-            listing_id: 'RLS20078110',
-            address: { StreetNumber: '432', StreetName: 'Park Avenue' },
-            expiration_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-            agent_id: 99n,
-            agent: { email: null, first_name: 'X', last_name: 'Y' },
-          },
-        ];
-      }
-      return [];
-    }) as never);
+    listingFindManyMock.mockImplementation(
+      serveIfOwned('expiration_7d_notified', {
+        id: 101n,
+        listing_id: 'RL-0102',
+        rls_eligible: false,
+        address: { StreetNumber: '432', StreetName: 'Park Avenue' },
+        expiration_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        agent_id: 99n,
+        agent: { email: null, first_name: 'X', last_name: 'Y' },
+      }),
+    );
 
     const { GET } = await import('@/app/api/cron/listing-expiration/route');
     await GET(authedCronRequest());
@@ -193,21 +262,17 @@ describe('listing-expiration cron — 7-day urgent branch', () => {
   });
 
   it('does NOT mark expiration_7d_notified when the 7-day email send fails', async () => {
-    listingFindManyMock.mockImplementation((async (args: { where?: { expiration_7d_notified?: boolean } }) => {
-      if (args?.where?.expiration_7d_notified === false) {
-        return [
-          {
-            id: 102n,
-            listing_id: 'RLS20078111',
-            address: { StreetNumber: '500', StreetName: 'West End Avenue' },
-            expiration_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-            agent_id: 42n,
-            agent: { email: 'agent@mallan.nyc', first_name: 'Maya', last_name: 'Allan' },
-          },
-        ];
-      }
-      return [];
-    }) as never);
+    listingFindManyMock.mockImplementation(
+      serveIfOwned('expiration_7d_notified', {
+        id: 102n,
+        listing_id: 'SL-0511',
+        rls_eligible: false,
+        address: { StreetNumber: '500', StreetName: 'West End Avenue' },
+        expiration_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        agent_id: 42n,
+        agent: { email: 'agent@mallan.nyc', first_name: 'Maya', last_name: 'Allan' },
+      }),
+    );
     sendEmailRouteSpy.mockResolvedValue({ success: false, error: 'SMTP send failed' });
 
     const { GET } = await import('@/app/api/cron/listing-expiration/route');
@@ -238,6 +303,123 @@ describe('listing-expiration cron — 7-day urgent branch', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
+// 1b. Listing-expiration cron — OWNERSHIP AUTHORITY (route execution)
+//
+// `syncAgentHistory` stamps `agent_id` on third-party feed rows (it matches
+// BuyerAgentMlsId as well as ListAgentMlsId) and feed rows carry their own
+// `expiration_date`. Association is therefore NOT ownership, and these tasks
+// tell an agent "Your exclusive on {address} expires" — Task 2 by EMAIL — and
+// write `expiration_*_notified` onto the row. These are real route executions,
+// not source-string checks.
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('listing-expiration cron — ownership authority', () => {
+  const WINDOW_7D = () => new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+  const WINDOW_30D = () => new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
+
+  it('the route sends the PRODUCTION ownership predicate on both warning tasks', async () => {
+    capturedWheres.length = 0;
+    listingFindManyMock.mockImplementation(serveIfOwned('expiration_7d_notified', {}));
+
+    const { GET } = await import('@/app/api/cron/listing-expiration/route');
+    await GET(authedCronRequest());
+
+    const { buildMallanOwnedListingWhere } = await import('@/lib/idx/media-sync');
+    const expected = buildMallanOwnedListingWhere();
+
+    const warningWheres = capturedWheres.filter(
+      (w) => 'expiration_30d_notified' in w || 'expiration_7d_notified' in w,
+    );
+    expect(warningWheres.length).toBeGreaterThanOrEqual(2);
+    for (const w of warningWheres) {
+      expect(w.AND).toEqual(expect.arrayContaining([expected]));
+      // agent_id survives only as the recipient data requirement.
+      expect(w.agent_id).toEqual({ not: null });
+    }
+  });
+
+  it('NEGATIVE 30-day: third-party feed row with agent_id produces NO side effects', async () => {
+    listingFindManyMock.mockImplementation(
+      serveIfOwned('expiration_30d_notified', {
+        id: 900n,
+        ...THIRD_PARTY_FEED,
+        address: { StreetNumber: '1', StreetName: 'Third Party Way' },
+        expiration_date: WINDOW_30D(),
+        agent_id: 42n,
+        agent: { email: 'agent@mallan.nyc', first_name: 'Maya', last_name: 'Allan' },
+      }),
+    );
+
+    const { GET } = await import('@/app/api/cron/listing-expiration/route');
+    const res = await GET(authedCronRequest());
+    const body = await res.json();
+
+    expect(body.warnings_30d).toBe(0);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(listingUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { expiration_30d_notified: true } }),
+    );
+  });
+
+  it('NEGATIVE 7-day: third-party feed row with agent_id sends NO email and NO notification', async () => {
+    listingFindManyMock.mockImplementation(
+      serveIfOwned('expiration_7d_notified', {
+        id: 901n,
+        ...THIRD_PARTY_FEED,
+        address: { StreetNumber: '2', StreetName: 'Third Party Way' },
+        expiration_date: WINDOW_7D(),
+        agent_id: 42n,
+        agent: { email: 'agent@mallan.nyc', first_name: 'Maya', last_name: 'Allan' },
+      }),
+    );
+
+    const { GET } = await import('@/app/api/cron/listing-expiration/route');
+    const res = await GET(authedCronRequest());
+    const body = await res.json();
+
+    expect(body.warnings_7d).toBe(0);
+    expect(sendEmailRouteSpy).not.toHaveBeenCalled();
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(listingUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { expiration_7d_notified: true } }),
+    );
+  });
+
+  it('POSITIVE 30-day: a Mallan-owned row still notifies and marks the flag', async () => {
+    listingFindManyMock.mockImplementation(
+      serveIfOwned('expiration_30d_notified', {
+        id: 910n,
+        ...MALLAN_OWNED,
+        address: { StreetNumber: '400', StreetName: 'East 90th Street' },
+        expiration_date: WINDOW_30D(),
+        agent_id: 42n,
+        agent: { email: 'agent@mallan.nyc', first_name: 'Maya', last_name: 'Allan' },
+      }),
+    );
+
+    const { GET } = await import('@/app/api/cron/listing-expiration/route');
+    const res = await GET(authedCronRequest());
+    const body = await res.json();
+
+    expect(body.warnings_30d).toBe(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'listing_expiration', recipient_id: 42n }),
+    );
+    expect(listingUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 910n }, data: { expiration_30d_notified: true } }),
+    );
+  });
+
+  it('the ONLY difference between the positive and negative fixtures is ownership', () => {
+    // Same shape, same window, same agent, same email — so a passing negative
+    // test cannot be explained by a missing unrelated property.
+    expect(Object.keys(MALLAN_OWNED).sort()).toEqual(Object.keys(THIRD_PARTY_FEED).sort());
+    expect(MALLAN_OWNED.rls_eligible).toBe(false);
+    expect(THIRD_PARTY_FEED.rls_eligible).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
 // 2. Listing-expiration cron — deadline-passed branch (Task 4a)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -252,7 +434,7 @@ describe('listing-expiration cron — deadline-passed branch', () => {
             agent_id: 42n,
             names_deadline: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
             listing: {
-              listing_id: 'RLS20078109',
+              listing_id: 'SL-0421',
               address: { StreetNumber: '400', StreetName: 'East 90th Street' },
             },
           },
@@ -296,7 +478,7 @@ describe('listing-expiration cron — deadline-passed branch', () => {
     const html = sendEmailRouteSpy.mock.calls[0][2] as string;
     expect(html).toMatch(/deadline.*missed/i);
     expect(html).toMatch(/UCBA Art\. I/i);
-    expect(html).toContain('RLS20078109');
+    expect(html).toContain('SL-0421');
   });
 
   it('skips brokers with no email on record (transient missing-data state)', async () => {
@@ -307,7 +489,7 @@ describe('listing-expiration cron — deadline-passed branch', () => {
             id: 6n,
             agent_id: 42n,
             names_deadline: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-            listing: { listing_id: 'RLS20078110', address: { StreetNumber: '1', StreetName: 'X' } },
+            listing: { listing_id: 'RL-0102', address: { StreetNumber: '1', StreetName: 'X' } },
           },
         ];
       }

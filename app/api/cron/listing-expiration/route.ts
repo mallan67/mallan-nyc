@@ -50,12 +50,27 @@ export async function GET(req: NextRequest) {
   };
 
   // --- Task 1: 30-day expiration warning ---
+  //
+  // OWNERSHIP SCOPING (2026-08-10). This task notifies an agent that "Your
+  // exclusive on {address} expires ..." and then WRITES
+  // `expiration_30d_notified` on the row. It previously scoped by
+  // `agent_id: { not: null }` alone, which is not ownership: `syncAgentHistory`
+  // stamps `agent_id` on THIRD-PARTY feed rows (it matches BuyerAgentMlsId as
+  // well as ListAgentMlsId), and feed rows carry their own `expiration_date`.
+  // A Mallan agent who was merely the buyer-side agent on another brokerage's
+  // listing would therefore be told it was "your exclusive", and Mallan would
+  // write notification bookkeeping onto a Cotality-source-owned row.
+  //
+  // Same canonical predicate Task 3 already uses. `agent_id: { not: null }` is
+  // RETAINED as the DATA requirement (the notification needs a recipient), not
+  // as the ownership signal.
   const expiring30d = await prisma.listing.findMany({
     where: {
       status: { in: ["Active", "ActiveUnderContract", "ComingSoon", "Pending"] },
       expiration_date: { not: null, lte: thirtyDaysOut, gt: sevenDaysOut },
       expiration_30d_notified: false,
       agent_id: { not: null },
+      AND: [buildMallanOwnedListingWhere()],
     },
     select: {
       id: true,
@@ -85,12 +100,18 @@ export async function GET(req: NextRequest) {
   }
 
   // --- Task 2: 7-day expiration warning ---
+  // OWNERSHIP SCOPING (2026-08-10) — same reasoning as Task 1, and the stakes
+  // are higher here: this task ALSO sends the UCBA expiration EMAIL. An
+  // outbound email telling an agent their exclusive is expiring, for a listing
+  // another brokerage holds, is a misstatement Mallan should never make. It
+  // likewise writes `expiration_7d_notified` on the row.
   const expiring7d = await prisma.listing.findMany({
     where: {
       status: { in: ["Active", "ActiveUnderContract", "ComingSoon", "Pending"] },
       expiration_date: { not: null, lte: sevenDaysOut, gt: now },
       expiration_7d_notified: false,
       agent_id: { not: null },
+      AND: [buildMallanOwnedListingWhere()],
     },
     select: {
       id: true,
