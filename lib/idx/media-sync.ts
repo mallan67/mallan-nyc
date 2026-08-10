@@ -2450,16 +2450,26 @@ export function buildR2ParkedRecoveryWhere(
  * The column's schema contract already promised this ("the age gives a bounded
  * re-evaluation window without a second column"); nothing consumed it until
  * now, which is the whole defect. 14 days is chosen against the measured
- * Production population: ~24k rows will eventually be parked, so a 14-day
- * sweep costs ~1.7k single-column updates/day spread across media-sync
- * firings — small next to the sync's own upsert volume, and it bounds how long
- * a photo that has become the canonical hero can stay unmirrored.
+ * Production population: **~17.6k** rows are eventually policy-admissible AND
+ * non-hero, so a 14-day sweep costs **~1.3k** single-column updates/day spread
+ * across media-sync firings — small next to the sync's own ~28.4k row
+ * writes/day — and it bounds how long a photo that has become the canonical
+ * hero can stay unmirrored. (An earlier note said ~24k / ~1.7k; that figure
+ * omitted `buildR2MirrorPolicyMediaWhere`, so it counted parked rows whose
+ * listing is no longer policy-admissible.)
  */
 export const R2_POLICY_REEVAL_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
- * Rows reconsidered per run. Every scanned row is written exactly once, so this
- * is also the hard per-run write bound for the pass.
+ * The per-run bound on **DECIDED** rows — the write-intent count
+ * (`readmitted + kept_parked + write_failed`). Each fairness top-up requests
+ * only the capacity still unused, so the bound is mechanical and a top-up
+ * `take` can never exceed it.
+ *
+ * It is NOT a bound on `scanned`. Rows the pass could not decide (a failed hero
+ * read) are examined and deliberately NOT written, and the top-up then replaces
+ * them — so `scanned` legitimately exceeds this number. The two are reported
+ * separately for exactly that reason.
  */
 export const R2_POLICY_REEVAL_BATCH_LIMIT = 60;
 
@@ -2608,6 +2618,23 @@ export interface R2PolicyReevaluationResult {
    * would never be noticed.
    */
   selector_failed: boolean;
+  /**
+   * The durable rotation cursor could not be READ. The sweep still runs, from
+   * the beginning of the listing-id space.
+   */
+  cursor_read_failed: boolean;
+  /**
+   * The durable rotation cursor could not be ADVANCED. This run's media
+   * decisions are unaffected and already persisted, but the NEXT run restarts
+   * from the previous position.
+   *
+   * This is the one failure that can silently undo the CROSS-RUN fairness
+   * guarantee: if the write keeps failing, every firing re-examines the same
+   * window and a persistently failing listing group starves later listings
+   * again — the exact defect the cursor exists to prevent. Fail-open is correct
+   * here; failing INVISIBLY is not.
+   */
+  cursor_write_failed: boolean;
 }
 
 /**
@@ -2650,6 +2677,8 @@ export async function reevaluateR2PolicyExclusions(
     decided: 0,
     write_failed: 0,
     selector_failed: false,
+    cursor_read_failed: false,
+    cursor_write_failed: false,
   };
 
   type ReevalRow = {
@@ -2697,9 +2726,13 @@ export async function reevaluateR2PolicyExclusions(
   /**
    * Move the durable rotation forward (or wrap it to null at the end of the
    * space). ONE bounded upsert per run, and only when the position actually
-   * changes — this is a cursor, not a new write stream. A failure is swallowed:
-   * the next run simply re-reads the old position and repeats a window, which
-   * is wasteful but never incorrect.
+   * changes — this is a cursor, not a new write stream.
+   *
+   * A failure is non-fatal but NOT silent: `cursor_write_failed` is raised.
+   * The next run re-reads the old position and repeats a window, which is
+   * wasteful and never incorrect for THIS run's data — but if it keeps
+   * failing, every firing re-examines the same window and the cross-run
+   * fairness guarantee is silently lost.
    */
   const advanceCursor = async (next: string | null): Promise<void> => {
     if (next === cursor) return;
@@ -2710,13 +2743,15 @@ export async function reevaluateR2PolicyExclusions(
         update: { last_listing_key: next },
       });
     } catch {
-      /* non-fatal — rotation retries next firing */
+      result.cursor_write_failed = true;
     }
   };
 
   // DURABLE ROTATION. Read where the previous run stopped. A missing row, a
   // null key or a read failure all mean "start from the beginning" — the sweep
-  // must never be blocked by its own bookkeeping.
+  // must never be blocked by its own bookkeeping. A read FAILURE is reported
+  // (`cursor_read_failed`); a missing row is not, because that is the normal
+  // first-run state.
   try {
     const state = await prisma.mediaSyncState.findUnique({
       where: { resource: R2_POLICY_REEVAL_CURSOR_RESOURCE },
@@ -2725,6 +2760,7 @@ export async function reevaluateR2PolicyExclusions(
     cursor = state?.last_listing_key ?? null;
   } catch {
     cursor = null;
+    result.cursor_read_failed = true;
   }
   const afterCursor: Prisma.ListingMediaWhereInput =
     cursor === null ? {} : { listing_id: { gt: cursor } };
@@ -3737,6 +3773,18 @@ export interface RunMediaSyncResult {
    * running entirely would never be noticed.
    */
   r2_policy_selector_failed: boolean;
+  /**
+   * PHASE 4a durable rotation cursor could not be READ this run; the sweep ran
+   * from the beginning of the listing-id space.
+   */
+  r2_policy_cursor_read_failed: boolean;
+  /**
+   * PHASE 4a durable rotation cursor could not be ADVANCED. This run's media
+   * decisions are unaffected, but the next run restarts from the previous
+   * position â and a sustained failure silently restores the starvation defect
+   * the cursor exists to prevent.
+   */
+  r2_policy_cursor_write_failed: boolean;
   /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
   /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
@@ -4186,6 +4234,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2PolicyWriteFailed = 0;
   let r2PolicyDeferred = 0;
   let r2PolicySelectorFailed = false;
+  let r2PolicyCursorReadFailed = false;
+  let r2PolicyCursorWriteFailed = false;
   let r2Mirrored = 0;
   let r2Uploaded = 0;
   let r2Reused = 0;
@@ -4267,6 +4317,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_policy_write_failed: 0,
       r2_policy_deferred: 0,
       r2_policy_selector_failed: false,
+      r2_policy_cursor_read_failed: false,
+      r2_policy_cursor_write_failed: false,
       r2_mirrored: 0,
       r2_uploaded: 0,
       r2_reused: 0,
@@ -5034,6 +5086,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2PolicyDecided = reeval.decided;
     r2PolicyWriteFailed = reeval.write_failed;
     r2PolicySelectorFailed = reeval.selector_failed;
+    r2PolicyCursorReadFailed = reeval.cursor_read_failed;
+    r2PolicyCursorWriteFailed = reeval.cursor_write_failed;
   }
 
   // ── PHASE 4: finalize + return ───────────────────────────────────────
@@ -5136,6 +5190,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_policy_write_failed: r2PolicyWriteFailed,
     r2_policy_deferred: r2PolicyDeferred,
     r2_policy_selector_failed: r2PolicySelectorFailed,
+    r2_policy_cursor_read_failed: r2PolicyCursorReadFailed,
+    r2_policy_cursor_write_failed: r2PolicyCursorWriteFailed,
     r2_mirrored: r2Mirrored,
     r2_uploaded: r2Uploaded,
     r2_reused: r2Reused,

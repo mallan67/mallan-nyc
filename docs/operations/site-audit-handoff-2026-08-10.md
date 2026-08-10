@@ -27,7 +27,7 @@ path plus the corrections listed under "Open risks" below.
 |---|---|
 | Canonical listing redirects return **HTTP 200 with a client-side RSC redirect**, not 308 | Pre-existing and **NOT fixed**. The route is ISR (`revalidate = 600`), so `permanentRedirect()` is serialised into the flight payload. Mitigated by `noindex, follow` + a correct `<link rel=canonical>`; the client router completes the redirect. Non-JS clients and `curl -L` do not follow. Affects every id-only listing URL, which the site never emits internally. |
 | Mallan local listings absent from search and sitemap | 0 of 8,692 sitemap listing URLs are `SL-`/`RL-`. Both gates require `idx_display_yn = true`; both Active SL rows have it `false`, yet their detail pages serve `index, follow`. Needs a REBNY display-gate + exclusives-launch decision — **not touched**. |
-| **OPS-026** historical media-summary drift (4,894 listings) | Design CLOSED, **Production backfill HELD**. |
+| **OPS-026** historical media-summary drift (4,847 listings, production URL rule) | Design CLOSED, **Production backfill HELD**. |
 | 43 stranded R2 heroes | Fix built and validated in #599; **not deployed**. |
 | CPU reduction | **Still not proven functioning.** The last captured preflight reason is `external_state_unavailable` (handoff 2026-08-02, runtime logs). It was **not re-captured this session** — the Vercel MCP token is expired — so the *current* reason is unconfirmed. What is measured today: 144 One Cycle runs in 24h out of 144 possible 10-minute preflights, i.e. **zero skips**. |
 | Leftover Neon branch | `preview-pr597-commit11` (`br-old-dust-ad3idcf6`), created 2026-08-08, 36 MiB logical, still `ready`. |
@@ -51,10 +51,18 @@ single Cotality proxy, **nested proxy 0** in every case.
 | summaries | 4,431 | 1,511 | 2,920 |
 | projections | — | 51 | — |
 
-Attribution: **14,995/day** media writes are locator-refresh only (6,643 material);
-**3,813/day** listing writes are `raw_data_only`; **1,218/day** are
-`modification_timestamp_only`. About **20,026 of 28,351 row writes/day (71%) change nothing a user
-or the search projection can see**, and they drove **8,116 ISR revalidations/day**.
+Attribution — **the three classes are not equivalent and must not be summed as "waste":**
+
+| class | /day | verdict |
+|---|---|---|
+| Locator refresh | 14,995 | **Necessary under the current delivery architecture.** An unmirrored photo serves from `media_url_original`; that signed URL rotates. High cost, not a useless write. |
+| `raw_data_only` | 3,813 | **Attribution still required.** `raw_data` feeds public behaviour (`terminal-since.ts`) and is cache-invalidating by design; the changed-key histogram (`sync.ts:1382`) has not been run. Not proven invisible. |
+| `modification_timestamp_only` | 1,218 | **Provenance-only and adds NO cache tags** (`sync.ts:610`). A physical write that invalidates nothing — the next clear writer fix. |
+
+What can be said without overreach: **~20,026 of 28,351 row writes/day (71%) produce no typed or
+search-projection delta.** That is field-level change, not proven waste — only the 1,218/day
+provenance class is presently demonstrated as avoidable. The **8,116 ISR revalidations/day** cannot
+be attributed to all three either: the provenance class contributes zero by design.
 
 Systemic link: the hero-only R2 policy mirrors ~1 photo per third-party listing, so ~17.6k gallery
 photos serve from Cotality through `/api/media/proxy`; their signed URLs rotate, so keeping
@@ -67,15 +75,47 @@ from `rows_updated_changed`.
 
 ## Neon
 
-Physical `pg_database_size` 576 MB; branch logical 598 MiB. `listing_media` 217 MB (340,342 rows) ·
+Physical `pg_database_size` **576 MB** (2026-08-02: **555 MB** — about **+21 MB over 8 days**; no capacity danger against the 10 GB plan, growth continuing, billed trend unmeasured); branch logical 598 MiB. `listing_media` 217 MB (340,342 rows) ·
 `listings` 178 MB (24,723) · `audit_events` 77 MB (101,899). Branch `cpu_used_sec` 199,868 /
 `active_time_seconds` 799,072 (lifetime since 2025-12-09 — no per-day series available through the
 tooling used). Two branches exist (see leftover branch above).
 
 ## Exact stop point
 
-PR #599 head `892eb8e3` + the correction commits that follow it. **CI green, 0 unresolved review
-threads, deliberately UNMERGED.** Merge requires Maya's explicit authorization.
+| | |
+|---|---|
+| `main` SHA | `2d121daaf6dbcd3d027d6d337901a18e43c03ad8` (PR #598 merge) |
+| Production SHA / deployment | `2d121daa` · `dpl_Ey4rGtD26mij3ULsgJvrs88md6yy` · alias `mallan.nyc` · Release Truth `PROD_PROVEN` |
+| PR #599 exact head | **`__HEAD__`** |
+| Branch | `fix/r2-policy-reevaluation-2026-08-10` |
+| PR state | OPEN · not draft · MERGEABLE · 0 unresolved review threads · **UNMERGED** |
 
-Held and untouched: merge #599 · OPS-026 backfill · R2 orphan cleanup · any migration, env or
-manual R2 mutation · the Mallan-exclusive search/sitemap gate decision.
+**Last completed layer:** the twelve-item contained correction pass on #599 — domain-audit
+telemetry, cursor-failure observability, stale-claim removal, provider-scoped URL equality, the
+media-side candidate join, executable evidence SQL, cost re-classification, storage comparison,
+`AGENTS.md` runtime model, and this handoff.
+
+**Current layer:** none in flight. #599 is at the merge-authorization boundary.
+
+**Next immediate action (needs Maya):** authorize the merge of #599. Everything after it is gated
+on that: live R2 re-admission verification, backlog/control-plane revalidation, durable
+preflight-reason telemetry, the Neon skip proof, the `modification_timestamp_only` writer fix,
+`raw_data_only` attribution, the locator-refresh architecture, exact server HTTP 308, Mallan local
+search/sitemap visibility, storage/churn remeasurement, and a final fresh audit.
+
+**Held mutations — none executed:** merge #599 · OPS-026 backfill · R2 orphan cleanup · Neon branch
+deletion · any migration · any Production env change · manual R2 mutation · the Mallan-exclusive
+search/sitemap gate decision.
+
+## Remaining issues, carried forward
+
+| issue | state |
+|---|---|
+| Neon CPU savings | **NOT PROVEN.** 144/144 preflights ran One Cycle — zero skips. The reason was **not captured this session** (Vercel MCP token expired); last captured reason is `external_state_unavailable` (2026-08-02). |
+| Locator-refresh churn | 14,995 writes/day. **Necessary under the current delivery architecture** — the signed URL of an unmirrored photo must stay fresh. Architecture change, not a suppression rule. |
+| `raw_data_only` churn | 3,813 writes/day. **Attribution required** — `raw_data` feeds public behaviour and the changed-key histogram has not been run. Not proven waste. |
+| `modification_timestamp_only` churn | 1,218 writes/day. **Provenance-only, invalidates no cache** — the clearest avoidable physical write and the next writer fix. |
+| Canonical redirects | Served as HTTP 200 + client-side RSC redirect, not 308 (ISR). Mitigated by `noindex, follow` + canonical. Pre-existing. |
+| Mallan local search/sitemap visibility | 0 of 8,692 sitemap listing URLs are `SL-`/`RL-`; both gates require `idx_display_yn = true`. Needs a compliance + launch decision. |
+| Storage | 555 MB (08-02) -> 576 MB (08-10), ~+21 MB/8 days. No capacity danger; growth continuing; billed trend unmeasured. |
+| Test flakiness | Three different cold-start/P1001 retry suites each flaked once across five full runs, all green in isolation and on rerun. Pre-existing timing sensitivity under parallel load. |

@@ -68,9 +68,50 @@ on stored Trestle locators, which are never proxied at rest.
 ## 1. Policy-parked population
 
 ```sql
--- ranked over CANONICAL active photos, joined to listings, with the full
--- buildR2MirrorPolicyMediaWhere admissibility expression
+WITH cls AS (
+  SELECT lm.*, /* is_photo := the §0 canonical predicate */ NULL::boolean AS placeholder
+  FROM listing_media lm),
+ranked AS (
+  SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c.listing_id
+    ORDER BY (c.preferred_photo_yn AND c.media_key LIKE 'crm:%') DESC,
+             c.preferred_photo_yn DESC, c."order" ASC, c.id ASC) AS hero_rank
+  FROM cls c WHERE c.status='active' AND c.is_photo),
+pol AS (
+  SELECT r.*,
+    ( (r.media_type IN ('Photo','FloorPlan')
+        AND (l.listing_id LIKE 'SL-%' OR l.listing_id LIKE 'RL-%' OR l.rls_eligible = false))
+      OR (r.media_type IN ('Photo')
+        AND l.idx_display_yn = true AND l.owner_opt_out = false
+        AND l.participant_only = false AND l.internet_entire_listing_display_yn = true
+        AND l.status IN ('Active','ActiveUnderContract','ComingSoon')
+        AND (l.rls_eligible = false OR l.listing_id LIKE 'SL-%' OR l.listing_id LIKE 'RL-%'
+             OR l.list_office_mls_id IS NULL OR l.list_office_mls_id NOT IN ('7041')))
+    ) AS policy_admissible
+  FROM ranked r JOIN listings l ON l.listing_id = r.listing_id)
+SELECT
+  count(*) FILTER (WHERE r2_policy_excluded_at IS NOT NULL OR r2_attempts = 9) AS parked_total,
+  count(*) FILTER (WHERE r2_attempts = 9 AND r2_policy_excluded_at IS NULL)    AS parked_legacy,
+  count(*) FILTER (WHERE r2_policy_excluded_at IS NOT NULL)                    AS parked_newcol,
+  count(*) FILTER (WHERE (r2_policy_excluded_at IS NOT NULL OR r2_attempts=9)
+                     AND hero_rank=1 AND r2_key IS NULL)                       AS stranded_heroes,
+  count(*) FILTER (WHERE (r2_policy_excluded_at IS NOT NULL OR r2_attempts=9)
+      AND policy_admissible AND media_key IS NOT NULL AND media_url_original IS NOT NULL
+      AND (r2_key IS NULL OR media_url_cached IS NULL)
+      AND ( (r2_policy_excluded_at IS NOT NULL
+             AND r2_policy_excluded_at < now() - interval '14 days')
+         OR (r2_policy_excluded_at IS NULL AND r2_attempts = 9
+             AND (r2_last_attempt_at IS NULL
+                  OR r2_last_attempt_at < now() - interval '14 days')) ))      AS due_now_exact,
+  count(*) FILTER (WHERE hero_rank > 1 AND policy_admissible
+      AND (r2_key IS NULL OR media_url_cached IS NULL)
+      AND media_key IS NOT NULL AND media_url_original IS NOT NULL)            AS eventual_parkable,
+  count(DISTINCT listing_id) FILTER (WHERE r2_policy_excluded_at IS NOT NULL
+                                        OR r2_attempts=9)                      AS parked_listings
+FROM pol;
 ```
+
+`cls.is_photo` is the CASE expression printed verbatim in §0 — inlined there once rather than
+repeated in every query below. Substituting it makes each statement runnable as-is.
 
 | metric | first version (naive) | **corrected (canonical + full policy filter)** |
 |---|---|---|
@@ -131,7 +172,56 @@ during this session, so preflight reason telemetry was **not captured**. The las
 ## 3. Write churn by stream (24h)
 
 ```sql
--- summed from audit_events -> changes->'members' -> summary->'write_paths'
+-- listings stream + change-reason attribution
+WITH ms AS (
+  SELECT changes->'members' AS members FROM audit_events
+  WHERE action='one_cycle_run' AND created_at >= now() - interval '24 hours'),
+r AS (SELECT m->'summary'->'write_paths'->'listing_change_reasons' AS lcr,
+             m->'summary'->'write_paths'->'listings'      AS l,
+             m->'summary'->'write_paths'->'batch_media'   AS bm,
+             m->'summary'->'write_paths'->'projections'   AS pj,
+             m->'summary'->'write_paths'->'revalidation'  AS rv
+      FROM ms, LATERAL jsonb_array_elements(members) m WHERE m->>'member'='idx-sync')
+SELECT sum((l->>'rows_checked')::int)              AS listings_checked,
+       sum((l->>'rows_updated')::int)              AS listings_written,
+       sum((l->>'rows_suppressed_unchanged')::int) AS listings_suppressed,
+       sum((bm->>'rows_updated')::int)             AS batch_media_written,
+       sum((pj->>'rows_updated')::int)             AS projection_writes,
+       sum((rv->>'pages_revalidated')::int)        AS pages_revalidated,
+       sum((lcr->>'modification_timestamp_only')::int) AS ts_only,
+       sum((lcr->>'raw_data_only')::int)           AS raw_data_only,
+       sum((lcr->>'status')::int)                  AS status,
+       sum((lcr->>'price')::int)                   AS price,
+       sum((lcr->>'display_permissions')::int)     AS display_permissions,
+       sum((lcr->>'attribution')::int)             AS attribution,
+       sum((lcr->>'address')::int)                 AS address,
+       sum((lcr->>'media_identity')::int)          AS media_identity,
+       sum((lcr->>'other')::int)                   AS other
+FROM r;
+
+-- media stream + locator-refresh attribution + R2 totals
+WITH ms AS (
+  SELECT changes->'members' AS members FROM audit_events
+  WHERE action='one_cycle_run' AND created_at >= now() - interval '24 hours'),
+m AS (SELECT x->'summary' AS s FROM ms, LATERAL jsonb_array_elements(members) x
+      WHERE x->>'member'='media-sync')
+SELECT sum((s->>'rows_checked')::int)           AS media_checked,
+       sum((s->>'rows_updated')::int)           AS media_written,
+       sum((s->>'rows_updated_changed')::int)   AS media_materially_changed,
+       sum((s->>'rows_updated')::int) - sum((s->>'rows_updated_changed')::int)
+                                               AS locator_refresh_only,
+       sum((s->>'rows_inserted')::int)          AS media_inserted,
+       sum((s->>'rows_skipped_unchanged')::int) AS media_suppressed,
+       sum((s->>'r2_uploaded')::int)            AS r2_uploaded,
+       sum((s->>'r2_reused')::int)              AS r2_reused,
+       sum((s->>'r2_failed')::int)              AS r2_failed,
+       sum((s->>'mirror_rejected_policy_parked')::int) AS policy_parked,
+       sum((s->>'rows_tombstoned')::int)        AS tombstoned,
+       sum((s->'summary_writes'->>'rows_updated')::int) AS summary_writes,
+       sum((s->'summary_writes'->>'rows_suppressed_unchanged')::int) AS summary_suppressed,
+       max((s->>'backlog_remaining')::int)      AS max_backlog_remaining,
+       sum((s->>'overlap_prevented')::int)      AS overlap_prevented
+FROM m;
 ```
 
 | stream | checked | written | suppressed |
@@ -154,14 +244,29 @@ listings       modification_timestamp_only         1218
 ISR            pages_revalidated                   8116
 ```
 
-**≈ 20,026 of 28,351 row writes/day (71%) change nothing a user or the search projection can see**
-(14,995 locator-refresh + 3,813 `raw_data_only` + 1,218 timestamp-only), and they drove **8,116 ISR
-revalidations/day** — about 1.6 revalidations per materially-changed listing.
+### Classification — the three classes are NOT equivalent
+
+An earlier version of this document summed all three and called them "writes that change nothing a
+user can see". That was wrong: it collapsed one necessary class, one unproven class and one genuinely
+avoidable class into a single "71% waste" figure. Corrected:
+
+| class | volume/day | verdict |
+|---|---|---|
+| **Locator refresh** | 14,995 | **NECESSARY under the current delivery architecture.** An unmirrored photo is served from `media_url_original`; that signed URL rotates, so refreshing it prevents a broken image on ~17.6k gallery photos. Expensive DB churn, but not a useless write. Removing it requires an architecture change, not a suppression rule. |
+| **`raw_data_only`** | 3,813 | **ATTRIBUTION REQUIRED — not proven invisible.** `raw_data` participates in public behaviour (`lib/listings/terminal-since.ts` reads `raw_data.CloseDate` / `OffMarketDate` / `ExpirationDate`), and it is deliberately treated as cache-invalidating. The codebase itself holds the question open: `lib/idx/sync.ts:1382` emits a changed-key histogram built to answer "which `raw_data` KEYS change on `raw_data_only` writes?". Until that histogram plus a consumer trace exist, this class cannot be called waste. |
+| **`modification_timestamp_only`** | 1,218 | **PROVENANCE-ONLY — the clearest avoidable physical write.** Already classified as such in code, and it adds **no cache tags** (`lib/idx/sync.ts:610`: "a provenance-only listing write adds NO tags — a change nobody can see must not expire any cache"). It performs a physical listing-row write and invalidates nothing. This is the next clear writer fix. |
+
+What can be said without overreach: **~20,026 of 28,351 row writes/day (71%) produce no typed or
+search-projection delta.** That is a statement about *field-level* change, not about waste — only
+the 1,218/day provenance class is presently demonstrated as avoidable.
+
+The **8,116 ISR revalidations/day** likewise cannot be attributed to all three: the provenance class
+invalidates nothing by design, so it contributes zero of them.
 
 Systemic link: the hero-only R2 policy mirrors ~1 photo per third-party listing, so ~17.6k gallery
 photos serve from Cotality through `/api/media/proxy`. Their signed URLs rotate, so keeping
 `media_url_original` fresh is load-bearing for image delivery. R2 storage was traded for DB write
-churn, Neon wake time and Cotality egress.
+churn, Neon wake time and Cotality egress — a real architectural trade, not an accident.
 
 **Not attributable from durable data:** `persistenceReasons` (including
 `refresh_while_<deliveryState>`) is computed in `runMediaSync` but never persisted, so the largest
@@ -196,9 +301,26 @@ audit_events    77 MB (101,899 rows)
 branch cpu_used_sec 199,868 · active_time_seconds 799,072   (LIFETIME since 2025-12-09)
 ```
 
-**No historical size series is available** through the tooling used here — `describe_project`
-reports lifetime totals and a current size, not a trend, and billable/synthetic storage is not
-exposed. A storage trend therefore remains **unmeasured**, and no trend claim is made.
+### Storage comparison — growth is continuing
+
+A prior durable measurement **does** exist, and an earlier version of this document wrongly stated
+that no historical point was available:
+
+| date | physical `pg_database_size` | source |
+|---|---|---|
+| 2026-08-02 | **~555 MB** | `docs/operations/neon-cpu-storage-evidence-2026-08-02.md` (line 15) |
+| 2026-08-10 | **~576 MB** | this record |
+| change | **~+21 MB over 8 days** | ~2.6 MB/day at this sample |
+
+Classification, stated separately so none is over-read:
+
+- **Immediate capacity danger — NOT demonstrated.** 576 MB against a documented 10 GB plan limit.
+- **Physical growth — CONTINUING.** Two points is a comparison, not a trend line; the direction is
+  nonetheless up, and the churn measured in §3 is the obvious driver.
+- **Billed / synthetic storage trend — UNMEASURED.** `describe_project` reports lifetime totals and
+  a current logical size; billable size is not exposed through the MCP path used here. The last
+  recorded billed figure (1,493 MB, 2026-07-02) was **not** re-measured today, so no billed trend is
+  claimed.
 
 **Branch count: 2.** `main` (`br-crimson-frog-adr7g9gt`) plus a leftover
 `preview-pr597-commit11` (`br-old-dust-ad3idcf6`), created 2026-08-08, logical 36 MiB, state
@@ -207,18 +329,22 @@ exposed. A storage trend therefore remains **unmeasured**, and no trend claim is
 ## 6. Summary drift (canonical classifier, all four summary fields)
 
 ```
-photo-bearing listings examined            20649
-stale primary_photo_r2_key                  4879
+photo-bearing listings examined            20721
+stale primary_photo_r2_key                  4832
 stale photo_count                             42
 stale photos_change_timestamp                 13
-stale primary_photo_url  byte-exact           12
-stale primary_photo_url  provider-identity    12   (identical -> rotation is not inflating it)
-TOTAL exact selector                        4894
+stale primary_photo_url  production rule       12
+stale primary_photo_url  universal strip       12   (rejected rule, for comparison)
+stale primary_photo_url  byte-exact            12   (for comparison)
+listings the OLD prefilter would have missed     4
+TOTAL exact selector (production URL rule)  4847
    of which Mallan-owned                        4
    of which on a live listing                2573
 ```
 
-Superseded first-version figure: 4,911 (naive classifier, `photos_change_timestamp` omitted).
+Superseded figures: **4,911** (r0 — naive classifier, `photos_change_timestamp` omitted) then
+**4,894** (r1 — canonical classifier but a universal query-strip and an under-selecting prefilter).
+Current **4,847** uses the production provider-scoped URL rule and a media-side candidate join.
 
 **New drift check (canonical):** heroes touched since the 01:35Z #597 deploy **78**, of those
 mirrored **62**, of those with a correct summary **62/62**; stale listings whose hero was touched

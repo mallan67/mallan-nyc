@@ -16,7 +16,7 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 |---|---|
 | **Claude** | `CLAUDE.md` → this file → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff snapshot |
 | **Codex** | this file (`AGENTS.md`) + **review the CURRENT HEAD commit of a PR, never stale bot comments** |
-| **ChatGPT** | paste `AGENTS.md` + `docs/PROJECT-HEALTH-DASHBOARD.md` (it has no repo access) |
+| **ChatGPT** | `AGENTS.md` + `docs/PROJECT-HEALTH-DASHBOARD.md` + the latest dated handoff. **Do NOT assume it has no repository access** (corrected 2026-08-10) — a session may have GitHub and/or Vercel connectors attached. Check which connectors are actually available and verify through them; paste the files only when none is. Never assert a repo or Production fact from a pasted snapshot when a connector can confirm it live. |
 
 ---
 
@@ -26,10 +26,16 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
    `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
-   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
-   `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
-   comments, never the schedule**, unless Maya explicitly asks.
+2. **Live Cotality/Trestle cadence is intentional — and One Cycle is now the driver**
+   (corrected 2026-08-10). The scheduled entry point is **`/api/cron/one-cycle-preflight`, `*/10 * * * *`**;
+   it decides whether to run One Cycle, which invokes **idx-sync and media-sync in-process as members**.
+   `/api/cron/db-keepalive` is **intentionally absent** from the schedule (asserted by
+   `npm run health:probe`). **HISTORICAL, no longer true:** the pre-One-Cycle text here described
+   direct `/api/cron/idx-sync` every 10 min, `/api/cron/media-sync` every 15 min and
+   `/api/cron/db-keepalive` every 15 min — do not use that runtime model.
+   **Source of truth = `vercel.json`**, and `npm run health:probe` prints the live cron cadence.
+   Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the comments, never the
+   schedule**, unless Maya explicitly asks.
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
 4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,
@@ -129,8 +135,17 @@ Before ending a session or handing off:
 
 ## 7. Current status (pointer, not a copy)
 
-Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
-2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
+**Never read a status snapshot out of this file.** Obtain current status from, in order:
+`npm run health:probe` (read-only, refreshes the dashboard's auto tier) → the auto tier of
+`docs/PROJECT-HEALTH-DASHBOARD.md` → the **latest dated** `docs/operations/site-audit-handoff-*.md`.
+Anything narrated below is a dated snapshot that goes stale by design.
+
+**Snapshot 2026-08-10:** `main` = `2d121daa` (PR #598 merge); Production
+`dpl_Ey4rGtD26mij3ULsgJvrs88md6yy`, Release Truth `PROD_PROVEN`. **PR #599 (R2 policy re-admission)
+is OPEN and UNMERGED, held for Maya.** New registry item **OPS-026** (historical media-summary
+drift, design closed, backfill HELD). Handoff: `docs/operations/site-audit-handoff-2026-08-10.md`.
+
+**Snapshot 2026-07-02 (historical):** **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
 (`858da234`); the guard is under registry **RW-004** regression watch. **OPS-009 archive controls
 are IMPLEMENTED + deployed (#470) and the kill-switch proof is VERIFIED (OPS-020, 03:00:46Z).**
 **Gate 6 has NOT executed.** Next gate is Maya's `ARCHIVE_ENABLED=true` MAINTENANCE decision, then the

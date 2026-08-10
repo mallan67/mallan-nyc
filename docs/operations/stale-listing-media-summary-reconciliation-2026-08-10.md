@@ -6,14 +6,22 @@ Evidence Score live there; this document is the remediation plan, not a second d
 **Measured:** 2026-08-10, read-only, `hidden-mountain-87248164` / branch `main`
 **Production application SHA at measurement:** `2d121daa` (PR #598 merge, `PROD_PROVEN`)
 
-> **Revision (2026-08-10, same day).** The first version of this document derived "canonical hero
-> truth" from `status='active' AND media_type='Photo'`. That is **not** the production rule:
+> **Correction log (both revisions same day, 2026-08-10).**
+>
+> **r1.** The first version derived "canonical hero truth" from
+> `status='active' AND media_type='Photo'`. That is **not** the production rule:
 > `filterActivePhotoRows` delegates to `classifyMediaItem`, which weighs MediaCategory,
 > MediaClassification and the Trestle `DOCUMENT-*` URL shape before falling back to `media_type`.
-> Every population below has been recomputed with a verified equivalent of the real classifier, the
-> omitted `photos_change_timestamp` class has been added, the URL comparison now also reports the
-> production provider-scoped identity rule, and the write-volume arithmetic in §6 was wrong by three
-> orders of magnitude and is corrected.
+> Recomputed with a verified equivalent; the omitted `photos_change_timestamp` class was added; the
+> §6 write-volume arithmetic was wrong by three orders of magnitude and was corrected.
+> Superseded population: **4,911 → 4,894**.
+>
+> **r2.** Two further defects, both found in review. (i) The URL comparison stripped the query string
+> **universally**; production ignores it only when BOTH URLs belong to a known rotating feed provider
+> (`isRotatingFeedSummaryUrl` → `cotality.com`, `corelogic.com`), and compares everything else
+> byte-exact because a stable URL's query can be a real version or resource id. (ii) The broad
+> prefilter could **under**-select, silently dropping listings whose summary fields are both NULL.
+> Both corrected; population recomputed under the production contract: **4,894 → 4,847**.
 
 ---
 
@@ -43,13 +51,15 @@ summary fields `computeListingMediaSummary` owns.
 
 | class | listings |
 |---|---|
-| Photo-bearing listings examined | 20,649 |
-| **Total stale — exact selector** | **4,894** |
-| `primary_photo_r2_key` | 4,879 |
+| Photo-bearing listings examined | 20,721 |
+| **Total stale — EXACT selector (production URL rule)** | **4,847** |
+| `primary_photo_r2_key` | 4,832 |
 | `photo_count` | 42 |
 | `photos_change_timestamp` (class omitted from the first measurement) | 13 |
-| `primary_photo_url` — byte-exact | 12 |
-| `primary_photo_url` — production provider-scoped `mediaUrlIdentity` (origin + pathname) | **12 — identical**, so signed-URL rotation is *not* inflating the count |
+| `primary_photo_url` — **production provider-scoped rule** (the one used) | **12** |
+| `primary_photo_url` — universal query-strip (rejected rule, shown for comparison) | 12 |
+| `primary_photo_url` — byte-exact (shown for comparison) | 12 |
+| — of the total, listings the OLD prefilter would have silently excluded | 4 |
 | — of the total, Mallan-owned (`SL-`/`RL-`/`rls_eligible=false`) | 4 |
 | — of the total, on a live listing (Active/AUC/ComingSoon/Pending) | 2,573 |
 
@@ -82,12 +92,22 @@ gate, attribution, disclosure or price field is involved, so there is no complia
 
 Two forms, deliberately distinguished:
 
-**(a) Broad prefilter** — index-friendly, may over-select; safe to run cheaply and often:
+**(a) Bounded candidate join** — the superset the exact test runs against.
+
+> **Correction.** The first version proposed
+> `WHERE photo_count IS NOT NULL OR primary_photo_url IS NOT NULL` and described it as a filter that
+> "may over-select". It can also **under-select**: a listing with canonical active photos and *both*
+> summary fields NULL is excluded before the exact test ever runs — and that is precisely a class
+> reconciliation exists to find. Measured on 2026-08-10: **4 such listings**. The prefilter is
+> replaced by a candidate join derived from the media side, which cannot miss them.
 
 ```sql
-SELECT l.listing_id
-FROM listings l
-WHERE l.photo_count IS NOT NULL OR l.primary_photo_url IS NOT NULL;
+SELECT DISTINCT lm.listing_id
+FROM listing_media lm
+WHERE lm.status = 'active'          -- indexed
+  AND lm.media_type IN ('Photo','FloorPlan','Video','VirtualTour');
+-- deliberately WIDER than the canonical classifier: the exact test in (b)
+-- narrows it. Membership is never decided here.
 ```
 
 **(b) EXACT selector** — the authoritative membership test. It applies the canonical classifier and
@@ -132,18 +152,37 @@ JOIN cnt c      ON c.listing_id = h.listing_id
 JOIN pct p      ON p.listing_id = h.listing_id
 JOIN listings l ON l.listing_id = h.listing_id
 WHERE l.primary_photo_r2_key IS DISTINCT FROM h.r2_key
-   OR split_part(coalesce(l.primary_photo_url,''),'?',1)
-        IS DISTINCT FROM split_part(coalesce(h.media_url_original,''),'?',1)
    OR l.photo_count IS DISTINCT FROM c.n
    OR l.photos_change_timestamp IS DISTINCT FROM nullif(p.ts,'-infinity'::timestamp)
+   -- PROVIDER-SCOPED URL EQUALITY — the production contract, not a universal
+   -- query-strip. Query parameters are ignored ONLY when BOTH URLs belong to a
+   -- known rotating feed provider (`isRotatingFeedSummaryUrl`:
+   -- ROTATING_SUMMARY_URL_PROVIDER_DOMAINS = cotality.com, corelogic.com,
+   -- host or any subdomain). Every other URL — R2, Mallan, anything stable —
+   -- compares byte-exact, because its query may be a real version or resource
+   -- id. Origin is lowercased and the fragment dropped, matching
+   -- `mediaUrlIdentity` (`u.origin.toLowerCase() + u.pathname`).
+   OR CASE
+        WHEN lower(coalesce(substring(l.primary_photo_url  from '^[a-zA-Z]+://([^/]+)'),'')) ~ '(^|\.)(cotality|corelogic)\.com$'
+         AND lower(coalesce(substring(h.media_url_original from '^[a-zA-Z]+://([^/]+)'),'')) ~ '(^|\.)(cotality|corelogic)\.com$'
+        THEN (lower(coalesce(substring(l.primary_photo_url from '^([a-zA-Z]+://[^/]+)'),''))
+                || coalesce(substring(l.primary_photo_url from '^[a-zA-Z]+://[^/]*([^?#]*)'),''))
+             IS DISTINCT FROM
+             (lower(coalesce(substring(h.media_url_original from '^([a-zA-Z]+://[^/]+)'),''))
+                || coalesce(substring(h.media_url_original from '^[a-zA-Z]+://[^/]*([^?#]*)'),''))
+        ELSE l.primary_photo_url IS DISTINCT FROM h.media_url_original
+      END
 ORDER BY l.listing_id
 LIMIT :batch;
 ```
 
-`IS DISTINCT FROM` is required — `<>` is NULL-blind and would miss the entire dominant class. The
-URL comparison strips the query string, which is the SQL expression of the production
-`mediaUrlIdentity` rule (origin + pathname); on this population it selects the same 12 rows as a
-byte-exact compare, so the choice is about correctness under rotation, not about the count.
+`IS DISTINCT FROM` is required — `<>` is NULL-blind and would miss the entire dominant class.
+
+Measured 2026-08-10 with all three URL rules, so the choice is documented rather than assumed:
+production provider-scoped **12**, universal query-strip **12**, byte-exact **12**. They agree on
+today's data. The production rule is used anyway, because a universal strip would silently miss a
+real change on a stable URL whose query is meaningful — which is the failure this contract exists
+to prevent.
 
 ## 5. Intended write
 
@@ -172,7 +211,7 @@ behaviour.
 | **Bounded** | `LIMIT :batch`, default 200, one batch per invocation. |
 | **Resumable** | State lives in the data. Kill at any point; the selector returns what is still stale. |
 | **Pausable** | Stop invoking it. No lock, no cursor, no partial-run state to unwind. |
-| **Write volume** | ≤ 1 `UPDATE` per listing, **4,894 total, one-time**. Measured daily baseline is **~28,351 DB row writes/day**, so the whole backfill is about **17.3% of one day's writes** — spread over batches it is a small addition, but it is NOT negligible. *(The first version said "~0.02% of the ~27.5k timestamp writes/day": both the ratio and the denominator were wrong.)* |
+| **Write volume** | ≤ 1 `UPDATE` per listing, **4,847 total, one-time**. Measured daily baseline is **~28,351 DB row writes/day**, so the whole backfill is about **17.1% of one day's writes** — spread over batches it is a small addition, but it is NOT negligible. *(The first version said "~0.02% of the ~27.5k timestamp writes/day": both the ratio and the denominator were wrong.)* |
 | **Neon impact** | Runs only while the compute is already awake (piggyback on One Cycle, or a manual window). It must never be the reason Neon wakes. |
 | **R2 impact** | None. No object is read, written or deleted. |
 | **Cache** | Reuse the writer's existing revalidation path. Fresh URLs for pages that already render correctly, so a missed tag degrades to the current state, never worse. At ~1.6 revalidations per changed listing (measured), a full backfill implies roughly 7.8k additional revalidations, one-time. |
@@ -194,7 +233,7 @@ cannot be confused with a regression in the live writer.
 ## 9. Why not fold this into the sweep pattern used for R2 policy re-admission
 
 The Phase-4a R2 sweep (PR #599) is the right shape and could be mirrored here — but applying it
-would mean issuing ~4,894 Production `UPDATE`s automatically, which is precisely the backfill that
+would mean issuing ~4,847 Production `UPDATE`s automatically, which is precisely the backfill that
 is held. The mechanism is uncontroversial; the *authorization to mutate historical Production rows*
 is what is outstanding.
 

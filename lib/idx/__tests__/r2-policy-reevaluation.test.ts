@@ -459,7 +459,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
   it('25. no rows due ⇒ no writes at all', async () => {
     installPool([row(), parked({ r2_policy_excluded_at: FRESH })]);
     const res = await reevaluateR2PolicyExclusions({ now });
-    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0, selector_failed: false });
+    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0, selector_failed: false, cursor_read_failed: false, cursor_write_failed: false });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
@@ -488,8 +488,10 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
 
     const res = await reevaluateR2PolicyExclusions({ now });
 
-    // Every scanned row is written exactly once, so the sweep always advances
-    // and one failing listing can never starve the rest.
+    // The sweep advances by NOT stranding on the failing listing: undecidable
+    // rows are left untouched (see 35), the within-run top-up replaces them, and
+    // the durable cursor steps past the failing group on the NEXT firing.
+    // `scanned` is examined rows; `decided` is the bounded write-intent count.
     expect(res.deferred).toBe(1);
     expect(res.readmitted).toBe(0);
     // The sweep advances by NOT stranding on the failing listing; the row is
@@ -511,7 +513,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     mockFindMany.mockRejectedValue(new Error('db down'));
     await expect(reevaluateR2PolicyExclusions({ now })).resolves.toEqual({
       scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0,
-      selector_failed: true,
+      selector_failed: true, cursor_read_failed: false, cursor_write_failed: false,
     });
   });
 
@@ -524,7 +526,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     const quiet = await reevaluateR2PolicyExclusions({ now });
     expect(quiet).toEqual({
       scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0,
-      selector_failed: false,
+      selector_failed: false, cursor_read_failed: false, cursor_write_failed: false,
     });
 
     mockFindMany.mockRejectedValue(new Error('statement timeout'));
@@ -1036,6 +1038,62 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
       | { update: { last_listing_key: string | null } }
       | undefined;
     expect(up?.update.last_listing_key).toBeNull();
+  });
+
+  it('53. a healthy cursor round-trip reports BOTH failure flags false', async () => {
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    installPool([heroRow, legacyParked({ order: 11 })]);
+    const res = await reevaluateR2PolicyExclusions({ now });
+    expect(res.cursor_read_failed).toBe(false);
+    expect(res.cursor_write_failed).toBe(false);
+  });
+
+  it('54. a failed cursor READ is reported, and the sweep still runs from the beginning', async () => {
+    mockStateFindUnique.mockRejectedValue(new Error('state read down'));
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    installPool([heroRow, legacyParked({ order: 11 })]);
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.cursor_read_failed).toBe(true);
+    // Fail-open: no `gt` bound applied, so the whole space stays in scope.
+    const primary = mockFindMany.mock.calls
+      .map(([a]) => a as { where: Record<string, unknown>; take?: number })
+      .find((a) => a.take !== undefined);
+    expect(primary!.where.listing_id).toBeUndefined();
+    expect(res.kept_parked).toBe(1);
+  });
+
+  it("55. a failed cursor WRITE is reported, and this run's media decisions still stand", async () => {
+    mockStateUpsert.mockRejectedValue(new Error('state write down'));
+    // Start from a NON-NULL cursor so the advance actually attempts a write —
+    // `advanceCursor` is a deliberate no-op when the position would not change.
+    mockStateFindUnique.mockResolvedValue({ last_listing_key: 'RLS00000000' });
+    const heroListing = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
+    const readmit = legacyParked({ listing_id: 'RLS20099238', listing: heroListing, preferred_photo_yn: true });
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    installPool([heroRow, legacyParked({ order: 11 }), readmit]);
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.cursor_write_failed).toBe(true);
+    expect(res.cursor_read_failed).toBe(false);
+    // Media writes are independent of the cursor and already persisted.
+    expect(res.readmitted).toBe(1);
+    expect(res.kept_parked).toBe(1);
+    expect(res.write_failed).toBe(0);
+  });
+
+  it('56. cursor telemetry carries no private value — booleans only', async () => {
+    mockStateFindUnique.mockRejectedValue(new Error('down'));
+    mockStateUpsert.mockRejectedValue(new Error('down'));
+    installPool([row({ media_key: 'MK-hero', order: 0 }), legacyParked({ order: 11 })]);
+    const res = await reevaluateR2PolicyExclusions({ now });
+    expect(typeof res.cursor_read_failed).toBe('boolean');
+    expect(typeof res.cursor_write_failed).toBe('boolean');
+    // The flags say THAT it failed, never which listing or key was involved.
+    expect(JSON.stringify({ r: res.cursor_read_failed, w: res.cursor_write_failed }))
+      .not.toMatch(/RLS|SL-|crm:|MK-|https?:/);
   });
 
   it('52. cursor bookkeeping never blocks the sweep', async () => {
