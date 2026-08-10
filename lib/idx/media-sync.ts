@@ -2625,28 +2625,41 @@ export async function reevaluateR2PolicyExclusions(
     listing: MirrorPolicyListing | null;
   };
 
+  const REEVAL_SELECT = {
+    id: true,
+    listing_id: true,
+    media_key: true,
+    media_type: true,
+    r2_attempts: true,
+    listing: {
+      select: {
+        listing_id: true,
+        rls_eligible: true,
+        status: true,
+        idx_display_yn: true,
+        owner_opt_out: true,
+        participant_only: true,
+        internet_entire_listing_display_yn: true,
+      },
+    },
+  } as const;
+
+  /**
+   * OPTIMISTIC-CONCURRENCY BOUND. `updated_at` is Prisma `@updatedAt`, so ANY
+   * write to a row bumps it. Capturing the instant BEFORE selection lets every
+   * persistence statement carry one shared `updated_at <= selectionAt`
+   * predicate, which excludes a row that a concurrent feed ingest, CRM
+   * set-main, mirror or re-admission touched after we read it — without
+   * exploding into per-row statements.
+   */
+  const selectionAt = new Date(nowFn());
+  const dueThreshold = new Date(nowFn() - intervalMs);
+
   let candidates: ReevalRow[];
   try {
     candidates = (await prisma.listingMedia.findMany({
-      where: buildR2PolicyReevaluationWhere(new Date(nowFn() - intervalMs)),
-      select: {
-        id: true,
-        listing_id: true,
-        media_key: true,
-        media_type: true,
-        r2_attempts: true,
-        listing: {
-          select: {
-            listing_id: true,
-            rls_eligible: true,
-            status: true,
-            idx_display_yn: true,
-            owner_opt_out: true,
-            participant_only: true,
-            internet_entire_listing_display_yn: true,
-          },
-        },
-      },
+      where: buildR2PolicyReevaluationWhere(dueThreshold),
+      select: REEVAL_SELECT,
       // Deterministic and listing-clustered, so ONE hero read serves every
       // parked row of the same listing.
       orderBy: [{ listing_id: "asc" }, { id: "asc" }],
@@ -2659,7 +2672,6 @@ export async function reevaluateR2PolicyExclusions(
     return result;
   }
   if (candidates.length === 0) return result;
-  result.scanned = candidates.length;
 
   // INTENT lists. The result counters are filled in later from what the
   // database actually confirms, so a rejected write cannot be reported as done.
@@ -2672,68 +2684,114 @@ export async function reevaluateR2PolicyExclusions(
   /** Undecidable (hero read failed) — NOT written; retried next firing. */
   const deferred: bigint[] = [];
 
-  const heroKeyCache = new Map<string, string | null>();
+  /**
+   * A FAILED hero lookup is not the same as "this listing has no hero", and
+   * caching the failure as `null` conflated them: rows 2..N of the failing
+   * listing then took the ordinary not-the-hero path and were re-stamped with a
+   * fresh interval on an UNDECIDABLE hero, stranding a sibling that may have
+   * just become canonical and undercounting `deferred`. The sentinel keeps the
+   * two outcomes distinct for every row of the listing.
+   */
+  const HERO_LOOKUP_FAILED = Symbol("hero-lookup-failed");
+  const heroKeyCache = new Map<string, string | null | typeof HERO_LOOKUP_FAILED>();
+  /** Listings whose hero could not be resolved this run. */
+  const failedListings = new Set<string>();
 
-  for (const row of candidates) {
-    const scope = decideMirrorAdmissionScope(row.listing);
-    const approvedTypes =
-      scope === "all_active" ? MALLAN_MIRROR_MEDIA_TYPES : FEED_MIRROR_MEDIA_TYPES;
+  const decide = async (rows: ReevalRow[]): Promise<void> => {
+    for (const row of rows) {
+      const scope = decideMirrorAdmissionScope(row.listing);
+      const approvedTypes =
+        scope === "all_active" ? MALLAN_MIRROR_MEDIA_TYPES : FEED_MIRROR_MEDIA_TYPES;
 
-    // Fail-closed: a listing that is no longer admissible, or a media_type the
-    // scope does not approve, stays parked. (The DB-side filter already
-    // excludes both; re-checked here so a drifted where can never widen
-    // re-admission.)
-    if (scope === "none" || !approvedTypes.includes(row.media_type)) {
-      keptParked.push(row.id);
-      continue;
-    }
-
-    if (scope === "all_active") {
-      // Mallan-owned: the complete active Photo + FloorPlan set is retained, so
-      // hero identity is irrelevant to admission.
-      (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
-      continue;
-    }
-
-    // hero_only — the mutable case. Resolve the listing's canonical hero with
-    // the SAME production resolver the summary and the mirror use, so a
-    // re-admitted row is one the mirror will actually accept.
-    let heroKey: string | null;
-    if (heroKeyCache.has(row.listing_id)) {
-      heroKey = heroKeyCache.get(row.listing_id) ?? null;
-    } else {
-      try {
-        const listingRows = await prisma.listingMedia.findMany({
-          where: { listing_id: row.listing_id },
-          // HERO PARITY — identical shape to the Phase-3 admission read and to
-          // `computeListingMediaSummary`. See the note there: without
-          // media_category / media_classification / media_url_original,
-          // `classifyMediaItem` cannot see a FloorPlan stored as
-          // `media_type='Photo'`, and this pass would re-admit the wrong row.
-          select: {
-            media_key: true,
-            media_type: true,
-            media_category: true,
-            media_classification: true,
-            media_url_original: true,
-            status: true,
-            preferred_photo_yn: true,
-            order: true,
-          },
-        });
-        heroKey = selectHeroPhoto(listingRows)?.media_key ?? null;
-      } catch {
-        heroKeyCache.set(row.listing_id, null);
-        deferred.push(row.id);
+      // Fail-closed: a listing that is no longer admissible, or a media_type
+      // the scope does not approve, stays parked. (The DB-side filter already
+      // excludes both; re-checked here so a drifted where can never widen
+      // re-admission.)
+      if (scope === "none" || !approvedTypes.includes(row.media_type)) {
+        keptParked.push(row.id);
         continue;
       }
-      heroKeyCache.set(row.listing_id, heroKey);
-    }
 
-    if (heroKey !== null && row.media_key === heroKey) {
-      (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
-    } else {
-      keptParked.push(row.id);
+      if (scope === "all_active") {
+        // Mallan-owned: the complete active Photo + FloorPlan set is retained,
+        // so hero identity is irrelevant to admission.
+        (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
+        continue;
+      }
+
+      // hero_only — the mutable case. Resolve the listing's canonical hero with
+      // the SAME production resolver the summary and the mirror use, so a
+      // re-admitted row is one the mirror will actually accept.
+      let heroKey: string | null | typeof HERO_LOOKUP_FAILED;
+      if (heroKeyCache.has(row.listing_id)) {
+        heroKey = heroKeyCache.get(row.listing_id) as string | null | typeof HERO_LOOKUP_FAILED;
+      } else {
+        try {
+          const listingRows = await prisma.listingMedia.findMany({
+            where: { listing_id: row.listing_id },
+            // HERO PARITY — identical shape to the Phase-3 admission read and
+            // to `computeListingMediaSummary`. Without media_category /
+            // media_classification / media_url_original, `classifyMediaItem`
+            // cannot see a FloorPlan stored as `media_type='Photo'`, and this
+            // pass would re-admit the wrong row.
+            select: {
+              media_key: true,
+              media_type: true,
+              media_category: true,
+              media_classification: true,
+              media_url_original: true,
+              status: true,
+              preferred_photo_yn: true,
+              order: true,
+            },
+          });
+          heroKey = selectHeroPhoto(listingRows)?.media_key ?? null;
+        } catch {
+          heroKey = HERO_LOOKUP_FAILED;
+        }
+        heroKeyCache.set(row.listing_id, heroKey);
+      }
+
+      if (heroKey === HERO_LOOKUP_FAILED) {
+        failedListings.add(row.listing_id);
+        deferred.push(row.id);
+      } else if (heroKey !== null && row.media_key === heroKey) {
+        (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
+      } else {
+        // Successful lookup, this row is not the hero (or the listing has no
+        // eligible photo at all) — a real decision, so the clock restarts.
+        keptParked.push(row.id);
+      }
+    }
+  };
+
+  await decide(candidates);
+  result.scanned = candidates.length;
+
+  // FAIRNESS TOP-UP. The window is `orderBy listing_id asc` + `take`, so a
+  // listing whose hero read keeps failing sits at the head of it on every
+  // firing and later listings would never be examined. ONE additional bounded
+  // select, excluding the failed listings and everything already scanned, keeps
+  // the sweep moving whenever any healthy due row exists. Bounded by the number
+  // of rows the failures cost us, and never repeated.
+  if (failedListings.size > 0) {
+    try {
+      const topUp = (await prisma.listingMedia.findMany({
+        where: {
+          ...buildR2PolicyReevaluationWhere(dueThreshold),
+          listing_id: { notIn: [...failedListings] },
+          id: { notIn: candidates.map((c) => c.id) },
+        },
+        select: REEVAL_SELECT,
+        orderBy: [{ listing_id: "asc" }, { id: "asc" }],
+        take: deferred.length,
+      })) as unknown as ReevalRow[];
+      if (topUp.length > 0) {
+        await decide(topUp);
+        result.scanned += topUp.length;
+      }
+    } catch {
+      // Best-effort fairness only — the primary window was already processed.
     }
   }
 
@@ -2763,7 +2821,21 @@ export async function reevaluateR2PolicyExclusions(
     if (ids.length === 0) return 0;
     try {
       const written = await prisma.listingMedia.updateMany({
-        where: { id: { in: ids }, ...guard },
+        where: {
+          id: { in: ids },
+          // OPTIMISTIC CONCURRENCY. The park-marker guards below prove the row
+          // is still parked, but NOT that the hero decision we made from it is
+          // still valid: a feed ingest or a CRM set-main can change
+          // preferred_photo_yn / order / classification between the hero read
+          // and this write, and re-stamping then delays a row that just became
+          // canonical by another full interval. `updated_at` is Prisma
+          // `@updatedAt`, so ANY concurrent write bumps it — one shared
+          // predicate covers every such mutation without needing per-row
+          // statements or a lock. A row that moved is skipped and lands in
+          // `write_failed`; it is simply reconsidered on a later firing.
+          updated_at: { lte: selectionAt },
+          ...guard,
+        },
         data,
       });
       return written.count;

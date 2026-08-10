@@ -604,6 +604,127 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     }
   });
 
+  it('39. EVERY row of a listing whose hero read failed is deferred, not just the first', async () => {
+    // Codex P2 (0d8ed8da). The failure was cached as `null`, which is also the
+    // legitimate "listing has no hero" value — so rows 2..N of the failing
+    // listing fell through the normal not-the-hero path and were re-stamped
+    // with a fresh 14-day exclusion on an UNDECIDABLE hero. A sibling that had
+    // just become canonical would be stranded for another interval, and the
+    // deferred counter undercounted the damage.
+    const broken = { ...THIRD_PARTY, listing_id: 'RLS-BROKEN' };
+    const rows = Array.from({ length: 3 }, (_, i) =>
+      legacyParked({ listing_id: 'RLS-BROKEN', listing: broken, order: i + 10 }),
+    );
+    installPool(rows);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.deferred).toBe(3);
+    expect(res.kept_parked).toBe(0);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('40. a listing with NO hero is still a decision — kept parked, not deferred', async () => {
+    // The other side of the same cache bug: a successful lookup that finds no
+    // eligible photo is a real decision and must NOT be reported as deferred.
+    const noPhotos = { ...THIRD_PARTY, listing_id: 'RLS-NOHERO' };
+    const orphan = legacyParked({ listing_id: 'RLS-NOHERO', listing: noPhotos, media_type: 'Photo' });
+    installPool([orphan]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      // Hero read succeeds but the listing has no ACTIVE photo rows.
+      if (a.where?.listing_id === 'RLS-NOHERO' && !('status' in a.where)) return [];
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.deferred).toBe(0);
+    expect(res.kept_parked).toBe(1);
+  });
+
+  it('41. deferred listings cannot pin the selector window — the sweep tops up', async () => {
+    // Codex P2 (0d8ed8da). With `orderBy listing_id asc` and a bounded `take`,
+    // a listing whose hero read keeps failing sits at the head of the window
+    // every firing, so later listings would never be examined. The pass now
+    // issues ONE bounded top-up that excludes the failed listings, so real work
+    // still happens on every firing.
+    const broken = { ...THIRD_PARTY, listing_id: 'RLS-AAA-BROKEN' };
+    const okListing = { ...THIRD_PARTY, listing_id: 'RLS-ZZZ-OK' };
+    const brokenRows = Array.from({ length: 2 }, (_, i) =>
+      legacyParked({ listing_id: 'RLS-AAA-BROKEN', listing: broken, order: i + 10 }),
+    );
+    const okHero = legacyParked({
+      listing_id: 'RLS-ZZZ-OK', listing: okListing, preferred_photo_yn: true, media_key: 'MK-okhero',
+    });
+    installPool([...brokenRows, okHero]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-AAA-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    // batchLimit 2 => the first window is entirely the failing listing.
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 2 });
+
+    expect(res.deferred).toBe(2);
+    // The top-up reached the healthy listing and re-admitted its hero.
+    expect(res.readmitted).toBe(1);
+    expect(res.scanned).toBe(3);
+    // The top-up excluded the failing listing rather than re-selecting it.
+    const topUp = mockFindMany.mock.calls
+      .map(([a]) => a as { where: Record<string, unknown> })
+      .find((a) => (a.where?.listing_id as { notIn?: string[] } | undefined)?.notIn);
+    expect((topUp!.where.listing_id as { notIn: string[] }).notIn).toEqual(['RLS-AAA-BROKEN']);
+  });
+
+  it('42. every write carries an OPTIMISTIC guard against concurrent mutation', async () => {
+    // Codex P2 (0d8ed8da). Between the hero read and the write, a feed ingest
+    // or a CRM set-main can make the candidate the canonical hero; re-stamping
+    // it then delays its re-admission by another interval. `updated_at` is
+    // Prisma `@updatedAt`, so ANY concurrent write to the row bumps it — one
+    // shared predicate covers a hero flip, a mirror, a re-admission and a
+    // tombstone without exploding into per-row statements.
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const kept = legacyParked({ order: 11 });
+    const heroListing = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
+    const readmit = legacyParked({ listing_id: 'RLS20099238', listing: heroListing, preferred_photo_yn: true });
+    installPool([heroRow, kept, readmit]);
+
+    await reevaluateR2PolicyExclusions({ now });
+
+    expect(mockUpdateMany.mock.calls.length).toBeGreaterThan(0);
+    for (const call of mockUpdateMany.mock.calls) {
+      const a = call[0] as { where: Record<string, unknown> };
+      const guard = a.where.updated_at as { lte?: Date } | undefined;
+      expect(guard?.lte).toBeInstanceOf(Date);
+      // Bound is the moment the candidates were selected, so anything written
+      // after selection is excluded.
+      expect(guard!.lte!.getTime()).toBeLessThanOrEqual(NOW);
+    }
+  });
+
+  it('43. a row mutated after selection is skipped and reported, not clobbered', async () => {
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const kept = legacyParked({ order: 11 });
+    installPool([heroRow, kept]);
+    // The optimistic guard matches nothing: the row was written after selection.
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.kept_parked).toBe(0);
+    expect(res.write_failed).toBe(1);
+  });
+
   it('38. a row re-admitted concurrently is not re-parked, and the miss is reported', async () => {
     const heroRow = row({ media_key: 'MK-hero', order: 0 });
     const kept = legacyParked({ order: 11 });
