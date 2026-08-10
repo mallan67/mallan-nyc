@@ -45,6 +45,7 @@ import {
   buildR2ParkedRecoveryWhere,
   R2_POLICY_REEVAL_INTERVAL_MS,
   R2_POLICY_REEVAL_BATCH_LIMIT,
+  R2_POLICY_REEVAL_CURSOR_RESOURCE,
   R2_RETRY_EXHAUSTED_THRESHOLD,
 } from '../media-sync';
 import { R2_POLICY_PARKED_ATTEMPTS } from '@/lib/media/r2-policy-state';
@@ -54,12 +55,19 @@ import { R2_POLICY_PARKED_ATTEMPTS } from '@/lib/media/r2-policy-state';
 const mockFindMany = jest.fn<Promise<unknown[]>, [unknown]>();
 const mockUpdateMany = jest.fn<Promise<{ count: number }>, [unknown]>();
 
+const mockStateFindUnique = jest.fn<Promise<unknown>, [unknown]>();
+const mockStateUpsert = jest.fn<Promise<unknown>, [unknown]>();
+
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     listingMedia: {
       findMany: (args: unknown) => mockFindMany(args),
       updateMany: (args: unknown) => mockUpdateMany(args),
+    },
+    mediaSyncState: {
+      findUnique: (args: unknown) => mockStateFindUnique(args),
+      upsert: (args: unknown) => mockStateUpsert(args),
     },
   },
 }));
@@ -90,6 +98,10 @@ function matchLeaf(value: unknown, cond: unknown): boolean {
   if ('gte' in c) {
     if (value === null || value === undefined) return false;
     return (value as number | Date) >= (c.gte as number | Date);
+  }
+  if ('gt' in c) {
+    if (value === null || value === undefined) return false;
+    return (value as number | Date | string) > (c.gt as number | Date | string);
   }
   if ('in' in c) return (c.in as unknown[]).includes(value);
   if ('notIn' in c) return !(c.notIn as unknown[]).includes(value);
@@ -175,6 +187,8 @@ beforeEach(() => {
   nextId = 1;
   mockFindMany.mockReset();
   mockUpdateMany.mockReset();
+  mockStateFindUnique.mockReset().mockResolvedValue(null);
+  mockStateUpsert.mockReset().mockResolvedValue(undefined);
   mockUpdateMany.mockImplementation(async (args) => ({
     count: ((args as { where: { id: { in: unknown[] } } }).where.id.in ?? []).length,
   }));
@@ -445,7 +459,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
   it('25. no rows due ⇒ no writes at all', async () => {
     installPool([row(), parked({ r2_policy_excluded_at: FRESH })]);
     const res = await reevaluateR2PolicyExclusions({ now });
-    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0, selector_failed: false });
+    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0, selector_failed: false });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
@@ -496,7 +510,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
   it('29. a selector failure is contained — the pass reports zero, never throws', async () => {
     mockFindMany.mockRejectedValue(new Error('db down'));
     await expect(reevaluateR2PolicyExclusions({ now })).resolves.toEqual({
-      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0,
+      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0,
       selector_failed: true,
     });
   });
@@ -509,7 +523,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     installPool([row(), parked({ r2_policy_excluded_at: FRESH })]);
     const quiet = await reevaluateR2PolicyExclusions({ now });
     expect(quiet).toEqual({
-      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0,
+      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, decided: 0, write_failed: 0,
       selector_failed: false,
     });
 
@@ -849,6 +863,191 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
 
     expect(res.deferred).toBe(0);
     expect(res.kept_parked).toBe(1);
+  });
+
+  // ── the write cap is MECHANICAL, not documentary ───────────────────────────
+
+  it('48A. a successful top-up consumes replacement capacity — no further rounds, writes <= batchLimit', async () => {
+    // The shortfall was derived from `result.scanned - scannedIds.length`,
+    // which move together, so it was always the CUMULATIVE deferred count: a
+    // successful replacement never reduced it and three rounds could write 3x
+    // the documented cap.
+    const broken = { ...THIRD_PARTY, listing_id: 'RLS-AAA-BROKEN' };
+    const ok = { ...THIRD_PARTY, listing_id: 'RLS-MMM-OK' };
+    const brokenRows = Array.from({ length: 6 }, (_, i) =>
+      legacyParked({ listing_id: 'RLS-AAA-BROKEN', listing: broken, order: 10 + i }),
+    );
+    const okHeroRow = row({ listing_id: 'RLS-MMM-OK', listing: ok, media_key: 'MK-okhero', order: 0 });
+    const okRows = Array.from({ length: 6 }, (_, i) =>
+      legacyParked({ listing_id: 'RLS-MMM-OK', listing: ok, order: 20 + i }),
+    );
+    installPool([...brokenRows, okHeroRow, ...okRows]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-AAA-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 6 });
+
+    // 6 deferred + 6 decided; the cap bounds the DECIDED rows, not the scanned.
+    expect(res.deferred).toBe(6);
+    expect(res.decided).toBeLessThanOrEqual(6);
+    expect(res.readmitted + res.kept_parked + res.write_failed).toBeLessThanOrEqual(6);
+    // Capacity was exhausted by the first replacement, so no further top-up ran.
+    const topUps = mockFindMany.mock.calls.filter(
+      ([a]) => ((a as { where: Record<string, unknown> }).where?.listing_id as { notIn?: unknown })?.notIn,
+    );
+    expect(topUps).toHaveLength(1);
+  });
+
+  it('48B. every top-up window is <= batchLimit — no 60 -> 120 -> 240 growth', async () => {
+    // When each replacement window ALSO fails, the requested size must stay
+    // bounded instead of tracking a growing cumulative deferred count.
+    const pool = Array.from({ length: 60 }, (_, i) => {
+      const lid = `RLS-B${String(i).padStart(3, '0')}-BROKEN`;
+      return legacyParked({ listing_id: lid, listing: { ...THIRD_PARTY, listing_id: lid }, order: 10 + i });
+    });
+    installPool(pool);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      const lid = a.where?.listing_id;
+      if (typeof lid === 'string' && lid.endsWith('BROKEN') && !('status' in a.where)) {
+        throw new Error('db blip');
+      }
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 5 });
+
+    const takes = mockFindMany.mock.calls
+      .map(([a]) => (a as { take?: number }).take)
+      .filter((t): t is number => typeof t === 'number');
+    expect(takes.length).toBeLessThanOrEqual(1 + 3); // window + <=3 top-ups
+    for (const t of takes) expect(t).toBeLessThanOrEqual(5);
+    expect(res.decided).toBe(0);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('48C. scanned may exceed the cap while DECIDED never does', async () => {
+    const broken = { ...THIRD_PARTY, listing_id: 'RLS-AAA-BROKEN' };
+    const ok = { ...THIRD_PARTY, listing_id: 'RLS-MMM-OK' };
+    installPool([
+      ...Array.from({ length: 4 }, (_, i) =>
+        legacyParked({ listing_id: 'RLS-AAA-BROKEN', listing: broken, order: 10 + i })),
+      row({ listing_id: 'RLS-MMM-OK', listing: ok, media_key: 'MK-okhero', order: 0 }),
+      ...Array.from({ length: 4 }, (_, i) =>
+        legacyParked({ listing_id: 'RLS-MMM-OK', listing: ok, order: 20 + i })),
+    ]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-AAA-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 4 });
+
+    expect(res.scanned).toBeGreaterThan(4);
+    expect(res.decided).toBeLessThanOrEqual(4);
+    expect(res.scanned).toBe(res.readmitted + res.kept_parked + res.deferred + res.write_failed);
+  });
+
+  // ── durable cross-run rotation ─────────────────────────────────────────────
+
+  it('49. the rotation cursor advances across runs, so a healthy group beyond the cap is reached', async () => {
+    // Within-run state dies with the run: four persistently failing ordered
+    // groups plus MAX_TOPUPS=3 would starve a healthy fifth group forever. The
+    // durable cursor makes the NEXT firing start after the failures.
+    const mk = (lid: string, over: Row = {}) =>
+      legacyParked({ listing_id: lid, listing: { ...THIRD_PARTY, listing_id: lid }, ...over });
+    const pool = [
+      mk('RLS-A-BROKEN', { order: 10 }),
+      mk('RLS-B-BROKEN', { order: 11 }),
+      mk('RLS-C-BROKEN', { order: 12 }),
+      mk('RLS-D-BROKEN', { order: 13 }),
+      mk('RLS-E-BROKEN', { order: 14 }),
+      row({ listing_id: 'RLS-Z-OK', listing: { ...THIRD_PARTY, listing_id: 'RLS-Z-OK' },
+            media_key: 'MK-zhero', order: 0 }),
+      mk('RLS-Z-OK', { order: 20 }),
+    ];
+    installPool(pool);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      const lid = a.where?.listing_id;
+      if (typeof lid === 'string' && lid.endsWith('BROKEN') && !('status' in a.where)) {
+        throw new Error('db blip');
+      }
+      return passthrough(args);
+    });
+
+    // RUN 1 — window of 1 lands on the first failing group; nothing decided.
+    const run1 = await reevaluateR2PolicyExclusions({ now, batchLimit: 1 });
+    expect(run1.decided).toBe(0);
+    const advanced = mockStateUpsert.mock.calls.at(-1)?.[0] as
+      | { where: { resource: string }; update: { last_listing_key: string | null } }
+      | undefined;
+    expect(advanced?.where.resource).toBe(R2_POLICY_REEVAL_CURSOR_RESOURCE);
+    expect(advanced?.update.last_listing_key).not.toBeNull();
+    // The cursor lands on the HIGHEST listing examined — the primary window plus
+    // whatever the bounded top-ups reached — so the next firing starts strictly
+    // after every group this run already tried.
+    expect(String(advanced?.update.last_listing_key) >= 'RLS-A-BROKEN').toBe(true);
+
+    // RUN 2..N — the cursor is honoured, so each firing steps past one more
+    // failing group and the healthy one is eventually reached.
+    let cursor = advanced!.update.last_listing_key;
+    let reached = false;
+    for (let i = 0; i < 6 && !reached; i++) {
+      mockUpdateMany.mockClear();
+      mockStateUpsert.mockClear();
+      mockStateFindUnique.mockResolvedValue({ last_listing_key: cursor });
+      const r = await reevaluateR2PolicyExclusions({ now, batchLimit: 1 });
+      // "Reached" = the healthy group was actually PROCESSED (a write intent),
+      // not merely selected. Whether it re-admits or stays parked is the hero
+      // rule's business, not the rotation's.
+      if (r.decided > 0) reached = true;
+      const up = mockStateUpsert.mock.calls.at(-1)?.[0] as
+        | { update: { last_listing_key: string | null } }
+        | undefined;
+      if (up) cursor = up.update.last_listing_key;
+    }
+    expect(reached).toBe(true);
+  });
+
+  it('50. the primary window honours the durable cursor', async () => {
+    mockStateFindUnique.mockResolvedValue({ last_listing_key: 'RLS-CUT' });
+    installPool([legacyParked({ order: 10 })]);
+    await reevaluateR2PolicyExclusions({ now });
+    const primary = mockFindMany.mock.calls
+      .map(([a]) => a as { where: Record<string, unknown>; take?: number })
+      .find((a) => a.take !== undefined);
+    expect(primary!.where.listing_id).toEqual({ gt: 'RLS-CUT' });
+  });
+
+  it('51. a short window wraps the cursor back to the start', async () => {
+    mockStateFindUnique.mockResolvedValue({ last_listing_key: 'RLS-NEAR-END' });
+    installPool([legacyParked({ order: 10 })]); // 1 row, batchLimit 60 => short
+    await reevaluateR2PolicyExclusions({ now });
+    const up = mockStateUpsert.mock.calls.at(-1)?.[0] as
+      | { update: { last_listing_key: string | null } }
+      | undefined;
+    expect(up?.update.last_listing_key).toBeNull();
+  });
+
+  it('52. cursor bookkeeping never blocks the sweep', async () => {
+    mockStateFindUnique.mockRejectedValue(new Error('state read down'));
+    mockStateUpsert.mockRejectedValue(new Error('state write down'));
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    installPool([heroRow, legacyParked({ order: 11 })]);
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.kept_parked).toBe(1);
+    expect(res.selector_failed).toBe(false);
   });
 
   it('38. a row re-admitted concurrently is not re-parked, and the miss is reported', async () => {

@@ -126,6 +126,14 @@ alarm, real drift = benign orphans, cleanup deferred to a held migration). Plus:
 **Platform Architecture document** (DOC-001) — full data-flow map (Cotality → sync → normalization →
 compliance → archive → search → website) incl. every cron, queue, webhook, API, and DB boundary.
 
+**New this cycle (2026-08-10) — P2, so deliberately not in the P0/P1 queue above:** **OPS-026** —
+historical `Listing` media-summary drift, 4,894 of 20,649 photo-bearing listings, recomputed
+read-only against the production summary owners (not a hand-written `media_type='Photo'` proxy).
+New drift is **STOPPED** post-#597 (62/62 heroes correct since the 2026-08-10 01:35Z deploy).
+Remediation **design CLOSED**; **Production backfill HELD** pending Maya's explicit authorization
+(≈17.3% of one day's ~28,351 DB row writes). Canonical row, blast radius and Evidence Score 8/10 in
+the registry; measurements at `docs/operations/r2-policy-and-drift-production-evidence-2026-08-10.md`.
+
 Full P2/P3 list + verified-PASS register (FARE 1,011/1,011 · attribution 1,011/1,011 · licensing)
 live in the registry.
 

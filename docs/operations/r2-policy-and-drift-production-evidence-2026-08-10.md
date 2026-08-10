@@ -1,254 +1,244 @@
-# Production evidence record — R2 policy exclusions, backlog, One Cycle, summary drift
+# Production evidence record — R2 policy, backlog, One Cycle, churn, storage, summary drift
 
-Durable record of every Production number quoted in PR #599 and in the
-2026-08-10 system-closure run, with the exact read-only SQL that produced it.
+Durable record of every Production number quoted in PR #599 and in the 2026-08-10 system-closure
+run, with the read-only SQL that produced it.
 
 **All statements below are `SELECT`-only. Nothing here mutated Production.**
 
 | | |
 |---|---|
-| Captured | **2026-08-10**, 05:20–06:30 UTC |
+| Captured | **2026-08-10**, 05:20–10:00 UTC |
 | Neon project | `hidden-mountain-87248164` ("neon-green-school") |
 | Endpoint / branch | `ep-cold-waterfall-adno3ao2` · branch `main` (`br-crimson-frog-adr7g9gt`) |
 | Access path | Neon MCP `run_sql`, read-only |
 | Production application SHA | `2d121daaf6dbcd3d027d6d337901a18e43c03ad8` (PR #598 merge) |
 | Production deployment | `dpl_Ey4rGtD26mij3ULsgJvrs88md6yy` · alias `mallan.nyc` · Release Truth `PROD_PROVEN` |
 
-**Privacy.** Only aggregate counts and boundary timestamps are recorded. This
-document contains no address, listing URL, MediaKey, R2 key, media URL, agent
-identity or any other row-level value.
+**Privacy.** Only aggregate counts and boundary timestamps are recorded. This document contains no
+address, listing URL, MediaKey, R2 key, media URL, agent identity or any other row-level value.
+
+> **Revision (same day).** The first version derived hero/photo truth from
+> `status='active' AND media_type='Photo'`. That is not the production rule — `filterActivePhotoRows`
+> delegates to `classifyMediaItem`, which weighs MediaCategory, MediaClassification and the Trestle
+> `DOCUMENT-*` URL shape first. Every population below is recomputed with a verified equivalent of
+> the real classifier, and the due-population now applies the FULL policy filter
+> (`buildR2PolicyReevaluationWhere` including `buildR2MirrorPolicyMediaWhere`). Superseded figures
+> are shown alongside the corrected ones rather than deleted.
 
 ---
 
-## 1. Policy-parked population — 20,195 / 20,094 legacy / 101 explicit
+## 0. Classifier equivalence (run before any population was quoted)
 
 ```sql
-SELECT
-  count(*) FILTER (WHERE r2_policy_excluded_at IS NOT NULL) AS policy_excluded_total,
-  count(*) FILTER (WHERE r2_policy_excluded_at IS NOT NULL AND status='active') AS policy_excluded_active,
-  count(*) FILTER (WHERE r2_attempts = 9)  AS legacy_sentinel_9,
-  count(*) FILTER (WHERE r2_attempts > 9)  AS above_9,
-  count(*) FILTER (WHERE r2_attempts = 8)  AS exactly_8,
-  count(*)                                 AS total_media
-FROM listing_media;
+-- canonical predicate, applied to every listing_media row
+CASE
+  WHEN lower(coalesce(media_category, media_type,'')) IN ('floorplan','floor plan')
+    OR lower(coalesce(media_category, media_type,'')) LIKE '%floor plan%'
+    OR lower(coalesce(media_category, media_type,'')) LIKE '%floor_plan%'
+    OR lower(coalesce(media_classification,'')) = 'document'
+    OR lower(coalesce(media_url_original,'')) ~ '/floorplans?/'
+    OR lower(coalesce(media_url_original,'')) ~ 'floor[[:space:]_-]?plans?'
+    OR lower(coalesce(media_url_original,'')) ~ '\.pdf(\?|$)'
+    OR lower(coalesce(media_url_original,'')) ~ '(^|[/_-])(site[[:space:]_-]?plans?|diagrams?)([/_.-]|$)'
+    OR lower(coalesce(media_url_original,'')) ~* '/media/property/document-(gif|jpeg|png|pdf)/' THEN false
+  WHEN lower(coalesce(media_category, media_type,'')) = 'video'
+    OR lower(coalesce(media_category, media_type,'')) LIKE '%video%'
+    OR lower(coalesce(media_url_original,'')) ~ '\.(mp4|mov|webm)(\?|$)' THEN false
+  WHEN lower(coalesce(media_category, media_type,'')) IN ('virtualtour','virtual tour') THEN false
+  WHEN lower(coalesce(media_category, media_type,'')) IN ('photo','image','') THEN true
+  ELSE false END
 ```
 
 ```
-policy_excluded_total=101   policy_excluded_active=101
-legacy_sentinel_9=21969     above_9=80    exactly_8=290
-total_media=340309
+canonical active photos        286457
+naive media_type='Photo'       286457
+typed Photo but not photo           0
+photo but typed otherwise           0
 ```
 
-Restricted to the population the policy actually governs — active Photos:
+The two agree **exactly** on today's data. The hero-parity code defect corrected in PR #599 is
+therefore **latent — zero materialized instances in Production right now.** It is still a real
+defect: the moment a floor plan arrives with a missing MediaCategory (the documented Trestle
+behaviour), the mirror and the public card would disagree.
+
+Two bounded divergences, stated: the classifier's `ShortDescription`/caption branch is inert at this
+call site (only category, classification, type and URL are passed), and `unwrapProxyUrl` is a no-op
+on stored Trestle locators, which are never proxied at rest.
+
+## 1. Policy-parked population
 
 ```sql
-WITH ranked AS (
-  SELECT lm.id, lm.listing_id, lm.r2_key, lm.r2_attempts, lm.r2_policy_excluded_at,
-         ROW_NUMBER() OVER (PARTITION BY lm.listing_id
-           ORDER BY (lm.preferred_photo_yn AND lm.media_key LIKE 'crm:%') DESC,
-                    lm.preferred_photo_yn DESC, lm."order" ASC, lm.id ASC) AS hero_rank
-  FROM listing_media lm WHERE lm.status='active' AND lm.media_type='Photo'),
-parked AS (
-  SELECT r.*, CASE WHEN r.r2_policy_excluded_at IS NOT NULL THEN 'new_column'
-                   WHEN r.r2_attempts = 9 THEN 'legacy_sentinel_9' END AS park_class
-  FROM ranked r WHERE r.r2_policy_excluded_at IS NOT NULL OR r.r2_attempts = 9)
-SELECT park_class, count(*) AS parked_active_photos,
-       count(*) FILTER (WHERE hero_rank = 1)                  AS is_current_hero,
-       count(*) FILTER (WHERE hero_rank = 1 AND r2_key IS NULL) AS hero_and_unmirrored,
-       count(*) FILTER (WHERE r2_key IS NOT NULL)             AS already_has_r2_key
-FROM parked GROUP BY park_class ORDER BY park_class;
+-- ranked over CANONICAL active photos, joined to listings, with the full
+-- buildR2MirrorPolicyMediaWhere admissibility expression
 ```
 
-```
-legacy_sentinel_9  parked=20094  is_current_hero=43  hero_and_unmirrored=43  already_has_r2_key=0
-new_column         parked=  101  is_current_hero= 0  hero_and_unmirrored= 0  already_has_r2_key=0
-```
+| metric | first version (naive) | **corrected (canonical + full policy filter)** |
+|---|---|---|
+| Parked active photos | 20,195 | **20,193** |
+| — legacy (`r2_attempts = 9`) | 20,094 | **20,062** |
+| — explicit column | 101 | **131** |
+| Distinct listings | 1,721 | **1,722** |
+| **Stranded heroes** (current hero, unmirrored, parked) | 43 | **43 — unchanged** |
+| Mallan-owned rows parked | 0 | **0** |
+| **Due now** (exact `buildR2PolicyReevaluationWhere`) | 5,331 | **4,462** |
+| Eventual parkable non-hero | 23,919 | **17,568** |
 
-**20,195 parked active Photos. 43 stranded heroes, all in the legacy class.**
+Why the last two moved: the first version omitted `buildR2MirrorPolicyMediaWhere()`. **869 parked
+rows are no longer policy-admissible** (their listing left the displayable/active set), so they are
+correctly not due, and the eventual steady-state population is ~17.6k rather than ~24k. The
+activation burst and the steady-state write estimate in PR #599 were revised accordingly.
 
-The `21,969` exact-9 total minus the `20,094` active-Photo subset is non-active
-or non-Photo rows, which the policy selector never touches.
+Encoding-cutover boundary (unchanged): legacy writer's last stamp `2026-08-10T00:50:36Z`, explicit
+column's first `2026-08-10T01:31:14Z`. Legacy rows with a null `r2_last_attempt_at`: **0**, so the
+legacy branch has a usable age clock.
 
-## 2. Ownership, spread and clock boundaries
+## 2. `backlog_remaining` and One Cycle
+
+From the durable run telemetry the cron writes:
 
 ```sql
--- (ranked CTE as above)
-SELECT count(*) AS parked_total,
-  count(*) FILTER (WHERE mallan_owned)               AS mallan_owned_parked,
-  count(*) FILTER (WHERE hero_rank=1)                AS current_hero,
-  count(*) FILTER (WHERE r2_attempts=9 AND r2_last_attempt_at IS NULL) AS legacy9_no_attempt_ts,
-  min(r2_last_attempt_at) AS legacy9_oldest_ts, max(r2_last_attempt_at) AS legacy9_newest_ts,
-  min(r2_policy_excluded_at) AS newcol_oldest, max(r2_policy_excluded_at) AS newcol_newest,
-  count(DISTINCT listing_id) AS distinct_listings
-FROM p;   -- p = ranked JOIN listings, parked under either encoding
-```
-
-```
-parked_total=20195   mallan_owned_parked=0   current_hero=43   distinct_listings=1721
-legacy9_no_attempt_ts=0
-legacy9_oldest_ts=2026-05-13T03:15:50Z   legacy9_newest_ts=2026-08-10T00:50:36Z
-newcol_oldest=2026-08-10T01:31:14Z       newcol_newest=2026-08-10T04:40:56Z
-```
-
-Two facts the design depends on: **zero Mallan-owned rows are parked** (the
-policy is correctly third-party-only), and **every legacy row has a non-null
-`r2_last_attempt_at`**, so the legacy branch has a usable age clock. The
-encoding cutover is visible — the legacy writer's last stamp (00:50Z) precedes
-the explicit column's first (01:31Z), i.e. the #597 Production deploy.
-
-## 3. Due at activation — 5,331 (not 20,195)
-
-```sql
-SELECT
-  count(*) FILTER (WHERE r2_policy_excluded_at IS NULL AND r2_attempts = 9
-      AND (r2_last_attempt_at IS NULL OR r2_last_attempt_at < now() - interval '14 days')) AS legacy_due_now,
-  count(*) FILTER (WHERE r2_policy_excluded_at IS NULL AND r2_attempts = 9
-      AND r2_last_attempt_at >= now() - interval '14 days')                                AS legacy_not_yet_due,
-  count(*) FILTER (WHERE r2_policy_excluded_at IS NOT NULL
-      AND r2_policy_excluded_at < now() - interval '14 days')                              AS newcol_due_now,
-  count(DISTINCT listing_id) FILTER (WHERE r2_policy_excluded_at IS NOT NULL OR r2_attempts = 9)
-                                                                                           AS distinct_parked_listings
-FROM listing_media
-WHERE status='active' AND media_key IS NOT NULL AND media_url_original IS NOT NULL
-  AND (r2_key IS NULL OR media_url_cached IS NULL);
-```
-
-```
-legacy_due_now=5331   legacy_not_yet_due=14766   newcol_due_now=0
-distinct_parked_listings=1723
-```
-
-## 4. Eventual parked population — ~23,919
-
-```sql
--- ranked CTE over active Photos, joined to listings, third-party only
-SELECT count(*) FILTER (WHERE hero_rank > 1 AND (r2_key IS NULL OR media_url_cached IS NULL)
-                          AND media_key IS NOT NULL AND media_url_original IS NOT NULL) AS eventual_parkable_nonhero,
-       count(*) FILTER (WHERE hero_rank = 1 AND (r2_key IS NULL OR media_url_cached IS NULL)) AS heroes_unmirrored,
-       count(*) FILTER (WHERE hero_rank = 1 AND r2_key IS NOT NULL)                           AS heroes_mirrored
-FROM ranked r JOIN listings l ON l.listing_id = r.listing_id
-WHERE NOT (l.listing_id LIKE 'SL-%' OR l.listing_id LIKE 'RL-%' OR l.rls_eligible = false);
-```
-
-```
-eventual_parkable_nonhero=23919   heroes_unmirrored=330   heroes_mirrored=20315
-```
-
-## 5. `backlog_remaining` = 0
-
-Not a query — read from the durable run telemetry the cron itself writes:
-
-```sql
-SELECT created_at, changes FROM audit_events
-WHERE action = 'one_cycle_run' ORDER BY created_at DESC LIMIT 3;
-```
-
-The three most recent `media-sync` member summaries each report
-`backlog_remaining: 0`, `overlap_prevented: 0`,
-`query_path_classification: "adaptive"`, `time_budget_exhausted: false`. The
-#597 shared-universe fix holds: there is no phantom backlog.
-
-## 6. One Cycle cadence — 144/day, no skipping
-
-```sql
-SELECT action, count(*) AS n, max(created_at) AS latest,
+SELECT action, count(*) AS n,
        count(*) FILTER (WHERE created_at >= now() - interval '24 hours') AS last_24h
-FROM audit_events
-WHERE created_at >= now() - interval '3 days'
-  AND (action ILIKE '%media_sync%' OR action ILIKE '%one_cycle%' OR action ILIKE '%cycle%')
-GROUP BY action ORDER BY n DESC;
-```
+FROM audit_events WHERE created_at >= now() - interval '3 days'
+  AND (action ILIKE '%media_sync%' OR action ILIKE '%one_cycle%') GROUP BY action;
 
-```
-media_sync_cron     n=432  last_24h=144
-one_cycle_run       n=432  last_24h=144
-one_cycle_started   n=432  last_24h=144
-```
-
-```sql
-SELECT count(*) FILTER (WHERE changes->>'outcome'='success') AS ok,
-       count(*) FILTER (WHERE changes->>'outcome'='partial') AS partial,
-       count(*) FILTER (WHERE (changes->>'members_failed')::int > 0)   AS members_failed_gt0,
-       count(*) FILTER (WHERE (changes->>'members_timed_out')::int > 0) AS timed_out_gt0,
-       count(*) AS total
+SELECT count(*) AS runs_24h,
+       round(sum((changes->>'duration_ms')::numeric)/1000.0) AS total_seconds,
+       round(avg((changes->>'duration_ms')::numeric)/1000.0,1) AS avg_seconds,
+       round(max((changes->>'duration_ms')::numeric)/1000.0,1) AS max_seconds,
+       round(min((changes->>'duration_ms')::numeric)/1000.0,1) AS min_seconds
 FROM audit_events WHERE action='one_cycle_run' AND created_at >= now() - interval '24 hours';
 ```
 
 ```
-ok=143  partial=1  members_failed_gt0=0  timed_out_gt0=0  total=144
+one_cycle_run / media_sync_cron / one_cycle_started : 144 each in 24h
+duration: total 2758 s · avg 19.2 s · max 57.3 s · min 1.7 s
+outcomes: ok 143 · partial 1 · members_failed 0 · members_timed_out 0
+backlog_remaining: 0 in the sampled runs, max 57 over 24h
+overlap_prevented 0 · time_budget_exhausted 0 · r2_failure_budget_exhausted false
 ```
 
-**The claim being recorded is narrow and exact:** the 10-minute preflight fires
-144 times/day and **144 One Cycle runs are recorded**, so no firing was skipped
-in this window. That is a *cadence* observation from durable DB telemetry. It is
-**not** a measurement of `skip_neon` / `neon_touched` / `external_state_unavailable`,
-which are not persisted to `audit_events` — see the CPU-savings caveat in the
-run report. The single `partial` was one R2 mirror failure on a parked-recovery
-attempt (`r2_failed: 1`), not an orchestration failure.
+**The claim recorded here is narrow:** the 10-minute preflight fires 144×/day and **144 One Cycle
+runs are recorded**, so no firing was skipped in this window. That is a cadence observation from
+durable DB telemetry.
 
-## 7. New stale-summary drift — 54/54 correct, so STOPPED
+**Why no skip occurred is NOT asserted here.** `skip_neon`, `neon_touched` and
+`external_state_unavailable` are not persisted to `audit_events`, and the Vercel MCP token expired
+during this session, so preflight reason telemetry was **not captured**. The last captured reason is
+`external_state_unavailable` in the 2026-08-02 handoff; whether that is still the current reason is
+**unverified**.
 
-Boundary: `2026-08-10 01:35Z`, the #597 Production deploy.
+## 3. Write churn by stream (24h)
 
 ```sql
-WITH hero AS (
-  SELECT DISTINCT ON (lm.listing_id) lm.listing_id, lm.r2_key, lm.media_url_original,
-         lm.updated_at AS hero_updated
-  FROM listing_media lm WHERE lm.status='active' AND lm.media_type='Photo'
-  ORDER BY lm.listing_id, (lm.preferred_photo_yn AND lm.media_key LIKE 'crm:%') DESC,
-           lm.preferred_photo_yn DESC, lm."order" ASC, lm.id ASC)
-SELECT
-  count(*) FILTER (WHERE h.hero_updated >= timestamp '2026-08-10 01:35:00') AS heroes_touched_since_597,
-  count(*) FILTER (WHERE h.hero_updated >= timestamp '2026-08-10 01:35:00' AND h.r2_key IS NOT NULL)
-                                                                            AS heroes_mirrored_since_597,
-  count(*) FILTER (WHERE h.hero_updated >= timestamp '2026-08-10 01:35:00' AND h.r2_key IS NOT NULL
-                     AND l.primary_photo_r2_key IS NOT DISTINCT FROM h.r2_key) AS of_those_summary_correct,
-  (SELECT count(*) FROM listing_media
-    WHERE r2_key IS NOT NULL AND updated_at >= timestamp '2026-08-10 01:35:00') AS any_media_mirrored_since_597
-FROM hero h JOIN listings l ON l.listing_id = h.listing_id;
+-- summed from audit_events -> changes->'members' -> summary->'write_paths'
 ```
 
+| stream | checked | written | suppressed |
+|---|---|---|---|
+| `listing_media` | 80,718 | **21,638** (+622 inserts) | 59,319 |
+| `listings` | 6,122 | **5,151** | 947 |
+| summaries | 4,431 | **1,511** | 2,920 |
+| projections | — | **51** | — |
+| **total row writes/day** | | **≈ 28,351** | |
+
+Attribution:
+
 ```
-heroes_touched_since_597=56  heroes_mirrored_since_597=54
-of_those_summary_correct=54  any_media_mirrored_since_597=418
+listing_media  rows_updated 21638 · rows_updated_changed 6643
+               => locator-refresh only            14995
+listings       modification_timestamp_only         1218
+               raw_data_only                       3813
+               status 53 · price 23 · display_permissions 10
+               attribution 4 · address 1 · media_identity 0 · other 91
+ISR            pages_revalidated                   8116
 ```
 
-And, from the stale side, `hero_touched_since_597 = 0` with
-`newest_hero_touch = 2026-08-09T22:20:47Z` — every stale row predates the fix.
-The 418 denominator is what makes this non-vacuous.
+**≈ 20,026 of 28,351 row writes/day (71%) change nothing a user or the search projection can see**
+(14,995 locator-refresh + 3,813 `raw_data_only` + 1,218 timestamp-only), and they drove **8,116 ISR
+revalidations/day** — about 1.6 revalidations per materially-changed listing.
 
-**Historical stale population: 4,911** (4,869 `primary_photo_r2_key` only, 12
-`photo_count` only, 30 multi-field, 0 `primary_photo_url` only; 4 Mallan-owned;
-2,573 on live listings). Full selector and reconciliation plan:
-`docs/operations/stale-listing-media-summary-reconciliation-2026-08-10.md`.
+Systemic link: the hero-only R2 policy mirrors ~1 photo per third-party listing, so ~17.6k gallery
+photos serve from Cotality through `/api/media/proxy`. Their signed URLs rotate, so keeping
+`media_url_original` fresh is load-bearing for image delivery. R2 storage was traded for DB write
+churn, Neon wake time and Cotality egress.
 
-## 8. Expiration-ownership exposure — latent, contamination zero
+**Not attributable from durable data:** `persistenceReasons` (including
+`refresh_while_<deliveryState>`) is computed in `runMediaSync` but never persisted, so the largest
+write stream in the system cannot be split by cause without deriving it from `rows_updated_changed`.
+
+## 4. R2 activity (24h)
+
+```
+r2_uploaded 37 · r2_reused 0 · r2_failed 1
+mirror_rejected_policy 488 · mirror_rejected_policy_parked 488
+rows_tombstoned 292 · summary_writes 1511 (2920 suppressed)
+```
+
+37 new R2 objects/day against 340,342 media rows — consistent with hero-only admission and a
+converged backlog.
+
+## 5. Neon storage and branches
 
 ```sql
-SELECT count(*) AS total_listings,
-  count(*) FILTER (WHERE agent_id IS NOT NULL) AS with_agent_id,
-  count(*) FILTER (WHERE agent_id IS NOT NULL
-    AND NOT (listing_id LIKE 'SL-%' OR listing_id LIKE 'RL-%' OR rls_eligible=false)) AS third_party_with_agent_id,
-  count(*) FILTER (WHERE expiration_date IS NOT NULL)      AS with_expiration,
-  count(*) FILTER (WHERE expiration_30d_notified = true)   AS notified_30d_true,
-  count(*) FILTER (WHERE expiration_7d_notified  = true)   AS notified_7d_true
-FROM listings;
+SELECT pg_size_pretty(pg_database_size(current_database())),
+       pg_size_pretty(pg_total_relation_size('listing_media')),
+       pg_size_pretty(pg_total_relation_size('listings')),
+       pg_size_pretty(pg_total_relation_size('audit_events'));
 ```
 
 ```
-total_listings=24723  with_agent_id=41  third_party_with_agent_id=34
-with_expiration=0     notified_30d_true=0  notified_7d_true=0
+physical pg_database_size        576 MB
+branch logical_size              627,367,936 B (598 MiB)
+listing_media  217 MB (340,342 rows)
+listings       178 MB (24,723 rows)
+audit_events    77 MB (101,899 rows)
+branch cpu_used_sec 199,868 · active_time_seconds 799,072   (LIFETIME since 2025-12-09)
 ```
 
-34 third-party rows do carry `agent_id`, which confirms the
-association-is-not-ownership premise is real. No listing carries an
-`expiration_date` yet, so the cron has never had a candidate and **historical
-contamination is zero — no cleanup required.** The #598 fix is preventive.
+**No historical size series is available** through the tooling used here — `describe_project`
+reports lifetime totals and a current size, not a trend, and billable/synthetic storage is not
+exposed. A storage trend therefore remains **unmeasured**, and no trend claim is made.
 
-## 9. Reproducing this record
+**Branch count: 2.** `main` (`br-crimson-frog-adr7g9gt`) plus a leftover
+`preview-pr597-commit11` (`br-old-dust-ad3idcf6`), created 2026-08-08, logical 36 MiB, state
+`ready`, last updated 2026-08-10 05:17Z. It is the branch-scoped DB used by the #597/#598 previews.
 
-Every statement above is a `SELECT`. Re-running them against the canonical
-project will produce drifted counts (the parked population grows until the
-historical third-party gallery is fully parked, and the sweep will reduce the
-stranded-hero count once #599 deploys) — that drift is expected and is the point
-of dating this record.
+## 6. Summary drift (canonical classifier, all four summary fields)
+
+```
+photo-bearing listings examined            20649
+stale primary_photo_r2_key                  4879
+stale photo_count                             42
+stale photos_change_timestamp                 13
+stale primary_photo_url  byte-exact           12
+stale primary_photo_url  provider-identity    12   (identical -> rotation is not inflating it)
+TOTAL exact selector                        4894
+   of which Mallan-owned                        4
+   of which on a live listing                2573
+```
+
+Superseded first-version figure: 4,911 (naive classifier, `photos_change_timestamp` omitted).
+
+**New drift check (canonical):** heroes touched since the 01:35Z #597 deploy **78**, of those
+mirrored **62**, of those with a correct summary **62/62**; stale listings whose hero was touched
+after the deploy **0**; media rows mirrored in the window **490** (non-vacuity denominator).
+**NEW DRIFT = STOPPED.** Tracked as **OPS-026**.
+
+## 7. Expiration-ownership exposure
+
+```
+total_listings 24723 · with_agent_id 41 · third_party_with_agent_id 34
+with_expiration 0 · expiration_30d_notified=true 0 · expiration_7d_notified=true 0
+```
+
+34 third-party rows carry `agent_id`, confirming the association-is-not-ownership premise. No
+listing carries an `expiration_date`, so the cron has never had a candidate and **historical
+contamination is zero — no cleanup required.** The PR #598 fix is preventive.
+
+## 8. Reproducing this record
+
+Every statement above is a `SELECT`. Re-running them will produce drifted counts — the parked
+population grows until the historical third-party gallery is fully parked, and the sweep will reduce
+the stranded-hero count once #599 deploys. That drift is expected and is the reason this record is
+dated and versioned rather than overwritten.

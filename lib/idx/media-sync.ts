@@ -2464,12 +2464,32 @@ export const R2_POLICY_REEVAL_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 export const R2_POLICY_REEVAL_BATCH_LIMIT = 60;
 
 /**
- * Backstop on the fairness top-up. Each round excludes every listing that has
- * failed so far, so the scan advances monotonically; this cap only stops a
- * table-wide fault from turning one firing into an unbounded scan. Worst case
- * per run is therefore 1 + this many bounded candidate SELECTs.
+ * Backstop on the WITHIN-RUN fairness top-up. Each round excludes every listing
+ * that has failed so far and requests only the write capacity still unused, so
+ * the scan advances monotonically and `take` can never grow. This cap only
+ * stops a table-wide fault from turning one firing into a long scan. Worst case
+ * per run is 1 + this many bounded candidate SELECTs.
+ *
+ * It is NOT the fairness mechanism on its own — within-run state dies with the
+ * run, so N+1 persistently failing groups would pin the same windows forever.
+ * {@link R2_POLICY_REEVAL_CURSOR_RESOURCE} carries the fairness ACROSS runs.
  */
 export const R2_POLICY_REEVAL_MAX_TOPUPS = 3;
+
+/**
+ * DURABLE ROTATION CURSOR. `media_sync_state` is the existing authoritative
+ * cursor table (keyed by its unique `resource`), so the sweep gets a
+ * cross-invocation starting position with NO schema change and no new writer:
+ * one bounded upsert per run, and only when the position actually moves.
+ *
+ * `last_listing_key` holds the highest `listing_id` examined by the previous
+ * run. The next run starts strictly after it, so a group of listings whose hero
+ * reads keep failing is stepped over on the FOLLOWING firing instead of pinning
+ * the window forever — which the within-run top-up alone cannot guarantee.
+ * A short window means the end of the space was reached, and the cursor wraps
+ * to null so the rotation starts again from the beginning.
+ */
+export const R2_POLICY_REEVAL_CURSOR_RESOURCE = "r2_policy_reevaluation";
 
 /**
  * THE RE-ADMISSION SELECTOR — a dedicated, bounded owner.
@@ -2572,6 +2592,13 @@ export interface R2PolicyReevaluationResult {
    * visible instead of looking like ordinary converged work.
    */
   deferred: number;
+  /**
+   * Rows the pass DECIDED to write this run (`readmitted + kept_parked +
+   * write_failed`). Distinct from `scanned`, which counts rows EXAMINED and can
+   * exceed the batch limit when the fairness top-up replaces deferred rows.
+   * This is the number the batch limit actually bounds.
+   */
+  decided: number;
   /** Scanned rows whose write did NOT persist (statement rejected, or state moved). */
   write_failed: number;
   /**
@@ -2620,6 +2647,7 @@ export async function reevaluateR2PolicyExclusions(
     readmitted: 0,
     kept_parked: 0,
     deferred: 0,
+    decided: 0,
     write_failed: 0,
     selector_failed: false,
   };
@@ -2663,13 +2691,52 @@ export async function reevaluateR2PolicyExclusions(
   const selectionAt = new Date(nowFn());
   const dueThreshold = new Date(nowFn() - intervalMs);
 
+  /** Durable rotation position read below; declared here for `advanceCursor`. */
+  let cursor: string | null = null;
+
+  /**
+   * Move the durable rotation forward (or wrap it to null at the end of the
+   * space). ONE bounded upsert per run, and only when the position actually
+   * changes — this is a cursor, not a new write stream. A failure is swallowed:
+   * the next run simply re-reads the old position and repeats a window, which
+   * is wasteful but never incorrect.
+   */
+  const advanceCursor = async (next: string | null): Promise<void> => {
+    if (next === cursor) return;
+    try {
+      await prisma.mediaSyncState.upsert({
+        where: { resource: R2_POLICY_REEVAL_CURSOR_RESOURCE },
+        create: { resource: R2_POLICY_REEVAL_CURSOR_RESOURCE, last_listing_key: next },
+        update: { last_listing_key: next },
+      });
+    } catch {
+      /* non-fatal — rotation retries next firing */
+    }
+  };
+
+  // DURABLE ROTATION. Read where the previous run stopped. A missing row, a
+  // null key or a read failure all mean "start from the beginning" — the sweep
+  // must never be blocked by its own bookkeeping.
+  try {
+    const state = await prisma.mediaSyncState.findUnique({
+      where: { resource: R2_POLICY_REEVAL_CURSOR_RESOURCE },
+      select: { last_listing_key: true },
+    });
+    cursor = state?.last_listing_key ?? null;
+  } catch {
+    cursor = null;
+  }
+  const afterCursor: Prisma.ListingMediaWhereInput =
+    cursor === null ? {} : { listing_id: { gt: cursor } };
+
   let candidates: ReevalRow[];
   try {
     candidates = (await prisma.listingMedia.findMany({
-      where: buildR2PolicyReevaluationWhere(dueThreshold),
+      where: { ...buildR2PolicyReevaluationWhere(dueThreshold), ...afterCursor },
       select: REEVAL_SELECT,
       // Deterministic and listing-clustered, so ONE hero read serves every
-      // parked row of the same listing.
+      // parked row of the same listing — and it is the order the durable
+      // rotation cursor advances along.
       orderBy: [{ listing_id: "asc" }, { id: "asc" }],
       take: batchLimit,
     })) as unknown as ReevalRow[];
@@ -2679,7 +2746,12 @@ export async function reevaluateR2PolicyExclusions(
     result.selector_failed = true;
     return result;
   }
-  if (candidates.length === 0) return result;
+  if (candidates.length === 0) {
+    // End of the rotation (or nothing due at all). Wrap so the next firing
+    // starts from the beginning instead of sitting past the last listing.
+    if (cursor !== null) await advanceCursor(null);
+    return result;
+  }
 
   // INTENT lists. The result counters are filled in later from what the
   // database actually confirms, so a rejected write cannot be reported as done.
@@ -2704,9 +2776,12 @@ export async function reevaluateR2PolicyExclusions(
   const heroKeyCache = new Map<string, string | null | typeof HERO_LOOKUP_FAILED>();
   /** Listings whose hero could not be resolved this run. */
   const failedListings = new Set<string>();
+  /** Every listing this run looked at — drives the durable rotation cursor. */
+  const examinedListingIds = new Set<string>();
 
   const decide = async (rows: ReevalRow[]): Promise<void> => {
     for (const row of rows) {
+      examinedListingIds.add(row.listing_id);
       const scope = decideMirrorAdmissionScope(row.listing);
       const approvedTypes =
         scope === "all_active" ? MALLAN_MIRROR_MEDIA_TYPES : FEED_MIRROR_MEDIA_TYPES;
@@ -2804,20 +2879,35 @@ export async function reevaluateR2PolicyExclusions(
   // R2_POLICY_REEVAL_MAX_TOPUPS so a table-wide fault cannot turn one firing
   // into an unbounded scan; the cap is a backstop, not the normal path.
   const scannedIds: bigint[] = candidates.map((c) => c.id);
+  /** Rows this run intends to WRITE. The batch limit bounds exactly this. */
+  const decidedCount = () => readmitPlain.length + readmitLegacy.length + keptParked.length;
   for (let round = 0; round < R2_POLICY_REEVAL_MAX_TOPUPS; round++) {
-    const shortfall = deferred.length - (result.scanned - scannedIds.length);
-    if (failedListings.size === 0 || shortfall <= 0) break;
+    // REMAINING WRITE CAPACITY, not the cumulative deferred count. Deriving the
+    // shortfall from `result.scanned - scannedIds.length` was wrong: both grow
+    // together so the difference was always zero, every round re-requested the
+    // whole deferred count, and a successful replacement never reduced it —
+    // three rounds could write 3x the documented cap, and with failing rounds
+    // the requested window grew 60 -> 120 -> 240. Anchoring on decided intents
+    // makes the cap mechanical: `take` can never exceed `batchLimit`, and a
+    // successful top-up shrinks the next request.
+    const remaining = batchLimit - decidedCount();
+    if (failedListings.size === 0 || remaining <= 0) break;
     let topUp: ReevalRow[];
     try {
       topUp = (await prisma.listingMedia.findMany({
         where: {
           ...buildR2PolicyReevaluationWhere(dueThreshold),
-          listing_id: { notIn: [...failedListings] },
+          // ONE `listing_id` filter — the rotation bound and the failure
+          // exclusion must be merged, not spread over each other.
+          listing_id: {
+            ...(cursor === null ? {} : { gt: cursor }),
+            notIn: [...failedListings],
+          },
           id: { notIn: scannedIds },
         },
         select: REEVAL_SELECT,
         orderBy: [{ listing_id: "asc" }, { id: "asc" }],
-        take: shortfall,
+        take: remaining,
       })) as unknown as ReevalRow[];
     } catch {
       break; // best-effort fairness — the primary window is already processed
@@ -2827,6 +2917,7 @@ export async function reevaluateR2PolicyExclusions(
     result.scanned += topUp.length;
     scannedIds.push(...topUp.map((r) => r.id));
   }
+  result.decided = decidedCount();
 
   /**
    * Persist one intent group and report what the DATABASE confirms.
@@ -2906,6 +2997,19 @@ export async function reevaluateR2PolicyExclusions(
     r2_policy_excluded_at: restampAt,
   });
   result.deferred = deferred.length;
+
+  // ADVANCE THE DURABLE ROTATION. Move to the highest listing_id examined, so
+  // the next firing starts strictly AFTER any group whose hero reads failed —
+  // this, not the within-run top-up, is what stops N+1 persistently failing
+  // groups from pinning the window forever. A primary window that came back
+  // short means the end of the space was reached, so the cursor wraps to null
+  // and the rotation restarts from the beginning.
+  let highestExamined: string | null = null;
+  for (const id of examinedListingIds) {
+    if (highestExamined === null || id > highestExamined) highestExamined = id;
+  }
+  await advanceCursor(candidates.length < batchLimit ? null : highestExamined);
+
   result.write_failed =
     result.scanned - (result.readmitted + result.kept_parked + result.deferred);
 
@@ -3611,6 +3715,13 @@ export interface RunMediaSyncResult {
    * Non-zero is not a run failure — those rows are simply reconsidered later —
    * but a sustained non-zero means the sweep is not converging.
    */
+  /**
+   * PHASE 4a rows the pass DECIDED to write this run. Distinct from
+   * `r2_policy_reevaluated`, which counts rows EXAMINED and can exceed the
+   * batch limit when the fairness top-up replaces deferred rows. This is the
+   * number the batch limit actually bounds.
+   */
+  r2_policy_decided: number;
   r2_policy_write_failed: number;
   /**
    * PHASE 4a rows that could not be DECIDED this firing because the per-listing
@@ -4071,6 +4182,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2PolicyReevaluated = 0;
   let r2PolicyReadmitted = 0;
   let r2PolicyKeptParked = 0;
+  let r2PolicyDecided = 0;
   let r2PolicyWriteFailed = 0;
   let r2PolicyDeferred = 0;
   let r2PolicySelectorFailed = false;
@@ -4151,6 +4263,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_policy_reevaluated: 0,
       r2_policy_readmitted: 0,
       r2_policy_kept_parked: 0,
+      r2_policy_decided: 0,
       r2_policy_write_failed: 0,
       r2_policy_deferred: 0,
       r2_policy_selector_failed: false,
@@ -4918,6 +5031,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2PolicyReadmitted = reeval.readmitted;
     r2PolicyKeptParked = reeval.kept_parked;
     r2PolicyDeferred = reeval.deferred;
+    r2PolicyDecided = reeval.decided;
     r2PolicyWriteFailed = reeval.write_failed;
     r2PolicySelectorFailed = reeval.selector_failed;
   }
@@ -5018,6 +5132,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_policy_reevaluated: r2PolicyReevaluated,
     r2_policy_readmitted: r2PolicyReadmitted,
     r2_policy_kept_parked: r2PolicyKeptParked,
+    r2_policy_decided: r2PolicyDecided,
     r2_policy_write_failed: r2PolicyWriteFailed,
     r2_policy_deferred: r2PolicyDeferred,
     r2_policy_selector_failed: r2PolicySelectorFailed,
