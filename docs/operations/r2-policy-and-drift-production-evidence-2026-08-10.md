@@ -14,9 +14,9 @@ Durable record of every Production number quoted in PR #599 and in the
 | Production application SHA | `2d121daaf6dbcd3d027d6d337901a18e43c03ad8` (PR #598 merge) |
 | Production deployment | `dpl_Ey4rGtD26mij3ULsgJvrs88md6yy` · alias `mallan.nyc` · Release Truth `PROD_PROVEN` |
 
-**Privacy.** Only aggregate counts and boundary timestamps are recorded. No
-address, listing URL, MediaKey, R2 key, media URL, agent identity or any other
-row-level value appears in this document.
+**Privacy.** Only aggregate counts and boundary timestamps are recorded. This
+document contains no address, listing URL, MediaKey, R2 key, media URL, agent
+identity or any other row-level value.
 
 ---
 

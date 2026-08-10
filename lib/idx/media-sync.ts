@@ -2464,6 +2464,14 @@ export const R2_POLICY_REEVAL_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 export const R2_POLICY_REEVAL_BATCH_LIMIT = 60;
 
 /**
+ * Backstop on the fairness top-up. Each round excludes every listing that has
+ * failed so far, so the scan advances monotonically; this cap only stops a
+ * table-wide fault from turning one firing into an unbounded scan. Worst case
+ * per run is therefore 1 + this many bounded candidate SELECTs.
+ */
+export const R2_POLICY_REEVAL_MAX_TOPUPS = 3;
+
+/**
  * THE RE-ADMISSION SELECTOR — a dedicated, bounded owner.
  *
  * It is deliberately NOT an age clause bolted onto
@@ -2743,9 +2751,24 @@ export async function reevaluateR2PolicyExclusions(
               status: true,
               preferred_photo_yn: true,
               order: true,
+              // LISTING-WIDE STALENESS. The per-row `updated_at <= selectionAt`
+              // guard on the write covers the CANDIDATE, but the hero decision
+              // is computed from every sibling: if the previous hero is
+              // tombstoned or re-ordered concurrently, this candidate can
+              // become the hero without its own timestamp moving, and the
+              // guard would still match and re-stamp it for another interval.
+              // Reading sibling timestamps here lets a listing that moved be
+              // treated as undecidable instead.
+              updated_at: true,
             },
           });
-          heroKey = selectHeroPhoto(listingRows)?.media_key ?? null;
+          const listingMoved = listingRows.some(
+            (r) => (r as { updated_at?: Date }).updated_at instanceof Date &&
+              ((r as { updated_at: Date }).updated_at.getTime() > selectionAt.getTime()),
+          );
+          heroKey = listingMoved
+            ? HERO_LOOKUP_FAILED
+            : (selectHeroPhoto(listingRows)?.media_key ?? null);
         } catch {
           heroKey = HERO_LOOKUP_FAILED;
         }
@@ -2768,31 +2791,41 @@ export async function reevaluateR2PolicyExclusions(
   await decide(candidates);
   result.scanned = candidates.length;
 
-  // FAIRNESS TOP-UP. The window is `orderBy listing_id asc` + `take`, so a
-  // listing whose hero read keeps failing sits at the head of it on every
-  // firing and later listings would never be examined. ONE additional bounded
-  // select, excluding the failed listings and everything already scanned, keeps
-  // the sweep moving whenever any healthy due row exists. Bounded by the number
-  // of rows the failures cost us, and never repeated.
-  if (failedListings.size > 0) {
+  // FAIRNESS TOP-UP. The window is `orderBy listing_id asc` + `take`, so
+  // listings whose hero read keeps failing sit at the head of it on every
+  // firing and later listings would never be examined.
+  //
+  // The top-up must LOOP, not run once: a single replacement window can itself
+  // land entirely on a second failing listing, and then the same two windows
+  // repeat forever while a healthy listing further down is never reached. Each
+  // round excludes every listing that has failed SO FAR (including in previous
+  // top-ups) plus everything already scanned, so the exclusion set grows
+  // monotonically and the scan advances. Capped at
+  // R2_POLICY_REEVAL_MAX_TOPUPS so a table-wide fault cannot turn one firing
+  // into an unbounded scan; the cap is a backstop, not the normal path.
+  const scannedIds: bigint[] = candidates.map((c) => c.id);
+  for (let round = 0; round < R2_POLICY_REEVAL_MAX_TOPUPS; round++) {
+    const shortfall = deferred.length - (result.scanned - scannedIds.length);
+    if (failedListings.size === 0 || shortfall <= 0) break;
+    let topUp: ReevalRow[];
     try {
-      const topUp = (await prisma.listingMedia.findMany({
+      topUp = (await prisma.listingMedia.findMany({
         where: {
           ...buildR2PolicyReevaluationWhere(dueThreshold),
           listing_id: { notIn: [...failedListings] },
-          id: { notIn: candidates.map((c) => c.id) },
+          id: { notIn: scannedIds },
         },
         select: REEVAL_SELECT,
         orderBy: [{ listing_id: "asc" }, { id: "asc" }],
-        take: deferred.length,
+        take: shortfall,
       })) as unknown as ReevalRow[];
-      if (topUp.length > 0) {
-        await decide(topUp);
-        result.scanned += topUp.length;
-      }
     } catch {
-      // Best-effort fairness only — the primary window was already processed.
+      break; // best-effort fairness — the primary window is already processed
     }
+    if (topUp.length === 0) break;
+    await decide(topUp);
+    result.scanned += topUp.length;
+    scannedIds.push(...topUp.map((r) => r.id));
   }
 
   /**

@@ -725,6 +725,132 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     expect(res.write_failed).toBe(1);
   });
 
+  it('44. fairness advances past failures discovered in the TOP-UP too, not just the first window', async () => {
+    // Codex P2 (ee653df9). The first top-up excluded only listings that failed
+    // in the PRIMARY window. If the top-up itself landed entirely on a second
+    // failing listing, every firing repeated the same two windows and a healthy
+    // listing further down the ordering was never reached.
+    const brokenA = { ...THIRD_PARTY, listing_id: 'RLS-AAA-BROKEN' };
+    const brokenB = { ...THIRD_PARTY, listing_id: 'RLS-BBB-BROKEN' };
+    const okListing = { ...THIRD_PARTY, listing_id: 'RLS-ZZZ-OK' };
+    const pool = [
+      legacyParked({ listing_id: 'RLS-AAA-BROKEN', listing: brokenA, order: 10 }),
+      legacyParked({ listing_id: 'RLS-BBB-BROKEN', listing: brokenB, order: 11 }),
+      legacyParked({
+        listing_id: 'RLS-ZZZ-OK', listing: okListing, preferred_photo_yn: true, media_key: 'MK-okhero',
+      }),
+    ];
+    installPool(pool);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      const lid = a.where?.listing_id;
+      if (typeof lid === 'string' && lid.endsWith('BROKEN') && !('status' in a.where)) {
+        throw new Error('db blip');
+      }
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 1 });
+
+    expect(res.deferred).toBe(2);
+    // The healthy listing was still reached in the SAME firing.
+    expect(res.readmitted).toBe(1);
+  });
+
+  it('45. the fairness top-up is BOUNDED — it cannot loop forever on failing listings', async () => {
+    // Every listing fails. The pass must give up after a bounded number of
+    // rounds rather than issuing selects until the table is exhausted.
+    const pool = Array.from({ length: 40 }, (_, i) => {
+      const lid = `RLS-B${String(i).padStart(3, '0')}-BROKEN`;
+      return legacyParked({ listing_id: lid, listing: { ...THIRD_PARTY, listing_id: lid }, order: 10 + i });
+    });
+    installPool(pool);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      const lid = a.where?.listing_id;
+      if (typeof lid === 'string' && lid.endsWith('BROKEN') && !('status' in a.where)) {
+        throw new Error('db blip');
+      }
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 1 });
+
+    const candidateSelects = mockFindMany.mock.calls.filter(
+      ([a]) => (a as { take?: number }).take !== undefined,
+    );
+    expect(candidateSelects.length).toBeLessThanOrEqual(4); // window + <=3 top-ups
+    expect(res.readmitted).toBe(0);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('46. a listing whose SIBLING rows moved after selection is deferred, not re-stamped', async () => {
+    // Codex P2 (ee653df9). `updated_at <= selectionAt` guards the candidate
+    // row, but `selectHeroPhoto` decided from every sibling. If the previous
+    // hero is tombstoned concurrently, this candidate becomes the hero without
+    // its OWN timestamp moving — the guard still matches and it would be
+    // re-stamped for another interval. The hero read now also reads sibling
+    // timestamps and treats a listing that moved as undecidable.
+    const listing = { ...THIRD_PARTY, listing_id: 'RLS-MOVED' };
+    const candidate = legacyParked({ listing_id: 'RLS-MOVED', listing, media_key: 'MK-cand', order: 7 });
+    installPool([candidate]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown>; select?: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-MOVED' && !('status' in a.where)) {
+        return [
+          // A sibling written AFTER this pass selected its candidates.
+          { media_key: 'MK-hero', media_type: 'Photo', media_category: null,
+            media_classification: null, media_url_original: 'https://api.cotality.com/x.jpg',
+            status: 'active', preferred_photo_yn: false, order: 0,
+            updated_at: new Date(NOW + 1000) },
+          { media_key: 'MK-cand', media_type: 'Photo', media_category: null,
+            media_classification: null, media_url_original: 'https://api.cotality.com/y.jpg',
+            status: 'active', preferred_photo_yn: false, order: 7,
+            updated_at: new Date(NOW - 60_000) },
+        ];
+      }
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.deferred).toBe(1);
+    expect(res.kept_parked).toBe(0);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('47. a listing whose rows are all older than selection is decided normally', async () => {
+    // The other side of 46: a stable listing must not be deferred.
+    const listing = { ...THIRD_PARTY, listing_id: 'RLS-STABLE' };
+    const candidate = legacyParked({ listing_id: 'RLS-STABLE', listing, media_key: 'MK-cand', order: 7 });
+    installPool([candidate]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-STABLE' && !('status' in a.where)) {
+        return [
+          { media_key: 'MK-hero', media_type: 'Photo', media_category: null,
+            media_classification: null, media_url_original: 'https://api.cotality.com/x.jpg',
+            status: 'active', preferred_photo_yn: false, order: 0,
+            updated_at: new Date(NOW - 120_000) },
+          { media_key: 'MK-cand', media_type: 'Photo', media_category: null,
+            media_classification: null, media_url_original: 'https://api.cotality.com/y.jpg',
+            status: 'active', preferred_photo_yn: false, order: 7,
+            updated_at: new Date(NOW - 60_000) },
+        ];
+      }
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.deferred).toBe(0);
+    expect(res.kept_parked).toBe(1);
+  });
+
   it('38. a row re-admitted concurrently is not re-parked, and the miss is reported', async () => {
     const heroRow = row({ media_key: 'MK-hero', order: 0 });
     const kept = legacyParked({ order: 11 });
