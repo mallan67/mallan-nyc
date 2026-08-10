@@ -2533,12 +2533,17 @@ export interface R2PolicyReevaluationOptions {
 }
 
 /**
- * Every count except `scanned` is PERSISTED state, read back from each
- * `updateMany`'s own `count` — not from the decision loop. A rejected or short
- * write is reported in `write_failed`, never as work that happened. The
- * distinction matters because these counters are the only observable for this
- * pass in Production: a decision-level counter would let the run report rows as
- * re-admitted while the exclusion was still in the table.
+ * `readmitted` and `kept_parked` are PERSISTED state, read back from each
+ * `updateMany`'s own `count` — not from the decision loop. A rejected, short or
+ * guard-missed write is reported in `write_failed`, never as work that
+ * happened. That matters because these counters are the only observable for
+ * this pass in Production: a decision-level counter would let the run report
+ * rows as re-admitted while the exclusion was still in the table.
+ *
+ * `scanned` and `deferred` are DECISION counts by definition — `scanned` is what
+ * the selector returned, and a deferred row is deliberately not written at all.
+ *
+ * Invariant: `scanned = readmitted + kept_parked + deferred + write_failed`.
  */
 export interface R2PolicyReevaluationResult {
   /** Rows reconsidered this run — the DECISION count. */
@@ -2547,10 +2552,27 @@ export interface R2PolicyReevaluationResult {
   readmitted: number;
   /** CONFIRMED written: still excluded, re-evaluation clock restarted. */
   kept_parked: number;
-  /** CONFIRMED written: undecidable (hero read failed); clock restarted anyway. */
+  /**
+   * Undecidable this firing because the per-listing hero read failed.
+   *
+   * DELIBERATELY NOT WRITTEN. A hero read fails only on a transient DB fault,
+   * and that fault says nothing about the row's policy state — re-stamping it
+   * would invent a park time the system never decided AND silently cost the row
+   * a full re-evaluation interval. The row is left exactly as it is and retried
+   * on the next firing; the batch cap bounds the cost of re-selecting it.
+   * Reported separately from `kept_parked` so a listing that keeps failing is
+   * visible instead of looking like ordinary converged work.
+   */
   deferred: number;
-  /** Scanned rows whose write did NOT persist (statement rejected, or row gone). */
+  /** Scanned rows whose write did NOT persist (statement rejected, or state moved). */
   write_failed: number;
+  /**
+   * The candidate SELECT itself failed. Without this, "the query is broken" and
+   * "nothing is due" both returned an identical all-zero result — and converged
+   * IS the expected steady state, so a sweep that had stopped running entirely
+   * would never be noticed.
+   */
+  selector_failed: boolean;
 }
 
 /**
@@ -2562,10 +2584,15 @@ export interface R2PolicyReevaluationResult {
  * writes, cannot forge an attempt or a cooldown, and cannot reset a real
  * failure count.
  *
- * FORWARD PROGRESS. Every scanned row is written exactly once — re-admitted or
- * re-stamped. A re-stamped row is not due again for a full interval, so the
- * same row cannot churn between firings, and one listing whose hero read keeps
- * failing cannot pin the front of the sweep and starve the rest.
+ * FORWARD PROGRESS. Every row the pass could DECIDE is written at most once —
+ * re-admitted or re-stamped — and a re-stamped row is not due again for a full
+ * interval, so the same row cannot churn between firings. Rows it could not
+ * decide (hero read failed) are deliberately left untouched and retried next
+ * firing rather than given a fabricated park time; the batch cap bounds the
+ * cost of re-selecting them, and `deferred` makes a persistently failing
+ * listing visible. A write is not guaranteed to land: each statement re-asserts
+ * the state it selected on, so a row another invocation changed in between is
+ * skipped and counted in `write_failed`.
  *
  * LEGACY SENTINEL. On re-admission `r2_attempts = 9` is cleared to null. That
  * is not erasing failure history: the failure path caps the counter at 8
@@ -2586,6 +2613,7 @@ export async function reevaluateR2PolicyExclusions(
     kept_parked: 0,
     deferred: 0,
     write_failed: 0,
+    selector_failed: false,
   };
 
   type ReevalRow = {
@@ -2625,7 +2653,10 @@ export async function reevaluateR2PolicyExclusions(
       take: batchLimit,
     })) as unknown as ReevalRow[];
   } catch {
-    return result; // never fails the run
+    // Never fails the run — but it must be DISTINGUISHABLE from "nothing due",
+    // which is the expected steady state and looks identical otherwise.
+    result.selector_failed = true;
+    return result;
   }
   if (candidates.length === 0) return result;
   result.scanned = candidates.length;
@@ -2638,7 +2669,7 @@ export async function reevaluateR2PolicyExclusions(
   const readmitLegacy: bigint[] = [];
   /** Still excluded — clock restarts. */
   const keptParked: bigint[] = [];
-  /** Undecidable (hero read failed) — clock restarts so the sweep advances. */
+  /** Undecidable (hero read failed) — NOT written; retried next firing. */
   const deferred: bigint[] = [];
 
   const heroKeyCache = new Map<string, string | null>();
@@ -2674,9 +2705,17 @@ export async function reevaluateR2PolicyExclusions(
       try {
         const listingRows = await prisma.listingMedia.findMany({
           where: { listing_id: row.listing_id },
+          // HERO PARITY — identical shape to the Phase-3 admission read and to
+          // `computeListingMediaSummary`. See the note there: without
+          // media_category / media_classification / media_url_original,
+          // `classifyMediaItem` cannot see a FloorPlan stored as
+          // `media_type='Photo'`, and this pass would re-admit the wrong row.
           select: {
             media_key: true,
             media_type: true,
+            media_category: true,
+            media_classification: true,
+            media_url_original: true,
             status: true,
             preferred_photo_yn: true,
             order: true,
@@ -2701,34 +2740,67 @@ export async function reevaluateR2PolicyExclusions(
   /**
    * Persist one intent group and report what the DATABASE confirms.
    *
-   * Each group gets its own statement and its own guard, so a rejection is
+   * STATE-SAFE. Selection and persistence are separate statements and another
+   * invocation can mirror, park or re-admit a row in between (the drain's
+   * advisory lock covers the drain, not this pass, and the media upsert path
+   * writes these rows too). Writing by `id` alone would let this pass clear a
+   * sentinel that is no longer there, or re-park a row someone else just
+   * re-admitted. Each statement therefore re-asserts the exact state it
+   * selected on, and Postgres evaluates that predicate at write time.
+   *
+   * Each group also gets its own statement and its own guard, so a rejection is
    * attributed to that group instead of silently truncating the rest — and the
    * returned count, not the intent size, is what the caller sees. A short count
-   * (row deleted between select and write) is reported the same honest way.
-   * Failure stays non-fatal and idempotent: an unwritten row is simply
-   * reconsidered on a later firing.
+   * (row deleted, or state moved so the guard no longer matches) is reported the
+   * same honest way. Failure stays non-fatal and idempotent: an unwritten row is
+   * simply reconsidered on a later firing.
    */
   const persist = async (
     ids: bigint[],
+    guard: Prisma.ListingMediaWhereInput,
     data: Prisma.ListingMediaUpdateManyMutationInput,
   ): Promise<number> => {
     if (ids.length === 0) return 0;
     try {
-      const written = await prisma.listingMedia.updateMany({ where: { id: { in: ids } }, data });
+      const written = await prisma.listingMedia.updateMany({
+        where: { id: { in: ids }, ...guard },
+        data,
+      });
       return written.count;
     } catch {
       return 0;
     }
   };
 
+  /** Still parked under EITHER encoding — the precondition for re-stamping. */
+  const stillParked: Prisma.ListingMediaWhereInput = {
+    OR: [
+      { r2_policy_excluded_at: { not: null } },
+      { r2_attempts: R2_POLICY_PARKED_ATTEMPTS },
+    ],
+  };
+
   const restampAt = new Date(nowFn());
-  // At most four statements per run (three when nothing was deferred),
-  // regardless of batch size.
+  // At most three statements per run, regardless of batch size. Deferred rows
+  // are deliberately NOT written (see `deferred` on the result type), so they
+  // add no statement and no fabricated timestamp.
   result.readmitted =
-    (await persist(readmitPlain, { r2_policy_excluded_at: null })) +
-    (await persist(readmitLegacy, { r2_policy_excluded_at: null, r2_attempts: null }));
-  result.kept_parked = await persist(keptParked, { r2_policy_excluded_at: restampAt });
-  result.deferred = await persist(deferred, { r2_policy_excluded_at: restampAt });
+    // Selected via the explicit column, so only clear it if it is still set.
+    (await persist(
+      readmitPlain,
+      { r2_policy_excluded_at: { not: null } },
+      { r2_policy_excluded_at: null },
+    )) +
+    // Legacy: only clear the sentinel if the row still carries exactly 9.
+    (await persist(
+      readmitLegacy,
+      { r2_attempts: R2_POLICY_PARKED_ATTEMPTS },
+      { r2_policy_excluded_at: null, r2_attempts: null },
+    ));
+  result.kept_parked = await persist(keptParked, stillParked, {
+    r2_policy_excluded_at: restampAt,
+  });
+  result.deferred = deferred.length;
   result.write_failed =
     result.scanned - (result.readmitted + result.kept_parked + result.deferred);
 
@@ -3435,6 +3507,20 @@ export interface RunMediaSyncResult {
    * but a sustained non-zero means the sweep is not converging.
    */
   r2_policy_write_failed: number;
+  /**
+   * PHASE 4a rows that could not be DECIDED this firing because the per-listing
+   * hero read failed. Not written and not a failure — retried next firing —
+   * but reported separately from `r2_policy_kept_parked` so a listing that
+   * keeps failing is visible instead of looking like converged work.
+   */
+  r2_policy_deferred: number;
+  /**
+   * PHASE 4a candidate SELECT itself failed this run. "Nothing due" and "the
+   * query is broken" are otherwise identical all-zero results, and converged is
+   * the expected steady state — so without this a sweep that had stopped
+   * running entirely would never be noticed.
+   */
+  r2_policy_selector_failed: boolean;
   /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
   /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
@@ -3881,6 +3967,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2PolicyReadmitted = 0;
   let r2PolicyKeptParked = 0;
   let r2PolicyWriteFailed = 0;
+  let r2PolicyDeferred = 0;
+  let r2PolicySelectorFailed = false;
   let r2Mirrored = 0;
   let r2Uploaded = 0;
   let r2Reused = 0;
@@ -3959,6 +4047,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_policy_readmitted: 0,
       r2_policy_kept_parked: 0,
       r2_policy_write_failed: 0,
+      r2_policy_deferred: 0,
+      r2_policy_selector_failed: false,
       r2_mirrored: 0,
       r2_uploaded: 0,
       r2_reused: 0,
@@ -4408,9 +4498,23 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
           // decided here is IDENTICAL to the one the summary/reader surfaces.
           const listingRows = await prisma.listingMedia.findMany({
             where: { listing_id: row.listing_id },
+            // HERO PARITY (2026-08-10). `selectHeroPhoto` -> `filterActivePhotoRows`
+            // -> `classifyMediaItem`, which weighs MediaCategory,
+            // MediaClassification and the Trestle DOCUMENT-* URL shape BEFORE
+            // falling back to `media_type`. A narrow select made those three
+            // fields undefined, so a row STORED as `media_type='Photo'` but
+            // canonically a FloorPlan (missing MediaCategory + a DOCUMENT-Pdf
+            // URL — the documented real case) counted as a photo here while
+            // `computeListingMediaSummary`, which reads the full row, excluded
+            // it. The mirror could then mirror a floor plan as the hero and
+            // park the genuine hero. Same population AND same shape as the
+            // summary read is what makes the two provably agree.
             select: {
               media_key: true,
               media_type: true,
+              media_category: true,
+              media_classification: true,
+              media_url_original: true,
               status: true,
               preferred_photo_yn: true,
               order: true,
@@ -4707,8 +4811,10 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     const reeval = await reevaluateR2PolicyExclusions({ now });
     r2PolicyReevaluated = reeval.scanned;
     r2PolicyReadmitted = reeval.readmitted;
-    r2PolicyKeptParked = reeval.kept_parked + reeval.deferred;
+    r2PolicyKeptParked = reeval.kept_parked;
+    r2PolicyDeferred = reeval.deferred;
     r2PolicyWriteFailed = reeval.write_failed;
+    r2PolicySelectorFailed = reeval.selector_failed;
   }
 
   // ── PHASE 4: finalize + return ───────────────────────────────────────
@@ -4808,6 +4914,8 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_policy_readmitted: r2PolicyReadmitted,
     r2_policy_kept_parked: r2PolicyKeptParked,
     r2_policy_write_failed: r2PolicyWriteFailed,
+    r2_policy_deferred: r2PolicyDeferred,
+    r2_policy_selector_failed: r2PolicySelectorFailed,
     r2_mirrored: r2Mirrored,
     r2_uploaded: r2Uploaded,
     r2_reused: r2Reused,

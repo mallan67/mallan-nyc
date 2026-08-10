@@ -412,7 +412,7 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     expect(res.scanned).toBe(5);
   });
 
-  it('24. writes are batched — at most three statements regardless of batch size', async () => {
+  it('24. writes are batched — at most three statements regardless of batch size, and the counters balance', async () => {
     const heroRow = row({ media_key: 'MK-hero', order: 0 });
     const keeps = Array.from({ length: 20 }, (_, i) => legacyParked({ order: i + 10 }));
     const legacyHeroListing = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
@@ -423,14 +423,29 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
 
     await reevaluateR2PolicyExclusions({ now });
 
-    expect(mockUpdateMany.mock.calls.length).toBeLessThanOrEqual(4);
+    // Three groups can be written: explicit re-admit, legacy re-admit,
+    // re-stamp. Deferred rows are not written at all, so they add no statement.
+    expect(mockUpdateMany.mock.calls.length).toBeLessThanOrEqual(3);
     expect(writes().reduce((n, w) => n + w.ids.length, 0)).toBe(22);
+  });
+
+  it('24b. the counter invariant holds: scanned = readmitted + kept_parked + deferred + write_failed', async () => {
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const keeps = Array.from({ length: 6 }, (_, i) => legacyParked({ order: i + 10 }));
+    const heroListing = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
+    const readmit = legacyParked({ listing_id: 'RLS20099238', listing: heroListing, preferred_photo_yn: true });
+    installPool([heroRow, ...keeps, readmit]);
+
+    const r = await reevaluateR2PolicyExclusions({ now });
+
+    expect(r.scanned).toBe(r.readmitted + r.kept_parked + r.deferred + r.write_failed);
+    expect(r.selector_failed).toBe(false);
   });
 
   it('25. no rows due ⇒ no writes at all', async () => {
     installPool([row(), parked({ r2_policy_excluded_at: FRESH })]);
     const res = await reevaluateR2PolicyExclusions({ now });
-    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0 });
+    expect(res).toEqual({ scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0, selector_failed: false });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
@@ -445,6 +460,8 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     }
   });
 
+  // Superseded by 35 / 36, which pin the no-write decision and the separate
+  // counter. Kept as the original regression anchor for the sweep advancing.
   it('27. a hero lookup failure defers the row instead of stranding the sweep', async () => {
     const stuck = legacyParked({ listing_id: 'RLS-BROKEN', listing: { ...THIRD_PARTY, listing_id: 'RLS-BROKEN' } });
     installPool([stuck]);
@@ -461,8 +478,9 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     // and one failing listing can never starve the rest.
     expect(res.deferred).toBe(1);
     expect(res.readmitted).toBe(0);
-    const w = writtenFor(stuck.id as bigint) as { r2_policy_excluded_at: Date };
-    expect(w.r2_policy_excluded_at.getTime()).toBe(NOW);
+    // The sweep advances by NOT stranding on the failing listing; the row is
+    // left untouched (see 35) and retried next firing.
+    expect(writtenFor(stuck.id as bigint)).toBeUndefined();
   });
 
   it('28. one hero read per listing, not per row', async () => {
@@ -479,7 +497,126 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     mockFindMany.mockRejectedValue(new Error('db down'));
     await expect(reevaluateR2PolicyExclusions({ now })).resolves.toEqual({
       scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0,
+      selector_failed: true,
     });
+  });
+
+  it('34. "nothing due" and "the query failed" are DISTINCT outcomes', async () => {
+    // Both used to return an identical all-zero result, so a sweep that had
+    // stopped running entirely was indistinguishable from a converged one —
+    // and converged is the expected steady state, so the failure would never
+    // be noticed.
+    installPool([row(), parked({ r2_policy_excluded_at: FRESH })]);
+    const quiet = await reevaluateR2PolicyExclusions({ now });
+    expect(quiet).toEqual({
+      scanned: 0, readmitted: 0, kept_parked: 0, deferred: 0, write_failed: 0,
+      selector_failed: false,
+    });
+
+    mockFindMany.mockRejectedValue(new Error('statement timeout'));
+    const broken = await reevaluateR2PolicyExclusions({ now });
+    expect(broken.selector_failed).toBe(true);
+    expect(broken).not.toEqual(quiet);
+  });
+
+  it('35. a deferred row is NOT written — no fabricated park timestamp', async () => {
+    // A hero read only fails on a transient DB fault, and that fault carries no
+    // information about the row's policy state. Re-stamping it would invent a
+    // park time the system never decided and silently cost the row a full
+    // re-evaluation interval. It is left untouched and retried next firing;
+    // the batch cap bounds the cost of doing so.
+    const stuck = legacyParked({ listing_id: 'RLS-BROKEN', listing: { ...THIRD_PARTY, listing_id: 'RLS-BROKEN' } });
+    installPool([stuck]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.deferred).toBe(1);
+    expect(res.kept_parked).toBe(0);
+    expect(res.write_failed).toBe(0); // not a failure — a deliberate no-write
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+    // Still due, so the next firing retries it rather than waiting an interval.
+    expect(selectable(stuck)).toBe(true);
+  });
+
+  it('36. deferred is reported SEPARATELY from kept_parked', async () => {
+    const okListing = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
+    const heroOk = row({ listing_id: 'RLS20099238', listing: okListing, media_key: 'MK-hero', order: 0 });
+    const keptOk = legacyParked({ listing_id: 'RLS20099238', listing: okListing, order: 7 });
+    const stuck = legacyParked({ listing_id: 'RLS-BROKEN', listing: { ...THIRD_PARTY, listing_id: 'RLS-BROKEN' } });
+    installPool([heroOk, keptOk, stuck]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.scanned).toBe(2);
+    expect(res.kept_parked).toBe(1);
+    expect(res.deferred).toBe(1);
+  });
+
+  it('37. writes are STATE-SAFE — each statement re-asserts the state it selected on', async () => {
+    // Selection and persistence are separate statements, and another
+    // invocation can mirror or re-admit a row in between. Writing by id alone
+    // would let this pass re-park a row someone else just re-admitted, or clear
+    // a sentinel that is no longer there.
+    const heroListing = { ...THIRD_PARTY, listing_id: 'RLS20099238' };
+    const legacyHero = legacyParked({ listing_id: 'RLS20099238', listing: heroListing, preferred_photo_yn: true });
+    const modernListing = { ...THIRD_PARTY, listing_id: 'RLS20105507' };
+    const modernHero = parked({ listing_id: 'RLS20105507', listing: modernListing, preferred_photo_yn: true, r2_attempts: 2 });
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const kept = legacyParked({ order: 11 });
+    installPool([heroRow, kept, legacyHero, modernHero]);
+
+    await reevaluateR2PolicyExclusions({ now });
+
+    expect(mockUpdateMany.mock.calls.length).toBeGreaterThanOrEqual(3);
+    for (const call of mockUpdateMany.mock.calls) {
+      const a = call[0] as { where: Record<string, unknown>; data: Record<string, unknown> };
+      // Every statement is id-scoped AND carries at least one state predicate.
+      expect(Object.keys(a.where)).toContain('id');
+      const guardKeys = Object.keys(a.where).filter((k) => k !== 'id');
+      expect(guardKeys.length).toBeGreaterThan(0);
+
+      if (a.data.r2_policy_excluded_at === null && 'r2_attempts' in a.data) {
+        // Legacy re-admission — only if the sentinel is still exactly 9.
+        expect(a.where.r2_attempts).toBe(R2_POLICY_PARKED_ATTEMPTS);
+      } else if (a.data.r2_policy_excluded_at === null) {
+        // Explicit-column re-admission — only if the column is still set.
+        expect(a.where.r2_policy_excluded_at).toEqual({ not: null });
+      } else {
+        // Re-stamp — only a row still parked under EITHER encoding.
+        const or = a.where.OR as Array<Record<string, unknown>>;
+        expect(or).toEqual([
+          { r2_policy_excluded_at: { not: null } },
+          { r2_attempts: R2_POLICY_PARKED_ATTEMPTS },
+        ]);
+      }
+    }
+  });
+
+  it('38. a row re-admitted concurrently is not re-parked, and the miss is reported', async () => {
+    const heroRow = row({ media_key: 'MK-hero', order: 0 });
+    const kept = legacyParked({ order: 11 });
+    installPool([heroRow, kept]);
+    // The conditional write matches nothing: another invocation cleared the
+    // park between select and write.
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.scanned).toBe(1);
+    expect(res.kept_parked).toBe(0);
+    expect(res.write_failed).toBe(1);
   });
 
   it('31. counters report PERSISTED state — a rejected write is reported as failed, not done', async () => {

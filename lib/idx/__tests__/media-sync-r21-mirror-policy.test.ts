@@ -119,6 +119,11 @@ interface PoolRow {
   listing_id: string;
   media_key: string;
   media_type: string;
+  // Canonical-classification inputs. `classifyMediaItem` weighs these BEFORE
+  // falling back to media_type, so a pool that omitted them could not model a
+  // FloorPlan stored as media_type=Photo.
+  media_category: string | null;
+  media_classification: string | null;
   status: string;
   preferred_photo_yn: boolean;
   order: number;
@@ -145,6 +150,8 @@ function makePoolRow(
     listing_id: String(listing.listing_id),
     media_key: `MK-${id}`,
     media_type: "Photo",
+    media_category: null,
+    media_classification: null,
     status: "active",
     preferred_photo_yn: false,
     order: id,
@@ -252,9 +259,27 @@ function installPool(
       //      the Listing summary in the SAME invocation after a mirror.
       // Only (1) is a "hero query" for the admission assertions below.
       const sel = (args as { select?: Record<string, unknown> }).select ?? {};
-      if ('media_url_original' in sel || 'r2_key' in sel) summaryReadCount++;
+      // DISCRIMINATOR (updated 2026-08-10). It used to key on
+      // `media_url_original`, but the ADMISSION hero read now selects that
+      // field too — it must, or `classifyMediaItem` cannot see a FloorPlan
+      // stored as `media_type='Photo'`. `r2_key` is the field only the SUMMARY
+      // read needs (it populates `primary_photo_r2_key`), so it is the honest
+      // discriminator now.
+      if ('r2_key' in sel) summaryReadCount++;
       else heroQueryCount++;
-      return pool.filter((r) => r.listing_id === a.where!.listing_id);
+      // Serve ONLY the selected columns. Returning the full row regardless of
+      // the select would make the harness MORE permissive than Prisma and hide
+      // exactly the narrow-select hero-parity defect this models.
+      const keys = Object.keys(sel);
+      return pool
+        .filter((r) => r.listing_id === a.where!.listing_id)
+        .map((r) =>
+          keys.length === 0
+            ? r
+            : (Object.fromEntries(
+                keys.map((k) => [k, (r as unknown as Record<string, unknown>)[k]]),
+              ) as unknown as PoolRow),
+        );
     }
     return [];
   });
@@ -416,6 +441,45 @@ describe("R2-1 — third-party displayable listing mirrors the canonical hero ON
     expect(park.data.r2_policy_excluded_at).toBeInstanceOf(Date);
     expect(park.data.r2_attempts).toBeUndefined();
     expect(park.data.r2_last_attempt_at).toBeUndefined();
+  });
+
+  it("HERO PARITY: Phase 3 admits the row computeListingMediaSummary calls the hero, not a disguised FloorPlan", async () => {
+    // Trestle defaults a MISSING MediaCategory to Photo, so a floor plan is
+    // STORED as media_type='Photo'. `classifyMediaItem` still catches it from
+    // the DOCUMENT-Pdf locator — but only if the caller SELECTED the locator.
+    // Before the hero reads were widened, Phase 3 mirrored this row as the hero
+    // and PARKED the genuine photo, disagreeing with the public card.
+    const disguisedFloorPlan = makePoolRow(1, FEED_DISPLAYABLE, {
+      media_key: "MK-floorplan",
+      order: 0, // would win the tiebreak if it were treated as a photo
+      media_url_original:
+        "https://api.cotality.com/trestle/Media/Property/DOCUMENT-Pdf/abc.pdf",
+    });
+    const genuinePhoto = makePoolRow(2, FEED_DISPLAYABLE, {
+      media_key: "MK-genuine",
+      order: 1,
+    });
+    installPool([disguisedFloorPlan, genuinePhoto]);
+    const mirrorDeps = makeMirrorDeps();
+
+    const result = await runMediaSync(makeOptions(mirrorDeps));
+
+    // The summary — the public card's source of truth — picks the genuine photo.
+    expect(computeListingMediaSummary([disguisedFloorPlan, genuinePhoto]).primary_photo_url).toBe(
+      genuinePhoto.media_url_original,
+    );
+    // Phase 3 must reach the SAME answer: exactly one admitted, and it is the
+    // genuine photo. The floor plan is deterministically rejected and parked.
+    expect(result.mirror_allowed).toBe(1);
+    expect(result.r2_mirrored).toBe(1);
+    // `existsInR2` returns true in this harness, so the admitted row is REUSED
+    // rather than uploaded — the key it is probed with is the identity proof.
+    const probedKeys = (mirrorDeps.existsInR2 as jest.Mock).mock.calls.map(([key]) => String(key));
+    expect(probedKeys).toHaveLength(1);
+    expect(probedKeys[0]).toContain("MK-genuine");
+    expect(probedKeys[0]).not.toContain("MK-floorplan");
+    // And the floor plan was deterministically PARKED, not merely skipped.
+    expect(result.mirror_rejected_policy_parked).toBe(1);
   });
 
   it("PHASE 4a wiring: runMediaSync re-admits a legacy-parked row that is NOW the hero", async () => {
