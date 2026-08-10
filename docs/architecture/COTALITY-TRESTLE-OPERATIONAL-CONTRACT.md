@@ -232,7 +232,7 @@ Uses existing `/listing/<slug>` detail route. No separate `/exclusives` route un
 | Phase | Action |
 |---|---|
 | Before feed arrives | Show manual `SL-*` listing. Pin in FeaturedConfig. URL = `/listing/<slug>-sl0042`. |
-| After feed arrives | Withdraw `SL-*` (change status to Withdrawn). Pin official `RLS*` in FeaturedConfig. Update RealPlus Listing Url to official `/listing/<slug>-rls*`. |
+| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. RealPlus URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
 
 Manual process. No automated dedup exists. `SL-*` and `RLS*` are separate DB rows with different `listing_id` key spaces.
 
@@ -249,7 +249,7 @@ Manual process. No automated dedup exists. `SL-*` and `RLS*` are separate DB row
 | Address dedup | Does NOT exist. Sync only matches by `listing_id`. |
 | Canonical relationship | Does NOT exist in schema. Use `raw_data._anticipatedRlsListingId` for manual cross-reference. |
 | Duplicate prevention | Different key spaces prevent accidental overwrite. Visual duplicate = two rows for same address. |
-| Reconciliation | Manual: withdraw `SL-*`, pin `RLS*`, update RealPlus URL. |
+| Reconciliation | **Local Mallan row stays canonical; Cotality return-copy is publicly suppressed and retained internally.** No withdrawal, no pinning of `RLS*`, no RealPlus URL step in this system. See CHARTER Section 1A. |
 
 ---
 
@@ -260,7 +260,7 @@ Manual process. No automated dedup exists. `SL-*` and `RLS*` are separate DB row
 | Source | `FeaturedListings.tsx` fetches from `/api/listings` + `/api/featured-config` |
 | Pinning | `FeaturedConfig.pinned_ids` array. Broker-only PATCH at `/api/featured-config`. |
 | InHouse pin | Add `SL-*` listing_id to `pinned_ids`. Pinned listings sort first. |
-| Transition | Replace `SL-*` with `RLS*` in `pinned_ids` when official feed listing arrives. |
+| Transition | Keep the local `SL-*`/`RL-*` in `pinned_ids` when the official feed listing arrives. The returned `RLS*` copy is publicly suppressed and must NOT be pinned in its place (CHARTER Section 1A). |
 | Forbidden | No fake/static listing data. No separate `/exclusives` route. No demo data. |
 
 ---

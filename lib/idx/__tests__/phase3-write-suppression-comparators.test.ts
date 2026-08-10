@@ -147,10 +147,44 @@ describe("listingUpdateMateriallyUnchanged — listings upsert identity", () => 
     ).toBe(false);
   });
 
-  it("raw_data change (e.g. PhotosChangeTimestamp bump) → CHANGED", () => {
+  /**
+   * CONTRACT INVERTED 2026-08-07 (commit 7B-2B): a PCT-only raw_data delta no
+   * longer forces a heavyweight Listing write. Its stored-value consumer was
+   * removed, and 7B-1 + 7B-2A now provide the emptied-gallery guarantee that PCT
+   * materiality was standing in for.
+   */
+  it("raw_data change that is ONLY a legacy PhotosChangeTimestamp bump → UNCHANGED", () => {
     expect(
       listingUpdateMateriallyUnchanged(
         { ...base, raw_data: { ...base.raw_data, PhotosChangeTimestamp: "2026-07-03" } },
+        existing,
+      ),
+    ).toBe(true);
+  });
+
+  it("PCT must NOT mask a real raw_data change in the SAME payload → CHANGED", () => {
+    // CRITICAL: the deprecation strips one key. If it swallowed the rest of the
+    // object, a price or remarks change riding alongside a PCT bump would be
+    // silently suppressed — a data-staleness bug wearing a write-saving costume.
+    expect(
+      listingUpdateMateriallyUnchanged(
+        {
+          ...base,
+          raw_data: {
+            ...base.raw_data,
+            PhotosChangeTimestamp: "2026-07-03",
+            PublicRemarks: "Materially different remarks",
+          },
+        },
+        existing,
+      ),
+    ).toBe(false);
+  });
+
+  it("a GENUINE raw_data content change (no PCT involved) → CHANGED", () => {
+    expect(
+      listingUpdateMateriallyUnchanged(
+        { ...base, raw_data: { ...base.raw_data, PublicRemarks: "Different" } },
         existing,
       ),
     ).toBe(false);
@@ -347,9 +381,30 @@ describe("rawDataMateriallyEqual — raw_data with rotating Media[].MediaURL val
     expect(rawDataMateriallyEqual(base(), cat)).toBe(false);
   });
 
-  it("non-media raw_data change (ListPrice / PCT) → CHANGED", () => {
+  /**
+   * SPLIT 2026-08-07 (commit 7B-2B). This bundled ListPrice and PCT into one
+   * "non-media raw_data change → CHANGED" assertion. They now have DIFFERENT
+   * contracts, so bundling them would have hidden a regression in either:
+   * deleting the case would have dropped ListPrice coverage entirely.
+   */
+  it("non-media raw_data change (ListPrice) → CHANGED", () => {
     expect(rawDataMateriallyEqual(base(), { ...base(), ListPrice: 749000 })).toBe(false);
-    expect(rawDataMateriallyEqual(base(), { ...base(), PhotosChangeTimestamp: "2026-07-02T00:00:00Z" })).toBe(false);
+  });
+
+  it("legacy PhotosChangeTimestamp-only change → UNCHANGED (deprecated key)", () => {
+    expect(
+      rawDataMateriallyEqual(base(), { ...base(), PhotosChangeTimestamp: "2026-07-02T00:00:00Z" }),
+    ).toBe(true);
+  });
+
+  it("PCT + ListPrice together → CHANGED (PCT never masks a material field)", () => {
+    expect(
+      rawDataMateriallyEqual(base(), {
+        ...base(),
+        PhotosChangeTimestamp: "2026-07-02T00:00:00Z",
+        ListPrice: 749000,
+      }),
+    ).toBe(false);
   });
 
   it("stable non-feed MediaURL query change → CHANGED (canonicalization is provider-scoped)", () => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
@@ -68,7 +69,11 @@ export async function GET(
       fetchDbAgentListings(agent.id),
     ]);
 
-    // Merge and deduplicate (Trestle takes precedence)
+    // Merge and deduplicate. The LOCAL Mallan row is canonical (CHARTER
+    // Section 1A) — preferCrmExclusiveOverIdxDuplicate below keeps the CRM
+    // SL-/RL- row and suppresses the IDX twin. The id-based filter here only
+    // drops EXACT duplicate ids across the two branches; it is not a precedence
+    // rule (SL-xxxx and RLSxxxx never share an id).
     const trestleActiveIds = new Set(trestleResults.active.map((l) => l.id));
     const trestleClosedIds = new Set(trestleResults.closed.map((l) => l.id));
 
@@ -199,7 +204,21 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
 }> {
   try {
     const dbListings = await prisma.listing.findMany({
-      where: { agent_id: agentId },
+      where: {
+        // `agent_id` here is a ROSTER/HISTORY association, NOT ownership —
+        // `syncAgentHistory` populates it from BOTH list-side and BUYER-side
+        // matches. It selects which listings appear on this agent's page; it
+        // confers no authority and must never be read as Mallan ownership.
+        agent_id: agentId,
+        // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+        //
+        // Applied INSIDE the query, before `take: 100`. The post-retrieval
+        // physical-unit dedupe below is a SECOND DEFENSE only: it can pair a
+        // local row with its twin solely when BOTH survive the take, so a twin
+        // sitting beyond the 100-row window would otherwise reach the page on
+        // its own with no local row present to suppress it.
+        AND: [excludeMallanRlsReturnCopies()],
+      },
       orderBy: { updated_at: 'desc' },
       take: 100,
       select: {
@@ -228,6 +247,11 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
           where: { status: 'active' },
           orderBy: [{ order: 'asc' }, { id: 'asc' }],
           select: {
+            // MIXED-GALLERY COMPOSITION: resolveDbListingMedia treats an
+            // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality
+            // feed JSON rather than as the whole gallery. Without this column
+            // that case is undetectable and one CRM upload hides the feed.
+            media_key: true,
             media_url_original: true,
             media_url_cached: true,
             media_type: true,

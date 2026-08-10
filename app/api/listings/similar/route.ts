@@ -8,6 +8,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import { fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 
 export const maxDuration = 60;
@@ -136,6 +137,15 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
         list_price: { gte: minPrice, lte: maxPrice },
         listing_id: { not: excludeId },
         ...SEARCH_DISPLAY_GATE,
+        // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+        //
+        // This route spreads SEARCH_DISPLAY_GATE directly rather than calling
+        // `buildSearchDisplayWhere`, so it does NOT inherit the suppression the
+        // canonical builder adds. Without this, Mallan's own returned Cotality
+        // row could appear as a "similar" comp beside — or instead of — its own
+        // local canonical listing. Applied from the same single owner, inside
+        // the query so it precedes any limit.
+        AND: [excludeMallanRlsReturnCopies()],
         OR: [
           { address: { path: ['PostalCode'], equals: postalCode } },
           ...(neighborhood ? [{ neighborhood }] : []),

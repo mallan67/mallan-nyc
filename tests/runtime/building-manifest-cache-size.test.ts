@@ -16,6 +16,7 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import { readSource } from "../helpers/read-source";
 import {
   MANIFEST_PAGE_SIZE,
   MANIFEST_CACHE_MAX_BYTES,
@@ -72,9 +73,11 @@ describe("building-manifest cache-size proof (2 MB production limit)", () => {
   });
 
   it("the manifest select NEVER reads the heavy media JSON; the stored summary column is the hero source", () => {
-    const src = fs.readFileSync(
+    // Line-ending portable: on Windows (core.autocrlf=true) this file is checked
+    // out with CRLF, so a raw read cannot match an `\n`-joined signature even
+    // when the implementation is correct. See tests/helpers/read-source.ts.
+    const src = readSource(
       path.join(process.cwd(), "lib", "buildings", "public-building-data.ts"),
-      "utf8",
     );
     // Scope: the manifest page select block.
     const selStart = src.indexOf("// 2 MB correction: the stored media-summary hero");
@@ -88,18 +91,22 @@ describe("building-manifest cache-size proof (2 MB production limit)", () => {
   });
 
   it("the explicit byte guard THROWS on an oversized page — never a silently-uncacheable entry", () => {
-    const src = fs.readFileSync(
+    // Line-ending portable: on Windows (core.autocrlf=true) this file is checked
+    // out with CRLF, so a raw read cannot match an `\n`-joined signature even
+    // when the implementation is correct. See tests/helpers/read-source.ts.
+    const src = readSource(
       path.join(process.cwd(), "lib", "buildings", "public-building-data.ts"),
-      "utf8",
     );
     expect(src).toContain("PAGE OVER CACHE LIMIT");
     expect(src).toContain("assertPageCacheable(shard, cursor, result)");
   });
 
   it("warm is single-read + targeted; persistence lives in the cross-request probe (scope A/B, 2026-07-24)", () => {
-    const src = fs.readFileSync(
+    // Line-ending portable: on Windows (core.autocrlf=true) this file is checked
+    // out with CRLF, so a raw read cannot match an `\n`-joined signature even
+    // when the implementation is correct. See tests/helpers/read-source.ts.
+    const src = readSource(
       path.join(process.cwd(), "lib", "buildings", "public-building-data.ts"),
-      "utf8",
     );
     // Scope A: execution-based counters only — the in-request verification
     // re-read (and its cache_persisted / fallback_live / swr_stale_served

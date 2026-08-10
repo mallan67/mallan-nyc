@@ -36,6 +36,8 @@
 // show first; it does NOT decide whether the listing is displayable at all.
 
 import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
+import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { isCrmMediaKey } from '@/lib/media/crm-media';
 
 export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
 
@@ -47,16 +49,17 @@ const CLASS_PRIORITY: Record<MediaClass, number> = {
   unknown: 4,
 };
 
-/**
- * Hostnames whose URLs require server-side Bearer auth and must be proxied.
- *
- * We match the second-level domain (cotality.com / corelogic.com) so any
- * subdomain — `api.cotality.com`, `img.cotality.com`, future CDN hosts —
- * routes through the proxy. Mirrors the prior substring-matching behavior at
- * lib/search/crm-idx-mapper.ts and lib/idx/public-dto.ts which the resolver
- * replaces.
- */
-const TRESTLE_PROXY_HOST_SUFFIXES = ['cotality.com', 'corelogic.com'];
+// REMOVED 2026-08-07 — `TRESTLE_PROXY_HOST_SUFFIXES`.
+//
+// It listed second-level domains ('cotality.com' / 'corelogic.com') and matched
+// any subdomain, on the assumption that "future CDN hosts" should route through
+// the proxy automatically. But the proxy ROUTE validates against an EXACT
+// allowlist, so a subdomain match here produced a proxy URL the route refused —
+// a guaranteed 403 rather than a working image. Widening reach on this side
+// without widening the route's allowlist can only break, never help.
+//
+// The single owner is now `lib/media/proxy-url-policy.ts`, which the proxy route
+// itself imports. Adding a genuinely-live media host is a one-line change THERE.
 
 /**
  * Trestle URL convention for FloorPlan media. Trestle stores floor-plan
@@ -283,22 +286,30 @@ function unwrapProxyUrl(url: string): string {
   }
 }
 
-/** Wrap Trestle/CoreLogic media URLs with the bearer-auth proxy. Pass through otherwise. */
-export function proxyTrestleUrl(url: string): string {
-  if (!url) return url;
-  try {
-    const host = new URL(url).hostname.toLowerCase();
-    const matches = TRESTLE_PROXY_HOST_SUFFIXES.some(
-      (suffix) => host === suffix || host.endsWith('.' + suffix),
-    );
-    if (matches) {
-      return `/api/media/proxy?url=${encodeURIComponent(url)}`;
-    }
-  } catch {
-    return url;
-  }
-  return url;
-}
+/**
+ * Wrap approved Trestle/CoreLogic media URLs with the bearer-auth proxy.
+ * Pass through otherwise.
+ *
+ * THIN DELEGATE — the canonical policy lives in `lib/media/proxy-url-policy.ts`,
+ * the SAME module `app/api/media/proxy/route.ts` imports. This function owns no
+ * host list of its own, so the resolver and the proxy route cannot disagree.
+ *
+ * WHY THE SUFFIX RULE WAS REMOVED (2026-08-07)
+ * --------------------------------------------
+ * This previously matched `host === suffix || host.endsWith('.' + suffix)` over
+ * `['cotality.com', 'corelogic.com']`. The proxy ROUTE accepts only an EXACT
+ * allowlist, so any other subdomain — `img.cotality.com`, `cdn.cotality.com`,
+ * `evil.cotality.com` — was wrapped into a proxy URL the route then REFUSED.
+ * The suffix rule could only ever manufacture a guaranteed 403; it could never
+ * make such a host load. Passing the URL through unchanged is strictly better,
+ * and declining to mint a proxy request for an unapproved host is the
+ * security-correct behaviour.
+ *
+ * If a legitimate Cotality media subdomain is ever confirmed live, the fix is to
+ * ADD it to `ALLOWED_MEDIA_HOSTS` in the canonical policy — ONE place, which the
+ * proxy route also reads — NOT to reintroduce suffix matching here.
+ */
+export const proxyTrestleUrl = toPublicMediaUrl;
 
 /**
  * Normalise + sort a media list so consumers can render it directly.
@@ -472,6 +483,17 @@ export interface ListingMediaTableRow {
   order: number;
   preferred_photo_yn: boolean;
   status: string;
+  /**
+   * Namespace evidence for MIXED-GALLERY COMPOSITION (`resolveDbListingMedia`):
+   * a non-`crm:` key means the feed is materialized relationally and is
+   * authoritative; an all-`crm:` set is a supplement to the legacy feed JSON.
+   *
+   * OPTIONAL, and its ABSENCE deliberately reproduces the previous behavior —
+   * with no key the set cannot be shown to be CRM-only, so the relational rows
+   * are treated as authoritative exactly as before. Public callers select it so
+   * the supplement case is actually reachable.
+   */
+  media_key?: string | null;
 }
 
 /**
@@ -722,12 +744,70 @@ export function resolveDbListingMedia(
   options: { hadRelationalRows?: boolean; legacyMapUrl?: (rawUrl: string) => string } = {},
 ): ResolvedMedia[] {
   const relational = resolveListingMediaFromRows(rows);
-  if (relational.length > 0) return relational;
+  if (relational.length > 0) {
+    // MIXED-GALLERY COMPOSITION. Having SOME relational rows does not mean the
+    // relational set IS the gallery.
+    //
+    // If any ACTIVE relational row is a FEED row (non-`crm:` media_key), the
+    // feed has been materialized relationally and is authoritative: return it
+    // and do NOT replay the legacy JSON, or tombstoned/deleted feed photos
+    // would resurrect.
+    //
+    // If every active relational row is `crm:`, they are a SUPPLEMENT, not the
+    // gallery — this listing's Cotality photos still live only in the legacy
+    // JSON. Returning just the CRM rows made a single upload hide the entire
+    // Cotality gallery. That was masked while `importJsonMediaToRows` copied the
+    // feed JSON into `crm:` rows; the provenance gate correctly stops that, so
+    // the composition has to be right on its own now.
+    const hasFeedRow = rows.some(
+      (r) => r && r.status === 'active' && !isCrmMediaKey(r.media_key),
+    );
+    if (hasFeedRow) return relational;
+
+    // Mallan-owned listings keep authoritative deletions: the same predicate
+    // that governs the zero-relational case governs the supplement case, so a
+    // deleted Mallan photo is never restored from its own legacy JSON.
+    if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return relational;
+
+    const legacy = resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
+    if (legacy.length === 0) return relational;
+    return mergeGalleryByVisualIdentity(legacy, relational);
+  }
   // Pass the all-status signal THROUGH (undefined when the caller omitted it) —
   // do NOT coerce from `rows.length`, which for active-only callers is the active
   // count, not existence, and would resurrect deleted Mallan media.
   if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return [];
   return resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
+}
+
+/**
+ * Merge the legacy feed gallery with a relational CRM supplement, keeping ONE
+ * entry per visual identity.
+ *
+ * `relational` wins a collision: a historical contamination clone (the same feed
+ * image ALSO present as a `crm:` row) must render once, and the relational row
+ * carries the better URLs (R2/cached variants). Feed order is preserved and the
+ * CRM supplement is appended, then the combined set is re-run through the
+ * canonical pipeline so photo-first ordering and `isPrimary` are computed over
+ * the WHOLE gallery rather than over either half.
+ */
+function mergeGalleryByVisualIdentity(
+  legacy: ResolvedMedia[],
+  relational: ResolvedMedia[],
+): ResolvedMedia[] {
+  const identityOf = (m: ResolvedMedia) => visualIdentity('', unwrapProxyUrl(m.url));
+  const relationalIds = new Set(relational.map(identityOf));
+  const feedOnly = legacy.filter((m) => !relationalIds.has(identityOf(m)));
+
+  const combined = [...feedOnly, ...relational].map((m, i) => ({
+    MediaURL: m.url,
+    ThumbURL: m.thumbUrl,
+    MediaCategory: m.mediaType,
+    mediaType: m.mediaType,
+    Order: i,
+    PreferredPhotoYN: m.preferred === true,
+  }));
+  return resolveListingMedia(combined, { skipDedupe: true });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

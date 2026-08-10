@@ -151,9 +151,32 @@ export async function POST(req: NextRequest) {
         media: (body.images as Prisma.InputJsonValue) ?? ([] as Prisma.InputJsonValue),
         features: {} as Prisma.InputJsonValue,
         compliance: {} as Prisma.InputJsonValue,
+        // TRESTLE CURSOR SAFETY. `getLastSyncTimestamp()` (lib/idx/sync.ts) is
+        //     MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL
+        // and feeds the OData filter `ModificationTimestamp gt SINCE`. PR-S.7
+        // added that filter so the cursor "selects ONLY Trestle-sync writers".
+        //
+        // This route is NOT one: it builds a local STUB from IDX search-result
+        // data in the request body so showings and listing-sends have a Prisma
+        // row to reference. It previously stamped `last_synced_from_trestle:
+        // new Date()` — a false claim, since nothing was synced — together with
+        // a LOCAL-clock `modification_timestamp`. The stub therefore passed the
+        // cursor filter carrying a local-NOW watermark: one call pushed the
+        // cursor past every genuine Trestle ModificationTimestamp, and the next
+        // incremental sync skipped real upstream changes until wall-clock time
+        // caught up. Same hazard PR-S.7 documented, through a door it left open.
+        //
+        // Leaving the column NULL is both the honest value and the fix — the
+        // existing PR-S.7 filter then excludes this row. The real sync sets it
+        // when it actually writes this listing.
+        //
+        // `modification_timestamp` is non-nullable so it must be set; local NOW
+        // is safe here ONLY because the row is now outside the cursor query.
         modification_timestamp: new Date(),
-        last_synced_from_trestle: new Date(),
-        sync_status: "synced",
+        // "pending" is the schema default and the accurate state. Nothing
+        // branches on "synced"; the values that carry meaning elsewhere are
+        // "archived" and the `gated:*` forms.
+        sync_status: "pending",
       },
     });
 

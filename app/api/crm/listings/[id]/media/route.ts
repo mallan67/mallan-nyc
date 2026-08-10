@@ -19,10 +19,20 @@ import {
   crmMediaKey,
   crmMediaType,
   crmMediaCategory,
+  isCrmMediaKey,
   legacyItemUrl,
   legacyItemBasis,
   type LegacyMediaItem,
 } from "@/lib/media/crm-media";
+import { classifyLegacyMediaItemProvenance } from "@/lib/media/media-provenance";
+import {
+  listingCapabilities,
+  CAPABILITY_DENIED,
+  CAPABILITY_LISTING_SELECT,
+} from "@/lib/auth/listing-capabilities";
+// THE canonical full-size resolver. Reused so this route does not carry a second
+// cached-vs-original preference order.
+import { pickFullSizeUrl } from "@/lib/media/listing-media-resolver";
 
 export async function GET(
   req: NextRequest,
@@ -37,20 +47,23 @@ export async function GET(
   if (!isNaN(numericId)) {
     listing = await prisma.listing.findUnique({
       where: { id: BigInt(numericId) },
-      select: { id: true, listing_id: true, agent_id: true, media: true },
+      select: { id: true, media: true, ...CAPABILITY_LISTING_SELECT },
     });
   }
   if (!listing) {
     listing = await prisma.listing.findUnique({
       where: { listing_id: id },
-      select: { id: true, listing_id: true, agent_id: true, media: true },
+      select: { id: true, media: true, ...CAPABILITY_LISTING_SELECT },
     });
   }
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
-  if (auth.role.toUpperCase() !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // READ-ONLY endpoint: association-level access (broker or the listing's
+  // associated agent). Per-item editability is reported in the payload below,
+  // never implied by reaching this route.
+  if (!listingCapabilities(auth, listing).mayViewHistory) {
+    return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
   // READ-ONLY: fetch ALL rows (any status) so we can tell "no rows ever
@@ -76,11 +89,30 @@ export async function GET(
     const media = activeRows.map((r) => ({
       media_key: r.media_key,
       url: r.media_url_cached || r.media_url_original || "",
-      heroUrl: r.media_url_original || r.media_url_cached || "",
+      // CANONICAL full-size resolver — one formula, not a second hand-rolled
+      // preference order.
+      //
+      // This was `media_url_original || media_url_cached` (SOURCE-FIRST). For a
+      // CRM upload that is correct — the 1600px `-hero.webp` lives in
+      // `media_url_original` and the 800px `-card.webp` in `media_url_cached`.
+      // But for a DELIVERED Cotality row it returned the ROTATING Cotality
+      // locator even though a durable R2 copy existed, making this a live
+      // consumer of the very locator that delivered-row write suppression stops
+      // refreshing — a stale-image path.
+      //
+      // `pickFullSizeUrl` covers both: explicit `-hero.webp` wins (CRM keeps its
+      // full-size hero), otherwise cached-first (delivered rows get durable R2).
+      heroUrl: pickFullSizeUrl(r.media_url_cached || "", r.media_url_original || ""),
       media_type: r.media_type,
       media_category: r.media_category,
       order: r.order,
       preferred_photo_yn: r.preferred_photo_yn,
+      // PROVENANCE, reported explicitly rather than inferred by the client.
+      // Editability follows the KEY NAMESPACE — the same rule the write routes
+      // enforce (`isCrmMediaKey` in the delete/set-main/reorder handlers) — so
+      // the form cannot offer an action the API will reject.
+      source: isCrmMediaKey(r.media_key) ? "mallan-crm" : "cotality-feed",
+      editable: isCrmMediaKey(r.media_key),
     }));
     return NextResponse.json({ listing_id: listing.listing_id, media });
   }
@@ -92,19 +124,41 @@ export async function GET(
   }
 
   // No rows ever imported → READ-ONLY legacy-JSON preview (no DB write).
-  // Deterministic `crm:` keys match what the write-path import will mint.
+  //
+  // PROVENANCE GATE. This JSON is NOT uniformly CRM media: the Trestle sync
+  // writes Cotality image URLs into `Listing.media` on every upsert
+  // (lib/idx/sync.ts:821, plus the media backfills). Minting a `crm:` key for
+  // every item — as this route used to — advertised a feed photo as a CRM
+  // identity, and because the write routes resolve THE SAME key, the first
+  // upload/delete/set-main would import it as a `crm:` row. Those rows are
+  // excluded from `tombstoneVanished` (media-sync.ts:1347/1353), so a photo
+  // Cotality later deletes would survive forever.
+  //
+  // Only a provably Mallan-owned item gets a `crm:` key and `editable: true`.
+  // Feed and unprovable items are still RETURNED — the gallery must render —
+  // but carry their source identity and are not editable.
   const items: LegacyMediaItem[] = Array.isArray(listing.media)
     ? (listing.media as LegacyMediaItem[])
     : [];
+  const listingIsTrestleSynced = listing.last_synced_from_trestle !== null;
   const seen = new Set<string>();
   const media: Array<Record<string, unknown>> = [];
   let idx = 0;
   for (const item of items) {
     const url = legacyItemUrl(item);
     if (!url) { idx++; continue; }
-    const key = crmMediaKey(listing.listing_id, legacyItemBasis(item));
+
+    const provenance = classifyLegacyMediaItemProvenance(item, { listingIsTrestleSynced });
+    const isMallanOwned = provenance === "mallan-crm-upload";
+
+    // A non-CRM item must NOT receive a `crm:` key. Its identity is the source
+    // URL, which is also what the public reader keys on.
+    const key = isMallanOwned
+      ? crmMediaKey(listing.listing_id, legacyItemBasis(item))
+      : `source:${legacyItemBasis(item)}`;
     if (seen.has(key)) { idx++; continue; }
     seen.add(key);
+
     const mediaType = crmMediaType(item.type, item.caption);
     media.push({
       media_key: key,
@@ -114,6 +168,11 @@ export async function GET(
       media_category: crmMediaCategory(mediaType),
       order: Number.isFinite(item.order as number) ? (item.order as number) : idx,
       preferred_photo_yn: false,
+      source: provenance === "cotality-feed" ? "cotality-feed" : isMallanOwned ? "mallan-crm" : "unknown",
+      // Fail-closed: only provable Mallan media is editable. A feed-backed
+      // image never becomes CRM-editable merely because no relational row
+      // exists yet.
+      editable: isMallanOwned,
       _preview: true, // not yet persisted; rendered read-only until a write imports it
     });
     idx++;

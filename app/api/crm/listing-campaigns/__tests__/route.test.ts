@@ -66,11 +66,40 @@ import { NextRequest } from 'next/server';
 import { escapeHtml } from '@/lib/sanitize';
 import { POST } from '../route';
 
+/**
+ * FIXTURE REALISM CORRECTION (2026-08-07).
+ *
+ * `rls_eligible` was `true` for SL-0004. That does not match the listing this
+ * fixture represents, and it made these tests pass for the WRONG REASON: the
+ * route used to exempt any `SL-`/`RL-` prefix from the IDX redistribution gates,
+ * so an RLS-eligible row with `idx_display_yn: false` was sent anyway.
+ *
+ * SL-0004 is a WEBSITE-ONLY exclusive — non-RLS inventory — per four
+ * independent sources in this repository:
+ *
+ *   docs/architecture/SELLER-001-SPEC-2026-07-03.md:21
+ *     "SL-0004 (website-only exclusive; Trestle copy of same unit: RLS20093870)"
+ *   docs/audits/corrections/P1C6-feed-reconcile-eligible-orphans.md:242
+ *     "SL-0004 and other non-RLS exclusives correctly excluded — they are never
+ *      in the Cotality Active [feed]"
+ *   docs/audits/corrections/P1C6-feed-reconcile-eligible-orphans.md:200
+ *     "SL-0004 (a Mallan exclusive, correctly never in the Trestle [feed])"
+ *   app/listing/[...slug]/page.tsx:456
+ *     "Mallan's own website-only exclusives like SL-0004"
+ *
+ * With `rls_eligible: false` these tests now pass for the RIGHT reason —
+ * SL-0004 is distributable because it is NOT RLS redistribution inventory, not
+ * because its id happens to start with "SL-". The prefix carries no permission.
+ *
+ * The third-party case below overrides `listing_id` to `RLS20093870` (the
+ * Trestle copy of the SAME unit) and sets `rls_eligible: true`, so it is
+ * correctly gated.
+ */
 const baseRow = {
   id: 10, listing_id: 'SL-0004', status: 'Active',
   owner_opt_out: false, participant_only: false,
   idx_display_yn: false, internet_entire_listing_display_yn: null,
-  agent_id: 5, owner_client_id: null, rls_eligible: true,
+  agent_id: 5, owner_client_id: null, rls_eligible: false,
 };
 
 function post(body: Record<string, unknown>): NextRequest {
@@ -143,10 +172,52 @@ describe('gate — hard blockers still fail closed', () => {
   });
 
   it('blocks a THIRD-PARTY IDX listing when idx_display_yn is not affirmed', async () => {
-    mockFindUnique.mockResolvedValue({ ...baseRow, listing_id: 'RLS20093870' });
+    // RLS20093870 is the Trestle copy of the SAME physical unit as SL-0004, and
+    // it IS RLS inventory — so it must carry rls_eligible: true here.
+    mockFindUnique.mockResolvedValue({
+      ...baseRow,
+      listing_id: 'RLS20093870',
+      rls_eligible: true,
+    });
     const res = await POST(post({ listing_id: 'RLS20093870', mode: 'preview' }));
     expect(res.status).toBe(422);
     expect((await res.json()).gate_blocks).toContain('idx_display_yn');
+  });
+
+  /**
+   * THE DEFECT THIS ROUTE USED TO HAVE.
+   *
+   * An `SL-`/`RL-` prefix previously exempted a listing from BOTH IDX
+   * redistribution gates. An RLS-ELIGIBLE Mallan exclusive with
+   * `idx_display_yn: false` was therefore distributable. A prefix is
+   * provenance, not permission — the RLS gates must bind whenever the row is
+   * RLS-backed, whatever its id looks like.
+   */
+  it('blocks an RLS-ELIGIBLE SL- exclusive when idx_display_yn is not affirmed', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...baseRow,
+      listing_id: 'SL-0007',
+      rls_eligible: true,        // RLS-backed despite the SL- prefix
+      idx_display_yn: false,
+    });
+    const res = await POST(post({ listing_id: 'SL-0007', mode: 'preview' }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).gate_blocks).toContain('idx_display_yn');
+  });
+
+  it('blocks an RLS-ELIGIBLE RL- exclusive when internet_entire_listing_display_yn is not affirmed', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...baseRow,
+      listing_id: 'RL-0007',
+      rls_eligible: true,
+      idx_display_yn: true,
+      internet_entire_listing_display_yn: null,   // fail-closed
+    });
+    const res = await POST(post({ listing_id: 'RL-0007', mode: 'preview' }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).gate_blocks).toContain(
+      'internet_entire_listing_display_yn',
+    );
   });
 });
 

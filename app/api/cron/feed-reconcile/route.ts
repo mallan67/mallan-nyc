@@ -544,7 +544,26 @@ export async function GET(req: NextRequest) {
               status: "Withdrawn",
               status_changed_at: now,
               idx_display_yn: false,
-              modification_timestamp: now,
+              // TRESTLE CURSOR SAFETY — `modification_timestamp: now` REMOVED
+              // (post-correction audit, 2026-08-09).
+              //
+              // A ghost is by definition a row the Trestle sync wrote earlier
+              // (it came from the feed), so `last_synced_from_trestle` is
+              // non-null and the row sits INSIDE the cursor query:
+              //   MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL
+              // Stamping local `now` made this row the MAX, pushing the
+              // incremental filter `ModificationTimestamp gt SINCE` past every
+              // genuine Trestle timestamp — so the next sync skipped real
+              // upstream changes. That is the same hazard PR-S.6/S.7 closed for
+              // the capped-batch and CRM-only-row cases; this daily cron
+              // re-opened it every run that found a ghost.
+              //
+              // Nothing downstream needs the bump: the transition is recorded by
+              // `status_changed_at` and `terminal_since` (both set here) plus the
+              // audit event below, and data-retention ages rows off those two
+              // clocks SPECIFICALLY because modification_timestamp is re-stamped
+              // by idx-sync (data-retention/route.ts:270-273). MT keeps its last
+              // real Trestle value, which is the honest one.
               // Archive eligibility clock (#415): ghosts are sourced from status='Active'
               // (all non-terminal) → Withdrawn is always a real non-terminal→terminal
               // transition; no stable off-market date for a ghost → wall-clock `now`.

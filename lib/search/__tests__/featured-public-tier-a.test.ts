@@ -84,9 +84,16 @@ describe("Featured/Public Tier A P0 — A-2 unitNumber suppressed when address i
     );
   });
 
-  it("app/listing/[...slug]/page.tsx DB-direct suppressed branch sets unitNumber: null", () => {
+  it("app/listing/[...slug]/page.tsx DELEGATES suppression to the canonical builder", () => {
+    // CONTRACT MOVED (DTO collapse). The page no longer composes its own
+    // suppressed address block — it calls dbListingToPublicDTO, which owns
+    // `unitNumber: null` under suppression (asserted directly above against
+    // db-to-public-dto.ts). Demanding the page ALSO contain that literal would
+    // be demanding the duplication this change removed.
     const src = readFile(LISTING_PAGE);
-    expect(src).toMatch(
+    expect(src).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    // ...and it must not grow the suppressed block back.
+    expect(src).not.toMatch(
       /streetName:\s*['"]Address Undisclosed['"][\s\S]{0,160}?unitNumber:\s*null/
     );
   });

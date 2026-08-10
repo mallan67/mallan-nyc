@@ -573,6 +573,17 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
       projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
     };
     wireMocks(state);
+    // Model the stored media row the archived-safe lookup returns. Without this
+    // the shared `wireMocks` leaves `mockFindFirst -> null`, which the media
+    // loop correctly treats as an archived/missing row and skips — so nothing
+    // would reconcile and nothing would invalidate, testing the fail-safe path
+    // rather than this test's actual subject.
+    mockFindFirst.mockResolvedValue({
+      media: [
+        { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "photo", order: 0 },
+      ],
+      address: (dbRow as Record<string, unknown>).address,
+    });
     // Feed re-emits with ONLY the photo clock advanced…
     mockFetchFromTrestle.mockResolvedValue({
       records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
@@ -587,22 +598,85 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
     expect(result.errors).toBe(0);
-    // NOT provenance-only: classified raw_data_only, fail-closed.
+    // UPDATED 2026-08-07 (commits 7B-1 + 7B-2A + 7B-2B).
+    //
+    // This previously asserted `raw_data_only: 1` — PhotosChangeTimestamp was
+    // MATERIAL, so a PCT bump forced a heavyweight Listing write, and that write
+    // was the only thing carrying cache invalidation. The test also documented
+    // an honest limitation: "the stored media JSON is NOT cleared — the batch
+    // loop only processes listings that RETURN media rows."
+    //
+    // All three legs changed, in this order and for this reason:
+    //   7B-1  the batch fetch proves completeness and PRE-SEEDS every requested
+    //         key, so a complete-zero result is now `[]` instead of vanishing —
+    //         the emptied gallery is genuinely reconcilable.
+    //   7B-2A invalidation moved OUT of the Listing-write branch into one shared
+    //         owner, so a media change expires listing + building + manifest
+    //         WITHOUT needing a Listing write to carry it.
+    //   7B-2B only then did PCT become non-material.
+    //
+    // So the safety property is unchanged; a DIFFERENT, stronger mechanism now
+    // provides it. Asserted below rather than assumed.
     expect(result.write_paths.listing_change_reasons).toMatchObject({
-      raw_data_only: 1,
+      raw_data_only: 0, // PCT alone no longer forces a heavyweight write
       modification_timestamp_only: 0,
     });
-    // Cache invalidation FIRES (listing tag + shard tag + coarse search).
+    // The REPLACEMENT mechanism: invalidation still fires, now driven by the
+    // media path rather than by the suppressed Listing write.
     const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
     expect(revalidated).toContain("listing:RLS100001");
     expect(revalidated).toContain("building-manifest-shard:4");
     expect(revalidated).toContain("search");
     expect(mockWarm).toHaveBeenCalledTimes(1);
-    // Honest limitation (pre-existing, unchanged by this PR): the stored
-    // media JSON is NOT cleared — the batch loop only processes listings
-    // that RETURN media rows. True negative reconciliation is tracked in
-    // the unified feed/media plan; until then invalidation (proven above)
-    // is the fail-closed guarantee.
-    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("CRITICAL (zero-media hole, part 2): a COMPLETE zero-row result now CLEARS the stored media", async () => {
+    // The companion to the test above. It previously could not be written: the
+    // batch loop skipped listings that returned no rows, so there was nothing to
+    // assert. With 7B-1's pre-seed the listing IS reconciled.
+    //
+    // NOTE the fixture detail that made this invisible before — the shared
+    // `wireMocks` sets `mockFindFirst.mockResolvedValue(null)`, i.e. the
+    // archived-safe media lookup finds no row, so the loop `continue`s before
+    // any write. That is why the original test observed "no clear": the FIXTURE
+    // never modelled a stored-media row, not because the mechanism was absent.
+    const raw = rawRecord({ PhotosChangeTimestamp: "2026-07-10T00:00:00Z" });
+    const dbRow = dbRowFromRaw(raw);
+    (dbRow as Record<string, unknown>).media = [
+      { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "photo", order: 0 },
+    ];
+    const state: StoredState = {
+      listings: new Map([["RLS100001", dbRow]]),
+      projections: new Map([["RLS100001", projectionRowFromRaw(raw)]]),
+    };
+    wireMocks(state);
+    // Model the stored media row the archived-safe lookup returns.
+    mockFindFirst.mockResolvedValue({
+      media: [
+        { url: "https://api.cotality.com/trestle/media/1.jpg?sig=old", mediaType: "photo", order: 0 },
+      ],
+      address: (dbRow as Record<string, unknown>).address,
+    });
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [rawRecord({ PhotosChangeTimestamp: "2026-07-20T00:00:00Z" })],
+      totalFetched: 1,
+    });
+    // Provider succeeds with ZERO rows and NO @odata.nextLink => COMPLETE empty.
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({ value: [] }),
+    })) as unknown as typeof fetch;
+
+    const result = await syncListings({ fullSync: true, maxRecords: 10 });
+
+    expect(result.errors).toBe(0);
+    // The emptied gallery IS reconciled — this is the mechanism that replaced
+    // PCT-materiality as the safety guarantee.
+    expect(mockUpdateMany).toHaveBeenCalled();
+    const cleared = mockUpdateMany.mock.calls.some(
+      (c) => Array.isArray((c[0] as { data?: { media?: unknown } })?.data?.media)
+        && ((c[0] as { data: { media: unknown[] } }).data.media.length === 0),
+    );
+    expect(cleared).toBe(true);
   });
 });

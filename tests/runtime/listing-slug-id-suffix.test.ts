@@ -84,7 +84,15 @@ describe('generateListingSlug · Option D id-suffix (PR-FE.2)', () => {
       mlsId: '1147174284',
       internetAddressDisplayYN: false,
     });
-    expect(slug).toBe('listing-1147174284');
+    // CONTRACT INVERTED (public-identity ownership rule). This pinned
+    // `listing-1147174284` — the NUMERIC PROVIDER key, because the fallback was
+    // `mlsId || id` and `mapTrestleToPrisma` sets `mls_id = ListingKey`. The
+    // detail page resolves a `listing-*` suffix as a DB `listing_id`, so that
+    // URL could never resolve its own row. The suffix is now the PUBLIC route
+    // key. What this test actually guards — the compliance gate, i.e. no
+    // address in the URL when display is false — is unchanged and still
+    // asserted below.
+    expect(slug).toBe('listing-rls20061539');
     expect(isMlsIdSlug(slug)).toBe(true);
     expect(slug).not.toContain('66th');
     expect(slug).not.toContain('10023');
@@ -103,8 +111,12 @@ describe('generateListingSlug · Option D id-suffix (PR-FE.2)', () => {
       mlsId: '1147174284',
       internetAddressDisplayYN: true,
     });
-    expect(a).toBe('listing-1147174284');
-    expect(b).toBe('listing-1147174284');
+    // CONTRACT INVERTED (public-identity ownership rule) — same reason as
+    // above. What this test guards is that an empty / "Address Undisclosed"
+    // street still falls back to the id-suffix form rather than emitting a
+    // broken address slug; that behaviour is unchanged.
+    expect(a).toBe('listing-rls20061539');
+    expect(b).toBe('listing-rls20061539');
   });
 
   it('omits the id suffix when id is not provided (legacy callers)', () => {

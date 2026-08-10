@@ -45,6 +45,11 @@ export function composeSlugStreetName(addr: Record<string, unknown>): string {
     pick('StreetDirPrefix', 'streetDirPrefix'),
     pick('StreetName', 'streetName'),
     pick('StreetSuffix', 'streetSuffix'),
+    // StreetDirSuffix was missing here while the canonical DB DTO composed it
+    // independently — so a "N Main Street NW" address produced DIFFERENT slugs
+    // from the sitemap and the DTO. Included so this helper is the ONE street
+    // composition, which is the whole reason it exists.
+    pick('StreetDirSuffix', 'streetDirSuffix'),
   ].filter(Boolean).join(' ');
 }
 
@@ -94,7 +99,7 @@ export function generateListingSlug(listing: {
   // If seller opted out of address display, the address CANNOT appear in the URL.
   // This prevents address leakage via the URL path. Violation = incurable UCBA penalty.
   if (listing.internetAddressDisplayYN === false) {
-    return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+    return publicIdSlug(listing.id || listing.mlsId || 'unknown');
   }
 
   const { streetNumber, streetDirPrefix, streetName, unitNumber, city, stateOrProvince, postalCode } = listing.address;
@@ -120,7 +125,7 @@ export function generateListingSlug(listing: {
         if (altSlug) return `${altSlug}${idSuffix}`;
       }
     }
-    return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+    return publicIdSlug(listing.id || listing.mlsId || 'unknown');
   }
 
   const parts: string[] = [];
@@ -155,7 +160,7 @@ export function generateListingSlug(listing: {
     // eslint-disable-next-line no-console
     console.warn(`[listing-slug] CRM exclusive ${idStr} produced empty address slug after sanitization — falling back to MLS-ID slug (BAD for SEO)`);
   }
-  return mlsIdSlug(listing.mlsId || listing.id || 'unknown');
+  return publicIdSlug(listing.id || listing.mlsId || 'unknown');
 }
 
 /**
@@ -230,9 +235,24 @@ export function extractMlsIdFromSlug(slug: string): string | null {
   return slug.replace(/^listing-/, '');
 }
 
-/** Convert MLS ID to fallback slug */
-function mlsIdSlug(mlsId: string): string {
-  return `listing-${slugify(mlsId)}`;
+/**
+ * The address-suppressed PUBLIC fallback slug.
+ *
+ * OWNERSHIP RULE: the suffix is the CANONICAL PUBLIC ROUTE KEY (`listing.id` /
+ * `listing_id`, e.g. `RLS20105333`) — never the provider key.
+ *
+ * This was `mlsId || id`. But `mlsId` legitimately carries the NUMERIC PROVIDER
+ * ListingKey (`mapTrestleToPrisma` sets `mls_id = ListingKey`; on RLS20105333
+ * that is `1178013994`). The old order therefore emitted `listing-1178013994`,
+ * while the detail page resolves a `listing-*` suffix as a DB `listing_id` —
+ * so the canonical URL could never resolve its own row, and the compliance
+ * fallback silently became a dead link.
+ *
+ * Provider ListingKey is media-lookup identity and display metadata. It is NOT
+ * a route key. The parameter is named for what it must be.
+ */
+function publicIdSlug(publicId: string): string {
+  return `listing-${slugify(publicId)}`;
 }
 
 /**
@@ -378,4 +398,58 @@ function slugify(text: string): string {
     .replace(/-{2,}/g, '-')
     // Trim leading/trailing hyphens
     .replace(/^-|-$/g, '');
+}
+
+/**
+ * THE canonical slug for a raw Prisma `Listing` row.
+ *
+ * Extracted 2026-08-09 from `dbListingToPublicDTO`, which was the only place
+ * that knew how to turn a DB row into the public slug. The RLS return-copy
+ * canonicalization needs the SAME slug for a local twin, and re-deriving it
+ * would have created a second URL formula — the exact divergence the
+ * `composeSlugStreetName` extraction (SEO-001) existed to prevent.
+ *
+ * Compliance is preserved verbatim: the address may appear in the URL only when
+ * the row is outside RLS (`rls_eligible === false`) or passes
+ * `isAddressDisplayable`. An RLS-backed opt-out row still gets the
+ * `listing-XXX` fallback.
+ */
+export function buildListingSlugFromDbRow(row: {
+  listing_id: string;
+  rls_eligible?: boolean | null;
+  address?: unknown;
+  borough?: string | null;
+  [key: string]: unknown;
+}): string {
+  // Imported lazily-by-reference at module scope would create a cycle
+  // (gates -> ... -> slug), so the gate is required here where it is used.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { isAddressDisplayable } = require('@/lib/compliance/gates') as {
+    isAddressDisplayable: (input: unknown) => boolean;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { normalizeStreetCase } = require('@/lib/idx/normalize-street-case') as {
+    normalizeStreetCase: (s: string) => string;
+  };
+
+  const addr = (row.address || {}) as Record<string, unknown>;
+  const str = (key: string): string =>
+    typeof addr[key] === 'string' ? (addr[key] as string).trim() : '';
+
+  const isRlsBacked = row.rls_eligible !== false;
+  const suppressAddress = isRlsBacked && !isAddressDisplayable(row);
+
+  return generateListingSlug({
+    address: {
+      streetNumber: str('StreetNumber') || str('streetNumber'),
+      streetName: normalizeStreetCase(composeSlugStreetName(addr)),
+      unitNumber: str('UnitNumber') || str('unitNumber') || null,
+      city: str('City') || str('city') || row.borough || 'New York',
+      stateOrProvince: 'NY',
+      postalCode: str('PostalCode') || str('postalCode'),
+    },
+    id: row.listing_id,
+    mlsId: row.listing_id,
+    internetAddressDisplayYN: !suppressAddress,
+  });
 }

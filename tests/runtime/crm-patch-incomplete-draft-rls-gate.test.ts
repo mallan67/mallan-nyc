@@ -63,15 +63,30 @@ jest.mock('@/lib/crm/listing-urls', () => ({
 
 // An RLS-eligible (pure residential) listing that already exists on RLS
 // (mls_id present → NOT CRM-created → the gate's `!isCrmCreated` is true).
+//
+// FIXTURE CORRECTED 2026-08-09. This was `listing_id: 'RLS-INCDRAFT-1'` with
+// `agent_id: null` — a THIRD-PARTY synced Cotality row. PATCH now refuses
+// source-owned rows outright (CHARTER Section 1A, lib/auth/listing-capabilities),
+// so that fixture could no longer reach the RLS gate at all: these cases would
+// have been asserting a 403 rather than the gate contract.
+//
+// The gate contract is unchanged and is exactly what these tests exist to pin —
+// enforcement keys on the PERSISTED `status` column only. The fixture is now a
+// Mallan-authored LOCAL row (`SL-` prefix) that still satisfies every gate
+// precondition: `rls_eligible: true` and `mls_id` present, so
+// `effectiveRlsEligible && !isCrmCreated` both hold as before. Only the row's
+// admissibility changed; the gate's inputs did not.
 function eligibleListing() {
   return {
     id: 101n,
-    listing_id: 'RLS-INCDRAFT-1',
+    listing_id: 'SL-INCDRAFT-1',
     mls_id: 'RLS12345',
     status: 'Incomplete',
     rls_eligible: true,
     listing_type: 'rent',
     agent_id: null,
+    list_office_mls_id: null,
+    last_synced_from_trestle: null,
     raw_data: {} as Record<string, unknown>,
     address: {},
     features: {},

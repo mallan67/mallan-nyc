@@ -31,6 +31,7 @@ import {
   crmListingTouchData,
   importJsonMediaToRows,
 } from "@/lib/media/crm-media";
+import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 
 function hasR2Config(): boolean {
   return Boolean(
@@ -70,9 +71,16 @@ export async function POST(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Ownership check: agent can only upload to own listings, broker to any
-  if (auth.role.toUpperCase() !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // NEW Mallan media belongs on the LOCAL canonical listing. On the RLS
+  // return-copy it would attach to a publicly suppressed row (invisible); on a
+  // third-party listing it would republish another brokerage's listing with
+  // Mallan-authored content.
+  const caps = listingCapabilities(auth, listing);
+  if (!caps.mayUploadNewLocalMedia) {
+    return NextResponse.json(
+      caps.mayViewHistory ? CAPABILITY_DENIED.SOURCE_OWNED : CAPABILITY_DENIED.ACCESS,
+      { status: 403 },
+    );
   }
 
   // Check R2 configuration
@@ -129,7 +137,11 @@ export async function POST(
   // Lazily import any legacy `listing.media` JSON for this listing into rows so
   // the rows set is COMPLETE before we add the new one (the public resolver
   // prefers rows when any exist — partial rows would hide the JSON photos).
-  await importJsonMediaToRows(prisma, { listing_id: listing.listing_id, media: listing.media });
+  await importJsonMediaToRows(prisma, {
+    listing_id: listing.listing_id,
+    media: listing.media,
+    last_synced_from_trestle: listing.last_synced_from_trestle,
+  });
 
   // Dedup: if this exact image is already an active row on this listing, 409.
   const existingRow = await prisma.listingMedia.findUnique({

@@ -10,12 +10,13 @@ import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
-import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
   try {
@@ -318,12 +319,14 @@ export async function GET(request: Request) {
           // website-only listings (commercial, rls_eligible=false — bypass gates)
           const { where: dbWhere, orderBy: dbOrderBy } = buildPublicListingDbSearch(searchParams);
           if (excludeUndisclosed) {
+            // Canonical DB-side address-disclosure gate, ANDed BEFORE pagination.
+            // This previously ORed in `listing_id startsWith 'SL-' | 'RL-'`, so a
+            // PREFIX satisfied a filter whose whole purpose is "only listings
+            // whose address I may show" — an RLS-eligible Mallan exclusive with a
+            // seller address opt-out was returned anyway. A prefix is provenance,
+            // never permission. See ADDRESS_DISCLOSED_GATE.
             const w = dbWhere as Record<string, unknown>;
-            const andClause = { OR: [
-              { listing_id: { startsWith: 'SL-' } },
-              { listing_id: { startsWith: 'RL-' } },
-              { internet_address_display_yn: true },
-            ] };
+            const andClause = ADDRESS_DISCLOSED_GATE;
             w.AND = Array.isArray(w.AND) ? [...w.AND, andClause] : w.AND ? [w.AND, andClause] : [andClause];
           }
           const dbTake = limit;
@@ -394,6 +397,11 @@ export async function GET(request: Request) {
                   where: { status: 'active' },
                   orderBy: [{ order: 'asc' }, { id: 'asc' }],
                   select: {
+                    // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+                    // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+                    // JSON rather than as the whole gallery; without this column that case is
+                    // undetectable and one CRM upload hides the entire feed gallery.
+                    media_key: true,
                     media_url_original: true,
                     media_url_cached: true,
                     media_type: true,
@@ -565,7 +573,10 @@ export async function GET(request: Request) {
             let annotatedListings = annotateCoListedSiblings(publicListings);
             if (excludeUndisclosed) {
               annotatedListings = annotatedListings.filter(
-                l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
+                // No `_source === 'exclusive'` exemption. Provenance is not address
+                // permission: once the canonical DTO says 'Address Undisclosed', a
+                // Mallan exclusive is exactly as undisclosed as any other listing.
+                l => l.address?.streetName !== 'Address Undisclosed'
               );
             }
 
@@ -591,7 +602,11 @@ export async function GET(request: Request) {
               skip,
               limit,
               hasMore: skip + limit < dbTotal,
-              listings: annotatedListings,
+              // SUMMARY CONTRACTION at the response boundary — cards get the
+              // canonical hero + full photosCount, never the whole gallery.
+              // Applied AFTER post-filters/dedupe/geocode/live-fallback and
+              // annotation, so nothing upstream loses complete media.
+              listings: toPublicListingSummaries(annotatedListings),
               _compliance: {
                 source: envelopeSource,
                 idxEnabled: true,
@@ -1011,6 +1026,11 @@ export async function GET(request: Request) {
                     where: { status: 'active' },
                     orderBy: [{ order: 'asc' }, { id: 'asc' }],
                     select: {
+                      // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+                      // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+                      // JSON rather than as the whole gallery; without this column that case is
+                      // undetectable and one CRM upload hides the entire feed gallery.
+                      media_key: true,
                       media_url_original: true,
                       media_url_cached: true,
                       media_type: true,
@@ -1076,7 +1096,9 @@ export async function GET(request: Request) {
         let annotatedMerged = annotateCoListedSiblings(mergedListings);
         if (excludeUndisclosed) {
           annotatedMerged = annotatedMerged.filter(
-            l => l._source === 'exclusive' || l.address?.streetName !== 'Address Undisclosed'
+            // No `_source === 'exclusive'` exemption — provenance is not address
+            // permission. See ADDRESS_DISCLOSED_GATE.
+            l => l.address?.streetName !== 'Address Undisclosed'
           );
         }
 
@@ -1087,7 +1109,11 @@ export async function GET(request: Request) {
           skip,
           limit,
           hasMore: skip + limit < totalCount || result.hasMore,
-          listings: annotatedMerged,
+          // SUMMARY CONTRACTION at the response boundary — cards get the
+          // canonical hero + full photosCount, never the whole gallery.
+          // Applied AFTER post-filters/dedupe/geocode/live-fallback and
+          // annotation, so nothing upstream loses complete media.
+          listings: toPublicListingSummaries(annotatedMerged),
           _compliance: {
             source: 'idx+exclusive',
             idxEnabled: true,
@@ -1173,7 +1199,11 @@ export async function GET(request: Request) {
         skip: 0,
         limit,
         hasMore: false,
-        listings: exclusiveListings,
+        // SUMMARY CONTRACTION at the response boundary — cards get the
+        // canonical hero + full photosCount, never the whole gallery.
+        // Applied AFTER post-filters/dedupe/geocode/live-fallback and
+        // annotation, so nothing upstream loses complete media.
+        listings: toPublicListingSummaries(exclusiveListings),
         _compliance: {
           source: exclusiveListings.length > 0 ? 'exclusive' : 'none',
           idxEnabled: false,
@@ -1300,6 +1330,11 @@ async function fetchExclusiveListings(
           where: { status: 'active' },
           orderBy: [{ order: 'asc' }, { id: 'asc' }],
           select: {
+            // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+            // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+            // JSON rather than as the whole gallery; without this column that case is
+            // undetectable and one CRM upload hides the entire feed gallery.
+            media_key: true,
             media_url_original: true,
             media_url_cached: true,
             media_type: true,
@@ -1341,7 +1376,10 @@ async function fetchExclusiveListings(
 /**
  * Merge local exclusive listings with Trestle IDX results.
  * Deduplicates by listing_id — if a listing exists in both Trestle and local DB,
- * the Trestle version takes precedence (it has more complete data from RLS).
+ * the LOCAL Mallan row is canonical (CHARTER Section 1A). The returned Cotality
+ * RLS copy is retained internally for source/audit but must NOT become the public
+ * canonical listing. This comment previously said the Trestle version took
+ * precedence, which is the reversed model.
  */
 async function mergeExclusiveListings(
   trestleListings: PublicListingDTO[],

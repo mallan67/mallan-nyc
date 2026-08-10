@@ -175,7 +175,7 @@ Any PR touching these files MUST include a cost-impact analysis in the PR body. 
 | File | Cost impact |
 |---|---|
 | `vercel.json` (cron schedule) | Every cron tick is a DB query path. Tightening from `*/15` to `*/3` is a 5× compute burn |
-| `app/api/cron/db-keepalive/route.ts` | The compute-vs-uptime trade-off lives here |
+| _(removed 2026-08-07)_ `app/api/cron/db-keepalive/route.ts` | Route DELETED — it was unscheduled since the approved 2026-07 compute reduction (PR #481) and an executable endpoint invites accidental reactivation. The compute-vs-uptime trade-off is documented at line 32 of this file; `lib/db/with-retry.ts` carries the cold-start retry that replaced it. |
 | `app/api/cron/idx-sync/route.ts` | Sync frequency × records-per-run = compute burn |
 | `app/api/cron/*` (all 23 crons) | Each one adds baseline compute |
 | `lib/prisma.ts` | Connection-pool config affects warm-vs-cold time |

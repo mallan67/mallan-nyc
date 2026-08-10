@@ -347,7 +347,16 @@ describe('regression — listing-detail page feeds SimilarListings an OWNERSHIP-
   it('derives propertyType via mapPropertyTypeToDisplay (CommonInterest-first), not the raw sub-type', () => {
     // A condo unit's PropertySubType is "Apartment"; keying off the sub-type alone classified the
     // subject as a generic apartment and EMPTIED Similar Properties (studio condo → no condo comps).
-    expect(PAGE).toMatch(/propertyType: mapPropertyTypeToDisplay\(/);
+    // CONTRACT MOVED (DTO collapse): the detail page delegates to
+    // dbListingToPublicDTO, which owns the CommonInterest-first derivation.
+    // The invariant is unchanged and now asserted at that owner; the page is
+    // checked for delegation and for not regrowing the raw sub-type keying.
+    const DTO = fs.readFileSync(
+      path.resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
+      'utf8',
+    );
+    expect(DTO).toMatch(/propertyType: mapPropertyTypeToDisplay\(/);
+    expect(PAGE).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     expect(PAGE).not.toMatch(/propertyType: dbListing\.property_sub_type \|\| dbListing\.property_type/);
   });
   it('passes propertyType + propertySubType into SimilarListings', () => {

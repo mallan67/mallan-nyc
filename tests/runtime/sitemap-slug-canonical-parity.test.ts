@@ -110,8 +110,46 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
   });
 
   it('listing page composes the street via composeSlugStreetName (both DTO paths)', () => {
-    const uses = pageSrc.match(/composeSlugStreetName\(/g) || [];
-    expect(uses.length).toBeGreaterThanOrEqual(2);
+    // CONTRACT MOVED (DTO collapse). The page previously composed the street
+    // TWICE — once for its own DB-path DTO slug and once for the Trestle-direct
+    // path — hence the ">= 2" count. The DB-path slug now comes from
+    // dbListingToPublicDTO, so one of those uses is gone BY DESIGN.
+    //
+    // What this test actually guards is PARITY: sitemap, canonical DB DTO and
+    // page must compose the street identically. That is now asserted across the
+    // owners rather than by counting occurrences inside one file.
+    const dtoSrc = readFileSync(
+      path.resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
+      'utf8',
+    );
+    // RESOLVED. The earlier revision of this test recorded that the canonical
+    // builder did NOT use composeSlugStreetName and that output equivalence was
+    // therefore unproven. That gap is now closed: the builder consumes the
+    // helper, and OUTPUT parity between the two real compositions is proven
+    // directly in tests/runtime/slug-street-composition-parity.test.ts
+    // (fixtures A–G, including StreetDirSuffix and legacy camelCase keys).
+    //
+    // The page composes NO street at all now — composeSlugStreetName lived only
+    // in the deleted DB block, so its import was dead and was removed.
+    expect(pageSrc).not.toMatch(/composeSlugStreetName\(/);
+    expect(dtoSrc).toMatch(/composeSlugStreetName\(/); // display address still uses THE owner
+
+    // MOVED AGAIN (2026-08-09). The DB-row SLUG composition now lives in
+    // `buildListingSlugFromDbRow` (lib/listing-slug.ts) so the RLS return-copy
+    // redirect reuses the identical formula instead of re-deriving it. The
+    // parity guarantee is unchanged — it is asserted at the new owner, and the
+    // DTO must DELEGATE rather than keep its own `generateListingSlug` call
+    // (two calls would be two formulas again).
+    const slugOwnerSrc = readFileSync(
+      path.resolve(__dirname, '../../lib/listing-slug.ts'),
+      'utf8',
+    );
+    expect(slugOwnerSrc).toMatch(/composeSlugStreetName\(/);
+    expect(slugOwnerSrc).toMatch(/generateListingSlug\(\{/);
+    expect(dtoSrc).toMatch(/buildListingSlugFromDbRow\(/);
+    expect(dtoSrc).not.toMatch(/generateListingSlug\(\{/);
+    expect(pageSrc).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    // Neither owner may hand-roll the street parts again.
     expect(pageSrc).not.toMatch(/\[addr\.StreetDirPrefix,\s*addr\.StreetName,\s*addr\.StreetSuffix\]/);
   });
 });

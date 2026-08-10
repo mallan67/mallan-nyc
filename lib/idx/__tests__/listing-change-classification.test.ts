@@ -167,17 +167,52 @@ describe("exclusive provenance buckets", () => {
     expect(isProvenanceOnlyChange(reasons)).toBe(true);
   });
 
-  it("PhotosChangeTimestamp-only raw_data delta is NOT provenance — raw_data_only, still invalidates (Maya review of #561)", () => {
-    // The batch-media reconcile loop only processes listings that RETURN
-    // media rows: a gallery emptied to zero upstream never enters
-    // mediaByListing, so PCT is the ONLY signal for that case and its
-    // invalidation must never be suppressed.
+  /**
+   * CONTRACT INVERTED 2026-08-07 (commit 7B-2B).
+   *
+   * The original justification was explicit and, at the time, correct:
+   *   "The batch-media reconcile loop only processes listings that RETURN media
+   *    rows: a gallery emptied to zero upstream never enters mediaByListing, so
+   *    PCT is the ONLY signal for that case."
+   *
+   * 7B-1 removed that premise. The batch fetch now proves completeness via the
+   * shared `paginateMedia` and PRE-SEEDS every requested ResourceRecordKey, so a
+   * complete-zero result arrives as `[]` and IS reconciled. 7B-2A then moved
+   * invalidation out of the Listing-write branch into one shared owner, so a
+   * media change expires listing + building + manifest without needing a Listing
+   * write to carry it.
+   *
+   * So the safety property is unchanged; a different, stronger mechanism now
+   * provides it — proven end-to-end in
+   * tests/runtime/sync-change-attribution-behavior.test.ts.
+   *
+   * NOTE ON THE EMPTY RESULT: `[]` means "no MATERIAL listing change to
+   * classify". It is deliberately NOT `modification_timestamp_only`, and
+   * `isProvenanceOnlyChange([])` staying false is correct — there is simply
+   * nothing to classify, which is different from classifying a provenance-only
+   * change.
+   */
+  it("legacy PhotosChangeTimestamp-only raw_data delta ⇒ NO material change to classify", () => {
     const reasons = classifyListingChangeReasons(
       updatePayload({
         raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-24T09:00:00Z" },
       }),
       existingRow({
         raw_data: { ListingId: "RLS1", StandardStatus: "Active", PhotosChangeTimestamp: "2026-07-19T09:00:00Z" },
+      }),
+    );
+    expect(reasons).toEqual([]);
+  });
+
+  it("a GENUINE raw_data content change is still raw_data_only and still fail-closed", () => {
+    // Guards the inversion above from over-reaching: only the one deprecated key
+    // is ignored, and real raw_data content still forces the write + invalidation.
+    const reasons = classifyListingChangeReasons(
+      updatePayload({
+        raw_data: { ListingId: "RLS1", StandardStatus: "Active", PublicRemarks: "New roof" },
+      }),
+      existingRow({
+        raw_data: { ListingId: "RLS1", StandardStatus: "Active", PublicRemarks: "Old roof" },
       }),
     );
     expect(reasons).toEqual(["raw_data_only"]);

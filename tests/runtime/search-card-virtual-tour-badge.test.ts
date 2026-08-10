@@ -115,8 +115,16 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
     // The inline DB DTO must spread tourUrlsForDto so a DB-path YouTube URL lands
     // in videoUrl (Video tab) — not the old virtualTourURL-only mapping that left
     // the Video tab permanently absent on DB-backed pages.
-    expect(src).toMatch(/import\s*\{[^}]*tourUrlsForDto[^}]*\}\s*from\s*'@\/lib\/media\/listing-media-resolver'/);
-    expect(src).toMatch(/\.\.\.tourUrlsForDto\(\s*\[\s*rawData\.VirtualTourURLUnbranded/);
+    // CONTRACT MOVED (DTO collapse): the detail page delegates to
+    // dbListingToPublicDTO, so the tour/video host-split now belongs to the
+    // CANONICAL owner and is asserted there. The page is checked for
+    // delegation, and below for not regrowing the old inline mapping.
+    const dtoSrc = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
+      'utf8',
+    ) as string;
+    expect(dtoSrc).toMatch(/tourUrlsForDto\(/);
+    expect(src).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     // The old virtualTourURL-only inline mapping must be gone from the DB DTO.
     expect(src).not.toMatch(/virtualTourURL:\s*\r?\n?\s*\(typeof rawData\.VirtualTourURLUnbranded/);
   });

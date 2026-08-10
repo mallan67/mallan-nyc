@@ -6,6 +6,7 @@ import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 
 export async function POST(
   req: NextRequest,
@@ -36,8 +37,12 @@ export async function POST(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  // Dry-run only — persists nothing — so this stays at READ level
+  // (`mayViewHistory`), matching GET /api/crm/listings/[id]. Running a
+  // compliance check against a source-owned row is a legitimate reconciliation
+  // action; it is the WRITE routes that are restricted to local listings.
+  if (!listingCapabilities(auth, listing).mayViewHistory) {
+    return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
   // Merge stored raw_data with any additional fields from request body

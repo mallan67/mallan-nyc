@@ -67,8 +67,28 @@ describe('detail page — address suppression respects opt-outs, slug from the s
     expect(page).toMatch(/const isRlsBacked = dbListing\.rls_eligible !== false/);
   });
 
-  it('detail-page slug derives from !suppressAddress, NOT the raw internet_address_display_yn column', () => {
-    expect(page).toMatch(/internetAddressDisplayYN:\s*!suppressAddress/);
+  it('slug derives from the suppression DECISION, NOT the raw column (canonical owner)', () => {
+    // CONTRACT MOVED (DTO collapse). The page no longer builds its own slug; it
+    // delegates to dbListingToPublicDTO, which derives the slug from the same
+    // suppression decision it uses for the address text. The invariant is
+    // unchanged and now asserted where it lives — plus the page must not have
+    // regrown a slug build, and must never key the slug off the raw column.
+    //
+    // CONTRACT MOVED AGAIN (2026-08-09, slug single-owner extraction). The DTO
+    // no longer derives the slug inline either: `buildListingSlugFromDbRow` in
+    // lib/listing-slug.ts is now the ONE owner, so the RLS return-copy redirect
+    // reuses it instead of growing a second URL formula. The invariant is
+    // unchanged and is asserted where it now lives; the DTO must delegate, and
+    // NEITHER file may key the slug off the raw column.
+    const slugSrc = read('lib/listing-slug.ts');
+    expect(slugSrc).toMatch(/internetAddressDisplayYN:\s*!suppressAddress/);
+    expect(slugSrc).toMatch(/const suppressAddress = isRlsBacked && !isAddressDisplayable\(row\)/);
+    expect(slugSrc).not.toMatch(/internetAddressDisplayYN:\s*row\.internet_address_display_yn/);
+
+    const dtoSrc = read('lib/idx/db-to-public-dto.ts');
+    expect(dtoSrc).toMatch(/buildListingSlugFromDbRow\(/);
+    expect(dtoSrc).not.toMatch(/internetAddressDisplayYN:\s*listing\.internet_address_display_yn/);
+    expect(page).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     expect(page).not.toMatch(/internetAddressDisplayYN:\s*dbListing\.internet_address_display_yn/);
   });
 });

@@ -9,25 +9,19 @@
 // - Concurrency-limited to avoid Trestle throttling
 
 import { NextRequest, NextResponse } from "next/server";
+import { ALLOWED_MEDIA_HOSTS, isAllowedMediaUrl } from "@/lib/media/proxy-url-policy";
 import { getAccessToken } from "@/lib/idx/auth";
 
 // Allow proxying from Trestle/Cotality media domains
 // Old CoreLogic hosts deprecated — deadline April 30, 2026
 // Old media URLs still work through 2026 warranty per Cotality email
-const ALLOWED_HOSTS = new Set([
-  "api.cotality.com",
-  "api-trestle.corelogic.com",
-  "api-prod.corelogic.com",
-]);
-
-function isAllowedUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return ALLOWED_HOSTS.has(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
+// Canonical policy lives in lib/media/proxy-url-policy.ts so every consumer —
+// resolver, detail route, Featured, and TESTS — validates against the SAME rule.
+// Previously this Set was private to the route, so tests re-declared a wider
+// approximation (a suffix regex admits `evil.cotality.com`) and could pass while
+// production regressed.
+const ALLOWED_HOSTS = ALLOWED_MEDIA_HOSTS;
+const isAllowedUrl = isAllowedMediaUrl;
 
 // Semaphore: limit concurrent outbound requests to Trestle.
 // Prevents connection pool exhaustion that causes alternating photo failures.

@@ -7,6 +7,13 @@ import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgent
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
+// SHARED OData media page-follower — the SAME completeness contract
+// media-sync uses. Reused, never re-implemented: two pagination loops
+// would be two opinions about what "complete" means.
+import { paginateMedia } from "./media-sync";
+// ONE definition of what expires on a publicly-visible listing change —
+// shared with the normalized media-summary writer so they cannot drift.
+import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
 import {
   buildListingSearchProjectionFromListing,
@@ -455,6 +462,43 @@ export function parseWarmedShardsFromNotes(notes: string | null | undefined): st
 }
 
 /**
+ * ONE owner for "a publicly-visible listing change happened — expire what
+ * depends on it".
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Building-manifest payloads carry public photo state (`primary_photo_url`), so
+ * a MEDIA change can alter a building payload with no material Listing
+ * source-field write at all. The invalidation logic previously lived only inside
+ * the Listing-write branch, so media-only changes expired the listing tag but
+ * never the building or manifest-shard tags.
+ *
+ * That coupling was invisible while every PCT movement forced a Listing write.
+ * Suppressing that write (7B-2B) would have exposed it as a stale-manifest bug —
+ * a cost saving paid for with a correctness regression. Fixing the coupling
+ * FIRST is what makes the write suppression safe.
+ *
+ * `changedCacheTags` and `affectedManifestShards` are Sets, so repeated calls in
+ * one cycle (e.g. an address change AND a media change on the same listing)
+ * dedupe naturally and no invalidation is lost.
+ *
+ * `previousAddress` may be undefined for a media-only change: a media change
+ * never moves a listing between buildings, so only the current address matters
+ * and no extra query is performed to invent a transition.
+ */
+function recordPublicListingChange(
+  listingId: string,
+  previousAddress: unknown,
+  nextAddress: unknown,
+  changedCacheTags: Set<string>,
+  affectedManifestShards: Set<string>,
+): void {
+  const { tags, shards } = publicListingChangeTags(listingId, previousAddress, nextAddress);
+  for (const t of tags) changedCacheTags.add(t);
+  for (const sh of shards) affectedManifestShards.add(sh);
+}
+
+/**
  * Sync listings from Trestle to local Prisma DB.
  * 1. Fetch from Trestle (paginated)
  * 2. For each record: validate → check gates → map → upsert
@@ -830,23 +874,13 @@ export async function syncListings(
           rawDataOnlyWritesSampled++;
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
-          changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: refresh this listing's cached page
-          // Building-Neon-wake: EXACT building revalidation — BOTH the previous
-          // and the new building expire on an address change (the listing must
-          // LEAVE the old cached payload and APPEAR in the new one, same cycle).
-          for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
-            changedCacheTags.add(bTag);
-          }
-          for (const addr of [existing?.address, mapped.address]) {
-            const shard = manifestShardForAddress(addr);
-            if (shard) {
-              affectedManifestShards.add(shard);
-              // Per-shard manifest invalidation (Maya review of #561):
-              // manifest pages no longer carry the coarse `search` tag, so
-              // the writer expires exactly the affected shard's pages.
-              changedCacheTags.add(manifestShardTag(shard));
-            }
-          }
+          recordPublicListingChange(
+            mapped.listing_id,
+            existing?.address,
+            mapped.address,
+            changedCacheTags,
+            affectedManifestShards,
+          );
         }
       }
 
@@ -918,23 +952,14 @@ export async function syncListings(
         } else {
           projectionCounters.rows_inserted++;
         }
-        changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1: projection changes affect search surfaces
-        {
-          // Building-Neon-wake: exact building revalidation (old + new address).
-          for (const bTag of buildingInvalidationTags(existing?.address, mapped.address)) {
-            changedCacheTags.add(bTag);
-          }
-          for (const addr of [existing?.address, mapped.address]) {
-            const shard = manifestShardForAddress(addr);
-            if (shard) {
-              affectedManifestShards.add(shard);
-              // Per-shard manifest invalidation (Maya review of #561):
-              // manifest pages no longer carry the coarse `search` tag, so
-              // the writer expires exactly the affected shard's pages.
-              changedCacheTags.add(manifestShardTag(shard));
-            }
-          }
-        }
+        // W1: projection changes affect search surfaces. Same canonical tag set.
+        recordPublicListingChange(
+          mapped.listing_id,
+          existing?.address,
+          mapped.address,
+          changedCacheTags,
+          affectedManifestShards,
+        );
       }
     } catch (err) {
       errors++;
@@ -1037,6 +1062,10 @@ export async function syncListings(
         // firing successfully — every batch silently 400'd.
         const BATCH_SIZE = 15;
 
+        // Batches whose Media pagination could not be proven COMPLETE. Those
+        // batches perform NO reconciliation (no clear, no tombstone) — a key
+        // absent from an incomplete response is not proven empty at source.
+        let mediaBatchesIncompleteSkipped = 0;
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
           if (batch.length === 0) continue;
@@ -1051,21 +1080,49 @@ export async function syncListings(
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
+            // COMPLETENESS via the SHARED follower (`paginateMedia` — the same one
+            // media-sync uses). One nextLink implementation, one runaway guard,
+            // one definition of "complete". No second pagination loop.
+            //
+            // `complete: false` (a page failed, or the runaway guard tripped)
+            // means a requested key absent from the rows is NOT proven empty at
+            // source, so this batch performs NO reconciliation at all. Fail closed.
+            const { rows: mediaRows, complete } = await paginateMedia(
+              `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+              async (url: string) => {
+                const _mc = new AbortController();
+                const _mt = setTimeout(() => _mc.abort(), 15_000);
+                try {
+                  const res = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                    signal: _mc.signal,
+                  });
+                  if (!res.ok) throw new Error(`Media page HTTP ${res.status}`);
+                  const data = await res.json();
+                  return {
+                    value: (data.value || []) as unknown[],
+                    nextLink: (data["@odata.nextLink"] as string | undefined) ?? null,
+                  };
+                } finally {
+                  clearTimeout(_mt);
+                }
+              },
+            );
+            if (!complete) {
+              mediaBatchesIncompleteSkipped++;
+              continue; // incomplete ⇒ never clear, never tombstone
+            }
 
             // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
             const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
-            for (const m of data.value || []) {
+            // PRE-SEED every REQUESTED key so a complete-but-empty result is
+            // represented as `[]` instead of vanishing from the map. Previously
+            // "the provider returned no media for this listing" was
+            // indistinguishable from "we never asked", so an emptied gallery was
+            // never reconciled. Only reached once the fetch proved COMPLETE, so
+            // `[]` here means AUTHORITATIVE empty.
+            for (const key of batch) mediaByListing.set(String(key), []);
+            for (const m of mediaRows as unknown as Record<string, unknown>[]) {
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
@@ -1096,7 +1153,10 @@ export async function syncListings(
                 const existingMediaRow = await prisma.listing.findFirst({
                   // #415: archived-safe filter — an archived row must not have its media re-hydrated.
                   where: archivedSafeMediaWhere(listingId),
-                  select: { media: true },
+                  // `address` widened onto the EXISTING per-listing read (no new
+                  // query, no N+1) so a media-only change can invalidate the exact
+                  // building + manifest shard it affects.
+                  select: { media: true, address: true },
                 });
                 if (!existingMediaRow) {
                   // Archived or missing row: the guarded write would match 0 rows.
@@ -1113,7 +1173,18 @@ export async function syncListings(
                   data: { media: media as unknown as Prisma.InputJsonValue },
                 });
                 batchMediaCounters.rows_updated++;
-                changedCacheTags.add(listingCacheTag(listingId)); // W1: media changed → refresh cached page
+                // Media changed => the building payload and manifest shard can
+                // change too (they carry primary_photo_url). Same canonical
+                // helper the Listing-write path uses, so the two cannot drift.
+                // A media change never moves a listing between buildings, so the
+                // current address is passed as both sides.
+                recordPublicListingChange(
+                  listingId,
+                  existingMediaRow.address,
+                  existingMediaRow.address,
+                  changedCacheTags,
+                  affectedManifestShards,
+                );
               } catch (mediaRowErr) {
                 batchMediaCounters.rows_failed++;
                 console.warn(
@@ -1126,7 +1197,9 @@ export async function syncListings(
             console.warn(`[IDX Sync] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
-        console.log("[IDX Sync] Media batch-fetch complete");
+        console.log(
+          `[IDX Sync] Media batch-fetch complete (incomplete batches skipped: ${mediaBatchesIncompleteSkipped})`,
+        );
       }
     } catch (mediaSyncErr) {
       console.warn("[IDX Sync] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
@@ -1453,10 +1526,35 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   //     Video-only, VirtualTour-only — pre-Fix-#1 these rendered the wrong
   //     hero; post-Fix-#1 they render the placeholder; either way the
   //     row needs a Photo refetch when the broker uploads)
-  //   - rows where Trestle's PhotosChangeTimestamp is newer than our DB
-  //     modification_timestamp (Cotality routinely bumps PCT without
-  //     bumping MT — empirical 18,411-row drift audit on 2026-05-08).
-  //     The new media array overwrites the stale one in the same upsert.
+  //
+  // REMOVED 2026-08-07 (commit 7B-2B) — the PCT eligibility branch:
+  //     raw_data ? 'PhotosChangeTimestamp'
+  //     AND (raw_data->>'PhotosChangeTimestamp')::timestamp > modification_timestamp
+  //
+  // It existed because Cotality routinely bumps PhotosChangeTimestamp without
+  // bumping ModificationTimestamp (18,411-row drift audit, 2026-05-08), and this
+  // was the only mechanism that noticed. That is no longer true, and it was the
+  // last consumer of the STORED raw_data PCT value.
+  //
+  // PCT freshness is now owned end-to-end by the canonical chain:
+  //     Property.PhotosChangeTimestamp
+  //       -> incremental source trigger (fetch.ts:391 filters on
+  //          `ModificationTimestamp gt T or PhotosChangeTimestamp gt T`)
+  //       -> complete, pre-seeded batch media reconciliation (7B-1)
+  //       -> media-sync PCT keyset cursor + complete per-listing Media fetch
+  //          (media_sync_state.last_photos_change)
+  // NOT the stored Listing.raw_data.PhotosChangeTimestamp, which this function
+  // was reading back out of the row it had itself written.
+  //
+  // This function is UNREACHABLE legacy code (its only caller,
+  // /api/cron/media-backfill, was removed by PR #176 on 2026-05-21) — pinned by
+  // tests/runtime/backfill-empty-media-reachability.test.ts. The clause is
+  // removed rather than left in place so a future caller cannot silently
+  // resurrect a dependency on a field the system no longer maintains.
+  //
+  // The genuine repair predicates below are UNCHANGED: null media, malformed
+  // object-shaped media, empty array, zero-Photo arrays, plus the gate and
+  // archived-row protections.
   //
   // The `jsonb_typeof(media) != 'array'` clause catches the object-shaped
   // malformed data. Without it, 8,082+ production rows with
@@ -1475,12 +1573,6 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
             SELECT 1 FROM jsonb_array_elements(media) elem
             WHERE LOWER(COALESCE(elem->>'mediaType', '')) IN ('photo', 'image', '')
           )
-        )
-        OR (
-          raw_data ? 'PhotosChangeTimestamp'
-          AND NULLIF(raw_data->>'PhotosChangeTimestamp', '') IS NOT NULL
-          AND modification_timestamp IS NOT NULL
-          AND (raw_data->>'PhotosChangeTimestamp')::timestamp > modification_timestamp
         )
       )
       AND sync_status IS DISTINCT FROM 'gated:owner_opt_out'
@@ -2104,16 +2196,21 @@ export async function syncAgentHistory(
           for (const reason of changeReasons) listingChangeReasons[reason]++;
         }
         if (!changeReasons || !isProvenanceOnlyChange(changeReasons)) {
-          changedCacheTags.add(listingCacheTag(mapped.listing_id)); // W1
-          // Building-Neon-wake: exact building revalidation (old + new address).
-          for (const bTag of buildingInvalidationTags(existingForClock?.address, mapped.address)) {
-            changedCacheTags.add(bTag);
-          }
-          // Per-shard manifest invalidation (Maya review of #561).
-          for (const addr of [existingForClock?.address, mapped.address]) {
-            const shard = manifestShardForAddress(addr);
-            if (shard) changedCacheTags.add(manifestShardTag(shard));
-          }
+          // Canonical tag set — shared with the listing/media writers so the
+          // EXPIRED tags cannot diverge again.
+          //
+          // This function performs no manifest WARMING (it has no
+          // `affectedManifestShards` accumulator and never did), so the shard
+          // list is collected into a local sink and discarded. Behaviour is
+          // therefore unchanged here; only the tag computation is now shared.
+          // Wiring warming into this path would be scope creep, not a fix.
+          recordPublicListingChange(
+            mapped.listing_id,
+            existingForClock?.address,
+            mapped.address,
+            changedCacheTags,
+            new Set<string>(),
+          );
         }
       }
 

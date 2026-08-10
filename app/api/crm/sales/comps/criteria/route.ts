@@ -13,6 +13,11 @@ import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import type { CompCriteria } from "@/lib/comps";
 import type { Prisma } from "@prisma/client";
 import { safeJson } from "@/lib/api/safe-json";
+import {
+  listingCapabilities,
+  CAPABILITY_DENIED,
+  CAPABILITY_LISTING_SELECT,
+} from "@/lib/auth/listing-capabilities";
 
 export async function PATCH(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -33,16 +38,20 @@ export async function PATCH(req: NextRequest) {
 
   const listing = await prisma.listing.findUnique({
     where: { listing_id },
-    select: { listing_id: true, agent_id: true },
+    select: { ...CAPABILITY_LISTING_SELECT },
   });
 
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Only the listing agent or broker can update criteria
-  if (auth.role !== "BROKER" && listing.agent_id !== auth.userId) {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  // Association level, deliberately NOT local-only. `comp_criteria` is
+  // Mallan-authored internal analysis: the Trestle mapper never writes it, so
+  // it is not a source-derived field, and neither comps writer stamps
+  // `modification_timestamp`, so it cannot poison the incremental cursor.
+  // Running comps against a third-party row is legitimate CMA work.
+  if (!listingCapabilities(auth, listing).mayViewHistory) {
+    return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
   await prisma.listing.update({

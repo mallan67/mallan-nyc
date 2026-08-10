@@ -215,7 +215,21 @@ describe('R2 lifecycle validator — V7 rejection MUST write parking state (Bloc
     expect(R2_POLICY_PARKED_ATTEMPTS).toBe(9);
     expect(R2_RETRY_EXHAUSTED_THRESHOLD).toBe(8);
     expect(R2_POLICY_PARKED_ATTEMPTS).toBeGreaterThan(R2_RETRY_EXHAUSTED_THRESHOLD);
-    expect(mediaSyncCode).toMatch(/export const R2_POLICY_PARKED_ATTEMPTS = 9;/);
+    // OWNERSHIP MOVED: the R2 retry/policy constants are now defined in
+    // lib/media/r2-policy-state.ts and RE-EXPORTED by media-sync. The inversion
+    // was required so media-sync can consume the one policy interpreter without
+    // a circular import — the cycle is why the URL-refresh decision previously
+    // did its own r2_attempts arithmetic. The VALUES are still asserted above
+    // (9, 8, and 9 > 8) through the media-sync import path, so the invariant
+    // this line guards is unchanged; only its definition site moved.
+    const policySrc = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../lib/media/r2-policy-state.ts'),
+      'utf8',
+    ) as string;
+    expect(policySrc).toMatch(/export const R2_POLICY_PARKED_ATTEMPTS = 9;/);
+    expect(policySrc).toMatch(/export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;/);
+    // media-sync must re-export rather than redefine — one definition only.
+    expect(mediaSyncCode).not.toMatch(/export const R2_POLICY_PARKED_ATTEMPTS\s*=/);
   });
 
   it('a parked row is permanently excluded by the EXISTING backlog attempts predicate', () => {
@@ -241,10 +255,31 @@ describe('R2 lifecycle validator — V7 rejection MUST write parking state (Bloc
     expect(parkPushes.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('the parking flush writes the sentinel via ONE batched updateMany over the collected ids', () => {
+  it('the parking flush writes the EXPLICIT policy column via ONE batched updateMany over the collected ids', () => {
+    // CONTRACT INVERTED (writer cutover). This previously pinned the sentinel
+    // form `data: { r2_attempts: R2_POLICY_PARKED_ATTEMPTS, r2_last_attempt_at:
+    // ... }`. That shape WAS the defect: a policy decision written into the
+    // FAILURE counter, plus a cooldown stamp for an attempt never made.
+    //
+    // What this validator actually guards is unchanged and still asserted here:
+    // the park is ONE batched updateMany over the collected ids, never per-row.
     expect(mediaSyncCode).toMatch(
-      /updateMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*policyParkIds\s*\}\s*\},\s*data:\s*\{\s*r2_attempts:\s*R2_POLICY_PARKED_ATTEMPTS,\s*r2_last_attempt_at:/,
+      /updateMany\(\{\s*where:\s*\{\s*id:\s*\{\s*in:\s*policyParkIds\s*\}\s*\},\s*data:\s*\{\s*r2_policy_excluded_at:/,
     );
+  });
+
+  it('the parking flush no longer touches the failure counter or the cooldown', () => {
+    // `mediaSyncCode` is ALREADY comment-stripped, so a comment marker such as
+    // "// ── PHASE 4" does not exist in it: bounding the slice with one would
+    // silently return -1 and sweep in the rest of the file's unrelated writes.
+    // Both bounds are therefore code, and both are asserted to be real.
+    const start = mediaSyncCode.indexOf('if (policyParkIds.length > 0)');
+    const end = mediaSyncCode.indexOf('mirrorRejectedPolicyParked = parked.count');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const flush = mediaSyncCode.slice(start, end);
+    expect(flush).not.toMatch(/r2_attempts\s*:/);
+    expect(flush).not.toMatch(/r2_last_attempt_at\s*:/);
   });
 
   it('the parked outcome is surfaced as a counter (mirror_rejected_policy_parked) for audit', () => {

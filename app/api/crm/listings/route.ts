@@ -543,10 +543,27 @@ export async function POST(req: NextRequest) {
   // Fetch the created listing to build URLs from its persisted address
   const createdListing = await prisma.listing.findUnique({
     where: { listing_id: result.listingId },
-    select: { listing_id: true, status: true, address: true, internet_address_display_yn: true },
+    // `rls_eligible` + `internet_entire_listing_display_yn` are required by the
+    // canonical public-address decision (lib/compliance/db-address-decision.ts).
+    // Added to THIS existing select — no extra query, no N+1.
+    select: {
+      listing_id: true,
+      status: true,
+      address: true,
+      rls_eligible: true,
+      internet_entire_listing_display_yn: true,
+      internet_address_display_yn: true,
+    },
   });
   const urls = createdListing
-    ? buildListingUrls(createdListing as { listing_id: string; status: string; address: Record<string, unknown>; internet_address_display_yn?: boolean })
+    ? buildListingUrls(createdListing as {
+        listing_id: string;
+        status: string;
+        address: Record<string, unknown> | null;
+        rls_eligible?: boolean | null;
+        internet_entire_listing_display_yn?: boolean | null;
+        internet_address_display_yn?: boolean | null;
+      })
     : { publicUrl: null, realPlusUrl: null };
 
   // S-BE-006 — return the full URL + eligibility contract so the form and

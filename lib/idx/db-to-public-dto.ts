@@ -18,7 +18,10 @@
 import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
-import { generateListingSlug } from '@/lib/listing-slug';
+import { publicListOfficeName } from './public-attribution';
+import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
+import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
@@ -71,6 +74,13 @@ interface DbFeatures {
   StoriesTotal?: number | string;
   Rooms?: number | string;
   PublicRemarks?: string;
+  /**
+   * B13_BUILDING owns BuildingName, and `mapTrestleToPrisma` spreads
+   * `pick(raw, B13_BUILDING)` into `features` (trestle-mapper.ts:1073), while
+   * `address` is `pick(raw, B1_ADDRESS)` — which does NOT contain it. Synced
+   * rows therefore carry BuildingName HERE, not on the address JSON.
+   */
+  BuildingName?: string;
   AssociationFee?: number | string;
   AssociationFeeFrequency?: string;
   TaxAnnualAmount?: number | string;
@@ -116,20 +126,54 @@ interface DbMediaItem {
   PreferredPhotoYN?: boolean | string;
 }
 
-// The shape returned by Prisma listing.findMany with our select
+/**
+ * A numeric-like DB value.
+ *
+ * Prisma returns `Decimal` for numeric columns; some callers carry the same
+ * value as a numeric string, and a few as a plain number. All three arrive here
+ * in practice, so the type says so rather than being cast away at call sites.
+ */
+export type DbNumericLike = string | number | { toString(): string };
+
+/**
+ * Normalize any accepted numeric-like form to a finite number, else null.
+ *
+ * This replaces bare `parseFloat(value)`, which happened to work on a Prisma
+ * `Decimal` only through implicit `toString()` coercion — correct at runtime but
+ * undeclared, and the reason the detail page could not call this builder without
+ * an `as unknown as` cast.
+ */
+function numericOf(value: DbNumericLike | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+// The shape returned by Prisma listing.findMany with our select.
+//
+// Types here describe the ACTUAL runtime forms this builder accepts, so callers
+// pass their real Prisma row instead of laundering it through
+// `as unknown as DbListing`. A cast would silence the disagreement without
+// proving anything about the values that arrive.
 export interface DbListing {
-  id: string;
+  /**
+   * The surrogate primary key. Prisma types it `bigint`; some list callers
+   * carry it as a string. This builder never reads it (the PUBLIC identity is
+   * `listing_id`), so both forms are accepted rather than forcing a conversion
+   * at every call site.
+   */
+  id: string | bigint;
   listing_id: string;
   mls_id?: string | null;
   status: string;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
-  list_price: string;
+  list_price: DbNumericLike;
   bedrooms_total: number | null;
   bathrooms_full: number | null;
   bathrooms_half: number | null;
-  living_area: string | null;
+  living_area: DbNumericLike | null;
   borough: string | null;
   neighborhood: string | null;
   address: unknown;
@@ -212,20 +256,18 @@ const STATUS_DISPLAY: Record<string, string> = {
   Rented: 'Rented',
 };
 
-const DB_TRESTLE_PROXY_HOSTS = new Set(['api.cotality.com', 'api-trestle.corelogic.com', 'api-prod.corelogic.com']);
-
-function proxyDbMediaUrl(rawUrl: string): string {
-  if (!rawUrl) return rawUrl;
-  try {
-    const parsed = new URL(rawUrl);
-    if (DB_TRESTLE_PROXY_HOSTS.has(parsed.hostname)) {
-      return `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`;
-    }
-  } catch {
-    return rawUrl;
-  }
-  return rawUrl;
-}
+// REMOVED 2026-08-07 — `DB_TRESTLE_PROXY_HOSTS` + `proxyDbMediaUrl`.
+//
+// This was a THIRD independent copy of the media-URL policy (alongside
+// `proxy-url-policy.ts` and the resolver's suffix rule). Three owners meant
+// three chances to drift apart from what the proxy route actually accepts.
+//
+// The canonical `toPublicMediaUrl` — imported by the proxy route itself — now
+// owns this. It is additionally IDEMPOTENT, which the local copy was not:
+// re-applying it to an already-proxied relative URL returns it unchanged rather
+// than nesting a second wrapper (the defect that produced the 403s on the
+// listing detail page).
+const proxyDbMediaUrl = toPublicMediaUrl;
 
 /**
  * Provenance of a DB-cached listing row.
@@ -298,7 +340,14 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   const resolvedAgent = resolveListingAgentInfo(listing);
   const mediaArr = (Array.isArray(listing.media) ? listing.media : []) as DbMediaItem[];
 
-  const streetNumber = addr.StreetNumber || '';
+  // Case-tolerant like composeSlugStreetName: legacy/mixed address JSON stores
+  // some rows in camelCase. PascalCase-only reads silently DROPPED the street
+  // number and postal code from the canonical slug on those rows, so the DTO
+  // and the sitemap emitted different URLs for the same listing.
+  const legacyAddr = addr as unknown as Record<string, unknown>;
+  const camel = (key: string): string =>
+    typeof legacyAddr[key] === 'string' ? (legacyAddr[key] as string).trim() : '';
+  const streetNumber = addr.StreetNumber || camel('streetNumber');
   const streetDirPrefix = addr.StreetDirPrefix || '';
   const streetNameRaw = [
     addr.StreetName,
@@ -307,8 +356,8 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   ].filter(Boolean).join(' ') || '';
   const streetName = normalizeStreetCase(streetNameRaw);
   const unitNumber = addr.UnitNumber || null;
-  const city = addr.City || listing.borough || 'New York';
-  const postalCode = addr.PostalCode || '';
+  const city = addr.City || camel('city') || listing.borough || 'New York';
+  const postalCode = addr.PostalCode || camel('postalCode');
   const borough = (addr.Borough || listing.borough || '').toLowerCase();
   const county = BOROUGH_TO_COUNTY[borough] || borough || 'New York';
   // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
@@ -317,30 +366,60 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
   // CRM-created exclusives always show address — IDX gate is for RLS-distributed only.
   // Use listing_id prefix (always selected, always present) instead of mls_id
   // which may not be selected by every caller.
-  const isCrmExclusive = listing.listing_id.startsWith('SL-') || listing.listing_id.startsWith('RL-');
-  const suppressAddress = isCrmExclusive ? false : !isAddressDisplayable(listing);
+  // Address suppression — the ONLY legitimate bypass is "not RLS-backed".
+  //
+  // This previously keyed off an `SL-`/`RL-` listing_id PREFIX, which meant an
+  // RLS-ELIGIBLE Mallan exclusive carrying an explicit
+  // `internet_address_display_yn = false` had its seller opt-out OVERRIDDEN and
+  // its street address, unit, coordinates and address-derived slug published on
+  // cards, search, /api/listings and Featured.
+  //
+  // A prefix is not a permission. Only inventory that is genuinely outside RLS
+  // (`rls_eligible === false` — Mallan's website-only listings) may bypass the
+  // IDX address gate; an RLS-backed row must always honour it.
+  //
+  // app/listing/[...slug]/page.tsx:455-461 already found this exact prefix
+  // bypass unsafe and reverted it ("Earlier draft unconditionally bypassed by
+  // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted").
+  // That correction was never carried across to this canonical builder, so the
+  // two paths disagreed for the same listing. They now use the same rule.
+  const isRlsBacked = listing.rls_eligible !== false;
+  const suppressAddress = isRlsBacked && !isAddressDisplayable(listing);
   const isComingSoon = listing.status === 'ComingSoon';
   const rawData = (listing.raw_data || {}) as Record<string, unknown>;
   const comingSoonDate = isComingSoon
     ? (rawData.ActivationDate as string | undefined) || undefined
     : undefined;
 
-  const slug = generateListingSlug({
-    address: {
-      streetNumber,
-      streetDirPrefix,
-      streetName,
-      unitNumber,
-      city,
-      stateOrProvince: 'NY',
-      postalCode,
-    },
-    id: listing.listing_id,
-    mlsId: listing.listing_id,
-    internetAddressDisplayYN: !suppressAddress,
+  // SLUG STREET — composed by the ONE owner, `composeSlugStreetName`, which the
+  // sitemap also uses. This builder previously did its own composition
+  // (StreetName + StreetSuffix + StreetDirSuffix, PascalCase only) and passed
+  // `streetDirPrefix` separately, so the two routes could disagree: the helper
+  // omitted StreetDirSuffix while this one omitted the camelCase fallback.
+  //
+  // NOTE the prefix is NOT passed separately below — the helper already
+  // includes StreetDirPrefix, and passing both would double it ("W W 20th St").
+  // The DISPLAY address further down keeps its own `streetDirPrefix + streetName`
+  // composition, which is a different concern and is deliberately untouched.
+  const slugStreet = normalizeStreetCase(
+    composeSlugStreetName(addr as unknown as Record<string, unknown>),
+  );
+
+  // ONE owner for the DB-row slug (extracted 2026-08-09). The RLS return-copy
+  // redirect must land on exactly the URL this builder emits, and a second
+  // derivation over there would be a fresh way for the canonical URL and the
+  // redirect target to diverge — the same class of bug the composeSlugStreetName
+  // extraction (SEO-001) was created to end. `buildListingSlugFromDbRow` performs
+  // the identical composition, including the `suppressAddress` gate. `slugStreet`
+  // is retained above because it also feeds the DISPLAY address below.
+  const slug = buildListingSlugFromDbRow(listing as unknown as {
+    listing_id: string;
+    rls_eligible?: boolean | null;
+    address?: unknown;
+    borough?: string | null;
   });
 
-  const listPrice = parseFloat(listing.list_price) || 0;
+  const listPrice = numericOf(listing.list_price) ?? 0;
 
   // PR 4 reader swap (2026-05-11): prefer the relational `listing_media`
   // table when the caller's Prisma query included it. The 99.67% of listings
@@ -372,14 +451,15 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     typeof listing._count?.listing_media === 'number'
       ? listing._count.listing_media > 0
       : undefined;
-  const resolved = resolveDbListingMedia(tableRows, mediaArr, {
+  // ONE canonical composition — shared with the listing-detail page so the two
+  // cannot derive different media, URLs or photo counts for the same listing.
+  const { media, photoCount } = composeDbPublicMedia({
     listingId: listing.listing_id,
     rlsEligible: listing.rls_eligible,
-  }, { hadRelationalRows, legacyMapUrl: proxyDbMediaUrl });
-  // Photo-first serialization: `order` = resolved index, `isPrimary` = resolved hero flag,
-  // so no downstream surface can hero a FloorPlan via media[0] or an order re-sort.
-  const media = toDtoMedia(resolved);
-  const photoCount = media.filter((m) => m.mediaType === 'Photo').length;
+    tableRows,
+    legacyMedia: mediaArr,
+    hadRelationalRows,
+  });
 
   return {
     id: listing.listing_id,
@@ -442,7 +522,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     bedroomsTotal: listing.bedrooms_total || 0,
     bathroomsFull: listing.bathrooms_full || 0,
     bathroomsHalf: listing.bathrooms_half || 0,
-    livingArea: listing.living_area ? parseFloat(listing.living_area) : null,
+    livingArea: numericOf(listing.living_area),
     lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
     yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
     storiesTotal: features.StoriesTotal ? Number(features.StoriesTotal) : undefined,
@@ -457,14 +537,26 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     listOfficeName: resolvedAgent.officeName || 'REBNY RLS',
     media,
     photosCount: photoCount,
-    publicRemarks: features.PublicRemarks || undefined,
+    // S1 (#415) storage correction: `mapTrestleToPrisma` does NOT put
+    // B7_REMARKS into `features`, and the redundant Trestle `compliance` JSON
+    // copy is no longer persisted — so on a SYNCED row PublicRemarks lives in
+    // `raw_data`. Reading only `features` returned undefined for every synced
+    // listing. `features` still wins first for CRM/legacy rows that carry it.
+    publicRemarks:
+      features.PublicRemarks ||
+      (typeof rawData.PublicRemarks === 'string' ? rawData.PublicRemarks : undefined) ||
+      undefined,
     listingContractDate: listing.listing_contract_date
       ? new Date(listing.listing_contract_date).toISOString()
       : new Date(listing.created_at).toISOString(),
     modificationTimestamp: new Date(listing.modification_timestamp || listing.updated_at).toISOString(),
     onMarketDate: rawData.OnMarketDate ? String(rawData.OnMarketDate) : undefined,
     closeDate: rawData.CloseDate ? String(rawData.CloseDate) : undefined,
-    buildingName: addr.BuildingName,
+    // B13_BUILDING owns BuildingName and lands in `features`; B1_ADDRESS does
+    // not carry it, so reading `addr` alone was empty for synced rows. The
+    // address fallback is retained deliberately for historical/CRM rows that
+    // stored it there — not deleted on assumption.
+    buildingName: features.BuildingName || addr.BuildingName,
     architecturalStyle: features.ArchitecturalStyle ? String(features.ArchitecturalStyle) : undefined,
     // Amenity fields from features JSON (PascalCase keys from Trestle sync)
     buildingFeatures: features.BuildingFeatures ? String(features.BuildingFeatures) : undefined,
@@ -538,7 +630,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
  * - `website-only` → same as mallan-exclusive but for commercial rows that
  *   bypass RLS entirely; no RLS disclaimer because the data is not RLS-sourced.
  */
-function buildSourceAndCompliance(
+export function buildSourceAndCompliance(
   listing: DbListing,
   agentInfo: DbAgentInfo,
   isComingSoon: boolean,
@@ -547,7 +639,7 @@ function buildSourceAndCompliance(
   const provenance = classifyDbListing(listing);
   // Phase B: typed-first agent attribution (JSON fallback). Exposure rules unchanged.
   const resolved = resolveListingAgentInfo(listing);
-  const officeName = resolved.officeName || 'REBNY RLS';
+  const officeName = publicListOfficeName(resolved.officeName);
 
   if (provenance === 'third-party-idx') {
     return {

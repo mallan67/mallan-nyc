@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { hasCredentials, getAccessToken } from "@/lib/idx/auth";
 import { hasR2Config } from "@/lib/images/r2";
+import { checkCredentials } from "@/lib/monitoring/health-verdict";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -111,7 +112,14 @@ export async function GET(req: NextRequest) {
     results.sampleTest = `FAIL: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  // 6. Test R2 upload/read if configured
+  // 6. Test R2 upload/read.
+  //
+  // The unconfigured branch is NOT optional. This previously had no `else`, so
+  // when R2 credentials were absent the `r2Connection` key was simply missing
+  // from the response — an operator read the JSON, saw no R2 problem reported,
+  // and concluded R2 was healthy. Absence of evidence is not PASS: an
+  // unobservable subsystem must say so out loud, naming the credentials that
+  // are missing (NEVER their values).
   if (hasR2Config()) {
     try {
       const { existsInR2 } = await import("@/lib/images/r2");
@@ -121,6 +129,13 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       results.r2Connection = `FAIL: ${err instanceof Error ? err.message : String(err)}`;
     }
+  } else {
+    const unavailable = checkCredentials(
+      "r2-mirror",
+      ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME", "R2_PUBLIC_URL"],
+      process.env,
+    );
+    results.r2Connection = `UNAVAILABLE: ${unavailable?.evidence ?? "R2 not configured"}`;
   }
 
   return NextResponse.json(results, {

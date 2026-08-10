@@ -11,6 +11,7 @@
 
 import { createHash } from "crypto";
 import type { PrismaClient } from "@prisma/client";
+import { classifyLegacyMediaItemProvenance } from "@/lib/media/media-provenance";
 
 /** All CRM-owned media_keys start with this. Distinguishes them from Trestle feed keys. */
 export const CRM_MEDIA_KEY_PREFIX = "crm:";
@@ -139,16 +140,36 @@ export function legacyItemBasis(item: LegacyMediaItem): string {
  * Does NOT delete or modify the legacy JSON (left intact for read-compat/rollback).
  * Does NOT set a preferred photo — the agent chooses the hero via set-as-main.
  *
- * Returns { imported, skipped, planned } where `planned` is the list of rows that
- * WOULD be created (so a dry-run can print them without writing).
+ * PROVENANCE GATE (see lib/media/media-provenance.ts). The Trestle sync writes
+ * COTALITY image URLs into this same `Listing.media` JSON (sync.ts:821 and the
+ * media backfills). Importing them would mint `crm:` keys for feed images —
+ * and `tombstoneVanished` excludes the `crm:` namespace by design
+ * (media-sync.ts:1347/1353), so those clones would become permanently
+ * un-prunable and would resurrect photos Cotality has deleted. Only items that
+ * are PROVABLY Mallan-owned are imported; feed and unprovable items are counted
+ * in `skippedByProvenance` and left untouched in the JSON.
+ *
+ * Returns { imported, skipped, skippedByProvenance, planned } where `planned` is
+ * the list of rows that WOULD be created (so a dry-run can print them).
  */
 export async function importJsonMediaToRows(
   prisma: PrismaClient,
-  listing: { listing_id: string; media: unknown },
+  listing: {
+    listing_id: string;
+    media: unknown;
+    /**
+     * `Listing.last_synced_from_trestle`. OMITTING IT FAILS CLOSED: `undefined`
+     * means the caller did not SELECT the column, so sync state is UNKNOWN and
+     * unmarked items are treated as potential feed media. Same doctrine as
+     * `crmListingTouchData` above.
+     */
+    last_synced_from_trestle?: Date | null;
+  },
   opts: { apply?: boolean; now?: Date } = {},
 ): Promise<{
   imported: number;
   skipped: number;
+  skippedByProvenance: number;
   planned: Array<{ media_key: string; media_type: string; order: number; url: string }>;
 }> {
   const apply = opts.apply !== false; // default: write
@@ -158,8 +179,12 @@ export async function importJsonMediaToRows(
     ? (listing.media as LegacyMediaItem[])
     : [];
 
+  // Fail-closed: unknown sync state is treated as SYNCED.
+  const listingIsTrestleSynced = listing.last_synced_from_trestle !== null;
+
   let imported = 0;
   let skipped = 0;
+  let skippedByProvenance = 0;
   const planned: Array<{ media_key: string; media_type: string; order: number; url: string }> = [];
   const seenKeys = new Set<string>();
 
@@ -170,6 +195,14 @@ export async function importJsonMediaToRows(
       index++;
       continue;
     }
+
+    // Only provably Mallan-owned media may enter the `crm:` namespace.
+    if (classifyLegacyMediaItemProvenance(item, { listingIsTrestleSynced }) !== "mallan-crm-upload") {
+      skippedByProvenance++;
+      index++;
+      continue;
+    }
+
     const key = crmMediaKey(listingId, legacyItemBasis(item));
     // de-dupe within the JSON itself
     if (seenKeys.has(key)) {
@@ -215,5 +248,5 @@ export async function importJsonMediaToRows(
     index++;
   }
 
-  return { imported, skipped, planned };
+  return { imported, skipped, skippedByProvenance, planned };
 }

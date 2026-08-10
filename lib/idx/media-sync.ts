@@ -28,6 +28,22 @@
 //   touching this row.
 
 import prisma from "@/lib/prisma";
+// Canonical media classification — REUSED here so the persisted summary and the
+// public reader cannot disagree. Do not reimplement it in this module.
+import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+// THE one R2 policy/retry interpreter. The semantic constants are OWNED there so
+// this module can consume the interpreter without a circular import — that cycle
+// is exactly why the URL-refresh decision below ended up doing its own
+// `r2_attempts` arithmetic instead of asking the owner.
+import {
+  isR2PolicyExcluded,
+  R2_RETRY_EXHAUSTED_THRESHOLD,
+  R2_POLICY_PARKED_ATTEMPTS,
+} from "@/lib/media/r2-policy-state";
+// Re-exported for existing importers and their tests: one definition, two import
+// paths, no copy.
+export { R2_RETRY_EXHAUSTED_THRESHOLD, R2_POLICY_PARKED_ATTEMPTS };
+import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
@@ -45,7 +61,7 @@ import {
   uploadToR2 as defaultUploadToR2,
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
-import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";
+import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 // R2-1 mirror-admission policy — canonical helpers ONLY (no local re-derivation):
 //   - Ownership: `isMallanExclusiveListing` (SL-/RL- listing_id prefix OR
 //     rls_eligible === false). NEVER agent_id / owner_client_id — per the
@@ -687,6 +703,111 @@ export interface ExistingMediaRowForCompare {
    * never lose a needed URL refresh.
    */
   r2_attempts?: number | null;
+  /**
+   * EXPLICIT R2 policy exclusion.
+   *
+   * Required here after the writer cutover: a policy-excluded row can now carry
+   * a LOW or NULL `r2_attempts`, so `r2_attempts > 8` alone no longer identifies
+   * "no R2 consumer will ever read this locator". Without it the backlog says
+   * DO-NOT-MIRROR (it filters on `r2_policy_excluded_at: null`) while this
+   * decision says STILL-WAITING-FOR-MIRROR and rewrites the locator forever —
+   * permanent Neon churn on exactly the rows policy removed from delivery.
+   *
+   * OPTIONAL and fail-safe in the same way as `r2_attempts`: absent/null ⇒ NOT
+   * excluded. Explicit non-null state is required to suppress.
+   */
+  r2_policy_excluded_at?: Date | null;
+}
+
+/**
+ * What a reconciliation cycle must physically do with one existing media row.
+ *
+ * `reason` is a bounded aggregate label — safe for counters and telemetry. It
+ * carries no URL, MediaKey, address or other per-row value.
+ */
+export type MediaRowPersistenceDecision =
+  | { kind: 'suppress'; reason: 'locator-identical' | 'delivered-durable' }
+  | {
+      kind: 'refresh-locator';
+      /**
+       * `reason` is the DECISION. `deliveryState` is OBSERVATIONAL ONLY — it
+       * never affects the outcome, and exists so a future measurement can see
+       * how many refreshes land on rows that already have durable R2 delivery.
+       * That is the population a corrected hero/manifest contract could later
+       * suppress; it is NOT suppressible today (see below).
+       */
+      reason: 'pending' | 'exact8-recovery';
+      deliveryState: 'r2-delivered' | 'policy-excluded' | 'unreachable-overflow' | 'pending';
+    }
+  | { kind: 'material-write'; reason: 'material-change' };
+
+/**
+ * THE production media-row write decision. ONE owner.
+ *
+ * Production calls this; regressions call this. Extracted because the test that
+ * previously pinned this behaviour recomposed the expression itself, which meant
+ * the suite could stay green while production drifted underneath it — the tests
+ * would have been asserting their own copy.
+ *
+ * The material comparator deliberately EXCLUDES the locator, so
+ * `materialUnchanged` says nothing about the URL. Both facts are needed here.
+ */
+export function decideMediaRowPersistence(args: {
+  materialUnchanged: boolean;
+  existingLocator: string | null;
+  incomingLocator: string | null;
+  existing: ExistingMediaRowForCompare;
+}): MediaRowPersistenceDecision {
+  const { materialUnchanged, existingLocator, incomingLocator, existing } = args;
+
+  // Real provider truth always wins. Delivery policy must NEVER freeze a
+  // genuine material change out of the database.
+  if (!materialUnchanged) return { kind: 'material-write', reason: 'material-change' };
+
+  // The ONLY safe suppression today: no new locator was received, so there is
+  // literally nothing to persist.
+  if ((existingLocator ?? null) === (incomingLocator ?? null)) {
+    return { kind: 'suppress', reason: 'locator-identical' };
+  }
+
+  // ── DURABLE PUBLIC DELIVERY SUPPRESSES A CHANGED LOCATOR ────────────────
+  //
+  // The question is NOT "can an R2 selector consume this locator" — it is
+  // "does any PUBLIC consumer still read it". Those are different, and an
+  // earlier revision of this function conflated them in BOTH directions.
+  //
+  // A DELIVERED row (`r2_key` AND `media_url_cached` both present) has a durable
+  // public copy, and every consumer now prefers it:
+  //   * public gallery — `pickFullSizeUrl(cached, original)` is cached-first;
+  //   * building manifest — reads `primary_photo_r2_key` and serves the durable
+  //     object, falling back to the source locator only when no key exists;
+  //   * CRM `heroUrl` — now the same `pickFullSizeUrl`, so a delivered Cotality
+  //     row returns the durable R2 copy instead of the rotating locator.
+  // With no reader left, persisting a re-signed locator is a pure no-op write.
+  // This is the #530/#541 write-amplification win and it is RESTORED here.
+  //
+  // R2 PROCESSING STATE IS NOT A PUBLIC-DELIVERY PROOF. `policy-excluded`,
+  // legacy exact-9 and the `>9` overflow all mean "no R2 selector will fetch
+  // this" — they do NOT mean the public gallery stopped falling back to
+  // `media_url_original`. Those rows are UNMIRRORED, so their locator is the
+  // only thing serving the photo and MUST stay fresh. Suppressing them would
+  // trade Neon writes for stale provider URLs and broken images.
+  if (mediaRowDelivered(existing)) {
+    return { kind: 'suppress', reason: 'delivered-durable' };
+  }
+
+  const deliveryState: 'policy-excluded' | 'unreachable-overflow' | 'pending' =
+    isR2PolicyExcluded(existing)
+      ? 'policy-excluded'
+      : mediaRowMirrorUnreachable(existing)
+        ? 'unreachable-overflow'
+        : 'pending';
+
+  // Exactly 8 stays recovery-reachable in media-sync. Labelled separately for
+  // observability; the outcome is the same refresh either way.
+  const reason =
+    existing.r2_attempts === R2_RETRY_EXHAUSTED_THRESHOLD ? 'exact8-recovery' : 'pending';
+  return { kind: 'refresh-locator', reason, deliveryState };
 }
 
 /**
@@ -967,6 +1088,10 @@ export async function upsertListingMedia(
   let skippedUnchanged = 0;
   let deliveryUrlRefreshed = 0; // material-unchanged but written to refresh a not-yet-mirrored URL
   let suppressedMirrorUnreachable = 0; // suppressed: un-mirrored but no R2 selector can reach it (>8)
+  // BOUNDED AGGREGATE observability so a future Production measurement can tell
+  // the suppression reasons apart. Counts only — no URL, MediaKey, address or
+  // any other per-row value, and no new DB writer.
+  const persistenceReasons: Record<string, number> = {};
   let suppressedUrlSignatureRotation = 0; // suppressed: URL query/sig rotated (origin+pathname identical)
   let suppressedUrlIdentityChanged = 0; // suppressed: URL origin/pathname changed (potential asset replacement)
   let writeFailures = 0; // per-row create/update failures (isolated; batch continues, listing fails closed)
@@ -1022,6 +1147,10 @@ export async function upsertListingMedia(
         // READ-only: lets the URL-refresh exception skip rows no R2 selector
         // can ever reach (see mediaRowMirrorUnreachable).
         r2_attempts: true,
+        // READ-only: EXPLICIT policy exclusion. `buildR2BacklogWhere` already
+        // filters on `r2_policy_excluded_at: null`, so a non-null value proves
+        // no R2 selector can consume a refreshed locator.
+        r2_policy_excluded_at: true,
       },
     });
     if (existing) {
@@ -1061,18 +1190,65 @@ export async function upsertListingMedia(
       // and keeps refreshing.
       const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
       const mirrorUnreachable = mediaRowMirrorUnreachable(existing);
-      if (materialUnchanged && (mediaRowDelivered(existing) || mirrorUnreachable)) {
+      // (1) THE MISSING NO-OP GATE. The material comparator deliberately
+      // EXCLUDES the URL, so "material unchanged" says nothing about the
+      // locator. Nothing above ever compared the locator itself, which meant a
+      // BYTE-IDENTICAL `media_url_original` on a pending row still fell through
+      // to a physical `update()` every cycle. There is nothing to refresh when
+      // no new locator was received — that is a pure no-op write.
+      const locatorIdentical =
+        (existing.media_url_original ?? null) === (row.mediaUrlOriginal ?? null);
+      // (2) EXPLICIT POLICY EXCLUSION. Delegated to the ONE interpreter rather
+      // than re-deriving `=== 9` here: it understands the explicit column AND
+      // the exact-9 legacy sentinel, and it never treats the >9 overflow as
+      // policy. A policy-excluded row is filtered out of the backlog, so a
+      // refreshed locator has no consumer — same reasoning as
+      // `mirrorUnreachable`, extended to the post-cutover state.
+      const policyExcluded = isR2PolicyExcluded(existing);
+      const locatorHasNoConsumer =
+        mediaRowDelivered(existing) || mirrorUnreachable || policyExcluded;
+      const decision = decideMediaRowPersistence({
+        materialUnchanged,
+        existingLocator: existing.media_url_original ?? null,
+        incomingLocator: row.mediaUrlOriginal ?? null,
+        existing,
+      });
+      persistenceReasons[decision.reason] = (persistenceReasons[decision.reason] ?? 0) + 1;
+      if (decision.kind === 'refresh-locator') {
+        // OBSERVATIONAL: how many refreshes land on rows that already have
+        // durable R2 delivery. That is the population a corrected hero/manifest
+        // contract could later suppress — recorded, not acted on.
+        const k = `refresh_while_${decision.deliveryState}`;
+        persistenceReasons[k] = (persistenceReasons[k] ?? 0) + 1;
+      }
+
+      if (decision.kind === 'suppress') {
         skippedUnchanged++;
-        if (mirrorUnreachable && !mediaRowDelivered(existing)) suppressedMirrorUnreachable++;
+        // Retained counter: the un-mirrored-and-unreachable population is now
+        // only suppressed when the locator is IDENTICAL, so this counts that
+        // subset rather than the old blanket suppression.
+        if (mediaRowMirrorUnreachable(existing) && !mediaRowDelivered(existing)) suppressedMirrorUnreachable++;
         // Split (Codex P2): the URL is excluded from the material decision, so a
         // suppressed row may differ by a harmless signature rotation OR a real
         // origin/pathname change. Attribute each precisely (mutually exclusive:
         // media_url_exact === identity + identity_equivalent).
         if (mm.media_url_identity_equivalent) suppressedUrlSignatureRotation++;
         if (mm.media_url_identity) suppressedUrlIdentityChanged++;
-        continue; // no material change + already delivered → skip the write
+        continue;
       }
       try {
+        if (decision.kind === 'refresh-locator') {
+          // NARROW BY CONTRACT. A locator refresh is NOT a material refresh:
+          // every material/provenance field was already proven unchanged, so
+          // rewriting them would manufacture the churn this decision exists to
+          // remove. Only the delivery locator is persisted.
+          await prisma.listingMedia.update({
+            where: { media_key: row.mediaKey },
+            data: { media_url_original: row.mediaUrlOriginal },
+          });
+          deliveryUrlRefreshed++;
+          continue;
+        }
         await prisma.listingMedia.update({
           where: { media_key: row.mediaKey },
           data: {
@@ -1091,10 +1267,10 @@ export async function upsertListingMedia(
             status: "active",
           },
         });
-        // A genuine material change vs. a delivery-only URL refresh (material
-        // unchanged but not yet mirrored → the fresh URL is genuinely needed).
-        if (materialUnchanged) deliveryUrlRefreshed++;
-        else updatedChanged++;
+        // Reaching here means `decision.kind === 'material-write'`; the
+        // locator-refresh branch above already `continue`d after its narrow
+        // write, so this counter is no longer ambiguous.
+        updatedChanged++;
       } catch {
         // Isolate the failure to this row — count it and continue so one bad
         // write cannot drop the rest of the listing's media. No URL/id logged.
@@ -1253,6 +1429,29 @@ export interface SummarySourceRow {
   r2_key: string | null;
   media_modification_ts: Date | null;
   modification_ts: Date | null;
+  /**
+   * Namespace evidence for HERO AUTHORITY — an explicit `crm:` set-main
+   * outranks the feed's PreferredPhotoYN hint. Optional so existing callers
+   * that have not widened their select keep byte-identical hero ordering.
+   */
+  media_key?: string | null;
+  /**
+   * Classification evidence required for PARITY with the canonical public
+   * reader. Added 2026-08-07 (commit 7A).
+   *
+   * Without these the summary could only test `media_type === 'Photo'`, while
+   * the canonical resolver also weighs category, classification and the Trestle
+   * DOCUMENT-* URL shape. Because `classifyTrestleMediaCategory` defaults a
+   * MISSING MediaCategory to Photo, a row could be STORED as Photo while being
+   * CANONICALLY a FloorPlan — so `Listing.photo_count` reported 2 where the
+   * public gallery showed 1 (proven: summary-canonical-parity fixtures C/D).
+   *
+   * OPTIONAL so callers that have not widened their select still compile. When
+   * absent, `classifyMediaItem` falls back to `media_type`, i.e. exactly the
+   * previous behaviour — a narrower caller is no worse off than before.
+   */
+  media_category?: string | null;
+  media_classification?: string | null;
 }
 
 /**
@@ -1289,15 +1488,48 @@ export interface HeroPhotoCandidate {
   status: string;
   preferred_photo_yn: boolean;
   order: number;
+  /**
+   * OPTIONAL so callers that have not widened their `select` keep their exact
+   * pre-existing ordering: with no key present, no row can be identified as a
+   * CRM choice and the comparator falls through to the original
+   * preferred/order logic. Present, it enables the CRM-choice precedence
+   * documented on {@link selectHeroPhoto}.
+   */
+  media_key?: string | null;
 }
 
-/** Active-Photo eligibility filter shared by hero selection and photo_count. */
+/**
+ * Active-Photo eligibility filter shared by hero selection and photo_count.
+ *
+ * DELEGATES to the canonical `classifyMediaItem` (commit 7A). It previously
+ * tested only `String(r.media_type).toLowerCase() === 'photo'`, which the
+ * canonical public reader does not — the reader also weighs MediaCategory,
+ * MediaClassification and the Trestle DOCUMENT-* URL shape.
+ *
+ * That gap was real, not theoretical: `classifyTrestleMediaCategory` defaults a
+ * MISSING MediaCategory to Photo, so a floor plan arriving with no category was
+ * STORED as `media_type='Photo'` and counted here, while the public gallery
+ * correctly classified it as a FloorPlan from its `DOCUMENT-Pdf` URL. The card
+ * then advertised one more photo than the gallery contained.
+ *
+ * The classifier is REUSED, not reimplemented — a second copy would drift.
+ */
 function filterActivePhotoRows<T extends HeroPhotoCandidate>(rows: readonly T[]): T[] {
-  return rows.filter(
-    (r) =>
-      String(r.status).toLowerCase() === "active" &&
-      String(r.media_type).toLowerCase() === "photo",
-  );
+  return rows.filter((r) => {
+    if (String(r.status).toLowerCase() !== "active") return false;
+    const row = r as unknown as SummarySourceRow;
+    return (
+      classifyMediaItem({
+        // `classifyMediaItem` reads category first and falls back to mediaType,
+        // so a row whose caller has not widened its select behaves exactly as
+        // it did before this change.
+        mediaCategory: row.media_category ?? undefined,
+        mediaClassification: row.media_classification ?? undefined,
+        mediaType: row.media_type,
+        url: row.media_url_original ?? "",
+      }) === "photo"
+    );
+  });
 }
 
 /**
@@ -1323,6 +1555,24 @@ export function selectHeroPhoto<T extends HeroPhotoCandidate>(
   // input order for the "first-encountered" tiebreak.
   const indexedPhotos = photos.map((row, idx) => ({ row, idx }));
   indexedPhotos.sort((a, b) => {
+    // HERO AUTHORITY, rank 1: an explicit CRM choice outranks the feed hint.
+    //
+    // A `crm:` row with preferred_photo_yn=true is the agent's deliberate
+    // set-main. Previously it tied with a feed row that also had
+    // PreferredPhotoYN=true and then LOST on `order` (feed rows occupy 0..N,
+    // CRM uploads are appended after) — so the agent's choice silently
+    // reverted. The old set-main "fixed" that by clearing preferred_photo_yn
+    // on the feed rows, which mutated source-owned metadata that media-sync
+    // rewrites from the feed on every complete set (:1263/:1293) and counts as
+    // a MATERIAL change (:975) — a revert plus per-sync write amplification.
+    //
+    // Ranking here instead makes the choice durable with NO write to any feed
+    // row. Rows without a media_key are never CRM-preferred, so a caller that
+    // has not widened its select keeps byte-identical ordering.
+    const aCrm = a.row.preferred_photo_yn && isCrmMediaKey(a.row.media_key);
+    const bCrm = b.row.preferred_photo_yn && isCrmMediaKey(b.row.media_key);
+    if (aCrm !== bCrm) return aCrm ? -1 : 1;
+
     if (a.row.preferred_photo_yn !== b.row.preferred_photo_yn) {
       return a.row.preferred_photo_yn ? -1 : 1;
     }
@@ -1394,6 +1644,16 @@ export interface StoredListingMediaSummary {
   primary_photo_r2_key: string | null;
   photo_count: number | null;
   photos_change_timestamp: Date | null;
+  /**
+   * Current address — used ONLY to decide which building / manifest shard to
+   * expire when the summary materially changes.
+   *
+   * Deliberately NOT part of `listingMediaSummaryUnchanged`: an address is not
+   * summary state, and comparing it would suppress or force summary writes for
+   * the wrong reason. Optional so existing callers and fixtures that do not
+   * select it still compile and behave exactly as before.
+   */
+  address?: unknown;
 }
 
 /**
@@ -1517,6 +1777,19 @@ export async function updateListingMediaSummary(
       r2_key: true,
       media_modification_ts: true,
       modification_ts: true,
+      // HERO AUTHORITY (namespace). `selectHeroPhoto` ranks an explicit `crm:`
+      // set-main above the feed's PreferredPhotoYN hint. Without media_key the
+      // summary's hero could not see that choice, while the Phase-3 mirror hero
+      // (which DOES select media_key) would — and the comment there asserts the
+      // two populations decide an IDENTICAL hero. Selecting it keeps that true.
+      media_key: true,
+      // Classification evidence — commit 7A. Without these the summary could
+      // only see `media_type`, and a floor plan that arrived with no
+      // MediaCategory (stored as Photo by classifyTrestleMediaCategory) was
+      // counted as a photo, so Listing.photo_count exceeded the public gallery.
+      // Two scalar columns on rows already being read: no extra query, no join.
+      media_category: true,
+      media_classification: true,
     },
   });
 
@@ -1534,6 +1807,10 @@ export async function updateListingMediaSummary(
         primary_photo_r2_key: true,
         photo_count: true,
         photos_change_timestamp: true,
+        // `address` on the EXISTING pre-read (no new query, no N+1): a summary
+        // change alters public photo state, which the BUILDING payload and the
+        // manifest shard carry (primary_photo_url) — so they must expire too.
+        address: true,
       },
     });
   } catch {
@@ -1561,9 +1838,82 @@ export async function updateListingMediaSummary(
   // One Cycle W1: the summary (hero/count/photo-revision) materially changed
   // → refresh this listing's cached public page. Never throws; a suppressed
   // (unchanged) summary above performs NO revalidation.
-  safeRevalidateTags([listingCacheTag(listingId)], options?.revalidation);
+  // Same canonical tag set the listing/legacy-media writers use, so the three
+  // writers cannot hold three opinions about what a public media change
+  // expires. A summary change never moves a listing between buildings, so the
+  // current address is both sides — no query to invent a transition.
+  safeRevalidateTags(
+    publicListingChangeTags(listingId, stored?.address, stored?.address).tags,
+    options?.revalidation,
+  );
 
   return summary;
+}
+
+/** Accounting for {@link propagateMirroredHeroSummaries}. */
+export interface MirroredSummaryPropagation {
+  listings_refreshed: number;
+  listings_skipped_budget: number;
+  listings_failed: number;
+}
+
+/**
+ * Refresh the `Listing` media summary for every listing touched by the Phase-3
+ * R2 drain, IN THE SAME INVOCATION.
+ *
+ * WHY THIS EXISTS. The drain wrote `listing_media.r2_key` and stopped. Nothing
+ * updated the Listing summary, so `primary_photo_r2_key` stayed stale until some
+ * future Phase-1 pass happened to call `updateListingMediaSummary` for that
+ * listing — possibly never, for a listing whose feed rows are not changing. The
+ * PUBLIC surfaces read the summary, not the media rows: the building manifest
+ * serves its durable hero from `primary_photo_r2_key` and cards/detail read
+ * `primary_photo_url`. So a hero could be mirrored to R2 while the site kept
+ * serving the rotating Cotality locator.
+ *
+ * WRITE-SAFE BY CONSTRUCTION. `updateListingMediaSummary` pre-reads and
+ * suppresses a no-op write (`listingMediaSummaryUnchanged`), so a listing whose
+ * summary did not actually change costs one read and produces no write and no
+ * revalidation. Only genuine changes write and expire cache tags.
+ *
+ * NO SILENT CAP. When the time budget runs out the remainder is REPORTED in
+ * `listings_skipped_budget` rather than dropped quietly — a truncated pass must
+ * not read as "everything was refreshed". Skipped listings are picked up by the
+ * next run.
+ */
+export async function propagateMirroredHeroSummaries(
+  listingIds: readonly string[],
+  deps: {
+    updateSummary: (listingId: string) => Promise<unknown>;
+    remainingMs: () => number;
+    reserveMs?: number;
+  },
+): Promise<MirroredSummaryPropagation> {
+  const reserveMs = deps.reserveMs ?? 0;
+  // Dedupe: one drain chunk commonly mirrors several rows of the SAME listing,
+  // and the summary is per-listing.
+  const unique = [...new Set(listingIds.filter(Boolean))];
+
+  let refreshed = 0;
+  let failed = 0;
+  let index = 0;
+
+  for (; index < unique.length; index++) {
+    if (deps.remainingMs() <= reserveMs) break;
+    try {
+      await deps.updateSummary(unique[index]);
+      refreshed++;
+    } catch {
+      // Never fail the sync run for a summary refresh: the row-level R2 work is
+      // already committed, and the next run retries this listing.
+      failed++;
+    }
+  }
+
+  return {
+    listings_refreshed: refreshed,
+    listings_skipped_budget: unique.length - index,
+    listings_failed: failed,
+  };
 }
 
 // ─── Checkpoint 4 — R2 upload + reuse behavior ──────────────────────────
@@ -1626,7 +1976,7 @@ export const R2_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
  * `R2_TOMBSTONE_4XX_THRESHOLD` (3) so transient failures get MORE retries than a
  * permanent 404/410 before parking.
  */
-export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
+// Owned by lib/media/r2-policy-state (see the re-export near the imports).
 
 /**
  * R2-1 Blocker-1 — POLICY-PARKED sentinel value for `r2_attempts`.
@@ -1663,7 +2013,7 @@ export const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
  * any failure path. 9 can therefore ONLY be produced by the policy-parking
  * `updateMany` in `runMediaSync` Phase 3.
  */
-export const R2_POLICY_PARKED_ATTEMPTS = 9;
+// Owned by lib/media/r2-policy-state (see the re-export near the imports).
 
 // ─── R2-1 — mirror admission policy (approved by Maya, R2-0, 2026-07) ─────
 //
@@ -1844,40 +2194,94 @@ export function buildR2MirrorPolicyMediaWhere(): Prisma.ListingMediaWhereInput {
  * 135.8 GiB. It is intentionally NOT reachable anymore — every backlog SELECT
  * goes through this function, which always ANDs the policy filter.
  */
-export function buildR2BacklogWhere(
-  cooldownThreshold: Date,
-  attemptedIds: bigint[],
-): Prisma.ListingMediaWhereInput {
+/**
+ * THE MIRRORABLE BACKLOG UNIVERSE — the single definition of "R2 work that
+ * still genuinely exists".
+ *
+ * Extracted 2026-08-09 after an independent audit found the Phase-4
+ * `backlog_remaining` probe had hand-rebuilt this universe and drifted from the
+ * real selector, omitting `media_key: { not: null }` and
+ * `r2_policy_excluded_at: null`. That omission was masked while a policy
+ * exclusion also stamped `r2_attempts = 9`; the writer cutover deliberately
+ * stopped writing that sentinel, so parked rows began passing the probe's
+ * attempts clause and were counted as backlog forever.
+ *
+ * The count is a CONTROL-PLANE input, not just telemetry:
+ *   backlog_remaining -> deriveOneCycleFollowup -> backlogPending
+ *     -> nextBacklogRunAt -> preflight `backlog_due` -> another One Cycle wake
+ * and -> measureBacklogInflow -> computeAdaptiveDrainLimit. A phantom backlog
+ * therefore wakes Neon forever and inflates every drain batch.
+ *
+ * Both consumers MUST layer on this base so they cannot diverge again:
+ *   * {@link buildR2BacklogWhere}   adds cooldown + per-invocation exclusions
+ *   * the Phase-4 probe             uses this base verbatim
+ *
+ * COOLDOWN IS DELIBERATELY NOT HERE. A cooldown-deferred row is temporally
+ * deferred, not excluded — it is still outstanding work, so it MUST count as
+ * backlog pending even though this invocation skips it. Putting the cooldown in
+ * the shared base would make the control plane report an empty backlog while
+ * real work remained.
+ */
+export function buildR2MirrorableBacklogUniverseWhere(): Prisma.ListingMediaWhereInput {
   return {
     status: "active",
     media_url_original: { not: null },
     // Unmirrorable rows (media_key IS NULL — schema-legal on legacy/remediation
     // rows) can never be written by the mirror (update-by-media_key), so they
-    // would monopolize the fixed bounded window forever (Codex post-merge).
+    // would monopolize the fixed bounded window forever (Codex post-merge) and
+    // would inflate backlog_remaining with work no code can ever perform.
     media_key: { not: null },
     OR: [{ r2_key: null }, { media_url_cached: null }],
-    // Exclude rows already attempted this invocation (empty ⇒ no filter).
-    ...(attemptedIds.length > 0 ? { id: { notIn: attemptedIds } } : {}),
     AND: [
-      // Cross-invocation 6h cooldown.
-      {
-        OR: [
-          { r2_last_attempt_at: null },
-          { r2_last_attempt_at: { lt: cooldownThreshold } },
-        ],
-      },
       // RC3 retry-exhausted exclusion — park non-permanent rows that keep
       // failing so they stop consuming Phase-3 budget. The row stays active
       // (photo still serves via the media_url_original proxy) — NOT deleted.
+      //
+      // This clause ALSO still excludes LEGACY rows parked at the old
+      // `r2_attempts = 9` sentinel (9 is not < 8), which is what makes the
+      // writer cutover safe without a backfill or a sentinel conversion.
       {
         OR: [
           { r2_attempts: null },
           { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
         ],
       },
+      // R2 DELIVERY-POLICY exclusion (explicit column).
+      //
+      // The sentinel used to do double duty: it recorded the policy decision
+      // AND removed the row from the SELECT. Now that a policy exclusion writes
+      // its own column, THIS is what keeps a parked row out of the backlog —
+      // and, equally, out of the backlog COUNT.
+      { r2_policy_excluded_at: null },
       // R2-1 admission control (cheap DB-side part — see
       // buildR2MirrorPolicyMediaWhere; hero-only refinement happens in code).
       buildR2MirrorPolicyMediaWhere(),
+    ],
+  };
+}
+
+export function buildR2BacklogWhere(
+  cooldownThreshold: Date,
+  attemptedIds: bigint[],
+): Prisma.ListingMediaWhereInput {
+  const universe = buildR2MirrorableBacklogUniverseWhere();
+  const universeAnd = (universe.AND as Prisma.ListingMediaWhereInput[]) ?? [];
+  return {
+    ...universe,
+    // Exclude rows already attempted this invocation (empty ⇒ no filter).
+    ...(attemptedIds.length > 0 ? { id: { notIn: attemptedIds } } : {}),
+    AND: [
+      // Cross-invocation 6h cooldown — the ONE predicate that belongs to the
+      // candidate selector and NOT to the backlog universe. Kept FIRST so the
+      // established positional assertion in media-sync-phase4-backlog.test.ts
+      // continues to address the same clause.
+      {
+        OR: [
+          { r2_last_attempt_at: null },
+          { r2_last_attempt_at: { lt: cooldownThreshold } },
+        ],
+      },
+      ...universeAnd,
     ],
   };
 }
@@ -2020,6 +2424,17 @@ export function buildR2ParkedRecoveryWhere(
     // EXACT match — see doc above (#534 policy sentinel lives at 9+).
     r2_attempts: R2_RETRY_EXHAUSTED_THRESHOLD,
     r2_last_attempt_at: { lt: parkedCooldownThreshold },
+    // EXPLICIT POLICY EXCLUSION also applies here (2026-08-09 audit).
+    //
+    // Recovery runs its chunk through the SAME `mirrorChunk`, which pushes
+    // deterministic admission rejections onto `policyParkIds` even when
+    // `recoveryAttempt` is true. So an exactly-8 row can acquire
+    // `r2_policy_excluded_at` while KEEPING attempts = 8 — the park writer
+    // deliberately no longer touches the counter. Without this clause recovery
+    // re-selects that row every cooldown cycle to re-fetch, re-reject and
+    // re-park it: the exact "resurface forever" loop the explicit column was
+    // introduced to end, left open on the recovery path.
+    r2_policy_excluded_at: null,
     // R2-1: recovery must never re-admit media the mirror policy would
     // reject — the same listing-scoped admission filter as the main
     // backlog SELECT (defense-in-depth; the in-chunk filter re-verifies).
@@ -2737,6 +3152,15 @@ export interface RunMediaSyncResult {
   /** One Cycle W1 — bounded aggregate cache-revalidation counters. */
   pages_revalidated: number;
   revalidation_failures: number;
+  /**
+   * Phase-3b: Listing summaries refreshed in the SAME invocation as the R2
+   * mirror that changed them. `skipped_budget > 0` means the pass ran out of
+   * time with listings still stale — surfaced rather than silently dropped, so
+   * a truncated run cannot be mistaken for a complete one.
+   */
+  summary_propagation_refreshed: number;
+  summary_propagation_skipped_budget: number;
+  summary_propagation_failed: number;
   // ── One Cycle W3 — durable drain counters ──
   /** Measured backlog inflow since the prior run (null = history unusable → MIN fallback). */
   backlog_inflow_since_last_run: number | null;
@@ -2881,45 +3305,21 @@ async function defaultFetchProperties(
   return (data.value || []) as TrestleProperty[];
 }
 
-/** One page of an OData Media response. `nextLink` is `@odata.nextLink` or null. */
-export interface MediaPage {
-  value: unknown[];
-  nextLink: string | null;
-}
-
-/**
- * RC1 — follow `@odata.nextLink` until the Media response is exhausted, so the
- * caller has the COMPLETE current media set for a listing before it writes or
- * tombstones. Returns `complete: false` (and whatever rows were gathered) when
- * any page fetch fails OR the page count exceeds `maxPages` (runaway guard) —
- * the caller MUST then preserve existing media and NOT tombstone (a missing key
- * on an incomplete response is not proven deleted at source).
- *
- * Pure over an injected `fetchPage` so the pagination loop is unit-testable
- * without the network. Production wraps `defaultFetchMediaPage`.
- */
-export async function paginateMedia(
-  firstUrl: string,
-  fetchPage: (url: string) => Promise<MediaPage>,
-  maxPages = 50,
-): Promise<{ rows: UpsertListingMediaInput[]; complete: boolean }> {
-  const rows: UpsertListingMediaInput[] = [];
-  let url: string | null = firstUrl;
-  let pages = 0;
-  while (url) {
-    if (pages >= maxPages) return { rows, complete: false }; // fail closed on runaway
-    let page: MediaPage;
-    try {
-      page = await fetchPage(url);
-    } catch {
-      return { rows, complete: false }; // a failed page ⇒ incomplete ⇒ no destructive write
-    }
-    for (const r of page.value) rows.push(r as UpsertListingMediaInput);
-    url = page.nextLink;
-    pages++;
-  }
-  return { rows, complete: true };
-}
+// ONE DEFINITION OF ODATA MEDIA COMPLETENESS.
+//
+// `paginateMedia` + `MediaPage` now live in `./fetch` so that ALL THREE callers
+// — this module's `defaultFetchMedia`, `sync.ts` batch-media, and
+// `fetch.ts`'s `fetchListingMedia` — share the SAME page follower. They are
+// re-exported here so every existing importer (and its tests) keeps working
+// against a single definition rather than a copy.
+//
+// Direction matters: the follower moved DOWN into `fetch` (which has no Prisma
+// import) rather than `fetch` importing this Prisma-backed module, so the
+// pre-Neon skip boundary proven in commit 8 is not weakened.
+export { paginateMedia, type MediaPage } from "./media-pagination";
+// Also imported for this module's OWN use (`defaultFetchMedia` /
+// `defaultFetchMediaPage`): a re-export does not bring names into local scope.
+import { paginateMedia, type MediaPage } from "./media-pagination";
 
 async function defaultFetchMediaPage(url: string): Promise<MediaPage> {
   const token = await defaultGetAccessToken();
@@ -2956,14 +3356,28 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));
 
   const firstUrl = `${TRESTLE_API}/odata/Media?${params.toString()}`;
-  const { rows, complete } = await paginateMedia(firstUrl, defaultFetchMediaPage);
+  // The shared follower is generic; this caller's rows are Media upsert inputs.
+  const { rows, complete } = await paginateMedia<UpsertListingMediaInput>(
+    firstUrl,
+    defaultFetchMediaPage,
+  );
   if (!complete) {
     throw new Error(`Media pagination incomplete for ResourceRecordKey='${resourceRecordKey}'`);
   }
   return rows;
 }
 
-const defaultFetchDeps: MediaSyncFetchDeps = {
+/**
+ * The production fetch dependencies.
+ *
+ * EXPORTED so a caller overriding ONE dependency can spread these and keep the
+ * rest canonical. `runMediaSync` resolves `options.fetchDeps ?? defaultFetchDeps`,
+ * so a PARTIAL object silently replaces the WHOLE set: overriding
+ * `fetchProperties` alone leaves `fetchMedia` undefined and every listing fails
+ * (observed as `failed:1`, `status:partial`, zero rows checked). Spreading this
+ * makes "keep production media fetching" explicit and impossible to half-do.
+ */
+export const defaultFetchDeps: MediaSyncFetchDeps = {
   fetchProperties: defaultFetchProperties,
   fetchMedia: defaultFetchMedia,
 };
@@ -3231,6 +3645,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_failed: 0,
       pages_revalidated: 0,
       revalidation_failures: 0,
+      // Source fetch failed before Phase 3 ran, so nothing was mirrored and
+      // nothing is pending: zero refreshed AND zero skipped is accurate here.
+      summary_propagation_refreshed: 0,
+      summary_propagation_skipped_budget: 0,
+      summary_propagation_failed: 0,
       backlog_inflow_since_last_run: null,
       rows_selected: 0,
       rows_attempted: 0,
@@ -3542,6 +3961,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // Without this write the rejected rows would re-match the backlog where on
   // every firing and starve valid heroes (no select-then-reject-without-state).
   const policyParkIds: bigint[] = [];
+  /**
+   * Listings whose media rows actually gained (or reused) an R2 object this run.
+   * Their `Listing` summary is refreshed before the run returns — see
+   * {@link propagateMirroredHeroSummaries}. Deduped there, not here.
+   */
+  const mirroredListingIds: string[] = [];
   const backlogSelect = {
     // `id` is required for de-duplication — never passed to mirrorMediaToR2.
     id: true,
@@ -3720,15 +4145,25 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       }),
     );
     let failedInChunk = 0;
-    for (const r of results) {
+    // Indexed so each result can be attributed back to its row: `results` is
+    // positionally parallel to `admittedRows` (Promise.allSettled preserves
+    // input order), which is what lets a mirrored row record its listing for
+    // the same-invocation summary refresh below.
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
       if (r.status === "fulfilled") {
         const v = r.value;
         if (v.status === "uploaded") {
           r2Uploaded++;
           r2Mirrored++; // legacy aggregate = uploaded + reused
+          mirroredListingIds.push(admittedRows[i].listing_id);
         } else if (v.status === "reused") {
           r2Reused++;
           r2Mirrored++;
+          // REUSE COUNTS. An existing R2 object being adopted still moves this
+          // row's delivery state from "no r2_key" to "has r2_key", so the
+          // listing summary can change even though nothing was uploaded.
+          mirroredListingIds.push(admittedRows[i].listing_id);
         } else if (v.status === "skipped") r2Skipped++;
         else if (v.status === "failed") {
           r2Failed++;
@@ -3868,6 +4303,28 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     exitReason = "budget_phase2";
   }
 
+  // ── PHASE 3b: propagate mirrored heroes into the Listing summary ──────
+  //
+  // SAME INVOCATION, deliberately. The drain above wrote `listing_media.r2_key`;
+  // without this step the `Listing` summary keeps pointing at the rotating
+  // Cotality locator until some future Phase-1 pass happens to refresh that
+  // listing — which may never happen for a listing whose feed rows are stable.
+  // The public surfaces read the SUMMARY (the building manifest serves its
+  // durable hero from `primary_photo_r2_key`; cards/detail read
+  // `primary_photo_url`), so cards, detail and manifest would otherwise
+  // disagree with the media rows for an unbounded period.
+  //
+  // Write-safe: `updateListingMediaSummary` pre-reads and suppresses an
+  // unchanged summary, so listings whose hero did not actually move cost a read
+  // and produce no write and no revalidation. Budget-aware, and the skipped
+  // remainder is reported rather than silently dropped.
+  const summaryPropagation = await propagateMirroredHeroSummaries(mirroredListingIds, {
+    updateSummary: (listingId) =>
+      updateListingMediaSummary(listingId, { counters: summaryWrites, revalidation }),
+    remainingMs,
+    reserveMs: phase2ReserveMs,
+  });
+
   // ── R2-1 Blocker-1: policy-parking flush (ONE statement per run) ──────
   // Write-churn justification (N-program write-reduction goals): this is a
   // ONE-TIME-PER-ROW convergence write — a parked row is permanently excluded
@@ -3878,11 +4335,28 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // parked. Batched: one updateMany over all ids collected this run.
   if (policyParkIds.length > 0) {
     try {
+      // WRITER CUTOVER: a policy exclusion records itself in its OWN column.
+      //
+      // It no longer assigns `r2_attempts = R2_POLICY_PARKED_ATTEMPTS`, so a
+      // deliberate policy decision can never again be read as nine failures,
+      // can never look retry-exhausted, and can never inflate a failure count
+      // the asset did not earn. Whatever REAL failure history the row already
+      // has is left exactly as it stands.
+      //
+      // It also no longer stamps `r2_last_attempt_at`: no attempt was made, and
+      // recording a fake cooldown was the same category error in the adjacent
+      // column. Exclusion from the backlog now comes from
+      // `buildR2BacklogWhere`'s explicit `r2_policy_excluded_at: null` clause,
+      // not from a side effect of the counter.
+      //
+      // LEGACY rows already parked at 9 are NOT converted and NOT backfilled —
+      // they stay excluded by the untouched `r2_attempts < 8` clause, and
+      // `lib/media/r2-policy-state.ts` still reads exact-9 as a policy
+      // exclusion for compatibility.
       const parked = await prisma.listingMedia.updateMany({
         where: { id: { in: policyParkIds } },
         data: {
-          r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
-          r2_last_attempt_at: new Date(now()),
+          r2_policy_excluded_at: new Date(now()),
         },
       });
       mirrorRejectedPolicyParked = parked.count;
@@ -3900,30 +4374,22 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     // fix is the proposed (NOT applied) partial index — see the PR's
     // index-proposal section.
     const probe = await prisma.listingMedia.findMany({
-      where: {
-        status: "active",
-        media_url_original: { not: null },
-        OR: [{ r2_key: null }, { media_url_cached: null }],
-        // R2-1: count only the policy-admissible universe — an unscoped count
-        // would report the entire feed's never-to-be-mirrored media as
-        // "backlog" forever. Blocker-1: also exclude parked rows
-        // (policy-parked = 9, failure-exhausted = 8; both >=
-        // R2_RETRY_EXHAUSTED_THRESHOLD) — they are permanently out of the
-        // backlog SELECT, so counting them would report a "backlog" that can
-        // never drain. Remaining slack: non-hero photos of displayable
-        // third-party listings that have NOT YET been fetched-and-parked
-        // still match; each is counted at most until its one-time parking
-        // write, so this count converges to the true mirrorable backlog.
-        AND: [
-          {
-            OR: [
-              { r2_attempts: null },
-              { r2_attempts: { lt: R2_RETRY_EXHAUSTED_THRESHOLD } },
-            ],
-          },
-          buildR2MirrorPolicyMediaWhere(),
-        ],
-      },
+      // THE SHARED BACKLOG UNIVERSE — identical base to the Phase-3 candidate
+      // selector, by construction (see buildR2MirrorableBacklogUniverseWhere).
+      //
+      // This query previously rebuilt the universe by hand and drifted: it
+      // omitted `media_key: { not: null }` and `r2_policy_excluded_at: null`.
+      // Its old comment claimed parked rows were covered "policy-parked = 9,
+      // failure-exhausted = 8; both >= R2_RETRY_EXHAUSTED_THRESHOLD" — true
+      // only BEFORE the writer cutover stopped stamping the 9 sentinel. After
+      // the cutover a parked row keeps NULL/low attempts, so it passed this
+      // filter and was counted as backlog forever, waking One Cycle
+      // indefinitely via backlogPending. Reusing the base is what makes that
+      // class of drift impossible rather than merely fixed once.
+      //
+      // Cooldown is intentionally absent here: a cooldown-deferred row is still
+      // outstanding work and must count as backlog pending.
+      where: buildR2MirrorableBacklogUniverseWhere(),
       select: { id: true },
       take: R2_BACKLOG_PROBE_CAP + 1,
     });
@@ -3969,6 +4435,12 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     summary_writes: summaryWrites,
     pages_revalidated: revalidation.pages_revalidated,
     revalidation_failures: revalidation.revalidation_failures,
+    // Phase-3b same-invocation summary propagation. `skipped_budget > 0` means
+    // the pass ran out of time with listings still stale — reported, never
+    // silently dropped, so a truncated run cannot read as a complete one.
+    summary_propagation_refreshed: summaryPropagation.listings_refreshed,
+    summary_propagation_skipped_budget: summaryPropagation.listings_skipped_budget,
+    summary_propagation_failed: summaryPropagation.listings_failed,
     backlog_inflow_since_last_run: backlogInflow,
     rows_selected: r2BacklogBatchSelected + r2ParkedRecoverySelected,
     rows_attempted: rowsAttemptedTotal,

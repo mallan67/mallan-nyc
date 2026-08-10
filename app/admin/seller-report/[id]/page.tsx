@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { validateSession } from '@/lib/auth/session';
 import { loadSellerReport } from '@/lib/seller-report/load-report';
 import type { SellerReport } from '@/lib/seller-report/build-report';
+import { listingCapabilities } from '@/lib/auth/listing-capabilities';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,9 +115,11 @@ export default async function SellerReportPage({
   }
   if (!listing) notFound();
 
-  // Ownership: same rule as GET /api/crm/listings/[id] — agents see only
-  // their own listings; broker sees all.
-  if (user.role.toUpperCase() !== 'BROKER' && listing.agent_id !== user.userId) {
+  // Seller-side authority, not association — identical rule to the
+  // /api/crm/listings/[id]/seller-report route so the page and the API cannot
+  // diverge. Keeps notFound() (not 403) so the page does not confirm the
+  // existence of a listing the viewer has no authority over.
+  if (!listingCapabilities(user, listing).mayViewSellerReport) {
     notFound();
   }
 

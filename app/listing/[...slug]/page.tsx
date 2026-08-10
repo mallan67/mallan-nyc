@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
+import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
@@ -37,9 +39,8 @@ import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // that live dependency is what forced the route dynamic (no-store, cache MISS on
 // every request). Live Cotality calls live in the sync jobs and operational tools,
 // not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
-import { normalizeStreetCase } from '@/lib/idx/normalize-street-case';
-import { buildAuctionPublic, resolveMoveInFees, mapPropertyTypeToDisplay, type PublicListingDTO } from '@/lib/idx/public-dto';
-import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
+import type { PublicListingDTO } from '@/lib/idx/public-dto';
+import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { cache } from 'react';
@@ -51,7 +52,16 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 import prisma from '@/lib/prisma';
 import { attachListingCacheTags } from '@/lib/cache/public-cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { classifyMediaItem, resolveDbListingMedia, toDtoMedia, getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+// `classifyMediaItem`, `resolveDbListingMedia` and `toDtoMedia` are deliberately
+// NOT imported here any more. Composing media — resolving, proxying, classifying,
+// ordering, hero selection, dedupe and photo counting — is owned solely by
+// `composeDbPublicMedia`. The getters below are read-only VIEWS over an already
+// composed result, not a second composition.
+import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
+import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
+import { publicListOfficeName } from '@/lib/idx/public-attribution';
+import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
@@ -84,11 +94,33 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
   return [];
 }
 
-function proxyDetailMediaUrl(rawUrl: string): string {
-  return rawUrl.includes('cotality.com') || rawUrl.includes('corelogic.com')
-    ? `/api/media/proxy?url=${encodeURIComponent(rawUrl)}`
-    : rawUrl;
-}
+/**
+ * Public media URL policy for the detail route.
+ *
+ * DELEGATES to the canonical `proxyTrestleUrl` — this route no longer owns a
+ * second, independent implementation.
+ *
+ * THE DEFECT THIS REPLACES: the previous local version tested the WHOLE string
+ * for `cotality.com` / `corelogic.com`. But `resolveDbListingMedia` has ALREADY
+ * proxied every relational Cotality row, so the hostname is still present inside
+ * the encoded `url=` parameter of an already-proxied relative URL. It matched,
+ * and wrapped a second time:
+ *
+ *   /api/media/proxy?url=%2Fapi%2Fmedia%2Fproxy%3Furl%3Dhttps%253A%252F%252F...
+ *
+ * The proxy route requires an ABSOLUTE URL on an approved host. The nested value
+ * is relative, so the allowlist rejected it and returned 403 — proven live on
+ * production 2026-08-06 (nested -> 403, single-proxied -> 200, 1,356,147 bytes).
+ *
+ * The R2 hero carries no `cotality.com` substring, so it alone survived. On a
+ * post-policy listing (1 R2 hero + N Cotality-only rows, 6.3% mirrored since
+ * 2026-07-24) that renders as "67 photos" with exactly one usable image — the
+ * reported symptom, with no truncation anywhere in the chain.
+ *
+ * `proxyTrestleUrl` is idempotent by construction: it parses with `new URL()`,
+ * which throws on an already-proxied relative URL, and returns it unchanged.
+ */
+const proxyDetailMediaUrl = toPublicMediaUrl;
 
 interface LastSaleInfo {
   closePrice: number;
@@ -150,6 +182,19 @@ interface ListingFetchResult {
   listing: PublicListingDTO;
   tax: TrestleExtraFields;
   rawStreetName?: string;
+  /**
+   * Set when the requested row is a Mallan RLS return-copy with exactly one
+   * proven local physical-unit twin (CHARTER Section 1A).
+   *
+   * Carried as DATA rather than by calling `redirect()` inside `fetchFromDB`
+   * on purpose. `redirect()` signals by THROWING, and `fetchFromDB` wraps its
+   * body in a try/catch that logs anything thrown as a
+   * "database/infrastructure error"; `fetchListing` then memoizes through
+   * React `cache()`, and `generateMetadata` calls the same function. Throwing
+   * from in there would produce a misleading infra log and a cached throw on a
+   * path that is not the render. The page component performs the redirect.
+   */
+  canonicalRedirect?: string;
 }
 
 /**
@@ -162,12 +207,21 @@ interface ListingFetchResult {
 // so we don't over-fetch R2 timestamps, retry counters, or audit fields.
 const LISTING_MEDIA_INCLUDE = {
   listing_media: {
-    // Fetch ALL statuses (the resolver filters to active for display). This
-    // lets the reader distinguish "no rows ever imported" (→ fall back to the
-    // legacy media JSON) from "rows existed but all deleted" (→ authoritative
-    // empty). Filtering to active-only here resurrected soft-deleted CRM media
-    // via the JSON fallback once the last active row was deleted. (Codex media
-    // P0 finding #2.)
+    // ACTIVE ROWS ONLY — the gallery payload carries no deleted or replaced
+    // media. This page previously fetched EVERY status and let the resolver
+    // filter, which transferred soft-deleted and superseded rows on every
+    // detail render purely to answer an existence question.
+    //
+    // Existence is now answered by `_count` below instead. Those two changes
+    // are ATOMIC and must never be separated: `_count` supplies the ALL-STATUS
+    // signal that the row array can no longer provide. Narrowing this `where`
+    // WITHOUT `_count` would make an all-deleted listing look like "no rows
+    // ever imported" and resurrect soft-deleted CRM media through the legacy
+    // JSON fallback — Codex media P0 finding #2, the exact regression the old
+    // all-status fetch existed to prevent.
+    //
+    // Same contract `/api/listings` already uses (route.ts:393-412).
+    where: { status: 'active' as const },
     orderBy: [{ order: 'asc' as const }, { id: 'asc' as const }],
     select: {
       media_url_original: true,
@@ -181,6 +235,11 @@ const LISTING_MEDIA_INCLUDE = {
       media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Trestle rows
     },
   },
+  // ALL-STATUS existence signal. A Prisma aggregate subquery inside the SAME
+  // query — not a per-listing round-trip, so no N+1. This is what lets the
+  // reader distinguish "no row ever imported" (legacy fallback permitted) from
+  // "rows existed but all deleted" (authoritative empty).
+  _count: { select: { listing_media: true } },
 } satisfies Prisma.ListingInclude;
 
 async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
@@ -330,6 +389,61 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       return null;
     }
 
+    // MALLAN RLS RETURN-COPY CANONICALIZATION (CHARTER Section 1A).
+    //
+    // Public suppression keeps the returned Cotality twin out of search,
+    // sitemap, agent pages, comps, autocomplete and the building manifest — but
+    // a DIRECT hit on its own URL bypassed all of that, leaving one physical
+    // unit publicly reachable at two URLs with the wrong attribution.
+    //
+    // Exactly one PROVEN local twin -> redirect to the local canonical URL.
+    // Zero or several -> fail closed (404). Identity comes from the repo's
+    // existing physical-unit key, which requires a UnitNumber, so different
+    // units are never merged. The stored return-copy row is never touched.
+    //
+    // The candidate query runs ONLY for a verified return-copy — a rare, already
+    // suppressed URL — so it adds no cost to normal detail renders. It is
+    // deliberately uncapped: a `take` could hide the very twin being sought and
+    // silently downgrade a redirect into a 404.
+    if (isMallanRlsReturnCopy(dbListing)) {
+      const localCandidates = await prisma.listing.findMany({
+        where: {
+          OR: [
+            { listing_id: { startsWith: 'SL-' } },
+            { listing_id: { startsWith: 'RL-' } },
+            { rls_eligible: false },
+          ],
+        },
+        select: {
+          listing_id: true,
+          rls_eligible: true,
+          list_office_mls_id: true,
+          address: true,
+          borough: true,
+          // Gate columns `isAddressDisplayable` reads, so the twin's slug obeys
+          // the same address-suppression rule the DTO applies.
+          internet_address_display_yn: true,
+          internet_entire_listing_display_yn: true,
+          idx_display_yn: true,
+          status: true,
+        },
+      });
+      // `slug` is DERIVED, not a column. Use the shared owner so the redirect
+      // target is byte-identical to the URL the DTO/sitemap emit for that row.
+      const target = resolveReturnCopyCanonicalTarget(
+        dbListing,
+        localCandidates.map((c) => ({ ...c, slug: buildListingSlugFromDbRow(c) })),
+      );
+      if (target.kind === 'fail-closed') return null;
+      if (target.kind === 'redirect') {
+        return {
+          listing: { id: dbListing.listing_id } as unknown as PublicListingDTO,
+          tax: { taxBlock: null, taxLot: null },
+          canonicalRedirect: target.path,
+        };
+      }
+    }
+
     // Convert DB record to PublicListingDTO
     const addr = (dbListing.address as Record<string, string>) || {};
     const features = (dbListing.features as Record<string, unknown>) || {};
@@ -362,17 +476,28 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // stamps agent_id on third-party IDX rows). This page fetches ALL statuses
     // (LISTING_MEDIA_INCLUDE has no active-only filter), so the fetched rows are
     // the reliable all-status existence signal (hadRelationalRows).
-    const mediaArr: { url: string; thumbUrl?: string; mediaType: string; order: number; isPrimary?: boolean }[] = toDtoMedia(
-      resolveDbListingMedia(
-        listingMediaRows,
-        rawMedia,
-        {
-          listingId: dbListing.listing_id,
-          rlsEligible: dbListing.rls_eligible,
-        },
-        { hadRelationalRows: listingMediaRows.length > 0, legacyMapUrl: rawUrl => rawUrl },
-      ),
-    );
+    // ONE canonical composition, shared with `dbListingToPublicDTO`. This page
+    // no longer owns proxying, classification, ordering, hero selection, dedupe
+    // or photo counting — it consumes the result unchanged.
+    //
+    // `hadRelationalRows` comes from the ALL-STATUS `_count`, never from the
+    // fetched row array. The array now holds ACTIVE rows only, so its length
+    // reflects the active count, not existence: deriving from it would read
+    // "all deleted" as "never imported" and resurrect deleted Mallan media via
+    // the legacy JSON fallback. When `_count` is absent this is `undefined`
+    // (unknown), and the resolver fails closed for Mallan-owned media.
+    const hadRelationalRows =
+      typeof dbListing._count?.listing_media === 'number'
+        ? dbListing._count.listing_media > 0
+        : undefined;
+
+    const { media: mediaArr, photoCount: canonicalPhotoCount } = composeDbPublicMedia({
+      listingId: dbListing.listing_id,
+      rlsEligible: dbListing.rls_eligible,
+      tableRows: listingMediaRows,
+      legacyMedia: rawMedia,
+      hadRelationalRows,
+    });
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
     // contact card (typed: dbListing + resolvedAgent below); the legacy JSON base is now empty.
@@ -432,136 +557,30 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted.)
     const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
-    const dtoSlug = generateListingSlug({
-      address: {
-        streetNumber: addr.StreetNumber || '',
-        streetName: suppressAddress ? 'Address Undisclosed' : normalizeStreetCase(composeSlugStreetName(addr) || ''),
-        unitNumber: addr.UnitNumber || null,
-        city: addr.City || '',
-        stateOrProvince: addr.StateOrProvince || 'NY',
-        postalCode: addr.PostalCode || dbListing.postal_code || '',
-      },
-      id: dbListing.listing_id,
-      mlsId: dbListing.mls_id || undefined,
-      // Drive the slug from the SAME suppression decision used for the address
-      // text (and matching dbListingToPublicDTO), NOT the raw column. Using the
-      // raw internet_address_display_yn here made a CRM exclusive show its
-      // address text but build a suppressed `listing-{id}` slug → canonical
-      // mismatch with the agent/card URL → "Listing Not Available". (2026-05-29)
-      internetAddressDisplayYN: !suppressAddress,
-    });
+    // ── ONE PUBLIC DTO OWNER ────────────────────────────────────────────
+    // The base public DTO now comes from the canonical builder instead of being
+    // rebuilt here. The detail query already supplies exactly what it consumes:
+    // the full Listing row, ACTIVE listing_media, and the all-status _count.
+    //
+    // The ~130 lines this replaces had DRIFTED from the canonical owner, and the
+    // differences were stale rather than intentional: raw `status` instead of
+    // the canonical display status, `originalListPrice` pinned to the CURRENT
+    // list price, `closePrice` hardcoded null, contract/modification dates read
+    // from the features JSON instead of the typed columns, and a separately
+    // composed source/compliance block. Deleting them is the fix; reproducing
+    // them would have preserved the drift.
+    const baseDto = dbListingToPublicDTO(dbListing);
+
     const dto: PublicListingDTO = {
-      id: dbListing.listing_id,
-      mlsId: dbListing.mls_id || dbListing.listing_id,
-      slug: dtoSlug,
-      url: buildCanonicalListingPath({ slug: dtoSlug, id: dbListing.listing_id }),
-      status: dbListing.status,
-      listingType: dbListing.listing_type as 'sale' | 'rent',
-      address: suppressAddress
-        ? {
-            streetNumber: '',
-            streetName: 'Address Undisclosed',
-            unitNumber: null,
-            city: addr.City || '',
-            stateOrProvince: addr.StateOrProvince || 'NY',
-            postalCode: addr.PostalCode || '',
-            county: addr.CountyOrParish || '',
-            neighborhood: dbListing.neighborhood || undefined,
-          }
-        : {
-            streetNumber: addr.StreetNumber || '',
-            streetName: normalizeStreetCase(composeSlugStreetName(addr) || ''),
-            unitNumber: addr.UnitNumber || null,
-            city: addr.City || '',
-            stateOrProvince: addr.StateOrProvince || 'NY',
-            postalCode: addr.PostalCode || '',
-            county: addr.CountyOrParish || '',
-            neighborhood: dbListing.neighborhood || undefined,
-            latitude: addr.Latitude ? Number(addr.Latitude) : undefined,
-            longitude: addr.Longitude ? Number(addr.Longitude) : undefined,
-          },
-      listPrice: Number(dbListing.list_price),
-      originalListPrice: Number(dbListing.list_price),
-      closePrice: null,
-      // Ownership-aware display type (CommonInterest-first), consistent with db-to-public-dto and the
-      // exclusive/card paths: a condo unit's PropertySubType is "Apartment", so keying off the sub-type
-      // alone mislabeled condos/co-ops as "Apartment" — which broke the co-op fee label AND made
-      // Similar Properties classify the subject as a generic apartment (emptying the section).
-      propertyType: mapPropertyTypeToDisplay(
-        features.CommonInterest as string | undefined,
-        dbListing.property_sub_type,
-        dbListing.property_type || undefined,
-      ) || 'Residential',
-      propertySubType: dbListing.property_sub_type || null,
-      bedroomsTotal: dbListing.bedrooms_total || 0,
-      bathroomsFull: dbListing.bathrooms_full || 0,
-      bathroomsHalf: dbListing.bathrooms_half || 0,
-      livingArea: dbListing.living_area ? Number(dbListing.living_area) : null,
-      lotSizeArea: features.LotSizeArea ? Number(features.LotSizeArea) : null,
-      yearBuilt: features.YearBuilt ? Number(features.YearBuilt) : null,
-      listOfficeName: resolvedAgent.officeName || 'Mallan Real Estate Inc.',
-      media: mediaArr.map(m => ({
-        ...m,
-        url: m.url ? proxyDetailMediaUrl(m.url) : m.url,
-        thumbUrl: m.thumbUrl ? proxyDetailMediaUrl(m.thumbUrl) : m.thumbUrl,
-      })),
-      photosCount: mediaArr.filter(m => classifyMediaItem(m) === 'photo').length,
-      // Video / virtual tour: on the live REBNY IDX Plus feed there are NO video Media
-      // rows — video is delivered as the YouTube/Vimeo URL in Property.VirtualTourURL*
-      // (VideosCount>0), while Matterport etc. is the true 3D tour. Host-split them so
-      // a video URL populates `videoUrl` (Video tab) and a 3D URL populates
-      // `virtualTourURL` (3D tab) — the SAME split the card/search DTO uses
-      // (db-to-public-dto.ts). Unbranded-preferred per UCBA Art. I §5(C). Previously
-      // this inline DB DTO set virtualTourURL only, so a DB-backed YouTube listing
-      // rendered under 3D Tour and the Video tab was always absent. (Codex #482)
-      ...tourUrlsForDto(
-        [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
-        rawData.VirtualTourURLBranded,
-      ),
-      publicRemarks: String(features.PublicRemarks || rawData.PublicRemarks || ''),
-      listingContractDate: String(features.ListingContractDate || ''),
-      modificationTimestamp: String(features.ModificationTimestamp || ''),
-      associationFee: features.AssociationFee ? Number(features.AssociationFee) : undefined,
-      taxAnnualAmount: features.TaxAnnualAmount ? Number(features.TaxAnnualAmount) : undefined,
-      buildingName: features.BuildingName ? String(features.BuildingName) : undefined,
-      interiorFeatures: features.InteriorFeatures ? String(features.InteriorFeatures) : undefined,
-      buildingFeatures: features.BuildingFeatures ? String(features.BuildingFeatures) : undefined,
-      associationAmenities: features.AssociationAmenities ? String(features.AssociationAmenities) : undefined,
-      parkingFeatures: features.ParkingFeatures ? String(features.ParkingFeatures) : undefined,
-      heating: features.Heating ? String(features.Heating) : undefined,
-      cooling: features.Cooling ? String(features.Cooling) : undefined,
-      laundryFeatures: features.LaundryFeatures ? String(features.LaundryFeatures) : undefined,
-      petsAllowedDetail: features.PetsAllowed ? String(features.PetsAllowed) : undefined,
-      moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
-      // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
-      ...resolveMoveInFees(features as Record<string, unknown>),
-      ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
-      tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
-      appliances: features.Appliances ? String(features.Appliances) : undefined,
-      exteriorFeatures: features.ExteriorFeatures ? String(features.ExteriorFeatures) : undefined,
-      communityFeatures: features.CommunityFeatures ? String(features.CommunityFeatures) : undefined,
-      securityFeatures: features.SecurityFeatures ? String(features.SecurityFeatures) : undefined,
-      poolFeatures: features.PoolFeatures ? String(features.PoolFeatures) : undefined,
-      spaFeatures: features.SpaFeatures ? String(features.SpaFeatures) : undefined,
-      attendanceType: features.AttendanceType ? String(features.AttendanceType) : undefined,
-      // Auction (UCBA Art. I exception path) — null on non-auction listings.
-      // The five auction columns are top-level on the Listing model (PR #50);
-      // buildAuctionPublic() returns null unless auction_yn === true AND the
-      // mandatory type+endDate fields are set (validator AU-001..AU-005).
-      auction: buildAuctionPublic(dbListing),
-      _source: 'db',
-      _displayCompliance: {
-        requiresAttribution: true,
-        attributionText: 'Listing data from REBNY RLS',
-        disclaimerRequired: true,
-      },
-      // Assigned listing-agent contact card — populated ONLY for Mallan
-      // exclusives (SL-/RL- prefix or website-only rls_eligible === false),
-      // where Mallan IS the listing broker and the named agent is our own
-      // licensee. For third-party IDX/RLS rows this stays undefined so we
-      // never surface another brokerage's agent PII. Built from whatever
-      // agent_info actually carries — blank fields are omitted, never invented.
-      ...(assignedAgentDisplay ? { _assignedAgent: assignedAgentDisplay } : {}),
+      ...baseDto,
+      // DETAIL-ONLY enrichment. The page shows a richer Mallan-owned agent card
+      // (photo, title, license type, public slug) than the shared builder emits.
+      // Exposure stays gated by the CANONICAL base: if the base DTO withheld
+      // `_assignedAgent` — as it does for every third-party IDX/RLS row — the
+      // detail page may not invent one. One policy owner, not two.
+      ...(assignedAgentDisplay && baseDto._assignedAgent
+        ? { _assignedAgent: assignedAgentDisplay }
+        : {}),
     };
 
     return {
@@ -727,6 +746,16 @@ export default async function ListingPage({ params }: Props) {
 
   if (!result) {
     notFound();
+  }
+
+  // Mallan RLS return-copy with exactly one proven local twin: send the visitor
+  // to the canonical local listing. Performed HERE, not inside fetchFromDB —
+  // `redirect()` signals by throwing, and fetchFromDB's catch would log it as a
+  // database error while React `cache()` memoized the throw for generateMetadata
+  // too. 308 (permanent) is Next's default for redirect() in a server component,
+  // which is correct: the return-copy URL is never the canonical one.
+  if (result.canonicalRedirect) {
+    redirect(result.canonicalRedirect);
   }
 
   const listing = result.listing;
@@ -1842,7 +1871,7 @@ export default async function ListingPage({ params }: Props) {
                         )}
                         {/* §175.25 brokerage attribution — never dropped. */}
                         <p className="text-brand-dark/50 text-[12px] leading-tight mt-0.5">
-                          {listing._assignedAgent.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                          {publicListOfficeName(listing._assignedAgent.company || listing.listOfficeName)}
                         </p>
                       </div>
                     </div>
@@ -1850,7 +1879,7 @@ export default async function ListingPage({ params }: Props) {
                     /* Third-party IDX/RLS or no assigned agent — brokerage-only
                        block (no agent PII). §175.25 attribution still shown. */
                     <p className="text-brand-dark/50 text-[12px] mb-5 mt-1">
-                      {listing._assignedAgent?.company || listing.listOfficeName || 'Mallan Real Estate Inc.'}
+                      {publicListOfficeName(listing._assignedAgent?.company || listing.listOfficeName)}
                     </p>
                   )}
                   <div className="space-y-2.5">
@@ -1939,7 +1968,7 @@ export default async function ListingPage({ params }: Props) {
       <section className="border-t border-black/[0.06] py-5 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="text-[13px] text-brand-dark/55">
-            RLS · Listing Courtesy of <span className="font-medium text-brand-dark/70">{listing.listOfficeName || 'Mallan Real Estate Inc.'}</span>
+            RLS · Listing Courtesy of <span className="font-medium text-brand-dark/70">{publicListOfficeName(listing.listOfficeName)}</span>
           </p>
           <span className="text-brand-dark/20">|</span>
           <p className="text-[13px] text-brand-dark/45">

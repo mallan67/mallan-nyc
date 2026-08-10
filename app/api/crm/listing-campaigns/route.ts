@@ -33,8 +33,10 @@ import type { Prisma } from "@prisma/client";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
-import { affirmPermission } from "@/lib/compliance/gates";
-import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+// `affirmPermission`, `TERMINAL_STATUSES` and `normalizeStandardStatus` are no
+// longer imported here: the distribution decision now lives entirely inside
+// `evaluateCampaignDistributionGate`, so this route holds no gate logic of its own.
+import { evaluateCampaignDistributionGate } from "@/lib/compliance/campaign-distribution-gate";
 import { dbListingToPublicDTO, type DbListing } from "@/lib/idx/db-to-public-dto";
 import { investorListingEmail, type InvestorListingEmailData } from "@/lib/email/templates";
 import { computeInvestmentMetrics, parseMoney } from "@/lib/email/investment-metrics";
@@ -95,6 +97,11 @@ const LISTING_SELECT = {
     where: { status: "active" },
     orderBy: [{ order: "asc" as const }, { id: "asc" as const }],
     select: {
+      // MIXED-GALLERY COMPOSITION: resolveDbListingMedia treats an all-`crm:`
+      // relational set as a SUPPLEMENT to the legacy Cotality feed JSON rather
+      // than as the whole gallery. Without this column that case is
+      // undetectable and one CRM upload hides the entire feed gallery.
+      media_key: true,
       media_url_original: true,
       media_url_cached: true,
       media_type: true,
@@ -191,20 +198,23 @@ export async function POST(req: NextRequest) {
 
   const dto = dbListingToPublicDTO(dbListing);
 
-  // ── Distribution gate (exclusive-aware) ─────────────────────────────────────
-  const isCrmExclusive = listing_id.startsWith("SL-") || listing_id.startsWith("RL-");
-  const normalizedStatus = normalizeStandardStatus(row.status);
-  const gateBlocks: string[] = [];
-  if (row.owner_opt_out === true) gateBlocks.push("owner_opt_out");
-  if (row.participant_only === true) gateBlocks.push("participant_only");
-  if (TERMINAL_STATUSES.has(normalizedStatus)) gateBlocks.push(`terminal_status:${normalizedStatus}`);
-  if (!isCrmExclusive) {
-    // Third-party IDX inventory: full fail-closed IDX redistribution gate.
-    if (!affirmPermission(row.idx_display_yn)) gateBlocks.push("idx_display_yn");
-    if (!affirmPermission(row.internet_entire_listing_display_yn)) {
-      gateBlocks.push("internet_entire_listing_display_yn");
-    }
-  }
+  // ── Distribution gate ───────────────────────────────────────────────────────
+  // Delegates to the canonical pure gate. This previously keyed the IDX
+  // redistribution checks off an `SL-`/`RL-` listing-id PREFIX, so an
+  // RLS-ELIGIBLE Mallan exclusive skipped BOTH `idx_display_yn` and
+  // `internet_entire_listing_display_yn` before distribution. A prefix is
+  // provenance, not permission — the same fault corrected for address
+  // suppression in lib/idx/db-to-public-dto.ts. The boundary is `rls_eligible`,
+  // which this route already selects (LISTING_SELECT).
+  const { blocks: gateBlocks } = evaluateCampaignDistributionGate({
+    listing_id,
+    rls_eligible: row.rls_eligible,
+    idx_display_yn: row.idx_display_yn,
+    internet_entire_listing_display_yn: row.internet_entire_listing_display_yn,
+    owner_opt_out: row.owner_opt_out,
+    participant_only: row.participant_only,
+    status: row.status,
+  });
   if (gateBlocks.length > 0) {
     return NextResponse.json(
       {

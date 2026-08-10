@@ -2408,6 +2408,24 @@ model ListingMedia {
   // table. Code reads with `?? 0` / `?? null` defaults.
   r2_last_attempt_at        DateTime? @map("r2_last_attempt_at")
   r2_attempts               Int?      @map("r2_attempts")
+  // R2 DELIVERY-POLICY STATE — separate from the retry/failure state above.
+  //
+  // `r2_attempts` had been overloaded to carry a POLICY decision: the sentinel
+  // value 9 (R2_POLICY_PARKED_ATTEMPTS) meant "current mirror policy declines
+  // to mirror this asset", stored in a column whose name, type and selector
+  // semantics all say FAILURE. A policy exclusion is not a failure: it must
+  // never look retry-exhausted, never inflate a failure count it did not earn,
+  // and never block later re-admission.
+  //
+  //   NULL     = not excluded by policy
+  //   non-NULL = excluded by policy, at that wall-clock time (the age gives a
+  //              bounded re-evaluation window without a second column)
+  //
+  // ONE nullable timestamp covers all three required states, so no
+  // status+reason+timestamp trio. Nullable, no default, reversible —
+  // NEON.md §4 "Good SQL patterns". Interpreted ONLY by
+  // lib/media/r2-policy-state.ts; legacy exact-9 rows stay readable there.
+  r2_policy_excluded_at     DateTime? @map("r2_policy_excluded_at")
   // Status: 'active' | 'deleted' (soft-delete for audit) | 'replaced'.
   // We never hard-delete a media row so the audit trail stays intact.
   status                    String    @default("active")

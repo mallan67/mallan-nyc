@@ -22,6 +22,114 @@ These rules apply to every commit. Violations should fail review.
 6. **Do not create parallel systems.** If a system exists, extend it. If extension is hard, raise the design question — do not silently fork.
 7. **If the right file is unclear, stop.** Report the uncertainty, list the candidates, and wait for direction. Do not guess.
 8. **No one-line "fix" guesses for layout/data bugs.** Identify the actual layer first; cite the file:line.
+9. **The Mallan LOCAL listing is canonical.** See Section 1A. This OVERRIDES any
+   older document, comment or test saying an RLS/Cotality copy should replace,
+   withdraw or supersede a local `SL-*` / `RL-*` listing.
+
+---
+
+## Section 1A — Mallan listing architecture (MANDATORY — read before any listing work)
+
+> **Maya's standing architecture.** OVERRIDES any prior instruction or repo
+> document stating that an RLS/Cotality copy should replace the local Mallan
+> listing. Documents still describing the old model are SUPERSEDED, not
+> authoritative.
+
+### Direction of data
+
+```
+Mallan forms -> Mallan backend/Neon -> Mallan CRM + public website   LOCAL, canonical
+
+Mallan information -> RealPlus -> REBNY RLS          OUTSIDE THIS SYSTEM, MANUAL
+REBNY RLS -> Cotality/Trestle -> IDX Plus API -> Mallan ingestion    INBOUND, read-only
+```
+
+Mallan **creates and amends its listings locally** and **never writes back** to
+Cotality/Trestle/RLS. The RealPlus/RLS submission happens outside this
+application and is **not** automated here.
+
+Wording matters: a Mallan listing is **not** "submitted to REBNY RLS via
+Cotality". It is submitted separately through RealPlus/RLS and **returns
+downstream** to Mallan through Cotality.
+
+### When Mallan's own listing returns through Cotality
+
+It reappears as an `RLS*` row — the **Mallan RLS return-copy**.
+
+| Row | Status |
+|---|---|
+| Local `SL-*` / `RL-*` | **CANONICAL** — public listing, canonical URL, Featured, agent page, CRM editing, media, open houses, seller report |
+| Mallan RLS return-copy | **SUPPRESSED on every public surface.** Retained internally for audit, reconciliation, source comparison, feed monitoring, compliance |
+
+**DO NOT** withdraw an `SL-*`/`RL-*` because the RLS copy arrived. **DO NOT** pin
+the RLS copy in Featured, switch the public URL to it, or move CRM editing /
+open-house management onto it. **DO NOT** delete the returned RLS row — it is
+stored source evidence.
+
+A returned twin must **never** make the local row read-only. Local PATCH, local
+CRM media, local open houses and local publication keep working, and Cotality
+sync must not erase them.
+
+### Three ownership concepts — never conflate
+
+1. **`isMallanExclusiveListing()`** — Mallan-AUTHORED local listing (`SL-`/`RL-`
+   prefix OR `rls_eligible === false`). Governs **data/media authority**. Do NOT
+   broaden it to include the RLS return-copy.
+2. **Mallan RLS return-copy** — a Cotality row whose VERIFIED LIST-SIDE identity
+   is Mallan. Still **Cotality-source-owned**: its media stays Cotality-owned and
+   must never be cloned into the `crm:` namespace. It is only barred from being
+   the public canonical listing.
+3. **Third-party RLS/IDX** — normal IDX inventory, unchanged.
+
+Identity for (2) must come from a verified list-side source field
+(`listing.list_office_mls_id` / `Property.ListOfficeMlsId`). **NEVER** infer it
+from `agent_id` or free-text brokerage-name matching. Co-list identity is a
+separate question and does not by itself establish primary list-side authority.
+
+### `agent_id` is NOT ownership
+
+`syncAgentHistory` assigns `Listing.agent_id` on matches against **both**
+`ListAgentMlsId` and `BuyerAgentMlsId` — a CRM **history/roster association**,
+not ownership or write authority.
+
+- Local `SL-`/`RL-` row: `agent_id` MAY be a legitimate assigned-agent relation,
+  because the local creation/assignment path owns it.
+- Any synced RLS row: `agent_id` grants **history visibility only** — never
+  listing mutation, status mutation, media ownership, seller-report authority or
+  public-open-house management.
+
+Keep legitimate history reads and private client-showing workflows working. A
+private showing is NOT a Mallan public open house.
+
+### Open houses
+
+Mallan must create and amend a public open house **locally**, without first
+entering it into RLS. A Cotality `OpenHouse` record for the returned twin is at
+most an additional upstream source — never a precondition.
+
+### Public suppression is system-wide
+
+Suppression must happen in the canonical public access query/decision **BEFORE
+pagination and counting**, so a local row on one page and its twin on another
+cannot leak the twin. `count` / `total` / `skip` / `limit` / `hasMore` must all
+describe the POST-suppression public set.
+
+Applies to `/api/listings`, `/api/listings/suggest`, listing detail,
+`/api/agents/[slug]/listings`, Featured, Exclusives, similar listings, building
+listings/units, sitemap, canonical/SEO URLs, open-house surfaces, campaigns and
+listing-send public URLs, reports exposing public listing links, and any
+live-Trestle public fallback.
+
+`preferCrmExclusiveOverIdxDuplicate()` (`lib/listings/dedupe-crm-vs-idx.ts`) is
+the correct existing direction — keep local, suppress the IDX twin, delete
+nothing — and remains a valid second defense, but must NOT be the only thing
+preventing a return-copy from surfacing.
+
+### Forbidden
+
+No RealPlus API integration. No automated RLS submission. No Cotality
+write-back. Any UI implying direct submission to Cotality/RLS is misleading and
+must be corrected.
 
 ---
 

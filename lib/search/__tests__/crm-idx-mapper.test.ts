@@ -167,7 +167,11 @@ describe("crm idx mapper", () => {
       downPaymentAssistanceCount: 1,
     });
     expect((listing.images as Array<Record<string, unknown>>)[0]).toMatchObject({
-      url: "/api/media/proxy?url=https%3A%2F%2Fimg.cotality.com%2Fphoto.jpg",
+      // CORRECTED 2026-08-07: img.cotality.com is NOT on the proxy route's
+      // exact allowlist, so proxying it produced a guaranteed 403. The mapper
+      // now delegates to the canonical policy and passes unapproved hosts
+      // through unchanged. See lib/media/__tests__/listing-media-resolver.test.ts.
+      url: "https://img.cotality.com/photo.jpg",
       isPrimary: true,
       mediaType: "Photo",
     });

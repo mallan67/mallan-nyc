@@ -3,6 +3,10 @@
 // Handles pagination via @odata.nextLink. Selects IDX Plus Property fields.
 
 import { getAccessToken, invalidateToken } from "./auth";
+// THE single OData Media completeness owner (deliberately NOT defined in this
+// module: this file is the provider-I/O MOCK BOUNDARY, and a pure algorithm
+// behind that boundary would be silently stubbed by every provider mock).
+import { paginateMedia } from "./media-pagination";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 import {
   recordCotalityHttp,
@@ -513,24 +517,52 @@ export async function fetchListingMedia(
     const params = new URLSearchParams();
     // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
     params.set("$filter", `${keyFilter} and MediaStatus ne 'Deleted'`);
-    params.set("$select", "MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus");
+    // MediaKey is selected so callers have a stable logical identity per asset
+    // (duplicate detection cannot rely on a signed/ordered MediaURL).
+    params.set("$select", "MediaKey,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus");
     params.set("$orderby", "Order asc");
+    // PER-PAGE size only — the rest is followed via @odata.nextLink below.
     params.set("$top", "50");
 
-    const url = `${base}/odata/Media?${params.toString()}`;
-    let response = await fetchWithRetry(url, token);
+    const firstUrl = `${base}/odata/Media?${params.toString()}`;
 
-    if (response.status === 401) {
-      invalidateToken();
-      const newToken = await getAccessToken();
-      token = newToken;
-      response = await fetchWithRetry(url, newToken);
+    // COMPLETENESS via the SHARED follower — the same `paginateMedia` used by
+    // media-sync and sync.ts batch-media. Previously this read ONE response and
+    // stopped as soon as any record came back, so a listing with 68 media rows
+    // silently returned its first 50 and looked authoritative. `$top` was being
+    // treated as a total cap; it is a page size.
+    const { rows, complete } = await paginateMedia<Record<string, unknown>>(
+      firstUrl,
+      async (url) => {
+        let response = await fetchWithRetry(url, token);
+        if (response.status === 401) {
+          invalidateToken();
+          token = await getAccessToken();
+          response = await fetchWithRetry(url, token);
+        }
+        // A non-OK page is a FAILED page, not an empty one — throwing makes
+        // paginateMedia report `complete: false` instead of silently short.
+        if (!response.ok) throw new Error(`Media page HTTP ${response.status}`);
+        const data = (await response.json()) as Record<string, unknown>;
+        return {
+          value: (data.value || []) as unknown[],
+          nextLink: (data["@odata.nextLink"] as string | undefined) ?? null,
+        };
+      },
+    );
+
+    if (!complete) {
+      // FAIL CLOSED. Returning the partial set would present a truncated
+      // gallery as the whole gallery — a false green. The caller's existing
+      // contract for "no media from this path" is an empty array, which is
+      // non-destructive: it renders nothing rather than asserting a short set.
+      console.warn(
+        `[IDX Fetch] Media pagination INCOMPLETE for ${keyFilter} — returning empty rather than a partial gallery`,
+      );
+      return [];
     }
 
-    if (!response.ok) continue;
-
-    const data = await response.json();
-    records = data.value || [];
+    records = rows;
     if (records.length > 0) break; // Found media — stop trying other keys
   }
 

@@ -4,6 +4,7 @@ import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -90,6 +91,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // stores `ComingSoon` (no space). Sitemap excluded every Coming
         // Soon listing as a result. Fixed here.
         status: { in: [...ACTIVE_DISPLAY_VALUES] },
+        // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+        //
+        // Mallan's own listing returns through Cotality as an `RLS*` row.
+        // Without this the sitemap emitted a SECOND canonical URL for the same
+        // physical listing — a duplicate-content/SEO defect — and the returned
+        // copy is not Mallan's public canonical listing; the local `SL-`/`RL-`
+        // row is. This route builds its gate inline rather than through
+        // `buildSearchDisplayWhere`, so the exclusion is applied explicitly
+        // from the SAME single owner.
+        AND: [excludeMallanRlsReturnCopies()],
       },
       select: {
         listing_id: true,

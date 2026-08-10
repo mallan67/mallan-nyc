@@ -23,6 +23,12 @@ import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
+// Durable hero delivery + the ONE public media URL policy. Read-safe helper: it
+// needs only R2_PUBLIC_URL and returns null (never throws) so this public read
+// path falls back to the source locator instead of crashing.
+import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
+import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
+
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
@@ -416,6 +422,12 @@ interface ManifestPageRow {
   // the hero source. The manifest read no longer drags full galleries out
   // of Neon to derive one URL.
   primary_photo_url: string | null;
+  /**
+   * DURABLE hero object key, preferred over the rotating source locator.
+   * Without it the manifest depended on a Cotality URL that re-signs on every
+   * fetch — which is what forced that locator to be kept fresh in the DB.
+   */
+  primary_photo_r2_key: string | null;
 }
 
 /** One cached manifest PAGE: bounded rows + the keyset cursor to the next
@@ -482,6 +494,14 @@ async function fetchManifestPage(
           { owner_opt_out: false },
           { internet_entire_listing_display_yn: true },
           { participant_only: false },
+          // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+          //
+          // The building manifest is a PUBLIC surface. Without this, Mallan's
+          // own returned Cotality row would appear as a separate unit in its own
+          // building, next to the local canonical listing. Applied inside the
+          // query so it precedes the shard page window, from the same single
+          // owner as every other emitter.
+          excludeMallanRlsReturnCopies(),
           { address: { path: ['StreetNumber'], string_starts_with: shard } },
         ],
       },
@@ -493,6 +513,7 @@ async function fetchManifestPage(
         // 2 MB correction: the stored media-summary hero (maintained by
         // media-sync) replaces the full `media` JSON read.
         primary_photo_url: true,
+        primary_photo_r2_key: true,
       },
       orderBy: { listing_id: 'asc' },
       take: MANIFEST_PAGE_SIZE,
@@ -501,9 +522,26 @@ async function fetchManifestPage(
   const mapped = batch.map((l): ManifestListing => {
     const addr = (l.address ?? {}) as Record<string, unknown>;
     const features = (l.features ?? {}) as Record<string, unknown>;
-    const photoUrl = l.primary_photo_url
-      ? `/api/media/proxy?url=${encodeURIComponent(String(l.primary_photo_url))}`
-      : null;
+    // HERO RESOLUTION — durable first, source fallback second.
+    //
+    // 1. A usable `primary_photo_r2_key` is a DURABLE public object: serve it
+    //    directly. No proxy hop, and no dependency on a signed locator that
+    //    Cotality re-issues on every fetch.
+    // 2. Otherwise fall back to the stored source locator, proxied exactly as
+    //    before. The fallback form is deliberately UNCHANGED here: three
+    //    hand-built `/api/media/proxy?url=` formulas exist in this area
+    //    (:69, here, and buildings/upsert.ts:144) and the building payload is
+    //    pinned by a parity test against a second implementation. Consolidating
+    //    them onto `toPublicMediaUrl` is a correct but SEPARATE change — doing
+    //    it inside this fix silently altered the payload for non-Cotality URLs
+    //    (an R2/CRM hero stopped being proxied), which the parity test caught.
+    //    Recorded as an open duplicate-formula item rather than smuggled in.
+    const durableHero = r2PublicUrlForKeyRead(l.primary_photo_r2_key);
+    const photoUrl =
+      durableHero ??
+      (l.primary_photo_url
+        ? `/api/media/proxy?url=${encodeURIComponent(String(l.primary_photo_url))}`
+        : null);
     return {
       id: String(l.id),
       listing_id: l.listing_id,

@@ -595,21 +595,64 @@ function section10() {
   const cronDir = path.join(ROOT, 'app', 'api', 'cron');
   if (!fs.existsSync(cronDir)) { critical(s, 'app/api/cron/', 'Not found'); return; }
   const routes = fs.readdirSync(cronDir, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name);
-  // One Cycle W2 (2026-07-24): idx-sync and media-sync are no longer scheduled
-  // independently — they are sequential MEMBERS of /api/cron/one-cycle (*/10).
-  // Their route files intentionally remain deployed for manual triggering, so
-  // "unscheduled" is CORRECT for them AS LONG AS one-cycle itself is scheduled
-  // (which genuinely drives them). Flagging them NOT SCHEDULED would be a false
-  // critical. Any other unscheduled route (e.g. db-keepalive) is still critical.
-  const ORCHESTRATED_MEMBERS = new Set(['idx-sync', 'media-sync']);
-  const oneCycleScheduled = scheduled.has('/api/cron/one-cycle');
+  // ── ORCHESTRATION GRAPH (2026-08-07) ───────────────────────────────────────
+  // A route does not need its OWN vercel.json entry if a SCHEDULED route
+  // genuinely drives it. This section previously compared a flat list of route
+  // directories against a flat list of schedules, so every orchestrated route
+  // read as "NOT SCHEDULED" — five false criticals.
+  //
+  // The real graph:
+  //
+  //   SCHEDULED /api/cron/one-cycle-preflight   (pre-Neon skip boundary)
+  //       -> dynamic import of /api/cron/one-cycle
+  //             -> idx-sync member
+  //             -> media-sync member
+  //
+  //   SCHEDULED /api/cron/data-retention-finalize
+  //       -> direct call of /api/cron/data-retention
+  //
+  // Each EDGE is verified in source below, not assumed from a name list. If a
+  // link disappears, the dependent routes go critical again — which is the
+  // point: this must not become "ignore unscheduled crons".
+  const routeSrc = (r) => readFile(path.join('app', 'api', 'cron', r, 'route.ts')) || '';
+
+  // Edge 1: preflight is scheduled AND dynamically delegates to one-cycle.
+  const preflightScheduled = scheduled.has('/api/cron/one-cycle-preflight');
+  const preflightDelegates = /await import\(['"]@\/app\/api\/cron\/one-cycle\/route['"]\)/
+    .test(routeSrc('one-cycle-preflight'));
+  const oneCycleDriven = preflightScheduled && preflightDelegates;
+
+  // Edge 2: one-cycle actually owns the two members.
+  const oneCycleSrc = routeSrc('one-cycle');
+  const membersDriven = oneCycleDriven
+    && /runIdxSyncMember/.test(oneCycleSrc)
+    && /runMediaSyncMember/.test(oneCycleSrc);
+
+  // Edge 3: finalize is scheduled AND calls the base retention job.
+  const finalizeScheduled = scheduled.has('/api/cron/data-retention-finalize');
+  const finalizeSrc = routeSrc('data-retention-finalize');
+  const retentionDriven = finalizeScheduled
+    && /from ['"]@\/app\/api\/cron\/data-retention\/route['"]/.test(finalizeSrc)
+    && /runDataRetention\(/.test(finalizeSrc);
+
+  // route -> [human-readable driver, edge verified?]
+  const ORCHESTRATED = {
+    'one-cycle': ['/api/cron/one-cycle-preflight (*/10, dynamic import)', oneCycleDriven],
+    'idx-sync': ['/api/cron/one-cycle member', membersDriven],
+    'media-sync': ['/api/cron/one-cycle member', membersDriven],
+    'data-retention': ['/api/cron/data-retention-finalize (direct call)', retentionDriven],
+  };
+
   for (const r of routes) {
     const p = `/api/cron/${r}`;
     if (!fs.existsSync(path.join(cronDir, r, 'route.ts'))) { info(s, p, 'Directory but no route.ts'); continue; }
-    if (scheduled.has(p)) { const c = config.crons.find(c => c.path === p); pass(s, `${p} (${c.schedule})`); }
-    else if (ORCHESTRATED_MEMBERS.has(r) && oneCycleScheduled) { pass(s, `${p} (orchestrated by /api/cron/one-cycle */10)`); }
-    else critical(s, `${p} → NOT SCHEDULED`, 'Add to vercel.json or delete');
+    if (scheduled.has(p)) { const c = config.crons.find(c => c.path === p); pass(s, `${p} (${c.schedule})`); continue; }
+    const orch = ORCHESTRATED[r];
+    if (orch && orch[1]) { pass(s, `${p} (driven by ${orch[0]})`); continue; }
+    if (orch) { critical(s, `${p} → ORCHESTRATION EDGE BROKEN`, `Expected driver: ${orch[0]}`); continue; }
+    critical(s, `${p} → NOT SCHEDULED`, 'Add to vercel.json or delete');
   }
+
   for (const p of scheduled) {
     const r = p.replace('/api/cron/', '');
     if (!fs.existsSync(path.join(cronDir, r, 'route.ts'))) critical(s, `${p} → SCHEDULED BUT MISSING`, 'Route file not found');
