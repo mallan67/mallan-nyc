@@ -10,7 +10,19 @@ Maya's authorized local checkout is:
 
 `C:\Users\MayaAllan\Desktop\mallan-nyc`
 
-Before local mutation work, verify the actual checkout/root/remote/branch/HEAD/status/worktrees. If the active local root is another Mallan clone/worktree, stop mutation work rather than silently continuing elsewhere.
+Before local mutation work, verify:
+
+1. `pwd`
+2. `git rev-parse --show-toplevel`
+3. `git remote get-url origin`
+4. `git branch --show-current`
+5. `git rev-parse HEAD`
+6. `git status --short`
+7. `git worktree list`
+
+If the active local root is another Mallan clone/worktree, stop mutation work rather than silently continuing elsewhere.
+
+Do not use `git add -A` or `git add .` for Mallan work. Stage explicit intended paths only and review the staged diff.
 
 ## Required reading order — do not skip
 
@@ -25,6 +37,8 @@ Before local mutation work, verify the actual checkout/root/remote/branch/HEAD/s
 9. [`NEON.md`](./NEON.md) before Neon, Prisma, migration, ingestion, retention, storage or shedding work.
 10. [`docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`](./docs/compliance/COMPLIANCE-CANONICAL-INDEX.md) before listing, search, CRM, lead, communication, media, public-text or compliance work.
 
+Temporary ledgers and historical plans/specs/audits are evidence only. If they conflict with the current master, the master governs unless Maya explicitly changes it.
+
 ## Continuous-program rule
 
 Do not start a fresh or parallel master audit merely because context compacted or a new session began.
@@ -34,21 +48,41 @@ After reading the files above:
 1. compare fresh Git/Production identity to the last state recorded in `MALLAN-CONTINUOUS-EXECUTION-STATE.md`;
 2. if the recorded state remains valid, continue the active/next layer;
 3. if new evidence invalidates a closed layer, mark it `REOPENED because <reason>` and continue from that dependency;
-4. update the continuous state at every meaningful checkpoint and before the session ends/compacts.
+4. if historical evidence reveals a still-valid missing requirement, reconcile it into the same master and reopen only the affected dependency;
+5. update the continuous state at every meaningful checkpoint and before the session ends/compacts.
 
 A held Production mutation freezes only that mutation. Continue all safe independent work.
 
 ## Current execution priority
 
-The single program currently advances in this order:
+The current active product layer is **Search P0**.
 
-1. one-time master-plan completeness reconciliation;
-2. **Search P0** — professional Search contract, full Advanced criteria, mobile Basic parity, exact filtering/count/pagination, Client-assigned Saved Searches, Client × Listing history/comments and new/price/status auto-updates;
-3. **CMA / Property Intelligence** — use the same corrected Backend Search universe;
-4. **Backend Listing Workspace** — full readable listing/media/detail plus Comment, Share/Email, CMA/Compare, Showing, Quick Add Open House and Refresh Listing;
+The program advances:
+
+1. **Search P0** — prove/repair the professional Search contract, exhaustive Advanced desktop + Basic mobile parity, current Cotality/RLS field mappings, source authority, return-copy suppression/dedupe, exact final count/pagination, full Saved Search round-trip, Client × Listing history/comments/showings, new/price/status updates, Reconsider, reverse matching and Compare/CMA handoff;
+2. **CMA / Property Intelligence** — same corrected Backend Search universe;
+3. **Backend Listing Workspace** — full readable listing/media/detail plus Comment, Share/Email, CMA/Compare, Showing, Quick Add Open House and Refresh Listing;
+4. **Marketing / E-blast / Listings Reporting**;
 5. continue the remaining master-plan sequence.
 
+Residual historical reconciliation continues as a **non-blocking evidence lane**. It is not a reason to hold Search until every old file/chat is classified.
+
 Do not create a second Search/CMA/Listings plan.
+
+## Search-specific truth rule
+
+Search must not be “simplified” by reducing Advanced Search.
+
+```text
+BASIC = mobile presentation
+ADVANCED = full professional desktop Search
+```
+
+Both use one normalized criteria truth.
+
+Every visible criterion must be proven as `SUPPORTED`, deliberately `LOCAL / DERIVED`, or not rendered as an active criterion. Never leave a control visually active while silently ignored.
+
+Exact Cotality/provider fields, types, picklists, null semantics, statuses, attribution and permissions must be verified from current authorized provider/RLS evidence before implementation claims are accepted.
 
 ## Proof-first operating rule
 
@@ -74,7 +108,7 @@ Claude/Codex output is not final authority.
 
 For important layers preserve separate fields in the continuous state:
 
-- `CLAUDE CLAIMED`
+- `CLAUDE / CODEX CLAIMED`
 - `DURABLE GIT EVIDENCE`
 - `CI / TEST EVIDENCE`
 - `RUNTIME / PRODUCTION EVIDENCE`
@@ -91,6 +125,16 @@ Mallan is one brokerage operating system with:
 - **My Business** for each producing independent contractor's own book of business.
 
 Maya is one Individual acting as both representative broker and producer. Associate Brokers currently function as Agents/Producers unless a distinct supervisory appointment is deliberately added later.
+
+Agents remain responsible for their personal professional obligations while Mallan supports/reminds/records/flags and the representative Broker retains required supervision of brokerage activity.
+
+## Provider / compliance framing
+
+Mallan's business/compliance authority is based on applicable New York law/DOS and REBNY/RLS/UCBA requirements plus the verified current provider implementation contract.
+
+Cotality/Trestle technical metadata may use RESO vocabulary. That is provider schema language only; it does not make RESO a separate Mallan business authority.
+
+Provider replacement must be handled through the provider adapter/rule-field registries rather than rewriting Mallan workflows.
 
 ## Handoff requirement
 
