@@ -69,7 +69,25 @@ on stored Trestle locators, which are never proxied at rest.
 
 ```sql
 WITH cls AS (
-  SELECT lm.*, /* is_photo := the §0 canonical predicate */ NULL::boolean AS placeholder
+  SELECT lm.*,
+    CASE
+      WHEN lower(coalesce(lm.media_category, lm.media_type,'')) IN ('floorplan','floor plan')
+        OR lower(coalesce(lm.media_category, lm.media_type,'')) LIKE '%floor plan%'
+        OR lower(coalesce(lm.media_category, lm.media_type,'')) LIKE '%floor_plan%'
+        OR lower(coalesce(lm.media_classification,'')) = 'document'
+        OR lower(coalesce(lm.media_url_original,'')) ~ '/floorplans?/'
+        OR lower(coalesce(lm.media_url_original,'')) ~ 'floor[[:space:]_-]?plans?'
+        OR lower(coalesce(lm.media_url_original,'')) ~ '\.pdf(\?|$)'
+        OR lower(coalesce(lm.media_url_original,'')) ~ '(^|[/_-])(site[[:space:]_-]?plans?|diagrams?)([/_.-]|$)'
+        OR lower(coalesce(lm.media_url_original,'')) ~* '/media/property/document-(gif|jpeg|png|pdf)/'
+        THEN false
+      WHEN lower(coalesce(lm.media_category, lm.media_type,'')) = 'video'
+        OR lower(coalesce(lm.media_category, lm.media_type,'')) LIKE '%video%'
+        OR lower(coalesce(lm.media_url_original,'')) ~ '\.(mp4|mov|webm)(\?|$)' THEN false
+      WHEN lower(coalesce(lm.media_category, lm.media_type,'')) IN ('virtualtour','virtual tour')
+        THEN false
+      WHEN lower(coalesce(lm.media_category, lm.media_type,'')) IN ('photo','image','') THEN true
+      ELSE false END AS is_photo
   FROM listing_media lm),
 ranked AS (
   SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c.listing_id
@@ -110,8 +128,9 @@ SELECT
 FROM pol;
 ```
 
-`cls.is_photo` is the CASE expression printed verbatim in §0 — inlined there once rather than
-repeated in every query below. Substituting it makes each statement runnable as-is.
+**Runnable as printed.** The §0 classifier is inlined above rather than referenced, so this query
+executes without manual reconstruction. §3's write-stream queries read `audit_events` and do not
+need the classifier; §6's summary-drift query inlines it as well.
 
 | metric | first version (naive) | **corrected (canonical + full policy filter)** |
 |---|---|---|

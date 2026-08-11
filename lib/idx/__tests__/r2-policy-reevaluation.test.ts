@@ -4,10 +4,15 @@
  *
  * PROVEN PRODUCTION DEFECT (read-only measurement, 2026-08-10, hidden-mountain):
  *
- *   20,195 active third-party Photos are policy-parked across 1,721 listings.
+ *   20,193 active third-party Photos are policy-parked across 1,722 listings.
  *   43 of them are the CURRENT canonical hero of their listing and have no R2
  *   object. They can never acquire one: nothing clears a policy exclusion, and
  *   its age is never read.
+ *
+ *   Figures recomputed with the canonical classifier and the full policy filter
+ *   (`buildR2MirrorPolicyMediaWhere`). A first pass reported 20,195 / 1,721 from
+ *   a `media_type='Photo'` proxy without the policy filter. Full evidence:
+ *   `docs/operations/r2-policy-and-drift-production-evidence-2026-08-10.md`.
  *
  * A third-party Photo is parked when it is not the canonical hero at the moment
  * it is examined. Hero identity is MUTABLE — Cotality changes
@@ -18,9 +23,9 @@
  * "the age gives a bounded re-evaluation window", and nothing consumed it.
  *
  * TWO PARK ENCODINGS EXIST AND BOTH MUST BE COVERED:
- *   * `r2_policy_excluded_at` non-null — the current writer (101 rows).
+ *   * `r2_policy_excluded_at` non-null — the current writer (131 rows).
  *   * `r2_attempts = 9` (R2_POLICY_PARKED_ATTEMPTS) — the LEGACY writer
- *     (20,094 rows, and where all 43 stranded heroes live). The failure path
+ *     (20,062 rows, and where all 43 stranded heroes live). The failure path
  *     caps the counter at 8 (`CASE WHEN r2_attempts < 8 THEN r2_attempts + 1`),
  *     so exactly-9 is unreachable by failure and is purely a policy marker.
  *     Clearing it on re-admission therefore destroys no failure history.

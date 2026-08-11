@@ -126,6 +126,8 @@ alarm, real drift = benign orphans, cleanup deferred to a held migration). Plus:
 **Platform Architecture document** (DOC-001) — full data-flow map (Cotality → sync → normalization →
 compliance → archive → search → website) incl. every cron, queue, webhook, API, and DB boundary.
 
+**Also new (2026-08-10) — P3:** **OPS-027**, the PHASE 4a sibling-revalidation race on PR #599. Bounded residual (worst case: one re-admission delayed by an interval, or one wasted admission the drain rejects; no user-visible effect, 0 observed occurrences). **Registered, NOT accepted** — awaiting Maya's disposition: implement serialization, accept as monitored, or hold.
+
 **New this cycle (2026-08-10) — P2, so deliberately not in the P0/P1 queue above:** **OPS-026** —
 historical `Listing` media-summary drift, 4,847 of 20,721 photo-bearing listings, recomputed
 read-only against the production summary owners (not a hand-written `media_type='Photo'` proxy).

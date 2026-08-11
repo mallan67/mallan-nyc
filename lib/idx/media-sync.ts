@@ -3736,13 +3736,19 @@ export interface RunMediaSyncResult {
    */
   mirror_rejected_policy_parked: number;
   /**
-   * PHASE 4a: policy-parked rows whose exclusion was reconsidered this run —
-   * the DECISION count, and the pass's per-run write bound.
+   * PHASE 4a: policy-parked rows EXAMINED this run. This is **not** the write
+   * bound — `r2_policy_decided` is. Rows the pass could not decide are examined
+   * and deliberately not written, and the fairness top-up then replaces them,
+   * so this legitimately exceeds `R2_POLICY_REEVAL_BATCH_LIMIT`.
    */
   r2_policy_reevaluated: number;
   /** CONFIRMED written: re-admitted to the ordinary backlog. */
   r2_policy_readmitted: number;
-  /** CONFIRMED written: still excluded (or undecidable); clock restarted. */
+  /**
+   * CONFIRMED written: still excluded, re-evaluation clock restarted.
+   * Undecidable rows are NOT counted here — they are reported under
+   * `r2_policy_deferred` and are not written at all.
+   */
   r2_policy_kept_parked: number;
   /**
    * Reconsidered rows whose write did NOT persist. Read back from each
@@ -3781,7 +3787,7 @@ export interface RunMediaSyncResult {
   /**
    * PHASE 4a durable rotation cursor could not be ADVANCED. This run's media
    * decisions are unaffected, but the next run restarts from the previous
-   * position â and a sustained failure silently restores the starvation defect
+   * position — and a sustained failure silently restores the starvation defect
    * the cursor exists to prevent.
    */
   r2_policy_cursor_write_failed: boolean;
