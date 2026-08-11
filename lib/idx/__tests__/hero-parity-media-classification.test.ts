@@ -39,6 +39,15 @@ jest.mock('@/lib/prisma', () => ({
       findMany: (args: unknown) => mockFindMany(args),
       updateMany: (args: unknown) => mockUpdateMany(args),
     },
+    // OPS-027: PHASE 4a revalidates sibling state and writes inside ONE
+    // transaction, so the tx-scoped client must route both calls.
+    $transaction: (fn: unknown) =>
+      (fn as (tx: unknown) => unknown)({
+        listingMedia: {
+          findMany: (args: unknown) => mockFindMany(args),
+          updateMany: (args: unknown) => mockUpdateMany(args),
+        },
+      }),
   },
 }));
 

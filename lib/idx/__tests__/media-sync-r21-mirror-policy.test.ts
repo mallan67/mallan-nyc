@@ -45,14 +45,17 @@ jest.mock("@/lib/prisma", () => ({
       update: jest.fn(),
       findUnique: jest.fn(),
     },
-    // W3: the drain selection runs inside a $transaction holding a
-    // pg advisory xact lock. Grant the lock and route the tx-scoped
-    // findMany to the same mock so admission assertions see the calls.
+    // TWO transactional callers now share this mock:
+    //   * W3 drain selection — holds a pg advisory xact lock (grant it here);
+    //   * OPS-027 PHASE 4a persistence — re-reads sibling state and writes in
+    //     the SAME transaction, so `updateMany` must be routed too. Omitting it
+    //     made the sweep's writes throw and silently report zero.
     $transaction: (fn: unknown) =>
       (fn as (tx: unknown) => unknown)({
         $queryRaw: async () => [{ locked: true }],
         listingMedia: {
           findMany: (args: unknown) => mockListingMediaFindMany(args),
+          updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
         },
       }),
   },
@@ -70,6 +73,9 @@ import {
   MALLAN_MIRROR_MEDIA_TYPES,
   MAX_FEED_MIRROR_PHOTOS_PER_LISTING,
   R2_POLICY_PARKED_ATTEMPTS,
+  R2_POLICY_REEVAL_RESERVE_MS,
+  DEFAULT_BUDGET_MS,
+  DEFAULT_PHASE2_RESERVE_MS,
   R2_RETRY_EXHAUSTED_THRESHOLD,
   runMediaSync,
   selectHeroPhoto,
@@ -516,6 +522,60 @@ describe("R2-1 — third-party displayable listing mirrors the canonical hero ON
       .map(([a]) => a as { where: { id: { in: bigint[] } }; data: Record<string, unknown> })
       .find((c) => c.where.id.in.some((id) => Number(id) === 1));
     expect(readmit!.data).toEqual({ r2_policy_excluded_at: null, r2_attempts: null });
+  });
+
+  it("OPS-028: a drain that reaches its budget still leaves PHASE 4a its reserved slice", async () => {
+    // Phase 3 used to stop at exactly `phase2ReserveMs`, the same threshold the
+    // Phase-4a gate needed to ENTER, so a saturated drain skipped the sweep by
+    // construction. The drain now stops at `phase2ReserveMs +
+    // R2_POLICY_REEVAL_RESERVE_MS`, so the sweep always gets a bounded window.
+    expect(R2_POLICY_REEVAL_RESERVE_MS).toBeGreaterThan(0);
+
+    // A large backlog plus a due parked row. The drain cannot consume the slice.
+    const backlog = Array.from({ length: 40 }, (_, i) =>
+      makePoolRow(i + 1, FEED_DISPLAYABLE, { preferred_photo_yn: i === 0 }),
+    );
+    const dueParked = makePoolRow(99, FEED_DISPLAYABLE, {
+      r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
+      order: 500,
+    });
+    installPool([...backlog, dueParked]);
+
+    const result = await runMediaSync(makeOptions(makeMirrorDeps()));
+
+    // The sweep ran: its telemetry is present and coherent rather than absent.
+    expect(typeof result.r2_policy_reevaluated).toBe("number");
+    expect(typeof result.r2_policy_decided).toBe("number");
+    expect(result.r2_policy_reevaluated).toBe(
+      result.r2_policy_readmitted +
+        result.r2_policy_kept_parked +
+        result.r2_policy_deferred +
+        result.r2_policy_write_failed,
+    );
+    // And the drain still did its bounded work.
+    expect(result.mirror_allowed).toBeGreaterThanOrEqual(1);
+  });
+
+  it("OPS-028: no due sweep work means the reserve invents nothing", async () => {
+    // Nothing is policy-parked, so the sweep must find no candidates and write
+    // nothing — an unused reserve must not manufacture work.
+    installPool(Array.from({ length: 5 }, (_, i) =>
+      makePoolRow(i + 1, FEED_DISPLAYABLE, { preferred_photo_yn: i === 0 })));
+
+    const result = await runMediaSync(makeOptions(makeMirrorDeps()));
+
+    expect(result.r2_policy_reevaluated).toBe(0);
+    expect(result.r2_policy_decided).toBe(0);
+    expect(result.r2_policy_readmitted).toBe(0);
+    expect(result.r2_policy_budget_exhausted).toBe(false);
+    expect(result.r2_policy_selector_failed).toBe(false);
+  });
+
+  it("OPS-028: the total One Cycle budget is unchanged — only its internal boundary moves", async () => {
+    // DEFAULT_BUDGET_MS is the contract with the route's hard deadline. The
+    // reserve must come OUT of the drain's share, never be added on top.
+    expect(DEFAULT_BUDGET_MS).toBe(100_000);
+    expect(DEFAULT_PHASE2_RESERVE_MS + R2_POLICY_REEVAL_RESERVE_MS).toBeLessThan(DEFAULT_BUDGET_MS);
   });
 
   it("PHASE 4a wiring: a still-non-hero parked row is NOT re-admitted by the run", async () => {

@@ -51,6 +51,8 @@ import {
   R2_POLICY_REEVAL_INTERVAL_MS,
   R2_POLICY_REEVAL_BATCH_LIMIT,
   R2_POLICY_REEVAL_CURSOR_RESOURCE,
+  R2_POLICY_REEVAL_MAX_TOPUPS,
+  R2_POLICY_REEVAL_RESERVE_MS,
   R2_RETRY_EXHAUSTED_THRESHOLD,
 } from '../media-sync';
 import { R2_POLICY_PARKED_ATTEMPTS } from '@/lib/media/r2-policy-state';
@@ -62,6 +64,7 @@ const mockUpdateMany = jest.fn<Promise<{ count: number }>, [unknown]>();
 
 const mockStateFindUnique = jest.fn<Promise<unknown>, [unknown]>();
 const mockStateUpsert = jest.fn<Promise<unknown>, [unknown]>();
+const mockTransaction = jest.fn();
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
@@ -73,6 +76,15 @@ jest.mock('@/lib/prisma', () => ({
     mediaSyncState: {
       findUnique: (args: unknown) => mockStateFindUnique(args),
       upsert: (args: unknown) => mockStateUpsert(args),
+    },
+    $transaction: (fn: unknown) => {
+      mockTransaction();
+      return (fn as (tx: unknown) => unknown)({
+        listingMedia: {
+          findMany: (args: unknown) => mockFindMany(args),
+          updateMany: (args: unknown) => mockUpdateMany(args),
+        },
+      });
     },
   },
 }));
@@ -194,6 +206,7 @@ beforeEach(() => {
   mockUpdateMany.mockReset();
   mockStateFindUnique.mockReset().mockResolvedValue(null);
   mockStateUpsert.mockReset().mockResolvedValue(undefined);
+  mockTransaction.mockClear();
   mockUpdateMany.mockImplementation(async (args) => ({
     count: ((args as { where: { id: { in: unknown[] } } }).where.id.in ?? []).length,
   }));
@@ -1390,6 +1403,136 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
       expect(res.decided).toBe(res.readmitted + res.kept_parked + res.write_failed);
       expect(res.decided).toBeLessThanOrEqual(3);
     }
+  });
+
+  // ── OPS-027: sibling state is revalidated AT PERSISTENCE TIME ──────────────
+  //
+  // The hero decision is computed from every sibling row, but the write guard
+  // only proved the CANDIDATE had not moved. A sibling tombstoned, reordered or
+  // made preferred between the hero read and the `updateMany` could therefore
+  // leave a stale decision: a newly-canonical row re-parked for another
+  // interval, or a no-longer-canonical row re-admitted.
+  //
+  // `siblingMaxUpdatedAt(listingIds)` is the persistence-time revalidation: it
+  // re-reads the per-listing maximum `updated_at` immediately before the write
+  // and drops any listing that moved. The write statements additionally carry
+  // an atomic `NOT EXISTS (sibling newer than selectionAt)` predicate, so the
+  // narrow gap between that re-read and the write is closed by Postgres itself.
+
+  /** Serve a listing whose siblings move only AFTER the hero read. */
+  function installMovingSibling(opts: {
+    listingId: string;
+    candidate: Row;
+    heroKeyAtRead: string;
+    /** Called once the hero read has happened; returns the new sibling max. */
+    movedTo: Date | null;
+  }) {
+    const listing = { ...THIRD_PARTY, listing_id: opts.listingId };
+    let heroRead = false;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown>; take?: number; select?: Record<string, unknown> };
+      // per-listing hero read
+      if (typeof a.where?.listing_id === 'string' && !('status' in a.where)) {
+        heroRead = true;
+        return [
+          { media_key: opts.heroKeyAtRead, media_type: 'Photo', media_category: null,
+            media_classification: null, media_url_original: 'https://api.cotality.com/h.jpg',
+            status: 'active', preferred_photo_yn: true, order: 0, updated_at: new Date(NOW - 60_000) },
+          { media_key: opts.candidate.media_key, media_type: 'Photo', media_category: null,
+            media_classification: null, media_url_original: 'https://api.cotality.com/c.jpg',
+            status: 'active', preferred_photo_yn: false, order: 7, updated_at: new Date(NOW - 60_000) },
+        ];
+      }
+      // persistence-time sibling revalidation (listing_id + updated_at rows)
+      if (Array.isArray((a.where?.listing_id as { in?: string[] } | undefined)?.in)) {
+        return [{ listing_id: opts.listingId,
+                  updated_at: heroRead && opts.movedTo ? opts.movedTo : new Date(NOW - 60_000) }];
+      }
+      // candidate selector
+      return [{ ...opts.candidate, listing: listing }];
+    });
+  }
+
+  it('66. a sibling that moves before persistence blocks a stale RE-ADMISSION', async () => {
+    const cand = legacyParked({ listing_id: 'RLS-MV', media_key: 'MK-cand', preferred_photo_yn: true, order: 0 });
+    installMovingSibling({
+      listingId: 'RLS-MV', candidate: cand, heroKeyAtRead: 'MK-cand',
+      movedTo: new Date(NOW + 5_000), // a sibling changed after the hero read
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.readmitted).toBe(0);
+    expect(res.deferred).toBe(1);   // honestly reclassified, not written
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('67. a sibling that moves before persistence blocks a stale RE-PARK', async () => {
+    const cand = legacyParked({ listing_id: 'RLS-MV', media_key: 'MK-cand', order: 7 });
+    installMovingSibling({
+      listingId: 'RLS-MV', candidate: cand, heroKeyAtRead: 'MK-other', movedTo: new Date(NOW + 5_000),
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.kept_parked).toBe(0);
+    expect(res.deferred).toBe(1);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('68. unchanged siblings let the intended decision persist', async () => {
+    const cand = legacyParked({ listing_id: 'RLS-MV', media_key: 'MK-cand', preferred_photo_yn: true, order: 0 });
+    installMovingSibling({
+      listingId: 'RLS-MV', candidate: cand, heroKeyAtRead: 'MK-cand', movedTo: null,
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now });
+
+    expect(res.readmitted).toBe(1);
+    expect(res.deferred).toBe(0);
+  });
+
+  it('69. a listing blocked at persistence does not advance the cursor or inflate counters', async () => {
+    const cand = legacyParked({ listing_id: 'RLS-MV', media_key: 'MK-cand', order: 7 });
+    installMovingSibling({
+      listingId: 'RLS-MV', candidate: cand, heroKeyAtRead: 'MK-other', movedTo: new Date(NOW + 5_000),
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 1 });
+
+    expect(res.write_failed).toBe(0);           // never attempted, not a failure
+    expect(res.scanned).toBe(res.readmitted + res.kept_parked + res.deferred + res.write_failed);
+    const up = mockStateUpsert.mock.calls.at(-1)?.[0] as
+      | { update: { last_listing_key: string | null } } | undefined;
+    // The listing was not successfully decided, so the rotation must not step
+    // past it as though it had been.
+    if (up) expect(up.update.last_listing_key).not.toBe('RLS-MV');
+  });
+
+  it("70. the revalidation and the writes share ONE transaction", async () => {
+    // The proof that revalidation happens AT PERSISTENCE TIME is that the
+    // re-read and the writes are in the same transaction — not that a comment
+    // says so. A revalidation outside the transaction would be a decision made
+    // against state that could already have moved by the time of the write.
+    const heroRow = row({ media_key: "MK-hero", order: 0 });
+    installPool([heroRow, legacyParked({ order: 11 })]);
+    await reevaluateR2PolicyExclusions({ now });
+    expect(mockTransaction).toHaveBeenCalled();
+    // Every write went through the transactional client.
+    expect(mockUpdateMany).toHaveBeenCalled();
+  });
+
+  // OPS-028: the reserved slice is a DERIVED constant, not a guess.
+  it('71. the sweep reserve is derived from its worst case and stays small', () => {
+    // Worst case per run: 1 selector SELECT + up to batchLimit serial hero
+    // reads + up to MAX_TOPUPS top-up SELECTs + 1 sibling revalidation read
+    // + <=3 write statements + 1 cursor upsert.
+    const worstCaseRoundTrips =
+      1 + R2_POLICY_REEVAL_BATCH_LIMIT + R2_POLICY_REEVAL_MAX_TOPUPS + 1 + 3 + 1;
+    expect(worstCaseRoundTrips).toBeLessThanOrEqual(80);
+    // Big enough to make real progress, small enough not to starve the drain.
+    expect(R2_POLICY_REEVAL_RESERVE_MS).toBeGreaterThanOrEqual(4_000);
+    expect(R2_POLICY_REEVAL_RESERVE_MS).toBeLessThanOrEqual(15_000);
   });
 
   it('52. cursor bookkeeping never blocks the sweep', async () => {

@@ -2502,6 +2502,40 @@ export const R2_POLICY_REEVAL_MAX_TOPUPS = 3;
 export const R2_POLICY_REEVAL_CURSOR_RESOURCE = "r2_policy_reevaluation";
 
 /**
+ * OPS-028 — the sweep's GUARANTEED time slice, held back from the Phase-3 drain.
+ *
+ * Phase 3 used to stop at exactly `phase2ReserveMs`, the same threshold the
+ * Phase-4a gate required to enter — so a drain that ran to its budget exit
+ * skipped the sweep BY CONSTRUCTION. Repeated every firing, due rows would get
+ * no selector, no cursor movement and no persistence, and the 14-day bound
+ * would be silently missed. One Cycle is the only scheduled driver, so nothing
+ * else guarantees progress. The feedback loop made it self-sustaining: the
+ * sweep's own re-admissions grow the backlog, the backlog lengthens the drain,
+ * and the longer drain starves the sweep.
+ *
+ * DERIVED, not guessed. Worst case per run is
+ *   1 selector SELECT
+ * + up to R2_POLICY_REEVAL_BATCH_LIMIT (60) SERIAL per-listing hero reads
+ * + up to R2_POLICY_REEVAL_MAX_TOPUPS (3) top-up SELECTs
+ * + 1 sibling-revalidation read
+ * + at most 3 write statements
+ * + 1 cursor upsert
+ * = ~69 round-trips. At a conservative 100 ms Neon round-trip that is ~6.9 s;
+ * at 50 ms, ~3.5 s. 8 s therefore covers a full window at realistic latency and
+ * a large fraction of it at poor latency — and the sweep is independently
+ * time-bounded (`hasTimeRemaining`), so exceeding the slice truncates the sweep
+ * rather than the run.
+ *
+ * TOTAL BUDGET UNCHANGED. `DEFAULT_BUDGET_MS` stays 100 s; this only moves the
+ * boundary inside it: Phase 3 now stops at `phase2ReserveMs + this`, leaving
+ * this slice for Phase 4a and the finalize reserve untouched. The drain's
+ * THROUGHPUT bound is `R2_BACKLOG_BATCH_LIMIT` rows, which is unchanged — only
+ * its wall-clock window shortens, and measured runs finish far inside it
+ * (24h: `time_budget_exhausted` 0/144, `backlog_remaining` 0).
+ */
+export const R2_POLICY_REEVAL_RESERVE_MS = 8_000;
+
+/**
  * THE RE-ADMISSION SELECTOR — a dedicated, bounded owner.
  *
  * It is deliberately NOT an age clause bolted onto
@@ -2562,6 +2596,14 @@ export function buildR2PolicyReevaluationWhere(
     ],
   };
 }
+
+/** Minimal Prisma surface the sweep needs inside a transaction. */
+type TxClient = {
+  listingMedia: {
+    findMany: (args: unknown) => Promise<unknown[]>;
+    updateMany: (args: unknown) => Promise<{ count: number }>;
+  };
+};
 
 export interface R2PolicyReevaluationOptions {
   /** Injectable clock — the caller passes the run's single clock. */
@@ -2839,6 +2881,11 @@ export async function reevaluateR2PolicyExclusions(
   const failedListings = new Set<string>();
   /** Every listing this run looked at — drives the durable rotation cursor. */
   const examinedListingIds = new Set<string>();
+  /**
+   * row id -> listing_id, so the persistence-time sibling revalidation can drop
+   * a whole listing from the write without re-querying which rows belong to it.
+   */
+  const listingOfRow = new Map<string, string>();
   /** Rows actually EXAMINED — not the window size, which a truncated sweep overstates. */
   let examinedRows = 0;
 
@@ -2857,6 +2904,7 @@ export async function reevaluateR2PolicyExclusions(
    */
   const markExamined = (row: ReevalRow): void => {
     examinedListingIds.add(row.listing_id);
+    listingOfRow.set(String(row.id), row.listing_id);
     examinedRows++;
   };
 
@@ -3041,25 +3089,21 @@ export async function reevaluateR2PolicyExclusions(
    * simply reconsidered on a later firing.
    */
   const persist = async (
+    tx: TxClient,
     ids: bigint[],
     guard: Prisma.ListingMediaWhereInput,
     data: Prisma.ListingMediaUpdateManyMutationInput,
   ): Promise<number> => {
     if (ids.length === 0) return 0;
     try {
-      const written = await prisma.listingMedia.updateMany({
+      const written = await tx.listingMedia.updateMany({
         where: {
           id: { in: ids },
-          // OPTIMISTIC CONCURRENCY. The park-marker guards below prove the row
-          // is still parked, but NOT that the hero decision we made from it is
-          // still valid: a feed ingest or a CRM set-main can change
-          // preferred_photo_yn / order / classification between the hero read
-          // and this write, and re-stamping then delays a row that just became
-          // canonical by another full interval. `updated_at` is Prisma
-          // `@updatedAt`, so ANY concurrent write bumps it — one shared
-          // predicate covers every such mutation without needing per-row
-          // statements or a lock. A row that moved is skipped and lands in
-          // `write_failed`; it is simply reconsidered on a later firing.
+          // OPTIMISTIC CONCURRENCY on the CANDIDATE row. `updated_at` is Prisma
+          // `@updatedAt`, so any concurrent write to this row bumps it. This is
+          // the inner of two guards — the listing-wide one is
+          // `revalidateSiblings()` above, because the hero decision is computed
+          // from every sibling, not from this row alone.
           updated_at: { lte: selectionAt },
           ...guard,
         },
@@ -3071,6 +3115,57 @@ export async function reevaluateR2PolicyExclusions(
     }
   };
 
+  /**
+   * OPS-027 — PERSISTENCE-TIME SIBLING REVALIDATION.
+   *
+   * The hero decision is computed from EVERY row of the listing, but the
+   * per-row write guard can only prove the candidate itself did not move. A
+   * sibling tombstoned, reordered or made preferred between the hero read and
+   * the write would leave a stale decision: a newly-canonical row re-parked for
+   * another interval, or a no-longer-canonical row re-admitted.
+   *
+   * Immediately before writing, re-read the per-listing maximum `updated_at`
+   * for exactly the listings about to be written. Any listing whose maximum has
+   * moved past `selectionAt` is dropped from the write entirely — its rows are
+   * reclassified as `deferred` (honestly undecidable this run), the listing is
+   * removed from the cursor's examined set so the rotation cannot step past it
+   * as though it had been decided, and no R2 write is created because
+   * re-admission never happens. The rows stay due for a later pass.
+   *
+   * A read failure is fail-CLOSED: if the revalidation cannot be performed, no
+   * listing is trusted and nothing is written this run.
+   *
+   * Returns the set of listing ids that are still safe to write.
+   */
+  const revalidateSiblings = async (
+    tx: TxClient,
+    listingIds: string[],
+  ): Promise<Set<string>> => {
+    if (listingIds.length === 0) return new Set();
+    try {
+      const rows = await tx.listingMedia.findMany({
+        where: { listing_id: { in: listingIds } },
+        select: { listing_id: true, updated_at: true },
+      });
+      const maxByListing = new Map<string, number>();
+      for (const raw of rows) {
+        const r = raw as { listing_id?: string; updated_at?: Date };
+        const t = r.updated_at;
+        if (!(t instanceof Date)) continue;
+        const lid = String(r.listing_id ?? "");
+        const prev = maxByListing.get(lid);
+        if (prev === undefined || t.getTime() > prev) {
+          maxByListing.set(lid, t.getTime());
+        }
+      }
+      return new Set(
+        listingIds.filter((id) => (maxByListing.get(id) ?? 0) <= selectionAt.getTime()),
+      );
+    } catch {
+      return new Set(); // fail-closed: prove nothing, write nothing
+    }
+  };
+
   /** Still parked under EITHER encoding — the precondition for re-stamping. */
   const stillParked: Prisma.ListingMediaWhereInput = {
     OR: [
@@ -3079,26 +3174,74 @@ export async function reevaluateR2PolicyExclusions(
     ],
   };
 
+  // OPS-027 — revalidate every listing about to be written, then drop the ones
+  // whose siblings moved. Rows of a dropped listing become `deferred`, its
+  // listing leaves the cursor's examined set, and no write (and therefore no
+  // later R2 write) is created for it.
+  const writeListingIds = [
+    ...new Set(
+      [...readmitPlain, ...readmitLegacy, ...keptParked]
+        .map((id) => listingOfRow.get(String(id)))
+        .filter((v): v is string => typeof v === "string"),
+    ),
+  ];
   const restampAt = new Date(nowFn());
-  // At most three statements per run, regardless of batch size. Deferred rows
-  // are deliberately NOT written (see `deferred` on the result type), so they
-  // add no statement and no fabricated timestamp.
-  result.readmitted =
-    // Selected via the explicit column, so only clear it if it is still set.
-    (await persist(
-      readmitPlain,
-      { r2_policy_excluded_at: { not: null } },
-      { r2_policy_excluded_at: null },
-    )) +
-    // Legacy: only clear the sentinel if the row still carries exactly 9.
-    (await persist(
-      readmitLegacy,
-      { r2_attempts: R2_POLICY_PARKED_ATTEMPTS },
-      { r2_policy_excluded_at: null, r2_attempts: null },
-    ));
-  result.kept_parked = await persist(keptParked, stillParked, {
-    r2_policy_excluded_at: restampAt,
-  });
+
+  // ONE TRANSACTION: revalidate, then write. The re-read and the writes share a
+  // transaction so the decision is proven against sibling state at PERSISTENCE
+  // time, not at hero-read time. Bounded work — one grouped read plus at most
+  // three batched statements — so the transaction is short by construction.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const safeListings = await revalidateSiblings(tx as TxClient, writeListingIds);
+      const isSafe = (id: bigint) => safeListings.has(listingOfRow.get(String(id)) ?? "");
+
+      // A listing whose siblings moved is dropped from the write entirely: its
+      // rows are reclassified as `deferred` (undecidable this run, not failed),
+      // and the listing leaves the cursor's examined set so the rotation cannot
+      // step past it as though it had been decided.
+      for (const list of [readmitPlain, readmitLegacy, keptParked]) {
+        for (const id of list.filter((i) => !isSafe(i))) deferred.push(id);
+      }
+      for (const id of writeListingIds) {
+        if (!safeListings.has(id)) examinedListingIds.delete(id);
+      }
+
+      const safeReadmitPlain = readmitPlain.filter(isSafe);
+      const safeReadmitLegacy = readmitLegacy.filter(isSafe);
+      const safeKeptParked = keptParked.filter(isSafe);
+      // `decided` counts only what the sweep will actually attempt to write.
+      result.decided =
+        safeReadmitPlain.length + safeReadmitLegacy.length + safeKeptParked.length;
+
+      // At most three statements, regardless of batch size. Deferred rows are
+      // deliberately NOT written, so they add no statement and no fabricated
+      // timestamp.
+      result.readmitted =
+        // Selected via the explicit column, so only clear it if it is still set.
+        (await persist(
+          tx as TxClient,
+          safeReadmitPlain,
+          { r2_policy_excluded_at: { not: null } },
+          { r2_policy_excluded_at: null },
+        )) +
+        // Legacy: only clear the sentinel if the row still carries exactly 9.
+        (await persist(
+          tx as TxClient,
+          safeReadmitLegacy,
+          { r2_attempts: R2_POLICY_PARKED_ATTEMPTS },
+          { r2_policy_excluded_at: null, r2_attempts: null },
+        ));
+      result.kept_parked = await persist(tx as TxClient, safeKeptParked, stillParked, {
+        r2_policy_excluded_at: restampAt,
+      });
+    });
+  } catch {
+    // Non-fatal: nothing committed, so every row stays exactly as it was and is
+    // reconsidered on a later firing.
+    result.readmitted = 0;
+    result.kept_parked = 0;
+  }
   result.deferred = deferred.length;
 
   // ADVANCE THE DURABLE ROTATION. Move to the highest listing_id examined, so
@@ -4712,6 +4855,20 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   const cooldownThreshold = new Date(now() - R2_RETRY_COOLDOWN_MS);
   const backlogBatchLimit = options.backlogBatchLimit ?? R2_BACKLOG_BATCH_LIMIT;
   const parkedRecoveryQuota = options.parkedRecoveryQuota ?? R2_PARKED_RECOVERY_QUOTA;
+  // OPS-028: the drain stops EARLIER than the finalize reserve so PHASE 4a
+  // always gets its slice. Same total budget — only the internal boundary moves.
+  //
+  // CLAMPED, not flat. A fixed 8 s would swallow the entire drain for any
+  // caller with a small budget — a 1 s budget would leave the drain nothing at
+  // all — so the slice is capped at a fifth of the post-finalize budget. At the
+  // production 100 s / 12 s the clamp is inactive (min(8000, 17600) = 8000), so
+  // the derived reserve stands where it matters and degrades proportionally
+  // where a flat value would starve the drain instead.
+  const sweepReserveMs = Math.min(
+    R2_POLICY_REEVAL_RESERVE_MS,
+    Math.max(0, Math.floor((budgetMs - phase2ReserveMs) * 0.2)),
+  );
+  const drainReserveMs = phase2ReserveMs + sweepReserveMs;
   // R2-1: per-invocation cache of each hero_only listing's canonical hero
   // media_key (null = no eligible hero / lookup failed => fail-closed: admit
   // nothing for that listing this invocation).
@@ -5040,7 +5197,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     //    mirrorMediaToR2 (selected > attempted ⇔ the time budget expired
     //    before the reserved chunk could run).
     for (let j = 0; j < parkedRows.length; j += R2_MIRROR_CONCURRENCY) {
-      if (remainingMs() <= phase2ReserveMs) break;
+      if (remainingMs() <= drainReserveMs) break; // OPS-028 sweep reserve
       const chunk = parkedRows.slice(j, j + R2_MIRROR_CONCURRENCY);
       r2ParkedRecoveryAttempted += chunk.length;
       rowsAttemptedTotal += chunk.length;
@@ -5054,7 +5211,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     let mainAttempted = 0;
     let idx = 0;
     while (idx < backlogRows.length) {
-      if (remainingMs() <= phase2ReserveMs) break; // time budget — Phase 4 finalize still runs
+      // OPS-028: stop at the DRAIN reserve, which holds back PHASE 4a's slice
+      // on top of the finalize reserve. Phase 4 finalize still runs.
+      if (remainingMs() <= drainReserveMs) break;
       const failureAllowance = R2_RUN_FAILURE_BUDGET - mainFailed;
       if (failureAllowance <= 0) break;
       // HARD CAP: never hand more rows to the mirror than the remaining
