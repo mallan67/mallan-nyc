@@ -1,18 +1,18 @@
 {
   "stats": {
-    "total_routes": 289,
+    "total_routes": 277,
     "by_auth_class": {
-      "public": 36,
+      "public": 35,
       "broker": 24,
       "public (auth)": 17,
-      "agent/broker": 145,
+      "agent/broker": 136,
       "agent/broker (path)": 2,
-      "cron": 25,
+      "cron": 23,
       "portal": 25,
       "portal (path)": 15
     },
-    "public_routes_with_gate": 7,
-    "public_routes_without_gate": 1
+    "public_routes_with_gate": 8,
+    "public_routes_without_gate": 0
   },
   "catalog": [
     {
@@ -343,8 +343,14 @@
       "compliance_signals": [
         "attribution"
       ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
+      "distribution_gate_signals": [
+        "idx_display_yn",
+        "internet_entire_listing_display_yn",
+        "participant_only",
+        "owner_opt_out",
+        "checkDistributionGates"
+      ],
+      "gate_enforced": true
     },
     {
       "route": "/api/buildings/search",
@@ -390,7 +396,8 @@
         "rate-limited"
       ],
       "compliance_signals": [
-        "audit-event"
+        "audit-event",
+        "consent-capture"
       ],
       "distribution_gate_signals": [],
       "gate_enforced": false
@@ -460,24 +467,6 @@
       ],
       "compliance_signals": [
         "audit-event"
-      ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/agent-inquiry",
-      "file": "app/api/crm/agent-inquiry/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker",
-        "rate-limited"
-      ],
-      "compliance_signals": [
-        "audit-event",
-        "attribution"
       ],
       "distribution_gate_signals": [],
       "gate_enforced": false
@@ -1615,44 +1604,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/crm/listing-campaigns/recipients",
-      "file": "app/api/crm/listing-campaigns/recipients/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/listing-campaigns",
-      "file": "app/api/crm/listing-campaigns/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [
-        "audit-event",
-        "attribution",
-        "consent-capture"
-      ],
-      "distribution_gate_signals": [
-        "idx_display_yn",
-        "internet_entire_listing_display_yn",
-        "internet_address_display_yn",
-        "participant_only",
-        "owner_opt_out"
-      ],
-      "gate_enforced": true
-    },
-    {
       "route": "/api/crm/listing-engagement",
       "file": "app/api/crm/listing-engagement/route.ts",
       "methods": [
@@ -1722,37 +1673,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/crm/listings/[id]/media/[mediaId]",
-      "file": "app/api/crm/listings/[id]/media/[mediaId]/route.ts",
-      "methods": [
-        "PATCH",
-        "DELETE"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [
-        "audit-event"
-      ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/listings/[id]/media",
-      "file": "app/api/crm/listings/[id]/media/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/crm/listings/[id]/media/upload",
       "file": "app/api/crm/listings/[id]/media/upload/route.ts",
       "methods": [
@@ -1778,7 +1698,9 @@
       "auth_signals": [
         "agent-or-broker"
       ],
-      "compliance_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },
@@ -1807,20 +1729,6 @@
       "gate_enforced": true
     },
     {
-      "route": "/api/crm/listings/[id]/seller-report",
-      "file": "app/api/crm/listings/[id]/seller-report/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/crm/listings/[id]/status",
       "file": "app/api/crm/listings/[id]/status/route.ts",
       "methods": [
@@ -1834,16 +1742,8 @@
         "audit-event",
         "attribution"
       ],
-      "distribution_gate_signals": [
-        "idx_display_yn",
-        "internet_entire_listing_display_yn",
-        "internet_address_display_yn",
-        "internet_automated_valuation_display_yn",
-        "internet_consumer_comment_yn",
-        "participant_only",
-        "owner_opt_out"
-      ],
-      "gate_enforced": true
+      "distribution_gate_signals": [],
+      "gate_enforced": false
     },
     {
       "route": "/api/crm/listings/[id]/validate",
@@ -1911,20 +1811,6 @@
       "file": "app/api/crm/market-report/route.ts",
       "methods": [
         "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/neighborhoods/cotality",
-      "file": "app/api/crm/neighborhoods/cotality/route.ts",
-      "methods": [
-        "GET"
       ],
       "auth_class": "agent/broker",
       "auth_signals": [
@@ -2673,36 +2559,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/crm/scanner/prospects",
-      "file": "app/api/crm/scanner/prospects/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/scanner/verify",
-      "file": "app/api/crm/scanner/verify/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [
-        "audit-event"
-      ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/crm/settings/renewal-alerts",
       "file": "app/api/crm/settings/renewal-alerts/route.ts",
       "methods": [
@@ -2954,20 +2810,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/cron/data-retention-finalize",
-      "file": "app/api/cron/data-retention-finalize/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "cron",
-      "auth_signals": [
-        "cron-secret"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/cron/data-retention",
       "file": "app/api/cron/data-retention/route.ts",
       "methods": [
@@ -2986,6 +2828,20 @@
         "filterDisplayableDbListings"
       ],
       "gate_enforced": true
+    },
+    {
+      "route": "/api/cron/db-keepalive",
+      "file": "app/api/cron/db-keepalive/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "auth_class": "cron",
+      "auth_signals": [
+        "cron-secret"
+      ],
+      "compliance_signals": [],
+      "distribution_gate_signals": [],
+      "gate_enforced": false
     },
     {
       "route": "/api/cron/demand-signals",
@@ -3063,7 +2919,9 @@
       "auth_signals": [
         "cron-secret"
       ],
-      "compliance_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },
@@ -3129,10 +2987,8 @@
       "compliance_signals": [
         "audit-event"
       ],
-      "distribution_gate_signals": [
-        "idx_display_yn"
-      ],
-      "gate_enforced": true
+      "distribution_gate_signals": [],
+      "gate_enforced": false
     },
     {
       "route": "/api/cron/listing-momentum",
@@ -3167,8 +3023,8 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/cron/media-sync",
-      "file": "app/api/cron/media-sync/route.ts",
+      "route": "/api/cron/media-backfill",
+      "file": "app/api/cron/media-backfill/route.ts",
       "methods": [
         "GET"
       ],
@@ -3190,39 +3046,7 @@
       "auth_signals": [
         "cron-secret"
       ],
-      "compliance_signals": [
-        "audit-event"
-      ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/cron/one-cycle-preflight",
-      "file": "app/api/cron/one-cycle-preflight/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "cron",
-      "auth_signals": [
-        "cron-secret"
-      ],
       "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/cron/one-cycle",
-      "file": "app/api/cron/one-cycle/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "cron",
-      "auth_signals": [
-        "cron-secret"
-      ],
-      "compliance_signals": [
-        "audit-event"
-      ],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },
@@ -3341,9 +3165,7 @@
       "auth_signals": [
         "agent-or-broker"
       ],
-      "compliance_signals": [
-        "audit-event"
-      ],
+      "compliance_signals": [],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },
@@ -3744,8 +3566,7 @@
         "internet_address_display_yn",
         "participant_only",
         "owner_opt_out",
-        "checkDistributionGates",
-        "filterDisplayableDbListings"
+        "checkDistributionGates"
       ],
       "gate_enforced": true
     },
@@ -3763,13 +3584,8 @@
         "audit-event",
         "consent-capture"
       ],
-      "distribution_gate_signals": [
-        "internet_entire_listing_display_yn",
-        "internet_address_display_yn",
-        "participant_only",
-        "owner_opt_out"
-      ],
-      "gate_enforced": true
+      "distribution_gate_signals": [],
+      "gate_enforced": false
     },
     {
       "route": "/api/pages/[slug]",
@@ -4048,8 +3864,7 @@
         "portal-role"
       ],
       "compliance_signals": [
-        "audit-event",
-        "consent-capture"
+        "audit-event"
       ],
       "distribution_gate_signals": [
         "isListingDisplayable"
@@ -4186,8 +4001,7 @@
       "auth_class": "portal (path)",
       "auth_signals": [],
       "compliance_signals": [
-        "audit-event",
-        "consent-capture"
+        "audit-event"
       ],
       "distribution_gate_signals": [],
       "gate_enforced": false
@@ -4389,18 +4203,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/release-identity",
-      "file": "app/api/release-identity/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "public",
-      "auth_signals": [],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/schools/nearby",
       "file": "app/api/schools/nearby/route.ts",
       "methods": [
@@ -4525,7 +4327,9 @@
       "auth_signals": [
         "rate-limited"
       ],
-      "compliance_signals": [],
+      "compliance_signals": [
+        "audit-event"
+      ],
       "distribution_gate_signals": [],
       "gate_enforced": false
     }

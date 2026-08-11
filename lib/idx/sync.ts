@@ -226,14 +226,16 @@ export function guardArchivedRehydration<T extends Record<string, unknown>>(
  * guardArchivedRehydration does NOT cover. A re-emitted archived row (media=[]) would otherwise have
  * its media re-hydrated in the same run, and retention then skips it (sync_status='archived'). Adding
  * the archived exclusion at the DB filter means the media write matches 0 rows for an archived
- * listing, so its stripped media is preserved. (The canonical media owner —
- * listing_media via media-sync — carries the same exclusion.)
+ * listing, so its stripped media is preserved. This guard protects the four
+ * surviving `Listing.media` JSON writers in THIS file and nothing else:
+ * `lib/idx/media-sync.ts` references neither `sync_status` nor 'archived', so
+ * the listing_media / R2 path has no equivalent archived exclusion.
  *
  * NULL-safe (Codex #465 P2): `sync_status: { not: 'archived' }` alone compiles to `sync_status <> 'archived'`,
  * which is NULL (not TRUE) for legacy rows where sync_status IS NULL — silently excluding them from a
  * legitimate media refill. Excluding ONLY 'archived' requires an explicit NULL branch, so NULL and every
  * non-archived value are allowed while archived stays protected. (Mirrors the SQL `IS DISTINCT FROM
- * 'archived'` used by the canonical media path, which is already NULL-safe.)
+ * 'archived'` form, which is already NULL-safe.)
  */
 export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereInput {
   return {

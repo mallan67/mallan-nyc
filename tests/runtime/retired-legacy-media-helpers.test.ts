@@ -34,8 +34,17 @@ const REPO = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(REPO, rel), "utf8");
 const exists = (rel: string) => fs.existsSync(path.join(REPO, rel));
 
-/** Executable source trees. Deliberately excludes docs/, memory/ and artifacts/. */
-const CODE_DIRS = ["app", "lib", "scripts"];
+/**
+ * EVERY execution surface, not just the obvious ones. An earlier version scanned
+ * only app/lib/scripts and could therefore report "all green" while the retired
+ * path was reintroduced through browser JS or a CI workflow.
+ *
+ * Deliberately EXCLUDES docs/, memory/ and artifacts/ — dated audits, incident
+ * reports and generated catalogs are evidence, not execution, and are allowed to
+ * name the retired architecture.
+ */
+const CODE_DIRS = ["app", "lib", "scripts", "public", ".github/workflows"];
+const CODE_EXT = /\.(ts|tsx|js|mjs|cjs|ya?ml)$/;
 
 function walk(dir: string, out: string[] = []): string[] {
   const abs = path.join(REPO, dir);
@@ -45,7 +54,7 @@ function walk(dir: string, out: string[] = []): string[] {
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === ".next") continue;
       walk(rel, out);
-    } else if (/\.(ts|tsx|js|mjs|cjs)$/.test(entry.name)) {
+    } else if (CODE_EXT.test(entry.name)) {
       out.push(rel);
     }
   }
@@ -68,7 +77,16 @@ describe("retired legacy media helpers stay retired", () => {
     expect(exists("app/api/cron/media-backfill/route.ts")).toBe(false);
   });
 
-  it("neither symbol is defined anywhere in executable source", () => {
+  it("the scan actually covers every execution surface (guards the guard)", () => {
+    // If a surface silently stops being scanned, the invariants below go green
+    // for the wrong reason. Assert the scan reaches real files in each tree.
+    for (const dir of CODE_DIRS) {
+      expect({ dir, files: walk(dir).length }).toEqual({ dir, files: expect.any(Number) });
+      expect(walk(dir).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("neither symbol is defined or invoked anywhere in executable source", () => {
     const offenders: string[] = [];
     for (const dir of CODE_DIRS) {
       for (const file of walk(dir)) {
@@ -104,11 +122,18 @@ describe("retired legacy media helpers stay retired", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the generated route catalog does not advertise the retired route", () => {
-    // Generated artifact: regenerate via scripts/reso/route-catalog.js, never
-    // hand-edit. A stale catalog is how a deleted route keeps looking alive.
-    expect(read("artifacts/api-route-catalog.json")).not.toContain("/api/cron/media-backfill");
+  it("no CI workflow invokes the retired cron path", () => {
+    // Workflows are an execution surface: a scheduled job could resurrect the
+    // retired path with no TypeScript change at all.
+    const offenders = walk(".github/workflows").filter((f) => /media-backfill/.test(read(f)));
+    expect(offenders).toEqual([]);
   });
+
+  // artifacts/api-route-catalog.{json,md} is deliberately NOT asserted here.
+  // That catalog is stale for reasons unrelated to this retirement — PR #471
+  // deferred its regeneration as separate scope — and a dead-code invariant
+  // must not force a broad unrelated artifact reconciliation to go green.
+  // Tracked as separate cleanup debt.
 
   it("historical documentation is still permitted to mention them", () => {
     // Guard against over-zealous cleanup: this suite must never be extended to

@@ -5,8 +5,10 @@
  * --------------------------
  * Its last stored-value consumer was the SQL eligibility predicate in
  * the legacy media-backfill helper, since RETIRED and deleted — its only caller,
- * `/api/cron/media-backfill`, was removed by PR #176 on 2026-05-21 (pinned by
- * tests/runtime/backfill-empty-media-reachability.test.ts).
+ * `/api/cron/media-backfill`, was UNSCHEDULED by PR #176 (2026-05-21 — vercel.json
+ * only; the route source remained) and the route file was DELETED later by
+ * PR #471 (2026-07-03). Pinned by
+ * tests/runtime/retired-legacy-media-helpers.test.ts.
  *
  * PCT freshness is owned end-to-end by the canonical chain:
  *   Property.PhotosChangeTimestamp
