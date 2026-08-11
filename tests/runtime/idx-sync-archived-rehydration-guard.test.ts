@@ -219,7 +219,7 @@ describe('idx-sync source — archived-guard wiring (SUPPORTING, not the RED pro
  * writer is NOT covered by guardArchivedRehydration, so a re-emitted archived row (media=[]) would
  * have its media re-hydrated in the same run — and retention then skips it (sync_status='archived').
  * archivedSafeMediaWhere adds the archived exclusion at the DB filter so the media write matches 0
- * rows for an archived listing. backfillEmptyMedia (which explicitly targets empty media) gets the
+ * rows for an archived listing. The retired media-backfill helper explicitly targeted empty media; the surviving path gets the
  * same exclusion in its SQL.
  */
 /**
@@ -269,13 +269,14 @@ describe('archivedSafeMediaWhere — NULL-safe batch media guard (Codex #465 P2,
 describe('idx-sync source — batch media-refill archived guard wiring (SUPPORTING)', () => {
   const src = readFileSync(path.resolve(__dirname, '../../lib/idx/sync.ts'), 'utf8');
 
-  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path reads + writes, backfill write)', () => {
+  it('all batch media updateMany writers use archivedSafeMediaWhere(...) (2 sync-path reads + writes)', () => {
     // Phase 3 write-suppression added an archived-safe findFirst pre-read
-    // next to each sync-path updateMany (2 reads + 2 writes) and kept the
-    // backfill write → 5 archived-safe where sites total. Every one of them
-    // must keep the guard.
+    // next to each sync-path updateMany (2 reads + 2 writes) = 4 guarded sites.
+    // Was 5 until the legacy media-backfill helper was retired; its own write
+    // was the fifth. The guard is unaffected — it lives in archivedSafeMediaWhere(),
+    // which every surviving writer still calls.
     const matches = src.match(/where:\s*archivedSafeMediaWhere\(/g) || [];
-    expect(matches.length).toBe(5);
+    expect(matches.length).toBe(4);
   });
 
   it('no batch media updateMany writes media with a bare { listing_id } where (unguarded rehydration)', () => {
@@ -284,7 +285,8 @@ describe('idx-sync source — batch media-refill archived guard wiring (SUPPORTI
     expect(src).not.toMatch(/where:\s*\{\s*listing_id:\s*listingId\s*\},\s*\n\s*data:\s*\{\s*media:/);
   });
 
-  it('backfillEmptyMedia SQL excludes archived rows so empty-media archived listings are not refilled', () => {
-    expect(src).toMatch(/sync_status IS DISTINCT FROM 'archived'/);
-  });
+  // REMOVED with the legacy media-backfill helper: this asserted a raw-SQL
+  // `sync_status IS DISTINCT FROM 'archived'` predicate that existed ONLY
+  // inside that function. Equivalent protection for every surviving writer
+  // is asserted above via archivedSafeMediaWhere().
 });

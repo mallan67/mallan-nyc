@@ -4,7 +4,7 @@
  * WHY IT COULD BE DEPRECATED
  * --------------------------
  * Its last stored-value consumer was the SQL eligibility predicate in
- * `backfillEmptyMedia()`, which is UNREACHABLE legacy code — its only caller,
+ * the legacy media-backfill helper, since RETIRED and deleted — its only caller,
  * `/api/cron/media-backfill`, was removed by PR #176 on 2026-05-21 (pinned by
  * tests/runtime/backfill-empty-media-reachability.test.ts).
  *
@@ -152,8 +152,8 @@ describe('the retention contract no longer persists it', () => {
   });
 });
 
-describe('the legacy SQL consumer is gone', () => {
-  it('backfillEmptyMedia no longer selects on stored raw_data PCT', () => {
+describe('the legacy stored-PCT SQL consumer is gone', () => {
+  it('sync.ts no longer selects on stored raw_data PCT', () => {
     const raw = require('fs')
       .readFileSync(require('path').resolve(__dirname, '../sync.ts'), 'utf8')
       .replace(/\r\n?/g, '\n');
