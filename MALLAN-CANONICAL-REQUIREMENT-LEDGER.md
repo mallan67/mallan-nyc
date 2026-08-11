@@ -54,6 +54,14 @@ Use `BLOCKED` only with a named blocker and owner.
 | AGENT-006 | Agents can see expected commission, split/plan basis, referral obligations, paid/unpaid status and final received commission subject to their permissions. | Transaction / Commission | DISCOVERED |
 | AGENT-007 | Agents can download their commission statements/reports and transaction-linked commission records. | Commission / Report | DISCOVERED |
 | AGENT-008 | Commission-plan terms are versioned and visible to the applicable agent; agents do not silently edit broker-approved compensation rules. | CompensationPlan | DISCOVERED |
+| AGENT-009 | Agents have backend access to the full approved investment-calculator suite without leaving the client/property/deal workflow. | Agent tools / InvestmentAnalysis | DISCOVERED |
+| AGENT-010 | Investment calculators include applicable cash flow, cap rate, cash-on-cash return, ROI, rental income/expense scenarios, financing/mortgage scenarios, debt-service metrics where appropriate, carrying-cost analysis and 1031 replacement comparison tools. | InvestmentAnalysis | DISCOVERED |
+| AGENT-011 | Calculator inputs distinguish canonical sourced property facts from agent/client assumptions; saved analyses retain both provenance and assumptions. | InvestmentAnalysis / Property Intelligence | DISCOVERED |
+| AGENT-012 | Saved calculator analyses attach to the same Party/Opportunity/Property/Deal and may be shared through approved reports without copying a second property record. | InvestmentAnalysis / Report | DISCOVERED |
+| AGENT-013 | Agents have contextual AI assistance throughout the backend for search help, property/listing comparison, client-response drafting, follow-up suggestions, CMA explanations, marketing drafts, transaction next-step guidance and approved document/compliance lookup. | AgentAssistant | DISCOVERED |
+| AGENT-014 | AI assistance is grounded in the canonical Mallan records and current approved source/reference material available to the workflow; it should identify missing facts instead of inventing them. | AgentAssistant / Tool context | DISCOVERED |
+| AGENT-015 | AI may draft/recommend but may not silently change canonical records, send communications, alter agreements, make binding legal/tax conclusions or bypass broker/agent approval and permissions. | AgentAssistant approval gate | DISCOVERED |
+| AGENT-016 | AI assistance invoked from Search uses the same canonical Search/Property Intelligence tools and criteria rather than a second AI-only search index. | AgentAssistant → Search | DISCOVERED |
 | BROKER-001 | Broker sees the same underlying agent/client/listing/deal records with firm-wide supervisory scope. | Authorization scope | DESIGNED |
 | BROKER-002 | Broker view tracks agent listing status, follow-up, production, commissions, compliance and exceptions. | Brokerage control plane | DESIGNED |
 
@@ -79,12 +87,13 @@ Use `BLOCKED` only with a named blocker and owner.
 
 | ID | Requirement | Canonical owner | Status |
 |---|---|---|---|
-| COMP-001 | Backend includes one Compliance/Professional Reference Center for agents and broker. | ComplianceKnowledge | DISCOVERED |
+| COMP-001 | Backend includes one practical Compliance/Professional Reference Center for agents and broker. | ComplianceKnowledge | DISCOVERED |
 | COMP-002 | Reference Center provides current applicable REBNY/RLS/UCBA requirements and links/versions to authoritative sources. | ComplianceSource | DISCOVERED |
 | COMP-003 | Reference Center provides current NY Department of State real-estate licensing requirements and authoritative-source references. | ComplianceSource | DISCOVERED |
-| COMP-004 | Reference Center may include RESO/IDX Plus and Mallan internal implementation rules where applicable. | ComplianceSource / InternalPolicy | DISCOVERED |
+| COMP-004 | Agent-facing guidance may include Mallan policies, workflow checklists, required forms/disclosures and practical brokerage procedures; technical listing-feed schema/transport mechanics are not an agent responsibility. | ComplianceSource / InternalPolicy | DISCOVERED |
 | COMP-005 | Every compliance item stores source, effective date/version, last verified date and applicability; stale static summaries must not masquerade as current law/rules. | ComplianceSourceVersion | DISCOVERED |
 | COMP-006 | Transaction/listing workflows link directly to the applicable requirement/forms rather than requiring agents to search a separate knowledge site manually. | Workflow → ComplianceReference | DISCOVERED |
+| COMP-007 | Technical listing-data integration and field governance are engineering/data-governance concerns and must use the verified **Cotality API/schema/payload contract** plus applicable REBNY/RLS/UCBA use/display rules; agents consume the resulting brokerage data without dealing with API plumbing. | Cotality source contract / Engineering governance | DISCOVERED |
 
 ---
 
@@ -275,6 +284,8 @@ Examples:
 - Search marketing is not complete if email/share/social cards carry copied prices that drift from the canonical listing.
 - URL listing entry is not complete if it can create a second version of an existing Cotality/Mallan listing.
 - Compliance reference is not complete if its source/effective date cannot be verified.
+- AI assistance is not complete if it creates a separate AI-only client/search/property truth or can act without the required human/broker approval.
+- Investment tools are not complete if their outputs cannot be traced to canonical facts plus explicit assumptions.
 
 ---
 
