@@ -2842,10 +2842,26 @@ export async function reevaluateR2PolicyExclusions(
   /** Rows actually EXAMINED — not the window size, which a truncated sweep overstates. */
   let examinedRows = 0;
 
+  /**
+   * Mark a row as EXAMINED. Deliberately called only once a row has actually
+   * been decided or deferred — never at the top of the loop.
+   *
+   * Counting on entry meant a row the budget gate returned on, untouched, was
+   * still in `examinedRows` and `examinedListingIds`. Two consequences, both
+   * wrong: `write_failed` is derived by subtraction, so that untouched row was
+   * reported as a failed write nobody attempted (breaking
+   * `decided = readmitted + kept_parked + write_failed`); and the row's listing
+   * entered the cursor's `highestExamined`, so a truncated FULL window could
+   * advance the rotation past a listing it never looked at, skipping every one
+   * of its rows until the cursor wrapped.
+   */
+  const markExamined = (row: ReevalRow): void => {
+    examinedListingIds.add(row.listing_id);
+    examinedRows++;
+  };
+
   const decide = async (rows: ReevalRow[]): Promise<void> => {
     for (const row of rows) {
-      examinedListingIds.add(row.listing_id);
-      examinedRows++;
       const scope = decideMirrorAdmissionScope(row.listing);
       const approvedTypes =
         scope === "all_active" ? MALLAN_MIRROR_MEDIA_TYPES : FEED_MIRROR_MEDIA_TYPES;
@@ -2855,6 +2871,7 @@ export async function reevaluateR2PolicyExclusions(
       // excludes both; re-checked here so a drifted where can never widen
       // re-admission.)
       if (scope === "none" || !approvedTypes.includes(row.media_type)) {
+        markExamined(row);
         keptParked.push(row.id);
         continue;
       }
@@ -2862,6 +2879,7 @@ export async function reevaluateR2PolicyExclusions(
       if (scope === "all_active") {
         // Mallan-owned: the complete active Photo + FloorPlan set is retained,
         // so hero identity is irrelevant to admission.
+        markExamined(row);
         (row.r2_attempts === R2_POLICY_PARKED_ATTEMPTS ? readmitLegacy : readmitPlain).push(row.id);
         continue;
       }
@@ -2922,6 +2940,9 @@ export async function reevaluateR2PolicyExclusions(
         }
         heroKeyCache.set(row.listing_id, heroKey);
       }
+
+      // Past the budget gate, so this row WAS examined.
+      markExamined(row);
 
       if (heroKey === HERO_LOOKUP_FAILED) {
         failedListings.add(row.listing_id);

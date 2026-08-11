@@ -1204,6 +1204,83 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     expect(res.kept_parked).toBe(1);
   });
 
+  it('62. a budget-stopped row is NOT counted as examined and NOT reported as a write failure', async () => {
+    // The accounting ran at the TOP of the loop, before the budget gate, so a
+    // row the pass returned on without touching was still counted in `scanned`
+    // — and because `write_failed` is derived by subtraction, it was reported
+    // as a failed write that had never been attempted.
+    const lA = { ...THIRD_PARTY, listing_id: 'RLS-A' };
+    const lB = { ...THIRD_PARTY, listing_id: 'RLS-B' };
+    const heroRow = row({ listing_id: 'RLS-A', listing: lA, media_key: 'MK-hero', order: 0 });
+    const decidedRow = legacyParked({ listing_id: 'RLS-A', listing: lA, order: 5 });
+    const untouched = legacyParked({ listing_id: 'RLS-B', listing: lB, order: 6 });
+    installPool([heroRow, decidedRow, untouched]);
+
+    let heroReads = 0;
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (typeof a.where?.listing_id === 'string' && !('status' in a.where)) heroReads++;
+      return passthrough(args);
+    });
+
+    // One hero read allowed: RLS-A is decided, RLS-B is stopped at the gate.
+    const res = await reevaluateR2PolicyExclusions({ now, hasTimeRemaining: () => heroReads < 1 });
+
+    expect(res.budget_exhausted).toBe(true);
+    expect(res.kept_parked).toBe(1);   // RLS-A decided and written
+    expect(res.write_failed).toBe(0);  // RLS-B was never attempted
+    expect(res.scanned).toBe(1);       // RLS-B was never examined
+  });
+
+  it('63. the decided invariant survives a truncated sweep', async () => {
+    const lA = { ...THIRD_PARTY, listing_id: 'RLS-A' };
+    const heroRow = row({ listing_id: 'RLS-A', listing: lA, media_key: 'MK-hero', order: 0 });
+    const rows = ['RLS-A', 'RLS-B', 'RLS-C'].map((lid, i) =>
+      legacyParked({ listing_id: lid, listing: { ...THIRD_PARTY, listing_id: lid }, order: 5 + i }));
+    installPool([heroRow, ...rows]);
+    let heroReads = 0;
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (typeof a.where?.listing_id === 'string' && !('status' in a.where)) heroReads++;
+      return passthrough(args);
+    });
+
+    const res = await reevaluateR2PolicyExclusions({ now, hasTimeRemaining: () => heroReads < 1 });
+
+    expect(res.decided).toBe(res.readmitted + res.kept_parked + res.write_failed);
+    expect(res.scanned).toBe(res.readmitted + res.kept_parked + res.deferred + res.write_failed);
+  });
+
+  it('64. the cursor never advances past a listing the budget stopped before examining', async () => {
+    // Otherwise a truncated FULL window skips that listing entirely until the
+    // rotation wraps — the sweep would silently never reach its rows.
+    const lA = { ...THIRD_PARTY, listing_id: 'RLS-A' };
+    const heroA = row({ listing_id: 'RLS-A', listing: lA, media_key: 'MK-hero', order: 0 });
+    installPool([
+      heroA,
+      legacyParked({ listing_id: 'RLS-A', listing: lA, order: 5 }),
+      legacyParked({ listing_id: 'RLS-B', listing: { ...THIRD_PARTY, listing_id: 'RLS-B' }, order: 6 }),
+    ]);
+    let heroReads = 0;
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (typeof a.where?.listing_id === 'string' && !('status' in a.where)) heroReads++;
+      return passthrough(args);
+    });
+
+    // batchLimit 2 ⇒ a FULL window, so the cursor is eligible to advance.
+    await reevaluateR2PolicyExclusions({ now, batchLimit: 2, hasTimeRemaining: () => heroReads < 1 });
+
+    const up = mockStateUpsert.mock.calls.at(-1)?.[0] as
+      | { update: { last_listing_key: string | null } } | undefined;
+    const next = up?.update.last_listing_key ?? null;
+    // If it advanced at all, it must not have moved past the unexamined RLS-B.
+    if (next !== null) expect(next < 'RLS-B').toBe(true);
+  });
+
   it('52. cursor bookkeeping never blocks the sweep', async () => {
     mockStateFindUnique.mockRejectedValue(new Error('state read down'));
     mockStateUpsert.mockRejectedValue(new Error('state write down'));
