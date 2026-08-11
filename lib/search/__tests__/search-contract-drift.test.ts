@@ -2,36 +2,46 @@
 /**
  * SEARCH-P0-001 — Search contract drift invariants.
  *
- * These tests exist because the Advanced Search criterion contract currently
- * breaks in four distinct places, and each break is silent. A criterion can be
- * visible, enabled and typed into by an agent, and still never reach Cotality:
+ * An Advanced Search criterion can be visible, enabled and typed into by an
+ * agent and still never reach Cotality. These invariants prove where that
+ * happens and stop it recurring.
  *
  *   DEFECT 3  builder -> serializer   `buildIdxSearchParams` sets a param that
- *                                     `MallanAPI.idx.search` does not serialize.
- *   DEFECT 7  DOM     -> collector    an enabled control no code ever reads.
- *   DEFECT 8  DOM     -> (nothing)    a control with no id and no data-field,
- *                                     so no collector can address it at all.
+ *                                     `MallanAPI.idx.search` never serializes.
+ *   DEFECT 7  DOM     -> collector    an enabled control no collector reads.
+ *   DEFECT 8  criterion has no executable binding at all.
  *
- * DESIGN NOTES — why these tests are shaped this way:
+ * WHY THE HARNESS IS SHAPED THIS WAY
  *
- *  1. They execute or parse the REAL production artifacts. Test 1 loads the
- *     actual `api-client.js` in a VM and calls the real `MallanAPI.idx.search`,
- *     capturing the URL it hands to `fetch`. Nothing here reimplements a
- *     serializer; a second copy of the logic would pass while production broke.
+ * 1. Real artifacts only. The Defect 3 runtime test loads the actual
+ *    `api-client.js` and calls the real `MallanAPI.idx.search()`, capturing the
+ *    URL handed to `fetch`. A reimplemented serializer would pass while
+ *    production stayed broken.
  *
- *  2. They are INVARIANTS, not hand-written ID lists. A test that enumerated
- *     every control id would have to be edited whenever the form changes, which
- *     recreates the very drift it is meant to catch. Instead the rule is
- *     structural: every active filter control must be addressable, and every
- *     param the builder emits must be serialized.
+ * 2. Binding is proven per CONTROL TYPE against the collector's REAL
+ *    mechanisms. `collectSearchCriteria` can only reach a control three ways:
+ *      - `getElementById(<id>)`
+ *      - `input[data-field]:checked`   (checkbox/radio only)
+ *      - `select[data-field]`          (select only)
+ *    So `data-field` alone does NOT mean bound: a text/date/number input
+ *    carrying `data-field` is read by neither generic scanner.
  *
- *  3. The dead-control classification is READ FROM `init-disable-dead-controls.js`
- *     rather than duplicated here, so a control is only excused when production
- *     actually disables it.
+ * 3. `getElementById` matching is scoped to the collectSearchCriteria body,
+ *    not the whole 168KB module. An id appearing in show/hide, reset, tab or
+ *    formatting logic is not evidence that the criterion is collected.
  *
- * RED-before/GREEN-after: at the time of writing all three fail on `main`
- * (2d121daa). They are the proof that the defects are real, and the guard that
- * stops them recurring.
+ * 4. Deliberately-disabled controls are excused by PARSING the real
+ *    `init-disable-dead-controls.js` selector list — including named
+ *    `data-field="X"` values, `data-local-field`, valueless attribute
+ *    selectors, operator-prefixed values, and id-anchored container disabling.
+ *    None of that list is duplicated here.
+ *
+ * 5. Non-Search controls (financial calculators and scenario inputs) are
+ *    excluded from BOTH criterion invariants, so they cannot inflate either
+ *    count.
+ *
+ * RED-before/GREEN-after: all fail on `main` (2d121daa). No production code is
+ * changed by this file.
  */
 
 import * as fs from "fs";
@@ -46,34 +56,36 @@ const SEARCH_FORM = path.join(REPO, "public/crm/html/search-form-and-results.htm
 
 const read = (p: string) => fs.readFileSync(p, "utf8");
 
-// ─── Real-artifact extractors ────────────────────────────────────────────────
-
-/**
- * The set of params `window.buildIdxSearchParams` assigns, read from the real
- * source. Bounded to that function's body so unrelated `params.x =` writes
- * elsewhere in the 168KB module cannot inflate the set.
- */
-function builderParams(): Set<string> {
-  const src = read(SEARCH_ENGINE);
-  const start = src.indexOf("window.buildIdxSearchParams");
-  if (start < 0) throw new Error("buildIdxSearchParams not found — extractor is stale");
-  // Balanced-brace scan from the function body's opening brace.
+/** Balanced-brace body of a named function/assignment in a JS source. */
+function functionBody(src: string, anchor: string): string {
+  const start = src.indexOf(anchor);
+  if (start < 0) throw new Error(`anchor not found: ${anchor} — extractor is stale`);
   const open = src.indexOf("{", start);
   let depth = 0;
-  let end = -1;
   for (let i = open; i < src.length; i++) {
     if (src[i] === "{") depth++;
-    else if (src[i] === "}") {
-      depth--;
-      if (depth === 0) { end = i; break; }
-    }
+    else if (src[i] === "}" && --depth === 0) return src.slice(open, i);
   }
-  if (end < 0) throw new Error("buildIdxSearchParams body unterminated — extractor is stale");
-  const body = src.slice(open, end);
+  throw new Error(`unterminated body: ${anchor} — extractor is stale`);
+}
+
+// ─── Real-artifact extractors ────────────────────────────────────────────────
+
+function builderParams(): Set<string> {
+  const body = functionBody(read(SEARCH_ENGINE), "window.buildIdxSearchParams");
   return new Set([...body.matchAll(/params\.([A-Za-z_][A-Za-z0-9_]*)\s*=/g)].map((m) => m[1]));
 }
 
-/** Load the REAL api-client.js and return its MallanAPI plus a URL capture. */
+function serializerParams(): Set<string> {
+  const src = read(API_CLIENT);
+  const from = src.indexOf("search: function (params)");
+  const to = src.indexOf("/api/idx/search", from);
+  if (from < 0 || to < 0) throw new Error("idx.search block not found — extractor is stale");
+  return new Set(
+    [...src.slice(from, to).matchAll(/qs\.push\('([A-Za-z_][A-Za-z0-9_]*)=/g)].map((m) => m[1]),
+  );
+}
+
 function loadRealApiClient(): { api: any; lastUrl: () => string | null } {
   let captured: string | null = null;
   const sandbox: Record<string, unknown> = {
@@ -81,16 +93,11 @@ function loadRealApiClient(): { api: any; lastUrl: () => string | null } {
     localStorage: { removeItem() {}, getItem: () => null, setItem() {} },
     fetch: (url: string) => {
       captured = url;
-      // Minimal ok-response shape; the serializer is what we are testing.
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
     },
     window: { dispatchEvent() {}, addEventListener() {} },
     document: { addEventListener() {} },
-    setTimeout,
-    Promise,
-    Object,
-    JSON,
-    encodeURIComponent,
+    setTimeout, Promise, Object, JSON, encodeURIComponent,
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
@@ -100,163 +107,157 @@ function loadRealApiClient(): { api: any; lastUrl: () => string | null } {
   return { api, lastUrl: () => captured };
 }
 
-/** Params the real serializer emits, read from the idx.search block only. */
-function serializerParams(): Set<string> {
-  const src = read(API_CLIENT);
-  const from = src.indexOf("search: function (params)");
-  const to = src.indexOf("/api/idx/search", from);
-  if (from < 0 || to < 0) throw new Error("idx.search block not found — extractor is stale");
-  const block = src.slice(from, to);
-  return new Set([...block.matchAll(/qs\.push\('([A-Za-z_][A-Za-z0-9_]*)=/g)].map((m) => m[1]));
+/** Ids the REAL collectSearchCriteria reads — scoped to its own body. */
+function collectorIds(): Set<string> {
+  const body = functionBody(read(SEARCH_ENGINE), "function collectSearchCriteria");
+  return new Set(
+    [...body.matchAll(/getElementById\(\s*["'`]([^"'`]+)["'`]/g)].map((m) => m[1]),
+  );
 }
 
-/** Selectors production actually disables, read from the real dead-control module. */
-function deadControlSelectors(): string[] {
+// ─── Production's disable contract, parsed (never duplicated) ────────────────
+
+interface Selector { tag: string | null; attrs: { name: string; op?: string; value?: string }[] }
+
+/** Every CSS selector string production disables, plus its id anchors. */
+function deadContract(): { selectors: Selector[]; idAnchors: string[] } {
   const src = read(DEAD_CONTROLS);
-  return [...src.matchAll(/'(input\[data-field\][^']*)'/g)].map((m) => m[1]);
+  const raw = [...src.matchAll(/'([^']*\[[^']*\][^']*)'/g)].map((m) => m[1]);
+  const selectors = raw.map((s) => {
+    const tag = /^([a-zA-Z]+)/.exec(s)?.[1] ?? null;
+    const attrs = [...s.matchAll(/\[([a-zA-Z-]+)(?:(\^?=)"([^"]*)")?\]/g)].map((a) => ({
+      name: a[1], op: a[2], value: a[3],
+    }));
+    return { tag, attrs };
+  }).filter((s) => s.attrs.length > 0);
+  const idAnchors = [...src.matchAll(/idAnchor:\s*'([^']+)'/g)].map((m) => m[1]);
+  return { selectors, idAnchors };
 }
 
 interface Control {
-  tag: string;
-  type: string;
-  id: string | null;
-  dataField: string | null;
-  dataValue: string | null;
-  disabled: boolean;
-  raw: string;
+  tag: string; type: string; id: string | null;
+  attrs: Record<string, string>; disabled: boolean; raw: string;
 }
 
-/** Every filter control inside #searchAdvancedMode, by DOM containment. */
+/** Every interactive control inside #searchAdvancedMode, by DOM containment. */
 function advancedControls(): Control[] {
   const html = read(SEARCH_FORM);
   const start = html.indexOf('<div id="searchAdvancedMode"');
   if (start < 0) throw new Error("#searchAdvancedMode not found — extractor is stale");
-  let depth = 0;
-  let end = -1;
+  let depth = 0, end = -1;
   const re = /<div\b|<\/div>/g;
   re.lastIndex = start;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
-    if (m[0] === "</div>") {
-      depth--;
-      if (depth === 0) { end = m.index + 6; break; }
-    } else depth++;
+    if (m[0] === "</div>") { if (--depth === 0) { end = m.index + 6; break; } }
+    else depth++;
   }
   if (end < 0) throw new Error("#searchAdvancedMode unterminated — extractor is stale");
-  const sub = html.slice(start, end);
-  const attr = (a: string, n: string) => {
-    const r = new RegExp(`${n}="([^"]*)"`).exec(a);
-    return r ? r[1] : null;
-  };
-  return [...sub.matchAll(/<(input|select|textarea)\b([^>]*)>/g)]
-    .map((c) => ({
-      tag: c[1],
-      type: attr(c[2], "type") ?? (c[1] === "select" ? "select" : "text"),
-      id: attr(c[2], "id"),
-      dataField: attr(c[2], "data-field"),
-      dataValue: attr(c[2], "data-value"),
-      disabled: /\bdisabled\b/.test(c[2]),
-      raw: `<${c[1]}${c[2]}>`,
-    }))
-    // Buttons and hidden inputs are UI actions/state, not search criteria.
+  return [...html.slice(start, end).matchAll(/<(input|select|textarea)\b([^>]*)>/g)]
+    .map((c) => {
+      const attrs: Record<string, string> = {};
+      for (const a of c[2].matchAll(/([a-zA-Z-]+)="([^"]*)"/g)) attrs[a[1]] = a[2];
+      return {
+        tag: c[1],
+        type: attrs.type ?? (c[1] === "select" ? "select" : "text"),
+        id: attrs.id ?? null,
+        attrs,
+        disabled: /\bdisabled\b/.test(c[2]),
+        raw: `<${c[1]}${c[2]}>`.slice(0, 110),
+      };
+    })
     .filter((c) => !["button", "submit", "reset", "hidden"].includes(c.type));
 }
 
-/**
- * Controls that are NOT search criteria and must not inflate the count:
- * financial calculators (mortgage, rent-vs-buy, closing costs, investment),
- * and their enable/show toggles. These live inside #searchAdvancedMode for
- * layout reasons but never contribute a filter to the query.
- */
-const NON_CRITERION_ID = /^(calc|mortgage|rvb|closing|enable|show)[A-Z]/;
-
-/**
- * Controls production disables at RUNTIME via an id anchor rather than a
- * `disabled` attribute in the HTML (the Manhattan grid panel). Read from the
- * real dead-control module so this cannot drift.
- */
-function runtimeDisabledAnchors(): string[] {
-  const src = read(DEAD_CONTROLS);
-  return [...src.matchAll(/idAnchor:\s*'([^']+)'/g)].map((m) => m[1]);
-}
-
-/** True when production's dead-control module disables this control. */
-function isDeadListed(c: Control, selectors: string[]): boolean {
+function matchesDead(c: Control, d: ReturnType<typeof deadContract>): boolean {
   if (c.disabled) return true;
-  // Grid panel: the anchor disables its whole parent container, i.e. all four
-  // north/south/east/west selects sharing the anchor's prefix.
-  for (const anchor of runtimeDisabledAnchors()) {
+  for (const anchor of d.idAnchors) {
     const prefix = anchor.replace(/(north|south|east|west)$/, "");
-    if (c.id && c.id.startsWith(prefix)) return true;
+    if (c.id?.startsWith(prefix)) return true;
   }
-  if (!c.dataField) return false;
-  for (const sel of selectors) {
-    if (sel === "input[data-field]") return true;
-    const exact = /data-value="([^"]*)"\]$/.exec(sel);
-    if (exact && c.dataValue === exact[1]) return true;
-    const prefix = /data-value\^="([^"]*)"\]$/.exec(sel);
-    if (prefix && c.dataValue?.startsWith(prefix[1])) return true;
+  for (const sel of d.selectors) {
+    if (sel.tag && sel.tag !== c.tag) continue;
+    const all = sel.attrs.every((a) => {
+      const v = c.attrs[a.name];
+      if (v === undefined) return false;
+      if (a.value === undefined) return true;              // [attr] — presence only
+      return a.op === "^=" ? v.startsWith(a.value) : v === a.value;
+    });
+    if (all) return true;
   }
   return false;
 }
 
-// ─── DEFECT 3 — builder → serializer ─────────────────────────────────────────
+/**
+ * Financial calculators and scenario inputs live inside #searchAdvancedMode for
+ * layout reasons but never contribute a filter. Excluded from BOTH criterion
+ * invariants so neither count can be inflated by them.
+ */
+const NON_CRITERION_ID = /^(calc|mortgage|rvb|closing|enable|show)[A-Z]/;
+const NON_CRITERION_PLACEHOLDER = /purchase price|down payment|interest|insurance|vacancy|renovation|repairs|appreciation|loan term/i;
+
+function isSearchCriterion(c: Control): boolean {
+  if (c.id && NON_CRITERION_ID.test(c.id)) return false;
+  if (c.attrs.placeholder && NON_CRITERION_PLACEHOLDER.test(c.attrs.placeholder)) return false;
+  return true;
+}
+
+/** Executable binding, per the collector's REAL mechanisms and control type. */
+function isBound(c: Control, ids: Set<string>): boolean {
+  if (c.id && ids.has(c.id)) return true;                              // getElementById
+  if (!c.attrs["data-field"]) return false;
+  if (c.tag === "select") return true;                                 // select[data-field]
+  if (c.type === "checkbox" || c.type === "radio") return true;        // input[data-field]:checked
+  return false;                        // text/date/number with data-field: no reader
+}
+
+// ─── DEFECT 3 ────────────────────────────────────────────────────────────────
 
 describe("DEFECT 3 — every param the builder emits must survive the serializer", () => {
   test("the REAL MallanAPI.idx.search serializes every param buildIdxSearchParams sets", async () => {
     const expected = [...builderParams()].sort();
-    expect(expected.length).toBeGreaterThan(20); // extractor sanity
-
-    // Give the real serializer a value for every param the real builder can set.
+    expect(expected.length).toBeGreaterThan(20);
     const params: Record<string, string> = {};
     for (const k of expected) params[k] = `V_${k}`;
-
     const { api, lastUrl } = loadRealApiClient();
     await api.idx.search(params);
     const url = lastUrl();
     expect(url).toBeTruthy();
-
-    const missing = expected.filter((k) => !new RegExp(`[?&]${k}=`).test(url as string));
-    expect(missing).toEqual([]);
+    expect(expected.filter((k) => !new RegExp(`[?&]${k}=`).test(url as string))).toEqual([]);
   });
 
   test("serializer parity is mechanically enforced, not maintained by hand", () => {
-    // The permanent guard: adding a param to the builder without adding it to
-    // the serializer must fail here, regardless of runtime behaviour.
-    const missing = [...builderParams()].filter((k) => !serializerParams().has(k)).sort();
-    expect(missing).toEqual([]);
+    expect([...builderParams()].filter((k) => !serializerParams().has(k)).sort()).toEqual([]);
   });
 });
 
-// ─── DEFECT 7 / 8 — UI binding invariant ─────────────────────────────────────
+// ─── DEFECT 7 / 8 ────────────────────────────────────────────────────────────
 
-describe("DEFECT 8 — every active Advanced filter control must be addressable", () => {
-  test("no active filter control lacks both an id and a data-field", () => {
-    const selectors = deadControlSelectors();
+describe("DEFECT 7/8 — every active Search criterion needs an executable binding", () => {
+  test("no active Advanced Search criterion control is unbound", () => {
+    const dead = deadContract();
+    const ids = collectorIds();
     const unbound = advancedControls()
-      .filter((c) => !c.id && !c.dataField)
-      .filter((c) => !isDeadListed(c, selectors));
-
-    // An agent can interact with these, and no collector can ever read them.
-    expect(
-      unbound.map((c) => c.raw.slice(0, 90)),
-    ).toEqual([]);
+      .filter(isSearchCriterion)
+      .filter((c) => !matchesDead(c, dead))
+      .filter((c) => !isBound(c, ids));
+    expect(unbound.map((c) => c.id ?? c.raw)).toEqual([]);
   });
-});
 
-describe("DEFECT 7 — enabled controls with an id must be read by the collector", () => {
-  test("no enabled id-bearing Advanced control is ignored by collectSearchCriteria", () => {
-    const engine = read(SEARCH_ENGINE);
-    const selectors = deadControlSelectors();
-    const orphaned = advancedControls()
-      .filter((c) => c.id && !c.dataField)
-      .filter((c) => !NON_CRITERION_ID.test(c.id as string))
-      .filter((c) => !isDeadListed(c, selectors))
-      // A control is considered bound if any CRM code references its id.
-      .filter((c) => !engine.includes(`"${c.id}"`) && !engine.includes(`'${c.id}'`))
-      .map((c) => c.id as string)
-      .sort();
-
-    expect(orphaned).toEqual([]);
+  test("the inventory reconciles with no unexplained remainder", () => {
+    const dead = deadContract();
+    const ids = collectorIds();
+    const all = advancedControls();
+    const nonCriterion = all.filter((c) => !isSearchCriterion(c));
+    const criteria = all.filter(isSearchCriterion);
+    const disabled = criteria.filter((c) => matchesDead(c, dead));
+    const active = criteria.filter((c) => !matchesDead(c, dead));
+    const bound = active.filter((c) => isBound(c, ids));
+    const unbound = active.filter((c) => !isBound(c, ids));
+    // Every element lands in exactly one bucket.
+    expect(nonCriterion.length + disabled.length + bound.length + unbound.length)
+      .toBe(all.length);
+    // The invariant: nothing active is unbound.
+    expect(unbound.length).toBe(0);
   });
 });
