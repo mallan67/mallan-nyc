@@ -1281,6 +1281,117 @@ describe('reevaluateR2PolicyExclusions — bounded re-admission', () => {
     if (next !== null) expect(next < 'RLS-B').toBe(true);
   });
 
+  // ── budget_exhausted means WORK WAS TRUNCATED, not "the clock ran out" ─────
+  //
+  // The top-up loop asked "is there time?" before "is another top-up needed?".
+  // A run that completed every decision and then crossed the reserve boundary
+  // recorded budget_exhausted anyway — a FALSE durable operational fact, and a
+  // damaging one: #599 added `r2_policy_budget_exhausted` precisely so someone
+  // could later tell whether the sweep was being truncated in Production.
+
+  const heroFor = (lid: string) =>
+    row({ listing_id: lid, listing: { ...THIRD_PARTY, listing_id: lid }, media_key: `MK-hero-${lid}`, order: 0 });
+  const topUpSelects = () =>
+    mockFindMany.mock.calls.filter(
+      ([a]) => ((a as { where: Record<string, unknown> }).where?.listing_id as { notIn?: unknown })?.notIn,
+    ).length;
+
+  it('65A. a window that completes every decision does NOT report exhaustion', async () => {
+    // batchLimit 2, both rows decided, then the clock expires. Nothing was
+    // truncated and no top-up was needed.
+    const lA = { ...THIRD_PARTY, listing_id: 'RLS-A' };
+    installPool([
+      heroFor('RLS-A'),
+      legacyParked({ listing_id: 'RLS-A', listing: lA, order: 5 }),
+      legacyParked({ listing_id: 'RLS-A', listing: lA, order: 6 }),
+    ]);
+    let heroReads = 0;
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (typeof a.where?.listing_id === 'string' && !('status' in a.where)) heroReads++;
+      return passthrough(args);
+    });
+
+    // Time is gone the instant the primary window finishes (one hero read).
+    const res = await reevaluateR2PolicyExclusions({
+      now, batchLimit: 2, hasTimeRemaining: () => heroReads < 1,
+    });
+
+    expect(res.decided).toBe(2);
+    expect(res.budget_exhausted).toBe(false);
+    expect(topUpSelects()).toBe(0);
+  });
+
+  it('65B. a window that NEEDS a top-up but has no time DOES report exhaustion', async () => {
+    const broken = { ...THIRD_PARTY, listing_id: 'RLS-AAA-BROKEN' };
+    installPool([
+      legacyParked({ listing_id: 'RLS-AAA-BROKEN', listing: broken, order: 10 }),
+      legacyParked({ listing_id: 'RLS-ZZZ-OK', listing: { ...THIRD_PARTY, listing_id: 'RLS-ZZZ-OK' },
+                     preferred_photo_yn: true, media_key: 'MK-zz' }),
+    ]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-AAA-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+    // One hero attempt allowed; it fails, so a top-up IS required — but the
+    // clock is gone by then.
+    let calls = 0;
+    const res = await reevaluateR2PolicyExclusions({
+      now, batchLimit: 1, hasTimeRemaining: () => calls++ < 1,
+    });
+
+    expect(res.deferred).toBe(1);        // the failing listing was deferred
+    expect(res.budget_exhausted).toBe(true);
+    expect(topUpSelects()).toBe(0);      // no SELECT was issued
+  });
+
+  it('65C. spare capacity with nothing failed exits clean even with no time left', async () => {
+    const lA = { ...THIRD_PARTY, listing_id: 'RLS-A' };
+    installPool([heroFor('RLS-A'), legacyParked({ listing_id: 'RLS-A', listing: lA, order: 5 })]);
+    let heroReads = 0;
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (typeof a.where?.listing_id === 'string' && !('status' in a.where)) heroReads++;
+      return passthrough(args);
+    });
+
+    // Capacity to spare (batchLimit 60, one row decided) but zero failures, so
+    // no top-up is required — the clock is irrelevant.
+    const res = await reevaluateR2PolicyExclusions({ now, hasTimeRemaining: () => heroReads < 1 });
+
+    expect(res.decided).toBe(1);
+    expect(res.budget_exhausted).toBe(false);
+    expect(topUpSelects()).toBe(0);
+  });
+
+  it('65D. the invariants hold in every budget outcome', async () => {
+    const broken = { ...THIRD_PARTY, listing_id: 'RLS-AAA-BROKEN' };
+    const lA = { ...THIRD_PARTY, listing_id: 'RLS-A' };
+    installPool([
+      legacyParked({ listing_id: 'RLS-AAA-BROKEN', listing: broken, order: 10 }),
+      heroFor('RLS-A'),
+      legacyParked({ listing_id: 'RLS-A', listing: lA, order: 11 }),
+    ]);
+    const passthrough = mockFindMany.getMockImplementation()!;
+    mockFindMany.mockImplementation(async (args) => {
+      const a = args as { where: Record<string, unknown> };
+      if (a.where?.listing_id === 'RLS-AAA-BROKEN' && !('status' in a.where)) throw new Error('db blip');
+      return passthrough(args);
+    });
+
+    for (const budget of [() => true, (() => { let n = 0; return () => n++ < 1; })()]) {
+      mockUpdateMany.mockClear();
+      const res = await reevaluateR2PolicyExclusions({ now, batchLimit: 3, hasTimeRemaining: budget });
+      expect(res.scanned).toBe(res.readmitted + res.kept_parked + res.deferred + res.write_failed);
+      expect(res.decided).toBe(res.readmitted + res.kept_parked + res.write_failed);
+      expect(res.decided).toBeLessThanOrEqual(3);
+    }
+  });
+
   it('52. cursor bookkeeping never blocks the sweep', async () => {
     mockStateFindUnique.mockRejectedValue(new Error('state read down'));
     mockStateUpsert.mockRejectedValue(new Error('state write down'));

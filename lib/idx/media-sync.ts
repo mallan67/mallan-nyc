@@ -2984,10 +2984,17 @@ export async function reevaluateR2PolicyExclusions(
     // the requested window grew 60 -> 120 -> 240. Anchoring on decided intents
     // makes the cap mechanical: `take` can never exceed `batchLimit`, and a
     // successful top-up shrinks the next request.
-    // RUN BUDGET before starting another window (see hasTimeRemaining).
-    if (!hasTimeRemaining()) { result.budget_exhausted = true; break; }
+    // NEED FIRST, THEN CLOCK. `budget_exhausted` must mean "work was
+    // truncated", not "the run happened to cross the reserve boundary". Asking
+    // the clock first made a sweep that completed every decision report
+    // exhaustion whenever it finished near the boundary — a FALSE durable
+    // operational fact, and a damaging one: this counter exists so Production
+    // analysis can tell whether the sweep is being cut short, and a false
+    // positive would make a healthy run look chronically truncated.
     const remaining = batchLimit - decidedCount();
-    if (failedListings.size === 0 || remaining <= 0) break;
+    if (failedListings.size === 0 || remaining <= 0) break; // nothing left to do
+    // A top-up IS required. Only now does the clock matter.
+    if (!hasTimeRemaining()) { result.budget_exhausted = true; break; }
     let topUp: ReevalRow[];
     try {
       topUp = (await prisma.listingMedia.findMany({
