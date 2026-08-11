@@ -126,7 +126,10 @@ alarm, real drift = benign orphans, cleanup deferred to a held migration). Plus:
 **Platform Architecture document** (DOC-001) — full data-flow map (Cotality → sync → normalization →
 compliance → archive → search → website) incl. every cron, queue, webhook, API, and DB boundary.
 
-**Also new (2026-08-10) — P3:** **OPS-027**, the PHASE 4a sibling-revalidation race on PR #599. Bounded residual (worst case: one re-admission delayed by an interval, or one wasted admission the drain rejects; no user-visible effect, 0 observed occurrences). **Registered, NOT accepted** — awaiting Maya's disposition: implement serialization, accept as monitored, or hold.
+**Also new (2026-08-10) — two P3 items on PR #599, both REGISTERED and NOT accepted:**
+
+- **OPS-027** — PHASE 4a sibling-revalidation race. Bounded residual (worst case: one re-admission delayed by an interval, or one wasted admission the drain rejects; no user-visible effect, 0 observed occurrences). Disposition needed: implement serialization, accept as monitored, or hold.
+- **OPS-028** — PHASE 4a has no reserved time slice. Phase 3's drain exit and the Phase-4a entry gate use the **same** threshold, so a saturated drain skips the sweep by construction and the 14-day re-evaluation bound could be silently missed. Not occurring today (24h: `time_budget_exhausted` 0/144, `backlog_remaining` 0). The fix shortens the drain slightly, so it is a scheduling trade for Maya, not an implementer's call.
 
 **New this cycle (2026-08-10) — P2, so deliberately not in the P0/P1 queue above:** **OPS-026** —
 historical `Listing` media-summary drift, 4,847 of 20,721 photo-bearing listings, recomputed
