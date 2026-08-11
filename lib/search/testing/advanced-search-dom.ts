@@ -186,3 +186,81 @@ export function isBoundByCollector(s: Surface, ids: Set<string>): boolean {
   if (s.type === "checkbox" || s.type === "radio") return true;
   return false;
 }
+
+// ─── Reconciliation ledger schema ────────────────────────────────────────────
+
+/**
+ * STANDING RULE (Maya, 2026-08-11):
+ *
+ *   No legitimate Search criterion may be deleted or permanently disabled
+ *   because its current implementation does not match Cotality. Verify Cotality
+ *   first, then amend Mallan end-to-end to the verified field, attribute,
+ *   value, type, operator and mapping.
+ *
+ * The ledger therefore does NOT ask "keep or delete". It asks:
+ *   1. what is the intended professional criterion?
+ *   2. what does the current authorized Cotality contract actually provide?
+ *   3. where does Mallan diverge?
+ *   4. exactly what must be amended, at which layer?
+ *
+ * "Currently disabled" is evidence of UNFINISHED RECONCILIATION, never evidence
+ * that a criterion should disappear. Only non-Search UI, true duplicates,
+ * obsolete presentation artifacts, or code with no business criterion behind it
+ * are removal candidates — and each must be proven, not assumed.
+ */
+
+/** Where Mallan diverges from the verified provider contract. */
+export type DivergenceLayer =
+  | "label"            // visible text implies a different business meaning
+  | "data-field"       // wrong provider field referenced
+  | "data-value"       // wrong enum/picklist vocabulary (e.g. a literal "Any")
+  | "type"             // wrong control/value type for the provider field
+  | "collector"        // never read out of the DOM
+  | "builder"          // read but never placed on the request
+  | "serializer"       // placed on the request but never sent
+  | "translator"       // sent but not translated, or translated wrongly
+  | "operator"         // wrong comparison/range operation for the field
+  | "allowlist"        // translated then rejected by a safe-field gate
+  | "result"           // returned data interpreted incorrectly
+  | "modelling";       // one criterion wrongly forced into a single field
+
+/**
+ * Reconciliation state. Note what is ABSENT by design: there is no "disabled"
+ * status and no "retired/delete" status. Runtime disablement is unfinished
+ * reconciliation work, not an outcome; and a legitimate professional criterion
+ * is never retired because Mallan implemented it wrongly. NON_SEARCH_UI is the
+ * only removal-eligible state, and only once proven.
+ *
+ * MATCHES_COTALITY is reachable ONLY after current provider verification — an
+ * existing Mallan mapping proves nothing.
+ */
+export type ReconciliationStatus =
+  | "UNVERIFIED"                 // provider contract not yet checked — the default
+  | "MATCHES_COTALITY"           // verified against current Cotality and correct end-to-end
+  | "MALLAN_MAPPING_WRONG"       // points at the wrong resource/field/association
+  | "MALLAN_VALUE_WRONG"         // wrong enum/picklist vocabulary or formatting
+  | "MALLAN_OPERATOR_WRONG"      // wrong comparison/range/query semantics
+  | "MALLAN_UI_SEMANTICS_WRONG"  // label implies a different business meaning
+  | "LOCAL_DERIVED_VERIFIED"     // legitimately local/derived, verified as such
+  | "NON_SEARCH_UI";             // proven non-criterion; only removal-eligible state
+
+export interface CriterionReconciliation {
+  criterionId: string;
+  /** What the agent is professionally trying to express. */
+  intendedMeaning: string;
+  surfaces: Surface[];
+  /** Runtime state today — never a justification for removal. */
+  currentlyDisabled: boolean;
+  /** Null until current Cotality verification is actually performed. */
+  providerResource: string | null;
+  providerField: string | null;
+  providerType: string | null;
+  providerPicklist: string[] | null;
+  providerNullSemantics: string | null;
+  providerOperators: string[] | null;
+  /** Every layer at which Mallan must change to match the provider. */
+  divergences: DivergenceLayer[];
+  /** The concrete amendment, once the provider contract is known. */
+  amendment: string | null;
+  status: ReconciliationStatus;
+}
