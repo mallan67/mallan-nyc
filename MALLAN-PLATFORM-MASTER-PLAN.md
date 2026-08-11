@@ -7,59 +7,51 @@
 - Business owner and final decision authority: **Maya Allan**.
 - Repository: **`mallan67/mallan-nyc` only** for this plan unless Maya explicitly changes repository scope.
 - Explicit exclusion: **Do not modify or treat `Mallan-Integrated` as part of this work.**
-- This document governs the high-level business model, canonical identities, source authority, operating journeys and execution sequence once approved.
+- This document governs the high-level business model, canonical identities, shared platform capabilities, source authority, separate operating journeys and execution sequence once approved.
 - Existing audits, issue records, PRs, technical plans and historical specifications are supporting evidence. They may not become competing overall plans.
-- Every new requirement discovered in an audit, conversation, hold file, specification or implementation review must be reconciled into this canonical plan or its linked requirement ledger. Requirements may not remain stranded in isolated documents.
+- Every new requirement discovered in an audit, conversation, hold file, specification or implementation review must be reconciled into the canonical architecture and requirement registry. Requirements may not remain stranded in isolated documents.
 
-## Non-negotiable canonical-system rule
+---
 
-Mallan must operate as **one brokerage system**, not a collection of independent CRM, search, CMA, listing, marketing, portal, transaction or finance products.
+# 1. Non-negotiable canonical-system rule
+
+Mallan must operate as **one brokerage operating system**, not a collection of independent CRM, search, CMA, listing, marketing, portal, transaction, document or finance products.
+
+**Unified means shared canonical identities, shared data, shared services and shared events. It does NOT mean combining distinct business roles or workflows.**
+
+Seller, Landlord, Buyer and Tenant are four separate first-class operating journeys. They may use the same canonical Party, Property, Search, Media, Communication, Document, Marketing, AI and Task services, but they must retain separate requirements, opportunity types, workflows, documents, state transitions, reporting and acceptance tests.
 
 Every implementation must answer:
 
 1. What is the canonical entity?
 2. What is its canonical ID?
 3. Which source or system is authoritative for each material fact?
-4. Is this data a canonical record, source observation, history record, derived projection/index or workflow state?
+4. Is this data a canonical record, source observation, history record, derived projection/index, media asset, communication, share artifact or workflow state?
 5. Who produces it?
-6. Who consumes it?
+6. Which role-specific workflows consume it?
 7. What event/state transition connects it to the next business step?
 8. What existing implementation is reused, migrated or retired?
-9. What prevents duplicate people, entities, properties, listings, communications, leads, transactions and documents?
+9. What prevents duplicate Individuals, Entities, Properties, Listings, Contacts, Communications, Documents, Media, Campaigns, Leads, Deals and Commissions?
 10. What end-to-end test proves the handoff?
 
-**No new parallel table, service, search engine, client store, listing store, party store, communication store or workflow may be introduced without an explicit identity, migration, deduplication and retirement decision.**
+**No new parallel table, service, search engine, client store, listing store, party store, communication store, media store, marketing store or workflow may be introduced without an explicit identity, migration, deduplication and retirement decision.**
 
-A feature is not complete merely because its screen or route works. It is complete only when its output is consumed correctly by the next required workflow.
-
----
-
-## Critical current condition
-
-Search is an immediate P0 business dependency because it supplies listing intelligence, comparables, CMA/pricing, seller market comparison, client sends, saved searches, alerts, matching and listing marketing audiences. Search is therefore the first property-intelligence recovery program, but search is not a separate business architecture.
-
-The canonical requirement is:
-
-> **One Property Intelligence/Search service must feed buyer/tenant search, seller/landlord pricing, building and area comparables, CMA, listing management, seller reporting, client matching, listing-to-client matching, saved searches, alerts and marketing.**
-
-Do not add another search store, CMA universe, saved-search criteria model or listing inventory silo.
+A feature is not complete merely because its screen or route works. It is complete only when its canonical output is consumed correctly by the next required workflow.
 
 ---
 
-# 1. Mallan brokerage operating hierarchy
-
-Mallan is organized around the brokerage and the actors operating it.
+# 2. Mallan brokerage operating hierarchy
 
 ```text
 MALLAN BROKERAGE
 │
 ├── MALLAN BROKERAGE VIEW
-│   └── firm-wide supervision, inventory, agents, leads, listings, deals,
-│       compliance, finance, commissions, exceptions and performance
+│   └── firm-wide supervision, agents, leads, clients, listings, deals,
+│       compliance, commissions, finance, exceptions and performance
 │
 └── MY BUSINESS / PRODUCING AGENT VIEW
     └── the logged-in producer's leads, clients, searches, CMAs, listings,
-        showings, marketing, deals, tasks and commissions
+        showings, marketing, deals, documents, tasks and commissions
 ```
 
 Maya is both representative broker/owner and producing agent. The system must model **one Individual with multiple roles and scopes**, not duplicate Maya as a broker identity and an agent identity.
@@ -68,11 +60,45 @@ Other agents use the same canonical records under narrower permissions. Brokerag
 
 ---
 
-# 2. Canonical Party and relationship system
+# 3. CANONICAL SHARED FOUNDATION
 
-## 2.1 Party is the single identity root
+This is the common platform layer used across Seller, Landlord, Buyer, Tenant, Investor, Agent and Broker workflows.
 
-Every human or legal owner/client/participant must enter the system through one canonical Party identity model.
+**Shared foundation services are built once and reused everywhere. Role-specific workflows do not receive private duplicate versions of these services.**
+
+```text
+CANONICAL SHARED FOUNDATION
+│
+├── Individual(s)
+├── Entity
+├── Property
+├── Building
+├── Unit
+├── Listing Episode / Source Observation
+├── Contacts
+├── Professionals
+├── Communications
+├── Comments / Questions / Requests for Information
+├── Documents / Agreements / Disclosures / Offering Plans
+├── Media
+│   ├── Photos
+│   ├── Floor Plans
+│   ├── Video
+│   ├── 3D / Virtual Walkthrough
+│   └── other authorized listing/property media
+├── Search Infrastructure
+├── Comps / CMA / Analytical Calculators
+├── Marketing / E-blast
+├── Share / Live Share Cards / Share Links
+├── AI Assistance
+├── Tasks / Events / Calendar / Reminders
+├── Permissions / Consent / Visibility
+└── Audit / Provenance / History
+```
+
+## 3.1 Individual(s) and Entity
+
+Every human or legal participant enters through one canonical Party identity model.
 
 ```text
 PARTY
@@ -92,87 +118,13 @@ PARTY
     └── Other legal entity
 ```
 
-**Terminology requirement:** business-facing workflows must use **Individual(s) / Entity**, not a simplistic single-person assumption.
+Business-facing workflows must support **Individual(s) / Entity**, not a simplistic single-person assumption.
 
-Trusts, LLCs, LLPs, estates, corporations and partnerships are Entity types. They must not become independent client databases. Entity-specific fields may exist where required, but identity remains canonical.
+Roles are separate from identity. One Party may be a Seller, Landlord, Buyer, Tenant, Investor, Owner, Guarantor, Trustee, Executor, Authorized Signatory or professional participant at different times or simultaneously.
 
-## 2.2 Roles are separate from identity
+The identity remains one; the role-specific opportunity/workflow remains separate.
 
-A Party may have multiple roles over time or simultaneously:
-
-- Seller Individual(s) / Seller Entity
-- Landlord Individual(s) / Landlord Entity
-- Buyer Individual(s) / Buyer Entity
-- Tenant Individual(s) / Tenant Entity
-- Owner
-- Investor
-- 1031 exchanger
-- Guarantor
-- Trustee / co-trustee
-- Executor / estate representative
-- Member / manager / partner
-- Authorized signatory
-- Attorney / professional contact
-- Lender / mortgage contact
-- Referral source
-- Cooperating agent/broker
-- Other authorized participant
-
-A buyer who later becomes an owner, landlord or seller remains the same Party. A seller who owns through an LLC remains linked to that Entity rather than being duplicated as a separate seller record.
-
-## 2.3 Entity relationships
-
-Entities may relate to one or more Individuals through explicit relationships such as:
-
-- trustee
-- co-trustee
-- executor
-- member
-- manager
-- partner
-- officer
-- authorized signatory
-- beneficiary or other role where appropriate and lawful to retain
-
-The system must support one or more authorized representatives without copying the Entity or the Individual.
-
-## 2.4 Shared contact model
-
-Every Individual(s) and Entity may have:
-
-- preferred name / legal name
-- mailing address(es)
-- email address(es)
-- phone number(s)
-- preferred communication channel
-- communication eligibility / consent / suppression state where applicable
-- language/preferences where legitimately collected
-- relationship ownership / assigned Mallan agent
-
-Contact methods are reusable records linked to Party, not duplicated into every seller, buyer, tenant, landlord, listing or transaction table.
-
-## 2.5 Professional contacts
-
-Attorneys, law firms, lenders, mortgage professionals, managing agents and other transaction professionals are also canonical Parties/Organizations and are related to opportunities/transactions.
-
-Once an offer is made, the workflow must request/confirm the relevant attorney information for the involved Individual(s) / Entity, including as applicable:
-
-- attorney name
-- law firm
-- email
-- phone
-- assistant/paralegal contact where needed
-- role/side represented
-
-If the same attorney appears on five transactions, that attorney should exist once and be related to five transactions.
-
----
-
-# 3. Canonical Property, Building, Unit and Listing identities
-
-## 3.1 One physical property identity
-
-The system must distinguish the physical asset from its marketing history.
+## 3.2 Property, Building, Unit and Listing Episode
 
 ```text
 BUILDING
@@ -184,29 +136,255 @@ LISTING EPISODE(S)
 SOURCE OBSERVATION(S)
 ```
 
-One apartment/unit must not be recreated every time it is listed, sold, rented or observed by another source.
+One physical property/unit must not be recreated each time it is sold, rented, marketed, shared or observed by another source.
 
-A Property/Unit may have many Listing Episodes over time.
+A Listing Episode represents one market cycle. Source observations attach to the same Property/Listing Episode when they describe the same real-world listing.
 
-## 3.2 Listing Episode
+## 3.3 Contacts
 
-A Listing Episode represents one period in which a Property/Unit is marketed for sale or rent. Historical episodes remain attached to the Property.
+Individuals and Entities may have reusable canonical:
 
-A new source reporting the same active market episode must attach as a Source Observation rather than creating a second search result.
+- email address(es)
+- phone number(s)
+- mailing address(es)
+- preferred communication channel
+- communication eligibility/consent/suppression state where applicable
+- relationship owner / assigned Mallan agent
 
-## 3.3 Source observations and provenance
+Contact data is not copied separately into seller, landlord, buyer, tenant, marketing and transaction databases.
 
-Material facts retain source provenance and freshness. Sources must not silently overwrite one another.
+## 3.4 Professionals
 
-If sources conflict, the platform must preserve both observations and apply the central source-authority rule or flag the discrepancy for review.
+Attorneys, law firms, lenders, mortgage professionals, managing agents and other professionals are reusable canonical Parties/Organizations linked to the applicable opportunity or transaction.
 
-Search projections/indexes are derived and rebuildable. They are never the source of truth.
+Once an offer/application reaches the relevant stage, the applicable role-specific workflow requests or confirms professional contact information.
+
+## 3.5 Communications
+
+Portal/system messaging and email are channels of one canonical communication history.
+
+A permitted Individual(s), Entity or professional participant can:
+
+- send a message
+- reply
+- ask a question
+- request more information
+- respond to a listing
+- respond to a report
+- respond to an offer/application/transaction item
+
+Communication attaches to the correct Party + Opportunity + Property/Listing + transaction context.
+
+Visibility must support at least:
+
+- Shared/client-visible
+- Participant-restricted
+- Mallan internal
+
+## 3.6 Comments / questions / requests for information
+
+Comments are a first-class shared capability, not an ad hoc text field on individual screens.
+
+Comments/questions may be attached to, where applicable:
+
+- a listing
+- a saved/sent property
+- a showing
+- a CMA/report
+- an offer/application
+- a document
+- a deal/transaction
+- an open house
+- a task/event
+
+The same comment/thread must remain visible from all authorized views of that canonical object.
+
+## 3.7 Documents / agreements / disclosures / offering plans
+
+One document service supports controlled templates and record-specific documents.
+
+It must support, as applicable:
+
+- Seller agreements and disclosures
+- Landlord agreements and disclosures
+- Buyer agreements and disclosures
+- Tenant agreements and disclosures
+- offering plans
+- building/property documents
+- transaction forms
+- signed documents
+- broker/internal documents
+
+Agents may complete or adjust transaction-specific fields in approved documents but may not silently alter broker/legal-controlled template language.
+
+Every generated/signed agreement retains template version, parties, property/opportunity, dates, permissions and audit history.
+
+## 3.8 Media
+
+Media is a shared canonical service attached to Property/Listing Episode, not copied into separate Search, email, social and client databases.
+
+Media includes:
+
+- photos
+- floor plans
+- video
+- 3D walkthrough / virtual tour
+- approved brochures/creative assets where applicable
+
+Each media item must retain:
+
+- canonical media ID
+- Property/Listing relationship
+- source/provenance
+- rights/authority to use
+- media type
+- current/retired state
+- ordering/hero selection where applicable
+- audience/distribution eligibility
+
+Search cards, listing pages, seller reports, HTML emails, share cards and social assets reference the same approved media set rather than creating independent media truth.
+
+## 3.9 Search infrastructure
+
+One canonical Property Intelligence/Search service supports separate role-specific use cases:
+
+- **Buyer Search** — sale inventory and purchase criteria
+- **Tenant Search** — rental inventory and rental criteria
+- **Seller Market Intelligence** — sale competition/comps/CMA
+- **Landlord Market Intelligence** — rental competition, rent analysis and hold/sell context
+- **Investor Search** — investment/replacement criteria and underwriting inputs
+- **Listing → Client Matching** — find eligible matching audiences
+
+The infrastructure is shared; the business product, filters, documents and workflow around it remain role-specific.
+
+## 3.10 Comps / CMA / analytical calculators
+
+One evidence/calculation layer consumes canonical Property Intelligence and explicit assumptions.
+
+It may power:
+
+- Seller CMA and pricing strategy
+- Landlord rental analysis / hold-sell comparison
+- Buyer comparable/offer analysis
+- Tenant rent comparison/occupancy-cost analysis
+- Investor cap rate, cash flow, cash-on-cash, ROI and financing scenarios
+- 1031 replacement comparison
+- agent analytical tools
+
+Inputs must distinguish verified sourced facts from agent/client assumptions.
+
+## 3.11 Marketing / E-blast
+
+E-blast is a shared marketing service connected directly to canonical Search, Listing, Party and Campaign records.
+
+It may be invoked differently by role/workflow, for example:
+
+- Seller listing → cooperating agents, matched buyers/prospects, prior viewers, open-house audiences
+- Landlord rental listing → appropriate rental audiences and cooperating agents
+- Buyer → selected listing collection or market update
+- Tenant → selected rental collection or market update
+- Agent → search-based client send / campaign
+
+Recipients resolve to canonical Party records. Campaign response/engagement must connect back to the appropriate relationship/opportunity rather than create duplicate contacts/leads.
+
+## 3.12 Share / live share cards / share links
+
+Share is a shared rendering/distribution capability, not a separate listing database.
+
+From Search, Listing, CMA/report or other approved contexts, agents can create/share:
+
+- permission-aware share link/page
+- listing card
+- listing collection
+- HTML email
+- social-media-ready card/content where allowed
+- client-facing report/share artifact
+
+A live share card/page references the canonical listing/property and current approved media.
+
+When price/status/media changes:
+
+```text
+CANONICAL LISTING CHANGE
+  ↓
+LISTING_CHANGED EVENT
+  ├── Search refresh
+  ├── Match/alert reevaluation
+  ├── Seller or Landlord report refresh where applicable
+  ├── Live share/card invalidation + re-render
+  └── future marketing uses current canonical state
+```
+
+Do not maintain separate editable prices or media in Search cards, email cards, client cards and social/share cards.
+
+A previously delivered email/social post remains an auditable historical publication; its linked Mallan live page can display current canonical information.
+
+## 3.13 AI assistance
+
+AI is a shared assistance layer available contextually throughout the backend.
+
+Agents may use AI to help with:
+
+- Search construction/refinement
+- property/listing comparison
+- client-response drafting
+- follow-up drafting
+- CMA/report explanations
+- marketing/e-blast drafts
+- listing descriptions/approved copy assistance
+- transaction next-step guidance
+- document/compliance lookup
+- investor analysis explanation
+
+AI must use the canonical Mallan records and approved current sources available to the workflow. It must identify missing facts rather than invent them.
+
+AI may draft/recommend, but may not silently:
+
+- change canonical records
+- send communications
+- alter controlled agreement language
+- make binding legal/tax conclusions
+- bypass broker/agent approval or permissions
+- create a second AI-only Search/Property/Client truth
+
+## 3.14 Tasks / events / calendar / reminders
+
+One task/event service supports all role-specific workflows.
+
+Examples:
+
+- lead first-contact deadline
+- seller update due
+- landlord lease-expiration follow-up
+- buyer showing
+- tenant showing/application deadline
+- open house
+- attorney/document follow-up
+- contract/application deadline
+- board interview
+- walkthrough
+- closing
+- commission follow-up
+
+Business-critical future actions should be generated from known workflow states/dates rather than depend on agent memory.
+
+## 3.15 Permissions / audit / provenance
+
+All shared services enforce role/scope permissions centrally and retain sufficient audit/provenance to answer:
+
+- who changed it
+- when
+- source
+- previous state
+- current state
+- who may see/use/share it
+- which workflow consumed it
 
 ---
 
 # 4. Property Intelligence source-authority matrix
 
-The source hierarchy must be centrally defined and consumed by Search, CMA, seller reports, listing management and advisory workflows.
+The source hierarchy is centrally defined and consumed by Search, CMA, Seller, Landlord, Buyer, Tenant, Investor, Listing and reporting workflows.
 
 ## 4.1 Cotality — primary listing backbone
 
@@ -218,798 +396,677 @@ Cotality is the primary listing source for the listing lifecycle and should prov
 - Temporary Off Market
 - Off Market
 - Expired
-- other relevant licensed historical listing states
+- applicable historical listing states
 - listing price/history and other licensed listing facts
 
-Cotality must be used first for closed-price evidence when the required close price is available.
+Cotality is used first for closed-price evidence when the required close price is available.
 
-## 4.2 StreetEasy — narrow market-gap supplement
+Agents consume Cotality-backed information through Mallan; they do not manage Cotality API/schema plumbing.
 
-StreetEasy is **not** a second full listing-history system.
+## 4.2 StreetEasy — narrow current-market gap supplement
 
-Its approved architectural role is limited to supplementing **Active** and **Signed Contract / In Contract** listings that are missing from Cotality, subject to legal/source-use review and the applicable internal/client/public visibility rules.
+StreetEasy is not a second full listing-history system.
 
-Before a StreetEasy-observed item is added to internal Search:
+Its architectural role is limited to supplementing missing **Active** and **Signed Contract / In Contract** listings, subject to source-use/legal/visibility review.
+
+Before a StreetEasy-observed item is used:
 
 1. normalize address/building/unit;
-2. resolve the canonical Property/Unit;
-3. check Cotality/current canonical listing episodes;
+2. resolve canonical Property/Unit;
+3. check Cotality/current canonical Listing Episodes;
 4. attach to an existing episode when it is the same listing;
 5. create a supplemental episode only when genuinely absent;
-6. never create a duplicate search result for the same property/listing episode.
+6. never create a duplicate search result for the same Property/Listing Episode.
 
-If Cotality later supplies the same episode, Cotality becomes the primary listing authority and the StreetEasy observation remains provenance/history rather than a second listing.
+If Cotality later supplies the same episode, Cotality becomes the primary listing authority.
 
-StreetEasy must not be used to recreate Cotality's expired/off-market/closed history under this plan.
-
-## 4.3 ACRIS — closing-price fallback and recorded evidence
-
-For CMA/closed-sale evidence:
+## 4.3 ACRIS — recorded evidence / close-price fallback
 
 ```text
 Cotality close price available and verified?
   YES → use Cotality
-  NO  → use ACRIS closing/recorded evidence where available and correctly matched
+  NO  → use correctly matched ACRIS recorded/closing evidence where available
 ```
 
-The value must retain provenance. An ACRIS-derived closing amount may not be represented as though it came from Cotality.
+Provenance must remain visible.
 
-## 4.4 PLUTO — building/lot/property facts
+## 4.4 PLUTO
 
-PLUTO and other specifically approved public records enrich the canonical Property/Building record with applicable physical/building/lot facts. PLUTO does not create listing inventory.
+PLUTO enriches Building/Property/lot facts. It does not create listing inventory.
 
-## 4.5 NYC Department of Finance — tax/assessment and non-primary-residence information
+## 4.5 NYC Department of Finance
 
-NYC Department of Finance information belongs to the Property Intelligence layer, including applicable:
+DOF belongs to Property Intelligence for applicable:
 
-- assessment/market-value information
-- condo property-tax information
-- exemptions/abatements where relevant
-- non-primary-residence / pied-à-terre surcharge information
-- co-op unit surcharge/valuation information when provided at the unit level
+- assessment/market value
+- condo property tax
+- exemptions/abatements
+- non-primary-residence / pied-à-terre surcharge
+- unit-level co-op surcharge/valuation information when published
 
-**Condo and co-op treatment must remain distinct.** A co-op unit must not be given a condo-style individual real-estate tax bill merely because DOF has a unit-level surcharge/valuation record. Co-op maintenance and building-level tax economics must remain correctly classified.
-
-All DOF-derived values must retain tax year/effective period and provenance.
+Condo and co-op treatment must remain distinct. A co-op unit must not be given a condo-style individual tax bill merely because a unit-level DOF surcharge/valuation record exists.
 
 ---
 
-# 5. Search is the shared brokerage intelligence engine
+# 5. ROLE-SEPARATION RULE
 
-Search is not an isolated page. It must answer four directions from one criteria/data contract:
+**Seller, Landlord, Buyer and Tenant are never collapsed into one generic client pipeline or combined opportunity type.**
 
-## 5.1 Client → listings
+Shared services are reused, but each role owns a separate opportunity/workflow and its own requirements.
 
-Find listings matching a Buyer/Tenant/Investor/1031 client's criteria.
+Prohibited simplifications include treating these as a single implementation solely because some fields overlap:
 
-## 5.2 Listing → clients
+- Seller + Landlord Opportunity
+- Buyer + Tenant Opportunity
+- generic Buyer/Tenant SearchProfile without role-specific semantics
+- generic Seller/Landlord transaction state machine
+- generic one-size-fits-all representation agreement
 
-Find Mallan clients/prospects whose saved criteria match a Mallan listing for authorized marketing and agent recommendations.
+One Individual/Entity may participate in multiple opportunities without identity duplication.
 
-## 5.3 Property → market
-
-For pricing/CMA/seller reporting, show comparable building and area inventory using the relevant statuses, including Active, In Contract, Closed, Temporary/Off Market and Expired where required and permitted.
-
-## 5.4 Property → potential seller/landlord
-
-Use the Property's listing history, current market, closed-price evidence and property facts to create a seller/landlord opportunity, CMA, sale/rental analysis and compliant/subtle outreach strategy.
-
-One canonical SearchProfile/criteria contract should support buyer criteria, tenant criteria, investor criteria, 1031 replacement criteria, seller competitive-watch criteria and listing-to-client matching. Do not create separate saved-search languages.
-
----
-
-# 6. CMA and valuation consume Search/Property Intelligence
-
-CMA must not own a separate comparable universe.
+Example:
 
 ```text
-SUBJECT PROPERTY
-    ↓
-CANONICAL SEARCH / PROPERTY INTELLIGENCE
-    ↓
-SAME BUILDING + AREA COMPARABLES
-    ↓
-ACTIVE / IN CONTRACT / CLOSED /
-TEMP-OFF-MARKET / OFF-MARKET / EXPIRED CONTEXT
-    ↓
-VERIFIED CLOSE-PRICE EVIDENCE
-    ↓
-CMA / PRICING / MARKET POSITION
+JANE SMITH — one canonical Individual
+│
+├── Seller Opportunity — 123 Main St #5A
+├── Landlord Opportunity — 456 Park Ave #8C
+└── Buyer Opportunity — future purchase
 ```
-
-The same evidence engine must serve:
-
-- seller pricing/listing strategy
-- seller market-performance reports
-- buyer offer/value analysis
-- landlord rental/sale analysis
-- tenant rental comparisons
-- investor underwriting
-- 1031 replacement analysis
-- lender/professional evidence packages
-
-A brokerage CMA must never be mislabeled as a formal appraisal.
 
 ---
 
-# 7. Seller / Landlord operating lifecycle
+# 6. SELLER OPERATING JOURNEY
 
-A seller or landlord side may contain one or more Individual(s), an Entity, or both through authorized representatives.
+Seller is a sale-side ownership/disposition workflow.
 
 ```text
-POTENTIAL SELLER / LANDLORD
-    ↓
-PROPERTY + MARKET INTELLIGENCE
-    ↓
-CMA / SALE-RENT ANALYSIS / PITCH
-    ↓
-FOLLOW-UP
-    ↓
-APPOINTMENT
-    ↓
-EXCLUSIVE AGREEMENT SENT
-    ↓
-SIGNED EXCLUSIVE UPLOADED
-    ↓
-BROKERAGE FILE / REVIEW
-    ↓
-MALLAN LISTING
+POTENTIAL SELLER
+  ↓
+Seller Individual(s) / Seller Entity
+  ↓
+Property / ownership context
+  ↓
+Sale CMA / pricing / market opportunity
+  ↓
+Outreach / follow-up / appointment
+  ↓
+Seller representation / exclusive agreement
+  ↓
+Signed exclusive uploaded / brokerage file
+  ↓
+SALE LISTING
+  ↓
+Sale marketing / e-blasts / share / open houses / private showings
+  ↓
+Feedback / Seller Report / price strategy
+  ↓
+Offer(s) / negotiation / accepted offer
+  ↓
+Attorneys / due diligence / contract of sale
+  ↓
+Buyer financing status or all-cash path
+  ↓
+Co-op/condo process as applicable
+  ↓
+Final walkthrough
+  ↓
+Closing
+  ↓
+Commission / post-close relationship
 ```
 
-The Listing Workspace must include or link to, as applicable:
+Seller workspace requirements include, as applicable:
 
-- Seller/Landlord Individual(s) / Entity
-- authorized representative/signatory
-- contact information
+- Seller Individual(s) / Entity and authorized signatories
+- seller contact information
 - assigned agent
-- signed exclusive agreement
-- agreement dates/expiration
-- listing price/rent
-- condo common charges and taxes, or co-op maintenance as applicable
+- seller attorney when applicable
+- signed exclusive and dates/expiration
+- sale listing price
+- Property Intelligence / Cotality history
+- same-building and area sale comps
+- Active / In Contract / Closed / applicable Off-Market / Expired competition
+- condo taxes/common charges or co-op maintenance as appropriate to the Property
 - photos
 - floor plan
-- 3D walkthrough
 - video
-- current/historical status
-- Search/CMA market context
-- communications
-- marketing history
-- showings/open houses
-- feedback
+- 3D walkthrough
+- marketing/e-blast history
+- share artifacts
+- open houses / attendance / report
+- private showings / feedback
+- comments/questions/communications
+- seller reports
 - offers
-- transaction state
-- seller/landlord reporting
-
-### 7.1 Listing marketing actions
-
-From the Listing Workspace the authorized agent/broker must be able to initiate and track:
-
-- e-blast to agents/brokerage audience
-- e-blast to matched potential clients
-- outreach to active buyers/tenants whose criteria match
-- follow-up/reminder to actual buyers/tenants who viewed the listing
-- open-house invitations/reminders/follow-up
-- price/status marketing when authorized
-- seller/landlord report
-- refreshed CMA/market report
-
-Campaign recipients and engagement must resolve to canonical Party records and may not create duplicate leads for existing people.
-
-### 7.2 Open-house workflow
-
-```text
-OPEN HOUSE SCHEDULED
-  ↓
-INVITATIONS / MARKETING
-  ↓
-ATTENDEE REGISTRATION
-  ↓
-ATTENDANCE COUNT
-  ↓
-INTEREST / MAYBE / PASS + NOTES
-  ↓
-FOLLOW-UP
-  ↓
-OPEN-HOUSE REPORT
-  ↓
-SELLER REPORT
-```
-
-### 7.3 Private-showing workflow
-
-```text
-SHOWING REQUESTED
-  ↓
-CONFIRMED / CANCELLED / NO-SHOW
-  ↓
-ATTENDED
-  ↓
-FEEDBACK REQUESTED / RECEIVED
-  ↓
-INTEREST / MAYBE / PASS
-  ↓
-AGENT FOLLOW-UP
-  ↓
-SELLER REPORT
-```
+- sale transaction state
 
 ---
 
-# 8. Active Buyer / Tenant lifecycle
+# 7. LANDLORD OPERATING JOURNEY
 
-A Buyer/Tenant opportunity may include multiple Individual(s), an Entity, guarantor(s) and invited family/participants who may ultimately sign a contract/lease.
-
-```text
-ACTIVE BUYER / TENANT
-  ↓
-PARTICIPANTS CONFIRMED
-  ↓
-REPRESENTATION / EXCLUSIVE AGREEMENT
-  ↓
-SEARCH CRITERIA
-  ↓
-LIVE SEARCH / SAVED SEARCH
-  ↓
-SEND / SAVE / AUTO-ALERT NEW LISTINGS
-  ↓
-CLIENT RESPONSE: SHOW / MAYBE / PASS / NO RESPONSE
-  ↓
-SHOWING
-  ↓
-OFFER / APPLICATION
-```
-
-A listing sent to a client must have tracked states such as Sent, Viewed, Saved, Liked, Show, Maybe, Pass, Showing Requested, Shown and Offer/Application where applicable so the agent does not repeatedly send rejected inventory and the relationship history remains usable.
-
----
-
-# 9. Offer → transaction participant workflow
-
-Once an offer is made, the platform must require/confirm the transaction participants and professional contacts rather than discovering them late.
+Landlord is a rental ownership/lease workflow, not Seller-with-a-rent-field.
 
 ```text
-OFFER CREATED
+POTENTIAL LANDLORD
   ↓
-BUYER/SELLER OR TENANT/LANDLORD PARTIES CONFIRMED
+Landlord Individual(s) / Landlord Entity
   ↓
-ENTITY / TRUST / LLC / LLP / ESTATE STRUCTURE CONFIRMED
+Property / ownership context
   ↓
-AUTHORIZED SIGNATORIES CONFIRMED
+Rental analysis / asking-rent strategy / hold-sell context
   ↓
-ATTORNEY INFORMATION REQUESTED/CONFIRMED
+Outreach / follow-up / appointment
   ↓
-FINANCING / LENDER INFORMATION IF APPLICABLE
+Landlord representation / rental exclusive
   ↓
-TRANSACTION WORKSPACE
+RENTAL LISTING
+  ↓
+Rental marketing / e-blasts / share / showings
+  ↓
+Tenant application(s)
+  ↓
+Qualification / guarantor(s) as applicable
+  ↓
+Landlord decision
+  ↓
+Co-op/condo application process if applicable
+  ↓
+Lease preparation/execution
+  ↓
+Move-in
+  ↓
+Lease expiration lifecycle
 ```
 
-The transaction then branches based on financing and property type.
+Landlord workspace requirements include, as applicable:
 
-### 9.1 Sale — financed
+- Landlord Individual(s) / Entity and authorized signatories
+- landlord contact information
+- assigned agent
+- attorney/professionals when applicable
+- rental exclusive/agreement and dates
+- asking rent
+- rental market analysis
+- rental competition and relevant leased/rental evidence
+- sale/hold comparison when requested
+- Property facts / carrying costs
+- photos
+- floor plan
+- video
+- 3D walkthrough
+- rental marketing/e-blasts/share
+- showings
+- applications
+- applicant/guarantor status
+- comments/questions/communications
+- lease state
+- renewal/relist/sell lifecycle
 
-Offer → Accepted Offer → Attorneys/Due Diligence → Signed Contract → Mortgage Application → Appraisal/Commitment/Approval → building/property-specific application/board steps → Final Walkthrough → Closing.
+Post-lease Landlord workflow:
 
-### 9.2 Sale — all cash
-
-Offer → Accepted Offer → Attorneys/Due Diligence → Signed Contract → bypass mortgage workflow → building/property-specific application/board steps → Final Walkthrough → Closing.
-
-### 9.3 Co-op
-
-Signed Contract → Board Package/Application → Managing-Agent/Board Review → Board Interview → Approval → Final Walkthrough → Closing.
-
-### 9.4 Condo
-
-Signed Contract → Condo/Managing-Agent Application and waiver/approval process as applicable → Final Walkthrough → Closing.
-
-The system must show only applicable steps and retain a complete audit trail.
+- approximately 6 months before expiration → sale comps / hold-vs-sell context;
+- if no response, approximately 90 days before expiration → refreshed sale analysis/reminder;
+- approximately 60 days before expiration → determine renewal; if tenant is not renewing, prompt rental valuation/relisting workflow.
 
 ---
 
-# 10. Investor and 1031 lifecycle
+# 8. BUYER OPERATING JOURNEY
 
-Potential/active investors remain canonical Parties with an Investor Opportunity and investment SearchProfile.
-
-1031 replacement work must connect the disposition and replacement sides:
+Buyer is a purchase/acquisition workflow.
 
 ```text
-INVESTOR / 1031 CLIENT
+POTENTIAL BUYER
   ↓
-DISPOSITION / TIMELINE / PROFESSIONAL COORDINATION
+Buyer Individual(s) / Buyer Entity
   ↓
-REPLACEMENT SEARCH PROFILE
+Additional purchasing/signing parties
   ↓
-MATCHED PROPERTIES
+Qualification / proof of funds / financing readiness
   ↓
-INVESTMENT ANALYSIS
+Buyer representation agreement
   ↓
-OFFER / ACQUISITION
+BUYER SEARCH PROFILE
   ↓
-PORTFOLIO / NEXT OPPORTUNITY
+Search / saved search / auto-send / listing sends
+  ↓
+Show / Maybe / Pass
+  ↓
+Showing(s)
+  ↓
+Offer / negotiation / accepted offer
+  ↓
+Buyer attorney / contract
+  ↓
+Mortgage workflow OR all-cash path
+  ↓
+Co-op board OR condo application where applicable
+  ↓
+Final walkthrough
+  ↓
+Closing
+  ↓
+New Owner relationship
 ```
 
-Where verified inputs exist, investment analysis may include rent, expenses, taxes/common charges/maintenance, NOI, cash flow, cash-on-cash return, cap rate, ROI and financing assumptions. Calculated outputs must show source inputs and assumptions.
+Buyer workspace requirements include:
+
+- Buyer Individual(s) / Entity
+- invited family/other future signatories/participants as appropriate
+- buyer attorney once applicable
+- lender/mortgage contacts if financed
+- buyer representation agreement
+- purchase SearchProfile
+- saved searches
+- auto-send/new listing alerts
+- listing sends
+- comments/questions/request-more-information
+- Show / Maybe / Pass
+- showings / no-show state
+- offer(s)
+- comparable/offer analysis
+- purchase calculators
+- documents
+- transaction/financing/application state
 
 ---
 
-# 11. Potential Seller / Landlord lead pipeline
+# 9. TENANT OPERATING JOURNEY
 
-Potential Seller/Landlord opportunities may arise from legitimate property/business signals such as prior/expired marketing, lien/tax/estate-related public-record situations, vacancy/landlord context or other appropriately sourced indicators.
-
-Sensitive trigger information is internal research unless appropriate and lawful to disclose. Outreach should address the owner's property options subtly through sale value, rental value, market opportunity and timing—not expose sensitive trigger details unnecessarily.
-
-The workflow must support:
-
-- property research
-- owner Individual(s) / Entity resolution
-- existing-Party duplicate check
-- sale CMA
-- rental analysis
-- sale-vs-rent analysis
-- pitch/market update
-- contact attempt
-- next required action
-- follow-up/nurture
-- appointment
-- listing presentation
-- signed engagement
-
-No live seller/landlord opportunity may exist without owner, stage, last meaningful contact, next required action and due date.
-
----
-
-# 12. Post-lease tenant and landlord lifecycle
-
-## 12.1 Tenant after Mallan lease
-
-Lease expiration is a first-class future workflow trigger.
-
-- approximately 6 months before expiration: present relevant sale/buyer opportunity and sale listings where appropriate;
-- if no response, approximately 90 days before expiration: repeat/follow up on ownership options;
-- if still no response, approximately 60 days before expiration: send relevant rental options / relocation support.
-
-Possible next states include renewal, new rental, buyer opportunity or nurture.
-
-## 12.2 Landlord after Mallan lease
-
-For a landlord whose unit Mallan leased:
-
-- approximately 6 months before lease expiration: provide sale comps / hold-vs-sell context;
-- if no response, approximately 90 days before expiration: refresh sale analysis/reminder;
-- approximately 60 days before expiration: determine tenant renewal; if tenant is not renewing, prompt rental valuation and listing/relisting workflow.
-
-Possible next states include renewed lease, new rental listing or seller opportunity.
-
-The same Property and Landlord Party records must be reused.
-
----
-
-# 13. Unified communications and comments
-
-Portal/system communication and email are **channels**, not separate relationship histories.
-
-Every relevant Party must be able, according to permission and preference, to:
-
-- send a comment
-- ask a question
-- request more information
-- respond to a listing/report/showing/offer/transaction item
-- receive/reply by system/portal or email where supported
-
-All communications must attach to the correct canonical context, such as:
+Tenant is a rental-occupancy workflow, not Buyer-lite.
 
 ```text
-PARTY
- + OPPORTUNITY
- + PROPERTY/LISTING
- + SHOWING/OFFER/TRANSACTION when applicable
- + COMMUNICATION THREAD
+POTENTIAL TENANT
+  ↓
+Tenant Individual(s) / Tenant Entity
+  ↓
+Additional occupants / guarantor(s)
+  ↓
+Tenant representation agreement where applicable
+  ↓
+TENANT RENTAL SEARCH PROFILE
+  ↓
+Search / saved search / auto-send / rental listing sends
+  ↓
+Show / Maybe / Pass
+  ↓
+Showing(s)
+  ↓
+Rental application
+  ↓
+Financial/application documents
+  ↓
+Landlord approval
+  ↓
+Co-op/condo application if applicable
+  ↓
+Lease
+  ↓
+Move-in
+  ↓
+Lease expiration lifecycle
 ```
 
-The platform must preserve a unified communication history rather than leaving important client context only in an inbox.
+Tenant workspace requirements include:
 
-### 13.1 Communication visibility
+- Tenant Individual(s) / Entity
+- occupants/guarantors
+- tenant contact information
+- representation agreement where applicable
+- rental SearchProfile
+- saved search / auto-send
+- listing sends
+- comments/questions/request-more-information
+- Show / Maybe / Pass
+- showings
+- application and financial-document status
+- landlord/building approval status
+- lease documents
+- move-in / expiration dates
 
-At minimum, messages/notes must support clear visibility classes:
+Post-lease Tenant workflow:
 
-- **Shared/client-visible** — approved participants may see it.
-- **Participant-restricted** — only selected transaction/listing participants may see it.
-- **Mallan internal** — broker/agent/staff only.
-
-Internal notes must never become client-visible merely because they are attached to the same listing or transaction.
-
-### 13.2 Communication preference
-
-Each Party may select or be recorded with a preferred communication route, such as system/portal, email, phone or other supported channel. Eligibility/consent/suppression rules remain centrally enforced.
+- approximately 6 months before expiration → relevant purchase opportunity / sale listings where appropriate;
+- if no response, approximately 90 days before expiration → buyer-option follow-up;
+- if still no response, approximately 60 days before expiration → rental/relocation options;
+- possible next states: renewal, new rental, Buyer Opportunity, nurture.
 
 ---
 
-# 14. Lead routing and agent follow-up
+# 10. INVESTOR / 1031 OPERATING JOURNEY
 
-A lead cannot stop at assignment.
+Investor/1031 remains a distinct opportunity type using the shared Search/Property Intelligence/calculator foundation.
+
+It may include:
+
+- acquisition criteria
+- investment SearchProfile
+- rented/income-producing property identification
+- verified rent/expense inputs
+- taxes/common charges/maintenance
+- NOI/cash flow
+- cap rate
+- cash-on-cash
+- ROI
+- financing assumptions
+- 1031 disposition/replacement timeline and replacement search
+
+All calculated outputs retain source inputs and explicit assumptions.
+
+---
+
+# 11. AGENT WORKSPACE
+
+Agents operate on the same canonical records seen in the Brokerage view, under their permitted scope.
+
+Agents must be able to:
+
+- update approved public profile fields
+- track leads/clients
+- use Buyer Search
+- use Tenant Search
+- use Seller market/CMA tools
+- use Landlord rental analysis
+- use investor/1031 calculators
+- use contextual AI assistance
+- create/save/send searches
+- add missing supplemental listings through controlled workflow
+- paste a supported listing URL to start a deduped supplemental-listing draft
+- create/send HTML e-blasts
+- create live share links/cards
+- create social-ready share assets where authorized
+- access comments/communications
+- track listings/showings/open houses
+- track Seller deals
+- track Landlord rental deals
+- track Buyer purchase deals
+- track Tenant rental deals
+- track commissions
+- download commission statements/reports
+- access approved agreements/disclosures/offering plans/documents
+- access practical REBNY/RLS/UCBA and NY DOS licensing guidance
+
+Agent-facing workflows consume Cotality-backed data; agents are not responsible for Cotality API/schema/ingestion mechanics.
+
+---
+
+# 12. BROKERAGE SUPERVISION
+
+Broker scope operates over the same canonical agents, Parties, Properties, Listings, Opportunities, Transactions, Campaigns, Tasks and Commissions.
+
+Broker control includes:
+
+- agent roster/profile/licensing supervision
+- lead routing/acceptance/first-contact/follow-up SLAs
+- Seller opportunities/listings
+- Landlord opportunities/rental listings
+- Buyer opportunities
+- Tenant opportunities
+- investor/1031 work
+- company listing inventory
+- agreement expiration
+- marketing activity
+- seller/landlord update obligations
+- overdue follow-up
+- transaction status/deadlines
+- commissions/referrals/company economics
+- compliance exceptions
+- performance/production
+
+---
+
+# 13. AGENT-ADDED / URL-ASSISTED SUPPLEMENTAL INVENTORY
+
+Authorized agents may add a listing missing from the system for permitted internal/client use, but must not create duplicate Property/Listing truth.
 
 ```text
-LEAD CREATED
+PASTE LISTING URL OR MANUAL ADD
   ↓
-SOURCE / ATTRIBUTION
+IDENTIFY SOURCE / PERMITTED FETCH
   ↓
-ELIGIBILITY + DUPLICATE/CONFLICT CHECK
+NORMALIZE ADDRESS + UNIT
   ↓
-ASSIGNED AGENT
+RESOLVE CANONICAL PROPERTY
   ↓
-ACCEPT / DECLINE / TIMEOUT
+DEDUPE AGAINST COTALITY + APPROVED SUPPLEMENTAL INVENTORY
   ↓
-FIRST-CONTACT SLA
+CREATE/ATTACH DRAFT SOURCE OBSERVATION / LISTING EPISODE IF NEEDED
   ↓
-CONTACT EVIDENCE
+AGENT CONFIRMS MATERIAL FACTS + SHARE RIGHTS
   ↓
-NEXT ACTION REQUIRED
-  ↓
-REMINDER
-  ↓
-ESCALATION / BROKER ALERT
-  ↓
-REASSIGNMENT / RETURN TO POOL IF REQUIRED
+PERMITTED CLIENT-SHARE LISTING
 ```
+
+No blind URL → database insert → public listing.
+
+External photos/media may not be copied, stored or republished merely because a URL was supplied; source rights/authority must permit use.
+
+If Cotality later supplies the same Listing Episode, reconcile the existing episode to Cotality authority rather than duplicating it.
+
+---
+
+# 14. MARKETING / SHARING CONTINUITY
+
+Marketing is driven from canonical Search/Listing/Party data and the shared Media/Share services.
+
+Possible authorized actions include:
+
+- HTML email / e-blast
+- send selected listings to one client
+- send listing collection
+- cooperating-agent e-blast
+- matched-client audience e-blast
+- open-house announcement/reminder
+- prior-viewer follow-up
+- price-change campaign
+- live share card/link
+- social-media-ready content/card
+
+Campaign attribution must connect recipients and engagement back to canonical Party/Opportunity records.
+
+---
+
+# 15. OFFER / APPLICATION / TRANSACTION CONTINUITY
+
+Offer/application creates the appropriate role-specific transaction path and professional-participant capture.
+
+## Sale transaction
+
+Offer → Accepted Offer → Attorneys/Due Diligence → Contract → Mortgage or All Cash → applicable Co-op/Condo process → Final Walkthrough → Closing → Commission.
+
+## Rental transaction
+
+Application → Documents/Qualification → Landlord Decision → applicable Co-op/Condo application → Lease → Move-in → Commission/lease lifecycle.
+
+Sale and rental transaction state machines must not be forced into one generic pipeline merely because both result in a Deal record.
+
+---
+
+# 16. LEAD ROUTING / FOLLOW-UP
+
+Every lead/opportunity remains attached to its distinct role:
+
+- Seller lead/opportunity
+- Landlord lead/opportunity
+- Buyer lead/opportunity
+- Tenant lead/opportunity
+- Investor/1031 opportunity
+
+Shared routing infrastructure supports assignment, accept/decline/timeout, first-contact SLA, next action, reminders, escalation, broker alert and reassignment.
 
 Every active opportunity requires:
 
-- responsible owner/agent
-- current stage
+- assigned owner/agent
+- role/opportunity type
+- stage
 - last meaningful contact
-- next required action
+- next action
 - due date
 
-Missing any one is an uncontrolled opportunity and must be visible to the broker.
+---
+
+# 17. COMPLIANCE / PROFESSIONAL REFERENCE
+
+Agent-facing Compliance/Professional Reference focuses on practical brokerage requirements, including:
+
+- applicable REBNY/RLS/UCBA requirements
+- NY Department of State licensing requirements
+- Mallan policies/workflow checklists
+- approved agreements/disclosures/forms
+- links/version/effective dates to authoritative sources
+
+Technical Cotality field/schema/payload/source-integration governance is an engineering/data-governance responsibility, not an agent-facing operational burden.
 
 ---
 
-# 15. Brokerage inventory and supervision
+# 18. REQUIREMENT AND DOCUMENT GOVERNANCE
 
-The broker control plane must track Mallan listings by canonical status and lifecycle, including relevant states such as Coming Soon, Active, In Contract, Closed/Sold, Temporary Off Market, Off Market, Expired, Withdrawn or Cancelled as defined by the authoritative status contract.
+The final canonical system must not depend on agents/developers assembling product truth from multiple competing planning documents.
 
-For each Mallan listing, the brokerage view should expose at least:
+The target governance model is:
 
-- listing/property identity
-- Seller/Landlord Individual(s) / Entity
-- responsible agent
-- price/rent
-- status and status history
-- DOM where applicable
-- agreement expiration
-- last seller/landlord contact
-- last marketing activity
-- next report/update due
-- showings/open houses
-- offers/applications
-- transaction stage
-- commission/financial state where applicable
-- missing/overdue required actions
+- **ONE canonical system blueprint** for business architecture, shared foundation, role-specific journeys, requirements, source authority and build sequence.
+- operational health/issue/handoff documents may describe current state only;
+- external/source reference documents may describe Cotality/REBNY/DOS/public-data facts only;
+- historical plans/audits/specs become evidence/reference after their valid requirements are absorbed;
+- they may not redefine the product architecture.
 
-Agent supervision must use the same leads, clients, listings, tasks and transactions as the agent workspace rather than duplicate supervisory copies.
+During the current consolidation phase, the existing requirement ledger remains temporary working material and must ultimately be absorbed into the one canonical blueprint rather than survive as a competing authority.
 
----
+Every requirement must identify:
 
-# 16. Finance and tax intelligence
-
-The finance/business-performance layer includes brokerage revenue/commission/accounting workflows and property-level carrying-cost intelligence.
-
-Property-level financial facts used in Search/CMA/advisory/reports must be sourced through Property Intelligence, including applicable DOF tax/assessment and non-primary-residence surcharge data, condo taxes, co-op maintenance and other verified carrying-cost inputs.
-
-Brokerage finance must track applicable commission/revenue state, referral obligations and firm/agent economics using the transaction as the financial source of truth rather than a separate manually maintained deal copy.
-
----
-
-# 17. Requirement ledger and anti-loss governance
-
-This master plan must be supported by one canonical requirement ledger. Every meaningful requirement receives a stable ID and must never disappear because an older audit/spec/hold is not reread.
-
-Each requirement record must contain at least:
-
-- requirement ID
-- exact requirement
-- business purpose
-- actor(s)
-- canonical entity/entities
+- stable requirement ID
+- role: Shared / Seller / Landlord / Buyer / Tenant / Investor / Agent / Broker
+- canonical entity/service
 - source authority
 - producer
-- downstream consumers
-- trigger/state transition/event
-- permissions/compliance constraints
-- current implementation path(s)
-- duplicate/competing implementation(s)
-- dependency
+- downstream consumer
+- event/state transition
+- UX/workspace location
+- permission/compliance rule
+- current implementation path
+- duplicate/competing implementation
 - status
 - acceptance test
 - production proof
-- superseded/retired path where applicable
 
-Recommended status vocabulary:
+Status vocabulary:
 
-```text
-DISCOVERED → DESIGNED → BUILDING → WIRED → PROVEN → RETIRED
-```
-
-A requirement is not PROVEN because a table, API route or UI exists. It is PROVEN only when the required end-to-end business journey works and the downstream handoff is demonstrated.
-
-### 17.1 Required identity families
-
-The ledger must include stable requirements for at least:
-
-- canonical Individual(s)
-- canonical Entity and Entity subtype
-- Party roles and relationships
-- contact methods/preferences
-- professional contacts/attorneys
-- Building/Property/Unit identity
-- Listing Episode identity
-- source observations/provenance
-- Search/SearchProfile
-- CMA/comparables
-- seller/landlord prospecting
-- listing management
-- marketing
-- showings/open houses
-- offers/applications
-- transactions
-- lease lifecycle
-- tenant/landlord timed follow-up
-- investor/1031
-- communications/comments/email
-- lead routing/SLA
-- commissions/finance
-- portals and permissions
+`DISCOVERED → DESIGNED → BUILDING → WIRED → PROVEN → RETIRED`
 
 ---
 
-# 18. Duplicate and bloat gate
+# 19. DUPLICATE / BLOAT GATE
 
-Before any schema/service implementation is approved, the work package must answer:
+Before any schema/service implementation is approved:
 
-1. Does this entity already exist?
-2. Is it canonical data, source observation, history, workflow state or projection?
-3. Why can the existing canonical entity not own the requirement?
-4. What is the unique identity/dedup key?
+1. Does the canonical entity/service already exist?
+2. Is the proposed data canonical, source observation, history, media, communication, share artifact, workflow state or projection?
+3. Why cannot an existing canonical service own it?
+4. What is the unique/dedup identity?
 5. How are uncertain matches handled?
 6. What happens when another source later reports the same Party/Property/Listing?
-7. Which existing table/service/route is reused, migrated, superseded or retired?
-8. How does the projection/index rebuild from canonical truth?
-9. How are repeated unchanged source observations prevented from causing unnecessary writes/history bloat?
+7. What existing table/service/route is reused, migrated, merged, superseded or retired?
+8. Can projections/cards/reports rebuild from canonical truth?
+9. How are unchanged observations prevented from producing unnecessary writes/history/media copies?
 10. What test proves no duplicate business record was created?
 
-**If these are unanswered: no new canonical table and no new parallel service.**
+If unanswered: **no new canonical table and no new parallel service.**
 
 ---
 
-# 19. Event/workflow continuity
+# 20. EVENT / WORKFLOW CONTINUITY
 
-Important state changes must create the next required action rather than end a workflow silently.
+Important state changes create the next required action.
 
 Examples:
 
-- signed exclusive → activate listing workflow, Search/CMA, marketing and seller-report obligations;
-- listing created/changed → matching/alerts/marketing eligibility;
-- showing completed → feedback + agent follow-up + seller reporting;
-- offer made → transaction-participant/attorney workflow;
-- contract signed → financing/application/board workflow according to property/financing type;
-- closing → owner/past-client/landlord/investor lifecycle;
-- lease signed → tenant and landlord pre-expiration follow-up schedule;
-- ignored lead → reminder/escalation/reassignment path.
-
-No business-critical workflow may depend on an agent remembering a future date that the platform already knows.
-
----
-
-# 20. End-to-end operating journeys
-
-The plan must be validated through complete journeys rather than feature checklists.
-
-## 20.1 Seller exclusive revenue journey
-
-```text
-PROPERTY / OWNER
-  ↓
-SELLER OPPORTUNITY
-  ↓
-CMA / PITCH
-  ↓
-SIGNED EXCLUSIVE
-  ↓
-MALLAN LISTING
-  ↓
-SEARCH / MARKET INTELLIGENCE
-  ↓
-MATCH CLIENTS + E-BLAST AGENTS/BUYERS
-  ↓
-OPEN HOUSES / PRIVATE SHOWINGS / FOLLOW-UP
-  ↓
-SELLER REPORT
-  ↓
-OFFER
-  ↓
-CONTRACT / FINANCING / APPLICATION / BOARD
-  ↓
-WALKTHROUGH
-  ↓
-CLOSING
-  ↓
-COMMISSION
-  ↓
-POST-CLOSE RELATIONSHIP / NEXT OPPORTUNITY
-```
-
-## 20.2 Buyer/tenant journey
-
-```text
-LEAD / PROSPECT
-  ↓
-ACTIVE CLIENT + PARTICIPANTS
-  ↓
-REPRESENTATION
-  ↓
-SEARCH / SAVE / SEND / ALERT
-  ↓
-SHOW / MAYBE / PASS
-  ↓
-SHOWING
-  ↓
-OFFER / APPLICATION
-  ↓
-CONTRACT / LEASE
-  ↓
-FINANCING / BOARD / APPROVAL AS APPLICABLE
-  ↓
-WALKTHROUGH / MOVE-IN / CLOSING
-  ↓
-OWNER OR TENANT LIFECYCLE
-```
-
-## 20.3 Landlord/tenant renewal and conversion journey
-
-```text
-LEASE
-  ↓
-EXPIRATION DATE
-  ↓
-6-MONTH TENANT BUYER OPTIONS + LANDLORD SALE COMPS
-  ↓
-90-DAY FOLLOW-UP IF NO RESPONSE
-  ↓
-60-DAY RENTAL/RELIST/RELOCATION ACTION
-  ↓
-RENEW / RE-RENT / BUY / SELL
-```
+- Seller exclusive signed → Sale Listing workflow + marketing + Seller reporting
+- Landlord exclusive signed → Rental Listing workflow + rental marketing
+- Buyer representation active → Buyer Search/alert workflow
+- Tenant representation active → Tenant Search/alert workflow
+- listing price/media/status change → Search/share/marketing/report refresh as applicable
+- showing completed → feedback + follow-up + applicable Seller/Landlord report update
+- Buyer offer made → sale transaction participants/attorney workflow
+- Tenant application made → rental application/approval workflow
+- sale contract signed → financing/cash + building process
+- lease signed → Tenant and Landlord expiration workflows
+- closing → commission + owner/past-client lifecycle
+- ignored lead → reminder/escalation/reassignment
 
 ---
 
-# 21. Development programs
+# 21. DEVELOPMENT SEQUENCE
 
-## Program 0 — Canonical plan and operating truth
+## Phase 0 — Canonical consolidation
 
-Before broad feature implementation:
-
-1. inventory all active plans, audits, specifications, hold files and unmerged roadmap documents;
-2. extract every requirement;
-3. deduplicate requirements into the canonical ledger;
-4. map each requirement to canonical entities and journeys;
+1. inventory all master plans, audits, specifications, hold files and unmerged roadmap documents;
+2. extract every still-valid requirement;
+3. assign it to Shared, Seller, Landlord, Buyer, Tenant, Investor, Agent or Broker;
+4. deduplicate into one canonical blueprint;
 5. identify competing identity systems/tables/routes/services;
-6. freeze source authority and identity rules;
-7. produce the dependency/execution graph;
-8. prohibit new parallel overall plans.
+6. freeze source authority and canonical shared services;
+7. freeze each role-specific state machine;
+8. mark historical competing plans as reference/superseded;
+9. change startup instructions so the canonical blueprint is the sole product/design authority.
 
-## Program 1 — Property Intelligence/Search/CMA foundation
+## Phase 1 — Canonical Property Intelligence foundation
 
-Converge canonical Building/Property/Unit/Listing Episode/Source Observation identity and source authority, then wire one Search/criteria runtime and one comps/CMA evidence path.
+Converge Building/Property/Unit/Listing Episode/Source Observation identity, Cotality source authority, ACRIS/PLUTO/DOF enrichment and deduplication.
 
-Acceptance requires that the same canonical output be consumable by client search, seller market comparison, CMA, saved search, alerts, matching, listing marketing and reporting.
+## Phase 2 — Shared Search/Media/Communication/Document foundation
 
-## Program 2 — Party/Relationship/Workflow spine
+Converge Search infrastructure, Media, Share, E-blast, Comments/Communication, Documents, Tasks/Events, AI interfaces and analytical/calculator services without role-specific duplicate stores.
 
-Converge Individual(s), Entity, roles, relationships, contacts, professional contacts, opportunities, communications, tasks, SLAs, events, approvals and audit history.
+## Phase 3 — Separate role journeys
 
-## Program 3 — Listing, client and marketing operations
+Implement/prove in dependency order without merging workflows:
 
-Complete seller/landlord listing workspace, buyer/tenant search/send/save/alerts, open houses, showings, marketing, engagement capture, seller reporting and lead follow-up using Programs 1–2.
+- Seller
+- Landlord
+- Buyer
+- Tenant
+- Investor/1031
 
-## Program 4 — Transaction and finance delivery
+## Phase 4 — Agent/Broker operations
 
-Complete offers/applications, attorney/professional participant capture, contract/lease workflows, mortgage/all-cash branches, co-op/condo application/board processes, walkthrough, closing, commissions and transaction-linked finance.
-
-## Program 5 — Lifecycle/retention and advanced intelligence
-
-Complete post-close/post-lease owner, tenant, landlord, investor, 1031, referral and timed follow-up journeys; then advance intelligence only after deterministic canonical systems and evidence are proven.
-
----
-
-# 22. Broker and agent operating model
-
-The broker is also a producing agent. The system must model one Individual with multiple operating roles and permissions.
-
-Maya uses:
-
-1. a **My Business / producing-agent workspace**, shared in core structure with authorized agents, for her own leads, clients, searches, valuations, listings, communications and transactions; and
-2. a **Mallan Brokerage / broker supervisory control plane** for firm-wide lead distribution, assignments, licenses, supervision, approvals, listings, sales, production, commissions, referrals, performance, finance, risk and technology.
-
-Her personal production rolls into brokerage totals while remaining separately measurable.
-
-### Lead distribution is first-class
-
-The broker control plane must support manual, automatic and hybrid routing using legitimate business criteria such as geography, language, specialty, transaction type, price, source, capacity, availability, performance and license eligibility, plus conflict/duplicate checks, accept/decline/timeout, reassignment, return-to-pool, response SLAs, attribution, fairness review and immutable assignment history.
-
-### People, licensing and performance are first-class
-
-The platform must track license type/UID, sponsoring/representative-broker relationship, office, license status/expiration, continuing education, agreements, commission plans, referral terms, onboarding, training, offboarding, access revocation, production, conversion, service levels, compliance, coaching and capacity.
+Prove Agent workspace, Brokerage supervision, commissions, compliance/reference and cross-role reporting over the same canonical data.
 
 ---
 
-# 23. Mandatory agent startup and work-package contract
-
-Before changing code:
-
-1. Confirm current `main`, production deployment, open PRs and relevant issue rows.
-2. Confirm repository/project scope.
-3. Read `AGENTS.md`, `docs/PROJECT-HEALTH-DASHBOARD.md`, `docs/PLATFORM-ISSUE-REGISTRY.md`, the latest dated handoff, this master plan and applicable compliance/Neon/source-contract documents.
-4. Re-run current evidence. Do not inherit historical conclusions as current truth.
-5. Identify the actor, role, authority, canonical entity, source, upstream producer, downstream consumer, state transition/event, workflow and measurable outcome affected.
-6. State explicit scope and exclusions.
-7. Search for all existing writers/readers/models/routes of the affected entity before adding another implementation.
-8. Reuse, migrate or retire existing implementations deliberately.
-9. State deduplication and identity behavior.
-10. Preserve production unless the active work package explicitly authorizes a controlled change.
-11. Provide RED-before/GREEN-after evidence for behavior changes where feasible.
-12. Prove the cross-flow handoff, not merely the local route/component.
-13. Update the canonical requirement ledger and this file when the high-level model, roadmap, decision or active package changes.
-
-Every implementation work package/PR must declare:
-
-- requirement IDs implemented
-- upstream inputs
-- source authority
-- canonical IDs/entities
-- state transition
-- emitted event or workflow trigger
-- downstream consumers
-- permissions/compliance gates
-- duplicate/retirement analysis
-- audit/observability evidence
-- tests including cross-flow handoff
-- whether it changes runtime, only contracts, or only documentation
-
----
-
-# 24. Global Definition of Done
+# 22. GLOBAL DEFINITION OF DONE
 
 A capability is complete only when all applicable conditions are proven:
 
-1. canonical identity is used;
-2. source authority/provenance is correct;
-3. duplicate/parallel implementation is absent or explicitly retired/migrated;
-4. state transition is persisted correctly;
-5. downstream workflow receives the result;
-6. permissions/compliance are enforced centrally;
-7. communication/audit history is preserved where applicable;
-8. error/failure state is visible and recoverable;
-9. end-to-end acceptance journey passes;
-10. production proof exists when the capability is claimed as production-ready.
+1. canonical identity/service is reused;
+2. Seller/Landlord/Buyer/Tenant role boundaries are preserved;
+3. source authority/provenance is correct;
+4. duplicate/parallel implementation is absent or retired/migrated;
+5. media/documents/comments/share artifacts reference canonical objects;
+6. state transition is persisted correctly;
+7. downstream workflow receives the result;
+8. permissions/compliance are centrally enforced;
+9. communication/audit history is preserved;
+10. failure is visible/recoverable;
+11. end-to-end role-specific acceptance journey passes;
+12. production proof exists before production-ready claims.
 
 Examples:
 
-- Search is not finished until client send/save/alert, CMA, matching, listing marketing and seller reporting consume its canonical output.
-- A listing is not finished until agreement, marketing, showings, reports, offers and transaction handoff work.
-- A showing is not finished until feedback/follow-up/reporting update.
-- An offer is not finished until participants/attorneys and transaction workflow are created.
-- A closing is not finished until commission and post-close relationship state exist.
-- A lease is not finished until future tenant/landlord expiration workflows are scheduled.
+- Search is not finished until Buyer Search, Tenant Search, Seller market intelligence, Landlord rental intelligence, CMA, matching, share and marketing all consume the shared canonical infrastructure correctly.
+- Media is not finished if Search, email and social cards maintain separate copies/prices/media truth.
+- Seller is not finished until sale listing → marketing → showing → Seller report → offer → contract → closing handoff works.
+- Landlord is not finished until rental listing → application → approval → lease → expiration lifecycle works.
+- Buyer is not finished until search → showing → offer → contract → financing/cash → closing works.
+- Tenant is not finished until rental search → showing → application → approval → lease → move-in works.
+- An offer/application is not finished until the correct professional/transaction workflow begins.
+- A closing/lease is not finished until commission and post-close/post-lease lifecycle state exists.
 
 ---
 
 # Current handoff
 
 - This document is the intended canonical high-level business/identity/execution authority on PR #595 and remains unmerged until explicitly approved.
-- The Aug. 4 audit identified competing overall plans; do not merge or create another competing master plan without an explicit supersession decision.
-- Current infrastructure work such as PR #599 must not become a blocker for safe architecture/requirements consolidation unless it directly affects canonical property/listing truth.
-- Search/Property Intelligence/CMA convergence is the first business foundation after canonical-plan consolidation.
+- The current architecture is still in consolidation; current frontend/backend implementation must be audited against this target rather than treated as the design authority.
+- The temporary separate requirement ledger must ultimately be absorbed into the single canonical blueprint to prevent document drift.
 - No application code, database migration, R2 mutation, environment change, deployment or production configuration is authorized by this documentation update.
-
-## Publication note
-
-This repository version establishes the durable agent start point and the canonical brokerage architecture. Longer working drafts, audits, historical specifications and parked plans must be reconciled into this document/requirement ledger; they are evidence, not competing authorities. Do not merge PR #585 as a competing overall plan unless Maya explicitly reverses this decision.
