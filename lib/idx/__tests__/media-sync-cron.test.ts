@@ -457,6 +457,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       "r2_policy_kept_parked", "r2_policy_deferred", "r2_policy_write_failed",
       "r2_policy_selector_failed",
       "r2_policy_cursor_read_failed", "r2_policy_cursor_write_failed",
+      "r2_policy_budget_exhausted",
     ];
     for (const k of phase4aPolicyCounters) {
       expect(ch).toHaveProperty(k);

@@ -50,6 +50,7 @@ const R2_POLICY_FIELDS = [
   "r2_policy_selector_failed",
   "r2_policy_cursor_read_failed",
   "r2_policy_cursor_write_failed",
+  "r2_policy_budget_exhausted",
 ] as const;
 
 /** A minimally complete `runMediaSync` result with distinguishable values. */
@@ -83,6 +84,7 @@ function makeResult(over: Record<string, unknown> = {}): Record<string, unknown>
     r2_policy_kept_parked: 54, r2_policy_deferred: 11, r2_policy_write_failed: 1,
     r2_policy_selector_failed: false,
     r2_policy_cursor_read_failed: false, r2_policy_cursor_write_failed: false,
+    r2_policy_budget_exhausted: false,
     r2_mirrored: 0, r2_uploaded: 0, r2_reused: 0, r2_failed: 0, r2_skipped: 0,
     backlog_remaining: 0, duration_ms: 1,
     ghost_listings_skipped: 0, ghost_listing_ids: [],

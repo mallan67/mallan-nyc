@@ -155,6 +155,7 @@ export async function runMediaSyncMember({
           // cross-run rotation exists to prevent.
           r2_policy_cursor_read_failed: result.r2_policy_cursor_read_failed,
           r2_policy_cursor_write_failed: result.r2_policy_cursor_write_failed,
+          r2_policy_budget_exhausted: result.r2_policy_budget_exhausted,
           r2_mirrored: result.r2_mirrored,
           r2_uploaded: result.r2_uploaded,
           r2_reused: result.r2_reused,

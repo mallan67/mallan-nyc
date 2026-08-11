@@ -2568,6 +2568,22 @@ export interface R2PolicyReevaluationOptions {
   now?: () => number;
   batchLimit?: number;
   intervalMs?: number;
+  /**
+   * RUN-BUDGET HOOK. Returns false once the caller's time reserve is spent.
+   *
+   * The row cap does NOT bound wall time. The primary window issues one serial
+   * per-listing hero read per distinct listing (up to `batchLimit`), and each
+   * fairness top-up can add as many again — up to ~240 serial round-trips in
+   * the worst case. Entered with only the reserve left, on a slow Neon
+   * connection, that can overrun `runMediaSync`'s budget and the route's hard
+   * deadline, which would kill the final telemetry/audit write — destroying
+   * exactly the observability this pass exists to provide.
+   *
+   * Checked before every hero read and before every top-up round. Whatever was
+   * already decided is still persisted, so a truncated sweep loses progress,
+   * never correctness. Omitted ⇒ no time bound (tests, manual invocation).
+   */
+  hasTimeRemaining?: () => boolean;
 }
 
 /**
@@ -2635,6 +2651,13 @@ export interface R2PolicyReevaluationResult {
    * here; failing INVISIBLY is not.
    */
   cursor_write_failed: boolean;
+  /**
+   * The pass stopped early because the caller's run budget ran out. Rows it had
+   * already decided are still persisted; the rest are simply reconsidered on a
+   * later firing. Surfaced so a sweep that never finishes a window is visible
+   * rather than looking like a small backlog.
+   */
+  budget_exhausted: boolean;
 }
 
 /**
@@ -2669,6 +2692,7 @@ export async function reevaluateR2PolicyExclusions(
   const nowFn = options.now ?? (() => Date.now());
   const batchLimit = options.batchLimit ?? R2_POLICY_REEVAL_BATCH_LIMIT;
   const intervalMs = options.intervalMs ?? R2_POLICY_REEVAL_INTERVAL_MS;
+  const hasTimeRemaining = options.hasTimeRemaining ?? (() => true);
   const result: R2PolicyReevaluationResult = {
     scanned: 0,
     readmitted: 0,
@@ -2679,6 +2703,7 @@ export async function reevaluateR2PolicyExclusions(
     selector_failed: false,
     cursor_read_failed: false,
     cursor_write_failed: false,
+    budget_exhausted: false,
   };
 
   type ReevalRow = {
@@ -2814,10 +2839,13 @@ export async function reevaluateR2PolicyExclusions(
   const failedListings = new Set<string>();
   /** Every listing this run looked at — drives the durable rotation cursor. */
   const examinedListingIds = new Set<string>();
+  /** Rows actually EXAMINED — not the window size, which a truncated sweep overstates. */
+  let examinedRows = 0;
 
   const decide = async (rows: ReevalRow[]): Promise<void> => {
     for (const row of rows) {
       examinedListingIds.add(row.listing_id);
+      examinedRows++;
       const scope = decideMirrorAdmissionScope(row.listing);
       const approvedTypes =
         scope === "all_active" ? MALLAN_MIRROR_MEDIA_TYPES : FEED_MIRROR_MEDIA_TYPES;
@@ -2845,6 +2873,15 @@ export async function reevaluateR2PolicyExclusions(
       if (heroKeyCache.has(row.listing_id)) {
         heroKey = heroKeyCache.get(row.listing_id) as string | null | typeof HERO_LOOKUP_FAILED;
       } else {
+        // RUN BUDGET. The per-listing hero read is the only expensive step in
+        // this loop and it is SERIAL, so this is where the pass must yield.
+        // Stopping leaves the remaining rows untouched and still due — they are
+        // reconsidered next firing — and everything already decided is still
+        // written below. A truncated sweep loses progress, never correctness.
+        if (!hasTimeRemaining()) {
+          result.budget_exhausted = true;
+          return;
+        }
         try {
           const listingRows = await prisma.listingMedia.findMany({
             where: { listing_id: row.listing_id },
@@ -2900,7 +2937,7 @@ export async function reevaluateR2PolicyExclusions(
   };
 
   await decide(candidates);
-  result.scanned = candidates.length;
+  result.scanned = examinedRows;
 
   // FAIRNESS TOP-UP. The window is `orderBy listing_id asc` + `take`, so
   // listings whose hero read keeps failing sit at the head of it on every
@@ -2926,6 +2963,8 @@ export async function reevaluateR2PolicyExclusions(
     // the requested window grew 60 -> 120 -> 240. Anchoring on decided intents
     // makes the cap mechanical: `take` can never exceed `batchLimit`, and a
     // successful top-up shrinks the next request.
+    // RUN BUDGET before starting another window (see hasTimeRemaining).
+    if (!hasTimeRemaining()) { result.budget_exhausted = true; break; }
     const remaining = batchLimit - decidedCount();
     if (failedListings.size === 0 || remaining <= 0) break;
     let topUp: ReevalRow[];
@@ -2950,7 +2989,7 @@ export async function reevaluateR2PolicyExclusions(
     }
     if (topUp.length === 0) break;
     await decide(topUp);
-    result.scanned += topUp.length;
+    result.scanned = examinedRows;
     scannedIds.push(...topUp.map((r) => r.id));
   }
   result.decided = decidedCount();
@@ -3791,6 +3830,12 @@ export interface RunMediaSyncResult {
    * the cursor exists to prevent.
    */
   r2_policy_cursor_write_failed: boolean;
+  /**
+   * PHASE 4a stopped early because the run budget ran out. Decisions already
+   * made were still persisted; the rest are reconsidered next firing. Non-zero
+   * repeatedly means the sweep never finishes a window.
+   */
+  r2_policy_budget_exhausted: boolean;
   /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
   /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
@@ -4242,6 +4287,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let r2PolicySelectorFailed = false;
   let r2PolicyCursorReadFailed = false;
   let r2PolicyCursorWriteFailed = false;
+  let r2PolicyBudgetExhausted = false;
   let r2Mirrored = 0;
   let r2Uploaded = 0;
   let r2Reused = 0;
@@ -4325,6 +4371,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       r2_policy_selector_failed: false,
       r2_policy_cursor_read_failed: false,
       r2_policy_cursor_write_failed: false,
+      r2_policy_budget_exhausted: false,
       r2_mirrored: 0,
       r2_uploaded: 0,
       r2_reused: 0,
@@ -5083,8 +5130,19 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // the same rows. Its writes are idempotent, so an overlap would be wasteful
   // rather than corrupting — but doing extra work at the one moment the
   // scheduler is avoiding it would defeat the posture.
+  //
+  // The entry check is NOT sufficient on its own: the sweep can issue one
+  // serial per-listing hero read per distinct listing in its window, and each
+  // fairness top-up can add as many again — up to ~240 serial round-trips.
+  // Entered with only the reserve left, on a slow Neon connection, that would
+  // overrun the run budget AND the route's hard deadline, killing the final
+  // telemetry/audit write. So the remaining-time predicate is passed IN, and
+  // the sweep re-checks it before every hero read and every top-up round.
   if (queryPathClassification !== "skipped_overlap" && remainingMs() > phase2ReserveMs) {
-    const reeval = await reevaluateR2PolicyExclusions({ now });
+    const reeval = await reevaluateR2PolicyExclusions({
+      now,
+      hasTimeRemaining: () => remainingMs() > phase2ReserveMs,
+    });
     r2PolicyReevaluated = reeval.scanned;
     r2PolicyReadmitted = reeval.readmitted;
     r2PolicyKeptParked = reeval.kept_parked;
@@ -5094,6 +5152,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2PolicySelectorFailed = reeval.selector_failed;
     r2PolicyCursorReadFailed = reeval.cursor_read_failed;
     r2PolicyCursorWriteFailed = reeval.cursor_write_failed;
+    r2PolicyBudgetExhausted = reeval.budget_exhausted;
   }
 
   // ── PHASE 4: finalize + return ───────────────────────────────────────
@@ -5198,6 +5257,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     r2_policy_selector_failed: r2PolicySelectorFailed,
     r2_policy_cursor_read_failed: r2PolicyCursorReadFailed,
     r2_policy_cursor_write_failed: r2PolicyCursorWriteFailed,
+    r2_policy_budget_exhausted: r2PolicyBudgetExhausted,
     r2_mirrored: r2Mirrored,
     r2_uploaded: r2Uploaded,
     r2_reused: r2Reused,
