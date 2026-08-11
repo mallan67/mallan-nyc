@@ -87,12 +87,12 @@ tooling used). Two branches exist (see leftover branch above).
 |---|---|
 | `main` SHA | `2d121daaf6dbcd3d027d6d337901a18e43c03ad8` (PR #598 merge) |
 | Production SHA / deployment | `2d121daa` · `dpl_Ey4rGtD26mij3ULsgJvrs88md6yy` · alias `mallan.nyc` · Release Truth `PROD_PROVEN` |
-| PR #599 last CODE head | **`b5371db262049dcc19ff997a62ca7cd5ee9aa66d`** — the commit carrying the twelve-item correction pass. Documentation-only commits may sit on top of it (recording a SHA necessarily creates a later one). |
+| PR #599 last CODE head | **`6ba2944ace3144eef50040c7c0e28c3aa9e62d77`** — the commit carrying the twelve-item correction pass. Documentation-only commits may sit on top of it (recording a SHA necessarily creates a later one). |
 | PR #599 exact head at hand-off | Read it live: `gh pr view 599 --repo mallan67/mallan-nyc --json headRefOid`. Do not infer it from this file. |
 | Branch | `fix/r2-policy-reevaluation-2026-08-10` |
 | PR state | OPEN · not draft · MERGEABLE · 0 unresolved review threads · **UNMERGED** |
 
-**Last completed layer:** the twelve-item contained correction pass on #599 — domain-audit
+**Last completed layer:** the twelve-item contained correction pass on #599, plus three follow-on review corrections (unbudgeted sweep, accounting-before-gate, false budget-exhaustion) — domain-audit
 telemetry, cursor-failure observability, stale-claim removal, provider-scoped URL equality, the
 media-side candidate join, executable evidence SQL, cost re-classification, storage comparison,
 `AGENTS.md` runtime model, and this handoff.
