@@ -7,9 +7,12 @@
 - Business owner and final decision authority: **Maya Allan**.
 - Repository scope: **`mallan67/mallan-nyc` only** unless Maya explicitly changes it.
 - Explicit exclusion: **Do not modify or treat `Mallan-Integrated` as part of this work.**
-- This document is the single product/system plan. Audits, issue registries, PRs, technical notes and historical plans are evidence/reference only and may not become competing master plans.
-- Production mutation remains held unless Maya separately authorizes it. Documentation, read-only verification, tests and design work do not authorize migrations, environment changes, destructive data work, R2 cleanup or manual production deployment.
+- This document is the single product/system plan. Audits, issue registries, PRs, technical notes, temporary ledgers and historical plans are evidence/reference only and may not become competing master plans.
+- Production mutation remains held unless Maya separately authorizes it. Documentation, read-only verification, tests and design work do not authorize migrations, environment changes, destructive data work, R2 cleanup or manual Production deployment.
 - Every listing/property/data statement used for implementation must be verified against the current authorized Cotality/RLS contract or another applicable authoritative source before it is treated as fact.
+- Current REBNY/RLS/UCBA use/display rules, New York licensing/advertising requirements and the current Cotality implementation contract must be kept separate but reconciled. Cotality is the current provider implementation contract; it is not the brokerage business model.
+- Cotality/Trestle may use RESO vocabulary in its technical schema. **RESO terminology is provider-schema language only; RESO is not a separate Mallan business/compliance authority.** Mallan business requirements are framed through applicable New York law/DOS, REBNY/RLS/UCBA and the verified current provider contract.
+- This master is an **executable reconciled baseline**. Residual historical recovery/reconciliation continues as evidence work, but it is not a permanent global blocker. If recovered evidence proves that a still-valid requirement is missing or conflicts with an active layer, restore it here and reopen only the affected dependency.
 
 ---
 
@@ -57,9 +60,23 @@ MALLAN BROKERAGE
 
 **Unified means shared canonical identity, data and history. It does not mean collapsing distinct roles.**
 
-Seller, Landlord, Buyer and Tenant remain four separate first-class opportunities and workflows.
+Seller, Landlord, Buyer and Tenant remain four separate first-class opportunities and workflows. Investor/1031 uses the same canonical foundation with specialized analysis.
 
 No new parallel client, property, listing, search, comment, media, document, campaign, CMA, calculator, transaction or commission truth may be created without an explicit migration/deduplication/retirement decision.
+
+Before creating any new table/model/service that represents a real-world business object, answer:
+
+1. What real-world thing does this represent?
+2. Where is it represented today?
+3. Why can the existing canonical record not be reused or extended?
+4. What is the canonical ID?
+5. Who writes it?
+6. Who reads it?
+7. What duplicate representation is retired?
+8. How is existing history migrated/reconciled?
+9. What end-to-end proof shows there is still one truth?
+
+If those answers are not satisfactory, do not create the parallel model.
 
 ---
 
@@ -86,13 +103,26 @@ Maya Allan is one Individual with both scopes:
 
 If Maya is the producing agent on a deal, that deal appears in both views but remains **one canonical deal**.
 
-## 2.2 Independent contractors
+## 2.2 Independent contractors and supervision boundary
 
 Mallan agents are independent contractors operating their own book of business inside Mallan's brokerage framework.
 
 Mallan should provide the brokerage platform, support, reminders, flags, records, required firm controls and broker visibility where supervision/support is required.
 
 Mallan should not try to micromanage every independent contractor's business. The individual licensee remains responsible for meeting their own professional obligations.
+
+At the same time, independent-contractor status does not remove the representative broker's legally required responsibility for supervision of brokerage activity. The product rule is:
+
+```text
+AGENT
+responsible for personal professional obligations and conduct
+
+MALLAN
+supports, reminds, records and flags
+
+BROKER
+retains required brokerage supervision/oversight
+```
 
 ## 2.3 Current role model
 
@@ -112,7 +142,33 @@ There is no Manager/Office Manager role now.
 
 An Associate Broker functions like another Agent/Producer in Mallan unless Mallan later deliberately creates a separate supervisory appointment/capability.
 
+Associate Broker license status does **not** automatically create manager permissions. If Mallan later formally appoints an office manager/supervisory role, that role must be explicit and separately permissioned.
+
 License type is stored because it controls the person's proper public professional title and applicable obligations.
+
+## 2.4 Professional identity
+
+Public/client-facing professional identity must use the governed license title from the person's verified professional record:
+
+- Salesperson → **Licensed Real Estate Salesperson**
+- Associate Broker → **Licensed Real Estate Associate Broker**
+- Broker profile, when publicly displayed → **Licensed Real Estate Broker**
+
+For Maya's internal Brokerage View, repeatedly displaying the full legal title is unnecessary; `Broker` / `Brokerage View` is sufficient internally.
+
+One governed professional profile/signature supplies the current public identity to:
+
+- online Agent Profile;
+- email signature;
+- business cards;
+- letters;
+- representation/exclusive agreements;
+- approved marketing/e-blasts;
+- client reports/CMA creator blocks where appropriate.
+
+Do not independently hard-code professional titles across templates.
+
+A later license/profile change updates future public/generated materials. Historical signed/sent documents remain immutable snapshots of what existed when they were executed/sent.
 
 ---
 
@@ -124,6 +180,8 @@ CANONICAL SHARED FOUNDATION
 ├── Brokerage
 ├── Agent / Licensee
 ├── Party — Individual(s) / Entity
+├── Contact Methods / Consent / Preferences
+├── Professional Contacts / Organizations
 ├── Property — Building / Unit
 ├── Listing Episode
 ├── Source Observation
@@ -132,17 +190,17 @@ CANONICAL SHARED FOUNDATION
 ├── Buyer Opportunity
 ├── Tenant Opportunity
 ├── Investor / 1031 Opportunity
-├── Contacts / Professionals
-├── Search
+├── Search / Saved Search
 ├── Client × Listing History
 ├── CMA / Property Intelligence
 ├── Decision / Calculator Scenarios
 ├── Communications / Comments
 ├── Documents / Agreements / Amendments
 ├── Media
-├── Marketing / E-blast
+├── Marketing / E-blast / Share
 ├── Listing Reports
 ├── Tasks / Calendar / Reminders
+├── Offers / Applications
 ├── Transactions
 ├── Commissions / Referrals
 ├── Permissions / Consent / Visibility
@@ -151,6 +209,30 @@ CANONICAL SHARED FOUNDATION
 ```
 
 Party identity remains separate from role. Property remains separate from Listing. A physical Property/Unit survives multiple listing episodes, ownership changes, leases, CMAs and client interest.
+
+## 3.1 Party / entity rules
+
+One Individual or Entity may hold multiple roles over time or simultaneously without duplicate identity.
+
+Business-facing workflows must support one or more Individuals, an Entity, or both where applicable, including Seller, Landlord, Buyer, Tenant, Investor, Owner, Guarantor, Trustee, Executor and Authorized Signatory relationships.
+
+Entity types may include LLC, LLP, Corporation, Partnership, Trust, Estate and Other where needed.
+
+Entity/individual relationships may include trustee/co-trustee, executor, member, manager, partner, officer and authorized signatory where applicable.
+
+## 3.2 Contact methods / consent / suppression
+
+Individuals and Entities may have multiple emails, phone numbers and mailing addresses.
+
+Preferred communication method is stored once and reused across opportunities, listings, deals and client delivery.
+
+Contact consent, unsubscribe/suppression, permissions and share eligibility are centrally governed rather than copied independently into each campaign.
+
+## 3.3 Professional contacts
+
+Attorneys/law firms, lenders/mortgage professionals, managing agents and other reusable transaction professionals are canonical Parties/Organizations, not free-text copies inside every deal.
+
+When a transaction reaches a stage requiring professional contacts, Mallan requests/confirms the relevant contacts and links them to the canonical Transaction.
 
 ---
 
@@ -163,33 +245,58 @@ Mallan must keep four decisions separate:
 3. **Authority** — who may edit the canonical record?
 4. **Visibility** — who may see/use/share it?
 
-## 4.1 Mallan-authored listing
+## 4.1 Current source classes
+
+```text
+MALLAN_AUTHORED
+COTALITY_THIRD_PARTY
+COTALITY_RETURN_COPY
+```
+
+Authority classes:
+
+```text
+EDITABLE_CANONICAL
+READ_ONLY_SOURCE
+DERIVED_OBSERVATION
+SUPPRESSED_RETURN_COPY
+```
+
+## 4.2 Mallan-authored listing
 
 A listing created inside Mallan remains Mallan's canonical editable listing. Authorized Mallan agents/broker may amend it.
 
-It connects to owner Party, Seller/Landlord Opportunity, Property/Building/Unit, agreements/amendments, media, marketing, e-blasts, open houses/showings, feedback, reports, offers/applications, transaction and commission.
+It connects to owner Party, Seller/Landlord Opportunity, Property/Building/Unit, representation/exclusive agreement and amendments, media, marketing, e-blasts, open houses/showings, feedback, reports, offers/applications, transaction and commission.
 
 Cotality must never silently overwrite Mallan-authoritative fields on a Mallan-authored listing.
 
-## 4.2 Third-party Cotality listing
+## 4.3 Third-party Cotality listing
 
 Third-party Cotality listings remain read-only source truth.
 
 Agents may Search, save, compare, comment, attach to Buyer/Tenant Opportunities, send, schedule showings, use in CMA/Property Intelligence and use in calculators/offer scenarios. Those actions create Mallan-owned workflow records and never mutate the Cotality listing.
 
-## 4.3 Cotality return-copy of a Mallan listing
+## 4.4 Cotality return-copy of a Mallan listing
 
 When Cotality returns a copy of a Mallan-authored listing:
 
-- resolve to the same canonical Mallan Listing Episode;
-- retain Cotality observation internally for reconciliation/distribution evidence;
-- suppress it as a duplicate from public Search/count/pagination/detail;
-- keep Mallan as editable canonical record;
-- do not create a second client/history identity.
+- resolve it to the same canonical Mallan Listing Episode;
+- retain the Cotality observation internally for reconciliation/distribution evidence;
+- suppress it as a duplicate before public Search count/pagination/detail;
+- keep Mallan as the editable canonical record;
+- do not create a second Client × Listing history identity.
 
 Address alone is not sufficient evidence for automatic suppression. Uncertain identity goes to review.
 
-## 4.4 Future Mallan → provider publishing
+## 4.5 Historical/supplemental inventory boundary
+
+Historical StreetEasy/external-inventory/sponsor-directory plans are **not** automatically part of the current canonical inventory model merely because an old spec/ledger mentions them.
+
+If Maya later reauthorizes a supplemental source, it must enter through the same canonical Property/Listing identity system as a source observation with explicit source rights, visibility, dedupe and client-share rules. It may not silently become public inventory or create a second listing truth.
+
+Current implementation planning must therefore not infer a StreetEasy/scraper/sponsor feed requirement unless it is explicitly reopened and verified.
+
+## 4.6 Future Mallan → provider publishing
 
 ```text
 MALLAN CANONICAL LISTING
@@ -211,6 +318,8 @@ RECONCILIATION TO SAME MALLAN LISTING
 
 The provider adapter owns verified required fields, conditional rules, picklists, formatting, IDs and mapping.
 
+Inbound provider return data links to the canonical Mallan listing and is reconciliation evidence; it never becomes authority to overwrite Mallan-authored fields.
+
 ---
 
 # 5. SEARCH — IMMEDIATE P0 PROFESSIONAL OPERATING SYSTEM
@@ -222,6 +331,8 @@ The problem is not that Advanced Search has too many criteria. Agents need exhau
 ## 5.1 Separate Frontend and Backend Search products
 
 ### Frontend Consumer Search
+
+Frontend Consumer Search already exists and should be **preserved, verified, corrected only where evidence proves a defect, and certified** rather than casually rebuilt.
 
 Public inventory:
 
@@ -235,13 +346,15 @@ COTALITY RETURN-COPIES OF MALLAN LISTINGS
 
 Consumer payloads exclude internal/professional-only fields before serialization.
 
+Frontend Consumer Search and Backend Agent Search may share low-level provider client/auth, field registry, normalization, identity/address/media/provenance and retry infrastructure, but they require separate DTOs, permissions, filter contracts, caches and tests.
+
 ### Backend Agent Search
 
 Backend Search is the full professional product and may expose verified professional information authorized for Mallan agents, including appropriate Cotality listing-professional information internally.
 
-Third-party Cotality remains read-only. Mallan-authored listings remain editable through listing-management authority.
+Third-party Cotality remains read-only. Mallan-authored listings remain editable through Listing Workspace authority.
 
-## 5.2 Basic mobile / Advanced desktop
+## 5.2 Basic mobile / Advanced desktop — preserve this distinction
 
 ```text
 BASIC = mobile presentation
@@ -252,7 +365,22 @@ They are two presentations of the same Search criteria contract and engine.
 
 A Saved Search created in Advanced desktop must retain all criteria when opened on mobile. Mobile may show a compact summary plus `Advanced Criteria Applied`; changing a visible mobile criterion may not erase hidden advanced criteria.
 
-## 5.3 Exhaustive Advanced Search
+Mobile simplicity must never be implemented by deleting professional criteria from the canonical Saved Search.
+
+## 5.3 Professional Search modes
+
+The professional product should make the primary intent clear without reducing the field set:
+
+```text
+SALES
+RENTALS
+BUILDINGS
+COMP SEARCH / MARKET RESEARCH
+```
+
+The exact labels may be refined during design, but Sale/Rental/Building/Comp intent must not be hidden inside one undifferentiated form.
+
+## 5.4 Exhaustive Advanced Search
 
 Authorized agents must be able to Search from every legitimate professional perspective supported by verified current RLS/provider data, including where supported:
 
@@ -273,11 +401,13 @@ Authorized agents must be able to Search from every legitimate professional pers
 - new-development/building criteria;
 - professional listing office/agent criteria where authorized;
 - market/comp criteria;
-- other legitimate searchable fields verified from current provider contract.
+- other legitimate searchable fields verified from the current provider contract.
 
 Do not arbitrarily reduce professional Search.
 
-## 5.4 Search field contract
+Advanced desktop may group or progressively disclose criteria for usability, but a legitimate supported professional filter may not become a dead/ignored control.
+
+## 5.5 Search field contract
 
 ```text
 UI FIELD
@@ -295,9 +425,17 @@ RESULT / COUNT / PAGINATION BEHAVIOR
 CONTRACT TEST
 ```
 
-Every criterion is either SUPPORTED, deliberately LOCAL/DERIVED with correct semantics, or UNAVAILABLE. Never render a control that is silently ignored.
+Every criterion is either:
 
-## 5.5 Correct Search ordering
+- `SUPPORTED`;
+- deliberately `LOCAL / DERIVED` with documented semantics; or
+- `UNAVAILABLE`.
+
+Never render a control that is silently ignored or silently broadens/narrows Search.
+
+Unsupported criteria fail visibly and specifically.
+
+## 5.6 Correct Search ordering
 
 ```text
 SOURCE CANDIDATES
@@ -310,16 +448,60 @@ SUPPORTED FILTERS
 ↓
 RETURN-COPY SUPPRESSION / DEDUPE
 ↓
-SORT
+DETERMINISTIC SORT
 ↓
-FINAL COUNT
+FINAL ELIGIBLE COUNT
 ↓
 PAGINATION
 ↓
-PRESENTATION ENRICHMENT
+PRESENTATION ENRICHMENT / MEDIA
 ```
 
-## 5.6 Saved Search belongs to Client + Opportunity
+`total`, `hasMore` and pagination must describe the same final eligible/deduplicated universe the user actually sees. A pre-filter/pre-dedupe database count may not be represented as the final result total.
+
+## 5.7 Desktop result experience
+
+Advanced desktop Search should support a professional working layout:
+
+```text
+FILTERS / CRITERIA
+|
+RESULTS
+|
+MAP / LOCATION CONTEXT
+```
+
+Panels may collapse to preserve space.
+
+A professional result card/list row should expose, where verified/applicable:
+
+- hero image;
+- address/building/unit;
+- price/rent;
+- status;
+- beds/baths/rooms;
+- size/$-per-unit-area where appropriate;
+- ownership/property type;
+- DOM/relevant dates;
+- charges/taxes/maintenance where applicable;
+- open house signal;
+- verified listing office/agent for internal Agent use;
+- source/history/provenance as appropriate.
+
+Primary actions:
+
+```text
+VIEW
+SAVE / ATTACH
+COMPARE
+ADD TO CMA
+SEND
+SCHEDULE SHOWING
+```
+
+Multi-select should support actions such as Compare, Add to CMA, Send to Client and Create/Update a reviewed client collection without creating duplicate Listing records.
+
+## 5.8 Saved Search belongs to Client + Opportunity
 
 ```text
 AGENT
@@ -333,7 +515,9 @@ SAVED SEARCH
 
 A Client may have multiple Saved Searches. Buyer and Tenant Saved Searches remain separate.
 
-## 5.7 Select Client → recall Search automatically
+Each Saved Search retains the full normalized criteria, owner Agent, client/opportunity, alert settings/frequency, created/updated history and applicable client-send permissions.
+
+## 5.9 Select Client → recall Search automatically
 
 Selecting the Client and Saved Search must:
 
@@ -346,27 +530,31 @@ Selecting the Client and Saved Search must:
 
 The Agent must not re-enter the client's requirements each time.
 
-## 5.8 Temporary edits versus saved criteria
+## 5.10 Temporary edits versus saved criteria
 
-Temporary Search changes must show as unsaved and offer Discard, Update Saved Search, or Save as New Search.
+Temporary Search changes must show as unsaved and offer:
 
-## 5.9 Client × Listing relationship memory
+- Discard Changes;
+- Update Saved Search;
+- Save as New Search.
+
+Changing a temporary criterion may not silently mutate the client's stored requirement set.
+
+## 5.11 Client × Listing relationship memory
 
 For an assigned Client, Search results combine current inventory with prior relationship history:
 
 - sent;
 - opened/viewed online;
 - saved/liked;
-- discuss;
+- discuss/maybe;
 - showing requested/scheduled/completed;
 - passed/rejected;
-- offer made;
+- offer/application made;
 - comments;
 - material listing changes.
 
 History attaches to canonical Listing identity, including Mallan/Cotality return-copy reconciliation.
-
-## 5.10 Result organization
 
 Useful groups include:
 
@@ -379,12 +567,12 @@ VIEWED
 LIKED / DISCUSS
 SHOWING / SHOWN
 REJECTED
-OFFER / DEAL
+OFFER / APPLICATION / DEAL
 ```
 
 Old inventory does not disappear; it is organized.
 
-## 5.11 Auto-send rules
+## 5.12 Auto-send rules
 
 A Client Saved Search may automatically send eligible matching updates for:
 
@@ -406,11 +594,7 @@ Verified status updates may include, when supported by current RLS/provider mapp
 - In Contract → Back on Market;
 - other material verified transitions.
 
-These live updates let clients see the market move in real time through their own Saved Search.
-
-## 5.12 Previously known listings may receive updates
-
-Previously sent, viewed, liked, discussed or shown listings may be sent again automatically when a qualifying verified price/status change occurs, subject to Saved Search alert settings.
+Previously sent, viewed, liked, discussed or shown listings may be sent again automatically when a qualifying verified price/status change occurs, subject to Saved Search settings.
 
 Each update is preserved historically.
 
@@ -446,7 +630,19 @@ TRACKED CLIENT OPEN → VIEWED
 
 No duplicate manual status maintenance.
 
-## 5.16 Auto-send pipeline
+## 5.16 Reverse matching
+
+Search also supports the reverse question:
+
+```text
+LISTING
+↓
+WHICH BUYER / TENANT SAVED SEARCHES MATCH?
+```
+
+Reverse matching can drive Agent review, client sends and approved Marketing/E-blast audiences. It must use the same Saved Search criteria engine, permissions and canonical client records rather than a separate marketing match database.
+
+## 5.17 Auto-send pipeline
 
 ```text
 SAVED CLIENT SEARCH
@@ -472,13 +668,28 @@ DELIVERY
 RECORD SEND / UPDATE EVENT
 ```
 
-## 5.17 Client-facing payload boundary
+## 5.18 Client-facing payload boundary
 
-Backend Agent Search may contain professional listing-agent/office information from Cotality. That information must be removed before client sends/portal/share/email where not permitted/appropriate. Do not hide it with CSS; do not serialize it.
+Backend Agent Search may contain professional listing-agent/office information from Cotality. That information must be removed before client sends/portal/share/email/report where the client-facing contract forbids it.
 
-## 5.18 Search acceptance
+Do not hide prohibited/internal fields with CSS. **Do not serialize them into the client payload.**
 
-Search is not finished until Client selection recalls full Saved Search criteria, executes correctly, joins prior listing history, marks prior viewed/shown/rejected states, auto-sends new listings/price changes/status changes as configured, routes rejected material changes to Reconsider, preserves comments/history and feeds Compare/CMA directly.
+## 5.19 Search acceptance
+
+Search is not finished until:
+
+- every professional criterion has a verified execution contract;
+- Basic mobile and Advanced desktop preserve one criteria truth;
+- final count/pagination match the final eligible/deduplicated inventory;
+- Client selection recalls the correct Saved Search and full criteria;
+- current results join prior Client × Listing history;
+- prior viewed/shown/rejected states are visible;
+- new/price/status auto-updates behave correctly;
+- rejected material changes route to Reconsider;
+- comments/history persist;
+- reverse matching works from listing to client where authorized;
+- client-safe output strips internal professional data;
+- selected results feed Compare/CMA directly.
 
 ---
 
@@ -519,35 +730,72 @@ CLIENT-SAFE REPORT / SHARE / EMAIL
 
 If the Property is already attached to a Seller/Landlord/Buyer/Tenant Opportunity, Mallan should prefill it rather than ask the Agent to type the address again.
 
-## 6.2 Market universe
+## 6.2 Subject Property
 
-Sale CMA should distinguish relevant Closed, In Contract/Pending context and Active competition.
+Subject facts come from the canonical Property/Unit and verified current source observations where applicable.
 
-Rental CMA should distinguish relevant leased/rented evidence, pending/application/in-contract context where supported, and Active competition.
+If the Agent overrides a subject fact for analysis, preserve the sourced canonical value and label the analysis override separately. An analysis assumption may not silently rewrite the Property/Listing.
+
+## 6.3 Market universe
+
+Sale CMA should distinguish relevant:
+
+- Closed evidence;
+- In Contract/Pending context;
+- Active competition.
+
+Rental CMA should distinguish relevant:
+
+- leased/rented evidence;
+- pending/application/in-contract context where supported;
+- Active competition.
 
 Agent may broaden/tighten using the same full professional Search contract.
 
-## 6.3 Comp selection
+## 6.4 Comp selection
 
 Mallan may suggest comps but the Agent chooses the final comp set.
 
+A professional comp table should show, where verified/applicable:
+
+- property/address;
+- status;
+- ask/contract/close or rent evidence with clear provenance;
+- relevant date;
+- beds/baths/rooms;
+- size;
+- $/area where meaningful;
+- property/ownership/type;
+- DOM;
+- Agent inclusion/exclusion state.
+
 Each suggestion should explain why it is relevant, such as same building, same ownership/property type, similar beds/baths/size, recency and geography.
 
-No unexplained black-box score as the only rationale.
+No unexplained black-box similarity score may be the only rationale.
 
-## 6.4 Comp facts
+## 6.5 Comp facts and source hierarchy
 
-Use verified facts. Do not substitute asking price for close price simply because close price is missing.
+Use verified facts.
 
-If another authorized source such as correctly matched ACRIS evidence is used, label its provenance rather than pretending it came from the provider close field.
+Do not substitute asking price for close price simply because close price is missing.
 
-## 6.5 Adjustments
+If another authorized evidence source such as correctly matched ACRIS evidence is used, label its provenance rather than pretending it came from the provider close field.
 
-Adjustments must be versioned, auditable and explainable. Do not use unreviewed timeless hard-coded percentage adjustments as the professional CMA engine.
+Underlying listing-professional information may be available internally where authorized, but it is not part of the client CMA/report identity.
 
-Agent overrides require a reason/context and do not mutate canonical listing/property facts.
+## 6.6 Adjustments
 
-## 6.6 CMA result / strategy
+Adjustments must be versioned, auditable and explainable.
+
+Do not use unreviewed timeless hard-coded percentage adjustments as the professional CMA engine.
+
+Adjustment rows should identify the factor, source/rationale, system-suggested value if any, Agent action and final accepted value.
+
+Agent may Accept, Edit or Remove an adjustment. Manual adjustments require a reason/context.
+
+Adjustment overrides do not mutate canonical listing/property facts.
+
+## 6.7 CMA result / strategy
 
 CMA should distinguish evidence from Agent strategy.
 
@@ -556,40 +804,69 @@ Useful presentation can include:
 - closed evidence range;
 - adjusted comp range;
 - active competition;
-- market movement;
+- current market movement;
 - Agent discussion range;
-- role-specific strategy scenarios.
+- Seller/Landlord/Buyer/Investor strategy scenarios where appropriate.
+
+For Seller-side strategy, a useful discussion may distinguish competitive, market and aspirational positioning without pretending the system can guarantee an outcome.
 
 Mallan provides evidence and analysis support; the Agent owns the professional recommendation.
 
-## 6.7 Versioning
+## 6.8 Versioning
 
-Saved CMA retains subject Property/Unit, Opportunity, as-of date, comp/source IDs and snapshots, criteria/exclusions/selections, adjustments/method, range/strategy, creator, version and permissions/share state.
+Saved CMA retains:
 
-A later market change never silently rewrites a CMA already delivered. It can flag that the analysis is stale and allow a new version.
+- subject Property/Unit;
+- Client/Opportunity;
+- as-of date;
+- comp/source IDs and snapshots;
+- market-universe criteria;
+- exclusions/selections;
+- adjustments/method;
+- range/strategy;
+- creator;
+- version;
+- permissions/share state.
 
-## 6.8 Client-facing CMA/report identity
+A later market change never silently rewrites a CMA already delivered. It can flag that the analysis may be stale and allow a new version.
 
-Client CMA/report displays only the Mallan Agent/Broker who created the report.
+## 6.9 Client-facing CMA/report identity
 
-**Underlying Cotality listing agent, co-list agent and source listing office must never appear or serialize into the client CMA/report.**
+Client CMA/report displays only the Mallan Agent/Broker who created the report, using the creator's governed professional profile/title snapshot.
 
-## 6.9 CMA actions
+**Underlying Cotality listing agent, co-list agent, source listing office, source professional email/phone/member ID and other source professional information must never appear or serialize anywhere in the client CMA/report.**
+
+## 6.10 CMA actions
 
 From Search and from an opened Backend Listing, authorized Agent should be able to:
 
 - Add to CMA;
 - Compare;
-- choose subject/comp role;
+- choose Subject or Comp role;
 - open existing CMA for the Client/Property;
 - create a new version;
 - preview;
 - share/email approved client-safe output;
 - comment/discuss internally where applicable.
 
-## 6.10 CMA acceptance
+## 6.11 CMA screen design
 
-CMA is not finished until Property → market universe → selected comps → adjustments → strategy → save → reopen → version → client-safe share/email works with verified data and no source professional leakage.
+A practical professional sequence is:
+
+```text
+1 SUBJECT PROPERTY
+2 MARKET UNIVERSE
+3 COMP SELECTION
+4 ADJUSTMENTS & ANALYSIS
+5 PRICING / VALUE STRATEGY
+6 PREVIEW / SAVE VERSION / SHARE
+```
+
+The Agent should always be able to see where a number came from and whether it is a sourced fact, system calculation, system suggestion or Agent assumption.
+
+## 6.12 CMA acceptance
+
+CMA is not finished until Property → market universe → selected comps → adjustments → strategy → save → reopen → version → client-safe preview/share/email works with verified data, reproducible history and no source-professional leakage.
 
 ---
 
@@ -658,7 +935,7 @@ Read-only source listing, but Agent can still:
 - view Client history;
 - review professional listing information internally.
 
-No edit controls that imply Mallan can change the third-party source listing.
+No edit controls may imply Mallan can change the third-party source listing.
 
 ### Mallan-authored listing
 
@@ -679,7 +956,7 @@ Same professional readable workspace plus authorized controls for:
 The primary Agent action bar should expose, according to context/permissions:
 
 ```text
-SAVE
+SAVE / ATTACH
 COMMENT
 COMPARE
 ADD TO CMA
@@ -707,8 +984,6 @@ These are contextual actions on the same canonical Listing.
 ## 7.5 Share / Email from backend
 
 Agent must be able to share/email a listing directly from the Backend Listing Workspace without copying information into another tool.
-
-Flow:
 
 ```text
 BACKEND LISTING
@@ -897,15 +1172,35 @@ Mallan has one deterministic shared calculator/scenario engine across Seller, La
 
 Calculators normally open from the actual Property/Listing and prefill verified known facts.
 
-Canonical facts and scenario overrides remain separate. Changing proposed price, financing or other assumptions never changes canonical Listing facts.
+Canonical facts and scenario overrides remain separate. Changing proposed price, financing or another assumption never changes canonical Listing facts.
 
-Role presets may expose Seller net proceeds, Buyer closing/cash-to-close, mortgage/payment, carrying cost, rent-v-buy, hold-v-sell, appreciation/equity, rental cash flow, NOI, cap rate, cash-on-cash, ROI, vacancy/reserve sensitivity, comparison and 1031 analysis.
+Role presets may expose, where appropriate:
 
-Current taxes/fees/rules use current verified/effective-date sources or explicit assumptions. AI may explain results but not change formulas/inputs silently.
+- Seller net proceeds;
+- Buyer closing/cash-to-close;
+- mortgage/payment;
+- carrying cost;
+- rent-v-buy;
+- hold-v-sell;
+- appreciation/equity;
+- rental cash flow;
+- NOI;
+- cap rate;
+- cash-on-cash;
+- ROI;
+- vacancy/reserve sensitivity;
+- comparison;
+- 1031 replacement analysis.
+
+Current taxes, fees and regulatory assumptions use current verified/effective-date sources or explicit assumptions.
+
+Saved analyses retain both sourced facts and explicit assumptions and attach to the same Party/Opportunity/Property/Transaction.
+
+AI may explain results but not change formulas/inputs silently.
 
 ---
 
-# 9. MARKETING / E-BLAST
+# 9. MARKETING / E-BLAST / SHARE
 
 Marketing connects Listing, Search, Party and Opportunity.
 
@@ -918,6 +1213,8 @@ CAMPAIGN / E-BLAST / SHARE
 ↓
 AUDIENCE
 ↓
+CONTENT / PREVIEW / APPROVAL
+↓
 DELIVERY
 ↓
 ENGAGEMENT
@@ -927,11 +1224,109 @@ LISTING REPORTING / CLIENT HISTORY
 SYSTEM INTELLIGENCE
 ```
 
-Audiences may come from matching Buyer/Tenant Saved Searches, selected clients/prospects, cooperating-agent audiences and other approved segments.
+## 9.1 Marketing plan
+
+A Mallan-authored listing supports a simple practical plan showing:
+
+```text
+COMPLETED
+UPCOMING
+RECOMMENDED
+```
+
+Marketing should not become a separate project-management system.
+
+## 9.2 Campaign creation
+
+A practical campaign flow asks:
+
+1. Purpose
+2. Audience
+3. Content
+4. Preview
+5. Recipient Review
+6. Send / Publish where authorized
+7. Results
+
+Purposes may include:
+
+- New Listing;
+- Price Change;
+- Open House;
+- Buyer Match;
+- Tenant Match;
+- Investor/1031;
+- Follow-up;
+- Custom approved message.
+
+Audiences may come from:
+
+- matching Buyer/Tenant Saved Searches;
+- selected canonical clients/prospects;
+- approved CRM segments;
+- cooperating-agent audiences where appropriate;
+- imported recipient sets where lawful/appropriate and deduped against consent/suppression rules.
 
 Do not create a second marketing contact database.
 
-Search should be able to produce a reviewed recipient set. Delivery/engagement attaches back to Client/Opportunity/Listing where known.
+Agents should not need to upload a spreadsheet for ordinary client-match e-blasts when Mallan already has the correct canonical recipients.
+
+## 9.3 Search drives marketing
+
+```text
+LISTING / MATERIAL CHANGE
+↓
+REVERSE MATCH TO SAVED SEARCHES
+↓
+AGENT REVIEW WHERE REQUIRED
+↓
+CAMPAIGN / SEND
+↓
+CLIENT RESPONSE / ENGAGEMENT
+↓
+LISTING REPORTING
+```
+
+## 9.4 Marketing truth
+
+Track only engagement Mallan actually receives from the delivery/channel stack, such as where available:
+
+- queued;
+- sent;
+- delivered;
+- bounced;
+- opened;
+- clicked;
+- viewed;
+- saved;
+- inquiry;
+- showing request;
+- unsubscribed.
+
+Do not invent engagement and do not display unknown as zero.
+
+## 9.5 Snapshot versus live share
+
+A sent email/message is an auditable snapshot of what was sent.
+
+A reusable Mallan share page may render current canonical listing state when reopened, subject to permissions and source rights.
+
+Published third-party social/email content cannot be falsely represented as automatically rewriting after delivery/publication. Mallan controls its own linked live share surface, not third-party caches/content already delivered.
+
+## 9.6 Canonical listing-change event
+
+A material canonical listing change should be consumable by:
+
+```text
+SEARCH
+CLIENT ALERT EVALUATION
+LIVE SHARE INVALIDATION / RE-RENDER
+MARKETING FOLLOW-UP
+LISTING REPORTING
+SYSTEM INTELLIGENCE
+```
+
+No second editable price/status truth inside marketing assets.
 
 ---
 
@@ -942,6 +1337,7 @@ Listings Reporting is a first-class system for Mallan-authored sale/rental listi
 ```text
 LISTING
 ├── website/search visibility
+├── site/client activity
 ├── marketing activity
 ├── e-blasts
 ├── listing sends/shares
@@ -952,48 +1348,238 @@ LISTING
 ├── offers/applications
 ├── price/status changes
 ├── CMA/market movement
-└── distribution/data gaps
+├── distribution/external presence
+└── data gaps
         ↓
 LISTING REPORTING
 ```
 
-## 10.1 Report-author identity — hard rule
+## 10.1 Internal report versus client report
+
+The internal Agent/Broker reporting view may show provenance, data gaps, tracking gaps, source categories and technical/internal evidence needed to understand the report.
+
+The client report is a polished client-safe decision product. It should not look like an engineering diagnostic page.
+
+Engineering truth labels such as internal source/tracking enums belong in internal provenance, not as prominent client-facing design language.
+
+## 10.2 Report-author identity — hard rule
 
 A client-facing Listing Report identifies only the Mallan Agent/Broker who created the report.
 
-The report must never display or serialize underlying Cotality/source listing agent, co-list agent, source listing office professional attribution, agent contact/member ID or other source professional information.
+The report must never display or serialize underlying Cotality/source listing agent, co-list agent, source listing office professional attribution, source agent contact information/member ID or other source professional information.
 
-## 10.2 Seller report
+Store a report-author snapshot with creator ID, creator professional identity and created/sent timestamp so a historical report remains accurate even if the Agent's later profile changes.
 
-Client report should be polished and decision-useful: Property/reporting period/Prepared by, executive summary, headline activity, marketing performed, engagement trends, open houses/showings, feedback themes, offers, market position and Agent assessment/next steps.
+## 10.3 Seller client report
 
-## 10.3 Landlord report
+A professional Seller Activity & Market Report should support:
 
-Separate rental-focused report emphasizing views, inquiries, sends, showings, applications/qualification where appropriate, rental competition, asking-rent changes, lease progress and Agent assessment.
+### Cover / header
 
-## 10.4 Truth / versions
+- listing/property hero image;
+- property identity;
+- reporting period;
+- Prepared by the report creator Agent with governed title.
 
-Do not fabricate missing metrics. `Not tracked` is different from zero.
+### Executive Summary
 
-Delivered reports remain immutable historical snapshots. New data creates a new version.
+- concise Agent-approved narrative;
+- headline KPIs where actually tracked;
+- meaningful change versus prior reporting period where available;
+- clear statement of what matters now.
+
+### Marketing Activity
+
+- what Mallan/Agent did;
+- campaign/e-blast timeline;
+- actual reach/engagement where tracked;
+- open-house/showing promotion activity.
+
+### Buyer / Market Engagement
+
+Where tracked, show useful trends/funnel relationships such as:
+
+```text
+VIEWS → SAVES → INQUIRIES → SHOWINGS → OFFERS
+```
+
+Do not fabricate missing stages.
+
+### Showing / Open House Feedback
+
+- attendance/activity;
+- anonymized feedback themes;
+- follow-up state;
+- editable Agent Assessment.
+
+### Market Position
+
+- relevant new competition;
+- verified price changes;
+- in-contract movement;
+- closings/market evidence;
+- current CMA/pricing context.
+
+Search + CMA + Reporting must connect rather than use independent market datasets.
+
+### Recommendation / Next Steps
+
+System Intelligence may draft an evidence-based assessment. Agent reviews/edits/approves the recommendation before client delivery.
+
+## 10.4 Landlord client report
+
+Landlord reporting remains separate and rental-specific. Useful focus includes:
+
+- views/interest where tracked;
+- inquiries;
+- sends;
+- showings;
+- applications/qualified-applicant progress where appropriate;
+- marketing activity;
+- rental competition;
+- feedback themes;
+- application/lease pipeline;
+- rent position;
+- Agent Assessment and recommendation.
+
+Do not force Landlord reporting into Seller sale-report semantics.
+
+## 10.5 Truth/provenance categories
+
+Internally, every metric should be traceable to a truth category such as:
+
+```text
+VERIFIED MALLAN ACTIVITY
+TRACKED CAMPAIGN
+TRACKED E-BLAST
+TRACKED SHOWING / OPEN HOUSE
+CLIENT / AGENT ENTERED
+COTALITY SOURCE
+EXTERNAL PRESENCE
+MARKET PROXY
+NOT TRACKED
+```
+
+`NOT TRACKED` is not `0`.
+
+## 10.6 Versions and delivery
+
+Delivered reports remain immutable historical snapshots.
+
+New data creates a new report version; it never rewrites what was already sent.
+
+Report delivery/share/email is itself recorded in the canonical communication/report history.
+
+## 10.7 AI/report narrative
+
+AI may draft summaries and recommendations from verified report data, but the output must identify missing evidence rather than invent it and must be Agent-reviewed before client delivery.
+
+The client report must never use AI as a pathway to reintroduce stripped source-professional fields.
 
 ---
 
-# 11. COMMUNICATIONS / COMMENTS / SHARE / DOCUMENTS / MEDIA
+# 11. COMMUNICATIONS / COMMENTS / SHARE / DOCUMENTS / AGREEMENTS / MEDIA
 
-One communication/comment history attaches to canonical context. Share is a rendering/distribution capability, not another listing database. Documents support separate Seller/Landlord/Buyer/Tenant agreements and versioned amendments. Media remains canonical to Property/Listing with source/provenance/rights/order/audience eligibility.
+## 11.1 One communication history
+
+Portal/system comments, approved email delivery, report sends, listing sends and other supported channels are communication events attached to one canonical history.
+
+Communication attaches to the correct context, including as applicable:
+
+- Party;
+- Opportunity;
+- Property;
+- Listing;
+- Search;
+- CMA;
+- Calculator scenario;
+- Campaign;
+- Report;
+- Showing/Open House;
+- Offer/Application;
+- Agreement/Amendment;
+- Transaction;
+- Commission/Referral;
+- Task.
+
+Visibility classes include:
+
+```text
+CLIENT SHARED
+PARTICIPANT RESTRICTED
+BROKERAGE INTERNAL
+SENSITIVE / LEGAL RESTRICTED
+```
+
+## 11.2 Comments
+
+Comments are chronological history, not one overwriteable note.
+
+An internal note remains internal. A client-shared comment must pass the client-safe boundary before delivery.
+
+## 11.3 Share
+
+Share is a permission-aware rendering/distribution capability over canonical records, not a second listing database.
+
+## 11.4 Brokerage document library
+
+One brokerage document library holds approved templates/forms rather than uncontrolled Agent copies scattered across the system.
+
+It may include approved representation/exclusive agreements, disclosures, transaction forms and authorized property/building documents.
+
+Agents may populate transaction-specific fields, but controlled broker/legal template language may not be silently edited. Controlled wording changes require an approved template/version or an authorized legal/broker workflow.
+
+Every generated/signed document retains its template/version, parties, property/opportunity/transaction, dates, signer state and audit history.
+
+## 11.5 Four agreement families — separate and first class
+
+Mallan has four separate agreement families:
+
+```text
+SELLER REPRESENTATION / EXCLUSIVE
+LANDLORD REPRESENTATION / EXCLUSIVE
+BUYER REPRESENTATION / EXCLUSIVE
+TENANT REPRESENTATION / EXCLUSIVE
+```
+
+Do not merge them into one generic agreement workflow if the parties, obligations, terms or downstream workflow differ.
+
+A signed agreement is never silently mutated.
+
+```text
+ORIGINAL AGREEMENT
+↓
+AMENDMENT
+↓
+OLD TERM / NEW TERM
+↓
+EFFECTIVE DATE
+↓
+PARTIES / SIGNATURES
+↓
+CURRENT OPERATING TERMS
+```
+
+Preserve the original and every amendment.
+
+## 11.6 Media
+
+Media remains canonical to Property/Listing with source/provenance, rights/permission, ordering, type and audience eligibility.
+
+Do not copy/re-publish external media merely because a URL exists. Media use must remain within the verified source/rights contract.
 
 ---
 
 # 12. SELLER OPERATING JOURNEY
 
 ```text
-Seller Party
+Seller Party / Entity / Participants
 → Seller Opportunity
 → Property
 → Sale CMA / Market Intelligence
 → Net-Proceeds / Decision Analysis
 → Representation / Exclusive
+→ Amendments as required
 → Mallan Sale Listing
 → Frontend Search / Distribution
 → Marketing / E-blast
@@ -1007,6 +1593,7 @@ Seller Party
 → Financing or Cash / Building Process
 → Walkthrough
 → Closing
+→ Deal Documents / Payment Readiness
 → Commission
 → Post-close Relationship
 ```
@@ -1016,12 +1603,13 @@ Seller Party
 # 13. LANDLORD OPERATING JOURNEY
 
 ```text
-Landlord Party
+Landlord Party / Entity / Participants
 → Landlord Opportunity
 → Property
 → Rental CMA / Market Intelligence
 → Hold/Sell/Rental Analysis
 → Representation / Exclusive
+→ Amendments as required
 → Mallan Rental Listing
 → Frontend Search / Distribution
 → Marketing / E-blast
@@ -1032,6 +1620,7 @@ Landlord Party
 → Approval / Building Process
 → Lease
 → Move-in
+→ Deal Documents / Payment Readiness
 → Commission
 → Expiration / Renew / Re-rent / Seller Opportunity
 ```
@@ -1041,7 +1630,7 @@ Landlord Party
 # 14. BUYER OPERATING JOURNEY
 
 ```text
-Buyer Party
+Buyer Party / Entity / Participants
 → Buyer Opportunity
 → Representation / Qualification / POF / Preapproval
 → Backend Buyer Search
@@ -1053,11 +1642,13 @@ Buyer Party
 → Showing
 → CMA / Property Intelligence / Calculators
 → Offer / Negotiation
+→ Attorney Capture / Confirmation
 → Accepted
 → Attorney / Contract
-→ Financing / Building Process
+→ Financing or Cash / Building Process
 → Walkthrough
 → Closing
+→ Deal Documents / Payment Readiness
 → Commission
 → New Owner Relationship
 ```
@@ -1067,7 +1658,7 @@ Buyer Party
 # 15. TENANT OPERATING JOURNEY
 
 ```text
-Tenant Party
+Tenant Party / Entity / Participants
 → Tenant Opportunity
 → Representation / Qualification
 → Backend Tenant Search
@@ -1082,6 +1673,7 @@ Tenant Party
 → Approval / Building Process
 → Lease
 → Move-in
+→ Deal Documents / Payment Readiness
 → Commission
 → Expiration / Renew / Relocate / Buyer Opportunity
 ```
@@ -1090,74 +1682,315 @@ Tenant Party
 
 # 16. INVESTOR / 1031
 
-Investor/1031 uses the same Party, Property, Backend Search, Property Intelligence, CMA, Decision and Comment systems with specialized acquisition/rent/NOI/cap/cash-on-cash/ROI/financing/vacancy/hold/exit/1031 analysis.
+Investor/1031 uses the same Party, Property, Backend Search, Property Intelligence, CMA, Decision, Communication and Transaction systems with specialized acquisition/rent/NOI/cap/cash-on-cash/ROI/financing/vacancy/hold/exit/1031 analysis.
+
+A 1031 workflow may specialize criteria and scenarios but may not create a separate property/search universe.
 
 ---
 
-# 17. AGENT SUPPORT / PROFESSIONAL OBLIGATIONS
+# 17. AGENT SUPPORT / PROFESSIONAL OBLIGATIONS / MY PROFILE
 
-Agent My Business should show reminders/flags for applicable license renewal, REBNY renewal, CE, insurance renewal, required training and compliance items.
+The system should make professional obligations visible and actionable without turning Mallan into an HR system.
 
-License type drives public professional title:
+## 17.1 My Professional Requirements
 
-- Salesperson → **Licensed Real Estate Salesperson**
-- Associate Broker → **Licensed Real Estate Associate Broker**
-- Broker profile where public → **Licensed Real Estate Broker**
+Agent My Business should show applicable:
 
-One governed professional profile feeds online profile, email signature, business card, letters, agreements, marketing/e-blasts and report/CMA creator block where applicable.
+- real-estate license type/number/status/expiration;
+- license renewal due state;
+- continuing-education completion/status;
+- REBNY renewal/status/member identifier where relevant;
+- insurance type/status/expiration/proof where applicable;
+- required-training status;
+- last verified date;
+- next action/flag.
 
-Deal-document reminders attach to the Transaction/Referral, including signed contract, signed lease, signed referral agreement, closed-deal form, commission invoice and check/wire/payment confirmation as applicable.
+A practical dashboard shows:
 
-Payment Readiness should make clear what is missing and whether Agent payout is ready for review/approved/paid.
+```text
+CURRENT STATUS
+DUE DATE
+DAYS REMAINING
+REQUIREMENT
+EVIDENCE SUBMITTED / COMPLETED
+MISSING ITEM
+NEXT ACTION
+```
+
+## 17.2 Reminders
+
+Progressive reminder timing can be configured for practical intervals such as 90/60/30/15/7/1 days where appropriate; exact policy may vary by requirement and authoritative due date.
+
+Useful flags include:
+
+```text
+LICENSE_RENEWAL_RISK
+CE_DEADLINE_RISK
+REBNY_RENEWAL_RISK
+INSURANCE_EXPIRATION_RISK
+REQUIRED_TRAINING_INCOMPLETE
+```
+
+## 17.3 Professional materials
+
+One governed profile drives Online Profile and approved professional signature materials.
+
+Agents may update appropriate self-service fields such as photo, public bio, contact information, languages and specialties, subject to governance/approval rules.
+
+Regulated/governed fields such as license identity/status, broker/office association and other verified fields may not be freely overwritten when source/broker verification is required.
+
+Changes retain history/approval evidence where applicable.
+
+## 17.4 Deal-document reminders
+
+Transaction/referral reminders include, as applicable:
+
+- signed contract for a sale;
+- signed lease for a rental;
+- signed referral form/agreement;
+- closed deal form;
+- commission invoice;
+- check/wire/payment notice or confirmation.
+
+The Agent sees the specific missing item preventing commission processing/payment.
 
 ---
 
 # 18. BROKERAGE VIEW — SIMPLE FIRM OVERSIGHT
 
-Useful areas:
+Brokerage View is practical exception-based oversight, not corporate bureaucracy.
+
+Primary areas:
 
 ```text
-Overview
-Agents
-Leads
-Listings
-Deals
-Money
-Compliance
-Technology
+OVERVIEW
+AGENTS
+LEADS
+LISTINGS
+DEALS
+MONEY
+COMPLIANCE
+TECHNOLOGY
 ```
 
-Maya should see firm exceptions: agent professional-renewal flags, lead distribution, active Mallan listings, deals needing broker support, agreement/amendment status, missing transaction documents, commissions/referrals/payment queue, brokerage operating revenue/receivables, accountant-ready annual payment records, compliance/advertising exceptions, Agent production/performance and technology/RLS/provider flags.
+Maya should see firm exceptions such as:
+
+- agent professional-renewal flags;
+- brokerage-generated lead distribution/status;
+- active Mallan listings;
+- deals needing support/supervision;
+- Seller/Landlord/Buyer/Tenant agreement/amendment status;
+- missing transaction documents;
+- commissions/referrals/payment queue;
+- brokerage operating revenue/receivables and accountant-ready annual payment records;
+- compliance/advertising exceptions;
+- practical Agent production/performance;
+- REBNY/RLS/provider technology flags.
+
+No Manager role is required to make Brokerage View work.
+
+The Brokerage Technology area should summarize the current health of the rule/provider contract without exposing feed plumbing to ordinary Agents. Useful summary items include:
+
+- RLS/rule set last verified;
+- current provider;
+- provider metadata last checked;
+- open field/mapping/attribution/display flags;
+- public Search contract status;
+- Agent Search contract status;
+- unresolved critical provider uncertainty.
 
 ---
 
-# 19. LEADS / PERFORMANCE / MONEY
+# 19. LEADS / PERFORMANCE / MONEY / COMMISSIONS / REFERRALS
 
-Brokerage-generated leads use a simple assignment history: source, assigned Agent, date, accepted/declined/reassigned, response/follow-up and conversion.
+## 19.1 Brokerage leads
 
-Agent performance remains transparent/practical: leads, response, representations, listings, transactions, GCI/production, reports/marketing completion, follow-up and compliance issues.
+Brokerage-generated leads use a simple assignment history:
 
-Each Transaction can reference gross brokerage compensation, applicable Agent split/plan, brokerage share, referral, approved adjustments, payout, payment status and tax year. Compensation plans are versioned.
+- source;
+- assigned Agent;
+- date;
+- accepted/declined/reassigned;
+- response/follow-up;
+- conversion.
 
-Mallan provides operational year-end payment records for accounting/tax preparation; it does not replace the accountant.
+Do not overbuild lead routing when simple explicit assignment works.
+
+## 19.2 Practical Agent performance
+
+Useful performance is transparent and limited to what helps the business:
+
+- leads/response;
+- representations;
+- listings;
+- transactions;
+- production/GCI where applicable;
+- marketing/report follow-through;
+- client follow-up;
+- compliance/professional-requirement exceptions.
+
+## 19.3 Commission truth
+
+Each canonical Transaction can reference:
+
+- gross brokerage compensation;
+- applicable Agent split/plan;
+- brokerage share;
+- referral obligation;
+- approved adjustments;
+- expected Agent amount;
+- payment receipt state;
+- commission review/approval;
+- Agent payout;
+- paid date;
+- tax year.
+
+Compensation plans/splits are versioned. Do not assume one universal split.
+
+Agent cannot silently edit broker-approved compensation terms.
+
+Broker-approved adjustments retain immutable history.
+
+## 19.4 Agent Money view
+
+Agent My Business should make money status understandable:
+
+```text
+EXPECTED
+DOCUMENTS OUTSTANDING
+PAYMENT NOT RECEIVED
+READY FOR COMMISSION REVIEW
+APPROVED FOR PAYMENT
+PAID
+```
+
+Each row should show, subject to permissions:
+
+- property/deal/client;
+- close/lease/completion date;
+- gross compensation;
+- split basis;
+- referral if applicable;
+- expected Agent amount;
+- documents required/missing;
+- payment received state;
+- commission review state;
+- payment status;
+- paid date.
+
+Agents should be able to access their transaction-linked commission statements/reports.
+
+## 19.5 Brokerage Money queues
+
+Useful Brokerage queues:
+
+```text
+DEALS MISSING DOCUMENTS
+AWAITING PAYMENT
+READY FOR COMMISSION REVIEW
+APPROVED
+PAID
+```
+
+Mallan provides operational accounting/payment records; it does not replace the accountant.
 
 ---
 
-# 20. TRANSACTIONS
+# 20. TRANSACTIONS / DEAL SUPPORT / PAYMENT READINESS
 
 Sale:
 
 ```text
-Offer → Accepted → Attorneys / Due Diligence → Contract → Financing / Cash → Building Process → Walkthrough → Closing → Commission
+Offer
+→ Accepted
+→ Attorneys / Due Diligence
+→ Contract
+→ Financing or Cash
+→ Building Process
+→ Walkthrough
+→ Closing
+→ Deal Closeout Documents
+→ Payment / Commission
 ```
 
 Rental:
 
 ```text
-Application → Documents / Qualification → Landlord Review → Approval → Building Process → Lease → Move-in → Commission
+Application
+→ Documents / Qualification
+→ Landlord Review
+→ Approval
+→ Building Process
+→ Lease
+→ Move-in
+→ Deal Closeout Documents
+→ Payment / Commission
 ```
 
-Required documents, professional contacts, dates, communications, payment-readiness and commission status attach to the same canonical Transaction.
+## 20.1 Sale subflows
+
+Financed sale may include mortgage application, appraisal, commitment/approval and related milestone tracking.
+
+All-cash sale bypasses mortgage stages rather than displaying meaningless financing tasks.
+
+Co-op transactions may include application/board package, review, interview/approval, walkthrough and closing.
+
+Condo transactions may include applicable managing-agent/application/waiver/building processes, walkthrough and closing.
+
+The exact workflow remains configurable by actual deal/property requirements.
+
+## 20.2 Attorney/professional capture
+
+Once an offer/deal requires attorneys or another transaction professional, Mallan should request/confirm the relevant canonical professional contacts rather than rely on repeated free text.
+
+## 20.3 Transaction document checklist
+
+Transaction type determines the applicable checklist.
+
+Documents attach to the actual canonical Transaction/Referral, never a miscellaneous upload bucket with no deal context.
+
+## 20.4 Payment readiness
+
+A practical commission/payment-readiness chain is:
+
+```text
+NOT READY
+→ DOCUMENTS OUTSTANDING
+→ PAYMENT NOT RECEIVED
+→ READY FOR COMMISSION REVIEW
+→ APPROVED FOR PAYMENT
+→ PAID
+```
+
+The Agent always sees the blocking reason/next action.
+
+Canonical chain:
+
+```text
+TRANSACTION / REFERRAL
+↓
+SIGNED CONTRACT / LEASE / REFERRAL AGREEMENT AS APPLICABLE
+↓
+CLOSE / LEASE EXECUTION / REFERRAL COMPLETION
+↓
+CLOSED DEAL FORM
+↓
+COMMISSION INVOICE
+↓
+PAYMENT RECEIVED / CONFIRMED
+↓
+COMMISSION CALCULATION
+↓
+AGENT SPLIT + REFERRAL
+↓
+BROKER REVIEW
+↓
+AGENT PAYMENT
+↓
+COMMISSION STATEMENT
+```
+
+No unnecessary payout complexity. Overrides are explicit, authorized and audited.
 
 ---
 
@@ -1165,27 +1998,102 @@ Required documents, professional contacts, dates, communications, payment-readin
 
 Technology governance is rigorous while the human operating system stays simple.
 
+## 21.1 Authority stack
+
 ```text
-REBNY / RLS BUSINESS RULE
+NEW YORK LAW / DOS REQUIREMENTS
++
+REBNY / RLS / UCBA BUSINESS + USE / DISPLAY RULES
 ↓
-MALLAN RULE / FIELD REGISTRY
+MALLAN RULE REGISTRY
+↓
+MALLAN FIELD / SOURCE CONTRACT
 ↓
 PROVIDER ADAPTER
 ↓
-CURRENT PROVIDER — COTALITY TODAY
+CURRENT PROVIDER — COTALITY / TRESTLE WHERE VERIFIED
+↓
+MALLAN STABLE SEARCH / LISTING / CMA / REPORTING CONTRACTS
 ```
 
-If REBNY changes provider, Mallan should pivot through a new provider adapter rather than rewrite brokerage workflows.
+The current provider does not define Mallan's business model.
 
-Cotality fields/picklists/statuses/permissions/IDs/media shapes translate into stable Mallan contracts. Frontend Search, Backend Search, CMA, Marketing and Reporting may not invent their own provider mappings.
+If REBNY changes/replaces the provider, Mallan should pivot through a new provider adapter rather than rewrite brokerage workflows.
 
-Mallan should regularly scan/verify authoritative REBNY/RLS/current-provider sources for rule, field, type, picklist, status, permission, attribution, address, media, endpoint/authentication and provider/deprecation changes.
+## 21.2 Provider contract verification
+
+Cotality fields, picklists, statuses, permissions, IDs, expands and media shapes translate into stable Mallan contracts.
+
+Frontend Search, Backend Search, CMA, Marketing and Reporting may not invent their own provider mappings.
+
+Before treating a provider-dependent field/mapping/attribution rule as true, verify it against the current authorized Cotality/Trestle metadata, schema/payload and, where necessary, current authorized runtime behavior. Documentation examples alone do not prove a particular Mallan feed populates a field.
+
+Provider metadata terms may be RESO-derived. That does not convert RESO into a separate Mallan business/compliance requirement.
+
+## 21.3 Rule Registry
+
+A governed rule record should identify at minimum:
+
+- rule ID;
+- authority/source;
+- rule family — RLS/UCBA/DOS/NYS/provider/internal;
+- current text/summary;
+- effective/version date;
+- last verified date;
+- applicability;
+- affected Mallan systems;
+- implementation mapping;
+- proof/test references;
+- current state;
+- open discrepancy/flag.
+
+## 21.4 Field Registry
+
+A governed provider field record should identify as applicable:
+
+- Mallan canonical field/criterion;
+- current provider resource/field;
+- provider definition/type;
+- lookup/picklist reference;
+- null semantics;
+- source/authority class;
+- public/Agent/internal eligibility;
+- attribution/display implications;
+- read/write direction;
+- current mapping implementation;
+- provider modification/version timestamp where available;
+- last verified date;
+- contract tests;
+- affected screens/jobs/reports;
+- open drift/uncertainty.
+
+## 21.5 Regular scanning / drift detection
+
+Mallan should regularly scan/verify authoritative REBNY/RLS/current-provider sources for changes in:
+
+- business/use/display rules;
+- fields;
+- types;
+- definitions/meaning;
+- picklists;
+- status mappings;
+- attribution;
+- address display;
+- permissions;
+- media;
+- endpoints/authentication;
+- provider/deprecation notices.
+
+The exact cadence may vary by source, but the system must have a recurring operating process rather than depending on memory/manual chance discovery.
+
+## 21.6 Technology flags
 
 Useful flags include:
 
 ```text
 RLS_RULE_CHANGED
 UCBA_RULE_CHANGED
+DOS_OR_NYS_RULE_CHANGED
 PROVIDER_CHANGED
 PROVIDER_SCHEMA_CHANGED
 FIELD_ADDED
@@ -1206,23 +2114,277 @@ MAPPING_DRIFT
 UNVERIFIED_PROVIDER_BEHAVIOR
 ```
 
-Every flag identifies affected Mallan systems and requires evidence → impact map → review → correction → regression/contract test → authorized deploy → production verification → registry update.
+## 21.7 Change workflow
 
-Unknown changes affecting public eligibility, attribution, status mapping or critical rules fail safely rather than being guessed.
+```text
+CHANGE DETECTED
+↓
+CAPTURE EVIDENCE
+↓
+IDENTIFY AUTHORITY
+↓
+CLASSIFY CHANGE
+↓
+MAP AFFECTED SYSTEMS
+↓
+OPEN FLAG
+↓
+REVIEW / CORRECT ADAPTER OR MALLAN RULE
+↓
+REGRESSION / CONTRACT TEST
+↓
+AUTHORIZED DEPLOY
+↓
+PRODUCTION VERIFY
+↓
+UPDATE REGISTRY
+↓
+CLOSE FLAG
+```
+
+Every flag identifies affected Mallan systems.
+
+Unknown changes affecting public eligibility, attribution, status mapping or another critical rule fail safely rather than being guessed.
+
+## 21.8 Human simplicity
+
+Agents should see the professional result of the technology governance — correct fields, titles, alerts and allowed actions — not feed plumbing.
+
+The governing principle is:
+
+```text
+PEOPLE
+SUPPORT → REMIND → FLAG → RECORD → SUPERVISE WHERE REQUIRED
+
+TECHNOLOGY
+MONITOR → COMPARE → FLAG → VERIFY → VERSION → TEST → BLOCK UNSAFE ASSUMPTIONS
+```
 
 ---
 
-# 22. SYSTEM INTELLIGENCE
+# 22. SYSTEM INTELLIGENCE / CONTEXTUAL AI
 
-System Intelligence consumes real canonical events. It answers what changed, what needs attention, what is at risk and what the Agent/Broker should review next.
+System Intelligence is connective system behavior over real canonical events, not merely an AI chat feature.
 
-Examples: listing engagement decline, new comp changes pricing context, Client high-interest behavior, rejected listing materially changed → Reconsider, Saved Search listing goes In Contract/Closed/Rented, report due, missing signed deal document, commission blocked, professional renewal approaching, RLS/provider rule or field change.
+It answers:
 
-Every signal must be explainable. AI may explain/draft but may not invent facts, silently change data/formulas, send without authorization or make binding legal/tax decisions.
+- what changed;
+- what needs attention;
+- what is at risk;
+- what evidence supports that conclusion;
+- what the Agent/Broker should review or do next.
+
+## 22.1 Practical intelligence views
+
+```text
+BROKERAGE INTELLIGENCE
+AGENT BUSINESS INTELLIGENCE
+CLIENT / DEAL INTELLIGENCE
+```
+
+Examples:
+
+- listing engagement decline;
+- new comp changes pricing context;
+- Client high-interest behavior;
+- rejected listing materially changed → Reconsider;
+- Saved Search listing goes In Contract/Closed/Rented;
+- report due;
+- missing signed deal document;
+- commission blocked;
+- payment received → commission review needed;
+- Agent payment ready;
+- professional renewal approaching;
+- RLS/provider rule or field change.
+
+Useful practical signal codes include:
+
+```text
+LICENSE_RENEWAL_RISK
+CE_DEADLINE_RISK
+REBNY_RENEWAL_RISK
+INSURANCE_EXPIRATION_RISK
+REQUIRED_TRAINING_INCOMPLETE
+DEAL_DOCUMENT_MISSING
+REFERRAL_FORM_MISSING
+COMMISSION_PAYMENT_BLOCKED
+PAYMENT_RECEIVED_COMMISSION_REVIEW_NEEDED
+AGENT_PAYMENT_READY
+```
+
+## 22.2 Explainability
+
+Each signal should be traceable as:
+
+```text
+SIGNAL
+↓
+EVIDENCE
+↓
+INTERPRETATION
+↓
+SUGGESTED ACTION
+↓
+HUMAN DECISION WHERE REQUIRED
+```
+
+## 22.3 AI assistance
+
+Contextual AI assistance may help with:
+
+- Search explanation/help;
+- property/listing comparison;
+- CMA explanation;
+- client-response drafting;
+- follow-up suggestions;
+- marketing/report drafts;
+- transaction next-step guidance;
+- approved compliance/document lookup.
+
+AI assistance must use canonical Mallan records and the same Search/Property Intelligence contracts rather than a second AI-only client/search/property index.
+
+AI may draft/recommend/explain, but may not:
+
+- invent facts;
+- silently mutate canonical records;
+- silently change formulas/inputs;
+- send/publish without required approval;
+- alter signed agreements;
+- bypass permissions/compliance gates;
+- make binding legal/tax conclusions.
 
 ---
 
-# 23. REQUIREMENT / DOCUMENT GOVERNANCE
+# 23. PRODUCT EXPERIENCE / NAVIGATION / ROLE WORKSPACES
+
+The platform should feel like one operating system, not a collection of admin pages.
+
+## 23.1 Global screen rule
+
+Every important screen should answer:
+
+1. **What is this record?**
+2. **What changed?**
+3. **What matters now?**
+4. **What can the Agent/Broker do next?**
+
+Do not expose every database field merely because it exists.
+
+## 23.2 Agent navigation
+
+A practical Agent-level navigation target is:
+
+```text
+HOME
+CLIENTS
+SEARCH
+LISTINGS
+MARKETING
+REPORTS
+DEALS
+MONEY
+TASKS
+MY PROFILE
+```
+
+CMA, calculators, Comments, Share and Intelligence are contextual capabilities within those workflows and do not all need top-level navigation entries.
+
+## 23.3 Agent Home
+
+Agent Home answers **what needs attention today**.
+
+Useful groups:
+
+- Needs Attention;
+- My Business;
+- Money;
+- Upcoming;
+- Priority Actions.
+
+Priority actions must identify the actual record, evidence/reason and next action, not vague AI advice.
+
+## 23.4 Clients
+
+Client pages remain role-specific rather than one generic CRM record.
+
+### Buyer
+
+```text
+OVERVIEW
+SEARCH
+SENT LISTINGS
+SHOWINGS
+CMA & ANALYSIS
+DOCUMENTS
+DEALS
+TIMELINE
+```
+
+### Seller
+
+```text
+OVERVIEW
+PROPERTY
+CMA
+LISTING
+MARKETING
+REPORTS
+OFFERS
+DOCUMENTS
+DEAL
+TIMELINE
+```
+
+### Landlord
+
+Use the same overall structure but preserve rental-specific Listing, Reporting, Applications, Lease and rental-market semantics.
+
+### Tenant
+
+Use Buyer-like Search/Sent Listings/Showings flow but preserve rental qualification, Application, Lease and Move-in semantics.
+
+One Party may have multiple role Opportunities; role workspaces must not duplicate the Party.
+
+## 23.5 Deals
+
+Deal screens show the stage tracker, current responsibilities, missing documents, professional contacts, dates and payment readiness on the same canonical Transaction.
+
+## 23.6 Money
+
+Agent Money emphasizes Expected / Blocked / Ready / Paid status.
+
+Brokerage Money adds firm-wide queues and brokerage totals without creating a separate commission truth.
+
+## 23.7 My Profile
+
+My Profile should group:
+
+```text
+PROFESSIONAL PROFILE
+PROFESSIONAL REQUIREMENTS
+PROFESSIONAL MATERIALS
+```
+
+Online profile preview should let the Agent see the public governed professional title/identity that will be displayed.
+
+## 23.8 Brokerage navigation
+
+```text
+OVERVIEW
+AGENTS
+LEADS
+LISTINGS
+DEALS
+MONEY
+COMPLIANCE
+TECHNOLOGY
+```
+
+Brokerage View is exception-oriented. It should not become a duplicate copy of each Agent's My Business screens.
+
+---
+
+# 24. REQUIREMENT / DOCUMENT GOVERNANCE AND CURRENT-TO-TARGET MAP
 
 There is one master product/system plan: this file.
 
@@ -1230,51 +2392,182 @@ Operational issue/handoff documents may describe current state only. Historical 
 
 New requirements must be reconciled into this same file rather than creating another Search, CMA, Listings, Reporting, Brokerage or Technology plan.
 
-Use proof states such as Implemented — Unverified, Merged — Not Production Verified, Production Verified, Blocked and Superseded.
+`MALLAN-CANONICAL-REQUIREMENT-LEDGER.md` is temporary reconciliation/index evidence. It may preserve stable IDs and historical requirement candidates while absorption is underway, but it may not override or independently define the product architecture. After its still-valid requirements are absorbed/mapped here, it should be retired or reduced to historical evidence.
+
+A requirement found only in a historical doc/ledger is not automatically current. Classify it against current Maya direction as:
+
+```text
+PRESERVED
+SUPERSEDED
+INVALIDATED
+MISSING — RESTORE
+HELD / REQUIRES MAYA DECISION
+```
+
+Residual historical reconciliation continues without spawning a fresh master-plan cycle.
+
+## 24.1 Stable requirement identity
+
+Meaningful implementation work should carry a stable requirement/layer ID in commits/tests/execution state so a requirement cannot disappear merely because wording/layout changes.
+
+Where an existing stable ledger ID maps cleanly to the current master, preserve the ID during implementation rather than inventing a second ID for the same requirement.
+
+## 24.2 Proof states
+
+Use proof states such as:
+
+```text
+DESIGNED / NOT IMPLEMENTED
+IMPLEMENTED — UNVERIFIED
+MERGED — NOT PRODUCTION VERIFIED
+PRODUCTION VERIFIED
+BLOCKED
+SUPERSEDED
+REOPENED BECAUSE <EVIDENCE>
+```
+
+Do not equate `committed`, `PR open`, `draft`, `checks green` or `merged` with end-to-end completion.
+
+## 24.3 Current → target implementation map
+
+### Frontend Consumer Search
+
+```text
+CURRENT
+existing product with established behavior
+
+TARGET
+preserve + verify + correct proven defects + certify
+```
+
+### Backend Agent Search
+
+```text
+CURRENT
+legacy/partial professional Search with criteria/mapping/runtime parity concerns
+
+TARGET
+one verified full professional Search contract + Client/Saved Search/history/matching workflow
+```
+
+### CMA
+
+```text
+CURRENT
+partial heuristic/address-driven implementation evidence
+
+TARGET
+Search-based professional subject → universe → Agent comp selection → explainable adjustments → strategy → versioned client-safe CMA
+```
+
+### Backend Listing
+
+```text
+CURRENT
+listing-management/detail capabilities are fragmented
+
+TARGET
+full readable source-aware Listing Workspace with media + client history + contextual actions
+```
+
+### Marketing / E-blast
+
+```text
+CURRENT
+useful but narrow campaign capabilities exist
+
+TARGET
+one listing/search/client-driven Marketing workflow with reviewed audiences and measurable reporting
+```
+
+### Listings Reporting
+
+```text
+CURRENT
+internal/Phase-1 diagnostic capability exists but client output/design/data connection is incomplete
+
+TARGET
+separate polished Seller/Landlord report products using actual tracked activity + market/CMA context + Agent-approved recommendation
+```
+
+### Brokerage / Agent support
+
+```text
+CURRENT
+capabilities are distributed across existing CRM/deal/profile data
+
+TARGET
+simple My Business + Brokerage View over the same canonical records with professional/deal/payment/technology exceptions
+```
+
+Historical code is implementation evidence, not product authority. Reuse existing models/routes/services where correct; do not automatically rebuild in parallel.
 
 ---
 
-# 24. DEVELOPMENT SEQUENCE — ONE CONTINUOUS PROGRAM
+# 25. DEVELOPMENT SEQUENCE — ONE CONTINUOUS PROGRAM
 
 Do not split these phases into separate master plans.
 
-## Phase 0 — Consolidation / recovery
+Residual historical recovery/reconciliation is an evidence lane throughout the program. It does not require waiting for perfect archaeology before safe current-state work begins.
 
-Preserve/reconcile useful historical work, keep one authorized repository/workspace, absorb valid requirements, identify duplicates/retirements and maintain one active implementation line at a time.
+One active implementation branch at a time remains the default. Read-only investigation/design/proof can continue while a documentation branch awaits disposition, but do not create parallel implementation truth.
 
-## Phase 1 — Listing identity / source authority / provider contract
+## Phase 0 — Authority baseline / residual recovery
 
-Settle Mallan-authored vs third-party Cotality vs return-copy, canonical identity, provider field/rule registry, public vs Agent boundaries and future outbound architecture.
+- preserve uniquely recoverable historical work/evidence where necessary;
+- keep one authorized repository/workspace;
+- maintain this master as the single current authority;
+- absorb any newly proven still-valid missing requirement here;
+- do not restart a fresh overall audit merely because context changed.
 
-## Phase 2 — SEARCH P0 — FIRST ACTIVE PRODUCT LAYER
+**Phase 0 is no longer a permanent global hold on Search.** A newly recovered requirement reopens the specific affected dependency only.
 
-1. inventory every Advanced Search field;
-2. verify provider mapping/type/picklist/null semantics;
-3. make Basic/mobile and Advanced/desktop one normalized criteria contract;
-4. remove silent unsupported fields;
-5. correct filtering/dedupe/count/pagination;
-6. make full criteria saveable;
-7. assign Saved Search to Client + Buyer/Tenant Opportunity;
-8. Client/Search selection auto-populates criteria and current inventory;
-9. join Client × Listing history;
-10. implement comments/timeline;
-11. integrate view/showing history;
-12. auto-send new listings + verified price changes + verified material status changes;
-13. rejected/pass listings never auto-resend; material changes → Reconsider;
-14. preserve professional internal fields and client-safe transforms;
-15. connect selected listings to Compare/CMA.
+## Phase 1 — SEARCH P0 — FIRST ACTIVE PRODUCT LAYER
 
-## Phase 3 — CMA P1 — SECOND ACTIVE PRODUCT LAYER
+Read-only proof/audit may begin immediately.
+
+Implementation sequence:
+
+1. establish exact current main, active branch/head and Production identity as applicable;
+2. inventory every Advanced Search field/control;
+3. verify provider mapping/type/picklist/null semantics;
+4. prove Basic/mobile and Advanced/desktop use one normalized criteria contract;
+5. identify/remove silent unsupported/incorrect mappings;
+6. prove/fix source authority, display eligibility, return-copy suppression and dedupe ordering;
+7. prove/fix exact final count/pagination/hasMore semantics;
+8. make full criteria saveable/reopenable;
+9. assign Saved Search to Client + Buyer/Tenant Opportunity;
+10. Client/Search selection auto-populates criteria and current inventory;
+11. join Client × Listing history;
+12. integrate Comments/timeline;
+13. integrate view/showing history;
+14. implement authorized new-listing + verified price + material-status update behavior;
+15. rejected/pass listings never auto-resend; material changes → Reconsider;
+16. implement reverse matching from Listing to eligible clients where authorized;
+17. preserve professional internal fields and client-safe transforms;
+18. connect selected listings to Compare/CMA;
+19. prove the complete professional desktop and Basic mobile UX end to end.
+
+## Phase 2 — CMA / PROPERTY INTELLIGENCE
 
 Rebuild CMA on corrected Backend Search/Property Intelligence:
 
-Subject → Market Universe → Comp Selection → Adjustments → Strategy → Versioned CMA → Preview → Share/Email.
+```text
+SUBJECT
+→ MARKET UNIVERSE
+→ COMP SELECTION
+→ ADJUSTMENTS
+→ STRATEGY
+→ VERSIONED CMA
+→ PREVIEW
+→ SHARE / EMAIL
+```
 
 No independent reduced comp-search engine.
 
-## Phase 4 — BACKEND LISTINGS P2 — THIRD ACTIVE PRODUCT LAYER
+## Phase 3 — BACKEND LISTING WORKSPACE
 
-Rebuild Backend Listing Workspace so every listing opens as a full readable professional record with photos/media and contextual actions.
+Rebuild/complete Backend Listing Workspace so every listing opens as a full readable professional record with photos/media and contextual actions.
 
 Required:
 
@@ -1288,41 +2581,47 @@ Required:
 - Compare/Add to CMA;
 - Share/Email client-safe version;
 - Quick Add Open House for authorized Mallan-authored listings without full form;
-- Refresh Listing / source reconciliation;
+- Refresh Listing/source reconciliation;
 - Mallan-authored Edit/Media/Marketing/Reports/Offers/Documents/Distribution controls;
 - third-party Cotality source remains read-only.
 
-## Phase 5 — Marketing / E-blast / Listing Reporting
+## Phase 4 — MARKETING / E-BLAST / LISTING REPORTING
 
 Connect actual Search/listing/client/marketing/showing data and build polished separate Seller/Landlord reports.
 
-## Phase 6 — Decision / Calculators / System Intelligence
+## Phase 5 — DECISION / CALCULATORS / SYSTEM INTELLIGENCE
 
-Connect deterministic scenarios and contextual intelligence to real workflows.
+Connect deterministic scenarios and contextual explainable intelligence to real workflows.
 
-## Phase 7 — Role journeys
+## Phase 6 — COMMUNICATIONS / DOCUMENTS / AGREEMENTS / DEAL SUPPORT
 
-Complete Seller, Landlord, Buyer, Tenant, Investor/1031 end-to-end without merging role semantics.
+Complete one communication history, four agreement families/amendments, approved document library, transaction checklists and payment readiness.
 
-## Phase 8 — Agent support / Brokerage / Money / Technology
+## Phase 7 — ROLE JOURNEYS
+
+Complete Seller, Landlord, Buyer, Tenant and Investor/1031 end-to-end without merging role semantics.
+
+## Phase 8 — AGENT SUPPORT / BROKERAGE / MONEY / TECHNOLOGY
 
 Complete professional reminders/profile, deal-document/payment readiness, lead distribution, commissions/referrals, brokerage exceptions and REBNY/RLS/provider monitoring.
 
-## Phase 9 — Future Mallan → provider publishing
+## Phase 9 — FUTURE MALLAN → PROVIDER PUBLISHING
 
-Only after Mallan-authored Listing Management and provider mapping are stable.
+Only after Mallan-authored Listing Management and provider mapping are stable and current outbound requirements are verified.
 
-## Phase 10 — Historical retirement / final proof
+## Phase 10 — HISTORICAL RETIREMENT / FINAL PROOF
 
 Retire superseded code/docs/branches only after requirements/useful behavior are accounted for and replacement proven.
 
+Complete full end-to-end Production proof under the applicable authorization boundaries.
+
 ---
 
-# 25. GLOBAL DEFINITION OF DONE
+# 26. GLOBAL DEFINITION OF DONE
 
 ## Search
 
-Not complete until professional criteria execute, Basic/Advanced preserve one criteria truth, result/count/pagination are correct, Client Saved Search recalls full criteria, prior history/comments are visible, new/price/status updates behave correctly, rejected listings go to Reconsider, client-safe output strips internal professional data and results feed Compare/CMA.
+Not complete until professional criteria execute, Basic/Advanced preserve one criteria truth, final result/count/pagination are correct, Client Saved Search recalls full criteria, prior history/comments are visible, new/price/status updates behave correctly, rejected listings go to Reconsider, reverse matching is correct where enabled, client-safe output strips internal professional data and results feed Compare/CMA.
 
 ## CMA
 
@@ -1332,26 +2631,44 @@ Not complete until it uses the same Backend Search/Property Intelligence univers
 
 Not complete until any listing opens as a full readable professional record with authorized details and media; Agent can Refresh Listing, save/attach to Client, see history, comment, schedule showing, Add to CMA/Compare, Share/Email client-safe output; and authorized Mallan-authored listings support Edit plus Quick Add Open House without reopening the full listing form.
 
+## Marketing / E-blast
+
+Not complete until campaigns use canonical Listing/Party/Search data, audience selection respects consent/suppression, content can be previewed/reviewed, actual delivery/engagement is tracked truthfully, and marketing results feed Listing Reporting/Client history without duplicate contact/listing truth.
+
 ## Listing Reporting
 
-Not complete until real listing/marketing/e-blast/website/send/showing/feedback/offer/application data connect where tracked, Seller/Landlord remain separate, reports are polished/versioned/truthful and only the Mallan report creator identity appears.
+Not complete until real listing/marketing/e-blast/website/send/showing/feedback/offer/application data connect where tracked, Seller/Landlord remain separate, internal provenance is distinguishable from client presentation, reports are polished/versioned/truthful, Agent recommendation is reviewable, and only the Mallan report creator identity appears client-facing.
+
+## Agreements / Documents / Communications
+
+Not complete until four agreement families remain distinct, signed originals never mutate, amendments preserve version history, controlled template language is governed, communications/comments attach to canonical context with correct visibility and client-safe share transformations are enforced.
+
+## Transactions / Money
+
+Not complete until deal stages, required documents, professional contacts, payment readiness, commission/referral calculation, broker review and Agent payment status are joined to the same Transaction and the Agent sees the blocking reason/next action.
 
 ## Agent / Brokerage
 
-Not complete until Agent sees professional renewal reminders, governed public title, required deal documents and payment-readiness; Maya sees firm exceptions over the same canonical records.
+Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required deal documents, Money/payment readiness and role-specific My Business; Maya sees firm exceptions over the same canonical records and required supervision is supported without unnecessary management bureaucracy.
 
 ## Technology
 
-Not complete until material REBNY/RLS/current-provider field/rule/attribution changes can be detected/reviewed and provider replacement occurs through an adapter.
+Not complete until material REBNY/RLS/UCBA/current-provider field/rule/attribution/display changes can be detected/reviewed, field/rule mappings are versioned and tested, critical uncertainty fails safely, and provider replacement can occur through an adapter rather than product rewrites.
 
-No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `Listings Working` or equivalent claim without applicable runtime/production proof.
+## Proof
+
+No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `Listings Working`, `Reporting Working`, `Optimized` or equivalent claim without the applicable durable Git/test/runtime/provider/Production evidence.
 
 ---
 
-# Current handoff
+# CURRENT HANDOFF
 
-- This file remains the intended single canonical product/system authority on draft PR #595 and is unmerged until explicitly approved.
-- Immediate execution order is now explicit: **Search first → CMA second → Backend Listings third**.
-- Backend Listings requirement now includes full readable listing detail with photos/media, Comments, CMA/Compare, Share/Email, Client history, Showing actions, Quick Add Open House for authorized Mallan listings, and Refresh Listing/reconciliation.
-- Existing Search/CMA/Listing code is implementation evidence, not design authority. Reuse existing SavedSearch, ClientListingAction, Showing, Comment, listing-send and Listing/media capabilities where correct instead of automatically creating parallel models.
-- Documentation changes do not authorize production mutations, schema changes or deployment.
+- This file is the intended single canonical product/system authority on draft PR #595 and remains unmerged until explicitly approved.
+- Maya's recent Search/CMA/Backend Listing decisions have been preserved rather than overwritten.
+- The master now also explicitly absorbs previously implicit/stranded requirements for Party/Entity identity, professional contacts, broker supervision boundary, governed professional profiles, four agreement families/amendments, document library, Search reverse matching/UX, transparent CMA workflow, Marketing/E-blast, polished Seller/Landlord Reporting, professional requirements, commission/payment readiness, role-specific product navigation, technology rule/field registries and provider-pivot governance.
+- Historical StreetEasy/external/sponsor inventory concepts are not silently restored as current requirements; they remain non-authoritative unless explicitly reopened and verified.
+- Residual historical reconciliation continues as evidence work but is **not a global blocker to beginning Search P0 read-only proof/audit**.
+- Immediate product sequence is **Search → CMA → Backend Listings → Marketing/E-blast/Reporting → remaining operating system**.
+- Existing Search/CMA/Listing/Marketing/Reporting code is implementation evidence, not design authority. Reuse existing SavedSearch, ClientListingAction, Showing, Comment, listing-send, Listing/media, campaign and report capabilities where correct instead of automatically creating parallel models.
+- Current documentation changes do not authorize Production mutations, schema changes or deployment.
+- Next exact product action: **SEARCH-P0 — inventory and verify every Advanced Search criterion, then prove source-authority/filter/dedupe/final-count/pagination and Saved Search recall/history on the existing canonical path.**
