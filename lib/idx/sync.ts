@@ -226,10 +226,21 @@ export function guardArchivedRehydration<T extends Record<string, unknown>>(
  * guardArchivedRehydration does NOT cover. A re-emitted archived row (media=[]) would otherwise have
  * its media re-hydrated in the same run, and retention then skips it (sync_status='archived'). Adding
  * the archived exclusion at the DB filter means the media write matches 0 rows for an archived
- * listing, so its stripped media is preserved. This guard protects the four
- * surviving `Listing.media` JSON writers in THIS file and nothing else:
- * `lib/idx/media-sync.ts` references neither `sync_status` nor 'archived', so
- * the listing_media / R2 path has no equivalent archived exclusion.
+ * listing, so its stripped media is preserved. Archived protection differs by
+ * path, so be exact about which one this guard is:
+ *
+ *   - THIS guard covers the four surviving `Listing.media` JSON writers in this
+ *     file, via an explicit `sync_status IS DISTINCT FROM 'archived'` filter.
+ *   - Third-party/feed `listing_media` -> R2 admission is archived-excluded
+ *     EFFECTIVELY, not by sync_status: `buildR2MirrorPolicyMediaWhere()` joins
+ *     `listing: buildSearchDisplayWhere()`, which requires an active display
+ *     status, and an archived row is terminal + idx_display_yn=false.
+ *   - Mallan-owned R2 admission (`buildMallanOwnedListingWhere()`) keys only on
+ *     SL-/RL- prefix or rls_eligible=false, with NO active/archive restriction.
+ *     Latent only: that population is currently 0.
+ *
+ * media-sync references `sync_status` nowhere — but that is a statement about
+ * MECHANISM, not about eligibility. Do not read it as absence of protection.
  *
  * NULL-safe (Codex #465 P2): `sync_status: { not: 'archived' }` alone compiles to `sync_status <> 'archived'`,
  * which is NULL (not TRUE) for legacy rows where sync_status IS NULL — silently excluding them from a
