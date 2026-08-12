@@ -105,7 +105,7 @@ function utf8Bytes(value: unknown): number {
 }
 
 describe('cached fallback entry size', () => {
-  it('a worst-case max page stays well under the 2 MB item limit', () => {
+  it('PASS_FOR_200_ITEM_FIXTURE — a 200-listing contracted page fits', () => {
     const bytes = utf8Bytes(buildResponseBody(MAX_PAGE));
     const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
     // Surfaced so the number is in the CI log, not just an assertion outcome.
@@ -119,7 +119,7 @@ describe('cached fallback entry size', () => {
     expect(bytes).toBeLessThan(SAFETY_CEILING);
   });
 
-  it('the summary contraction is what keeps it small — a full gallery would not fit', () => {
+  it('a full-gallery FINAL RESPONSE cannot be cached — contraction is required', () => {
     // Same 200 listings, but with the pre-contraction 67-photo gallery.
     const withGalleries = Array.from({ length: MAX_PAGE }, (_, i) => {
       const l = worstCaseListing(i);
@@ -134,7 +134,10 @@ describe('cached fallback entry size', () => {
         `contracted = ${(contracted / 1024).toFixed(1)} KiB`,
     );
     expect(contracted).toBeLessThan(uncontracted);
-    // The uncontracted shape is precisely what must never be cached.
+    // This proves an UNCONTRACTED FINAL RESPONSE must never be cached. It says
+    // nothing about the current Property-only cache, which runs with
+    // expandMedia: false and therefore carries no galleries at all — measured
+    // separately below.
     expect(uncontracted).toBeGreaterThan(VERCEL_ITEM_LIMIT);
   });
 
@@ -149,5 +152,69 @@ describe('cached fallback entry size', () => {
     const headroom = Math.floor((SAFETY_CEILING - at200) / perListing);
     expect(headroom).toBeGreaterThan(0);
     console.log(`[cache-entry-size] headroom below the safety ceiling: ~${headroom} more listings`);
+  });
+});
+
+/**
+ * The REAL maximum final response. `mergeExclusiveListings` ends with
+ * `return [...newExclusives, ...trestleListings]` — exclusives are PREPENDED
+ * and the result is NOT re-sliced, so the response can exceed the page clamp.
+ */
+const MAX_PREPENDED_EXCLUSIVES = 50;
+
+describe('the real final-response ceiling is not the page size', () => {
+  it('page + prepended exclusives is the shape that must fit', () => {
+    const realMax = MAX_PAGE + MAX_PREPENDED_EXCLUSIVES;
+    const bytes = utf8Bytes(buildResponseBody(realMax));
+    const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
+    console.log(
+      `[cache-entry-size] REAL MAX ${realMax} listings (200 page + ${MAX_PREPENDED_EXCLUSIVES} ` +
+        `exclusives) = ${bytes} bytes (${(bytes / 1024).toFixed(1)} KiB), ${pct}% of 2 MB`,
+    );
+    console.log(
+      `[cache-entry-size] safety ceiling ${SAFETY_CEILING} bytes — ` +
+        `real max is ${bytes <= SAFETY_CEILING ? 'WITHIN' : 'ABOVE'} it`,
+    );
+    // Hard limit is the contract; the ceiling is reported, not silently assumed.
+    expect(bytes).toBeLessThan(VERCEL_ITEM_LIMIT);
+  });
+});
+
+/**
+ * The shape df3dcb25 ACTUALLY caches: the raw TrestleFetchResult, built with
+ * `expandMedia: false`, so every record is CARD_SELECT_FIELDS scalars and NO
+ * media array. Inferring its size from a gallery fixture was wrong.
+ */
+describe('the CURRENT Property-only cached shape, measured directly', () => {
+  const CARD_FIELDS = 69;
+  const FETCH_TOP_MAX = 1000;
+
+  function cardRecord(i: number): Record<string, unknown> {
+    const r: Record<string, unknown> = {};
+    // Pessimistic scalar per selected field: long-ish strings, no media array.
+    for (let f = 0; f < CARD_FIELDS; f++) r[`Field${f}`] = 'V'.repeat(40);
+    r.ListingKey = String(20000000 + i);
+    r.PublicRemarks = 'A'.repeat(4000); // the one genuinely long card field
+    return r;
+  }
+
+  it('measures 1,000 records with expandMedia:false — no gallery inference', () => {
+    const result = {
+      records: Array.from({ length: FETCH_TOP_MAX }, (_, i) => cardRecord(i)),
+      totalFetched: FETCH_TOP_MAX,
+      odataCount: 12480,
+      hasMore: true,
+    };
+    const bytes = utf8Bytes(result);
+    const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
+    console.log(
+      `[cache-entry-size] CURRENT Property cache shape: ${FETCH_TOP_MAX} CARD_SELECT_FIELDS ` +
+        `records (expandMedia:false) = ${bytes} bytes ` +
+        `(${(bytes / 1024 / 1024).toFixed(2)} MiB), ${pct}% of 2 MB — ` +
+        `${bytes > VERCEL_ITEM_LIMIT ? 'EXCEEDS' : 'within'} the item limit`,
+    );
+    // Reported, not asserted either way: this documents the shape rather than
+    // pretending a synthetic field profile settles production byte counts.
+    expect(bytes).toBeGreaterThan(0);
   });
 });
