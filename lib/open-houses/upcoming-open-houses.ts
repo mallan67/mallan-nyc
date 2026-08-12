@@ -404,10 +404,73 @@ function earlier(a: NextOpenHouse, b: NextOpenHouse): NextOpenHouse {
   return compareChronological(a, b) <= 0 ? a : b;
 }
 
+/**
+ * Optional date restriction for the index.
+ *
+ * Search needs "has an open house THIS weekend" / "on this date", not merely
+ * "has one upcoming". Without a window, an open-house search matches any future
+ * event, which is a different question from the one the filter asks.
+ */
+export interface OpenHouseWindow {
+  /** Exact day, `YYYY-MM-DD`. */
+  date?: string;
+  /** Inclusive lower bound, `YYYY-MM-DD`. */
+  from?: string;
+  /** Inclusive upper bound, `YYYY-MM-DD`. */
+  to?: string;
+  /** The coming Saturday–Sunday. When today IS Sat/Sun, the CURRENT weekend. */
+  weekend?: boolean;
+  /** Reference day for `weekend`, `YYYY-MM-DD`. Defaults to today; injectable so
+   *  the resolution is testable without freezing clocks. */
+  today?: string;
+}
+
+const DAY_MS = 86_400_000;
+
+function isoDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Resolve `weekend` to an inclusive [from, to] pair. UTC arithmetic on the date
+ * string only — no local-timezone drift, since entry dates are plain ISO days.
+ *
+ * Sat(6)/Sun(0) resolve to the weekend already in progress rather than skipping
+ * a week, so a Saturday shopper searching "this weekend" sees today's events.
+ */
+export function resolveWeekend(today: string): { from: string; to: string } {
+  const ref = new Date(`${today}T00:00:00Z`);
+  const dow = ref.getUTCDay(); // 0 Sun … 6 Sat
+  const satOffset = dow === 0 ? -1 : 6 - dow;
+  const sat = new Date(ref.getTime() + satOffset * DAY_MS);
+  return { from: isoDay(sat), to: isoDay(new Date(sat.getTime() + DAY_MS)) };
+}
+
+/** True when an entry's ISO day falls inside the window. No window ⇒ always true. */
+export function dayInWindow(day: string, window?: OpenHouseWindow): boolean {
+  if (!window) return true;
+  if (window.date) return day === window.date;
+  let { from, to } = window;
+  if (window.weekend) {
+    const w = resolveWeekend(window.today ?? isoDay(new Date()));
+    from = from ?? w.from;
+    to = to ?? w.to;
+  }
+  if (from && day < from) return false;
+  if (to && day > to) return false;
+  return true;
+}
+
 /** Build a per-request index of upcoming Mallan open houses, keyed by listing id AND address key.
- *  Keeps the SOONEST open house per key. Safe to call once per request and reuse across listings. */
-export async function getOpenHouseIndex(): Promise<OpenHouseIndex> {
-  const entries = await getEntries();
+ *  Keeps the SOONEST open house per key. Safe to call once per request and reuse across listings.
+ *
+ *  `window` is optional and existing no-argument callers are unchanged: without
+ *  it every upcoming entry is indexed exactly as before. `size` reflects the
+ *  WINDOWED entry count, so the caller's "skip the match loop when empty"
+ *  shortcut stays correct for a windowed index. */
+export async function getOpenHouseIndex(window?: OpenHouseWindow): Promise<OpenHouseIndex> {
+  const all = await getEntries();
+  const entries = window ? all.filter((e) => dayInWindow(e.date, window)) : all;
   const byListingId = new Map<string, NextOpenHouse>();
   const byAddressKey = new Map<string, NextOpenHouse>();
   for (const e of entries) {
