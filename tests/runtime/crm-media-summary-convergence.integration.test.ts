@@ -120,6 +120,10 @@ if (!crmMediaIntegrationUrl) {
           listing_id: listingId,
           status: "Active",
           listing_type: "sale",
+          // Required by the real schema — a mocked client would have accepted
+          // the row without them and hidden this on the way to Production.
+          list_price: 1000000,
+          modification_timestamp: new Date(),
           rls_eligible: false, // Mallan-owned; keeps this row out of feed logic
         },
       });
@@ -237,6 +241,83 @@ if (!crmMediaIntegrationUrl) {
       });
       await expectConverged(0);
       expect((await storedSummary())!.primary_photo_url).toBeNull();
+    });
+
+    it("set-main clears ONLY the crm: namespace, never source-owned feed rows", async () => {
+      // Migrated here from a mocked call-shape assertion. The real invariant is
+      // that source-owned metadata survives — provable only against real rows.
+      await routeClient.listingMedia.create({
+        data: mediaRow(20, { media_key: `FEED-${stamp}-20`, preferred_photo_yn: true }),
+      });
+      await withCrmMediaConvergence(listingId, async (tx: typeof routeClient) => {
+        await tx.listingMedia.updateMany({
+          where: { listing_id: listingId, status: "active", preferred_photo_yn: true,
+                   media_key: { startsWith: "crm:" } },
+          data: { preferred_photo_yn: false },
+        });
+        await tx.listingMedia.updateMany({
+          where: { media_key: key(2), status: "active" },
+          data: { preferred_photo_yn: true },
+        });
+      });
+      const feedRow = await observer.listingMedia.findUnique({
+        where: { media_key: `FEED-${stamp}-20` },
+      });
+      expect(feedRow!.preferred_photo_yn).toBe(true); // untouched by the crm-scoped clear
+      await routeClient.listingMedia.delete({ where: { media_key: `FEED-${stamp}-20` } });
+    });
+
+    it("reorder applies ONLY to crm: keys, never renumbering feed rows", async () => {
+      // Migrated from a mocked suite. Feed order is source-owned; media-sync
+      // rewrites it every cycle, so a CRM reorder must not touch it.
+      const feedKey = `FEED-${stamp}-30`;
+      await routeClient.listingMedia.create({
+        data: mediaRow(30, { media_key: feedKey, order: 99 }),
+      });
+      await withCrmMediaConvergence(listingId, async (tx: typeof routeClient) => {
+        await tx.listingMedia.updateMany({
+          where: { media_key: key(1), listing_id: listingId, status: "active" },
+          data: { order: 7 },
+        });
+      });
+      const feedRow = await observer.listingMedia.findUnique({ where: { media_key: feedKey } });
+      const crmRow = await observer.listingMedia.findUnique({ where: { media_key: key(1) } });
+      expect(feedRow!.order).toBe(99); // untouched
+      expect(crmRow!.order).toBe(7);
+      await routeClient.listingMedia.delete({ where: { media_key: feedKey } });
+    });
+
+    it("a CRM media mutation does NOT bump modification_timestamp on a Trestle-synced listing", async () => {
+      // Migrated from a mocked suite. idx-sync reads modification_timestamp as
+      // its cursor; a CRM-side bump would corrupt feed sync. Proven on the real
+      // row rather than by inspecting a mocked update payload.
+      const feedListing = `RLS-ITEST-${stamp}`;
+      const before = new Date("2026-01-01T00:00:00Z");
+      await routeClient.listing.create({
+        data: {
+          listing_id: feedListing,
+          status: "Active",
+          listing_type: "sale",
+          list_price: 500000,
+          modification_timestamp: before,
+          last_synced_from_trestle: new Date(), // Trestle-synced
+          rls_eligible: true,
+        },
+      });
+      await withCrmMediaConvergence(feedListing, async (tx: typeof routeClient) => {
+        await tx.listingMedia.create({
+          data: { ...mediaRow(40), listing_id: feedListing,
+                  media_key: `crm:${feedListing}:p40`, resource_record_key: feedListing },
+        });
+      });
+      const after = await observer.listing.findUnique({
+        where: { listing_id: feedListing },
+        select: { modification_timestamp: true, photo_count: true },
+      });
+      expect(after!.modification_timestamp.toISOString()).toBe(before.toISOString());
+      expect(after!.photo_count).toBe(1); // summary still converged
+      await routeClient.listingMedia.deleteMany({ where: { listing_id: feedListing } });
+      await routeClient.listing.delete({ where: { listing_id: feedListing } });
     });
 
     it("ROLLBACK: a real Postgres constraint failure rolls back the media write too", async () => {
