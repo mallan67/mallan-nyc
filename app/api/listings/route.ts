@@ -101,7 +101,36 @@ export const maxDuration = 60;
 // (W1 follow-up). The COUNT read (pure integer) is wrapped now.
 import { cachedPublicRead, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 
-// ── In-memory cache (same pattern as /api/idx/search) ──
+/**
+ * Canonical search key — parameter ORDER must not create distinct cache
+ * identities. Two requests describing the same search have to land on the same
+ * entry, otherwise each ordering variant costs its own Neon read of identical
+ * rows. Repeated keys keep their values sorted so `?a=1&a=2` and `?a=2&a=1`
+ * also agree.
+ */
+export function canonicalSearchKey(params: URLSearchParams): string {
+  const byName = new Map<string, string[]>();
+  for (const [k, v] of params.entries()) {
+    const list = byName.get(k);
+    if (list) list.push(v);
+    else byName.set(k, [v]);
+  }
+  return [...byName.keys()]
+    .sort()
+    .map((k) => `${k}=${byName.get(k)!.slice().sort().join(',')}`)
+    .join('&');
+}
+
+// ── In-memory response cache (same pattern as /api/idx/search) ──
+//
+// SCOPE, after the W1 follow-up: this Map is NO LONGER the authority for the
+// DB-backed read. The paged findMany and the count both sit behind the shared
+// tagged `cachedPublicRead`, so an identical repeat search is served without
+// touching Neon whether or not this process-local Map hits. What remains here
+// is an assembled-response cache — and, importantly, the ONLY cache in front of
+// the live-Trestle fallback path below, which has a hard provider quota
+// (18K req/hr). Deleting it outright would convert a cache miss into extra
+// Cotality traffic, so it stays until that path has its own replacement.
 interface CacheEntry { data: unknown; expiresAt: number }
 const listingsCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
@@ -301,8 +330,12 @@ export async function GET(request: Request) {
     // Falls through to live Trestle if DB has no synced listings.
     // ═══════════════════════════════════════════════════════════
     if (useIDX) {
-      // Cache key from all query params
-      const cacheKey = `listings:${searchParams.toString()}`;
+      // CANONICAL cache key. `searchParams.toString()` preserves the caller's
+      // parameter ORDER, so `?beds=2&type=sale` and `?type=sale&beds=2` are the
+      // same search but produced two distinct keys — and therefore two separate
+      // Neon reads of identical rows. Sorting by name (then value, for repeated
+      // keys) collapses them onto one entry.
+      const cacheKey = `listings:${canonicalSearchKey(searchParams)}`;
       const cached = getCached(cacheKey);
       if (cached) {
         return NextResponse.json(cached, {
@@ -332,8 +365,16 @@ export async function GET(request: Request) {
           const dbTake = limit;
           const dbSkip = skip;
 
-          const [dbListings, dbTotal] = await Promise.all([
-            prisma.listing.findMany({
+          // W1 follow-up: the paged read is now wrapped in the SHARED tagged
+          // cache, not just the count. It could not be wrapped before because
+          // the select yields BigInt `id`/`list_price`, which the Next data
+          // cache cannot serialize — so the BigInt→string mapping that used to
+          // sit AFTER the await now happens INSIDE the closure. The cache
+          // therefore stores an already-JSON-safe payload, and an identical
+          // repeat search is served without touching Neon at all.
+          const [serialized, dbTotal] = await Promise.all([
+            cachedPublicRead(async () => {
+              const rows = await prisma.listing.findMany({
               where: dbWhere,
               orderBy: dbOrderBy,
               skip: dbSkip,
@@ -419,26 +460,27 @@ export async function GET(request: Request) {
                 // query — no N+1 (Codex review, 2026-07-16).
                 _count: { select: { listing_media: true } },
               },
-            }),
+              });
+              // Serialize INSIDE the closure so the cached value is JSON-safe.
+              // C1 fix: stringify BigInt FKs; the classifier only checks
+              // `!= null` so the value shape doesn't matter, but mixing BigInts
+              // into JSON.stringify throws at serialization.
+              return rows.map((l) => ({
+                ...l,
+                id: l.id.toString(),
+                list_price: l.list_price.toString(),
+                living_area: l.living_area?.toString() ?? null,
+                agent_id: l.agent_id != null ? l.agent_id.toString() : null,
+                owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
+              })) as unknown as DbListing[];
+            }, ["api-listings-page", cacheKey], { tags: [SEARCH_CACHE_TAG] })(),
             cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
               "api-listings-count",
               cacheKey,
             ], { tags: [SEARCH_CACHE_TAG] })(),
           ]);
 
-          if (dbListings.length > 0) {
-            const serialized: DbListing[] = dbListings.map((l) => ({
-              ...l,
-              id: l.id.toString(),
-              list_price: l.list_price.toString(),
-              living_area: l.living_area?.toString() ?? null,
-              // C1 fix: stringify BigInt FKs for JSON safety; the classifier
-              // only checks `!= null` so the value shape doesn't matter, but
-              // mixing BigInts into JSON.stringify throws at serialization.
-              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
-            }));
-
+          if (serialized.length > 0) {
             const displayable = filterDisplayableDbListings(serialized);
             // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
             // (SL-/RL-) and a Trestle-synced IDX duplicate represent the same
