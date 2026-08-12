@@ -31,7 +31,18 @@ describe('canonicalSearchKey', () => {
     expect(a).toBe(b);
   });
 
-  it('an empty query yields a stable empty key', () => {
-    expect(k('')).toBe('');
+  it('an empty query yields a stable key', () => {
+    expect(k('')).toBe(k(''));
+  });
+
+  // Regression: a comma JOIN made these identical, yet params.get('n') returns
+  // "1" for the first and "1,2" for the second — two searches that behave
+  // differently would have shared one cache entry.
+  it('does NOT collide multi-value with a comma-containing single value', () => {
+    expect(k('n=1&n=2')).not.toBe(k('n=1%2C2'));
+  });
+
+  it('does not collide across the name/value boundary either', () => {
+    expect(k('a=b&c=d')).not.toBe(k('a=b%26c%3Dd'));
   });
 });

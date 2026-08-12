@@ -95,10 +95,11 @@ export function computeDbEnvelopeSource(
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
 export const maxDuration = 60;
 
-// One Cycle W1: the paged findMany below is NOT wrapped yet — its select
-// includes the BigInt `id` (and full rows), which the Next data cache cannot
-// serialize safely; wrapping it needs the serialize-inside-closure refactor
-// (W1 follow-up). The COUNT read (pure integer) is wrapped now.
+// One Cycle W1 (follow-up landed): the paged findMany below IS now wrapped in
+// the shared tagged cache. It could not be before, because the select yields
+// BigInt `id`/`list_price` which the Next data cache cannot serialize; the
+// BigInt→string mapping now runs INSIDE the cached closure, so the stored
+// payload is JSON-safe. The COUNT read is wrapped alongside it.
 import { cachedPublicRead, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 
 /**
@@ -115,10 +116,16 @@ export function canonicalSearchKey(params: URLSearchParams): string {
     if (list) list.push(v);
     else byName.set(k, [v]);
   }
-  return [...byName.keys()]
+  // Stable JSON over sorted [name, sortedValues[]] tuples — NOT `join(',')`.
+  // A comma join is ambiguous: `?n=1&n=2` (two values) and `?n=1%2C2` (one
+  // value containing a comma) both collapse to `n=1,2`, yet `params.get('n')`
+  // hands the route "1" in the first case and "1,2" in the second. Two searches
+  // that behave differently would then share one cache entry and one would be
+  // served the other's rows. JSON quoting keeps the two distinct.
+  const tuples: Array<[string, string[]]> = [...byName.keys()]
     .sort()
-    .map((k) => `${k}=${byName.get(k)!.slice().sort().join(',')}`)
-    .join('&');
+    .map((k) => [k, byName.get(k)!.slice().sort()]);
+  return JSON.stringify(tuples);
 }
 
 /**
@@ -796,9 +803,16 @@ export async function GET(request: Request) {
         // the identity. 120s preserves the Map's former TTL. cachedPublicRead
         // captures the resolved value per invocation, so a cache-STORAGE
         // failure after a successful read never triggers a second provider call.
+        // AUDIT ALIGNMENT: the provider-access log belongs to an actual
+        // provider fetch, so it is emitted INSIDE the cache-miss closure. Left
+        // outside, it would record a Cotality access on every cache HIT — an
+        // audit trail that overstates provider traffic and can no longer be
+        // reconciled against the real 18K/hr quota consumption.
+        let providerFetched = false;
         const result = await cachedPublicRead(
-          () =>
-            fetchFromTrestle({
+          async () => {
+            providerFetched = true;
+            const r = await fetchFromTrestle({
               filter,
               select: selectFields,
               top: fetchTop,
@@ -806,7 +820,20 @@ export async function GET(request: Request) {
               orderby,
               count: true,
               expandMedia: useExpandMedia,
-            }),
+            });
+            logTrestleAccess({
+              endpoint: '/api/listings',
+              method: 'GET',
+              trestleResource: 'Property',
+              filter,
+              recordCount: r.records.length,
+              gateFilteredCount: r.totalFetched - r.records.length,
+              caller: { ip },
+              statusCode: 200,
+              cacheMiss: true,
+            }).catch(() => {});
+            return r;
+          },
           ["api-listings-trestle-fallback", cacheKey],
           { tags: [SEARCH_CACHE_TAG], revalidate: 120 },
         )();
@@ -1148,7 +1175,10 @@ export async function GET(request: Request) {
         };
 
 
-        // Async audit log (non-blocking)
+        // Response-shape audit (non-blocking). The PROVIDER-access record is
+        // emitted inside the cache-miss closure above, so it tracks real
+        // Cotality fetches; this one describes what was served and is therefore
+        // marked so the two are never conflated when reconciling quota.
         logTrestleAccess({
           endpoint: '/api/listings',
           method: 'GET',
@@ -1159,6 +1189,7 @@ export async function GET(request: Request) {
           caller: { ip },
           durationMs: Date.now() - (performance.now() | 0),
           statusCode: 200,
+          servedFromProviderCache: !providerFetched,
         }).catch(() => {});
 
         return NextResponse.json(responseBody, {
