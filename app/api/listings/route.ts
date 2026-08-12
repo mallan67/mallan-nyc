@@ -121,36 +121,6 @@ export function canonicalSearchKey(params: URLSearchParams): string {
     .join('&');
 }
 
-// ── In-memory response cache (same pattern as /api/idx/search) ──
-//
-// SCOPE, after the W1 follow-up: this Map is NO LONGER the authority for the
-// DB-backed read. The paged findMany and the count both sit behind the shared
-// tagged `cachedPublicRead`, so an identical repeat search is served without
-// touching Neon whether or not this process-local Map hits. What remains here
-// is an assembled-response cache — and, importantly, the ONLY cache in front of
-// the live-Trestle fallback path below, which has a hard provider quota
-// (18K req/hr). Deleting it outright would convert a cache miss into extra
-// Cotality traffic, so it stays until that path has its own replacement.
-interface CacheEntry { data: unknown; expiresAt: number }
-const listingsCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
-const CACHE_MAX = 50;
-
-function getCached(key: string): unknown | null {
-  const entry = listingsCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { listingsCache.delete(key); return null; }
-  return entry.data;
-}
-
-function setCache(key: string, data: unknown): void {
-  if (listingsCache.size >= CACHE_MAX) {
-    const firstKey = listingsCache.keys().next().value;
-    if (firstKey !== undefined) listingsCache.delete(firstKey);
-  }
-  listingsCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
 /**
  * Simple in-memory rate limiter (60 requests per minute per IP)
  * Prevents bulk scraping of listing data per REBNY RLS compliance
@@ -336,12 +306,10 @@ export async function GET(request: Request) {
       // Neon reads of identical rows. Sorting by name (then value, for repeated
       // keys) collapses them onto one entry.
       const cacheKey = `listings:${canonicalSearchKey(searchParams)}`;
-      const cached = getCached(cacheKey);
-      if (cached) {
-        return NextResponse.json(cached, {
-          headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
-        });
-      }
+      // NO process-local read-through. A Map ahead of the shared cache could
+      // return a response up to its own TTL AFTER sync revalidated
+      // SEARCH_CACHE_TAG, silently defeating the sync-driven invalidation.
+      // Both DB reads below are shared-cached; the CDN reuses responses.
 
       // ── Try DB-first: query synced listings from Postgres ──
       // Skips extra count query — just runs the main query directly.
@@ -657,7 +625,6 @@ export async function GET(request: Request) {
               },
             };
 
-            setCache(cacheKey, responseBody);
 
             return NextResponse.json(responseBody, {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
@@ -686,7 +653,6 @@ export async function GET(request: Request) {
                 disclaimer: 'No exclusive Mallan listings currently available.',
               },
             };
-            setCache(cacheKey, responseBody);
             return NextResponse.json(responseBody, {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
@@ -713,7 +679,6 @@ export async function GET(request: Request) {
                 disclaimer: `No listings found matching "${addressInput}". Try a different address or broaden your search.`,
               },
             };
-            setCache(cacheKey, responseBody);
             return NextResponse.json(responseBody, {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
@@ -820,15 +785,31 @@ export async function GET(request: Request) {
         // ~50% of listings (broken navigation property). Always batch-fetch separately.
         const useExpandMedia = false;
 
-        const result = await fetchFromTrestle({
-          filter,
-          select: selectFields,
-          top: fetchTop,
-          maxTotal: fetchTop,
-          orderby,
-          count: true,
-          expandMedia: useExpandMedia,
-        });
+        // SHARED provider cache. This replaces the process-local Map as the
+        // fallback's quota protection, and is strictly stronger: the Map held 50
+        // entries INSIDE ONE serverless process, so a cold or newly-scaled
+        // Vercel instance had an empty Map and called Cotality again for a
+        // search another instance had just served. A shared entry protects the
+        // 18K/hr quota across every instance.
+        //
+        // Keyed by the canonical search key, so parameter ordering cannot fork
+        // the identity. 120s preserves the Map's former TTL. cachedPublicRead
+        // captures the resolved value per invocation, so a cache-STORAGE
+        // failure after a successful read never triggers a second provider call.
+        const result = await cachedPublicRead(
+          () =>
+            fetchFromTrestle({
+              filter,
+              select: selectFields,
+              top: fetchTop,
+              maxTotal: fetchTop,
+              orderby,
+              count: true,
+              expandMedia: useExpandMedia,
+            }),
+          ["api-listings-trestle-fallback", cacheKey],
+          { tags: [SEARCH_CACHE_TAG], revalidate: 120 },
+        )();
 
         // Step 1: Distribution gates on RAW Trestle data (Option A)
         // This runs checkDistributionGates() BEFORE mapping — works directly on
@@ -1166,7 +1147,6 @@ export async function GET(request: Request) {
           },
         };
 
-        setCache(cacheKey, responseBody);
 
         // Async audit log (non-blocking)
         logTrestleAccess({
