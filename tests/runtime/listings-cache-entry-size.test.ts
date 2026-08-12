@@ -5,8 +5,13 @@
  * This is not hypothetical: cachedPublicRead carries a recorded production
  * failure at 2 MB (the oversized-entry shape its per-invocation capture guard
  * exists to survive). An entry that exceeds the limit fails to STORE, so every
- * request becomes a cache miss — which for the fallback path means every
- * request becomes Cotality traffic against an 18K/hr quota.
+ * request becomes an outer cache miss.
+ *
+ * An outer miss is NOT automatically an outbound Cotality request. fetchPage
+ * sets `next: { revalidate: 300 }` (lib/idx/fetch.ts:657), so Next's own fetch
+ * cache can absorb the call underneath. The quota exposure is therefore real
+ * but bounded by that inner layer — it is not "every miss becomes provider
+ * traffic", and this file no longer claims that.
  *
  * Worst case is the route's own ceiling: `limit` is clamped to 200
  * (app/api/listings/route.ts), and toPublicListingSummary spreads `...dto` —

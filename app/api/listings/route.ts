@@ -23,7 +23,14 @@ import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
  * `trestle_access` action for both made a cache hit indistinguishable from a
  * Cotality call.
  */
-export const TRESTLE_FETCH_ACTION = 'trestle_provider_fetch';
+// NOTE ON SEMANTICS: this records execution of the ORIGIN closure, not a
+// verified outbound HTTP request. fetchPage sets `next: { revalidate: 300 }`
+// (lib/idx/fetch.ts:657), so Next's fetch cache may satisfy the call without
+// touching Cotality. Counting these events therefore bounds provider traffic
+// from above; it does not measure it. Making the two equal needs a
+// route-scoped no-store on the enclosed provider calls — deliberately not done
+// globally, which would change every other caller.
+export const TRESTLE_FETCH_ACTION = 'trestle_origin_fetch';
 export const TRESTLE_SERVED_ACTION = 'trestle_response_served';
 
 /**
