@@ -62,3 +62,44 @@ export async function withCrmMediaConvergence<T>(
     return result;
   });
 }
+
+/**
+ * Thrown from inside a `withCrmMediaConvergence` callback when the business
+ * precondition fails — the target row is missing, already tombstoned, or the
+ * mutation affected a different number of rows than intended.
+ *
+ * Why an exception and not a return value: the service converges the summary
+ * AFTER the callback returns. A callback that returns "nothing happened" still
+ * gets a summary write, so a not-found DELETE would perform a hidden write and
+ * the route would return 404 while the database had been touched. Throwing
+ * aborts the transaction, so a failed business operation performs exactly zero
+ * writes. Routes catch this and map it to their own status code.
+ */
+export class CrmMediaPreconditionError extends Error {
+  readonly code = "CRM_MEDIA_PRECONDITION";
+  constructor(
+    message: string,
+    readonly detail?: { expected?: number; actual?: number },
+  ) {
+    super(message);
+    this.name = "CrmMediaPreconditionError";
+  }
+}
+
+/** True when `err` came from a failed precondition rather than a DB fault. */
+export function isCrmMediaPreconditionError(err: unknown): err is CrmMediaPreconditionError {
+  return err instanceof CrmMediaPreconditionError;
+}
+
+/**
+ * Assert a write affected exactly the intended number of rows, inside the
+ * transaction. Anything else rolls the whole operation back.
+ */
+export function expectAffected(actual: number, expected: number, what: string): void {
+  if (actual !== expected) {
+    throw new CrmMediaPreconditionError(
+      `${what}: expected ${expected} row(s) to change, ${actual} did`,
+      { expected, actual },
+    );
+  }
+}
