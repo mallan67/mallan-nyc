@@ -11,6 +11,7 @@ import { logIDXAccess, createAuditEntry } from "./logger";
 // media-sync uses. Reused, never re-implemented: two pagination loops
 // would be two opinions about what "complete" means.
 import { paginateMedia } from "./media-sync";
+import { convergeExternalMediaBatch } from "@/lib/media/external-media-repository";
 // ONE definition of what expires on a publicly-visible listing change —
 // shared with the normalized media-summary writer so they cannot drift.
 import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
@@ -626,6 +627,13 @@ export async function syncListings(
   const failedCursorKeys: number[] = [];
   let watermarkFrozen = false;
 
+  // Canonical external media (hosted video / virtual-tour links) is converged
+  // AFTER this loop, from the Property records already in hand — no extra
+  // Cotality request. Accumulated per record rather than rebuilt from
+  // `fetchResult.records`, because a gated or failed record has no Listing row
+  // and `listing_external_media.listing_id` carries an FK to `listings`.
+  const externalMediaBatch: Array<{ listingId: string; property: Record<string, unknown> }> = [];
+
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
     // Stage marker so the shared catch attributes the failure to the write
     // path that actually threw (failure isolation — a failed row is counted
@@ -884,6 +892,14 @@ export async function syncListings(
         }
       }
 
+      // The Listing row is now persisted (upserted, or suppressed because it was
+      // already materially identical — either way it exists), so this record is
+      // safe to converge against the external-media FK.
+      externalMediaBatch.push({
+        listingId: mapped.listing_id,
+        property: raw as unknown as Record<string, unknown>,
+      });
+
       // 5. Dual-write the search projection (master refactor PR 5B).
       // Sequential write — matches the existing per-listing upsert pattern.
       // No transaction: a projection-write failure leaves the Listing in
@@ -1021,6 +1037,37 @@ export async function syncListings(
           diagnosticError,
         );
       });
+    }
+  }
+
+  // ── Canonical external media (hosted video / virtual tour / 3D) ──
+  // The six Cotality `VirtualTourURL*` Property slots are links, not assets:
+  // they belong in `listing_external_media`, never in R2 and never as permanent
+  // raw_data JSON. Converged here from Property records ALREADY fetched above —
+  // no additional provider request, no new cron, no new cursor, and ONE bulk DB
+  // read for the whole batch rather than a query per listing.
+  //
+  // Unchanged upstream state performs no write at all, so a steady feed adds
+  // nothing to Neon and produces no cache invalidation.
+  if (externalMediaBatch.length > 0) {
+    try {
+      const extMedia = await convergeExternalMediaBatch(prisma, externalMediaBatch);
+      for (const changedId of extMedia.changedListingIds) {
+        changedCacheTags.add(listingCacheTag(changedId)); // W1 — deduped by the Set
+      }
+      if (extMedia.inserts || extMedia.updates || extMedia.deletes) {
+        console.log(
+          `[IDX Sync] external-media: +${extMedia.inserts} ~${extMedia.updates} -${extMedia.deletes} ` +
+            `(${extMedia.unchanged}/${extMedia.listingsExamined} unchanged)`,
+        );
+      }
+    } catch (extErr) {
+      // Non-fatal: tour/video links must never fail a listing sync. The next
+      // cycle re-converges from source, so a miss is self-healing.
+      console.warn(
+        "[IDX Sync] external-media convergence failed (non-fatal):",
+        extErr instanceof Error ? extErr.message : extErr,
+      );
     }
   }
 
