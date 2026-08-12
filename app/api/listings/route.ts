@@ -17,19 +17,37 @@ import {
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
-// Trestle access audit logger — REBNY requires 12-month retention on MLS data access
-const logTrestleAccess = async (data: Record<string, unknown>) => {
+/**
+ * Audit event kinds for this route. They must NOT be conflatable: quota
+ * reconciliation depends on counting real provider fetches, and a single
+ * `trestle_access` action for both made a cache hit indistinguishable from a
+ * Cotality call.
+ */
+export const TRESTLE_FETCH_ACTION = 'trestle_provider_fetch';
+export const TRESTLE_SERVED_ACTION = 'trestle_response_served';
+
+/**
+ * Trestle audit logger. `action` is explicit per call site.
+ *
+ * IP is read from `caller.ip` as well as a top-level `ip`: every call site in
+ * this route passes `caller: { ip }`, while the previous implementation read
+ * only `data.ip` — so `ip_address` was silently persisted as null on every
+ * record. Retention policy for these events is governed by the canonical
+ * retention configuration, not asserted here.
+ */
+const logTrestleAccess = async (action: string, data: Record<string, unknown>) => {
   try {
     const prismaModule = await import('@/lib/prisma');
     const db = prismaModule.default;
+    const caller = data.caller as { ip?: string } | undefined;
     await db.auditEvent.create({
       data: {
-        action: 'trestle_access',
+        action,
         entity_type: 'listing',
         entity_id: (data.filter as string)?.slice(0, 200) || 'unknown',
         user_type: 'system',
         changes: JSON.parse(JSON.stringify(data)),
-        ip_address: (data.ip as string) || null,
+        ip_address: (data.ip as string) || caller?.ip || null,
       },
     });
   } catch {
@@ -821,7 +839,7 @@ export async function GET(request: Request) {
               count: true,
               expandMedia: useExpandMedia,
             });
-            logTrestleAccess({
+            logTrestleAccess(TRESTLE_FETCH_ACTION, {
               endpoint: '/api/listings',
               method: 'GET',
               trestleResource: 'Property',
@@ -830,7 +848,6 @@ export async function GET(request: Request) {
               gateFilteredCount: r.totalFetched - r.records.length,
               caller: { ip },
               statusCode: 200,
-              cacheMiss: true,
             }).catch(() => {});
             return r;
           },
@@ -1179,7 +1196,7 @@ export async function GET(request: Request) {
         // emitted inside the cache-miss closure above, so it tracks real
         // Cotality fetches; this one describes what was served and is therefore
         // marked so the two are never conflated when reconciling quota.
-        logTrestleAccess({
+        logTrestleAccess(TRESTLE_SERVED_ACTION, {
           endpoint: '/api/listings',
           method: 'GET',
           trestleResource: 'Property',
