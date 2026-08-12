@@ -54,7 +54,14 @@ run('external-media convergence — real PostgreSQL', () => {
     await prisma.$connect();
     await prisma.listing.upsert({
       where: { listing_id: L },
-      create: { listing_id: L, listing_type: 'sale' } as never,
+      // Every required Listing field lacking a default, enumerated from
+      // schema.prisma rather than discovered one CI cycle at a time.
+      create: {
+        listing_id: L,
+        listing_type: 'sale',
+        list_price: 1,
+        modification_timestamp: new Date('2026-08-12T00:00:00Z'),
+      } as never,
       update: {},
     });
   });
