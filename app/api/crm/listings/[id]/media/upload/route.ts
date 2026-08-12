@@ -175,12 +175,26 @@ export async function POST(
   // Sanitize listing ID for R2 key — prevent path traversal
   const rawListingId = listing.listing_id || listing.id.toString();
   const listingId = rawListingId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const timestamp = Date.now();
+  // R2_DB_EXTERNAL_ATOMICITY_GAP — content-addressed keys, not timestamps.
+  //
+  // A PostgreSQL transaction cannot make R2 atomic: the objects are written
+  // BEFORE the transaction opens, so a DB rollback leaves them behind. With a
+  // `Date.now()` key every retry produced a NEW set of objects, so each failure
+  // permanently multiplied orphans.
+  //
+  // `contentHash` is already computed above (it derives media_key) and
+  // PutObject overwrites by key, so keying on it makes the upload IDEMPOTENT:
+  // retrying the same file rewrites the same objects instead of creating more.
+  // A rollback then leaves at most one object per (content, variant), which the
+  // next retry reuses. This bounds the orphan set; it does not eliminate it —
+  // an object whose transaction never succeeds is still unreferenced, which is
+  // the R2 orphan-reconciliation lane's job, not this route's.
+  const contentKey = contentHash.slice(0, 32);
   const urls: Record<string, string> = {};
 
   try {
     for (const variant of variants) {
-      const key = `listings/${listingId}/${timestamp}-${variant.variant}.webp`;
+      const key = `listings/${listingId}/${contentKey}-${variant.variant}.webp`;
       const url = await uploadToR2(key, variant.buffer, variant.contentType);
       urls[variant.variant] = url;
     }
@@ -222,7 +236,7 @@ export async function POST(
     preferred = existingPreferred === 0;
   }
 
-  const heroVariantKey = `listings/${listingId}/${timestamp}-hero.webp`;
+  const heroVariantKey = `listings/${listingId}/${contentKey}-hero.webp`;
   const cachedUrl = urls.card || urls.hero || "";
 
   const writeSelect = {
