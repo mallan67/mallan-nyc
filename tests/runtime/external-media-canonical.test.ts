@@ -5,6 +5,7 @@
 import {
   classifyExternalMediaUrl, isSafeExternalUrl, isCotalityTourSlot,
   buildDesiredCotalityExternalMedia, dedupeForPresentation, COTALITY_TOUR_SLOTS,
+  diffExternalMedia, isNoOpDiff,
 } from '@/lib/media/external-media';
 
 describe('CLASS-B — known video hosts classify as video', () => {
@@ -103,5 +104,77 @@ describe('canonical rows are source-faithful; dedupe is presentation-only', () =
     const rows = buildDesiredCotalityExternalMedia('SL-1', prop);
     expect(rows.find((r) => r.source_key === 'VirtualTourURLUnbranded2')!.kind).toBe('virtual_tour');
     expect(rows.find((r) => r.source_key === 'VirtualTourURLUnbranded')!.kind).toBe('video');
+  });
+});
+
+describe('DIFF — zero-write cost invariant and CRM isolation', () => {
+  const base = { listing_id: 'SL-1', source: 'cotality_property' as const, branded: false, kind: 'video' as const };
+  const row = (k: string, url: string, over = {}) => ({ ...base, source_key: k, url, ...over });
+
+  it('identical state produces NO mutations at all', () => {
+    const rows = [row('VirtualTourURLUnbranded', 'https://youtu.be/a')];
+    const d = diffExternalMedia(rows, rows);
+    expect(d).toEqual({ inserts: [], updates: [], deletes: [] });
+    expect(isNoOpDiff(d)).toBe(true);
+  });
+
+  it('RUN-TWICE: second diff against the converged state is a no-op', () => {
+    const desired = buildDesiredCotalityExternalMedia('SL-1', {
+      VirtualTourURLUnbranded: 'https://youtu.be/a',
+      VirtualTourURLUnbranded2: 'https://my.matterport.com/show/?m=z',
+    });
+    const first = diffExternalMedia([], desired);
+    expect(first.inserts).toHaveLength(2);
+    const converged = first.inserts.map((r) => ({ ...r, source: 'cotality_property' as const }));
+    expect(isNoOpDiff(diffExternalMedia(converged, desired))).toBe(true);
+  });
+
+  it('new slot inserts only that slot', () => {
+    const d = diffExternalMedia(
+      [row('VirtualTourURLUnbranded', 'https://youtu.be/a')],
+      [row('VirtualTourURLUnbranded', 'https://youtu.be/a'), row('VirtualTourURLUnbranded2', 'https://youtu.be/b')]);
+    expect(d.inserts.map((r) => r.source_key)).toEqual(['VirtualTourURLUnbranded2']);
+    expect(d.updates).toHaveLength(0);
+    expect(d.deletes).toHaveLength(0);
+  });
+
+  it('changed URL updates only that slot', () => {
+    const d = diffExternalMedia(
+      [row('VirtualTourURLUnbranded', 'https://youtu.be/OLD'), row('VirtualTourURLUnbranded2', 'https://youtu.be/keep')],
+      [row('VirtualTourURLUnbranded', 'https://youtu.be/NEW'), row('VirtualTourURLUnbranded2', 'https://youtu.be/keep')]);
+    expect(d.updates.map((r) => r.source_key)).toEqual(['VirtualTourURLUnbranded']);
+    expect(d.inserts).toHaveLength(0);
+    expect(d.deletes).toHaveLength(0);
+  });
+
+  it('a changed CLASSIFICATION alone is a real update', () => {
+    const d = diffExternalMedia(
+      [row('VirtualTourURLUnbranded', 'https://x.example/a', { kind: 'unknown' })],
+      [row('VirtualTourURLUnbranded', 'https://x.example/a', { kind: 'video' })]);
+    expect(d.updates).toHaveLength(1);
+  });
+
+  it('vanished upstream slot deletes only that row', () => {
+    const d = diffExternalMedia(
+      [row('VirtualTourURLUnbranded', 'https://youtu.be/a'), row('VirtualTourURLUnbranded2', 'https://youtu.be/gone')],
+      [row('VirtualTourURLUnbranded', 'https://youtu.be/a')]);
+    expect(d.deletes.map((r) => r.source_key)).toEqual(['VirtualTourURLUnbranded2']);
+    expect(d.inserts).toHaveLength(0);
+    expect(d.updates).toHaveLength(0);
+  });
+
+  it('CRM rows are invisible to Cotality convergence', () => {
+    const crm = { listing_id: 'SL-1', source: 'crm' as const, source_key: 'crm-em-7', url: 'https://vimeo.com/1', branded: false, kind: 'video' as const };
+    const d = diffExternalMedia([crm, row('VirtualTourURLUnbranded', 'https://youtu.be/a')], []);
+    expect(d.deletes.map((r) => r.source_key)).toEqual(['VirtualTourURLUnbranded']);
+    expect(d.deletes.some((r) => r.source === 'crm')).toBe(false);
+    expect(d.updates).toHaveLength(0);
+  });
+
+  it('a CRM row sharing a slot NAME is a distinct identity', () => {
+    const crmSameName = { listing_id: 'SL-1', source: 'crm' as const, source_key: 'VirtualTourURLUnbranded', url: 'https://vimeo.com/9', branded: false, kind: 'video' as const };
+    const d = diffExternalMedia([crmSameName], [row('VirtualTourURLUnbranded', 'https://youtu.be/a')]);
+    expect(d.inserts).toHaveLength(1);
+    expect(d.deletes).toHaveLength(0);
   });
 });

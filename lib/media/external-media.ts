@@ -152,3 +152,59 @@ export function dedupeForPresentation<T extends DesiredExternalMediaRow>(rows: r
   }
   return Array.from(best.values());
 }
+
+/** A stored row as read back from `listing_external_media`. */
+export interface StoredExternalMediaRow extends DesiredExternalMediaRow {
+  source: ExternalMediaSource;
+}
+
+export interface ExternalMediaDiff {
+  inserts: DesiredExternalMediaRow[];
+  updates: DesiredExternalMediaRow[];
+  deletes: Array<Pick<StoredExternalMediaRow, 'listing_id' | 'source' | 'source_key'>>;
+}
+
+const identity = (r: { listing_id: string; source: string; source_key: string }) =>
+  `${r.listing_id} ${r.source} ${r.source_key}`;
+
+/**
+ * Pure diff. Produces ONLY actual mutations — an unchanged row appears in no
+ * set, which is what keeps steady Cotality state at zero writes and leaves
+ * `updated_at` untouched.
+ *
+ * CRM-owned rows are invisible to Cotality convergence: never updated, never
+ * proposed for deletion, so a `crm` row cannot be destroyed because a Property
+ * record lacks an equivalent slot.
+ */
+export function diffExternalMedia(
+  existing: readonly StoredExternalMediaRow[],
+  desired: readonly DesiredExternalMediaRow[],
+): ExternalMediaDiff {
+  const scoped = existing.filter((r) => r.source === 'cotality_property');
+  const byId = new Map(scoped.map((r) => [identity(r), r]));
+  const desiredIds = new Set(desired.map(identity));
+
+  const inserts: DesiredExternalMediaRow[] = [];
+  const updates: DesiredExternalMediaRow[] = [];
+
+  for (const d of desired) {
+    const cur = byId.get(identity(d));
+    if (!cur) {
+      inserts.push(d);
+    } else if (cur.url !== d.url || cur.branded !== d.branded || cur.kind !== d.kind) {
+      updates.push(d);
+    }
+    // identical -> no mutation, deliberately absent from every set
+  }
+
+  const deletes = scoped
+    .filter((r) => !desiredIds.has(identity(r)))
+    .map((r) => ({ listing_id: r.listing_id, source: r.source, source_key: r.source_key }));
+
+  return { inserts, updates, deletes };
+}
+
+/** True when convergence would issue no SQL at all — the cost invariant. */
+export function isNoOpDiff(d: ExternalMediaDiff): boolean {
+  return d.inserts.length === 0 && d.updates.length === 0 && d.deletes.length === 0;
+}
