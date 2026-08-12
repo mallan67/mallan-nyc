@@ -1,8 +1,8 @@
 /**
- * CACHE AUTHORITY — the route must have exactly two caches, each with one job.
+ * CACHE AUTHORITY — the route has two authorities and three cache entries.
  *
- *   DB-first path            -> shared tagged cachedPublicRead (+ CDN response)
- *   live-Cotality fallback   -> shared 120s provider cache, canonical key
+ *   DB-first path            -> shared tagged page + count entries
+ *   fallback origin          -> one shared 120s final-response entry
  *
  * A process-local Map is not acceptable for either. Sitting ahead of the shared
  * cache it could serve a response up to its own TTL AFTER sync revalidated
@@ -16,6 +16,10 @@ import { canonicalSearchKey } from '@/app/api/listings/route';
 
 const SRC = fs.readFileSync(
   path.join(process.cwd(), 'app/api/listings/route.ts'),
+  'utf8',
+);
+const ORIGIN_CACHE_SRC = fs.readFileSync(
+  path.join(process.cwd(), 'lib/listings/cached-fallback-origin.ts'),
   'utf8',
 );
 
@@ -38,15 +42,17 @@ describe('both reads are shared-cached and tagged', () => {
     expect(SRC).toContain('"api-listings-count"');
   });
 
-  it('the live Cotality fallback is shared-cached with a bounded TTL', () => {
-    expect(SRC).toContain('"api-listings-trestle-fallback"');
-    expect(SRC).toMatch(/revalidate:\s*120/);
+  it('the full fallback origin is shared-cached with a bounded TTL', () => {
+    expect(SRC).toContain('readCachedFallbackOrigin({');
+    expect(ORIGIN_CACHE_SRC).toContain("FALLBACK_ORIGIN_CACHE_PREFIX = 'api-listings-fallback-origin'");
+    expect(ORIGIN_CACHE_SRC).toMatch(/FALLBACK_ORIGIN_REVALIDATE_SECONDS\s*=\s*120/);
   });
 
   it('every cached read carries SEARCH_CACHE_TAG so sync can invalidate it', () => {
-    const wrapped = SRC.match(/cachedPublicRead\(/g) ?? [];
+    const combined = `${SRC}\n${ORIGIN_CACHE_SRC}`;
+    const wrapped = combined.match(/cachedPublicRead\(/g) ?? [];
     expect(wrapped.length).toBeGreaterThanOrEqual(3);
-    expect(SRC.match(/tags:\s*\[SEARCH_CACHE_TAG\]/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(combined.match(/tags:\s*\[SEARCH_CACHE_TAG\]/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
   it('the CDN response cache is kept as a separate layer', () => {
@@ -57,7 +63,7 @@ describe('both reads are shared-cached and tagged', () => {
 describe('fallback cache identity uses the canonical key', () => {
   const k = (qs: string) => canonicalSearchKey(new URLSearchParams(qs));
 
-  it('equivalent param ORDER shares one fallback identity → one Cotality request', () => {
+  it('equivalent param ORDER shares one fallback cache identity', () => {
     expect(k('beds=2&type=sale')).toBe(k('type=sale&beds=2'));
   });
 

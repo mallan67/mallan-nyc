@@ -16,7 +16,8 @@
  * Worst case is the route's own ceiling: `limit` is clamped to 200
  * (app/api/listings/route.ts), and toPublicListingSummary spreads `...dto` —
  * it keeps EVERY field and only contracts the gallery to a single hero. So the
- * cached payload is 200 complete DTOs, not 200 thin cards.
+ * cached payload is an envelope containing 200 complete DTO summaries plus
+ * the small audit fields used by the per-request served event.
  */
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
@@ -120,6 +121,18 @@ function buildResponseBody(count: number) {
         'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
       totalFetched: 800,
     },
+    _pagination: { totalAccuracy: 'estimated' },
+  };
+}
+
+function buildCachedOriginValue(count: number) {
+  return {
+    responseBody: buildResponseBody(count),
+    audit: {
+      filter: 'StandardStatus eq Active and OriginatingSystemName eq Cotality'.padEnd(200, 'x'),
+      recordCount: count,
+      gateFilteredCount: 600,
+    },
   };
 }
 
@@ -129,7 +142,7 @@ function utf8Bytes(value: unknown): number {
 
 describe('cached fallback entry size', () => {
   it('PASS_FOR_200_ITEM_FIXTURE — a 200-listing contracted page fits', () => {
-    const bytes = utf8Bytes(buildResponseBody(MAX_PAGE));
+    const bytes = utf8Bytes(buildCachedOriginValue(MAX_PAGE));
     const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
     // Surfaced so the number is in the CI log, not just an assertion outcome.
 
@@ -158,15 +171,15 @@ describe('cached fallback entry size', () => {
     );
     expect(contracted).toBeLessThan(uncontracted);
     // This proves an UNCONTRACTED FINAL RESPONSE must never be cached. It says
-    // nothing about the current Property-only cache, which runs with
-    // expandMedia: false and therefore carries no galleries at all — measured
-    // separately below.
+    // nothing about the removed Property-only cache, which ran with
+    // expandMedia: false and therefore carried no galleries at all — its
+    // historical risk is measured separately below.
     expect(uncontracted).toBeGreaterThan(VERCEL_ITEM_LIMIT);
   });
 
   it('scales predictably, so a future page-size raise can be checked against this', () => {
-    const at50 = utf8Bytes(buildResponseBody(50));
-    const at200 = utf8Bytes(buildResponseBody(200));
+    const at50 = utf8Bytes(buildCachedOriginValue(50));
+    const at200 = utf8Bytes(buildCachedOriginValue(200));
     const perListing = Math.round((at200 - at50) / 150);
 
     console.log(`[cache-entry-size] ~${perListing} bytes per contracted listing`);
@@ -183,16 +196,17 @@ describe('the final response ceiling is the route page size', () => {
     const route = readFileSync(resolve(process.cwd(), 'app/api/listings/route.ts'), 'utf8');
     expect(route).toContain('paginateFallbackCandidates(combinedCandidates');
     expect(route).not.toContain('return [...newExclusives, ...trestleListings]');
-    expect(utf8Bytes(buildResponseBody(MAX_PAGE))).toBeLessThan(SAFETY_CEILING);
+    expect(utf8Bytes(buildCachedOriginValue(MAX_PAGE))).toBeLessThan(SAFETY_CEILING);
   });
 });
 
 /**
- * The shape df3dcb25 ACTUALLY caches: the raw TrestleFetchResult, built with
- * `expandMedia: false`, so every record is CARD_SELECT_FIELDS scalars and NO
- * media array. Inferring its size from a gallery fixture was wrong.
+ * The shape df3dcb25 cached before the final-origin boundary replaced it: the
+ * raw TrestleFetchResult, built with `expandMedia: false`, so every record is
+ * CARD_SELECT_FIELDS scalars and NO media array. Keeping this measurement is
+ * a regression guard against reintroducing that oversized boundary.
  */
-describe('CURRENT_PROPERTY_CACHE_SYNTHETIC_MAX — risk estimate, not a measurement', () => {
+describe('REMOVED_PROPERTY_CACHE_SYNTHETIC_MAX — risk estimate, not a measurement', () => {
   const FETCH_TOP_MAX = 1000; // route: Math.min(..., 1000)
 
   /** Real selected keys. Values are still SYNTHETIC — pessimistic string
@@ -215,7 +229,7 @@ describe('CURRENT_PROPERTY_CACHE_SYNTHETIC_MAX — risk estimate, not a measurem
     };
     const bytes = utf8Bytes(result);
     console.log(
-      `[cache-entry-size] CURRENT_PROPERTY_CACHE_SYNTHETIC_MAX: ${FETCH_TOP_MAX} records over ` +
+      `[cache-entry-size] REMOVED_PROPERTY_CACHE_SYNTHETIC_MAX: ${FETCH_TOP_MAX} records over ` +
         `${CARD_SELECT_FIELDS.length} REAL CARD_SELECT_FIELDS keys (expandMedia:false) = ` +
         `${bytes} bytes (${(bytes / 1024 / 1024).toFixed(2)} MiB), ` +
         `${((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1)}% of 2 MB`,
@@ -227,5 +241,7 @@ describe('CURRENT_PROPERTY_CACHE_SYNTHETIC_MAX — risk estimate, not a measurem
     // that production entries are oversized.
     expect(bytes).toBeGreaterThan(VERCEL_ITEM_LIMIT);
     expect(CARD_SELECT_FIELDS.length).toBeGreaterThan(60);
+    const route = readFileSync(resolve(process.cwd(), 'app/api/listings/route.ts'), 'utf8');
+    expect(route).not.toContain('api-listings-trestle-fallback');
   });
 });

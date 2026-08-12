@@ -1,10 +1,10 @@
 /**
- * AUDIT ALIGNMENT — a provider fetch and a served response must be countable
+ * AUDIT ALIGNMENT — an origin execution and a served response must be countable
  * apart, and the caller IP must actually persist.
  *
  * Both defects were real: one hard-coded `action: 'trestle_access'` made a cache
- * HIT indistinguishable from a Cotality call, so quota could not be reconciled
- * from the audit trail; and the logger read `data.ip` while every call site
+ * HIT indistinguishable from an origin execution; and the logger read
+ * `data.ip` while every call site
  * passes `caller: { ip }`, so ip_address was persisted as null on every record.
  */
 import fs from 'node:fs';
@@ -50,12 +50,12 @@ describe('audit event kinds are non-confusable', () => {
   it('the origin-execution audit sits INSIDE the cache-miss closure', () => {
     // It must appear between the closure opening and the cache key, so an outer
     // cache HIT cannot emit an origin-execution record.
-    const closure = SRC.indexOf('originExecuted = true;');
+    const closure = SRC.indexOf('origin: async () => {');
     const fetchLog = SRC.indexOf(`logTrestleAccess(${'TRESTLE_ORIGIN_EXECUTION_ACTION'},`);
-    const keyLine = SRC.indexOf('"api-listings-trestle-fallback"');
+    const closureEnd = SRC.indexOf('// Response-shape audit', fetchLog);
     expect(closure).toBeGreaterThan(-1);
     expect(fetchLog).toBeGreaterThan(closure);
-    expect(fetchLog).toBeLessThan(keyLine);
+    expect(fetchLog).toBeLessThan(closureEnd);
   });
 });
 

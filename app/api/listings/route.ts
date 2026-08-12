@@ -29,6 +29,7 @@ import {
   paginateFallbackCandidates,
   type FallbackListingCandidate,
 } from '@/lib/listings/fallback-pagination';
+import { readCachedFallbackOrigin } from '@/lib/listings/cached-fallback-origin';
 /**
  * Audit event kinds for this route. They must NOT be conflatable: a single
  * `trestle_access` action for both made an outer-cache hit indistinguishable
@@ -39,7 +40,6 @@ import {
  * `next: { revalidate: 300 }`), exactly one, or SEVERAL (OData pagination,
  * auth-token refresh, retries). Exact quota accounting requires instrumenting
  * each transport attempt, not this route.
- * Cotality call.
  */
 export const TRESTLE_ORIGIN_EXECUTION_ACTION = 'trestle_origin_execution';
 export const TRESTLE_SERVED_ACTION = 'trestle_response_served';
@@ -802,27 +802,20 @@ export async function GET(request: Request) {
         // ~50% of listings (broken navigation property). Always batch-fetch separately.
         const useExpandMedia = false;
 
-        // SHARED FALLBACK-ORIGIN CACHE — not a provider cache. It memoises this
-        // origin's result across serverless instances, where the former
-        // process-local Map held 50 entries inside ONE process and left a cold or
-        // newly-scaled instance with nothing. It does NOT measure or cap Cotality
-        // HTTP traffic: an origin miss may issue zero outbound requests, one, or
-        // several.
+        // SHARED FALLBACK-ORIGIN CACHE — the FINAL contracted response, not the
+        // raw Property prefix. The raw 1,000-record shape can exceed Vercel's
+        // 2 MB item limit; the contracted 200-card shape is guarded by the
+        // cache-entry-size regression. Keeping the whole origin inside this
+        // boundary also absorbs OpenHouse, media, geocode-manifest and Neon
+        // fallback work on a hit.
         //
-        // Keyed by the canonical search key, so parameter ordering cannot fork
-        // the identity. 120s preserves the Map's former TTL. cachedPublicRead
-        // captures the resolved value per invocation, so a cache-STORAGE
-        // failure after a successful read never triggers a second provider call.
-        // AUDIT ALIGNMENT: the provider-access log belongs to an actual
-        // provider fetch, so it is emitted INSIDE the cache-miss closure. Left
-        // outside, it would record a Cotality access on every cache HIT — an
-        // audit trail that overstates provider traffic and can no longer be
-        // reconciled against the real 18K/hr quota consumption.
-        let originExecuted = false;
-        const result = await cachedPublicRead(
-          async () => {
-            originExecuted = true;
-            const r = await fetchFromTrestle({
+        // This remains an origin-execution cache, not transport accounting: the
+        // inner Next fetch cache, pagination, retries and auth refresh mean one
+        // origin execution can produce zero, one or several Cotality attempts.
+        const { value: cachedOrigin, originExecuted } = await readCachedFallbackOrigin({
+          cacheKey,
+          origin: async () => {
+            const result = await fetchFromTrestle({
               filter,
               select: selectFields,
               top: fetchTop,
@@ -836,18 +829,13 @@ export async function GET(request: Request) {
               method: 'GET',
               trestleResource: 'Property',
               filter,
-              recordCount: r.records.length,
-              gateFilteredCount: r.totalFetched - r.records.length,
+              recordCount: result.records.length,
+              gateFilteredCount: result.totalFetched - result.records.length,
               caller: { ip },
               statusCode: 200,
             }).catch(() => {});
-            return r;
-          },
-          ["api-listings-trestle-fallback", cacheKey],
-          { tags: [SEARCH_CACHE_TAG], revalidate: 120 },
-        )();
 
-        // Step 1: Distribution gates on RAW Trestle data (Option A)
+            // Step 1: Distribution gates on RAW Trestle data (Option A)
         // This runs checkDistributionGates() BEFORE mapping — works directly on
         // raw OData field names. No type mismatch with Listing type.
         const displayable = result.records.filter(
@@ -1172,26 +1160,35 @@ export async function GET(request: Request) {
             totalAccuracy: providerPrefixIncomplete ? 'estimated' : 'exact',
           },
         };
-
+        return {
+              responseBody,
+              audit: {
+                filter,
+                recordCount: annotatedMerged.length,
+                gateFilteredCount: result.totalFetched - displayable.length,
+              },
+            };
+          },
+        });
 
         // Response-shape audit (non-blocking). The ORIGIN-EXECUTION record is
-        // emitted inside the cache-miss closure above; this one describes what was
-        // served. Marked so the two are never conflated — neither is a count of
-        // Cotality HTTP requests.
+        // emitted inside the cache-miss closure above; this one describes what
+        // was served. Marked so the two are never conflated — neither is a
+        // count of Cotality HTTP requests.
         logTrestleAccess(TRESTLE_SERVED_ACTION, {
           endpoint: '/api/listings',
           method: 'GET',
           trestleResource: 'Property',
-          filter,
-          recordCount: annotatedMerged.length,
-          gateFilteredCount: result.totalFetched - displayable.length,
+          filter: cachedOrigin.audit.filter,
+          recordCount: cachedOrigin.audit.recordCount,
+          gateFilteredCount: cachedOrigin.audit.gateFilteredCount,
           caller: { ip },
           durationMs: Date.now() - (performance.now() | 0),
           statusCode: 200,
           servedFromOriginCache: !originExecuted,
         }).catch(() => {});
 
-        return NextResponse.json(responseBody, {
+        return NextResponse.json(cachedOrigin.responseBody, {
           headers: {
             'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
           },
