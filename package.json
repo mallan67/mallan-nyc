@@ -6,7 +6,7 @@
     "license": "MIT",
     "homepage": "https://mallan.nyc",
     "engines": {
-        "node": "20.x"
+        "node": "24.x"
     },
     "scripts": {
         "dev": "next dev",
