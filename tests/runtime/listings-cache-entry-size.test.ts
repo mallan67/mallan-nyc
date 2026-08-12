@@ -20,6 +20,9 @@
  */
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
+import type { PublicListingDTO } from '@/lib/idx/public-dto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const MAX_PAGE = 200; // route clamp: Math.min(parseInt(limit ?? '50'), 200)
 const VERCEL_ITEM_LIMIT = 2 * 1024 * 1024;
@@ -27,7 +30,7 @@ const VERCEL_ITEM_LIMIT = 2 * 1024 * 1024;
 const SAFETY_CEILING = Math.floor(VERCEL_ITEM_LIMIT * 0.6);
 
 /** A deliberately pessimistic listing: long remarks, long URLs, every field populated. */
-function worstCaseListing(i: number): Record<string, unknown> {
+function worstCaseListing(i: number): PublicListingDTO {
   const longUrl =
     'https://api.cotality.com/trestle/Media/Property/PROP-' +
     String(i).padStart(8, '0') +
@@ -35,17 +38,22 @@ function worstCaseListing(i: number): Record<string, unknown> {
     'x'.repeat(120) +
     '.jpg';
   return {
-    listingId: `RLS${String(10000000 + i)}`,
-    listingKey: `${20000000 + i}`,
+    id: `RLS${String(10000000 + i)}`,
+    mlsId: `${20000000 + i}`,
+    slug: `1234-east-ninety-sixth-street-ph-12b-${i}`,
+    url: `/listing/1234-east-ninety-sixth-street-ph-12b-${i}/rls${10000000 + i}`,
     listPrice: 12500000,
     previousListPrice: 13750000,
+    originalListPrice: 13750000,
+    closePrice: null,
     status: 'Active',
-    mlsStatus: 'Active',
     listingType: 'sale',
-    bedrooms: 4,
-    bathrooms: 3.5,
-    rooms: 8,
+    bedroomsTotal: 4,
+    bathroomsFull: 3,
+    bathroomsHalf: 1,
+    roomsTotal: 8,
     livingArea: 3200,
+    lotSizeArea: null,
     yearBuilt: 1928,
     daysOnMarket: 142,
     cumulativeDaysOnMarket: 388,
@@ -61,7 +69,9 @@ function worstCaseListing(i: number): Record<string, unknown> {
       stateOrProvince: 'NY',
       postalCode: '10128',
       neighborhood: 'Carnegie Hill',
-      full: '1234 East Ninety-Sixth Street Apartment Residences, PH-12B, New York, NY 10128',
+      county: 'New York',
+      latitude: 40.7816,
+      longitude: -73.95,
     },
     associationFee: 4250,
     associationFeeFrequency: 'Monthly',
@@ -69,20 +79,27 @@ function worstCaseListing(i: number): Record<string, unknown> {
     videoUrl: 'https://www.youtube.com/watch?v=' + 'v'.repeat(40),
     virtualTourURL: 'https://my.matterport.com/show/?m=' + 'm'.repeat(40),
     photosCount: 67,
-    listAgentFullName: 'Alexandra Featherstone-Worthington',
     listOfficeName: 'Mallan Real Estate Inc. — Upper East Side Office',
     // Contraction keeps exactly one hero, so one media entry is the real shape.
     media: [
       {
-        MediaURL: longUrl,
-        MediaCategory: 'Photo',
-        Order: 0,
-        PreferredPhotoYN: true,
-        ShortDescription: 'B'.repeat(120),
-        ResourceRecordKey: `${20000000 + i}`,
+        url: longUrl,
+        thumbUrl: `${longUrl}?width=640&description=${'B'.repeat(120)}`,
+        mediaType: 'Photo',
+        order: 0,
+        isPrimary: true,
       },
     ],
-  };
+    listingContractDate: '2025-01-01T00:00:00.000Z',
+    modificationTimestamp: '2026-08-12T00:00:00.000Z',
+    auction: null,
+    _source: 'idx',
+    _displayCompliance: {
+      requiresAttribution: true,
+      attributionText: 'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.',
+      disclaimerRequired: true,
+    },
+  } satisfies PublicListingDTO;
 }
 
 function buildResponseBody(count: number) {
@@ -94,7 +111,7 @@ function buildResponseBody(count: number) {
     skip: 0,
     limit: MAX_PAGE,
     hasMore: true,
-    listings: toPublicListingSummaries(listings as never),
+    listings: toPublicListingSummaries(listings),
     _compliance: {
       source: 'idx+exclusive',
       idxEnabled: true,
@@ -129,11 +146,11 @@ describe('cached fallback entry size', () => {
     // Same 200 listings, but with the pre-contraction 67-photo gallery.
     const withGalleries = Array.from({ length: MAX_PAGE }, (_, i) => {
       const l = worstCaseListing(i);
-      l.media = Array.from({ length: 67 }, () => (l.media as unknown[])[0]);
+      l.media = Array.from({ length: 67 }, () => l.media[0]);
       return l;
     });
     const uncontracted = utf8Bytes({ listings: withGalleries });
-    const contracted = utf8Bytes({ listings: toPublicListingSummaries(withGalleries as never) });
+    const contracted = utf8Bytes({ listings: toPublicListingSummaries(withGalleries) });
 
     console.log(
       `[cache-entry-size] full galleries = ${(uncontracted / 1024 / 1024).toFixed(2)} MiB, ` +
@@ -161,28 +178,12 @@ describe('cached fallback entry size', () => {
   });
 });
 
-/**
- * The REAL maximum final response. `mergeExclusiveListings` ends with
- * `return [...newExclusives, ...trestleListings]` — exclusives are PREPENDED
- * and the result is NOT re-sliced, so the response can exceed the page clamp.
- */
-const MAX_PREPENDED_EXCLUSIVES = 50;
-
-describe('the real final-response ceiling is not the page size', () => {
-  it('CONTRACTED_250_SYNTHETIC — under the hard limit, ABOVE the chosen margin', () => {
-    const realMax = MAX_PAGE + MAX_PREPENDED_EXCLUSIVES;
-    const bytes = utf8Bytes(buildResponseBody(realMax));
-    const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
-    console.log(
-      `[cache-entry-size] REAL MAX ${realMax} listings (200 page + ${MAX_PREPENDED_EXCLUSIVES} ` +
-        `exclusives) = ${bytes} bytes (${(bytes / 1024).toFixed(1)} KiB), ${pct}% of 2 MB`,
-    );
-    console.log(
-      `[cache-entry-size] safety ceiling ${SAFETY_CEILING} bytes — ` +
-        `real max is ${bytes <= SAFETY_CEILING ? 'WITHIN' : 'ABOVE'} it`,
-    );
-    // Hard limit is the contract; the ceiling is reported, not silently assumed.
-    expect(bytes).toBeLessThan(VERCEL_ITEM_LIMIT);
+describe('the final response ceiling is the route page size', () => {
+  it('regression: no source is prepended after the single combined slice', () => {
+    const route = readFileSync(resolve(process.cwd(), 'app/api/listings/route.ts'), 'utf8');
+    expect(route).toContain('paginateFallbackCandidates(combinedCandidates');
+    expect(route).not.toContain('return [...newExclusives, ...trestleListings]');
+    expect(utf8Bytes(buildResponseBody(MAX_PAGE))).toBeLessThan(SAFETY_CEILING);
   });
 });
 
