@@ -89,11 +89,6 @@ export async function DELETE(
   if (resolved.kind === "denied") return resolved.error;
   const { listing } = resolved;
 
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
   // Soft-delete (audit trail preserved), scoped to this listing.
   // Soft-delete and the derived Listing summary commit TOGETHER. Appending the
@@ -105,6 +100,13 @@ export async function DELETE(
   // 404. Throwing aborts the transaction — a not-found delete writes nothing.
   try {
     await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+      // Legacy CRM JSON import joins THIS transaction. Run separately it would
+      // commit rows that survive a later rollback of the mutation and summary.
+      await importJsonMediaToRows(tx, {
+        listing_id: listing.listing_id,
+        media: listing.media,
+        last_synced_from_trestle: listing.last_synced_from_trestle,
+      });
       const updated = await tx.listingMedia.updateMany({
         where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
         data: { status: "deleted" },
@@ -174,11 +176,6 @@ export async function PATCH(
   if (resolved.kind === "denied") return resolved.error;
   const { listing } = resolved;
 
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
   // Target validation happens INSIDE the transaction below. Checking it out here
   // leaves a window in which a concurrent delete or set-main changes the row
@@ -204,6 +201,13 @@ export async function PATCH(
   // summary, so a committed flip with a failed summary write is a split state.
   try {
     await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+      // Legacy CRM JSON import joins THIS transaction. Run separately it would
+      // commit rows that survive a later rollback of the mutation and summary.
+      await importJsonMediaToRows(tx, {
+        listing_id: listing.listing_id,
+        media: listing.media,
+        last_synced_from_trestle: listing.last_synced_from_trestle,
+      });
       const target = await tx.listingMedia.findFirst({
         where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
         select: { media_type: true },

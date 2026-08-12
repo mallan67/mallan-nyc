@@ -1,5 +1,9 @@
 // /api/crm/listings/[id]/media-order — PATCH: persist photo ordering
-import { withCrmMediaConvergence } from "@/lib/media/crm-media-mutation";
+import {
+  withCrmMediaConvergence,
+  expectAffected,
+  isCrmMediaPreconditionError,
+} from "@/lib/media/crm-media-mutation";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -61,11 +65,6 @@ export async function PATCH(
   // Ensure legacy JSON is in rows so the keys we reorder exist (idempotent).
   // `last_synced_from_trestle` is REQUIRED: without it the importer fails closed
   // and would refuse genuine local media (see lib/media/media-provenance.ts).
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
   // Persist per-item order onto the Cotality-shaped rows the public resolver
   // actually reads (replaces the old raw_data.media_order, which the resolver
@@ -100,19 +99,49 @@ export async function PATCH(
 
   // Order feeds hero fallback, so a reorder can change the canonical hero and
   // therefore the derived Listing summary. Both commit together.
-  const results = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
-    const out = [];
-    for (const { key, index } of crmOrdered) {
-      out.push(
-        await tx.listingMedia.updateMany({
+  // Order feeds hero fallback, so a reorder can change the canonical hero and
+  // therefore the derived Listing summary. Both commit together.
+  //
+  // Zero-effect reorders are a FAILURE, not a success. Syntactically valid crm:
+  // keys that no longer match active rows (deleted elsewhere, or belonging to
+  // another listing) would otherwise leave every updateMany at count 0 while the
+  // route recomputed the summary and answered 200 with rows_updated: 0.
+  let updatedCount = 0;
+  try {
+    updatedCount = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    // Legacy CRM JSON import joins THIS transaction. Run separately it would
+    // commit rows that survive a later rollback of the mutation and summary.
+    await importJsonMediaToRows(tx, {
+      listing_id: listing.listing_id,
+      media: listing.media,
+      last_synced_from_trestle: listing.last_synced_from_trestle,
+    });
+      let affected = 0;
+      for (const { key, index } of crmOrdered) {
+        const r = await tx.listingMedia.updateMany({
           where: { media_key: key, listing_id: listing.listing_id, status: "active" },
           data: { order: index },
-        }),
+        });
+        // Each submitted key must resolve to exactly one active row on THIS
+        // listing. Partial application would persist an order the caller never
+        // asked for.
+        expectAffected(r.count, 1, `reorder ${key}`);
+        affected += r.count;
+      }
+      return affected;
+    });
+  } catch (err) {
+    if (isCrmMediaPreconditionError(err)) {
+      return NextResponse.json(
+        {
+          error: "One or more media keys do not resolve to an active row on this listing",
+          detail: (err as { detail?: unknown }).detail,
+        },
+        { status: 409 },
       );
     }
-    return out;
-  });
-  const updatedCount = results.reduce((n, r) => n + r.count, 0);
+    throw err;
+  }
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch. See crmListingTouchData.

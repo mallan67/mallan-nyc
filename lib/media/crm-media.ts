@@ -153,7 +153,14 @@ export function legacyItemBasis(item: LegacyMediaItem): string {
  * the list of rows that WOULD be created (so a dry-run can print them).
  */
 export async function importJsonMediaToRows(
-  prisma: PrismaClient,
+  /**
+   * Accepts a `$transaction` client as well as the module client. CRM routes
+   * MUST pass the transaction client: importing legacy rows in a separate,
+   * already-committed statement means a later failure in the same business
+   * operation rolls back the mutation and the summary while the imported rows
+   * survive — the split state this whole correction exists to remove.
+   */
+  prisma: Pick<PrismaClient, "listingMedia">,
   listing: {
     listing_id: string;
     media: unknown;

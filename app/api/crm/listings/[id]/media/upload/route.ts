@@ -138,11 +138,6 @@ export async function POST(
   // Lazily import any legacy `listing.media` JSON for this listing into rows so
   // the rows set is COMPLETE before we add the new one (the public resolver
   // prefers rows when any exist — partial rows would hide the JSON photos).
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
   // Dedup: if this exact image is already an active row on this listing, 409.
   const existingRow = await prisma.listingMedia.findUnique({
@@ -245,6 +240,13 @@ export async function POST(
   // the fresh R2 variants — a create() would hit the media_key @unique
   // constraint (P2002) and 500. (Codex media P0 finding #3.)
   const created = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    // Legacy CRM JSON import joins THIS transaction. Run separately it would
+    // commit rows that survive a later rollback of the mutation and summary.
+    await importJsonMediaToRows(tx, {
+      listing_id: listing.listing_id,
+      media: listing.media,
+      last_synced_from_trestle: listing.last_synced_from_trestle,
+    });
     const row = existingRow
     ? await tx.listingMedia.update({
         where: { media_key: mediaKey },

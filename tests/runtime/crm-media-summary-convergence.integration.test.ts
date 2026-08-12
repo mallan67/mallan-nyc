@@ -329,6 +329,34 @@ if (!crmMediaIntegrationUrl) {
       await routeClient.listing.delete({ where: { listing_id: feedListing } });
     });
 
+    it("ROLLBACK: a legacy-import row inside the transaction rolls back too", async () => {
+      // The legacy JSON import used to run BEFORE the transaction, so its rows
+      // committed independently and survived a later rollback of the mutation
+      // and summary. It now joins the same transaction; this proves it.
+      const { importJsonMediaToRows } = require("@/lib/media/crm-media");
+      const legacyUrl = `https://itest.invalid/${stamp}/legacy.jpg`;
+      const before = await observer.listingMedia.count({ where: { listing_id: listingId } });
+
+      await expect(
+        withCrmMediaConvergence(listingId, async (tx: typeof routeClient) => {
+          await importJsonMediaToRows(tx, {
+            listing_id: listingId,
+            media: [{ MediaURL: legacyUrl, MediaCategory: "Photo", Order: 0 }],
+            last_synced_from_trestle: null,
+          });
+          // Real Postgres failure AFTER the import, before commit.
+          await tx.listingMedia.create({ data: mediaRow(1) }); // duplicate key
+        }),
+      ).rejects.toMatchObject({ code: "P2002" });
+
+      // The imported row must NOT survive.
+      expect(await observer.listingMedia.count({ where: { listing_id: listingId } })).toBe(before);
+      const leaked = await observer.listingMedia.findFirst({
+        where: { listing_id: listingId, media_url_original: legacyUrl },
+      });
+      expect(leaked).toBeNull();
+    });
+
     it("ROLLBACK: a real Postgres constraint failure rolls back the media write too", async () => {
       const before = await observer.listingMedia.count({ where: { listing_id: listingId } });
       const storedBefore = await storedSummary();
