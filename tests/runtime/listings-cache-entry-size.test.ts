@@ -14,6 +14,7 @@
  * cached payload is 200 complete DTOs, not 200 thin cards.
  */
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
+import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 
 const MAX_PAGE = 200; // route clamp: Math.min(parseInt(limit ?? '50'), 200)
 const VERCEL_ITEM_LIMIT = 2 * 1024 * 1024;
@@ -163,7 +164,7 @@ describe('cached fallback entry size', () => {
 const MAX_PREPENDED_EXCLUSIVES = 50;
 
 describe('the real final-response ceiling is not the page size', () => {
-  it('page + prepended exclusives is the shape that must fit', () => {
+  it('CONTRACTED_250_SYNTHETIC — under the hard limit, ABOVE the chosen margin', () => {
     const realMax = MAX_PAGE + MAX_PREPENDED_EXCLUSIVES;
     const bytes = utf8Bytes(buildResponseBody(realMax));
     const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
@@ -185,20 +186,21 @@ describe('the real final-response ceiling is not the page size', () => {
  * `expandMedia: false`, so every record is CARD_SELECT_FIELDS scalars and NO
  * media array. Inferring its size from a gallery fixture was wrong.
  */
-describe('the CURRENT Property-only cached shape, measured directly', () => {
-  const CARD_FIELDS = 69;
-  const FETCH_TOP_MAX = 1000;
+describe('CURRENT_PROPERTY_CACHE_SYNTHETIC_MAX — risk estimate, not a measurement', () => {
+  const FETCH_TOP_MAX = 1000; // route: Math.min(..., 1000)
 
+  /** Real selected keys. Values are still SYNTHETIC — pessimistic string
+   *  lengths, not Cotality-verified maxima — so this bounds risk, not truth. */
   function cardRecord(i: number): Record<string, unknown> {
     const r: Record<string, unknown> = {};
-    // Pessimistic scalar per selected field: long-ish strings, no media array.
-    for (let f = 0; f < CARD_FIELDS; f++) r[`Field${f}`] = 'V'.repeat(40);
+    for (const key of CARD_SELECT_FIELDS) {
+      r[key] = key === 'PublicRemarks' ? 'A'.repeat(4000) : 'V'.repeat(40);
+    }
     r.ListingKey = String(20000000 + i);
-    r.PublicRemarks = 'A'.repeat(4000); // the one genuinely long card field
     return r;
   }
 
-  it('measures 1,000 records with expandMedia:false — no gallery inference', () => {
+  it('bounds the risk of caching the raw TrestleFetchResult at max fetchTop', () => {
     const result = {
       records: Array.from({ length: FETCH_TOP_MAX }, (_, i) => cardRecord(i)),
       totalFetched: FETCH_TOP_MAX,
@@ -206,15 +208,18 @@ describe('the CURRENT Property-only cached shape, measured directly', () => {
       hasMore: true,
     };
     const bytes = utf8Bytes(result);
-    const pct = ((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1);
     console.log(
-      `[cache-entry-size] CURRENT Property cache shape: ${FETCH_TOP_MAX} CARD_SELECT_FIELDS ` +
-        `records (expandMedia:false) = ${bytes} bytes ` +
-        `(${(bytes / 1024 / 1024).toFixed(2)} MiB), ${pct}% of 2 MB — ` +
-        `${bytes > VERCEL_ITEM_LIMIT ? 'EXCEEDS' : 'within'} the item limit`,
+      `[cache-entry-size] CURRENT_PROPERTY_CACHE_SYNTHETIC_MAX: ${FETCH_TOP_MAX} records over ` +
+        `${CARD_SELECT_FIELDS.length} REAL CARD_SELECT_FIELDS keys (expandMedia:false) = ` +
+        `${bytes} bytes (${(bytes / 1024 / 1024).toFixed(2)} MiB), ` +
+        `${((bytes / VERCEL_ITEM_LIMIT) * 100).toFixed(1)}% of 2 MB`,
     );
-    // Reported, not asserted either way: this documents the shape rather than
-    // pretending a synthetic field profile settles production byte counts.
-    expect(bytes).toBeGreaterThan(0);
+    // fetchTop VARIES per request (limit, skip, post-filter multiplier), so the
+    // cache is NOT universally non-functional: small searches may store fine
+    // while large or post-filtered ones exceed the item limit and silently fail
+    // to store. This asserts the RISK is real at the documented ceiling, not
+    // that production entries are oversized.
+    expect(bytes).toBeGreaterThan(VERCEL_ITEM_LIMIT);
+    expect(CARD_SELECT_FIELDS.length).toBeGreaterThan(60);
   });
 });
