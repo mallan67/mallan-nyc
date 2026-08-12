@@ -9,14 +9,30 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { TRESTLE_FETCH_ACTION, TRESTLE_SERVED_ACTION } from '@/app/api/listings/route';
+import { TRESTLE_ORIGIN_EXECUTION_ACTION, TRESTLE_SERVED_ACTION } from '@/app/api/listings/route';
 
 const SRC = fs.readFileSync(path.join(process.cwd(), 'app/api/listings/route.ts'), 'utf8');
 
 describe('audit event kinds are non-confusable', () => {
+  it('neither event claims to measure Cotality HTTP traffic', () => {
+    // One origin execution can issue zero outbound requests (Next's inner fetch
+    // cache), one, or several (OData pagination, auth refresh, retries). The
+    // route must not describe these events as a count or bound on provider
+    // traffic, in either direction.
+    for (const stale of [
+      'bounds provider traffic',
+      'counting real provider fetches',
+      'tracks real',
+      'SHARED provider cache',
+      'quota protection',
+    ]) {
+      expect(SRC).not.toContain(stale);
+    }
+  });
+
   it('the two actions are distinct and neither is the old ambiguous value', () => {
-    expect(TRESTLE_FETCH_ACTION).not.toBe(TRESTLE_SERVED_ACTION);
-    expect(TRESTLE_FETCH_ACTION).not.toBe('trestle_access');
+    expect(TRESTLE_ORIGIN_EXECUTION_ACTION).not.toBe(TRESTLE_SERVED_ACTION);
+    expect(TRESTLE_ORIGIN_EXECUTION_ACTION).not.toBe('trestle_access');
     expect(TRESTLE_SERVED_ACTION).not.toBe('trestle_access');
   });
 
@@ -26,16 +42,16 @@ describe('audit event kinds are non-confusable', () => {
 
   it('every call site passes an explicit action', () => {
     const calls = SRC.match(/logTrestleAccess\(/g) ?? [];
-    const explicit = SRC.match(/logTrestleAccess\(TRESTLE_(FETCH|SERVED)_ACTION,/g) ?? [];
+    const explicit = SRC.match(/logTrestleAccess\(TRESTLE_(ORIGIN_EXECUTION|SERVED)_ACTION,/g) ?? [];
     expect(calls.length).toBeGreaterThanOrEqual(2);
     expect(explicit.length).toBe(calls.length);
   });
 
-  it('the provider-fetch audit sits INSIDE the cache-miss closure', () => {
-    // It must appear between the closure opening and the cache key, so a cache
-    // HIT cannot emit a provider-fetch record.
-    const closure = SRC.indexOf('providerFetched = true;');
-    const fetchLog = SRC.indexOf(`logTrestleAccess(${'TRESTLE_FETCH_ACTION'},`);
+  it('the origin-execution audit sits INSIDE the cache-miss closure', () => {
+    // It must appear between the closure opening and the cache key, so an outer
+    // cache HIT cannot emit an origin-execution record.
+    const closure = SRC.indexOf('originExecuted = true;');
+    const fetchLog = SRC.indexOf(`logTrestleAccess(${'TRESTLE_ORIGIN_EXECUTION_ACTION'},`);
     const keyLine = SRC.indexOf('"api-listings-trestle-fallback"');
     expect(closure).toBeGreaterThan(-1);
     expect(fetchLog).toBeGreaterThan(closure);

@@ -18,19 +18,18 @@ import {
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 /**
- * Audit event kinds for this route. They must NOT be conflatable: quota
- * reconciliation depends on counting real provider fetches, and a single
- * `trestle_access` action for both made a cache hit indistinguishable from a
+ * Audit event kinds for this route. They must NOT be conflatable: a single
+ * `trestle_access` action for both made an outer-cache hit indistinguishable
+ * from an origin execution.
+ *
+ * NEITHER event measures Cotality HTTP traffic. One origin execution can issue
+ * ZERO outbound requests (Next's inner fetch cache — fetchPage sets
+ * `next: { revalidate: 300 }`), exactly one, or SEVERAL (OData pagination,
+ * auth-token refresh, retries). Exact quota accounting requires instrumenting
+ * each transport attempt, not this route.
  * Cotality call.
  */
-// NOTE ON SEMANTICS: this records execution of the ORIGIN closure, not a
-// verified outbound HTTP request. fetchPage sets `next: { revalidate: 300 }`
-// (lib/idx/fetch.ts:657), so Next's fetch cache may satisfy the call without
-// touching Cotality. Counting these events therefore bounds provider traffic
-// from above; it does not measure it. Making the two equal needs a
-// route-scoped no-store on the enclosed provider calls — deliberately not done
-// globally, which would change every other caller.
-export const TRESTLE_FETCH_ACTION = 'trestle_origin_fetch';
+export const TRESTLE_ORIGIN_EXECUTION_ACTION = 'trestle_origin_execution';
 export const TRESTLE_SERVED_ACTION = 'trestle_response_served';
 
 /**
@@ -817,12 +816,12 @@ export async function GET(request: Request) {
         // ~50% of listings (broken navigation property). Always batch-fetch separately.
         const useExpandMedia = false;
 
-        // SHARED provider cache. This replaces the process-local Map as the
-        // fallback's quota protection, and is strictly stronger: the Map held 50
-        // entries INSIDE ONE serverless process, so a cold or newly-scaled
-        // Vercel instance had an empty Map and called Cotality again for a
-        // search another instance had just served. A shared entry protects the
-        // 18K/hr quota across every instance.
+        // SHARED FALLBACK-ORIGIN CACHE — not a provider cache. It memoises this
+        // origin's result across serverless instances, where the former
+        // process-local Map held 50 entries inside ONE process and left a cold or
+        // newly-scaled instance with nothing. It does NOT measure or cap Cotality
+        // HTTP traffic: an origin miss may issue zero outbound requests, one, or
+        // several.
         //
         // Keyed by the canonical search key, so parameter ordering cannot fork
         // the identity. 120s preserves the Map's former TTL. cachedPublicRead
@@ -833,10 +832,10 @@ export async function GET(request: Request) {
         // outside, it would record a Cotality access on every cache HIT — an
         // audit trail that overstates provider traffic and can no longer be
         // reconciled against the real 18K/hr quota consumption.
-        let providerFetched = false;
+        let originExecuted = false;
         const result = await cachedPublicRead(
           async () => {
-            providerFetched = true;
+            originExecuted = true;
             const r = await fetchFromTrestle({
               filter,
               select: selectFields,
@@ -846,7 +845,7 @@ export async function GET(request: Request) {
               count: true,
               expandMedia: useExpandMedia,
             });
-            logTrestleAccess(TRESTLE_FETCH_ACTION, {
+            logTrestleAccess(TRESTLE_ORIGIN_EXECUTION_ACTION, {
               endpoint: '/api/listings',
               method: 'GET',
               trestleResource: 'Property',
@@ -1199,10 +1198,10 @@ export async function GET(request: Request) {
         };
 
 
-        // Response-shape audit (non-blocking). The PROVIDER-access record is
-        // emitted inside the cache-miss closure above, so it tracks real
-        // Cotality fetches; this one describes what was served and is therefore
-        // marked so the two are never conflated when reconciling quota.
+        // Response-shape audit (non-blocking). The ORIGIN-EXECUTION record is
+        // emitted inside the cache-miss closure above; this one describes what was
+        // served. Marked so the two are never conflated — neither is a count of
+        // Cotality HTTP requests.
         logTrestleAccess(TRESTLE_SERVED_ACTION, {
           endpoint: '/api/listings',
           method: 'GET',
@@ -1213,7 +1212,7 @@ export async function GET(request: Request) {
           caller: { ip },
           durationMs: Date.now() - (performance.now() | 0),
           statusCode: 200,
-          servedFromProviderCache: !providerFetched,
+          servedFromOriginCache: !originExecuted,
         }).catch(() => {});
 
         return NextResponse.json(responseBody, {
