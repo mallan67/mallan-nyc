@@ -25,11 +25,12 @@ import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
 import {
-  resolveDbListingMedia,
-  toDtoMedia,
-  tourUrlsForDto,
   type ListingMediaTableRow,
 } from '@/lib/media/listing-media-resolver';
+import {
+  composeListingMedia,
+  type ComposerExternalRow,
+} from '@/lib/media/canonical-media-composer';
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
@@ -234,6 +235,16 @@ export interface DbListing {
   // Both paths flow through the same classify→sort pipeline so the public
   // DTO shape is identical.
   listing_media?: ListingMediaTableRow[];
+  // Canonical hosted video / virtual-tour LINKS. Public readers preload this
+  // relation in the same Prisma query as the listing rows, so composition is
+  // pure and cannot introduce an N+1 query pattern.
+  external_media?: Array<{
+    source: string;
+    source_key: string;
+    url: string;
+    branded: boolean;
+    kind: string;
+  }>;
   // All-status existence signal (Prisma `_count`). Callers that select only
   // ACTIVE `listing_media` rows (e.g. /api/listings) include
   // `_count: { select: { listing_media: true } }` so the resolver can tell
@@ -460,6 +471,24 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     legacyMedia: mediaArr,
     hadRelationalRows,
   });
+  // External hosted links have their own canonical authority. An absent or
+  // empty canonical relation means there is no canonical public video/tour;
+  // raw_data is deliberately not consulted here. That prevents deleted source
+  // slots from being resurrected and makes listing_external_media the reader's
+  // single owner. The composer drops unsafe URLs, keeps unknown classifications
+  // out of labelled buckets, and de-duplicates equivalent URLs before either
+  // singular DTO field is selected.
+  const externalRows: ComposerExternalRow[] = Array.isArray(listing.external_media)
+    ? listing.external_media.filter((row): row is ComposerExternalRow =>
+        (row.source === 'cotality_property' || row.source === 'crm') &&
+        (row.kind === 'video' || row.kind === 'virtual_tour' || row.kind === 'unknown'),
+      )
+    : [];
+  const composedExternal = composeListingMedia([], externalRows);
+  const externalUrls = {
+    videoUrl: composedExternal.videos[0]?.url,
+    virtualTourURL: composedExternal.virtualTours[0]?.url,
+  };
 
   return {
     id: listing.listing_id,
@@ -588,17 +617,10 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     // Days on Market
     daysOnMarket: rawData.DaysOnMarket != null ? Number(rawData.DaysOnMarket) : undefined,
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
-    // Virtual tour + video — host-split (YouTube/Vimeo → video; Matterport/3D → tour),
-    // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
-    // Both families pass ALL THREE slots as arrays. An `??` chain here would
-    // return only the first non-null branded URL and drop the others — the same
-    // silent loss that cost production Unbranded2/3. Live $metadata confirms
-    // Branded2/3 exist; they are empty upstream today, so this changes nothing
-    // now and prevents the defect recurring when Cotality populates them.
-    ...tourUrlsForDto(
-      [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
-      [rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3],
-    ),
+    // Canonical external-media authority. The pure composer has already
+    // applied URL safety, classification, unbranded preference and presentation
+    // de-duplication across Cotality + CRM rows.
+    ...externalUrls,
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
     // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.

@@ -104,7 +104,11 @@ function byOrder(a: ComposerAssetRow, b: ComposerAssetRow): number {
 
 function toRef(r: ComposerExternalRow): ComposedExternalRef {
   return {
-    url: r.url,
+    // Storage writers normalize today, but presentation stays defensive for
+    // historical/CRM rows. The dedupe identity is trimmed too, so returning the
+    // same normalized value prevents whitespace variants from leaking back as
+    // visually duplicated embeds.
+    url: r.url.trim(),
     kind: r.kind,
     branded: r.branded,
     source: r.source,

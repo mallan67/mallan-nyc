@@ -30,6 +30,7 @@ import {
   type FallbackListingCandidate,
 } from '@/lib/listings/fallback-pagination';
 import { readCachedFallbackOrigin } from '@/lib/listings/cached-fallback-origin';
+import { PUBLIC_EXTERNAL_MEDIA_RELATION } from '@/lib/media/public-external-media-select';
 /**
  * Audit event kinds for this route. They must NOT be conflatable: a single
  * `trestle_access` action for both made an outer-cache hit indistinguishable
@@ -395,14 +396,12 @@ export async function GET(request: Request) {
                 postal_code: true,
                 address: true,
                 features: true,
-                // dbListingToPublicDTO derives several public fields ONLY from
-                // raw_data (the full Trestle payload): virtualTourURL
-                // (VirtualTourURLBranded/Unbranded — not stored in `features`,
-                // which excludes the B26 media group), plus previousListPrice,
-                // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
-                // Omitting raw_data silently dropped all of these from DB-backed
-                // cards (e.g. the PR-C 3D Tour badge never showed). Response is
-                // cached (5 min), so the extra JSON is amortized.
+                // raw_data remains temporarily for fields that do not yet have
+                // typed owners: previousListPrice, daysOnMarket, leaseAmount,
+                // availabilityDate, and on/closeDate. Hosted tour/video URLs no
+                // longer read from this wide JSON; `external_media` below owns
+                // them canonically. Response is cached, amortizing this remaining
+                // compatibility payload until those typed-owner gaps close.
                 raw_data: true,
                 // PR 4: keep reading `media` JSON as the fallback source for
                 // the 0.3% of listings not yet mirrored into listing_media.
@@ -452,6 +451,7 @@ export async function GET(request: Request) {
                     status: true,
                   },
                 },
+                external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
                 // All-status existence signal for the DTO's media authority (this
                 // select is ACTIVE-only). Without it, a Mallan exclusive whose
                 // relational photos were all deleted would read as "never imported"
@@ -1356,9 +1356,9 @@ async function fetchExclusiveListings(
         neighborhood: true,
         address: true,
         features: true,
-        // dbListingToPublicDTO derives virtualTourURL + previousListPrice,
-        // daysOnMarket, leaseAmount, availabilityDate, on/closeDate from
-        // raw_data (not stored in `features`). Mirrors the main DB-first select.
+        // Compatibility fields without typed owners still read raw_data:
+        // previousListPrice, daysOnMarket, leaseAmount, availabilityDate and
+        // on/closeDate. Tour/video URLs come only from external_media below.
         raw_data: true,
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
@@ -1401,6 +1401,7 @@ async function fetchExclusiveListings(
             status: true,
           },
         },
+        external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
         // All-status existence signal (this select is ACTIVE-only) so the DTO's
         // media authority can tell "never imported" from "all deleted" and never
         // resurrects deleted Mallan photos. Same batched query — no N+1 (Codex

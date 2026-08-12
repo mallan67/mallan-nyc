@@ -152,7 +152,16 @@ export function dedupeForPresentation<
     const cur = best.get(id);
     if (!cur || rank(r) < rank(cur)) best.set(id, r);
   }
-  return Array.from(best.values());
+  // Prisma relation order is not part of the presentation contract. Sort the
+  // winners so the singular DTO video/tour fields are deterministic even when
+  // rows arrive in a different DB order. The stable tie-breakers also make CRM
+  // + Cotality composition reproducible across runtimes.
+  return Array.from(best.values()).sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      a.source_key.localeCompare(b.source_key) ||
+      a.url.localeCompare(b.url),
+  );
 }
 
 /** A stored row as read back from `listing_external_media`. */

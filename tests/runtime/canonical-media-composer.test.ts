@@ -138,6 +138,25 @@ describe('composer surfaces external links correctly', () => {
     expect(out.videos[0].source_key).toBe('VirtualTourURLUnbranded');
   });
 
+  it('dedupes URL case/whitespace across CRM + Cotality and orders winners deterministically', () => {
+    const out = composeListingMedia(
+      [],
+      [
+        link({ source: 'crm', source_key: 'crm-z', url: ' HTTPS://YOUTU.BE/DUP ', branded: true }),
+        link({ source_key: 'VirtualTourURLUnbranded3', url: 'https://youtu.be/third', branded: false }),
+        link({ source_key: 'VirtualTourURLUnbranded', url: 'https://youtu.be/dup', branded: false }),
+        link({ source_key: 'VirtualTourURLUnbranded2', url: 'https://youtu.be/second', branded: false }),
+      ],
+    );
+
+    expect(out.videos.map((v) => v.source_key)).toEqual([
+      'VirtualTourURLUnbranded',
+      'VirtualTourURLUnbranded2',
+      'VirtualTourURLUnbranded3',
+    ]);
+    expect(out.videos.filter((v) => v.url.trim().toLowerCase() === 'https://youtu.be/dup')).toHaveLength(1);
+  });
+
   it('CRM links compose alongside Cotality links', () => {
     const out = composeListingMedia(
       [],
