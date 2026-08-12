@@ -179,8 +179,14 @@ describe('toolchain — tsx wiring and startability', () => {
       "import * as b from './scripts/backfill/bucket-b-media-dry-run';",
       "import * as c from './scripts/audit/media-coverage-audit.cli';",
       "import * as d from './scripts/backfill/bucket-b-media-dry-run.cli';",
-      "const ok = typeof a.runAudit === 'function' && typeof b.runDryRun === 'function'",
-      "  && typeof c.main === 'function' && typeof d.main === 'function';",
+      // Node 24 exposes tsx's CommonJS-transpiled namespace under `default` /
+      // `module.exports`; Node 20 also exposed its named properties at the top
+      // level. Unwrap the namespace so this startability test validates the
+      // actual exports instead of depending on one Node interop representation.
+      "const unwrap = (mod) => mod.default ?? mod;",
+      "const aa = unwrap(a), bb = unwrap(b), cc = unwrap(c), dd = unwrap(d);",
+      "const ok = typeof aa.runAudit === 'function' && typeof bb.runDryRun === 'function'",
+      "  && typeof cc.main === 'function' && typeof dd.main === 'function';",
       "process.exit(ok ? 0 : 3);",
     ], 0);
   }, 150_000);
