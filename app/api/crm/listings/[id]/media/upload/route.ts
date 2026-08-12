@@ -12,6 +12,7 @@
 // Content-Type: multipart/form-data
 // Body: file (image), caption? (string), order? (number)
 
+import { withCrmMediaConvergence } from "@/lib/media/crm-media-mutation";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import prisma from "@/lib/prisma";
@@ -243,8 +244,9 @@ export async function POST(
   // above, so a truthy existingRow here is non-active. RESTORE it to active with
   // the fresh R2 variants — a create() would hit the media_key @unique
   // constraint (P2002) and 500. (Codex media P0 finding #3.)
-  const created = existingRow
-    ? await prisma.listingMedia.update({
+  const created = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    const row = existingRow
+    ? await tx.listingMedia.update({
         where: { media_key: mediaKey },
         data: {
           media_url_original: urls.hero || cachedUrl,
@@ -263,7 +265,7 @@ export async function POST(
         },
         select: writeSelect,
       })
-    : await prisma.listingMedia.create({
+    : await tx.listingMedia.create({
         data: {
           listing_id: listing.listing_id,
           media_key: mediaKey,
@@ -281,6 +283,8 @@ export async function POST(
         },
         select: writeSelect,
       });
+    return row;
+  });
   const restored = !!existingRow;
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);

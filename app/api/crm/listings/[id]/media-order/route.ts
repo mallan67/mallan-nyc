@@ -1,4 +1,5 @@
 // /api/crm/listings/[id]/media-order — PATCH: persist photo ordering
+import { withCrmMediaConvergence } from "@/lib/media/crm-media-mutation";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -97,13 +98,20 @@ export async function PATCH(
     );
   }
 
-  const updates = crmOrdered.map(({ key, index }) =>
-    prisma.listingMedia.updateMany({
-      where: { media_key: key, listing_id: listing.listing_id, status: "active" },
-      data: { order: index },
-    })
-  );
-  const results = await prisma.$transaction(updates);
+  // Order feeds hero fallback, so a reorder can change the canonical hero and
+  // therefore the derived Listing summary. Both commit together.
+  const results = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    const out = [];
+    for (const { key, index } of crmOrdered) {
+      out.push(
+        await tx.listingMedia.updateMany({
+          where: { media_key: key, listing_id: listing.listing_id, status: "active" },
+          data: { order: index },
+        }),
+      );
+    }
+    return out;
+  });
   const updatedCount = results.reduce((n, r) => n + r.count, 0);
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);

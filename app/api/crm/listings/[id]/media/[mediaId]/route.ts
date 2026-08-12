@@ -6,6 +6,7 @@
 // synced rows can never be modified through this CRM endpoint (guardrail #10).
 // Cotality/IDX Plus remains the source of truth for the media shape.
 
+import { withCrmMediaConvergence } from "@/lib/media/crm-media-mutation";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -90,9 +91,16 @@ export async function DELETE(
   });
 
   // Soft-delete (audit trail preserved), scoped to this listing.
-  const res = await prisma.listingMedia.updateMany({
-    where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
-    data: { status: "deleted" },
+  // Soft-delete and the derived Listing summary commit TOGETHER. Appending the
+  // summary write after an already-committed tombstone is what left 8 listings
+  // reporting a stale photo_count: the media row changed, the summary did not.
+  const res = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    const updated = await tx.listingMedia.updateMany({
+      where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+      data: { status: "deleted" },
+    });
+    if (updated.count === 0) return updated; // nothing written; summary unchanged
+    return updated;
   });
   if (res.count === 0) {
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
@@ -190,8 +198,11 @@ export async function PATCH(
   // The agent's choice is now honored by HERO PRECEDENCE instead: a `crm:`
   // preferred row outranks a feed-preferred row in `selectHeroPhoto`, with no
   // write to any feed row at all.
-  await prisma.$transaction([
-    prisma.listingMedia.updateMany({
+  // Callback form (not the array form) so the derived summary participates in
+  // the SAME transaction as the preferred-photo flips: the hero is part of the
+  // summary, so a committed flip with a failed summary write is a split state.
+  await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    await tx.listingMedia.updateMany({
       where: {
         listing_id: listing.listing_id,
         status: "active",
@@ -199,12 +210,12 @@ export async function PATCH(
         media_key: { startsWith: CRM_MEDIA_KEY_PREFIX },
       },
       data: { preferred_photo_yn: false },
-    }),
-    prisma.listingMedia.updateMany({
+    });
+    await tx.listingMedia.updateMany({
       where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
       data: { preferred_photo_yn: true },
-    }),
-  ]);
+    });
+  });
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch. See crmListingTouchData.
