@@ -54,7 +54,7 @@ run('external-media convergence — real PostgreSQL', () => {
     await prisma.$connect();
     await prisma.listing.upsert({
       where: { listing_id: L },
-      create: { listing_id: L } as never,
+      create: { listing_id: L, listing_type: 'sale' } as never,
       update: {},
     });
   });
