@@ -42,7 +42,16 @@ export const CARD_SELECT_FIELDS = [
   // Agent/Office
   "ListAgentFullName", "ListOfficeName",
   // Media — PhotosChangeTimestamp is high-level trigger for media changes (Trestle guidance 2026-04-07)
-  "PhotosCount", "PhotosChangeTimestamp", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  "PhotosCount", "PhotosChangeTimestamp",
+  // All SIX verified live tour/video slots. Live $metadata (2026-08-12) confirms
+  // Branded/Unbranded each carry slots 1-3, and live counts confirm Unbranded2
+  // (2,377) and Unbranded3 (354) are populated upstream. Selecting only slot 1
+  // is how those values were being lost on the live Trestle-direct path, exactly
+  // as RAW_DATA_KEEP_FIELDS was losing them on the DB path. Branded2/3 are empty
+  // today but are selected anyway — zero values cost nothing and this must not
+  // regress when Cotality begins populating them.
+  "VirtualTourURLBranded", "VirtualTourURLBranded2", "VirtualTourURLBranded3",
+  "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   // Remarks
   "PublicRemarks",
   // Display gates
