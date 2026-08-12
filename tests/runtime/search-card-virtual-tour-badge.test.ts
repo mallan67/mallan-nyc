@@ -73,8 +73,9 @@ describe('/api/listings DB-search selects canonical external media', () => {
     expect(matches.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('retains raw_data only for the remaining typed-owner gaps, not tour/video URLs', () => {
-    expect(src).toMatch(/raw_data:\s*true/);
+  it('contracts raw_data to the remaining DTO compatibility keys, never tour/video URLs', () => {
+    expect(src).not.toMatch(/raw_data:\s*true/);
+    expect(src.match(/attachPublicListingRawCompat\(/g)).toHaveLength(2);
     expect(src).not.toMatch(/raw_data[^\n]*source of virtualTourURL/);
   });
 });

@@ -31,6 +31,7 @@ import {
 } from '@/lib/listings/fallback-pagination';
 import { readCachedFallbackOrigin } from '@/lib/listings/cached-fallback-origin';
 import { PUBLIC_EXTERNAL_MEDIA_RELATION } from '@/lib/media/public-external-media-select';
+import { attachPublicListingRawCompat } from '@/lib/search/public-listing-raw-compat';
 /**
  * Audit event kinds for this route. They must NOT be conflatable: a single
  * `trestle_access` action for both made an outer-cache hit indistinguishable
@@ -396,13 +397,9 @@ export async function GET(request: Request) {
                 postal_code: true,
                 address: true,
                 features: true,
-                // raw_data remains temporarily for fields that do not yet have
-                // typed owners: previousListPrice, daysOnMarket, leaseAmount,
-                // availabilityDate, and on/closeDate. Hosted tour/video URLs no
-                // longer read from this wide JSON; `external_media` below owns
-                // them canonically. Response is cached, amortizing this remaining
-                // compatibility payload until those typed-owner gaps close.
-                raw_data: true,
+                // The complete raw_data JSON is intentionally NOT selected.
+                // The twelve compatibility keys still needed by the canonical
+                // DTO are attached below by one bounded jsonb fragment query.
                 // PR 4: keep reading `media` JSON as the fallback source for
                 // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
@@ -460,11 +457,12 @@ export async function GET(request: Request) {
                 _count: { select: { listing_media: true } },
               },
               });
+              const rowsWithRawCompat = await attachPublicListingRawCompat(prisma, rows);
               // Serialize INSIDE the closure so the cached value is JSON-safe.
               // C1 fix: stringify BigInt FKs; the classifier only checks
               // `!= null` so the value shape doesn't matter, but mixing BigInts
               // into JSON.stringify throws at serialization.
-              return rows.map((l) => ({
+              return rowsWithRawCompat.map((l) => ({
                 ...l,
                 id: l.id.toString(),
                 list_price: l.list_price.toString(),
@@ -1356,10 +1354,8 @@ async function fetchExclusiveListings(
         neighborhood: true,
         address: true,
         features: true,
-        // Compatibility fields without typed owners still read raw_data:
-        // previousListPrice, daysOnMarket, leaseAmount, availabilityDate and
-        // on/closeDate. Tour/video URLs come only from external_media below.
-        raw_data: true,
+        // Full raw_data is intentionally omitted. One bounded fragment query
+        // below supplies only the twelve compatibility keys the DTO still reads.
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
         // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
@@ -1410,8 +1406,9 @@ async function fetchExclusiveListings(
       },
     });
 
+    const dbListingsWithRawCompat = await attachPublicListingRawCompat(prisma, dbListings);
     // Serialize BigInt + Decimal for the mapper
-    const serialized: DbListing[] = dbListings.map((l) => ({
+    const serialized: DbListing[] = dbListingsWithRawCompat.map((l) => ({
       ...l,
       id: l.id.toString(),
       list_price: l.list_price.toString(),
