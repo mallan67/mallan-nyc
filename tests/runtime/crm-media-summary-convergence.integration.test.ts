@@ -270,21 +270,30 @@ if (!crmMediaIntegrationUrl) {
     it("reorder applies ONLY to crm: keys, never renumbering feed rows", async () => {
       // Migrated from a mocked suite. Feed order is source-owned; media-sync
       // rewrites it every cycle, so a CRM reorder must not touch it.
+      //
+      // Self-contained on purpose: an earlier case tombstones the shared photos,
+      // so reusing them would silently match zero active rows and assert nothing.
       const feedKey = `FEED-${stamp}-30`;
+      const crmKey = `crm:${listingId}:reorder30`;
       await routeClient.listingMedia.create({
         data: mediaRow(30, { media_key: feedKey, order: 99 }),
       });
-      await withCrmMediaConvergence(listingId, async (tx: typeof routeClient) => {
-        await tx.listingMedia.updateMany({
-          where: { media_key: key(1), listing_id: listingId, status: "active" },
+      await routeClient.listingMedia.create({
+        data: mediaRow(31, { media_key: crmKey, order: 1 }),
+      });
+      const affected = await withCrmMediaConvergence(listingId, async (tx: typeof routeClient) => {
+        const r = await tx.listingMedia.updateMany({
+          where: { media_key: crmKey, listing_id: listingId, status: "active" },
           data: { order: 7 },
         });
+        return r.count;
       });
+      expect(affected).toBe(1); // the reorder actually matched a row
       const feedRow = await observer.listingMedia.findUnique({ where: { media_key: feedKey } });
-      const crmRow = await observer.listingMedia.findUnique({ where: { media_key: key(1) } });
-      expect(feedRow!.order).toBe(99); // untouched
+      const crmRow = await observer.listingMedia.findUnique({ where: { media_key: crmKey } });
+      expect(feedRow!.order).toBe(99); // source-owned order untouched
       expect(crmRow!.order).toBe(7);
-      await routeClient.listingMedia.delete({ where: { media_key: feedKey } });
+      await routeClient.listingMedia.deleteMany({ where: { media_key: { in: [feedKey, crmKey] } } });
     });
 
     it("a CRM media mutation does NOT bump modification_timestamp on a Trestle-synced listing", async () => {
