@@ -39,6 +39,7 @@
         "media:audit": "tsx scripts/audit/media-coverage-audit.cli.ts",
         "media:audit:cotality": "tsx scripts/audit/media-coverage-audit.cli.ts --with-cotality",
         "media:backfill:dryrun": "tsx scripts/backfill/bucket-b-media-dry-run.cli.ts",
+        "media:external-recovery:audit": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/audit/external-media-recovery-audit.cli.ts",
         "smoke:sales:prod": "tsx tools/smoke/sales-production-smoke.ts",
         "repo:hygiene": "node scripts/ci/repo-hygiene.mjs",
         "ucba:audit": "node scripts/ucba-compliance-audit.js",
