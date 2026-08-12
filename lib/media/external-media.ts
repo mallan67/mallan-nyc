@@ -139,7 +139,9 @@ export function buildDesiredCotalityExternalMedia(
  * slots. An unbranded row wins over an equivalent branded duplicate (UCBA
  * unbranded-first); otherwise the lower provider slot wins.
  */
-export function dedupeForPresentation<T extends DesiredExternalMediaRow>(rows: readonly T[]): T[] {
+export function dedupeForPresentation<
+  T extends { url: string; branded: boolean; source_key: string },
+>(rows: readonly T[]): T[] {
   const rank = (r: T) => {
     const slot = COTALITY_TOUR_SLOTS.find((s) => s.key === r.source_key);
     return (r.branded ? 10 : 0) + (slot ? slot.slot : 9);
