@@ -590,13 +590,14 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
     // Virtual tour + video — host-split (YouTube/Vimeo → video; Matterport/3D → tour),
     // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
-    // All THREE branded slots are passed, not just slot 1. Live $metadata
-    // confirms Branded2/Branded3 exist; they are empty upstream today, so this
-    // changes nothing now and prevents a repeat of the Unbranded2/3 loss when
-    // Cotality begins populating them.
+    // Both families pass ALL THREE slots as arrays. An `??` chain here would
+    // return only the first non-null branded URL and drop the others — the same
+    // silent loss that cost production Unbranded2/3. Live $metadata confirms
+    // Branded2/3 exist; they are empty upstream today, so this changes nothing
+    // now and prevents the defect recurring when Cotality populates them.
     ...tourUrlsForDto(
       [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
-      rawData.VirtualTourURLBranded ?? rawData.VirtualTourURLBranded2 ?? rawData.VirtualTourURLBranded3,
+      [rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3],
     ),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,

@@ -33,3 +33,37 @@ describe('live Cotality card select covers all six tour slots', () => {
     }
   });
 });
+
+import { tourUrlsForDto } from '@/lib/media/listing-media-resolver';
+
+describe('all six slots are PRESENTED, not just selected', () => {
+  it('branded slots are not collapsed by ?? — a second branded value still counts', () => {
+    // Branded1 is a video, Branded2 is a tour. An `??` chain would keep only
+    // Branded1 and the tour would vanish.
+    const out = tourUrlsForDto([], [
+      'https://youtu.be/branded1',
+      'https://my.matterport.com/show/?m=branded2',
+      null,
+    ]);
+    expect(out.videoUrl).toContain('youtu.be/branded1');
+    expect(out.virtualTourURL).toContain('matterport');
+  });
+
+  it('unbranded still wins over an equivalent branded value (UCBA)', () => {
+    const out = tourUrlsForDto(
+      ['https://my.matterport.com/show/?m=unbranded'],
+      ['https://my.matterport.com/show/?m=branded'],
+    );
+    expect(out.virtualTourURL).toContain('unbranded');
+  });
+
+  it('a scalar branded argument still works (back-compatible)', () => {
+    const out = tourUrlsForDto([], 'https://youtu.be/solo');
+    expect(out.videoUrl).toContain('youtu.be/solo');
+  });
+
+  it('Unbranded3 alone still surfaces', () => {
+    const out = tourUrlsForDto([null, null, 'https://youtu.be/slot3'], []);
+    expect(out.videoUrl).toContain('slot3');
+  });
+});
