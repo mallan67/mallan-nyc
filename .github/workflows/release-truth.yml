@@ -81,7 +81,7 @@ jobs:
           echo "label=$label" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Same revision the verdict is audited + published for (steps.target.sha):
           # PR head sha on pull_request, github.sha on push, inputs sha/pr otherwise.

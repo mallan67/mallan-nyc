@@ -6,8 +6,8 @@
   --color-brand-dark: #0A0A0A;
   --color-brand-slate: #3d4556;
 
-  --font-display: 'Urbanist', system-ui, sans-serif;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Urbanist Variable', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', system-ui, -apple-system, sans-serif;
 
   --breakpoint-xs: 475px;
   --breakpoint-sm: 640px;

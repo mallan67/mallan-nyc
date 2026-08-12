@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Urbanist, Inter } from 'next/font/google';
+import '@fontsource-variable/urbanist/wght.css';
+import '@fontsource-variable/inter/wght.css';
 import './globals.css';
 import CookieConsent from './components/CookieConsent';
 import ExitIntentPopup from './components/ExitIntentPopup';
@@ -18,21 +19,6 @@ import Footer from './components/Footer';
 import FavoriteEmailProvider from './components/FavoriteEmailProvider';
 import RegistrationGate from './components/RegistrationGate';
 import PostHogProvider from './components/PostHogProvider';
-
-// Bright & Liquid design system fonts
-const urbanist = Urbanist({
-  subsets: ['latin'],
-  weight: ['200', '300', '400', '500', '600', '700', '800'],
-  variable: '--font-display',
-  display: 'swap',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['200', '300', '400', '500', '600'],
-  variable: '--font-sans',
-  display: 'swap',
-});
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -353,7 +339,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   // Next 16.2/Turbopack.) The JSON-LD below is a non-executed data block, so it
   // needs no nonce to satisfy CSP.
   return (
-    <html lang="en" className={`${urbanist.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#0f172a" />
