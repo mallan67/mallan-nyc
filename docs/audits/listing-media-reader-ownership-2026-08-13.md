@@ -301,3 +301,109 @@ single indivisible change.
 - No Upstash / env / R2 action taken.
 - Implementation, behavioral tests, and validation are pending; results will be reported
   against the exact final SHA, per the proof-first rule.
+
+---
+
+## 8. Review round 2 — blockers found at pushed head `6b1686c3`
+
+Independent review rejected `6b1686c3`. Five defects, all real, all closed on the
+same branch. Recorded here because three of them are the kind that produce a
+green deployment with broken ingestion.
+
+### 8.1 A scoped run could overwrite the global cursor — SILENT LOSS (introduced by 6b1686c3)
+
+`sync_state.Property.{last_watermark,last_listing_key}` is ONE position over ONE
+ordered universe. `6b1686c3` advanced it from ANY non-empty run.
+
+`app/api/idx/sync/route.ts` accepts `{"type":"sale"}`, which filters
+`PropertyType ne 'ResidentialLease'`. Such a run never fetches a single rental,
+so its "last contiguous success" is meaningless globally. Writing it to the
+shared cursor declares every rental in that timestamp range processed; the next
+unscoped run resumes past them and they are never seen again.
+
+`fullSync` is the same class: it uses `buildActiveFilter` (actives only, no MT
+bound), a different universe entirely.
+
+**Fix:** `advancesGlobalCursor = incremental && !options.type`, DERIVED not
+caller-supplied — the property that matters is the shape of the traversal, not
+the caller's intent. Run telemetry still writes from every run; only the two
+cursor columns are gated. Proven by `tests/runtime/idx-property-cursor-contract.test.ts`
+(sale / rent / fullSync / capped-fullSync all assert the columns are absent),
+mutation-verified: removing the gate fails exactly those 4 tests.
+
+### 8.2 Bootstrap used a strict boundary and could skip an unprocessed key
+
+Bootstrap resumes from `MAX(listings.modification_timestamp)` with a NULL
+tie-breaker, and `6b1686c3` emitted `MT gt T`.
+
+We are only ever guaranteed to have consumed T PARTIALLY — production carries
+797 rows at one MT and the scheduled run caps at 500. `gt` therefore drops the
+unprocessed remainder of the boundary timestamp permanently. Assuming
+completeness is exactly the failure mode.
+
+**Fix:** a tie-breaker-less resume uses `ge` and REPLAYS the boundary. Replay is
+cheap — an unchanged row is suppressed by `listingUpdateMateriallyUnchanged`, so
+it costs a comparison, not a write. `media_sync_state`'s reader already used this
+rule, so both lanes now agree. Once a real keyset position exists the predicate
+becomes strict again, so there is no perpetual replay.
+
+Chosen over "verify completeness against live Cotality at the DB max": a
+replay-safe boundary is correct WITHOUT that verification, and this environment
+cannot run a live Cotality data query anyway (see
+`docs/audits/cotality-live-metadata-evidence-2026-08-13.md` §4).
+
+### 8.3 The manual route dropped the ListingKey
+
+`app/api/idx/sync/route.ts` still called the scalar `getLastSyncTimestamp()`,
+so a manual run resumed with no tie-breaker and could not express "at T, after
+key K" — re-reading or skipping inside a same-timestamp cluster. Now uses
+`getPropertyKeysetCursor()`, the same accessor the scheduled member uses. ONE
+cursor contract, two callers.
+
+### 8.4 Empty `listing_media` was treated as authoritative for projection flags
+
+`6b1686c3` cleared `has_floorplan`/`has_video`/`has_virtual_tour` whenever the
+active canonical set was empty. But empty-active is AMBIGUOUS, and the
+never-imported residual is known to exist (§4): 97 displayable listings with
+legacy media JSON, zero `listing_media` rows, and source PCT below the live media
+cursor. Their flags would have been silently cleared.
+
+**Fix — three-way rule, using the ALL-STATUS signal:**
+
+| active rows | all-status rows | outcome |
+|---|---|---|
+| > 0 | any | canonical wins |
+| 0 | > 0 | authoritative deletion -> flags false |
+| 0 | 0 | never imported -> legacy JSON still governs |
+| 0 | unknown | `shouldFallbackToLegacyMedia` — Mallan-owned fails closed |
+
+Deliberately STRICTER than `shouldFallbackToLegacyMedia` in one place: that
+helper governs which photos to SHOW (falling back to Cotality-sourced JSON is
+harmless there), whereas these are SEARCH FACETS — an all-deleted listing must
+not surface under a `has_floorplan` filter it no longer satisfies.
+
+### 8.5 The hot sync path computed flags from an empty array
+
+`syncListings` built its projection input from `mapped.media`, which is `[]` on
+the incremental path because `$expand=Media` is disabled (`useExpandMedia === false`).
+Every feature flag on the hot path was therefore derived from nothing.
+
+**Fix:** the canonical rows + all-status `_count` are widened onto the EXISTING
+per-record `findUnique` (`select: { ...LISTING_SYNC_COMPARE_SELECT, ... }`) — no
+second round trip, no N+1, `distinct` caps it at <=4 rows per listing. Extra keys
+on `existing` are harmless to the suppression comparators, which iterate the
+UPDATE payload's keys.
+
+### 8.6 Also closed
+
+- The outer `parse/finalize` catch in the preflight route was an unstructured
+  `console.warn`, so the one outcome that matters most — completion state failed
+  to persist, so every poll fails open — was the ONLY outcome not queryable by
+  `tag`/`event`. Now a structured `external_state_finalize` event with
+  `outcome: 'parse_or_finalize_threw'` and an error CLASS (never the message,
+  which can carry the Upstash URL/token).
+- The 13 source-TEXT preflight assertions were replaced with behavioral tests
+  that import and call the functions (23 + 9 route-level), mutation-verified.
+- Raw Cotality `$metadata` captures preserved verbatim in
+  `docs/audits/cotality-live-metadata-evidence-2026-08-13.md` so the
+  18-value `MediaCategory` claim is auditable rather than prose.

@@ -199,9 +199,17 @@ describe('idx-sync source — archived-guard wiring (SUPPORTING, not the RED pro
   });
 
   it('both existing-row selects include sync_status so the guard can see archived state (via LISTING_SYNC_COMPARE_SELECT)', () => {
-    // Phase 3: the selects now use the shared LISTING_SYNC_COMPARE_SELECT
-    // constant; sync_status must be present there.
-    const selects = src.match(/select:\s*LISTING_SYNC_COMPARE_SELECT/g) || [];
+    // Phase 3: the selects use the shared LISTING_SYNC_COMPARE_SELECT constant;
+    // sync_status must be present there.
+    //
+    // Matches BOTH forms. syncListings now spreads the constant so it can widen
+    // the SAME read with the canonical `listing_media` rows + all-status
+    // `_count` for the projection's feature flags (no extra round trip), while
+    // syncAgentHistory still passes it directly. A spread carries every key of
+    // the constant, so the guard sees sync_status either way — the property
+    // under test is "the constant is used", not "it is used unspread".
+    const selects =
+      src.match(/select:\s*(?:LISTING_SYNC_COMPARE_SELECT|\{\s*\.\.\.LISTING_SYNC_COMPARE_SELECT)/g) || [];
     expect(selects.length).toBeGreaterThanOrEqual(2);
     const suppressionSrc = readFileSync(
       path.resolve(__dirname, '../../lib/idx/write-suppression.ts'),

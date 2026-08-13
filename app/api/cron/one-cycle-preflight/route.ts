@@ -121,10 +121,22 @@ export async function GET(req: NextRequest) {
       }));
     }
   } catch (err) {
-    console.warn(
-      '[one-cycle-preflight] cycle response parse/finalize failed; next poll remains fail-open:',
-      err instanceof Error ? err.name : 'unknown_error',
-    );
+    // STRUCTURED, like the two success paths above. This was an unstructured
+    // console.warn, which meant the one outcome that matters most — the
+    // completion state failed to persist, so every subsequent poll fails open
+    // and Neon is never skipped — was the ONLY outcome not queryable by
+    // `tag`/`event`. A log filter looking for external_state_finalize events
+    // would see nothing and read that as "no problem".
+    //
+    // Error CLASS only, never the message: the Upstash failure carries the REST
+    // URL and can carry the token, and this line is shipped to runtime logs.
+    console.log(JSON.stringify({
+      tag: 'one_cycle_preflight',
+      event: 'external_state_finalize',
+      outcome: 'parse_or_finalize_threw',
+      decision_reason: decision.reason,
+      error_class: err instanceof Error ? err.name : 'unknown_error',
+    }));
   }
   return response;
 }

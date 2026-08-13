@@ -618,7 +618,14 @@ describe("syncListings — watermark never advances past a failed record", () =>
     wireMocks(state);
     mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
-    await syncListings({ fullSync: true });
+    // Must be the UNSCOPED INCREMENTAL traversal. This previously passed
+    // `{ fullSync: true }`, which now deliberately cannot move the cursor: a
+    // full sync uses buildActiveFilter (actives only, no MT bound), so its
+    // records carry no information about incremental position. The property
+    // this test actually asserts — a clean run advances — belongs to the
+    // incremental path. See tests/runtime/idx-property-cursor-contract.test.ts
+    // for the ownership rule itself.
+    await syncListings({ since: new Date("2026-06-30T00:00:00Z") });
     const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
       update: { last_watermark?: Date; last_run_status: string };
     };

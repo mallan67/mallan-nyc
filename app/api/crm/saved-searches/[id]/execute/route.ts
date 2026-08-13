@@ -109,6 +109,14 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       criteria,
     });
 
+    // RESPONSE-SHAPE NOTE (2026-08-13, CANONICAL-READER migration): each
+    // serialized listing no longer carries a `media` key. It was the raw legacy
+    // `Listing.media` JSON blob, hydrated for up to 100 rows per call for a
+    // consumer that does not exist — `MallanAPI.savedSearches.execute`
+    // (public/crm/js/core/api-client.js:553) has zero call sites, and the CRM
+    // saved-search UI re-runs criteria through the live Trestle engine instead.
+    // Every other key is unchanged. Rationale + the rule for re-adding media
+    // correctly: lib/search/core.ts SEARCH_RESULT_LISTING_SELECT.
     const serialized = result.listings.map(serializeSearchListing);
 
     return NextResponse.json({

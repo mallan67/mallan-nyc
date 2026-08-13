@@ -309,14 +309,19 @@ describe("extractProjectionFeatureFlags — canonical listing_media migration", 
     expect(flags?.has_video).toBe(true);
   });
 
-  it("treats an EMPTY canonical set as authoritative — never falls back to the legacy JSON", () => {
-    // Zero active listing_media rows is a definitive answer. baseSale's legacy
-    // JSON carries a "Floor Plan" item; if the empty canonical set fell back,
-    // has_floorplan would wrongly be true and the migration would be a no-op
-    // for exactly the rows it exists to fix.
+  // ── EMPTY canonical set is AMBIGUOUS on its own ────────────────────────────
+  // It means either "every row was deleted" (authoritative) or "no row was ever
+  // imported" (the legacy JSON is still the only source). Only the ALL-STATUS
+  // signal separates them, so these three cases must diverge.
+
+  it("EMPTY canonical + rows EXISTED -> authoritative deletion, flags false", () => {
+    // hadRelationalRows: true means listing_media rows exist(ed) for this
+    // listing and none are active now. That is a definitive "no media", so the
+    // stale legacy JSON must NOT be consulted.
     const flags = extractProjectionFeatureFlags({
       ...baseSale,
       mediaTypes: [],
+      hadRelationalRows: true,
     });
     expect(flags?.has_floorplan).toBe(false);
     expect(flags?.has_video).toBe(false);
@@ -324,6 +329,56 @@ describe("extractProjectionFeatureFlags — canonical listing_media migration", 
     // Non-media flags are untouched by the media precedence rule.
     expect(flags?.is_pet_friendly).toBe(true);
     expect(flags?.is_furnished).toBe(false);
+  });
+
+  it("EMPTY canonical + NEVER imported -> legacy JSON still governs", () => {
+    // The 97-listing residual: displayable, legacy media JSON populated, ZERO
+    // listing_media rows, and a source PhotosChangeTimestamp below the live
+    // media cursor so the forward-only lane can never import them
+    // (docs/audits/listing-media-reader-ownership-2026-08-13.md §4.1). Treating
+    // their empty active set as authoritative would silently clear the flags for
+    // that entire class until bounded recovery runs.
+    const flags = extractProjectionFeatureFlags({
+      ...baseSale,
+      mediaTypes: [],
+      hadRelationalRows: false,
+    });
+    expect(flags?.has_floorplan).toBe(true); // from the legacy JSON "Floor Plan"
+  });
+
+  it("EMPTY canonical + UNKNOWN existence -> fails closed for Mallan-owned media", () => {
+    // rls_eligible === false marks a Mallan-owned listing. With existence
+    // unknown, resurrecting its legacy JSON could republish photos the agent
+    // deleted, so the canonical (empty) answer stands. Third-party listings
+    // keep falling back, because their JSON is Cotality-sourced.
+    const mallan = extractProjectionFeatureFlags({
+      ...baseSale,
+      listing_id: "SL-0007",
+      rls_eligible: false,
+      mediaTypes: [],
+      hadRelationalRows: undefined,
+    });
+    expect(mallan?.has_floorplan).toBe(false);
+
+    const thirdParty = extractProjectionFeatureFlags({
+      ...baseSale,
+      mediaTypes: [],
+      hadRelationalRows: undefined,
+    });
+    expect(thirdParty?.has_floorplan).toBe(true);
+  });
+
+  it("NON-EMPTY canonical wins outright regardless of the existence signal", () => {
+    for (const hadRelationalRows of [true, false, undefined]) {
+      const flags = extractProjectionFeatureFlags({
+        ...baseSale,
+        mediaTypes: ["Video"],
+        hadRelationalRows,
+      });
+      expect(flags?.has_video).toBe(true);
+      // The legacy JSON's floor plan is NOT consulted once canonical rows exist.
+      expect(flags?.has_floorplan).toBe(false);
+    }
   });
 
   it("falls back to the legacy JSON when mediaTypes is undefined (un-migrated caller)", () => {

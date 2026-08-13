@@ -24,7 +24,8 @@ describe('buildIncrementalFilter — ModificationTimestamp-only cursor', () => {
 
   it('filters on ModificationTimestamp alone', () => {
     const filter = buildIncrementalFilter(since);
-    expect(filter).toContain(`ModificationTimestamp gt ${ts}`);
+    expect(filter).toContain('ModificationTimestamp');
+    expect(filter).toContain(ts);
   });
 
   it('does NOT reference PhotosChangeTimestamp — that dimension has its own cursor', () => {
@@ -38,13 +39,13 @@ describe('buildIncrementalFilter — ModificationTimestamp-only cursor', () => {
 
   it('preserves the sale type filter', () => {
     const filter = buildIncrementalFilter(since, 'sale');
-    expect(filter).toContain(`(ModificationTimestamp gt ${ts})`);
+    expect(filter).toContain(`(ModificationTimestamp ge ${ts})`);
     expect(filter).toContain("PropertyType ne 'ResidentialLease'");
   });
 
   it('preserves the rent type filter', () => {
     const filter = buildIncrementalFilter(since, 'rent');
-    expect(filter).toContain(`(ModificationTimestamp gt ${ts})`);
+    expect(filter).toContain(`(ModificationTimestamp ge ${ts})`);
     expect(filter).toContain("PropertyType eq 'ResidentialLease'");
   });
 
@@ -67,10 +68,18 @@ describe('buildIncrementalFilter — keyset tie-breaker', () => {
     );
   });
 
-  it('degrades to a plain timestamp cursor when the tie-breaker is null or omitted', () => {
-    // A NULL sync_state.last_listing_key must behave exactly as before the
-    // column existed, so applying the migration alone changes no behaviour.
-    const expected = `(ModificationTimestamp gt ${ts})`;
+  it('falls back to an INCLUSIVE boundary when the tie-breaker is null or omitted', () => {
+    // `ge`, not `gt`. Without a tie-breaker there is no way to express
+    // "everything at T except the keys already done", and T on the bootstrap
+    // path is MAX(listings.modification_timestamp) — a timestamp we are only
+    // guaranteed to have consumed PARTIALLY (797 production rows share one MT;
+    // the scheduled run caps at 500). A strict `gt` would silently drop the
+    // unprocessed remainder of that timestamp forever.
+    //
+    // Replaying the boundary is cheap: an unchanged row is suppressed by
+    // listingUpdateMateriallyUnchanged, so it costs a comparison, not a write.
+    // media_sync_state's reader uses the same `ge`-without-tie-breaker rule.
+    const expected = `(ModificationTimestamp ge ${ts})`;
     expect(buildIncrementalFilter(since)).toBe(expected);
     expect(buildIncrementalFilter(since, undefined, null)).toBe(expected);
     expect(buildIncrementalFilter(since, undefined, '')).toBe(expected);

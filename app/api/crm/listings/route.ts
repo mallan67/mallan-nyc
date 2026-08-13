@@ -16,6 +16,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
+import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -80,7 +81,38 @@ export async function GET(req: NextRequest) {
         neighborhood: true,
         address: true,
         features: true,
+        // Legacy `Listing.media` JSON — the composer's fallback input only.
+        // Never serialized raw (see the media composition below).
         media: true,
+        // Canonical media rows. Same column shape /api/listings selects
+        // (app/api/listings/route.ts:396-414): active-only, ordered by
+        // (order, id) so the resolver receives a stable input. This WIDENS the
+        // existing findMany — no second round trip, no N+1.
+        listing_media: {
+          where: { status: "active" },
+          orderBy: [{ order: "asc" }, { id: "asc" }],
+          select: {
+            // media_key: MIXED-GALLERY COMPOSITION — an all-`crm:` set is a
+            // SUPPLEMENT to the feed JSON, not the whole gallery
+            // (lib/media/listing-media-resolver.ts:748-765).
+            media_key: true,
+            media_url_original: true,
+            media_url_cached: true,
+            media_type: true,
+            media_category: true,
+            media_classification: true,
+            order: true,
+            preferred_photo_yn: true,
+            status: true,
+          },
+        },
+        // ALL-STATUS existence signal. The select above is ACTIVE-only, so
+        // `listing_media.length` would read an all-deleted listing as "never
+        // imported" and RESURRECT deleted media out of the legacy JSON
+        // (lib/media/db-media-composition.ts:55-67). This grid is dominated by
+        // SL-/RL- Mallan exclusives — exactly the ownership class whose
+        // deletions are authoritative — so the signal is load-bearing here.
+        _count: { select: { listing_media: true } },
         // Phase B: typed agent columns so the CRM grid hydrates attribution TYPED-FIRST
         // (authenticated surface — PII columns allowed here per spec §4).
         ...AGENT_TYPED_SELECT,
@@ -106,15 +138,46 @@ export async function GET(req: NextRequest) {
     prisma.listing.count({ where }),
   ]);
 
-  // Serialize BigInt ids to strings
-  const serialized = listings.map((l) => ({
-    ...l,
-    id: l.id.toString(),
-    agent_id: l.agent_id?.toString() ?? null,
-    assigned_agent_id: l.agent_id?.toString() ?? null,
-    list_price: l.list_price.toString(),
-    living_area: l.living_area?.toString() ?? null,
-  }));
+  // Serialize BigInt ids to strings + compose canonical media.
+  //
+  // `media` was previously the raw legacy `Listing.media` JSON. Both CRM grid
+  // consumers read it positionally — `media[0].MediaURL || media[0].url`
+  // (public/crm/js/manage/manage-listings.js:56-58) and `media.length`
+  // (public/crm/js/core/data-loader.js:221,259) — so an arbitrarily ordered
+  // provider array could put a floor plan or a `/DOCUMENT-Pdf/` document in the
+  // grid's photo slot, and the relational `listing_media` rows (canonical since
+  // PR 4) were not consulted at all.
+  //
+  // `media` now carries the composed gallery: relational rows first with the
+  // legacy JSON as the resolver's own gated fallback, sorted photo-first,
+  // deduped, each URL proxied exactly once. The KEY NAME and its array type are
+  // unchanged, and each item still exposes `url`, so the existing
+  // `media[0].MediaURL || media[0].url` read resolves to the photo-first hero
+  // rather than whatever the provider happened to list first.
+  //
+  // `listing_media` and `_count` are query inputs, not response fields — they
+  // are destructured out so the response contract stays exactly as it was.
+  const serialized = listings.map((l) => {
+    const { listing_media, _count, ...rest } = l;
+    const { media } = composeDbPublicMedia({
+      listingId: l.listing_id,
+      rlsEligible: l.rls_eligible,
+      tableRows: listing_media,
+      legacyMedia: Array.isArray(l.media) ? l.media : [],
+      // ALL-STATUS count, never `listing_media.length` (active-only select).
+      hadRelationalRows:
+        typeof _count?.listing_media === "number" ? _count.listing_media > 0 : undefined,
+    });
+    return {
+      ...rest,
+      id: l.id.toString(),
+      agent_id: l.agent_id?.toString() ?? null,
+      assigned_agent_id: l.agent_id?.toString() ?? null,
+      list_price: l.list_price.toString(),
+      living_area: l.living_area?.toString() ?? null,
+      media,
+    };
+  });
 
   return NextResponse.json({
     listings: serialized,

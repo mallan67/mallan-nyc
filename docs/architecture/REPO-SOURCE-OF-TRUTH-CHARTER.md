@@ -187,7 +187,7 @@ If you find a real reason to introduce a new name, follow Section 11 first.
 | DB → public DTO | `lib/idx/db-to-public-dto.ts` | DB row → public DTO. |
 | Public search query builder | `lib/search/listing-search-projection.ts` | Public DB SELECT + post-filters. |
 | URL params → Prisma | `lib/search/criteria-to-prisma.ts` | URL → WHERE clause. |
-| Search orchestrator | `lib/search/core.ts` | `runListingSearch()` |
+| Search orchestrator | `lib/search/core.ts` | `runProjectionListingSearch()` — the projection-backed traversal. (`runListingSearch()`, the Listing-table-backed original, was deleted 2026-08-13: PR 5D/5E migrated both real callers and it had zero call sites left.) |
 
 **Listing-search file family** (each has a distinct, non-duplicate role):
 - `lib/search/types.ts` — `SearchTab`, `ViewMode`, `SearchFilters`, `AmenityFilter`

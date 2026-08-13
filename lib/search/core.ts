@@ -2,10 +2,37 @@ import type { Prisma } from "@prisma/client";
 import { canDisplayListingAddress } from "@/lib/search/listing-access-decision";
 import {
   criteriaToProjectionWhere,
-  criteriaToPrismaWhere,
   type SearchCriteria,
 } from "@/lib/search/criteria-to-prisma";
 
+/**
+ * Columns every saved-search consumer needs.
+ *
+ * `media` IS DELIBERATELY ABSENT (2026-08-13, CANONICAL-READER migration).
+ * -----------------------------------------------------------------------
+ * This select feeds exactly two entrypoints, and NEITHER consumes listing media:
+ *
+ *   • `/api/cron/search-alerts` (vercel.json `30 7 * * *`) — the alert formatter
+ *     reads only address / list_price / bedrooms_total / bathrooms_full /
+ *     listing_id, and `listingAlertEmail` (lib/email/templates.ts:119-157) has no
+ *     image field at all. The media blob was hydrated and then discarded.
+ *   • `POST /api/crm/saved-searches/[id]/execute` — serialized it into the JSON
+ *     body, where no first-party caller reads it: `MallanAPI.savedSearches.execute`
+ *     (public/crm/js/core/api-client.js:553) has ZERO call sites, and the CRM
+ *     saved-search UI re-runs criteria through the live Trestle engine instead.
+ *
+ * So the column was a pure read cost: a full `media` JSONB blob for up to 100
+ * rows per request (`clampLimit`), on every alert-cron iteration and every
+ * execute call. Dropping it sheds that read outright.
+ *
+ * It is NOT re-sourced from canonical `listing_media`: doing so would ADD
+ * relational reads to the cron path — the one that provably discards the value —
+ * to keep a key nobody reads. If a future consumer genuinely needs media here,
+ * add `listing_media` (active-only, ordered) PLUS the all-status
+ * `_count.listing_media` and compose through `composeDbPublicMedia`. Never
+ * re-add the raw `media` JSON: an unresolved blob lets `media[0]` hero a
+ * FloorPlan (lib/media/listing-media-resolver.ts:7-31).
+ */
 export const SEARCH_RESULT_LISTING_SELECT = {
   id: true,
   listing_id: true,
@@ -21,7 +48,6 @@ export const SEARCH_RESULT_LISTING_SELECT = {
   borough: true,
   neighborhood: true,
   address: true,
-  media: true,
   modification_timestamp: true,
   internet_entire_listing_display_yn: true,
   internet_address_display_yn: true,
@@ -37,21 +63,6 @@ export interface SearchRunOptions {
   modifiedSince?: Date;
 }
 
-export interface SearchRunResult {
-  listings: SearchResultListing[];
-  total: number;
-  limit: number;
-  offset: number;
-  where: Prisma.ListingWhereInput;
-}
-
-type SearchDb = {
-  listing: {
-    findMany(args: Prisma.ListingFindManyArgs): Promise<unknown[]>;
-    count(args: Prisma.ListingCountArgs): Promise<number>;
-  };
-};
-
 function clampLimit(limit: unknown): number {
   return typeof limit === "number" && Number.isFinite(limit)
     ? Math.max(1, Math.min(Math.trunc(limit), 100))
@@ -64,36 +75,21 @@ function normalizeOffset(offset: unknown): number {
     : 0;
 }
 
-export async function runListingSearch(
-  db: SearchDb,
-  criteria: SearchCriteria,
-  options: SearchRunOptions = {},
-): Promise<SearchRunResult> {
-  const limit = clampLimit(options.limit);
-  const offset = normalizeOffset(options.offset);
-  const where = criteriaToPrismaWhere(criteria, { modifiedSince: options.modifiedSince });
-
-  const [listings, total] = await Promise.all([
-    db.listing.findMany({
-      where,
-      take: limit,
-      skip: offset,
-      orderBy: { modification_timestamp: "desc" },
-      select: SEARCH_RESULT_LISTING_SELECT,
-    }),
-    db.listing.count({ where }),
-  ]);
-
-  return {
-    listings: listings as SearchResultListing[],
-    total,
-    limit,
-    offset,
-    where,
-  };
-}
-
 // ── Projection-backed search (master refactor PR 5D — first reader) ──
+//
+// REMOVED 2026-08-13 — `runListingSearch(db, criteria, options)`, the
+// `Listing`-backed sibling of `runProjectionListingSearch` below, together with
+// its `SearchRunResult` / `SearchDb` types.
+//
+// PR 5D and PR 5E migrated its only two callers (the saved-search execute route
+// and the search-alerts cron) to the projection runner. A repo-wide grep for
+// `runListingSearch(` at removal time returned exactly ONE hit — the definition
+// itself — so nothing executed it. It survived only as a second, drifting copy
+// of the display-gate + pagination policy, and as the last caller of
+// `criteriaToPrismaWhere` from this module.
+//
+// `criteriaToPrismaWhere` itself is NOT removed: it remains exported from
+// lib/search/criteria-to-prisma.ts and is covered by its own tests.
 
 export interface ProjectionSearchRunResult {
   listings: SearchResultListing[];
@@ -113,9 +109,7 @@ type ProjectionSearchDb = {
 /**
  * Projection-backed listing search. Uses `listing_search_projection` as
  * the index for facet filtering, then includes the related Listing row
- * for full SEARCH_RESULT_LISTING_SELECT data so callers consuming
- * `serializeSearchListing` see the same shape they got from
- * `runListingSearch`.
+ * for full SEARCH_RESULT_LISTING_SELECT data.
  *
  * Why this exists (PR 5D):
  *   - `listing_search_projection` is denormalized for fast filter scans.
@@ -133,8 +127,8 @@ type ProjectionSearchDb = {
  *     (mirrored from `listing.modification_timestamp` by the projection
  *     builder).
  *
- * Order: `modified_at desc` matches `runListingSearch`'s
- * `modification_timestamp desc`. Same data, same column-by-column.
+ * Order: `modified_at desc` mirrors `listing.modification_timestamp desc`.
+ * Same data, same column-by-column.
  */
 export async function runProjectionListingSearch(
   db: ProjectionSearchDb,
@@ -247,7 +241,10 @@ export function serializeSearchListing(listing: SearchResultListing): Record<str
     borough: listing.borough,
     neighborhood: listing.neighborhood,
     address: sanitizeSearchAddress(listing),
-    media: listing.media,
+    // No `media` key — see SEARCH_RESULT_LISTING_SELECT above. Neither the
+    // alert cron nor any caller of the execute route consumed it, and emitting
+    // an unresolved legacy `Listing.media` blob would let a consumer hero a
+    // FloorPlan via `media[0]`.
     modification_timestamp: listing.modification_timestamp,
   };
 }

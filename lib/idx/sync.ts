@@ -558,6 +558,30 @@ export async function syncListings(
   // ordering — there is no resume position for ASC to protect.
   const incremental = !(options.fullSync || !options.since);
 
+  // ── WHO MAY MOVE THE GLOBAL PROPERTY CURSOR ──────────────────────────────
+  //
+  // `sync_state.Property.{last_watermark,last_listing_key}` is ONE position over
+  // ONE ordered universe: all Property records ordered by
+  // (ModificationTimestamp, ListingKey) ASC. A run may only advance it if it
+  // actually traversed THAT universe.
+  //
+  // A `type: "sale"` run traverses a strict SUBSET (PropertyType ne
+  // 'ResidentialLease'). Its last contiguous success is a valid position within
+  // the sale subset and MEANINGLESS globally: advancing the shared cursor to it
+  // would declare every RENTAL listing in that timestamp range processed when
+  // none of them were even fetched. The next unscoped run resumes past them and
+  // they are never seen again. Same argument for a full sync, which uses
+  // buildActiveFilter — a different filter over a different universe (actives
+  // only, no MT bound at all), so its records say nothing about incremental
+  // position.
+  //
+  // Fail-closed and DERIVED, not caller-supplied: a caller cannot opt in to
+  // moving the cursor by passing a flag, because the property that matters is
+  // the shape of the traversal, not the caller's intent. Run telemetry
+  // (last_run_at / status / counters) still writes from every run — only the two
+  // CURSOR columns are gated.
+  const advancesGlobalCursor = incremental && !options.type;
+
   if (!incremental) {
     // Full sync: fetch all active listings
     filter = buildActiveFilter(options.type);
@@ -719,7 +743,32 @@ export async function syncListings(
       // A field missing from this select fails CLOSED (treated as changed).
       const existing = await prisma.listing.findUnique({
         where: { listing_id: mapped.listing_id },
-        select: LISTING_SYNC_COMPARE_SELECT,
+        select: {
+          ...LISTING_SYNC_COMPARE_SELECT,
+          // CANONICAL MEDIA for the projection's feature flags. Widened onto the
+          // EXISTING per-record read — no second round trip, no N+1. `distinct`
+          // caps this at <=4 rows per listing (the live media_type domain is
+          // Photo/FloorPlan/VirtualTour/Video).
+          //
+          // Without this the projection derived has_floorplan/has_video/
+          // has_virtual_tour from `mapped.media`, which on the incremental path
+          // is `[]` — `$expand=Media` is disabled (useExpandMedia === false), so
+          // the mapper has no provider media to carry. Every flag was therefore
+          // computed from an empty array on the hot path.
+          //
+          // Extra keys on `existing` are harmless to the write-suppression
+          // comparators: both listingUpdateMateriallyUnchanged and
+          // classifyListingChangeReasons iterate the UPDATE payload's keys, not
+          // the existing row's.
+          listing_media: {
+            where: { status: "active" },
+            select: { media_type: true },
+            distinct: ["media_type"] as const,
+          },
+          // ALL-STATUS existence — distinguishes "never imported" (legacy JSON
+          // may still be read) from "every row deleted" (authoritative empty).
+          _count: { select: { listing_media: true } },
+        },
       });
 
       const newPermissions = readTrestlePermissions(raw);
@@ -1021,6 +1070,14 @@ export async function syncListings(
         address: mapped.address as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         media: mapped.media as unknown[],
+        // Canonical media flags come from the stored relational rows, NOT from
+        // `mapped.media` (which is [] on the incremental path — see the widened
+        // select above). `undefined` on a CREATE, where no stored row exists yet
+        // and the legacy derivation is the only available source.
+        mediaTypes: existing
+          ? (existing.listing_media ?? []).map((m) => String(m.media_type ?? ""))
+          : undefined,
+        hadRelationalRows: existing ? (existing._count?.listing_media ?? 0) > 0 : undefined,
       };
       // Phase 3 (surface B): compare the COMPLETE material projection before
       // writing. Every projection column is source-derived (price, status,
@@ -1396,7 +1453,16 @@ export async function syncListings(
     // `keysetFrozen` (an unpositionable record — unparseable MT or missing
     // ListingKey) blocks advancement entirely: we cannot prove what was
     // contiguously processed, so we must not move the cursor past it.
-    advanceWatermark = batchWatermark !== null && !keysetFrozen;
+    //
+    // `advancesGlobalCursor` blocks a scoped/full run from claiming a position
+    // over a universe it did not traverse — see its declaration.
+    advanceWatermark = advancesGlobalCursor && batchWatermark !== null && !keysetFrozen;
+    if (!advancesGlobalCursor) {
+      // Drop the computed position so neither the create branch nor any
+      // diagnostic can report a value this run is not entitled to persist.
+      batchWatermark = null;
+      batchListingKey = null;
+    }
 
     // Correction 4 — retained fail-closed floor. `advanceCursor` already stops
     // at the first failure, so this is a second, independent bound rather than

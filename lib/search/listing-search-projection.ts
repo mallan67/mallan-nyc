@@ -22,6 +22,10 @@ import { Prisma } from "@prisma/client";
 
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
+// The canonical all-status fallback policy. Imported rather than reimplemented
+// so the projection cannot hold a second opinion about when the legacy media
+// JSON may still be read — see extractProjectionFeatureFlags.
+import { shouldFallbackToLegacyMedia } from "@/lib/media/listing-media-resolver";
 import { materialValuesEqual } from "@/lib/idx/write-suppression";
 
 // PropertySubType values that should classify a listing as commercial when no
@@ -103,6 +107,20 @@ export interface ListingProjectionSource {
    * See `extractProjectionFeatureFlags` for the precedence rule.
    */
   mediaTypes?: readonly string[] | null;
+  /**
+   * ALL-STATUS existence signal for `listing_media` — `_count.listing_media > 0`.
+   *
+   * REQUIRED to interpret an EMPTY `mediaTypes`, which is ambiguous on its own:
+   *   true      — rows exist(ed); zero ACTIVE means authoritative deletion
+   *   false     — never imported; the legacy JSON is still the only source
+   *   undefined — UNKNOWN; fail closed via shouldFallbackToLegacyMedia
+   *
+   * Never derive this from `mediaTypes.length` — that query selects ACTIVE rows
+   * only, so an all-deleted listing would read as "never imported" and resurrect
+   * stale flags. Same rule and same reason as
+   * `DbMediaCompositionInput.hadRelationalRows` (lib/media/db-media-composition.ts:55-67).
+   */
+  hadRelationalRows?: boolean;
 }
 
 /**
@@ -285,12 +303,25 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
  *     `listing_media` rows (`mediaTypes`), else the legacy `media` JSON
  *   - is_furnished / is_pet_friendly from features.Furnished/PetsAllowed
  *
- * Media precedence: canonical `mediaTypes` WINS whenever it is supplied —
- * including when it is EMPTY. An empty canonical set means "zero active
- * listing_media rows", which is a definitive answer, not a missing one;
- * falling back to the JSON there would re-read exactly the stale column this
- * input exists to replace. Only an undefined/null `mediaTypes` (a caller that
- * has not been migrated) reaches the legacy derivation.
+ * MEDIA PRECEDENCE — the same three-way rule the DB media composer uses
+ * (`resolveDbListingMedia` / `shouldFallbackToLegacyMedia`), not a second
+ * opinion about what "no media" means:
+ *
+ *   1. `mediaTypes` non-empty            -> canonical rows win outright.
+ *   2. `mediaTypes` empty, rows EXIST(ed) -> authoritative deletion; flags false.
+ *   3. `mediaTypes` empty, NEVER imported -> the legacy JSON is still the only
+ *                                            source; fall back to it.
+ *   4. `mediaTypes` absent (un-migrated caller) -> legacy derivation, verbatim.
+ *
+ * Case 3 is not hypothetical. A read-only production census (2026-08-13) found
+ * 97 displayable listings with legacy media JSON and ZERO `listing_media` rows,
+ * every one of them carrying a source PhotosChangeTimestamp BELOW the live media
+ * cursor — so the forward-only media lane can never import them
+ * (docs/audits/listing-media-reader-ownership-2026-08-13.md §4.1). Treating
+ * their empty canonical set as authoritative would silently clear
+ * has_floorplan/has_video/has_virtual_tour for that whole residual class.
+ * The distinction requires the ALL-STATUS signal — `mediaTypes.length` cannot
+ * carry it, because that query selects ACTIVE rows only.
  *
  * Returns null when neither features nor any media input is populated.
  */
@@ -300,8 +331,34 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
   const mediaRaw = listing.media;
   const flags: Record<string, boolean> = {};
 
-  if (canonicalMediaTypes !== undefined && canonicalMediaTypes !== null) {
-    const present = new Set(canonicalMediaTypes.map(normalizeMediaTypeToken));
+  const hasCanonicalInput = canonicalMediaTypes !== undefined && canonicalMediaTypes !== null;
+  // An EMPTY canonical set only settles the question when we can also prove rows
+  // existed. Otherwise defer to the canonical fallback policy, which is
+  // provenance-aware: third-party listings may use their Cotality-sourced JSON,
+  // Mallan-owned media falls back ONLY when provably never-imported (an unknown
+  // signal fails closed rather than resurrecting deleted Mallan photos).
+  const canonicalIsAuthoritative =
+    hasCanonicalInput &&
+    (canonicalMediaTypes!.length > 0 ||
+      // ALL-DELETED is authoritative for FLAGS even on a third-party listing.
+      // This is the one place the flag rule is deliberately STRICTER than
+      // shouldFallbackToLegacyMedia: that helper governs which photos to SHOW,
+      // where falling back to Cotality-sourced JSON is harmless, whereas
+      // has_floorplan/has_video/has_virtual_tour are SEARCH FACETS. A listing
+      // whose media rows were all tombstoned genuinely has no floor plan, and
+      // advertising one via a stale JSON would surface it under a filter it no
+      // longer satisfies.
+      listing.hadRelationalRows === true ||
+      // NEVER-IMPORTED / UNKNOWN: defer to the canonical provenance policy —
+      // third-party residuals keep their Cotality-sourced JSON, Mallan-owned
+      // media fails closed rather than resurrecting agent-deleted photos.
+      !shouldFallbackToLegacyMedia(listing.hadRelationalRows, {
+        listingId: listing.listing_id,
+        rlsEligible: listing.rls_eligible ?? undefined,
+      }));
+
+  if (canonicalIsAuthoritative) {
+    const present = new Set(canonicalMediaTypes!.map(normalizeMediaTypeToken));
     flags.has_floorplan = present.has("floorplan");
     flags.has_video = present.has("video");
     flags.has_virtual_tour = present.has("virtualtour");
@@ -709,6 +766,11 @@ export async function dualWriteProjectionForListingId(
         select: { media_type: true },
         distinct: ["media_type"],
       },
+      // ALL-STATUS existence — the only thing that can tell "never imported"
+      // apart from "every row deleted" when the active set is empty. Deliberately
+      // unfiltered; filtering it would make it agree with `listing_media` above
+      // and answer nothing.
+      _count: { select: { listing_media: true } },
     },
   })) as Record<string, unknown> | null;
 
@@ -752,6 +814,13 @@ export async function dualWriteProjectionForListingId(
           String(row?.media_type ?? ""),
         )
       : undefined,
+    // undefined when _count is absent (un-migrated/partial mock) so the policy
+    // fails closed rather than guessing. NEVER derived from listing_media.length
+    // — that set is active-only.
+    hadRelationalRows:
+      typeof (listing._count as { listing_media?: number } | undefined)?.listing_media === "number"
+        ? (listing._count as { listing_media: number }).listing_media > 0
+        : undefined,
   };
 
   const projection = buildListingSearchProjectionFromListing(input);

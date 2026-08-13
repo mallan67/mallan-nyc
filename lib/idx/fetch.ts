@@ -418,11 +418,30 @@ export async function fetchListingByAddress(address: {
  *
  * Live Cotality accepts both the ASC composite `$orderby` and this filter shape.
  *
+ * WHY THE BOOTSTRAP BOUNDARY IS INCLUSIVE
+ *
+ * Without a tie-breaker there is no way to say "everything at T except the keys
+ * I already did". A strict `MT gt T` therefore SKIPS any unprocessed record
+ * sitting exactly AT T — and T on the bootstrap path is
+ * MAX(listings.modification_timestamp), a timestamp we are only guaranteed to
+ * have processed PARTIALLY (production carries 797 rows at a single MT, and the
+ * scheduled run caps at 500). Assuming we finished that timestamp is exactly
+ * the completeness assumption that loses records.
+ *
+ * So a tie-breaker-less resume uses `ge` and REPLAYS the boundary timestamp.
+ * Replay is safe and cheap: unchanged rows are suppressed by
+ * listingUpdateMateriallyUnchanged, so a replayed row costs a comparison, not a
+ * write. `media_sync_state`'s reader already does exactly this
+ * (lib/idx/media-sync.ts — `ge` when lastListingKey is null), so both lanes
+ * agree on the rule.
+ *
+ * Once a real keyset position exists the predicate becomes strict again, because
+ * the tie-breaker can now express "at T, after key K" precisely.
+ *
  * @param since - resume timestamp (the last CONTIGUOUS fully-processed MT)
  * @param listingType - optional sale/rent narrowing
  * @param tieBreakerListingKey - ListingKey of the last fully-processed record AT
- *   `since`. `null`/omitted degrades to a plain `MT gt since`, which is exactly
- *   the pre-keyset behaviour — so a NULL cursor column is safe.
+ *   `since`. `null`/omitted falls back to the INCLUSIVE boundary above.
  */
 export function buildIncrementalFilter(
   since: Date,
@@ -435,7 +454,7 @@ export function buildIncrementalFilter(
   const parts = [
     tieBreakerListingKey
       ? `(ModificationTimestamp gt ${timestamp} or (ModificationTimestamp eq ${timestamp} and ListingKey gt '${tieBreakerListingKey.replace(/'/g, "''")}'))`
-      : `(ModificationTimestamp gt ${timestamp})`,
+      : `(ModificationTimestamp ge ${timestamp})`,
   ];
 
   if (listingType === "sale") {
