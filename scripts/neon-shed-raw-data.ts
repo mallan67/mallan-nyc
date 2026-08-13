@@ -9,7 +9,12 @@
  *
  * SAFETY:
  *   - Default mode is --audit-only: prints projected savings, no DB writes.
- *   - --execute is explicit and required to actually mutate.
+ *   - Dry-runs and executes are bounded (5,000-row dry-run default; 25,000
+ *     hard ceiling). Execute requires an explicit --max-rows bound.
+ *   - Every connection is host-guarded to canonical cold-waterfall; the stale
+ *     royal-dawn endpoint and every non-canonical hostname fail closed.
+ *   - --execute additionally requires a fresh rollback branch acknowledgement,
+ *     exact typed confirmation, and RAW_DATA_SHEDDING_ENABLED=true.
  *   - Only touches rows where last_synced_from_trestle IS NOT NULL — the
  *     deterministic signal that this row's raw_data was last written by the
  *     Trestle mapper (set by lib/idx/sync.ts main loop, syncAgentHistory,
@@ -22,28 +27,35 @@
  *
  * Usage:
  *   # Dry run — projects savings, no DB writes:
- *   npx tsx scripts/neon-shed-raw-data.ts
+ *   npx tsx scripts/neon-shed-raw-data.ts --max-rows=5000
  *
  *   # Execute on all Trestle-imported rows:
- *   npx tsx scripts/neon-shed-raw-data.ts --execute
+ *   RAW_DATA_SHEDDING_ENABLED=true npx tsx scripts/neon-shed-raw-data.ts \
+ *     --execute --ack-rollback-branch --confirm=SHED_RAW_DATA --max-rows=5000
  *
  *   # Execute in batches (interruptible):
- *   npx tsx scripts/neon-shed-raw-data.ts --execute --batch=500 --max-batches=20
+ *   RAW_DATA_SHEDDING_ENABLED=true npx tsx scripts/neon-shed-raw-data.ts \
+ *     --execute --ack-rollback-branch --confirm=SHED_RAW_DATA \
+ *     --max-rows=10000 --batch=500 --max-batches=20
  *
  *   # Limit to a sample (for staging / safety):
- *   npx tsx scripts/neon-shed-raw-data.ts --execute --limit=100
+ *   npx tsx scripts/neon-shed-raw-data.ts --max-rows=100
  */
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { slimRawData } from '@/lib/compliance/raw-data-keep-fields';
+import { assertCanonicalHost } from '@/lib/retention/drain-core';
+import {
+  assertRawDataShedExecuteAllowed,
+  parseRawDataShedArgs,
+} from '@/lib/retention/raw-data-shed-controls';
 
 const args = process.argv.slice(2);
-const EXECUTE = args.includes('--execute');
-const BATCH = Number(args.find((a) => a.startsWith('--batch='))?.split('=')[1] ?? 500);
-const MAX_BATCHES = Number(
-  args.find((a) => a.startsWith('--max-batches='))?.split('=')[1] ?? Infinity
-);
-const LIMIT = Number(args.find((a) => a.startsWith('--limit='))?.split('=')[1] ?? Infinity);
+const parsed = parseRawDataShedArgs(args);
+const EXECUTE = parsed.execute;
+const BATCH = parsed.batchSize;
+const MAX_BATCHES = parsed.maxBatches;
+const MAX_ROWS = parsed.maxRows;
 
 function fmtBytes(b: number): string {
   if (b < 1024) return `${b} B`;
@@ -90,8 +102,17 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 }
 
 async function main() {
+  // Host guard and all execute gates run before the first query. Dry-run still
+  // requires the canonical endpoint so stale-environment evidence is rejected.
+  const databaseUrl = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL || '';
+  assertCanonicalHost(databaseUrl);
+  assertRawDataShedExecuteAllowed(parsed, process.env);
+
   const mode = EXECUTE ? 'EXECUTE' : 'AUDIT-ONLY';
-  console.log(`\n[neon-shed-raw-data] mode=${mode} batch=${BATCH} limit=${LIMIT}\n`);
+  console.log(
+    `\n[neon-shed-raw-data] mode=${mode} batch=${BATCH} maxRows=${MAX_ROWS} ` +
+      `maxBatches=${MAX_BATCHES}\n`,
+  );
 
   if (!EXECUTE) {
     console.log(
@@ -116,9 +137,9 @@ async function main() {
   let cursor: bigint | null = null;
 
   // Use cursor pagination on PK so we don't re-fetch as rows mutate.
-  while (processed < totalEligible && processed < LIMIT && batchNumber < MAX_BATCHES) {
+  while (processed < totalEligible && processed < MAX_ROWS && batchNumber < MAX_BATCHES) {
     batchNumber += 1;
-    const remaining = Math.min(BATCH, LIMIT - processed);
+    const remaining = Math.min(BATCH, MAX_ROWS - processed);
     const rows: RowSlim[] = await withRetry(
       `select batch ${batchNumber}`,
       () => prisma.$queryRaw`
@@ -200,7 +221,10 @@ async function main() {
         : '')
   );
   if (!EXECUTE) {
-    console.log('\n  Re-run with --execute to apply the changes.');
+    console.log(
+      '\n  Execute remains blocked until a fresh rollback branch exists and all ' +
+        'three explicit execute gates are supplied.',
+    );
   }
   console.log();
 
