@@ -407,3 +407,64 @@ UPDATE payload's keys.
 - Raw Cotality `$metadata` captures preserved verbatim in
   `docs/audits/cotality-live-metadata-evidence-2026-08-13.md` so the
   18-value `MediaCategory` claim is auditable rather than prose.
+
+---
+
+## 9. LIVE PRODUCTION CAPTURE — the wall-clock defect on the public surface
+
+Captured 2026-08-13T12:10Z. This is the §F "live URL probe with rendered
+evidence" form, not a source-grep.
+
+`GET https://mallan.nyc/api/idx/watermark` (production, running `main` =
+`dc2e2e59`, i.e. WITHOUT this branch's fix):
+
+```json
+{"lastWatermark":"2026-08-13T12:10:46.476Z",
+ "lastRunAt":"2026-08-13T12:10:46.476Z",
+ "displayAt":"2026-08-13T12:10:46.476Z"}
+```
+
+All three fields are IDENTICAL to the millisecond. `displayAt` is what the
+Footer and `IDXDisclaimer` render as "Data last updated".
+
+Same instant, read-only from Neon `hidden-mountain-87248164`:
+
+| field | value |
+|---|---|
+| `sync_state.Property.last_watermark` | `2026-08-13T12:10:46.476Z` |
+| `sync_state.Property.last_run_at` | `2026-08-13T12:10:46.476Z` |
+| `last_watermark = last_run_at` | **true** |
+| `MAX(listings.modification_timestamp)` | `2026-08-13T12:10:06.280Z` |
+| watermark ahead of real data by | **40.196s** |
+
+The public IDX disclosure is therefore serving the SYNC RUN CLOCK, not the feed
+refresh time — the exact condition UCBA 2026 Art. VIII §4 forbids and which
+`lib/idx/watermark.ts`'s own header says must not happen. The lead varies run to
+run (3m52.821s at 09:20Z, 40.196s at 12:10Z) because it is the run duration, not
+a fixed offset — further confirmation it is a clock, not a data timestamp.
+
+### 9.1 Preview deployments cannot prove this surface
+
+`GET /api/idx/watermark` on the PR preview returns
+`{"lastWatermark":null,"lastRunAt":null,"displayAt":null}`.
+
+That is NOT a regression from this branch. Controlled comparison across three
+preview deployments of the same branch:
+
+| deployment | contains the watermark fix? | response |
+|---|---|---|
+| `26fed0c8` (branch base) | **no** | all null |
+| `6b1686c3` | yes | all null |
+| `ed9264c4` (head) | yes | all null |
+
+The pre-change base returns the identical all-null response, so previews simply
+have no binding to the production database. `/api/health` returns 200 on the head
+preview, so the deployment itself is live.
+
+**Consequence for the merge gate:** this surface CANNOT be proven on a preview.
+The fix's effect (`displayAt` moving from the run clock back to the newest
+genuinely-processed provider ModificationTimestamp) is only observable after
+deploy to an environment with the production DB bound — i.e. it is a PROD_PROVEN
+step, not a CODE_READY one. Re-run the exact probe above after deploy; the
+success criterion is `lastWatermark != lastRunAt` and
+`lastWatermark <= MAX(listings.modification_timestamp)`.
