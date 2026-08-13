@@ -12,6 +12,7 @@ import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import type { IDXListing } from '@/lib/idx/types';
+import { PUBLIC_EXTERNAL_MEDIA_RELATION } from '@/lib/media/public-external-media-select';
 
 /**
  * GET /api/agents/[slug]/listings
@@ -262,6 +263,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
             status: true,
           },
         },
+        external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
         // All-status existence signal for dbListingToPublicDTO's media authority:
         // this query selects ACTIVE rows only, so without _count a Mallan exclusive
         // whose relational photos were all deleted would look "never imported" and

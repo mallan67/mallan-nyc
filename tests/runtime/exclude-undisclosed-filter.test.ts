@@ -37,6 +37,8 @@ const read = (p: string) =>
   readFileSync(resolve(__dirname, '../..', p), 'utf8').replace(/\r\n?/g, '\n');
 
 const routeSource = read('app/api/listings/route.ts');
+const fallbackPaginationSource = read('lib/listings/fallback-pagination.ts');
+const dbSearchSource = read('lib/search/public-listing-db.ts');
 const featuredSource = read('app/components/FeaturedListings.tsx');
 
 /** Does this row satisfy the canonical gate? Mirrors the Prisma predicate. */
@@ -105,12 +107,11 @@ describe('DTO post-filter has NO provenance exemption (both response paths)', ()
     );
   });
 
-  it('both paths filter purely on the canonical DTO address', () => {
-    const matches = routeSource.match(
-      /l => l\.address\?\.streetName !== 'Address Undisclosed'/g,
-    );
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2);
+  it('both paths filter on the canonical disclosure contract before paging', () => {
+    expect(routeSource).toContain('combinedCandidates.filter(hasDisclosedAddress)');
+    expect(fallbackPaginationSource).toContain("candidate.dto.address.streetName !== 'Address Undisclosed'");
+    // DB-first and the exclusive DB pool use the canonical DB-side gate.
+    expect(routeSource).toContain('ADDRESS_DISCLOSED_GATE');
   });
 });
 
@@ -121,14 +122,15 @@ describe('FeaturedListings integration', () => {
 });
 
 describe('fetchExclusiveListings bypasses gates for rls_eligible=false', () => {
-  it('uses the OR with an rls_eligible split, not a prefix', () => {
+  it('delegates display filtering to the canonical builder with the rls_eligible split', () => {
     const fnIdx = routeSource.indexOf('async function fetchExclusiveListings');
     expect(fnIdx).toBeGreaterThan(-1);
-    const fnBody = routeSource.slice(fnIdx, fnIdx + 600);
-    expect(fnBody).toContain('rls_eligible: true');
-    expect(fnBody).toContain('SEARCH_DISPLAY_GATE');
-    expect(fnBody).toContain('rls_eligible: false');
-    expect(fnBody).toContain('list_price: { gt: 0 }');
+    const fnBody = routeSource.slice(fnIdx, fnIdx + 1200);
+    expect(fnBody).toContain('buildPublicListingDbSearch(exclusiveParams)');
+    expect(dbSearchSource).toContain('rls_eligible: true');
+    expect(dbSearchSource).toContain('SEARCH_DISPLAY_GATE');
+    expect(dbSearchSource).toContain('rls_eligible: false');
+    expect(dbSearchSource).toContain('list_price: { gt: 0 }');
   });
 
   it('does NOT apply a flat SEARCH_DISPLAY_GATE', () => {

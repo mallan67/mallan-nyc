@@ -888,11 +888,22 @@ export function splitTourUrls(candidates: TourUrlCandidate[]): { videoUrl: strin
  * `virtualTourURL` (capital URL), `undefined` (not null) when absent. Unbranded
  * is preferred over branded within each class (UCBA §5(C)).
  */
-export function tourUrlsForDto(unbranded: unknown[], branded?: unknown): { videoUrl?: string; virtualTourURL?: string } {
+/**
+ * `branded` accepts an ARRAY as well as a single value, so all three branded
+ * slots can be supplied the way the unbranded side already is. Collapsing them
+ * with `??` would keep only the first non-null and silently drop the rest —
+ * the same class of loss that cost production VirtualTourURLUnbranded2/3.
+ * A scalar is still accepted, so existing callers are unaffected.
+ */
+export function tourUrlsForDto(
+  unbranded: unknown[],
+  branded?: unknown | unknown[],
+): { videoUrl?: string; virtualTourURL?: string } {
   const norm = (v: unknown) => (v == null || v === '' ? undefined : String(v));
+  const brandedList = Array.isArray(branded) ? branded : [branded];
   const s = splitTourUrls([
     ...(unbranded || []).map((url) => ({ url: norm(url), branded: false })),
-    { url: norm(branded), branded: true },
+    ...brandedList.map((url) => ({ url: norm(url), branded: true })),
   ]);
   return { videoUrl: s.videoUrl ?? undefined, virtualTourURL: s.virtualTourUrl ?? undefined };
 }

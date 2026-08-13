@@ -62,18 +62,21 @@ describe('SearchListingCard — 3D Tour badge wiring (source guard)', () => {
   });
 });
 
-describe('/api/listings DB-search select carries raw_data (Codex #361 — DB-backed tour path)', () => {
+describe('/api/listings DB-search selects canonical external media', () => {
   const src = readFileSync(
     path.resolve(__dirname, '../../app/api/listings/route.ts'),
     'utf8',
   );
 
-  it('both DB-first findMany selects include raw_data (the source of virtualTourURL)', () => {
-    // dbListingToPublicDTO derives virtualTourURL (and previousListPrice,
-    // daysOnMarket, leaseAmount, availabilityDate, on/closeDate) from raw_data.
-    // Without raw_data selected, DB-backed cards never show the 3D Tour badge.
-    const matches = src.match(/raw_data:\s*true/g) || [];
+  it('both DB-first findMany selects preload listing_external_media through the shared relation', () => {
+    const matches = src.match(/external_media:\s*PUBLIC_EXTERNAL_MEDIA_RELATION/g) || [];
     expect(matches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('contracts raw_data to the remaining DTO compatibility keys, never tour/video URLs', () => {
+    expect(src).not.toMatch(/raw_data:\s*true/);
+    expect(src.match(/attachPublicListingRawCompat\(/g)).toHaveLength(2);
+    expect(src).not.toMatch(/raw_data[^\n]*source of virtualTourURL/);
   });
 });
 
@@ -111,10 +114,7 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
     expect(src).not.toMatch(/rawData\.VideoURL/);
   });
 
-  it('DB-backed detail (fetchFromDB) host-splits the tour fields via tourUrlsForDto (Codex #482)', () => {
-    // The inline DB DTO must spread tourUrlsForDto so a DB-path YouTube URL lands
-    // in videoUrl (Video tab) — not the old virtualTourURL-only mapping that left
-    // the Video tab permanently absent on DB-backed pages.
+  it('DB-backed detail consumes the canonical external-media composer', () => {
     // CONTRACT MOVED (DTO collapse): the detail page delegates to
     // dbListingToPublicDTO, so the tour/video host-split now belongs to the
     // CANONICAL owner and is asserted there. The page is checked for
@@ -123,7 +123,8 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
       require('path').resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
       'utf8',
     ) as string;
-    expect(dtoSrc).toMatch(/tourUrlsForDto\(/);
+    expect(dtoSrc).toMatch(/composeListingMedia\(\[\], externalRows\)/);
+    expect(dtoSrc).not.toMatch(/rawData\.VirtualTourURL/);
     expect(src).toMatch(/dbListingToPublicDTO\(dbListing\)/);
     // The old virtualTourURL-only inline mapping must be gone from the DB DTO.
     expect(src).not.toMatch(/virtualTourURL:\s*\r?\n?\s*\(typeof rawData\.VirtualTourURLUnbranded/);
