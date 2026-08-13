@@ -22,8 +22,13 @@
 -- With `(ModificationTimestamp, ListingKey)` ASC the resume predicate becomes
 --   (MT gt T) OR (MT eq T AND ListingKey gt K)
 -- which is a strict total order over the batch and cannot stall or skip.
--- Live Cotality accepts `$orderby=ModificationTimestamp asc,ListingKey asc`
--- and the paired filter (verified against api.cotality.com).
+-- PROVENANCE: the claim that the live feed accepts
+-- `$orderby=ModificationTimestamp asc,ListingKey asc` plus the paired keyset
+-- filter comes from an EARLIER session's probe and must be re-verified before
+-- this migration is applied in production. Run `npm run trestle:probe-keyset`
+-- (scripts/probe-property-keyset-contract.ts) and attach
+-- artifacts/cotality-keyset-probe.json. This column is inert without that
+-- acceptance: a NULL tie-breaker behaves exactly as the pre-keyset code did.
 --
 -- This mirrors `media_sync_state.last_listing_key`, added in
 -- 20260608120000_add_media_sync_state_last_listing_key for the

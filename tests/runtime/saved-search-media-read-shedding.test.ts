@@ -43,6 +43,12 @@ jest.mock('@/lib/prisma', () => ({
       findMany: jest.fn(async () => [] as unknown[]),
       count: jest.fn(async () => 0),
     },
+    // The execute route hydrates the `media` key it owes its callers via ONE
+    // batched listing read (hydrateSearchListingMedia). Default: no canonical
+    // rows and no legacy JSON, so `media` composes to [].
+    listing: {
+      findMany: jest.fn(async () => [] as unknown[]),
+    },
     clientListingAction: { upsert: jest.fn(async () => ({})) },
     auditEvent: { create: jest.fn(async () => ({ id: BigInt(1) })) },
   },
@@ -229,15 +235,21 @@ async function executeBody(listing: Record<string, unknown>) {
 }
 
 describe('POST /api/crm/saved-searches/[id]/execute — response shape', () => {
-  it('omits `media` while preserving every other listing key', async () => {
+  it('PRESERVES the `media` key and every other listing key', async () => {
     const body = await executeBody(listingRow());
     const row = body.listings[0];
 
-    // The one intentional removal.
-    expect(row).not.toHaveProperty('media');
-    // Everything else the route used to emit, byte-for-byte.
+    // CONTRACT RESTORED. An earlier draft dropped `media` because no
+    // first-party caller reads it — but that cannot prove an older or external
+    // client does not, and a public response key is not ours to delete
+    // silently. The key stays; only its SOURCE changed, from the raw legacy
+    // blob to the canonical composition.
+    expect(row).toHaveProperty('media');
+    expect(Array.isArray(row.media)).toBe(true);
+    // Every key the route has ever emitted, byte-for-byte.
     expect(Object.keys(row).sort()).toEqual(
       [
+        'media',
         'address',
         'bathrooms_full',
         'bathrooms_half',
@@ -269,20 +281,16 @@ describe('POST /api/crm/saved-searches/[id]/execute — response shape', () => {
     expect(body.searchName).toBe('Tribeca 2BR');
   });
 
-  it('a row carrying a media blob still cannot leak it — the SERIALIZER is media-free', async () => {
-    // Belt-and-braces against a future re-widening of the select: even handed a
-    // populated `media` value, the response must not republish an unresolved
-    // legacy blob that a consumer could `media[0]` into a FloorPlan hero.
-    const body = await executeBody(
-      listingRow({
-        media: [
-          { url: 'https://legacy.mallan.test/Media/Property/DOCUMENT-Pdf/1/plan', order: 0 },
-          { url: 'https://legacy.mallan.test/photos/RLS20059088/2.jpg', mediaType: 'Photo', order: 1 },
-        ],
-      }),
-    );
-    expect(JSON.stringify(body)).not.toContain('DOCUMENT-Pdf');
-    expect(body.listings[0]).not.toHaveProperty('media');
+  it('the SEARCH query itself still never asks for the legacy media blob', async () => {
+    // The read-shedding half of the change survives: media is hydrated by a
+    // SEPARATE batched call on this route only, never by widening
+    // SEARCH_RESULT_LISTING_SELECT — which the alert cron also uses and which
+    // provably discards media.
+    await executeBody(listingRow());
+    const args = projectionFindMany.mock.calls[0][0] as {
+      include: { listing: { select: Record<string, unknown> } };
+    };
+    expect(args.include.listing.select).not.toHaveProperty('media');
   });
 
   it('REBNY §2.05 address suppression is untouched', async () => {
@@ -386,5 +394,145 @@ describe('lib/search/core — the dead Listing-backed runner is gone', () => {
     // that policy.
     expect(searchCore).not.toHaveProperty('runListingSearch');
     expect(searchCore).toHaveProperty('runProjectionListingSearch');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RESPONSE-CONTRACT REGRESSION — `media` is preserved AND canonically sourced
+//
+// Two independent properties, both required:
+//   (a) the execute route still emits `media`, composed from canonical
+//       `listing_media` rather than the raw legacy blob;
+//   (b) the alert cron pays NO relational media read, because it discards media.
+// ═════════════════════════════════════════════════════════════════════════════
+
+const listingFindMany = (prisma as unknown as {
+  listing: { findMany: jest.Mock };
+}).listing.findMany;
+
+/** A hydration row as `hydrateSearchListingMedia`'s select would return it. */
+function hydrationRow(over: Record<string, unknown> = {}) {
+  return {
+    listing_id: 'RLS20059088',
+    rls_eligible: true,
+    media: [],
+    listing_media: [],
+    _count: { listing_media: 0 },
+    ...over,
+  };
+}
+
+function canonicalRow(over: Record<string, unknown> = {}) {
+  return {
+    media_key: 'MK1',
+    media_url_original: 'https://api.cotality.com/trestle/Media/MK1/1.jpg',
+    media_url_cached: 'https://media.mallan.test/listings/rls20059088/1.webp',
+    media_type: 'Photo',
+    media_category: 'Photo',
+    order: 0,
+    preferred_photo_yn: true,
+    status: 'active',
+    r2_key: 'listings/rls20059088/1.webp',
+    ...over,
+  };
+}
+
+describe('execute route — `media` is canonical, not the legacy blob', () => {
+  it('serves media from canonical listing_media rows when they exist', async () => {
+    listingFindMany.mockResolvedValueOnce([
+      hydrationRow({
+        media: [{ url: 'https://legacy.mallan.test/photos/OLD.jpg', mediaType: 'Photo', order: 0 }],
+        listing_media: [canonicalRow()],
+        _count: { listing_media: 1 },
+      }),
+    ]);
+
+    const body = await executeBody(listingRow());
+    const media = body.listings[0].media as Array<{ url: string }>;
+
+    expect(media.length).toBeGreaterThan(0);
+    expect(JSON.stringify(media)).not.toContain('legacy.mallan.test');
+  });
+
+  it('does NOT resurrect legacy media when every canonical row was deleted', async () => {
+    // _count > 0 with zero ACTIVE rows is authoritative deletion. Falling back
+    // to the legacy blob here would republish media that was removed at source.
+    listingFindMany.mockResolvedValueOnce([
+      hydrationRow({
+        listing_id: 'SL-0007',
+        rls_eligible: false,
+        media: [{ url: 'https://legacy.mallan.test/photos/SL-0007/1.jpg', mediaType: 'Photo', order: 0 }],
+        listing_media: [],
+        _count: { listing_media: 3 },
+      }),
+    ]);
+
+    const body = await executeBody(listingRow({ listing_id: 'SL-0007' }));
+    expect(JSON.stringify(body.listings[0].media)).not.toContain('legacy.mallan.test');
+  });
+
+  it('a FloorPlan never leads the media array', async () => {
+    listingFindMany.mockResolvedValueOnce([
+      hydrationRow({
+        listing_media: [
+          // Distinct ORIGINAL urls too: rows sharing an original collapse under
+          // visual-identity dedupe (resolveListingMediaFromRows), which would
+          // leave one row and prove nothing about ordering.
+          canonicalRow({
+            media_key: 'MKF',
+            media_type: 'FloorPlan',
+            media_category: 'FloorPlan',
+            order: 0,
+            preferred_photo_yn: false,
+            media_url_original: 'https://api.cotality.com/trestle/Media/MKF/plan.jpg',
+            media_url_cached: 'https://media.mallan.test/listings/rls20059088/plan.webp',
+          }),
+          canonicalRow({
+            media_key: 'MKP',
+            order: 1,
+            preferred_photo_yn: false,
+            media_url_original: 'https://api.cotality.com/trestle/Media/MKP/2.jpg',
+            media_url_cached: 'https://media.mallan.test/listings/rls20059088/2.webp',
+          }),
+        ],
+        _count: { listing_media: 2 },
+      }),
+    ]);
+
+    const body = await executeBody(listingRow());
+    const media = body.listings[0].media as Array<{ mediaType?: string }>;
+    expect(media[0]?.mediaType).toBe('Photo');
+  });
+
+  it('emits `media: []` (never undefined) for a listing with no media at all', async () => {
+    listingFindMany.mockResolvedValueOnce([]);
+    const body = await executeBody(listingRow());
+    expect(body.listings[0].media).toEqual([]);
+  });
+
+  it('hydrates the whole page in ONE batched query, never per row', async () => {
+    listingFindMany.mockClear();
+    await executeBody(listingRow());
+    expect(listingFindMany).toHaveBeenCalledTimes(1);
+    const args = listingFindMany.mock.calls[0][0] as { where: { listing_id: { in: string[] } } };
+    expect(Array.isArray(args.where.listing_id.in)).toBe(true);
+  });
+});
+
+describe('alert cron — pays NO relational media read', () => {
+  it('runs the alert without ever calling the media hydration query', async () => {
+    // The whole reason hydration is a separate opt-in function: this path
+    // provably discards media, so widening SEARCH_RESULT_LISTING_SELECT would
+    // tax it for nothing.
+    listingFindMany.mockClear();
+    savedSearchFindMany.mockResolvedValueOnce([]);
+
+    await alertsCronGET(
+      new NextRequest('http://test/api/cron/search-alerts', {
+        headers: { authorization: `Bearer ${CRON_SECRET}` },
+      }),
+    );
+
+    expect(listingFindMany).not.toHaveBeenCalled();
   });
 });

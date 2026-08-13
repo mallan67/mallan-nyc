@@ -7,6 +7,9 @@ import { getAccessToken, invalidateToken } from "./auth";
 // module: this file is the provider-I/O MOCK BOUNDARY, and a pure algorithm
 // behind that boundary would be silently stubbed by every provider mock).
 import { paginateMedia } from "./media-pagination";
+// THE single owner of the keyset resume predicate's OData shape. Imported so
+// this module cannot grow a second, drifting copy of it.
+import { keysetFilter } from "./cursor/keyset-cursor";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 import {
   recordCotalityHttp,
@@ -416,7 +419,14 @@ export async function fetchListingByAddress(address: {
  * to the newest MT, making every older unprocessed row unreachable on every
  * capped run (see lib/idx/cursor/keyset-cursor.ts).
  *
- * Live Cotality accepts both the ASC composite `$orderby` and this filter shape.
+ * PROVENANCE OF THE "Cotality accepts this" CLAIM — read before relying on it.
+ * The ASC composite `$orderby` and this filter shape are asserted to be accepted
+ * by the live feed. That assertion originates from an EARLIER session's probe
+ * and is NOT self-evident from this repo. Re-verify it with
+ * `npm run trestle:probe-keyset` (scripts/probe-property-keyset-contract.ts),
+ * which executes A/B/C/D against current Property data and writes sanitized
+ * evidence to artifacts/cotality-keyset-probe.json. Do not restate the claim as
+ * verified without pointing at a dated probe artifact.
  *
  * WHY THE BOOTSTRAP BOUNDARY IS INCLUSIVE
  *
@@ -449,13 +459,18 @@ export function buildIncrementalFilter(
   tieBreakerListingKey?: string | null
 ): string {
   const timestamp = since.toISOString();
-  // OData string literals are single-quoted; a literal quote is escaped by
-  // doubling. ListingKey is provider-supplied, so this is not optional.
-  const parts = [
-    tieBreakerListingKey
-      ? `(ModificationTimestamp gt ${timestamp} or (ModificationTimestamp eq ${timestamp} and ListingKey gt '${tieBreakerListingKey.replace(/'/g, "''")}'))`
-      : `(ModificationTimestamp ge ${timestamp})`,
-  ];
+  // The keyed predicate is built by `keysetFilter`, the SINGLE owner of that
+  // OData shape (including the single-quote escaping ListingKey requires).
+  // Writing it inline here as well would be two implementations of one
+  // contract, free to drift — and the cursor is only sound while the filter and
+  // `advanceCursor` agree on the ordering they encode.
+  const keyed = tieBreakerListingKey
+    ? keysetFilter("ModificationTimestamp", {
+        timestamp: since,
+        listingKey: tieBreakerListingKey,
+      })
+    : null;
+  const parts = [keyed ?? `(ModificationTimestamp ge ${timestamp})`];
 
   if (listingType === "sale") {
     parts.push("PropertyType ne 'ResidentialLease'");

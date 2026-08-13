@@ -1,6 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { canDisplayListingAddress } from "@/lib/search/listing-access-decision";
 import {
+  composeDbPublicMedia,
+  type DbMediaComposition,
+} from "@/lib/media/db-media-composition";
+import type { ListingMediaTableRow } from "@/lib/media/listing-media-resolver";
+import {
   criteriaToProjectionWhere,
   type SearchCriteria,
 } from "@/lib/search/criteria-to-prisma";
@@ -25,13 +30,12 @@ import {
  * rows per request (`clampLimit`), on every alert-cron iteration and every
  * execute call. Dropping it sheds that read outright.
  *
- * It is NOT re-sourced from canonical `listing_media`: doing so would ADD
- * relational reads to the cron path — the one that provably discards the value —
- * to keep a key nobody reads. If a future consumer genuinely needs media here,
- * add `listing_media` (active-only, ordered) PLUS the all-status
- * `_count.listing_media` and compose through `composeDbPublicMedia`. Never
- * re-add the raw `media` JSON: an unresolved blob lets `media[0]` hero a
- * FloorPlan (lib/media/listing-media-resolver.ts:7-31).
+ * It is NOT re-sourced from canonical `listing_media` HERE, because that would
+ * add relational reads to the cron path — the one that provably discards the
+ * value. Consumers that genuinely need media call {@link hydrateSearchListingMedia}
+ * instead: one batched query, opt-in, composed through `composeDbPublicMedia`.
+ * Never re-add the raw `media` JSON to this select — an unresolved blob lets
+ * `media[0]` hero a FloorPlan (lib/media/listing-media-resolver.ts:7-31).
  */
 export const SEARCH_RESULT_LISTING_SELECT = {
   id: true,
@@ -241,10 +245,104 @@ export function serializeSearchListing(listing: SearchResultListing): Record<str
     borough: listing.borough,
     neighborhood: listing.neighborhood,
     address: sanitizeSearchAddress(listing),
-    // No `media` key — see SEARCH_RESULT_LISTING_SELECT above. Neither the
-    // alert cron nor any caller of the execute route consumed it, and emitting
-    // an unresolved legacy `Listing.media` blob would let a consumer hero a
-    // FloorPlan via `media[0]`.
+    // `media` is NOT emitted here. The base select carries no media at all, so
+    // this serializer cannot invent one. Callers that must preserve the `media`
+    // key in their response contract merge it in from
+    // {@link hydrateSearchListingMedia}.
     modification_timestamp: listing.modification_timestamp,
   };
+}
+
+/** One listing's canonically-composed public media. */
+export interface HydratedListingMedia {
+  media: DbMediaComposition["media"];
+  photoCount: number;
+}
+
+/** The subset of Prisma this hydration needs — keeps callers mockable. */
+type MediaHydrationDb = {
+  listing: {
+    findMany(args: Prisma.ListingFindManyArgs): Promise<unknown[]>;
+  };
+};
+
+/**
+ * OPT-IN canonical media for a page of search results.
+ *
+ * WHY THIS IS SEPARATE FROM THE SEARCH SELECT
+ *
+ * `POST /api/crm/saved-searches/[id]/execute` has always returned a `media` key
+ * per listing, and an API contract is not ours to silently drop — "no
+ * first-party caller" proves nothing about an older or external client. But the
+ * OTHER consumer of the same select, the `/api/cron/search-alerts` cron,
+ * provably discards media (`listingAlertEmail` has no image field). Putting
+ * media back into `SEARCH_RESULT_LISTING_SELECT` would tax the cron for a value
+ * only the execute route uses.
+ *
+ * So the contract is preserved where it exists and shed where it does not: one
+ * BATCHED query over the whole page (never per-row — that would be an N+1),
+ * called only by the route that owes the key.
+ *
+ * The composed value is canonical, not the legacy blob: relational rows first,
+ * legacy JSON only where the resolver permits, photo-first ordering so a
+ * FloorPlan can never lead. `hadRelationalRows` comes from the ALL-STATUS
+ * `_count`, never `tableRows.length`, so an all-deleted listing cannot
+ * resurrect deleted media (lib/media/db-media-composition.ts:55-67).
+ *
+ * @returns Map keyed by `listing_id`. A listing absent from the map has no
+ *   composable media; callers should emit `[]` to keep the key's type stable.
+ */
+export async function hydrateSearchListingMedia(
+  db: MediaHydrationDb,
+  listingIds: readonly string[],
+): Promise<Map<string, HydratedListingMedia>> {
+  const out = new Map<string, HydratedListingMedia>();
+  const ids = [...new Set(listingIds)].filter((id) => typeof id === "string" && id !== "");
+  if (ids.length === 0) return out;
+
+  const rows = (await db.listing.findMany({
+    where: { listing_id: { in: ids } },
+    select: {
+      listing_id: true,
+      rls_eligible: true,
+      // Legacy JSON stays the resolver's FALLBACK input only — never the
+      // authority. The 97-listing never-imported residual still depends on it.
+      media: true,
+      listing_media: {
+        where: { status: "active" },
+        orderBy: [{ order: "asc" }, { id: "asc" }],
+        select: {
+          media_key: true,
+          media_url_original: true,
+          media_url_cached: true,
+          media_type: true,
+          media_category: true,
+          order: true,
+          preferred_photo_yn: true,
+          status: true,
+          r2_key: true,
+        },
+      },
+      _count: { select: { listing_media: true } },
+    },
+  })) as unknown as Array<{
+    listing_id: string;
+    rls_eligible: boolean | null;
+    media: unknown;
+    listing_media: ListingMediaTableRow[];
+    _count?: { listing_media?: number };
+  }>;
+
+  for (const row of rows) {
+    const composed = composeDbPublicMedia({
+      listingId: row.listing_id,
+      rlsEligible: row.rls_eligible ?? undefined,
+      tableRows: Array.isArray(row.listing_media) ? row.listing_media : [],
+      legacyMedia: Array.isArray(row.media) ? (row.media as unknown[]) : [],
+      hadRelationalRows:
+        typeof row._count?.listing_media === "number" ? row._count.listing_media > 0 : undefined,
+    });
+    out.set(row.listing_id, { media: composed.media, photoCount: composed.photoCount });
+  }
+  return out;
 }

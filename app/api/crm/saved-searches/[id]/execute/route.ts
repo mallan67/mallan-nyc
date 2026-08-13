@@ -9,7 +9,11 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { runProjectionListingSearch, serializeSearchListing } from "@/lib/search/core";
+import {
+  runProjectionListingSearch,
+  serializeSearchListing,
+  hydrateSearchListingMedia,
+} from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
 import {
   getUnsupportedProjectionCriteria,
@@ -109,15 +113,32 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       criteria,
     });
 
-    // RESPONSE-SHAPE NOTE (2026-08-13, CANONICAL-READER migration): each
-    // serialized listing no longer carries a `media` key. It was the raw legacy
-    // `Listing.media` JSON blob, hydrated for up to 100 rows per call for a
-    // consumer that does not exist — `MallanAPI.savedSearches.execute`
-    // (public/crm/js/core/api-client.js:553) has zero call sites, and the CRM
-    // saved-search UI re-runs criteria through the live Trestle engine instead.
-    // Every other key is unchanged. Rationale + the rule for re-adding media
-    // correctly: lib/search/core.ts SEARCH_RESULT_LISTING_SELECT.
-    const serialized = result.listings.map(serializeSearchListing);
+    // RESPONSE CONTRACT (2026-08-13, CANONICAL-READER migration): this endpoint
+    // has always returned a `media` key per listing, and that key is PRESERVED.
+    //
+    // What changed is only its SOURCE. It used to be the raw legacy
+    // `Listing.media` JSON blob — an unresolved array whose `media[0]` can be a
+    // FloorPlan. It is now the canonical composition (relational `listing_media`
+    // first, legacy JSON only where the resolver permits, photo-first ordering).
+    //
+    // "No first-party caller" does NOT license dropping a public key: it cannot
+    // prove an older or external client is not reading it. So the shape stays.
+    //
+    // The hydration is deliberately NOT part of SEARCH_RESULT_LISTING_SELECT.
+    // The other consumer of that select — the `/api/cron/search-alerts` cron —
+    // provably discards media (`listingAlertEmail` has no image field), and it
+    // must not pay a relational read for a value it throws away. One batched
+    // query, on this route only, never per-row.
+    const mediaById = await hydrateSearchListingMedia(
+      prisma,
+      result.listings.map((l) => l.listing_id),
+    );
+    const serialized = result.listings.map((l) => ({
+      ...serializeSearchListing(l),
+      // `[]` (not undefined) when a listing has no composable media, so the key
+      // and its type stay stable for every row.
+      media: mediaById.get(l.listing_id)?.media ?? [],
+    }));
 
     return NextResponse.json({
       listings: serialized,

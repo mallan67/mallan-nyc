@@ -16,11 +16,32 @@
 import {
   advanceCursor,
   compareCursorRows,
-  isAfterCursor,
   keysetFilter,
-  legacyMaxSeenCursor,
+  type CursorPosition,
   type CursorRow,
 } from '@/lib/idx/cursor/keyset-cursor';
+
+// LOCAL TEST SCAFFOLDING — deliberately NOT exported from the production module.
+//
+// `legacyMaxSeenCursor` models the OLD max-seen behaviour so the tail-loss
+// hazard can be asserted as a regression rather than described in prose, and
+// `isAfterCursor` is the "what would the next run still see" predicate these
+// tests need. Neither has a production caller, so keeping them in
+// lib/idx/cursor/keyset-cursor.ts would ship dead exports whose only consumer
+// is this file.
+
+/** Highest timestamp anywhere in the batch — the behaviour being regressed against. */
+function legacyMaxSeenCursor(rows: readonly CursorRow[]): Date | null {
+  let max: Date | null = null;
+  for (const r of rows) if (!max || r.timestamp > max) max = r.timestamp;
+  return max;
+}
+
+/** True when `row` sorts strictly after `cursor`. */
+function isAfterCursor(row: CursorRow, cursor: CursorPosition | null): boolean {
+  if (!cursor) return true;
+  return compareCursorRows(row, cursor) > 0;
+}
 
 const CAP = 500;
 const at = (iso: string, key: string): CursorRow => ({ timestamp: new Date(iso), listingKey: key });

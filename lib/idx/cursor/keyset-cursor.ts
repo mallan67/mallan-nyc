@@ -11,10 +11,9 @@
  * eligible row that never got processed. On a backlog larger than the cap the
  * unprocessed tail is not at risk — it is unreachable, on every capped run.
  *
- * sync.ts:1879-1893 already documents this failure mode for a wall-clock
- * cursor. The same argument applies to a max-seen cursor under DESC ordering:
- * the doc's safety claim ("records above the high-water mark remain visible")
- * only holds for ASCENDING traversal.
+ * The same argument applies to a max-seen cursor under DESC ordering: the
+ * safety claim "records above the high-water mark remain visible" only holds
+ * for ASCENDING traversal.
  *
  * THE CONTRACT
  *
@@ -23,12 +22,26 @@
  *   advance to the LAST CONTIGUOUS fully processed row — never max-seen,
  *   never provider head, never local clock
  *
- * Two independent source dimensions cannot share one cursor: Property is
- * eligible on `ModificationTimestamp > W` OR `PhotosChangeTimestamp > W`, and a
- * single (ts, key) pair cannot represent both. Each dimension therefore owns
- * its own SyncState resource row — `Property` for the material clock and
- * `PropertyPhotos` for the media trigger — which keeps ONE cursor authority
- * (SyncState) while modelling the two clocks separately.
+ * Two independent source dimensions cannot share one cursor: a single (ts, key)
+ * pair cannot represent both `ModificationTimestamp` and
+ * `PhotosChangeTimestamp`. They are therefore split across the two owners that
+ * already exist:
+ *
+ *   ModificationTimestamp -> sync_state.Property.{last_watermark,last_listing_key}
+ *   PhotosChangeTimestamp -> media_sync_state.Media.{last_photos_change,last_listing_key}
+ *
+ * CORRECTION (2026-08-13): an earlier draft of this header proposed a
+ * `SyncState("PropertyPhotos")` row for the media trigger. That was NOT built
+ * and must not be — `media_sync_state` already owns the PCT dimension and is
+ * live. Adding a third row would be a second cursor for a dimension that
+ * already has one.
+ *
+ * KNOWN LIMITATION — a keyset cursor is FORWARD-ONLY. A record that enters the
+ * feed carrying a timestamp BELOW the current position is unreachable by any
+ * cursor value and needs a state-based backlog drain, not a rewind. This is
+ * observable today on the media lane, where 97 displayable listings carry a
+ * source PhotosChangeTimestamp below the live media cursor
+ * (docs/audits/listing-media-reader-ownership-2026-08-13.md §4.1).
  */
 
 export interface CursorPosition {
@@ -49,13 +62,13 @@ export function compareCursorRows(a: CursorRow, b: CursorRow): number {
   return t !== 0 ? t : a.listingKey < b.listingKey ? -1 : a.listingKey > b.listingKey ? 1 : 0;
 }
 
-/** True when `row` sorts strictly after `cursor` — the resume predicate. */
-export function isAfterCursor(row: CursorRow, cursor: CursorPosition | null): boolean {
-  if (!cursor) return true;
-  return compareCursorRows(row, cursor) > 0;
-}
-
-/** The OData `$filter` fragment for a keyset resume on one dimension. */
+/**
+ * The OData `$filter` fragment for a keyset resume on one dimension.
+ *
+ * SOLE OWNER of this shape. `buildIncrementalFilter` (lib/idx/fetch.ts) calls
+ * it rather than re-deriving the predicate, so the filter sent to Cotality and
+ * the ordering `advanceCursor` assumes can never drift apart.
+ */
 export function keysetFilter(field: string, cursor: CursorPosition | null): string | null {
   if (!cursor) return null;
   const ts = cursor.timestamp.toISOString();
@@ -94,15 +107,4 @@ export function advanceCursor(
     processed++;
   }
   return { next, processed, haltedOnFailure: false };
-}
-
-/**
- * The CURRENT main behaviour, expressed for comparison: highest timestamp seen
- * anywhere in the batch. Retained only so the tail-loss hazard can be asserted
- * as a regression rather than described in prose.
- */
-export function legacyMaxSeenCursor(rows: readonly CursorRow[]): Date | null {
-  let max: Date | null = null;
-  for (const r of rows) if (!max || r.timestamp > max) max = r.timestamp;
-  return max;
 }
