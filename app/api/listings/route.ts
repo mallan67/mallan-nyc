@@ -1,35 +1,73 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
-import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
-import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
+import { toPublicDTO, annotateCoListedSiblings, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
-import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
-import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
+import {
+  getOpenHouseIndex,
+  findNextOpenHouse,
+  type OpenHouseIndex,
+  type OpenHouseWindow,
+} from '@/lib/open-houses/upcoming-open-houses';
+import { ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
-// Trestle access audit logger — REBNY requires 12-month retention on MLS data access
-const logTrestleAccess = async (data: Record<string, unknown>) => {
+import {
+  hasDisclosedAddress,
+  filterTrestleAmenities,
+  isWithinBounds,
+  matchesBorough,
+  paginateFallbackCandidates,
+  type FallbackListingCandidate,
+} from '@/lib/listings/fallback-pagination';
+import { readCachedFallbackOrigin } from '@/lib/listings/cached-fallback-origin';
+import { PUBLIC_EXTERNAL_MEDIA_RELATION } from '@/lib/media/public-external-media-select';
+import { attachPublicListingRawCompat } from '@/lib/search/public-listing-raw-compat';
+/**
+ * Audit event kinds for this route. They must NOT be conflatable: a single
+ * `trestle_access` action for both made an outer-cache hit indistinguishable
+ * from an origin execution.
+ *
+ * NEITHER event measures Cotality HTTP traffic. One origin execution can issue
+ * ZERO outbound requests (Next's inner fetch cache — fetchPage sets
+ * `next: { revalidate: 300 }`), exactly one, or SEVERAL (OData pagination,
+ * auth-token refresh, retries). Exact quota accounting requires instrumenting
+ * each transport attempt, not this route.
+ */
+export const TRESTLE_ORIGIN_EXECUTION_ACTION = 'trestle_origin_execution';
+export const TRESTLE_SERVED_ACTION = 'trestle_response_served';
+
+/**
+ * Trestle audit logger. `action` is explicit per call site.
+ *
+ * IP is read from `caller.ip` as well as a top-level `ip`: every call site in
+ * this route passes `caller: { ip }`, while the previous implementation read
+ * only `data.ip` — so `ip_address` was silently persisted as null on every
+ * record. Retention policy for these events is governed by the canonical
+ * retention configuration, not asserted here.
+ */
+const logTrestleAccess = async (action: string, data: Record<string, unknown>) => {
   try {
     const prismaModule = await import('@/lib/prisma');
     const db = prismaModule.default;
+    const caller = data.caller as { ip?: string } | undefined;
     await db.auditEvent.create({
       data: {
-        action: 'trestle_access',
+        action,
         entity_type: 'listing',
         entity_id: (data.filter as string)?.slice(0, 200) || 'unknown',
         user_type: 'system',
         changes: JSON.parse(JSON.stringify(data)),
-        ip_address: (data.ip as string) || null,
+        ip_address: (data.ip as string) || caller?.ip || null,
       },
     });
   } catch {
@@ -37,27 +75,17 @@ const logTrestleAccess = async (data: Record<string, unknown>) => {
   }
 };
 import { reportApiError } from '@/lib/sentry-report';
-import { lookupNeighborhoodZips } from '@/lib/geo/neighborhood-zips';
 
-// ── Date helpers for OpenHouse filter ──
-function nextDay(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00');
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+function openHouseWindowForSearch(value: string | null): OpenHouseWindow | undefined {
+  if (!value) return undefined;
+  return value === 'weekend' ? { weekend: true } : { date: value };
 }
 
-function getNextWeekend(): { sat: string; mon: string } {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
-  const daysUntilSat = (6 - dayOfWeek + 7) % 7 || 7;
-  const sat = new Date(now);
-  sat.setDate(now.getDate() + (dayOfWeek === 6 ? 0 : daysUntilSat));
-  const mon = new Date(sat);
-  mon.setDate(sat.getDate() + 2);
-  return {
-    sat: sat.toISOString().split('T')[0],
-    mon: mon.toISOString().split('T')[0],
-  };
+function parseBoundsParam(value: string | null): { south: number; west: number; north: number; east: number } | null {
+  if (!value) return null;
+  const [south, west, north, east] = value.split(',').map(Number);
+  if (![south, west, north, east].every(Number.isFinite) || south >= north || west >= east) return null;
+  return { south, west, north, east };
 }
 
 /**
@@ -95,31 +123,37 @@ export function computeDbEnvelopeSource(
 // Vercel serverless: allow up to 60s for Trestle API calls + media fetch
 export const maxDuration = 60;
 
-// One Cycle W1: the paged findMany below is NOT wrapped yet — its select
-// includes the BigInt `id` (and full rows), which the Next data cache cannot
-// serialize safely; wrapping it needs the serialize-inside-closure refactor
-// (W1 follow-up). The COUNT read (pure integer) is wrapped now.
+// One Cycle W1 (follow-up landed): the paged findMany below IS now wrapped in
+// the shared tagged cache. It could not be before, because the select yields
+// BigInt `id`/`list_price` which the Next data cache cannot serialize; the
+// BigInt→string mapping now runs INSIDE the cached closure, so the stored
+// payload is JSON-safe. The COUNT read is wrapped alongside it.
 import { cachedPublicRead, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 
-// ── In-memory cache (same pattern as /api/idx/search) ──
-interface CacheEntry { data: unknown; expiresAt: number }
-const listingsCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
-const CACHE_MAX = 50;
-
-function getCached(key: string): unknown | null {
-  const entry = listingsCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { listingsCache.delete(key); return null; }
-  return entry.data;
-}
-
-function setCache(key: string, data: unknown): void {
-  if (listingsCache.size >= CACHE_MAX) {
-    const firstKey = listingsCache.keys().next().value;
-    if (firstKey !== undefined) listingsCache.delete(firstKey);
+/**
+ * Canonical search key — parameter ORDER must not create distinct cache
+ * identities. Two requests describing the same search have to land on the same
+ * entry, otherwise each ordering variant costs its own Neon read of identical
+ * rows. Repeated keys keep their values sorted so `?a=1&a=2` and `?a=2&a=1`
+ * also agree.
+ */
+export function canonicalSearchKey(params: URLSearchParams): string {
+  const byName = new Map<string, string[]>();
+  for (const [k, v] of params.entries()) {
+    const list = byName.get(k);
+    if (list) list.push(v);
+    else byName.set(k, [v]);
   }
-  listingsCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+  // Stable JSON over sorted [name, sortedValues[]] tuples — NOT `join(',')`.
+  // A comma join is ambiguous: `?n=1&n=2` (two values) and `?n=1%2C2` (one
+  // value containing a comma) both collapse to `n=1,2`, yet `params.get('n')`
+  // hands the route "1" in the first case and "1,2" in the second. Two searches
+  // that behave differently would then share one cache entry and one would be
+  // served the other's rows. JSON quoting keeps the two distinct.
+  const tuples: Array<[string, string[]]> = [...byName.keys()]
+    .sort()
+    .map((k) => [k, byName.get(k)!.slice().sort()]);
+  return JSON.stringify(tuples);
 }
 
 /**
@@ -231,12 +265,10 @@ export async function GET(request: Request) {
     // Filter/sort params consumed only by buildPublicListingDbSearch /
     // applyPublicListingPostFilters / buildPublicListingTrestleFilter are not
     // re-extracted here — those helpers read searchParams themselves.
-    const listingType = searchParams.get('type');
     const neighborhood = searchParams.get('neighborhood');
     const borough = searchParams.get('borough');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
-    const minBeds = searchParams.get('beds');
     const sortParam = searchParams.get('sort');
     const skipParam = searchParams.get('skip');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
@@ -301,14 +333,16 @@ export async function GET(request: Request) {
     // Falls through to live Trestle if DB has no synced listings.
     // ═══════════════════════════════════════════════════════════
     if (useIDX) {
-      // Cache key from all query params
-      const cacheKey = `listings:${searchParams.toString()}`;
-      const cached = getCached(cacheKey);
-      if (cached) {
-        return NextResponse.json(cached, {
-          headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
-        });
-      }
+      // CANONICAL cache key. `searchParams.toString()` preserves the caller's
+      // parameter ORDER, so `?beds=2&type=sale` and `?type=sale&beds=2` are the
+      // same search but produced two distinct keys — and therefore two separate
+      // Neon reads of identical rows. Sorting by name (then value, for repeated
+      // keys) collapses them onto one entry.
+      const cacheKey = `listings:${canonicalSearchKey(searchParams)}`;
+      // NO process-local read-through. A Map ahead of the shared cache could
+      // return a response up to its own TTL AFTER sync revalidated
+      // SEARCH_CACHE_TAG, silently defeating the sync-driven invalidation.
+      // Both DB reads below are shared-cached; the CDN reuses responses.
 
       // ── Try DB-first: query synced listings from Postgres ──
       // Skips extra count query — just runs the main query directly.
@@ -332,8 +366,16 @@ export async function GET(request: Request) {
           const dbTake = limit;
           const dbSkip = skip;
 
-          const [dbListings, dbTotal] = await Promise.all([
-            prisma.listing.findMany({
+          // W1 follow-up: the paged read is now wrapped in the SHARED tagged
+          // cache, not just the count. It could not be wrapped before because
+          // the select yields BigInt `id`/`list_price`, which the Next data
+          // cache cannot serialize — so the BigInt→string mapping that used to
+          // sit AFTER the await now happens INSIDE the closure. The cache
+          // therefore stores an already-JSON-safe payload, and an identical
+          // repeat search is served without touching Neon at all.
+          const [serialized, dbTotal] = await Promise.all([
+            cachedPublicRead(async () => {
+              const rows = await prisma.listing.findMany({
               where: dbWhere,
               orderBy: dbOrderBy,
               skip: dbSkip,
@@ -355,15 +397,9 @@ export async function GET(request: Request) {
                 postal_code: true,
                 address: true,
                 features: true,
-                // dbListingToPublicDTO derives several public fields ONLY from
-                // raw_data (the full Trestle payload): virtualTourURL
-                // (VirtualTourURLBranded/Unbranded — not stored in `features`,
-                // which excludes the B26 media group), plus previousListPrice,
-                // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
-                // Omitting raw_data silently dropped all of these from DB-backed
-                // cards (e.g. the PR-C 3D Tour badge never showed). Response is
-                // cached (5 min), so the extra JSON is amortized.
-                raw_data: true,
+                // The complete raw_data JSON is intentionally NOT selected.
+                // The twelve compatibility keys still needed by the canonical
+                // DTO are attached below by one bounded jsonb fragment query.
                 // PR 4: keep reading `media` JSON as the fallback source for
                 // the 0.3% of listings not yet mirrored into listing_media.
                 media: true,
@@ -412,6 +448,7 @@ export async function GET(request: Request) {
                     status: true,
                   },
                 },
+                external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
                 // All-status existence signal for the DTO's media authority (this
                 // select is ACTIVE-only). Without it, a Mallan exclusive whose
                 // relational photos were all deleted would read as "never imported"
@@ -419,26 +456,28 @@ export async function GET(request: Request) {
                 // query — no N+1 (Codex review, 2026-07-16).
                 _count: { select: { listing_media: true } },
               },
-            }),
+              });
+              const rowsWithRawCompat = await attachPublicListingRawCompat(prisma, rows);
+              // Serialize INSIDE the closure so the cached value is JSON-safe.
+              // C1 fix: stringify BigInt FKs; the classifier only checks
+              // `!= null` so the value shape doesn't matter, but mixing BigInts
+              // into JSON.stringify throws at serialization.
+              return rowsWithRawCompat.map((l) => ({
+                ...l,
+                id: l.id.toString(),
+                list_price: l.list_price.toString(),
+                living_area: l.living_area?.toString() ?? null,
+                agent_id: l.agent_id != null ? l.agent_id.toString() : null,
+                owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
+              })) as unknown as DbListing[];
+            }, ["api-listings-page", cacheKey], { tags: [SEARCH_CACHE_TAG] })(),
             cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
               "api-listings-count",
               cacheKey,
             ], { tags: [SEARCH_CACHE_TAG] })(),
           ]);
 
-          if (dbListings.length > 0) {
-            const serialized: DbListing[] = dbListings.map((l) => ({
-              ...l,
-              id: l.id.toString(),
-              list_price: l.list_price.toString(),
-              living_area: l.living_area?.toString() ?? null,
-              // C1 fix: stringify BigInt FKs for JSON safety; the classifier
-              // only checks `!= null` so the value shape doesn't matter, but
-              // mixing BigInts into JSON.stringify throws at serialization.
-              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
-            }));
-
+          if (serialized.length > 0) {
             const displayable = filterDisplayableDbListings(serialized);
             // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
             // (SL-/RL-) and a Trestle-synced IDX duplicate represent the same
@@ -475,35 +514,21 @@ export async function GET(request: Request) {
             // helper intentionally does not own.
             publicListings = applyPublicListingPostFilters(publicListings, featuresById, searchParams);
 
-            // Open House filter on DB path — query Trestle OpenHouse resource
+            let dbOpenHouseIndex: OpenHouseIndex | null = null;
+            // Open-house search uses the canonical combined Mallan authority
+            // (Cotality + local showings), with the same optional date window
+            // used by the fallback path. A lookup failure fails closed for this
+            // removing filter; it never returns listings that do not satisfy the
+            // search the user requested.
             if (openHouseParam) {
               try {
-                const ohToken = await getAccessToken();
-                const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-                const today = new Date().toISOString().split('T')[0];
-
-                let ohDateFilter = `OpenHouseDate ge ${today}`;
-                if (openHouseDateParam && openHouseDateParam !== 'weekend') {
-                  ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
-                } else if (openHouseDateParam === 'weekend') {
-                  const { sat, mon } = getNextWeekend();
-                  ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
-                }
-
-                const ohParams = new URLSearchParams();
-                ohParams.set('$select', 'ListingKey');
-                ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
-                ohParams.set('$top', '500');
-                const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
-                  headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
-                });
-                if (ohRes.ok) {
-                  const ohData = await ohRes.json();
-                  const ohKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-                  publicListings = publicListings.filter(l => ohKeys.has(l.id));
-                }
+                dbOpenHouseIndex = await getOpenHouseIndex(openHouseWindowForSearch(openHouseDateParam));
+                publicListings = publicListings.filter((listing) =>
+                  findNextOpenHouse(listing, dbOpenHouseIndex!) !== null,
+                );
               } catch (ohErr) {
                 console.warn('[/api/listings] DB-path open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
+                publicListings = [];
               }
             }
 
@@ -586,7 +611,7 @@ export async function GET(request: Request) {
             // exclusive card matches the open house on its RLS20099289 twin). Best-effort — a Trestle
             // hiccup never blocks or breaks the listings response. ET times, no agent contact info.
             try {
-              const ohIndex = await getOpenHouseIndex();
+              const ohIndex = dbOpenHouseIndex ?? await getOpenHouseIndex();
               if (ohIndex.size > 0) {
                 for (const l of annotatedListings) {
                   const next = findNextOpenHouse(l, ohIndex);
@@ -615,7 +640,6 @@ export async function GET(request: Request) {
               },
             };
 
-            setCache(cacheKey, responseBody);
 
             return NextResponse.json(responseBody, {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
@@ -644,7 +668,6 @@ export async function GET(request: Request) {
                 disclaimer: 'No exclusive Mallan listings currently available.',
               },
             };
-            setCache(cacheKey, responseBody);
             return NextResponse.json(responseBody, {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
@@ -671,7 +694,6 @@ export async function GET(request: Request) {
                 disclaimer: `No listings found matching "${addressInput}". Try a different address or broaden your search.`,
               },
             };
-            setCache(cacheKey, responseBody);
             return NextResponse.json(responseBody, {
               headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
             });
@@ -778,17 +800,40 @@ export async function GET(request: Request) {
         // ~50% of listings (broken navigation property). Always batch-fetch separately.
         const useExpandMedia = false;
 
-        const result = await fetchFromTrestle({
-          filter,
-          select: selectFields,
-          top: fetchTop,
-          maxTotal: fetchTop,
-          orderby,
-          count: true,
-          expandMedia: useExpandMedia,
-        });
+        // SHARED FALLBACK-ORIGIN CACHE — the FINAL contracted response, not the
+        // raw Property prefix. The raw 1,000-record shape can exceed Vercel's
+        // 2 MB item limit; the contracted 200-card shape is guarded by the
+        // cache-entry-size regression. Keeping the whole origin inside this
+        // boundary also absorbs OpenHouse, media, geocode-manifest and Neon
+        // fallback work on a hit.
+        //
+        // This remains an origin-execution cache, not transport accounting: the
+        // inner Next fetch cache, pagination, retries and auth refresh mean one
+        // origin execution can produce zero, one or several Cotality attempts.
+        const { value: cachedOrigin, originExecuted } = await readCachedFallbackOrigin({
+          cacheKey,
+          origin: async () => {
+            const result = await fetchFromTrestle({
+              filter,
+              select: selectFields,
+              top: fetchTop,
+              maxTotal: fetchTop,
+              orderby,
+              count: true,
+              expandMedia: useExpandMedia,
+            });
+            logTrestleAccess(TRESTLE_ORIGIN_EXECUTION_ACTION, {
+              endpoint: '/api/listings',
+              method: 'GET',
+              trestleResource: 'Property',
+              filter,
+              recordCount: result.records.length,
+              gateFilteredCount: result.totalFetched - result.records.length,
+              caller: { ip },
+              statusCode: 200,
+            }).catch(() => {});
 
-        // Step 1: Distribution gates on RAW Trestle data (Option A)
+            // Step 1: Distribution gates on RAW Trestle data (Option A)
         // This runs checkDistributionGates() BEFORE mapping — works directly on
         // raw OData field names. No type mismatch with Listing type.
         const displayable = result.records.filter(
@@ -799,20 +844,7 @@ export async function GET(request: Request) {
         // Only pet-friendly is filterable on Trestle path (PetsAllowed is in $select).
         // Other amenity fields (BuildingFeatures, InteriorFeatures, etc.) are NOT
         // available on IDX Plus $select — those filters only work on DB path.
-        let amenityFiltered = displayable;
-        if (amenitiesParam) {
-          const amenityList = amenitiesParam.split(',');
-          if (amenityList.includes('pet-friendly')) {
-            amenityFiltered = amenityFiltered.filter((raw) => {
-              const val = String(raw.PetsAllowed || '').toLowerCase();
-              if (!val) return false;
-              return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
-            });
-          }
-          // Note: doorman, gym, elevator, etc. cannot be filtered on Trestle path
-          // because BuildingFeatures/InteriorFeatures are not in IDX Plus $select.
-          // These amenities are properly filtered on the DB path (features JSONB).
-        }
+        const amenityFiltered = filterTrestleAmenities(displayable, amenitiesParam);
 
         // Step 1c: Property sub-type post-filter (can't push to OData — causes 502)
         let subTypeFiltered = amenityFiltered;
@@ -863,96 +895,88 @@ export async function GET(request: Request) {
           .map((raw) => mapRESOToInternal(raw))
           .filter((l): l is NonNullable<typeof l> => l !== null);
 
-        // Step 3: Post-fetch filters (can't push to OData)
-        let filtered = mapped;
+        // Step 3: Build BOTH source pools before pagination. The IDX pool keeps
+        // its mapped record because page-only media enrichment needs
+        // listingKeyNumeric; the CRM pool is already a PublicListingDTO.
+        const filtered = mapped;
+        const exclusiveListings = await fetchExclusiveListings(searchParams, fetchTop);
 
-        if (borough) {
-          const boroughLower = borough.toLowerCase();
-          filtered = filtered.filter((l) => {
-            const county = l.address.county.toLowerCase();
-            const city = l.address.city.toLowerCase();
-            if (boroughLower === 'manhattan') return county.includes('new york') || city === 'manhattan';
-            if (boroughLower === 'brooklyn') return county.includes('kings') || city === 'brooklyn';
-            if (boroughLower === 'queens') return county.includes('queens') || city === 'queens';
-            if (boroughLower === 'bronx') return county.includes('bronx') || city === 'bronx';
-            if (boroughLower === 'staten island') return county.includes('richmond') || city === 'staten island';
-            return county.includes(boroughLower) || city === boroughLower;
-          });
-        }
-
-        // Neighborhood post-filter REMOVED — CityRegion is unreliable in REBNY data.
-        // Neighborhood filtering is handled by ZIP-code push to OData (line ~631).
-        // The old CityRegion post-filter was discarding ALL results.
-
-        // Bounds post-filter: narrow ZIP-based results to precise lat/lng box.
-        // Trestle IDX Plus returns Latitude/Longitude as null AND blocks OData
-        // geo filters (400 error). We must geocode first, then filter by bounds.
+        // Bounds are a removing filter for both authorities. Geocode both pools
+        // before matching; unresolved coordinates fail closed instead of being
+        // asserted to lie inside the requested map.
+        let parsedBounds: { south: number; west: number; north: number; east: number } | null = null;
         if (boundsParam) {
           const [south, west, north, east] = boundsParam.split(',').map(Number);
-          if (south && west && north && east) {
-            // Geocode filtered listings BEFORE bounds check, with a 5s timeout.
-            // (Trestle gives null lat/lng — Census geocoder fills them in)
-            // Without timeout, Census API + Neon cold starts can hang for 26s+.
+          if ([south, west, north, east].every(Number.isFinite) && south < north && west < east) {
+            parsedBounds = { south, west, north, east };
             try {
               await Promise.race([
-                geocodeListings(filtered),
+                geocodeListings([...filtered, ...exclusiveListings]),
                 new Promise<void>((resolve) => setTimeout(resolve, 5000)),
               ]);
             } catch (geoErr) {
               console.warn('[/api/listings] Pre-bounds geocoding failed:', geoErr instanceof Error ? geoErr.message : geoErr);
             }
-
-            filtered = filtered.filter((l) => {
-              const lat = l.address.latitude;
-              const lng = l.address.longitude;
-              if (!lat || !lng) return true; // keep listings without coords
-              return lat >= south && lat <= north && lng >= west && lng <= east;
-            });
           }
         }
 
-        // Open House filter — requires separate Trestle OpenHouse resource query
+        let combinedCandidates: FallbackListingCandidate[] = [
+          ...filtered.map((listing) => {
+            const dto = toPublicDTO(listing);
+            return {
+              source: 'idx' as const,
+              id: dto.id,
+              address: dto.address,
+              modificationTimestamp: dto.modificationTimestamp,
+              dto,
+              listing,
+            };
+          }),
+          ...exclusiveListings.map((dto) => ({
+            source: 'crm' as const,
+            id: dto.id,
+            address: dto.address,
+            modificationTimestamp: dto.modificationTimestamp,
+            dto,
+          })),
+        ];
+
+        // Every removing filter below runs over the common DTO projection and
+        // therefore applies identically to both source types BEFORE the slice.
+        if (borough) {
+          combinedCandidates = combinedCandidates.filter((candidate) => matchesBorough(candidate, borough));
+        }
+        if (parsedBounds) {
+          combinedCandidates = combinedCandidates.filter((candidate) => isWithinBounds(candidate, parsedBounds!));
+        }
+        if (excludeUndisclosed) {
+          combinedCandidates = combinedCandidates.filter(hasDisclosedAddress);
+        }
+
+        let fallbackOpenHouseIndex: OpenHouseIndex | null = null;
         if (openHouseParam) {
           try {
-            const ohToken = await getAccessToken();
-            const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-            const today = new Date().toISOString().split('T')[0];
-
-            // Build date filter based on user selection
-            let ohDateFilter = `OpenHouseDate ge ${today}`;
-            if (openHouseDateParam && openHouseDateParam !== 'weekend') {
-              // Specific date: show open houses on that exact day
-              ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
-            } else if (openHouseDateParam === 'weekend') {
-              // This weekend: Saturday + Sunday
-              const { sat, mon } = getNextWeekend();
-              ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
-            }
-
-            const ohParams = new URLSearchParams();
-            ohParams.set('$select', 'ListingKey');
-            ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
-            ohParams.set('$top', '500');
-            const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
-              headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
-            });
-            if (ohRes.ok) {
-              const ohData = await ohRes.json();
-              const ohListingKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-              filtered = filtered.filter(l => ohListingKeys.has(l.listingId));
-            }
+            fallbackOpenHouseIndex = await getOpenHouseIndex(openHouseWindowForSearch(openHouseDateParam));
+            combinedCandidates = combinedCandidates.filter((candidate) =>
+              findNextOpenHouse(candidate.dto, fallbackOpenHouseIndex!) !== null,
+            );
           } catch (ohErr) {
             console.warn('[/api/listings] Open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
+            combinedCandidates = [];
           }
         }
 
-        // Step 4: Apply skip + limit and convert to public DTO
-        // When post-filtering (bounds, borough, neighborhood), use filtered.length as total
-        // because OData count doesn't account for server-side filtering.
-        const totalCount = (boundsParam || borough || neighborhood)
-          ? filtered.length
-          : (result.odataCount ?? filtered.length);
-        const pageListings = filtered.slice(skip, skip + limit);
+        // The ONE pagination boundary: exact-id dedupe -> prefer CRM physical
+        // twin -> global order -> slice. No source is prepended after this.
+        const combinedPage = paginateFallbackCandidates(combinedCandidates, {
+          sort: sortParam,
+          skip,
+          limit,
+        });
+        const pageCandidates = combinedPage.page;
+        const pageListings = pageCandidates
+          .filter((candidate): candidate is Extract<FallbackListingCandidate, { source: 'idx' }> => candidate.source === 'idx')
+          .map((candidate) => candidate.listing);
 
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
         // When $expand=Media was used, photos are already inline — skip batch fetch.
@@ -1073,42 +1097,46 @@ export async function GET(request: Request) {
         // Wait for both to finish in parallel
         await Promise.allSettled([photoPromise, geocodePromise]);
 
-        const publicListings = pageListings.map(toPublicDTO);
-
-        // ── Merge local exclusive listings from DB ──
-        // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings
-        // that are Active (already on RLS). Drafts are NOT displayed publicly.
-        // Dedup by listing_id to avoid showing the same listing twice.
-        const mergedListings = await mergeExclusiveListings(
-          publicListings,
-          listingType,
-          borough,
-          neighborhood,
-          minPrice ? parseInt(minPrice, 10) : undefined,
-          maxPrice ? parseInt(maxPrice, 10) : undefined,
-          minBeds ? parseInt(minBeds, 10) : undefined,
+        const enrichedIdxById = new Map(pageListings.map((listing) => [listing.listingId, toPublicDTO(listing)]));
+        const publicListings = pageCandidates.map((candidate) =>
+          candidate.source === 'idx'
+            ? (enrichedIdxById.get(candidate.listing.listingId) ?? candidate.dto)
+            : candidate.dto,
         );
 
-        // PR-FE.2 Option C (2026-05-15) — annotate co-listed siblings in
-        // the Trestle-direct + exclusive-merged path too. Same shape and
-        // semantics as the DB-first branch above. Pure post-processing,
-        // does not remove or merge rows.
-        let annotatedMerged = annotateCoListedSiblings(mergedListings);
-        if (excludeUndisclosed) {
-          annotatedMerged = annotatedMerged.filter(
-            // No `_source === 'exclusive'` exemption — provenance is not address
-            // permission. See ADDRESS_DISCLOSED_GATE.
-            l => l.address?.streetName !== 'Address Undisclosed'
-          );
-        }
+        // Reassemble in the already-sliced order, then perform non-removing
+        // annotations only. No filter or merge is allowed below this point.
+        const annotatedMerged = annotateCoListedSiblings(publicListings);
+        try {
+          const ohIndex = fallbackOpenHouseIndex ?? await getOpenHouseIndex();
+          if (ohIndex.size > 0) {
+            for (const listing of annotatedMerged) {
+              const next = findNextOpenHouse(listing, ohIndex);
+              if (next) listing.nextOpenHouse = next;
+            }
+          }
+        } catch { /* best-effort card enrichment; filtering above is fail-closed */ }
+
+        const canonicalIdxCount = combinedPage.canonical.filter((candidate) => candidate.source === 'idx').length;
+        const canonicalCrmCount = combinedPage.canonical.length - canonicalIdxCount;
+        const candidateIdxCount = combinedCandidates.filter((candidate) => candidate.source === 'idx').length;
+        const knownRemovedIdxDuplicates = Math.max(0, candidateIdxCount - canonicalIdxCount);
+        const providerTotal = result.odataCount ?? candidateIdxCount;
+        const providerPrefixIncomplete = result.hasMore || providerTotal > result.totalFetched;
+        const totalCount = providerPrefixIncomplete
+          ? Math.max(
+              combinedPage.canonical.length,
+              providerTotal - knownRemovedIdxDuplicates + canonicalCrmCount,
+            )
+          : combinedPage.canonical.length;
 
         const responseBody = {
           success: true,
           count: annotatedMerged.length,
-          total: totalCount + annotatedMerged.length - publicListings.length,
+          total: totalCount,
           skip,
           limit,
-          hasMore: skip + limit < totalCount || result.hasMore,
+          hasMore: skip + limit < combinedPage.canonical.length || result.hasMore,
           // SUMMARY CONTRACTION at the response boundary — cards get the
           // canonical hero + full photosCount, never the whole gallery.
           // Applied AFTER post-filters/dedupe/geocode/live-fallback and
@@ -1122,24 +1150,43 @@ export async function GET(request: Request) {
               'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Information deemed reliable but not guaranteed.',
             totalFetched: result.totalFetched,
           },
+          _pagination: {
+            // Exact when the fetched provider prefix is complete. Otherwise
+            // total preserves the provider's stable @odata.count and adjusts
+            // only duplicates proven inside the fetched prefix; hasMore also
+            // carries the provider continuation signal.
+            totalAccuracy: providerPrefixIncomplete ? 'estimated' : 'exact',
+          },
         };
+        return {
+              responseBody,
+              audit: {
+                filter,
+                recordCount: annotatedMerged.length,
+                gateFilteredCount: result.totalFetched - displayable.length,
+              },
+            };
+          },
+        });
 
-        setCache(cacheKey, responseBody);
-
-        // Async audit log (non-blocking)
-        logTrestleAccess({
+        // Response-shape audit (non-blocking). The ORIGIN-EXECUTION record is
+        // emitted inside the cache-miss closure above; this one describes what
+        // was served. Marked so the two are never conflated — neither is a
+        // count of Cotality HTTP requests.
+        logTrestleAccess(TRESTLE_SERVED_ACTION, {
           endpoint: '/api/listings',
           method: 'GET',
           trestleResource: 'Property',
-          filter,
-          recordCount: publicListings.length,
-          gateFilteredCount: result.totalFetched - displayable.length,
+          filter: cachedOrigin.audit.filter,
+          recordCount: cachedOrigin.audit.recordCount,
+          gateFilteredCount: cachedOrigin.audit.gateFilteredCount,
           caller: { ip },
           durationMs: Date.now() - (performance.now() | 0),
           statusCode: 200,
+          servedFromOriginCache: !originExecuted,
         }).catch(() => {});
 
-        return NextResponse.json(responseBody, {
+        return NextResponse.json(cachedOrigin.responseBody, {
           headers: {
             'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
           },
@@ -1183,31 +1230,60 @@ export async function GET(request: Request) {
 
     // IDX not enabled — still show local exclusive listings if any
     const exclusiveListings = await fetchExclusiveListings(
-      listingType,
-      borough,
-      neighborhood,
-      minPrice ? parseInt(minPrice, 10) : undefined,
-      maxPrice ? parseInt(maxPrice, 10) : undefined,
-      minBeds ? parseInt(minBeds, 10) : undefined,
+      searchParams,
+      Math.min(skip + limit + 20, 1000),
     );
+    const disabledBounds = parseBoundsParam(searchParams.get('bounds'));
+    if (disabledBounds) {
+      await Promise.race([
+        geocodeListings(exclusiveListings),
+        new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+      ]).catch(() => {});
+    }
+    let exclusiveCandidates: FallbackListingCandidate[] = exclusiveListings.map((dto) => ({
+      source: 'crm' as const,
+      id: dto.id,
+      address: dto.address,
+      modificationTimestamp: dto.modificationTimestamp,
+      dto,
+    }));
+    if (disabledBounds) exclusiveCandidates = exclusiveCandidates.filter((row) => isWithinBounds(row, disabledBounds));
+    if (excludeUndisclosed) exclusiveCandidates = exclusiveCandidates.filter(hasDisclosedAddress);
+    if (openHouseParam) {
+      try {
+        const index = await getOpenHouseIndex(openHouseWindowForSearch(openHouseDateParam));
+        exclusiveCandidates = exclusiveCandidates.filter((row) => findNextOpenHouse(row.dto, index) !== null);
+      } catch {
+        exclusiveCandidates = [];
+      }
+    }
+    const exclusivePage = paginateFallbackCandidates(exclusiveCandidates, { sort: sortParam, skip, limit });
+    const exclusivePageListings = annotateCoListedSiblings(exclusivePage.page.map((row) => row.dto));
+    try {
+      const index = await getOpenHouseIndex();
+      for (const listing of exclusivePageListings) {
+        const next = findNextOpenHouse(listing, index);
+        if (next) listing.nextOpenHouse = next;
+      }
+    } catch { /* best-effort card enrichment */ }
 
     return NextResponse.json(
       {
         success: true,
-        count: exclusiveListings.length,
-        total: exclusiveListings.length,
-        skip: 0,
+        count: exclusivePageListings.length,
+        total: exclusivePage.canonical.length,
+        skip,
         limit,
-        hasMore: false,
+        hasMore: skip + limit < exclusivePage.canonical.length,
         // SUMMARY CONTRACTION at the response boundary — cards get the
         // canonical hero + full photosCount, never the whole gallery.
         // Applied AFTER post-filters/dedupe/geocode/live-fallback and
         // annotation, so nothing upstream loses complete media.
-        listings: toPublicListingSummaries(exclusiveListings),
+        listings: toPublicListingSummaries(exclusivePageListings),
         _compliance: {
-          source: exclusiveListings.length > 0 ? 'exclusive' : 'none',
+          source: exclusivePage.canonical.length > 0 ? 'exclusive' : 'none',
           idxEnabled: false,
-          disclaimer: exclusiveListings.length > 0
+          disclaimer: exclusivePage.canonical.length > 0
             ? 'Exclusive listings by Mallan Real Estate Inc.'
             : 'IDX search is not enabled. Contact administrator.',
         },
@@ -1232,58 +1308,36 @@ export async function GET(request: Request) {
 // UCBA Art. I, Sec. 5: Only Active listings that have been submitted to RLS
 // may be displayed publicly. Draft/Incomplete listings are NOT shown.
 
-import type { PublicListingDTO } from '@/lib/idx/public-dto';
-import type { Prisma } from '@prisma/client';
-
 async function fetchExclusiveListings(
-  listingType?: string | null,
-  borough?: string | null,
-  neighborhood?: string | null,
-  minPrice?: number,
-  maxPrice?: number,
-  minBeds?: number,
+  searchParams: URLSearchParams,
+  take: number,
 ): Promise<PublicListingDTO[]> {
   try {
-    const where: Prisma.ListingWhereInput = {
-      status: buildSearchDisplayWhere().status,
+    // Reuse the canonical DB translator so address, status, price, beds,
+    // baths, square footage, subtype, ownership, amenity and keyword search
+    // semantics cannot silently diverge for Mallan rows. `sort=exclusives`
+    // is a source selector in this combined path, not the DB helper's legacy
+    // `agent_id != null` predicate (buyer-side history can also have agent_id).
+    const exclusiveParams = new URLSearchParams(searchParams);
+    if (exclusiveParams.get('sort') === 'exclusives') exclusiveParams.delete('sort');
+    const { where, orderBy } = buildPublicListingDbSearch(exclusiveParams);
+    const exclusiveGate = {
       OR: [
-        { rls_eligible: true, ...SEARCH_DISPLAY_GATE },
-        { rls_eligible: false, list_price: { gt: 0 }, address: { not: { equals: null } } },
+        { listing_id: { startsWith: 'SL-' } },
+        { listing_id: { startsWith: 'RL-' } },
+        { rls_eligible: false },
       ],
     };
-
-    if (listingType === 'sale' || listingType === 'buy') where.listing_type = 'sale';
-    else if (listingType === 'rent') where.listing_type = 'rent';
-
-    if (minPrice || maxPrice) {
-      where.list_price = {};
-      if (minPrice) (where.list_price as Prisma.DecimalFilter).gte = minPrice;
-      if (maxPrice) (where.list_price as Prisma.DecimalFilter).lte = maxPrice;
-    }
-
-    if (minBeds != null) where.bedrooms_total = minBeds === 0 ? { equals: 0 } : { gte: minBeds };
-
-    if (borough) {
-      where.borough = { contains: borough, mode: 'insensitive' };
-    }
-
-    if (neighborhood) {
-      const names = neighborhood.split(',').map(n => n.trim()).filter(Boolean);
-      const allZips = [...new Set(names.flatMap(n => lookupNeighborhoodZips(n)))];
-      const nameConditions = names.map(n => ({ neighborhood: { equals: n, mode: 'insensitive' as const } }));
-      if (allZips.length > 0) {
-        where.AND = [{ OR: [{ postal_code: { in: allZips } }, ...nameConditions] }];
-      } else if (names.length === 1) {
-        where.neighborhood = { equals: names[0], mode: 'insensitive' };
-      } else {
-        where.AND = [{ OR: nameConditions }];
-      }
-    }
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      exclusiveGate,
+      ...(searchParams.get('excludeUndisclosed') === 'true' ? [ADDRESS_DISCLOSED_GATE] : []),
+    ];
 
     const dbListings = await prisma.listing.findMany({
       where,
-      orderBy: { updated_at: 'desc' },
-      take: 50,
+      orderBy,
+      take: Math.min(Math.max(1, take), 1000),
       select: {
         id: true,
         listing_id: true,
@@ -1300,10 +1354,8 @@ async function fetchExclusiveListings(
         neighborhood: true,
         address: true,
         features: true,
-        // dbListingToPublicDTO derives virtualTourURL + previousListPrice,
-        // daysOnMarket, leaseAmount, availabilityDate, on/closeDate from
-        // raw_data (not stored in `features`). Mirrors the main DB-first select.
-        raw_data: true,
+        // Full raw_data is intentionally omitted. One bounded fragment query
+        // below supplies only the twelve compatibility keys the DTO still reads.
         // PR 4: media JSON kept as the fallback source for un-synced rows.
         media: true,
         // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
@@ -1345,6 +1397,7 @@ async function fetchExclusiveListings(
             status: true,
           },
         },
+        external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
         // All-status existence signal (this select is ACTIVE-only) so the DTO's
         // media authority can tell "never imported" from "all deleted" and never
         // resurrects deleted Mallan photos. Same batched query — no N+1 (Codex
@@ -1353,8 +1406,9 @@ async function fetchExclusiveListings(
       },
     });
 
+    const dbListingsWithRawCompat = await attachPublicListingRawCompat(prisma, dbListings);
     // Serialize BigInt + Decimal for the mapper
-    const serialized: DbListing[] = dbListings.map((l) => ({
+    const serialized: DbListing[] = dbListingsWithRawCompat.map((l) => ({
       ...l,
       id: l.id.toString(),
       list_price: l.list_price.toString(),
@@ -1366,42 +1420,14 @@ async function fetchExclusiveListings(
     }));
 
     const displayable = filterDisplayableDbListings(serialized);
-    return displayable.map(dbListingToPublicDTO);
+    const featuresById = new Map<string, Record<string, unknown>>();
+    for (const listing of serialized) {
+      featuresById.set(listing.listing_id, (listing.features || {}) as Record<string, unknown>);
+    }
+    const publicListings = preferCrmExclusiveOverIdxDuplicate(displayable.map(dbListingToPublicDTO));
+    return applyPublicListingPostFilters(publicListings, featuresById, exclusiveParams);
   } catch (err) {
     console.warn('[/api/listings] Exclusive listings fetch failed:', err instanceof Error ? err.message : err);
     return [];
   }
-}
-
-/**
- * Merge local exclusive listings with Trestle IDX results.
- * Deduplicates by listing_id — if a listing exists in both Trestle and local DB,
- * the LOCAL Mallan row is canonical (CHARTER Section 1A). The returned Cotality
- * RLS copy is retained internally for source/audit but must NOT become the public
- * canonical listing. This comment previously said the Trestle version took
- * precedence, which is the reversed model.
- */
-async function mergeExclusiveListings(
-  trestleListings: PublicListingDTO[],
-  listingType?: string | null,
-  borough?: string | null,
-  neighborhood?: string | null,
-  minPrice?: number,
-  maxPrice?: number,
-  minBeds?: number,
-): Promise<PublicListingDTO[]> {
-  const exclusives = await fetchExclusiveListings(listingType, borough, neighborhood, minPrice, maxPrice, minBeds);
-
-  if (exclusives.length === 0) return trestleListings;
-
-  // Build set of IDs already in Trestle results
-  const trestleIds = new Set(trestleListings.map((l) => l.id));
-
-  // Only add exclusives that aren't already in Trestle results
-  const newExclusives = exclusives.filter((e) => !trestleIds.has(e.id));
-
-  if (newExclusives.length === 0) return trestleListings;
-
-  // Prepend exclusives (your own listings first)
-  return [...newExclusives, ...trestleListings];
 }

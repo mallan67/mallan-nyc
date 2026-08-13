@@ -551,6 +551,11 @@ model Listing {
   // writer is enabled. The FK lives on `listing_identity`. NOT WIRED to any reader.
   listing_identity          ListingIdentity?
 
+  // Canonical external (hosted) video / virtual-tour references — the Cotality
+  // Property VirtualTourURL* slots and CRM-entered links. Sparse: only a populated
+  // source slot creates a row. These are LINKS; bytes are never mirrored to R2.
+  external_media            ListingExternalMedia[]
+
   // --- DOM tracking (UCBA 2026: 30-day reset) ---
   status_changed_at         DateTime? @map("status_changed_at")
   first_active_date         DateTime? @map("first_active_date")
@@ -2794,4 +2799,45 @@ model IdentityReviewQueue {
   @@index([resolution_status])
   @@index([created_at])
   @@map("identity_review_queue")
+}
+
+/// Canonical authority for EXTERNAL, hosted media references (video / virtual
+/// tour / 3D walkthrough): the six Cotality Property VirtualTourURL* slots plus
+/// CRM-entered equivalents.
+///
+/// These are LINKS to third-party hosts (YouTube, Vimeo, Matterport, iGuide...),
+/// not transferable assets — they belong here, never in R2, and never as
+/// permanent raw_data JSON keys. Real binary assets (Photo, FloorPlan, and any
+/// actual Media-resource Video/Tour asset) stay in `listing_media`.
+///
+/// Sparse by construction: a row exists only for a populated source slot.
+model ListingExternalMedia {
+  listing_id String @map("listing_id")
+  /// Authority that created the row: `cotality_property` | `crm` (DB CHECK).
+  source     String @map("source")
+  /// Identity of the reference WITHIN that authority.
+  ///   cotality_property -> exact verified Property slot, e.g. `VirtualTourURLUnbranded2`
+  ///                        (DB CHECK restricts to the six verified slots; an
+  ///                        unrecognized Cotality field name fails closed).
+  ///   crm               -> stable namespaced CRM external-media record identity,
+  ///                        because CRM is record-based, not fixed-slot-based.
+  source_key String @map("source_key")
+  url        String @map("url")
+  /// Drives the unbranded-first public-display rule.
+  branded    Boolean @map("branded")
+  /// `video` | `virtual_tour` | `unknown` (DB CHECK). The CHECK enforces the
+  /// VOCABULARY only — it cannot tell whether a URL is truly a tour. Semantic
+  /// correctness is owned solely by the canonical classifier, and every writer
+  /// must route through it.
+  kind       String   @map("kind")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @default(now()) @updatedAt @map("updated_at")
+
+  listing Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+
+  /// The canonical identity IS the key — no surrogate id, no sequence, and no
+  /// second B-tree. One index total, led by listing_id so it also serves the
+  /// per-listing composer read and the cascading delete.
+  @@id([listing_id, source, source_key])
+  @@map("listing_external_media")
 }

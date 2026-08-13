@@ -38,6 +38,10 @@ jobs:
       # claimCycle (advisory lock + JSON-path run_id query) against the ephemeral
       # postgres service. Never points at a real/production database.
       ONE_CYCLE_DB_INTEGRATION_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
+      # Enables tests/runtime/external-media-convergence.integration.test.ts to run
+      # against the ephemeral postgres service. That suite fails closed unless this
+      # host is loopback, so it can never be aimed at Neon.
+      EXTERNAL_MEDIA_DB_INTEGRATION_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
 
     steps:
       - name: Checkout
@@ -109,6 +113,18 @@ jobs:
         # silently drop a column: it refuses a data-loss op rather than sync-away the physical
         # agent_info column ahead of the gated, snapshot-approved DB DROP. Do NOT add that flag here.
         run: npx prisma db push
+
+      - name: Apply the hand-written external-media migration (proves the SHIPPED DDL)
+        # `prisma db push` builds the table from the datamodel but does NOT recreate the
+        # CHECK constraints written by hand in the migration. Drop what push made and
+        # apply the real migration file, so the integration test asserts the DDL that
+        # will actually be applied to production. Never `prisma migrate deploy`, and
+        # only ever against the loopback CI service.
+        env:
+          PGPASSWORD: dev_password
+        run: |
+          psql -h 127.0.0.1 -U dev_user -d mallan -v ON_ERROR_STOP=1 -c 'DROP TABLE IF EXISTS "listing_external_media" CASCADE;'
+          psql -h 127.0.0.1 -U dev_user -d mallan -v ON_ERROR_STOP=1 -f prisma/migrations/20260812150000_add_listing_external_media/migration.sql
 
       - name: Apply SQL views / constraints (if present)
         continue-on-error: true

@@ -62,6 +62,7 @@ import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/lis
 import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
+import { PUBLIC_EXTERNAL_MEDIA_RELATION } from '@/lib/media/public-external-media-select';
 import { publicListOfficeName } from '@/lib/idx/public-attribution';
 import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
@@ -271,6 +272,7 @@ const LISTING_MEDIA_INCLUDE = {
       media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Trestle rows
     },
   },
+  external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
   // ALL-STATUS existence signal. A Prisma aggregate subquery inside the SAME
   // query — not a per-listing round-trip, so no N+1. This is what lets the
   // reader distinguish "no row ever imported" (legacy fallback permitted) from

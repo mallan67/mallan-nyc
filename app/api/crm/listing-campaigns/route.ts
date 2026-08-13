@@ -47,6 +47,7 @@ import {
   type CampaignRecipient,
 } from "@/lib/email/recipient-list";
 import type { SessionUser } from "@/lib/auth/session";
+import { PUBLIC_EXTERNAL_MEDIA_RELATION } from "@/lib/media/public-external-media-select";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -112,6 +113,7 @@ const LISTING_SELECT = {
       status: true,
     },
   },
+  external_media: PUBLIC_EXTERNAL_MEDIA_RELATION,
   // All-status existence signal for the DTO's media authority (this select is
   // ACTIVE-only). Keeps "never imported" distinct from "all deleted" so a Mallan
   // exclusive's deleted photos are never resurrected from the legacy JSON — no
