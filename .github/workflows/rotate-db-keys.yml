@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 2026-05-15: GitHub Actions' "Add secret" UI preserves whatever bytes
       # are pasted into the textarea — including a trailing newline, which is

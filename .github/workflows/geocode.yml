@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run PowerShell Geocode Script
         run: .\scripts\geocode.ps1 -In data\addresses.csv -Out data\geoclient_addresses_out.csv
