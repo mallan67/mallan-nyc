@@ -4,6 +4,7 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 
 export interface AuditIssue {
   field: string;
@@ -59,6 +60,27 @@ const FAIR_HOUSING_PATTERNS = [
 export async function auditListing(listingId: string): Promise<AuditResult> {
   const listing = await prisma.listing.findUnique({
     where: { listing_id: listingId },
+    include: {
+      // Compliance must count the same classified gallery the public surface
+      // publishes. Active rows supply the gallery; the all-status count keeps
+      // "never imported" distinct from "all rows deleted" in the same query.
+      listing_media: {
+        where: { status: 'active' },
+        orderBy: [{ order: 'asc' }, { id: 'asc' }],
+        select: {
+          media_key: true,
+          media_url_original: true,
+          media_url_cached: true,
+          media_type: true,
+          media_category: true,
+          media_classification: true,
+          order: true,
+          preferred_photo_yn: true,
+          status: true,
+        },
+      },
+      _count: { select: { listing_media: true } },
+    },
   });
 
   if (!listing) throw new Error('Listing not found');
@@ -68,7 +90,16 @@ export async function auditListing(listingId: string): Promise<AuditResult> {
   const data = listing as Record<string, unknown>;
 
   // Count fields
-  const fieldKeys = Object.keys(data).filter(k => !['id', 'created_at', 'updated_at', 'raw_data'].includes(k));
+  const fieldKeys = Object.keys(data).filter(k => ![
+    'id',
+    'created_at',
+    'updated_at',
+    'raw_data',
+    // Relation loaded only to establish canonical photo ownership; it is not
+    // a Listing scalar and must not alter the historical completeness score.
+    'listing_media',
+    '_count',
+  ].includes(k));
   const fieldCount = fieldKeys.length;
   const filledCount = fieldKeys.filter(k => data[k] !== null && data[k] !== '' && data[k] !== undefined).length;
 
@@ -124,9 +155,21 @@ export async function auditListing(listingId: string): Promise<AuditResult> {
     });
   }
 
-  // Photo count
-  const media = data.media as unknown[];
-  const photoCount = Array.isArray(media) ? media.length : 0;
+  // Photo count — ONE owner with every public DB surface.
+  //
+  // The legacy implementation used `Listing.media.length`, which counted
+  // FloorPlans/Videos/Tours as photos and ignored authoritative relational
+  // deletions. This is not theoretical: Cotality `PhotosCount` can likewise
+  // include a FloorPlan (live specimen: 68 media, 67 classified Photos).
+  const tableRows = Array.isArray(listing.listing_media) ? listing.listing_media : [];
+  const legacyMedia = Array.isArray(listing.media) ? listing.media : [];
+  const { photoCount } = composeDbPublicMedia({
+    listingId: listing.listing_id,
+    rlsEligible: listing.rls_eligible,
+    tableRows,
+    legacyMedia,
+    hadRelationalRows: (listing._count?.listing_media ?? 0) > 0,
+  });
   if (photoCount === 0) {
     issues.push({
       field: 'media',
