@@ -99,9 +99,26 @@ export async function GET(req: NextRequest) {
     const body = await response.clone().json();
     const completion = completionFromBody(body);
     if (completion) {
-      await finalizeOneCyclePreflight(decision, completion, new Date());
+      // The finalize outcome is the ONLY signal that distinguishes "the machine
+      // is healthy and had nothing to skip" from "the completion state never
+      // persisted, so every poll forces a full Neon cycle." Production shows
+      // 0 skip_neon events; without this the two look identical in the logs.
+      // Emitted as its own event, never as a decision reason — this runs AFTER
+      // the Neon-backed cycle.
+      const outcome = await finalizeOneCyclePreflight(decision, completion, new Date());
+      console.log(JSON.stringify({
+        tag: 'one_cycle_preflight',
+        event: 'external_state_finalize',
+        outcome,
+        decision_reason: decision.reason,
+      }));
     } else {
-      console.warn('[one-cycle-preflight] cycle response was not finalizable; next poll remains fail-open');
+      console.log(JSON.stringify({
+        tag: 'one_cycle_preflight',
+        event: 'external_state_finalize',
+        outcome: 'not_finalizable',
+        decision_reason: decision.reason,
+      }));
     }
   } catch (err) {
     console.warn(

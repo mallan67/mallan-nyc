@@ -79,3 +79,32 @@ describe('uncertainty still fails OPEN', () => {
     }
   });
 });
+
+describe('route emits the finalize outcome as structured telemetry', () => {
+  const ROUTE = fs.readFileSync(
+    path.join(process.cwd(), 'app/api/cron/one-cycle-preflight/route.ts'),
+    'utf8',
+  );
+
+  it('captures the finalize return value instead of discarding it', () => {
+    expect(ROUTE).toMatch(/const outcome = await finalizeOneCyclePreflight\(/);
+  });
+
+  it('emits a queryable external_state_finalize event', () => {
+    expect(ROUTE).toContain("event: 'external_state_finalize'");
+    expect(ROUTE).toContain("tag: 'one_cycle_preflight'");
+    expect(ROUTE).toContain('outcome,');
+  });
+
+  it('the non-finalizable path is structured too, not a bare warn', () => {
+    expect(ROUTE).toContain("outcome: 'not_finalizable'");
+  });
+
+  it('carries the decision reason so skip-rate and write-failure correlate', () => {
+    expect(ROUTE).toContain('decision_reason: decision.reason');
+  });
+
+  it('logs no secret or endpoint value', () => {
+    expect(ROUTE).not.toMatch(/UPSTASH_REDIS_REST_(URL|TOKEN)/);
+  });
+});
