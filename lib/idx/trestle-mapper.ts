@@ -55,6 +55,20 @@ const B1_ADDRESS = [
 
 // B2: Classification (18 fields)
 const B2_CLASSIFICATION = [
+  // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
+  //
+  // `SourceSystemKey` alone is not enough. RESO_TO_RLS_RENAMES maps
+  // SourceSystemKey -> ListingKey defensively, but this feed sends ListingKey
+  // DIRECTLY and leaves SourceSystemKey NULL. Verified live against
+  // api.cotality.com the same day: a $select of both returns
+  // ListingKey="1091862396" with SourceSystemKey=null on every sampled row.
+  //
+  // Without this field `raw.ListingKey` is undefined on every record, so the
+  // cursor cannot record the tie-breaker half of its position — it would freeze
+  // and Property ingestion would stop while still reporting last_run_status
+  // "ok". The keyset $orderby and $filter reference ListingKey server-side and
+  // work regardless; this is purely about reading the value BACK.
+  "ListingKey",
   "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
   "CommonInterest", "OwnershipType", "StructureType", "NewConstructionYN",
   "NewDevelopmentYN", "DevelopmentStatus", "NumberOfUnitsTotal",

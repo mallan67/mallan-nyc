@@ -1,59 +1,50 @@
 /**
- * HISTORICAL PROPERTY GAP CENSUS.
+ * HISTORICAL PROPERTY GAP CENSUS — provider side.
  *
  * The `ge` bootstrap in PR #608 prevents a NEW boundary loss. It does NOT prove
  * the OLD regime (DESC ordering + a 500-record cap + a scalar max-seen cursor)
  * did not already punch holes below today's DB max. Under DESC+cap the newest
  * 500 rows were processed and the cursor jumped to the newest MT, so any older
  * eligible row that never got processed became unreachable on every subsequent
- * capped run. This script measures whether that actually happened.
+ * capped run. This measures whether that happened.
  *
- * METHOD — bounded, evidence-driven, READ-ONLY on both sides:
- *   1. Walk live Cotality Property ASC by (ModificationTimestamp, ListingKey)
- *      across a bounded window, collecting the provider's ListingId set.
- *   2. Compare against `listings.listing_id` in Neon.
- *   3. Report what is missing locally, with enough shape to size recovery.
+ * WHY THIS SCRIPT IS PROVIDER-ONLY
  *
- * JOIN KEY IS `ListingId`, NOT `ListingKey` — deliberately.
- * A census must join on something we actually store. `raw_data.ListingKey` is
- * present on only 1,010 of 24,970 production rows (it is not in the raw_data
- * keep-list and was shed for storage), whereas `listings.listing_id` carries the
- * provider ListingId for 24,963 of them. Joining on ListingKey would report
- * ~96% of the catalogue as "missing" — an artifact of shedding, not a gap.
- * (The CURSOR still uses ListingKey for provider-side ordering; that is a
- * different concern and is unaffected.)
+ * It deliberately does NOT open a Postgres connection. Pulling a production
+ * write-credential into the agent context to count rows would be a needless
+ * exposure when read-only SQL is already available out-of-band. So this emits a
+ * provider census artifact, and the local side is compared with read-only
+ * SELECTs against the same windows.
  *
- * MUTATES NOTHING. Read-only HTTP GET + read-only SELECT. Recovery is reported,
- * never executed.
+ * IDENTITY: ListingId, NOT ListingKey.
+ * `raw_data.ListingKey` survives on only 1,010 of 24,970 production rows (it is
+ * not in the raw_data keep-list and was shed for storage), whereas
+ * `listings.listing_id` carries the provider ListingId on 24,963. Joining on
+ * ListingKey would report ~96% of the catalogue as "missing" — an artifact of
+ * shedding, not a gap. (The CURSOR still orders by ListingKey; different
+ * concern, unaffected.)
+ *
+ * READ-ONLY. HTTP GET only. Mutates nothing, at the provider or locally.
  *
  * USAGE
- *   npm run idx:gap-census                 # default window: full catalogue
- *   npm run idx:gap-census -- --since 2026-01-01T00:00:00Z --max-pages 40
+ *   npm run idx:gap-census                       # monthly counts, 2024-10 →
+ *   npm run idx:gap-census -- --window 2026-07   # dump ListingIds for one month
  */
 import { writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import prisma from "../lib/prisma";
 
 const BASE = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-const PAGE = 500;
+const PROPERTY = `${BASE}/odata/Property`;
 
-function arg(name: string, fallback: string | null = null): string | null {
+function arg(name: string): string | null {
   const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : null;
 }
-
-type ProviderRow = {
-  ListingId?: string;
-  ListingKey?: string;
-  ModificationTimestamp?: string;
-  StandardStatus?: string;
-  InternetEntireListingDisplayYN?: boolean;
-};
 
 async function token(): Promise<string> {
   const id = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY;
   const secret = process.env.IDX_CLIENT_SECRET || process.env.IDX_API_SECRET;
-  if (!id || !secret) throw new Error("Missing IDX_CLIENT_ID / IDX_CLIENT_SECRET (put them in .env.local)");
+  if (!id || !secret) throw new Error("Missing IDX_CLIENT_ID / IDX_CLIENT_SECRET");
   const res = await fetch(`${BASE}/oidc/connect/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -66,115 +57,123 @@ async function token(): Promise<string> {
   });
   if (!res.ok) throw new Error(`token failed: HTTP ${res.status}`);
   const j = (await res.json()) as { access_token?: string };
-  if (!j.access_token) throw new Error("no access_token in token response");
+  if (!j.access_token) throw new Error("no access_token");
   return j.access_token;
 }
 
-async function main() {
-  const since = arg("since", "2024-01-01T00:00:00Z")!;
-  const maxPages = Number(arg("max-pages", "200"));
-  const bearer = await token();
-
-  // ── 1. Walk the provider ASC, bounded ────────────────────────────────────
-  const provider = new Map<string, ProviderRow>();
-  let url =
-    `${BASE}/odata/Property?` +
+/** `$count=true` with `$top=0` — the cheapest exact count the feed offers. */
+async function countIn(bearer: string, fromIso: string, toIso: string): Promise<number> {
+  const url =
+    `${PROPERTY}?` +
     new URLSearchParams({
-      $select: "ListingId,ListingKey,ModificationTimestamp,StandardStatus,InternetEntireListingDisplayYN",
-      $filter: `ModificationTimestamp ge ${since}`,
-      $orderby: "ModificationTimestamp asc,ListingKey asc",
-      $top: String(PAGE),
+      $filter: `ModificationTimestamp ge ${fromIso} and ModificationTimestamp lt ${toIso}`,
+      $count: "true",
+      $top: "0",
     }).toString();
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${bearer}`, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`count ${fromIso}..${toIso} failed: HTTP ${res.status}`);
+  const body = (await res.json()) as Record<string, unknown>;
+  return Number(body["@odata.count"] ?? 0);
+}
 
-  let pages = 0;
-  let truncated = false;
-  while (url && pages < maxPages) {
+/** Every ListingId in one window, following nextLink. */
+async function idsIn(bearer: string, fromIso: string, toIso: string): Promise<
+  { ListingId: string; ModificationTimestamp: string; StandardStatus: string; PropertyType: string; display: boolean }[]
+> {
+  const out: { ListingId: string; ModificationTimestamp: string; StandardStatus: string; PropertyType: string; display: boolean }[] = [];
+  let url =
+    `${PROPERTY}?` +
+    new URLSearchParams({
+      $select: "ListingId,ModificationTimestamp,StandardStatus,PropertyType,InternetEntireListingDisplayYN",
+      $filter: `ModificationTimestamp ge ${fromIso} and ModificationTimestamp lt ${toIso}`,
+      $orderby: "ModificationTimestamp asc,ListingKey asc",
+      $top: "500",
+    }).toString();
+  let guard = 0;
+  while (url && guard++ < 500) {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${bearer}`, Accept: "application/json" },
     });
-    if (!res.ok) throw new Error(`Property page ${pages + 1} failed: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`page failed: HTTP ${res.status}`);
     const body = (await res.json()) as Record<string, unknown>;
-    for (const r of (body.value as ProviderRow[]) ?? []) {
-      if (r.ListingId) provider.set(String(r.ListingId), r);
+    for (const r of (body.value as Record<string, unknown>[]) ?? []) {
+      if (!r.ListingId) continue;
+      out.push({
+        ListingId: String(r.ListingId),
+        ModificationTimestamp: String(r.ModificationTimestamp ?? ""),
+        StandardStatus: String(r.StandardStatus ?? ""),
+        PropertyType: String(r.PropertyType ?? ""),
+        display: r.InternetEntireListingDisplayYN !== false,
+      });
     }
-    pages++;
-    const next = body["@odata.nextLink"] as string | undefined;
-    if (!next) { url = ""; break; }
-    url = next;
-    if (pages >= maxPages) truncated = true;
+    url = (body["@odata.nextLink"] as string | undefined) ?? "";
   }
-  console.log(`provider: ${provider.size} ListingIds over ${pages} page(s)${truncated ? " (TRUNCATED — raise --max-pages)" : ""}`);
-
-  // ── 2. Compare against local, in bounded chunks ──────────────────────────
-  const ids = [...provider.keys()];
-  const localFound = new Set<string>();
-  for (let i = 0; i < ids.length; i += 1000) {
-    const chunk = ids.slice(i, i + 1000);
-    const rows = await prisma.listing.findMany({
-      where: { listing_id: { in: chunk } },
-      select: { listing_id: true },
-    });
-    for (const r of rows) localFound.add(r.listing_id);
-  }
-
-  const missing = ids.filter((id) => !localFound.has(id)).map((id) => provider.get(id)!);
-
-  // ── 3. Shape the gap ─────────────────────────────────────────────────────
-  const byStatus = new Map<string, number>();
-  let displayable = 0;
-  let minTs: string | null = null;
-  let maxTs: string | null = null;
-  for (const m of missing) {
-    const s = m.StandardStatus ?? "(null)";
-    byStatus.set(s, (byStatus.get(s) ?? 0) + 1);
-    const isDisplayStatus = ["Active", "ActiveUnderContract", "ComingSoon"].includes(s);
-    if (isDisplayStatus && m.InternetEntireListingDisplayYN !== false) displayable++;
-    const t = m.ModificationTimestamp ?? null;
-    if (t) {
-      if (!minTs || t < minTs) minTs = t;
-      if (!maxTs || t > maxTs) maxTs = t;
-    }
-  }
-
-  const RECOVERY_BATCH = 500; // one scheduled run's cap
-  const report = {
-    capturedAt: new Date().toISOString(),
-    window: { since, pagesWalked: pages, truncated },
-    providerListingIds: provider.size,
-    presentLocally: localFound.size,
-    missingLocally: missing.length,
-    missingDisplayable: displayable,
-    missingTimestampRange: { min: minTs, max: maxTs },
-    missingByStatus: Object.fromEntries([...byStatus.entries()].sort((a, b) => b[1] - a[1])),
-    recoveryBatchesRequired: Math.ceil(missing.length / RECOVERY_BATCH),
-    // Bounded sample only — never the whole set, and no listing content beyond
-    // the identifiers needed to act on it.
-    sampleMissing: missing.slice(0, 25).map((m) => ({
-      ListingId: m.ListingId,
-      ModificationTimestamp: m.ModificationTimestamp,
-      StandardStatus: m.StandardStatus,
-    })),
-    verdict:
-      missing.length === 0
-        ? "ZERO GAP — every provider ListingId in the window is present locally."
-        : `GAP: ${missing.length} provider ListingIds absent locally (${displayable} displayable).`,
-  };
-
-  const outDir = path.resolve(process.cwd(), "artifacts");
-  mkdirSync(outDir, { recursive: true });
-  const out = path.join(outDir, "property-historical-gap-census.json");
-  writeFileSync(out, JSON.stringify(report, null, 2));
-
-  console.log(`\n${report.verdict}`);
-  console.log(`timestamp range: ${minTs ?? "-"} .. ${maxTs ?? "-"}`);
-  console.log(`recovery batches @${RECOVERY_BATCH}/run: ${report.recoveryBatchesRequired}`);
-  if (truncated) console.log("WARNING: window truncated — the gap number is a LOWER BOUND.");
-  console.log(`\nEvidence written: ${out}`);
-  await prisma.$disconnect();
+  return out;
 }
 
-main().catch(async (err) => {
+function monthsFrom(startYear: number, startMonth: number): { label: string; from: string; to: string }[] {
+  const out: { label: string; from: string; to: string }[] = [];
+  const now = new Date();
+  let y = startYear;
+  let m = startMonth;
+  while (y < now.getUTCFullYear() || (y === now.getUTCFullYear() && m <= now.getUTCMonth() + 1)) {
+    const from = `${y}-${String(m).padStart(2, "0")}-01T00:00:00Z`;
+    const ny = m === 12 ? y + 1 : y;
+    const nm = m === 12 ? 1 : m + 1;
+    out.push({
+      label: `${y}-${String(m).padStart(2, "0")}`,
+      from,
+      to: `${ny}-${String(nm).padStart(2, "0")}-01T00:00:00Z`,
+    });
+    y = ny;
+    m = nm;
+  }
+  return out;
+}
+
+async function main() {
+  const bearer = await token();
+  const outDir = path.resolve(process.cwd(), "artifacts");
+  mkdirSync(outDir, { recursive: true });
+
+  const single = arg("window");
+  if (single) {
+    const [y, m] = single.split("-").map(Number);
+    const from = `${y}-${String(m).padStart(2, "0")}-01T00:00:00Z`;
+    const ny = m === 12 ? y + 1 : y;
+    const nm = m === 12 ? 1 : m + 1;
+    const to = `${ny}-${String(nm).padStart(2, "0")}-01T00:00:00Z`;
+    const rows = await idsIn(bearer, from, to);
+    const out = path.join(outDir, `property-window-${single}.json`);
+    writeFileSync(out, JSON.stringify({ window: single, from, to, count: rows.length, rows }, null, 2));
+    console.log(`${single}: ${rows.length} provider ListingIds -> ${out}`);
+    return;
+  }
+
+  // Whole-catalogue count first — the single most useful number.
+  const total = await countIn(bearer, "1970-01-01T00:00:00Z", "2100-01-01T00:00:00Z");
+  console.log(`provider Property total (all time, unfiltered): ${total}`);
+
+  const windows = monthsFrom(2024, 10);
+  const rows: { month: string; providerCount: number }[] = [];
+  for (const w of windows) {
+    const n = await countIn(bearer, w.from, w.to);
+    rows.push({ month: w.label, providerCount: n });
+    console.log(`${w.label}  provider=${n}`);
+  }
+
+  const out = path.join(outDir, "property-provider-window-census.json");
+  writeFileSync(
+    out,
+    JSON.stringify({ capturedAt: new Date().toISOString(), providerTotalAllTime: total, windows: rows }, null, 2),
+  );
+  console.log(`\nEvidence written: ${out}`);
+  console.log("Compare each providerCount against the local per-month count (read-only SELECT).");
+}
+
+main().catch((err) => {
   console.error("census failed:", err instanceof Error ? err.message : err);
-  await prisma.$disconnect().catch(() => {});
   process.exitCode = 1;
 });

@@ -49,9 +49,26 @@
 -- Rollback: ALTER TABLE "sync_state" DROP COLUMN "last_listing_key";
 -- Safe unconditionally while the reader tolerates NULL.
 --
--- SCOPE: exactly ONE column. `prisma migrate diff` against this branch also
--- reports PRE-EXISTING production-vs-repo drift unrelated to this change (see
--- 20260808020000_add_listing_media_r2_policy_excluded_at, which records the
--- same finding). That drift is NOT included here and remains an unresolved
--- blocker to be cleared before any production migrate deploy.
+-- SCOPE: exactly ONE column.
+--
+-- DRIFT NOTE, CORRECTED 2026-08-13 (read-only verification against production):
+-- an earlier note here -- carried from
+-- 20260808020000_add_listing_media_r2_policy_excluded_at -- called the
+-- production-vs-repo drift "a hard blocker on any production migration". That
+-- conflated two different commands. `prisma migrate diff` compares SCHEMA and
+-- would propose dropping the drifted objects; `prisma migrate deploy` applies
+-- pending migration FILES and never consults drift. Only `migrate deploy` is
+-- used to apply this.
+--
+-- Verified in production `hidden-mountain-87248164`:
+--   * rows blocking deploy (finished_at IS NULL AND rolled_back_at IS NULL) = 0
+--     (the two historical failures each have a paired successful row and carry
+--     rolled_back_at, which is the resolved state)
+--   * the real drift is 5 orphan tables with no Prisma model
+--     (campaign_recipients, engagement_events, experiment_listings,
+--     financial_ledger, micro_commitments), ALL with 0 rows
+--   * zero schema tables are missing from the database
+--
+-- `migrate deploy` touches none of them. This migration adds one column and
+-- nothing else.
 ALTER TABLE "sync_state" ADD COLUMN "last_listing_key" TEXT;

@@ -670,7 +670,6 @@ export async function syncListings(
   // re-fetched by the next incremental pass instead of being silently
   // skipped forever. An unparseable failed key freezes the watermark
   // entirely (strictest fail-closed).
-  const failedCursorKeys: number[] = [];
   let watermarkFrozen = false;
 
   // ── Keyset cursor bookkeeping (ModificationTimestamp, ListingKey) ────────
@@ -709,6 +708,10 @@ export async function syncListings(
           `[IDX Sync] Skipping record (missing fields): ${validation.missingFields.join(", ")}`
         );
         skippedValidation++;
+        // RESOLVED skip — the cursor MUST advance past it. See the note on the
+        // new-terminal skip below for why a skip that does not record a position
+        // livelocks the whole sync.
+        recordCursorPosition(raw, true);
         continue;
       }
 
@@ -842,6 +845,27 @@ export async function syncListings(
       if (shouldSkipNewTerminalListing(existing, mapped.status)) {
         skippedNewTerminal++;
         if (skippedNewTerminalSample.length < 25) skippedNewTerminalSample.push(mapped.listing_id);
+        // RESOLVED skip — record the position so the cursor can move past it.
+        //
+        // A deliberate skip is a TERMINAL DECISION about the record, not a
+        // failure. If it records no position, the record is invisible to
+        // `advanceCursor`: a page whose records are ALL skipped yields an empty
+        // `cursorRows`, so no position is written, `last_run_status` is still
+        // "ok", and the next run's identical filter under deterministic ASC
+        // ordering returns the byte-identical page. Forever.
+        //
+        // That is not hypothetical for this predicate. Never-active terminal
+        // rows are the single largest skip class in the feed (~88,967 rows were
+        // shed for exactly this reason), and `ListingKey` is monotone with
+        // listing age, so under `(MT asc, ListingKey asc)` the OLDEST — i.e.
+        // long-closed, never-tracked — keys sort FIRST within any bulk-stamp
+        // cluster. A capped page over the head of such a cluster is precisely
+        // an all-skip window.
+        //
+        // The media lane already does this (lib/idx/media-sync.ts, the
+        // compliance-blocked branch pushes `ok: true` with the comment "let the
+        // cursor advance past it"). Same hazard, same fix shape, both lanes.
+        recordCursorPosition(raw, true);
         continue;
       }
       // #415 rehydration guard: if `existing` is already archived, guardArchivedRehydration
@@ -1138,17 +1162,17 @@ export async function syncListings(
       // contiguous success BEFORE it, so the failed record is re-fetched next
       // run and nothing after it is silently consumed.
       recordCursorPosition(raw, false);
-      // Correction 4 (legacy scalar clamp, retained for the non-keyset path):
-      // cap the watermark below this failed record so it is re-fetched.
-      {
-        const fMt = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)) : null;
-        const fPct = raw.PhotosChangeTimestamp ? new Date(String(raw.PhotosChangeTimestamp)) : null;
-        const fKey = Math.max(
-          fMt && !Number.isNaN(fMt.getTime()) ? fMt.getTime() : Number.NEGATIVE_INFINITY,
-          fPct && !Number.isNaN(fPct.getTime()) ? fPct.getTime() : Number.NEGATIVE_INFINITY,
-        );
-        if (Number.isFinite(fKey)) failedCursorKeys.push(fKey);
-        else watermarkFrozen = true; // cannot bound the failure → freeze (fail closed)
+      // Correction 4 — fail-closed freeze for a failure the cursor cannot bound.
+      //
+      // Only the FREEZE survives. The companion `failedCursorKeys` array became
+      // write-only when the scalar clamp was removed (see the watermark block):
+      // a positionable failure is already handled by `advanceCursor` stopping
+      // before it, so collecting its instant had no remaining reader.
+      //
+      // An UNPARSEABLE failure instant still matters: we cannot say where the
+      // failure sits in the order, so we must not claim any position past it.
+      if (!Number.isFinite(new Date(String(raw.ModificationTimestamp ?? "")).getTime())) {
+        watermarkFrozen = true;
       }
       const listingId = String(raw.ListingId || raw.SourceSystemKey || "unknown");
       const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
@@ -1464,21 +1488,32 @@ export async function syncListings(
       batchListingKey = null;
     }
 
-    // Correction 4 — retained fail-closed floor. `advanceCursor` already stops
-    // at the first failure, so this is a second, independent bound rather than
-    // the primary mechanism. Keeping both means a failure that the keyset could
-    // not position (and therefore did not stop on) still cannot be skipped.
+    // Correction 4 — fail-closed guard. It may only BLOCK advancement; it must
+    // never REWRITE the position.
+    //
+    // The old scalar form clamped `batchWatermark` to (earliest failure - 1ms)
+    // and nulled the tie-breaker. Under a keyset cursor that is both redundant
+    // and harmful:
+    //
+    //   redundant — every POSITIONABLE failure is already in
+    //     `failedCursorListingKeys`, so `advanceCursor` stopped before it; and
+    //     every UNPOSITIONABLE record already set `keysetFrozen`, which blocks
+    //     advancement outright. There is no failure the clamp catches that the
+    //     keyset did not already handle.
+    //
+    //   harmful — a same-timestamp cluster makes the clamp fire on a CORRECT
+    //     position. If the last contiguous success and the first failure share a
+    //     ModificationTimestamp T, then batchWatermark == T > (T - 1ms), so the
+    //     clamp replaced a real position (T, lastGoodKey) with a synthetic
+    //     (T - 1ms, null). Nulling the key discards the tie-breaker, so the next
+    //     run falls back to the bootstrap path and re-reads the whole cluster —
+    //     losing exactly the progress the tie-breaker exists to preserve, on
+    //     exactly the clustered input it exists to handle.
+    //
+    // `watermarkFrozen` is likewise a pure block, kept as defence in depth for
+    // an unbounded failure the keyset could not position.
     if (watermarkFrozen) {
       advanceWatermark = false;
-    } else if (advanceWatermark && failedCursorKeys.length > 0) {
-      const floor = new Date(Math.min(...failedCursorKeys) - 1);
-      if (batchWatermark && batchWatermark > floor) {
-        // The keyset position sits at or beyond a failed record's instant —
-        // clamp down and drop the tie-breaker, because the key belongs to a
-        // position we are no longer claiming.
-        batchWatermark = floor;
-        batchListingKey = null;
-      }
     }
     // The shards this run is ABOUT to warm (the warm block below runs only
     // when errors === 0). Persisted in `notes` so the NEXT run's canary
@@ -1488,11 +1523,21 @@ export async function syncListings(
       where: { resource: "Property" },
       create: {
         resource: "Property",
-        // Null on a first run that advanced nothing — the column is nullable and
-        // a null cursor means "no position yet", which the reader bootstraps.
-        // Writing `now` here is exactly the defect this change removes.
-        last_watermark: batchWatermark,
-        last_listing_key: batchListingKey,
+        // Gated by the SAME `advanceWatermark` the update branch uses.
+        //
+        // `advancesGlobalCursor` nulls the position directly, but `keysetFrozen`
+        // and `watermarkFrozen` only flip `advanceWatermark` — so an ungated
+        // create branch would honour the ownership guard while silently ignoring
+        // both fail-closed FREEZES, writing a position the update branch would
+        // have withheld. Whether that row can exist today is beside the point:
+        // one upsert must not enforce a safety rule on one branch and not the
+        // other.
+        //
+        // Null when nothing is advanceable — the column is nullable and a null
+        // cursor means "no position yet", which the reader bootstraps. Writing
+        // `now` here is exactly the defect this change removes.
+        last_watermark: advanceWatermark ? batchWatermark : null,
+        last_listing_key: advanceWatermark ? batchListingKey : null,
         last_run_at: now,
         last_run_status: errors > 0 ? "error" : "ok",
         last_run_duration_ms: durationMs,

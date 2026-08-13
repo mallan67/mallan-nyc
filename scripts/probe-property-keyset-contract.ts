@@ -262,7 +262,143 @@ async function main() {
     });
   }
 
+  // ── E) ListingKey is present and non-null on every row the cursor uses ────
+  // A null tie-breaker would make the resume predicate unusable for that row.
+  const eRows = [...a.firstRows, ...a.lastRows, ...b.firstRows, ...b.lastRows];
+  const eMissing = eRows.filter((r) => !r.ListingKey || String(r.ListingKey).trim() === "");
+  findings.push({
+    check: "E_listingkey_present_non_null",
+    verdict: eRows.length === 0 ? "INCONCLUSIVE" : eMissing.length === 0 ? "PASS" : "FAIL",
+    detail: `${eRows.length} captured rows inspected; ${eMissing.length} missing/blank ListingKey`,
+  });
+
+  // ── F) ordering is deterministic across repeated identical calls ──────────
+  const f1 = await probe(
+    "F-call1: deterministic ordering probe",
+    q({ $orderby: "ModificationTimestamp asc,ListingKey asc", $top: "25" }),
+    bearer,
+  );
+  const f2 = await probe(
+    "F-call2: identical request, repeated",
+    q({ $orderby: "ModificationTimestamp asc,ListingKey asc", $top: "25" }),
+    bearer,
+  );
+  const seq = (c: Capture) => [...c.firstRows, ...c.lastRows].map((r) => `${r.ModificationTimestamp}|${r.ListingKey}`).join(",");
+  const deterministic = f1.ok && f2.ok && seq(f1) === seq(f2);
+  findings.push({
+    check: "F_ordering_deterministic_across_calls",
+    verdict: f1.ok && f2.ok ? (deterministic ? "PASS" : "FAIL") : "FAIL",
+    detail: deterministic
+      ? "two identical requests returned the same rows in the same order"
+      : `sequences diverged — call1=[${seq(f1)}] call2=[${seq(f2)}]`,
+  });
+
+  // ── D/H) SAME-TIMESTAMP continuation across a capped page boundary ────────
+  // The 797-row production cluster hazard, exercised for real: find a
+  // ModificationTimestamp shared by several ListingKeys, walk it with a cap
+  // SMALLER than the cluster, and prove the walk neither loses nor repeats a
+  // row. A scalar `MT gt T` cursor cannot do this — it either stalls on the
+  // cluster forever or jumps it.
+  const clusterProbe = await probe(
+    "H-scan: find a ModificationTimestamp shared by multiple ListingKeys",
+    `${PROPERTY}?${new URLSearchParams({
+      $select: SELECT,
+      $orderby: "ModificationTimestamp asc,ListingKey asc",
+      $top: "1000",
+    }).toString()}`,
+    bearer,
+  );
+  // firstRows/lastRows are slim; re-fetch a window and count duplicates there.
+  const windowTs = clusterProbe.firstRows[0]?.ModificationTimestamp ?? anchorTs;
+  const hCluster = await probeFull(
+    "H-cluster: all rows AT one ModificationTimestamp",
+    q({
+      $filter: `ModificationTimestamp eq ${windowTs}`,
+      $orderby: "ModificationTimestamp asc,ListingKey asc",
+      $top: "200",
+    }),
+    bearer,
+  );
+  if (hCluster.rows.length >= 2) {
+    const truth = hCluster.rows.map((r) => String(r.ListingKey)).sort();
+    // Walk the SAME cluster with a cap of 1 — maximally adversarial.
+    const walked: string[] = [];
+    let cursorKey: string | null = null;
+    for (let step = 0; step < hCluster.rows.length + 2; step++) {
+      const filter =
+        cursorKey === null
+          ? `ModificationTimestamp eq ${windowTs}`
+          : `(ModificationTimestamp eq ${windowTs} and ListingKey gt '${cursorKey.replace(/'/g, "''")}')`;
+      const page = await probeFull(
+        `H-walk step ${step + 1} (cap=1)`,
+        q({ $filter: filter, $orderby: "ModificationTimestamp asc,ListingKey asc", $top: "1" }),
+        bearer,
+        true,
+      );
+      if (page.rows.length === 0) break;
+      const k = String(page.rows[0].ListingKey);
+      if (walked.includes(k)) {
+        walked.push(`__REPEAT__${k}`);
+        break;
+      }
+      walked.push(k);
+      cursorKey = k;
+    }
+    const walkedSorted = [...walked].sort();
+    const lost = truth.filter((k) => !walked.includes(k));
+    const repeated = walked.filter((k) => k.startsWith("__REPEAT__"));
+    findings.push({
+      check: "DH_same_timestamp_continuation_across_capped_pages",
+      verdict: lost.length === 0 && repeated.length === 0 && walkedSorted.length === truth.length ? "PASS" : "FAIL",
+      detail:
+        `cluster at ${windowTs} has ${truth.length} rows; a cap=1 keyset walk visited ${walked.length}; ` +
+        `lost=${lost.length}; repeated=${repeated.length}. ` +
+        `This is the 797-row production hazard reproduced at small scale: a scalar 'MT gt T' cursor cannot traverse it.`,
+    });
+  } else {
+    findings.push({
+      check: "DH_same_timestamp_continuation_across_capped_pages",
+      verdict: "INCONCLUSIVE",
+      detail: `no ModificationTimestamp with >1 ListingKey found at the probe window (${windowTs}); cluster size=${hCluster.rows.length}`,
+    });
+  }
+
   finish();
+}
+
+/** Like `probe` but retains the full row set (needed for cluster arithmetic). */
+async function probeFull(
+  label: string,
+  url: string,
+  bearer: string,
+  quiet = false,
+): Promise<{ rows: Row[]; ok: boolean }> {
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${bearer}`, Accept: "application/json" },
+    });
+    const body = res.ok ? ((await res.json()) as Record<string, unknown>) : null;
+    const rows = ((body?.value as Row[] | undefined) ?? []).map((r) => ({
+      ListingKey: r.ListingKey ? String(r.ListingKey) : undefined,
+      ModificationTimestamp: r.ModificationTimestamp ? String(r.ModificationTimestamp) : undefined,
+    }));
+    if (!quiet) {
+      captures.push({
+        label,
+        url: url.replace(BASE, "{TRESTLE_API_URL}"),
+        httpStatus: res.status,
+        ok: res.ok,
+        rowCount: rows.length,
+        firstRows: rows.slice(0, 3),
+        lastRows: rows.slice(-3),
+        nextLink: null,
+      });
+      console.log(`[${res.ok ? "OK " : "ERR"}] ${label} -> HTTP ${res.status}, ${rows.length} rows`);
+    }
+    return { rows, ok: res.ok };
+  } catch {
+    return { rows: [], ok: false };
+  }
 }
 
 function finish() {

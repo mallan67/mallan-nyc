@@ -1,0 +1,404 @@
+{
+  "probedAt": "2026-08-13T13:28:34.940Z",
+  "base": "{TRESTLE_API_URL}",
+  "note": "Sanitized. No token/credential recorded. Only ListingKey + ModificationTimestamp retained per row, so no REBNY-restricted listing content is present.",
+  "findings": [
+    {
+      "check": "A_orderby_asc_composite_accepted",
+      "verdict": "PASS",
+      "detail": "HTTP 200, 50 rows; captured rows ascending=true"
+    },
+    {
+      "check": "B_bootstrap_ge_accepted_and_inclusive",
+      "verdict": "PASS",
+      "detail": "HTTP 200, 50 rows; boundary timestamp present in result=true (inclusive semantics are what make the bootstrap replay-safe)"
+    },
+    {
+      "check": "C_keyed_continuation_accepted",
+      "verdict": "PASS",
+      "detail": "HTTP 200, 50 rows; the anchored row itself is excluded=true (proves the tie-breaker advances past exactly one row, neither stalling nor skipping)"
+    },
+    {
+      "check": "D_nextlink_preserves_order_and_filter",
+      "verdict": "PASS",
+      "detail": "page2 ascending=true; page2 continues after page1 without overlap or gap=true"
+    },
+    {
+      "check": "E_listingkey_present_non_null",
+      "verdict": "PASS",
+      "detail": "12 captured rows inspected; 0 missing/blank ListingKey"
+    },
+    {
+      "check": "F_ordering_deterministic_across_calls",
+      "verdict": "PASS",
+      "detail": "two identical requests returned the same rows in the same order"
+    },
+    {
+      "check": "DH_same_timestamp_continuation_across_capped_pages",
+      "verdict": "PASS",
+      "detail": "cluster at 2024-10-26T17:44:08.180-00:00 has 140 rows; a cap=1 keyset walk visited 140; lost=0; repeated=0. This is the 797-row production hazard reproduced at small scale: a scalar 'MT gt T' cursor cannot traverse it."
+    }
+  ],
+  "captures": [
+    {
+      "label": "A: $orderby=ModificationTimestamp asc,ListingKey asc",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=50",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 50,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091863062",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091863071",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091863086",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=50&$skip=50"
+    },
+    {
+      "label": "B: ModificationTimestamp ge <anchor>",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24filter=ModificationTimestamp+ge+2024-10-26T17%3A44%3A08.180-00%3A00&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=50",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 50,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091863062",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091863071",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091863086",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$filter=ModificationTimestamp+ge+2024-10-26T17%3a44%3a08.180-00%3a00&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=50&$skip=50"
+    },
+    {
+      "label": "C-pre: locate a shared ModificationTimestamp (tie-breaker must matter)",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24filter=ModificationTimestamp+ge+2024-10-26T17%3A44%3A08.180-00%3A00&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=200",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 200,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091865247",
+          "ModificationTimestamp": "2024-10-26T17:44:46.663-00:00"
+        },
+        {
+          "ListingKey": "1091865253",
+          "ModificationTimestamp": "2024-10-26T17:44:46.663-00:00"
+        },
+        {
+          "ListingKey": "1091865255",
+          "ModificationTimestamp": "2024-10-26T17:44:46.663-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$filter=ModificationTimestamp+ge+2024-10-26T17%3a44%3a08.180-00%3a00&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=200&$skip=200"
+    },
+    {
+      "label": "C: MT gt T or (MT eq T and ListingKey gt 'K')",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24filter=%28ModificationTimestamp+gt+2024-10-26T17%3A44%3A08.180-00%3A00+or+%28ModificationTimestamp+eq+2024-10-26T17%3A44%3A08.180-00%3A00+and+ListingKey+gt+%271091862396%27%29%29&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=50",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 50,
+      "firstRows": [
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862436",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091863071",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091863086",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091863097",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$filter=(ModificationTimestamp+gt+2024-10-26T17%3a44%3a08.180-00%3a00+or+(ModificationTimestamp+eq+2024-10-26T17%3a44%3a08.180-00%3a00+and+ListingKey+gt+%271091862396%27))&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=50&$skip=50"
+    },
+    {
+      "label": "D-page1: small $top to force @odata.nextLink",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24filter=%28ModificationTimestamp+gt+2024-10-26T17%3A44%3A08.180-00%3A00+or+%28ModificationTimestamp+eq+2024-10-26T17%3A44%3A08.180-00%3A00+and+ListingKey+gt+%271091862396%27%29%29&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=5",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 5,
+      "firstRows": [
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862436",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091862436",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862455",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862475",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$filter=(ModificationTimestamp+gt+2024-10-26T17%3a44%3a08.180-00%3a00+or+(ModificationTimestamp+eq+2024-10-26T17%3a44%3a08.180-00%3a00+and+ListingKey+gt+%271091862396%27))&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=5&$skip=5"
+    },
+    {
+      "label": "D-page2: follow @odata.nextLink verbatim",
+      "url": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$filter=(ModificationTimestamp+gt+2024-10-26T17%3a44%3a08.180-00%3a00+or+(ModificationTimestamp+eq+2024-10-26T17%3a44%3a08.180-00%3a00+and+ListingKey+gt+%271091862396%27))&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=5&$skip=5",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 5,
+      "firstRows": [
+        {
+          "ListingKey": "1091862493",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862506",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862508",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091862508",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862530",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862558",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$filter=(ModificationTimestamp+gt+2024-10-26T17%3a44%3a08.180-00%3a00+or+(ModificationTimestamp+eq+2024-10-26T17%3a44%3a08.180-00%3a00+and+ListingKey+gt+%271091862396%27))&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=5&$skip=10"
+    },
+    {
+      "label": "F-call1: deterministic ordering probe",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=25",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 25,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091862737",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862759",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862806",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=25&$skip=25"
+    },
+    {
+      "label": "F-call2: identical request, repeated",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=25",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 25,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091862737",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862759",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862806",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=25&$skip=25"
+    },
+    {
+      "label": "H-scan: find a ModificationTimestamp shared by multiple ListingKeys",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=1000",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 1000,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091873887",
+          "ModificationTimestamp": "2024-10-26T17:47:35.897-00:00"
+        },
+        {
+          "ListingKey": "1091873903",
+          "ModificationTimestamp": "2024-10-26T17:47:35.897-00:00"
+        },
+        {
+          "ListingKey": "1091873982",
+          "ModificationTimestamp": "2024-10-26T17:47:35.897-00:00"
+        }
+      ],
+      "nextLink": "{TRESTLE_API_URL}/odata/Property?$select=ListingKey%2cModificationTimestamp&$orderby=ModificationTimestamp+asc%2cListingKey+asc&$top=1000&$skip=1000"
+    },
+    {
+      "label": "H-cluster: all rows AT one ModificationTimestamp",
+      "url": "{TRESTLE_API_URL}/odata/Property?%24select=ListingKey%2CModificationTimestamp&%24filter=ModificationTimestamp+eq+2024-10-26T17%3A44%3A08.180-00%3A00&%24orderby=ModificationTimestamp+asc%2CListingKey+asc&%24top=200",
+      "httpStatus": 200,
+      "ok": true,
+      "rowCount": 140,
+      "firstRows": [
+        {
+          "ListingKey": "1091862396",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862401",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091862416",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "lastRows": [
+        {
+          "ListingKey": "1091864333",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091864336",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        },
+        {
+          "ListingKey": "1091864382",
+          "ModificationTimestamp": "2024-10-26T17:44:08.180-00:00"
+        }
+      ],
+      "nextLink": null
+    }
+  ]
+}

@@ -468,3 +468,300 @@ deploy to an environment with the production DB bound — i.e. it is a PROD_PROV
 step, not a CODE_READY one. Re-run the exact probe above after deploy; the
 success criterion is `lastWatermark != lastRunAt` and
 `lastWatermark <= MAX(listings.modification_timestamp)`.
+
+---
+
+## 10. LIVE COTALITY KEYSET EXECUTION PROOF (2026-08-13)
+
+Executed against CURRENT live Property **data** (not `$metadata`) via
+`npm run trestle:probe-keyset`. Sanitized evidence:
+`artifacts/cotality-keyset-probe.json`. **7 checks, 7 PASS, 0 FAIL.**
+
+| check | verdict | evidence |
+|---|---|---|
+| A — ASC composite `$orderby` | PASS | HTTP 200, 50 rows, captured rows ascending |
+| B — bootstrap `ModificationTimestamp ge T` | PASS | HTTP 200; boundary timestamp **present** in the result — inclusivity is what makes the bootstrap replay-safe |
+| C — keyed continuation | PASS | the anchored row is **excluded**, proving the tie-breaker advances past exactly one row |
+| D/G — `@odata.nextLink` | PASS | page 2 ascending, continues after page 1 with no overlap and no gap |
+| E — ListingKey non-null | PASS | 12 captured rows, 0 missing/blank |
+| F — deterministic ordering | PASS | two identical requests returned the same rows in the same order |
+| **H — same-timestamp continuation across a capped page** | **PASS** | real cluster of **140 rows** at `2024-10-26T17:44:08.180Z`; a **cap=1** keyset walk visited **140**, **lost=0, repeated=0** |
+
+H is the decisive one: it reproduces the production hazard (a 797-row cluster
+against a 500-record cap) at small scale and shows the keyset predicate
+traverses it exactly. A scalar `MT gt T` cursor cannot — it either re-reads the
+same page forever or jumps the cluster.
+
+The 140-row provider cluster independently corroborates the 140-row cluster
+measured in Neon (section 6), from the opposite side of the integration.
+
+---
+
+## 11. HISTORICAL PROPERTY GAP CENSUS — ZERO MISSING, 4,536 STALE
+
+### 11.1 A count-based inference was made and is RETRACTED
+
+An intermediate step compared provider-vs-local counts bucketed by
+`ModificationTimestamp` day and read the deltas as missing rows. **That
+inference was wrong and is retracted.** Bucketing by MT cannot measure absence:
+a listing we hold but have not re-synced sits in an OLDER bucket locally, so it
+registers as a provider surplus on its new day and a local surplus on its old
+day. Count deltas conflate "absent entirely" with "present but stale". Listing
+volume also varies by period, which moves both sides together.
+
+### 11.2 The ID-level test
+
+Scoped to the population the sync would actually store — `StandardStatus IN
+(Active, ActiveUnderContract, ComingSoon)`:
+
+| | |
+|---|---:|
+| provider, all statuses (whole MLS history) | 591,077 |
+| provider, ACTIVE-ish | 8,381 |
+| local, ACTIVE-ish | 8,405 |
+
+The provider total is ~24x local because the feed carries the full MLS history
+(Closed/Expired/Withdrawn) while we import a filtered subset. Comparing raw
+totals is meaningless; only the ACTIVE-ish population is comparable.
+
+The largest apparent deficit was 2026-08-05 (provider 291 vs local 107). Exact
+ID-level check of all 291 provider ListingIds:
+
+| measure | value |
+|---|---:|
+| provider ids | 291 |
+| **present locally** | **291** |
+| **absent locally** | **0** |
+| present AND still Active locally | 291 |
+| present but local MT older than provider | **184** |
+
+**Zero missing.** The entire "deficit" was the 184 rows whose local
+`modification_timestamp` trails the provider's.
+
+> Identity note: the join is on **ListingId** (`listings.listing_id`), not
+> ListingKey. `raw_data.ListingKey` survives on only 1,010 of 24,970 rows (shed,
+> not in the keep-list); joining on it would report ~96% of the catalogue as
+> missing — an artifact of shedding.
+
+### 11.3 What IS real: unreachable staleness
+
+Of 8,405 local ACTIVE listings:
+
+| measure | value |
+|---|---:|
+| never synced | 2 |
+| **not synced in >7 days** | **4,536 (54%)** |
+| not synced in >2 days | 6,520 (78%) |
+| synced in last 24h | 1,287 (15%) |
+| oldest sync | 2026-03-28 (~4.5 months) |
+
+And the decisive property:
+
+| measure | value |
+|---|---:|
+| bootstrap cursor `MAX(modification_timestamp)` | 2026-08-13T13:29:07.953Z |
+| stale-active rows **below** that cursor | **4,536** |
+| stale-active rows at or above it | **0** |
+| their MT range | 2025-04-02 to 2026-08-06 |
+| recovery batches @500/run | **10** |
+
+Every stale row sits BELOW the bootstrap position. This is the DESC+cap+scalar
+regime's damage — it did not delete rows, it stranded them: once the cursor
+passed their ModificationTimestamp they could never be re-fetched.
+
+**The new ASC keyset cursor does NOT fix this**, and that is not a defect in it —
+a forward-only cursor cannot revisit a position it has passed, by construction
+(see lib/idx/cursor/keyset-cursor.ts "KNOWN LIMITATION"). Recovery must be a
+state-based drain keyed on `last_synced_from_trestle`, NOT a cursor rewind.
+Rewinding the cursor to 2025-04 would re-traverse nearly everything and
+re-strand the tail on the next capped run.
+
+### 11.4 Bounded recovery procedure — PREPARED, NOT EXECUTED
+
+- **Selection:** `status IN (Active, ActiveUnderContract, ComingSoon) AND
+  last_synced_from_trestle < now() - interval '7 days'`, ordered by
+  `last_synced_from_trestle ASC`, `LIMIT 500`.
+- **Action per row:** fetch that ListingId from Cotality and upsert — the same
+  code path a normal sync uses.
+- **Batches:** 10 at 500/run.
+- **Write estimate:** at most 4,536 Listing upserts total. With the
+  provenance-only suppression in this PR, any row whose only change is
+  `ModificationTimestamp` costs a comparison rather than a write, so the
+  realistic physical-write count is materially lower.
+- **Idempotent:** yes — an upsert keyed on `listing_id`; re-running converges,
+  and interrupting it loses nothing.
+- **Cursor safety:** the drain MUST NOT touch
+  `sync_state.Property.{last_watermark,last_listing_key}`. It is a
+  state-selected repair, not a traversal, so it has no valid cursor position to
+  claim — exactly the rule `advancesGlobalCursor` already enforces for scoped
+  runs.
+- **Rollback:** none required; it only refreshes rows toward source truth. To
+  stop, stop scheduling it.
+- **Authorization:** it writes to production, so it is OUT of scope for this PR.
+  Listed in the authorization package, not executed.
+
+---
+
+## 12. EXTERNAL STATE / UPSTASH — diagnosis and prepared repair
+
+### 12.1 Current, not historical
+
+| probe (2026-08-13) | result |
+|---|---|
+| `humble-bobcat-71648.upstash.io` | **NXDOMAIN — "Non-existent domain"** |
+| `upstash.io` (apex, control) | resolves |
+| `api.cotality.com` (control) | resolves → `45.60.11.52` |
+
+The controls matter: the resolver works and Upstash's DNS zone is healthy, so
+the failure is specific to **our database's hostname**. Upstash issues one
+hostname per database; a suspended or idle database still resolves. A hostname
+absent from DNS entirely means **the database no longer exists** (deleted, or its
+endpoint retired).
+
+This is a live reading, not a restatement of the 2026-08-02 handoff.
+
+### 12.2 Which failure class this is
+
+| candidate | verdict | basis |
+|---|---|---|
+| client/env absent | **NO** | `lib/redis.ts:20` constructs the client only when BOTH vars are set; production emits `external_state_unavailable`, which in `main` is reachable from the `!redis` branch *and* the `get` catch — and the 2026-08-02 audit recorded both vars present and Production-scoped |
+| auth / token invalid | **NO** | a bad token yields HTTP 401, not a DNS failure; TLS is never reached |
+| wrong Vercel environment | **NO** | the cron runs in Production and the vars are Production-scoped |
+| transient network | **NO** | NXDOMAIN is authoritative non-existence, and controls resolve |
+| **resource deleted** | **YES** | per-database hostname absent from a healthy zone |
+
+Corroboration: production emitted `run_neon_cycle / reason=external_state_unavailable`
+at ~12:20 UTC today with 0 `skip_neon`. A working Redis would have produced a
+skip once the state persisted.
+
+### 12.3 Why no code change can fix it
+
+`skip_neon` (`app/api/cron/one-cycle-preflight/route.ts:83`) requires a prior
+state blob. With the host unresolvable:
+
+- `redis.get()` rejects → `redis_read_failed` → **fail open**, and
+- `redis.set()` in `finalizeOneCyclePreflight` also rejects → `redis_write_failed`
+  → the state is **never written**.
+
+So the state the skip depends on can never come into existence. The loop is
+closed regardless of code. What this PR adds is the ability to SEE which of the
+four subtypes is occurring, and a structured event for the case where the
+finalize path throws entirely.
+
+### 12.4 Prepared repair — smallest safe action (NOT executed)
+
+1. Confirm in the Upstash console whether database `humble-bobcat-71648` exists.
+   Expected: absent.
+2. Create ONE new Upstash Redis database (Vercel-integrated or standalone).
+   Only a REST URL + REST token are needed; no data migration — the preflight
+   blob is a disposable cache that rebuilds itself on the first successful cycle.
+3. Set in **Vercel Production** (Preview/Development unchanged):
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
+4. Redeploy (env changes are build-time-bound for server runtime reads).
+5. Remove the dead values only after the replacement is proven — keeping them
+   until then means the failure mode stays the known one.
+
+**Rotation:** the old token is bound to a database that no longer exists, so it
+grants nothing. Rotation is therefore not a security prerequisite; the new
+database issues its own token.
+
+### 12.5 Post-change health test
+
+```
+# 1. the host resolves at all
+nslookup <new-host>.upstash.io
+
+# 2. runtime subtype flips off the failure classes
+#    expect: external_state_finalize -> outcome:"ok"
+#    (NOT redis_client_missing / redis_read_failed / redis_write_failed)
+```
+
+### 12.6 `skip_neon` proof criteria
+
+A skip requires ALL of: prior state present and parseable, both source heads
+unchanged (timestamp AND listingKey AND population-at-head), no forced retry, the
+freshness heartbeat not expired (hard-coded 1h, deliberately not env-tunable),
+and no backlog due.
+
+Therefore the earliest a legitimate skip can appear is the SECOND poll after the
+first successful finalize, and only if the feed is genuinely quiet. Success looks
+like:
+
+```json
+{"tag":"one_cycle_preflight","event":"skip_neon","skipped":true,
+ "neon_touched":false,"reason":"source_unchanged_no_backlog_due"}
+```
+
+Accept as proven when at least one `skip_neon` appears AND the preceding
+`external_state_finalize` reported `outcome:"ok"`. A skip WITHOUT a prior `ok`
+finalize would indicate stale state, not a healthy skip.
+
+**Expected rate is not 100%.** With a 10-minute poll and a 1-hour heartbeat, at
+most 5 of every 6 polls can skip even on a totally quiet feed.
+
+---
+
+## 13. MIGRATION TRANSITION — exact sequence (READ-ONLY VERIFIED)
+
+### 13.1 Migration history is clean; `migrate deploy` is NOT blocked
+
+| measure | value |
+|---|---:|
+| `_prisma_migrations` rows | 33 |
+| unique migrations | 31 |
+| applied, finished, not rolled back | 31 |
+| **rows blocking deploy** (`finished_at IS NULL AND rolled_back_at IS NULL`) | **0** |
+
+The two "extra" rows are historical failures of
+`20260310120000_add_consent_and_financial_ledger` and
+`20260326120000_add_buildings`. Each has a **paired successful row**, and each
+failure row carries `rolled_back_at` — the resolved state. Prisma blocks only on
+an unresolved failure, so there is none.
+
+> This CORRECTS the note carried in `20260808020000_add_listing_media_r2_policy_excluded_at`
+> (and repeated in this branch's own migration comment) that drift is "a hard
+> blocker on any production migration". It conflates two different commands:
+> `migrate diff` compares schema and would propose drops; `migrate deploy` only
+> applies pending migration FILES and never consults drift. Only `migrate deploy`
+> is used here.
+
+### 13.2 The actual drift — 5 empty orphan tables
+
+Present in the DB with no Prisma model: `campaign_recipients`,
+`engagement_events`, `experiment_listings`, `financial_ledger`,
+`micro_commitments`. **All 0 rows.** Tables in the schema but missing from the
+DB: **none**.
+
+`migrate deploy` will not touch any of them. They are NOT dropped by this work —
+removing them is a separate decision needing its own authorization.
+
+### 13.3 Order of operations — column BEFORE code
+
+The column must exist before code that references it runs. This is safe in that
+order because **current production `main` never selects `last_listing_key`**, so
+an extra nullable column is invisible to it.
+
+```
+1. (authorized) npx prisma migrate deploy
+      → applies ONLY 20260813120000_add_sync_state_last_listing_key
+      → verify: exactly one migration applied, name matches
+
+2. verify the column exists and is nullable, and that nothing else changed:
+      SELECT column_name, is_nullable, column_default
+        FROM information_schema.columns
+       WHERE table_name='sync_state' ORDER BY ordinal_position;
+      -- expect 10 columns (was 9), last_listing_key TEXT / YES / NULL
+
+3. confirm production is still healthy on the OLD code with the new column
+      GET /api/health  → 200
+
+4. merge PR #608 → identify the merge SHA → let Vercel deploy it
+
+5. verify the alias serves that SHA, then watch ONE cron cycle
+```
+
+Rollback at any point before step 4 is `ALTER TABLE "sync_state" DROP COLUMN
+"last_listing_key";` — safe because nothing reads it yet. After step 4, revert
+the code first (the reader tolerates a NULL/absent tie-breaker and falls back to
+`MAX(listings.modification_timestamp)`), then drop the column if desired.

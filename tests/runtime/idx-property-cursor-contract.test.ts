@@ -360,3 +360,144 @@ describe("getPropertyKeysetCursor — bootstrap safety", () => {
     expect(cursor.listingKey).toBeNull();
   });
 });
+
+// ── 5. THE POSITION IS NEVER REWRITTEN, ONLY WITHHELD ────────────────────────
+
+describe("failure handling must BLOCK the cursor, never rewrite its position", () => {
+  it("keeps the real (MT, ListingKey) when the failure SHARES the last success's timestamp", async () => {
+    // The case the removed scalar clamp corrupted. A and B share one
+    // ModificationTimestamp — the clustered input the tie-breaker exists for.
+    // A succeeds, B fails. The correct position is (T, KEY_A): a real row.
+    //
+    // The old clamp computed (earliest failure - 1ms) and nulled the key, so it
+    // replaced (T, KEY_A) with (T-1ms, null). Nulling the key drops the
+    // tie-breaker, so the next run falls back to the bootstrap path and re-reads
+    // the entire cluster — losing exactly the progress the tie-breaker exists to
+    // preserve, on exactly the input it exists to handle.
+    const T = "2026-08-01T12:00:00.000Z";
+    const A = rawRecord({ ListingKey: "KEY_A", ListingId: "RLS100001", ModificationTimestamp: T });
+    const B = rawRecord({ ListingKey: "KEY_B", ListingId: "RLS100002", ModificationTimestamp: T });
+    mockFetchFromTrestle.mockResolvedValue({ records: [A, B], totalFetched: 2 });
+    mockFindUnique.mockImplementation(async (args: { where: { listing_id: string } }) => {
+      if (args.where.listing_id === "RLS100002") throw new Error("connection reset");
+      return null;
+    });
+
+    const result = await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+    expect(result.errors).toBe(1);
+
+    const args = syncStateArgs();
+    expect((args.update.last_watermark as Date).toISOString()).toBe(T);
+    // The REAL key of the last contiguous success — not null, not B's.
+    expect(args.update.last_listing_key).toBe("KEY_A");
+    expect(args.update.last_listing_key).not.toBeNull();
+    expect(args.update.last_listing_key).not.toBe("KEY_B");
+  });
+
+  it("withholds the position entirely when a failed record cannot be placed in the order", async () => {
+    // Unparseable ModificationTimestamp on a FAILED record: we cannot say where
+    // it sits, so no position may be claimed past it. Fail closed by BLOCKING.
+    const good = rawRecord({ ListingKey: "KEY_A", ListingId: "RLS100001" });
+    const bad = rawRecord({
+      ListingKey: "KEY_B",
+      ListingId: "RLS100002",
+      ModificationTimestamp: "not-a-timestamp",
+    });
+    mockFetchFromTrestle.mockResolvedValue({ records: [good, bad], totalFetched: 2 });
+    mockFindUnique.mockImplementation(async (args: { where: { listing_id: string } }) => {
+      if (args.where.listing_id === "RLS100002") throw new Error("boom");
+      return null;
+    });
+
+    await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    const args = syncStateArgs();
+    expect(args.update).not.toHaveProperty("last_watermark");
+    expect(args.update).not.toHaveProperty("last_listing_key");
+  });
+});
+
+// ── 6. SKIPS MUST NOT LIVELOCK THE CURSOR ────────────────────────────────────
+
+describe("deliberately-skipped records must still advance the cursor", () => {
+  it("a page where EVERY record is skipped as new+terminal still writes a position", async () => {
+    // The livelock. A skip is a terminal decision, not a failure — if it records
+    // no position, an all-skip page leaves cursorRows empty, no position is
+    // written, last_run_status is still "ok", and the identical page is
+    // re-fetched forever under deterministic ASC ordering. Property ingest stops
+    // dead while every health signal stays green.
+    const closed = [
+      rawRecord({ ListingKey: "KEY_X", ListingId: "RLS900001", StandardStatus: "Closed" }),
+      rawRecord({ ListingKey: "KEY_Y", ListingId: "RLS900002", StandardStatus: "Closed" }),
+    ];
+    mockFetchFromTrestle.mockResolvedValue({ records: closed, totalFetched: 2 });
+    mockFindUnique.mockResolvedValue(null); // never-tracked => new + terminal => skipped
+
+    const result = await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    expect(result.errors).toBe(0);
+    // Nothing was written to `listings` — the skip still holds.
+    expect(mockUpsert).not.toHaveBeenCalled();
+    // But the cursor MOVED past them, so the next run sees the next page.
+    const args = syncStateArgs();
+    expect(args.update.last_watermark).toBeInstanceOf(Date);
+    expect(args.update.last_listing_key).toBe("KEY_Y");
+  });
+
+  it("a page whose TRAILING records are all skipped still advances to the last one", async () => {
+    // The milder form: without this, the cursor advances only to the last
+    // non-skipped row, so a page of 500 with one processable record at the head
+    // moves the cursor by exactly one record per cycle.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [
+        rawRecord({ ListingKey: "KEY_A", ListingId: "RLS900010" }),
+        rawRecord({ ListingKey: "KEY_B", ListingId: "RLS900011", StandardStatus: "Closed" }),
+        rawRecord({ ListingKey: "KEY_C", ListingId: "RLS900012", StandardStatus: "Closed" }),
+      ],
+      totalFetched: 3,
+    });
+    mockFindUnique.mockResolvedValue(null);
+
+    await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    expect(syncStateArgs().update.last_listing_key).toBe("KEY_C");
+  });
+});
+
+// ── 7. THE TIE-BREAKER FIELD MUST ACTUALLY BE FETCHED ────────────────────────
+
+describe("ListingKey is requested from the provider", () => {
+  it("IDX_PLUS_SELECT_FIELDS includes ListingKey", () => {
+    // Without it `raw.ListingKey` is undefined on every record, every row is
+    // unpositionable, keysetFrozen latches on, and the cursor can never advance.
+    // SourceSystemKey is NOT a substitute: RESO_TO_RLS_RENAMES maps it to
+    // ListingKey defensively, but this feed sends ListingKey directly and leaves
+    // SourceSystemKey null (verified live 2026-08-13).
+    const { IDX_PLUS_SELECT_FIELDS } = require("@/lib/idx/trestle-mapper");
+    expect(IDX_PLUS_SELECT_FIELDS).toContain("ListingKey");
+  });
+
+  it("a record carrying ListingKey yields a positionable cursor row", async () => {
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [rawRecord({ ListingKey: "KEY_REAL" })],
+      totalFetched: 1,
+    });
+    await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+    expect(syncStateArgs().update.last_listing_key).toBe("KEY_REAL");
+  });
+
+  it("a record with NO ListingKey freezes the cursor rather than inventing one", async () => {
+    const noKey = rawRecord();
+    delete (noKey as Record<string, unknown>).ListingKey;
+    mockFetchFromTrestle.mockResolvedValue({ records: [noKey], totalFetched: 1 });
+
+    await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    const args = syncStateArgs();
+    expect(args.update).not.toHaveProperty("last_watermark");
+    expect(args.update).not.toHaveProperty("last_listing_key");
+    // The create branch must honour the SAME freeze, not bypass it.
+    expect(args.create.last_watermark).toBeNull();
+    expect(args.create.last_listing_key).toBeNull();
+  });
+});

@@ -393,7 +393,6 @@
     "ListAgentHomePhone": "duplicate_or_alias",
     "ListAgentMobilePhone": "duplicate_or_alias",
     "ListAgentStateLicense": "duplicate_or_alias",
-    "ListingKey": "legacy_field",
     "ListTeamKeyNumeric": "not_in_idx_plus_scope",
     "LockBoxSerialNumber": "unsupported_by_current_product",
     "MapCoordinateSource": "legacy_field",
