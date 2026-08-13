@@ -765,3 +765,253 @@ Rollback at any point before step 4 is `ALTER TABLE "sync_state" DROP COLUMN
 "last_listing_key";` — safe because nothing reads it yet. After step 4, revert
 the code first (the reader tolerates a NULL/absent tie-breaker and falls back to
 `MAX(listings.modification_timestamp)`), then drop the column if desired.
+
+---
+
+## 14. COMPLETE ID-LEVEL CENSUS — "ZERO MISSING" NOW PROVEN (supersedes §11)
+
+§11 proved zero-missing for ONE day (291 IDs). That was not a population proof
+and the headline overclaimed. This is the complete test.
+
+**Provider population:** every Property row with `StandardStatus IN (Active,
+ActiveUnderContract, ComingSoon)`, all `@odata.nextLink` pages followed —
+**8,379 rows**, 100% RLS-shaped ListingIds (0 non-conforming).
+
+Compared ID-by-ID against `listings` (ANY local status), in two passes:
+
+| pass | ids | present locally | absent |
+|---|---:|---:|---:|
+| 1 (explicit list) | 2,100 | 2,100 | **0** |
+| 2 (delta-encoded) | 6,279 | 6,279 | **0** |
+| **total** | **8,379** | **8,379** | **0** |
+
+| reported field | value |
+|---|---|
+| provider population | 8,379 |
+| local comparable population (Active-ish) | 8,411 |
+| provider IDs present locally | **8,379** |
+| **provider IDs absent locally** | **0** |
+| local-only (locally Active, not provider-Active) | 32 |
+| displayable missing | 0 |
+| non-displayable missing | 0 |
+| sale / rent split (provider) | 7,374 / 1,007 |
+| provider MT range | 2025-10 → 2026-08 |
+
+**"ZERO MISSING" IS PROVEN** across the whole current Active-ish population.
+The 32 local-only rows are listings we still hold as Active that the provider no
+longer reports Active — status drift in the safe direction (we show something as
+active slightly too long), not data loss.
+
+> Identity: joined on **ListingId** (`listings.listing_id`), not ListingKey.
+> `raw_data.ListingKey` survives on only 1,010 of 24,976 rows (shed, not in the
+> keep-list); a ListingKey join would report ~96% of the catalogue as missing.
+
+---
+
+## 15. STALENESS CHARACTERIZED — "4,536 stale" DOES NOT MEAN 4,536 NEED REFRESH
+
+§11.3 reported 4,536 active listings with `last_synced_from_trestle` older than
+7 days, all below the bootstrap cursor. That is true, but calling all 4,536
+"cursor damage" is NOT supported, and this corrects it.
+
+Measured EXACTLY on the **500 oldest-synced** stale listings — i.e. the actual
+first recovery batch, and the cohort most likely to be stale:
+
+| measure | value | share |
+|---|---:|---:|
+| batch size | 500 | |
+| matched to a provider Active-ish row | 494 | |
+| no longer provider-Active (status drift) | 6 | 1.2% |
+| **provider MT NEWER — genuinely needs refresh** | **62** | **12.6%** |
+| MT EQUAL — already materially current | **432** | **87.4%** |
+| local MT newer than provider | **0** | — |
+| max provider-minus-local | 587,347 min (~408 days) | |
+
+**The key correction:** an old `last_synced_from_trestle` is NOT evidence of
+stale data. For 432 of 494 rows the local `modification_timestamp` already equals
+the provider's — the listing simply has not changed, so the incremental filter
+correctly never returned it. That is the system working, not damage.
+
+> A methodology note: an intermediate run of this comparison reported 208 rows
+> with local MT NEWER than provider, which is impossible. The cause was a
+> rounding mismatch — JS `Math.floor(ms/60000)` against SQL `::bigint` (which
+> ROUNDS). Re-run with `floor()` on both sides: `local_newer = 0`. The figures
+> above are the corrected ones.
+
+### 15.1 Revised recovery scope
+
+- Upper bound on rows needing a material write: **4,536** (every stale row).
+- Measured rate on the worst cohort: **12.6%** → expected genuinely-stale
+  population on the order of **~570**, and 12.6% is likely an OVER-estimate for
+  the remaining 4,036 because the oldest-synced cohort is the most divergent.
+- The other ~87% cost a fetch plus a comparison, and are suppressed by
+  `listingUpdateMateriallyUnchanged` / provenance-only suppression — no write.
+- 6 per 500 (~1.2%) are no longer provider-Active and need a status correction.
+
+This materially shrinks the expected write cost of the recovery and is the
+number to hold the executor to.
+
+---
+
+## 16. ORPHAN TABLES — FULLY PROVEN ORPHANED, DROP PREPARED (NOT EXECUTED)
+
+| table | rows | inbound FK | outbound FK | views | triggers | indexes | size |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| campaign_recipients | 0 | 0 | 2 | 0 | 0 | 3 | 24 KB |
+| engagement_events | 0 | 0 | 1 | 0 | 0 | 4 | 40 KB |
+| experiment_listings | 0 | **1** | 1 | 0 | 0 | 3 | 32 KB |
+| financial_ledger | 0 | 0 | 0 | 0 | 0 | 5 | 48 KB |
+| micro_commitments | 0 | 0 | 0 | 0 | 0 | 4 | 40 KB |
+
+Two apparent blockers were investigated and both cleared:
+
+1. **`experiment_listings` inbound FK** — it is
+   `engagement_events_experiment_listing_id_fkey`, i.e. **internal to the orphan
+   set**. Nothing outside the set references any of the five. Drop order must
+   therefore put `engagement_events` before `experiment_listings`.
+2. **A code hit on `campaign_recipients`** in
+   `app/api/crm/listing-campaigns/route.ts` — **false positive**. The matches are
+   `MAX_CAMPAIGN_RECIPIENTS` (an env-derived constant) and a TypeScript type
+   `CampaignRecipient`. Neither is the table; there is **no Prisma model** for it,
+   so no query can reach it.
+
+Also verified: no Prisma model for any of the five; the only SQL references are
+their historical CREATE statements in old migrations; no view, trigger, or
+function depends on them; total reclaimed space is ~184 KB (negligible — this is
+hygiene, not a storage fix).
+
+**Prepared DROP (NOT executed), FK-safe order:**
+
+```sql
+BEGIN;
+DROP TABLE IF EXISTS "engagement_events";     -- must precede experiment_listings
+DROP TABLE IF EXISTS "experiment_listings";
+DROP TABLE IF EXISTS "campaign_recipients";
+DROP TABLE IF EXISTS "financial_ledger";
+DROP TABLE IF EXISTS "micro_commitments";
+COMMIT;
+```
+
+**Rollback / recreation source:** all five have their original `CREATE TABLE`
+DDL in the migration history — `financial_ledger` in
+`20260310120000_add_consent_and_financial_ledger`, the rest in
+`20260426040000_add_media_metadata`. Recreating them is replaying that DDL. All
+are empty, so there is no data to restore.
+
+**Deliberately NOT bundled into the Prisma migration.** The additive
+`sync_state` migration must stay exactly one column; mixing unrelated DROPs into
+it would violate its own stated scope and make rollback coupled. This is listed
+as a SEPARATE authorized mutation.
+
+---
+
+## 17. UPSTASH — EXACT VARIABLE NAMES AND SCOPE
+
+Read-only from code (the values themselves were never read or printed):
+
+| variable | read at | required for |
+|---|---|---|
+| `UPSTASH_REDIS_REST_URL` | `lib/redis.ts:20` | client construction |
+| `UPSTASH_REDIS_REST_TOKEN` | `lib/redis.ts:20` | client construction |
+
+`lib/redis.ts` constructs the client ONLY when BOTH are present, else exports
+`null` (fail-open). Consumers must handle null — `decideOneCyclePreflight`
+returns `redis_client_missing` in that case.
+
+Scope: the consumer is the `/api/cron/one-cycle-preflight` cron
+(`vercel.json`, `*/10 * * * *`), which runs in **Production only**. Preview and
+Development need no change — a null client there is the correct fail-open state
+and costs nothing.
+
+**Post-authorization sequence** (env changes bind at deploy time, so the env
+update must precede the deployment that should pick it up — no separate
+code deploy is needed, it rides with the #608 deploy):
+
+```
+1. create ONE replacement Upstash Redis (no data migration — the preflight blob
+   is a disposable cache that rebuilds itself on the first successful cycle)
+2. nslookup <new-host>.upstash.io           -> must RESOLVE
+3. disposable health key round-trip:  SET mallan:health:<ts> -> GET -> DEL
+4. set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in Vercel PRODUCTION
+5. merge #608 -> that deployment picks up BOTH the new code and the new env
+6. verify the deployment carries the new env (not the dead host)
+7. observe: {"event":"external_state_finalize","outcome":"ok"}
+8. observe the NEXT poll reads that state back (reason is no longer
+   redis_read_failed / state_missing_or_invalid)
+9. only then look for skip_neon
+```
+
+**`skip_neon` proof criteria — do NOT claim success on a working SET/GET.**
+A skip additionally requires: unchanged source heads (timestamp AND listingKey
+AND population-at-head, on BOTH clocks), no forced retry, the 1-hour freshness
+heartbeat not expired, and no backlog due. Accept as proven only when a
+`skip_neon` event appears AND the preceding `external_state_finalize` reported
+`outcome:"ok"`. Expected steady-state rate is at most 5 skips per 6 polls even
+on a totally quiet feed (10-minute poll vs 1-hour heartbeat) — it is NOT 100%.
+
+**Rollback:** restore the previous two env values and redeploy. The system
+returns to the current fail-open behaviour, which is the state it is in today —
+so rollback is strictly no worse than now.
+
+---
+
+## 18. MEDIA RECOVERY NEEDS A PROPERTY-SIDE KEY LOOKUP (found while building it)
+
+The media lane addresses listings by **ResourceRecordKey**, which is the
+Property `ListingKey` — not `ListingId`. Building the recovery executor surfaced
+that the residual population has no locally-stored key at all:
+
+| measure (over the exact 97-row selection) | value |
+|---|---:|
+| residual listings | 97 |
+| with `raw_data->>'ListingKey'` | **0** |
+| with a usable `mls_id` (present AND `<> listing_id`) | **0** |
+| **with NO locally-resolvable ListingKey** | **97 / 97** |
+
+`raw_data.ListingKey` was shed for storage (it survives on 1,010 of 24,976 rows
+overall), and `mls_id` is populated on only 1,043 rows. So a Media query keyed
+from local data is impossible for this population.
+
+**This is a live hazard, not a nuisance.** `defaultFetchMedia` filters on
+`ResourceRecordKey eq '<key>'`. Handing it a ListingId returns an empty set that
+is INDISTINGUISHABLE from "this listing genuinely has no media" — and a complete
+empty set is allowed to CLEAR. Guessing the key would manufacture a
+false-authoritative deletion across the whole residual. The executor therefore
+fails closed and skips when no key is provable.
+
+### 18.1 The fix, verified live
+
+A Property lookup by ListingId returns the key, and that key resolves Media
+(executed against api.cotality.com, 2026-08-13):
+
+```
+GET /odata/Property?$select=ListingId,ListingKey,PhotosChangeTimestamp,StandardStatus
+    &$filter=(ListingId eq 'RLS10903071' or ListingId eq 'RLS10941846' or ...)
+-> HTTP 200, all 5 sampled resolved:
+   RLS10941846 -> ListingKey 1092342380  (PCT 2026-04-07, Active)
+   RLS10959460 -> ListingKey 1092341176
+   RLS10968192 -> ListingKey 1092326864
+   RLS10942326 -> ListingKey 1092323125
+   RLS10903071 -> ListingKey 1092246828  (PCT 2026-04-07)
+
+GET /odata/Media?$filter=ResourceRecordKey eq '1092342380'
+-> HTTP 200, 5 rows
+```
+
+Their PhotosChangeTimestamps (2026-04-07) sit far below the live media cursor
+(2026-08-13), independently re-confirming §4.1: the forward-only PCT cursor
+cannot reach them, which is why they are residual in the first place.
+
+The lookup MUST be batched with an OR-ed `ListingId eq` filter chunked at **15
+IDs**, matching the documented Trestle URL-length limit (`lib/idx/sync.ts:1231`
+caps the media batch at 15 for exactly this reason). Resolution order stays
+fail-closed: `raw_data.ListingKey` -> `mls_id` (only when `<> listing_id`) ->
+Property lookup -> skip untouched.
+
+### 18.2 Consequence for the authorization package
+
+A dry run MUST be executed first and must report `candidate_total ~= 97` and
+`skipped_no_resource_key == 0` before any `--execute`. Without the key lookup the
+drain is a no-op; with a guessed key it would be destructive. This is why the
+media recovery is listed as its own authorized mutation, gated behind its own
+dry-run evidence.

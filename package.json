@@ -98,6 +98,8 @@
     "ops:media-sync:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/sync-listing-media-r2.ts --execute",
     "ops:backfill-agent-info": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/backfill-agent-info-typed-columns.ts",
     "ops:backfill-agent-info:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/backfill-agent-info-typed-columns.ts --execute",
+    "ops:recover-stale-listings": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/recover-stale-property-listings.ts",
+    "ops:recover-residual-media": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/recover-residual-listing-media.ts",
     "reso:analyze": "node scripts/reso/analyze.js",
     "reso:parity": "node scripts/reso/parity.js",
     "reso:count": "node scripts/reso/count.js",
