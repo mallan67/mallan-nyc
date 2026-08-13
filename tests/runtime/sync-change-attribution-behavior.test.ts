@@ -272,9 +272,26 @@ describe("timestamp-only re-emit — write the row, invalidate NOTHING, warm NOT
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
     expect(result.errors).toBe(0);
-    // The listing row IS written — a source revision must persist.
-    expect(mockUpsert).toHaveBeenCalledTimes(1);
-    expect(result.upserted).toBe(1);
+    // CONTRACT REVERSED 2026-08-13 — the listing row is NO LONGER written.
+    //
+    // This assertion used to read "the listing row IS written — a source
+    // revision must persist", and that was correct while the incremental cursor
+    // was MAX(listings.modification_timestamp): not writing the column would
+    // have frozen the cursor and re-fetched the same rows forever.
+    //
+    // The resume position now lives in sync_state.{last_watermark,
+    // last_listing_key} and advances from the FETCHED batch, independent of any
+    // physical row write (lib/idx/sync.ts getPropertyKeysetCursor). So a
+    // revision that changes nothing material no longer costs an UPDATE. This is
+    // the Neon write-amplification fix: ~95% of production updates (201 of 212
+    // in one cycle) classified modification_timestamp_only and still wrote.
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(result.upserted).toBe(0);
+    // The suppression is attributed precisely, so the reduction stays provable
+    // from telemetry rather than looking like the churn simply vanished.
+    expect(result.write_paths.listings.rows_suppressed_unchanged).toBe(1);
+    expect(result.write_paths.listings.rows_suppressed_provenance_only).toBe(1);
+    expect(result.write_paths.listings.rows_updated).toBe(0);
     // The projection is NOT rewritten (scope D).
     expect(mockProjUpsert).not.toHaveBeenCalled();
     expect(result.write_paths.projections.rows_suppressed_unchanged).toBe(1);
@@ -372,9 +389,13 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
     expect(result.errors).toBe(0);
-    // Both rows written (price change + provenance bump)…
-    expect(mockUpsert).toHaveBeenCalledTimes(2);
-    // …but only ONE shard warms: shard 9 never appears.
+    // Only the MATERIAL row is written now. The provenance-only bump is
+    // suppressed (see the reversed contract above), so a mixed batch costs one
+    // write instead of two — while the material change still writes in full.
+    // This is the discriminating case: the fix must not suppress real changes.
+    expect(mockUpsert).toHaveBeenCalledTimes(1);
+    expect(result.write_paths.listings.rows_suppressed_provenance_only).toBe(1);
+    // …and only ONE shard warms: shard 9 never appears.
     expect(mockWarm).toHaveBeenCalledTimes(1);
     expect(mockWarm.mock.calls[0][0]).toEqual(["4"]);
     expect(result.write_paths.affected_manifest_shards).toEqual(["4"]);

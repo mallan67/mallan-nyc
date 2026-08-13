@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import { pickPrimaryPhotoUrl } from '@/lib/media/listing-media-resolver';
+// Canonical DB→public media composition. The local open-house card hero used to be
+// derived from the legacy `Listing.media` JSON alone (pickPrimaryPhotoUrl over
+// `l.media`), which ignored the relational `listing_media` rows that are the
+// AUTHORITY for every other public surface — so a Mallan exclusive whose photos
+// live only in `listing_media` showed a placeholder here, and one whose relational
+// photos were deleted still showed them from the stale JSON. Both surfaces now feed
+// the same composer (lib/media/db-media-composition.ts).
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 import prisma from '@/lib/prisma';
@@ -424,7 +431,38 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
             property_type: true,
             property_sub_type: true,
             features: true,
+            // Legacy media JSON — KEPT. It is no longer read directly; it is the
+            // composer's fallback input for listings not yet mirrored into
+            // `listing_media` (lib/media/listing-media-resolver.ts:692-701).
             media: true,
+            // Relational media rows — the canonical source. Same shape
+            // /api/listings already selects (app/api/listings/route.ts:396-414) so
+            // the card and the open-house card cannot compose different galleries
+            // for the same listing. Active-only + (order, id) for a stable input.
+            listing_media: {
+              where: { status: 'active' },
+              orderBy: [{ order: 'asc' }, { id: 'asc' }],
+              select: {
+                // media_key: MIXED-GALLERY COMPOSITION — an all-`crm:` set is a
+                // SUPPLEMENT to the feed JSON, not the whole gallery. Without this
+                // column that case is undetectable and one CRM upload hides the
+                // entire feed gallery (listing-media-resolver.ts:748-765).
+                media_key: true,
+                media_url_original: true,
+                media_url_cached: true,
+                media_type: true,
+                media_category: true,
+                media_classification: true,
+                order: true,
+                preferred_photo_yn: true,
+                status: true,
+              },
+            },
+            // ALL-STATUS existence signal. The select above is ACTIVE-only, so
+            // `listing_media.length` would read an all-deleted Mallan listing as
+            // "never imported" and RESURRECT its deleted photos out of the legacy
+            // JSON (db-media-composition.ts:55-67). Same query — no extra round trip.
+            _count: { select: { listing_media: true } },
             // Phase B: typed agent columns so office attribution resolves TYPED-FIRST.
             ...AGENT_TYPED_SELECT,
             // Canonical gate fields — previously omitted, so local open
@@ -504,9 +542,22 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // Parse time string like "10:00 AM - 12:00 PM" or just "10:00 AM"
       const timeParts = (s.time || '').split('-').map(t => t.trim());
 
-      // Get first photo from media JSON
-      const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
-      const firstPhoto = pickPrimaryPhotoUrl(mediaArr) || ''; // photo-only, never floorplan
+      // Card hero from the CANONICAL composition — relational rows first, legacy
+      // JSON only where the resolver permits it. The composed array is photo-first
+      // and proxied exactly once (db-media-composition.ts:96-104), so reading it
+      // cannot hero a FloorPlan and cannot produce a nested proxy URL.
+      const { media: composedMedia } = composeDbPublicMedia({
+        listingId: l.listing_id,
+        rlsEligible: l.rls_eligible,
+        tableRows: l.listing_media,
+        legacyMedia: Array.isArray(l.media) ? l.media : [],
+        // ALL-STATUS count, never `l.listing_media.length` (active-only select).
+        hadRelationalRows:
+          typeof l._count?.listing_media === 'number' ? l._count.listing_media > 0 : undefined,
+      });
+      // Photo-only, never a floorplan — the guarantee pickPrimaryPhotoUrl carried.
+      // '' → the card renders its placeholder rather than a floor plan.
+      const firstPhoto = composedMedia.find((m) => m.mediaType === 'Photo')?.url || '';
 
       return {
         id: `local-${s.id.toString()}`,

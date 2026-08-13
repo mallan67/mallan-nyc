@@ -3,7 +3,8 @@
 // READ from Trestle, WRITE to local DB only. No data goes back to Trestle.
 
 import prisma from "@/lib/prisma";
-import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter } from "./fetch";
+import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter, PROPERTY_KEYSET_ORDERBY } from "./fetch";
+import { advanceCursor, type CursorRow } from "./cursor/keyset-cursor";
 import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
@@ -362,6 +363,15 @@ export interface SyncOptions {
   type?: "sale" | "rent";
   /** Only fetch records modified after this date */
   since?: Date;
+  /**
+   * Keyset tie-breaker: ListingKey of the last fully-processed record AT
+   * `since`. Paired with `since` it forms a strict total order over
+   * (ModificationTimestamp, ListingKey), which a scalar timestamp cannot
+   * express across a same-timestamp cluster larger than `maxRecords`
+   * (production carries a 797-row cluster; the scheduled cap is 500).
+   * `null`/omitted degrades to plain `MT gt since` — the pre-keyset behaviour.
+   */
+  sinceListingKey?: string | null;
   /** Maximum records to fetch (default 1000) */
   maxRecords?: number;
   /** Whether to do a full sync (ignore since) */
@@ -543,12 +553,19 @@ export async function syncListings(
 
   let filter: string;
 
-  if (options.fullSync || !options.since) {
+  // Keyset traversal applies to the INCREMENTAL path only. A full sync uses
+  // buildActiveFilter (no cursor at all), so it keeps the module default
+  // ordering — there is no resume position for ASC to protect.
+  const incremental = !(options.fullSync || !options.since);
+
+  if (!incremental) {
     // Full sync: fetch all active listings
     filter = buildActiveFilter(options.type);
   } else {
-    // Incremental sync: only records modified since last sync
-    filter = buildIncrementalFilter(options.since, options.type);
+    // Incremental sync: ModificationTimestamp-only keyset resume. PCT is NOT
+    // ORed in here any more — `media_sync_state` owns that dimension. See the
+    // rationale on buildIncrementalFilter.
+    filter = buildIncrementalFilter(options.since!, options.type, options.sinceListingKey ?? null);
   }
 
   console.log(`[IDX Sync] Starting sync with filter: ${filter}`);
@@ -566,6 +583,12 @@ export async function syncListings(
     filter,
     maxTotal: maxRecords,
     expandMedia: useExpandMedia,
+    // ASC is load-bearing, not cosmetic. The module default is
+    // `ModificationTimestamp desc` (fetch.ts buildUrl); under DESC a capped run
+    // consumes the NEWEST records and the cursor jumps to the newest MT, making
+    // every older unprocessed record unreachable on every subsequent capped run
+    // (lib/idx/cursor/keyset-cursor.ts). Keyset resume is only sound ascending.
+    ...(incremental ? { orderby: PROPERTY_KEYSET_ORDERBY } : {}),
   });
 
   console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Trestle`);
@@ -625,6 +648,29 @@ export async function syncListings(
   // entirely (strictest fail-closed).
   const failedCursorKeys: number[] = [];
   let watermarkFrozen = false;
+
+  // ── Keyset cursor bookkeeping (ModificationTimestamp, ListingKey) ────────
+  // Every record's provider position, plus the set of positions that FAILED.
+  // After the loop these feed `advanceCursor`, which stops at the last
+  // CONTIGUOUS success — never max-seen, never provider head, never local clock.
+  //
+  // A record whose MT is unparseable or whose ListingKey is missing CANNOT be
+  // positioned in the total order. Advancing past an unpositionable record
+  // could skip it forever, so it freezes the keyset (strictest fail-closed) —
+  // the same rule the scalar path applies to an unbounded failure.
+  const cursorRows: CursorRow[] = [];
+  const failedCursorListingKeys = new Set<string>();
+  let keysetFrozen = false;
+  const recordCursorPosition = (raw: Record<string, unknown>, ok: boolean): void => {
+    const mt = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)) : null;
+    const listingKey = raw.ListingKey ? String(raw.ListingKey) : "";
+    if (!mt || Number.isNaN(mt.getTime()) || listingKey === "") {
+      keysetFrozen = true;
+      return;
+    }
+    cursorRows.push({ timestamp: mt, listingKey });
+    if (!ok) failedCursorListingKeys.add(listingKey);
+  };
 
   for (const [recordIndex, raw] of fetchResult.records.entries()) {
     // Stage marker so the shared catch attributes the failure to the write
@@ -796,19 +842,75 @@ export async function syncListings(
       // payload carries no material change vs the existing row. Material
       // identity excludes ONLY the local telemetry clock
       // (last_synced_from_trestle) — status, price, address, eligibility,
-      // attribution, lifecycle, compliance-gate, and source-revision
-      // (modification_timestamp / raw_data) changes ALL still write.
+      // attribution, lifecycle, and compliance-gate changes ALL still write.
       // CREATEs are never suppressed. Comparison failure fails closed
       // (write proceeds) inside listingUpdateMateriallyUnchanged.
       listingCounters.rows_checked++;
+
+      // PROVENANCE-ONLY SUPPRESSION (2026-08-13) — the Neon write-amplification fix.
+      //
+      // Cotality re-stamps ModificationTimestamp on revisions that change no
+      // listing content. Production evidence: 201 of 212 listing updates in one
+      // cycle classified `modification_timestamp_only` (~95%). Each one issued a
+      // physical `listing.upsert`, because `modification_timestamp` is not in
+      // LISTING_NON_MATERIAL_UPDATE_FIELDS. The write was retained on purpose —
+      // see the note that used to sit below at the change-reason block — because
+      // the incremental cursor WAS `MAX(listings.modification_timestamp)`, so
+      // not writing it would have frozen the cursor and re-fetched the same rows
+      // forever.
+      //
+      // That constraint is now gone: the resume position lives in
+      // `sync_state.{last_watermark,last_listing_key}` and advances from the
+      // FETCHED batch, independent of whether any row was physically written
+      // (see getPropertyKeysetCursor). So a revision that changes nothing
+      // material can now advance the cursor without touching the row.
+      //
+      // Ordering note: this is why the cursor migration and this suppression are
+      // one indivisible change and cannot ship separately.
+      //
+      // FAIL-CLOSED: classifyListingChangeReasons returns ["other"] on any
+      // comparison failure, and `isProvenanceOnlyChange` is true ONLY for the
+      // single exact reason `modification_timestamp_only`. `raw_data_only` is
+      // deliberately NOT suppressed — a raw_data change may carry meaning we do
+      // not model as a typed column.
+      //
+      // PUBLIC-SEMANTICS NOTE (UCBA Art. VIII §4): suppressing this write means
+      // `listings.modification_timestamp` becomes "last MATERIAL change to this
+      // listing" rather than "last provider revision". The site-wide "Data last
+      // updated" surface is unaffected — it reads SyncState.last_watermark,
+      // which still advances to the newest genuinely-processed provider instant
+      // on every run. The per-listing detail disclosure
+      // (app/listing/[...slug]/page.tsx -> IDXDisclaimer lastUpdated) therefore
+      // reports when the listing's data last actually changed, which is the
+      // stricter reading of "true data refresh time".
+      const provenanceOnlyRevision =
+        existing !== null &&
+        isProvenanceOnlyChange(
+          classifyListingChangeReasons(
+            listingUpdateData as Record<string, unknown>,
+            existing as unknown as Record<string, unknown>,
+          ),
+        );
+
       const suppressListingWrite =
         existing !== null &&
-        listingUpdateMateriallyUnchanged(
-          listingUpdateData as Record<string, unknown>,
-          existing as unknown as Record<string, unknown>,
-        );
+        (provenanceOnlyRevision ||
+          listingUpdateMateriallyUnchanged(
+            listingUpdateData as Record<string, unknown>,
+            existing as unknown as Record<string, unknown>,
+          ));
       if (suppressListingWrite) {
         listingCounters.rows_suppressed_unchanged++;
+        // Keep the change-reason histogram complete. Before this change every
+        // provenance-only revision was counted here via the write path; now it
+        // is suppressed, so without this tally `modification_timestamp_only`
+        // would drop to ~0 and look like the churn had vanished rather than
+        // stopped costing a write. The metric must stay observable to prove the
+        // reduction is real.
+        if (provenanceOnlyRevision) {
+          listingChangeReasons.modification_timestamp_only++;
+          listingCounters.rows_suppressed_provenance_only++;
+        }
       } else {
         await prisma.listing.upsert({
           where: { listing_id: mapped.listing_id },
@@ -961,6 +1063,11 @@ export async function syncListings(
           affectedManifestShards,
         );
       }
+      // Keyset position of this SUCCESSFULLY processed record. Recorded at the
+      // very end of the try so it can only be reached once every write for the
+      // record has committed. `advanceCursor` re-sorts, so push order is
+      // irrelevant — only membership and the failure set matter.
+      recordCursorPosition(raw, true);
     } catch (err) {
       errors++;
       // Failure isolation: attribute the failure to the write path that
@@ -970,8 +1077,12 @@ export async function syncListings(
       } else {
         listingCounters.rows_failed++;
       }
-      // Correction 4: cap the watermark below this failed record so it is
-      // re-fetched next run (filter is `MT/PCT gt watermark`).
+      // Keyset: mark this position FAILED. The cursor stops at the last
+      // contiguous success BEFORE it, so the failed record is re-fetched next
+      // run and nothing after it is silently consumed.
+      recordCursorPosition(raw, false);
+      // Correction 4 (legacy scalar clamp, retained for the non-keyset path):
+      // cap the watermark below this failed record so it is re-fetched.
       {
         const fMt = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)) : null;
         const fPct = raw.PhotosChangeTimestamp ? new Date(String(raw.PhotosChangeTimestamp)) : null;
@@ -1235,47 +1346,73 @@ export async function syncListings(
   // the UI shows a frozen date (observed 2026-04-23: homepage "Data last
   // updated: February 11, 2026" while idx-sync ran every 15 min).
   //
-  // Every successful sync run now upserts SyncState. Watermark = the
-  // highest ModificationTimestamp we actually saw in this batch; falls
-  // back to now() if the batch was empty.
+  // WATERMARK SEMANTICS (corrected 2026-08-13).
   //
-  // `batchWatermark` and `advanceWatermark` are hoisted out of the try
-  // block so the catch can include them in the diagnostic AuditEvent
-  // payload (we want to know exactly which watermark value the failing
-  // upsert was attempting to write).
+  // This value used to be seeded `batchWatermark = now` and only ever RAISED by
+  // the per-record loop. Provider timestamps are in the past relative to the
+  // moment the run reaches this block, so the loop was a no-op in normal
+  // operation and `last_watermark` persisted as LOCAL WALL CLOCK on every
+  // successful non-empty run. Production proof (read-only, 2026-08-13):
+  // `last_watermark` === `last_run_at` to the millisecond, and sat 3m52.821s
+  // AHEAD of MAX(listings.modification_timestamp).
+  //
+  // That is a UCBA 2026 Art. VIII §4 defect: lib/idx/watermark.ts states the
+  // displayed "Data last updated" must be the true data-refresh time, NOT a
+  // render/run clock, and this column is what the Footer and IDXDisclaimer
+  // render. The watermark is now the last CONTIGUOUS fully-processed provider
+  // ModificationTimestamp — a real feed instant, never `now`.
+  //
+  // EXPECTED, CORRECT SIDE EFFECT: on first deploy the displayed date moves
+  // BACKWARD (run clock -> newest genuinely-processed provider MT). That is the
+  // defect being removed, not a regression.
+  //
+  // `batchWatermark` and `advanceWatermark` are hoisted out of the try block so
+  // the catch can include them in the diagnostic AuditEvent payload.
   const now = new Date();
-  let batchWatermark = now;
+  let batchWatermark: Date | null = null;
+  let batchListingKey: string | null = null;
   let advanceWatermark = false;
   try {
-    // Advance the watermark using max(ModificationTimestamp, PhotosChangeTimestamp)
-    // per record. The incremental cursor at buildIncrementalFilter() now ORs the
-    // two fields, so the watermark must reflect both — otherwise the next pass
-    // would re-fetch every row whose PCT advanced past the (MT-only) watermark.
-    // Single-column SyncState.last_watermark; no schema change.
-    for (const r of fetchResult.records) {
-      const mt = r.ModificationTimestamp ? new Date(String(r.ModificationTimestamp)) : null;
-      const pct = r.PhotosChangeTimestamp ? new Date(String(r.PhotosChangeTimestamp)) : null;
-      for (const cand of [mt, pct]) {
-        if (cand && !Number.isNaN(cand.getTime()) && cand > batchWatermark) batchWatermark = cand;
-      }
+    // Contiguous keyset advance over (ModificationTimestamp, ListingKey) ASC.
+    // `advanceCursor` sorts, walks in order, and STOPS at the first failure —
+    // so the persisted position is the last fully-processed record and the
+    // failed one is re-fetched next run. Never max-seen (which under the old
+    // DESC ordering made the unprocessed tail unreachable), never provider
+    // head, never local clock.
+    const advanced = advanceCursor(
+      cursorRows,
+      null,
+      (row) => !failedCursorListingKeys.has(row.listingKey),
+    );
+    if (advanced.next) {
+      batchWatermark = advanced.next.timestamp;
+      batchListingKey = advanced.next.listingKey;
     }
+
     // On empty batches, advance last_run_at but leave last_watermark alone —
     // the UI surfaces last_watermark as the "data updated" date. Preserving
     // it on empty runs avoids jumping forward when nothing actually changed.
-    advanceWatermark = fetchResult.records.length > 0;
+    //
+    // `keysetFrozen` (an unpositionable record — unparseable MT or missing
+    // ListingKey) blocks advancement entirely: we cannot prove what was
+    // contiguously processed, so we must not move the cursor past it.
+    advanceWatermark = batchWatermark !== null && !keysetFrozen;
 
-    // Correction 4 — contiguous-success watermark (fail-closed): when any
-    // record FAILED this run, the persisted watermark is capped 1ms BELOW the
-    // earliest failed cursor key so the `gt watermark` incremental filter
-    // re-fetches the failed record (and everything after it — idempotent and
-    // cheap now that unchanged re-emits are suppressed). getLastSyncTimestamp
-    // honors this via the error-run clamp. An unbounded failure freezes the
-    // watermark entirely. last_run_status stays "error" — a partial run is
-    // NEVER reported successful.
+    // Correction 4 — retained fail-closed floor. `advanceCursor` already stops
+    // at the first failure, so this is a second, independent bound rather than
+    // the primary mechanism. Keeping both means a failure that the keyset could
+    // not position (and therefore did not stop on) still cannot be skipped.
     if (watermarkFrozen) {
       advanceWatermark = false;
-    } else if (failedCursorKeys.length > 0) {
-      batchWatermark = new Date(Math.min(...failedCursorKeys) - 1);
+    } else if (advanceWatermark && failedCursorKeys.length > 0) {
+      const floor = new Date(Math.min(...failedCursorKeys) - 1);
+      if (batchWatermark && batchWatermark > floor) {
+        // The keyset position sits at or beyond a failed record's instant —
+        // clamp down and drop the tie-breaker, because the key belongs to a
+        // position we are no longer claiming.
+        batchWatermark = floor;
+        batchListingKey = null;
+      }
     }
     // The shards this run is ABOUT to warm (the warm block below runs only
     // when errors === 0). Persisted in `notes` so the NEXT run's canary
@@ -1285,7 +1422,11 @@ export async function syncListings(
       where: { resource: "Property" },
       create: {
         resource: "Property",
+        // Null on a first run that advanced nothing — the column is nullable and
+        // a null cursor means "no position yet", which the reader bootstraps.
+        // Writing `now` here is exactly the defect this change removes.
         last_watermark: batchWatermark,
+        last_listing_key: batchListingKey,
         last_run_at: now,
         last_run_status: errors > 0 ? "error" : "ok",
         last_run_duration_ms: durationMs,
@@ -1295,7 +1436,12 @@ export async function syncListings(
         notes: serializeWarmedShardsToNotes(shardsToRecord),
       },
       update: {
-        ...(advanceWatermark ? { last_watermark: batchWatermark } : {}),
+        // Watermark and tie-breaker move together or not at all — a timestamp
+        // without its key (or vice versa) is not a position, and mixing a new
+        // timestamp with a stale key would resume mid-cluster at the wrong row.
+        ...(advanceWatermark
+          ? { last_watermark: batchWatermark, last_listing_key: batchListingKey }
+          : {}),
         last_run_at: now,
         last_run_status: errors > 0 ? "error" : "ok",
         last_run_duration_ms: durationMs,
@@ -1319,7 +1465,11 @@ export async function syncListings(
       "Property",
       {
         ...extractErrorDetails(err),
-        watermark_attempted: batchWatermark.toISOString(),
+        // Null when the batch advanced nothing (empty batch, or every record
+        // failed / could not be positioned) — the diagnostic must record that
+        // honestly rather than substitute a clock value.
+        watermark_attempted: batchWatermark ? batchWatermark.toISOString() : null,
+        watermark_listing_key_attempted: batchListingKey,
         advance_watermark: advanceWatermark,
         records_in_batch: fetchResult.records.length,
         upserted,
@@ -1974,6 +2124,71 @@ export async function getLastSyncTimestamp(): Promise<Date | null> {
   }
 
   return dbCursor;
+}
+
+/** A Property incremental resume position: timestamp plus its tie-breaker. */
+export interface PropertyKeysetCursor {
+  since: Date | null;
+  listingKey: string | null;
+}
+
+/**
+ * Read the Property incremental resume position, with a SAFE bootstrap.
+ *
+ * WHY THE STORED WATERMARK IS NOT TRUSTED AS A POSITION
+ *
+ * Until 2026-08-13 the writer seeded `batchWatermark = now`, so every healthy
+ * run persisted `SyncState.last_watermark` as LOCAL WALL CLOCK. Live proof:
+ * `last_watermark === last_run_at` to the millisecond, sitting 3m52.821s ahead
+ * of MAX(listings.modification_timestamp). Resuming from that value would skip
+ * every record whose true provider MT falls in the gap — silent data loss.
+ *
+ * THE DISCRIMINATOR
+ *
+ * `last_listing_key` is written ONLY by the corrected keyset writer (the column
+ * did not exist before, and the legacy writer never populates it). So:
+ *
+ *   last_listing_key NOT NULL -> the row was written by the new writer, whose
+ *                                `last_watermark` is a real provider instant ->
+ *                                trust (last_watermark, last_listing_key)
+ *   last_listing_key IS NULL  -> legacy / first run -> bootstrap from
+ *                                MAX(listings.modification_timestamp), which is
+ *                                exactly today's behaviour and is derived from
+ *                                data we actually stored
+ *
+ * The poisoned wall-clock value is therefore never used as a resume position,
+ * and no manual rewind is required to deploy this: the first corrected run
+ * bootstraps from stored data and writes a genuine position.
+ *
+ * KNOWN, DELIBERATE LIMITATION — this cursor is forward-only. A record that
+ * enters the feed carrying an OLD ModificationTimestamp (below the current
+ * position) is not reachable by any cursor value and must be recovered by a
+ * state-based backlog drain, not by rewinding this cursor. The same structural
+ * gap is already observable on the media lane, where 97 displayable listings
+ * carry source PhotosChangeTimestamps below the live media cursor and are
+ * therefore invisible to it (docs/audits/listing-media-reader-ownership-2026-08-13.md §4.1).
+ */
+export async function getPropertyKeysetCursor(): Promise<PropertyKeysetCursor> {
+  let listingKey: string | null = null;
+  let keysetWatermark: Date | null = null;
+  try {
+    const state = await prisma.syncState.findUnique({
+      where: { resource: "Property" },
+      select: { last_watermark: true, last_listing_key: true },
+    });
+    if (state?.last_listing_key && state.last_watermark) {
+      keysetWatermark = state.last_watermark;
+      listingKey = state.last_listing_key;
+    }
+  } catch {
+    // Best-effort: fall back to the DB-derived cursor below, which is the
+    // pre-keyset behaviour and cannot be worse than it.
+  }
+
+  if (keysetWatermark) return { since: keysetWatermark, listingKey };
+
+  // Bootstrap / legacy path — unchanged semantics, no tie-breaker to offer.
+  return { since: await getLastSyncTimestamp(), listingKey: null };
 }
 
 // ═══════════════════════════════════════════════════════════

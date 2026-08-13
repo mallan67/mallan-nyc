@@ -651,6 +651,17 @@ model MfaSession {
 model SyncState {
   resource             String    @id // "Property" | "Media" | "Member" | "Office"
   last_watermark       DateTime? @map("last_watermark") // last ModificationTimestamp processed
+  // Keyset tie-breaker: the ListingKey of the last fully-processed record AT
+  // `last_watermark`. Enables same-timestamp continuation
+  // `(MT = ts AND ListingKey > last_listing_key)` under ASC ordering, which a
+  // scalar `MT gt ts` cursor cannot express. Required because timestamp
+  // clustering exceeds the 500-record scheduled cap: production carries a
+  // 797-row cluster at one ModificationTimestamp (2026-04-24T03:30:26.372Z),
+  // where a scalar cursor either re-reads the same page forever or skips 297
+  // rows. Mirrors `media_sync_state.last_listing_key`, which already does this
+  // for the PhotosChangeTimestamp dimension.
+  // Nullable — null means "no tie-breaker yet", i.e. legacy/first run.
+  last_listing_key     String?   @map("last_listing_key")
   last_run_at          DateTime? @map("last_run_at")
   last_run_status      String?   @map("last_run_status") // "ok" | "error" | "partial"
   last_run_duration_ms Int?      @map("last_run_duration_ms")

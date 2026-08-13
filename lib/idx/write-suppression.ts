@@ -36,6 +36,15 @@ export interface WritePathCounters {
   rows_checked: number;
   rows_materially_changed: number;
   rows_suppressed_unchanged: number;
+  /**
+   * Subset of `rows_suppressed_unchanged`: rows suppressed specifically because
+   * the ONLY change was the provider's ModificationTimestamp (a revision that
+   * altered no listing content). Broken out because it is the metric the Neon
+   * write-amplification fix is measured by — ~95% of updates in a production
+   * cycle classified `modification_timestamp_only` while still issuing a
+   * physical UPDATE. Counted, not merged, so the reduction stays provable.
+   */
+  rows_suppressed_provenance_only: number;
   rows_inserted: number;
   rows_updated: number;
   rows_failed: number;
@@ -46,6 +55,7 @@ export function newWritePathCounters(): WritePathCounters {
     rows_checked: 0,
     rows_materially_changed: 0,
     rows_suppressed_unchanged: 0,
+    rows_suppressed_provenance_only: 0,
     rows_inserted: 0,
     rows_updated: 0,
     rows_failed: 0,

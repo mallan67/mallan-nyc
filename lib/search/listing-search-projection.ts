@@ -88,6 +88,21 @@ export interface ListingProjectionSource {
   address?: Record<string, unknown> | null;
   features?: Record<string, unknown> | null;
   media?: unknown[] | Record<string, unknown> | null;
+
+  /**
+   * CANONICAL media input — the distinct `media_type` values of this
+   * listing's ACTIVE `listing_media` rows (prisma/schema.prisma:2367).
+   *
+   * Supersedes the legacy `media` JSON for the has_floorplan / has_video /
+   * has_virtual_tour flags: 6,978 displayable listings already carry
+   * canonical rows while their `Listing.media` JSON is empty, so the legacy
+   * derivation reports those listings as having no floorplan/video/tour.
+   *
+   * OPTIONAL on purpose — callers that have not been migrated (and every
+   * pure fixture) leave it undefined and keep the legacy JSON behavior.
+   * See `extractProjectionFeatureFlags` for the precedence rule.
+   */
+  mediaTypes?: readonly string[] | null;
 }
 
 /**
@@ -178,6 +193,19 @@ function isMediaArray(value: unknown): value is unknown[] {
   return Array.isArray(value);
 }
 
+/**
+ * Fold a `listing_media.media_type` value to a comparison token. Live
+ * production values are exactly Photo | FloorPlan | VirtualTour | Video
+ * (DB census 2026-08-13), all written by `classifyTrestleMediaCategory`
+ * (lib/media/media-sync-service.ts:142). Dropping case and separators also
+ * tolerates the "Floor Plan" / "Virtual Tour" spellings that same classifier
+ * already accepts on input, so a future feed variant cannot silently clear a
+ * flag.
+ */
+function normalizeMediaTypeToken(value: unknown): string {
+  return String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 // ── Public helpers ─────────────────────────────────────────────────────
 
 /**
@@ -253,17 +281,33 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
 /**
  * Boolean flags about the listing record itself — distinct from amenity
  * keys (which describe building/unit attributes). Examples:
- *   - has_floorplan / has_video / has_virtual_tour from media[]
+ *   - has_floorplan / has_video / has_virtual_tour from the canonical
+ *     `listing_media` rows (`mediaTypes`), else the legacy `media` JSON
  *   - is_furnished / is_pet_friendly from features.Furnished/PetsAllowed
  *
- * Returns null when neither features nor media is populated.
+ * Media precedence: canonical `mediaTypes` WINS whenever it is supplied —
+ * including when it is EMPTY. An empty canonical set means "zero active
+ * listing_media rows", which is a definitive answer, not a missing one;
+ * falling back to the JSON there would re-read exactly the stale column this
+ * input exists to replace. Only an undefined/null `mediaTypes` (a caller that
+ * has not been migrated) reaches the legacy derivation.
+ *
+ * Returns null when neither features nor any media input is populated.
  */
 export function extractProjectionFeatureFlags(listing: ListingProjectionSource): Record<string, boolean> | null {
   const features = listing.features as Record<string, unknown> | null | undefined;
+  const canonicalMediaTypes = listing.mediaTypes;
   const mediaRaw = listing.media;
   const flags: Record<string, boolean> = {};
 
-  if (isMediaArray(mediaRaw)) {
+  if (canonicalMediaTypes !== undefined && canonicalMediaTypes !== null) {
+    const present = new Set(canonicalMediaTypes.map(normalizeMediaTypeToken));
+    flags.has_floorplan = present.has("floorplan");
+    flags.has_video = present.has("video");
+    flags.has_virtual_tour = present.has("virtualtour");
+  } else if (isMediaArray(mediaRaw)) {
+    // Legacy `Listing.media` JSON path — retained verbatim (including the
+    // else-if category chain) so un-migrated callers see byte-identical flags.
     let hasFloorPlan = false;
     let hasVideo = false;
     let hasVirtualTour = false;
@@ -572,7 +616,18 @@ export interface DualWriteProjectionPrisma {
   listing: {
     findUnique: (args: {
       where: { listing_id: string };
-      select: Record<string, true>;
+      // Values are `true` for scalars plus a nested-relation form, so the
+      // canonical `listing_media` media types come back on the SAME
+      // round-trip as the listing row (see dualWriteProjectionForListingId).
+      select: Record<
+        string,
+        | true
+        | {
+            where?: Record<string, unknown>;
+            select?: Record<string, true>;
+            distinct?: readonly string[];
+          }
+      >;
     }) => Promise<unknown>;
   };
   listingSearchProjection: {
@@ -643,7 +698,17 @@ export async function dualWriteProjectionForListingId(
       modification_timestamp: true,
       address: true,
       features: true,
+      // Legacy JSON — still selected as the fallback for rows the media sync
+      // has not reached (extractProjectionFeatureFlags precedence rule).
       media: true,
+      // Canonical media source (prisma/schema.prisma:2367). Nested on the
+      // EXISTING findUnique so migrating the feature flags costs zero extra
+      // round-trips; `distinct` keeps the payload at <=4 rows per listing.
+      listing_media: {
+        where: { status: "active" },
+        select: { media_type: true },
+        distinct: ["media_type"],
+      },
     },
   })) as Record<string, unknown> | null;
 
@@ -678,6 +743,15 @@ export async function dualWriteProjectionForListingId(
     address: (listing.address as Record<string, unknown> | null | undefined) ?? {},
     features: (listing.features as Record<string, unknown> | null | undefined) ?? {},
     media: Array.isArray(listing.media) ? (listing.media as unknown[]) : [],
+    // undefined (NOT []) when the relation is absent from the result — an
+    // absent relation means "not queried", which must keep the legacy JSON
+    // fallback alive, whereas [] means "queried, zero active rows" and is
+    // authoritative.
+    mediaTypes: Array.isArray(listing.listing_media)
+      ? (listing.listing_media as Array<Record<string, unknown>>).map((row) =>
+          String(row?.media_type ?? ""),
+        )
+      : undefined,
   };
 
   const projection = buildListingSearchProjectionFromListing(input);

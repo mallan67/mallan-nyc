@@ -6,7 +6,7 @@
 //   - by the public GET wrapper, which ALWAYS takes claimMachine() first.
 // There is no header / query / bearer combination that reaches this function
 // over HTTP without a claim — only a direct in-process import can.
-import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
+import { syncListings, getPropertyKeysetCursor } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
 import {
   createCotalityCollector,
@@ -65,11 +65,21 @@ export async function runIdxSyncMember({
   const cotalityCollector = createCotalityCollector("idx-sync", oneCycleRunId);
 
   try {
-    const since = forceFull ? null : await getLastSyncTimestamp();
+    // Keyset resume position: (ModificationTimestamp, ListingKey). The
+    // tie-breaker is required because MT is not unique in the feed — production
+    // carries a 797-row cluster at one MT while this run caps at 500 records,
+    // which a scalar cursor can neither traverse nor skip safely. See
+    // getPropertyKeysetCursor for why the stored watermark is not trusted as a
+    // position on the legacy path.
+    const cursor = forceFull
+      ? { since: null, listingKey: null }
+      : await getPropertyKeysetCursor();
+    const since = cursor.since;
 
     const result = await runWithCotalityTelemetry(cotalityCollector, () =>
       syncListings({
         since: since || undefined,
+        sinceListingKey: cursor.listingKey,
         maxRecords: SCHEDULED_MAX_RECORDS,
         fullSync: forceFull || !since,
       }),
