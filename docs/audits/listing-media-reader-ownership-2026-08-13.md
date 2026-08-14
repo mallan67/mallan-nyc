@@ -1339,6 +1339,182 @@ unit-tested for chunking and select shape). The generator must still be re-run
 with `DATABASE_URL` present before the recovery executes; these numbers are the
 decision input, not a substitute for that run.
 
-The **full Property dry run and the 97-listing media dry run are blocked by the
-same missing `DATABASE_URL`** and were NOT performed. They are not reported as
-proven.
+> **SUPERSEDED by §24.** The claim that `DATABASE_URL` was unobtainable was
+> WRONG: `vercel env run -e production -- <command>` injects it without exposing
+> any value. All three runs were subsequently executed with the exact shipped
+> CLIs. This section is retained as the historical record of the incorrect
+> blocker.
+
+---
+
+## 24. THE DRY RUNS ACTUALLY RAN — via `vercel env run`
+
+§23.1 claimed the dry runs were blocked because `DATABASE_URL` could not be
+obtained without printing a production credential. **That claim was wrong.** The
+Vercel CLI injects the Production environment into a child process without ever
+exposing values:
+
+```
+vercel env run -e production -- <command>
+```
+
+Verified before use: CLI 50.39.0 on PATH, authenticated, project linked
+(`mallan-nyc`), and the Production environment carries `DATABASE_URL`,
+`DATABASE_URL_UNPOOLED`, `IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`,
+`TRESTLE_API_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — names
+listed, **no values read or printed**. The three shipped npm scripts already
+declare `--env-file-if-exists`, so injected variables pass straight through.
+
+The earlier "blocker" was a failure to check for an available tool, not a real
+constraint. The exact shipped CLIs were then run.
+
+### 24.1 A REAL defect the first full dry run exposed
+
+The first full Property dry run over the 457-id manifest returned **`failed = 58`**
+— every one logging `fetch returned no record`. `fetchSingleListing` returns
+`null` for BOTH "no such record" AND "HTTP error / rate limited", so 58 nulls
+inside a 216-second 457-fetch run was equally consistent with throttling. Rather
+than assume, each id was probed directly:
+
+| of the 74 `local_active_provider_terminal` ids | count | provider state |
+|---|---:|---|
+| **EXIST** at a non-Active-ish status | **16** | all `StandardStatus = Pending` |
+| **ABSENT** at every status | **58** | `@odata.count = 0` at **HTTP 200** |
+
+Not throttling — 0 HTTP errors across all 74 probes. 58 + 16 = 74, and
+457 − 58 = 399 fetched. The failure was **structural and deterministic**.
+
+**Root cause:** `local_active_provider_terminal` keys on absence from the
+*Active-ish* population, which conflates TWO conditions with DIFFERENT OWNERS:
+
+1. **Still in the feed, moved to a non-Active-ish status** (16). The recovery
+   executor re-fetches and corrects these — genuinely its work.
+2. **Gone from the feed entirely** (58) — *ghosts*. These already have a
+   canonical owner: `app/api/cron/feed-reconcile`, which transitions them to
+   `Withdrawn` **with an audit trail**, daily at `30 3 * * *`, sparing
+   Pending/ActiveUnderContract/ComingSoon. Its own header states the reason it
+   exists: *"Incremental sync via ModificationTimestamp > watermark detects
+   CHANGES but not DISAPPEARANCES."*
+
+**feed-reconcile is demonstrably healthy** — production shows its last Withdrawn
+transition at exactly **2026-08-13 03:30 UTC** (its cron minute) and
+**90 / 522 / 2,079** withdrawals over 24h / 7d / 30d.
+
+Emitting ghosts as recovery work was therefore a defect on two counts: the
+executor structurally cannot process them (nothing to re-fetch, so it
+fail-closes to `failed` and permanently blocks the `failed = 0` gate), and doing
+so would duplicate a compliance-shaped status transition that owes an audit
+event — a second implementation of exactly the kind this file refuses to make.
+
+**Fix:** `fetchProviderExistingIds` probes the reverse set at ANY status
+(chunked at 15, matching the media executor's Property lookup) and pass 2 emits
+only rows the provider still holds. Ghosts are counted as
+`providerGhostsDeferredToFeedReconcile` — **deferred, not dropped**. Fail-closed:
+a probe chunk that errors marks its ids UNKNOWN and they are NOT emitted, because
+a read we could not complete must never manufacture a repair. Mutation-proven:
+disabling the guard fails 2 tests.
+
+### 24.2 `absentLocally = 0` is NOT a stable gate on a live feed
+
+The re-run reported `absentLocally = 3`, where the earlier capture had 0. Rather
+than force it to 0, the three were identified:
+
+| listingId | provider MT | age at scan |
+|---|---|---:|
+| RLS20109373 | 2026-08-14T03:21:23Z | 4 min |
+| RLS20109375 | 2026-08-14T03:22:00Z | 3 min |
+| RLS20109374 | 2026-08-14T03:23:48Z | 2 min |
+
+The last completed sync ran at **03:20:41 UTC**. All three arrived *after* it, so
+they were never eligible for ingest yet, and the next 10-minute cycle picks them
+up. `created_last_2h = 3` confirms ingest of new listings is working.
+
+**Correct gate:** *every* `absentLocally` row must be newer than the last
+completed sync run — verifiable, and true here. A literal `absentLocally = 0`
+would fail randomly depending on when the generator happens to run.
+
+### 24.3 Task 1 — the exact manifest CLI, on production
+
+`vercel env run -e production -- npm run ops:build-recovery-manifest`
+(no `--include-mls-backfill`), generated **2026-08-14T03:24:40Z**:
+
+| field | value |
+|---|---:|
+| includeMlsBackfill | **false** |
+| providerPopulation | 8,383 |
+| localComparablePopulation | 8,380 |
+| absentLocally | 3 (all newer than the last sync — §24.2) |
+| **manifestSize** | **407** |
+| `provider_mt_newer` | 391 |
+| `local_active_provider_terminal` | 16 |
+| `status_mismatch` / `display_gate_mismatch` | 0 / **0** |
+| `mls_id_missing_or_wrong` (within entries) | 391 |
+| `mlsIdMissingOrWrongTotal` | 8,369 |
+| `mlsBackfillOnlyRows` (EXCLUDED) | 7,978 |
+| `duplicateProviderListingIds` | **0** |
+| `displayGateOverDisplay` / `UnderDisplay` | 0 / 0 |
+| `staleLocalPermissionGates` | 0 |
+| `mallanOwnedExcluded` | 2 |
+| **`providerGhostsDeferredToFeedReconcile`** | **60** |
+
+Artifact keys verified as exactly `listingId,listingKey,reasons`.
+
+### 24.4 Task 2 — FULL Property dry run, all 407 ids
+
+`--manifest=… --total=407 --batch=500`, no `--execute`, no `--confirm`:
+
+| counter | value |
+|---|---:|
+| mode | **dry-run** |
+| manifest_size / manifest_unique_ids | 407 / 407 |
+| manifest_duplicate_ids | **[]** |
+| selected | **407** (= unique ids) |
+| fetched | **407** |
+| would-write | 407 |
+| suppressed_provenance_only | 0 |
+| suppressed_unchanged | 0 |
+| skipped_archived / skipped_new_terminal | 0 / 0 |
+| **failed** | **0** |
+| revalidated_tags / revalidation_failures | [] / 0 |
+
+**No writes occurred**, verified independently: 42 listing writes in the
+surrounding 10 minutes (ordinary cron cadence, not 407) and
+`sync_state.last_run_at` still `03:20:41` — untouched by the 03:26–03:29 run.
+
+### 24.5 Task 3 — FULL residual media dry run
+
+| counter | value | gate |
+|---|---:|---|
+| candidate_total | **97** | matches expectation |
+| selected / fetched | 97 / 1,865 | |
+| rows_inserted / updated / tombstoned | 1,808 / 57 / **0** | no destructive clear |
+| rows_physical_writes (planned) | 1,865 | |
+| listings_recovered / unchanged | 96 / 1 | |
+| skipped_mallan | **0** | ✅ |
+| skipped_archived | **0** | ✅ |
+| skipped_no_resource_key | **0** | ✅ |
+| property_key_lookups | 7 | 97 ids ÷ 15 per chunk |
+| **keys_resolved_via_property_lookup** | **97** | ✅ all resolved |
+| failed_property_key_lookup | **0** | ✅ |
+| failed_incomplete_fetch | **0** | ✅ |
+| failed_write / failed_summary | **0** / **0** | ✅ |
+| cache_invalidations | 0 | dry run |
+| **cursor_writes** | **0** | ✅ |
+
+**No writes occurred**: 15 sampled target listings hold **0** media rows in any
+state, with 0 created and 0 updated in the surrounding 20 minutes — against a
+plan of 1,865.
+
+### 24.6 Task 6 — migration execution path, verified read-only
+
+`vercel env run -e production -- npx prisma migrate status`:
+
+- Datasource resolves to **`ep-cold-waterfall-adno3ao2…`** — the canonical
+  production endpoint, NOT the stale `royal-dawn` / `morning-bread`.
+- 32 migrations found; **exactly one pending**:
+  `20260813120000_add_sync_state_last_listing_key`. No unrelated migration can
+  ride along.
+- No credential printed — the host is already documented in `NEON.md`.
+
+Post-authorization path: `vercel env run -e production -- npm run db:migrate`
+(`db:migrate` = `prisma migrate deploy`). **Not executed.**
