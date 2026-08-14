@@ -1015,3 +1015,112 @@ A dry run MUST be executed first and must report `candidate_total ~= 97` and
 drain is a no-op; with a guessed key it would be destructive. This is why the
 media recovery is listed as its own authorized mutation, gated behind its own
 dry-run evidence.
+
+---
+
+## 19. COTALITY IDENTITY CENSUS — ListingId AND ListingKey ARE BOTH UNIQUE
+
+A reported `8,379` population against a `7,374 + 1,007 = 8,381` sale/rent split
+was flagged as a possible source-key collision. Resolved from live data.
+
+**Single-instant capture** (`$count` and the page-through taken together):
+
+| measure | value |
+|---|---:|
+| `@odata.count` at probe | **8,385** |
+| raw rows fetched (17 pages) | **8,385** |
+| distinct **ListingId** | **8,385** |
+| distinct **ListingKey** | **8,385** |
+| duplicate ListingId groups | **0** |
+| duplicate ListingKey groups | **0** |
+| null/blank ListingId / ListingKey | 0 / 0 |
+| sale + rent | 7,357 + 1,028 = **8,385** |
+
+**Verdict: explanation (A) plus live drift.** There was no arithmetic error inside
+any one dataset and no duplicate identity. The discrepancy was a REPORTING defect
+— figures captured at three different probe instants (8,381 / 8,379 / 8,385) were
+presented in one table as if they were a single snapshot. A single-instant
+capture is internally consistent. Population figures must always carry their
+capture timestamp.
+
+### 19.1 Collision test across ALL statuses
+
+The incremental filter is not status-scoped, so uniqueness was also tested over a
+broader window (all statuses, `ModificationTimestamp ge 2026-06-01`, 200,000 rows
+over 400 pages): **1** duplicate ListingId AND **1** duplicate ListingKey —
+`RLS10557882`. A direct lookup settles it:
+
+```
+$filter=ListingId eq 'RLS10557882'  ->  @odata.count = 1
+{"ListingId":"RLS10557882","ListingKey":"1091895038","StandardStatus":"Closed",...}
+```
+
+ONE record. The duplicate was a **live-feed pagination artifact**: the row's
+ModificationTimestamp advanced during the 400-page ASC walk, so it was re-emitted
+at a later position. Benign for the cursor — reprocessing a row is idempotent
+under upsert + write suppression.
+
+**Conclusion: `ListingId` is unique at source and 1:1 with `ListingKey`. Two
+source records cannot collide onto one local `listings.listing_id`. The
+`mapTrestleToPrisma` ListingId -> listing_id mapping is safe.**
+
+---
+
+## 20. `mls_id` / ListingKey — WRITE EFFECT AND POLICY
+
+Adding `ListingKey` to `IDX_PLUS_SELECT_FIELDS` (required by the cursor) has a
+side effect: `mapTrestleToPrisma` maps `mls_id = ListingKey`, and `mls_id` IS a
+material comparison field. Current state:
+
+| measure (local Active-ish) | value |
+|---|---:|
+| population | 8,460 |
+| **`mls_id` IS NULL** | **8,449 (99.9%)** |
+| `mls_id` = listing_id | 0 |
+| `mls_id` holds a real key | 11 |
+
+So the FIRST time the cursor touches any listing after deploy,
+`mls_id: NULL -> ListingKey` is a material change and the row **WILL** be
+physically written.
+
+### 20.1 This corrects the headline write estimate
+
+- **Steady state:** ~99% reduction in physical Listing UPDATEs (provenance-only
+  suppression) — as claimed.
+- **Transition:** ONE extra write per listing as `mls_id` backfills, incurred
+  naturally the first time the cursor re-fetches that listing.
+- **Recovery:** because `mls_id` is null on ~99.9% of rows, a refreshed manifest
+  row will write REGARDLESS of whether its ModificationTimestamp moved. The
+  earlier "~12.6% of the recovery will write" figure is therefore an
+  UNDERSTATEMENT for as long as the backfill is outstanding — expect writes
+  approaching the manifest size.
+
+### 20.2 Is a bulk backfill required for correctness? NO — policy (B)
+
+`mls_id` is NOT a primary authority anywhere:
+
+- `lib/auth/listing-capabilities.ts` derives ownership from
+  `classifyListingSource(listing)` (`sourceClass === 'mallan-local'`), NOT from
+  `mls_id`. The only `mls_id` token in that file is `list_office_mls_id`, a
+  different field.
+- The two CRM sites that DO read it are secondary, defence-in-depth guards
+  sitting BEHIND capability gates:
+  - `app/api/crm/listings/[id]/route.ts:179` — `isCrmCreated = !listing.mls_id`
+    gates RLS payload enforcement.
+  - `app/api/crm/listings/[id]/route.ts:610` — blocks withdrawing a source-owned
+    listing; the primary `mayManageMallanLocalListing` check above it already
+    403s a Cotality row.
+
+As `mls_id` fills, BOTH secondary guards become MORE correct — RLS enforcement
+activates on source-owned rows, and source-owned withdrawal is blocked — and
+neither can regress, because the primary capability gate already denies those
+paths. Direction of change is strictly safer.
+
+**Policy: (B) allow `mls_id` to populate naturally on future material source
+changes.** A bulk identity backfill would cost ~8,449 writes (active alone;
+~25,000 repo-wide) plus cache invalidation for zero correctness gain today.
+
+**It is therefore NOT hidden inside the staleness repair:** the manifest carries
+`mls_id_missing_or_wrong` as its OWN reason code, excluded by default and
+includable only via an explicit `--include-mls-backfill` flag, so its volume is
+always visible and separately decided.

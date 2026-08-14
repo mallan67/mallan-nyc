@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * PROPERTY STALENESS RECOVERY — behavioral contract.
+ * PROPERTY RECOVERY EXECUTOR — behavioral contract (MANIFEST-DRIVEN).
  *
  * These are REAL calls into `recoverStalePropertyListings` with a store-backed
  * Prisma mock and a mocked Trestle fetch. The mapper, distribution gates, the
@@ -8,25 +8,36 @@
  * comparators, the change classifier and the cache-tag plumbing are all the
  * genuine production modules — only the two I/O boundaries are mocked.
  *
- * The contract under test (see scripts/recover-stale-property-listings.ts):
- *   1. dry run is the default and performs ZERO writes
- *   2. batch size is CLAMPED to 500, never merely rejected
- *   3. the explicit total cap holds across multiple batches
- *   4. `sync_state` is NEVER touched — not upsert, not update, not create
- *   5. a provenance-only revision produces ZERO listing writes
- *   6. a material change (price) DOES write, and invalidates cache
- *   7. a status change writes
- *   8. an archived listing is not rehydrated
- *   9. a new+terminal listing is still skipped
- *  10. one failing row does not abort the batch or corrupt the accounting
- *  11. re-running the recovery produces zero material writes the second time
- *  12. a missing/wrong confirm token, a missing production declaration, or a
- *      non-canonical database endpoint refuses to execute
+ * WHAT CHANGED AND WHY. Selection used to be `last_synced_from_trestle < 7 days`.
+ * A live measurement of the 500 oldest-synced of the 4,465 rows that predicate
+ * selects found 62 (12.6%) with a provider ModificationTimestamp newer than
+ * local and 432 (87.4%) already EQUAL. An old telemetry clock is not evidence of
+ * stale data — and because `last_synced_from_trestle` is non-material, a
+ * converged row's write is suppressed and its clock never advances, so the
+ * predicate re-selects the same 87% forever. Selection now comes from a
+ * reconciliation manifest of VERIFIED differences and from nowhere else.
  *
- * Item 4 is the reason this file exists at all. `sync_state.Property` is a
- * forward-only provider keyset (lib/idx/sync.ts:580); a recovery run traverses
- * LOCAL state, so any position it wrote would be a claim about provider records
- * it never fetched. That must be proven by assertion, not asserted by comment.
+ * The contract under test (see scripts/recover-stale-property-listings.ts):
+ *   1. ONLY manifest ids are touched; an id outside the manifest is REFUSED
+ *   2. duplicate manifest ids are deduped AND reported explicitly
+ *   3. the manifest size is the hard cap; per-batch size is clamped to 500
+ *   4. dry run is the default and performs ZERO writes
+ *   5. `sync_state` is NEVER touched — not upsert, not update, not create
+ *   6. every row is RE-FETCHED; the manifest supplies WHICH, never WHAT
+ *   7. a provenance-only revision produces ZERO listing writes
+ *   8. a material change (price) DOES write, and invalidates cache
+ *   9. a status change writes; a provider-terminal correction writes
+ *  10. an archived listing is not rehydrated
+ *  11. a new+terminal listing is still skipped; nothing is ever created
+ *  12. one failing row does not abort the batch or corrupt the accounting
+ *  13. re-running produces zero material writes the second time
+ *  14. a missing/wrong confirm token, a missing production declaration, a
+ *      missing manifest, or a non-canonical database endpoint refuses to execute
+ *
+ * Item 5 is the reason this file exists at all. `sync_state.Property` is a
+ * forward-only provider keyset (lib/idx/sync.ts:580); a recovery run traverses a
+ * manifest, so any position it wrote would be a claim about provider records it
+ * never fetched. That must be proven by assertion, not asserted by comment.
  */
 
 // ── Prisma (store-backed) ───────────────────────────────────────────────────
@@ -101,7 +112,11 @@ jest.mock("@/lib/buildings/public-building-data", () => ({
 
 import {
   recoverStalePropertyListings,
+  recoverOneListing,
   parseRecoveryArgs,
+  parseRecoveryManifest,
+  selectManifestIds,
+  assertListingIdInManifest,
   clampBatchSize,
   assertCanonicalTarget,
   RECOVERY_CONFIRM_TOKEN,
@@ -111,6 +126,11 @@ import {
   type RecoveryOptions,
   type RecoveryEnv,
 } from "../../scripts/recover-stale-property-listings";
+import type {
+  ManifestEntry,
+  RecoveryManifest,
+  RecoveryReason,
+} from "../../scripts/build-recovery-manifest";
 import { mapTrestleToPrisma, checkDistributionGates } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { ARCHIVED_SYNC_STATUS } from "@/lib/idx/sync";
@@ -129,9 +149,44 @@ function prodEnv(): RecoveryEnv {
   };
 }
 
-const NOW = new Date("2026-08-13T12:00:00.000Z");
-/** 30 days behind NOW — comfortably inside the 7-day stale window. */
-const STALE_AT = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000);
+const LAST_SYNCED = new Date("2026-07-14T12:00:00.000Z");
+
+// ── Manifest fixtures ───────────────────────────────────────────────────────
+
+function entry(
+  listingId: string,
+  reasons: RecoveryReason[] = ["provider_mt_newer"],
+  listingKey: string | null = `KEY-${listingId}`,
+): ManifestEntry {
+  return { listingId, listingKey, reasons };
+}
+
+function manifest(entries: ManifestEntry[]): RecoveryManifest {
+  return {
+    generatedAt: "2026-08-13T12:00:00.000Z",
+    includeMlsBackfill: false,
+    providerPopulation: entries.length,
+    localComparablePopulation: entries.length,
+    absentLocally: 0,
+    totalsByReason: {
+      provider_mt_newer: entries.length,
+      status_mismatch: 0,
+      local_active_provider_terminal: 0,
+      display_gate_mismatch: 0,
+      mls_id_missing_or_wrong: 0,
+    },
+    diagnostics: {
+      mlsIdMissingOrWrongTotal: 0,
+      mlsBackfillOnlyRows: 0,
+      duplicateProviderListingIds: 0,
+      displayGateOverDisplay: 0,
+      displayGateUnderDisplay: 0,
+      displayGateExplainedByLocalGate: 0,
+    },
+    manifestSize: entries.length,
+    entries,
+  };
+}
 
 // ── Row fixtures ────────────────────────────────────────────────────────────
 
@@ -211,7 +266,7 @@ function dbRowFromRaw(
     terminal_since: null,
     cumulative_days_on_market: null,
     agent_id: null,
-    last_synced_from_trestle: STALE_AT,
+    last_synced_from_trestle: LAST_SYNCED,
     ...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>),
     ...overrides,
   };
@@ -221,58 +276,7 @@ function dbRowFromRaw(
 
 type Row = Record<string, unknown>;
 
-/** Minimal evaluator for the exact `where` shapes this executor builds. */
-function matchesWhere(row: Row, where: Record<string, unknown> | undefined): boolean {
-  if (!where) return true;
-  if (Array.isArray(where.AND)) {
-    return (where.AND as Record<string, unknown>[]).every((w) => matchesWhere(row, w));
-  }
-  if (Array.isArray(where.OR)) {
-    return (where.OR as Record<string, unknown>[]).some((w) => matchesWhere(row, w));
-  }
-  const status = where.status as { in?: string[] } | undefined;
-  if (status?.in && !status.in.includes(String(row.status))) return false;
-
-  const lsft = where.last_synced_from_trestle;
-  if (lsft !== undefined) {
-    const value = row.last_synced_from_trestle as Date | null;
-    if (lsft instanceof Date) {
-      if (!value || value.getTime() !== lsft.getTime()) return false;
-    } else {
-      const cond = lsft as { lt?: Date; gt?: Date };
-      if (cond.lt && !(value && value.getTime() < cond.lt.getTime())) return false;
-      if (cond.gt && !(value && value.getTime() > cond.gt.getTime())) return false;
-    }
-  }
-
-  const lid = where.listing_id as { gt?: string } | undefined;
-  if (lid?.gt && !(String(row.listing_id) > lid.gt)) return false;
-  return true;
-}
-
 function wireStore(store: Map<string, Row>) {
-  mockListingCount.mockImplementation(async (args: { where: Record<string, unknown> }) => {
-    return [...store.values()].filter((r) => matchesWhere(r, args.where)).length;
-  });
-
-  mockListingFindMany.mockImplementation(
-    async (args: { where: Record<string, unknown>; take: number }) => {
-      const rows = [...store.values()]
-        .filter((r) => matchesWhere(r, args.where))
-        .sort((a, b) => {
-          const at = (a.last_synced_from_trestle as Date | null)?.getTime() ?? 0;
-          const bt = (b.last_synced_from_trestle as Date | null)?.getTime() ?? 0;
-          if (at !== bt) return at - bt;
-          return String(a.listing_id).localeCompare(String(b.listing_id));
-        })
-        .slice(0, args.take);
-      return rows.map((r) => ({
-        listing_id: r.listing_id,
-        last_synced_from_trestle: r.last_synced_from_trestle,
-      }));
-    },
-  );
-
   mockListingFindUnique.mockImplementation(
     async (args: { where: { listing_id: string }; select?: Record<string, unknown> }) => {
       const row = store.get(args.where.listing_id);
@@ -297,6 +301,8 @@ function wireStore(store: Map<string, Row>) {
       return {};
     },
   );
+  mockListingCount.mockResolvedValue(0);
+  mockListingFindMany.mockResolvedValue([]);
   mockListingUpsert.mockResolvedValue({});
   mockListingCreate.mockResolvedValue({});
   mockProjFindUnique.mockResolvedValue(null);
@@ -318,9 +324,8 @@ function options(overrides: Partial<RecoveryOptions> = {}): RecoveryOptions {
     confirm: null,
     total: 1,
     batchSize: 250,
-    staleDays: 7,
+    manifest: manifest([entry("RLS100001")]),
     env: prodEnv(),
-    now: NOW,
     ...overrides,
   };
 }
@@ -343,6 +348,7 @@ function assertSyncStateUntouched() {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(console, "log").mockImplementation(() => {});
+  jest.spyOn(console, "warn").mockImplementation(() => {});
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -350,13 +356,222 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-// ── 1. Dry run performs zero writes ─────────────────────────────────────────
+// ── 1. Selection comes from the manifest and NOWHERE else ───────────────────
+
+describe("manifest-only selection", () => {
+  it("touches EXACTLY the manifest ids and never queries for its own worklist", async () => {
+    const store = new Map<string, Row>();
+    const feed = new Map<string, Record<string, unknown>>();
+    for (const id of ["A1", "A2", "A3"]) {
+      const raw = rawRecord({ ListingId: id, ListingKey: `K-${id}` });
+      store.set(id, dbRowFromRaw(raw));
+      feed.set(id, raw);
+    }
+    // A4 exists locally and is far staler than the rest — the OLD predicate
+    // would have selected it. It is not in the manifest, so it must not be
+    // touched: an old sync clock is not evidence of a difference.
+    store.set("A4", dbRowFromRaw(rawRecord({ ListingId: "A4", ListingKey: "K-A4" }), {
+      last_synced_from_trestle: new Date("2026-03-28T00:00:00.000Z"),
+    }));
+    feed.set("A4", rawRecord({ ListingId: "A4", ListingKey: "K-A4", ListPrice: 111000 }));
+    wireStore(store);
+    wireFeed(feed);
+
+    const report = await recoverStalePropertyListings(
+      options({ manifest: manifest([entry("A1"), entry("A2"), entry("A3")]), total: 3 }),
+    );
+
+    expect(report.totals.selected).toBe(3);
+    expect(mockFetchSingleListing.mock.calls.map((c) => c[0]).sort()).toEqual(["A1", "A2", "A3"]);
+    // No local staleness query of ANY kind was issued.
+    expect(mockListingCount).not.toHaveBeenCalled();
+    expect(mockListingFindMany).not.toHaveBeenCalled();
+    assertSyncStateUntouched();
+  });
+
+  it("REFUSES a listing id that is not present in the manifest", () => {
+    const allowed = new Set(["A1", "A2"]);
+    expect(() => assertListingIdInManifest("A1", allowed)).not.toThrow();
+    expect(() => assertListingIdInManifest("INTRUDER", allowed)).toThrow(
+      /Refusing to touch INTRUDER: it is not present in the recovery manifest/,
+    );
+  });
+
+  it("wires that refusal into the row path BEFORE any I/O", () => {
+    // The guard existing is not the same as the guard running. This drives the
+    // real per-row function with an id outside the allowed set and proves it
+    // refuses without touching Cotality or the database — so a future refactor
+    // that widens the loop still cannot widen the blast radius.
+    const raw = rawRecord({ ListingId: "INTRUDER", ListingKey: "K-INTRUDER" });
+    wireStore(new Map<string, Row>([["INTRUDER", dbRowFromRaw(raw)]]));
+    wireFeed(new Map([["INTRUDER", rawRecord({ ListingId: "INTRUDER", ListPrice: 999000 })]]));
+
+    return recoverOneListing("INTRUDER", true, new Set(["RLS100001"])).then(
+      () => {
+        throw new Error("recoverOneListing resolved for an id outside the manifest");
+      },
+      (err: Error) => {
+        expect(err.message).toMatch(/not present in the recovery manifest/);
+        expect(mockFetchSingleListing).not.toHaveBeenCalled();
+        expect(mockListingFindUnique).not.toHaveBeenCalled();
+        assertNoWritesAtAll();
+      },
+    );
+  });
+
+  it("refuses to run at all when no manifest is supplied", async () => {
+    wireStore(new Map<string, Row>());
+    await expect(
+      recoverStalePropertyListings(
+        options({ manifest: undefined, manifestPath: null }),
+      ),
+    ).rejects.toThrow(/no manifest supplied/);
+    expect(mockFetchSingleListing).not.toHaveBeenCalled();
+  });
+
+  it("refuses at parse time when --manifest is omitted", () => {
+    expect(() => parseRecoveryArgs(["--total=10"])).toThrow(/--manifest=<path> is REQUIRED/);
+    expect(() => parseRecoveryArgs(["--total=10", "--manifest="])).toThrow(
+      /--manifest=<path> is REQUIRED/,
+    );
+    expect(() => parseRecoveryArgs(["--manifest=artifacts/m.json"])).toThrow(
+      /--total=<n> is REQUIRED/,
+    );
+    const args = parseRecoveryArgs(["--manifest=artifacts/m.json", "--total=10"]);
+    expect(args.manifestPath).toBe("artifacts/m.json");
+    expect(args.execute).toBe(false);
+  });
+});
+
+// ── 2. Duplicate manifest ids ───────────────────────────────────────────────
+
+describe("duplicate manifest ids", () => {
+  it("dedupes and REPORTS them explicitly — never a silent collapse", async () => {
+    const raw = rawRecord({ ListingId: "DUP", ListingKey: "K-DUP" });
+    wireStore(new Map<string, Row>([["DUP", dbRowFromRaw(raw)]]));
+    wireFeed(new Map([["DUP", raw]]));
+
+    const selection = selectManifestIds(manifest([entry("DUP"), entry("DUP"), entry("OTHER")]));
+    expect(selection.ids).toEqual(["DUP", "OTHER"]);
+    expect(selection.duplicateIds).toEqual(["DUP"]);
+
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const report = await recoverStalePropertyListings(
+      options({ manifest: manifest([entry("DUP"), entry("DUP")]), total: 1 }),
+    );
+
+    expect(report.manifest_size).toBe(2);
+    expect(report.manifest_unique_ids).toBe(1);
+    expect(report.manifest_duplicate_ids).toEqual(["DUP"]);
+    // The duplicate is surfaced on the console, not swallowed.
+    expect(warn.mock.calls.flat().join(" ")).toMatch(/duplicated listing id/);
+    // And the row is processed exactly once.
+    expect(mockFetchSingleListing).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts the manifest cap in UNIQUE ids, so a duplicate cannot inflate --total", async () => {
+    wireStore(new Map<string, Row>());
+    wireFeed(new Map());
+    await expect(
+      recoverStalePropertyListings(
+        options({ manifest: manifest([entry("DUP"), entry("DUP")]), total: 2 }),
+      ),
+    ).rejects.toThrow(/exceeds the manifest's 1 unique listing id/);
+  });
+});
+
+// ── 3. Caps ─────────────────────────────────────────────────────────────────
+
+describe("caps", () => {
+  it("refuses a total larger than the manifest's unique-id count", async () => {
+    wireStore(new Map<string, Row>());
+    wireFeed(new Map());
+    await expect(
+      recoverStalePropertyListings(options({ manifest: manifest([entry("A1")]), total: 5000 })),
+    ).rejects.toThrow(/exceeds the manifest's 1 unique listing id\(s\)/);
+    expect(mockFetchSingleListing).not.toHaveBeenCalled();
+  });
+
+  it("clamps the batch size to 500 even when a larger value is passed", async () => {
+    const store = new Map<string, Row>();
+    const feed = new Map<string, Record<string, unknown>>();
+    const entries: ManifestEntry[] = [];
+    for (let i = 0; i < 600; i++) {
+      const id = `RLS${String(200000 + i)}`;
+      const raw = rawRecord({ ListingId: id, ListingKey: `KEY${i}` });
+      store.set(id, dbRowFromRaw(raw));
+      feed.set(id, raw);
+      entries.push(entry(id));
+    }
+    wireStore(store);
+    wireFeed(feed);
+
+    const report = await recoverStalePropertyListings(
+      options({ manifest: manifest(entries), total: 600, batchSize: 5000 }),
+    );
+
+    expect(report.batch_size).toBe(MAX_BATCH_SIZE);
+    expect(report.batches[0].selected).toBe(MAX_BATCH_SIZE);
+    expect(report.batches.map((b) => b.selected)).toEqual([500, 100]);
+    expect(report.totals.selected).toBe(600);
+    assertSyncStateUntouched();
+  });
+
+  it("clamps rather than rejecting, and never returns less than 1", () => {
+    expect(clampBatchSize(5000)).toBe(MAX_BATCH_SIZE);
+    expect(clampBatchSize(500)).toBe(MAX_BATCH_SIZE);
+    expect(clampBatchSize(1)).toBe(1);
+    expect(clampBatchSize(0)).toBe(1);
+    expect(clampBatchSize(Number.POSITIVE_INFINITY)).toBe(1);
+  });
+
+  it("stops at the explicit total across multiple batches", async () => {
+    const store = new Map<string, Row>();
+    const feed = new Map<string, Record<string, unknown>>();
+    const entries: ManifestEntry[] = [];
+    for (let i = 0; i < 12; i++) {
+      const id = `RLS${String(300000 + i)}`;
+      const raw = rawRecord({ ListingId: id, ListingKey: `KEY${i}` });
+      store.set(id, dbRowFromRaw(raw));
+      feed.set(id, raw);
+      entries.push(entry(id));
+    }
+    wireStore(store);
+    wireFeed(feed);
+
+    const report = await recoverStalePropertyListings(
+      options({ manifest: manifest(entries), total: 7, batchSize: 3 }),
+    );
+
+    expect(report.manifest_unique_ids).toBe(12);
+    expect(report.batches.map((b) => b.selected)).toEqual([3, 3, 1]);
+    expect(report.totals.selected).toBe(7);
+    expect(mockFetchSingleListing).toHaveBeenCalledTimes(7);
+    assertSyncStateUntouched();
+  });
+
+  it("refuses an unbounded total at parse time", () => {
+    const m = "--manifest=artifacts/m.json";
+    expect(() => parseRecoveryArgs([m, "--total=all"])).toThrow(/plain positive integer/);
+    expect(() => parseRecoveryArgs([m, "--total=Infinity"])).toThrow(/plain positive integer/);
+    expect(() => parseRecoveryArgs([m, "--total=0"])).toThrow(/positive integer/);
+    expect(() => parseRecoveryArgs([m, "--total=-5"])).toThrow(/plain positive integer/);
+  });
+
+  it("refuses a non-finite total passed straight to the executor", async () => {
+    wireStore(new Map<string, Row>());
+    await expect(
+      recoverStalePropertyListings(options({ total: Number.POSITIVE_INFINITY })),
+    ).rejects.toThrow(/explicit finite positive integer/);
+  });
+});
+
+// ── 4. Dry run ──────────────────────────────────────────────────────────────
 
 describe("dry run", () => {
-  it("performs ZERO writes even when every selected row has a material change", async () => {
+  it("performs ZERO writes even when every manifest row has a material change", async () => {
     const raw = rawRecord();
-    const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
-    wireStore(store);
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
     // Price moved — unambiguously material.
     wireFeed(new Map([["RLS100001", rawRecord({ ListPrice: 999000 })]]));
 
@@ -375,109 +590,16 @@ describe("dry run", () => {
   });
 
   it("is the DEFAULT: parsed args without --execute yield a dry run", () => {
-    expect(parseRecoveryArgs(["--total=10"]).execute).toBe(false);
+    expect(parseRecoveryArgs(["--manifest=m.json", "--total=10"]).execute).toBe(false);
   });
 });
 
-// ── 2. Batch size clamp ─────────────────────────────────────────────────────
-
-describe("batch size", () => {
-  it("clamps to 500 even when a larger value is passed", async () => {
-    const store = new Map<string, Row>();
-    const feed = new Map<string, Record<string, unknown>>();
-    for (let i = 0; i < 600; i++) {
-      const id = `RLS${String(200000 + i)}`;
-      const raw = rawRecord({ ListingId: id, ListingKey: `KEY${i}` });
-      store.set(id, dbRowFromRaw(raw, {
-        last_synced_from_trestle: new Date(STALE_AT.getTime() + i * 1000),
-      }));
-      feed.set(id, raw);
-    }
-    wireStore(store);
-    wireFeed(feed);
-
-    const report = await recoverStalePropertyListings(
-      options({ total: 600, batchSize: 5000 }),
-    );
-
-    expect(report.batch_size).toBe(MAX_BATCH_SIZE);
-    for (const call of mockListingFindMany.mock.calls) {
-      expect((call[0] as { take: number }).take).toBeLessThanOrEqual(MAX_BATCH_SIZE);
-    }
-    expect(report.batches[0].selected).toBe(MAX_BATCH_SIZE);
-    expect(report.totals.selected).toBe(600);
-    assertSyncStateUntouched();
-  });
-
-  it("clamps rather than rejecting, and never returns less than 1", () => {
-    expect(clampBatchSize(5000)).toBe(MAX_BATCH_SIZE);
-    expect(clampBatchSize(500)).toBe(MAX_BATCH_SIZE);
-    expect(clampBatchSize(1)).toBe(1);
-    expect(clampBatchSize(0)).toBe(1);
-    expect(clampBatchSize(Number.POSITIVE_INFINITY)).toBe(1);
-  });
-});
-
-// ── 3. Total cap across batches ─────────────────────────────────────────────
-
-describe("total cap", () => {
-  it("stops at the explicit total across multiple batches", async () => {
-    const store = new Map<string, Row>();
-    const feed = new Map<string, Record<string, unknown>>();
-    for (let i = 0; i < 12; i++) {
-      const id = `RLS${String(300000 + i)}`;
-      const raw = rawRecord({ ListingId: id, ListingKey: `KEY${i}` });
-      store.set(id, dbRowFromRaw(raw, {
-        last_synced_from_trestle: new Date(STALE_AT.getTime() + i * 1000),
-      }));
-      feed.set(id, raw);
-    }
-    wireStore(store);
-    wireFeed(feed);
-
-    const report = await recoverStalePropertyListings(options({ total: 7, batchSize: 3 }));
-
-    expect(report.backlog).toBe(12);
-    expect(report.batches.map((b) => b.selected)).toEqual([3, 3, 1]);
-    expect(report.totals.selected).toBe(7);
-    expect(mockFetchSingleListing).toHaveBeenCalledTimes(7);
-    assertSyncStateUntouched();
-  });
-
-  it("refuses a total larger than the measured backlog", async () => {
-    const raw = rawRecord();
-    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
-    wireFeed(new Map());
-
-    await expect(recoverStalePropertyListings(options({ total: 5000 }))).rejects.toThrow(
-      /exceeds the measured backlog of 1/,
-    );
-    expect(mockFetchSingleListing).not.toHaveBeenCalled();
-  });
-
-  it("refuses an unbounded total at parse time", () => {
-    expect(() => parseRecoveryArgs([])).toThrow(/--total=<n> is REQUIRED/);
-    expect(() => parseRecoveryArgs(["--total=all"])).toThrow(/plain positive integer/);
-    expect(() => parseRecoveryArgs(["--total=Infinity"])).toThrow(/plain positive integer/);
-    expect(() => parseRecoveryArgs(["--total=0"])).toThrow(/positive integer/);
-    expect(() => parseRecoveryArgs(["--total=-5"])).toThrow(/plain positive integer/);
-  });
-
-  it("refuses a non-finite total passed straight to the executor", async () => {
-    wireStore(new Map<string, Row>());
-    await expect(
-      recoverStalePropertyListings(options({ total: Number.POSITIVE_INFINITY })),
-    ).rejects.toThrow(/explicit finite positive integer/);
-  });
-});
-
-// ── 4. sync_state is never touched ──────────────────────────────────────────
+// ── 5. sync_state is never touched ──────────────────────────────────────────
 
 describe("sync_state", () => {
   it("is NEVER written on an executing run that materially changes rows", async () => {
     const raw = rawRecord();
-    const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
-    wireStore(store);
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
     wireFeed(new Map([["RLS100001", rawRecord({ ListPrice: 999000 })]]));
 
     const report = await recoverStalePropertyListings(
@@ -492,8 +614,7 @@ describe("sync_state", () => {
   });
 
   it("is NEVER written on a failing run either", async () => {
-    const raw = rawRecord();
-    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(rawRecord())]]));
     wireFeed(new Map([["RLS100001", null]]));
 
     const report = await recoverStalePropertyListings(
@@ -505,14 +626,76 @@ describe("sync_state", () => {
   });
 });
 
-// ── 5/6/7. Suppression vs material writes ───────────────────────────────────
+// ── 6. The manifest supplies WHICH, never WHAT ──────────────────────────────
+
+describe("re-fetch at execution time", () => {
+  it("re-reads every selected id from Cotality — the manifest carries no payload", async () => {
+    const raw = rawRecord();
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+    wireFeed(new Map([["RLS100001", rawRecord({ ListPrice: 999000 })]]));
+
+    await recoverStalePropertyListings(
+      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1 }),
+    );
+
+    expect(mockFetchSingleListing).toHaveBeenCalledTimes(1);
+    expect(mockFetchSingleListing).toHaveBeenCalledWith("RLS100001");
+    // What was written came from the LIVE record, not from the manifest.
+    const data = (mockListingUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(String(data.list_price)).toBe("999000");
+  });
+
+  it("SUPPRESSES the write when the source converged between manifest and execution", async () => {
+    // The manifest asserted `provider_mt_newer` when it was built. By execution
+    // time the provider record matches local exactly. A reason code is a
+    // hypothesis to re-verify, never an instruction to write — so this writes
+    // nothing at all.
+    const raw = rawRecord();
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+    wireFeed(new Map([["RLS100001", rawRecord()]]));
+
+    const report = await recoverStalePropertyListings(
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([
+          entry("RLS100001", ["provider_mt_newer", "status_mismatch", "display_gate_mismatch"]),
+        ]),
+      }),
+    );
+
+    expect(report.totals.suppressed_unchanged).toBe(1);
+    expect(report.totals.written).toBe(0);
+    assertNoWritesAtAll();
+    expect(mockRevalidateTag).not.toHaveBeenCalled();
+  });
+
+  it("fails the row (never writes) when the source vanished after the manifest was built", async () => {
+    // fetchSingleListing returns null for "no such record" AND for a transport
+    // error, and the caller cannot tell them apart — so an indistinguishable
+    // outcome is never a resolved one. Fail closed.
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(rawRecord())]]));
+    wireFeed(new Map([["RLS100001", null]]));
+
+    const report = await recoverStalePropertyListings(
+      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1 }),
+    );
+
+    expect(report.totals.failed).toBe(1);
+    expect(report.totals.written).toBe(0);
+    assertNoWritesAtAll();
+  });
+});
+
+// ── 7/8/9. Suppression vs material writes ───────────────────────────────────
 
 describe("write suppression", () => {
   it("writes NOTHING for a provenance-only revision", async () => {
     const raw = rawRecord();
-    const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
-    wireStore(store);
-    // ONLY the revision clock moved — the production shape of a provenance bump.
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+    // ONLY the revision clock moved — the production shape of a provenance bump,
+    // and exactly what `provider_mt_newer` looks like when nothing else changed.
     wireFeed(new Map([["RLS100001", rawRecord({ ModificationTimestamp: "2026-08-01T00:00:00Z" })]]));
 
     const report = await recoverStalePropertyListings(
@@ -526,25 +709,9 @@ describe("write suppression", () => {
     assertSyncStateUntouched();
   });
 
-  it("writes NOTHING for a byte-identical re-emit", async () => {
-    const raw = rawRecord();
-    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
-    wireFeed(new Map([["RLS100001", rawRecord()]]));
-
-    const report = await recoverStalePropertyListings(
-      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1 }),
-    );
-
-    expect(report.totals.suppressed_unchanged).toBe(1);
-    expect(report.totals.suppressed_provenance_only).toBe(0);
-    expect(report.totals.written).toBe(0);
-    assertNoWritesAtAll();
-  });
-
   it("DOES write a price change, and invalidates the listing + search tags", async () => {
     const raw = rawRecord();
-    const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
-    wireStore(store);
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
     wireFeed(new Map([["RLS100001", rawRecord({ ListPrice: 999000 })]]));
 
     const report = await recoverStalePropertyListings(
@@ -563,14 +730,18 @@ describe("write suppression", () => {
     assertSyncStateUntouched();
   });
 
-  it("DOES write a status change", async () => {
+  it("DOES write a status change flagged as status_mismatch", async () => {
     const raw = rawRecord();
-    const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
-    wireStore(store);
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
     wireFeed(new Map([["RLS100001", rawRecord({ StandardStatus: "ActiveUnderContract" })]]));
 
     const report = await recoverStalePropertyListings(
-      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1 }),
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([entry("RLS100001", ["status_mismatch"])]),
+      }),
     );
 
     expect(report.totals.written).toBe(1);
@@ -580,19 +751,89 @@ describe("write suppression", () => {
     expect(data.status_changed_at).toBeInstanceOf(Date);
     assertSyncStateUntouched();
   });
+
+  it("DOES write a provider-terminal correction and closes the display gate", async () => {
+    // `local_active_provider_terminal`: we still show it Active, the provider no
+    // longer lists it Active-ish. The live re-fetch returns Closed, so the
+    // canonical mapper forces idx_display_yn=false — the correction that keeps a
+    // sold listing off the public site.
+    const raw = rawRecord();
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+    wireFeed(new Map([["RLS100001", rawRecord({ StandardStatus: "Closed" })]]));
+
+    const report = await recoverStalePropertyListings(
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([
+          entry("RLS100001", ["local_active_provider_terminal"], null),
+        ]),
+      }),
+    );
+
+    expect(report.totals.written).toBe(1);
+    const data = (mockListingUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(data.status).toBe("Closed");
+    expect(data.idx_display_yn).toBe(false);
+    assertSyncStateUntouched();
+  });
+
+  it("DOES write an mls_id backfill row — mls_id is a material column", async () => {
+    // POLICY: `mls_id_missing_or_wrong` is a real material difference, so once a
+    // row reaches the executor it is written like any other. The decision an
+    // operator makes is upstream, at manifest-build time
+    // (`--include-mls-backfill`), so an identity backfill can never be hidden
+    // inside a staleness repair.
+    const raw = rawRecord();
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw, { mls_id: null })]]));
+    wireFeed(new Map([["RLS100001", rawRecord()]]));
+
+    const report = await recoverStalePropertyListings(
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([entry("RLS100001", ["mls_id_missing_or_wrong"])]),
+      }),
+    );
+
+    expect(report.totals.written).toBe(1);
+    const data = (mockListingUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(data.mls_id).toBe("KEY100001");
+  });
+
+  it("writes NOTHING for an already-converged mls row (the identity gap already closed)", async () => {
+    const raw = rawRecord();
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+    wireFeed(new Map([["RLS100001", rawRecord()]]));
+
+    const report = await recoverStalePropertyListings(
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([entry("RLS100001", ["mls_id_missing_or_wrong"])]),
+      }),
+    );
+
+    expect(report.totals.suppressed_unchanged).toBe(1);
+    expect(report.totals.written).toBe(0);
+    assertNoWritesAtAll();
+  });
 });
 
-// ── 8. Archived rows are not rehydrated ─────────────────────────────────────
+// ── 10. Archived rows are not rehydrated ────────────────────────────────────
 
 describe("archived protection", () => {
   it("does NOT rehydrate an archived row, even when the feed re-emits content", async () => {
     // The T+180 archiver strips raw_data/media and stamps sync_status='archived'
     // (lib/retention/archive-terminals.ts). The fixture keeps the LOCAL status
-    // Active so the row is selectable by the staleness predicate at all — the
-    // anomalous archived-but-still-display-eligible row, which is exactly the
-    // case where re-hydrating stripped blobs is most damaging (it is publicly
-    // reachable) and where a bulk backfill would re-open the
-    // strip -> rehydrate -> re-strip churn of #415.
+    // Active so the row is a plausible manifest candidate at all — the anomalous
+    // archived-but-still-display-eligible row, which is exactly the case where
+    // re-hydrating stripped blobs is most damaging (it is publicly reachable)
+    // and where a bulk backfill would re-open the strip -> rehydrate -> re-strip
+    // churn of #415.
     const raw = rawRecord();
     const archived = dbRowFromRaw(raw, {
       sync_status: ARCHIVED_SYNC_STATUS,
@@ -636,15 +877,11 @@ describe("archived protection", () => {
   });
 });
 
-// ── 9. New + terminal is still skipped ──────────────────────────────────────
+// ── 11. Never creates ───────────────────────────────────────────────────────
 
-describe("new-terminal policy", () => {
+describe("new-terminal policy / no create", () => {
   it("skips a listing that is absent locally and arrives terminal — never creates it", async () => {
-    const raw = rawRecord();
-    // Selectable row present at selection time...
-    const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
-    wireStore(store);
-    // ...but gone by the per-row read (the shape shouldSkipNewTerminalListing guards).
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(rawRecord())]]));
     mockListingFindUnique.mockResolvedValue(null);
     wireFeed(new Map([["RLS100001", rawRecord({ StandardStatus: "Closed" })]]));
 
@@ -659,9 +896,8 @@ describe("new-terminal policy", () => {
     assertSyncStateUntouched();
   });
 
-  it("never creates a row that vanished mid-run even in a creatable status", async () => {
-    const raw = rawRecord();
-    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+  it("never creates a row that has no local counterpart even in a creatable status", async () => {
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(rawRecord())]]));
     mockListingFindUnique.mockResolvedValue(null);
     wireFeed(new Map([["RLS100001", rawRecord({ StandardStatus: "Active" })]]));
 
@@ -675,19 +911,19 @@ describe("new-terminal policy", () => {
   });
 });
 
-// ── 10. Failure isolation ───────────────────────────────────────────────────
+// ── 12. Failure isolation ───────────────────────────────────────────────────
 
 describe("failure isolation", () => {
   it("one failing row does not abort the batch and does not corrupt the accounting", async () => {
     const store = new Map<string, Row>();
     const feed = new Map<string, Record<string, unknown> | null>();
+    const entries: ManifestEntry[] = [];
     for (let i = 0; i < 4; i++) {
       const id = `RLS${String(400000 + i)}`;
       const raw = rawRecord({ ListingId: id, ListingKey: `KEY${i}` });
-      store.set(id, dbRowFromRaw(raw, {
-        last_synced_from_trestle: new Date(STALE_AT.getTime() + i * 1000),
-      }));
+      store.set(id, dbRowFromRaw(raw));
       feed.set(id, rawRecord({ ListingId: id, ListingKey: `KEY${i}`, ListPrice: 999000 }));
+      entries.push(entry(id));
     }
     wireStore(store);
     wireFeed(feed);
@@ -698,7 +934,13 @@ describe("failure isolation", () => {
     });
 
     const report = await recoverStalePropertyListings(
-      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 4, batchSize: 4 }),
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 4,
+        batchSize: 4,
+        manifest: manifest(entries),
+      }),
     );
 
     expect(report.totals.selected).toBe(4);
@@ -725,10 +967,10 @@ describe("failure isolation", () => {
   });
 });
 
-// ── 11. Idempotence ─────────────────────────────────────────────────────────
+// ── 13. Idempotence ─────────────────────────────────────────────────────────
 
 describe("idempotence", () => {
-  it("produces zero material writes on a second run over the same feed state", async () => {
+  it("produces zero material writes on a second identical execution", async () => {
     const raw = rawRecord();
     const store = new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]);
     wireStore(store);
@@ -741,21 +983,15 @@ describe("idempotence", () => {
     expect(first.totals.written).toBe(1);
     expect(mockListingUpdate).toHaveBeenCalledTimes(1);
 
-    // Second pass. staleDays=0 so the freshly-stamped row is selectable again —
-    // otherwise the selection predicate alone would hide the row and the
-    // comparator would never be exercised.
+    // Second pass over the SAME manifest and the SAME feed state. Nothing about
+    // the manifest changed, so if a reason code could force a write this would
+    // write again. It must not.
     mockListingUpdate.mockClear();
     mockProjUpsert.mockClear();
     mockRevalidateTag.mockClear();
 
     const second = await recoverStalePropertyListings(
-      options({
-        execute: true,
-        confirm: RECOVERY_CONFIRM_TOKEN,
-        total: 1,
-        staleDays: 1,
-        now: new Date(NOW.getTime() + 5 * 24 * 60 * 60 * 1000),
-      }),
+      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1 }),
     );
 
     expect(second.totals.selected).toBe(1);
@@ -768,7 +1004,7 @@ describe("idempotence", () => {
   });
 });
 
-// ── 12. Execution guards ────────────────────────────────────────────────────
+// ── 14. Execution guards ────────────────────────────────────────────────────
 
 describe("execution guards", () => {
   it("refuses to execute without a confirm token", async () => {
@@ -804,60 +1040,106 @@ describe("execution guards", () => {
     assertNoWritesAtAll();
   });
 
+  it("refuses to execute without a manifest", async () => {
+    wireStore(new Map<string, Row>());
+    wireFeed(new Map());
+    await expect(
+      recoverStalePropertyListings(
+        options({
+          execute: true,
+          confirm: RECOVERY_CONFIRM_TOKEN,
+          manifest: undefined,
+          manifestPath: null,
+        }),
+      ),
+    ).rejects.toThrow(/a manifest is REQUIRED for --execute/);
+    assertNoWritesAtAll();
+  });
+
   it("refuses the STALE morning-bread / royal-dawn endpoint explicitly", async () => {
     wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(rawRecord())]]));
     wireFeed(new Map());
     const env: RecoveryEnv = { DATABASE_URL_UNPOOLED: STALE_URL };
-    await expect(
-      recoverStalePropertyListings(options({ env })),
-    ).rejects.toThrow(/not the canonical production endpoint/);
+    await expect(recoverStalePropertyListings(options({ env }))).rejects.toThrow(
+      /not the canonical production endpoint/,
+    );
     // Not even a READ was issued against the wrong database.
-    expect(mockListingCount).not.toHaveBeenCalled();
+    expect(mockListingFindUnique).not.toHaveBeenCalled();
     assertNoWritesAtAll();
   });
 
   it("fails closed when the host cannot be determined", () => {
-    expect(() => assertCanonicalTarget({})).toThrow(
-      /cannot be determined/,
-    );
-    expect(() =>
-      assertCanonicalTarget({ DATABASE_URL: "" }),
-    ).toThrow(/cannot be determined/);
+    expect(() => assertCanonicalTarget({})).toThrow(/cannot be determined/);
+    expect(() => assertCanonicalTarget({ DATABASE_URL: "" })).toThrow(/cannot be determined/);
   });
 
   it("guards the endpoint on DRY RUNS too", async () => {
     wireStore(new Map<string, Row>());
     await expect(
-      recoverStalePropertyListings(
-        options({ env: { DATABASE_URL: STALE_URL } }),
-      ),
+      recoverStalePropertyListings(options({ env: { DATABASE_URL: STALE_URL } })),
     ).rejects.toThrow(/not the canonical production endpoint/);
-    expect(mockListingCount).not.toHaveBeenCalled();
+    expect(mockListingFindUnique).not.toHaveBeenCalled();
   });
 });
 
-// ── Selection shape ─────────────────────────────────────────────────────────
+// ── 15. Manifest validation (fail-closed) ───────────────────────────────────
 
-describe("selection", () => {
-  it("is state-based: eligible statuses + a stale last_synced_from_trestle, ordered ASC", async () => {
-    const raw = rawRecord();
-    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(raw)]]));
+describe("manifest validation", () => {
+  it("REFUSES an entry that carries a listing payload", async () => {
+    // The structural guarantee behind "WHICH, never WHAT". If an entry could
+    // carry a payload, a future edit could quietly trust it instead of
+    // re-fetching from Cotality.
+    const poisoned = manifest([entry("RLS100001")]);
+    (poisoned.entries[0] as unknown as Record<string, unknown>).list_price = 1;
+
+    expect(() => parseRecoveryManifest(poisoned)).toThrow(
+      /carries unexpected key\(s\) \[list_price\]/,
+    );
+    wireStore(new Map<string, Row>([["RLS100001", dbRowFromRaw(rawRecord())]]));
     wireFeed(new Map([["RLS100001", rawRecord()]]));
+    await expect(
+      recoverStalePropertyListings(options({ manifest: poisoned })),
+    ).rejects.toThrow(/carries unexpected key\(s\)/);
+    expect(mockFetchSingleListing).not.toHaveBeenCalled();
+  });
 
-    await recoverStalePropertyListings(options({ total: 1 }));
+  it("REFUSES an entry with no reason codes — a reasonless row is never legitimate", () => {
+    const empty = manifest([entry("RLS100001", [])]);
+    expect(() => parseRecoveryManifest(empty)).toThrow(/has no reason codes/);
+  });
 
-    const call = mockListingFindMany.mock.calls[0][0] as {
-      where: Record<string, unknown>;
-      orderBy: Array<Record<string, string>>;
-    };
-    expect(call.where.status).toEqual({
-      in: ["Active", "ActiveUnderContract", "ComingSoon"],
-    });
-    const lt = (call.where.last_synced_from_trestle as { lt: Date }).lt;
-    expect(lt.toISOString()).toBe(new Date(NOW.getTime() - 7 * 86_400_000).toISOString());
-    expect(call.orderBy[0]).toEqual({ last_synced_from_trestle: "asc" });
-    // The count uses the SAME predicate, so the cap is measured against exactly
-    // the population that will be traversed.
-    expect((mockListingCount.mock.calls[0][0] as { where: unknown }).where).toEqual(call.where);
+  it("REFUSES an unknown reason code rather than processing an unrecognised contract", () => {
+    const unknown = manifest([entry("RLS100001", ["stale_clock" as RecoveryReason])]);
+    expect(() => parseRecoveryManifest(unknown)).toThrow(/unknown reason code "stale_clock"/);
+  });
+
+  it("REFUSES a manifest whose declared size disagrees with its entries", () => {
+    const truncated = manifest([entry("A"), entry("B")]);
+    truncated.entries.pop();
+    expect(() => parseRecoveryManifest(truncated)).toThrow(/does not match the number of entries/);
+  });
+
+  it("REFUSES a manifest that is not an object, or has no entries array", () => {
+    expect(() => parseRecoveryManifest(null)).toThrow(/not a JSON object/);
+    expect(() => parseRecoveryManifest([])).toThrow(/not a JSON object/);
+    expect(() => parseRecoveryManifest({ generatedAt: "x" })).toThrow(/no `entries` array/);
+    expect(() => parseRecoveryManifest({ entries: [] })).toThrow(/no `generatedAt` timestamp/);
+  });
+
+  it("REFUSES an entry with an unusable listingId", () => {
+    expect(() => parseRecoveryManifest(manifest([entry("   ")]))).toThrow(/no usable listingId/);
+  });
+
+  it("accepts a well-formed manifest and preserves its reason codes", () => {
+    const parsed = parseRecoveryManifest(
+      manifest([entry("RLS100001", ["provider_mt_newer", "display_gate_mismatch"])]),
+    );
+    expect(parsed.entries).toEqual([
+      {
+        listingId: "RLS100001",
+        listingKey: "KEY-RLS100001",
+        reasons: ["provider_mt_newer", "display_gate_mismatch"],
+      },
+    ]);
   });
 });

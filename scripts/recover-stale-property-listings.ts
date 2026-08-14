@@ -1,44 +1,55 @@
 /**
- * BOUNDED PROPERTY STALENESS RECOVERY EXECUTOR.
+ * BOUNDED PROPERTY RECOVERY EXECUTOR — MANIFEST-DRIVEN.
  *
- * ── WHY THIS EXISTS ──────────────────────────────────────────────────────────
+ * ── WHY THE OLD SELECTION WAS REPLACED ───────────────────────────────────────
  *
- * Measured on production (read-only, 2026-08-13):
- *   - 4,536 of 8,411 local ACTIVE listings have `last_synced_from_trestle`
- *     older than 7 days (oldest 2026-03-28).
- *   - ALL 4,536 have `modification_timestamp` STRICTLY BELOW the bootstrap
- *     cursor `MAX(listings.modification_timestamp)`; zero sit at or above it.
- *   - A complete ID-level census proved ZERO provider Active-ish listings are
- *     missing locally (8,379/8,379 present).
+ * This executor used to select its own work with
+ * `last_synced_from_trestle < 7 days`. A live measurement (2026-08-13) of the
+ * 500 OLDEST-synced of the 4,465 rows that predicate selects showed:
  *
- * The consequence is structural, not transient. The Property resume position is
- * a FORWARD-ONLY keyset over (ModificationTimestamp, ListingKey) ASC
- * (lib/idx/sync.ts:1463 `advanceCursor`, lib/idx/cursor/keyset-cursor.ts). A
- * forward-only cursor can only ever reach records at or ahead of its position,
- * so it can NEVER revisit a record whose ModificationTimestamp is behind it. No
- * number of incremental cycles will refresh these 4,536 rows.
+ *     62 (12.6%)  provider ModificationTimestamp NEWER than local  -> real work
+ *    432 (87.4%)  provider MT EQUAL to local                       -> already current
+ *      0 ( 0.0%)  local MT newer than provider
+ *      6           no longer provider-Active
  *
- * And it is a REFRESH problem, not an import problem: nothing is missing. So the
- * fix is a bounded, state-selected re-read — NOT a cursor rewind (which would
- * re-traverse the whole feed and re-open the 2026-08-13 write-amplification
- * regression) and NOT a re-import (nothing to import).
+ * AN OLD TELEMETRY CLOCK IS NOT EVIDENCE OF STALE DATA.
+ * `last_synced_from_trestle` records when we last LOOKED, not what we last SAW.
+ * Worse, it is in LISTING_NON_MATERIAL_UPDATE_FIELDS
+ * (lib/idx/write-suppression.ts:80), so a converged row's write is suppressed and
+ * its clock never advances — the predicate re-selects the same 87% forever.
+ *
+ * Selection is therefore no longer derived here at all. It is READ FROM A
+ * MANIFEST produced by `scripts/build-recovery-manifest.ts`, which compares the
+ * live provider Active-ish population against local rows and emits only ids
+ * carrying a VERIFIED DIFFERENCE. This executor may touch NOTHING ELSE.
+ *
+ * ── THE MANIFEST SUPPLIES WHICH, NEVER WHAT ──────────────────────────────────
+ *
+ * The manifest carries `listingId`, `listingKey` and `reasons` — no listing
+ * payload, by construction, and `parseRecoveryManifest` REFUSES an entry that
+ * carries anything else. Every row is RE-FETCHED from Cotality at execution
+ * time. A manifest built hours ago describes a provider state that may already
+ * be superseded; if the live source no longer justifies a write, the write is
+ * suppressed by the normal comparators. A reason code is a hypothesis to
+ * re-verify, never an instruction to write.
  *
  * ── WHAT THIS IS NOT ─────────────────────────────────────────────────────────
  *
  * This executor MUST NEVER TOUCH `sync_state`. Not `last_watermark`, not
  * `last_listing_key`, not `last_run_at`. `sync_state.Property` is ONE position
  * over ONE ordered universe (lib/idx/sync.ts:580 — "WHO MAY MOVE THE GLOBAL
- * PROPERTY CURSOR"). This run traverses a LOCAL-STATE universe (rows ordered by
- * our own `last_synced_from_trestle`), which says nothing about a position in
- * the provider's (MT, ListingKey) order. Writing any position from here would
- * declare provider records processed that this run never fetched, and the next
- * incremental pass would resume past them — manufacturing exactly the
- * unreachable-tail defect this script exists to repair. The prohibition is
- * proven by test, not by comment (tests/runtime/property-staleness-recovery.test.ts).
+ * PROPERTY CURSOR"). This run traverses a MANIFEST — an unordered id set with no
+ * relationship to the provider's (MT, ListingKey) order. Writing any position
+ * from here would declare provider records processed that this run never
+ * fetched, and the next incremental pass would resume past them — manufacturing
+ * exactly the unreachable-tail defect this script exists to repair. The
+ * prohibition is proven by test, not by comment
+ * (tests/runtime/property-staleness-recovery.test.ts).
  *
- * It also never CREATES a listing: every selected row provably exists and the
- * census proved zero missing rows, so the write is `prisma.listing.update`, not
- * `upsert`. An UPDATE structurally cannot turn a bounded refresh into an import.
+ * It also never CREATES a listing: the ID census proved zero provider Active-ish
+ * rows missing locally, and the manifest generator refuses to emit an id with no
+ * local row. The write is `prisma.listing.update`, not `upsert`. An UPDATE
+ * structurally cannot turn a bounded refresh into an import.
  *
  * ── POLICY REUSE ─────────────────────────────────────────────────────────────
  *
@@ -62,23 +73,28 @@
  * ── SAFETY ───────────────────────────────────────────────────────────────────
  *
  * DRY RUN IS THE DEFAULT and performs zero writes and zero cache invalidation.
- * Writing requires ALL THREE of: `--execute`, `--confirm=<RECOVERY_CONFIRM_TOKEN>`,
- * and the production-environment declaration (see PRODUCTION_ENV_VAR). Every run
- * — dry run included — additionally refuses unless the resolved DATABASE_URL
- * host is the canonical production endpoint.
+ * Writing requires ALL FOUR of: `--manifest=<path>`, `--execute`,
+ * `--confirm=<RECOVERY_CONFIRM_TOKEN>`, and the production-environment
+ * declaration (see PRODUCTION_ENV_VAR). Every run — dry run included —
+ * additionally refuses unless the resolved DATABASE_URL host is the canonical
+ * production endpoint.
  *
  * ── USAGE ────────────────────────────────────────────────────────────────────
  *
- *   npm run ops:recover-stale-listings -- --total=50                 # DRY RUN
- *   npm run ops:recover-stale-listings -- --total=50 --batch=25      # DRY RUN
+ *   npm run ops:build-recovery-manifest                              # build it
+ *   npm run ops:recover-stale-listings -- \
+ *     --manifest=artifacts/property-recovery-manifest.json --total=50   # DRY RUN
  *   RECOVERY_TARGET_ENV=production npm run ops:recover-stale-listings -- \
+ *     --manifest=artifacts/property-recovery-manifest.json \
  *     --total=500 --batch=250 --execute --confirm=<token>            # WRITES
  *
  * `--total` is REQUIRED and must be an explicit finite positive integer. There
  * is no unbounded mode: `--total=all` / `--total=Infinity` are refused, and a
- * total larger than the measured backlog is refused.
+ * total larger than the manifest's unique-id count is refused — the manifest
+ * size is the hard ceiling on what a run may touch.
  */
 
+import { readFileSync } from "node:fs";
 import prisma from "@/lib/prisma";
 import { fetchSingleListing } from "@/lib/idx/fetch";
 import {
@@ -109,6 +125,11 @@ import {
 } from "@/lib/cache/public-cache";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { isCanonicalNeonHost, CANONICAL_NEON_HOST_SUBSTRING } from "@/lib/ops/canonical-neon-target";
+import {
+  RECOVERY_REASON_CODES,
+  type RecoveryManifest,
+  type RecoveryReason,
+} from "./build-recovery-manifest";
 import type { Prisma } from "@prisma/client";
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -127,7 +148,6 @@ export const RECOVERY_CONFIRM_TOKEN = "RECOVER-STALE-PROPERTY-2026-08-13";
  */
 export const MAX_BATCH_SIZE = 500;
 export const DEFAULT_BATCH_SIZE = 250;
-export const DEFAULT_STALE_DAYS = 7;
 
 /**
  * Production-environment declaration. Script-SPECIFIC on purpose: `NODE_ENV` and
@@ -140,9 +160,9 @@ export const PRODUCTION_ENV_VAR = "RECOVERY_TARGET_ENV";
 export const PRODUCTION_ENV_VALUE = "production";
 
 /**
- * The recoverable status set (requirement: state-based selection). Exactly the
- * display-eligible statuses — a terminal row that already went stale is the
- * retention drain's business (lib/retention/), not this executor's.
+ * The display-eligible status set. No longer a SELECTION predicate (the manifest
+ * selects), but still the population the manifest generator reconciles, kept
+ * here so both sides name the same set.
  */
 export const RECOVERABLE_STATUSES: readonly string[] = [
   "Active",
@@ -150,7 +170,8 @@ export const RECOVERABLE_STATUSES: readonly string[] = [
   "ComingSoon",
 ];
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+/** The exact key set a manifest entry may carry. Anything else is refused. */
+const ALLOWED_ENTRY_KEYS: ReadonlySet<string> = new Set(["listingId", "listingKey", "reasons"]);
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -174,9 +195,16 @@ export interface RecoveryBatchTelemetry extends RecoveryCounters {
 
 export interface RecoveryReport {
   mode: "dry-run" | "execute";
-  stale_days: number;
-  stale_before: string;
-  backlog: number;
+  /** null when the manifest was injected rather than read from disk (tests). */
+  manifest_path: string | null;
+  manifest_generated_at: string;
+  /** Entry count as emitted by the generator. */
+  manifest_size: number;
+  /** Distinct listing ids after deduplication — the HARD CEILING on `--total`. */
+  manifest_unique_ids: number;
+  /** Reported explicitly, never silently collapsed. */
+  manifest_duplicate_ids: string[];
+  manifest_totals_by_reason: Partial<Record<RecoveryReason, number>>;
   requested_total: number;
   batch_size: number;
   batches: RecoveryBatchTelemetry[];
@@ -201,11 +229,12 @@ export interface RecoveryOptions {
   /** REQUIRED explicit finite positive integer. No unbounded mode exists. */
   total: number;
   batchSize: number;
-  staleDays: number;
+  /** Path to the generated manifest. Read from disk unless `manifest` is given. */
+  manifestPath?: string | null;
+  /** Injected for tests — bypasses the disk read, NOT the shape validation. */
+  manifest?: RecoveryManifest;
   /** Injected for tests; production reads process.env. */
   env?: RecoveryEnv;
-  /** Injected for tests so the stale window is deterministic. */
-  now?: Date;
 }
 
 /** One row's terminal outcome. Exactly one is produced per selected row. */
@@ -224,7 +253,7 @@ export interface ParsedArgs {
   confirm: string | null;
   total: number;
   batchSize: number;
-  staleDays: number;
+  manifestPath: string;
 }
 
 function readFlag(argv: readonly string[], name: string): string | null {
@@ -258,6 +287,17 @@ export function clampBatchSize(requested: number): number {
 }
 
 export function parseRecoveryArgs(argv: readonly string[]): ParsedArgs {
+  // Manifest FIRST: without it there is no selection source at all, so a run
+  // that omits it is not a smaller run — it is an undefined one.
+  const manifestPath = readFlag(argv, "manifest");
+  if (manifestPath === null || manifestPath.trim().length === 0) {
+    throw new Error(
+      "--manifest=<path> is REQUIRED. Selection comes exclusively from the manifest " +
+        "produced by scripts/build-recovery-manifest.ts; this executor has no other " +
+        "selection source and refuses to invent one.",
+    );
+  }
+
   const totalRaw = readFlag(argv, "total");
   if (totalRaw === null) {
     throw new Error(
@@ -272,16 +312,168 @@ export function parseRecoveryArgs(argv: readonly string[]): ParsedArgs {
     batchRaw === null ? DEFAULT_BATCH_SIZE : parseStrictPositiveInt(batchRaw, "--batch"),
   );
 
-  const daysRaw = readFlag(argv, "days");
-  const staleDays = daysRaw === null ? DEFAULT_STALE_DAYS : parseStrictPositiveInt(daysRaw, "--days");
-
   return {
     execute: argv.includes("--execute"),
     confirm: readFlag(argv, "confirm"),
     total,
     batchSize,
-    staleDays,
+    manifestPath: manifestPath.trim(),
   };
+}
+
+// ── Manifest ingestion ──────────────────────────────────────────────────────
+
+/**
+ * Fail-closed manifest validator.
+ *
+ * The refusal of UNKNOWN ENTRY KEYS is load-bearing, not tidiness. It is the
+ * structural guarantee behind "the manifest supplies WHICH ids, never WHAT to
+ * write": if an entry cannot carry a payload, no future edit of this executor
+ * can quietly start trusting one instead of re-fetching from Cotality. It also
+ * refuses a manifest produced by a generator this executor does not understand
+ * (unknown reason codes) rather than silently processing an unknown contract.
+ */
+export function parseRecoveryManifest(raw: unknown): RecoveryManifest {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Refusing to run: the manifest is not a JSON object.");
+  }
+  const doc = raw as Record<string, unknown>;
+
+  if (typeof doc.generatedAt !== "string" || doc.generatedAt.length === 0) {
+    throw new Error("Refusing to run: the manifest has no `generatedAt` timestamp.");
+  }
+  if (!Array.isArray(doc.entries)) {
+    throw new Error("Refusing to run: the manifest has no `entries` array.");
+  }
+  if (typeof doc.manifestSize !== "number" || doc.manifestSize !== doc.entries.length) {
+    throw new Error(
+      `Refusing to run: manifestSize (${String(doc.manifestSize)}) does not match the ` +
+        `number of entries (${doc.entries.length}). A truncated or hand-edited manifest is refused.`,
+    );
+  }
+
+  const known = new Set<string>(RECOVERY_REASON_CODES);
+  const entries = doc.entries.map((value, index) => {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`Refusing to run: manifest entry ${index} is not an object.`);
+    }
+    const entry = value as Record<string, unknown>;
+
+    const extra = Object.keys(entry).filter((k) => !ALLOWED_ENTRY_KEYS.has(k));
+    if (extra.length > 0) {
+      throw new Error(
+        `Refusing to run: manifest entry ${index} carries unexpected key(s) [${extra.join(", ")}]. ` +
+          "A manifest entry may contain listingId, listingKey and reasons ONLY — it supplies " +
+          "WHICH ids to re-read, never WHAT to write. Every row is re-fetched from Cotality.",
+      );
+    }
+    if (typeof entry.listingId !== "string" || entry.listingId.trim().length === 0) {
+      throw new Error(`Refusing to run: manifest entry ${index} has no usable listingId.`);
+    }
+    if (entry.listingKey !== null && typeof entry.listingKey !== "string") {
+      throw new Error(`Refusing to run: manifest entry ${index} has a non-string listingKey.`);
+    }
+    if (!Array.isArray(entry.reasons) || entry.reasons.length === 0) {
+      throw new Error(
+        `Refusing to run: manifest entry ${index} (${entry.listingId}) has no reason codes. ` +
+          "A row with no verified reason must never have been emitted.",
+      );
+    }
+    for (const reason of entry.reasons) {
+      if (typeof reason !== "string" || !known.has(reason)) {
+        throw new Error(
+          `Refusing to run: manifest entry ${index} (${entry.listingId}) carries unknown reason ` +
+            `code ${JSON.stringify(reason)}. Fail closed on an unrecognized manifest contract.`,
+        );
+      }
+    }
+    return {
+      listingId: entry.listingId.trim(),
+      listingKey: (entry.listingKey as string | null) ?? null,
+      reasons: entry.reasons as RecoveryReason[],
+    };
+  });
+
+  return {
+    generatedAt: doc.generatedAt,
+    includeMlsBackfill: doc.includeMlsBackfill === true,
+    providerPopulation: Number(doc.providerPopulation ?? 0),
+    localComparablePopulation: Number(doc.localComparablePopulation ?? 0),
+    absentLocally: Number(doc.absentLocally ?? 0),
+    totalsByReason: (doc.totalsByReason ?? {}) as RecoveryManifest["totalsByReason"],
+    diagnostics: (doc.diagnostics ?? {}) as RecoveryManifest["diagnostics"],
+    manifestSize: doc.manifestSize,
+    entries,
+  };
+}
+
+export function loadRecoveryManifest(manifestPath: string): RecoveryManifest {
+  let text: string;
+  try {
+    text = readFileSync(manifestPath, "utf8");
+  } catch (err) {
+    throw new Error(
+      `Refusing to run: cannot read the manifest at ${manifestPath} ` +
+        `(${err instanceof Error ? err.message : String(err)}). Build it first with ` +
+        "`npm run ops:build-recovery-manifest`.",
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    throw new Error(
+      `Refusing to run: the manifest at ${manifestPath} is not valid JSON ` +
+        `(${err instanceof Error ? err.message : String(err)}).`,
+    );
+  }
+  return parseRecoveryManifest(parsed);
+}
+
+export interface ManifestSelection {
+  /** Deduplicated, in manifest order. THE complete universe this run may touch. */
+  ids: string[];
+  /** Ids that appeared more than once. Reported, never silently collapsed. */
+  duplicateIds: string[];
+}
+
+/**
+ * Turn a manifest into the id universe. Duplicates are DEDUPED AND REPORTED:
+ * collapsing them silently would make `--total` mean something different from
+ * "rows touched", and a duplicated id is evidence the generator (or the file)
+ * is wrong — the operator needs to see which ones.
+ */
+export function selectManifestIds(manifest: RecoveryManifest): ManifestSelection {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  const ids: string[] = [];
+  for (const entry of manifest.entries) {
+    if (seen.has(entry.listingId)) {
+      duplicates.add(entry.listingId);
+      continue;
+    }
+    seen.add(entry.listingId);
+    ids.push(entry.listingId);
+  }
+  return { ids, duplicateIds: [...duplicates].sort() };
+}
+
+/**
+ * The membership refusal. Called per row BEFORE any Cotality fetch and before
+ * any read of the local row, so an id outside the manifest costs nothing and
+ * changes nothing. This is the guard that makes "the executor may touch nothing
+ * else" a property of the code rather than of the caller's discipline.
+ */
+export function assertListingIdInManifest(
+  listingId: string,
+  allowed: ReadonlySet<string>,
+): void {
+  if (!allowed.has(listingId)) {
+    throw new Error(
+      `Refusing to touch ${listingId}: it is not present in the recovery manifest. ` +
+        "This executor may only act on ids carrying a verified reconciliation reason.",
+    );
+  }
 }
 
 // ── Guards ──────────────────────────────────────────────────────────────────
@@ -336,73 +528,12 @@ export function assertWriteAuthorized(options: RecoveryOptions, env: RecoveryEnv
         "A run that writes to production must declare that it targets production.",
     );
   }
-}
-
-// ── Selection ───────────────────────────────────────────────────────────────
-
-/**
- * STATE-BASED selection — deliberately NOT cursor-based.
- *
- * The whole defect is that the provider keyset cursor cannot reach these rows,
- * so re-deriving selection from that cursor would select nothing. Selection is
- * therefore local state only: an eligible status plus a `last_synced_from_trestle`
- * older than the window.
- *
- * NULL `last_synced_from_trestle` is OUTSIDE this predicate (SQL `NULL < x` is
- * NULL, not TRUE). That is intentional and load-bearing: the SAME predicate
- * feeds the backlog `count` and every `findMany`, so the cap can never be
- * exceeded by a row the count did not see. Never-synced rows are a different
- * population and a different remediation.
- */
-export function buildStaleWhere(staleDays: number, now: Date): Prisma.ListingWhereInput {
-  return {
-    status: { in: [...RECOVERABLE_STATUSES] },
-    last_synced_from_trestle: { lt: new Date(now.getTime() - staleDays * MS_PER_DAY) },
-  };
-}
-
-/** Intra-run pagination position. Never persisted, never a provider position. */
-interface LocalPage {
-  lastSynced: Date;
-  listingId: string;
-}
-
-/**
- * Shape of one selected row. Annotated explicitly rather than inferred: the
- * `findMany` argument depends on the local page, which is derived from the
- * previous batch's rows, and TypeScript reports that as a circular initializer
- * (TS7022) unless the loop variable's type is pinned here.
- */
-interface SelectedRow {
-  listing_id: string;
-  last_synced_from_trestle: Date | null;
-}
-
-/**
- * Intra-run keyset predicate over (last_synced_from_trestle, listing_id).
- *
- * WHY THIS IS REQUIRED: `last_synced_from_trestle` is in
- * LISTING_NON_MATERIAL_UPDATE_FIELDS (lib/idx/write-suppression.ts:80), so a row
- * whose content did not change is SUPPRESSED and its staleness clock never
- * advances. Suppression is the expected majority outcome. Without a local
- * position the second `findMany` would return the byte-identical first page
- * forever — an all-suppressed livelock, the same shape as the all-skip cursor
- * livelock documented at lib/idx/sync.ts:855.
- *
- * `listing_id` is the tie-breaker because `last_synced_from_trestle` is not
- * unique — a bulk-stamped cluster without a tie-breaker can re-serve or skip
- * rows across pages.
- */
-function afterLocalPage(page: LocalPage): Prisma.ListingWhereInput {
-  return {
-    OR: [
-      { last_synced_from_trestle: { gt: page.lastSynced } },
-      {
-        last_synced_from_trestle: page.lastSynced,
-        listing_id: { gt: page.listingId },
-      },
-    ],
-  };
+  if (!options.manifest && !options.manifestPath) {
+    throw new Error(
+      "Refusing to execute: a manifest is REQUIRED for --execute. Build one with " +
+        "`npm run ops:build-recovery-manifest` and pass --manifest=<path>.",
+    );
+  }
 }
 
 // ── Per-row recovery ────────────────────────────────────────────────────────
@@ -426,16 +557,28 @@ interface RowResult {
   tags: string[];
 }
 
-async function recoverOneListing(
+/**
+ * Exported so the membership refusal can be proven to be WIRED IN — not merely
+ * to exist. A test calls this directly with an id outside the allowed set and
+ * asserts that it throws BEFORE any Cotality fetch and before any DB read.
+ */
+export async function recoverOneListing(
   listingId: string,
   execute: boolean,
+  allowedIds: ReadonlySet<string>,
 ): Promise<RowResult> {
+  // FIRST, before any I/O at all. See assertListingIdInManifest.
+  assertListingIdInManifest(listingId, allowedIds);
+
+  // RE-FETCH. The manifest said this id LOOKED different when the manifest was
+  // built; only the live provider record can say whether it still does. Nothing
+  // downstream reads the manifest again.
   const raw = await fetchSingleListing(listingId);
   if (raw === null) {
     // `fetchSingleListing` returns null for BOTH "no such record" and "HTTP
     // error / rate limited" (lib/idx/fetch.ts:252-278) and the caller cannot
     // tell them apart. Fail closed: an indistinguishable outcome is never a
-    // resolved one, so the row stays in the backlog for a later run.
+    // resolved one, so the row stays in the manifest for a later run.
     console.error(`[recover-stale] fetch returned no record for ${listingId}`);
     return { outcome: "failed", fetched: false, tags: [] };
   }
@@ -467,11 +610,11 @@ async function recoverOneListing(
     return { outcome: "skipped_new_terminal", fetched: true, tags: [] };
   }
   if (!existing) {
-    // Selection guarantees the row existed moments ago, and the ID census proved
-    // zero missing listings — so a null here is a concurrent delete, not an
-    // import gap. Creating it would silently turn a bounded refresh into an
-    // import path. Refuse.
-    console.error(`[recover-stale] ${listingId} vanished between selection and read; not creating.`);
+    // The manifest generator refuses to emit an id with no local row, and the ID
+    // census proved zero missing listings — so a null here is a concurrent
+    // delete, not an import gap. Creating it would silently turn a bounded
+    // refresh into an import path. Refuse.
+    console.error(`[recover-stale] ${listingId} has no local row; not creating.`);
     return { outcome: "failed", fetched: true, tags: [] };
   }
 
@@ -558,6 +701,11 @@ async function recoverOneListing(
   const existingRecord = existing as unknown as Record<string, unknown>;
   const updateRecord = listingUpdateData as Record<string, unknown>;
 
+  // THE MANIFEST DOES NOT REACH HERE. Suppression is decided by comparing the
+  // LIVE provider record against the LIVE local row. If the source converged
+  // between manifest build and execution, the write is suppressed exactly as it
+  // would be for any other run — a reason code never forces a write.
+  //
   // Provenance-only first: classifyListingChangeReasons returns [] for "nothing
   // changed", and isProvenanceOnlyChange([]) is false, so the two buckets below
   // are mutually exclusive.
@@ -621,7 +769,6 @@ export async function recoverStalePropertyListings(
   options: RecoveryOptions,
 ): Promise<RecoveryReport> {
   const env = options.env ?? process.env;
-  const now = options.now ?? new Date();
   const startedAt = Date.now();
 
   // ORDER IS DELIBERATE. The target guard runs FIRST and on EVERY run: a dry run
@@ -630,55 +777,67 @@ export async function recoverStalePropertyListings(
   assertCanonicalTarget(env);
   if (options.execute) assertWriteAuthorized(options, env);
 
+  // The injected manifest goes through the SAME validator as the on-disk one —
+  // a test fixture must not be able to smuggle in a shape production refuses.
+  let manifest: RecoveryManifest;
+  if (options.manifest) {
+    manifest = parseRecoveryManifest(options.manifest);
+  } else if (options.manifestPath) {
+    manifest = loadRecoveryManifest(options.manifestPath);
+  } else {
+    throw new Error(
+      "Refusing to run: no manifest supplied. Selection comes exclusively from a manifest " +
+        "produced by scripts/build-recovery-manifest.ts — pass --manifest=<path>.",
+    );
+  }
+
+  const { ids: manifestIds, duplicateIds } = selectManifestIds(manifest);
+  if (duplicateIds.length > 0) {
+    // Reported, never silently collapsed.
+    console.warn(
+      `[recover-stale] manifest contains ${duplicateIds.length} duplicated listing id(s); ` +
+        `deduplicated to ${manifestIds.length} unique id(s): ${duplicateIds.join(", ")}`,
+    );
+  }
+
   if (!Number.isSafeInteger(options.total) || options.total <= 0) {
     throw new Error(
       `Refusing to run: total must be an explicit finite positive integer (received ${String(options.total)}). ` +
         "There is no unbounded mode.",
     );
   }
-  const batchSize = clampBatchSize(options.batchSize);
-  const staleWhere = buildStaleWhere(options.staleDays, now);
-  const staleBefore = new Date(now.getTime() - options.staleDays * MS_PER_DAY);
-
-  // Same predicate as every findMany below, so the cap is measured against
-  // exactly the population that will be traversed.
-  const backlog = await prisma.listing.count({ where: staleWhere });
-  if (options.total > backlog) {
+  // THE MANIFEST IS THE HARD CEILING. A cap above it would let a run claim
+  // authority over rows nobody verified.
+  if (options.total > manifestIds.length) {
     throw new Error(
-      `Refusing to run: --total=${options.total} exceeds the measured backlog of ${backlog} ` +
-        `stale row(s) (status in ${RECOVERABLE_STATUSES.join("/")}, last_synced_from_trestle < ` +
-        `${staleBefore.toISOString()}). A cap larger than the backlog is not a cap.`,
+      `Refusing to run: --total=${options.total} exceeds the manifest's ${manifestIds.length} ` +
+        "unique listing id(s). The manifest size is the hard cap on a recovery run.",
     );
   }
+
+  const batchSize = clampBatchSize(options.batchSize);
+  // The universe this run may touch. `recoverOneListing` re-checks membership
+  // per row, so even a future refactor of the loop cannot widen it.
+  const allowedIds: ReadonlySet<string> = new Set(manifestIds);
+  const selectedIds = manifestIds.slice(0, options.total);
 
   const batches: RecoveryBatchTelemetry[] = [];
   const totals = newCounters();
   const revalidatedTags = new Set<string>();
   const revalidation = newRevalidationCounters();
 
-  let processed = 0;
-  let page: LocalPage | null = null;
   let batchNumber = 0;
-
-  while (processed < options.total) {
-    const take = Math.min(batchSize, options.total - processed);
-    const rows: SelectedRow[] = await prisma.listing.findMany({
-      where: page ? { AND: [staleWhere, afterLocalPage(page)] } : staleWhere,
-      orderBy: [{ last_synced_from_trestle: "asc" }, { listing_id: "asc" }],
-      take,
-      select: { listing_id: true, last_synced_from_trestle: true },
-    });
-    if (rows.length === 0) break;
-
+  for (let offset = 0; offset < selectedIds.length; offset += batchSize) {
+    const rows = selectedIds.slice(offset, offset + batchSize);
     batchNumber++;
     const batchStartedAt = Date.now();
     const counters = newCounters();
     counters.selected = rows.length;
     const batchTags = new Set<string>();
 
-    for (const row of rows) {
+    for (const listingId of rows) {
       try {
-        const result = await recoverOneListing(row.listing_id, options.execute);
+        const result = await recoverOneListing(listingId, options.execute, allowedIds);
         if (result.fetched) counters.fetched++;
         counters[result.outcome]++;
         for (const tag of result.tags) batchTags.add(tag);
@@ -687,15 +846,10 @@ export async function recoverStalePropertyListings(
         // corrupts the accounting — it is counted ONLY as failed.
         counters.failed++;
         console.error(
-          `[recover-stale] row ${row.listing_id} failed:`,
+          `[recover-stale] row ${listingId} failed:`,
           err instanceof Error ? err.message : err,
         );
       }
-      // The local position advances on EVERY outcome, including failures.
-      // A failed row that did not advance the position would be re-served as the
-      // head of the next page forever (the livelock this pagination exists to
-      // avoid); it stays in the backlog for a later run instead.
-      page = { lastSynced: row.last_synced_from_trestle ?? staleBefore, listingId: row.listing_id };
     }
 
     if (options.execute && batchTags.size > 0) {
@@ -713,7 +867,6 @@ export async function recoverStalePropertyListings(
     };
     batches.push(telemetry);
     addCounters(totals, counters);
-    processed += rows.length;
 
     console.log(
       `[recover-stale] batch ${JSON.stringify({ mode: options.execute ? "execute" : "dry-run", ...telemetry })}`,
@@ -722,9 +875,12 @@ export async function recoverStalePropertyListings(
 
   return {
     mode: options.execute ? "execute" : "dry-run",
-    stale_days: options.staleDays,
-    stale_before: staleBefore.toISOString(),
-    backlog,
+    manifest_path: options.manifest ? null : (options.manifestPath ?? null),
+    manifest_generated_at: manifest.generatedAt,
+    manifest_size: manifest.manifestSize,
+    manifest_unique_ids: manifestIds.length,
+    manifest_duplicate_ids: duplicateIds,
+    manifest_totals_by_reason: manifest.totalsByReason ?? {},
     requested_total: options.total,
     batch_size: batchSize,
     batches,
@@ -744,7 +900,7 @@ async function main(): Promise<void> {
     confirm: args.confirm,
     total: args.total,
     batchSize: args.batchSize,
-    staleDays: args.staleDays,
+    manifestPath: args.manifestPath,
   });
   console.log("[recover-stale] report");
   console.log(JSON.stringify(report, null, 2));

@@ -501,3 +501,60 @@ describe("ListingKey is requested from the provider", () => {
     expect(args.create.last_listing_key).toBeNull();
   });
 });
+
+// ── 8. REMAINING PRODUCTION SEAMS ────────────────────────────────────────────
+
+describe("required-field skip must not stall the cursor either", () => {
+  it("a record dropped by validateRequiredFields still records a position", async () => {
+    // The OTHER in-loop `continue`. Same hazard as the new-terminal skip: a page
+    // of unusable records must not leave cursorRows empty, or the identical page
+    // is re-fetched forever.
+    const bad = rawRecord({ ListingKey: "KEY_V", ListingId: "RLS900100" });
+    delete (bad as Record<string, unknown>).ListPrice;
+    delete (bad as Record<string, unknown>).StandardStatus;
+    delete (bad as Record<string, unknown>).PropertyType;
+    mockFetchFromTrestle.mockResolvedValue({ records: [bad], totalFetched: 1 });
+
+    const result = await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    expect(result.errors).toBe(0);
+    expect(mockUpsert).not.toHaveBeenCalled();
+    // The cursor still moves past it.
+    const args = syncStateArgs();
+    expect(args.update.last_listing_key).toBe("KEY_V");
+  });
+});
+
+describe("empty run", () => {
+  it("writes run telemetry but claims NO position", async () => {
+    // An empty batch must not invent a position — and must not freeze either.
+    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+
+    await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    const args = syncStateArgs();
+    expect(args.update).not.toHaveProperty("last_watermark");
+    expect(args.update).not.toHaveProperty("last_listing_key");
+    expect(args.update.last_run_at).toBeInstanceOf(Date);
+    expect(args.update.last_run_status).toBe("ok");
+  });
+});
+
+describe("same-timestamp cluster larger than the page cap", () => {
+  it("advances to the LAST key in the cluster, so the next run resumes after it", async () => {
+    // The 797-row production hazard in miniature: every record shares one
+    // ModificationTimestamp. Under a scalar cursor this either stalls or skips;
+    // the tie-breaker must land on the highest key actually processed.
+    const T = "2026-08-02T09:00:00.000Z";
+    const cluster = ["K01", "K02", "K03", "K04", "K05"].map((k, i) =>
+      rawRecord({ ListingKey: k, ListingId: `RLS9002${i}`, ModificationTimestamp: T }),
+    );
+    mockFetchFromTrestle.mockResolvedValue({ records: cluster, totalFetched: cluster.length });
+
+    await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
+
+    const args = syncStateArgs();
+    expect((args.update.last_watermark as Date).toISOString()).toBe(T);
+    expect(args.update.last_listing_key).toBe("K05");
+  });
+});
