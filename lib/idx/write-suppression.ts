@@ -515,6 +515,14 @@ export const LISTING_CHANGE_REASON_KEYS = [
   // identity convergence and must itself decay to zero as rows are touched,
   // and a second identical emit for the same row must produce no write at all.
   "source_identity",
+  // Physical/classification attributes. Uncategorized until 2026-08-14, so they
+  // all landed in `other` — which made the recovery forecast report 403/403 as
+  // `other` and told an operator nothing. Categorizing is behavior-NEUTRAL:
+  // `isProvenanceOnlyChange` tests for exactly ["modification_timestamp_only"],
+  // so no added key can create or destroy that verdict.
+  "classification",
+  "size",
+  "features",
   "other",
 ] as const;
 
@@ -549,6 +557,14 @@ const LISTING_FIELD_CHANGE_CATEGORY: Readonly<Record<string, ListingChangeReason
   // bucket is agent/office MLS ids, which are content about WHO holds the
   // listing. This is the key that identifies the record itself.
   mls_id: "source_identity",
+  listing_type: "classification",
+  property_type: "classification",
+  property_sub_type: "classification",
+  bedrooms_total: "size",
+  bathrooms_full: "size",
+  bathrooms_half: "size",
+  living_area: "size",
+  features: "features",
   status: "status",
   sync_status: "status",
   status_changed_at: "status",
