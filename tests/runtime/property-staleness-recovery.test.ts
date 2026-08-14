@@ -1505,3 +1505,129 @@ describe("ListingKey/mls_id convergence is one write, then silent", () => {
     assertSyncStateUntouched();
   });
 });
+
+// ── Round-8 adversarial-review regressions ─────────────────────────────────
+
+describe("canonical-target guard checks EVERY configured URL", () => {
+  const CANON = "postgres://u:p@ep-cold-waterfall-adno3ao2.c-2.us-east-1.aws.neon.tech/neondb";
+  const STALE = "postgres://u:p@ep-royal-dawn-ad6eh8t2.us-east-1.aws.neon.tech/neondb";
+
+  it("REFUSES a canonical unpooled URL paired with a STALE pooled URL", () => {
+    // Prisma Client connects through DATABASE_URL. Validating only the
+    // preferred (unpooled) variable let a canonical URL vouch for a stale one
+    // while every write landed in morning-bread / ep-royal-dawn.
+    expect(() =>
+      assertCanonicalTarget({ DATABASE_URL: STALE, DATABASE_URL_UNPOOLED: CANON }),
+    ).toThrow(/DATABASE_URL is not the canonical production endpoint/);
+  });
+
+  it("REFUSES a canonical pooled URL paired with a STALE unpooled URL", () => {
+    expect(() =>
+      assertCanonicalTarget({ DATABASE_URL: CANON, DATABASE_URL_UNPOOLED: STALE }),
+    ).toThrow(/DATABASE_URL_UNPOOLED is not the canonical production endpoint/);
+  });
+
+  it("ACCEPTS when every configured URL is canonical", () => {
+    expect(() =>
+      assertCanonicalTarget({ DATABASE_URL: CANON, DATABASE_URL_UNPOOLED: CANON }),
+    ).not.toThrow();
+    expect(() => assertCanonicalTarget({ DATABASE_URL: CANON })).not.toThrow();
+  });
+
+  it("still fails closed when nothing is configured", () => {
+    expect(() => assertCanonicalTarget({})).toThrow(/cannot be determined/);
+  });
+});
+
+describe("converged is only meaningful when every candidate was examined", () => {
+  const ID_A = "RLS100001";
+  const ID_B = "RLS100002";
+
+  function wireTwoConverged() {
+    const rawA = rawRecord({ ListingId: ID_A, ListingKey: "KA" });
+    const rawB = rawRecord({ ListingId: ID_B, ListingKey: "KB" });
+    wireStore(
+      new Map<string, Row>([
+        [ID_A, dbRowFromRaw(rawA)],
+        [ID_B, dbRowFromRaw(rawB)],
+      ]),
+    );
+    wireFeed(
+      new Map([
+        [ID_A, rawA],
+        [ID_B, rawB],
+      ]),
+    );
+  }
+
+  it("is FALSE for a partial run even when the examined slice is clean", async () => {
+    // --total smaller than the manifest examines only a slice. Reporting
+    // convergence from it would claim a verdict over rows never compared.
+    wireTwoConverged();
+    const report = await recoverStalePropertyListings(
+      options({ total: 1, manifest: manifest([entry(ID_A), entry(ID_B)]) }),
+    );
+    expect(report.candidate_count).toBe(2);
+    expect(report.totals.selected).toBe(1);
+    expect(report.material_correction_count).toBe(0);
+    expect(report.totals.failed).toBe(0);
+    expect(report.converged).toBe(false);
+  });
+
+  it("is TRUE when the FULL manifest was examined and nothing is material", async () => {
+    wireTwoConverged();
+    const report = await recoverStalePropertyListings(
+      options({ total: 2, manifest: manifest([entry(ID_A), entry(ID_B)]) }),
+    );
+    expect(report.totals.selected).toBe(2);
+    expect(report.material_correction_count).toBe(0);
+    expect(report.converged).toBe(true);
+  });
+
+  it("is FALSE when a row was SKIPPED instead of materially compared", async () => {
+    // skipped_archived returns BEFORE the material comparison, so the row is
+    // unresolved — not converged.
+    const archived = dbRowFromRaw(rawRecord({ ListingId: ID_A, ListingKey: "KA" }), {
+      sync_status: ARCHIVED_SYNC_STATUS,
+      raw_data: null,
+      status: "Active",
+    });
+    wireStore(new Map<string, Row>([[ID_A, archived]]));
+    // A NON-canonical incoming status keeps the row archived (#465 rounds 2/3).
+    wireFeed(
+      new Map([
+        [ID_A, rawRecord({ ListingId: ID_A, ListingKey: "KA", StandardStatus: "Pending", ListPrice: 999000 })],
+      ]),
+    );
+
+    const report = await recoverStalePropertyListings(
+      options({ total: 1, manifest: manifest([entry(ID_A)]) }),
+    );
+    expect(report.totals.skipped_archived).toBe(1);
+    expect(report.material_correction_count).toBe(0);
+    expect(report.totals.failed).toBe(0);
+    expect(report.converged).toBe(false);
+  });
+});
+
+describe("fetched counts the Cotality request even when the row later throws", () => {
+  const ID = "RLS100001";
+
+  it("counts a row that fetched and then failed during the write", async () => {
+    const raw = rawRecord({ ListingId: ID, ListingKey: "K1" });
+    wireStore(new Map<string, Row>([[ID, dbRowFromRaw(raw)]]));
+    wireFeed(new Map([[ID, rawRecord({ ListingId: ID, ListingKey: "K1", ListPrice: 7_500_000 })]]));
+    mockProjUpsert.mockImplementation(() => {
+      throw new Error("projection down");
+    });
+
+    const report = await recoverStalePropertyListings(
+      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1, manifest: manifest([entry(ID)]) }),
+    );
+
+    expect(report.totals.failed).toBe(1);
+    // The provider request WAS spent — it must show in the telemetry.
+    expect(report.totals.fetched).toBe(1);
+    expect(report.converged).toBe(false);
+  });
+});

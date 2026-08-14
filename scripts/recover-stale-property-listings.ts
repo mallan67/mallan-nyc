@@ -539,7 +539,27 @@ export function assertListingIdInManifest(
 
 // ── Guards ──────────────────────────────────────────────────────────────────
 
-/** Unpooled first — same precedence the other ops scripts use (scripts/backfill-terminal-since.ts:36). */
+/**
+ * EVERY connection string this process could actually write through.
+ *
+ * Checking one URL is not enough. `resolveDatabaseUrl` preferred
+ * `DATABASE_URL_UNPOOLED`, but Prisma Client connects via `DATABASE_URL` — so a
+ * canonical unpooled URL alongside a STALE pooled one passed the guard while
+ * every write went to the wrong database. That is the exact
+ * morning-bread/`ep-royal-dawn` hazard CLAUDE.md marks DO-NOT-SERVE. Both are
+ * validated; a run is refused unless every URL present is canonical.
+ */
+export function resolveDatabaseUrls(env: RecoveryEnv): Array<{ name: string; url: string }> {
+  return (["DATABASE_URL", "DATABASE_URL_UNPOOLED"] as const)
+    .map((name) => ({ name, url: env[name] || "" }))
+    .filter((e) => e.url.length > 0);
+}
+
+/**
+ * Kept for callers/tests that only need "is a target configured at all".
+ * Prefer `resolveDatabaseUrls` — this returns ONE url and cannot express the
+ * multi-variable check the guard now performs.
+ */
 export function resolveDatabaseUrl(env: RecoveryEnv): string | null {
   const url = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL || "";
   return url.length > 0 ? url : null;
@@ -555,19 +575,25 @@ export function resolveDatabaseUrl(env: RecoveryEnv): string | null {
  * The URL is NEVER echoed into the error — it carries credentials.
  */
 export function assertCanonicalTarget(env: RecoveryEnv): void {
-  const url = resolveDatabaseUrl(env);
-  if (url === null) {
+  const urls = resolveDatabaseUrls(env);
+  if (urls.length === 0) {
     throw new Error(
       "Refusing to run: the target database host cannot be determined " +
         "(DATABASE_URL_UNPOOLED / DATABASE_URL are unset or empty). Fail closed.",
     );
   }
-  if (!isCanonicalNeonHost(url)) {
-    throw new Error(
-      `Refusing to run: the resolved database host is not the canonical production ` +
-        `endpoint (${CANONICAL_NEON_HOST_SUBSTRING}). The legacy ep-royal-dawn-ad6eh8t2 / ` +
-        `morning-bread project is STALE / DO-NOT-SERVE and is refused explicitly.`,
-    );
+  // EVERY configured URL must be canonical, not just the preferred one. Prisma
+  // Client connects through `DATABASE_URL`, so validating only the unpooled
+  // variable would let a canonical unpooled URL vouch for a STALE pooled one
+  // while every write landed in the wrong database.
+  for (const { name, url } of urls) {
+    if (!isCanonicalNeonHost(url)) {
+      throw new Error(
+        `Refusing to run: ${name} is not the canonical production ` +
+          `endpoint (${CANONICAL_NEON_HOST_SUBSTRING}). The legacy ep-royal-dawn-ad6eh8t2 / ` +
+          `morning-bread project is STALE / DO-NOT-SERVE and is refused explicitly.`,
+      );
+    }
   }
 }
 
@@ -634,6 +660,9 @@ export async function recoverOneListing(
   listingId: string,
   execute: boolean,
   allowedIds: ReadonlySet<string>,
+  /** Fires the instant the provider record is in hand, so a caller can count
+   *  the Cotality request even if a later stage throws. */
+  onFetched?: () => void,
 ): Promise<RowResult> {
   // FIRST, before any I/O at all. See assertListingIdInManifest.
   assertListingIdInManifest(listingId, allowedIds);
@@ -642,6 +671,7 @@ export async function recoverOneListing(
   // built; only the live provider record can say whether it still does. Nothing
   // downstream reads the manifest again.
   const raw = await fetchSingleListing(listingId);
+  if (raw !== null) onFetched?.();
   if (raw === null) {
     // `fetchSingleListing` returns null for BOTH "no such record" and "HTTP
     // error / rate limited" (lib/idx/fetch.ts:252-278) and the caller cannot
@@ -974,8 +1004,17 @@ export async function recoverStalePropertyListings(
     const batchTags = new Set<string>();
 
     for (const listingId of rows) {
+      // A row that fetched successfully and THEN threw (e.g. the projection
+      // failing inside the transaction) still consumed a Cotality request. The
+      // resolve-path increment below cannot see it, so `fetched` would
+      // under-count exactly the rows an operator most wants to account for.
+      // `onFetched` fires the moment the provider record is in hand, so the
+      // count survives a later throw.
+      let fetchedThisRow = false;
       try {
-        const result = await recoverOneListing(listingId, options.execute, allowedIds);
+        const result = await recoverOneListing(listingId, options.execute, allowedIds, () => {
+          fetchedThisRow = true;
+        });
         if (result.fetched) counters.fetched++;
         counters[result.outcome]++;
         // Only a written row contributes to the forecast. Suppressed, skipped
@@ -984,7 +1023,10 @@ export async function recoverStalePropertyListings(
         for (const tag of result.tags) batchTags.add(tag);
       } catch (err) {
         // Failure isolation: one bad row never aborts the batch and never
-        // corrupts the accounting — it is counted ONLY as failed.
+        // corrupts the accounting — it is counted ONLY as failed. The provider
+        // request it already spent is still counted, so `fetched` reflects
+        // Cotality traffic rather than only the rows that survived.
+        if (fetchedThisRow) counters.fetched++;
         counters.failed++;
         console.error(
           `[recover-stale] row ${listingId} failed:`,
@@ -1031,8 +1073,23 @@ export async function recoverStalePropertyListings(
     revalidation_failures: revalidation.revalidation_failures,
     candidate_count: manifestIds.length,
     material_correction_count: totals.written,
-    // Convergence is a MATERIAL verdict. Candidates may legitimately remain.
-    converged: totals.written === 0 && totals.failed === 0,
+    // Convergence is a MATERIAL verdict — candidates may legitimately remain —
+    // but it is only meaningful if EVERY candidate was actually examined.
+    //
+    // `written === 0 && failed === 0` alone is not enough, and both gaps were
+    // reproduced against the real executor:
+    //   * a `--total` smaller than the manifest examines only a slice, so a
+    //     partial run could report converged while most candidates were never
+    //     compared at all;
+    //   * `skipped_archived` / `skipped_new_terminal` rows are returned BEFORE
+    //     the material comparison, so they are unresolved, not converged.
+    // Both are therefore disqualifying.
+    converged:
+      totals.written === 0 &&
+      totals.failed === 0 &&
+      totals.skipped_archived === 0 &&
+      totals.skipped_new_terminal === 0 &&
+      totals.selected === manifestIds.length,
     duration_ms: Date.now() - startedAt,
   };
 }
