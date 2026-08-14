@@ -53,6 +53,8 @@ import {
   RECOVERY_REASON_CODES,
   PROVIDER_ACTIVE_STATUSES,
   PROVIDER_SELECT_FIELDS,
+  fetchProviderExistingIds,
+  EXISTENCE_PROBE_CHUNK_SIZE,
   DEFAULT_MANIFEST_PATH,
   type LocalRow,
   type ManifestPrisma,
@@ -106,12 +108,14 @@ function manifestOf(
   providerRows: ProviderRow[],
   localRows: LocalRow[],
   includeMlsBackfill = false,
+  providerExistingIds?: ReadonlySet<string>,
 ) {
   return buildManifest({
     providerRows,
     localRows,
     includeMlsBackfill,
     generatedAt: "2026-08-13T12:00:00.000Z",
+    providerExistingIds,
   });
 }
 
@@ -540,6 +544,89 @@ describe("Mallan-owned rows are excluded from the reverse set", () => {
 
   it("reports zero exclusions when no Mallan-owned row is present", () => {
     expect(manifestOf([providerRow()], [localRow()]).diagnostics.mallanOwnedExcluded).toBe(0);
+  });
+});
+
+// ── 4d. Ghosts belong to feed-reconcile, not the recovery executor ──────────
+//
+// Pass 2 keys on absence from the Active-ish population, which covers TWO
+// conditions with DIFFERENT owners. Measured live 2026-08-14 on a 74-row
+// reverse set: 16 still exist at StandardStatus=Pending (executor work), 58 are
+// gone from the feed entirely (`@odata.count = 0` at HTTP 200 — not throttling).
+//
+// Emitting the 58 made the FULL dry run report `failed = 58`, permanently
+// blocking the `failed = 0` authorization gate: `fetchSingleListing` has
+// nothing to return and the executor fail-closes. `app/api/cron/feed-reconcile`
+// already owns them — Withdrawn + audit event, daily at `30 3 * * *`.
+
+describe("provider ghosts are deferred, not emitted as recovery work", () => {
+  const drifted = (id: string) => localRow({ listing_id: id, rls_eligible: true });
+
+  it("EMITS a reverse-set row the provider still holds at another status", () => {
+    const m = manifestOf([], [drifted("RLS777777")], false, new Set(["RLS777777"]));
+    expect(m.entries.map((e) => e.listingId)).toEqual(["RLS777777"]);
+    expect(m.entries[0].reasons).toEqual(["local_active_provider_terminal"]);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(0);
+  });
+
+  it("DEFERS a ghost the provider no longer holds at any status", () => {
+    const m = manifestOf([], [drifted("RLS777777")], false, new Set());
+    expect(m.entries).toHaveLength(0);
+    expect(m.totalsByReason.local_active_provider_terminal).toBe(0);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(1);
+  });
+
+  it("splits a mixed reverse set exactly, with no id lost or double-counted", () => {
+    const rows = [drifted("RLS100"), drifted("RLS200"), drifted("RLS300")];
+    const m = manifestOf([], rows, false, new Set(["RLS200"]));
+    expect(m.entries.map((e) => e.listingId)).toEqual(["RLS200"]);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(2);
+    expect(m.entries.length + m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(rows.length);
+  });
+
+  it("counts a Mallan-owned row as Mallan, never as a ghost", () => {
+    // Ordering matters: the ownership guard must run first, so Mallan rows are
+    // not double-counted into the feed-reconcile bucket.
+    const mallan = localRow({ listing_id: "SL-0004", rls_eligible: false, mls_id: null });
+    const m = manifestOf([], [mallan], false, new Set());
+    expect(m.diagnostics.mallanOwnedExcluded).toBe(1);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(0);
+  });
+
+  it("keeps the pre-probe behavior when the probe was not run", () => {
+    // `providerExistingIds` omitted => the generator cannot distinguish, so it
+    // must not silently drop rows. Only the CLI (which always probes) relies on
+    // the split; unit callers keep the old semantics.
+    const m = manifestOf([], [drifted("RLS777777")]);
+    expect(m.entries).toHaveLength(1);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(0);
+  });
+
+  it("chunks the existence probe and never exceeds the contractual size", async () => {
+    const ids = Array.from({ length: 38 }, (_, i) => `RLS${900000 + i}`);
+    const seen: number[] = [];
+    const httpGet = jest.fn(async (url: string) => {
+      // URLSearchParams encodes spaces as `+`, which decodeURIComponent does
+      // NOT restore — so count the unambiguous `$filter` term instead.
+      const filter = new URL(url).searchParams.get("$filter") ?? "";
+      seen.push((filter.match(/ListingId eq /g) ?? []).length);
+      return { value: [] };
+    });
+    await fetchProviderExistingIds(ids, { token: async () => "T", httpGet });
+    expect(seen.every((n) => n <= EXISTENCE_PROBE_CHUNK_SIZE)).toBe(true);
+    expect(seen.reduce((a, b) => a + b, 0)).toBe(ids.length);
+  });
+
+  it("treats a FAILED probe chunk as unknown -> deferred, never as recovery work", async () => {
+    // Fail-closed: a read we could not complete must not manufacture a repair.
+    const httpGet = jest.fn(async () => {
+      throw new Error("HTTP 503");
+    });
+    const found = await fetchProviderExistingIds(["RLS1", "RLS2"], {
+      token: async () => "T",
+      httpGet,
+    });
+    expect(found.size).toBe(0);
   });
 });
 

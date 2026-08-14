@@ -284,6 +284,15 @@ export interface ManifestDiagnostics {
    * only non-`RLS`-prefixed ids in the Active-ish set.
    */
   mallanOwnedExcluded: number;
+  /**
+   * Reverse-set rows absent from the provider at EVERY status -- ghosts.
+   * Deferred to app/api/cron/feed-reconcile, which transitions them to
+   * Withdrawn with an audit trail daily at 30 3 * * *. NOT recovery work: the
+   * executor has nothing to re-fetch and would book each one as a failure.
+   * Measured live 2026-08-14: 58 of a 74-row reverse set (the other 16 exist at
+   * StandardStatus=Pending and ARE emitted).
+   */
+  providerGhostsDeferredToFeedReconcile: number;
 }
 
 // ── Pure classification ─────────────────────────────────────────────────────
@@ -498,6 +507,17 @@ export interface BuildManifestInput {
   /** Default OFF — see `ManifestDiagnostics.mlsIdMissingOrWrongTotal`. */
   includeMlsBackfill: boolean;
   generatedAt?: string;
+  /**
+   * ListingIds from the reverse set that the provider still holds AT ANY
+   * STATUS — see `fetchProviderExistingIds`. Only these can become
+   * `local_active_provider_terminal`; the rest are ghosts owned by
+   * `app/api/cron/feed-reconcile`.
+   *
+   * OMITTED (undefined) means the probe was not run, and pass 2 keeps its
+   * pre-2026-08-14 behavior of emitting every reverse-set row. Callers that
+   * feed a live provider MUST pass it; the CLI always does.
+   */
+  providerExistingIds?: ReadonlySet<string>;
 }
 
 export function buildManifest(input: BuildManifestInput): RecoveryManifest {
@@ -527,6 +547,7 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
   let displayGateExplainedByLocalGate = 0;
   let staleLocalPermissionGates = 0;
   let mallanOwnedExcluded = 0;
+  let providerGhostsDeferredToFeedReconcile = 0;
 
   // Pass 1 — provider Active-ish rows against their local counterparts.
   for (const [listingId, provider] of providerById) {
@@ -574,6 +595,15 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       mallanOwnedExcluded++;
       continue;
     }
+    // Ghost: absent from the provider at EVERY status. The executor has nothing
+    // to re-fetch and fail-closes to `failed`, which would permanently block the
+    // `failed = 0` authorization gate. `app/api/cron/feed-reconcile` already
+    // owns this transition (to Withdrawn, with an audit event). Deferred, not
+    // dropped — the count is reported.
+    if (input.providerExistingIds !== undefined && !input.providerExistingIds.has(listingId)) {
+      providerGhostsDeferredToFeedReconcile++;
+      continue;
+    }
     // `listingKey` comes from the local mls_id when we have one — there is no
     // provider record to read it from. Usually null; that is honest, not a bug.
     classified.push(buildEntry(listingId, local.mls_id, ["local_active_provider_terminal"]));
@@ -613,6 +643,7 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       displayGateExplainedByLocalGate,
       staleLocalPermissionGates,
       mallanOwnedExcluded,
+      providerGhostsDeferredToFeedReconcile,
     },
     manifestSize: entries.length,
     entries,
@@ -662,6 +693,78 @@ function coerceProviderRow(raw: Record<string, unknown>): ProviderRow | null {
     Permission: nonEmpty(raw.Permission),
     MlsStatus: nonEmpty(raw.MlsStatus),
   };
+}
+
+/**
+ * Chunk size for the reverse-set existence probe. Matches the Property lookup
+ * in `scripts/recover-residual-listing-media.ts` — an `or`-joined ListingId
+ * filter grows the URL linearly and Trestle rejects over-long query strings.
+ */
+export const EXISTENCE_PROBE_CHUNK_SIZE = 15;
+
+/**
+ * Which of these ListingIds exist on the provider AT ANY STATUS.
+ *
+ * WHY THIS EXISTS. Pass 2 keys on absence from the Active-ish population, and
+ * that single signal covers TWO conditions with DIFFERENT OWNERS:
+ *
+ *   1. Still in the feed, moved to a non-Active-ish status (measured live:
+ *      16 rows, all `Pending`). The recovery executor re-fetches and corrects
+ *      these — genuinely its work.
+ *   2. Gone from the feed entirely (measured live: 58 rows, `@odata.count = 0`
+ *      at HTTP 200, so not throttling). These are GHOSTS, and they already have
+ *      a canonical owner: `app/api/cron/feed-reconcile`, which transitions them
+ *      to Withdrawn with an audit trail, daily at `30 3 * * *`, sparing
+ *      Pending/ActiveUnderContract/ComingSoon. It is demonstrably healthy —
+ *      production shows its last transition at exactly 2026-08-13 03:30 UTC and
+ *      90/522/2,079 withdrawals over 24h/7d/30d.
+ *
+ * Emitting (2) as recovery work is a defect: `fetchSingleListing` has nothing to
+ * return, the executor fail-closes to `failed`, and the pre-authorization gate
+ * `failed = 0` can never be met. It would also duplicate a compliance-shaped
+ * status transition that owes an audit event — a second implementation of
+ * exactly the kind this file refuses to make.
+ *
+ * Fail-closed: a chunk that errors marks its ids UNKNOWN, and an unknown id is
+ * NOT emitted as recovery work. We never manufacture a repair from a failed
+ * read.
+ */
+export async function fetchProviderExistingIds(
+  listingIds: readonly string[],
+  deps: Partial<ProviderFetchDeps> = {},
+): Promise<Set<string>> {
+  const found = new Set<string>();
+  if (listingIds.length === 0) return found;
+  const token = deps.token ?? getAccessToken;
+  const httpGet = deps.httpGet ?? defaultHttpGet;
+  const bearer = await token();
+
+  for (const group of chunk(listingIds, EXISTENCE_PROBE_CHUNK_SIZE)) {
+    const filter = group.map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`).join(" or ");
+    const url =
+      `${providerEndpoint()}?` +
+      new URLSearchParams({
+        $select: "ListingId",
+        $filter: filter,
+        $top: String(group.length),
+      }).toString();
+    try {
+      const page = await httpGet(url, bearer);
+      for (const raw of (page.value as Array<Record<string, unknown>>) ?? []) {
+        const id = nonEmpty(raw.ListingId);
+        if (id !== null) found.add(id);
+      }
+    } catch (err) {
+      // UNKNOWN, not absent. Leaving these out of `found` means they are
+      // treated as ghosts and deferred — the safe direction, since the
+      // executor could not have processed them anyway.
+      console.warn(
+        `[recovery-manifest] existence probe chunk failed (${group.length} ids): ` +
+          (err instanceof Error ? err.message : String(err)),
+      );
+    }
+  }
+  return found;
 }
 
 async function defaultHttpGet(url: string, bearer: string): Promise<Record<string, unknown>> {
@@ -852,10 +955,27 @@ async function main(): Promise<void> {
     `[recovery-manifest] local counterparts: ${counterparts.length}; local Active-ish: ${localActive.length}`,
   );
 
+  // The reverse set: locally Active-ish, absent from the provider Active-ish
+  // population. Probe each against the provider AT ANY STATUS so a ghost (gone
+  // from the feed) is separated from a live status change. Bounded by the
+  // reverse-set size, which is two orders of magnitude below the population.
+  const providerIdSet = new Set(providerRows.map((r) => r.ListingId));
+  const reverseSetIds = localActive
+    .filter((l) => !providerIdSet.has(l.listing_id))
+    .filter((l) => !isMallanExclusiveListing({ listing_id: l.listing_id, rls_eligible: l.rls_eligible }))
+    .map((l) => l.listing_id);
+  console.log(`[recovery-manifest] reverse set: ${reverseSetIds.length}; probing provider at any status…`);
+  const providerExistingIds = await fetchProviderExistingIds(reverseSetIds);
+  console.log(
+    `[recovery-manifest] reverse set still on provider: ${providerExistingIds.size}; ` +
+      `ghosts deferred to feed-reconcile: ${reverseSetIds.length - providerExistingIds.size}`,
+  );
+
   const manifest = buildManifest({
     providerRows,
     localRows: [...counterparts, ...localActive],
     includeMlsBackfill: args.includeMlsBackfill,
+    providerExistingIds,
   });
 
   const outPath = path.resolve(process.cwd(), args.outPath);
@@ -875,6 +995,8 @@ async function main(): Promise<void> {
   console.log(`display gate UNDER-display (we hide what is displayable) ${manifest.diagnostics.displayGateUnderDisplay}`);
   console.log(`display gate explained by a gate (suppressed)            ${manifest.diagnostics.displayGateExplainedByLocalGate}`);
   console.log(`stale local Permission gate columns (diagnostic only)     ${manifest.diagnostics.staleLocalPermissionGates}`);
+  console.log(`Mallan-owned rows excluded from the reverse set           ${manifest.diagnostics.mallanOwnedExcluded}`);
+  console.log(`provider GHOSTS deferred to feed-reconcile (not recovery) ${manifest.diagnostics.providerGhostsDeferredToFeedReconcile}`);
   console.log(`duplicate provider ListingIds    ${manifest.diagnostics.duplicateProviderListingIds}`);
   console.log("");
   if (manifest.absentLocally > 0) {
