@@ -665,7 +665,7 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       continue;
     }
     if (input.providerExistence !== undefined) {
-      const { existing, unknown } = input.providerExistence;
+      const { existing, absent, unknown } = input.providerExistence;
       // UNKNOWN: the provider never answered for this id. It is neither
       // recovery work nor a ghost — classifying it either way would be a guess.
       // Counted so the CLI can fail the build; never emitted, never deferred.
@@ -678,8 +678,18 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       // would permanently block the `failed = 0` gate, and
       // `app/api/cron/feed-reconcile` already owns the transition to Withdrawn
       // WITH an audit event. Deferred, not dropped — the count is reported.
-      if (!existing.has(listingId)) {
+      if (absent.has(listingId)) {
         providerGhostsDeferredToFeedReconcile++;
+        continue;
+      }
+      // In NONE of the three sets. Testing `!existing.has()` here would have
+      // deferred it as a ghost — the same absence-from-ignorance error in a
+      // different costume. An id the probe never covered (or whose key did not
+      // match: pass 2 keys on the TRIMMED listing_id while the probe stores the
+      // raw one) is not a proven absence. Count it as unknown so the CLI gate
+      // aborts rather than silently dropping the row.
+      if (!existing.has(listingId)) {
+        providerExistenceProbeUnknown++;
         continue;
       }
     }
@@ -896,8 +906,25 @@ export async function fetchProviderExistence(
     for (let attempt = 1; attempt <= EXISTENCE_PROBE_MAX_ATTEMPTS && !answered; attempt++) {
       try {
         const page = await httpGet(url, bearer);
+        // `?? []` would be WRONG here. `defaultHttpGet` throws only on `!res.ok`,
+        // so an HTTP 200 carrying an OData error envelope, a gateway soft-error,
+        // or `"value": null` parses fine and would yield an empty result set —
+        // which this function would then read as "the provider answered and
+        // returned none of them", i.e. authoritative absence for the whole
+        // chunk, with the retry loop bypassed because the attempt "succeeded".
+        // That is exactly the absence-from-ignorance confusion this tri-state
+        // exists to prevent. (The `?? []` idiom IS correct in the sync path,
+        // where an unreadable page means "do nothing" — safe by omission. Here
+        // it would mean "conclude a negative".)
+        if (!Array.isArray(page.value)) {
+          throw new Error(
+            "provider returned HTTP 200 without an array value (keys: " +
+              (Object.keys(page).join(",") || "none") +
+              ")",
+          );
+        }
         const returned = new Set<string>();
-        for (const raw of (page.value as Array<Record<string, unknown>>) ?? []) {
+        for (const raw of page.value as Array<Record<string, unknown>>) {
           const id = nonEmpty(raw.ListingId);
           if (id !== null) returned.add(id);
         }
@@ -1155,7 +1182,20 @@ async function main(): Promise<void> {
   // NOT sync_state.last_watermark: measured on production it equals last_run_at
   // exactly and exceeds the newest local modification_timestamp, i.e. it is a
   // wall clock -- the very defect this PR removes.
-  const absorbed = await prisma.listing.aggregate({ _max: { modification_timestamp: true } });
+  // `where: { last_synced_from_trestle: { not: null } }` is LOAD-BEARING, and
+  // matches the canonical reader `getLastSyncTimestamp` (lib/idx/sync.ts:2198).
+  // Without it the MAX runs over rows that non-Trestle writers stamp with a
+  // LOCAL WALL CLOCK — app/api/crm/convert, app/api/crm/listings[/id][/status],
+  // app/api/idx/ensure-listing, app/api/cron/listing-expiration,
+  // lib/media/crm-media — and those writers deliberately confine the stamp to
+  // rows where `last_synced_from_trestle IS NULL`, exactly the cohort this
+  // filter removes. One CRM save after the last sync cycle would drag the
+  // boundary to local NOW, classify every genuine new arrival as
+  // `unexplained_absent`, and make the generator refuse to write at all.
+  const absorbed = await prisma.listing.aggregate({
+    where: { last_synced_from_trestle: { not: null } },
+    _max: { modification_timestamp: true },
+  });
   const absorbedThroughMt = absorbed._max.modification_timestamp ?? null;
   console.log(
     `[recovery-manifest] absorbed through provider MT: ${absorbedThroughMt?.toISOString() ?? "(none)"}`,
@@ -1176,8 +1216,17 @@ async function main(): Promise<void> {
   // moves forward and can be observed twice — which is why a literal
   // `duplicateProviderListingIds = 0` is not a stable invariant on a live feed.
   let identityCollisions = 0;
+  let unresolvedDuplicateProbes = 0;
   for (const id of manifest.diagnostics.duplicateProviderListingIdSamples) {
     const n = await providerRecordCount(id);
+    if (n < 0) {
+      // The provider did not answer. NOT a collision — reporting it as one
+      // would blame the data for a network failure. Same rule as the existence
+      // probe: an unreadable read is UNKNOWN, and unknown blocks the build.
+      unresolvedDuplicateProbes++;
+      console.error(`[recovery-manifest] duplicate id ${id}: provider did not answer (UNKNOWN)`);
+      continue;
+    }
     if (n !== 1) identityCollisions++;
     console.log(
       `[recovery-manifest] duplicate id ${id}: ` +
@@ -1205,6 +1254,12 @@ async function main(): Promise<void> {
     blockers.push(
       `absentLocallyUnknownTimestamp=${manifest.diagnostics.absentLocallyUnknownTimestamp} ` +
         `(unreadable provider ModificationTimestamp — cannot prove it is a new arrival)`,
+    );
+  }
+  if (unresolvedDuplicateProbes > 0) {
+    blockers.push(
+      `unresolvedDuplicateProbes=${unresolvedDuplicateProbes} ` +
+        `(the provider did not answer for a duplicated id — artifact vs collision is unknown)`,
     );
   }
   if (identityCollisions > 0) {

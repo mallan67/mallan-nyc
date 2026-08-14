@@ -748,6 +748,80 @@ describe("existence probe is TRI-STATE", () => {
   });
 });
 
+// ── 4e-bis. Adversarial-review regressions (round 7) ───────────────────────
+//
+// Found by an independent review AFTER the tri-state landed. Each is the same
+// error the tri-state exists to prevent, wearing a different costume.
+
+describe("absence requires a real answer, in every disguise", () => {
+  it("HTTP 200 with NO `value` array is a NON-ANSWER, not an empty result", async () => {
+    // defaultHttpGet throws only on !res.ok, so an OData error envelope or a
+    // gateway soft-error parses fine. `?? []` would have made that an empty
+    // result set => the whole chunk booked as authoritatively absent, with the
+    // retry loop bypassed because the attempt "succeeded".
+    for (const body of [{ error: { code: "429" } }, { "@odata.context": "x", value: null }]) {
+      const httpGet = jest.fn(async () => body as Record<string, unknown>);
+      const r = await fetchProviderExistence(["RLS1", "RLS2"], {
+        token: async () => "T",
+        httpGet,
+      });
+      expect(r.absent.size).toBe(0);
+      expect(r.existing.size).toBe(0);
+      expect([...r.unknown].sort()).toEqual(["RLS1", "RLS2"]);
+      // It must RETRY — a non-answer is not an answer.
+      expect(httpGet).toHaveBeenCalledTimes(EXISTENCE_PROBE_MAX_ATTEMPTS);
+    }
+  });
+
+  it("an empty `value` ARRAY still IS a real answer -> authoritative absence", () => {
+    // The complement: a genuine "none of these exist" must stay authoritative,
+    // otherwise the ghost path could never fire.
+    return fetchProviderExistence(["RLS1"], {
+      token: async () => "T",
+      httpGet: async () => ({ value: [] }),
+    }).then((r) => {
+      expect([...r.absent]).toEqual(["RLS1"]);
+      expect(r.unknown.size).toBe(0);
+    });
+  });
+
+  it("an id in NONE of the three sets is UNKNOWN, never a ghost", () => {
+    // Pass 2 keys on the TRIMMED listing_id while the probe stores the raw one,
+    // so an id can miss all three sets. Testing `!existing.has()` would have
+    // deferred it as a proven ghost.
+    const m = buildManifest({
+      providerRows: [],
+      localRows: [localRow({ listing_id: "RLS-UNSEEN", rls_eligible: true })],
+      includeMlsBackfill: false,
+      generatedAt: "2026-08-13T12:00:00.000Z",
+      providerExistence: {
+        existing: new Set<string>(),
+        absent: new Set<string>(),
+        unknown: new Set<string>(),
+      },
+    });
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(0);
+    expect(m.diagnostics.providerExistenceProbeUnknown).toBe(1);
+    expect(m.entries).toHaveLength(0);
+  });
+
+  it("only a PROVEN-absent id becomes a ghost", () => {
+    const m = buildManifest({
+      providerRows: [],
+      localRows: [localRow({ listing_id: "RLS-GHOST", rls_eligible: true })],
+      includeMlsBackfill: false,
+      generatedAt: "2026-08-13T12:00:00.000Z",
+      providerExistence: {
+        existing: new Set<string>(),
+        absent: new Set(["RLS-GHOST"]),
+        unknown: new Set<string>(),
+      },
+    });
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(1);
+    expect(m.diagnostics.providerExistenceProbeUnknown).toBe(0);
+  });
+});
+
 // ── 4f. absentLocally is classified against the ABSORBED provider boundary ──
 
 describe("absentLocally classification", () => {
