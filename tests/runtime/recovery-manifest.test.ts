@@ -53,8 +53,10 @@ import {
   RECOVERY_REASON_CODES,
   PROVIDER_ACTIVE_STATUSES,
   PROVIDER_SELECT_FIELDS,
-  fetchProviderExistingIds,
+  fetchProviderExistence,
+  classifyAbsentLocally,
   EXISTENCE_PROBE_CHUNK_SIZE,
+  EXISTENCE_PROBE_MAX_ATTEMPTS,
   DEFAULT_MANIFEST_PATH,
   type LocalRow,
   type ManifestPrisma,
@@ -108,14 +110,28 @@ function manifestOf(
   providerRows: ProviderRow[],
   localRows: LocalRow[],
   includeMlsBackfill = false,
-  providerExistingIds?: ReadonlySet<string>,
+  existingIds?: ReadonlySet<string>,
+  absorbedThroughMt?: Date | null,
 ) {
+  // Mirrors the CLI: whatever is not `existing` is PROVEN absent. Tests that
+  // need the UNKNOWN state build the tri-state explicitly instead.
+  const providerExistence =
+    existingIds === undefined
+      ? undefined
+      : {
+          existing: new Set(existingIds),
+          absent: new Set(
+            localRows.map((l) => l.listing_id).filter((id) => !existingIds.has(id)),
+          ),
+          unknown: new Set<string>(),
+        };
   return buildManifest({
     providerRows,
     localRows,
     includeMlsBackfill,
     generatedAt: "2026-08-13T12:00:00.000Z",
-    providerExistingIds,
+    providerExistence,
+    absorbedThroughMt,
   });
 }
 
@@ -612,21 +628,209 @@ describe("provider ghosts are deferred, not emitted as recovery work", () => {
       seen.push((filter.match(/ListingId eq /g) ?? []).length);
       return { value: [] };
     });
-    await fetchProviderExistingIds(ids, { token: async () => "T", httpGet });
+    await fetchProviderExistence(ids, { token: async () => "T", httpGet });
     expect(seen.every((n) => n <= EXISTENCE_PROBE_CHUNK_SIZE)).toBe(true);
     expect(seen.reduce((a, b) => a + b, 0)).toBe(ids.length);
   });
+});
 
-  it("treats a FAILED probe chunk as unknown -> deferred, never as recovery work", async () => {
-    // Fail-closed: a read we could not complete must not manufacture a repair.
+// ── 4e. A FAILED READ IS UNKNOWN, NEVER ABSENCE ─────────────────────────────
+//
+// The first version returned a single `found` set and callers read "not in
+// found" as authoritative absence. A transient 503 therefore reclassified a LIVE
+// listing as a ghost, and because feed-reconcile deliberately SPARES Pending,
+// nothing would ever correct it — the stale local Active row would persist
+// indefinitely. Absence and ignorance are different facts.
+
+describe("existence probe is TRI-STATE", () => {
+  const ok = (present: string[]) =>
+    jest.fn(async () => ({ value: present.map((id) => ({ ListingId: id })) }));
+
+  it("HTTP 200 + id returned -> EXISTING", async () => {
+    const r = await fetchProviderExistence(["RLS1"], {
+      token: async () => "T",
+      httpGet: ok(["RLS1"]),
+    });
+    expect([...r.existing]).toEqual(["RLS1"]);
+    expect(r.absent.size).toBe(0);
+    expect(r.unknown.size).toBe(0);
+  });
+
+  it("HTTP 200 + id NOT returned -> AUTHORITATIVELY ABSENT", async () => {
+    // Only a successful provider answer may establish absence.
+    const r = await fetchProviderExistence(["RLS1", "RLS2"], {
+      token: async () => "T",
+      httpGet: ok(["RLS1"]),
+    });
+    expect([...r.existing]).toEqual(["RLS1"]);
+    expect([...r.absent]).toEqual(["RLS2"]);
+    expect(r.unknown.size).toBe(0);
+  });
+
+  it("HTTP 503 on every attempt -> UNKNOWN, never absent", async () => {
     const httpGet = jest.fn(async () => {
       throw new Error("HTTP 503");
     });
-    const found = await fetchProviderExistingIds(["RLS1", "RLS2"], {
+    const r = await fetchProviderExistence(["RLS1", "RLS2"], {
       token: async () => "T",
       httpGet,
     });
-    expect(found.size).toBe(0);
+    expect(r.unknown.size).toBe(2);
+    expect(r.absent.size).toBe(0);
+    expect(r.existing.size).toBe(0);
+    expect(httpGet).toHaveBeenCalledTimes(EXISTENCE_PROBE_MAX_ATTEMPTS);
+  });
+
+  it("a TIMEOUT is UNKNOWN, never absent", async () => {
+    const httpGet = jest.fn(async () => {
+      throw Object.assign(new Error("The operation was aborted due to timeout"), {
+        name: "TimeoutError",
+      });
+    });
+    const r = await fetchProviderExistence(["RLS9"], { token: async () => "T", httpGet });
+    expect([...r.unknown]).toEqual(["RLS9"]);
+    expect(r.absent.size).toBe(0);
+  });
+
+  it("bounded retry that SUCCEEDS classifies normally", async () => {
+    let calls = 0;
+    const httpGet = jest.fn(async () => {
+      if (++calls < EXISTENCE_PROBE_MAX_ATTEMPTS) throw new Error("HTTP 502");
+      return { value: [{ ListingId: "RLS1" }] };
+    });
+    const r = await fetchProviderExistence(["RLS1", "RLS2"], {
+      token: async () => "T",
+      httpGet,
+    });
+    expect([...r.existing]).toEqual(["RLS1"]);
+    expect([...r.absent]).toEqual(["RLS2"]);
+    expect(r.unknown.size).toBe(0);
+  });
+
+  it("an UNKNOWN row is neither recovery work nor a ghost", async () => {
+    // The whole point: it must not silently become either classification.
+    const m = buildManifest({
+      providerRows: [],
+      localRows: [localRow({ listing_id: "RLS777777", rls_eligible: true })],
+      includeMlsBackfill: false,
+      generatedAt: "2026-08-13T12:00:00.000Z",
+      providerExistence: {
+        existing: new Set<string>(),
+        absent: new Set<string>(),
+        unknown: new Set(["RLS777777"]),
+      },
+    });
+    expect(m.entries).toHaveLength(0);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(0);
+    expect(m.diagnostics.providerExistenceProbeUnknown).toBe(1);
+  });
+
+  it("the live-Pending scenario the old code silently broke", async () => {
+    // Local Active; Cotality actually holds it as Pending; the probe 503s.
+    // Old behaviour: ghost -> deferred -> feed-reconcile spares Pending ->
+    // never corrected. New behaviour: UNKNOWN -> build fails closed.
+    const httpGet = jest.fn(async () => {
+      throw new Error("HTTP 503");
+    });
+    const probe = await fetchProviderExistence(["RLS20087208"], {
+      token: async () => "T",
+      httpGet,
+    });
+    const m = buildManifest({
+      providerRows: [],
+      localRows: [localRow({ listing_id: "RLS20087208", rls_eligible: true })],
+      includeMlsBackfill: false,
+      generatedAt: "2026-08-13T12:00:00.000Z",
+      providerExistence: probe,
+    });
+    expect(m.diagnostics.providerExistenceProbeUnknown).toBe(1);
+    expect(m.diagnostics.providerGhostsDeferredToFeedReconcile).toBe(0);
+  });
+});
+
+// ── 4f. absentLocally is classified against the ABSORBED provider boundary ──
+
+describe("absentLocally classification", () => {
+  const BOUNDARY = new Date("2026-08-14T03:20:41.000Z");
+  const absentProvider = (id: string, mt: string | null) =>
+    providerRow({ ListingId: id, ListingKey: `K${id}`, ModificationTimestamp: mt });
+
+  it("a provider row NEWER than the absorbed boundary is an expected new arrival", () => {
+    const m = manifestOf(
+      [absentProvider("RLS20109373", "2026-08-14T03:21:23.000Z")],
+      [],
+      false,
+      new Set(),
+      BOUNDARY,
+    );
+    expect(m.absentLocally).toBe(1);
+    expect(m.diagnostics.absentLocallyExpectedNew).toBe(1);
+    expect(m.diagnostics.absentLocallyUnexplained).toBe(0);
+    expect(m.entries).toHaveLength(0); // never recovery work — update-only executor
+  });
+
+  it("a provider row OLDER than the boundary is UNEXPLAINED", () => {
+    const m = manifestOf(
+      [absentProvider("RLS111", "2026-08-01T00:00:00.000Z")],
+      [],
+      false,
+      new Set(),
+      BOUNDARY,
+    );
+    expect(m.diagnostics.absentLocallyUnexplained).toBe(1);
+    expect(m.diagnostics.absentLocallyExpectedNew).toBe(0);
+  });
+
+  it("a provider row EXACTLY AT the boundary is UNEXPLAINED, not excused", () => {
+    // Equality sits inside the same-timestamp cluster the keyset cursor exists
+    // to traverse — an absent row there is the cluster-loss defect itself.
+    const m = manifestOf(
+      [absentProvider("RLS222", BOUNDARY.toISOString())],
+      [],
+      false,
+      new Set(),
+      BOUNDARY,
+    );
+    expect(m.diagnostics.absentLocallyUnexplained).toBe(1);
+    expect(m.diagnostics.absentLocallyExpectedNew).toBe(0);
+  });
+
+  it("an unreadable provider timestamp is UNKNOWN, never excused", () => {
+    for (const mt of [null, "not-a-date"]) {
+      const m = manifestOf([absentProvider("RLS333", mt)], [], false, new Set(), BOUNDARY);
+      expect(m.diagnostics.absentLocallyUnknownTimestamp).toBe(1);
+      expect(m.diagnostics.absentLocallyExpectedNew).toBe(0);
+      expect(m.diagnostics.absentLocallyUnexplained).toBe(0);
+    }
+  });
+
+  it("a MISSING boundary is UNKNOWN — we cannot claim the row is late", () => {
+    expect(classifyAbsentLocally("2026-08-14T03:21:23.000Z", null)).toBe("unknown_absent_time");
+    expect(classifyAbsentLocally("2026-08-14T03:21:23.000Z", undefined)).toBe(
+      "unknown_absent_time",
+    );
+  });
+
+  it("the three classes ALWAYS reconcile exactly to absentLocally", () => {
+    const m = manifestOf(
+      [
+        absentProvider("RLS-NEW", "2026-08-14T03:59:00.000Z"),
+        absentProvider("RLS-OLD", "2026-08-01T00:00:00.000Z"),
+        absentProvider("RLS-BAD", "not-a-date"),
+      ],
+      [],
+      false,
+      new Set(),
+      BOUNDARY,
+    );
+    const d = m.diagnostics;
+    expect(m.absentLocally).toBe(3);
+    expect(
+      d.absentLocallyExpectedNew + d.absentLocallyUnexplained + d.absentLocallyUnknownTimestamp,
+    ).toBe(m.absentLocally);
+    expect(d.absentLocallyExpectedNew).toBe(1);
+    expect(d.absentLocallyUnexplained).toBe(1);
+    expect(d.absentLocallyUnknownTimestamp).toBe(1);
   });
 });
 

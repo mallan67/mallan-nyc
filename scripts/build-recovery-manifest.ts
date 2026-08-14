@@ -293,6 +293,30 @@ export interface ManifestDiagnostics {
    * StandardStatus=Pending and ARE emitted).
    */
   providerGhostsDeferredToFeedReconcile: number;
+  /**
+   * Reverse-set rows the provider NEVER ANSWERED for, after bounded retry.
+   * A failed read is UNKNOWN, not absence: treating it as absence would defer a
+   * live listing to feed-reconcile, which deliberately spares Pending, so
+   * nothing would ever correct it. These rows are classified NEITHER way.
+   *
+   * MUST be 0 for a valid production manifest -- the CLI refuses to write the
+   * artifact otherwise.
+   */
+  providerExistenceProbeUnknown: number;
+  /**
+   * Split of `absentLocally`. These three ALWAYS sum to it exactly.
+   *
+   * A live feed adds listings between our sync cycles, so `absentLocally = 0` is
+   * not a stable gate. The production gate is instead
+   * `absentLocallyUnexplained = 0` AND `absentLocallyUnknownTimestamp = 0`;
+   * expected new arrivals MAY exist and are left to the normal incremental
+   * Property owner, never put into recovery (the executor is update-only).
+   */
+  absentLocallyExpectedNew: number;
+  /** Provider MT at/before the absorbed boundary -- we should already hold it. */
+  absentLocallyUnexplained: number;
+  /** Provider MT missing/unparseable, or no local boundary to compare against. */
+  absentLocallyUnknownTimestamp: number;
 }
 
 // ── Pure classification ─────────────────────────────────────────────────────
@@ -508,16 +532,32 @@ export interface BuildManifestInput {
   includeMlsBackfill: boolean;
   generatedAt?: string;
   /**
-   * ListingIds from the reverse set that the provider still holds AT ANY
-   * STATUS — see `fetchProviderExistingIds`. Only these can become
-   * `local_active_provider_terminal`; the rest are ghosts owned by
-   * `app/api/cron/feed-reconcile`.
+   * TRI-STATE reverse-set classification — see `fetchProviderExistence`.
+   * `existing` rows become `local_active_provider_terminal`; PROVEN `absent`
+   * rows are ghosts owned by `app/api/cron/feed-reconcile`; `unknown` rows are
+   * counted and must abort the build, never classified either way.
    *
    * OMITTED (undefined) means the probe was not run, and pass 2 keeps its
    * pre-2026-08-14 behavior of emitting every reverse-set row. Callers that
    * feed a live provider MUST pass it; the CLI always does.
    */
-  providerExistingIds?: ReadonlySet<string>;
+  providerExistence?: ProviderExistence;
+  /**
+   * The newest provider ModificationTimestamp this deployment has actually
+   * ABSORBED — `MAX(listings.modification_timestamp)`. Used to classify
+   * `absentLocally` rows; see `classifyAbsentLocally`.
+   *
+   * WHY NOT `sync_state.last_watermark`. Measured on canonical production
+   * 2026-08-14: `last_watermark` (04:00:40) equals `last_run_at` EXACTLY and is
+   * LATER than the newest local `modification_timestamp` (03:59:58) — it is a
+   * wall clock, not a provider instant, which is the defect this PR removes.
+   * Comparing a provider MT against our run clock is that same cross-clock
+   * error. `MAX(modification_timestamp)` is provider-domain on both sides and is
+   * what `getPropertyKeysetCursor()` already bootstraps from.
+   *
+   * OMITTED means absent rows are only counted, never classified.
+   */
+  absorbedThroughMt?: Date | null;
 }
 
 export function buildManifest(input: BuildManifestInput): RecoveryManifest {
@@ -548,6 +588,10 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
   let staleLocalPermissionGates = 0;
   let mallanOwnedExcluded = 0;
   let providerGhostsDeferredToFeedReconcile = 0;
+  let providerExistenceProbeUnknown = 0;
+  let absentLocallyExpectedNew = 0;
+  let absentLocallyUnexplained = 0;
+  let absentLocallyUnknownTimestamp = 0;
 
   // Pass 1 — provider Active-ish rows against their local counterparts.
   for (const [listingId, provider] of providerById) {
@@ -559,6 +603,16 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       // live census measured this at exactly 0 and a non-zero value means the
       // problem changed shape.
       absentLocally++;
+      switch (classifyAbsentLocally(provider.ModificationTimestamp, input.absorbedThroughMt)) {
+        case "expected_new_arrival":
+          absentLocallyExpectedNew++;
+          break;
+        case "unexplained_absent":
+          absentLocallyUnexplained++;
+          break;
+        default:
+          absentLocallyUnknownTimestamp++;
+      }
       continue;
     }
     localComparablePopulation++;
@@ -595,14 +649,24 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       mallanOwnedExcluded++;
       continue;
     }
-    // Ghost: absent from the provider at EVERY status. The executor has nothing
-    // to re-fetch and fail-closes to `failed`, which would permanently block the
-    // `failed = 0` authorization gate. `app/api/cron/feed-reconcile` already
-    // owns this transition (to Withdrawn, with an audit event). Deferred, not
-    // dropped — the count is reported.
-    if (input.providerExistingIds !== undefined && !input.providerExistingIds.has(listingId)) {
-      providerGhostsDeferredToFeedReconcile++;
-      continue;
+    if (input.providerExistence !== undefined) {
+      const { existing, unknown } = input.providerExistence;
+      // UNKNOWN: the provider never answered for this id. It is neither
+      // recovery work nor a ghost — classifying it either way would be a guess.
+      // Counted so the CLI can fail the build; never emitted, never deferred.
+      if (unknown.has(listingId)) {
+        providerExistenceProbeUnknown++;
+        continue;
+      }
+      // PROVEN ABSENT (provider answered, did not return it): a ghost. The
+      // executor has nothing to re-fetch and fail-closes to `failed`, which
+      // would permanently block the `failed = 0` gate, and
+      // `app/api/cron/feed-reconcile` already owns the transition to Withdrawn
+      // WITH an audit event. Deferred, not dropped — the count is reported.
+      if (!existing.has(listingId)) {
+        providerGhostsDeferredToFeedReconcile++;
+        continue;
+      }
     }
     // `listingKey` comes from the local mls_id when we have one — there is no
     // provider record to read it from. Usually null; that is honest, not a bug.
@@ -644,6 +708,10 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       staleLocalPermissionGates,
       mallanOwnedExcluded,
       providerGhostsDeferredToFeedReconcile,
+      providerExistenceProbeUnknown,
+      absentLocallyExpectedNew,
+      absentLocallyUnexplained,
+      absentLocallyUnknownTimestamp,
     },
     manifestSize: entries.length,
     entries,
@@ -729,12 +797,70 @@ export const EXISTENCE_PROBE_CHUNK_SIZE = 15;
  * NOT emitted as recovery work. We never manufacture a repair from a failed
  * read.
  */
-export async function fetchProviderExistingIds(
+/** How a provider Active-ish row with no local counterpart is explained. */
+export type AbsentClass = "expected_new_arrival" | "unexplained_absent" | "unknown_absent_time";
+
+/**
+ * Classify ONE absent provider row against the boundary we have absorbed.
+ *
+ * `absentLocally = 0` is NOT a stable invariant against a live feed: listings
+ * appear on Cotality between our sync cycles, and a generator that demanded a
+ * literal zero would fail at random depending on when it ran. The real question
+ * is whether an absent row is one we SHOULD already hold.
+ *
+ * STRICTLY greater than the boundary is required for "expected". A row whose MT
+ * EQUALS the boundary sits inside the same-timestamp cluster the keyset cursor
+ * exists to traverse, and an absent row there is precisely the cluster-loss
+ * defect this PR repairs — so equality is `unexplained`, the fail-closed
+ * direction that forces investigation rather than excusing it.
+ */
+export function classifyAbsentLocally(
+  providerMt: string | null,
+  absorbedThroughMt: Date | null | undefined,
+): AbsentClass {
+  const ms = parseProviderTimestamp(providerMt);
+  if (ms === null) return "unknown_absent_time";
+  // No boundary (empty local table) — we cannot claim the row is late.
+  if (absorbedThroughMt === null || absorbedThroughMt === undefined) return "unknown_absent_time";
+  return ms > absorbedThroughMt.getTime() ? "expected_new_arrival" : "unexplained_absent";
+}
+
+export interface ProviderExistence {
+  /** Provider returned the row. HTTP 200 + present. */
+  existing: Set<string>;
+  /** Provider answered successfully and did NOT return the row. HTTP 200 + absent. */
+  absent: Set<string>;
+  /** The provider never answered. NOT absence — see below. */
+  unknown: Set<string>;
+}
+
+/** Attempts per chunk before its ids are declared UNKNOWN. */
+export const EXISTENCE_PROBE_MAX_ATTEMPTS = 3;
+
+/**
+ * Classify these ListingIds against the provider AT ANY STATUS, as a TRI-STATE.
+ *
+ * A FAILED READ IS NOT AN ABSENCE. The first version of this returned a single
+ * `found` set and callers treated "not in found" as authoritative absence, so a
+ * transient HTTP 503 silently reclassified a live listing as a ghost. The
+ * concrete failure: a locally-Active listing that is actually `Pending` on
+ * Cotality gets a 503 on its probe chunk, is deferred as a ghost, and
+ * feed-reconcile deliberately SPARES Pending — so nothing ever corrects it and
+ * the stale local Active row persists indefinitely. Absence and ignorance are
+ * different facts and must not share a representation.
+ *
+ * Only a SUCCESSFUL provider response may establish absence. A chunk is retried
+ * up to `EXISTENCE_PROBE_MAX_ATTEMPTS`; if it still fails, every id in it lands
+ * in `unknown` and the caller MUST fail the build rather than classify.
+ */
+export async function fetchProviderExistence(
   listingIds: readonly string[],
   deps: Partial<ProviderFetchDeps> = {},
-): Promise<Set<string>> {
-  const found = new Set<string>();
-  if (listingIds.length === 0) return found;
+): Promise<ProviderExistence> {
+  const existing = new Set<string>();
+  const absent = new Set<string>();
+  const unknown = new Set<string>();
+  if (listingIds.length === 0) return { existing, absent, unknown };
   const token = deps.token ?? getAccessToken;
   const httpGet = deps.httpGet ?? defaultHttpGet;
   const bearer = await token();
@@ -748,23 +874,41 @@ export async function fetchProviderExistingIds(
         $filter: filter,
         $top: String(group.length),
       }).toString();
-    try {
-      const page = await httpGet(url, bearer);
-      for (const raw of (page.value as Array<Record<string, unknown>>) ?? []) {
-        const id = nonEmpty(raw.ListingId);
-        if (id !== null) found.add(id);
+
+    let answered = false;
+    let lastErr = "";
+    for (let attempt = 1; attempt <= EXISTENCE_PROBE_MAX_ATTEMPTS && !answered; attempt++) {
+      try {
+        const page = await httpGet(url, bearer);
+        const returned = new Set<string>();
+        for (const raw of (page.value as Array<Record<string, unknown>>) ?? []) {
+          const id = nonEmpty(raw.ListingId);
+          if (id !== null) returned.add(id);
+        }
+        // The provider ANSWERED. Everything it did not return is now
+        // authoritatively absent — this is the only path that may say so.
+        for (const id of group) {
+          if (returned.has(id)) existing.add(id);
+          else absent.add(id);
+        }
+        answered = true;
+      } catch (err) {
+        lastErr = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `[recovery-manifest] existence probe chunk attempt ${attempt}/` +
+            `${EXISTENCE_PROBE_MAX_ATTEMPTS} failed (${group.length} ids): ${lastErr}`,
+        );
       }
-    } catch (err) {
-      // UNKNOWN, not absent. Leaving these out of `found` means they are
-      // treated as ghosts and deferred — the safe direction, since the
-      // executor could not have processed them anyway.
-      console.warn(
-        `[recovery-manifest] existence probe chunk failed (${group.length} ids): ` +
-          (err instanceof Error ? err.message : String(err)),
+    }
+    if (!answered) {
+      for (const id of group) unknown.add(id);
+      console.error(
+        `[recovery-manifest] existence probe UNKNOWN for ${group.length} id(s) after ` +
+          `${EXISTENCE_PROBE_MAX_ATTEMPTS} attempts: ${lastErr}`,
       );
     }
   }
-  return found;
+  return { existing, absent, unknown };
 }
 
 async function defaultHttpGet(url: string, bearer: string): Promise<Record<string, unknown>> {
@@ -965,17 +1109,29 @@ async function main(): Promise<void> {
     .filter((l) => !isMallanExclusiveListing({ listing_id: l.listing_id, rls_eligible: l.rls_eligible }))
     .map((l) => l.listing_id);
   console.log(`[recovery-manifest] reverse set: ${reverseSetIds.length}; probing provider at any status…`);
-  const providerExistingIds = await fetchProviderExistingIds(reverseSetIds);
+  const providerExistence = await fetchProviderExistence(reverseSetIds);
   console.log(
-    `[recovery-manifest] reverse set still on provider: ${providerExistingIds.size}; ` +
-      `ghosts deferred to feed-reconcile: ${reverseSetIds.length - providerExistingIds.size}`,
+    `[recovery-manifest] reverse set: existing ${providerExistence.existing.size}; ` +
+      `proven-absent ghosts ${providerExistence.absent.size}; ` +
+      `UNKNOWN ${providerExistence.unknown.size}`,
+  );
+
+  // The boundary we have actually ABSORBED, in the provider's own MT domain.
+  // NOT sync_state.last_watermark: measured on production it equals last_run_at
+  // exactly and exceeds the newest local modification_timestamp, i.e. it is a
+  // wall clock -- the very defect this PR removes.
+  const absorbed = await prisma.listing.aggregate({ _max: { modification_timestamp: true } });
+  const absorbedThroughMt = absorbed._max.modification_timestamp ?? null;
+  console.log(
+    `[recovery-manifest] absorbed through provider MT: ${absorbedThroughMt?.toISOString() ?? "(none)"}`,
   );
 
   const manifest = buildManifest({
     providerRows,
     localRows: [...counterparts, ...localActive],
     includeMlsBackfill: args.includeMlsBackfill,
-    providerExistingIds,
+    providerExistence,
+    absorbedThroughMt,
   });
 
   const outPath = path.resolve(process.cwd(), args.outPath);
@@ -997,6 +1153,10 @@ async function main(): Promise<void> {
   console.log(`stale local Permission gate columns (diagnostic only)     ${manifest.diagnostics.staleLocalPermissionGates}`);
   console.log(`Mallan-owned rows excluded from the reverse set           ${manifest.diagnostics.mallanOwnedExcluded}`);
   console.log(`provider GHOSTS deferred to feed-reconcile (not recovery) ${manifest.diagnostics.providerGhostsDeferredToFeedReconcile}`);
+  console.log(`provider existence probe UNKNOWN (must be 0)              ${manifest.diagnostics.providerExistenceProbeUnknown}`);
+  console.log(`  ↳ absent: expected NEW arrivals                         ${manifest.diagnostics.absentLocallyExpectedNew}`);
+  console.log(`  ↳ absent: UNEXPLAINED (must be 0)                       ${manifest.diagnostics.absentLocallyUnexplained}`);
+  console.log(`  ↳ absent: UNKNOWN timestamp (must be 0)                 ${manifest.diagnostics.absentLocallyUnknownTimestamp}`);
   console.log(`duplicate provider ListingIds    ${manifest.diagnostics.duplicateProviderListingIds}`);
   console.log("");
   if (manifest.absentLocally > 0) {
