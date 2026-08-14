@@ -125,7 +125,10 @@ import {
   newRevalidationCounters,
   safeRevalidateTags,
 } from "@/lib/cache/public-cache";
-import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import {
+  dualWriteProjectionForListingId,
+  type DualWriteProjectionPrisma,
+} from "@/lib/search/listing-search-projection";
 import { isCanonicalNeonHost, CANONICAL_NEON_HOST_SUBSTRING } from "@/lib/ops/canonical-neon-target";
 import {
   RECOVERY_REASON_CODES,
@@ -238,6 +241,35 @@ export interface RecoveryReport {
   totals: RecoveryCounters;
   /** Canonical attribution of the would-write rows. See WriteReasonForecast. */
   would_write_by_reason: WriteReasonForecast;
+  /**
+   * Rows the manifest nominated for a MATERIAL comparison. A candidate is a
+   * hypothesis, not a defect: `provider_mt_newer` only means the provider has a
+   * newer REVISION, which after provenance-write suppression is expected to
+   * persist indefinitely for rows whose revision changed nothing material.
+   */
+  candidate_count: number;
+  /**
+   * Rows the canonical comparison says actually need a physical write. THIS is
+   * the authorization size — not `candidate_count`.
+   */
+  material_correction_count: number;
+  /**
+   * The convergence verdict. TRUE when nothing material remains, regardless of
+   * how many candidates the manifest still nominates.
+   *
+   * `manifestSize = 0` is the WRONG success condition under provenance-write
+   * suppression: a provider revision that changed only ModificationTimestamp
+   * intentionally advances the source cursor WITHOUT writing the listing, so
+   * `provider MT > listings.modification_timestamp` can hold forever. Demanding
+   * a zero candidate count would either never converge or force exactly the
+   * provenance-only writes this PR exists to remove.
+   *
+   * The two clocks are deliberately different and must never be conflated:
+   *   `listings.modification_timestamp` = last MATERIAL listing change stored
+   *   `sync_state` (watermark + last_listing_key) = latest provider revision
+   *                                                 position traversed
+   */
+  converged: boolean;
   /** Cache tags expired for materially-changed rows (empty in dry run). */
   revalidated_tags: string[];
   revalidation_failures: number;
@@ -768,18 +800,47 @@ export async function recoverOneListing(
     return { outcome: "written", fetched: true, tags: [], reasons: changeReasons };
   }
 
-  // UPDATE, never upsert — see the header. The row provably exists (read above)
-  // and this executor must be structurally incapable of creating one.
-  await prisma.listing.update({
-    where: { listing_id: mapped.listing_id },
-    data: listingUpdateData,
+  // ATOMIC: the listing row and its search projection commit together or not at
+  // all.
+  //
+  // WHY THIS PATH NEEDS A TRANSACTION AND THE SYNC PATH DOES NOT. Canonical sync
+  // runs the projection stage BEFORE `recordCursorPosition(raw, true)`
+  // (lib/idx/sync.ts), so a projection failure lands in the per-row catch, the
+  // source row is never recorded as processed, and the composite cursor RETRIES
+  // it on the next pass. The cursor is that path's retry anchor.
+  //
+  // This executor has no such anchor: it traverses a manifest, never writes
+  // `sync_state`, and re-derives its worklist from a MATERIAL comparison. So a
+  // committed listing UPDATE followed by a failed projection would be
+  // unrecoverable — the next run compares the (now-updated) listing against
+  // Cotality, finds it materially equal, suppresses, and the stale projection is
+  // never repaired. Search would serve stale data indefinitely while the
+  // executor reported convergence.
+  //
+  // Rolling back means the row simply stays a material correction candidate and
+  // the next run retries the whole thing. The projection error is NOT caught
+  // here: catching it and committing anyway is the exact defect this prevents.
+  await prisma.$transaction(async (tx) => {
+    // UPDATE, never upsert — see the header. The row provably exists (read
+    // above) and this executor must be structurally incapable of creating one.
+    await tx.listing.update({
+      where: { listing_id: mapped.listing_id },
+      data: listingUpdateData,
+    });
+    // Search reads listing_search_projection (lib/search/core.ts:149), so a
+    // material listing write that skipped the projection would leave search
+    // stale. Reuses the canonical dual-write helper — no second projection
+    // builder. `DualWriteProjectionPrisma` is structural, so the transaction
+    // client satisfies it directly.
+    await dualWriteProjectionForListingId(
+      tx as unknown as DualWriteProjectionPrisma,
+      mapped.listing_id,
+    );
   });
 
-  // Search reads listing_search_projection (lib/search/core.ts:149), so a
-  // material listing write that skipped the projection would leave search stale.
-  // Reuses the canonical dual-write helper — no second projection builder.
-  await dualWriteProjectionForListingId(prisma, mapped.listing_id);
-
+  // Cache invalidation happens only on the caller's side, after this returns —
+  // i.e. only for a COMMITTED transaction. A rolled-back row throws before here,
+  // is counted `failed`, and contributes no tags.
   return { outcome: "written", fetched: true, tags, reasons: changeReasons };
 }
 
@@ -968,6 +1029,10 @@ export async function recoverStalePropertyListings(
     would_write_by_reason: writeReasons,
     revalidated_tags: [...revalidatedTags].sort(),
     revalidation_failures: revalidation.revalidation_failures,
+    candidate_count: manifestIds.length,
+    material_correction_count: totals.written,
+    // Convergence is a MATERIAL verdict. Candidates may legitimately remain.
+    converged: totals.written === 0 && totals.failed === 0,
     duration_ms: Date.now() - startedAt,
   };
 }

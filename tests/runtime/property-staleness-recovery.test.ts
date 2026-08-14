@@ -56,6 +56,24 @@ const mockSyncStateCreate = jest.fn();
 const mockSyncStateFindUnique = jest.fn();
 const mockDisconnect = jest.fn();
 
+/** The store currently wired by `wireStore`, for transaction snapshot/restore. */
+let activeStore: Map<string, Row> | null = null;
+
+const mockTxBegin = jest.fn();
+const mockTxCommit = jest.fn();
+const mockTxRollback = jest.fn();
+/** The client handed to the $transaction callback — same seams as the root. */
+const txClient = {
+  listing: {
+    update: (a: unknown) => mockListingUpdate(a),
+    findUnique: (a: unknown) => mockListingFindUnique(a),
+  },
+  listingSearchProjection: {
+    findUnique: (a: unknown) => mockProjFindUnique(a),
+    upsert: (a: unknown) => mockProjUpsert(a),
+  },
+};
+
 jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: {
@@ -78,6 +96,31 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: (a: unknown) => mockSyncStateFindUnique(a),
     },
     $disconnect: () => mockDisconnect(),
+    // Mirrors Prisma's interactive-transaction contract closely enough to prove
+    // the executor's semantics: the callback receives a client, and if it
+    // THROWS the rejection propagates (a real engine additionally rolls back).
+    // `mockTxBegin/Commit/Rollback` record the lifecycle so a test can assert
+    // that nothing was committed on failure.
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) => {
+      mockTxBegin();
+      // Snapshot so a failed callback restores prior state, the way a real
+      // engine rolls back. Deep-enough copy: rows are flat column bags.
+      const snapshot = activeStore
+        ? new Map([...activeStore].map(([k, v]) => [k, { ...v }] as const))
+        : null;
+      try {
+        const out = await fn(txClient);
+        mockTxCommit();
+        return out;
+      } catch (err) {
+        if (snapshot && activeStore) {
+          activeStore.clear();
+          for (const [k, v] of snapshot) activeStore.set(k, v);
+        }
+        mockTxRollback();
+        throw err;
+      }
+    },
   },
 }));
 
@@ -287,6 +330,10 @@ function dbRowFromRaw(
 type Row = Record<string, unknown>;
 
 function wireStore(store: Map<string, Row>) {
+  // Handed to the $transaction mock so a rolled-back transaction actually
+  // RESTORES prior state — without that, a "rollback" test would silently
+  // measure committed state and pass for the wrong reason.
+  activeStore = store;
   mockListingFindUnique.mockImplementation(
     async (args: { where: { listing_id: string }; select?: Record<string, unknown> }) => {
       const row = store.get(args.where.listing_id);
@@ -1225,5 +1272,236 @@ describe("write-reason forecast", () => {
     expect(
       f.source_identity_only + f.source_identity_plus_material + f.material_without_source_identity,
     ).toBe(2);
+  });
+});
+
+// ── Recovery listing+projection atomicity (round 8, Maya decision 2) ────────
+//
+// Canonical sync runs the projection stage BEFORE recordCursorPosition, so a
+// projection failure leaves the source row unrecorded and the composite cursor
+// RETRIES it — the cursor is that path's retry anchor. This executor has no such
+// anchor: it traverses a manifest, never writes sync_state, and re-derives its
+// worklist from a MATERIAL comparison. A committed listing UPDATE followed by a
+// failed projection would therefore be UNRECOVERABLE: the next run finds the
+// listing materially equal to Cotality, suppresses, and the stale projection is
+// never repaired while the executor reports convergence.
+
+describe("recovery write is atomic: listing + projection commit together", () => {
+  const ID = "RLS100001";
+
+  function wireMaterialDifference() {
+    const raw = rawRecord({ ListingId: ID, ListingKey: "K1" });
+    wireStore(new Map<string, Row>([[ID, dbRowFromRaw(raw)]]));
+    // A real price delta => a material correction, not a provenance bump.
+    wireFeed(new Map([[ID, rawRecord({ ListingId: ID, ListingKey: "K1", ListPrice: 4_250_000 })]]));
+  }
+
+  it("A. update + projection both succeed -> ONE transaction, committed, tags returned", async () => {
+    wireMaterialDifference();
+    const res = await recoverOneListing(ID, true, new Set([ID]));
+
+    expect(res.outcome).toBe("written");
+    expect(mockTxBegin).toHaveBeenCalledTimes(1);
+    expect(mockTxCommit).toHaveBeenCalledTimes(1);
+    expect(mockTxRollback).not.toHaveBeenCalled();
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+    expect(mockProjUpsert).toHaveBeenCalled();
+    assertSyncStateUntouched();
+  });
+
+  it("B. projection THROWS -> rollback, outcome failed, NO cache tags", async () => {
+    wireMaterialDifference();
+    mockProjUpsert.mockImplementationOnce(() => {
+      throw new Error("projection upsert exploded");
+    });
+
+    await expect(recoverOneListing(ID, true, new Set([ID]))).rejects.toThrow(
+      /projection upsert exploded/,
+    );
+
+    expect(mockTxRollback).toHaveBeenCalledTimes(1);
+    expect(mockTxCommit).not.toHaveBeenCalled();
+    // The listing update was ISSUED inside the transaction; the engine undoes
+    // it. What must never happen is the executor swallowing the error and
+    // reporting success — the rejection above is that proof.
+    assertSyncStateUntouched();
+  });
+
+  it("B2. the whole run books it as failed and invalidates NOTHING", async () => {
+    wireMaterialDifference();
+    mockProjUpsert.mockImplementation(() => {
+      throw new Error("projection down");
+    });
+
+    const report = await recoverStalePropertyListings(
+      options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1, manifest: manifest([entry(ID)]) }),
+    );
+
+    expect(report.totals.failed).toBe(1);
+    expect(report.totals.written).toBe(0);
+    expect(report.revalidated_tags).toEqual([]);
+    expect(report.revalidation_failures).toBe(0);
+    // A failed row contributes no material correction and blocks convergence.
+    expect(report.material_correction_count).toBe(0);
+    expect(report.converged).toBe(false);
+    assertSyncStateUntouched();
+  });
+
+  it("C. a retry after the projection recovers commits BOTH", async () => {
+    wireMaterialDifference();
+    mockProjUpsert.mockImplementationOnce(() => {
+      throw new Error("transient");
+    });
+    await expect(recoverOneListing(ID, true, new Set([ID]))).rejects.toThrow(/transient/);
+
+    // Rolled back => the row is still materially different on the retry.
+    const res = await recoverOneListing(ID, true, new Set([ID]));
+    expect(res.outcome).toBe("written");
+    expect(mockTxCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("E. the executor can NEVER report a written row without a committed projection", async () => {
+    // The invariant behind A-C: `written` is returned only after $transaction
+    // resolves, and $transaction resolves only if the projection call resolved.
+    wireMaterialDifference();
+    mockProjUpsert.mockImplementation(() => {
+      throw new Error("always down");
+    });
+    const outcomes: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      await recoverOneListing(ID, true, new Set([ID])).then(
+        (r) => outcomes.push(r.outcome),
+        () => outcomes.push("threw"),
+      );
+    }
+    expect(outcomes).toEqual(["threw", "threw", "threw"]);
+    expect(mockTxCommit).not.toHaveBeenCalled();
+  });
+});
+
+// ── Convergence is a MATERIAL verdict, not an empty candidate list ──────────
+//
+// Maya decision 1: do NOT reintroduce provenance-only listing writes to make a
+// report reach zero. `provider_mt_newer` is a CANDIDATE signal; the canonical
+// comparison is the authority.
+
+describe("provider-revision-only candidates converge WITHOUT a write", () => {
+  const ID = "RLS100001";
+
+  function wireProvenanceOnlyRevision() {
+    const raw = rawRecord({ ListingId: ID, ListingKey: "K1" });
+    const row = dbRowFromRaw(raw);
+    wireStore(new Map<string, Row>([[ID, row]]));
+    // SAME material content, NEWER provider ModificationTimestamp.
+    wireFeed(
+      new Map([
+        [
+          ID,
+          rawRecord({
+            ListingId: ID,
+            ListingKey: "K1",
+            ModificationTimestamp: "2099-01-01T00:00:00.000Z",
+          }),
+        ],
+      ]),
+    );
+  }
+
+  it("suppresses as provenance-only with ZERO writes, and reports converged", async () => {
+    wireProvenanceOnlyRevision();
+    const report = await recoverStalePropertyListings(
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([entry(ID, ["provider_mt_newer"])]),
+      }),
+    );
+
+    expect(report.totals.suppressed_provenance_only).toBe(1);
+    expect(report.totals.written).toBe(0);
+    expect(report.totals.failed).toBe(0);
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+    expect(mockTxBegin).not.toHaveBeenCalled();
+
+    // THE CONTRACT: a candidate remains, yet the system IS converged.
+    expect(report.candidate_count).toBe(1);
+    expect(report.material_correction_count).toBe(0);
+    expect(report.converged).toBe(true);
+    assertSyncStateUntouched();
+  });
+
+  it("stays converged on a SECOND pass — no self-regenerating write loop", async () => {
+    wireProvenanceOnlyRevision();
+    const opts = () =>
+      options({
+        execute: true,
+        confirm: RECOVERY_CONFIRM_TOKEN,
+        total: 1,
+        manifest: manifest([entry(ID, ["provider_mt_newer"])]),
+      });
+
+    const first = await recoverStalePropertyListings(opts());
+    const second = await recoverStalePropertyListings(opts());
+
+    for (const r of [first, second]) {
+      expect(r.totals.written).toBe(0);
+      expect(r.material_correction_count).toBe(0);
+      expect(r.converged).toBe(true);
+    }
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+  });
+});
+
+// ── ListingKey-in-features: ONE write, self-extinguishing (round 8, Task 8) ──
+//
+// Adding ListingKey to the Property select puts it in the features blob, because
+// `features` is built from B2_CLASSIFICATION — which ALREADY carries the sibling
+// identity fields `ListingId` and `SourceSystemKey`. Identity-in-features is the
+// established canonical shape here, not an anomaly introduced by this PR, and
+// ListingKey is a public IDX identifier (it is the Media ResourceRecordKey), not
+// a HIDDEN_FIELDS entry. What must be proven is that it costs ONE physical write
+// and then stops.
+
+describe("ListingKey/mls_id convergence is one write, then silent", () => {
+  const ID = "RLS100001";
+
+  it("first emit: ONE listing write carrying BOTH source_identity and features", async () => {
+    const raw = rawRecord({ ListingId: ID, ListingKey: "K-NEW" });
+    const stale = dbRowFromRaw(raw);
+    // Pre-convergence shape: no mls_id, and features without ListingKey.
+    stale.mls_id = null;
+    stale.features = { ...(stale.features as Record<string, unknown>) };
+    delete (stale.features as Record<string, unknown>).ListingKey;
+    const store = new Map<string, Row>([[ID, stale]]);
+    wireStore(store);
+    wireFeed(new Map([[ID, raw]]));
+
+    const res = await recoverOneListing(ID, true, new Set([ID]));
+
+    expect(res.outcome).toBe("written");
+    // ONE physical write, not one per reason.
+    expect(mockListingUpdate).toHaveBeenCalledTimes(1);
+    expect(res.reasons).toEqual(expect.arrayContaining(["source_identity", "features"]));
+    assertSyncStateUntouched();
+  });
+
+  it("second identical emit: ZERO writes", async () => {
+    const raw = rawRecord({ ListingId: ID, ListingKey: "K-NEW" });
+    const stale = dbRowFromRaw(raw);
+    stale.mls_id = null;
+    stale.features = { ...(stale.features as Record<string, unknown>) };
+    delete (stale.features as Record<string, unknown>).ListingKey;
+    const store = new Map<string, Row>([[ID, stale]]);
+    wireStore(store);
+    wireFeed(new Map([[ID, raw]]));
+
+    await recoverOneListing(ID, true, new Set([ID]));
+    mockListingUpdate.mockClear();
+
+    const second = await recoverOneListing(ID, true, new Set([ID]));
+    expect(second.outcome).toBe("suppressed_unchanged");
+    expect(mockListingUpdate).not.toHaveBeenCalled();
+    assertSyncStateUntouched();
   });
 });
