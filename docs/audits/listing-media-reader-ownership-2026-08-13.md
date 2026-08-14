@@ -1637,3 +1637,108 @@ tombstones, all eight failure counters **0**, `cursor_writes` **0**,
 `keys_resolved_via_property_lookup` **97/97**.
 
 Both dry runs wrote nothing — verified against production counters.
+
+---
+
+## 26. ROUND 8 — CONVERGENCE SEMANTICS, ATOMICITY, AND 5 MORE REVIEW DEFECTS
+
+### 26.1 Convergence without restoring provenance writes (Maya decision 1)
+
+`manifestSize = 0` cannot be the success condition once provenance-only writes
+are suppressed. A provider revision that changes only `ModificationTimestamp`
+intentionally advances the source cursor WITHOUT writing the listing, so
+`provider MT > listings.modification_timestamp` holds forever for that row.
+Demanding a zero candidate count would either never converge or force back
+exactly the writes this PR removes.
+
+`provider_mt_newer` is now documented as a CANDIDATE / DISCOVERY signal. The
+report separates:
+
+| field | meaning |
+|---|---|
+| `candidate_count` | rows nominated for comparison |
+| `material_correction_count` | rows the canonical comparison says must be written |
+| `converged` | material == 0 AND failed == 0 AND nothing skipped-without-comparison AND the FULL manifest examined |
+
+TWO CLOCKS, deliberately different, never to be conflated again:
+
+    listings.modification_timestamp  = last MATERIAL listing change stored
+    sync_state watermark + last_listing_key = latest provider REVISION traversed
+
+### 26.2 Recovery listing + projection atomicity (Maya decision 2)
+
+The execute path committed the listing UPDATE then called
+`dualWriteProjectionForListingId`. A projection failure left the listing changed
+and the projection stale, and it was UNRECOVERABLE: the next run finds the
+listing materially equal to Cotality, suppresses, and never repairs the
+projection while reporting convergence.
+
+Both writes now run inside ONE `prisma.$transaction`; the projection error is
+deliberately NOT caught inside it; cache invalidation happens only after commit.
+
+Canonical sync is deliberately UNCHANGED: it runs the projection stage BEFORE
+`recordCursorPosition`, so a projection failure leaves the source row unrecorded
+and the composite cursor RETRIES it. The cursor is that path's retry anchor. This
+executor traverses a manifest, never writes `sync_state`, and re-derives its
+worklist from a material comparison — no equivalent anchor exists, hence the
+transaction.
+
+### 26.3 Round-8 adversarial review — 5 confirmed defects
+
+A second bounded review (12 agents) reproduced five defects against the REAL
+executor, not by inspection:
+
+1. **BLOCKER** — `converged` could be TRUE for a run that never examined most of
+   the manifest. `candidate_count` is the whole manifest but the run walks only
+   the `--total` slice, so a 1-row slice of a 400-row manifest reported
+   convergence. Now additionally requires `totals.selected === manifestIds.length`.
+2. **MAJOR** — the canonical-target guard validated
+   `DATABASE_URL_UNPOOLED || DATABASE_URL`, but Prisma Client connects through
+   `DATABASE_URL`. A canonical unpooled URL paired with a STALE pooled one passed
+   the guard while every write went to morning-bread / `ep-royal-dawn-ad6eh8t2`,
+   which CLAUDE.md marks DO-NOT-SERVE. EVERY configured URL is now validated.
+3. **MAJOR** — `converged` was true when rows were SKIPPED. `skipped_archived` /
+   `skipped_new_terminal` return BEFORE the material comparison, so those rows are
+   unresolved, not converged. Both now disqualify.
+4. **MINOR** — `totals.fetched` under-counted rows that fetched from Cotality and
+   then threw during the write. An `onFetched` callback now records the request
+   the moment the provider record is in hand.
+5. **MINOR** — the transaction test could not detect a regression swapping the
+   tx client for the root client (both delegate to the same jest mocks). Left as
+   a known test-sensitivity limit; the behavioural rollback path IS covered.
+
+Combined across rounds 7 and 8: **12 confirmed defects found by adversarial
+review, all fixed**, each mutation-proven.
+
+### 26.4 ListingKey in `features` — verified, not assumed (Task 8)
+
+`features` differs on every would-write row because this PR added `ListingKey` to
+the Property select and `features` is built from `B2_CLASSIFICATION`, which
+ALREADY carries the sibling identity fields `ListingId` and `SourceSystemKey`.
+Identity-in-features is therefore the established canonical shape here, not an
+anomaly introduced by this PR, and `ListingKey` is a public IDX identifier (the
+Media `ResourceRecordKey`) — not a `HIDDEN_FIELDS` entry, so no exposure.
+
+Proven by test: the first emit costs ONE physical write carrying BOTH
+`source_identity` and `features`; a second identical emit writes nothing.
+Self-extinguishing, and it adds no writes beyond the `mls_id` convergence already
+forecast because both land on the same rows.
+
+### 26.5 Final production numbers at `4506cd66`
+
+Manifest: providerPopulation 8,377 · candidate_count **424** (408
+`provider_mt_newer` + 16 `local_active_provider_terminal`) ·
+`display_gate_mismatch` **0** · `mlsBackfillOnlyRows` 7,956 EXCLUDED · ghosts 9 ·
+Mallan 2 · `providerExistenceProbeUnknown` **0** · absent unexplained/unknown
+**0/0** · duplicates/collisions **0/0**.
+
+Property dry run: selected = fetched = would-write **424** · duplicates `[]` ·
+**failed 0** · `material_correction_count` **424** · `converged` false (correct
+pre-recovery). Forecast: `source_identity` 424 · `features` 424 · status 19 ·
+price 13 · address 2 · attribution 2 · size 1 · **`other` 0**.
+
+Media dry run: candidate_total **97** · 1,808 inserts + 57 updates · **0**
+tombstones · all eight failure counters **0** · `cursor_writes` **0** ·
+`keys_resolved_via_property_lookup` **97/97**.
+
+Both dry runs wrote nothing, verified against production counters.
