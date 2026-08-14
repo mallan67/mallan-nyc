@@ -244,6 +244,13 @@ export interface ManifestDiagnostics {
   /** Duplicate provider ListingIds collapsed during the scan. Measured live as 0. */
   duplicateProviderListingIds: number;
   /**
+   * The actual duplicated ids, so the condition is diagnosable without re-running
+   * the scan. A duplicate is a scan artifact when the provider reports
+   * `@odata.count = 1` for it, and a REAL identity collision otherwise — the CLI
+   * verifies each one and fails closed only on a real collision.
+   */
+  duplicateProviderListingIdSamples: string[];
+  /**
    * EMITTED gate mismatches where the expected display is false but we display
    * anyway. The safety-relevant direction: we are showing what REBNY gates off.
    * Split out so the explained-mismatch suppression below can never silently
@@ -562,16 +569,24 @@ export interface BuildManifestInput {
 
 export function buildManifest(input: BuildManifestInput): RecoveryManifest {
   const providerById = new Map<string, ProviderRow>();
-  let duplicateProviderListingIds = 0;
+  const duplicateIds = new Set<string>();
   for (const row of input.providerRows) {
     const id = nonEmpty(row.ListingId);
     if (id === null) continue;
     if (providerById.has(id)) {
-      duplicateProviderListingIds++;
+      // Same id observed twice IN ONE SCAN. The scan is ordered by
+      // (ModificationTimestamp asc, ListingKey asc); a row MODIFIED while the
+      // scan is in flight moves forward in that order and can be seen again on
+      // a later page. That is an artifact of paging a live feed on a mutating
+      // sort key, NOT two records sharing an identity — and it is why a literal
+      // `duplicateProviderListingIds = 0` is not a stable invariant. The ids are
+      // recorded so the CLI can ask the provider which it is.
+      duplicateIds.add(id);
       continue;
     }
     providerById.set(id, row);
   }
+  const duplicateProviderListingIds = duplicateIds.size;
 
   const localById = new Map<string, LocalRow>();
   for (const row of input.localRows) {
@@ -702,6 +717,7 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       mlsIdMissingOrWrongTotal,
       mlsBackfillOnlyRows,
       duplicateProviderListingIds,
+      duplicateProviderListingIdSamples: [...duplicateIds].sort(),
       displayGateOverDisplay,
       displayGateUnderDisplay,
       displayGateExplainedByLocalGate,
@@ -909,6 +925,25 @@ export async function fetchProviderExistence(
     }
   }
   return { existing, absent, unknown };
+}
+
+/** `@odata.count` for one ListingId. -1 when the provider did not answer. */
+async function providerRecordCount(listingId: string): Promise<number> {
+  const bearer = await getAccessToken();
+  const url =
+    `${providerEndpoint()}?` +
+    new URLSearchParams({
+      $filter: `ListingId eq '${listingId.replace(/'/g, "''")}'`,
+      $select: "ListingId",
+      $count: "true",
+      $top: "2",
+    }).toString();
+  try {
+    const body = await defaultHttpGet(url, bearer);
+    return Number(body["@odata.count"] ?? -1);
+  } catch {
+    return -1;
+  }
 }
 
 async function defaultHttpGet(url: string, bearer: string): Promise<Record<string, unknown>> {
@@ -1134,6 +1169,60 @@ async function main(): Promise<void> {
     absorbedThroughMt,
   });
 
+  // A duplicated id is a SCAN ARTIFACT when the provider holds exactly one
+  // record for it, and a REAL identity collision otherwise. Verified, not
+  // assumed: the two demand opposite responses. The scan is ordered by
+  // (ModificationTimestamp asc, ListingKey asc), so a row modified mid-scan
+  // moves forward and can be observed twice — which is why a literal
+  // `duplicateProviderListingIds = 0` is not a stable invariant on a live feed.
+  let identityCollisions = 0;
+  for (const id of manifest.diagnostics.duplicateProviderListingIdSamples) {
+    const n = await providerRecordCount(id);
+    if (n !== 1) identityCollisions++;
+    console.log(
+      `[recovery-manifest] duplicate id ${id}: ` +
+        (n === 1 ? "pagination artifact (provider holds 1 record)" : `REAL COLLISION (count=${n})`),
+    );
+  }
+
+  // ── FAIL-CLOSED GATES ─────────────────────────────────────────────────────
+  // Enforced BEFORE the artifact is written, so an invalid manifest never
+  // reaches an operator's disk where it could be fed to the executor later.
+  const blockers: string[] = [];
+  if (manifest.diagnostics.providerExistenceProbeUnknown > 0) {
+    blockers.push(
+      `providerExistenceProbeUnknown=${manifest.diagnostics.providerExistenceProbeUnknown} ` +
+        `(a failed provider read is UNKNOWN, never absence — these ids cannot be classified)`,
+    );
+  }
+  if (manifest.diagnostics.absentLocallyUnexplained > 0) {
+    blockers.push(
+      `absentLocallyUnexplained=${manifest.diagnostics.absentLocallyUnexplained} ` +
+        `(provider row at/before the absorbed MT boundary that we do not hold)`,
+    );
+  }
+  if (manifest.diagnostics.absentLocallyUnknownTimestamp > 0) {
+    blockers.push(
+      `absentLocallyUnknownTimestamp=${manifest.diagnostics.absentLocallyUnknownTimestamp} ` +
+        `(unreadable provider ModificationTimestamp — cannot prove it is a new arrival)`,
+    );
+  }
+  if (identityCollisions > 0) {
+    blockers.push(
+      `providerIdentityCollisions=${identityCollisions} ` +
+        `(a ListingId resolving to more than one provider record invalidates the join key)`,
+    );
+  }
+  if (blockers.length > 0) {
+    console.error("");
+    console.error("[recovery-manifest] REFUSING to write the manifest:");
+    for (const b of blockers) console.error(`  - ${b}`);
+    console.error("[recovery-manifest] investigate before any recovery is authorized.");
+    await prisma.$disconnect();
+    process.exitCode = 1;
+    return;
+  }
+
   const outPath = path.resolve(process.cwd(), args.outPath);
   mkdirSync(path.dirname(outPath), { recursive: true });
   writeFileSync(outPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -1157,7 +1246,8 @@ async function main(): Promise<void> {
   console.log(`  ↳ absent: expected NEW arrivals                         ${manifest.diagnostics.absentLocallyExpectedNew}`);
   console.log(`  ↳ absent: UNEXPLAINED (must be 0)                       ${manifest.diagnostics.absentLocallyUnexplained}`);
   console.log(`  ↳ absent: UNKNOWN timestamp (must be 0)                 ${manifest.diagnostics.absentLocallyUnknownTimestamp}`);
-  console.log(`duplicate provider ListingIds    ${manifest.diagnostics.duplicateProviderListingIds}`);
+  console.log(`duplicate provider ListingIds (scan-order artifacts)      ${manifest.diagnostics.duplicateProviderListingIds}`);
+  console.log(`  ↳ REAL identity collisions (must be 0)                  ${identityCollisions}`);
   console.log("");
   if (manifest.absentLocally > 0) {
     console.warn(

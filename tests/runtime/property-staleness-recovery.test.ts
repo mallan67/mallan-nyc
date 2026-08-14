@@ -181,6 +181,7 @@ function manifest(entries: ManifestEntry[]): RecoveryManifest {
       mlsIdMissingOrWrongTotal: 0,
       mlsBackfillOnlyRows: 0,
       duplicateProviderListingIds: 0,
+      duplicateProviderListingIdSamples: [],
       displayGateOverDisplay: 0,
       displayGateUnderDisplay: 0,
       displayGateExplainedByLocalGate: 0,

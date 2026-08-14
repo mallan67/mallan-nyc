@@ -834,6 +834,39 @@ describe("absentLocally classification", () => {
   });
 });
 
+// ── 4g. Duplicate provider ids are recorded, not just counted ──────────────
+
+describe("duplicate provider ListingIds", () => {
+  it("records the actual ids so the condition is diagnosable", () => {
+    // Counting alone forced a separate re-scan to find out WHICH ids duplicated,
+    // and a live feed may not reproduce it. The ids must survive in the artifact.
+    const dupe = providerRow({ ListingId: "RLS-DUP", ListingKey: "K1" });
+    const dupeAgain = providerRow({
+      ListingId: "RLS-DUP",
+      ListingKey: "K1",
+      // Same id observed later in the scan with a moved timestamp — the exact
+      // shape of the (MT asc, ListingKey asc) pagination artifact.
+      ModificationTimestamp: "2026-08-02T00:00:00.000Z",
+    });
+    const m = manifestOf([dupe, dupeAgain], [localRow({ listing_id: "RLS-DUP" })]);
+    expect(m.diagnostics.duplicateProviderListingIds).toBe(1);
+    expect(m.diagnostics.duplicateProviderListingIdSamples).toEqual(["RLS-DUP"]);
+  });
+
+  it("counts DISTINCT duplicated ids, not duplicate observations", () => {
+    const r = (id: string) => providerRow({ ListingId: id, ListingKey: `K${id}` });
+    const m = manifestOf([r("RLS-A"), r("RLS-A"), r("RLS-A"), r("RLS-B"), r("RLS-B")], []);
+    expect(m.diagnostics.duplicateProviderListingIds).toBe(2);
+    expect(m.diagnostics.duplicateProviderListingIdSamples).toEqual(["RLS-A", "RLS-B"]);
+  });
+
+  it("reports an empty sample list when the scan is clean", () => {
+    const m = manifestOf([providerRow()], [localRow()]);
+    expect(m.diagnostics.duplicateProviderListingIds).toBe(0);
+    expect(m.diagnostics.duplicateProviderListingIdSamples).toEqual([]);
+  });
+});
+
 describe("provider select completeness", () => {
   it("carries every field the classification reads", () => {
     // Without both fields on the wire the de-circularization is inert: the
