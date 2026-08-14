@@ -125,6 +125,8 @@ import {
   PRODUCTION_ENV_VALUE,
   type RecoveryOptions,
   type RecoveryEnv,
+  newWriteReasonForecast,
+  accumulateWriteReasons,
 } from "../../scripts/recover-stale-property-listings";
 import type {
   ManifestEntry,
@@ -185,6 +187,10 @@ function manifest(entries: ManifestEntry[]): RecoveryManifest {
       staleLocalPermissionGates: 0,
       mallanOwnedExcluded: 0,
       providerGhostsDeferredToFeedReconcile: 0,
+      providerExistenceProbeUnknown: 0,
+      absentLocallyExpectedNew: 0,
+      absentLocallyUnexplained: 0,
+      absentLocallyUnknownTimestamp: 0,
     },
     manifestSize: entries.length,
     entries,
@@ -1144,5 +1150,79 @@ describe("manifest validation", () => {
         reasons: ["provider_mt_newer", "display_gate_mismatch"],
       },
     ]);
+  });
+});
+
+// ── Write-reason forecast: the one-time identity write must stay visible ─────
+//
+// `written` alone cannot answer what the deploy is judged on. 8,390 of 8,403
+// Active-ish rows carry mls_id = NULL, so the first touch of each writes once
+// for identity alone. Folded into a single count it is indistinguishable from
+// real content churn, and the write-reduction metric becomes unreadable exactly
+// when it is being evaluated. Attribution reuses the SAME
+// classifyListingChangeReasons result that decided suppression — never a second
+// comparator.
+
+describe("write-reason forecast", () => {
+  it("starts with every canonical reason at zero", () => {
+    const f = newWriteReasonForecast();
+    expect(Object.values(f.by_reason).every((v) => v === 0)).toBe(true);
+    expect(f.by_reason).toHaveProperty("source_identity", 0);
+    expect(f.source_identity_only).toBe(0);
+    expect(f.source_identity_plus_material).toBe(0);
+    expect(f.material_without_source_identity).toBe(0);
+  });
+
+  it("attributes an identity-ONLY write to source_identity_only", () => {
+    const f = newWriteReasonForecast();
+    accumulateWriteReasons(f, ["source_identity"]);
+    expect(f.by_reason.source_identity).toBe(1);
+    expect(f.source_identity_only).toBe(1);
+    expect(f.source_identity_plus_material).toBe(0);
+    expect(f.material_without_source_identity).toBe(0);
+  });
+
+  it("attributes identity + real content to source_identity_plus_material", () => {
+    const f = newWriteReasonForecast();
+    accumulateWriteReasons(f, ["source_identity", "status"]);
+    expect(f.by_reason.source_identity).toBe(1);
+    expect(f.by_reason.status).toBe(1);
+    expect(f.source_identity_plus_material).toBe(1);
+    expect(f.source_identity_only).toBe(0);
+  });
+
+  it("attributes a content-only write to material_without_source_identity", () => {
+    const f = newWriteReasonForecast();
+    accumulateWriteReasons(f, ["price", "address"]);
+    expect(f.material_without_source_identity).toBe(1);
+    expect(f.source_identity_only + f.source_identity_plus_material).toBe(0);
+    expect(f.by_reason.price).toBe(1);
+    expect(f.by_reason.address).toBe(1);
+  });
+
+  it("keeps by_reason NON-exclusive but the three buckets EXCLUSIVE", () => {
+    const f = newWriteReasonForecast();
+    accumulateWriteReasons(f, ["source_identity"]);
+    accumulateWriteReasons(f, ["source_identity", "price"]);
+    accumulateWriteReasons(f, ["status"]);
+    // by_reason double-counts across reasons, by design.
+    expect(f.by_reason.source_identity).toBe(2);
+    expect(f.by_reason.price).toBe(1);
+    expect(f.by_reason.status).toBe(1);
+    // The three exclusive buckets sum to the number of written rows.
+    expect(
+      f.source_identity_only + f.source_identity_plus_material + f.material_without_source_identity,
+    ).toBe(3);
+  });
+
+  it("still counts a written row whose reasons are absent", () => {
+    // A written row must never be invisible in the exclusive split.
+    const f = newWriteReasonForecast();
+    accumulateWriteReasons(f, undefined);
+    accumulateWriteReasons(f, []);
+    expect(f.material_without_source_identity).toBe(2);
+    expect(
+      f.source_identity_only + f.source_identity_plus_material + f.material_without_source_identity,
+    ).toBe(2);
   });
 });

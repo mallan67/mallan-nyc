@@ -110,9 +110,11 @@ import {
 } from "@/lib/idx/sync";
 import {
   LISTING_SYNC_COMPARE_SELECT,
+  LISTING_CHANGE_REASON_KEYS,
   listingUpdateMateriallyUnchanged,
   classifyListingChangeReasons,
   isProvenanceOnlyChange,
+  type ListingChangeReason,
 } from "@/lib/idx/write-suppression";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
@@ -188,6 +190,31 @@ export interface RecoveryCounters {
   failed: number;
 }
 
+/**
+ * Canonical write-reason forecast over the WOULD-WRITE / WRITTEN rows.
+ *
+ * WHY THIS EXISTS. `written` alone cannot answer the question the deploy is
+ * being judged on. 8,390 of 8,403 Active-ish rows carry `mls_id = NULL`, so the
+ * first cursor touch of each writes once for identity alone; without attribution
+ * that is indistinguishable from real content churn and the write-reduction
+ * metric becomes unreadable exactly when it matters. Every count comes from the
+ * SAME `classifyListingChangeReasons` call that decided suppression — never a
+ * second comparator.
+ *
+ * `by_reason` is non-exclusive (a row may carry several). The three `*_only` /
+ * `*_plus_*` counters ARE mutually exclusive and sum to the written count.
+ */
+export interface WriteReasonForecast {
+  /** Non-exclusive: a row contributes to every reason it carries. */
+  by_reason: Record<string, number>;
+  /** Exclusively `source_identity` — the one-time mls_id convergence. */
+  source_identity_only: number;
+  /** `source_identity` alongside at least one real content reason. */
+  source_identity_plus_material: number;
+  /** Real content change with no identity component. */
+  material_without_source_identity: number;
+}
+
 export interface RecoveryBatchTelemetry extends RecoveryCounters {
   batch: number;
   duration_ms: number;
@@ -209,6 +236,8 @@ export interface RecoveryReport {
   batch_size: number;
   batches: RecoveryBatchTelemetry[];
   totals: RecoveryCounters;
+  /** Canonical attribution of the would-write rows. See WriteReasonForecast. */
+  would_write_by_reason: WriteReasonForecast;
   /** Cache tags expired for materially-changed rows (empty in dry run). */
   revalidated_tags: string[];
   revalidation_failures: number;
@@ -555,6 +584,13 @@ interface RowResult {
   fetched: boolean;
   /** Cache tags to expire — populated only for a written row. */
   tags: string[];
+  /**
+   * Canonical change reasons for a WOULD-WRITE / WRITTEN row, from the single
+   * `classifyListingChangeReasons` call that also decided suppression. Absent
+   * for suppressed, skipped and failed rows — those performed no write, so they
+   * contribute nothing to the write-reason forecast.
+   */
+  reasons?: ListingChangeReason[];
 }
 
 /**
@@ -709,7 +745,14 @@ export async function recoverOneListing(
   // Provenance-only first: classifyListingChangeReasons returns [] for "nothing
   // changed", and isProvenanceOnlyChange([]) is false, so the two buckets below
   // are mutually exclusive.
-  if (isProvenanceOnlyChange(classifyListingChangeReasons(updateRecord, existingRecord))) {
+  // Classified ONCE and reused: the suppression decision, the dry-run forecast,
+  // and the execute-path telemetry must all describe the same comparison. A
+  // second `classifyListingChangeReasons` call here would be a second opinion
+  // about what changed, and the forecast could then disagree with the write it
+  // is forecasting.
+  const changeReasons = classifyListingChangeReasons(updateRecord, existingRecord);
+
+  if (isProvenanceOnlyChange(changeReasons)) {
     return { outcome: "suppressed_provenance_only", fetched: true, tags: [] };
   }
   if (listingUpdateMateriallyUnchanged(updateRecord, existingRecord)) {
@@ -720,8 +763,9 @@ export async function recoverOneListing(
 
   if (!execute) {
     // DRY RUN: everything above ran for real; nothing below is reached. No
-    // listing write, no projection write, no cache invalidation.
-    return { outcome: "written", fetched: true, tags: [] };
+    // listing write, no projection write, no cache invalidation. The reasons
+    // ride along so the forecast is the SAME classification the write would use.
+    return { outcome: "written", fetched: true, tags: [], reasons: changeReasons };
   }
 
   // UPDATE, never upsert — see the header. The row provably exists (read above)
@@ -736,7 +780,7 @@ export async function recoverOneListing(
   // Reuses the canonical dual-write helper — no second projection builder.
   await dualWriteProjectionForListingId(prisma, mapped.listing_id);
 
-  return { outcome: "written", fetched: true, tags };
+  return { outcome: "written", fetched: true, tags, reasons: changeReasons };
 }
 
 // ── Executor ────────────────────────────────────────────────────────────────
@@ -752,6 +796,38 @@ function newCounters(): RecoveryCounters {
     skipped_new_terminal: 0,
     failed: 0,
   };
+}
+
+export function newWriteReasonForecast(): WriteReasonForecast {
+  return {
+    by_reason: Object.fromEntries(LISTING_CHANGE_REASON_KEYS.map((k) => [k, 0])),
+    source_identity_only: 0,
+    source_identity_plus_material: 0,
+    material_without_source_identity: 0,
+  };
+}
+
+/**
+ * Fold ONE written row's canonical reasons into the forecast. Exported so the
+ * exclusivity contract is provable directly, not only through a full run.
+ *
+ * An empty/absent reason list still counts toward exactly one exclusive bucket
+ * (`material_without_source_identity`) so the three always reconcile to the
+ * written count — a written row is never invisible in the split.
+ */
+export function accumulateWriteReasons(
+  into: WriteReasonForecast,
+  reasons: readonly ListingChangeReason[] | undefined,
+): void {
+  const list = reasons ?? [];
+  for (const r of list) {
+    into.by_reason[r] = (into.by_reason[r] ?? 0) + 1;
+  }
+  const hasIdentity = list.includes("source_identity");
+  const hasMaterial = list.some((r) => r !== "source_identity");
+  if (hasIdentity && hasMaterial) into.source_identity_plus_material++;
+  else if (hasIdentity) into.source_identity_only++;
+  else into.material_without_source_identity++;
 }
 
 function addCounters(into: RecoveryCounters, from: RecoveryCounters): void {
@@ -823,6 +899,7 @@ export async function recoverStalePropertyListings(
 
   const batches: RecoveryBatchTelemetry[] = [];
   const totals = newCounters();
+  const writeReasons = newWriteReasonForecast();
   const revalidatedTags = new Set<string>();
   const revalidation = newRevalidationCounters();
 
@@ -840,6 +917,9 @@ export async function recoverStalePropertyListings(
         const result = await recoverOneListing(listingId, options.execute, allowedIds);
         if (result.fetched) counters.fetched++;
         counters[result.outcome]++;
+        // Only a written row contributes to the forecast. Suppressed, skipped
+        // and failed rows performed no write and must not appear in it.
+        if (result.outcome === "written") accumulateWriteReasons(writeReasons, result.reasons);
         for (const tag of result.tags) batchTags.add(tag);
       } catch (err) {
         // Failure isolation: one bad row never aborts the batch and never
@@ -885,6 +965,7 @@ export async function recoverStalePropertyListings(
     batch_size: batchSize,
     batches,
     totals,
+    would_write_by_reason: writeReasons,
     revalidated_tags: [...revalidatedTags].sort(),
     revalidation_failures: revalidation.revalidation_failures,
     duration_ms: Date.now() - startedAt,
