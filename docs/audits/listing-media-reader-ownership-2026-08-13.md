@@ -1124,3 +1124,221 @@ changes.** A bulk identity backfill would cost ~8,449 writes (active alone;
 `mls_id_missing_or_wrong` as its OWN reason code, excluded by default and
 includable only via an explicit `--include-mls-backfill` flag, so its volume is
 always visible and separately decided.
+
+---
+
+## 21. DISPLAY-GATE RECONCILIATION WAS CIRCULAR — FIXED, AND MEASURED AT ZERO
+
+`scripts/build-recovery-manifest.ts` decided whether a provider/local
+`idx_display_yn` disagreement was "explained" by feeding the STORED local
+`participant_only` / `owner_opt_out` back into `computeGateColumns`. Those two
+columns are themselves outputs of the mapper's `Permission` derivation, so
+stored state was vouching for stored state.
+
+**The concrete failure it permitted.** A listing whose source `Permission` moves
+`Private` to `Public` keeps a stale local `participant_only=true` until something
+refreshes it. That stale `true` "explained" its stale `idx_display_yn=false`, the
+row earned no reason, and the generator whose entire job is to schedule that
+refresh excluded it — permanently.
+
+### 21.1 The fix: one owner for `Permission`
+
+`derivePermissionGates(raw)` was extracted from `mapTrestleToPrisma`
+(`lib/idx/trestle-mapper.ts`) with **no behavior change** — the expressions moved
+verbatim. Both the mapper and the manifest now call it, so a second caller
+cannot form a second opinion. `PROVIDER_SELECT_FIELDS` gained `Permission` and
+`MlsStatus` (both arms are required; selecting only `Permission` silently drops
+the `MlsStatus='OwnerOptOut'` arm).
+
+`expectedIdxDisplay(provider, local)` now derives both REBNY gates from the
+CURRENT provider record. Mutation proof: restoring the circular form fails 4
+tests, including "FIRES when Permission went Private to Public and the local
+gate is stale".
+
+### 21.2 `rls_eligible` is genuinely local — four independent proofs
+
+The directive required confirming this before keeping the local value:
+
+| # | evidence |
+|---|---|
+| 1 | `mapTrestleToPrisma` never emits `rls_eligible` |
+| 2 | **0 occurrences** in `LISTING_SYNC_COMPARE_SELECT` — sync never compares or updates it |
+| 3 | The Trestle path hard-codes the constant `true` (`lib/idx/sync.ts:1085`, projection input) |
+| 4 | Its only real writers are CRM routes computing it from `classifyListingSource` / `isInHouse` / `explicitOptOut` |
+
+No Cotality field maps to it. The provider cannot answer it, so the local value
+is the **authority**, not a fallback. It stays a classification input.
+
+### 21.3 Live `Permission` truth — the gates are INERT on this feed
+
+Measured against live Cotality (`$count` over the FULL Property population, not
+a sample), 2026-08-14T01:59Z:
+
+| probe | result |
+|---|---:|
+| TOTAL Property population | **591,131** |
+| `Permission eq 'IDX'` (exact) | **591,131** |
+| `Permission ne 'IDX'` | **0** |
+| `Permission eq null` | **0** |
+| `Permission eq 'Private'` | **0** |
+
+Every row in the entire feed carries the single value `IDX`. Therefore:
+
+- **`participantOnly` is false for 100% of the feed.** `Permission` is declared
+  a comma-separated Multi-Enum (18 values, bit-flagged), so `permissions ===
+  'Private'` is strict equality against a multi-value field — but with **zero**
+  multi-value rows present, strict equality and token matching are provably
+  indistinguishable today. No change was made: it is a latent fragility, not a
+  live exposure, and altering a display gate with zero live effect is risk
+  without benefit. **Flagged for Maya** — if REBNY ever emits a multi-value
+  `Permission`, strict equality would silently under-match.
+- **`ownerOptOut` is structurally unreachable.** All three arms test values that
+  do not exist: `OwnerOptOut` / `Owner Opt-Out` are absent from the 18-value
+  `Permission` picklist, and absent from the 25-value `MlsStatus` picklist
+  (`MlsStatus eq 'OwnerOptOut'` is rejected as "not a valid enumeration type
+  constant").
+- **`MlsStatus` is provider-level SUPPRESSED for this RLS credential.** Filtering
+  returns HTTP 400 — "Results from 'RLS' has been suppressed (provider Level) as
+  field MlsStatus…" — and it reads `null` on every row. It stays in the select
+  because `derivePermissionGates` reads it and would silently lose an arm
+  otherwise; it currently contributes nothing.
+
+The real display protection is REBNY's upstream pre-filter (only IDX-permissioned
+rows exist in our feed at all), `InternetEntireListingDisplayYN`, terminal
+status, and local `rls_eligible`. The per-row REBNY gates are defense-in-depth
+that is presently **inert** — stated plainly rather than described as active
+protection. Per the fail-closed rule, no new gate semantics were invented for
+`Officeidxoptout` / `SyndicateOptOut` / `PhotoOptedOut` / `AgentOnly` /
+`FirmOnly` / `OfficeOnly` / `VOW`: there is no canonical rule mapping them to
+`idx_display_yn`, so they are reported, not acted on.
+
+### 21.4 Honest impact of the de-circularization: ZERO rows today
+
+Local production, read-only, same window: `participant_only=true` on **0** of
+8,460 Active-ish rows; `owner_opt_out=true` on **0**. Stored and provider-derived
+gates therefore agree everywhere, and the real generator reports
+`staleLocalPermissionGates = 0`.
+
+**The circularity was a real logical defect that repairs 0 listings today.** It
+is fixed because it is a latent trap that would silently suppress repairs the
+moment any gate column diverged — not because it is currently mis-classifying
+anything. Any claim that it "recovers N listings" would be false.
+
+### 21.5 A REAL defect found while fixing it: Mallan rows in the reverse set
+
+`loadLocalActiveIshRows` had **no ownership filter**, so pass 2 — which keys on
+absence from the provider population — labelled Mallan-authored inventory
+`local_active_provider_terminal`. Mallan exclusives are absent from the Cotality
+Property feed **by definition**, never by drift.
+
+The executor fail-closes on the empty re-fetch (`outcome: "failed"`, no write,
+`scripts/recover-stale-property-listings.ts:576`), so there was no data-safety
+bug — but the pre-authorization gate is `failed = 0`, so these rows would have
+**blocked a clean dry run for a false reason**. Pass 2 now uses the canonical
+`isMallanExclusiveListing` helper (SL-/RL- prefix OR `rls_eligible === false`) —
+no second definition of ownership — and counts them as `mallanOwnedExcluded`.
+Measured live: **2** (`SL-0004`, `SL-0007`, which are simultaneously the only
+`rls_eligible=false` rows, the only locally-hidden Active-ish rows, and the only
+non-RLS-prefixed ids in the Active-ish set).
+
+---
+
+## 22. `source_identity` — the one-time `mls_id` write, made measurable
+
+`mls_id` is material (`LISTING_SYNC_COMPARE_SELECT`) but had **no** entry in
+`LISTING_FIELD_CHANGE_CATEGORY`, so it classified as `other`. With 8,449 of 8,460
+Active-ish rows holding `mls_id = NULL`, the first cursor touch of each row
+performs one physical UPDATE for identity alone — which would have landed in
+`other` and been indistinguishable from content churn, making the post-deploy
+write-reduction metric unreadable exactly when it is being evaluated.
+
+Canonical name chosen: **`source_identity`** (not `mls_id_only`). It is kept
+distinct from `attribution`, which is agent/office MLS ids — content about WHO
+holds the listing, versus the key identifying the record itself.
+
+How to read the deploy:
+
+| bucket | expected |
+|---|---|
+| `modification_timestamp_only` | **ZERO** physical listing writes |
+| `source_identity` | one-time convergence; must itself decay to zero |
+| real material change | still writes |
+| second identical emit | no write at all (self-extinguishing) |
+
+Mutation proof: unmapping `mls_id` fails 3 tests.
+
+---
+
+## 23. THE REAL MANIFEST GENERATOR, RUN ON REAL DATA
+
+Provider half captured live through the real `fetchProviderActivePopulation`;
+local half read-only from canonical production Neon via the authenticated MCP,
+**checksum-verified** (row count, `SUM(id)`, `SUM(mt)` per chunk — all three
+matched exactly). The shipped `buildManifest` was then called directly, so every
+classification decision ran the shipped code.
+
+> **Rounding.** The local pull encoded `modification_timestamp` via
+> `(EXTRACT(epoch FROM …)/60)::bigint` — a Postgres cast, which **rounds**, while
+> JS uses `Math.floor`. This is the same mismatch that once manufactured 208
+> impossible "local newer than provider" rows. Verified rather than assumed:
+> `lm === round(provider_minutes)` holds for **every** converged row and **0**
+> rows fall outside, so rounding fully explains the band and
+> **local-strictly-newer = 0**.
+
+**Provider capture 2026-08-14T01:57:34Z:**
+
+| field | value |
+|---|---:|
+| providerPopulation | **8,383** |
+| localComparablePopulation | **8,383** |
+| **absentLocally** | **0** |
+| **manifestSize** | **454** |
+
+| reason | count |
+|---|---:|
+| `provider_mt_newer` | **381** |
+| `local_active_provider_terminal` | **73** |
+| `status_mismatch` | 0 |
+| `display_gate_mismatch` | **0** |
+| `mls_id_missing_or_wrong` (within emitted entries) | 381 |
+
+| diagnostic | value |
+|---|---:|
+| `mlsIdMissingOrWrongTotal` | 8,372 |
+| `mlsBackfillOnlyRows` (EXCLUDED by default) | **7,991** |
+| `duplicateProviderListingIds` | 0 |
+| `displayGateOverDisplay` | **0** |
+| `displayGateUnderDisplay` | 0 |
+| `displayGateExplainedByLocalGate` | 0 |
+| `staleLocalPermissionGates` | **0** |
+| `mallanOwnedExcluded` | **2** |
+
+Entry key set is exactly `listingId,listingKey,reasons`; unique ids = 454 =
+`manifestSize`; 381 + 73 = 454.
+
+**This supersedes every earlier estimate.** The old `last_synced_from_trestle`
+predicate selected ~4,536 rows; the measured worklist is **454** — a ~90%
+reduction — and `display_gate_mismatch = 0` means there is **no compliance
+over-display anywhere in the Active-ish population**.
+
+### 23.1 What did NOT run, and exactly why
+
+`npm run ops:build-recovery-manifest` was **not** executed end-to-end. Its Prisma
+half requires `DATABASE_URL`, which is absent from this shell: there is no
+`.env` / `.env.local`, only `.env.example` and `.env.local.backup-before-repoint`.
+Every available route to obtain it would print a production credential into the
+transcript, which the standing instruction forbids ("do not read secret backup
+files merely to make the command work"; "WITHOUT printing or copying
+credentials"). `mcp__neon__get_connection_string` is a credential guardrail and
+was not retried.
+
+**What the run above does prove:** the shipped classification logic, executed on
+live provider data and real production local state, yields the numbers in §23.
+**What it does not prove:** `loadLocalRows`'s Prisma call path (separately
+unit-tested for chunking and select shape). The generator must still be re-run
+with `DATABASE_URL` present before the recovery executes; these numbers are the
+decision input, not a substitute for that run.
+
+The **full Property dry run and the 97-listing media dry run are blocked by the
+same missing `DATABASE_URL`** and were NOT performed. They are not reported as
+proven.
