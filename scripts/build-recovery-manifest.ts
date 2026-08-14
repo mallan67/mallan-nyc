@@ -112,7 +112,27 @@ export const PROVIDER_SELECT_FIELDS: readonly string[] = [
  * byte-identical arrays.
  */
 export const RECOVERY_REASON_CODES = [
-  /** Provider ModificationTimestamp is strictly newer than the local one. */
+  /**
+   * CANDIDATE / DISCOVERY SIGNAL — the provider holds a strictly newer
+   * REVISION than the one whose material content we stored.
+   *
+   * This is NOT evidence of material drift, NOT a write requirement, and NOT a
+   * convergence requirement. The name is kept for continuity, but the semantics
+   * are candidate-only.
+   *
+   * A provider revision that changes only `ModificationTimestamp` intentionally
+   * advances the source cursor WITHOUT writing the listing (the whole point of
+   * the provenance-write suppression this PR ships), so
+   * `provider MT > listings.modification_timestamp` can hold FOREVER for such a
+   * row. It will therefore keep appearing here, and that is correct behaviour,
+   * not a self-regenerating worklist: the executor re-fetches it, the canonical
+   * comparison finds nothing material, and it is suppressed with zero writes.
+   *
+   * The MATERIAL authority is the executor's canonical comparison
+   * (`classifyListingChangeReasons` / `listingUpdateMateriallyUnchanged`) — see
+   * `RecoveryReport.material_correction_count` and `RecoveryReport.converged`.
+   * There is no second comparator here.
+   */
   "provider_mt_newer",
   /** Provider StandardStatus and local status disagree (both normalized). */
   "status_mismatch",
