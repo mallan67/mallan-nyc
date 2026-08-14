@@ -55,6 +55,20 @@ const B1_ADDRESS = [
 
 // B2: Classification (18 fields)
 const B2_CLASSIFICATION = [
+  // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
+  //
+  // `SourceSystemKey` alone is not enough. RESO_TO_RLS_RENAMES maps
+  // SourceSystemKey -> ListingKey defensively, but this feed sends ListingKey
+  // DIRECTLY and leaves SourceSystemKey NULL. Verified live against
+  // api.cotality.com the same day: a $select of both returns
+  // ListingKey="1091862396" with SourceSystemKey=null on every sampled row.
+  //
+  // Without this field `raw.ListingKey` is undefined on every record, so the
+  // cursor cannot record the tie-breaker half of its position — it would freeze
+  // and Property ingestion would stop while still reporting last_run_status
+  // "ok". The keyset $orderby and $filter reference ListingKey server-side and
+  // work regardless; this is purely about reading the value BACK.
+  "ListingKey",
   "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
   "CommonInterest", "OwnershipType", "StructureType", "NewConstructionYN",
   "NewDevelopmentYN", "DevelopmentStatus", "NumberOfUnitsTotal",
@@ -840,6 +854,60 @@ export interface ComputeGateColumnsResult {
   rls_eligible: boolean;
 }
 
+/** The two REBNY per-row gates that `Permission` (a source field) determines. */
+export interface PermissionGates {
+  /** The raw Permission string as read, `''` when absent/non-string. */
+  permissions: string;
+  /** REBNY Gate 2 — Permission='Private'. */
+  participantOnly: boolean;
+  /** REBNY Gate 1 — Owner Opt-Out. */
+  ownerOptOut: boolean;
+}
+
+/**
+ * Derive the two source-determined REBNY gates from a raw Trestle Property
+ * record. THE single owner of `Permission` interpretation.
+ *
+ * Extracted from `mapTrestleToPrisma` 2026-08-13 with NO behavior change: the
+ * expressions below are the ones that lived inline, moved verbatim. The
+ * extraction exists so a second caller cannot form a second opinion about what
+ * `Permission` means.
+ *
+ * That second caller is `scripts/build-recovery-manifest.ts`. It reconciles
+ * provider state against local state, and it previously fed the STORED local
+ * `participant_only` / `owner_opt_out` back into the gate evaluator to decide
+ * whether stored `idx_display_yn` was correct. Those two columns are themselves
+ * outputs of this function, so that asked stored state to vouch for stored
+ * state — circular. A listing whose Permission changed 'Private' → 'Public' at
+ * the source would keep a stale local `participant_only=true`, which would
+ * "explain" its stale `idx_display_yn=false` and it would never be repaired.
+ * The manifest now calls THIS function on the CURRENT provider record instead.
+ *
+ * Note `ownerOptOut` also consults `MlsStatus`, so a caller must supply both
+ * fields to reproduce ingest's decision; supplying only `Permission` silently
+ * loses the `MlsStatus='OwnerOptOut'` arm.
+ *
+ * @param raw Trestle Property record — reads `Permission` (legacy alias
+ *            `Permissions`) and `MlsStatus`. Any other key is ignored.
+ */
+export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
+  // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
+  // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
+  const permissions =
+    typeof raw.Permission === 'string'
+      ? raw.Permission
+      : typeof raw.Permissions === 'string'
+        ? raw.Permissions
+        : '';
+  const participantOnly = permissions === 'Private';
+  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
+  const ownerOptOut =
+    permissions === 'OwnerOptOut' ||
+    permissions === 'Owner Opt-Out' ||
+    String(raw.MlsStatus || '') === 'OwnerOptOut';
+  return { permissions, participantOnly, ownerOptOut };
+}
+
 /**
  * Compute all 5 display-gate columns for a `listings` row write. Pure: no
  * DB access, no side effects, no logging. Callers can use the result to
@@ -1034,13 +1102,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // "Participant Only," not from a real Trestle schema field.)
   // Trestle IDX Plus feed appears to pre-filter 'Private' listings, but we enforce
   // the gate independently for defense-in-depth and REBNY audit compliance.
-  const permissions = typeof raw.Permission === 'string' ? raw.Permission : (typeof raw.Permissions === 'string' ? raw.Permissions : '');
-  const participantOnly = permissions === 'Private';
-  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
-  const ownerOptOut =
-    permissions === 'OwnerOptOut' ||
-    permissions === 'Owner Opt-Out' ||
-    String(raw.MlsStatus || '') === 'OwnerOptOut';
+  const { participantOnly, ownerOptOut } = derivePermissionGates(raw);
   // Phase A (2026-05-20) — delegate the 5-column gate computation to the
   // canonical `computeGateColumns` helper above. Was an inline calculation;
   // moved to a shared helper so the W1/W2/W3 writer surfaces identified by

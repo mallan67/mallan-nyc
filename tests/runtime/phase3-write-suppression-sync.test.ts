@@ -263,6 +263,7 @@ describe("syncListings — unchanged IDX batch produces ZERO listing/projection 
       rows_checked: 2,
       rows_materially_changed: 0,
       rows_suppressed_unchanged: 2,
+      rows_suppressed_provenance_only: 0,
       rows_inserted: 0,
       rows_updated: 0,
       rows_failed: 0,
@@ -271,6 +272,7 @@ describe("syncListings — unchanged IDX batch produces ZERO listing/projection 
       rows_checked: 2,
       rows_materially_changed: 0,
       rows_suppressed_unchanged: 2,
+      rows_suppressed_provenance_only: 0,
       rows_inserted: 0,
       rows_updated: 0,
       rows_failed: 0,
@@ -557,7 +559,7 @@ describe("syncListings — $expand=Media rotation inside raw_data alone -> ZERO 
 // ── Correction 4: fail-closed watermark (contiguous success) ──
 
 describe("syncListings — watermark never advances past a failed record", () => {
-  it("A ok, B fails, C ok -> persisted watermark stops just below B; run is error", async () => {
+  it("A ok, B fails, C ok -> persisted position is A (last contiguous success); run is error", async () => {
     const MT_A = "2026-07-01T00:00:00.000Z";
     const MT_B = "2026-07-02T00:00:00.000Z";
     const MT_C = "2026-07-03T00:00:00.000Z";
@@ -581,12 +583,28 @@ describe("syncListings — watermark never advances past a failed record", () =>
     expect(result.errors).toBe(1);
     expect(mockSyncStateUpsert).toHaveBeenCalledTimes(1);
     const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
-      create: { last_watermark: Date; last_run_status: string };
-      update: { last_watermark?: Date; last_run_status: string };
+      create: { last_watermark: Date; last_listing_key: string | null; last_run_status: string };
+      update: { last_watermark?: Date; last_listing_key?: string | null; last_run_status: string };
     };
-    const expected = new Date(new Date(MT_B).getTime() - 1);
+    // CONTRACT SHARPENED 2026-08-13. This used to assert `MT_B - 1ms`: a
+    // SYNTHETIC instant chosen to sit just under the failed record. The keyset
+    // cursor persists the LAST CONTIGUOUS SUCCESS instead — a REAL provider
+    // position (MT_A, KEY100001) with a real ListingKey tie-breaker.
+    //
+    // Both are safe (both re-fetch B), but only the real position can be used
+    // as a keyset resume: `(MT eq T and ListingKey gt K)` is meaningless for a
+    // fabricated timestamp that no record actually has. This is requirement
+    // "persist the last contiguous successful MT + ListingKey; never a row
+    // after failure".
+    const expected = new Date(MT_A);
     expect(stateArgs.update.last_watermark?.getTime()).toBe(expected.getTime());
     expect(stateArgs.create.last_watermark.getTime()).toBe(expected.getTime());
+    // The tie-breaker belongs to A, and must NOT be C's key — advancing to C
+    // would consume the failed record B silently.
+    expect(stateArgs.update.last_listing_key).toBe("KEY100001");
+    expect(stateArgs.update.last_listing_key).not.toBe("KEY100003");
+    // C succeeded but sorts AFTER the failure, so it is deliberately not claimed.
+    expect(stateArgs.update.last_watermark?.getTime()).toBeLessThan(new Date(MT_C).getTime());
     expect(stateArgs.update.last_run_status).toBe("error");
   });
 
@@ -600,7 +618,14 @@ describe("syncListings — watermark never advances past a failed record", () =>
     wireMocks(state);
     mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
-    await syncListings({ fullSync: true });
+    // Must be the UNSCOPED INCREMENTAL traversal. This previously passed
+    // `{ fullSync: true }`, which now deliberately cannot move the cursor: a
+    // full sync uses buildActiveFilter (actives only, no MT bound), so its
+    // records carry no information about incremental position. The property
+    // this test actually asserts — a clean run advances — belongs to the
+    // incremental path. See tests/runtime/idx-property-cursor-contract.test.ts
+    // for the ownership rule itself.
+    await syncListings({ since: new Date("2026-06-30T00:00:00Z") });
     const stateArgs = mockSyncStateUpsert.mock.calls[0][0] as {
       update: { last_watermark?: Date; last_run_status: string };
     };

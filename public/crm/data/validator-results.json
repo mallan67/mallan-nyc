@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-08-09T07:15:04.574Z",
-  "pass": 1248,
+  "timestamp": "2026-08-14T02:47:33.255Z",
+  "pass": 1278,
   "critical": 0,
-  "warning": 6,
+  "warning": 4,
   "info": 37,
   "sections": [
     {
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 373,
+      "pass": 375,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -45,9 +45,9 @@
       "section": 5,
       "title": "Prisma Listing ↔ Mapper Return Type",
       "category": "IDX Pipeline",
-      "pass": 6,
+      "pass": 32,
       "critical": 0,
-      "warning": 2,
+      "warning": 0,
       "info": 0
     },
     {
@@ -225,7 +225,7 @@
       "section": 25,
       "title": "Unused npm Dependencies",
       "category": "Bloat & Hygiene",
-      "pass": 24,
+      "pass": 26,
       "critical": 0,
       "warning": 0,
       "info": 8

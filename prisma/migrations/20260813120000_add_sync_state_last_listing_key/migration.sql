@@ -1,0 +1,74 @@
+-- PROPERTY KEYSET CURSOR TIE-BREAKER.
+--
+-- `sync_state` carries a single scalar `last_watermark`. The Property
+-- incremental resume predicate needs a TOTAL order, not just a timestamp,
+-- because ModificationTimestamp is not unique in the feed.
+--
+-- Production evidence (read-only census, hidden-mountain-87248164, 2026-08-13):
+--   SELECT modification_timestamp, COUNT(*) FROM listings
+--    GROUP BY 1 HAVING COUNT(*) > 1 ORDER BY 2 DESC;
+--     2026-04-24T03:30:26.372Z -> 797 rows
+--     2026-07-05T23:31:59.713Z -> 357 rows
+--     2026-08-10T06:09:27.830Z -> 302 rows
+--     2026-05-15T11:32:49.493Z -> 140 rows
+--
+-- The scheduled Property run caps at 500 records (SCHEDULED_MAX_RECORDS,
+-- lib/idx/idx-sync-member.ts:43) and $top is also 500, so one capped run is one
+-- page. A 797-row cluster therefore CANNOT be traversed by `MT gt T`: the run
+-- either re-reads the same 500 rows every firing (cursor never leaves the
+-- cluster) or advances past the cluster and silently drops 297 rows. Neither is
+-- acceptable, and no ordering choice fixes it without a tie-breaker.
+--
+-- With `(ModificationTimestamp, ListingKey)` ASC the resume predicate becomes
+--   (MT gt T) OR (MT eq T AND ListingKey gt K)
+-- which is a strict total order over the batch and cannot stall or skip.
+-- PROVENANCE: the claim that the live feed accepts
+-- `$orderby=ModificationTimestamp asc,ListingKey asc` plus the paired keyset
+-- filter comes from an EARLIER session's probe and must be re-verified before
+-- this migration is applied in production. Run `npm run trestle:probe-keyset`
+-- (scripts/probe-property-keyset-contract.ts) and attach
+-- artifacts/cotality-keyset-probe.json. This column is inert without that
+-- acceptance: a NULL tie-breaker behaves exactly as the pre-keyset code did.
+--
+-- This mirrors `media_sync_state.last_listing_key`, added in
+-- 20260608120000_add_media_sync_state_last_listing_key for the
+-- PhotosChangeTimestamp dimension, which is live and populated
+-- (last_listing_key = '1179924995' as of 2026-08-13). Two independent source
+-- clocks keep two independent cursors; this column completes the pair. NOTE
+-- deliberately: no SyncState("PropertyPhotos") row is introduced — the PCT
+-- dimension already has its owner in `media_sync_state`.
+--
+-- SHAPE: one nullable TEXT column, no default, no backfill, no index. Adding a
+-- nullable column with no default is metadata-only on PG >= 11 — no table
+-- rewrite, no long lock, no compute spike (NEON.md section 4).
+--
+-- NULL semantics: "no tie-breaker recorded yet". The reader treats a NULL
+-- tie-breaker as a timestamp-only resume, which is exactly the pre-migration
+-- behaviour, so applying this migration alone changes NOTHING at runtime.
+--
+-- Rollback: ALTER TABLE "sync_state" DROP COLUMN "last_listing_key";
+-- Safe unconditionally while the reader tolerates NULL.
+--
+-- SCOPE: exactly ONE column.
+--
+-- DRIFT NOTE, CORRECTED 2026-08-13 (read-only verification against production):
+-- an earlier note here -- carried from
+-- 20260808020000_add_listing_media_r2_policy_excluded_at -- called the
+-- production-vs-repo drift "a hard blocker on any production migration". That
+-- conflated two different commands. `prisma migrate diff` compares SCHEMA and
+-- would propose dropping the drifted objects; `prisma migrate deploy` applies
+-- pending migration FILES and never consults drift. Only `migrate deploy` is
+-- used to apply this.
+--
+-- Verified in production `hidden-mountain-87248164`:
+--   * rows blocking deploy (finished_at IS NULL AND rolled_back_at IS NULL) = 0
+--     (the two historical failures each have a paired successful row and carry
+--     rolled_back_at, which is the resolved state)
+--   * the real drift is 5 orphan tables with no Prisma model
+--     (campaign_recipients, engagement_events, experiment_listings,
+--     financial_ledger, micro_commitments), ALL with 0 rows
+--   * zero schema tables are missing from the database
+--
+-- `migrate deploy` touches none of them. This migration adds one column and
+-- nothing else.
+ALTER TABLE "sync_state" ADD COLUMN "last_listing_key" TEXT;

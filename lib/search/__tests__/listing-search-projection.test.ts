@@ -3,10 +3,13 @@ import { Prisma } from "@prisma/client";
 import {
   buildListingSearchProjectionFromListing,
   buildProjectionUpsertPayload,
+  dualWriteProjectionForListingId,
   extractProjectionAmenityKeys,
   extractProjectionFeatureFlags,
   normalizeProjectionSearchText,
+  type DualWriteProjectionPrisma,
   type ListingProjectionSource,
+  type ListingSearchProjectionUpsertPayload,
 } from "@/lib/search/listing-search-projection";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 
@@ -241,6 +244,249 @@ describe("extractProjectionFeatureFlags", () => {
       features: { PetsAllowed: "No" },
     });
     expect(flags?.is_pet_friendly).toBe(false);
+  });
+});
+
+describe("extractProjectionFeatureFlags — canonical listing_media migration", () => {
+  // The media flags now derive from the distinct `media_type` values of the
+  // listing's ACTIVE `listing_media` rows. Live production values are exactly
+  // Photo | FloorPlan | VirtualTour | Video (DB census 2026-08-13). 6,978
+  // displayable listings have canonical rows but an EMPTY legacy media JSON —
+  // the legacy derivation reported no floorplan/video/tour for all of them.
+
+  it("derives has_floorplan from a canonical FloorPlan row", () => {
+    const flags = extractProjectionFeatureFlags({
+      listing_id: "RLS1",
+      mediaTypes: ["Photo", "FloorPlan"],
+    });
+    expect(flags?.has_floorplan).toBe(true);
+    expect(flags?.has_video).toBe(false);
+    expect(flags?.has_virtual_tour).toBe(false);
+  });
+
+  it("derives has_video from a canonical Video row", () => {
+    const flags = extractProjectionFeatureFlags({
+      listing_id: "RLS2",
+      mediaTypes: ["Photo", "Video"],
+    });
+    expect(flags?.has_video).toBe(true);
+    expect(flags?.has_floorplan).toBe(false);
+    expect(flags?.has_virtual_tour).toBe(false);
+  });
+
+  it("derives has_virtual_tour from a canonical VirtualTour row", () => {
+    // Cotality MediaCategory carries both BrandedVirtualTour and
+    // UnbrandedVirtualTour; classifyTrestleMediaCategory
+    // (lib/media/media-sync-service.ts:142) folds both to "VirtualTour"
+    // before the row is written, so the projection only ever sees the
+    // canonical token.
+    const flags = extractProjectionFeatureFlags({
+      listing_id: "RLS3",
+      mediaTypes: ["Photo", "VirtualTour"],
+    });
+    expect(flags?.has_virtual_tour).toBe(true);
+    expect(flags?.has_floorplan).toBe(false);
+    expect(flags?.has_video).toBe(false);
+  });
+
+  it("sets ALL THREE flags when the canonical set carries every media type", () => {
+    const flags = extractProjectionFeatureFlags({
+      listing_id: "RLS4",
+      mediaTypes: ["Photo", "FloorPlan", "VirtualTour", "Video"],
+    });
+    expect(flags?.has_floorplan).toBe(true);
+    expect(flags?.has_video).toBe(true);
+    expect(flags?.has_virtual_tour).toBe(true);
+  });
+
+  it("matches canonical media types case-insensitively", () => {
+    const flags = extractProjectionFeatureFlags({
+      listing_id: "RLS5",
+      mediaTypes: ["floorplan", "VIRTUALTOUR", "video"],
+    });
+    expect(flags?.has_floorplan).toBe(true);
+    expect(flags?.has_virtual_tour).toBe(true);
+    expect(flags?.has_video).toBe(true);
+  });
+
+  // ── EMPTY canonical set is AMBIGUOUS on its own ────────────────────────────
+  // It means either "every row was deleted" (authoritative) or "no row was ever
+  // imported" (the legacy JSON is still the only source). Only the ALL-STATUS
+  // signal separates them, so these three cases must diverge.
+
+  it("EMPTY canonical + rows EXISTED -> authoritative deletion, flags false", () => {
+    // hadRelationalRows: true means listing_media rows exist(ed) for this
+    // listing and none are active now. That is a definitive "no media", so the
+    // stale legacy JSON must NOT be consulted.
+    const flags = extractProjectionFeatureFlags({
+      ...baseSale,
+      mediaTypes: [],
+      hadRelationalRows: true,
+    });
+    expect(flags?.has_floorplan).toBe(false);
+    expect(flags?.has_video).toBe(false);
+    expect(flags?.has_virtual_tour).toBe(false);
+    // Non-media flags are untouched by the media precedence rule.
+    expect(flags?.is_pet_friendly).toBe(true);
+    expect(flags?.is_furnished).toBe(false);
+  });
+
+  it("EMPTY canonical + NEVER imported -> legacy JSON still governs", () => {
+    // The 97-listing residual: displayable, legacy media JSON populated, ZERO
+    // listing_media rows, and a source PhotosChangeTimestamp below the live
+    // media cursor so the forward-only lane can never import them
+    // (docs/audits/listing-media-reader-ownership-2026-08-13.md §4.1). Treating
+    // their empty active set as authoritative would silently clear the flags for
+    // that entire class until bounded recovery runs.
+    const flags = extractProjectionFeatureFlags({
+      ...baseSale,
+      mediaTypes: [],
+      hadRelationalRows: false,
+    });
+    expect(flags?.has_floorplan).toBe(true); // from the legacy JSON "Floor Plan"
+  });
+
+  it("EMPTY canonical + UNKNOWN existence -> fails closed for Mallan-owned media", () => {
+    // rls_eligible === false marks a Mallan-owned listing. With existence
+    // unknown, resurrecting its legacy JSON could republish photos the agent
+    // deleted, so the canonical (empty) answer stands. Third-party listings
+    // keep falling back, because their JSON is Cotality-sourced.
+    const mallan = extractProjectionFeatureFlags({
+      ...baseSale,
+      listing_id: "SL-0007",
+      rls_eligible: false,
+      mediaTypes: [],
+      hadRelationalRows: undefined,
+    });
+    expect(mallan?.has_floorplan).toBe(false);
+
+    const thirdParty = extractProjectionFeatureFlags({
+      ...baseSale,
+      mediaTypes: [],
+      hadRelationalRows: undefined,
+    });
+    expect(thirdParty?.has_floorplan).toBe(true);
+  });
+
+  it("NON-EMPTY canonical wins outright regardless of the existence signal", () => {
+    for (const hadRelationalRows of [true, false, undefined]) {
+      const flags = extractProjectionFeatureFlags({
+        ...baseSale,
+        mediaTypes: ["Video"],
+        hadRelationalRows,
+      });
+      expect(flags?.has_video).toBe(true);
+      // The legacy JSON's floor plan is NOT consulted once canonical rows exist.
+      expect(flags?.has_floorplan).toBe(false);
+    }
+  });
+
+  it("falls back to the legacy JSON when mediaTypes is undefined (un-migrated caller)", () => {
+    const flags = extractProjectionFeatureFlags(baseSale);
+    expect(flags?.has_floorplan).toBe(true); // from media[].MediaCategory "Floor Plan"
+    expect(flags?.has_video).toBe(false);
+    expect(flags?.has_virtual_tour).toBe(false);
+  });
+
+  it("falls back to the legacy JSON when mediaTypes is null", () => {
+    const flags = extractProjectionFeatureFlags({ ...baseSale, mediaTypes: null });
+    expect(flags?.has_floorplan).toBe(true);
+  });
+
+  it("canonical set OVERRIDES a disagreeing legacy JSON in both directions", () => {
+    // JSON says floorplan-only, canonical says video-only. Canonical wins.
+    const flags = extractProjectionFeatureFlags({
+      ...baseSale,
+      mediaTypes: ["Photo", "Video"],
+    });
+    expect(flags?.has_floorplan).toBe(false);
+    expect(flags?.has_video).toBe(true);
+  });
+
+  it("flows through buildListingSearchProjectionFromListing into feature_flags", () => {
+    const row = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      mediaTypes: ["Photo", "FloorPlan", "Video"],
+    });
+    expect(row.feature_flags?.has_floorplan).toBe(true);
+    expect(row.feature_flags?.has_video).toBe(true);
+    expect(row.feature_flags?.has_virtual_tour).toBe(false);
+  });
+});
+
+describe("dualWriteProjectionForListingId — canonical listing_media wiring", () => {
+  function mockPrisma(listingRow: Record<string, unknown> | null) {
+    const listingFindUnique = jest.fn(async () => listingRow);
+    const upsert = jest.fn(async () => ({}));
+    const prisma = {
+      listing: { findUnique: listingFindUnique },
+      listingSearchProjection: {
+        findUnique: jest.fn(async () => null), // no existing row → upsert always fires
+        upsert,
+      },
+    } as unknown as DualWriteProjectionPrisma;
+    return { prisma, listingFindUnique, upsert };
+  }
+
+  const listingRowBase = {
+    listing_id: "RLS20059088",
+    status: "Active",
+    listing_type: "sale",
+    address: {},
+    features: { PublicRemarks: "Bright corner unit." },
+    // Legacy JSON is EMPTY — the exact shape of the 6,978 rows this
+    // migration fixes.
+    media: [],
+  };
+
+  it("selects the ACTIVE listing_media media_type values on the SAME round-trip", async () => {
+    const { prisma, listingFindUnique } = mockPrisma({
+      ...listingRowBase,
+      listing_media: [{ media_type: "FloorPlan" }],
+    });
+    await dualWriteProjectionForListingId(prisma, "RLS20059088");
+
+    expect(listingFindUnique).toHaveBeenCalledTimes(1); // no second round-trip
+    const args = listingFindUnique.mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(args.select.listing_media).toEqual({
+      where: { status: "active" },
+      select: { media_type: true },
+      distinct: ["media_type"],
+    });
+    // The legacy column stays selected for the un-migrated fallback path.
+    expect(args.select.media).toBe(true);
+  });
+
+  it("writes has_floorplan=true from canonical rows even when the legacy media JSON is empty", async () => {
+    const { prisma, upsert } = mockPrisma({
+      ...listingRowBase,
+      listing_media: [{ media_type: "FloorPlan" }, { media_type: "VirtualTour" }],
+    });
+    await dualWriteProjectionForListingId(prisma, "RLS20059088");
+
+    expect(upsert).toHaveBeenCalledTimes(1);
+    const create = (upsert.mock.calls[0][0] as ListingSearchProjectionUpsertPayload)
+      .create as unknown as Record<string, unknown>;
+    const featureFlags = create.feature_flags as Record<string, boolean>;
+    expect(featureFlags.has_floorplan).toBe(true);
+    expect(featureFlags.has_virtual_tour).toBe(true);
+    expect(featureFlags.has_video).toBe(false);
+  });
+
+  it("keeps the legacy JSON derivation when the relation is absent from the result", async () => {
+    // A mock/older client that does not return `listing_media` must not be
+    // read as "zero active rows" — absent means "not queried".
+    const { prisma, upsert } = mockPrisma({
+      ...listingRowBase,
+      media: [{ MediaCategory: "FloorPlan", MediaURL: "https://cdn/fp.jpg" }],
+    });
+    await dualWriteProjectionForListingId(prisma, "RLS20059088");
+
+    const create = (upsert.mock.calls[0][0] as ListingSearchProjectionUpsertPayload)
+      .create as unknown as Record<string, unknown>;
+    expect((create.feature_flags as Record<string, boolean>).has_floorplan).toBe(true);
   });
 });
 

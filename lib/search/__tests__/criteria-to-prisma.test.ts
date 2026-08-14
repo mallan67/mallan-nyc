@@ -333,7 +333,11 @@ describe("runProjectionListingSearch", () => {
     borough: "Manhattan",
     neighborhood: "Tribeca",
     address: { streetNumber: "217", streetName: "W 57th Street", city: "New York" },
-    media: [],
+    // Deliberately present on the FIXTURE though absent from
+    // SEARCH_RESULT_LISTING_SELECT: it makes the shape assertion below prove
+    // `serializeSearchListing` drops media even when handed it, not merely that
+    // the select stopped fetching it.
+    media: [{ url: "https://legacy.example/1.jpg", mediaType: "Photo", order: 0 }],
     modification_timestamp: new Date("2026-04-29T12:00:00Z"),
     internet_entire_listing_display_yn: true,
     internet_address_display_yn: true,
@@ -380,10 +384,18 @@ describe("runProjectionListingSearch", () => {
     expect(result.total).toBe(3);
   });
 
-  it("preserves the same response shape as runListingSearch via serializeSearchListing", () => {
+  it("serializeSearchListing emits the saved-search response shape, WITHOUT media", () => {
     const serialized = serializeSearchListing(sampleListing as never);
 
-    // Same keys as the Listing-backed path emits.
+    // `media` is deliberately absent (2026-08-13 CANONICAL-READER migration).
+    // Neither consumer of this shape read it — the alert cron's formatter and
+    // `listingAlertEmail` have no image field, and the execute route's `media`
+    // key had zero first-party callers — so the raw legacy `Listing.media` JSON
+    // blob was hydrated for up to 100 rows per request and discarded. Re-adding
+    // it here would also re-admit the `media[0]` FloorPlan-hero hazard: any
+    // future media on this shape must be composed via `composeDbPublicMedia`
+    // from `listing_media` + the all-status `_count`, never the raw JSON.
+    // See lib/search/core.ts SEARCH_RESULT_LISTING_SELECT.
     expect(Object.keys(serialized).sort()).toEqual([
       "address",
       "bathrooms_full",
@@ -395,13 +407,13 @@ describe("runProjectionListingSearch", () => {
       "listing_id",
       "listing_type",
       "living_area",
-      "media",
       "modification_timestamp",
       "neighborhood",
       "property_sub_type",
       "property_type",
       "status",
     ]);
+    expect(serialized).not.toHaveProperty("media");
 
     // BigInt id is stringified, Decimal-shaped list_price round-trips as string.
     expect(serialized.id).toBe("1");

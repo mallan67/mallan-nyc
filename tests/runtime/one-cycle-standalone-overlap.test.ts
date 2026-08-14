@@ -33,9 +33,18 @@ jest.mock("@/lib/idx/machine-claim", () => ({
 
 const syncListings = jest.fn();
 const getLastSyncTimestamp = jest.fn(async () => new Date("2026-07-20T00:00:00Z"));
+// runIdxSyncMember resolves its resume position via getPropertyKeysetCursor
+// (timestamp + ListingKey tie-breaker), not the bare timestamp. Mocking only
+// getLastSyncTimestamp leaves the cursor accessor undefined, which throws before
+// syncListings is ever reached.
+const getPropertyKeysetCursor = jest.fn(async () => ({
+  since: new Date("2026-07-20T00:00:00Z"),
+  listingKey: null as string | null,
+}));
 jest.mock("@/lib/idx/sync", () => ({
   syncListings: (...a: unknown[]) => syncListings(...a),
   getLastSyncTimestamp: () => getLastSyncTimestamp(),
+  getPropertyKeysetCursor: () => getPropertyKeysetCursor(),
 }));
 
 const runMediaSync = jest.fn();

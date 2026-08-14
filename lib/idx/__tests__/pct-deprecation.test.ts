@@ -167,10 +167,32 @@ describe('the legacy SQL consumer is gone', () => {
     expect(code).not.toContain("raw_data ? 'PhotosChangeTimestamp'");
   });
 
-  it('the incremental source trigger STILL filters on provider PCT', () => {
-    // The canonical replacement path must remain intact.
-    const fetchSrc = require('fs')
-      .readFileSync(require('path').resolve(__dirname, '../fetch.ts'), 'utf8');
-    expect(fetchSrc).toContain('PhotosChangeTimestamp gt');
+  it('the PCT source trigger now lives in the MEDIA lane, not the Property filter', () => {
+    // SUPERSEDED 2026-08-13. This assertion used to read
+    // `expect(fetchSrc).toContain('PhotosChangeTimestamp gt')` and was GREEN ON A
+    // FALSE PREMISE: the Property filter had already dropped PCT, and the only
+    // surviving occurrence of that string in fetch.ts is inside the block comment
+    // explaining the removal. A source-text grep cannot tell code from the
+    // comment describing its deletion.
+    //
+    // The real invariant is unchanged in substance — PCT must still drive media
+    // freshness — but its OWNER moved. Property keeps the material clock; the
+    // media lane keeps the photo clock. So assert against the owner, and assert
+    // BEHAVIOURALLY on the Property side rather than by grepping prose.
+    const {
+      buildIncrementalFilter,
+    } = require('../fetch') as typeof import('../fetch');
+
+    // Property: PCT is gone from the actual emitted filter, in every arg shape.
+    const since = new Date('2026-05-01T00:00:00.000Z');
+    expect(buildIncrementalFilter(since)).not.toContain('PhotosChangeTimestamp');
+    expect(buildIncrementalFilter(since, 'sale')).not.toContain('PhotosChangeTimestamp');
+    expect(buildIncrementalFilter(since, 'rent', 'K1')).not.toContain('PhotosChangeTimestamp');
+
+    // Media lane: PCT is still the source trigger, and still keyset-ordered.
+    const mediaSrc = require('fs')
+      .readFileSync(require('path').resolve(__dirname, '../media-sync.ts'), 'utf8');
+    expect(mediaSrc).toContain('PhotosChangeTimestamp gt');
+    expect(mediaSrc).toContain('PhotosChangeTimestamp asc,ListingKey asc');
   });
 });

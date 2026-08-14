@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cachedPublicRead, listingCacheTag, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import { classifyMediaItem } from '@/lib/media/listing-media-resolver';
+// Canonical DB→public media composition. The DB comp branch used to read the legacy
+// `Listing.media` JSON directly (`Array.isArray(l.media)` for the has-media test and
+// again for the photo pick), never consulting the relational `listing_media` rows that
+// every other public surface treats as the authority — so a comp whose photos live only
+// in `listing_media` was dropped for "no media", and a Mallan comp whose relational
+// photos were deleted still rendered them from the stale JSON.
+import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows, sameAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getSimilarityPriceBand, rankSimilarListings, classifyPropertyClass, normalizePropertyClass, collapseForRental, type SimilarityTarget } from '@/lib/listings/similar-listing-ranking';
@@ -153,6 +160,37 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
       },
       orderBy: { list_price: 'desc' },
       take: 24, // wider candidate pool; the ranking helper picks the closest matches
+      // `include` (not `select`) — the default scalar projection is preserved
+      // untouched, including the legacy `media` JSON the composer still uses as its
+      // fallback input. This widens the EXISTING query; no extra round trip.
+      include: {
+        // Canonical media rows. Same shape /api/listings selects
+        // (app/api/listings/route.ts:396-414). Active-only + (order, id) so the
+        // resolver receives a stable input.
+        listing_media: {
+          where: { status: 'active' },
+          orderBy: [{ order: 'asc' }, { id: 'asc' }],
+          select: {
+            // media_key: MIXED-GALLERY COMPOSITION — an all-`crm:` set is a
+            // SUPPLEMENT to the feed JSON, not the whole gallery
+            // (listing-media-resolver.ts:748-765).
+            media_key: true,
+            media_url_original: true,
+            media_url_cached: true,
+            media_type: true,
+            media_category: true,
+            media_classification: true,
+            order: true,
+            preferred_photo_yn: true,
+            status: true,
+          },
+        },
+        // ALL-STATUS existence signal. The select above is ACTIVE-only, so
+        // `listing_media.length` would read an all-deleted Mallan comp as "never
+        // imported" and RESURRECT its deleted photos out of the legacy JSON
+        // (db-media-composition.ts:55-67).
+        _count: { select: { listing_media: true } },
+      },
     });
 
     // Public-surface dedupe (2026-05-28): collapse Mallan CRM exclusive +
@@ -198,8 +236,30 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
       // Enough similar (bedroom-matched) results from DB — use those (faster, no Trestle
       // dependency). Backfill media for the top ranked rows that have none (up to 5
       // concurrent), PRESERVING rank order, then keep the first 6 that end up with a photo.
+      //
+      // ONE composition per row, computed once and reused by BOTH the "does this comp
+      // have media?" backfill decision and the card's hero/photo count below — so the
+      // two can never disagree (the old code answered them from two different reads of
+      // the same JSON). Pure function, no query (db-media-composition.ts:35-38).
+      const composedById = new Map<string, ReturnType<typeof composeDbPublicMedia>>();
+      for (const l of rankedDb) {
+        composedById.set(
+          l.listing_id,
+          composeDbPublicMedia({
+            listingId: l.listing_id,
+            rlsEligible: l.rls_eligible,
+            tableRows: l.listing_media,
+            legacyMedia: Array.isArray(l.media) ? l.media : [],
+            // ALL-STATUS count, never `l.listing_media.length` (active-only select):
+            // an all-deleted Mallan comp must stay authoritatively empty, not fall
+            // back to its own stale JSON.
+            hadRelationalRows:
+              typeof l._count?.listing_media === 'number' ? l._count.listing_media > 0 : undefined,
+          }),
+        );
+      }
       const hasDbMedia = (l: (typeof rankedDb)[number]) =>
-        Array.isArray(l.media) && l.media.length > 0;
+        (composedById.get(l.listing_id)?.media.length ?? 0) > 0;
       const needsMedia = rankedDb.filter((l) => !hasDbMedia(l)).slice(0, 5);
       if (needsMedia.length > 0) {
         const mediaResults = await Promise.allSettled(
@@ -222,28 +282,33 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
         const streetName = [addr?.StreetDirPrefix, addr?.StreetName, addr?.StreetSuffix, addr?.StreetDirSuffix].filter(Boolean).join(' ') || '';
         const unit = addr?.UnitNumber ? `, ${addr.UnitNumber}` : '';
 
-        // Check for backfilled media first, then DB media
+        // Canonical composition first (relational rows, with the legacy JSON as the
+        // resolver's own fallback); the live-Trestle backfill only covers rows the
+        // composition left empty.
+        const composed = composedById.get(l.listing_id);
         const backfilledMedia = (l as Record<string, unknown>)._backfilledMedia as { url: string; mediaType: string; order: number }[] | undefined;
         let photoUrl: string | null = null;
         let photosCount = 0;
 
-        if (backfilledMedia && backfilledMedia.length > 0) {
-          // URL-shape-aware photo selection (parity with the DB + Trestle branches):
-          // classifyMediaItem rejects a null/empty-mediaType DOCUMENT- floor plan by URL,
-          // which `mediaType === 'Photo' || !mediaType` did not.
+        if (composed && composed.media.length > 0) {
+          // `composed.media` is photo-first, so `find(Photo)` is the hero and a
+          // FloorPlan can never lead. Its URLs are ALREADY proxied exactly once by
+          // toPublicMediaUrl — do NOT re-apply `proxyUrl`: that substring-matches
+          // `cotality.com` INSIDE the encoded `?url=` parameter and would mint a
+          // nested proxy URL the proxy route rejects with 403
+          // (lib/media/proxy-url-policy.ts:17-26).
+          photosCount = composed.photoCount;
+          photoUrl = composed.media.find(m => m.mediaType === 'Photo')?.url ?? null;
+        } else if (backfilledMedia && backfilledMedia.length > 0) {
+          // Raw Trestle Media records from the live backfill — not composed, so they
+          // still need the local proxy wrap. URL-shape-aware photo selection:
+          // classifyMediaItem rejects a null/empty-mediaType DOCUMENT- floor plan by
+          // URL, which `mediaType === 'Photo' || !mediaType` did not.
           const photos = backfilledMedia.filter(m => classifyMediaItem(m) === 'photo');
           photosCount = photos.length;
           if (photos.length > 0) {
             photoUrl = proxyUrl(photos[0].url);
           }
-        } else {
-          const mediaArr = Array.isArray(l.media) ? l.media as Record<string, string>[] : [];
-          const normalized = mediaArr
-            .map(m => ({ url: m.url || m.MediaURL || '', isPhoto: classifyMediaItem(m) === 'photo' }))
-            .filter(m => m.url);
-          const firstPhoto = normalized.find(m => m.isPhoto); // photo-only; never floorplan
-          photosCount = normalized.filter(m => m.isPhoto).length;
-          photoUrl = firstPhoto?.url ? proxyUrl(firstPhoto.url) : null;
         }
 
         const fullAddress = `${streetNum} ${streetName}${unit}`.trim();

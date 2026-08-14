@@ -10,6 +10,7 @@ import type { Prisma } from "@prisma/client";
 import { generateTrackingToken } from "@/lib/tracking/listing-token";
 import { assertLeadIdsAccess } from "@/lib/crm/access";
 import { scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -89,7 +90,40 @@ export async function POST(req: NextRequest) {
       status: true,
       listing_type: true,
       property_type: true,
+      // Legacy `Listing.media` JSON — retained ONLY as the composer's fallback
+      // input for listings not yet mirrored into `listing_media`. Never read
+      // directly (see the email-card block below).
       media: true,
+      // Canonical media rows. Same column shape /api/listings selects
+      // (app/api/listings/route.ts:396-414): active-only, ordered by
+      // (order, id) so the resolver receives a stable input. This WIDENS the
+      // existing findUnique — no second round trip.
+      listing_media: {
+        where: { status: "active" },
+        orderBy: [{ order: "asc" }, { id: "asc" }],
+        select: {
+          // media_key: MIXED-GALLERY COMPOSITION — an all-`crm:` set is a
+          // SUPPLEMENT to the feed JSON, not the whole gallery
+          // (lib/media/listing-media-resolver.ts:748-765).
+          media_key: true,
+          media_url_original: true,
+          media_url_cached: true,
+          media_type: true,
+          media_category: true,
+          media_classification: true,
+          order: true,
+          preferred_photo_yn: true,
+          status: true,
+        },
+      },
+      // ALL-STATUS existence signal. The select above is ACTIVE-only, so
+      // `listing_media.length` would read an all-deleted Mallan listing as
+      // "never imported" and RESURRECT photos the agent deleted, out of the
+      // legacy JSON (lib/media/db-media-composition.ts:55-67).
+      _count: { select: { listing_media: true } },
+      // Mallan-ownership signal for that same authority test
+      // (isMallanOwnedListing: SL-/RL- listing_id OR rls_eligible === false).
+      rls_eligible: true,
       // REBNY distribution gate fields
       idx_display_yn: true,
       internet_entire_listing_display_yn: true,
@@ -250,11 +284,37 @@ export async function POST(req: NextRequest) {
   const price = listing.list_price
     ? `$${Number(listing.list_price).toLocaleString()}`
     : "Price upon request";
-  // Extract first photo URL from media JSON array
-  const mediaArr = Array.isArray(listing.media) ? listing.media : [];
-  const firstPhoto = mediaArr.length > 0
-    ? String((mediaArr[0] as { url?: string; MediaURL?: string })?.url || (mediaArr[0] as { url?: string; MediaURL?: string })?.MediaURL || "")
-    : undefined;
+  // ── Email-card hero: canonical composition, never raw `media[0]` ──────────
+  //
+  // This previously read `listing.media[0].url || .MediaURL` straight off the
+  // legacy JSON. Trestle interleaves Photos, FloorPlans and documents in
+  // arbitrary provider order, and ~2,000 legacy first-position items are floor
+  // plans/documents carrying an EMPTY MediaCategory
+  // (lib/media/listing-media-resolver.ts:134-141) — so a client could receive an
+  // email whose listing card was a floor plan, or a `/DOCUMENT-Pdf/` URL that an
+  // `<img src>` cannot render at all. It also ignored `listing_media`, the
+  // canonical rows, entirely.
+  //
+  // `composeDbPublicMedia` resolves relational rows first (legacy JSON only as
+  // its own gated fallback), sorts photo-first, dedupes, and proxies each URL
+  // exactly once. Picking `mediaType === 'Photo'` — rather than `media[0]` —
+  // keeps the documented card rule (lib/media/listing-media-resolver.ts:434-448):
+  // a card would rather show no image than a floor plan. `listingSendEmail`
+  // renders no `<img>` at all when `photoUrl` is undefined
+  // (lib/email/templates.ts:395-397), which is the correct degraded state.
+  const composed = composeDbPublicMedia({
+    listingId: listing.listing_id,
+    rlsEligible: listing.rls_eligible,
+    tableRows: listing.listing_media,
+    legacyMedia: Array.isArray(listing.media) ? listing.media : [],
+    // ALL-STATUS count, never `listing.listing_media.length` (active-only
+    // select): an all-deleted Mallan listing must stay authoritatively empty.
+    hadRelationalRows:
+      typeof listing._count?.listing_media === "number"
+        ? listing._count.listing_media > 0
+        : undefined,
+  });
+  const firstPhoto = composed.media.find((m) => m.mediaType === "Photo")?.url;
 
   // Fetch all client emails in one query
   const clientBigIntIds = client_ids.map((id) => BigInt(id));

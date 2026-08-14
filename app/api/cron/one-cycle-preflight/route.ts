@@ -99,15 +99,44 @@ export async function GET(req: NextRequest) {
     const body = await response.clone().json();
     const completion = completionFromBody(body);
     if (completion) {
-      await finalizeOneCyclePreflight(decision, completion, new Date());
+      // The finalize outcome is the ONLY signal that distinguishes "the machine
+      // is healthy and had nothing to skip" from "the completion state never
+      // persisted, so every poll forces a full Neon cycle." Production shows
+      // 0 skip_neon events; without this the two look identical in the logs.
+      // Emitted as its own event, never as a decision reason — this runs AFTER
+      // the Neon-backed cycle.
+      const outcome = await finalizeOneCyclePreflight(decision, completion, new Date());
+      console.log(JSON.stringify({
+        tag: 'one_cycle_preflight',
+        event: 'external_state_finalize',
+        outcome,
+        decision_reason: decision.reason,
+      }));
     } else {
-      console.warn('[one-cycle-preflight] cycle response was not finalizable; next poll remains fail-open');
+      console.log(JSON.stringify({
+        tag: 'one_cycle_preflight',
+        event: 'external_state_finalize',
+        outcome: 'not_finalizable',
+        decision_reason: decision.reason,
+      }));
     }
   } catch (err) {
-    console.warn(
-      '[one-cycle-preflight] cycle response parse/finalize failed; next poll remains fail-open:',
-      err instanceof Error ? err.name : 'unknown_error',
-    );
+    // STRUCTURED, like the two success paths above. This was an unstructured
+    // console.warn, which meant the one outcome that matters most — the
+    // completion state failed to persist, so every subsequent poll fails open
+    // and Neon is never skipped — was the ONLY outcome not queryable by
+    // `tag`/`event`. A log filter looking for external_state_finalize events
+    // would see nothing and read that as "no problem".
+    //
+    // Error CLASS only, never the message: the Upstash failure carries the REST
+    // URL and can carry the token, and this line is shipped to runtime logs.
+    console.log(JSON.stringify({
+      tag: 'one_cycle_preflight',
+      event: 'external_state_finalize',
+      outcome: 'parse_or_finalize_threw',
+      decision_reason: decision.reason,
+      error_class: err instanceof Error ? err.name : 'unknown_error',
+    }));
   }
   return response;
 }

@@ -258,9 +258,14 @@ async function collectMediaHealth() {
       count(*) FILTER (WHERE l.media::jsonb->0->>'mediaType' = 'FloorPlan')                                        AS json_first_floorplan,
       count(*) FILTER (WHERE l.media::jsonb->0->>'mediaType' = 'FloorPlan' AND COALESCE(lm.photo_rows, 0) = 0)     AS exposed_json_path
     FROM listings l LEFT JOIN lm ON lm.listing_id = l.listing_id
-    -- CASE-guard the length (a sibling `jsonb_typeof = 'array'` AND predicate does NOT reliably
+    -- CASE-guard the length (a sibling jsonb_typeof = 'array' AND predicate does NOT reliably
     -- short-circuit in Postgres — quals may be reordered — so jsonb_array_length must live inside
-    -- the CASE). `->0->>'mediaType'` is null-safe on a non-array, so only the length needs guarding.
+    -- the CASE). The ->0->>'mediaType' form is null-safe on a non-array, so only the length
+    -- needs guarding.
+    -- NOTE: no BACKTICKS in this comment. It sits inside a $queryRaw tagged template, so a
+    -- backtick here terminates the template literal and the file stops parsing entirely
+    -- (esbuild: "Expected ) but found jsonb_typeof"). That is how this monitor became
+    -- unrunnable; keep prose here backtick-free.
     WHERE l.idx_display_yn = true
       AND COALESCE(CASE WHEN jsonb_typeof(l.media::jsonb) = 'array' THEN jsonb_array_length(l.media::jsonb) END, 0) > 0
   `);
@@ -750,6 +755,26 @@ function renderMarkdown(
   L.push(`| R2 coverage (active media w/ r2_key) | ${rag.r2CoveragePct.toFixed(1)}% | ${RAG_ICON[rag.dims.r2Coverage.rag]} ${rag.dims.r2Coverage.rag} |`);
   L.push(`| Proxy/Trestle fallback (active) | ${rag.proxyFallbackPct.toFixed(2)}% | ${RAG_ICON[rag.dims.proxyFallback.rag]} ${rag.dims.proxyFallback.rag} |`);
   L.push(`| DB size (advisory, plan unconfirmed) | ${fmtBytes(data.dbBytes)} | ${RAG_ICON[rag.dims.dbSize.rag]} ${rag.dims.dbSize.rag} |`);
+  // SEPARATE Free-tier gate. The advisory `dbSize` dimension above uses a 1 GB
+  // green threshold as a PREDICTABILITY signal, so a database comfortably over
+  // the Neon Free 0.5 GB ceiling still reported GREEN while this same report
+  // printed "Neon storage: 0.5 GB" two sections lower. That juxtaposition hid
+  // the overage. CPU-free and STORAGE-free are independent gates and this one
+  // is reported on its own terms.
+  {
+    const gib = data.dbBytes / 1024 ** 3;
+    const warn = WARN_THRESHOLDS.neonStorageGB;
+    const freeStatus: Rag = gib >= NEON_FREE_TIER_GIB ? 'RED' : gib >= warn ? 'YELLOW' : 'GREEN';
+    const verdict =
+      freeStatus === 'RED'
+        ? `OVER the ${NEON_FREE_TIER_GIB} GiB Free ceiling`
+        : freeStatus === 'YELLOW'
+          ? `over the ${warn} GiB warning line, under the Free ceiling`
+          : `under the ${warn} GiB warning line`;
+    L.push(
+      `| **Neon FREE-tier storage** (hard ${NEON_FREE_TIER_GIB} GiB) | ${gib.toFixed(3)} GiB — ${verdict} | ${RAG_ICON[freeStatus]} ${freeStatus} |`,
+    );
+  }
   L.push(`| Max dead-tuple % (churn tables) | ${rag.maxDeadPct.toFixed(1)}% | ${RAG_ICON[rag.dims.deadTuples.rag]} ${rag.dims.deadTuples.rag} |`);
   L.push(`| Broken active media (no URL) | ${n(m.active_no_url)} | ${RAG_ICON[rag.dims.brokenMedia.rag]} ${rag.dims.brokenMedia.rag} |`);
   L.push(`| Duplicate uploads (same original, diff key) | ${n(data.dupOriginal.groups)} groups | ${RAG_ICON[rag.dims.duplicateUploads.rag]} ${rag.dims.duplicateUploads.rag} |`);

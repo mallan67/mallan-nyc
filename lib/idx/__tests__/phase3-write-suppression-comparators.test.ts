@@ -34,11 +34,18 @@ function decimalLike(v: string | number) {
 }
 
 describe("newWritePathCounters — required counter shape", () => {
-  it("initializes all six required counters to zero", () => {
+  it("initializes all seven required counters to zero", () => {
+    // `rows_suppressed_provenance_only` (2026-08-13) is a SUBSET of
+    // rows_suppressed_unchanged, broken out so the Neon write-amplification
+    // reduction stays measurable: ~95% of production updates classified
+    // `modification_timestamp_only` and previously still issued a physical
+    // UPDATE. Merging it into the general suppressed count would make the fix
+    // unprovable from telemetry alone.
     expect(newWritePathCounters()).toEqual({
       rows_checked: 0,
       rows_materially_changed: 0,
       rows_suppressed_unchanged: 0,
+      rows_suppressed_provenance_only: 0,
       rows_inserted: 0,
       rows_updated: 0,
       rows_failed: 0,

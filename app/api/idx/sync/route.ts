@@ -3,7 +3,7 @@
 // Rate-limited: 1 call per 5 minutes (enforced in middleware).
 import { NextRequest, NextResponse } from "next/server";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
-import { syncListings, getLastSyncTimestamp } from "@/lib/idx/sync";
+import { syncListings, getPropertyKeysetCursor } from "@/lib/idx/sync";
 import { hasCredentials } from "@/lib/idx/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
@@ -45,12 +45,26 @@ export async function POST(req: NextRequest) {
       // No body is fine — use defaults
     }
 
-    // Get last sync time for incremental
-    const since = fullSync ? undefined : (await getLastSyncTimestamp()) || undefined;
+    // ONE Property cursor contract — this manual route must resolve its resume
+    // position exactly as the scheduled member does (lib/idx/idx-sync-member.ts).
+    // Reading the bare timestamp and dropping the ListingKey would resume with
+    // no tie-breaker, which cannot express "at T, after key K" and so either
+    // re-reads or skips inside a same-timestamp cluster (production carries 797
+    // rows at one ModificationTimestamp).
+    //
+    // NOTE on scoped runs: a `type` of "sale"/"rent" traverses a SUBSET, so
+    // syncListings refuses to advance the shared cursor for it (see
+    // `advancesGlobalCursor` there). Reading the position is still correct —
+    // it only narrows what this manual run re-processes — but nothing this run
+    // does can move the global position.
+    const cursor = fullSync
+      ? { since: null as Date | null, listingKey: null as string | null }
+      : await getPropertyKeysetCursor();
 
     const result = await syncListings({
       type,
-      since: since || undefined,
+      since: cursor.since || undefined,
+      sinceListingKey: cursor.listingKey,
       maxRecords,
       fullSync,
     });

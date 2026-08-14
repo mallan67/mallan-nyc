@@ -446,12 +446,22 @@ describe("syncListings — SyncState watermark failure catch", () => {
     expect(payload).toContain("duration_ms");
   });
 
-  it("batchWatermark + advanceWatermark hoisted outside the try block (so catch can include them)", () => {
-    // The pre-PR shape declared both inside the try block, which
-    // made them inaccessible to the catch. The PR hoists them.
+  it("batchWatermark + batchListingKey + advanceWatermark hoisted outside the try block (so catch can include them)", () => {
+    // The pre-PR shape declared these inside the try block, which made them
+    // inaccessible to the catch. They stay hoisted.
+    //
+    // The initializer changed deliberately on 2026-08-13: `batchWatermark` was
+    // `= now`, which is why SyncState.last_watermark persisted as LOCAL WALL
+    // CLOCK on every healthy run (proved live: last_watermark === last_run_at to
+    // the millisecond). It is now `= null` and is only ever assigned a real
+    // provider ModificationTimestamp from the contiguous keyset advance. This
+    // assertion pins the HOISTING, not the old wall-clock seed — matching
+    // `= now` again would re-pin the defect.
     expect(syncListingsBody).toMatch(
-      /let\s+batchWatermark\s*=\s*now\s*;\s*\n\s*let\s+advanceWatermark\s*=\s*false\s*;\s*\n\s*try\s*\{/,
+      /let\s+batchWatermark\s*:\s*Date\s*\|\s*null\s*=\s*null\s*;\s*\n\s*let\s+batchListingKey\s*:\s*string\s*\|\s*null\s*=\s*null\s*;\s*\n\s*let\s+advanceWatermark\s*=\s*false\s*;\s*\n\s*try\s*\{/,
     );
+    // Regression guard for the wall-clock defect itself.
+    expect(syncListingsBody).not.toMatch(/let\s+batchWatermark\s*=\s*now\s*;/);
   });
 
   it("SyncState catch still console.error's (live log surface preserved)", () => {

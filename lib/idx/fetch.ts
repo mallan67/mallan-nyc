@@ -7,6 +7,9 @@ import { getAccessToken, invalidateToken } from "./auth";
 // module: this file is the provider-I/O MOCK BOUNDARY, and a pure algorithm
 // behind that boundary would be silently stubbed by every provider mock).
 import { paginateMedia } from "./media-pagination";
+// THE single owner of the keyset resume predicate's OData shape. Imported so
+// this module cannot grow a second, drifting copy of it.
+import { keysetFilter } from "./cursor/keyset-cursor";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
 import {
   recordCotalityHttp,
@@ -374,26 +377,100 @@ export async function fetchListingByAddress(address: {
 }
 
 /**
- * Build an OData $filter for incremental sync based on listing or photo
- * modification timestamps.
+ * Build an OData $filter for incremental Property sync — ModificationTimestamp
+ * ONLY, with a keyset tie-breaker.
  *
- * Cotality vendor guidance (2026-04-07): photo-only edits may bump
- * `Property.PhotosChangeTimestamp` without bumping `Property.ModificationTimestamp`.
- * Empirical Layer 0 audit (2026-05-08): 18,411 of 21,307 rows in our DB had
- * raw_data.PhotosChangeTimestamp newer than modification_timestamp; 13,675 of
- * those were displayable active listings whose new photos were never re-pulled
- * because the MT-only cursor skipped over them. The OR-cursor here closes that
- * gap — both timestamp fields are already in IDX_PLUS_SELECT_FIELDS, so no
- * additional Trestle traffic is required for the change itself.
+ * WHY THIS IS NO LONGER AN OR OVER TWO CLOCKS
+ *
+ * This filter used to read
+ *   `(ModificationTimestamp gt T or PhotosChangeTimestamp gt T)`
+ * to close a real gap: Cotality guidance (2026-04-07) is that photo-only edits
+ * bump `PhotosChangeTimestamp` without bumping `ModificationTimestamp`, and the
+ * Layer 0 audit (2026-05-08) found 18,411 of 21,307 rows with PCT newer than MT,
+ * 13,675 of them displayable actives whose new photos were never re-pulled.
+ *
+ * That gap is real, but ORing the two clocks against ONE scalar cursor is not a
+ * correct way to close it. Two independent source clocks cannot share one
+ * position: a single `T` that is correct for MT is wrong for PCT and vice versa,
+ * so the cursor is perpetually wrong for at least one dimension and rows are
+ * re-fetched or skipped depending on which clock moved.
+ *
+ * The PCT dimension already has its OWN cursor and its own owner:
+ * `media_sync_state.{last_photos_change,last_listing_key}`, driven by
+ * `runMediaSync` (lib/idx/media-sync.ts), which reconciles canonical
+ * `listing_media`. Property therefore keeps only the material clock (MT) and
+ * media freshness stays with the lane that owns it. Deliberately NO
+ * `SyncState("PropertyPhotos")` row is introduced — that would be a third
+ * cursor for a dimension that already has one.
+ *
+ * WHY THE TIE-BREAKER IS MANDATORY
+ *
+ * `ModificationTimestamp` is not unique. Production census (2026-08-13) shows a
+ * 797-row cluster at a single MT (2026-04-24T03:30:26.372Z), plus 357/302/140-row
+ * clusters. The scheduled run caps at 500 records (SCHEDULED_MAX_RECORDS) and
+ * `$top` is 500, so one capped run is one page. Against a 797-row cluster a
+ * scalar `MT gt T` cursor cannot make progress: it either re-reads the same page
+ * on every firing or jumps the cluster and drops 297 rows.
+ *
+ * `(MT gt T) OR (MT eq T AND ListingKey gt K)` is a strict total order over
+ * (ModificationTimestamp, ListingKey) and can neither stall nor skip. It must be
+ * paired with `$orderby=ModificationTimestamp asc,ListingKey asc` — ASC is not
+ * cosmetic. Under DESC the newest rows are consumed first and the cursor jumps
+ * to the newest MT, making every older unprocessed row unreachable on every
+ * capped run (see lib/idx/cursor/keyset-cursor.ts).
+ *
+ * PROVENANCE OF THE "Cotality accepts this" CLAIM — read before relying on it.
+ * The ASC composite `$orderby` and this filter shape are asserted to be accepted
+ * by the live feed. That assertion originates from an EARLIER session's probe
+ * and is NOT self-evident from this repo. Re-verify it with
+ * `npm run trestle:probe-keyset` (scripts/probe-property-keyset-contract.ts),
+ * which executes A/B/C/D against current Property data and writes sanitized
+ * evidence to artifacts/cotality-keyset-probe.json. Do not restate the claim as
+ * verified without pointing at a dated probe artifact.
+ *
+ * WHY THE BOOTSTRAP BOUNDARY IS INCLUSIVE
+ *
+ * Without a tie-breaker there is no way to say "everything at T except the keys
+ * I already did". A strict `MT gt T` therefore SKIPS any unprocessed record
+ * sitting exactly AT T — and T on the bootstrap path is
+ * MAX(listings.modification_timestamp), a timestamp we are only guaranteed to
+ * have processed PARTIALLY (production carries 797 rows at a single MT, and the
+ * scheduled run caps at 500). Assuming we finished that timestamp is exactly
+ * the completeness assumption that loses records.
+ *
+ * So a tie-breaker-less resume uses `ge` and REPLAYS the boundary timestamp.
+ * Replay is safe and cheap: unchanged rows are suppressed by
+ * listingUpdateMateriallyUnchanged, so a replayed row costs a comparison, not a
+ * write. `media_sync_state`'s reader already does exactly this
+ * (lib/idx/media-sync.ts — `ge` when lastListingKey is null), so both lanes
+ * agree on the rule.
+ *
+ * Once a real keyset position exists the predicate becomes strict again, because
+ * the tie-breaker can now express "at T, after key K" precisely.
+ *
+ * @param since - resume timestamp (the last CONTIGUOUS fully-processed MT)
+ * @param listingType - optional sale/rent narrowing
+ * @param tieBreakerListingKey - ListingKey of the last fully-processed record AT
+ *   `since`. `null`/omitted falls back to the INCLUSIVE boundary above.
  */
 export function buildIncrementalFilter(
   since: Date,
-  listingType?: "sale" | "rent"
+  listingType?: "sale" | "rent",
+  tieBreakerListingKey?: string | null
 ): string {
   const timestamp = since.toISOString();
-  const parts = [
-    `(ModificationTimestamp gt ${timestamp} or PhotosChangeTimestamp gt ${timestamp})`,
-  ];
+  // The keyed predicate is built by `keysetFilter`, the SINGLE owner of that
+  // OData shape (including the single-quote escaping ListingKey requires).
+  // Writing it inline here as well would be two implementations of one
+  // contract, free to drift — and the cursor is only sound while the filter and
+  // `advanceCursor` agree on the ordering they encode.
+  const keyed = tieBreakerListingKey
+    ? keysetFilter("ModificationTimestamp", {
+        timestamp: since,
+        listingKey: tieBreakerListingKey,
+      })
+    : null;
+  const parts = [keyed ?? `(ModificationTimestamp ge ${timestamp})`];
 
   if (listingType === "sale") {
     parts.push("PropertyType ne 'ResidentialLease'");
@@ -403,6 +480,16 @@ export function buildIncrementalFilter(
 
   return parts.join(" and ");
 }
+
+/**
+ * The ASC composite ordering the keyset resume predicate REQUIRES.
+ *
+ * Kept next to `buildIncrementalFilter` so the filter and the ordering it
+ * depends on cannot drift apart: a keyset filter under the module default
+ * (`ModificationTimestamp desc`, see buildUrl) silently reintroduces the
+ * unreachable-tail defect the filter exists to remove.
+ */
+export const PROPERTY_KEYSET_ORDERBY = "ModificationTimestamp asc,ListingKey asc";
 
 /**
  * Build an OData $filter for active listings only.

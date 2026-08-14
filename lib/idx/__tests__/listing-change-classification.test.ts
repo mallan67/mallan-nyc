@@ -89,6 +89,7 @@ describe("counter factories — required reason-key shapes", () => {
         "display_permissions",
         "media_identity",
         "attribution",
+        "source_identity",
         "other",
       ]),
     );
@@ -352,5 +353,168 @@ describe("changedMaterialListingFields — raw field list", () => {
       },
     ) as Record<string, unknown>;
     expect(classifyListingChangeReasons(hostile, existingRow())).toEqual(["other"]);
+  });
+});
+
+// ── source_identity: the one-time mls_id/ListingKey convergence ─────────────
+//
+// Added 2026-08-13 with the Property keyset cursor. `ListingKey` was never in
+// the Property select before this PR, so 8,449 of 8,460 Active-ish production
+// rows hold `mls_id = NULL`. `mapTrestleToPrisma` sets `mls_id = ListingKey`
+// and `mls_id` is material, so the first cursor touch of each row writes once
+// for identity alone. That write needs its OWN bucket: folded into `other` it
+// is indistinguishable from content churn, and the post-deploy write-reduction
+// metric becomes unreadable exactly when it is being evaluated.
+
+describe("source_identity — mls_id convergence is attributed, not hidden", () => {
+  it("classifies a NULL -> ListingKey fill as source_identity, never other", () => {
+    const existing = existingRow({ mls_id: null });
+    const update = updatePayload({ mls_id: "1092246828" });
+    expect(classifyListingChangeReasons(update, existing)).toEqual(["source_identity"]);
+  });
+
+  it("classifies a CHANGED mls_id the same way", () => {
+    const existing = existingRow({ mls_id: "OLDKEY" });
+    const update = updatePayload({ mls_id: "1092246828" });
+    expect(classifyListingChangeReasons(update, existing)).toEqual(["source_identity"]);
+  });
+
+  it("is NOT provenance-only — an identity write must still invalidate caches", () => {
+    // isProvenanceOnlyChange gates the cache-invalidation skip. Only the
+    // timestamp bump may skip; an identity fill changes a real column.
+    const reasons = classifyListingChangeReasons(
+      updatePayload({ mls_id: "1092246828" }),
+      existingRow({ mls_id: null }),
+    );
+    expect(isProvenanceOnlyChange(reasons)).toBe(false);
+  });
+
+  it("a SECOND identical emit produces no reason at all (self-extinguishing)", () => {
+    // The property that makes this a one-time cost rather than per-cycle churn.
+    const converged = existingRow({ mls_id: "1092246828" });
+    expect(classifyListingChangeReasons(updatePayload({ mls_id: "1092246828" }), converged)).toEqual(
+      [],
+    );
+  });
+
+  it("does NOT collapse a real content change that rides along with it", () => {
+    // A recovery row can carry both. The price change must stay visible —
+    // otherwise the identity bucket would mask genuine churn.
+    const reasons = classifyListingChangeReasons(
+      updatePayload({ mls_id: "1092246828", list_price: 1_400_000 }),
+      existingRow({ mls_id: null }),
+    );
+    expect(reasons.sort()).toEqual(["price", "source_identity"]);
+  });
+
+  it("keeps agent/office MLS ids in attribution, not source_identity", () => {
+    // list_office_mls_id is content about WHO holds the listing; mls_id is the
+    // key identifying the record. Different buckets on purpose.
+    expect(
+      classifyListingChangeReasons(updatePayload({ list_office_mls_id: "OFF2" }), existingRow()),
+    ).toEqual(["attribution"]);
+  });
+
+  it("still reports modification_timestamp_only when identity already matches", () => {
+    // The headline metric must not be polluted by the new bucket.
+    const converged = existingRow({ mls_id: "1092246828" });
+    const reasons = classifyListingChangeReasons(
+      updatePayload({ mls_id: "1092246828", modification_timestamp: T1 }),
+      converged,
+    );
+    expect(reasons).toEqual(["modification_timestamp_only"]);
+    expect(isProvenanceOnlyChange(reasons)).toBe(true);
+  });
+});
+
+// ── Direct EXACT category assertions (round 8) ──────────────────────────────
+//
+// These categories are load-bearing production telemetry: they drive
+// would_write_by_reason, source_identity_plus_material, and the METRIC_PROVEN
+// reading of the deploy. An arrayContaining assertion stays green if a mapping
+// DISAPPEARS, so every case below uses exact array equality.
+
+describe("classification / size / features — exact category mapping", () => {
+  it.each([["listing_type", "Rental"], ["property_type", "Commercial"], ["property_sub_type", "Loft"]])(
+    "%s alone -> exactly [classification]",
+    (field, value) => {
+      expect(
+        classifyListingChangeReasons(updatePayload({ [field]: value }), existingRow()),
+      ).toEqual(["classification"]);
+    },
+  );
+
+  it.each([["bedrooms_total", 4], ["bathrooms_full", 3], ["bathrooms_half", 2], ["living_area", 2222]])(
+    "%s alone -> exactly [size]",
+    (field, value) => {
+      expect(
+        classifyListingChangeReasons(updatePayload({ [field]: value }), existingRow()),
+      ).toEqual(["size"]);
+    },
+  );
+
+  it("a real features delta alone -> exactly [features]", () => {
+    expect(
+      classifyListingChangeReasons(
+        updatePayload({ features: { Exposures: "South", ListingKey: "1092246828" } }),
+        existingRow({ features: { Exposures: "North" } }),
+      ),
+    ).toEqual(["features"]);
+  });
+
+  it("mls_id alone -> exactly [source_identity]", () => {
+    expect(
+      classifyListingChangeReasons(
+        updatePayload({ mls_id: "1092246828" }),
+        existingRow({ mls_id: null }),
+      ),
+    ).toEqual(["source_identity"]);
+  });
+
+  it("mls_id + features -> exactly those two", () => {
+    // The live shape: adding ListingKey to the Property select fills mls_id AND
+    // puts ListingKey inside the features blob, on ONE physical write.
+    expect(
+      classifyListingChangeReasons(
+        updatePayload({ mls_id: "1092246828", features: { A: 1, ListingKey: "1092246828" } }),
+        existingRow({ mls_id: null, features: { A: 1 } }),
+      ).sort(),
+    ).toEqual(["features", "source_identity"]);
+  });
+
+  it("status + classification -> exactly those two", () => {
+    expect(
+      classifyListingChangeReasons(
+        updatePayload({ status: "Pending", property_type: "Commercial" }),
+        existingRow(),
+      ).sort(),
+    ).toEqual(["classification", "status"]);
+  });
+
+  it("modification_timestamp alone -> exactly [modification_timestamp_only]", () => {
+    expect(
+      classifyListingChangeReasons(updatePayload({ modification_timestamp: T1 }), existingRow()),
+    ).toEqual(["modification_timestamp_only"]);
+  });
+
+  it("modification_timestamp + features -> [features], NOT provenance-only", () => {
+    // The provenance bucket is exclusive: any real content change demotes it.
+    const reasons = classifyListingChangeReasons(
+      updatePayload({ modification_timestamp: T1, features: { B: 2 } }),
+      existingRow({ features: { B: 1 } }),
+    );
+    expect(reasons).toEqual(["features"]);
+    expect(isProvenanceOnlyChange(reasons)).toBe(false);
+  });
+
+  it("a SECOND identical emit produces no reason at all", () => {
+    // Self-extinguishing: the ListingKey-in-features convergence happens once.
+    const converged = existingRow({ mls_id: "1092246828", features: { ListingKey: "1092246828" } });
+    expect(
+      classifyListingChangeReasons(
+        updatePayload({ mls_id: "1092246828", features: { ListingKey: "1092246828" } }),
+        converged,
+      ),
+    ).toEqual([]);
   });
 });

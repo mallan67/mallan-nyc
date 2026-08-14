@@ -430,7 +430,24 @@ function section5() {
   const cols = getListingColumns();
   const mapper = readFile('lib/idx/trestle-mapper.ts');
   if (!mapper || cols.size === 0) { critical(s, 'Required files', 'Cannot read'); return; }
-  const retMatch = mapper.match(/return\s*\{([\s\S]*?)\};\s*\}/);
+  // Anchor on mapTrestleToPrisma before matching its return block. The bare
+  // /return\s*\{.../ match scanned from the TOP OF THE FILE and bound to
+  // whichever helper happened to be declared first, so adding any earlier
+  // function that returns an object literal silently retargeted this section
+  // onto that helper — 6 real column checks became 0 plus one bogus warning,
+  // with no failure to signal the loss. Anchoring restores what the section's
+  // own message already claims it inspects: "mapTrestleToPrisma returns ...".
+  // The bare /return\s*\{.../ match scanned from the TOP OF THE FILE and bound
+  // to whichever function happened to declare an object return first — which
+  // was `computeGateColumns`, NOT the mapper this section names. It also had no
+  // failure mode: adding any earlier helper silently retargeted it again.
+  //
+  // Anchor on the function, then take its TOP-LEVEL return (base indentation,
+  // two spaces) so a nested object literal — e.g. the per-item `return {}` in
+  // the media map at ~line 1202 — cannot capture it either.
+  const fnStart = mapper.indexOf('export function mapTrestleToPrisma');
+  if (fnStart === -1) { warning(s, 'Mapper function', 'mapTrestleToPrisma not found'); return; }
+  const retMatch = mapper.slice(fnStart).match(/\n {2}return \{([\s\S]*?)\n {2}\};/);
   if (!retMatch) { warning(s, 'Mapper return', 'Could not parse'); return; }
   const keyPattern = /^\s+(\w+)\s*[,:]/gm;
   let m;

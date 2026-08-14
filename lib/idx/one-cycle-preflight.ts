@@ -85,10 +85,26 @@ export interface OneCyclePreflightState {
   lastOutcome: 'success' | 'partial' | 'incomplete' | null;
 }
 
+/**
+ * Outcome of persisting completion state. Deliberately separate from the
+ * decision reason union: this happens after the cycle, so conflating the two
+ * would report post-cycle write failures as pre-cycle decisions.
+ */
+export type OneCycleFinalizeOutcome =
+  | 'ok'
+  | 'redis_client_missing'
+  | 'redis_write_failed'
+  | 'no_snapshot';
+
 export interface OneCyclePreflightDecision {
   shouldRun: boolean;
   reason:
+    // Retained for existing telemetry matchers. New code emits one of the
+    // specific subtypes below: a single reason made "no client configured"
+    // indistinguishable from "the read threw", and those differ in remedy.
     | 'external_state_unavailable'
+    | 'redis_client_missing'
+    | 'redis_read_failed'
     | 'state_missing_or_invalid'
     | 'source_probe_failed'
     | 'forced_retry'
@@ -290,7 +306,7 @@ export async function decideOneCyclePreflight(now: Date = new Date()): Promise<O
   if (!redis) {
     return {
       shouldRun: true,
-      reason: 'external_state_unavailable',
+      reason: 'redis_client_missing',
       snapshot: null,
       snapshotTrusted: false,
       priorState: null,
@@ -302,10 +318,17 @@ export async function decideOneCyclePreflight(now: Date = new Date()): Promise<O
     priorState = parseOneCyclePreflightState(
       await redis.get<unknown>(ONE_CYCLE_PREFLIGHT_KEY),
     );
-  } catch {
+  } catch (err) {
+    // Client EXISTS and the call failed: dead endpoint, auth rejection, DNS or
+    // transport. Distinct from a missing client, and from a successful read
+    // that returned nothing (state_missing_or_invalid).
+    console.warn(
+      '[one-cycle-preflight] external state read failed:',
+      err instanceof Error ? err.name : 'unknown_error',
+    );
     return {
       shouldRun: true,
-      reason: 'external_state_unavailable',
+      reason: 'redis_read_failed',
       snapshot: null,
       snapshotTrusted: false,
       priorState: null,
@@ -445,8 +468,11 @@ export async function finalizeOneCyclePreflight(
   decision: OneCyclePreflightDecision,
   completion: OneCycleCompletionInput,
   now: Date = new Date(),
-): Promise<void> {
-  if (!redis || !decision.snapshot) return;
+): Promise<OneCycleFinalizeOutcome> {
+  // Separated: "no client" is an env problem, "no snapshot" is a normal
+  // fail-open cycle that had nothing to persist. Collapsing them hid the former.
+  if (!redis) return 'redis_client_missing';
+  if (!decision.snapshot) return 'no_snapshot';
   const followup = deriveOneCycleFollowup(completion, decision.snapshotTrusted, now);
   const state: OneCyclePreflightState = {
     version: ONE_CYCLE_PREFLIGHT_VERSION,
@@ -465,10 +491,17 @@ export async function finalizeOneCyclePreflight(
   };
   try {
     await redis.set(ONE_CYCLE_PREFLIGHT_KEY, state);
+    return 'ok';
   } catch (err) {
+    // Runs AFTER the Neon cycle, so this is NOT a decision reason and must
+    // never be reported as one. It is still load-bearing: a failed write means
+    // the next poll finds no state and forces another full cycle, so silently
+    // swallowing it looks exactly like a healthy machine that never skips —
+    // which is indistinguishable from the production symptom being chased.
     console.warn(
       '[one-cycle-preflight] completion state write failed; next poll will fail open:',
       err instanceof Error ? err.name : 'unknown_error',
     );
+    return 'redis_write_failed';
   }
 }
