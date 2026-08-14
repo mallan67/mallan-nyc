@@ -497,6 +497,24 @@ export const LISTING_CHANGE_REASON_KEYS = [
   "display_permissions",
   "media_identity",
   "attribution",
+  // The provider's own identity for the row (`mls_id` = Property.ListingKey).
+  // Its own bucket because it produces a ONE-TIME, self-extinguishing write
+  // that would otherwise be indistinguishable from real content churn.
+  //
+  // Measured 2026-08-14 on canonical production: 8,449 of 8,460 Active-ish
+  // rows carry `mls_id = NULL`, because `ListingKey` was never in the Property
+  // select until this PR added it. `mapTrestleToPrisma` sets
+  // `mls_id = ListingKey` and `mls_id` is material, so the FIRST cursor touch
+  // of each of those rows performs one physical UPDATE for identity alone.
+  // Without this bucket that write lands in `other` and looks like content
+  // churn — which would make the post-deploy write-reduction metric unreadable
+  // exactly when it matters most.
+  //
+  // Reading the deploy: `modification_timestamp_only` must fall to ZERO
+  // physical listing writes, `source_identity` accounts for the one-time
+  // identity convergence and must itself decay to zero as rows are touched,
+  // and a second identical emit for the same row must produce no write at all.
+  "source_identity",
   "other",
 ] as const;
 
@@ -527,6 +545,10 @@ export function newProjectionChangeReasonCounters(): ProjectionChangeReasonCount
  *  `raw_data` are handled by the exclusive buckets, never by this map.
  *  Anything unmapped classifies as "other". */
 const LISTING_FIELD_CHANGE_CATEGORY: Readonly<Record<string, ListingChangeReason>> = {
+  // Provider row identity (Property.ListingKey). NOT `attribution` — that
+  // bucket is agent/office MLS ids, which are content about WHO holds the
+  // listing. This is the key that identifies the record itself.
+  mls_id: "source_identity",
   status: "status",
   sync_status: "status",
   status_changed_at: "status",
