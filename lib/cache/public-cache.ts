@@ -174,10 +174,9 @@ export function buildingAndManifestInvalidationTags(...addresses: Array<unknown>
  *   cache key via unstable_cache's own argument serialization).
  * - Primary invalidation = sync-driven `revalidateTag`; `revalidate`
  *   defaults to the sync cadence as the safety net.
- * - FAIL-CLOSED: if the cache layer itself throws (wrapper construction or
- *   cache machinery), we degrade to the direct live read. (If the underlying
- *   read throws, the error propagates exactly as uncached — after one
- *   fallback re-attempt — so callers' error handling is unchanged.)
+ * - FAIL-CLOSED: if the CACHE LAYER itself throws (wrapper construction or
+ *   cache machinery) we degrade to the direct live read. If the UNDERLYING
+ *   READ throws, the error propagates exactly as uncached — with NO retry.
  *
  * NEVER use for authenticated/user-specific reads — the cache is shared
  * across all anonymous visitors by design.
@@ -192,14 +191,38 @@ export function cachedPublicRead<A extends unknown[], T>(
     // cache backend throws AFTER the wrapped fn already resolved (the
     // production 2 MB oversized-entry failure shape), the fallback must
     // return the captured value — NEVER execute the underlying read a
-    // second time for a cache-storage failure. Only when the fn itself
-    // never resolved (the error happened before/inside it) does the
-    // fallback re-attempt the live read.
+    // second time for a cache-storage failure.
     let captured: { value: T } | null = null;
+
+    // 2026-08-14: the ORIGINAL fallback treated "before OR inside the fn" as
+    // one case and re-attempted the live read for both. That made a DATABASE
+    // failure issue a SECOND identical query at exactly the moment the
+    // database was already failing. Observed in production 10:14:25Z on
+    // `/buy`: Prisma "Timed out fetching a new connection from the connection
+    // pool" (limit 5, timeout 10s) surfaced through this catch as
+    // "cache layer error", and the fallback immediately re-queried a pool that
+    // had just been exhausted. The request survived (HTTP 200) only because the
+    // retry happened to win — the amplification is the defect.
+    //
+    // The two cases need OPPOSITE handling, so they are now distinguished:
+    //   fn threw            -> propagate; the caller sees the real DB error and
+    //                          the read executes EXACTLY ONCE.
+    //   fn never ran        -> cache machinery failed first; one live attempt
+    //                          is still correct (correctness beats CU savings).
+    //   fn resolved, cache
+    //   threw afterwards    -> return the captured value; no second read.
+    let underlyingError: unknown = null;
+    let underlyingThrew = false;
     const capturing = async (...a: A): Promise<T> => {
-      const value = await fn(...a);
-      captured = { value };
-      return value;
+      try {
+        const value = await fn(...a);
+        captured = { value };
+        return value;
+      } catch (e) {
+        underlyingThrew = true;
+        underlyingError = e;
+        throw e;
+      }
     };
     try {
       const wrapped = unstable_cache(capturing, keyParts, {
@@ -208,13 +231,23 @@ export function cachedPublicRead<A extends unknown[], T>(
       });
       return await wrapped(...args);
     } catch (err) {
+      if (captured !== null) {
+        // Cache STORAGE failed after a successful read — the value is good.
+        console.error(
+          "[public-cache] cache store failed after read — returning captured value:",
+          err instanceof Error ? err.message : err,
+        );
+        return (captured as { value: T }).value;
+      }
+      if (underlyingThrew) {
+        // DATABASE/underlying failure. Propagate unchanged. Retrying here is
+        // what turned one failing query into two against a saturated pool.
+        throw underlyingError;
+      }
       console.error(
         "[public-cache] cache layer error — degrading to live read:",
         err instanceof Error ? err.message : err,
       );
-      if (captured !== null) return (captured as { value: T }).value;
-      // Cache layer failed BEFORE the fn resolved → one live re-attempt
-      // (correctness beats CU savings).
       return fn(...args);
     }
   };
