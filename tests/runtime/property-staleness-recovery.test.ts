@@ -182,6 +182,8 @@ function manifest(entries: ManifestEntry[]): RecoveryManifest {
       displayGateOverDisplay: 0,
       displayGateUnderDisplay: 0,
       displayGateExplainedByLocalGate: 0,
+      staleLocalPermissionGates: 0,
+      mallanOwnedExcluded: 0,
     },
     manifestSize: entries.length,
     entries,

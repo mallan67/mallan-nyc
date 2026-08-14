@@ -63,7 +63,12 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import prisma from "@/lib/prisma";
 import { getAccessToken } from "@/lib/idx/auth";
-import { normalizeStandardStatus, computeGateColumns } from "@/lib/idx/trestle-mapper";
+import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
+import {
+  normalizeStandardStatus,
+  computeGateColumns,
+  derivePermissionGates,
+} from "@/lib/idx/trestle-mapper";
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -91,6 +96,13 @@ export const PROVIDER_SELECT_FIELDS: readonly string[] = [
   "StandardStatus",
   "PropertyType",
   "InternetEntireListingDisplayYN",
+  // The two source fields behind the per-row REBNY gates. Selected 2026-08-13
+  // to break the display-gate reconciliation circularity: the gates must be
+  // re-derived from CURRENT provider state, never read back from the stored
+  // local columns they produced. `MlsStatus` is required as well — it carries
+  // the second arm of the owner-opt-out test in `derivePermissionGates`.
+  "Permission",
+  "MlsStatus",
 ];
 
 /**
@@ -148,15 +160,29 @@ export interface ProviderRow {
   StandardStatus: string | null;
   PropertyType: string | null;
   InternetEntireListingDisplayYN: boolean | null;
+  /** Multi-Enum. Source of BOTH per-row REBNY gates. */
+  Permission: string | null;
+  /** Second arm of the owner-opt-out test. Not a display status. */
+  MlsStatus: string | null;
 }
 
 /**
  * One local counterpart row. Exactly the columns the comparison needs.
  *
- * `participant_only` / `owner_opt_out` / `rls_eligible` are here for ONE reason:
- * without them the display-gate comparison cannot tell a real over-display from
- * a row that is legitimately gated off locally. See `classifyProviderRow`. They
- * are read, never emitted — nothing about them reaches the manifest artifact.
+ * `rls_eligible` is a CLASSIFICATION input: it is genuinely local (no Cotality
+ * field maps to it) so the provider cannot answer it and local state is the
+ * authority. See `expectedIdxDisplay`.
+ *
+ * `participant_only` / `owner_opt_out` are NOT classification inputs and MUST
+ * NOT become them again. They are source-derived outputs of
+ * `derivePermissionGates`, so feeding them back into the gate evaluator would
+ * ask stored state to vouch for stored state. They are read for exactly one
+ * purpose: the `staleLocalPermissionGates` diagnostic, which measures how far
+ * the stored copies have drifted from current provider truth — i.e. how much
+ * the old circular form was hiding.
+ *
+ * All of these are read, never emitted — nothing about them reaches the
+ * manifest artifact.
  */
 export interface LocalRow {
   listing_id: string;
@@ -228,13 +254,36 @@ export interface ManifestDiagnostics {
   /** EMITTED gate mismatches where display is expected but we hide the row. */
   displayGateUnderDisplay: number;
   /**
-   * SUPPRESSED mismatches: the provider-only expectation disagreed with local
-   * `idx_display_yn`, but a local gate (`participant_only` / `owner_opt_out` /
-   * `rls_eligible=false`) fully explains the disagreement. These are NOT
+   * SUPPRESSED mismatches: the provider-status-only expectation disagreed with
+   * local `idx_display_yn`, but a gate — a CURRENT-provider Permission gate or
+   * the local `rls_eligible` — fully explains the disagreement. These are NOT
    * differences and never enter the manifest. Reported because a large number
-   * here means the provider-only view is systematically misleading.
+   * here means the provider-status-only view is systematically misleading.
    */
   displayGateExplainedByLocalGate: number;
+  /**
+   * Rows whose STORED `participant_only` / `owner_opt_out` disagree with the
+   * values `derivePermissionGates` produces from the CURRENT provider record.
+   *
+   * This is the direct measurement of what the pre-2026-08-13 circular form was
+   * hiding: every one of these rows had a stale source-derived gate column that
+   * was being used to validate the very `idx_display_yn` it produced. It is a
+   * DIAGNOSTIC, not a reason code — a stale gate column is repaired as a side
+   * effect of any refresh the row already earns, and on its own it changes no
+   * display outcome (if it did, `display_gate_mismatch` fires and the row is
+   * emitted on that axis). A non-zero value here with zero
+   * `display_gate_mismatch` means the drift is real but currently benign.
+   */
+  staleLocalPermissionGates: number;
+  /**
+   * Locally Active-ish Mallan-authored rows skipped by pass 2. These are absent
+   * from the provider population by definition (they were never REBNY-sourced),
+   * so their absence is not drift and must not become recovery work. Measured
+   * live at 2 — SL-0004 and SL-0007, which are simultaneously the only
+   * `rls_eligible=false` rows, the only locally-hidden Active-ish rows, and the
+   * only non-`RLS`-prefixed ids in the Active-ish set.
+   */
+  mallanOwnedExcluded: number;
 }
 
 // ── Pure classification ─────────────────────────────────────────────────────
@@ -271,50 +320,86 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
 }
 
 /**
- * The display gate a canonical ingest WOULD compute for this row: the provider's
- * status and entire-listing flag, combined with the per-row REBNY gates as WE
- * currently hold them.
+ * THE classification input: the display gate a canonical ingest would compute
+ * for this row RIGHT NOW.
  *
- * This is THE classification input. Delegating to `computeGateColumns` — the
- * same evaluator every writer uses — means this file holds no second opinion
- * about gate semantics: null IELD = REBNY pre-filter passed = displayable,
- * terminal status forces false, and `participant_only` / `owner_opt_out` /
- * `rls_eligible=false` each force false on their own.
+ * Every source-derived input comes from the CURRENT provider record — status,
+ * entire-listing flag, and the two per-row REBNY gates re-derived from live
+ * `Permission` / `MlsStatus` through `derivePermissionGates`, the same single
+ * owner `mapTrestleToPrisma` uses. Only `rls_eligible` is read locally, and
+ * only because it is genuinely local: no Cotality field maps to it,
+ * `mapTrestleToPrisma` never emits it, it appears zero times in
+ * `LISTING_SYNC_COMPARE_SELECT`, the Trestle path hard-codes the constant
+ * `true` (`lib/idx/sync.ts:1085`), and its only real writers are the CRM
+ * routes classifying Mallan-authored website-only inventory. Provider state
+ * cannot answer it, so local state is the authority — not a fallback.
  *
- * Using the LOCAL gate values is correct and not circular. The mapper derives
- * `participant_only` / `owner_opt_out` from the provider's Permission enum, so
- * they are our best available knowledge of a provider fact, and `rls_eligible`
- * is a genuinely local classification. Feeding them in asks the right question:
- * "given everything we know, is `idx_display_yn` internally consistent?" A
- * disagreement that survives this is unexplained — a real defect on either side.
- * Note the gates can only push the expected value toward false, so a local
- * `idx_display_yn=true` can never be explained away by one.
+ * WHY THIS IS NOT THE OLD VERSION. Until 2026-08-13 this fed the STORED local
+ * `participant_only` / `owner_opt_out` into the evaluator. Those columns are
+ * outputs of `derivePermissionGates`, so stored state was vouching for stored
+ * state. The concrete failure: a listing whose Permission goes 'Private' →
+ * 'Public' at the source keeps `participant_only=true` locally until something
+ * refreshes it; that stale `true` "explained" its stale `idx_display_yn=false`,
+ * the row earned no reason, and the generator whose job is to schedule that
+ * refresh excluded it — permanently. Re-deriving from the provider inverts it:
+ * the row now reports `display_gate_mismatch` and gets repaired.
+ *
+ * Delegating to `computeGateColumns` keeps this file holding no second opinion
+ * about gate semantics — null IELD = REBNY pre-filter passed = displayable,
+ * terminal status forces false, and each gate forces false on its own.
  */
-export function expectedIdxDisplayWithLocalGates(
-  provider: ProviderRow,
-  local: LocalRow,
-): boolean {
+export function expectedIdxDisplay(provider: ProviderRow, local: LocalRow): boolean {
+  const gates = derivePermissionGates({
+    Permission: provider.Permission,
+    MlsStatus: provider.MlsStatus,
+  });
   return computeGateColumns({
     status: provider.StandardStatus,
     internetEntireListingDisplayYN: provider.InternetEntireListingDisplayYN,
-    participantOnly: local.participant_only,
-    ownerOptOut: local.owner_opt_out,
+    participantOnly: gates.participantOnly,
+    ownerOptOut: gates.ownerOptOut,
+    // Local by proof, not by convenience — see the docstring.
     rls_eligible: local.rls_eligible,
   }).idx_display_yn;
 }
 
 /**
- * True when the provider-only view called a mismatch but the full-gate view does
- * not — i.e. a local REBNY gate fully explains the disagreement. Pure
- * diagnostic: these rows carry NO reason and never enter the manifest.
+ * True when the STORED source-derived gate columns disagree with what the
+ * CURRENT provider record derives. Pure diagnostic — see
+ * `ManifestDiagnostics.staleLocalPermissionGates`. Emits NO reason: this
+ * function exists to MEASURE the drift the old circular classifier consumed,
+ * never to act on it.
  */
-export function displayGateMismatchExplainedByLocalGate(
+export function localPermissionGatesAreStale(
+  provider: ProviderRow,
+  local: LocalRow,
+): boolean {
+  const gates = derivePermissionGates({
+    Permission: provider.Permission,
+    MlsStatus: provider.MlsStatus,
+  });
+  return (
+    gates.participantOnly !== local.participant_only ||
+    gates.ownerOptOut !== local.owner_opt_out
+  );
+}
+
+/**
+ * True when the provider-status-only view called a mismatch but the full
+ * evaluation does not — i.e. a gate fully explains the disagreement. Pure
+ * diagnostic: these rows carry NO reason and never enter the manifest.
+ *
+ * The explaining gate is now a CURRENT-PROVIDER Permission gate or the local
+ * `rls_eligible`, never a stale stored gate column. A row suppressed here is
+ * one canonical ingest would agree with today.
+ */
+export function displayGateMismatchExplainedByGate(
   provider: ProviderRow,
   local: LocalRow,
 ): boolean {
   return (
     providerExpectedIdxDisplay(provider) !== local.idx_display_yn &&
-    expectedIdxDisplayWithLocalGates(provider, local) === local.idx_display_yn
+    expectedIdxDisplay(provider, local) === local.idx_display_yn
   );
 }
 
@@ -337,10 +422,12 @@ export function displayGateMismatchExplainedByLocalGate(
  *    not a mismatch. Comparing raw strings would manufacture work.
  *
  *  - `display_gate_mismatch` — fires ONLY when the disagreement is UNEXPLAINED.
- *    The expectation is computed with the local REBNY gates folded in
- *    (`expectedIdxDisplayWithLocalGates`), so a row that is legitimately gated
- *    off locally by `participant_only` / `owner_opt_out` / `rls_eligible=false`
- *    produces NO reason on this axis. Emitting it would be a false positive of
+ *    The expectation is computed by `expectedIdxDisplay`, which re-derives the
+ *    REBNY gates from the row's CURRENT provider `Permission` / `MlsStatus` and
+ *    folds in the genuinely-local `rls_eligible`. A row that canonical ingest
+ *    would gate off TODAY produces NO reason on this axis; a row gated off only
+ *    by a STALE stored gate column now DOES produce one, which is the entire
+ *    point of the 2026-08-13 de-circularization. Emitting it would be a false positive of
  *    exactly the shape this generator exists to eliminate: the row is not
  *    different, so a refresh would re-fetch it, suppress the write, change
  *    nothing, and the row would re-appear in every future manifest — the "old
@@ -365,7 +452,7 @@ export function classifyProviderRow(provider: ProviderRow, local: LocalRow): Rec
     reasons.push("status_mismatch");
   }
 
-  if (expectedIdxDisplayWithLocalGates(provider, local) !== local.idx_display_yn) {
+  if (expectedIdxDisplay(provider, local) !== local.idx_display_yn) {
     reasons.push("display_gate_mismatch");
   }
 
@@ -438,6 +525,8 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
   let displayGateOverDisplay = 0;
   let displayGateUnderDisplay = 0;
   let displayGateExplainedByLocalGate = 0;
+  let staleLocalPermissionGates = 0;
+  let mallanOwnedExcluded = 0;
 
   // Pass 1 — provider Active-ish rows against their local counterparts.
   for (const [listingId, provider] of providerById) {
@@ -459,9 +548,10 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       // only push the expectation toward false, never toward true.
       if (local.idx_display_yn) displayGateOverDisplay++;
       else displayGateUnderDisplay++;
-    } else if (displayGateMismatchExplainedByLocalGate(provider, local)) {
+    } else if (displayGateMismatchExplainedByGate(provider, local)) {
       displayGateExplainedByLocalGate++;
     }
+    if (localPermissionGatesAreStale(provider, local)) staleLocalPermissionGates++;
     if (reasons.length === 0) continue;
     classified.push(buildEntry(listingId, nonEmpty(provider.ListingKey), reasons));
   }
@@ -472,6 +562,18 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
   for (const [listingId, local] of localById) {
     if (providerById.has(listingId)) continue;
     if (!isLocalActiveIsh(local)) continue;
+    // Mallan-authored inventory is absent from the Cotality Property feed BY
+    // DEFINITION, never by drift — it was never REBNY-sourced. Emitting it here
+    // would tell the executor to "correct" a listing whose authority is Mallan.
+    // The executor fetches it, gets nothing back, and fail-closes to `failed`
+    // (scripts/recover-stale-property-listings.ts:576) — so no bad write, but
+    // the pre-authorization gate is `failed = 0` and these rows would block a
+    // clean run for a false reason. Uses the CANONICAL ownership helper, so the
+    // manifest holds no second opinion about what Mallan-owned means.
+    if (isMallanExclusiveListing({ listing_id: listingId, rls_eligible: local.rls_eligible })) {
+      mallanOwnedExcluded++;
+      continue;
+    }
     // `listingKey` comes from the local mls_id when we have one — there is no
     // provider record to read it from. Usually null; that is honest, not a bug.
     classified.push(buildEntry(listingId, local.mls_id, ["local_active_provider_terminal"]));
@@ -509,6 +611,8 @@ export function buildManifest(input: BuildManifestInput): RecoveryManifest {
       displayGateOverDisplay,
       displayGateUnderDisplay,
       displayGateExplainedByLocalGate,
+      staleLocalPermissionGates,
+      mallanOwnedExcluded,
     },
     manifestSize: entries.length,
     entries,
@@ -551,6 +655,12 @@ function coerceProviderRow(raw: Record<string, unknown>): ProviderRow | null {
       typeof raw.InternetEntireListingDisplayYN === "boolean"
         ? raw.InternetEntireListingDisplayYN
         : null,
+    // Passed through UNPARSED. `derivePermissionGates` is the single owner of
+    // what these mean; normalizing, splitting, or upper-casing here would be
+    // the second interpretation this refactor exists to prevent. `nonEmpty`
+    // only distinguishes absent from present — it makes no claim about value.
+    Permission: nonEmpty(raw.Permission),
+    MlsStatus: nonEmpty(raw.MlsStatus),
   };
 }
 
@@ -763,7 +873,8 @@ async function main(): Promise<void> {
     `(${args.includeMlsBackfill ? "INCLUDED" : "EXCLUDED — pass --include-mls-backfill to admit"})`);
   console.log(`display gate OVER-display (we show what is gated off)  ${manifest.diagnostics.displayGateOverDisplay}`);
   console.log(`display gate UNDER-display (we hide what is displayable) ${manifest.diagnostics.displayGateUnderDisplay}`);
-  console.log(`display gate explained by a local gate (suppressed)      ${manifest.diagnostics.displayGateExplainedByLocalGate}`);
+  console.log(`display gate explained by a gate (suppressed)            ${manifest.diagnostics.displayGateExplainedByLocalGate}`);
+  console.log(`stale local Permission gate columns (diagnostic only)     ${manifest.diagnostics.staleLocalPermissionGates}`);
   console.log(`duplicate provider ListingIds    ${manifest.diagnostics.duplicateProviderListingIds}`);
   console.log("");
   if (manifest.absentLocally > 0) {

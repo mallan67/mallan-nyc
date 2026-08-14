@@ -36,8 +36,9 @@ import {
   buildEntry,
   chunk,
   classifyProviderRow,
-  displayGateMismatchExplainedByLocalGate,
-  expectedIdxDisplayWithLocalGates,
+  displayGateMismatchExplainedByGate,
+  expectedIdxDisplay,
+  localPermissionGatesAreStale,
   fetchProviderActivePopulation,
   formatTotalsTable,
   isLocalActiveIsh,
@@ -51,6 +52,7 @@ import {
   LOCAL_COMPARE_SELECT,
   RECOVERY_REASON_CODES,
   PROVIDER_ACTIVE_STATUSES,
+  PROVIDER_SELECT_FIELDS,
   DEFAULT_MANIFEST_PATH,
   type LocalRow,
   type ManifestPrisma,
@@ -69,6 +71,8 @@ function providerRow(overrides: Partial<ProviderRow> = {}): ProviderRow {
     StandardStatus: "Active",
     PropertyType: "Residential",
     InternetEntireListingDisplayYN: null,
+    Permission: "Public",
+    MlsStatus: "Active",
     ...overrides,
   };
 }
@@ -246,23 +250,35 @@ describe("display_gate_mismatch", () => {
 
   // ── The explained-mismatch suppression ────────────────────────────────────
   //
-  // Each of the three local gates independently forces idx_display_yn=false. A
-  // row hidden BECAUSE of one of them is internally consistent: there is no
+  // Each of the three gates independently forces idx_display_yn=false. A row
+  // hidden BECAUSE of one of them is internally consistent: there is no
   // difference to refresh. Emitting it would re-fetch the row, suppress the
   // write, change nothing, and re-emit it on the next build forever — the same
   // self-regenerating no-op worklist as the `last_synced_from_trestle` predicate
   // this generator replaced.
+  //
+  // The two REBNY gates are asserted through the CURRENT PROVIDER fields that
+  // produce them, never through the stored local columns. Setting only the
+  // local column would assert the circular behavior removed 2026-08-13 — see
+  // the "derived from CURRENT provider Permission" suite below, which pins the
+  // opposite case (stale local column, provider already moved on).
 
-  it("does NOT fire when participant_only explains the hidden row", () => {
+  it("does NOT fire when a CURRENT provider Permission='Private' explains the hidden row", () => {
     expect(
-      classifyProviderRow(providerRow(), locallyGatedRow({ participant_only: true })),
+      classifyProviderRow(
+        providerRow({ Permission: "Private" }),
+        locallyGatedRow({ participant_only: true }),
+      ),
     ).toEqual([]);
   });
 
-  it("does NOT fire when owner_opt_out explains the hidden row", () => {
-    expect(classifyProviderRow(providerRow(), locallyGatedRow({ owner_opt_out: true }))).toEqual(
-      [],
-    );
+  it("does NOT fire when a CURRENT provider owner-opt-out explains the hidden row", () => {
+    expect(
+      classifyProviderRow(
+        providerRow({ MlsStatus: "OwnerOptOut" }),
+        locallyGatedRow({ owner_opt_out: true }),
+      ),
+    ).toEqual([]);
   });
 
   it("does NOT fire when rls_eligible=false explains the hidden row", () => {
@@ -280,19 +296,23 @@ describe("display_gate_mismatch", () => {
     ).toEqual(["display_gate_mismatch"]);
   });
 
-  it("fires when a gate is set but idx_display_yn was never brought into line", () => {
-    // participant_only=true with idx_display_yn=true is an inconsistent row —
-    // the gate is set yet the listing is still publicly displayable. That is a
-    // real defect, not an explanation, and it is the exact shape the
-    // safety-relevant direction exists to catch.
+  it("fires when the provider gates a row off but idx_display_yn was never brought into line", () => {
+    // Provider Permission='Private' with local idx_display_yn=true is the
+    // safety-relevant defect: REBNY gates the row off and we display it anyway.
+    // The stored participant_only column is irrelevant to the finding — set to
+    // the WRONG value here on purpose, to prove classification does not consult
+    // it. (Under the pre-2026-08-13 circular form this row was invisible.)
     expect(
-      classifyProviderRow(providerRow(), localRow({ participant_only: true })),
+      classifyProviderRow(
+        providerRow({ Permission: "Private" }),
+        localRow({ idx_display_yn: true, participant_only: false }),
+      ),
     ).toEqual(["display_gate_mismatch"]);
   });
 
   it("EXCLUDES from the manifest a row whose ONLY reason was an explained mismatch", () => {
     const manifest = manifestOf(
-      [providerRow()],
+      [providerRow({ Permission: "Private" })],
       [locallyGatedRow({ participant_only: true })],
     );
 
@@ -326,7 +346,12 @@ describe("display_gate_mismatch", () => {
       InternetEntireListingDisplayYN: false,
     });
     const underDisplayed = providerRow({ ListingId: "RLS-UNDER", ListingKey: "K-UNDER" });
-    const explained = providerRow({ ListingId: "RLS-EXPL", ListingKey: "K-EXPL" });
+    // Explained by a CURRENT provider gate — the local column merely agrees.
+    const explained = providerRow({
+      ListingId: "RLS-EXPL",
+      ListingKey: "K-EXPL",
+      MlsStatus: "OwnerOptOut",
+    });
 
     const manifest = manifestOf(
       [overDisplayed, underDisplayed, explained],
@@ -366,13 +391,164 @@ describe("display_gate_mismatch", () => {
   it("exposes the provider-only expectation as a diagnostic input, not a classifier", () => {
     // Kept exported for the explained-mismatch computation. On its own it calls
     // every legitimately-gated row a mismatch — which is exactly why
-    // classification uses the full-gate evaluator instead.
+    // classification uses the full evaluator instead. The gate that explains it
+    // here is the CURRENT provider Permission, not the stored column.
+    const provider = providerRow({ Permission: "Private" });
     const gated = locallyGatedRow({ participant_only: true });
-    expect(providerExpectedIdxDisplay(providerRow())).toBe(true);
-    expect(providerExpectedIdxDisplay(providerRow())).not.toBe(gated.idx_display_yn);
-    expect(expectedIdxDisplayWithLocalGates(providerRow(), gated)).toBe(false);
-    expect(displayGateMismatchExplainedByLocalGate(providerRow(), gated)).toBe(true);
-    expect(displayGateMismatchExplainedByLocalGate(providerRow(), localRow())).toBe(false);
+    expect(providerExpectedIdxDisplay(provider)).toBe(true);
+    expect(providerExpectedIdxDisplay(provider)).not.toBe(gated.idx_display_yn);
+    expect(expectedIdxDisplay(provider, gated)).toBe(false);
+    expect(displayGateMismatchExplainedByGate(provider, gated)).toBe(true);
+    expect(displayGateMismatchExplainedByGate(provider, localRow())).toBe(false);
+  });
+});
+
+// ── 4b. De-circularization: gates come from the CURRENT provider record ─────
+//
+// Regression suite for the 2026-08-13 fix. Before it, classification fed the
+// STORED `participant_only` / `owner_opt_out` into the gate evaluator. Those
+// columns are OUTPUTS of `derivePermissionGates`, so stored state vouched for
+// stored state and a source-side Permission change could never be detected.
+
+describe("display gate is derived from CURRENT provider Permission", () => {
+  it("FIRES when Permission went Private -> Public and the local gate is stale", () => {
+    // THE bug. Provider says Public today; we still hold participant_only=true
+    // and idx_display_yn=false. The old classifier used that stale `true` to
+    // "explain" the stale `false` and emitted nothing — the row could never be
+    // repaired by the generator whose job is to schedule its repair.
+    const provider = providerRow({ Permission: "Public" });
+    const stale = locallyGatedRow({ participant_only: true });
+
+    expect(expectedIdxDisplay(provider, stale)).toBe(true);
+    expect(classifyProviderRow(provider, stale)).toContain("display_gate_mismatch");
+    expect(displayGateMismatchExplainedByGate(provider, stale)).toBe(false);
+
+    const m = manifestOf([provider], [stale]);
+    expect(m.entries).toHaveLength(1);
+    expect(m.diagnostics.displayGateUnderDisplay).toBe(1);
+    expect(m.diagnostics.displayGateExplainedByLocalGate).toBe(0);
+  });
+
+  it("stays SILENT when the provider still says Private today", () => {
+    // The suppression must survive: a row canonical ingest would gate off right
+    // now is not a difference, and emitting it would rebuild the 87%-noise
+    // worklist this generator exists to replace.
+    const provider = providerRow({ Permission: "Private" });
+    const gated = locallyGatedRow({ participant_only: true });
+
+    expect(expectedIdxDisplay(provider, gated)).toBe(false);
+    expect(classifyProviderRow(provider, gated)).toEqual([]);
+    expect(manifestOf([provider], [gated]).entries).toHaveLength(0);
+  });
+
+  it("honours the MlsStatus arm of owner-opt-out, not just Permission", () => {
+    // `derivePermissionGates` reads BOTH fields. Selecting only Permission
+    // would silently drop this arm and manufacture a false mismatch.
+    const provider = providerRow({ Permission: "Public", MlsStatus: "OwnerOptOut" });
+    const gated = locallyGatedRow({ owner_opt_out: true });
+
+    expect(expectedIdxDisplay(provider, gated)).toBe(false);
+    expect(classifyProviderRow(provider, gated)).toEqual([]);
+  });
+
+  it("still treats rls_eligible as LOCAL authority", () => {
+    // Proven local: no Cotality field maps to it, mapTrestleToPrisma never
+    // emits it, it is absent from LISTING_SYNC_COMPARE_SELECT, and the Trestle
+    // path hard-codes the constant true. The provider cannot answer it, so the
+    // local value is the authority and must keep explaining a hidden row.
+    const provider = providerRow({ Permission: "Public", MlsStatus: "Active" });
+    const websiteOnly = locallyGatedRow({ rls_eligible: false });
+
+    expect(expectedIdxDisplay(provider, websiteOnly)).toBe(false);
+    expect(classifyProviderRow(provider, websiteOnly)).toEqual([]);
+  });
+
+  it("never lets a stale gate column hide an OVER-display", () => {
+    // The safety-relevant direction. A gate can only push the expectation
+    // toward false, so local `idx_display_yn=true` is never suppressible.
+    const provider = providerRow({ Permission: "Private" });
+    const overDisplayed = localRow({ idx_display_yn: true, participant_only: false });
+
+    expect(expectedIdxDisplay(provider, overDisplayed)).toBe(false);
+    expect(classifyProviderRow(provider, overDisplayed)).toContain("display_gate_mismatch");
+    expect(manifestOf([provider], [overDisplayed]).diagnostics.displayGateOverDisplay).toBe(1);
+  });
+
+  it("counts stale stored gate columns as a diagnostic without emitting a reason", () => {
+    // Benign drift: Permission moved Private -> Public but idx_display_yn was
+    // already corrected. The stored column is stale, yet no display outcome is
+    // wrong, so this must be MEASURED and not turned into recovery work.
+    const provider = providerRow({ Permission: "Public" });
+    const staleButHarmless = localRow({ idx_display_yn: true, participant_only: true });
+
+    expect(localPermissionGatesAreStale(provider, staleButHarmless)).toBe(true);
+    expect(classifyProviderRow(provider, staleButHarmless)).toEqual([]);
+
+    const m = manifestOf([provider], [staleButHarmless]);
+    expect(m.diagnostics.staleLocalPermissionGates).toBe(1);
+    expect(m.entries).toHaveLength(0);
+  });
+
+  it("reports zero stale gate columns when stored state matches the provider", () => {
+    expect(localPermissionGatesAreStale(providerRow(), localRow())).toBe(false);
+    expect(manifestOf([providerRow()], [localRow()]).diagnostics.staleLocalPermissionGates).toBe(0);
+  });
+
+  it("selects Permission AND MlsStatus from the provider", () => {
+    // Without both fields on the wire the de-circularization is inert: the
+    // evaluator would see undefined and fall back to gates-open for every row.
+    expect(PROVIDER_SELECT_FIELDS).toContain("Permission");
+    expect(PROVIDER_SELECT_FIELDS).toContain("MlsStatus");
+  });
+});
+
+// ── 4c. Mallan-authored inventory is not "provider terminal" ────────────────
+
+describe("Mallan-owned rows are excluded from the reverse set", () => {
+  // Mallan exclusives are absent from the Cotality Property feed BY DEFINITION.
+  // Pass 2 keys on absence, so without an ownership guard it labels them
+  // `local_active_provider_terminal` — drift that never happened. The executor
+  // fail-closes on the empty re-fetch, so there is no bad write, but it books
+  // the row as `failed`, and the pre-authorization gate is `failed = 0`.
+  const mallanRow = (over: Partial<LocalRow> = {}) =>
+    localRow({ listing_id: "SL-0004", mls_id: null, rls_eligible: false, ...over });
+
+  it("excludes an SL-/RL- prefixed row and counts it as a diagnostic", () => {
+    const m = manifestOf([], [mallanRow()]);
+    expect(m.entries).toHaveLength(0);
+    expect(m.totalsByReason.local_active_provider_terminal).toBe(0);
+    expect(m.diagnostics.mallanOwnedExcluded).toBe(1);
+  });
+
+  it("excludes a website-only row identified ONLY by rls_eligible=false", () => {
+    // The prefix and the flag are independent arms of the canonical helper; a
+    // guard that checked only the prefix would let this one through.
+    const m = manifestOf([], [mallanRow({ listing_id: "RLS999999", rls_eligible: false })]);
+    expect(m.entries).toHaveLength(0);
+    expect(m.diagnostics.mallanOwnedExcluded).toBe(1);
+  });
+
+  it("STILL emits local_active_provider_terminal for a genuinely drifted RLS row", () => {
+    // The guard must not swallow the real reverse-set case it shares a branch
+    // with: an RLS-sourced, rls_eligible row the provider no longer reports.
+    const drifted = localRow({ listing_id: "RLS777777", rls_eligible: true });
+    const m = manifestOf([], [drifted]);
+    expect(m.entries).toHaveLength(1);
+    expect(m.entries[0].reasons).toEqual(["local_active_provider_terminal"]);
+    expect(m.diagnostics.mallanOwnedExcluded).toBe(0);
+  });
+
+  it("reports zero exclusions when no Mallan-owned row is present", () => {
+    expect(manifestOf([providerRow()], [localRow()]).diagnostics.mallanOwnedExcluded).toBe(0);
+  });
+});
+
+describe("provider select completeness", () => {
+  it("carries every field the classification reads", () => {
+    // Without both fields on the wire the de-circularization is inert: the
+    // evaluator would see undefined and fall back to gates-open for every row.
+    expect(PROVIDER_SELECT_FIELDS).toContain("Permission");
+    expect(PROVIDER_SELECT_FIELDS).toContain("MlsStatus");
   });
 });
 
