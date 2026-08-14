@@ -1518,3 +1518,122 @@ plan of 1,865.
 
 Post-authorization path: `vercel env run -e production -- npm run db:migrate`
 (`db:migrate` = `prisma migrate deploy`). **Not executed.**
+
+---
+
+## 25. ROUND 7 — THREE PROOF DEFECTS, AND A GATE THAT WAS NEVER THERE
+
+### 25.1 A failed provider read is UNKNOWN, never absence
+
+`fetchProviderExistingIds` returned ONE set; callers read "not in found" as
+authoritative absence. A transient HTTP 503 therefore reclassified a LIVE
+listing as a ghost. The concrete failure: a locally-Active listing that Cotality
+holds as `Pending` gets a 503 on its probe chunk, is deferred as a ghost, and
+`feed-reconcile` deliberately SPARES Pending — so nothing ever corrects it and
+the stale local Active row persists indefinitely.
+
+`fetchProviderExistence` returns `{existing, absent, unknown}`. Only a SUCCESSFUL
+response may establish absence. Bounded retry, then UNKNOWN — classified NEITHER
+way. The prior test asserting `503 -> empty found set` was REMOVED: it pinned the
+defect.
+
+### 25.2 The write-reason forecast, and `other` swallowing it
+
+`recoverOneListing` already called `classifyListingChangeReasons` and discarded
+the result; it is now captured ONCE and reused for the suppression decision, the
+dry-run forecast, and the execute path, so the forecast cannot disagree with the
+write it forecasts.
+
+The first run with telemetry attributed **403 of 403** rows to `other`. Eight
+material fields had no category — `listing_type`/`property_type`/
+`property_sub_type` -> `classification`, the four bed/bath/area fields -> `size`,
+and `features` -> `features`. There are now ZERO uncategorized material fields, so
+`other` becoming non-zero is itself the signal that someone added a material
+field without classifying it. Behavior-neutral: `isProvenanceOnlyChange` tests
+for exactly `["modification_timestamp_only"]`.
+
+### 25.3 `absentLocally` against the ABSORBED boundary — and a production proof
+
+Boundary = `MAX(listings.modification_timestamp)`, NOT `sync_state.last_watermark`.
+
+**Production measurement 2026-08-14:** `last_watermark` = `last_run_at` EXACTLY
+(delta 0s) and the watermark (04:00:40) is LATER than the newest local
+`modification_timestamp` (03:59:58). A provider-derived watermark can never
+exceed the newest row it processed — this is direct production proof of the
+wall-clock watermark defect this PR removes, and it is why that column cannot be
+the boundary.
+
+Equality with the boundary classifies as UNEXPLAINED, not excused: that is
+precisely the same-timestamp cluster the keyset cursor exists to traverse.
+
+### 25.4 The gates were NEVER ENFORCED
+
+The gate block described in §24 was never present in the file. It was applied
+with a silent `str.replace` whose anchor did not match — Python does not error on
+a no-match — and the result was not re-read before reporting. The DIAGNOSTIC
+NUMBERS printed were real and were all zero, but nothing enforced them: a
+manifest with a non-zero unknown/unexplained count would have been written to
+disk and could have been fed to the executor later.
+
+Recorded rather than quietly fixed, because the failure mode is the lesson: an
+edit that cannot fail loudly must be verified by reading the file back.
+
+The gates now run BEFORE the artifact is written —
+`providerExistenceProbeUnknown`, `absentLocallyUnexplained`,
+`absentLocallyUnknownTimestamp`, `providerIdentityCollisions` — each refusing to
+write and exiting non-zero.
+
+### 25.5 Duplicate ids: recorded, then verified
+
+One run reported `duplicateProviderListingIds = 2`; an immediate re-scan reported
+0. With only a count there was no way to ask WHICH — "it did not reproduce" is
+not a diagnosis. The ids are now recorded in the artifact and the CLI asks the
+provider for each one's `@odata.count`: exactly 1 is a pagination artifact (the
+scan orders by `(ModificationTimestamp asc, ListingKey asc)`, so a row modified
+mid-scan moves forward and is observed twice), anything else is a REAL identity
+collision that invalidates ListingId as the join key and blocks the build.
+
+Like `absentLocally = 0`, a literal `duplicateProviderListingIds = 0` is not a
+stable invariant against a live feed. The enforceable gate is that every
+duplicate is PROVABLY an artifact.
+
+### 25.6 Why `source_identity_only` is 0
+
+`features` differs on 422/422 would-write rows. Probed directly on a sample:
+
+| differing feature key | frequency |
+|---|---:|
+| **`ListingKey`** | **6/6** |
+| Exposures | 3/6 |
+| Appliances / Basement / CoolingYN / InteriorFeatures / DirectionFaces / MajorChangeTimestamp | 1/6 |
+
+`ListingKey` differs on every row because this PR added it to the Property
+`$select`, so the mapper emits it INSIDE the features blob where the stored copy
+has no such key. It is genuine, SELF-EXTINGUISHING, and lands on the same rows as
+the `mls_id` convergence — so it adds no writes beyond the one-time cost already
+forecast. Only 37 of 422 rows carry an identifiable content change.
+
+An earlier diagnostic of this compared `mapped` directly and reported
+`listing_id` as changed 8/8, which is impossible for a row looked up BY
+listing_id. That was the probe's error, not a defect: the executor compares
+`candidateUpdate`, which omits `listing_id`, `media`, `compliance`, `agent_info`
+and both `internet_*` flags. Recorded so the false lead is not re-derived.
+
+### 25.7 Final production numbers at `c85b504d`
+
+Manifest: providerPopulation 8,378 · manifestSize **422** (406 `provider_mt_newer`
++ 16 `local_active_provider_terminal`) · `display_gate_mismatch` **0** ·
+`mlsBackfillOnlyRows` 7,959 EXCLUDED · ghosts 7 · Mallan 2 ·
+`providerExistenceProbeUnknown` **0** · absent unexplained/unknown **0/0** ·
+duplicates/collisions **0/0**.
+
+Property dry run: selected = fetched = would-write **422**, duplicates `[]`,
+**failed 0**, no cache invalidation. Forecast: `source_identity` 422 · `features`
+422 · status 19 · price 13 · address 2 · attribution 2 · size 1 · `other` **0** ·
+`source_identity_plus_material` **422**.
+
+Media dry run: candidate_total **97**, 1,808 inserts + 57 updates, **0**
+tombstones, all eight failure counters **0**, `cursor_writes` **0**,
+`keys_resolved_via_property_lookup` **97/97**.
+
+Both dry runs wrote nothing — verified against production counters.
