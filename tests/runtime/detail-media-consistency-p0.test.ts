@@ -125,13 +125,34 @@ describe('isMallanOwnedListing — SL-/RL- OR rls_eligible===false, never agent_
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// shouldFallbackToLegacyMedia — third-party always; Mallan fail-closed (Codex #1)
+// shouldFallbackToLegacyMedia — third-party governed by FEED history; Mallan fail-closed (Codex #1)
 // ════════════════════════════════════════════════════════════════════════════
+//
+// DELIBERATELY REVISED 2026-08-15. This block previously asserted "third-party → ALWAYS fall back,
+// any existence signal". That rule was wrong: when the provider deletes a listing's photos the
+// canonical lane tombstones the feed rows, and unconditional fallback then republished the stale
+// legacy gallery (verified live on RLS20082303 — provider PhotosCount 0, 20 rows all `deleted`,
+// 20 stale legacy items rendering).
+//
+// The assertions below are UNCHANGED in value but no longer mean what they used to: they are
+// 2-argument calls, so `hadFeedRelationalRows` is `undefined` (not looked up) and fallback is
+// preserved. They now pin the UNKNOWN-signal path, which is deliberately fail-open to previous
+// behaviour so un-adopted callers cannot regress. The feed-governed cases are asserted explicitly
+// below so this block can never again pass for a reason other than the one it documents.
 describe('shouldFallbackToLegacyMedia — fail-closed for Mallan on unknown', () => {
-  it('third-party → ALWAYS fall back (Cotality JSON is safe), any existence signal', () => {
+  it('third-party + UNKNOWN feed history (not looked up) → fall back, preserving prior behaviour', () => {
     expect(shouldFallbackToLegacyMedia(true, IDX_CTX)).toBe(true);
     expect(shouldFallbackToLegacyMedia(false, IDX_CTX)).toBe(true);
     expect(shouldFallbackToLegacyMedia(undefined, IDX_CTX)).toBe(true);
+  });
+  it('third-party + feed rows PROVABLY existed (all now inactive) → authoritative feed-empty, NO fallback', () => {
+    expect(shouldFallbackToLegacyMedia(true, IDX_CTX, true)).toBe(false);
+    expect(shouldFallbackToLegacyMedia(undefined, IDX_CTX, true)).toBe(false);
+  });
+  it('third-party + feed PROVABLY never materialized → fallback allowed (the never-imported residuals)', () => {
+    expect(shouldFallbackToLegacyMedia(false, IDX_CTX, false)).toBe(true);
+    // CRM-only relational history must NOT suppress the Cotality fallback.
+    expect(shouldFallbackToLegacyMedia(true, IDX_CTX, false)).toBe(true);
   });
   it('Mallan-owned + provably never-imported (false) → fall back to its legacy JSON', () => {
     expect(shouldFallbackToLegacyMedia(false, CRM_SL_CTX)).toBe(true);

@@ -332,7 +332,19 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
 /**
  * Convert a single Prisma DB listing to PublicListingDTO.
  */
-export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
+export function dbListingToPublicDTO(
+  listing: DbListing,
+  opts?: {
+    /**
+     * ALL-STATUS **FEED** existence signal (non-`crm:` rows, any status) for THIRD-PARTY listings,
+     * supplied by `resolveFeedAuthorityForPage` in ONE batched query per page.
+     *
+     * Omit it and the value is `undefined` (not looked up), which preserves the previous
+     * unconditional third-party fallback — so an un-adopted caller cannot regress.
+     */
+    hadFeedRelationalRows?: boolean;
+  },
+): PublicListingDTO {
   const addr = (listing.address || {}) as DbAddress;
   const features = (listing.features || {}) as DbFeatures;
   const agentInfo = (listing.agent_info || {}) as DbAgentInfo;
@@ -459,6 +471,7 @@ export function dbListingToPublicDTO(listing: DbListing): PublicListingDTO {
     tableRows,
     legacyMedia: mediaArr,
     hadRelationalRows,
+    hadFeedRelationalRows: opts?.hadFeedRelationalRows,
   });
 
   return {

@@ -692,11 +692,29 @@ export function shouldFetchTrestleMediaFallback(
 export function shouldFallbackToLegacyMedia(
   hadRelationalRows: boolean | undefined,
   ctx: MediaFallbackContext,
+  hadFeedRelationalRows?: boolean | undefined,
 ): boolean {
-  // Third-party: the legacy JSON is Cotality-sourced → always safe to fall back.
-  if (!isMallanOwnedListing(ctx)) return true;
+  if (!isMallanOwnedListing(ctx)) {
+    // Third-party: the legacy JSON is Cotality-sourced, so fallback remains the DEFAULT — that is
+    // what the 134 never-imported displayable listings still depend on.
+    //
+    // But provenance is not current truth. When FEED rows provably existed and none are active, the
+    // canonical lane observed a COMPLETE source view and tombstoned them: `defaultFetchMedia()`
+    // only returns after full pagination (an incomplete page throws), which is what makes
+    // `tombstoneVanished` trustworthy. That is authoritative feed-empty, and replaying the legacy
+    // JSON there republishes photos the provider deleted (verified live: RLS20082303).
+    //
+    // Deliberately keyed to FEED history, never `hadRelationalRows`: that signal also counts `crm:`
+    // supplemental history, so a third-party listing whose Cotality gallery lives only in the legacy
+    // JSON and which once had since-deleted CRM rows would lose a valid gallery.
+    //
+    // `undefined` (not looked up) → fallback, preserving today's behaviour. Only a proven `true`
+    // suppresses it — a failed lookup must propagate, never arrive here as `false`.
+    return hadFeedRelationalRows !== true;
+  }
   // Mallan-owned: fall back to its Mallan-authored legacy JSON ONLY when provably
   // never-imported. `true` (all-deleted) and `undefined` (unknown) → no fallback.
+  // UNCHANGED — Mallan authoritative deletion does not use the feed signal.
   return hadRelationalRows === false;
 }
 
@@ -741,7 +759,12 @@ export function resolveDbListingMedia(
   rows: ListingMediaTableRow[],
   legacyMedia: unknown,
   ctx: MediaFallbackContext,
-  options: { hadRelationalRows?: boolean; legacyMapUrl?: (rawUrl: string) => string } = {},
+  options: {
+    hadRelationalRows?: boolean;
+    /** ALL-STATUS feed-history signal for THIRD-PARTY listings. `undefined` = not looked up. */
+    hadFeedRelationalRows?: boolean;
+    legacyMapUrl?: (rawUrl: string) => string;
+  } = {},
 ): ResolvedMedia[] {
   const relational = resolveListingMediaFromRows(rows);
   if (relational.length > 0) {
@@ -767,7 +790,8 @@ export function resolveDbListingMedia(
     // Mallan-owned listings keep authoritative deletions: the same predicate
     // that governs the zero-relational case governs the supplement case, so a
     // deleted Mallan photo is never restored from its own legacy JSON.
-    if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return relational;
+    if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx, options.hadFeedRelationalRows))
+      return relational;
 
     const legacy = resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
     if (legacy.length === 0) return relational;
@@ -776,7 +800,7 @@ export function resolveDbListingMedia(
   // Pass the all-status signal THROUGH (undefined when the caller omitted it) —
   // do NOT coerce from `rows.length`, which for active-only callers is the active
   // count, not existence, and would resurrect deleted Mallan media.
-  if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx)) return [];
+  if (!shouldFallbackToLegacyMedia(options.hadRelationalRows, ctx, options.hadFeedRelationalRows)) return [];
   return resolveListingMedia(legacyMedia, { mapUrl: options.legacyMapUrl });
 }
 

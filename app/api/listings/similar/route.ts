@@ -8,6 +8,7 @@ import { classifyMediaItem } from '@/lib/media/listing-media-resolver';
 // in `listing_media` was dropped for "no media", and a Mallan comp whose relational
 // photos were deleted still rendered them from the stale JSON.
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
+import { resolveFeedAuthorityForPage } from '@/lib/media/feed-media-authority';
 import prisma from '@/lib/prisma';
 import { dedupeRawDbRows, sameAddressKey } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getSimilarityPriceBand, rankSimilarListings, classifyPropertyClass, normalizePropertyClass, collapseForRental, type SimilarityTarget } from '@/lib/listings/similar-listing-ranking';
@@ -241,6 +242,18 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
       // have media?" backfill decision and the card's hero/photo count below — so the
       // two can never disagree (the old code answered them from two different reads of
       // the same JSON). Pure function, no query (db-media-composition.ts:35-38).
+      // FEED-authority for the comp set in ONE grouped query (lib/media/feed-media-authority.ts):
+      // a comp whose feed rows were materialized then tombstoned is authoritatively empty, so its
+      // stale legacy JSON must not supply the card hero. Ambiguous rows only; failures propagate.
+      const feedAuthority = await resolveFeedAuthorityForPage(
+        prisma,
+        rankedDb.map((l) => ({
+          ctx: { listingId: l.listing_id, rlsEligible: l.rls_eligible },
+          tableRows: Array.isArray(l.listing_media) ? l.listing_media : [],
+          hasLegacyPayload: Array.isArray(l.media) && l.media.length > 0,
+        })),
+      );
+
       const composedById = new Map<string, ReturnType<typeof composeDbPublicMedia>>();
       for (const l of rankedDb) {
         composedById.set(
@@ -255,6 +268,7 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
             // back to its own stale JSON.
             hadRelationalRows:
               typeof l._count?.listing_media === 'number' ? l._count.listing_media > 0 : undefined,
+            hadFeedRelationalRows: feedAuthority.get(l.listing_id),
           }),
         );
       }
