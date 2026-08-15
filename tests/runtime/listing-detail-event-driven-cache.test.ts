@@ -115,9 +115,101 @@ describe('event-driven freshness path is intact', () => {
   });
 });
 
-describe('the #523 → #528 failure class is NOT reopened', () => {
-  it('the page does not wrap raw Prisma listing reads in unstable_cache', () => {
-    // Caching Prisma Decimal/Date/BigInt shapes corrupts them on cache hits.
-    expect(PAGE_CODE).not.toMatch(/unstable_cache/);
+describe('PERSISTENT DATA CACHE — the layer that removes the dominant Neon read', () => {
+  // Route `revalidate = false` only removes REPEAT renders of the SAME url. Production evidence on
+  // the #614 deployment: 339 listing executions across 336 DISTINCT paths — ~99% of renders are
+  // unique cold URLs, each executing fetchFromDB() once. And the Full Route Cache is
+  // deployment-scoped, so every deploy re-cold-fills. Only a persistent, id-keyed data entry
+  // survives both.
+
+  it('wraps fetchFromDB in unstable_cache (removing the wrapper must fail this)', () => {
+    expect(PAGE_CODE).toMatch(/unstable_cache\(\s*\(\)\s*=>\s*fetchFromDB\(slug, keyOverride\)/);
+  });
+
+  it('caches the NORMALIZED result, never raw Prisma output (#523 → #528 stays closed)', () => {
+    // fetchFromDB runs dbListingToPublicDTO internally and returns ListingFetchResult | null, so
+    // no Decimal/Date/BigInt enters the cache. The raw row must never be the cached value.
+    const dtoAt = PAGE_CODE.indexOf('dbListingToPublicDTO(dbListing');
+    const fetchFromDbAt = PAGE_CODE.indexOf('async function fetchFromDB');
+    const fetchListingAt = PAGE_CODE.indexOf('const fetchListing = cache(');
+    expect(fetchFromDbAt).toBeGreaterThan(-1);
+    // The DTO conversion happens INSIDE fetchFromDB, i.e. before the cached boundary.
+    expect(dtoAt).toBeGreaterThan(fetchFromDbAt);
+    expect(dtoAt).toBeLessThan(fetchListingAt);
+    // The cached callable is fetchFromDB itself — not a prisma call.
+    expect(PAGE_CODE).not.toMatch(/unstable_cache\([\s\S]{0,120}prisma\./);
+  });
+
+  it('keys by RESOLVED LISTING ID, not the request URL', () => {
+    expect(PAGE_CODE).toMatch(/\['listing-detail-data-v1', dataCacheId\]/);
+    // Must NOT be keyed on the raw slug/pathname — that would give one listing many entries.
+    expect(PAGE_CODE).not.toMatch(/\['listing-detail-data-v1', slug\]/);
+    expect(PAGE_CODE).toMatch(/const dataCacheId = derivedListingIdFromSlug\(slug, keyOverride\)/);
+  });
+
+  it('uses revalidate: false and the EXISTING listingCacheTag for invalidation', () => {
+    const at = PAGE_CODE.indexOf("'listing-detail-data-v1'");
+    const call = PAGE_CODE.slice(at, at + 300);
+    expect(call).toMatch(/tags:\s*\[listingCacheTag\(dataCacheId\)\]/);
+    expect(call).toMatch(/revalidate:\s*false/);
+    expect(call).not.toMatch(/revalidate:\s*\d+/);
+  });
+
+  it('NEGATIVE PATH: a confirmed miss is tagged, so a cached 404 is not stale forever', () => {
+    // Under revalidate=false an untagged 404 could never be displaced by a later create/sync.
+    expect(PAGE_CODE).toMatch(/\}\s*else if \(dataCacheId\)\s*\{[\s\S]{0,400}?attachListingCacheTags\(dataCacheId/);
+  });
+
+  it('a slug with NO derivable id bypasses the persistent cache (no untaggable entry)', () => {
+    expect(PAGE_CODE).toMatch(/:\s*await fetchFromDB\(slug, keyOverride\)/);
+  });
+});
+
+describe('URL variants collapse onto ONE data-cache identity', () => {
+  // The collapse mechanism is the id extraction below; these assert its real behaviour on the
+  // three shapes that must share an entry.
+  const { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug } =
+    require('@/lib/listing-slug') as typeof import('@/lib/listing-slug');
+  const { isBareListingIdSegment } =
+    require('@/lib/listing-canonical-url') as typeof import('@/lib/listing-canonical-url');
+
+  /** Mirrors derivedListingIdFromSlug in the page, including the BARE-ID branch. */
+  const derive = (slug: string): string | null => {
+    if (isBareListingIdSegment(slug)) return slug.toUpperCase();
+    if (isMlsIdSlug(slug)) {
+      const id = extractMlsIdFromSlug(slug);
+      return id ? id.toUpperCase() : null;
+    }
+    const embedded = extractListingIdFromSlug(slug);
+    return embedded ? embedded.toUpperCase() : null;
+  };
+
+  it('hybrid (embedded id) and bare-id forms derive the SAME uppercase id', () => {
+    const hybrid = derive('400-east-90th-street-apt-17c-rls20061539');
+    const bare = derive('rls20061539');
+    expect(hybrid).toBe('RLS20061539');
+    expect(bare).toBe('RLS20061539');
+    expect(hybrid).toBe(bare);
+  });
+
+  it('the MLS-ID slug form derives the same id as its bare form', () => {
+    expect(derive('listing-sl-0004')).toBe(derive('sl-0004'));
+    expect(derive('listing-sl-0004')).toBe('SL-0004');
+  });
+
+  it('case variants collapse (listing_id is stored uppercase, index is case-sensitive)', () => {
+    expect(derive('RLS20061539')).toBe(derive('rls20061539'));
+  });
+
+  it('a pure address slug derives NO id — correctly bypassing the persistent cache', () => {
+    expect(derive('400-east-90th-street')).toBeNull();
+  });
+
+  it('REGRESSION: the page keeps the BARE-ID branch (canonical URLs collapse to a bare id)', () => {
+    // extractListingIdFromSlug matches an id only as the SUFFIX of a longer slug, so it returns
+    // null for a bare id. The canonical two-segment form `/listing/<address>/<ID>` resolves to
+    // exactly that — without this branch the DOMINANT url shape bypasses the persistent cache and
+    // the fix silently does nothing. Caught by test, not in production.
+    expect(PAGE_CODE).toMatch(/if \(isBareListingIdSegment\(slug\)\) return slug\.toUpperCase\(\);/);
   });
 });

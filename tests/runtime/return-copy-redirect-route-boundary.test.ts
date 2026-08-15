@@ -47,6 +47,17 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 const mockAttachTags = jest.fn(async (..._a: unknown[]) => undefined);
+// The listing-detail persistent Data Cache wraps fetchFromDB in `unstable_cache`. Outside a Next
+// render there is no incrementalCache, so the real implementation throws
+// "Invariant: incrementalCache missing". That is an ENVIRONMENT limit of running the page's
+// functions directly under Jest — not page behaviour — so unstable_cache passes through here and
+// the tests below still exercise the real fetch/redirect/tag logic.
+jest.mock('next/cache', () => ({
+  __esModule: true,
+  unstable_cache: (fn: (...a: unknown[]) => unknown) => fn,
+  revalidateTag: () => undefined,
+}));
+
 jest.mock('@/lib/cache/public-cache', () => ({
   __esModule: true,
   attachListingCacheTags: (...a: unknown[]) => mockAttachTags(...a),

@@ -68,9 +68,14 @@ describe("listing page wires the not-found-vs-error contract", () => {
     // listing), and the One Cycle W1 tag attach runs only on a RESOLVED
     // result (attachListingCacheTags carries its own internal fail-open
     // handling and cannot swallow fetch errors).
-    expect(src).toMatch(
-      /const fetchListing = cache\(async function fetchListing\([^)]*\): Promise<ListingFetchResult \| null> \{\s*const result = await fetchFromDB\(slug, keyOverride\);/,
-    );
+    // REVISED 2026-08-15: fetchFromDB is now reached through the persistent Data Cache
+    // (`unstable_cache`, keyed by resolved listing id) when an id is derivable, and called bare
+    // otherwise. Both routes remain UNGUARDED — unstable_cache does not cache a rejected promise,
+    // so infra errors still propagate and a 404 can never be frozen over a valid listing. The
+    // invariant this test protects is unchanged; only the call shape moved.
+    expect(src).toMatch(/const dataCacheId = derivedListingIdFromSlug\(slug, keyOverride\);/);
+    expect(src).toMatch(/unstable_cache\(\s*\(\) => fetchFromDB\(slug, keyOverride\)/);
+    expect(src).toMatch(/:\s*await fetchFromDB\(slug, keyOverride\);/);
     // No try/catch may wrap the fetchFromDB call inside fetchListing.
     const body = src.match(/const fetchListing = cache\([\s\S]*?\n\}\);/)?.[0] ?? "";
     expect(body).not.toMatch(/try\s*\{[\s\S]*fetchFromDB/);
