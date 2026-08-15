@@ -2663,6 +2663,10 @@ export async function syncAgentHistory(
         // the media-backfill cron was returning 0 updates despite the cron
         // firing successfully — every batch silently 400'd.
         const BATCH_SIZE = 15;
+        // Batches whose Media fetch could not be PROVEN complete. Counted, not merged, so a run
+        // that silently skipped reconciliation is distinguishable from one that had nothing to do —
+        // the same accounting syncListings keeps.
+        let agentMediaBatchesIncompleteSkipped = 0;
 
         for (let i = 0; i < listingsNeedMedia.length; i += BATCH_SIZE) {
           const batch = listingsNeedMedia.slice(i, i + BATCH_SIZE).filter(Boolean);
@@ -2675,23 +2679,55 @@ export async function syncAgentHistory(
           mediaParams.set("$filter", mediaFilter);
           mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey");
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
+          // `$top` is a PAGE-SIZE HINT ONLY. It was previously the whole budget: a single
+          // un-paginated request capped at `batch.length * 30` across the WHOLE batch, with only
+          // `data.value` processed. Because `$orderby` sorts globally, the cap dropped the
+          // highest-ordered rows ACROSS listings — observed live: 10 of 15 photo-heavy listings
+          // received ZERO rows and one got 31 of 94, and those truncated arrays were WRITTEN.
           mediaParams.set("$top", String(batch.length * 30));
 
           try {
-            const _mc = new AbortController();
-            const _mt = setTimeout(() => _mc.abort(), 15_000);
-            let res: Response;
-            try {
-              res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-                signal: _mc.signal,
-              });
-            } finally { clearTimeout(_mt); }
-            if (!res.ok) continue;
-            const data = await res.json();
+            // COMPLETENESS via the SHARED follower — the same `paginateMedia` syncListings and
+            // media-sync use. One nextLink implementation, one runaway guard, one definition of
+            // "complete". No second pagination loop.
+            //
+            // `complete: false` (a page failed, or the runaway guard tripped) means a requested key
+            // absent from the rows is NOT proven empty at source, so this batch performs NO
+            // reconciliation and NO write at all. Fail closed — a partial array must never be
+            // persisted, and MediaKey cannot repair one because a short array differs in LENGTH and
+            // is material regardless.
+            const { rows: mediaRows, complete } = await paginateMedia(
+              `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+              async (url: string) => {
+                const _mc = new AbortController();
+                const _mt = setTimeout(() => _mc.abort(), 15_000);
+                try {
+                  const res = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                    signal: _mc.signal,
+                  });
+                  if (!res.ok) throw new Error(`Media page HTTP ${res.status}`);
+                  const data = await res.json();
+                  return {
+                    value: (data.value || []) as unknown[],
+                    nextLink: (data["@odata.nextLink"] as string | undefined) ?? null,
+                  };
+                } finally {
+                  clearTimeout(_mt);
+                }
+              },
+            );
+            if (!complete) {
+              agentMediaBatchesIncompleteSkipped++;
+              continue; // incomplete ⇒ never clear, never tombstone, never write a partial array
+            }
 
             const mediaByKey = new Map<string, { url: string; mediaType: string; order: number; mediaKey?: string }[]>();
-            for (const m of data.value || []) {
+            // PRE-SEED every REQUESTED key so a complete-but-empty result is an AUTHORITATIVE `[]`
+            // rather than vanishing from the map — the same contract syncListings uses. Only
+            // reachable once the fetch proved COMPLETE.
+            for (const key of batch) mediaByKey.set(String(key), []);
+            for (const m of mediaRows as unknown as Record<string, unknown>[]) {
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
@@ -2705,10 +2741,9 @@ export async function syncAgentHistory(
               // Cotality's rotating path signature defeats on every cycle. Omitted when absent so an
               // unknown key degrades into the existing URL fallback.
               //
-              // NOTE: this function's batch-wide `$top` truncation is a SEPARATE, confirmed defect
-              // (a shared cap across the whole batch drops the highest-Order rows). MediaKey cannot
-              // repair a truncated array — a short array differs in LENGTH and is material anyway.
-              // Deliberately not addressed here.
+              // (The batch-wide `$top` truncation this comment used to flag is FIXED above: this
+              // path now follows every @odata.nextLink through the shared `paginateMedia` and fails
+              // closed on an incomplete fetch.)
               const mediaKey = typeof m.MediaKey === "string" ? m.MediaKey.trim() : "";
               mediaByKey.get(lid)!.push({
                 ...(mediaKey ? { mediaKey } : {}),
@@ -2757,7 +2792,9 @@ export async function syncAgentHistory(
             console.warn(`[IDX Agent History] Media batch ${i / BATCH_SIZE + 1} failed:`, mediaErr instanceof Error ? mediaErr.message : mediaErr);
           }
         }
-        console.log("[IDX Agent History] Media batch-fetch complete");
+        console.log(
+          `[IDX Agent History] Media batch-fetch complete (incomplete batches skipped: ${agentMediaBatchesIncompleteSkipped})`,
+        );
       }
     } catch (mediaSyncErr) {
       console.warn("[IDX Agent History] Media sync failed (non-fatal):", mediaSyncErr instanceof Error ? mediaSyncErr.message : mediaSyncErr);
