@@ -66,6 +66,21 @@ export interface DbMediaCompositionInput {
    * query genuinely fetched every status.
    */
   hadRelationalRows: boolean | undefined;
+  /**
+   * ALL-STATUS **FEED** existence signal for THIRD-PARTY listings: did any non-`crm:`
+   * `listing_media` row ever exist, in any status?
+   *
+   * Deliberately SEPARATE from `hadRelationalRows`, which also counts `crm:` supplemental history
+   * — reusing that here would make a third-party listing with since-deleted CRM rows look like a
+   * materialized-then-deleted feed and cost it a valid Cotality gallery.
+   *
+   * This module stays PURE: it performs no query. The value is supplied by the caller, which gets
+   * it from `lib/media/feed-media-authority.ts` in ONE batched lookup over the ambiguous listings.
+   *
+   * `undefined` = not looked up → the resolver keeps today's fallback behaviour. A FAILED lookup
+   * must propagate, never arrive here as `false`.
+   */
+  hadFeedRelationalRows?: boolean | undefined;
 }
 
 export interface DbMediaComposition {
@@ -90,7 +105,11 @@ export function composeDbPublicMedia(
     input.tableRows,
     input.legacyMedia,
     { listingId: input.listingId, rlsEligible: input.rlsEligible },
-    { hadRelationalRows: input.hadRelationalRows, legacyMapUrl: toPublicMediaUrl },
+    {
+      hadRelationalRows: input.hadRelationalRows,
+      hadFeedRelationalRows: input.hadFeedRelationalRows,
+      legacyMapUrl: toPublicMediaUrl,
+    },
   );
 
   // Photo-first serialization: `order` = resolved index, `isPrimary` = resolved
