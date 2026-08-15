@@ -148,7 +148,7 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
     expect(slugOwnerSrc).toMatch(/generateListingSlug\(\{/);
     expect(dtoSrc).toMatch(/buildListingSlugFromDbRow\(/);
     expect(dtoSrc).not.toMatch(/generateListingSlug\(\{/);
-    expect(pageSrc).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    expect(pageSrc).toMatch(/dbListingToPublicDTO\(dbListing[,)]/);
     // Neither owner may hand-roll the street parts again.
     expect(pageSrc).not.toMatch(/\[addr\.StreetDirPrefix,\s*addr\.StreetName,\s*addr\.StreetSuffix\]/);
   });

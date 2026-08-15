@@ -61,7 +61,10 @@ import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/lis
 // composed result, not a second composition.
 import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
-import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
+// NOTE: `composeDbPublicMedia` is deliberately NOT imported here any more. This page has exactly
+// one media owner — `dbListingToPublicDTO` — which performs the composition itself. The direct
+// call that used to live here was dead code whose results nothing read, and #612 wired the
+// feed-authority signal into that dead call while the live DTO path kept the old behaviour.
 import { resolveFeedAuthorityForPage } from '@/lib/media/feed-media-authority';
 import { publicListOfficeName } from '@/lib/idx/public-attribution';
 import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
@@ -512,30 +515,24 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // downstream (below) so legacy Cotality URLs are proxied exactly once.
     // Media ownership follows the canonical `isMallanExclusiveListing` signal —
     // SL-/RL- listing_id OR rls_eligible === false, NEVER agent_id (syncAgentHistory
-    // stamps agent_id on third-party IDX rows). This page fetches ALL statuses
-    // (LISTING_MEDIA_INCLUDE has no active-only filter), so the fetched rows are
-    // the reliable all-status existence signal (hadRelationalRows).
-    // ONE canonical composition, shared with `dbListingToPublicDTO`. This page
-    // no longer owns proxying, classification, ordering, hero selection, dedupe
-    // or photo counting — it consumes the result unchanged.
+    // stamps agent_id on third-party IDX rows).
     //
-    // `hadRelationalRows` comes from the ALL-STATUS `_count`, never from the
-    // fetched row array. The array now holds ACTIVE rows only, so its length
-    // reflects the active count, not existence: deriving from it would read
-    // "all deleted" as "never imported" and resurrect deleted Mallan media via
-    // the legacy JSON fallback. When `_count` is absent this is `undefined`
-    // (unknown), and the resolver fails closed for Mallan-owned media.
-    const hadRelationalRows =
-      typeof dbListing._count?.listing_media === 'number'
-        ? dbListing._count.listing_media > 0
-        : undefined;
-
-    // FEED-authority signal (lib/media/feed-media-authority.ts). A third-party listing whose feed
-    // rows were materialized and then tombstoned is authoritatively EMPTY — replaying its legacy
-    // JSON there republishes photos the provider deleted. ONE grouped query, and only when the
-    // decision is genuinely ambiguous: skipped for Mallan-owned listings, for listings that already
-    // carry an ACTIVE feed row, and when there is no legacy payload to gate. A failed lookup
-    // PROPAGATES — it must never degrade into "no feed history", which would permit the stale replay.
+    // THERE IS EXACTLY ONE MEDIA OWNER ON THIS PAGE: `dbListingToPublicDTO`, below. It computes
+    // `hadRelationalRows` itself from the ALL-STATUS `_count` and calls `composeDbPublicMedia`.
+    //
+    // A second, direct `composeDbPublicMedia` call used to sit here. Its results (`mediaArr`,
+    // `canonicalPhotoCount`) were read by NOTHING — dead since before #612, which then added the
+    // feed-authority signal to that dead call and left the live DTO path untouched. Production
+    // proof on 3a37c170 caught it: RLS20082303 still rendered its 20 stale legacy photos because
+    // the page computed the right answer and then handed rendering to a path that never saw it.
+    // Removed rather than left as a second media owner — two owners is how they diverged.
+    //
+    // FEED-authority signal (lib/media/feed-media-authority.ts): a third-party listing whose feed
+    // rows were materialized and then tombstoned is authoritatively EMPTY, so replaying its legacy
+    // JSON republishes photos the provider deleted. ONE grouped query, only when the decision is
+    // genuinely ambiguous — skipped for Mallan-owned listings, for listings already carrying an
+    // ACTIVE feed row, and when there is no legacy payload to gate. A failed lookup PROPAGATES; it
+    // must never degrade into "no feed history", which would permit the stale replay.
     const feedAuthority = await resolveFeedAuthorityForPage(prisma, [
       {
         ctx: { listingId: dbListing.listing_id, rlsEligible: dbListing.rls_eligible },
@@ -543,15 +540,6 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         hasLegacyPayload: Array.isArray(rawMedia) && rawMedia.length > 0,
       },
     ]);
-
-    const { media: mediaArr, photoCount: canonicalPhotoCount } = composeDbPublicMedia({
-      listingId: dbListing.listing_id,
-      rlsEligible: dbListing.rls_eligible,
-      tableRows: listingMediaRows,
-      legacyMedia: rawMedia,
-      hadRelationalRows,
-      hadFeedRelationalRows: feedAuthority.get(dbListing.listing_id),
-    });
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
     // contact card (typed: dbListing + resolvedAgent below); the legacy JSON base is now empty.
@@ -623,7 +611,12 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // from the features JSON instead of the typed columns, and a separately
     // composed source/compliance block. Deleting them is the fix; reproducing
     // them would have preserved the drift.
-    const baseDto = dbListingToPublicDTO(dbListing);
+    // THE media owner for this page. The feed-authority signal MUST be threaded here — this is the
+    // DTO that drives both rendering and metadata. Passing it only to a separate composition (as
+    // #612 did) computes the right answer and then discards it.
+    const baseDto = dbListingToPublicDTO(dbListing, {
+      hadFeedRelationalRows: feedAuthority.get(dbListing.listing_id),
+    });
 
     const dto: PublicListingDTO = {
       ...baseDto,

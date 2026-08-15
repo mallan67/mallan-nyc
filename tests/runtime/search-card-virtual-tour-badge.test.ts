@@ -124,7 +124,7 @@ describe('Listing detail page — virtualTourURL fallback + video sourced from m
       'utf8',
     ) as string;
     expect(dtoSrc).toMatch(/tourUrlsForDto\(/);
-    expect(src).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    expect(src).toMatch(/dbListingToPublicDTO\(dbListing[,)]/);
     // The old virtualTourURL-only inline mapping must be gone from the DB DTO.
     expect(src).not.toMatch(/virtualTourURL:\s*\r?\n?\s*\(typeof rawData\.VirtualTourURLUnbranded/);
   });

@@ -88,7 +88,7 @@ describe('detail page — address suppression respects opt-outs, slug from the s
     const dtoSrc = read('lib/idx/db-to-public-dto.ts');
     expect(dtoSrc).toMatch(/buildListingSlugFromDbRow\(/);
     expect(dtoSrc).not.toMatch(/internetAddressDisplayYN:\s*listing\.internet_address_display_yn/);
-    expect(page).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    expect(page).toMatch(/dbListingToPublicDTO\(dbListing[,)]/);
     expect(page).not.toMatch(/internetAddressDisplayYN:\s*dbListing\.internet_address_display_yn/);
   });
 });

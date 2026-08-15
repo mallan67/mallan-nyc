@@ -54,13 +54,31 @@ describe('the query contract is applied ATOMICALLY (source lock)', () => {
     expect(code).toMatch(/_count:\s*\{\s*select:\s*\{\s*listing_media:\s*true/);
   });
 
-  it('hadRelationalRows comes from _count, NEVER from the row array length', () => {
-    expect(code).toMatch(/dbListing\._count\?\.listing_media/);
-    expect(code).not.toMatch(/hadRelationalRows:\s*listingMediaRows\.length/);
+  // DELIBERATELY RETARGETED 2026-08-15. These two locks asserted that the DETAIL PAGE derives
+  // `hadRelationalRows` from `_count`. The page no longer derives it at all: it had a second,
+  // DEAD `composeDbPublicMedia` call (its `mediaArr`/`canonicalPhotoCount` were read by nothing,
+  // dead since before #612) whose only remaining input was that local computation. #612 wired the
+  // feed-authority signal into that dead call while the LIVE path — `dbListingToPublicDTO` — kept
+  // the old behaviour, which is how RLS20082303 kept rendering 20 stale Cotality photos on
+  // production 3a37c170.
+  //
+  // Both the dead composition and its local `hadRelationalRows` are removed, leaving exactly ONE
+  // media owner. The CONTRACT is unchanged and still enforced — it now lives in that owner, so the
+  // lock follows it there rather than being deleted.
+  const dtoCode = fs
+    .readFileSync(path.join(ROOT, 'lib/idx/db-to-public-dto.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+  it('hadRelationalRows comes from _count, NEVER from the row array length (in the DTO owner)', () => {
+    expect(dtoCode).toMatch(/listing\._count\?\.listing_media/);
+    expect(dtoCode).not.toMatch(/hadRelationalRows:\s*tableRows\.length/);
+    // And the page must NOT reintroduce a competing media owner.
+    expect(code).not.toMatch(/[^.\w]composeDbPublicMedia\(\{/);
   });
 
   it('an absent _count yields undefined (unknown) so the resolver fails closed', () => {
-    expect(code).toMatch(/typeof dbListing\._count\?\.listing_media === ['"]number['"]/);
+    expect(dtoCode).toMatch(/typeof listing\._count\?\.listing_media === ['"]number['"]/);
   });
 });
 

@@ -324,8 +324,19 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
    * resolution and must not pass agent/owner signals as media-ownership signals.
    * Only the name of the shared entry point moved.
    */
-  it('uses the canonical shared media composition for the render media', () => {
-    expect(code).toMatch(/composeDbPublicMedia\s*\(/);
+  // DELIBERATELY REVISED 2026-08-15. This asserted the page calls `composeDbPublicMedia` directly.
+  // It did — twice over, in effect: that direct call was DEAD (`mediaArr`/`canonicalPhotoCount`
+  // read by nothing, dead since before #612) while `dbListingToPublicDTO` did the composition that
+  // actually rendered. #612 wired the feed-authority signal into the dead call, so production
+  // 3a37c170 computed the right answer and still served RLS20082303's 20 stale Cotality photos.
+  //
+  // The invariant is unchanged: the page must use the ONE canonical shared composition and must not
+  // hand-roll its own. What changed is that it now reaches it through its single media owner,
+  // `dbListingToPublicDTO`, instead of maintaining a second, divergent path.
+  it('uses the canonical shared media composition, via its single media owner', () => {
+    expect(code).toMatch(/dbListingToPublicDTO\(\s*dbListing\s*,\s*\{[\s\S]*?hadFeedRelationalRows/);
+    // No competing second owner — that duplication is what let the two paths disagree.
+    expect(code).not.toMatch(/[^.\w]composeDbPublicMedia\(\{/);
   });
   it('does NOT re-resolve or re-map media itself (single composition)', () => {
     // A second URL map over already-proxied relative URLs is exactly what
@@ -335,7 +346,12 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
     expect(code).not.toMatch(/classifyMediaItem\s*\(/);
   });
   it('does NOT pass agentId/ownerClientId/mlsId (agent_id is not a media-ownership signal)', () => {
-    const call = code.slice(code.indexOf('composeDbPublicMedia('), code.indexOf('composeDbPublicMedia(') + 500);
+    // Retargeted with the composition above: the page's remaining media-ownership context is the
+    // one it builds for the feed-authority lookup. The invariant is identical — ownership is
+    // listing_id + rls_eligible ONLY, never agent/owner/mls signals.
+    const idx = code.indexOf('resolveFeedAuthorityForPage(');
+    expect(idx).toBeGreaterThan(-1);
+    const call = code.slice(idx, idx + 500);
     expect(call).toMatch(/listingId:\s*dbListing\.listing_id/);
     expect(call).toMatch(/rlsEligible:\s*dbListing\.rls_eligible/);
     expect(call).not.toMatch(/agentId/);
@@ -365,9 +381,20 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
     expect(code).toMatch(/_count:\s*\{\s*select:\s*\{\s*listing_media:\s*true/);
   });
 
-  it('derives all-status existence from _count, never from the fetched rows', () => {
-    expect(code).toMatch(/dbListing\._count\?\.listing_media/);
+  // RETARGETED 2026-08-15, same reason as the composition lock above: the page no longer derives
+  // existence at all. Its local `hadRelationalRows` fed only the DEAD direct composition and was
+  // removed with it, leaving `dbListingToPublicDTO` as the single owner. Asserting on the page
+  // would now pin a derivation that must NOT come back — so the positive contract follows the
+  // owner, and the page keeps only the negative guarantee.
+  it('derives all-status existence from _count, never from the fetched rows (in the DTO owner)', () => {
+    const dtoCode = read('lib/idx/db-to-public-dto.ts')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+    expect(dtoCode).toMatch(/listing\._count\?\.listing_media/);
+    expect(dtoCode).not.toMatch(/hadRelationalRows:\s*tableRows\.length/);
+    // The page must not re-derive it — a second derivation is a second owner.
     expect(code).not.toMatch(/hadRelationalRows:\s*listingMediaRows\.length/);
+    expect(code).not.toMatch(/const\s+hadRelationalRows\s*=/);
   });
   it('reintroduces NO live Cotality media call (PR #511 intact)', () => {
     expect(code).not.toMatch(/fetchListingMedia\s*\(/);
