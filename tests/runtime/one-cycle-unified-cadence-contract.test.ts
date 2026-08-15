@@ -108,7 +108,10 @@ describe("schedule and duration", () => {
     expect(read("app/api/cron/one-cycle/route.ts")).toMatch(
       /export const CYCLE_INTERVAL_MS = 600_000;/,
     );
-    expect(read("app/listing/[...slug]/page.tsx")).toMatch(/export const revalidate = 600;/);
+    // The CRON cadence above is unchanged. The listing-detail page is deliberately NO LONGER
+    // part of that unified timeline: it is event-driven (`revalidate = false`), because a periodic
+    // window on the dominant continuous Neon reader regenerated unchanged pages indefinitely.
+    expect(read("app/listing/[...slug]/page.tsx")).toMatch(/export const revalidate = false;/);
   });
 });
 

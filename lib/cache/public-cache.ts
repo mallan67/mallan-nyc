@@ -33,8 +33,12 @@ import { unstable_cache, revalidateTag } from "next/cache";
  * `revalidateTag` is the primary invalidation. This is a safety net for
  * entries whose tags a revalidation pass could not derive (e.g. address-slug
  * keyed lookups) or a missed revalidation. Kept in lockstep with the
- * `/api/cron/one-cycle` schedule (*&#47;10) and the listing-detail ISR window so
- * the whole machine shares ONE timeline.
+ * `/api/cron/one-cycle` schedule (*&#47;10).
+ *
+ * SCOPE: this is the default for `cachedPublicRead` (search/browse/collection APIs). It is NOT the
+ * listing-detail contract. `/listing/[...slug]` exports `revalidate = false` and is purely
+ * event-driven — a periodic window there meant every crawler revisit past 600s re-rendered an
+ * UNCHANGED listing against Neon, which is what prevented the database from ever going idle.
  */
 export const SYNC_CADENCE_SECONDS = 10 * 60;
 
@@ -56,9 +60,10 @@ export function listingCacheTag(listingId: string): string {
  *   variant    "W 57th St"        → 57TH
  * Sync derives tags from the stored address atoms; pages derive them from the
  * link query params — without this canon the two could differ and a sync
- * revalidation would miss the page's entry (leaving it to the 30-min
- * fallback). Rare residual mismatches still degrade to that fallback, never
- * to a stale-forever entry.
+ * revalidation would miss the page's entry. NOTE: listing-detail pages are now EVENT-DRIVEN
+ * (`revalidate = false`), so there is no longer a periodic fallback behind a missed tag — a
+ * mismatch means the entry survives until the next matching revalidateTag or the next deployment.
+ * Canonicalising both sides is therefore load-bearing, not merely an optimisation.
  */
 const TAG_DIR_PREFIXES = /^(N|S|E|W|NORTH|SOUTH|EAST|WEST)\b\s*/i;
 const TAG_SUFFIXES = /\s+(ST|STREET|AVE|AVENUE|BLVD|BOULEVARD|RD|ROAD|DR|DRIVE|PL|PLACE|CT|COURT|LN|LANE|WAY|TERRACE|TER)\.?$/i;
@@ -278,8 +283,10 @@ export function cachedPublicRead<A extends unknown[], T>(
  * tagged entry (value = the tag list itself) is what places the tags on the
  * route's dependency graph; the ISR render IS the cache for the page data.
  *
- * FAIL-OPEN for rendering: any error here leaves the page rendering live,
- * with freshness then covered by the 30-min fallback window.
+ * FAIL-OPEN for rendering: any error here leaves the page rendering live. Freshness is NOT then
+ * covered by a periodic window — listing detail is event-driven (`revalidate = false`) — so a
+ * failed attach means this render carries no listing tag and is not tag-invalidatable until a
+ * later successful attach or the next deployment.
  */
 export async function attachListingCacheTags(
   listingId: string,
@@ -299,13 +306,19 @@ export async function attachListingCacheTags(
     if (num && name && name.toLowerCase() !== "address undisclosed") {
       tags.push(buildingCacheTag(num, name, building?.postalCode ?? undefined));
     }
+    // `revalidate: false` — this entry exists ONLY to place the tags on the route's dependency
+    // graph. Any finite lifetime here would silently reimpose a lower revalidation clock on the
+    // listing-detail route and undo its event-driven contract: the route says
+    // `revalidate = false`, so a 600s entry inside it would have been the effective ceiling.
+    // Expiry is event-driven via revalidateTag on these exact tags.
     await unstable_cache(async () => tags, ["listing-tag-attach", listingId], {
       tags,
-      revalidate: SYNC_CADENCE_SECONDS,
+      revalidate: false,
     })();
   } catch (err) {
     console.error(
-      "[public-cache] attachListingCacheTags failed (page renders live; 30-min fallback covers freshness):",
+      "[public-cache] attachListingCacheTags failed (page renders live; tags not attached, so this " +
+        "render is not tag-invalidatable until the next successful attach):",
       err instanceof Error ? err.message : err,
     );
   }
@@ -328,8 +341,9 @@ export function newRevalidationCounters(): RevalidationCounters {
 }
 
 /**
- * Revalidate a set of cache tags, NEVER throwing — a revalidation failure
- * must never fail a sync run (the 30-min fallback still repairs freshness).
+ * Revalidate a set of cache tags, NEVER throwing — a revalidation failure must never fail a sync
+ * run. It is nonetheless load-bearing for listing detail: that route is event-driven
+ * (`revalidate = false`), so a dropped revalidation is not repaired by any periodic window.
  * Deduplicates tags; counts outcomes into the provided counters.
  */
 /**

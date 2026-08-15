@@ -401,12 +401,16 @@ describe('detail page wiring — shared helper, canonical provenance, DB-only, I
     expect(code).not.toMatch(/from\s+['"]@\/lib\/idx\/fetch['"]/);
     expect(code).not.toMatch(/from\s+['"]@\/lib\/idx\/auth['"]/);
   });
-  it('keeps ISR intact: revalidate = 600 (One Cycle W1 — ISR window = unified 10-min cadence), dynamicParams, generateStaticParams', () => {
-    // One Cycle W1: the page can never be fresher than the feed sync, so the
-    // ISR window equals the unified One Cycle cadence (10 min = 600s;
-    // identical effective freshness, and sync-driven revalidateTag still
-    // expires the page in-line on every actual change).
-    expect(detailPage).toMatch(/export const revalidate = 600/);
+  it('keeps the static pipeline intact and is EVENT-DRIVEN: revalidate = false, dynamicParams, generateStaticParams', () => {
+    // REVISED 2026-08-15: listing detail is now EVENT-DRIVEN (`revalidate = false`). The 600s
+    // window was documented as a staleness fallback, but on this route — the dominant
+    // continuous Neon reader — it meant every crawler revisit past 600s re-rendered an
+    // UNCHANGED listing against the database. Freshness never depended on it: sync-driven
+    // revalidateTag('listing:{id}') expires the page in-line on every real change.
+    expect(detailPage).toMatch(/export const revalidate = false/);
+    expect(detailPage).not.toMatch(/export const revalidate = \d+/);
+    // generateStaticParams + dynamicParams remain REQUIRED: without them Next renders the
+    // catch-all fully dynamically and every request hits Neon — the opposite of the fix.
     expect(detailPage).toMatch(/export const dynamicParams = true/);
     expect(detailPage).toMatch(/export async function generateStaticParams/);
   });

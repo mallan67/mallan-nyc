@@ -52,7 +52,8 @@ import TrackListingView from '@/app/components/TrackListingView';
 import TrackListingSend from '@/app/components/TrackListingSend';
 
 import prisma from '@/lib/prisma';
-import { attachListingCacheTags } from '@/lib/cache/public-cache';
+import { attachListingCacheTags, listingCacheTag } from '@/lib/cache/public-cache';
+import { unstable_cache } from 'next/cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
 // `classifyMediaItem`, `resolveDbListingMedia` and `toDtoMedia` are deliberately
 // NOT imported here any more. Composing media — resolving, proxying, classifying,
@@ -71,16 +72,26 @@ import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
-// ISR — 600s is the TIME-BASED STALENESS FALLBACK, not a proactive re-render:
-// a page is regenerated on the first request AFTER it has been stale for 600s.
-// It does NOT re-render every page every 10 minutes. Real data changes expire
-// the page SOONER and precisely via sync-driven `revalidateTag` (One Cycle W1),
-// which runs in-line with each write; this window is only the safety net for a
-// change whose tag a revalidation pass could not derive or a missed pass.
-// Aligned to the unified One Cycle cadence (10 min) so cron, cache fallback and
-// this window share ONE timeline. Must stay a LITERAL for Next's static
-// analysis (= SYNC_CADENCE_SECONDS = 10*60 in lib/cache/public-cache.ts).
-export const revalidate = 600;
+// EVENT-DRIVEN CACHE — no periodic regeneration.
+//
+// A listing detail page is generated on FIRST request and then stays in the Full Route Cache
+// indefinitely. Freshness is driven entirely by the existing sync-side
+// `revalidateTag('listing:{id}')` mechanism (One Cycle W1), which runs in-line with each write —
+// so a page expires precisely when its data actually changes, and never merely because time passed.
+//
+// WHY THIS CHANGED FROM 600s. The previous value was described as a "staleness fallback", but its
+// practical effect on this route was a perpetual regeneration loop: /listing/[...slug] is the
+// dominant continuous Neon reader (thousands of unique crawler-driven renders), and a 600s window
+// means every crawler revisit past that window re-renders an UNCHANGED listing against Neon. That
+// is what kept the database from ever acquiring a real idle window. There is no longer any
+// ten-minute regeneration of an unchanged listing.
+//
+// COLD FILL IS STILL EXPECTED, AND IS FINITE. The Full Route Cache is deployment-scoped, so each
+// deployment re-fills listing URLs once on first request. That is a bounded cost per deploy, not a
+// standing loop.
+//
+// Must stay a LITERAL for Next's static analysis.
+export const revalidate = false;
 export const maxDuration = 60;
 
 // Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,
@@ -157,7 +168,7 @@ type Props = {
 // back into a single lookup key and restores the stored uppercase casing of the
 // trailing listing id (the canonical URL lowercases it, but Trestle/Prisma
 // lookups are case-sensitive — the 2026-06-02 sitewide P0 fix).
-import { buildCanonicalListingPath, resolveLookupKey } from '@/lib/listing-canonical-url';
+import { buildCanonicalListingPath, resolveLookupKey, isBareListingIdSegment } from '@/lib/listing-canonical-url';
 
 /** County → Borough mapping for NYC */
 const COUNTY_TO_BOROUGH: Record<string, string> = {
@@ -674,8 +685,66 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
  * 404 over a valid listing). The page resolves through `resolveListingResult` and only
  * calls notFound() on a genuine null.
  */
+/**
+ * The listing id derivable from the slug WITHOUT touching the database — the persistent Data Cache
+ * key.
+ *
+ * WHY NOT `resolveLookupKey`: that returns the LAST slug segment, which is the id for the canonical
+ * two-segment form (`/listing/<address-slug>/<ID>`) but the SLUG ITSELF for hybrid and MLS-ID forms.
+ * Keying on it would give the same listing several cache entries and defeat the collapse.
+ *
+ * These three URL shapes therefore share ONE entry:
+ *   /listing/400-east-90th-street/RLS20061539      canonical two-segment
+ *   /listing/400-east-90th-street-rls20061539      legacy hybrid (embedded id)
+ *   /listing/listing-sl-0004                       MLS-ID slug form
+ * Uppercased because `listing_id` is stored uppercase and the unique index is case-sensitive.
+ *
+ * `null` when NO id is derivable (a pure address-parse slug). Those deliberately bypass the
+ * persistent cache and read live: without an id we could neither key them without duplicating
+ * entries nor tag them correctly, and an untaggable persistent entry is a stale-forever hazard.
+ */
+function derivedListingIdFromSlug(slug: string, keyOverride?: string): string | null {
+  if (keyOverride) return keyOverride.toUpperCase();
+  // BARE ID FIRST — this is the dominant shape and the easiest to miss. The canonical two-segment
+  // URL `/listing/<address-slug>/<ID>` is collapsed by resolveLookupKey to just the ID, and
+  // `extractListingIdFromSlug` only matches an id as the SUFFIX of a longer slug, so it returns
+  // null here. Omitting this check made the most common URL form bypass the cache entirely.
+  if (isBareListingIdSegment(slug)) return slug.toUpperCase();
+  if (isMlsIdSlug(slug)) {
+    const id = extractMlsIdFromSlug(slug);
+    return id ? id.toUpperCase() : null;
+  }
+  const embedded = extractListingIdFromSlug(slug);
+  return embedded ? embedded.toUpperCase() : null;
+}
+
 const fetchListing = cache(async function fetchListing(slug: string, keyOverride?: string): Promise<ListingFetchResult | null> {
-  const result = await fetchFromDB(slug, keyOverride);
+  // PERSISTENT DATA CACHE — the layer that actually removes the dominant Neon read.
+  //
+  // `revalidate = false` on the route only removes REPEAT renders of the same URL. Production
+  // evidence on the #614 deployment: 339 listing executions across 336 DISTINCT paths — ~99% of
+  // renders are unique cold URLs, each executing fetchFromDB() once. Killing the repeat clock
+  // therefore could not reduce the dominant read; the Full Route Cache is also deployment-scoped,
+  // so every deploy re-cold-fills. This entry survives BOTH, keyed by listing id rather than URL.
+  //
+  // What is cached is the NORMALIZED `ListingFetchResult` — fetchFromDB has already run
+  // dbListingToPublicDTO (this file:627), so no Prisma Decimal/Date/BigInt ever enters the cache.
+  // That is the #523 -> #528 failure class, and it stays closed: the raw row is never cached.
+  //
+  // `revalidate: false` + `listingCacheTag(id)` means expiry is EVENT-DRIVEN by the SAME tag the
+  // sync already revalidates. No new invalidation system.
+  //
+  // fetchFromDB THROWS on infrastructure errors and returns null only on a confirmed miss.
+  // unstable_cache does not cache a rejected promise, so a transient Neon failure still propagates
+  // and is never frozen as a 404 — the invariant fetchFromDB's own contract depends on.
+  const dataCacheId = derivedListingIdFromSlug(slug, keyOverride);
+  const result = dataCacheId
+    ? await unstable_cache(
+        () => fetchFromDB(slug, keyOverride),
+        ['listing-detail-data-v1', dataCacheId],
+        { tags: [listingCacheTag(dataCacheId)], revalidate: false },
+      )()
+    : await fetchFromDB(slug, keyOverride);
   // One Cycle W1 (Codex P2 fix): attach this listing's cache tags to the
   // CURRENT render, so the sync's revalidateTag('listing:{id}') evicts this
   // page's ISR HTML — for every URL variant that funnels through this seam
@@ -699,6 +768,18 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
     // — the building/manifest tag was never attached on this path, and this
     // hotfix deliberately does not broaden cache behavior.
     await attachListingCacheTags(result.sourceListingId, {});
+  } else if (dataCacheId) {
+    // NEGATIVE PATH — a confirmed miss (null) under `revalidate = false`.
+    //
+    // Without this the 404 would be a FOREVER cache: the route entry never self-expires and the
+    // persistent data entry holds `null` indefinitely, so a listing later created/synced under this
+    // id could never displace it. Attaching `listing:{id}` to the RENDER puts the negative Full
+    // Route Cache entry on the same dependency graph as the persistent `null` data entry (which
+    // already carries that tag), so ONE `revalidateTag('listing:{id}')` from the sync clears both
+    // the cached 404 and the cached null the moment the listing exists.
+    //
+    // No new invalidation system: this is the tag the sync already revalidates on every write.
+    await attachListingCacheTags(dataCacheId, {});
   }
   return result;
 });

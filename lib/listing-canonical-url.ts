@@ -57,6 +57,19 @@ export function buildCanonicalListingPath(listing: ListingForCanonicalUrl): stri
 const LISTING_ID_SEGMENT = /^(rls|rbny|sl|rl)-?\d+$/i;
 
 /**
+ * True when a slug segment IS a bare listing id (`rls20061539`, `SL-0004`) rather than an address
+ * slug or an MLS-ID (`listing-…`) form.
+ *
+ * Exported for the listing-detail persistent Data Cache key: the canonical two-segment URL
+ * `/listing/<address-slug>/<ID>` collapses to a BARE id, and `extractListingIdFromSlug` only matches
+ * an id as the SUFFIX of a longer slug — so it returns null for that dominant shape. Without this
+ * predicate the most common URL form would silently bypass the cache.
+ */
+export function isBareListingIdSegment(segment: string): boolean {
+  return LISTING_ID_SEGMENT.test(segment);
+}
+
+/**
  * Restore the stored uppercase casing of a listing id when (and only when) the
  * value is a recognizable REBNY/CRM listing id. Anything else — address slugs,
  * `listing-xxx` suppressed slugs, numeric ListingKeys — is returned verbatim.

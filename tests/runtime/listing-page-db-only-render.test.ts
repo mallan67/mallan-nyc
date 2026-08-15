@@ -68,10 +68,17 @@ describe('listing page renders from the synchronized Neon copy as ISR', () => {
     expect(src).toMatch(/prisma\.listing\.(findUnique|findFirst|findMany)/);
   });
 
-  it('keeps ISR revalidation enabled (so the CDN can cache the page)', () => {
-    // One Cycle W1: ISR window = unified One Cycle cadence (600s = 10 min) —
-    // same effective freshness; sync-driven revalidateTag expires in-line.
-    expect(src).toMatch(/export const revalidate = 600/);
+  it('keeps the page cacheable, now WITHOUT a periodic clock (revalidate = false)', () => {
+    // REVISED 2026-08-15: listing detail is now EVENT-DRIVEN (`revalidate = false`). The 600s
+    // window was documented as a staleness fallback, but on this route — the dominant
+    // continuous Neon reader — it meant every crawler revisit past 600s re-rendered an
+    // UNCHANGED listing against the database. Freshness never depended on it: sync-driven
+    // revalidateTag('listing:{id}') expires the page in-line on every real change.
+    // The intent of this test — "the CDN can cache the page" — is MORE satisfied, not less:
+    // the entry now persists in the Full Route Cache until a tag expires it or the deployment
+    // changes, instead of self-expiring every 600s.
+    expect(src).toMatch(/export const revalidate = false/);
+    expect(src).not.toMatch(/export const revalidate = \d+/);
   });
 
   it('exports generateStaticParams so the dynamic route enters the ISR pipeline', () => {
