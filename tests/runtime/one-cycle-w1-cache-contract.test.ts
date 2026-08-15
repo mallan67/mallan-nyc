@@ -57,9 +57,15 @@ describe("W1 — anonymous read surfaces are cache-wired (positive contract)", (
     expect(src).toMatch(/async function trestleFetchJson\(url: string\)/);
   });
 
-  it("listing detail page ISR window equals the unified One Cycle cadence (literal 600 = 10 min)", () => {
+  it("listing detail page is EVENT-DRIVEN — no periodic ISR window at all", () => {
     const src = read("app/listing/[...slug]/page.tsx");
-    expect(src).toMatch(/export const revalidate = 600;/);
+    // REVISED 2026-08-15: listing detail is now EVENT-DRIVEN (`revalidate = false`). The 600s
+    // window was documented as a staleness fallback, but on this route — the dominant
+    // continuous Neon reader — it meant every crawler revisit past 600s re-rendered an
+    // UNCHANGED listing against the database. Freshness never depended on it: sync-driven
+    // revalidateTag('listing:{id}') expires the page in-line on every real change.
+    expect(src).toMatch(/export const revalidate = false;/);
+    expect(src).not.toMatch(/export const revalidate = \d+;/);
   });
 
   // ── Codex P2 fix: the detail page's ISR HTML itself must be tag-evictable ──

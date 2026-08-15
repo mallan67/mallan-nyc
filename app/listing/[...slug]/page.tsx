@@ -71,16 +71,26 @@ import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 
-// ISR — 600s is the TIME-BASED STALENESS FALLBACK, not a proactive re-render:
-// a page is regenerated on the first request AFTER it has been stale for 600s.
-// It does NOT re-render every page every 10 minutes. Real data changes expire
-// the page SOONER and precisely via sync-driven `revalidateTag` (One Cycle W1),
-// which runs in-line with each write; this window is only the safety net for a
-// change whose tag a revalidation pass could not derive or a missed pass.
-// Aligned to the unified One Cycle cadence (10 min) so cron, cache fallback and
-// this window share ONE timeline. Must stay a LITERAL for Next's static
-// analysis (= SYNC_CADENCE_SECONDS = 10*60 in lib/cache/public-cache.ts).
-export const revalidate = 600;
+// EVENT-DRIVEN CACHE — no periodic regeneration.
+//
+// A listing detail page is generated on FIRST request and then stays in the Full Route Cache
+// indefinitely. Freshness is driven entirely by the existing sync-side
+// `revalidateTag('listing:{id}')` mechanism (One Cycle W1), which runs in-line with each write —
+// so a page expires precisely when its data actually changes, and never merely because time passed.
+//
+// WHY THIS CHANGED FROM 600s. The previous value was described as a "staleness fallback", but its
+// practical effect on this route was a perpetual regeneration loop: /listing/[...slug] is the
+// dominant continuous Neon reader (thousands of unique crawler-driven renders), and a 600s window
+// means every crawler revisit past that window re-renders an UNCHANGED listing against Neon. That
+// is what kept the database from ever acquiring a real idle window. There is no longer any
+// ten-minute regeneration of an unchanged listing.
+//
+// COLD FILL IS STILL EXPECTED, AND IS FINITE. The Full Route Cache is deployment-scoped, so each
+// deployment re-fills listing URLs once on first request. That is a bounded cost per deploy, not a
+// standing loop.
+//
+// Must stay a LITERAL for Next's static analysis.
+export const revalidate = false;
 export const maxDuration = 60;
 
 // Opt this dynamic catch-all route INTO the static/ISR pipeline (compute repair,
