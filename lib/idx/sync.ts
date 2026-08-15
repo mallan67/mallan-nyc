@@ -1267,7 +1267,7 @@ export async function syncListings(
           const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey");
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
@@ -1306,7 +1306,7 @@ export async function syncListings(
             }
 
             // Group media by ResourceRecordKey — normalize to {url, mediaType, order} for display adapter
-            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number }[]>();
+            const mediaByListing = new Map<string, { url: string; mediaType: string; order: number; mediaKey?: string }[]>();
             // PRE-SEED every REQUESTED key so a complete-but-empty result is
             // represented as `[]` instead of vanishing from the map. Previously
             // "the provider returned no media for this listing" was
@@ -1325,7 +1325,20 @@ export async function syncListings(
               // history of this bug.
               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+              // Stable RESO identity for write suppression. `mediaArraysMateriallyEqual` prefers
+              // `mediaKey` when BOTH sides carry one and only then falls back to URL identity.
+              // Cotality rotates a signed epoch + HMAC inside the URL *path* (not the query), so
+              // `rotatingUrlIdentity` cannot neutralize it and the URL leg reports every photo as
+              // changed on every cycle. Supplying the key makes the authoritative branch reachable.
+              //
+              // OMIT the property entirely when the feed does not give a usable string: an empty
+              // string would masquerade as an authoritative identity and could make two DIFFERENT
+              // photos compare equal. G5 (MediaStatus / PreferredPhotoYN semantics) is NOT
+              // established, so anything unexpected must degrade into the existing URL fallback
+              // rather than bypass it.
+              const mediaKey = typeof m.MediaKey === "string" ? m.MediaKey.trim() : "";
               mediaByListing.get(lid)!.push({
+                ...(mediaKey ? { mediaKey } : {}),
                 url: String(m.MediaURL),
                 mediaType,
                 order: isPreferred ? -1 : Number(m.Order ?? 0),
@@ -2660,7 +2673,7 @@ export async function syncAgentHistory(
           const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey");
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
@@ -2677,7 +2690,7 @@ export async function syncAgentHistory(
             if (!res.ok) continue;
             const data = await res.json();
 
-            const mediaByKey = new Map<string, { url: string; mediaType: string; order: number }[]>();
+            const mediaByKey = new Map<string, { url: string; mediaType: string; order: number; mediaKey?: string }[]>();
             for (const m of data.value || []) {
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
@@ -2687,7 +2700,18 @@ export async function syncAgentHistory(
               // bug this replaces.
               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+              // Same stable-identity fix as the syncListings batch above: supply the RESO MediaKey
+              // so the comparator's authoritative branch is reachable instead of the URL leg, which
+              // Cotality's rotating path signature defeats on every cycle. Omitted when absent so an
+              // unknown key degrades into the existing URL fallback.
+              //
+              // NOTE: this function's batch-wide `$top` truncation is a SEPARATE, confirmed defect
+              // (a shared cap across the whole batch drops the highest-Order rows). MediaKey cannot
+              // repair a truncated array — a short array differs in LENGTH and is material anyway.
+              // Deliberately not addressed here.
+              const mediaKey = typeof m.MediaKey === "string" ? m.MediaKey.trim() : "";
               mediaByKey.get(lid)!.push({
+                ...(mediaKey ? { mediaKey } : {}),
                 url: String(m.MediaURL),
                 mediaType,
                 order: isPreferred ? -1 : Number(m.Order ?? 0),
