@@ -841,9 +841,18 @@ export async function main(argv: string[], env: RecoveryEnv): Promise<ResidualRe
   return telemetry;
 }
 
-// Guarded exactly like scripts/audit/reconcile-execute.ts:225 so the module can
-// be imported by tests without running a drain.
-if (process.env.NODE_ENV !== "test") {
+// Run ONLY when this file is INVOKED DIRECTLY — the same argv[1] guard the Property recovery lane
+// uses (scripts/recover-stale-property-listings.ts:1119). `require.main` is unavailable under ESM
+// and `import.meta` is unavailable under the CJS transform ts-jest uses, so neither is portable
+// across `npx tsx` and the test runner; argv[1] is.
+//
+// THE DEFECT THIS REPLACES: the guard was `process.env.NODE_ENV !== "test"`, which only protects
+// TEST processes. Any OTHER import — a diagnostic, a helper reuse, a one-off script pulling
+// `buildResidualCandidateWhere` — executed `main()` and ran a full recovery against production.
+// That fired twice on 2026-08-15, each time issuing a ~96-listing Cotality sweep that nobody asked
+// for. Dry-run default meant no data was written, but a module that starts a production-write-
+// capable campaign merely by being imported is a trap, not a safeguard.
+if (/recover-residual-listing-media\.[cm]?[jt]s$/.test(process.argv[1] ?? "")) {
   void main(process.argv.slice(2), process.env as RecoveryEnv)
     .then(async () => {
       await prisma.$disconnect();
