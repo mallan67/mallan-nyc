@@ -129,7 +129,7 @@ describe("S1 — public render repoint (listing detail)", () => {
     const dtoSrc = read("lib/idx/db-to-public-dto.ts");
     expect(dtoSrc).toMatch(/publicRemarks:[\s\S]{0,200}?features\.PublicRemarks[\s\S]{0,200}?rawData\.PublicRemarks/);
     expect(dtoSrc).not.toMatch(/compliance\.PublicRemarks/);
-    expect(page).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    expect(page).toMatch(/dbListingToPublicDTO\(dbListing[,)]/);
     expect(page).not.toMatch(/compliance\.PublicRemarks/);
   });
   it("does not read the compliance column for render; reads raw_data instead", () => {

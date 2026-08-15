@@ -91,7 +91,7 @@ describe("Featured/Public Tier A P0 — A-2 unitNumber suppressed when address i
     // db-to-public-dto.ts). Demanding the page ALSO contain that literal would
     // be demanding the duplication this change removed.
     const src = readFile(LISTING_PAGE);
-    expect(src).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    expect(src).toMatch(/dbListingToPublicDTO\(dbListing[,)]/);
     // ...and it must not grow the suppressed block back.
     expect(src).not.toMatch(
       /streetName:\s*['"]Address Undisclosed['"][\s\S]{0,160}?unitNumber:\s*null/

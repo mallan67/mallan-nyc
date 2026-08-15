@@ -356,7 +356,7 @@ describe('regression — listing-detail page feeds SimilarListings an OWNERSHIP-
       'utf8',
     );
     expect(DTO).toMatch(/propertyType: mapPropertyTypeToDisplay\(/);
-    expect(PAGE).toMatch(/dbListingToPublicDTO\(dbListing\)/);
+    expect(PAGE).toMatch(/dbListingToPublicDTO\(dbListing[,)]/);
     expect(PAGE).not.toMatch(/propertyType: dbListing\.property_sub_type \|\| dbListing\.property_type/);
   });
   it('passes propertyType + propertySubType into SimilarListings', () => {
