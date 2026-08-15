@@ -30,6 +30,13 @@ jest.mock('@/lib/prisma', () => ({
       findMany: jest.fn(async () => [] as unknown[]),
       findUnique: jest.fn(async () => null),
     },
+    // FEED-authority lookup (lib/media/feed-media-authority.ts). Returning [] models "no feed
+    // history for any of these listings", which is the correct answer for every fixture here:
+    // they are either never-imported (_count 0) or already hold an ACTIVE feed row, and the latter
+    // is proven WITHOUT a query. Required because the helper deliberately lets a failed lookup
+    // PROPAGATE rather than degrade to `false` — so an absent delegate surfaces loudly instead of
+    // silently re-permitting the stale legacy replay.
+    listingMedia: { groupBy: jest.fn(async () => [] as Array<{ listing_id: string }>) },
   },
 }));
 

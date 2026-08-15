@@ -546,6 +546,11 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // JSON only where the resolver permits it. The composed array is photo-first
       // and proxied exactly once (db-media-composition.ts:96-104), so reading it
       // cannot hero a FloorPlan and cannot produce a nested proxy URL.
+      //
+      // NO feed-authority signal here, deliberately: the filter above restricts this page to
+      // `isMallanOwnedLocalListing`, and Mallan-owned media keeps its existing
+      // `hadRelationalRows === false` rule. `resolveFeedAuthorityForPage` skips Mallan-owned
+      // listings by design, so wiring it here would add a query that can never change the result.
       const { media: composedMedia } = composeDbPublicMedia({
         listingId: l.listing_id,
         rlsEligible: l.rls_eligible,

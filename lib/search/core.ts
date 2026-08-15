@@ -4,6 +4,10 @@ import {
   composeDbPublicMedia,
   type DbMediaComposition,
 } from "@/lib/media/db-media-composition";
+import {
+  resolveFeedAuthorityForPage,
+  type FeedAuthorityDb,
+} from "@/lib/media/feed-media-authority";
 import type { ListingMediaTableRow } from "@/lib/media/listing-media-resolver";
 import {
   criteriaToProjectionWhere,
@@ -264,7 +268,7 @@ type MediaHydrationDb = {
   listing: {
     findMany(args: Prisma.ListingFindManyArgs): Promise<unknown[]>;
   };
-};
+} & FeedAuthorityDb;
 
 /**
  * OPT-IN canonical media for a page of search results.
@@ -333,6 +337,19 @@ export async function hydrateSearchListingMedia(
     _count?: { listing_media?: number };
   }>;
 
+  // FEED-authority for the whole page in ONE grouped query (lib/media/feed-media-authority.ts).
+  // Same opt-in, batched shape as this hydrator itself — never N per-listing reads. Only genuinely
+  // ambiguous rows are queried, and a failed lookup PROPAGATES rather than quietly permitting the
+  // stale legacy replay.
+  const feedAuthority = await resolveFeedAuthorityForPage(
+    db,
+    rows.map((row) => ({
+      ctx: { listingId: row.listing_id, rlsEligible: row.rls_eligible ?? undefined },
+      tableRows: Array.isArray(row.listing_media) ? row.listing_media : [],
+      hasLegacyPayload: Array.isArray(row.media) && (row.media as unknown[]).length > 0,
+    })),
+  );
+
   for (const row of rows) {
     const composed = composeDbPublicMedia({
       listingId: row.listing_id,
@@ -341,6 +358,7 @@ export async function hydrateSearchListingMedia(
       legacyMedia: Array.isArray(row.media) ? (row.media as unknown[]) : [],
       hadRelationalRows:
         typeof row._count?.listing_media === "number" ? row._count.listing_media > 0 : undefined,
+      hadFeedRelationalRows: feedAuthority.get(row.listing_id),
     });
     out.set(row.listing_id, { media: composed.media, photoCount: composed.photoCount });
   }

@@ -148,12 +148,14 @@ describe('unknown signal is fail-open to CURRENT behaviour, never invented', () 
 // ─── Batching / N+1 proofs ─────────────────────────────────────────────────────────────────────
 
 function stubDb(idsWithFeedHistory: string[]) {
-  const calls: Array<{ where: unknown }> = [];
+  const calls: Array<{ by: readonly string[]; where: unknown }> = [];
   const db: FeedAuthorityDb = {
     listingMedia: {
-      async findMany(args) {
-        calls.push({ where: args.where });
-        return idsWithFeedHistory.map((id) => ({ listing: { listing_id: id } }));
+      async groupBy(args) {
+        // Records the SHAPE too: a grouped scalar query, never findMany+distinct (which Prisma
+        // deduplicates in memory after transferring every matching row).
+        calls.push({ by: args.by, where: args.where });
+        return idsWithFeedHistory.map((id) => ({ listing_id: id }));
       },
     },
   };
@@ -202,10 +204,32 @@ describe('batched authority lookup — one query per page, never N', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('listings with NO legacy payload are not queried — the decision is moot', async () => {
+    const { db, calls } = stubDb([]);
+    const map = await resolveFeedAuthorityForPage(db, [
+      { ctx: { listingId: 'A', rlsEligible: true }, tableRows: [], hasLegacyPayload: false },
+    ]);
+    expect(calls).toHaveLength(0);
+    expect(map.get('A')).toBeUndefined(); // never looked up ⇒ unknown, not an invented `false`
+    expect(needsFeedAuthorityLookup({ listingId: 'A', rlsEligible: true }, [], false)).toBe(false);
+  });
+
+  it('uses a GROUPED SCALAR query batched with IN — not findMany+distinct, no relation join', async () => {
+    const { db, calls } = stubDb(['A']);
+    await fetchFeedMediaAuthority(db, ['A', 'B']);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].by).toEqual(['listing_id']);
+    const where = JSON.stringify(calls[0].where);
+    expect(where).toContain('"in":["A","B"]');
+    // ListingMedia.listing_id IS the business key, so no `listing: { ... }` join is needed.
+    expect(where).not.toContain('"listing":');
+    expect(where).toContain('"media_key":null');
+  });
+
   it('a failed lookup PROPAGATES and is never coerced to false', async () => {
     const db: FeedAuthorityDb = {
       listingMedia: {
-        async findMany() {
+        async groupBy() {
           throw new Error('connection terminated');
         },
       },

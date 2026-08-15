@@ -100,6 +100,7 @@ export const maxDuration = 60;
 // serialize safely; wrapping it needs the serialize-inside-closure refactor
 // (W1 follow-up). The COUNT read (pure integer) is wrapped now.
 import { cachedPublicRead, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
+import { resolveFeedAuthorityForPage } from '@/lib/media/feed-media-authority';
 
 // ── In-memory cache (same pattern as /api/idx/search) ──
 interface CacheEntry { data: unknown; expiresAt: number }
@@ -446,8 +447,26 @@ export async function GET(request: Request) {
             // CRM row. The IDX row stays in DB for audit history. See
             // docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
             // and lib/listings/dedupe-crm-vs-idx.ts.
+            // FEED-authority: ONE grouped query for the page (lib/media/feed-media-authority.ts).
+            // Only genuinely ambiguous listings are queried — Mallan-owned are excluded, a listing
+            // already holding an ACTIVE feed row is proven without a read, and a listing with no
+            // legacy payload has nothing to gate. A failed lookup PROPAGATES rather than quietly
+            // permitting the stale legacy replay.
+            const feedAuthority = await resolveFeedAuthorityForPage(
+              prisma,
+              displayable.map((l) => ({
+                ctx: { listingId: l.listing_id, rlsEligible: l.rls_eligible },
+                tableRows: Array.isArray(l.listing_media) ? l.listing_media : [],
+                hasLegacyPayload: Array.isArray(l.media) && l.media.length > 0,
+              })),
+            );
+
+            // Explicit arrow, NOT a bare `.map(dbListingToPublicDTO)`: `Array.map` passes
+            // (value, index, array), so a bare reference would hand the INDEX to the options param.
             let publicListings = preferCrmExclusiveOverIdxDuplicate(
-              displayable.map(dbListingToPublicDTO),
+              displayable.map((l) =>
+                dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) }),
+              ),
             );
 
             // Build features lookup — passed into applyPublicListingPostFilters
@@ -1043,6 +1062,18 @@ export async function GET(request: Request) {
                   },
                 },
               });
+              // FEED-authority in ONE grouped query before the backfill loop. This path exists to
+              // fill cards Trestle returned EMPTY — so if the feed is authoritatively empty
+              // (rows materialized then tombstoned), backfilling from the stale legacy JSON is
+              // exactly the republication this fix closes.
+              const backfillAuthority = await resolveFeedAuthorityForPage(
+                prisma,
+                dbListings.map((dbL) => ({
+                  ctx: { listingId: dbL.listing_id, rlsEligible: dbL.rls_eligible },
+                  tableRows: Array.isArray(dbL.listing_media) ? dbL.listing_media : [],
+                  hasLegacyPayload: Array.isArray(dbL.media) && dbL.media.length > 0,
+                })),
+              );
               for (const dbL of dbListings) {
                 const listing = stillEmpty.find(l => l.listingId === dbL.listing_id);
                 if (!listing) continue;
@@ -1054,7 +1085,10 @@ export async function GET(request: Request) {
                     listingId: dbL.listing_id,
                     rlsEligible: dbL.rls_eligible,
                   },
-                  { hadRelationalRows: (dbL._count?.listing_media ?? 0) > 0 },
+                  {
+                    hadRelationalRows: (dbL._count?.listing_media ?? 0) > 0,
+                    hadFeedRelationalRows: backfillAuthority.get(dbL.listing_id),
+                  },
                 );
                 if (resolved.length === 0) continue;
                 listing.media = toDtoMedia(resolved) as typeof listing.media;
@@ -1366,7 +1400,12 @@ async function fetchExclusiveListings(
     }));
 
     const displayable = filterDisplayableDbListings(serialized);
-    return displayable.map(dbListingToPublicDTO);
+    // Explicit arrow, NOT a bare `.map(dbListingToPublicDTO)`: `Array.map` passes (value, index,
+    // array), so a bare reference would hand the numeric INDEX to the options parameter.
+    //
+    // No feed-authority signal here by design — this is the Mallan EXCLUSIVES path (SL-/RL-), and
+    // Mallan-owned media keeps its existing `hadRelationalRows === false` rule untouched.
+    return displayable.map((l) => dbListingToPublicDTO(l));
   } catch (err) {
     console.warn('[/api/listings] Exclusive listings fetch failed:', err instanceof Error ? err.message : err);
     return [];

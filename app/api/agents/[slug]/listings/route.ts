@@ -7,6 +7,7 @@ import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { getAccessToken } from '@/lib/idx/auth';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
+import { resolveFeedAuthorityForPage } from '@/lib/media/feed-media-authority';
 import { AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
@@ -320,17 +321,29 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
     // the synced row. Without this dedupe, the wrong row (typically the
     // IDX duplicate with "RLS · Listing Courtesy of …" attribution) wins
     // on /agents/{slug}. See lib/listings/dedupe-crm-vs-idx.ts.
+    const activeRows = displayable.filter((l) => activeStatuses.includes(l.status));
+    const closedRows = serialized.filter((l) => closedStatuses.includes(l.status));
+
+    // FEED-authority for BOTH tabs in ONE grouped query (lib/media/feed-media-authority.ts).
+    // This surface carries third-party rows stamped by syncAgentHistory, and Past Deals in
+    // particular is where tombstoned feed media would otherwise be replayed from the stale legacy
+    // JSON. Only ambiguous listings are queried; a failed lookup PROPAGATES.
+    const feedAuthority = await resolveFeedAuthorityForPage(
+      prisma,
+      [...activeRows, ...closedRows].map((l) => ({
+        ctx: { listingId: l.listing_id, rlsEligible: l.rls_eligible },
+        tableRows: Array.isArray(l.listing_media) ? l.listing_media : [],
+        hasLegacyPayload: Array.isArray(l.media) && l.media.length > 0,
+      })),
+    );
+    // Explicit arrows, NOT bare `.map(dbListingToPublicDTO)`: `Array.map` passes (value, index,
+    // array), so a bare reference would hand the numeric INDEX to the options parameter.
+    const toDto = (l: DbListing) =>
+      dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) });
+
     return {
-      active: preferCrmExclusiveOverIdxDuplicate(
-        displayable
-          .filter((l) => activeStatuses.includes(l.status))
-          .map(dbListingToPublicDTO),
-      ),
-      closed: preferCrmExclusiveOverIdxDuplicate(
-        serialized
-          .filter((l) => closedStatuses.includes(l.status))
-          .map(dbListingToPublicDTO),
-      ),
+      active: preferCrmExclusiveOverIdxDuplicate(activeRows.map(toDto)),
+      closed: preferCrmExclusiveOverIdxDuplicate(closedRows.map(toDto)),
     };
   } catch (err) {
     console.warn('[agent-listings] DB fetch failed:', err instanceof Error ? err.message : err);

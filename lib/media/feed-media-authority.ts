@@ -35,6 +35,7 @@
  * database error would silently republish source-deleted photos. Callers that cannot tolerate a
  * throw must pass `undefined` (unknown), which preserves today's fallback behaviour.
  */
+import type { Prisma } from "@prisma/client";
 import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 import { isMallanOwnedListing, type MediaFallbackContext } from "@/lib/media/listing-media-resolver";
 
@@ -53,16 +54,26 @@ import { isMallanOwnedListing, type MediaFallbackContext } from "@/lib/media/lis
  */
 export const FEED_MEDIA_WHERE = {
   OR: [{ media_key: null }, { NOT: { media_key: { startsWith: CRM_MEDIA_KEY_PREFIX } } }],
-} as const;
+} satisfies Prisma.ListingMediaWhereInput;
 
-/** Minimal structural DB surface — keeps this unit testable without a live Prisma client. */
+/**
+ * Minimal structural DB surface — keeps this unit-testable without a live Prisma client, while
+ * `where` is typed against the GENERATED schema so an invalid predicate fails at compile time
+ * rather than hiding behind `unknown`.
+ *
+ * `groupBy` (SQL `GROUP BY`), NOT `findMany({ distinct })`. Prisma's `distinct` is applied
+ * IN MEMORY after the rows are fetched — for a listing with a long media history that transfers
+ * every matching row just to derive one id, which is the wrong shape for an existence check.
+ * `ListingMedia.listing_id` is itself the business key
+ * (`@relation(fields: [listing_id], references: [listing_id])`), so no relation join is needed to
+ * recover it.
+ */
 export interface FeedAuthorityDb {
   listingMedia: {
-    findMany(args: {
-      where: unknown;
-      select: { listing: { select: { listing_id: true } } };
-      distinct?: unknown;
-    }): Promise<Array<{ listing: { listing_id: string } | null }>>;
+    groupBy(args: {
+      by: ["listing_id"];
+      where: Prisma.ListingMediaWhereInput;
+    }): Promise<Array<{ listing_id: string }>>;
   };
 }
 
@@ -84,8 +95,13 @@ export interface FeedAuthorityRow {
 export function needsFeedAuthorityLookup(
   ctx: MediaFallbackContext,
   tableRows: ReadonlyArray<FeedAuthorityRow>,
+  hasLegacyPayload: boolean = true,
 ): boolean {
   if (isMallanOwnedListing(ctx)) return false;
+  // 4. Nothing to fall back TO. The signal only ever gates replaying the legacy JSON, so with an
+  //    empty payload the decision is moot and the answer cannot change what renders. Skipping keeps
+  //    the query confined to listings where it can actually matter.
+  if (!hasLegacyPayload) return false;
   const hasActiveFeedRow = tableRows.some((r) => r && r.status === "active" && !isCrmMediaKey(r.media_key));
   return !hasActiveFeedRow;
 }
@@ -107,14 +123,14 @@ export async function fetchFeedMediaAuthority(
   const ids = [...new Set(listingIds)].filter((id) => typeof id === "string" && id !== "");
   if (ids.length === 0) return out; // no query at all when nothing is ambiguous
 
-  const rows = await db.listingMedia.findMany({
-    where: { listing: { listing_id: { in: ids } }, ...FEED_MEDIA_WHERE },
-    select: { listing: { select: { listing_id: true } } },
-    distinct: ["listing_id"],
+  // ONE grouped existence query, batched with IN — never N per-listing reads.
+  const groups = await db.listingMedia.groupBy({
+    by: ["listing_id"],
+    where: { listing_id: { in: ids }, ...FEED_MEDIA_WHERE },
   });
 
-  for (const r of rows) {
-    const id = r?.listing?.listing_id;
+  for (const g of groups) {
+    const id = g?.listing_id;
     if (typeof id === "string" && id !== "") out.add(id);
   }
   return out;
@@ -130,7 +146,12 @@ export async function fetchFeedMediaAuthority(
  */
 export async function resolveFeedAuthorityForPage(
   db: FeedAuthorityDb,
-  listings: ReadonlyArray<{ ctx: MediaFallbackContext; tableRows: ReadonlyArray<FeedAuthorityRow> }>,
+  listings: ReadonlyArray<{
+    ctx: MediaFallbackContext;
+    tableRows: ReadonlyArray<FeedAuthorityRow>;
+    /** Does this listing have legacy JSON to fall back TO? Absent ⇒ assume yes (safe). */
+    hasLegacyPayload?: boolean;
+  }>,
 ): Promise<Map<string, boolean | undefined>> {
   const result = new Map<string, boolean | undefined>();
   const ambiguous: string[] = [];
@@ -142,8 +163,15 @@ export async function resolveFeedAuthorityForPage(
       result.set(id, undefined); // Mallan authority is unchanged; never queried.
       continue;
     }
-    if (!needsFeedAuthorityLookup(l.ctx, l.tableRows)) {
-      result.set(id, true); // an ACTIVE feed row proves feed history without a read
+    const hasLegacy = l.hasLegacyPayload ?? true;
+    if (!needsFeedAuthorityLookup(l.ctx, l.tableRows, hasLegacy)) {
+      // Either an ACTIVE feed row already proves feed history, or there is no legacy payload to
+      // gate. Proven-true gets `true`; the moot case stays `undefined` (never looked up), which
+      // the resolver treats as unknown and which cannot change an empty-legacy render.
+      const hasActiveFeedRow = l.tableRows.some(
+        (r) => r && r.status === "active" && !isCrmMediaKey(r.media_key),
+      );
+      result.set(id, hasActiveFeedRow ? true : undefined);
       continue;
     }
     ambiguous.push(id);

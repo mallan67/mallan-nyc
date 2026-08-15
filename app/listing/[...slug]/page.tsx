@@ -62,6 +62,7 @@ import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/lis
 import { getPhotoGallery, getFloorplans, getVideos, getVirtualTours, getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
+import { resolveFeedAuthorityForPage } from '@/lib/media/feed-media-authority';
 import { publicListOfficeName } from '@/lib/idx/public-attribution';
 import { dbListingToPublicDTO } from '@/lib/idx/db-to-public-dto';
 import type { Prisma } from '@prisma/client';
@@ -529,12 +530,27 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
         ? dbListing._count.listing_media > 0
         : undefined;
 
+    // FEED-authority signal (lib/media/feed-media-authority.ts). A third-party listing whose feed
+    // rows were materialized and then tombstoned is authoritatively EMPTY — replaying its legacy
+    // JSON there republishes photos the provider deleted. ONE grouped query, and only when the
+    // decision is genuinely ambiguous: skipped for Mallan-owned listings, for listings that already
+    // carry an ACTIVE feed row, and when there is no legacy payload to gate. A failed lookup
+    // PROPAGATES — it must never degrade into "no feed history", which would permit the stale replay.
+    const feedAuthority = await resolveFeedAuthorityForPage(prisma, [
+      {
+        ctx: { listingId: dbListing.listing_id, rlsEligible: dbListing.rls_eligible },
+        tableRows: listingMediaRows,
+        hasLegacyPayload: Array.isArray(rawMedia) && rawMedia.length > 0,
+      },
+    ]);
+
     const { media: mediaArr, photoCount: canonicalPhotoCount } = composeDbPublicMedia({
       listingId: dbListing.listing_id,
       rlsEligible: dbListing.rls_eligible,
       tableRows: listingMediaRows,
       legacyMedia: rawMedia,
       hadRelationalRows,
+      hadFeedRelationalRows: feedAuthority.get(dbListing.listing_id),
     });
 
     // Phase D step 3: agent_info removed from the Prisma client. Typed columns win for the
