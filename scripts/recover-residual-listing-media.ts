@@ -77,6 +77,10 @@ import {
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 import { CRM_MEDIA_KEY_PREFIX } from "@/lib/media/crm-media";
 import { assertCanonicalHost } from "@/lib/retention/drain-core";
+// Enumeration of EVERY configured connection string. Imported rather than re-derived so this lane
+// and the Property recovery lane cannot drift apart on which variables count as a target. That
+// module guards its own `main()` behind an argv[1] check, so importing it never executes it.
+import { resolveDatabaseUrls } from "./recover-stale-property-listings";
 import { getAccessToken } from "@/lib/idx/auth";
 
 // ─── Bounds + tokens ────────────────────────────────────────────────────────
@@ -349,6 +353,41 @@ export interface RecoveryEnv {
 }
 
 /**
+ * Refuse any run — DRY RUN INCLUDED — unless EVERY configured connection string points at the
+ * canonical production endpoint.
+ *
+ * THE DEFECT THIS REPLACES: the guard previously validated
+ * `DATABASE_URL_UNPOOLED || DATABASE_URL` — one preferred URL. But Prisma's datasource connects
+ * through `DATABASE_URL`; `DATABASE_URL_UNPOOLED` is only `directUrl`. So this combination passed
+ * the guard while every Prisma read went to the STALE database:
+ *
+ *     DATABASE_URL_UNPOOLED = ep-cold-waterfall...   (canonical — vouched for the run)
+ *     DATABASE_URL          = ep-royal-dawn...       (morning-bread, DO-NOT-SERVE — actually used)
+ *
+ * A dry-run plan computed against the stale copy is a confident fiction, which is precisely the
+ * failure mode this whole lane exists to avoid. The identical defect was already corrected in the
+ * Property lane (`assertCanonicalTarget`, scripts/recover-stale-property-listings.ts:577).
+ *
+ * Reuses `resolveDatabaseUrls` from that lane for the enumeration and the archive drain's
+ * `assertCanonicalHost` for the per-URL check, so no third canonical formula is introduced.
+ * URLs are NEVER echoed into an error — they carry credentials.
+ */
+export function assertAllConfiguredTargetsCanonical(env: RecoveryEnv): void {
+  const urls = resolveDatabaseUrls(env as Record<string, string | undefined>);
+  if (urls.length === 0) {
+    throw new Error("FATAL: no DATABASE_URL / DATABASE_URL_UNPOOLED — target undeterminable. Aborting.");
+  }
+  for (const { name, url } of urls) {
+    try {
+      assertCanonicalHost(url);
+    } catch (err) {
+      // Name WHICH variable failed; the message from assertCanonicalHost never contains the URL.
+      throw new Error(`FATAL: ${name} is not the canonical production endpoint. ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
+/**
  * Production-environment guard for the WRITE path (fail-closed at every step).
  *
  * A dry run may execute anywhere; a write may not. "Undeterminable" is refused,
@@ -370,11 +409,8 @@ export function assertProductionEnvironment(env: RecoveryEnv): void {
   if (env.VERCEL_ENV !== undefined && env.VERCEL_ENV !== "production") {
     throw new Error(`FATAL: refusing --execute under VERCEL_ENV='${env.VERCEL_ENV}' (production only). Aborting.`);
   }
-  const url = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL || "";
-  if (url === "") {
-    throw new Error("FATAL: no DATABASE_URL / DATABASE_URL_UNPOOLED — target undeterminable. Aborting.");
-  }
-  assertCanonicalHost(url);
+  // EVERY configured URL, not a preferred one — see assertAllConfiguredTargetsCanonical.
+  assertAllConfiguredTargetsCanonical(env);
 }
 
 /** Arms the write path only when intent + environment BOTH check out. Dry run needs neither. */
@@ -787,8 +823,10 @@ export async function recoverResidualListingMedia(
 
 export async function main(argv: string[], env: RecoveryEnv): Promise<ResidualRecoveryTelemetry> {
   // Host guard FIRST and in BOTH modes: a dry-run plan computed against the
-  // stale morning-bread copy would be a confident fiction.
-  assertCanonicalHost(env.DATABASE_URL_UNPOOLED || env.DATABASE_URL || "");
+  // stale morning-bread copy would be a confident fiction. EVERY configured URL is validated —
+  // a canonical unpooled URL must never be able to vouch for a stale pooled one, because Prisma
+  // reads through DATABASE_URL.
+  assertAllConfiguredTargetsCanonical(env);
 
   const args = parseRecoveryArgs(argv);
   assertExecuteAllowed(args, env);

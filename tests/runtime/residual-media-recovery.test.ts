@@ -207,6 +207,7 @@ import {
   parseRecoveryArgs,
   assertExecuteAllowed,
   assertProductionEnvironment,
+  assertAllConfiguredTargetsCanonical,
   buildResidualCandidateWhere,
   resolveMediaResourceKey,
   normalizeResourceKey,
@@ -682,6 +683,59 @@ describe('execute gating', () => {
     expect(() =>
       assertProductionEnvironment({ NODE_ENV: 'production', VERCEL_ENV: 'preview', DATABASE_URL: CANONICAL_URL }),
     ).toThrow(/VERCEL_ENV/);
+  });
+});
+
+// ─── Guard: EVERY configured target must be canonical (mixed pooled/unpooled) ──────────────
+//
+// REGRESSION. The guard previously validated `DATABASE_URL_UNPOOLED || DATABASE_URL` — ONE
+// preferred URL. Prisma's datasource connects through `DATABASE_URL`; `DATABASE_URL_UNPOOLED` is
+// only `directUrl`. So a canonical unpooled URL could vouch for a STALE pooled one, and the
+// Prisma reads that build the dry-run plan would hit morning-bread / ep-royal-dawn
+// (DO-NOT-SERVE per CLAUDE.md) while the run reported itself safe.
+//
+// The old suite could not catch this: every guard case configured exactly ONE variable, so the
+// preferred-URL shortcut and a validate-everything guard behaved identically.
+describe('canonical target guard — every configured URL', () => {
+  it('REFUSES canonical DATABASE_URL_UNPOOLED alongside a STALE DATABASE_URL (the Prisma read path)', () => {
+    const env: RecoveryEnv = { DATABASE_URL_UNPOOLED: CANONICAL_URL, DATABASE_URL: STALE_URL };
+    expect(() => assertAllConfiguredTargetsCanonical(env)).toThrow(/DATABASE_URL is not the canonical/);
+    expect(() => assertAllConfiguredTargetsCanonical(env)).toThrow(/royal-dawn/);
+    // and the write-path guard must refuse for the same reason
+    expect(() => assertProductionEnvironment({ NODE_ENV: 'production', ...env })).toThrow(/royal-dawn/);
+  });
+
+  it('REFUSES a STALE DATABASE_URL_UNPOOLED alongside a canonical DATABASE_URL', () => {
+    const env: RecoveryEnv = { DATABASE_URL_UNPOOLED: STALE_URL, DATABASE_URL: CANONICAL_URL };
+    expect(() => assertAllConfiguredTargetsCanonical(env)).toThrow(/DATABASE_URL_UNPOOLED is not the canonical/);
+    expect(() => assertAllConfiguredTargetsCanonical(env)).toThrow(/royal-dawn/);
+    expect(() => assertProductionEnvironment({ NODE_ENV: 'production', ...env })).toThrow(/royal-dawn/);
+  });
+
+  it('PASSES when both configured URLs are canonical', () => {
+    const env: RecoveryEnv = { DATABASE_URL_UNPOOLED: CANONICAL_URL, DATABASE_URL: CANONICAL_URL };
+    expect(() => assertAllConfiguredTargetsCanonical(env)).not.toThrow();
+    expect(() => assertProductionEnvironment({ NODE_ENV: 'production', ...env })).not.toThrow();
+  });
+
+  it('REFUSES when neither URL is configured (fail closed, never assume)', () => {
+    expect(() => assertAllConfiguredTargetsCanonical({})).toThrow(/undeterminable/);
+    expect(() => assertAllConfiguredTargetsCanonical({ DATABASE_URL: '', DATABASE_URL_UNPOOLED: '' })).toThrow(
+      /undeterminable/,
+    );
+  });
+
+  it('never echoes a connection string into the error (they carry credentials)', () => {
+    const secret = 'postgresql://leaked_user:leaked_password@ep-royal-dawn-ad6eh8t2.us-east-1.aws.neon.tech/db';
+    try {
+      assertAllConfiguredTargetsCanonical({ DATABASE_URL: secret });
+      throw new Error('expected a refusal');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      expect(msg).not.toContain('leaked_password');
+      expect(msg).not.toContain('leaked_user');
+      expect(msg).toMatch(/royal-dawn/);
+    }
   });
 });
 
