@@ -196,6 +196,7 @@ CANONICAL SHARED FOUNDATION
 ├── Decision / Calculator Scenarios
 ├── Communications / Comments
 ├── Documents / Agreements / Amendments
+├── Offering Plans / Building Documents
 ├── Media
 ├── Marketing / E-blast / Share
 ├── Listing Reports
@@ -290,11 +291,11 @@ Address alone is not sufficient evidence for automatic suppression. Uncertain id
 
 ## 4.5 Historical/supplemental inventory boundary
 
-Historical StreetEasy/external-inventory/sponsor-directory plans are **not** automatically part of the current canonical inventory model merely because an old spec/ledger mentions them.
+Historical external-inventory/sponsor-directory plans are **not** automatically part of the current canonical inventory model merely because an old spec/ledger mentions them.
 
 If Maya later reauthorizes a supplemental source, it must enter through the same canonical Property/Listing identity system as a source observation with explicit source rights, visibility, dedupe and client-share rules. It may not silently become public inventory or create a second listing truth.
 
-Current implementation planning must therefore not infer a StreetEasy/scraper/sponsor feed requirement unless it is explicitly reopened and verified.
+Current implementation planning must therefore not infer a scraper/sponsor/supplemental feed requirement unless it is explicitly reopened and verified.
 
 ## 4.6 Future Mallan → provider publishing
 
@@ -896,6 +897,7 @@ The Listing Workspace should display, according to source and permissions:
 - floor plans;
 - video/3D/other authorized media;
 - map/location context;
+- available Offering Plan/building-document status where applicable;
 - internal source/provenance;
 - authorized Cotality listing-professional information for Agent use;
 - Client history when opened in Client context;
@@ -932,6 +934,7 @@ Read-only source listing, but Agent can still:
 - Compare;
 - Add to CMA;
 - Schedule Showing;
+- open available Offering Plan/building documents where Mallan independently has authorized access;
 - view Client history;
 - review professional listing information internally.
 
@@ -963,6 +966,7 @@ ADD TO CMA
 SEND / EMAIL
 SHARE
 SCHEDULE SHOWING
+OFFERING PLAN / BUILDING DOCS
 ADD OPEN HOUSE
 REFRESH LISTING
 ```
@@ -979,7 +983,7 @@ DOCUMENTS
 DISTRIBUTION
 ```
 
-These are contextual actions on the same canonical Listing.
+These are contextual actions on the same canonical Listing/Property foundation.
 
 ## 7.5 Share / Email from backend
 
@@ -1138,11 +1142,11 @@ CMA / MARKET
 COMMENTS
 REPORTS
 OFFERS / APPLICATIONS
-DOCUMENTS
+DOCUMENTS / OFFERING PLAN
 DISTRIBUTION / HISTORY
 ```
 
-The exact UI can be refined during design, but all functions remain tied to the same Listing.
+The exact UI can be refined during design, but all functions remain tied to the same Listing/Property foundation.
 
 ## 7.12 Backend Listing acceptance
 
@@ -1157,12 +1161,13 @@ Backend Listings are not finished until an Agent can:
 7. add/read comments;
 8. schedule a showing;
 9. Add to CMA / Compare without re-finding it;
-10. preview and Send/Email/Share a client-safe version;
-11. record that send back into Client history;
-12. for Mallan-authored listings, edit authorized fields;
-13. Quick Add Open House without opening the full listing form;
-14. manage media/marketing/reports/offers/documents/distribution as applicable;
-15. for third-party Cotality listings, remain strictly read-only at the source layer.
+10. open/share an available authorized Offering Plan/building-document set where applicable;
+11. preview and Send/Email/Share a client-safe listing version;
+12. record that send back into Client history;
+13. for Mallan-authored listings, edit authorized fields;
+14. Quick Add Open House without opening the full listing form;
+15. manage media/marketing/reports/offers/documents/distribution as applicable;
+16. for third-party Cotality listings, remain strictly read-only at the source layer.
 
 ---
 
@@ -1498,6 +1503,7 @@ Communication attaches to the correct context, including as applicable:
 - Showing/Open House;
 - Offer/Application;
 - Agreement/Amendment;
+- Offering Plan/Building Document;
 - Transaction;
 - Commission/Referral;
 - Task.
@@ -1533,10 +1539,10 @@ Templates/forms may vary by applicable dimensions such as:
 - sale / rental;
 - co-op / condo / 1–4 family / other applicable property type;
 - open listing / exclusive agency / exclusive right / other approved representation structure;
-- buyer/tenant representation, limited-services or touring structure;
+- buyer/tenant representation, limited-services or Touring Agreement structure;
 - exclusive / non-exclusive scope where the applicable agreement permits it;
 - compensation structure and other negotiable business terms;
-- source/workflow, including an approved external form or workflow such as StreetEasy where applicable;
+- approved internal/external form or signature workflow;
 - current broker/legal/REBNY/NYS requirements.
 
 The catalog must remain configurable and versioned. Adding, retiring or revising an approved form must not require hard-wiring a compensation amount, exclusivity choice or legal clause into application code.
@@ -1582,7 +1588,7 @@ Mallan should help the Agent select an appropriate approved form from client rol
 The system must not infer that:
 
 ```text
-STREETEASY = $0
+TOURING AGREEMENT = $0
 BUYER AGREEMENT = FIXED %
 TENANT AGREEMENT = FIXED FEE
 SELLER EXCLUSIVE = FIXED %
@@ -1591,7 +1597,7 @@ LANDLORD EXCLUSIVE = FIXED FEE
 
 Lead/source does not determine compensation.
 
-A StreetEasy-originated buyer may use an applicable StreetEasy touring/limited agreement or another approved brokerage agreement depending on the actual workflow and current requirements. A limited/touring agreement is an option when a buyer initially wants to tour without committing to a longer-term relationship; its compensation, scope and duration come from the actual approved executed form, not from a Mallan hard-coded assumption.
+A **Touring Agreement** is an approved limited option when a buyer initially wants to tour without committing to a longer-term relationship. It may be structured with a fee or without a direct buyer fee as permitted by the actual approved agreement and current rules. Its compensation, scope, duration and exclusivity come from the executed form, not from a Mallan hard-coded assumption.
 
 Buyer and Tenant representation templates likewise may have fee, no-direct-client-fee or other negotiated compensation structures permitted by the approved agreement and current rules. Mallan stores the actual negotiated terms rather than labeling the entire relationship with a simplistic `fee/no-fee` boolean.
 
@@ -1619,7 +1625,7 @@ SIGNED / DECLINED / REFUSED / EXPIRED / REPLACED
 EXECUTED BROKERAGE RECORD
 ```
 
-Where an external provider such as StreetEasy controls the form/signature workflow, Mallan tracks the external agreement source, applicable property/tour/client context, sent/signed/expiration state and permitted executed-copy/signature evidence rather than recreating the external legal form merely to duplicate it.
+Where an approved external signature/form workflow is used, Mallan tracks the agreement source, applicable property/tour/client context, sent/signed/expiration state and permitted executed-copy/signature evidence rather than recreating the external legal form merely to duplicate it.
 
 Every generated/signed agreement or disclosure retains, as applicable:
 
@@ -1662,7 +1668,7 @@ Three years is a minimum retention period, not an automatic deletion date.
 
 The brokerage record should distinguish at least:
 
-- representation/listing/touring/limited-service agreements and amendments;
+- representation/listing/Touring Agreement/limited-service agreements and amendments;
 - statutory/required agency disclosures;
 - Fair Housing disclosures/evidence;
 - deal sheets;
@@ -1670,11 +1676,86 @@ The brokerage record should distinguish at least:
 - fully executed leases when received/applicable;
 - referral/co-broker documents where applicable;
 - commission/payment closeout documents;
-- authorized property/building documents.
+- authorized Offering Plans/property/building documents.
 
 The sale contract and lease are transaction documents attached to the canonical Transaction; Mallan is not a generic legal-contract authoring system for attorney-drafted transaction instruments.
 
-## 11.10 Media
+## 11.10 Offering Plan library / Agent use / client courtesy / future public access
+
+Offering Plans are a first-class **Building/Property document set**, not a Listing-specific duplicate and not a private client financial-document bucket.
+
+Canonical structure:
+
+```text
+BUILDING / PROPERTY
+↓
+OFFERING PLAN RECORD
+├── ORIGINAL PLAN
+├── AMENDMENTS / SUPPLEMENTS
+├── SOURCE / PROVENANCE
+├── PLAN / FILE IDENTIFIER WHERE AVAILABLE
+├── ACQUIRED / ADDED DATE
+├── LAST SOURCE CHECK
+└── COMPLETENESS / CURRENTNESS STATE
+```
+
+Useful states include:
+
+```text
+AVAILABLE — VERIFIED SET
+AVAILABLE — PARTIAL / AMENDMENTS MAY BE MISSING
+REQUEST PENDING
+NOT ON FILE
+SOURCE NOT YET VERIFIED
+```
+
+Mallan must never label an Offering Plan set as complete/current merely because one PDF exists. The original plan and amendments/supplements must retain separate identities, dates, provenance and completeness state.
+
+### Agent use
+
+Authorized Agents should be able to search/open Offering Plans by Building/Property and use them while advising clients, preparing for a showing/offer, reviewing building information and supporting a transaction.
+
+If an Offering Plan is not on file, Mallan should show that clearly and support an acquisition/request workflow rather than silently substituting another building's documents or an unverified copy.
+
+### Courtesy delivery to a Buyer
+
+If a Buyer does not already have the applicable Offering Plan and Mallan has an authorized copy/set available, an Agent may provide access to that Buyer **at $0 as a Mallan brokerage courtesy**.
+
+This courtesy access is separate from brokerage compensation and does not change the Buyer's representation agreement, commission terms or agency relationship.
+
+The delivery event should record:
+
+- Buyer/Opportunity;
+- Building/Property;
+- exact Offering Plan/set/version supplied;
+- delivery date/method;
+- Agent;
+- whether the set was verified complete or identified as partial;
+- any applicable disclaimer/currentness notice.
+
+### Future public paid-access option — held until source/rights proof
+
+Mallan may later choose to offer public self-service access to Offering Plans for a **configurable fee** if Mallan obtains a sufficiently broad, lawfully usable document corpus and the right to provide that access.
+
+This is a future optional document-access product, not a current brokerage fee and not a hard-coded price.
+
+Before public paid access is authorized, Mallan must verify and document:
+
+- authoritative source and acquisition method for each document/set;
+- lawful storage, reproduction, redistribution and commercial-access rights;
+- public-record/FOIL or other source-use conditions where applicable;
+- privacy/redaction requirements;
+- original-plan + amendment completeness/currentness behavior;
+- consumer-facing disclaimers and no-legal-advice boundary;
+- pricing, taxes, payment/refund rules and receipts;
+- access/download controls and audit history;
+- process for correcting/removing a document if source/rights status changes.
+
+The public price must remain configurable and may be changed by Mallan without an application-code deployment.
+
+Do not encode a managing-agent market price or another third-party fee as Mallan's required price merely because it is observed in the market.
+
+## 11.11 Media
 
 Media remains canonical to Property/Listing with source/provenance, rights/permission, ordering, type and audience eligibility.
 
@@ -1754,7 +1835,7 @@ Landlord Party / Entity / Participants
 ```text
 Buyer Party / Entity / Participants
 → Buyer Opportunity
-→ Choose approved limited/touring or buyer-representation agreement as applicable
+→ Choose approved Touring Agreement or buyer-representation agreement as applicable
 → Negotiate scope / term / compensation within the approved template
 → Broker approval if non-standard/required
 → Execute agreement + required disclosures before the applicable workflow gate
@@ -1767,6 +1848,7 @@ Buyer Party / Entity / Participants
 → Show / Discuss / Pass / Reconsider
 → Showing
 → CMA / Property Intelligence / Calculators
+→ Offering Plan / Building Documents when available and relevant
 → Offer / Negotiation
 → Attorney Capture / Confirmation
 → Accepted
@@ -1779,7 +1861,9 @@ Buyer Party / Entity / Participants
 → New Owner Relationship
 ```
 
-A buyer who initially does not want a longer commitment may use an applicable broker-approved limited/touring agreement, including an applicable StreetEasy workflow where appropriate. Mallan must use the actual executed agreement terms for compensation/scope/duration and must not hard-code a fee/no-fee conclusion from the source alone.
+A buyer who initially does not want a longer commitment may use an applicable broker-approved **Touring Agreement**. Mallan must use the actual executed agreement terms for compensation/scope/duration and must not hard-code a fee/no-fee conclusion.
+
+When an applicable Offering Plan is available, an Agent may provide it to the Buyer at $0 as a brokerage courtesy, with the exact document set/currentness state recorded. If the plan is unavailable or incomplete, Mallan must say so rather than imply that the Buyer received a complete current set.
 
 ---
 
@@ -1915,6 +1999,7 @@ Maya should see firm exceptions such as:
 - deals needing support/supervision;
 - agreement/template/source/version, negotiation, Broker-approval and amendment status;
 - missing required disclosures/executed transaction documents;
+- Offering Plan/document-set availability or incomplete-source flags where relevant to active Buyer deals;
 - commissions/referrals/payment queue;
 - owner-authorized external-broker compensation recorded at signing and confirmed at close/lease completion;
 - brokerage operating revenue/receivables and accountant-ready annual payment records;
@@ -2421,6 +2506,7 @@ Examples:
 - report due;
 - missing signed deal document;
 - agreement pending Broker approval;
+- Offering Plan missing/incomplete for an active Buyer workflow;
 - executed compensation terms missing/reconciled incorrectly;
 - owner external-broker amount not confirmed at close/lease completion;
 - commission blocked;
@@ -2439,6 +2525,7 @@ INSURANCE_EXPIRATION_RISK
 REQUIRED_TRAINING_INCOMPLETE
 DEAL_DOCUMENT_MISSING
 AGREEMENT_BROKER_APPROVAL_REQUIRED
+OFFERING_PLAN_MISSING_OR_PARTIAL
 EXECUTED_COMPENSATION_MISMATCH
 EXTERNAL_BROKER_PAYMENT_UNCONFIRMED
 REFERRAL_FORM_MISSING
@@ -2522,7 +2609,7 @@ TASKS
 MY PROFILE
 ```
 
-CMA, calculators, Comments, Share and Intelligence are contextual capabilities within those workflows and do not all need top-level navigation entries.
+CMA, calculators, Comments, Share, Offering Plans and Intelligence are contextual capabilities within those workflows and do not all need top-level navigation entries.
 
 ## 23.3 Agent Home
 
@@ -2550,7 +2637,7 @@ SEARCH
 SENT LISTINGS
 SHOWINGS
 CMA & ANALYSIS
-DOCUMENTS
+DOCUMENTS / OFFERING PLAN
 DEALS
 TIMELINE
 ```
@@ -2702,7 +2789,7 @@ CURRENT
 listing-management/detail capabilities are fragmented
 
 TARGET
-full readable source-aware Listing Workspace with media + client history + contextual actions
+full readable source-aware Listing Workspace with media + client history + contextual actions + Offering Plan/building-document access where independently authorized
 ```
 
 ### Marketing / E-blast
@@ -2732,7 +2819,17 @@ CURRENT
 basic document-library and four-family agreement framing exists
 
 TARGET
-one governed configurable agreement/form catalog with multiple role/property/representation/source variants, locked vs negotiable fields, Broker approval for non-standard terms, e-sign/external-workflow tracking, immutable executed originals/amendments and minimum-retention controls
+one governed configurable agreement/form catalog with multiple role/property/representation/source variants, Touring Agreement option, locked vs negotiable fields, Broker approval for non-standard terms, e-sign/external-workflow tracking, immutable executed originals/amendments and minimum-retention controls
+```
+
+### Offering Plans / Building documents
+
+```text
+CURRENT
+availability/source/storage/workflow must be inventoried and proven
+
+TARGET
+one Building/Property-linked Offering Plan library with original-plan + amendment provenance/completeness, Agent access, $0 Buyer courtesy delivery, and a HELD future public paid-access option only after source/redistribution/commercial-use rights and consumer controls are verified
 ```
 
 ### Brokerage / Agent support
@@ -2834,6 +2931,7 @@ Required:
 - Save/Attach to Client;
 - Schedule Showing;
 - Compare/Add to CMA;
+- Offering Plan/building-document access where independently authorized;
 - Share/Email client-safe version;
 - Quick Add Open House for authorized Mallan-authored listings without full form;
 - Refresh Listing/source reconciliation;
@@ -2848,13 +2946,13 @@ Connect actual Search/listing/client/marketing/showing data and build polished s
 
 Connect deterministic scenarios and contextual explainable intelligence to real workflows.
 
-## Phase 6 — COMMUNICATIONS / DOCUMENTS / AGREEMENTS / DEAL SUPPORT
+## Phase 6 — COMMUNICATIONS / DOCUMENTS / AGREEMENTS / OFFERING PLANS / DEAL SUPPORT
 
-Complete one communication history and the governed brokerage form/agreement engine:
+Complete one communication history and the governed brokerage form/agreement/document engine:
 
 - multiple approved Seller/Landlord/Buyer/Tenant templates rather than four hard-coded documents;
 - sale/rental/property/representation/source variations;
-- approved limited/touring buyer option, including applicable StreetEasy workflow tracking;
+- approved Touring Agreement option;
 - controlled vs negotiable fields;
 - Broker approval for non-standard terms;
 - configurable compensation rather than hard-wired fees;
@@ -2862,6 +2960,9 @@ Complete one communication history and the governed brokerage form/agreement eng
 - email/e-sign or tracked external signature workflow;
 - immutable executed originals + amendments;
 - minimum-retention controls;
+- Building/Property-linked Offering Plan library with provenance/completeness;
+- Agent Offering Plan access and $0 Buyer courtesy delivery;
+- future public paid Offering Plan access remains held pending source/use/redistribution/commercial-rights verification;
 - transaction checklists and payment readiness.
 
 ## Phase 7 — ROLE JOURNEYS
@@ -2896,7 +2997,7 @@ Not complete until it uses the same Backend Search/Property Intelligence univers
 
 ## Backend Listings
 
-Not complete until any listing opens as a full readable professional record with authorized details and media; Agent can Refresh Listing, save/attach to Client, see history, comment, schedule showing, Add to CMA/Compare, Share/Email client-safe output; and authorized Mallan-authored listings support Edit plus Quick Add Open House without reopening the full listing form.
+Not complete until any listing opens as a full readable professional record with authorized details and media; Agent can Refresh Listing, save/attach to Client, see history, comment, schedule showing, Add to CMA/Compare, access/share authorized Offering Plan/building documents where available, Share/Email client-safe listing output; and authorized Mallan-authored listings support Edit plus Quick Add Open House without reopening the full listing form.
 
 ## Marketing / E-blast
 
@@ -2908,7 +3009,11 @@ Not complete until real listing/marketing/e-blast/website/send/showing/feedback/
 
 ## Agreements / Documents / Communications
 
-Not complete until Seller/Landlord/Buyer/Tenant remain distinct role workflows but support multiple approved agreement/form variants; template selection is contextual rather than hard-wired; controlled and negotiable fields are explicit; fee/compensation, scope, term and exclusivity use the actual approved template and negotiated terms; required Broker approvals are auditable; limited/touring and applicable external workflows are tracked; required disclosures remain separate; signed originals never mutate; amendments preserve version history; executed records have required retention controls; communications/comments attach to canonical context with correct visibility; and client-safe share transformations are enforced.
+Not complete until Seller/Landlord/Buyer/Tenant remain distinct role workflows but support multiple approved agreement/form variants; template selection is contextual rather than hard-wired; Touring Agreement is a first-class limited option; controlled and negotiable fields are explicit; fee/compensation, scope, term and exclusivity use the actual approved template and negotiated terms; required Broker approvals are auditable; required disclosures remain separate; signed originals never mutate; amendments preserve version history; executed records have required retention controls; communications/comments attach to canonical context with correct visibility; and client-safe share transformations are enforced.
+
+## Offering Plans
+
+Not complete until Offering Plans are attached canonically to Building/Property, original plans and amendments retain provenance/version/currentness state, Agents can find/use them, Buyers can receive an authorized available set at $0 as a recorded courtesy, missing/partial sets are identified truthfully, and any future public paid-access product remains blocked until source/acquisition/redistribution/commercial-use/privacy/consumer/payment requirements are verified. Public pricing must be configurable rather than hard-wired.
 
 ## Transactions / Money
 
@@ -2916,7 +3021,7 @@ Not complete until the executed client agreement is the source for compensation 
 
 ## Agent / Brokerage
 
-Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required agreements/disclosures/deal documents, Money/payment readiness and role-specific My Business; Maya sees firm exceptions including agreement approvals and compensation reconciliation over the same canonical records; and required supervision is supported without unnecessary management bureaucracy.
+Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required agreements/disclosures/deal documents, Offering Plan/document availability where relevant, Money/payment readiness and role-specific My Business; Maya sees firm exceptions including agreement approvals and compensation reconciliation over the same canonical records; and required supervision is supported without unnecessary management bureaucracy.
 
 ## Technology
 
@@ -2933,14 +3038,15 @@ No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `L
 - This file is the intended single canonical product/system authority on draft PR #595 and remains unmerged until explicitly approved.
 - Maya's recent Search/CMA/Backend Listing decisions have been preserved rather than overwritten.
 - The master now replaces the too-simple four-agreement-family framing with a governed configurable Brokerage Agreement & Forms Engine: multiple approved Seller/Landlord/Buyer/Tenant templates; property/transaction/representation/source variants; controlled vs negotiable fields; Broker approval for non-standard terms; coordinated but separate disclosures; e-sign/external-workflow tracking; immutable executed records/amendments; and minimum-retention controls.
-- Compensation is now explicitly non-hard-wired and separated into negotiated client-agreement compensation, Seller/Landlord owner-authorized external-broker compensation, and internal Mallan Agent/brokerage/referral payout logic. For Seller/Landlord transactions the owner-paid external-broker terms are recorded when the exclusive/owner agreement is signed and the actual payment is confirmed/recorded again at closing or applicable lease/deal completion.
-- A buyer may use an approved limited/touring option when initially unwilling to make a longer commitment, including an applicable StreetEasy workflow; StreetEasy/source does not itself determine fee/no-fee terms, which come from the actual executed agreement.
+- Touring Agreement is the generic limited buyer option when the buyer initially does not want a longer commitment. Its fee/no-fee, scope, duration and exclusivity come from the actual approved negotiated form and are not hard-wired.
+- Compensation is explicitly non-hard-wired and separated into negotiated client-agreement compensation, Seller/Landlord owner-authorized external-broker compensation, and internal Mallan Agent/brokerage/referral payout logic. For Seller/Landlord transactions the owner-paid external-broker terms are recorded when the exclusive/owner agreement is signed and the actual payment is confirmed/recorded again at closing or applicable lease/deal completion.
 - Agency and Fair Housing disclosures remain distinct from the representation/listing contract even when delivered together operationally.
-- The brokerage document system is a governed template, delivery/signature and record-retention system, not a generic legal-document editor.
-- Historical StreetEasy/external/sponsor **inventory** concepts are not silently restored as current inventory requirements; StreetEasy agreement/touring workflow support is a separate explicitly approved business workflow and does not reopen StreetEasy as a listing-data source.
+- Offering Plans are now a canonical Building/Property document set: Agents can use them, an available authorized set may be supplied to a Buyer at $0 as a brokerage courtesy, original plan/amendment completeness is tracked, and a future public paid-access option is held until authoritative source and commercial redistribution/access rights are verified. Any eventual public price is configurable, not hard-wired.
+- The brokerage document system is a governed template, delivery/signature, Offering Plan/document-access and record-retention system, not a generic legal-document editor.
+- Historical external/sponsor inventory concepts are not silently restored as current inventory requirements; document/touring workflows do not reopen an external listing-data source.
 - Residual historical reconciliation continues as evidence work but is **not a global blocker to beginning Search P0 read-only proof/audit**.
 - Immediate technical product sequence remains **Search → CMA → Backend Listings → Marketing/E-blast/Reporting → remaining operating system** while brokerage-master completeness reconciliation continues.
-- Existing Search/CMA/Listing/Marketing/Reporting/agreement/commission code is implementation evidence, not design authority. Reuse existing canonical capabilities where correct instead of automatically creating parallel models.
+- Existing Search/CMA/Listing/Marketing/Reporting/agreement/commission/document code is implementation evidence, not design authority. Reuse existing canonical capabilities where correct instead of automatically creating parallel models.
 - PR #603 (`feat/listing-external-media-authority-2026-08-12`) is at verified head `e275ae68`: canonical external-media writer/composer/readers, six Cotality tour slots, filter parity, combined CRM/IDX dedupe before one sort/slice, contracted shared fallback cache, and 12-key public-card raw-data compatibility reads are implemented. Exact-ID and verified physical duplicates are removed before pagination with Mallan/CRM authority winning.
 - PR #603 now also contains a bounded, read-only external-media recovery audit with no execute/apply or database-mutation path. It queries exact candidate ListingIds, uses the canonical classifier/diff, collapses identical provider duplicates, and fails closed on conflicting duplicates, truncation, missing provider rows, an absent canonical table or an unapproved provider endpoint.
 - PR #603's PR checks #1455, real-PostgreSQL migration/convergence proof, Guardrails #3126, Node.js 24 Target Platform Build #200, Release Truth workflow #1567, Claude review #1476 and Vercel Preview are green. The Release Truth commit context correctly remains pending until authorized Production runtime proof exists.
