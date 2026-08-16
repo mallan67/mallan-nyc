@@ -1521,35 +1521,127 @@ An internal note remains internal. A client-shared comment must pass the client-
 
 Share is a permission-aware rendering/distribution capability over canonical records, not a second listing database.
 
-## 11.4 Brokerage document library
+## 11.4 Governed brokerage form and document library
 
-One brokerage document library holds approved templates/forms rather than uncontrolled Agent copies scattered across the system.
+Mallan maintains one governed brokerage form/document library rather than uncontrolled Agent copies scattered across the system.
 
-It may include approved representation/exclusive agreements, disclosures, transaction forms and authorized property/building documents.
+The library can contain multiple current broker-approved templates and source forms for the same client role. Seller, Landlord, Buyer and Tenant are **relationship/workflow categories, not one hard-coded document each**.
 
-Agents may populate transaction-specific fields, but controlled broker/legal template language may not be silently edited. Controlled wording changes require an approved template/version or an authorized legal/broker workflow.
+Templates/forms may vary by applicable dimensions such as:
 
-Every generated/signed document retains its template/version, parties, property/opportunity/transaction, dates, signer state and audit history.
+- Seller / Landlord / Buyer / Tenant;
+- sale / rental;
+- co-op / condo / 1–4 family / other applicable property type;
+- open listing / exclusive agency / exclusive right / other approved representation structure;
+- buyer/tenant representation, limited-services or touring structure;
+- exclusive / non-exclusive scope where the applicable agreement permits it;
+- compensation structure and other negotiable business terms;
+- source/workflow, including an approved external form or workflow such as StreetEasy where applicable;
+- current broker/legal/REBNY/NYS requirements.
 
-## 11.5 Four agreement families — separate and first class
+The catalog must remain configurable and versioned. Adding, retiring or revising an approved form must not require hard-wiring a compensation amount, exclusivity choice or legal clause into application code.
 
-Mallan has four separate agreement families:
+Statutory/required agency disclosures and Fair Housing disclosures remain separate records from the representation/listing agreement even when Mallan coordinates them in one signing workflow.
+
+## 11.5 Controlled language, negotiable fields and Broker approval
+
+Each template distinguishes:
 
 ```text
-SELLER REPRESENTATION / EXCLUSIVE
-LANDLORD REPRESENTATION / EXCLUSIVE
-BUYER REPRESENTATION / EXCLUSIVE
-TENANT REPRESENTATION / EXCLUSIVE
+CONTROLLED / LOCKED LANGUAGE
+broker/legal/required provisions that may not be silently edited
+
+NEGOTIABLE / CONFIGURABLE FIELDS
+terms the applicable agreement permits the Agent and client to negotiate
+
+BROKER-APPROVED EXCEPTION
+non-standard permitted term, clause or structure requiring Broker review before issue
 ```
 
-Do not merge them into one generic agreement workflow if the parties, obligations, terms or downstream workflow differ.
+Negotiable fields may include, where the approved template permits:
 
-A signed agreement is never silently mutated.
+- compensation amount/rate/formula;
+- compensation source and client payment obligation;
+- term/effective/expiration dates;
+- geographic, property or transaction scope;
+- exclusive/non-exclusive structure;
+- services included;
+- owner-authorized external-broker compensation where applicable;
+- other broker-approved variable terms.
+
+The system may provide broker-approved defaults, choices or ranges for operational convenience, but a default is **not** a fixed brokerage fee and may not be represented as one.
+
+Agents may change permitted negotiable fields within their authority. A non-standard or controlled-language change routes to Broker approval before the document is sent when approval is required.
+
+Mallan records who changed a negotiable term, what changed, whether Broker approval was required, the approval/rejection decision, approver and timestamp.
+
+## 11.6 Agreement selection — context guides; software does not dictate the business term
+
+Mallan should help the Agent select an appropriate approved form from client role + transaction + property + representation structure + source/workflow + current rule context.
+
+The system must not infer that:
 
 ```text
-ORIGINAL AGREEMENT
+STREETEASY = $0
+BUYER AGREEMENT = FIXED %
+TENANT AGREEMENT = FIXED FEE
+SELLER EXCLUSIVE = FIXED %
+LANDLORD EXCLUSIVE = FIXED FEE
+```
+
+Lead/source does not determine compensation.
+
+A StreetEasy-originated buyer may use an applicable StreetEasy touring/limited agreement or another approved brokerage agreement depending on the actual workflow and current requirements. A limited/touring agreement is an option when a buyer initially wants to tour without committing to a longer-term relationship; its compensation, scope and duration come from the actual approved executed form, not from a Mallan hard-coded assumption.
+
+Buyer and Tenant representation templates likewise may have fee, no-direct-client-fee or other negotiated compensation structures permitted by the approved agreement and current rules. Mallan stores the actual negotiated terms rather than labeling the entire relationship with a simplistic `fee/no-fee` boolean.
+
+## 11.7 Generate / send / sign / record
+
+Where Mallan controls the delivery/signature workflow:
+
+```text
+SELECT APPROVED TEMPLATE
 ↓
-AMENDMENT
+PREFILL VERIFIED KNOWN CLIENT / PROPERTY / AGENT DATA
+↓
+AGENT COMPLETES NEGOTIABLE FIELDS
+↓
+BROKER APPROVAL IF REQUIRED
+↓
+PREVIEW
+↓
+EMAIL / E-SIGN
+↓
+PENDING
+↓
+SIGNED / DECLINED / REFUSED / EXPIRED / REPLACED
+↓
+EXECUTED BROKERAGE RECORD
+```
+
+Where an external provider such as StreetEasy controls the form/signature workflow, Mallan tracks the external agreement source, applicable property/tour/client context, sent/signed/expiration state and permitted executed-copy/signature evidence rather than recreating the external legal form merely to duplicate it.
+
+Every generated/signed agreement or disclosure retains, as applicable:
+
+- template/form ID and version;
+- source/workflow;
+- parties/signers;
+- Agent/Brokerage identity snapshot;
+- Property/Listing/Opportunity/Transaction context;
+- negotiable terms as executed;
+- sent/delivered/viewed state where available;
+- signature/completion/refusal evidence;
+- effective/expiration date;
+- audit history.
+
+## 11.8 Executed originals, amendments and retention
+
+A signed/executed document is immutable historical evidence and is never silently mutated.
+
+```text
+ORIGINAL EXECUTED AGREEMENT
+↓
+AMENDMENT / REPLACEMENT WHEN REQUIRED
 ↓
 OLD TERM / NEW TERM
 ↓
@@ -1560,9 +1652,29 @@ PARTIES / SIGNATURES
 CURRENT OPERATING TERMS
 ```
 
-Preserve the original and every amendment.
+Preserve the original and every amendment/replacement.
 
-## 11.6 Media
+Mallan adopts a **minimum three-year brokerage-record retention policy** for the executed representation/listing agreements, agency/Fair Housing disclosures, sale contract, deal sheet, lease agreement and related executed brokerage transaction records identified by the applicable workflow. Longer retention, legal hold, complaint/dispute/litigation preservation or another controlling requirement overrides the minimum. Exact legal trigger, document scope and any longer current requirement must be verified from authoritative law/rule sources before implementation rather than guessed.
+
+Three years is a minimum retention period, not an automatic deletion date.
+
+## 11.9 Transaction document families
+
+The brokerage record should distinguish at least:
+
+- representation/listing/touring/limited-service agreements and amendments;
+- statutory/required agency disclosures;
+- Fair Housing disclosures/evidence;
+- deal sheets;
+- fully executed sale contracts when received/applicable;
+- fully executed leases when received/applicable;
+- referral/co-broker documents where applicable;
+- commission/payment closeout documents;
+- authorized property/building documents.
+
+The sale contract and lease are transaction documents attached to the canonical Transaction; Mallan is not a generic legal-contract authoring system for attorney-drafted transaction instruments.
+
+## 11.10 Media
 
 Media remains canonical to Property/Listing with source/provenance, rights/permission, ordering, type and audience eligibility.
 
@@ -1578,7 +1690,11 @@ Seller Party / Entity / Participants
 → Property
 → Sale CMA / Market Intelligence
 → Net-Proceeds / Decision Analysis
-→ Representation / Exclusive
+→ Select approved listing/representation template
+→ Negotiate listing compensation + other permitted terms
+→ Record owner-authorized external buyer-broker compensation, if any
+→ Broker approval if non-standard/required
+→ Execute agreement + required disclosures
 → Amendments as required
 → Mallan Sale Listing
 → Frontend Search / Distribution
@@ -1593,8 +1709,9 @@ Seller Party / Entity / Participants
 → Financing or Cash / Building Process
 → Walkthrough
 → Closing
+→ Confirm actual owner-paid external-broker compensation, if any
 → Deal Documents / Payment Readiness
-→ Commission
+→ Mallan commission calculation from executed agreement terms
 → Post-close Relationship
 ```
 
@@ -1608,7 +1725,11 @@ Landlord Party / Entity / Participants
 → Property
 → Rental CMA / Market Intelligence
 → Hold/Sell/Rental Analysis
-→ Representation / Exclusive
+→ Select approved listing/representation template
+→ Negotiate landlord-side compensation + other permitted terms
+→ Record owner-authorized external tenant-broker compensation, if any
+→ Broker approval if non-standard/required
+→ Execute agreement + required disclosures
 → Amendments as required
 → Mallan Rental Listing
 → Frontend Search / Distribution
@@ -1620,8 +1741,9 @@ Landlord Party / Entity / Participants
 → Approval / Building Process
 → Lease
 → Move-in
+→ Confirm actual owner-paid external-broker compensation, if any
 → Deal Documents / Payment Readiness
-→ Commission
+→ Mallan commission calculation from executed agreement terms
 → Expiration / Renew / Re-rent / Seller Opportunity
 ```
 
@@ -1632,7 +1754,11 @@ Landlord Party / Entity / Participants
 ```text
 Buyer Party / Entity / Participants
 → Buyer Opportunity
-→ Representation / Qualification / POF / Preapproval
+→ Choose approved limited/touring or buyer-representation agreement as applicable
+→ Negotiate scope / term / compensation within the approved template
+→ Broker approval if non-standard/required
+→ Execute agreement + required disclosures before the applicable workflow gate
+→ Qualification / POF / Preapproval
 → Backend Buyer Search
 → Client-assigned Saved Search(es)
 → New + Price/Status Market Updates
@@ -1653,6 +1779,8 @@ Buyer Party / Entity / Participants
 → New Owner Relationship
 ```
 
+A buyer who initially does not want a longer commitment may use an applicable broker-approved limited/touring agreement, including an applicable StreetEasy workflow where appropriate. Mallan must use the actual executed agreement terms for compensation/scope/duration and must not hard-code a fee/no-fee conclusion from the source alone.
+
 ---
 
 # 15. TENANT OPERATING JOURNEY
@@ -1660,7 +1788,11 @@ Buyer Party / Entity / Participants
 ```text
 Tenant Party / Entity / Participants
 → Tenant Opportunity
-→ Representation / Qualification
+→ Select approved tenant-representation agreement when the client chooses representation
+→ Negotiate scope / term / compensation within the approved template
+→ Broker approval if non-standard/required
+→ Execute applicable agreement + required disclosures
+→ Qualification
 → Backend Tenant Search
 → Client-assigned Saved Search(es)
 → New + Price/Status Market Updates
@@ -1677,6 +1809,8 @@ Tenant Party / Entity / Participants
 → Commission
 → Expiration / Renew / Relocate / Buyer Opportunity
 ```
+
+Tenant showing/representation rules must follow current applicable law/REBNY/NYC requirements. Mallan must not invent a universal pre-showing representation block where current authority does not require one.
 
 ---
 
@@ -1779,9 +1913,10 @@ Maya should see firm exceptions such as:
 - brokerage-generated lead distribution/status;
 - active Mallan listings;
 - deals needing support/supervision;
-- Seller/Landlord/Buyer/Tenant agreement/amendment status;
-- missing transaction documents;
+- agreement/template/source/version, negotiation, Broker-approval and amendment status;
+- missing required disclosures/executed transaction documents;
 - commissions/referrals/payment queue;
+- owner-authorized external-broker compensation recorded at signing and confirmed at close/lease completion;
 - brokerage operating revenue/receivables and accountant-ready annual payment records;
 - compliance/advertising exceptions;
 - practical Agent production/performance;
@@ -1829,13 +1964,89 @@ Useful performance is transparent and limited to what helps the business:
 - client follow-up;
 - compliance/professional-requirement exceptions.
 
-## 19.3 Commission truth
+## 19.3 Three compensation layers — never collapse them
 
-Each canonical Transaction can reference:
+Mallan keeps three different compensation concepts separate:
 
-- gross brokerage compensation;
+```text
+1. CLIENT AGREEMENT COMPENSATION
+   negotiated Seller / Landlord / Buyer / Tenant obligation and terms
+
+2. OWNER-AUTHORIZED EXTERNAL-BROKER COMPENSATION
+   Seller/Landlord-side cooperating broker amount/structure, if any
+
+3. INTERNAL MALLAN COMPENSATION
+   brokerage share, Agent split/plan, internal co-Agent allocation,
+   referral, approved adjustment and Agent payout
+```
+
+Layer 3 must never determine Layer 1 or Layer 2.
+
+A compensation percentage, amount, flat fee, formula, payer/source or client obligation may not be hard-wired merely because a particular template, property type, lead source or Agent is selected.
+
+## 19.4 Client-agreement compensation is negotiated and template-driven
+
+Seller, Landlord, Buyer and Tenant compensation comes from the approved agreement actually negotiated and executed with the client.
+
+The applicable template may support, where permitted:
+
+- percentage;
+- flat amount;
+- other broker-approved objectively defined formula/structure;
+- client direct obligation;
+- permitted compensation source(s);
+- when compensation is earned;
+- when compensation is due/payable;
+- maximum/limit where required by the applicable agreement/rule;
+- shortfall treatment where applicable;
+- other approved negotiable compensation terms.
+
+Defaults are convenience only. Mallan must never represent an internal default as a fixed commission or market-standard fee.
+
+The executed agreement is the contractual source record. A closing or commission screen may not silently substitute a newly typed compensation term that conflicts with the executed agreement.
+
+If compensation terms change after execution, preserve the signed original and use an authorized amendment/replacement workflow as applicable.
+
+## 19.5 Seller/Landlord owner-paid external-broker compensation
+
+For Mallan's Seller/Landlord operating model, compensation to the external cooperating buyer/tenant-side broker, when present, is treated as an **owner-authorized owner obligation**, not as an internal Mallan commission split.
+
+At Seller/Landlord agreement signing, Mallan records the owner-authorized external-broker terms, including as applicable:
+
+- none / offered;
+- amount/rate/formula;
+- intended recipient side/type;
+- payer = Owner;
+- source agreement/template/version;
+- effective date;
+- any Broker approval/amendment evidence.
+
+At closing for a sale, or the applicable lease/deal completion point for a rental, Mallan records the actual/confirmed external-broker payment information available to the brokerage, including the final amount and recipient brokerage/professional identification where known/required.
+
+This produces a clear two-point record:
+
+```text
+EXCLUSIVE / OWNER AGREEMENT SIGNED
+→ owner-authorized external-broker compensation recorded
+
+CLOSING / LEASE-DEAL COMPLETION
+→ actual external-broker compensation confirmed/recorded
+```
+
+If the owner changes those terms after the exclusive is signed, the change must follow the applicable authorized amendment/approval/document workflow. History is never overwritten.
+
+Mallan does not infer or calculate this as a share of Mallan's own listing-side commission unless an actual executed agreement expressly creates that relationship. The external-broker record and Mallan's listing-side compensation remain separate truths.
+
+Before implementation, exact disclosure, documentation, delivery and rule language must be verified against then-current NY law/DOS, REBNY/RLS/UCBA and applicable NYC requirements rather than inferred from historical custom.
+
+## 19.6 Internal Mallan commission truth
+
+After the client/external compensation obligations are known, each canonical Transaction can reference:
+
+- actual gross Mallan brokerage compensation due/received under the executed client agreement;
 - applicable Agent split/plan;
 - brokerage share;
+- internal co-Agent allocation where applicable;
 - referral obligation;
 - approved adjustments;
 - expected Agent amount;
@@ -1847,11 +2058,11 @@ Each canonical Transaction can reference:
 
 Compensation plans/splits are versioned. Do not assume one universal split.
 
-Agent cannot silently edit broker-approved compensation terms.
+Agent cannot silently edit broker-approved internal compensation terms.
 
 Broker-approved adjustments retain immutable history.
 
-## 19.4 Agent Money view
+## 19.7 Agent Money view
 
 Agent My Business should make money status understandable:
 
@@ -1868,7 +2079,8 @@ Each row should show, subject to permissions:
 
 - property/deal/client;
 - close/lease/completion date;
-- gross compensation;
+- executed client compensation basis;
+- gross Mallan brokerage compensation;
 - split basis;
 - referral if applicable;
 - expected Agent amount;
@@ -1880,17 +2092,20 @@ Each row should show, subject to permissions:
 
 Agents should be able to access their transaction-linked commission statements/reports.
 
-## 19.5 Brokerage Money queues
+## 19.8 Brokerage Money queues
 
 Useful Brokerage queues:
 
 ```text
 DEALS MISSING DOCUMENTS
 AWAITING PAYMENT
+EXTERNAL-BROKER TERMS MISSING / UNCONFIRMED
 READY FOR COMMISSION REVIEW
 APPROVED
 PAID
 ```
+
+Brokerage Money should let the Broker reconcile the signed client agreement, owner-authorized external-broker record where applicable, actual Mallan compensation received and downstream Agent/referral obligations without creating a second accounting truth.
 
 Mallan provides operational accounting/payment records; it does not replace the accountant.
 
@@ -1949,6 +2164,8 @@ Transaction type determines the applicable checklist.
 
 Documents attach to the actual canonical Transaction/Referral, never a miscellaneous upload bucket with no deal context.
 
+The checklist should distinguish required executed brokerage agreements/disclosures from transaction instruments such as the signed sale contract, deal sheet and signed lease. Missing or unsigned documents remain explicit blockers where the applicable brokerage workflow requires them.
+
 ## 20.4 Payment readiness
 
 A practical commission/payment-readiness chain is:
@@ -1956,6 +2173,7 @@ A practical commission/payment-readiness chain is:
 ```text
 NOT READY
 → DOCUMENTS OUTSTANDING
+→ AGREEMENT / COMPENSATION TERMS NOT RECONCILED
 → PAYMENT NOT RECEIVED
 → READY FOR COMMISSION REVIEW
 → APPROVED FOR PAYMENT
@@ -1967,19 +2185,25 @@ The Agent always sees the blocking reason/next action.
 Canonical chain:
 
 ```text
+EXECUTED CLIENT AGREEMENT / AMENDMENTS
+↓
+OWNER-AUTHORIZED EXTERNAL-BROKER TERMS, IF SELLER/LANDLORD SIDE
+↓
 TRANSACTION / REFERRAL
 ↓
 SIGNED CONTRACT / LEASE / REFERRAL AGREEMENT AS APPLICABLE
 ↓
 CLOSE / LEASE EXECUTION / REFERRAL COMPLETION
 ↓
+CONFIRM ACTUAL EXTERNAL-BROKER PAYMENT RECORD, IF APPLICABLE
+↓
 CLOSED DEAL FORM
 ↓
 COMMISSION INVOICE
 ↓
-PAYMENT RECEIVED / CONFIRMED
+MALLAN PAYMENT RECEIVED / CONFIRMED
 ↓
-COMMISSION CALCULATION
+COMMISSION CALCULATION FROM EXECUTED AGREEMENT TRUTH
 ↓
 AGENT SPLIT + REFERRAL
 ↓
@@ -2047,6 +2271,8 @@ A governed rule record should identify at minimum:
 - current state;
 - open discrepancy/flag.
 
+Agreement/template rules that can change independently of application code should be represented in the same governance model: current authority/source, version/effective date, affected templates/fields, required companion disclosures, negotiable-vs-controlled field rules, and last verification.
+
 ## 21.4 Field Registry
 
 A governed provider field record should identify as applicable:
@@ -2072,6 +2298,7 @@ A governed provider field record should identify as applicable:
 Mallan should regularly scan/verify authoritative REBNY/RLS/current-provider sources for changes in:
 
 - business/use/display rules;
+- agreement/checklist/disclosure guidance affecting governed templates;
 - fields;
 - types;
 - definitions/meaning;
@@ -2094,6 +2321,8 @@ Useful flags include:
 RLS_RULE_CHANGED
 UCBA_RULE_CHANGED
 DOS_OR_NYS_RULE_CHANGED
+AGREEMENT_GUIDANCE_CHANGED
+DISCLOSURE_REQUIREMENT_CHANGED
 PROVIDER_CHANGED
 PROVIDER_SCHEMA_CHANGED
 FIELD_ADDED
@@ -2144,7 +2373,7 @@ CLOSE FLAG
 
 Every flag identifies affected Mallan systems.
 
-Unknown changes affecting public eligibility, attribution, status mapping or another critical rule fail safely rather than being guessed.
+Unknown changes affecting public eligibility, attribution, status mapping, agreement/disclosure requirements or another critical rule fail safely rather than being guessed.
 
 ## 21.8 Human simplicity
 
@@ -2191,6 +2420,9 @@ Examples:
 - Saved Search listing goes In Contract/Closed/Rented;
 - report due;
 - missing signed deal document;
+- agreement pending Broker approval;
+- executed compensation terms missing/reconciled incorrectly;
+- owner external-broker amount not confirmed at close/lease completion;
 - commission blocked;
 - payment received → commission review needed;
 - Agent payment ready;
@@ -2206,6 +2438,9 @@ REBNY_RENEWAL_RISK
 INSURANCE_EXPIRATION_RISK
 REQUIRED_TRAINING_INCOMPLETE
 DEAL_DOCUMENT_MISSING
+AGREEMENT_BROKER_APPROVAL_REQUIRED
+EXECUTED_COMPENSATION_MISMATCH
+EXTERNAL_BROKER_PAYMENT_UNCONFIRMED
 REFERRAL_FORM_MISSING
 COMMISSION_PAYMENT_BLOCKED
 PAYMENT_RECEIVED_COMMISSION_REVIEW_NEEDED
@@ -2490,6 +2725,16 @@ TARGET
 separate polished Seller/Landlord report products using actual tracked activity + market/CMA context + Agent-approved recommendation
 ```
 
+### Agreements / Documents
+
+```text
+CURRENT
+basic document-library and four-family agreement framing exists
+
+TARGET
+one governed configurable agreement/form catalog with multiple role/property/representation/source variants, locked vs negotiable fields, Broker approval for non-standard terms, e-sign/external-workflow tracking, immutable executed originals/amendments and minimum-retention controls
+```
+
 ### Brokerage / Agent support
 
 ```text
@@ -2498,6 +2743,16 @@ capabilities are distributed across existing CRM/deal/profile data
 
 TARGET
 simple My Business + Brokerage View over the same canonical records with professional/deal/payment/technology exceptions
+```
+
+### Compensation / Money
+
+```text
+CURRENT
+transaction-level commission/split/payment concepts exist
+
+TARGET
+executed client agreement compensation → owner-paid external-broker record where applicable → actual Mallan compensation → internal split/referral/payout, with no hard-wired fees and no duplicate compensation truth
 ```
 
 Historical code is implementation evidence, not product authority. Reuse existing models/routes/services where correct; do not automatically rebuild in parallel.
@@ -2595,7 +2850,19 @@ Connect deterministic scenarios and contextual explainable intelligence to real 
 
 ## Phase 6 — COMMUNICATIONS / DOCUMENTS / AGREEMENTS / DEAL SUPPORT
 
-Complete one communication history, four agreement families/amendments, approved document library, transaction checklists and payment readiness.
+Complete one communication history and the governed brokerage form/agreement engine:
+
+- multiple approved Seller/Landlord/Buyer/Tenant templates rather than four hard-coded documents;
+- sale/rental/property/representation/source variations;
+- approved limited/touring buyer option, including applicable StreetEasy workflow tracking;
+- controlled vs negotiable fields;
+- Broker approval for non-standard terms;
+- configurable compensation rather than hard-wired fees;
+- required companion disclosures kept separate but coordinated;
+- email/e-sign or tracked external signature workflow;
+- immutable executed originals + amendments;
+- minimum-retention controls;
+- transaction checklists and payment readiness.
 
 ## Phase 7 — ROLE JOURNEYS
 
@@ -2603,7 +2870,7 @@ Complete Seller, Landlord, Buyer, Tenant and Investor/1031 end-to-end without me
 
 ## Phase 8 — AGENT SUPPORT / BROKERAGE / MONEY / TECHNOLOGY
 
-Complete professional reminders/profile, deal-document/payment readiness, lead distribution, commissions/referrals, brokerage exceptions and REBNY/RLS/provider monitoring.
+Complete professional reminders/profile, agreement/document exception queues, owner-paid external-broker signing/closing reconciliation, deal-document/payment readiness, lead distribution, commissions/referrals, brokerage exceptions and REBNY/RLS/provider monitoring.
 
 ## Phase 9 — FUTURE MALLAN → PROVIDER PUBLISHING
 
@@ -2641,19 +2908,19 @@ Not complete until real listing/marketing/e-blast/website/send/showing/feedback/
 
 ## Agreements / Documents / Communications
 
-Not complete until four agreement families remain distinct, signed originals never mutate, amendments preserve version history, controlled template language is governed, communications/comments attach to canonical context with correct visibility and client-safe share transformations are enforced.
+Not complete until Seller/Landlord/Buyer/Tenant remain distinct role workflows but support multiple approved agreement/form variants; template selection is contextual rather than hard-wired; controlled and negotiable fields are explicit; fee/compensation, scope, term and exclusivity use the actual approved template and negotiated terms; required Broker approvals are auditable; limited/touring and applicable external workflows are tracked; required disclosures remain separate; signed originals never mutate; amendments preserve version history; executed records have required retention controls; communications/comments attach to canonical context with correct visibility; and client-safe share transformations are enforced.
 
 ## Transactions / Money
 
-Not complete until deal stages, required documents, professional contacts, payment readiness, commission/referral calculation, broker review and Agent payment status are joined to the same Transaction and the Agent sees the blocking reason/next action.
+Not complete until the executed client agreement is the source for compensation terms; Seller/Landlord owner-authorized external-broker compensation, when applicable, is recorded at agreement signing and actual payment is confirmed/recorded at closing or applicable lease/deal completion; Mallan's own compensation received is reconciled separately; internal Agent split/referral/adjustment/payout occurs only afterward; required documents/professional contacts/payment readiness remain joined to the same Transaction; and the Agent sees the blocking reason/next action.
 
 ## Agent / Brokerage
 
-Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required deal documents, Money/payment readiness and role-specific My Business; Maya sees firm exceptions over the same canonical records and required supervision is supported without unnecessary management bureaucracy.
+Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required agreements/disclosures/deal documents, Money/payment readiness and role-specific My Business; Maya sees firm exceptions including agreement approvals and compensation reconciliation over the same canonical records; and required supervision is supported without unnecessary management bureaucracy.
 
 ## Technology
 
-Not complete until material REBNY/RLS/UCBA/current-provider field/rule/attribution/display changes can be detected/reviewed, field/rule mappings are versioned and tested, critical uncertainty fails safely, and provider replacement can occur through an adapter rather than product rewrites.
+Not complete until material REBNY/RLS/UCBA/current-provider field/rule/attribution/display/agreement-guidance changes can be detected/reviewed, field/rule/template mappings are versioned and tested, critical uncertainty fails safely, and provider replacement can occur through an adapter rather than product rewrites.
 
 ## Proof
 
@@ -2665,11 +2932,15 @@ No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `L
 
 - This file is the intended single canonical product/system authority on draft PR #595 and remains unmerged until explicitly approved.
 - Maya's recent Search/CMA/Backend Listing decisions have been preserved rather than overwritten.
-- The master now also explicitly absorbs previously implicit/stranded requirements for Party/Entity identity, professional contacts, broker supervision boundary, governed professional profiles, four agreement families/amendments, document library, Search reverse matching/UX, transparent CMA workflow, Marketing/E-blast, polished Seller/Landlord Reporting, professional requirements, commission/payment readiness, role-specific product navigation, technology rule/field registries and provider-pivot governance.
-- Historical StreetEasy/external/sponsor inventory concepts are not silently restored as current requirements; they remain non-authoritative unless explicitly reopened and verified.
+- The master now replaces the too-simple four-agreement-family framing with a governed configurable Brokerage Agreement & Forms Engine: multiple approved Seller/Landlord/Buyer/Tenant templates; property/transaction/representation/source variants; controlled vs negotiable fields; Broker approval for non-standard terms; coordinated but separate disclosures; e-sign/external-workflow tracking; immutable executed records/amendments; and minimum-retention controls.
+- Compensation is now explicitly non-hard-wired and separated into negotiated client-agreement compensation, Seller/Landlord owner-authorized external-broker compensation, and internal Mallan Agent/brokerage/referral payout logic. For Seller/Landlord transactions the owner-paid external-broker terms are recorded when the exclusive/owner agreement is signed and the actual payment is confirmed/recorded again at closing or applicable lease/deal completion.
+- A buyer may use an approved limited/touring option when initially unwilling to make a longer commitment, including an applicable StreetEasy workflow; StreetEasy/source does not itself determine fee/no-fee terms, which come from the actual executed agreement.
+- Agency and Fair Housing disclosures remain distinct from the representation/listing contract even when delivered together operationally.
+- The brokerage document system is a governed template, delivery/signature and record-retention system, not a generic legal-document editor.
+- Historical StreetEasy/external/sponsor **inventory** concepts are not silently restored as current inventory requirements; StreetEasy agreement/touring workflow support is a separate explicitly approved business workflow and does not reopen StreetEasy as a listing-data source.
 - Residual historical reconciliation continues as evidence work but is **not a global blocker to beginning Search P0 read-only proof/audit**.
-- Immediate product sequence is **Search → CMA → Backend Listings → Marketing/E-blast/Reporting → remaining operating system**.
-- Existing Search/CMA/Listing/Marketing/Reporting code is implementation evidence, not design authority. Reuse existing SavedSearch, ClientListingAction, Showing, Comment, listing-send, Listing/media, campaign and report capabilities where correct instead of automatically creating parallel models.
+- Immediate technical product sequence remains **Search → CMA → Backend Listings → Marketing/E-blast/Reporting → remaining operating system** while brokerage-master completeness reconciliation continues.
+- Existing Search/CMA/Listing/Marketing/Reporting/agreement/commission code is implementation evidence, not design authority. Reuse existing canonical capabilities where correct instead of automatically creating parallel models.
 - PR #603 (`feat/listing-external-media-authority-2026-08-12`) is at verified head `e275ae68`: canonical external-media writer/composer/readers, six Cotality tour slots, filter parity, combined CRM/IDX dedupe before one sort/slice, contracted shared fallback cache, and 12-key public-card raw-data compatibility reads are implemented. Exact-ID and verified physical duplicates are removed before pagination with Mallan/CRM authority winning.
 - PR #603 now also contains a bounded, read-only external-media recovery audit with no execute/apply or database-mutation path. It queries exact candidate ListingIds, uses the canonical classifier/diff, collapses identical provider duplicates, and fails closed on conflicting duplicates, truncation, missing provider rows, an absent canonical table or an unapproved provider endpoint.
 - PR #603's PR checks #1455, real-PostgreSQL migration/convergence proof, Guardrails #3126, Node.js 24 Target Platform Build #200, Release Truth workflow #1567, Claude review #1476 and Vercel Preview are green. The Release Truth commit context correctly remains pending until authorized Production runtime proof exists.
@@ -2677,4 +2948,4 @@ No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `L
 - PR #603 remains draft/unmerged. Production migration, deploy, historical external-media recovery, backfill, shedding and archive execution have not run. The new recovery audit could not run in the isolated local workspace because production read credentials were absent; it performed zero reads, provider requests and writes.
 - The next safe parallel lane while #603 awaits disposition is Search P0 read-only proof. The existing `lib/search/canonical/field-registry.ts` identifies itself as an unwired skeleton, so registry presence is not runtime proof.
 - Current documentation changes do not authorize Production mutations, schema changes or deployment.
-- Next exact product action: **SEARCH-P0 — inventory and verify every Advanced Search criterion, then prove source-authority/filter/dedupe/final-count/pagination and Saved Search recall/history on the existing canonical path.**
+- Next exact product action: **continue Brokerage Completeness Reconciliation in this same master until Maya approves business completeness; Search P0 remains the active technical implementation layer and may continue read-only proof in parallel.**
