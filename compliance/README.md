@@ -3,9 +3,9 @@
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 > **Agent:** Maya Allan | **License:** #10311201806
 > **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS via Trestle (Cotality)
-> **LMP:** RealPlus (listing input to RLS — external to mallan.nyc) | **IDX Display:** Trestle IDX Plus WebAPI (public display + internal CRM + reporting) | **Stage:** Live Production
+> **IDX Display:** Trestle IDX Plus WebAPI (public display + internal CRM + reporting) | **Stage:** Live Production
 >
-> **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through RealPlus or third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. Agents use RealPlus for full RLS inventory and listing submission. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
+> **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through any external listing platform or third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. Agents use an external listing platform, outside mallan.nyc, for full RLS inventory and listing submission. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
 
 ---
 
@@ -94,6 +94,6 @@
 |----------|---------|
 | REBNY RLS Support | rlssupport@rebny.com / 212-616-5270 |
 | Trestle/Cotality Support | trestlesupport@cotality.com |
-| LMP (RealPlus) | Listing input to RLS (REBNY does not grant LMP to individual brokers) |
+| LMP | Listing input to RLS — external to mallan.nyc (REBNY does not grant LMP to individual brokers) |
 | mallan.nyc IDX Display | Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only |
 | Direct Data License | rlssupport@rebny.com |

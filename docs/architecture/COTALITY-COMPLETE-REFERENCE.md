@@ -38,12 +38,21 @@ Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Buildin
 
 ## SYSTEM OWNERSHIP
 
+There are exactly TWO systems in the current Mallan production architecture.
+
 | System | Role |
 |---|---|
-| **Cotality/Trestle** | External data provider. REBNY IDX Plus feed via OData v4. Read-only consumption by mallan.nyc. |
-| **RealPlus/RLS** | Listing-entry source for official REBNY listings. Maya enters listings into RealPlus; they appear in the Cotality feed as `RLS*` IDs. |
-| **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Trestle. |
-| **InHouse/local web** | Mallan-created website-only records (`SL-*` / `RL-*` IDs). Not on RLS. Must be manually reconciled when an official `RLS*` feed record arrives. |
+| **mallan.nyc** | Canonical Mallan brokerage operating system. Creates and manages Mallan-authored local listings — canonical, **editable** `SL-*` / `RL-*` records — and consumes Cotality data for public display, search, building reference, and media. **Does NOT write back to Trestle.** |
+| **Cotality/Trestle** | External **inbound** data/feed provider. REBNY IDX Plus via OData v4, **read-only** consumption. Supplies third-party listing observations and Mallan RLS return-copy observations. |
+
+A Mallan listing may reach REBNY RLS through a legacy external listing-entry
+workflow that is **outside mallan.nyc**. That workflow is not a component of this
+system, is not represented here, and mallan.nyc neither drives nor writes to it.
+What mallan.nyc observes is only the result: an `RLS*` row arriving through the
+Cotality feed. When that row carries verified Mallan list-side identity it is a
+**Mallan RLS return-copy** — source-owned and read-only, retained internally for
+audit/reconciliation and publicly suppressed in favour of the canonical local
+`SL-*` / `RL-*` record.
 
 ---
 
@@ -1083,7 +1092,7 @@ Uses existing `/listing/<slug>` detail route. No separate `/exclusives` route.
 | Phase | Action |
 |---|---|
 | Before feed arrives | Show manual `SL-*` listing. Pin in FeaturedConfig. |
-| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. RealPlus URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
+| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. External listing-URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
 
 Manual process. No automated dedup. `SL-*` and `RLS*` are separate DB rows.
 

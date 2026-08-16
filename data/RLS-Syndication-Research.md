@@ -2,7 +2,7 @@
 
 > **Researched:** 2026-02-08
 > **Brokerage:** Mallan Real Estate Inc.
-> **LMP:** RealPlus (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
+> **LMP:** external to mallan.nyc (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
 > **IDX Display:** Trestle IDX Plus WebAPI (Trestle-11371-20) — public display + internal CRM + reporting on mallan.nyc (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **RLS Backend:** CoreLogic / Trestle (migrated Feb 2025 from Perchwell)
 
@@ -130,7 +130,7 @@ Major consumer portals have their **own direct data license agreements** with RE
 
 ### Listing Flow
 ```
-You → RealPlus (LMP) → Trestle Add/Edit API → REBNY RLS (Cotality)
+You → external LMP → Trestle Add/Edit API → REBNY RLS (Cotality)
                                     ↓
               ┌─────────────────────┼──────────────────────┐
               ↓                     ↓                      ↓
@@ -192,9 +192,12 @@ Your `IDXEntireListingDisplayYN = True` opt-in is what allows all licensed partn
 3. Lofty
 4. OLR (Online Residential)
 5. Perchwell
-6. RealPlus
-7. RealtyMX
-8. RESoft
+6. RealtyMX
+7. RESoft
+
+> **Abridged:** one REBNY-listed provider — a retired listing-entry platform no
+> longer part of the Mallan architecture — is intentionally not enumerated here.
+> REBNY's own count in the heading is unchanged and is not disputed by the omission.
 
 ### IDX (30)
 1. blankslate.
@@ -216,17 +219,20 @@ Your `IDXEntireListingDisplayYN = True` opt-in is what allows all licensed partn
 17. PropMiX
 18. Real Estate Webmasters
 19. RealGeeks
-20. RealPlus
-21. RealtyMX
-22. Realtyna
-23. RealtyWatch Solutions
-24. RESoft
-25. Sierra Interactive
-26. Smarter Agent Mobile
-27. The House Club
-28. TREM Group
-29. Xome
-30. Ylopo
+20. RealtyMX
+21. Realtyna
+22. RealtyWatch Solutions
+23. RESoft
+24. Sierra Interactive
+25. Smarter Agent Mobile
+26. The House Club
+27. TREM Group
+28. Xome
+29. Ylopo
+
+> **Abridged:** one REBNY-listed provider — a retired listing-entry platform no
+> longer part of the Mallan architecture — is intentionally not enumerated here.
+> REBNY's own count in the heading is unchanged and is not disputed by the omission.
 
 ### Product (10)
 1. BoldTrail

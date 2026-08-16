@@ -57,7 +57,7 @@ This project integrates **REBNY Residential Listing Service (RLS) IDX data** und
 - MLS/IDX data may be accessed only via **authorized server-side connections** using credentials issued through Cotality/Trestle (formerly CoreLogic)
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27)
 - IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search
-- Client data stays on mallan.nyc — never passes through RealPlus or third parties
+- Client data stays on mallan.nyc — never passes through any external listing platform or third parties
 - Data may be **cached locally** for performance and compliance purposes
 - Media (photos) are accessed via **approved MLS media URLs** unless otherwise authorized
 

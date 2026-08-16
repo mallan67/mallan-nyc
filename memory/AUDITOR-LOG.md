@@ -248,7 +248,7 @@
 - [H-2] "IDX sync 24-min gap" — WRONG: Same incorrect math as CRIT-4. Effective sync interval is always 12 min. No "15-min rule" exists.
 
 **RESOLVED BY INVESTIGATION (1):**
-- [N-1] "PrivateOutdoorSpace required field missing from trestle-mapper" — NOT A GAP: Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` value 108, `PrivateOutdoorSpaceUnder60Sqft` value 109) on Trestle. `ExteriorFeatures` IS in mapper B20 (line 247) and mapped to `exteriorFeatures` in `mapping.ts` (line 360). The standalone fields `PrivateOutdoorSpaceSize`/`PrivateOutdoorSpaceRemarks` are LMP/RealPlus submission fields only — NOT on Trestle's IDX feed.
+- [N-1] "PrivateOutdoorSpace required field missing from trestle-mapper" — NOT A GAP: Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` value 108, `PrivateOutdoorSpaceUnder60Sqft` value 109) on Trestle. `ExteriorFeatures` IS in mapper B20 (line 247) and mapped to `exteriorFeatures` in `mapping.ts` (line 360). The standalone fields `PrivateOutdoorSpaceSize`/`PrivateOutdoorSpaceRemarks` are LMP submission fields only — NOT on Trestle's IDX feed.
 
 **ACCURATE — NEEDS EXTERNAL ACTION (1):**
 - [N-2] Trestle Content Patches #188 (Jan 27, 2026 — 98 new lookup values) and #189 (Mar 4, 2026 — 3 new fields, 30 field changes, 37 lookup values) not documented or verified against trestle-mapper.ts. Logged in `compliance/UPDATES.md` as ACTION REQUIRED. Contact: `trestlesupport@cotality.com`.
