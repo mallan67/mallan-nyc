@@ -2570,6 +2570,83 @@ Brokerage Money should let the Broker reconcile the signed client agreement, own
 
 Mallan provides operational accounting/payment records; it does not replace the accountant.
 
+## 19.9 Referral agreements, Agent access and progress tracking
+
+The existing CRM referral forms for **Incoming (we received a client)** and **Outgoing (we sent a client)** are the retained canonical referral intake/agreement workflow. Do not redesign or replace those forms merely to add tracking. Correct their persistence/API wiring where needed and add the progress tracker to the resulting referral record.
+
+Referral access follows the same My Business / Brokerage View model:
+
+```text
+AGENT / MY BUSINESS
+→ create incoming and outgoing referrals
+→ read and update the Agent's own referral workflow
+→ see the Agent's own referral fee terms, expected/calculated fee amount and payment status
+→ add progress check-ins and follow-up dates
+
+BROKER / BROKERAGE VIEW
+→ see all brokerage referrals
+→ supervise exceptions, approvals, payments and closeout
+```
+
+A Broker-only `approve referral fee` capability is a supervision/approval boundary. **It must not be interpreted as making the Agent's own referral fee percentage/terms, expected amount or payment status Broker-only.** Agents need those values to manage their own incoming/outgoing referral business.
+
+The executed referral agreement/form is the source for the agreed referral terms. The tracker is operational history and may not silently rewrite an executed referral fee, parties or agreement terms.
+
+A referral progress tracker should include, as applicable:
+
+- referral direction — incoming/outgoing;
+- sale/rental or other approved deal type;
+- responsible Mallan Agent;
+- current stage;
+- last check-in timestamp;
+- next follow-up date;
+- expected closing/completion date when known;
+- check-in note/update;
+- partner brokerage/agent response or status where relevant;
+- referral fee terms and expected/calculated amount;
+- fee due / invoiced or requested / paid or received state as applicable;
+- append-only check-in history with actor, timestamp, stage change, note and next follow-up.
+
+Useful stage vocabulary can include:
+
+```text
+REFERRAL CREATED / RECEIVED / SENT
+CLIENT CONTACTED
+CLIENT ENGAGED / ACTIVELY WORKING
+OFFER / APPLICATION
+CONTRACT / APPROVED
+CLOSED
+REFERRAL FEE DUE
+REFERRAL FEE PAID / RECEIVED
+CANCELLED / CLIENT PASSED
+```
+
+Exact sale/rental variants may be refined, but the tracker must reflect the real deal rather than force meaningless stages.
+
+Referral direction and the executed agreement control payable/receivable semantics. The UI should clearly distinguish money Mallan owes from money due to Mallan instead of presenting one ambiguous payment label.
+
+Useful referral attention signals include:
+
+```text
+REFERRAL_AGREEMENT_AWAITING_RESPONSE
+REFERRAL_CHECKIN_OVERDUE
+REFERRAL_FOLLOWUP_DUE
+REFERRAL_EXPECTED_CLOSE_APPROACHING
+REFERRAL_FEE_DUE
+REFERRAL_FEE_OVERDUE
+```
+
+Implementation must preserve one referral truth and prove the complete round trip:
+
+- existing form field names map explicitly to the canonical server/API fields; a frontend/backend naming mismatch may not silently break creation;
+- the referral fee amount is persisted/recomputed canonically from the actual agreed terms and applicable deal basis; a browser-only calculated display value is not the source of truth;
+- save → reopen returns the same partner, client, deal, fee and agreement data;
+- read models return the fee/payment/progress fields required by Agent My Business and Brokerage View;
+- authenticated update/check-in endpoints append progress history instead of overwriting the original agreement record;
+- server-side ownership/assignment rules allow an Agent to access and update the Agent's own referrals while preventing access to another Agent's referral unless explicitly authorized;
+- Broker firm-wide access and required approval/supervision remain server-enforced;
+- browser/API persistence proof is required before the referral workflow is called functional.
+
 ---
 
 # 20. TRANSACTIONS / DEAL SUPPORT / PAYMENT READINESS
@@ -2917,6 +2994,9 @@ Examples:
 - commission blocked;
 - payment received → commission review needed;
 - Agent payment ready;
+- referral agreement awaiting response/signature;
+- referral check-in/follow-up overdue;
+- referral fee due/overdue;
 - professional renewal approaching;
 - RLS/provider/source rule or field change.
 
@@ -2938,6 +3018,11 @@ SUPPLEMENTAL_RECONCILE_TO_COTALITY
 EXECUTED_COMPENSATION_MISMATCH
 EXTERNAL_BROKER_PAYMENT_UNCONFIRMED
 REFERRAL_FORM_MISSING
+REFERRAL_AGREEMENT_AWAITING_RESPONSE
+REFERRAL_CHECKIN_OVERDUE
+REFERRAL_FOLLOWUP_DUE
+REFERRAL_FEE_DUE
+REFERRAL_FEE_OVERDUE
 COMMISSION_PAYMENT_BLOCKED
 PAYMENT_RECEIVED_COMMISSION_REVIEW_NEEDED
 AGENT_PAYMENT_READY
@@ -3089,7 +3174,9 @@ Deal screens show the stage tracker, current responsibilities, missing documents
 
 Agent Money emphasizes Expected / Blocked / Ready / Paid status.
 
-Brokerage Money adds firm-wide queues and brokerage totals without creating a separate commission truth.
+Agent My Business must also expose the Agent's own incoming/outgoing referrals, including the agreed referral fee terms/percentage, expected/calculated amount, deal/progress state and fee payment/receipt state. Referral fee information for the Agent's own referral is not Broker-only.
+
+Brokerage Money adds firm-wide queues and brokerage totals without creating a separate commission or referral truth.
 
 ## 23.7 My Profile
 
@@ -3276,6 +3363,16 @@ TARGET
 simple My Business + Brokerage View over the same canonical records with professional/deal/payment/technology/source-rights exceptions
 ```
 
+### Referrals / referral tracking
+
+```text
+CURRENT
+incoming/outgoing referral UI, fee display concepts and referral-list read path exist, but end-to-end creation/tracking is not proven: the current frontend/API partner-company field contract is inconsistent, the browser-calculated fee amount is removed before POST, and no durable referral-specific update/check-in endpoint is proven
+
+TARGET
+retain the existing incoming/outgoing referral forms; align canonical field mapping and server-persisted/recomputed fee truth; let each Agent create/read/update the Agent's own referrals and see the Agent's own fee terms/amount/payment state; give the Broker firm-wide visibility/supervision; add append-only progress check-ins, last/next follow-up, expected close and fee-due/paid-received tracking without mutating the executed referral agreement
+```
+
 ### Compensation / Money
 
 ```text
@@ -3420,7 +3517,7 @@ Complete Seller, Landlord, Buyer, Tenant and Investor/1031 end-to-end without me
 
 ## Phase 8 — AGENT SUPPORT / BROKERAGE / MONEY / TECHNOLOGY
 
-Complete professional reminders/profile, agreement/document exception queues, supplemental-source/share-rights exception queues, owner-paid external-broker signing/closing reconciliation, deal-document/payment readiness, lead distribution, commissions/referrals, brokerage exceptions and REBNY/RLS/provider/source monitoring.
+Complete professional reminders/profile, agreement/document exception queues, supplemental-source/share-rights exception queues, owner-paid external-broker signing/closing reconciliation, deal-document/payment readiness, lead distribution, commissions/referrals, **Agent-accessible own-referral fee/status plus persistent progress/check-in tracking**, brokerage exceptions and REBNY/RLS/provider/source monitoring.
 
 ## Phase 9 — FUTURE MALLAN → PROVIDER PUBLISHING
 
@@ -3468,9 +3565,13 @@ Not complete until Offering Plans are attached canonically to Building/Property;
 
 Not complete until the executed client agreement is the source for compensation terms; Seller/Landlord owner-authorized external-broker compensation, when applicable, is recorded at agreement signing and actual payment is confirmed/recorded at closing or applicable lease/deal completion; Mallan's own compensation received is reconciled separately; internal Agent split/referral/adjustment/payout occurs only afterward; required documents/professional contacts/payment readiness remain joined to the same Transaction; and the Agent sees the blocking reason/next action.
 
+## Referrals
+
+Not complete until the retained incoming/outgoing referral forms create durable canonical referral records end to end; the Agent can save and reopen the Agent's own referral and see the same parties/client/deal terms; the Agent can see the Agent's own referral fee percentage/terms, expected or calculated fee amount and fee/payment status; the fee amount persists or is canonically recomputed server-side rather than existing only as a browser calculation; the Agent can add a timestamped progress check-in with current stage, note and next follow-up; prior check-ins remain historical and do not overwrite the executed referral terms; incoming/outgoing payable-versus-receivable direction is labeled correctly; Agent ownership is enforced server-side; the Agent cannot access another Agent's referral unless authorized; the Broker can see all referrals and retain required approval/supervision; and browser/API round-trip proof confirms creation, reopening, check-in persistence and fee/payment state before the feature is called functional.
+
 ## Agent / Brokerage
 
-Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required agreements/disclosures/deal documents, Offering Plan/Schedule A/document availability where relevant, private supplemental source/currentness/share states, Money/payment readiness and role-specific My Business; Maya sees firm exceptions including agreement approvals, source-rights/share exceptions and compensation reconciliation over the same canonical records; and required supervision is supported without unnecessary management bureaucracy.
+Not complete until Agent sees governed public professional identity, renewal/CE/REBNY/insurance/training reminders, required agreements/disclosures/deal documents, Offering Plan/Schedule A/document availability where relevant, private supplemental source/currentness/share states, **the Agent's own referral fee/progress/payment state**, Money/payment readiness and role-specific My Business; Maya sees firm exceptions including agreement approvals, source-rights/share exceptions and compensation/referral reconciliation over the same canonical records; and required supervision is supported without unnecessary management bureaucracy.
 
 ## Technology / sources
 
@@ -3496,6 +3597,7 @@ No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `L
 - The master also preserves the governed configurable Brokerage Agreement & Forms Engine: multiple approved Seller/Landlord/Buyer/Tenant templates; property/transaction/representation/source variants; controlled vs negotiable fields; Broker approval for non-standard terms; coordinated but separate disclosures; e-sign/external-workflow tracking; immutable executed records/amendments; and minimum-retention controls.
 - Touring Agreement remains the generic limited buyer option when the buyer initially does not want a longer commitment. Its fee/no-fee, scope, duration and exclusivity come from the actual approved negotiated form and are not hard-wired.
 - Compensation remains explicitly non-hard-wired and separated into negotiated client-agreement compensation, Seller/Landlord owner-authorized external-broker compensation, and internal Mallan Agent/brokerage/referral payout logic. For Seller/Landlord transactions the owner-paid external-broker terms are recorded when the exclusive/owner agreement is signed and the actual payment is confirmed/recorded again at closing or applicable lease/deal completion.
+- **Referral forms remain the existing Incoming/Outgoing CRM forms; the target is to make them work correctly, not redesign them.** Agents must be able to create and access their own incoming/outgoing referrals, see their own agreed referral fee terms/percentage, expected/calculated amount and fee/payment status, and add persistent progress check-ins/next follow-up. Broker firm-wide visibility and required approval/supervision remain separate. Current UI presence is not accepted as proof of function until form→API mapping, fee persistence, secure Agent ownership, check-in persistence and browser/API round-trip are proven.
 - Agency and Fair Housing disclosures remain distinct from the representation/listing contract even when delivered together operationally.
 - Offering Plans remain a canonical Building/Property document set: Agents can use them, an available authorized set may be supplied to a Buyer at $0 as a brokerage courtesy, original plan/Schedule A/amendment completeness is tracked, and a future public paid-access option is held until authoritative source and commercial redistribution/access rights are verified. Any eventual public price is configurable, not hard-wired.
 - The brokerage document system is a governed template, delivery/signature, Offering Plan/document-access and record-retention system, not a generic legal-document editor.
