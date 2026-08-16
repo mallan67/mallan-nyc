@@ -5,7 +5,7 @@
 > **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS via Trestle (Cotality)
 > **IDX Display:** Trestle IDX Plus WebAPI (public display + internal CRM + reporting) | **Stage:** Live Production
 >
-> **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through any external listing platform or third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. Agents use an external listing platform, outside mallan.nyc, for full RLS inventory and listing submission. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
+> **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
 
 ---
 

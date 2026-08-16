@@ -76,8 +76,8 @@ This distinction was clarified after the 2026-04-30 IDX Plus display-gate incide
 ### Allowed Use (REBNY Confirmed 2026-03-27)
 - MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Trestle/Cotality.
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27).
-- IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search. Agents use an external listing platform for full RLS inventory.
-- Client data stays on mallan.nyc — never passes through any external listing platform or third parties.
+- IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search.
+- Client data stays on mallan.nyc — never passes through third parties.
 - Data may be cached locally for performance and compliance purposes.
 - Media (photos) are accessed via approved MLS media URLs unless otherwise authorized.
 
@@ -168,7 +168,7 @@ IDX_CLIENT_SECRET=...
 |----------|------|---------|
 | `GET /api/listings` | Public (rate-limited 60/min) | Frontend search — sanitized via `toPublicDTO()`, all 6 distribution gates enforced |
 | `GET /api/listings/suggest` | Public (rate-limited 60/min) | Address autocomplete — distribution gates enforced, no agent PII |
-| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set. IDX-eligible inventory only (not full-market — agents use an external listing platform for full RLS) |
+| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set. IDX-eligible inventory only, not full-market |
 
 ### REBNY Distribution Gates (fail closed)
 
@@ -493,7 +493,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 #### IDX/Trestle (3)
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/idx/search` | GET | CRM search — agent/broker only, broader field set with proxied media URLs (not guaranteed to match full external LMP inventory) |
+| `/api/idx/search` | GET | CRM search — agent/broker only, broader field set with proxied media URLs (scope = inventory and fields authorized by the current verified Cotality/RLS contract) |
 | `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
 | `/api/idx/status` | GET | IDX connection status + sync stats |
 
@@ -671,7 +671,7 @@ Trestle API (server-side only)
   │
   ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Trestle query
   │     Agent-only, session cookie required
-  │     Broader field set than public search (not guaranteed to match full external LMP inventory)
+  │     Broader field set than public search (scope = inventory and fields authorized by the current verified Cotality/RLS contract)
   │
   ├─→ /api/listings (public, on-demand) ─→ DB-first (20-80ms)
   │     Falls back to Trestle direct (10s timeout) if not in DB
@@ -857,7 +857,7 @@ Operational gates that block CI / commits:
 
 | Type | Source | Visibility | Distribution |
 |---|---|---|---|
-| **RLS-eligible sale / rental** | Submitted via an external LMP → REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
+| **RLS-eligible sale / rental** | Arrives inbound via REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
 | **Auction listing** | Same RLS path, `auction_yn=true` plus `auction_type` / `auction_end_date` (mandatory) and `auction_terms_url` (recommended http(s):// only — `AU-006` blocks unsafe schemes) | Public listing pages render an `AuctionBanner` above price; standard 24-hour price-change rule does NOT apply (UCBA Art. I auction exception) | Same as RLS-eligible |
 | **Commercial / website-only** | `rls_eligible: false` on the Listing model (commercial sub-types + ownership) | mallan.nyc only — bypasses all 6 distribution gates | Not distributed; Fair Housing + NY DOS + TCPA still apply |
 | **Coming Soon** | Sale/rental with `MlsStatus=ComingSoon` | Public pages render the [Coming Soon badge](app/components/ComingSoonBadge.tsx) — required exact phrasing per UCBA Art. I § 16(C) | Distributed when DOM rule allows |

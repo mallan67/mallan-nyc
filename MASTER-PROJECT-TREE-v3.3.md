@@ -21,10 +21,10 @@
 | File | Role | Who Views / Uses | Key Detail |
 |------|------|-----------------|------------|
 | `dashboard.html` | **CRM HUB** | Broker (admin), Agents (own section), Clients (own portal) | 6 portals, opens external files via `window.open()` |
-| `index-built.html` | **IDX SEARCH** | Each agent from their OWN Broker/Agent Admin | Each agent's OWN PRIVATE search via IDX Plus (read-only). Not shared. Not guaranteed to match full external LMP inventory. |
-| `SALE-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive sale listing (CRM internal — RLS submission is via an external LMP, not mallan.nyc) |
+| `index-built.html` | **IDX SEARCH** | Each agent from their OWN Broker/Agent Admin | Each agent's OWN PRIVATE search via IDX Plus (read-only). Not shared. Scope is the inventory and fields authorized by the current verified Cotality/RLS contract. |
+| `SALE-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive sale listing (Mallan canonical local listing) |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** | Agents + Buyers (buyers see masked listing agent info) | Read-only listing display + Transit, Print, Email tools |
-| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive rental listing (CRM internal — RLS submission is via an external LMP, not mallan.nyc) |
+| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive rental listing (Mallan canonical local listing) |
 | `RENTAL-FORM-WITH-TOOLS.html` | **VIEW ONLY** | Agents + Renters (renters see masked listing agent info) | Read-only listing display + Transit, Print, Email tools |
 | `BUYER-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** | Agent only (submits to broker, can check status, can edit errors) | Buyer's agent → broker. Internal only. Not client-facing. No buyer/tenant visibility into commission splits or status. |
 | `TENANT-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** | Agent only (submits to broker, can check status, can edit errors) | Renter's agent → broker. Internal only. Not client-facing. No buyer/tenant visibility into commission splits or status. |
@@ -50,7 +50,7 @@
 
 ## HARD RULES (ENFORCED — NO ASSUMPTIONS)
 
-1. **REDESIGN = SUBMISSION** — listing agent creates/edits OWN exclusive listing in CRM (RLS submission is via an external LMP, not mallan.nyc)
+1. **REDESIGN = SUBMISSION** — listing agent creates/edits OWN exclusive listing in CRM (Mallan canonical local listing)
 2. **WITH-TOOLS = VIEW ONLY** — agents + buyers/renters view listings (buyers/renters see masked listing agent info)
 3. **DEAL FORMS = INTERNAL COMMISSION REQUEST** — agent → broker only. Agent can check status and edit errors. NOT client-facing. No buyer/tenant visibility into commission splits or status.
 4. **Search is PER AGENT** — each agent searches from their own portal. Private. Not shared. Agent A cannot access Agent B's search histories, saved searches, clients, or deals (enforced at API + DB row-level scope in Phase 2/3). **No global / brokerage-wide search exists.**
@@ -402,7 +402,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 > **Single source of truth:** enforcement logic lives in backend compliance engine only. Frontend reads gate state — never computes it.
 
-- [ ] **HI I-05:** CRM listing data entry (REDESIGN forms store internally — actual RLS submission is via an external LMP)
+- [ ] **HI I-05:** CRM listing data entry (REDESIGN forms store the canonical Mallan listing)
 - [ ] **HI I-06:** IDX/VOW feed consumption (search results for agents)
 - [ ] **HI I-07:** Commission request API (agent → broker internal workflow) — submission, broker decision, status updates
 - [ ] **MED I-08:** Syndication controls (SyndicateYN, 3 Trestle opt-in portals)
@@ -451,7 +451,7 @@ This rule applies to all branches targeting production.
 - No agent/company lookup
 - Complete CRM data blackout
 
-Note: mallan.nyc does NOT submit listings to the RLS. RLS submission is via an external LMP. However, Trestle migration failure still breaks all IDX read operations.
+Note: mallan.nyc does NOT submit listings to the RLS and is NOT an LMP. However, Trestle migration failure still breaks all IDX read operations.
 
 This is an **existential system dependency**.
 
@@ -466,7 +466,7 @@ This is an **existential system dependency**.
 ### Depends on: Phase 3 APIs
 
 - [ ] **BLK F-01:** Connect remaining CRM functions to live APIs (listings from Trestle API + PostgreSQL)
-- [ ] **BLK F-02:** Connect submission forms (REDESIGN) to CRM listing storage API (RLS submission is via an external LMP)
+- [ ] **BLK F-02:** Connect submission forms (REDESIGN) to CRM listing storage API (Mallan canonical local listing)
 - [ ] **BLK F-03:** Connect viewer forms (WITH-TOOLS) to listing data API
 - [ ] **BLK F-04:** Connect search (index-built) to IDX feed API — **WARNING: search currently enforces only 4/6 distribution gates (Gates 4+5 missing). Must implement Gates 4 (Syndication) and 5 (Coming Soon) BEFORE connecting to live feed.**
 - [ ] **BLK F-05:** Connect commission request forms to commission API — **WARNING: commission forms currently have minimal validation (only address + name). Must add full validation (all required fields, edge cases, error handling) BEFORE API wiring or governance breaks.**
@@ -534,7 +534,7 @@ This is an **existential system dependency**.
 | 9 | OAuth 2.0 flow working — token refresh against new host | 3 | [ ] |
 | 10 | Server-side only MLS access verified | 3 | [ ] |
 | 11 | 6 distribution gates enforced server-side | 3 | [ ] |
-| 12 | Submission forms connected to CRM listing storage (RLS submission via an external LMP) | 4 | [ ] |
+| 12 | Submission forms connected to CRM listing storage (Mallan canonical local listing) | 4 | [ ] |
 | 13 | Viewer forms receiving live data | 4 | [ ] |
 | 14 | Search connected to IDX feed | 4 | [ ] |
 | 15 | Commission request workflow end-to-end (submission → broker decision → status updates) | 4 | [ ] |
@@ -569,9 +569,9 @@ This is an **existential system dependency**.
 |------|-------|------|
 | `dashboard.html` | 31,489 | CRM Hub — 6 portals |
 | `index-built.html` | 30,845 | IDX Search — agent's own private search |
-| `SALE-FORM-REDESIGN.html` | 7,903 | Sale Submission — CRM internal (RLS submission via an external LMP) |
+| `SALE-FORM-REDESIGN.html` | 7,903 | Sale Submission — Mallan canonical local listing |
 | `SALE-FORM-WITH-TOOLS.html` | 8,696 | Sale Viewer — agents + buyers (masked listing agent for buyers) |
-| `RENTAL-FORM-REDESIGN.html` | 6,988 | Rental Submission — CRM internal (RLS submission via an external LMP) |
+| `RENTAL-FORM-REDESIGN.html` | 6,988 | Rental Submission — Mallan canonical local listing |
 | `RENTAL-FORM-WITH-TOOLS.html` | 7,720 | Rental Viewer — agents + renters (masked listing agent for renters) |
 | `BUYER-DEAL-FORM.html` | 1,618 | Commission Request — buyer's agent → broker (internal, no client visibility) |
 | `TENANT-DEAL-FORM.html` | 1,143 | Commission Request — renter's agent → broker (internal, no client visibility) |

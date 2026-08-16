@@ -465,7 +465,7 @@ Phases are ordered by **compliance risk × user-facing impact**. Each phase is o
 - **Public-site rewrite** — `app/search/page.tsx` is a separate domain per Charter §3.
 - **VOW consumer flows** — portal work, not CRM.
 - **Auction listings** — UCBA Art. I exception, post-C3 work.
-- **LMP submission** — mallan.nyc is read-only IDX consumer. The external LMP owns submission.
+- **LMP submission** — out of scope. mallan.nyc is a read-only IDX consumer and is not an LMP.
 - **AI / embeddings on MLS data** — explicitly prohibited by REBNY (CLAUDE.md "PROHIBITED").
 
 ---

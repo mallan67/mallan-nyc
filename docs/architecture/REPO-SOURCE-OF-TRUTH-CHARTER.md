@@ -38,20 +38,31 @@ These rules apply to every commit. Violations should fail review.
 ### Direction of data
 
 ```
-Mallan forms -> Mallan backend/Neon -> Mallan CRM + public website   LOCAL, canonical
-
-Mallan information -> external listing-entry workflow -> REBNY RLS   OUTSIDE THIS SYSTEM, MANUAL
-REBNY RLS -> Cotality/Trestle -> IDX Plus API -> Mallan ingestion    INBOUND, read-only
+MALLAN LOCAL LISTING
+SL-* / RL-*
+canonical + editable
+        |
+        |  reconciliation / identity
+        v
+COTALITY / TRESTLE
+inbound external RLS feed
+read-only
+third-party listings + Mallan return-copy
 ```
 
-Mallan **creates and amends its listings locally** and **never writes back** to
-Cotality/Trestle/RLS. Any RLS submission happens outside this application, via a
-legacy external listing-entry workflow that is **not** a component of
-mallan.nyc and is **not** automated here.
+That is the whole of it. Mallan **creates and amends its listings locally** and
+**never writes back** to Cotality/Trestle/RLS. The only external system in the
+current architecture is the **inbound, read-only** Cotality/Trestle feed.
+
+**No listing-submission step belongs in this diagram.** Whether and how a listing
+reaches REBNY RLS is an operational matter outside mallan.nyc with no bearing on
+this system's behaviour, and it is deliberately not modelled here — not by vendor
+name, and not by an anonymised stand-in. Mallan's authority begins with the
+canonical local record and ends with what the verified Cotality contract returns.
 
 Wording matters: a Mallan listing is **not** "submitted to REBNY RLS via
-Cotality". It is submitted separately, outside this system, and **returns
-downstream** to Mallan through Cotality.
+Cotality". Cotality is where a listing **returns downstream** to Mallan, never a
+path out of it.
 
 ### When Mallan's own listing returns through Cotality
 

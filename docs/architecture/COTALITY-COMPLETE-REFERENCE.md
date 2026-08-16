@@ -45,11 +45,11 @@ There are exactly TWO systems in the current Mallan production architecture.
 | **mallan.nyc** | Canonical Mallan brokerage operating system. Creates and manages Mallan-authored local listings — canonical, **editable** `SL-*` / `RL-*` records — and consumes Cotality data for public display, search, building reference, and media. **Does NOT write back to Trestle.** |
 | **Cotality/Trestle** | External **inbound** data/feed provider. REBNY IDX Plus via OData v4, **read-only** consumption. Supplies third-party listing observations and Mallan RLS return-copy observations. |
 
-A Mallan listing may reach REBNY RLS through a legacy external listing-entry
-workflow that is **outside mallan.nyc**. That workflow is not a component of this
-system, is not represented here, and mallan.nyc neither drives nor writes to it.
-What mallan.nyc observes is only the result: an `RLS*` row arriving through the
-Cotality feed. When that row carries verified Mallan list-side identity it is a
+**No listing-submission step belongs in this model.** Whether and how a Mallan
+listing reaches REBNY RLS is an operational matter outside mallan.nyc with no
+bearing on this system's behaviour; it is deliberately not modelled here — not by
+vendor name, and not by an anonymised stand-in. What mallan.nyc observes is only
+the result: an `RLS*` row arriving inbound through the Cotality feed. When that row carries verified Mallan list-side identity it is a
 **Mallan RLS return-copy** — source-owned and read-only, retained internally for
 audit/reconciliation and publicly suppressed in favour of the canonical local
 `SL-*` / `RL-*` record.

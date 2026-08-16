@@ -11,9 +11,26 @@
  *                     manages canonical, EDITABLE local `SL-*` / `RL-*` records
  *   Cotality/Trestle  external INBOUND data/feed provider; READ-ONLY consumption
  *
- * mallan.nyc never writes back. Any RLS submission happens through a legacy
- * external listing-entry workflow OUTSIDE this system, which is deliberately not
- * represented as a component anywhere in the tree.
+ * mallan.nyc never writes back and is not an LMP. However a listing reaches
+ * REBNY RLS is outside this system, has no bearing on Mallan behaviour, and is
+ * deliberately not modelled anywhere in the tree — **neither by vendor name nor
+ * by an anonymised stand-in.**
+ *
+ * TWO GUARDS, NOT ONE
+ * -------------------
+ * Removing the vendor NAME is not sufficient. The first cleanup pass replaced it
+ * with a generic stand-in and preserved the same workflow — "data entry ... then
+ * the agent submits to RLS via <stand-in>" — which left the retired mental model
+ * intact in current architecture while passing a name-only scan. So this file
+ * enforces BOTH:
+ *
+ *   1. the retired vendor name appears nowhere in the tracked tree, and
+ *   2. no CURRENT architecture/compliance/runtime file models an outbound
+ *      Mallan -> external listing-submission step at all.
+ *
+ * Dated audits and specs under the history paths are exempt from (2) only: they
+ * may record what was believed at the time, but they must not become current
+ * architecture.
  *
  * The retired provider's name previously appeared in ~150 places across runtime
  * code, a now-removed SECOND URL property on the CRM listing write contract,
@@ -177,7 +194,102 @@ describe('legacy provider reference guard', () => {
     });
   });
 
-  // ── The actual guard ─────────────────────────────────────────────────────
+  // ── Guard 2: the WORKFLOW, not just the name ─────────────────────────────
+  describe('current architecture models NO outbound listing-submission step', () => {
+    /** Paths whose job is to record history — exempt from THIS guard only. */
+    const HISTORY_PREFIXES = [
+      'docs/audits/',
+      'docs/superpowers/',
+      'docs/archive/',
+      'docs/operations/',
+      'memory/',
+      'ops/',
+    ];
+    /** A dated basename (YYYY-MM-DD) marks a point-in-time audit or spec. */
+    const DATED = /\d{4}-\d{2}-\d{2}/;
+
+    /** Built from fragments so the patterns never appear literally in this file. */
+    const seq = (...parts: string[]) => new RegExp(parts.join('\\s+'), 'i');
+    const WORKFLOW: Array<{ label: string; re: RegExp }> = [
+      { label: 'outbound submission step', re: seq('RLS', 'submission', 'is', 'via') },
+      { label: 'outbound submission step', re: seq('RLS', 'submission', 'via', 'an') },
+      { label: 'anonymised vendor stand-in', re: seq('external', 'LMP') },
+      { label: 'anonymised vendor stand-in', re: seq('external', 'listing', 'platform') },
+      { label: 'agent-submits-elsewhere step', re: seq('enters', 'listing', 'in', 'the') },
+      { label: 'outbound submission step', re: seq('Submitted', 'via', 'an', 'external') },
+    ];
+
+    const currentFiles = files.filter(
+      (f) => !HISTORY_PREFIXES.some((p) => f.startsWith(p)) && !DATED.test(f),
+    );
+
+    it('still has current-architecture files to check', () => {
+      expect(currentFiles.length).toBeGreaterThan(1000);
+      expect(currentFiles).toContain('docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md');
+      expect(currentFiles).toContain('compliance/FORMS-AND-RLS-SUBMISSION.md');
+      expect(currentFiles).toContain('MASTER-PROJECT-TREE-v3.3.md');
+    });
+
+    it('exempts dated history files from this guard (but never from the name scan)', () => {
+      expect(currentFiles.some((f) => f.startsWith('docs/superpowers/'))).toBe(false);
+      expect(files.some((f) => f.startsWith('docs/superpowers/'))).toBe(true);
+    });
+
+    it('the workflow patterns detect synthetic positives (proves they are not inert)', () => {
+      // Assembled at runtime — the offending phrases must never appear literally
+      // in this file, or the guard would flag itself.
+      const positives = [
+        ['RLS', 'submission', 'is', 'via', 'an', 'LMP'].join(' '),
+        ['RLS', 'submission', 'via', 'an', 'LMP'].join(' '),
+        ['external', 'LMP'].join(' '),
+        ['external', 'listing', 'platform'].join(' '),
+        ['Agent', 'enters', 'listing', 'in', 'the', 'LMP'].join(' '),
+        ['Submitted', 'via', 'an', 'external', 'LMP'].join(' '),
+      ];
+      for (const p of positives) {
+        expect(WORKFLOW.some((w) => w.re.test(p))).toBe(true);
+      }
+      // And stay silent on legitimate current wording.
+      const negatives = [
+        'Save canonical Mallan listing',
+        'Cotality observation -> source classification -> reconcile',
+        'mallan.nyc does NOT submit listings to the RLS and is NOT an LMP',
+        'inbound external RLS feed, read-only',
+      ];
+      for (const n of negatives) {
+        const fires = WORKFLOW.some((w) => w.re.test(n))
+          && !/\bnot\b|\bnever\b|\bNO\b|deliberately|stand-in|outside mallan\.nyc/i.test(n);
+        expect(fires).toBe(false);
+      }
+    });
+
+    it('no current file describes a Mallan -> external submission workflow', () => {
+      const bad: string[] = [];
+      for (const rel of currentFiles) {
+        let src: string;
+        try {
+          src = readFileSync(path.join(ROOT, rel), 'utf8');
+        } catch {
+          continue;
+        }
+        if (!WORKFLOW.some((w) => w.re.test(src))) continue;
+        for (const [i, line] of src.split(/\r?\n/).entries()) {
+          for (const { label, re } of WORKFLOW) {
+            if (!re.test(line)) continue;
+            // A line that PROHIBITS the model is not the model.
+            if (/\bnot\b|\bnever\b|\bNO\b|deliberately|stand-in|outside mallan\.nyc/i.test(line)) {
+              continue;
+            }
+            bad.push(`  ${rel}:${i + 1} [${label}]\n      ${line.trim().slice(0, 150)}`);
+            break;
+          }
+        }
+      }
+      expect(bad.length === 0 ? '' : `Retired workflow still modelled:\n${bad.join('\n')}\n`).toBe('');
+    });
+  });
+
+  // ── Guard 1: the name ────────────────────────────────────────────────────
   it('NO tracked file contains any retired-provider variant', () => {
     const report = hits
       .map((h) => `  ${h.file}:${h.line} [${h.label}]\n      ${h.excerpt}`)

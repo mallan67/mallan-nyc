@@ -529,7 +529,7 @@ export function externalInventoryPortalDTO(
 
 | Rule | How this design preserves it |
 |---|---|
-| UCBA Art. I §4 — RLS only accepts Exclusive Listings | External inventory never enters RLS. Submission to RLS is via an external LMP (not mallan.nyc), unchanged. |
+| UCBA Art. I §4 — RLS only accepts Exclusive Listings | External inventory never enters RLS. Submission to RLS happens outside mallan.nyc, unchanged. |
 | UCBA Art. I §5(D) — no "Off-Market" language | Source enum value `agent_pocket` is internal-only; never rendered on public-facing or client-facing surface. |
 | UCBA Art. III §2(C) — attribution | Disclaimer says "did NOT originate from RLS/REBNY" — no false attribution. |
 | UCBA Art. III §3 — no solicitation of existing listings | Expired RLS listings detected manually only; auto-promotion banned. |

@@ -1,9 +1,9 @@
 /**
  * MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
  *
- * A Mallan listing may reach REBNY RLS through a legacy external listing-entry
- * workflow OUTSIDE this system, then return through Cotality as an `RLS*` row
- * carrying verified Mallan list-side identity. The LOCAL `SL-`/`RL-` row
+ * A Mallan listing may reach REBNY RLS by some route OUTSIDE this system — not a
+ * Mallan component, deliberately not modelled — then return inbound through
+ * Cotality as an `RLS*` row carrying verified Mallan list-side identity. The LOCAL `SL-`/`RL-` row
  * stays canonical; the returned copy is retained internally for
  * audit/reconciliation but must never be a PUBLIC listing.
  *

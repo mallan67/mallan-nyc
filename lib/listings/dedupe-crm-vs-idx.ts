@@ -4,10 +4,9 @@
  *
  * Background
  * ----------
- * When a CRM-created exclusive (listing_id prefix `SL-` / `RL-`) is
- * submitted separately to REBNY RLS through an external listing-entry workflow
- * (OUTSIDE this system), the Trestle sync subsequently pulls
- * the listing back into our DB as a separate row keyed by REBNY's
+ * When a CRM-created exclusive (listing_id prefix `SL-` / `RL-`) also reaches
+ * REBNY RLS by some route OUTSIDE this system, the Trestle sync subsequently
+ * pulls the listing back into our DB as a separate row keyed by REBNY's
  * ListingKey (e.g. `RLS20093870`). The two rows are the same physical unit
  * but have different `listing_id`, slug, attribution, and URL. Without
  * dedupe, public surfaces render both rows — Maya's exclusive appears as a

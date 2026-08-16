@@ -2,7 +2,7 @@
 
 > **Status:** Architecture plan only. **No code from this doc.** Docs-only PR.
 > **Date:** 2026-05-18 · **Version 2 — corrected, with MVP decisions** · **Author:** Claude Code under Maya direction
-> **What v2 corrects vs v1:** v1 used `source='manual'` as the primary discriminator and treated `source='trestle'` as automatically disqualifying. **That was wrong.** Mallan's own exclusive listings flow through an external listing-entry workflow → REBNY RLS → Trestle IDX and arrive in this codebase with `source='trestle'`. The correct gate is **listing-side control + explicit syndication authorization + compliance-safe public advertising rights** — not source-based.
+> **What v2 corrects vs v1:** v1 used `source='manual'` as the primary discriminator and treated `source='trestle'` as automatically disqualifying. **That was wrong.** Mallan's own exclusive listings can arrive in this codebase with `source='trestle'` — they reach REBNY RLS outside mallan.nyc and return inbound through Trestle IDX. The correct gate is **listing-side control + explicit syndication authorization + compliance-safe public advertising rights** — not source-based.
 > **Holds preserved (Maya's spec):** no IDX/RLS/Trestle co-brokerage export · no other brokerage's listings · no ListingSearchProjection changes · no IDX sync changes · no PR #148 / PR 5B · no reconciliation · no env vars · no Neon · no migrations · no cron · no agents / skills / workflows.
 > **Truth source:** current `main` HEAD `b95e5f44`.
 
@@ -38,7 +38,7 @@ The repo already carries every field needed to identify **Mallan-as-listing-side
 | Source | Where they enter | How they're stored |
 |---|---|---|
 | **Trestle IDX (where Mallan is listing side)** | `lib/idx/fetch.ts` → `lib/idx/trestle-mapper.ts` → `Listing` upsert with `source='trestle'` | Same `listings` table. `agent_info` JSON carries `ListAgentMlsId`, `ListOfficeMlsId`, `ListAgentFullName`, `ListOfficeName`, etc. Typed columns `list_agent_full_name` + `list_office_name` (`schema.prisma:506-507`) carry the two display fields. |
-| **External LMP** | Not a direct integration. Listings are entered outside mallan.nyc and reach REBNY RLS from there; mallan.nyc reads them back via the Trestle IDX pipeline. **From this codebase's perspective, such listings are Trestle-sourced rows where Mallan is the listing side.** | Same as Trestle row above. |
+| **Mallan-side Trestle rows** | Not a direct integration and not a Mallan component. However a Mallan listing reaches REBNY RLS, mallan.nyc only ever reads it back through the Trestle IDX pipeline. **From this codebase's perspective these are simply Trestle-sourced rows where Mallan is the listing side.** | Same as Trestle row above. |
 | **Manual / admin-created** | `app/api/crm/listings/route.ts` POST → CRM form (`public/crm/SALE-FORM-REDESIGN.html`, `RENTAL-FORM-REDESIGN.html`) → `Listing` insert with `source='manual'` default | Same `listings` table. `agent_id` column FK to `Agent`. `agent_info` JSON populated from form input. `listing_id` prefixed `SL-` / `RL-`. |
 | **Other internal/admin** | None at present | n/a |
 

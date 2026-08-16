@@ -12,10 +12,11 @@
 | **mallan.nyc** | Canonical Mallan brokerage operating system. Creates and manages Mallan-authored local listings — canonical, **editable** `SL-*` / `RL-*` records — and consumes Cotality data for public display, search, building reference, and media. **Does NOT write back to Trestle.** |
 | **Cotality/Trestle** | External **inbound** MLS data provider. REBNY IDX Plus feed via OData v4 (`https://api.cotality.com/trestle`). **Read-only** consumption. Supplies third-party listing observations and Mallan RLS return-copy observations. |
 
-These are the only two systems in the current Mallan production architecture. A
-Mallan listing may reach REBNY RLS through a legacy external listing-entry
-workflow outside mallan.nyc; that workflow is not a component of this system and
-is not represented here. Local `SL-*` / `RL-*` records are not on RLS and are
+These are the only two systems in the current Mallan production architecture.
+**No listing-submission step belongs in this model** — whether and how a Mallan
+listing reaches REBNY RLS is outside mallan.nyc, has no bearing on this system's
+behaviour, and is deliberately not modelled here by vendor name or by an
+anonymised stand-in. Local `SL-*` / `RL-*` records are not on RLS and are
 reconciled against an official `RLS*` feed record when one arrives — the local
 row stays canonical.
 

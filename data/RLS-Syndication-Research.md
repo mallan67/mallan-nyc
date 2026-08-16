@@ -130,7 +130,7 @@ Major consumer portals have their **own direct data license agreements** with RE
 
 ### Listing Flow
 ```
-You → external LMP → Trestle Add/Edit API → REBNY RLS (Cotality)
+REBNY RLS (Cotality)  — inbound only; mallan.nyc has no submission path
                                     ↓
               ┌─────────────────────┼──────────────────────┐
               ↓                     ↓                      ↓

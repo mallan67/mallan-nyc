@@ -15,8 +15,8 @@
 
 | Form | File | Fields | Purpose |
 |------|------|--------|---------|
-| Sale Listing | `SALE-FORM-REDESIGN.html` | 719 | Sale listing data entry (CRM internal — RLS submission is via an external LMP) |
-| Rental Listing | `RENTAL-FORM-REDESIGN.html` | 525 | Rental listing data entry (CRM internal — RLS submission is via an external LMP) |
+| Sale Listing | `SALE-FORM-REDESIGN.html` | 719 | Sale listing data entry (Mallan canonical local listing) |
+| Rental Listing | `RENTAL-FORM-REDESIGN.html` | 525 | Rental listing data entry (Mallan canonical local listing) |
 | Buyer Deal | `BUYER-DEAL-FORM.html` | ~50 | Buyer transaction tracking |
 | Tenant Deal | `TENANT-DEAL-FORM.html` | ~30 | Tenant transaction tracking |
 
@@ -24,12 +24,24 @@
 
 ## 2. CRM Listing Data Entry Workflow
 
-> **NOTE:** mallan.nyc does NOT submit listings to the RLS. Actual RLS submission is via an external LMP, outside mallan.nyc. The workflow below describes CRM-internal data entry and validation.
+> **NOTE:** mallan.nyc does NOT submit listings to the RLS and is NOT an LMP. The
+> workflow below is the whole of Mallan's authority: canonical local data entry,
+> validation, compliance gating, and Mallan-authoritative publish/display.
 
 ```
 Agent fills form → Auto-save (30s) → Validate (47+ fields) → Content scan
-  → Fair Housing scan → Distribution gate check → Preview → Save to CRM
-  → Agent enters listing in the external LMP for actual RLS submission
+  → Fair Housing scan → Distribution gate check → Preview
+  → Save canonical Mallan listing
+  → Publish / display per Mallan authority and eligibility
+```
+
+Inbound Cotality observation is a **separate** flow, never a continuation of the
+one above:
+
+```
+Cotality observation → source classification
+  → third-party read-only  OR  Mallan return-copy
+  → reconcile to the canonical Mallan listing
 ```
 
 ### Pre-Submission Checklist (Automated)

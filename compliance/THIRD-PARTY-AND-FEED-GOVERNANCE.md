@@ -81,10 +81,9 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 
 - mallan.nyc uses IDX Plus feed for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting**
 - mallan.nyc does NOT submit listings to the RLS and is NOT an LMP
-- The LMP (listing input to RLS) is external to mallan.nyc. REBNY does not grant LMP licenses to individual brokers.
+- mallan.nyc is NOT an LMP and does not submit listings to the RLS. REBNY does not grant LMP licenses to individual brokers.
 - mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) — **IDX-released fields and IDX-eligible inventory only (not full-market search)**
-- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through any external listing platform or third parties
-- Agents use an external listing platform for full RLS inventory search and listing submission
+- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through third parties
 
 ### Capabilities
 
