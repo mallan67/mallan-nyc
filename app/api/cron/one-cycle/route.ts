@@ -5,7 +5,13 @@ import { claimMachine } from '@/lib/idx/machine-claim';
 import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
 import type { MemberOutcome, MemberRunResult } from '@/lib/idx/idx-sync-member';
 import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
-import { ONE_CYCLE_MEMBERS, requiredMembersForPlan } from '@/lib/idx/one-cycle-preflight';
+import {
+  ONE_CYCLE_MEMBERS,
+  ONE_CYCLE_MEMBER_IDX,
+  ONE_CYCLE_MEMBER_MEDIA,
+  requiredMembersForPlan,
+  type OneCycleMember,
+} from '@/lib/idx/one-cycle-preflight';
 import { currentExecutionPlan } from '@/lib/idx/one-cycle-plan-channel';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
@@ -72,10 +78,16 @@ export const CYCLE_INTERVAL_MS = 600_000;
 // now all read the SAME constant, and adding a member is a one-line change in
 // one file rather than a change that silently half-lands.
 
-/** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
-const MEMBER_BUDGETS_MS: Record<string, number> = {
-  'idx-sync': 120_000,
-  'media-sync': 150_000,
+/**
+ * Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration.
+ *
+ * Keyed by the canonical identities and typed as a total Record, so adding a
+ * member to ONE_CYCLE_MEMBERS without giving it a budget is a BUILD failure
+ * rather than a silent fallback to the 60s default.
+ */
+const MEMBER_BUDGETS_MS: Record<OneCycleMember, number> = {
+  [ONE_CYCLE_MEMBER_IDX]: 120_000,
+  [ONE_CYCLE_MEMBER_MEDIA]: 150_000,
 };
 const CYCLE_HEADROOM_MS = 20_000;
 /** No single member may be budgeted longer than this (must leave room for others). */
@@ -370,10 +382,19 @@ export async function GET(req: NextRequest) {
   // is reachable ONLY via this direct import, never over HTTP (the public GET
   // routes always claim). One Cycle drives INCREMENTAL idx-sync (forceFull:false);
   // a full backlog drain is a deliberate manual `?full=true` GET, which claims.
-  const allMemberDefs: Array<[string, MemberFn]> = [
-    ['idx-sync', ({ oneCycleRunId }) => runIdxSyncMember({ oneCycleRunId, forceFull: false })],
-    ['media-sync', ({ oneCycleRunId }) => runMediaSyncMember({ oneCycleRunId })],
-  ];
+  // Runner FUNCTIONS live here, at the execution layer — but member NAMES and
+  // ORDER do not. This is a Record keyed by the canonical identities, so TypeScript
+  // FAILS THE BUILD if a member is added to ONE_CYCLE_MEMBERS without a runner,
+  // or if a runner is declared for a name that is not a member. The previous
+  // array re-typed both names, giving the executor its own copy of the identity
+  // list that could silently drift from the planner's.
+  const memberRunners: Record<OneCycleMember, MemberFn> = {
+    [ONE_CYCLE_MEMBER_IDX]: ({ oneCycleRunId }) => runIdxSyncMember({ oneCycleRunId, forceFull: false }),
+    [ONE_CYCLE_MEMBER_MEDIA]: ({ oneCycleRunId }) => runMediaSyncMember({ oneCycleRunId }),
+  };
+  // Order comes from the canonical list, never from the literal order above.
+  const allMemberDefs: Array<[OneCycleMember, MemberFn]> =
+    ONE_CYCLE_MEMBERS.map((name) => [name, memberRunners[name]]);
 
   // Members are SELECTED BY PLAN, and completion is judged against that
   // selection. Previously both were a constant, which meant an intentionally
@@ -385,8 +406,8 @@ export async function GET(req: NextRequest) {
   // Filtering `allMemberDefs` (rather than mapping the plan to functions)
   // preserves the authority hierarchy structurally: IDX cannot be reordered
   // after media, whatever the plan says.
-  const planned = new Set(requiredMembersForPlan(executionPlan));
-  const memberDefs = allMemberDefs.filter(([name]) => planned.has(name as 'idx-sync' | 'media-sync'));
+  const planned = new Set<OneCycleMember>(requiredMembersForPlan(executionPlan));
+  const memberDefs = allMemberDefs.filter(([name]) => planned.has(name));
   const requiredMembers = memberDefs.map(([n]) => n);
 
   const members: MemberResult[] = [];

@@ -75,7 +75,24 @@ export interface SourceHeadDelta {
  * media, always. Media resolves against listing rows, so the reverse order can
  * attach photos to a stale or absent listing.
  */
-export const ONE_CYCLE_MEMBERS = ['idx-sync', 'media-sync'] as const;
+// The member IDENTITIES. These string literals appear exactly once in the
+// codebase; everything else — the ordered list, plan selection, the route's
+// runner map, budget validation and completion membership — derives from them.
+//
+// Declaring them separately (rather than only as array elements) is what makes
+// the single authority real: `requiredMembersForPlan` used to re-type
+// 'idx-sync'/'media-sync' in every switch branch and the route re-typed them
+// again in its runner table, so three files each carried their own copy and
+// "add a member in one place" was not true.
+export const ONE_CYCLE_MEMBER_IDX = 'idx-sync' as const;
+export const ONE_CYCLE_MEMBER_MEDIA = 'media-sync' as const;
+
+/**
+ * The canonical ORDER — listings before media, always. Media resolves against
+ * listing rows, so the reverse order can attach photos to a stale or absent
+ * listing. Every consumer iterates THIS array rather than its own list.
+ */
+export const ONE_CYCLE_MEMBERS = [ONE_CYCLE_MEMBER_IDX, ONE_CYCLE_MEMBER_MEDIA] as const;
 export type OneCycleMember = (typeof ONE_CYCLE_MEMBERS)[number];
 
 /**
@@ -107,19 +124,21 @@ export function requiredMembersForPlan(plan: OneCycleExecutionPlan): OneCycleMem
     case 'skip':
       return [];
     case 'idx_only':
-      return ['idx-sync'];
+      return [ONE_CYCLE_MEMBER_IDX];
     case 'media_only':
-      return ['media-sync'];
+      return [ONE_CYCLE_MEMBER_MEDIA];
     case 'idx_then_media':
     case 'full_safety':
-      return ['idx-sync', 'media-sync'];
+      // Spread the canonical ordered list rather than re-typing the pair, so
+      // the order here can never diverge from the order the route executes.
+      return [...ONE_CYCLE_MEMBERS];
     default: {
       // Unreachable while the union is exhaustive. If a new plan is added and
       // this switch is not updated, fail CLOSED to the full machine rather than
       // silently running nothing.
       const _exhaustive: never = plan;
       void _exhaustive;
-      return ['idx-sync', 'media-sync'];
+      return [...ONE_CYCLE_MEMBERS];
     }
   }
 }
@@ -584,8 +603,8 @@ export function deriveOneCycleFollowup(
     priorState?: OneCyclePreflightState | null;
   } = {},
 ): Pick<OneCyclePreflightState, 'forceRun' | 'backlogPending' | 'nextBacklogRunAt'> {
-  const idx = completion.members.find((m) => m.member === 'idx-sync');
-  const media = completion.members.find((m) => m.member === 'media-sync');
+  const idx = completion.members.find((m) => m.member === ONE_CYCLE_MEMBER_IDX);
+  const media = completion.members.find((m) => m.member === ONE_CYCLE_MEMBER_MEDIA);
 
   const listingBatchFull = summaryNumber(idx?.summary, 'total_fetched') >= ONE_CYCLE_SOURCE_BATCH_LIMIT;
   const forceRun = !completion.success || !completion.complete || !snapshotTrusted || listingBatchFull;

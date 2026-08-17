@@ -127,7 +127,27 @@ export async function POST(req: NextRequest) {
         postal_code: (body.zip as string) || null,
         property_type: (body.property_type as string) || null,
         property_sub_type: (body.property_sub_type as string) || null,
-        rls_eligible: false, // External IDX listing, not our exclusive
+        // SOURCE IDENTITY — corrected 2026-08-17. This was `false` with the
+        // comment "External IDX listing, not our exclusive", which INVERTED the
+        // canonical contract and made the stub claim Mallan provenance.
+        //
+        // lib/listings/mallan-source-identity.ts: "Mallan-authored local rows
+        // are `false`; feed rows are true/null", and `isMallanExclusiveListing`
+        // is `SL-/RL- prefix OR rls_eligible === false` — the module's own
+        // header says it governs DATA/MEDIA AUTHORITY.
+        //
+        // So `false` on a Trestle-sourced row meant: R2 mirror admission jumped
+        // to the unconditional "all_active" Mallan branch
+        // (lib/idx/media-sync.ts), the media resolver took the Mallan
+        // ownership/legacy-fallback branch, the public DTO reported
+        // isMallanExclusive: true, the row became eligible for exclusive agent
+        // assignment, and listing_search_projection.is_exclusive was set.
+        //
+        // `true` is the correct value: this row IS an RLS/Trestle listing. It
+        // also means a later real Cotality sync of the same listing_id does not
+        // FLIP the identity, so media authority cannot move underneath rows
+        // that already exist.
+        rls_eligible: true,
         // H1 fix (2026-05-13): close the secondary-writer §2.05 gap.
         // `canonicalStatus` is the normalized form of body.status (see the
         // declaration above). Using the SAME canonical value for both the

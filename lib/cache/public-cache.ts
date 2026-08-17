@@ -53,18 +53,36 @@ export const SYNC_CADENCE_SECONDS = 10 * 60;
  * not a verdict — each has a NAMED condition that would move it. Three
  * distinct reasons, and they need different fixes:
  *
- * 1. INVALIDATION COVERAGE — fixable, partly fixed.
+ * 1. INVALIDATION COVERAGE — incomplete, and one gap is LIVE IN PRODUCTION.
  *    A tag that no writer emits can never expire an entry that has no TTL.
- *    Three writers were found emitting nothing at all and are fixed in this
- *    change: app/api/crm/convert (creates a displayable listing),
- *    app/api/idx/ensure-listing (same), app/api/cron/dom-reset (writes
- *    search-visible days_on_market / first_active_date).
- *    STILL OPEN: the writer census that found them was refuted on
- *    completeness by independent verification, so the inventory is NOT proven
- *    exhaustive. Candidates named but not yet individually verified include
- *    app/api/crm/listings/reset-sync, the CRM media reorder/delete/upload
- *    routes, and app/api/crm/sales/comps. Until a complete writer inventory
- *    exists, no entry can be certified.
+ *
+ *    RESOLVED so far, stated from the CURRENT code (an earlier revision of
+ *    this block described a different, since-reverted state):
+ *      - app/api/crm/convert — creates status Draft, which the canonical
+ *        active-display set excludes, so its rows are NOT members of any
+ *        cached public collection. It correctly emits NOTHING. (An earlier
+ *        change added an invalidation here reasoning from `!TERMINAL_STATUSES`;
+ *        that was wrong and was reverted.)
+ *      - app/api/idx/ensure-listing — emits, but ONLY when
+ *        `isActiveDisplayStatus(status)` holds, i.e. on real public membership.
+ *      - app/api/cron/dom-reset — correctly emits NOTHING. It mutates only
+ *        Withdrawn/Cancelled rows, which the active market cache never admits;
+ *        invalidating there would evict correct entries and force an avoidable
+ *        Neon refill. (Also added then reverted.)
+ *
+ *    OPEN, and NOT merely theoretical — listing detail is already
+ *    `revalidate:false`, so these leave public pages stale INDEFINITELY rather
+ *    than for one TTL window:
+ *      - app/api/crm/listings/[id]/media/upload      (no invalidation)
+ *      - app/api/crm/listings/[id]/media/[mediaId]   (delete; none)
+ *      - app/api/crm/listings/[id]/media-order       (reorder; none)
+ *      - app/api/crm/listings/reset-sync             (deleteMany on the whole
+ *        Listing table, then repopulates; none)
+ *      - app/api/crm/sales/comps                     (not yet traced)
+ *
+ *    These belong to the canonical post-media-write closure being built, not
+ *    to ad-hoc patches. Until the writer inventory is complete and proven
+ *    exhaustive, NO entry can be certified EVENT_DRIVEN_SAFE.
  *
  * 2. TIME DEPENDENCE INSIDE THE CACHED FUNCTION — genuinely TTL-requiring.
  *    These are correct as EXPLICIT_TTL_REQUIRED permanently, unless the

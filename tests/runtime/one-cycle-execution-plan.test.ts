@@ -24,6 +24,8 @@
  * Every uncertainty (no Redis, unreadable state, failed source probe, forced
  * retry) must still fail OPEN to the full machine.
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type {
   OneCyclePreflightState,
   SourceSnapshot,
@@ -309,6 +311,63 @@ describe('a plan that did not run media must not erase the media backlog', () =>
 
     expect(followup.backlogPending).toBe(false);
     expect(followup.nextBacklogRunAt).toBeNull();
+  });
+});
+
+describe('member identity is single-authority — planner and executor cannot disagree', () => {
+  /**
+   * REVIEW FINDING (round 4). `ONE_CYCLE_MEMBERS` existed, but
+   * `requiredMembersForPlan` still re-typed 'idx-sync'/'media-sync' in every
+   * switch branch and the route re-typed them again in its runner table. Three
+   * independent copies of the same identity list — so "adding a member is a
+   * one-line change" was false, and planner and executor could drift.
+   *
+   * The identities are now declared exactly once and everything derives from
+   * them. These tests pin that, and the route's Record<OneCycleMember, ...>
+   * types make a missing runner or budget a BUILD failure rather than a
+   * runtime surprise.
+   */
+  it('every plan selects only canonical members, in canonical order', () => {
+    const plans = ['skip', 'idx_only', 'media_only', 'idx_then_media', 'full_safety'] as const;
+
+    for (const plan of plans) {
+      const selected = preflight.requiredMembersForPlan(plan);
+
+      // No plan may invent a member outside the canonical list.
+      for (const m of selected) {
+        expect(preflight.ONE_CYCLE_MEMBERS).toContain(m);
+      }
+      // Selection must be a SUBSEQUENCE of the canonical order, never a
+      // reordering — media can never be scheduled before idx.
+      const canonicalOrder = preflight.ONE_CYCLE_MEMBERS.filter((m) => selected.includes(m));
+      expect(selected).toEqual(canonicalOrder);
+    }
+  });
+
+  it('the canonical identities are the ones the members actually report', () => {
+    expect(preflight.ONE_CYCLE_MEMBERS).toEqual([
+      preflight.ONE_CYCLE_MEMBER_IDX,
+      preflight.ONE_CYCLE_MEMBER_MEDIA,
+    ]);
+    // The full plan covers every canonical member — no member can be
+    // unreachable by any plan.
+    expect(preflight.requiredMembersForPlan('full_safety')).toEqual([...preflight.ONE_CYCLE_MEMBERS]);
+  });
+
+  it('the route derives its runner map and order from the canonical list', () => {
+    // Source-level, because the route cannot be imported without Prisma. The
+    // behavioural half is the type system: Record<OneCycleMember, MemberFn>
+    // and Record<OneCycleMember, number> fail the build on any mismatch.
+    const route = fs.readFileSync(
+      path.join(__dirname, '../../app/api/cron/one-cycle/route.ts'),
+      'utf8',
+    );
+    expect(route).toContain('Record<OneCycleMember, MemberFn>');
+    expect(route).toContain('Record<OneCycleMember, number>');
+    expect(route).toContain('ONE_CYCLE_MEMBERS.map((name) => [name, memberRunners[name]])');
+    // And it must not re-type the identities.
+    expect(route).not.toContain("'idx-sync'");
+    expect(route).not.toContain("'media-sync'");
   });
 });
 
