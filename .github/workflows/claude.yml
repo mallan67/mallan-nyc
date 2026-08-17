@@ -43,23 +43,7 @@ jobs:
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
-          # Model + effort for the GitHub reviewer.
-          #
-          # Both flags are passed through to the Claude Code CLI; `claude_args`
-          # is not validated by the action itself, so they are verified against
-          # the CLI reference rather than the action's docs:
-          #   --model  accepts a full model name (code.claude.com/docs/en/cli-reference)
-          #   --effort accepts low | medium | high | xhigh | max | ultracode
-          #
-          # `ultracode` starts the session at xhigh effort with ultracode
-          # enabled, and REQUIRES Claude Code v2.1.203 or later. The CLI version
-          # is supplied by claude-code-action@v1, which is a floating major tag;
-          # if a pinned older runner ever ships a CLI below that floor, --effort
-          # is the flag that will fail, not --model.
-          #
-          # Permissions above stay read-only (contents/pull-requests/issues:
-          # read). Do not widen them here — GitHub write access for Claude is a
-          # separate governance decision and requires Maya's explicit approval.
-          claude_args: |
-            --model claude-opus-5
-            --effort ultracode
+          # Optional: Add claude_args to customize behavior and configuration
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+          # claude_args: '--allowed-tools Bash(gh pr:*)'
