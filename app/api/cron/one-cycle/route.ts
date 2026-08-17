@@ -5,6 +5,10 @@ import { claimMachine } from '@/lib/idx/machine-claim';
 import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
 import type { MemberOutcome, MemberRunResult } from '@/lib/idx/idx-sync-member';
 import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
+import {
+  requiredMembersForPlan,
+  type OneCycleExecutionPlan,
+} from '@/lib/idx/one-cycle-preflight';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
 // cadence, 2026-07-24) ───────────────────────────────────────────────────────
@@ -64,6 +68,35 @@ export const CYCLE_INTERVAL_MS = 600_000;
 
 /** Ordered required members (authority hierarchy: listings first, media second). */
 const MEMBER_NAMES = ['idx-sync', 'media-sync'] as const;
+
+const EXECUTION_PLANS: readonly OneCycleExecutionPlan[] = [
+  'skip',
+  'idx_only',
+  'media_only',
+  'idx_then_media',
+  'full_safety',
+];
+
+/**
+ * Resolve the execution plan for this invocation.
+ *
+ * The preflight passes `?plan=` after comparing the two Cotality heads. Any
+ * other caller — a manual GET, a re-run, an operator probe — has no plan and
+ * MUST get the complete machine. Absent, unrecognised, and `skip` all resolve
+ * to `full_safety`:
+ *
+ *   - absent/unrecognised: an unknown caller never gets a narrowed cycle.
+ *   - `skip`: reaching this route at all means a run was intended, so honouring
+ *     "skip" here would run ZERO members and report a vacuous success. The
+ *     preflight already returns before importing this route when it skips.
+ */
+function resolveExecutionPlan(req: NextRequest): OneCycleExecutionPlan {
+  const raw = req.nextUrl.searchParams.get('plan');
+  if (!raw) return 'full_safety';
+  const match = EXECUTION_PLANS.find((p) => p === raw);
+  if (!match || match === 'skip') return 'full_safety';
+  return match;
+}
 
 /** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
 const MEMBER_BUDGETS_MS: Record<string, number> = {
@@ -300,6 +333,10 @@ export async function GET(req: NextRequest) {
 
   const runId = randomUUID();
 
+  // WHICH members this cycle is responsible for. Resolved before the claim so it
+  // is available to every downstream branch, including the response body.
+  const executionPlan = resolveExecutionPlan(req);
+
   // Budget config validation — FAIL CLOSED before taking a claim or starting any
   // member. An invalid ONE_CYCLE_BUDGET_MS_* override must never silently force
   // timeouts or defeat the budget design.
@@ -357,10 +394,23 @@ export async function GET(req: NextRequest) {
   // is reachable ONLY via this direct import, never over HTTP (the public GET
   // routes always claim). One Cycle drives INCREMENTAL idx-sync (forceFull:false);
   // a full backlog drain is a deliberate manual `?full=true` GET, which claims.
-  const memberDefs: Array<[string, MemberFn]> = [
+  const allMemberDefs: Array<[string, MemberFn]> = [
     ['idx-sync', ({ oneCycleRunId }) => runIdxSyncMember({ oneCycleRunId, forceFull: false })],
     ['media-sync', ({ oneCycleRunId }) => runMediaSyncMember({ oneCycleRunId })],
   ];
+
+  // Members are SELECTED BY PLAN, and completion is judged against that
+  // selection. Previously both were a constant, which meant an intentionally
+  // IDX-free cycle was scored against a member it was never asked to run:
+  // `complete` would be false, `outcome` would be 'incomplete', `forceRun`
+  // would be set, and every later poll would fail open — so the machine would
+  // never skip again.
+  //
+  // Filtering `allMemberDefs` (rather than mapping the plan to functions)
+  // preserves the authority hierarchy structurally: IDX cannot be reordered
+  // after media, whatever the plan says.
+  const planned = new Set(requiredMembersForPlan(executionPlan));
+  const memberDefs = allMemberDefs.filter(([name]) => planned.has(name as 'idx-sync' | 'media-sync'));
   const requiredMembers = memberDefs.map(([n]) => n);
 
   const members: MemberResult[] = [];
@@ -445,6 +495,12 @@ export async function GET(req: NextRequest) {
     run_id: runId,
     execution_type: 'one-cycle',
     outcome: success ? 'success' : complete ? 'partial' : 'incomplete',
+    // Which members this cycle was responsible for, and therefore what
+    // `complete`/`success` above were actually judged against. Without this a
+    // reader cannot tell a healthy media_only cycle from a full cycle that lost
+    // IDX, because both report exactly one settled member.
+    execution_plan: executionPlan,
+    required_members: requiredMembers,
     cadence: '10m',
     cadence_ms: CYCLE_INTERVAL_MS,
     orchestration_settled,

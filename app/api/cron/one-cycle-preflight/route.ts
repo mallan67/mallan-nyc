@@ -77,6 +77,8 @@ export async function GET(req: NextRequest) {
       skipped: true,
       neon_touched: false,
       reason: decision.reason,
+      execution_plan: decision.executionPlan,
+      plan_reasons: decision.planReasons,
       polled_at: polledAt.toISOString(),
       source_captured_at: decision.snapshot?.capturedAt ?? null,
     };
@@ -88,13 +90,27 @@ export async function GET(req: NextRequest) {
     tag: 'one_cycle_preflight',
     event: 'run_neon_cycle',
     reason: decision.reason,
+    // WHICH members this poll selected, and why. `reason` alone cannot express
+    // it: 'source_changed' now covers idx_only, media_only and idx_then_media.
+    execution_plan: decision.executionPlan,
+    plan_reasons: decision.planReasons,
+    head_delta: decision.headDelta,
     polled_at: polledAt.toISOString(),
     snapshot_trusted: decision.snapshotTrusted,
   }));
 
   // Dynamic by design: the skip path must not evaluate the Prisma-backed route.
   const { GET: runOneCycle } = await import('@/app/api/cron/one-cycle/route');
-  const response = await runOneCycle(req);
+
+  // Carry the plan on the URL. One Cycle treats an absent or unrecognised plan
+  // as `full_safety`, so a manual GET of that route is unaffected by this and
+  // still runs the complete machine. Headers are copied verbatim because the
+  // route authorises on the `authorization` header alone.
+  const cycleUrl = new URL(req.nextUrl.toString());
+  cycleUrl.searchParams.set('plan', decision.executionPlan);
+  const response = await runOneCycle(
+    new NextRequest(cycleUrl, { method: 'GET', headers: req.headers }),
+  );
   try {
     const body = await response.clone().json();
     const completion = completionFromBody(body);

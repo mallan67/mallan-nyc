@@ -393,6 +393,12 @@ describe('finalize returns a real, actionable outcome', () => {
     snapshot,
     snapshotTrusted: true,
     priorState: validState,
+    // Both heads moved, so this is the authoritative plan. These assertions are
+    // about finalize's write outcome, and an authoritative plan keeps the
+    // pre-existing heartbeat expectations intact.
+    executionPlan: 'idx_then_media',
+    headDelta: { modification: true, photos: true },
+    planReasons: ['modification_head_moved', 'photos_head_moved'],
   };
 
   it("a successful write returns 'ok' and actually persists state", async () => {

@@ -129,6 +129,9 @@ describe("Neon-free skip contract", () => {
       snapshot: sourceSnapshot,
       snapshotTrusted: true,
       priorState: null,
+      executionPlan: "skip",
+      headDelta: { modification: false, photos: false },
+      planReasons: ["source_unchanged", "no_backlog_due", "heartbeat_fresh"],
     });
     const response = await GET(makeReq(AUTH));
     const body = await response.json();
@@ -146,6 +149,10 @@ describe("Neon-free skip contract", () => {
       snapshot: null,
       snapshotTrusted: false,
       priorState: null,
+      // An untrusted snapshot can never select a partial plan.
+      executionPlan: "full_safety",
+      headDelta: null,
+      planReasons: ["source_probe_failed"],
     };
     decidePreflight.mockResolvedValue(decision);
     const response = await GET(makeReq(AUTH));
@@ -161,6 +168,9 @@ describe("Neon-free skip contract", () => {
       snapshot: sourceSnapshot,
       snapshotTrusted: true,
       priorState: null,
+      executionPlan: "idx_then_media",
+      headDelta: { modification: true, photos: true },
+      planReasons: ["modification_head_moved", "photos_head_moved"],
     };
     decidePreflight.mockResolvedValue(decision);
     runOneCycle.mockResolvedValueOnce(NextResponse.json({

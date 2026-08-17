@@ -64,6 +64,77 @@ export interface SourceSnapshot {
   capturedAt: string;
 }
 
+/** Which heads moved, reported separately rather than collapsed to one boolean. */
+export interface SourceHeadDelta {
+  modification: boolean;
+  photos: boolean;
+}
+
+/**
+ * The One Cycle members, in their authority order: listings are written before
+ * media, always. Media resolves against listing rows, so the reverse order can
+ * attach photos to a stale or absent listing.
+ */
+export const ONE_CYCLE_MEMBERS = ['idx-sync', 'media-sync'] as const;
+export type OneCycleMember = (typeof ONE_CYCLE_MEMBERS)[number];
+
+/**
+ * What this poll will actually execute.
+ *
+ * `full_safety` is the fail-open plan: it runs the complete machine and is what
+ * every uncertainty (no Redis, unreadable state, failed source probe, forced
+ * retry, expired freshness heartbeat) resolves to.
+ */
+export type OneCycleExecutionPlan =
+  | 'skip'
+  | 'idx_only'
+  | 'media_only'
+  | 'idx_then_media'
+  | 'full_safety';
+
+/**
+ * The members a given plan is REQUIRED to complete.
+ *
+ * Completion must be judged against this, never against a constant member list.
+ * With a constant list an intentionally IDX-free cycle looks `incomplete`, which
+ * sets `forceRun`, which makes every subsequent poll fail open — so the machine
+ * would never skip again and the whole optimisation would silently do nothing.
+ *
+ * The returned order is load-bearing: IDX strictly before Media.
+ */
+export function requiredMembersForPlan(plan: OneCycleExecutionPlan): OneCycleMember[] {
+  switch (plan) {
+    case 'skip':
+      return [];
+    case 'idx_only':
+      return ['idx-sync'];
+    case 'media_only':
+      return ['media-sync'];
+    case 'idx_then_media':
+    case 'full_safety':
+      return ['idx-sync', 'media-sync'];
+    default: {
+      // Unreachable while the union is exhaustive. If a new plan is added and
+      // this switch is not updated, fail CLOSED to the full machine rather than
+      // silently running nothing.
+      const _exhaustive: never = plan;
+      void _exhaustive;
+      return ['idx-sync', 'media-sync'];
+    }
+  }
+}
+
+/**
+ * Did this plan run the complete authoritative machine?
+ *
+ * Only a full plan may advance the freshness heartbeat. If a partial plan could
+ * advance it, one photo-only cycle per hour would satisfy the clock forever and
+ * the hourly authoritative sweep — the compliance guarantee — would never run.
+ */
+export function planIsAuthoritative(plan: OneCycleExecutionPlan): boolean {
+  return plan === 'idx_then_media' || plan === 'full_safety';
+}
+
 export interface OneCyclePreflightState {
   version: typeof ONE_CYCLE_PREFLIGHT_VERSION;
   snapshot: SourceSnapshot;
@@ -115,6 +186,15 @@ export interface OneCyclePreflightDecision {
   snapshot: SourceSnapshot | null;
   snapshotTrusted: boolean;
   priorState: OneCyclePreflightState | null;
+  /**
+   * WHAT to run, as opposed to `shouldRun`, which only said whether to run.
+   * `shouldRun` is retained and is exactly `executionPlan !== 'skip'`.
+   */
+  executionPlan: OneCycleExecutionPlan;
+  /** Which heads moved. Null when the snapshot could not be trusted/compared. */
+  headDelta: SourceHeadDelta | null;
+  /** Why this plan, in structured form, for runtime observability. */
+  planReasons: string[];
 }
 
 export interface OneCycleCompletionInput {
@@ -216,8 +296,37 @@ function headEqual(a: SourceHead, b: SourceHead): boolean {
     a.populationAtHead === b.populationAtHead;
 }
 
+/**
+ * Which Cotality heads moved, kept SEPARATE.
+ *
+ * The two heads mean different things and select different members. Per the
+ * canonical compliance index (docs/compliance/COMPLIANCE-CANONICAL-INDEX.md:118,
+ * §8 Fail-closed row): "Two-tier timestamp sync: Property.PhotosChangeTimestamp
+ * (high-level trigger) -> Media.ModificationTimestamp (per-row)."
+ *
+ * So PhotosChangeTimestamp is the media trigger and ModificationTimestamp is
+ * the listing-record trigger. Collapsing them with `||` — which is what this
+ * module did before — meant a photo-only change woke the entire listing sync,
+ * and a listing-only change woke the entire media sync.
+ */
+export function sourceHeadsChanged(
+  prior: SourceSnapshot,
+  current: SourceSnapshot,
+): SourceHeadDelta {
+  return {
+    modification: !headEqual(prior.modification, current.modification),
+    photos: !headEqual(prior.photos, current.photos),
+  };
+}
+
+/**
+ * Retained as the union of {@link sourceHeadsChanged}. Existing telemetry and
+ * tests depend on this exact boolean; it is now derived rather than duplicated
+ * so the two can never disagree.
+ */
 export function sourceSnapshotChanged(prior: SourceSnapshot, current: SourceSnapshot): boolean {
-  return !headEqual(prior.modification, current.modification) || !headEqual(prior.photos, current.photos);
+  const delta = sourceHeadsChanged(prior, current);
+  return delta.modification || delta.photos;
 }
 
 function normalizeTimestamp(value: unknown): string | null {
@@ -302,15 +411,32 @@ function backlogIntervalSeconds(): number {
  *
  * Every uncertainty fails open to the existing Neon-backed machine.
  */
+/**
+ * Every uncertainty resolves here: run the COMPLETE machine. A partial plan is
+ * only ever chosen from a trusted comparison against known prior state.
+ */
+function failOpenDecision(
+  reason: OneCyclePreflightDecision['reason'],
+  snapshot: SourceSnapshot | null,
+  snapshotTrusted: boolean,
+  priorState: OneCyclePreflightState | null,
+  planReasons: string[],
+): OneCyclePreflightDecision {
+  return {
+    shouldRun: true,
+    reason,
+    snapshot,
+    snapshotTrusted,
+    priorState,
+    executionPlan: 'full_safety',
+    headDelta: null,
+    planReasons,
+  };
+}
+
 export async function decideOneCyclePreflight(now: Date = new Date()): Promise<OneCyclePreflightDecision> {
   if (!redis) {
-    return {
-      shouldRun: true,
-      reason: 'redis_client_missing',
-      snapshot: null,
-      snapshotTrusted: false,
-      priorState: null,
-    };
+    return failOpenDecision('redis_client_missing', null, false, null, ['external_state_client_missing']);
   }
 
   let priorState: OneCyclePreflightState | null = null;
@@ -326,13 +452,7 @@ export async function decideOneCyclePreflight(now: Date = new Date()): Promise<O
       '[one-cycle-preflight] external state read failed:',
       err instanceof Error ? err.name : 'unknown_error',
     );
-    return {
-      shouldRun: true,
-      reason: 'redis_read_failed',
-      snapshot: null,
-      snapshotTrusted: false,
-      priorState: null,
-    };
+    return failOpenDecision('redis_read_failed', null, false, null, ['external_state_read_failed']);
   }
 
   let snapshot: SourceSnapshot;
@@ -343,45 +463,35 @@ export async function decideOneCyclePreflight(now: Date = new Date()): Promise<O
       '[one-cycle-preflight] source probe failed; running full cycle fail-open:',
       err instanceof Error ? err.name : 'unknown_error',
     );
-    return {
-      shouldRun: true,
-      reason: 'source_probe_failed',
-      snapshot: priorState?.snapshot ?? null,
-      snapshotTrusted: false,
+    return failOpenDecision(
+      'source_probe_failed',
+      priorState?.snapshot ?? null,
+      false,
       priorState,
-    };
+      ['source_probe_failed'],
+    );
   }
 
   if (!priorState) {
-    return {
-      shouldRun: true,
-      reason: 'state_missing_or_invalid',
-      snapshot,
-      snapshotTrusted: true,
-      priorState: null,
-    };
+    return failOpenDecision('state_missing_or_invalid', snapshot, true, null, ['no_prior_state']);
   }
   if (priorState.forceRun) {
-    return {
-      shouldRun: true,
-      reason: 'forced_retry',
-      snapshot,
-      snapshotTrusted: true,
-      priorState,
-    };
-  }
-  if (sourceSnapshotChanged(priorState.snapshot, snapshot)) {
-    return {
-      shouldRun: true,
-      reason: 'source_changed',
-      snapshot,
-      snapshotTrusted: true,
-      priorState,
-    };
+    // forceRun is a single boolean, so the specific cause (failed cycle,
+    // incomplete cycle, untrusted snapshot, or a full listing batch) is not
+    // recoverable here. Restoring a known-good state therefore means the full
+    // machine — narrowing it would require distinguishing causes in persisted
+    // state, which is a separate change.
+    return failOpenDecision('forced_retry', snapshot, true, priorState, ['forced_retry']);
   }
 
   // ── FRESHNESS HEARTBEAT ─────────────────────────────────────────────
-  // Evaluated before the skip branch. Forces an authoritative cycle when
+  // MOVED AHEAD OF THE SOURCE COMPARISON. It used to sit after it, which was
+  // harmless while any change ran the whole machine. Now that a source change
+  // can select a PARTIAL plan, an overdue heartbeat evaluated later could be
+  // satisfied forever by idx_only/media_only cycles and the hourly
+  // authoritative sweep would never run again.
+  //
+  // Forces an authoritative cycle when
   // the last SUCCESSFUL FULL cycle is missing, unparseable, in the future,
   // or older than the bound. A future timestamp is treated as defective
   // rather than "very recent" — otherwise a clock skew or a corrupted
@@ -394,35 +504,65 @@ export async function decideOneCyclePreflight(now: Date = new Date()): Promise<O
     heartbeatMs > now.getTime() ||
     now.getTime() - heartbeatMs >= ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS * 1000;
   if (heartbeatExpired) {
-    return {
-      shouldRun: true,
-      reason: 'freshness_heartbeat_due',
+    return failOpenDecision(
+      'freshness_heartbeat_due',
       snapshot,
-      snapshotTrusted: true,
+      true,
       priorState,
-    };
+      ['freshness_heartbeat_expired'],
+    );
   }
 
+  // ── PLAN SELECTION ──────────────────────────────────────────────────
+  // From here the snapshot is trusted and the prior state is known, so a
+  // PARTIAL plan is legitimate. Members are selected by signal:
+  //   ModificationTimestamp moved -> the listing record changed  -> idx-sync
+  //   PhotosChangeTimestamp moved -> the photo set changed       -> media-sync
+  //   media backlog due           -> drain remaining media work  -> media-sync
+  // The backlog is unioned in rather than being its own branch: a listing-only
+  // change while a backlog is due needs BOTH members, and an earlier
+  // `if (backlogDue)` branch would have hidden that.
+  const headDelta = sourceHeadsChanged(priorState.snapshot, snapshot);
   const backlogDue = priorState.backlogPending && (
     priorState.nextBacklogRunAt === null ||
     new Date(priorState.nextBacklogRunAt).getTime() <= now.getTime()
   );
-  if (backlogDue) {
+
+  const needsIdx = headDelta.modification;
+  const needsMedia = headDelta.photos || backlogDue;
+
+  if (!needsIdx && !needsMedia) {
     return {
-      shouldRun: true,
-      reason: 'backlog_due',
+      shouldRun: false,
+      reason: 'source_unchanged_no_backlog_due',
       snapshot,
       snapshotTrusted: true,
       priorState,
+      executionPlan: 'skip',
+      headDelta,
+      planReasons: ['source_unchanged', 'no_backlog_due', 'heartbeat_fresh'],
     };
   }
 
+  const planReasons: string[] = [];
+  if (headDelta.modification) planReasons.push('modification_head_moved');
+  if (headDelta.photos) planReasons.push('photos_head_moved');
+  if (backlogDue) planReasons.push('media_backlog_due');
+
+  const executionPlan: OneCycleExecutionPlan =
+    needsIdx && needsMedia ? 'idx_then_media' : needsIdx ? 'idx_only' : 'media_only';
+
   return {
-    shouldRun: false,
-    reason: 'source_unchanged_no_backlog_due',
+    shouldRun: true,
+    // Reason preserves the existing telemetry vocabulary: any head movement is
+    // still `source_changed`; a pure backlog drain is still `backlog_due`.
+    reason: headDelta.modification || headDelta.photos ? 'source_changed' : 'backlog_due',
     snapshot,
     snapshotTrusted: true,
     priorState,
+    executionPlan,
+    headDelta,
+    planReasons,
   };
 }
 
@@ -479,12 +619,18 @@ export async function finalizeOneCyclePreflight(
     snapshot: decision.snapshot,
     ...followup,
     lastCompletedAt: now.toISOString(),
-    // Heartbeat advances ONLY on a successful, complete cycle. A partial or
-    // incomplete run must not buy another hour of silence — it carries the
-    // prior value forward (or stays null), so the next poll keeps forcing a
-    // run until the machine is genuinely healthy again.
+    // Heartbeat advances ONLY on a successful, complete AND AUTHORITATIVE
+    // cycle. A partial or incomplete run must not buy another hour of silence —
+    // it carries the prior value forward (or stays null), so the next poll keeps
+    // forcing a run until the machine is genuinely healthy again.
+    //
+    // `planIsAuthoritative` is the addition that makes partial plans safe. A
+    // successful idx_only or media_only cycle is a real success, but it did NOT
+    // run the whole machine, so it must not reset the compliance clock. Without
+    // this, one photo-only cycle per hour would satisfy the heartbeat forever
+    // and the hourly authoritative sweep would silently stop happening.
     lastSuccessfulFullCycleAt:
-      completion.success && completion.complete
+      completion.success && completion.complete && planIsAuthoritative(decision.executionPlan)
         ? now.toISOString()
         : decision.priorState?.lastSuccessfulFullCycleAt ?? null,
     lastOutcome: completion.outcome,
