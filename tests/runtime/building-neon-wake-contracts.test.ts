@@ -175,3 +175,43 @@ describe("writer invalidation contract — every building-visible writer names i
     expect(buildingInvalidationTags({ StreetNumber: "", StreetName: "Address Undisclosed" }, undefined)).toHaveLength(0);
   });
 });
+
+// ─── Writers found MISSING invalidation (review finding, 2026-08-16) ───────
+// A cache-invalidation census turned these up: each mutates publicly-visible
+// listing state and emitted NO cache tag at all. Every one was confirmed by
+// reading the route, not by trusting the census — the census itself was
+// refuted on completeness, so nothing in it was taken on faith.
+//
+// These are DEFECTS in their own right: they leave the public surface stale
+// for up to the 600s cachedPublicRead TTL today. They are also the reason no
+// cache could be converted to revalidate:false — a tag that is never emitted
+// can never expire an entry that has no TTL.
+describe("writer invalidation contract — the gaps found by the census", () => {
+  it("crm/convert: a converted lead becomes a PUBLIC listing and must invalidate", () => {
+    const src = read("app/api/crm/convert/route.ts");
+    // It creates with idx_display_yn derived from TERMINAL_STATUSES, so a
+    // non-terminal conversion is immediately publicly displayable.
+    expect(src).toContain("idx_display_yn: !TERMINAL_STATUSES.has(");
+    expect(src).toContain("safeRevalidateTags");
+    expect(src).toContain("buildingAndManifestInvalidationTags");
+    expect(src).toContain("SEARCH_CACHE_TAG");
+  });
+
+  it("idx/ensure-listing: a stub create is publicly displayable and must invalidate", () => {
+    const src = read("app/api/idx/ensure-listing/route.ts");
+    expect(src).toContain("idx_display_yn: !TERMINAL_STATUSES.has(");
+    expect(src).toContain("safeRevalidateTags");
+    expect(src).toContain("buildingAndManifestInvalidationTags");
+    expect(src).toContain("SEARCH_CACHE_TAG");
+  });
+
+  it("cron/dom-reset: days_on_market is a SEARCH-visible column and must invalidate", () => {
+    const src = read("app/api/cron/dom-reset/route.ts");
+    // days_on_market and first_active_date are both selected by the cached
+    // api-market-active read, so resetting them without a tag leaves the
+    // market surface serving pre-reset numbers.
+    expect(src).toContain("days_on_market");
+    expect(src).toContain("safeRevalidateTags");
+    expect(src).toContain("SEARCH_CACHE_TAG");
+  });
+});

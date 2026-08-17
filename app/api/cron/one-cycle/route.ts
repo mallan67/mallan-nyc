@@ -5,10 +5,8 @@ import { claimMachine } from '@/lib/idx/machine-claim';
 import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
 import type { MemberOutcome, MemberRunResult } from '@/lib/idx/idx-sync-member';
 import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
-import {
-  requiredMembersForPlan,
-  type OneCycleExecutionPlan,
-} from '@/lib/idx/one-cycle-preflight';
+import { requiredMembersForPlan } from '@/lib/idx/one-cycle-preflight';
+import { currentExecutionPlan } from '@/lib/idx/one-cycle-plan-channel';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
 // cadence, 2026-07-24) ───────────────────────────────────────────────────────
@@ -68,35 +66,6 @@ export const CYCLE_INTERVAL_MS = 600_000;
 
 /** Ordered required members (authority hierarchy: listings first, media second). */
 const MEMBER_NAMES = ['idx-sync', 'media-sync'] as const;
-
-const EXECUTION_PLANS: readonly OneCycleExecutionPlan[] = [
-  'skip',
-  'idx_only',
-  'media_only',
-  'idx_then_media',
-  'full_safety',
-];
-
-/**
- * Resolve the execution plan for this invocation.
- *
- * The preflight passes `?plan=` after comparing the two Cotality heads. Any
- * other caller — a manual GET, a re-run, an operator probe — has no plan and
- * MUST get the complete machine. Absent, unrecognised, and `skip` all resolve
- * to `full_safety`:
- *
- *   - absent/unrecognised: an unknown caller never gets a narrowed cycle.
- *   - `skip`: reaching this route at all means a run was intended, so honouring
- *     "skip" here would run ZERO members and report a vacuous success. The
- *     preflight already returns before importing this route when it skips.
- */
-function resolveExecutionPlan(req: NextRequest): OneCycleExecutionPlan {
-  const raw = req.nextUrl.searchParams.get('plan');
-  if (!raw) return 'full_safety';
-  const match = EXECUTION_PLANS.find((p) => p === raw);
-  if (!match || match === 'skip') return 'full_safety';
-  return match;
-}
 
 /** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
 const MEMBER_BUDGETS_MS: Record<string, number> = {
@@ -333,9 +302,11 @@ export async function GET(req: NextRequest) {
 
   const runId = randomUUID();
 
-  // WHICH members this cycle is responsible for. Resolved before the claim so it
-  // is available to every downstream branch, including the response body.
-  const executionPlan = resolveExecutionPlan(req);
+  // WHICH members this cycle is responsible for. Read from the INTERNAL plan
+  // channel, never from the request — see lib/idx/one-cycle-plan-channel.ts.
+  // Any caller outside the preflight's scope gets `full_safety`, so a direct
+  // HTTP request can never narrow the cycle or suppress a member.
+  const executionPlan = currentExecutionPlan();
 
   // Budget config validation — FAIL CLOSED before taking a claim or starting any
   // member. An invalid ONE_CYCLE_BUDGET_MS_* override must never silently force

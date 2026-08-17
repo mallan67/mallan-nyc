@@ -6,6 +6,12 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadAccess } from "@/lib/crm/access";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import {
+  buildingAndManifestInvalidationTags,
+  listingCacheTag,
+  safeRevalidateTags,
+  SEARCH_CACHE_TAG,
+} from "@/lib/cache/public-cache";
 
 const VALID_ACTIONS = [
   "promote_to_listing",
@@ -230,6 +236,22 @@ async function handlePromoteToListing(
       internet_address_display_yn: true,
     },
   });
+
+  // MISSING INVALIDATION, fixed 2026-08-16. This create sets
+  // `idx_display_yn: !TERMINAL_STATUSES.has(...)` plus both internet-display
+  // gates, so a non-terminal conversion is IMMEDIATELY publicly displayable and
+  // satisfies the building-manifest and search predicates — yet the route
+  // emitted no cache tag, leaving the new listing invisible on cached public
+  // surfaces until the 600s TTL lapsed.
+  //
+  // An insert has no previous address, so the helper is called with the new
+  // address alone; it is null-safe on the missing side and yields one building
+  // tag plus that address's manifest shard.
+  safeRevalidateTags([
+    listingCacheTag(generatedListingId),
+    ...buildingAndManifestInvalidationTags(addressJson),
+    SEARCH_CACHE_TAG,
+  ]);
 
   // H1 Tier-1 dual-write — lib/idx/sync.ts is the only listing-writer that
   // shares this pattern natively; non-sync writers (this route + 4 others)

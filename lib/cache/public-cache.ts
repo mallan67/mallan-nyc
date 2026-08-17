@@ -42,6 +42,61 @@ import { unstable_cache, revalidateTag } from "next/cache";
  */
 export const SYNC_CADENCE_SECONDS = 10 * 60;
 
+/**
+ * ── PUBLIC CACHE CLASSIFICATION (2026-08-16) ────────────────────────────────
+ *
+ * Every `cachedPublicRead` entry is classified EVENT_DRIVEN_SAFE (may drop its
+ * TTL and rely purely on writer-driven tag invalidation) or
+ * EXPLICIT_TTL_REQUIRED (must retain a finite TTL).
+ *
+ * CURRENT STATE: **every entry is EXPLICIT_TTL_REQUIRED.** That is a status,
+ * not a verdict — each has a NAMED condition that would move it. Three
+ * distinct reasons, and they need different fixes:
+ *
+ * 1. INVALIDATION COVERAGE — fixable, partly fixed.
+ *    A tag that no writer emits can never expire an entry that has no TTL.
+ *    Three writers were found emitting nothing at all and are fixed in this
+ *    change: app/api/crm/convert (creates a displayable listing),
+ *    app/api/idx/ensure-listing (same), app/api/cron/dom-reset (writes
+ *    search-visible days_on_market / first_active_date).
+ *    STILL OPEN: the writer census that found them was refuted on
+ *    completeness by independent verification, so the inventory is NOT proven
+ *    exhaustive. Candidates named but not yet individually verified include
+ *    app/api/crm/listings/reset-sync, the CRM media reorder/delete/upload
+ *    routes, and app/api/crm/sales/comps. Until a complete writer inventory
+ *    exists, no entry can be certified.
+ *
+ * 2. TIME DEPENDENCE INSIDE THE CACHED FUNCTION — genuinely TTL-requiring.
+ *    These are correct as EXPLICIT_TTL_REQUIRED permanently, unless the
+ *    time-dependence is lifted out of the cached body:
+ *      - app/api/market: `periodStart` is derived from `new Date()` INSIDE the
+ *        cached predicates and the key carries only the period LABEL
+ *        ('30d'/'90d'/'1y'). Without a TTL the rolling window freezes at the
+ *        date of first assembly. Fixable only by keying on the RESOLVED
+ *        boundary date, which changes the cache key contract.
+ *      - lib/buildings/public-building-data `_compliance.attribution` embeds
+ *        a formatted current date inside the cached payload, so the
+ *        user-facing "data last updated" string freezes with the entry.
+ *
+ * 3. STRUCTURAL — disjoint nested tag sets.
+ *    `buildBuildingPayload` is cached under the building tag while internally
+ *    awaiting `getBuildingManifestShard`, cached under the manifest-shard
+ *    tags. The two sets do not intersect, so a correct shard invalidation does
+ *    NOT invalidate the outer payload. Today only the outer TTL reconciles the
+ *    layers; removing it would let a building page serve a stale manifest
+ *    indefinitely. Fixable by having the outer entry carry the shard tag.
+ *
+ * SPECIAL CASE — lib/geo/geocode.ts: `GEOCODE_MANIFEST_TAG` has ZERO
+ * production writers (verified: it appears only at its own definition and its
+ * own reader). Meanwhile the data-retention cron deletes geocode_cache rows
+ * and scripts/batch-geocode.js upserts them, neither revalidating anything.
+ * This entry is EXPLICIT_TTL_REQUIRED with no event-driven path at all until a
+ * writer emits that tag.
+ *
+ * DO NOT convert any entry to `revalidate: false` on the strength of this
+ * comment. Conversion requires the complete writer inventory from reason 1.
+ */
+
 /** Coarse tag bumped once per sync run when ANYTHING changed — covers search/
  *  browse/collection surfaces (home, /search, borough + neighborhood pages). */
 export const SEARCH_CACHE_TAG = "search";

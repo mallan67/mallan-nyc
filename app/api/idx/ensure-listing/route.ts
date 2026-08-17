@@ -12,6 +12,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import {
+  buildingAndManifestInvalidationTags,
+  listingCacheTag,
+  safeRevalidateTags,
+  SEARCH_CACHE_TAG,
+} from "@/lib/cache/public-cache";
 import type { Prisma } from "@prisma/client";
 import { affirmPermission } from "@/lib/compliance/gates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -179,6 +185,23 @@ export async function POST(req: NextRequest) {
         sync_status: "pending",
       },
     });
+
+    // MISSING INVALIDATION, fixed 2026-08-16. This stub is created with
+    // `idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus)`, so a
+    // non-terminal create is immediately publicly displayable and satisfies the
+    // building-manifest and search predicates — yet the route emitted no cache
+    // tag, leaving the row invisible on cached public surfaces until the 600s
+    // TTL lapsed.
+    //
+    // Insert, so there is no previous address: the helper is null-safe on the
+    // missing side and yields one building tag plus that address's manifest
+    // shard. `safeRevalidateTags` never throws, so it cannot fail a create that
+    // has already committed.
+    safeRevalidateTags([
+      listingCacheTag(trimmedId),
+      ...buildingAndManifestInvalidationTags(addressJson),
+      SEARCH_CACHE_TAG,
+    ]);
 
     await logAuditEvent(
       "create",

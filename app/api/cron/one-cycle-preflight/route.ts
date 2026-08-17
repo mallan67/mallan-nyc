@@ -5,6 +5,7 @@ import {
   finalizeOneCyclePreflight,
   type OneCycleCompletionInput,
 } from '@/lib/idx/one-cycle-preflight';
+import { runWithExecutionPlan } from '@/lib/idx/one-cycle-plan-channel';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -102,15 +103,11 @@ export async function GET(req: NextRequest) {
   // Dynamic by design: the skip path must not evaluate the Prisma-backed route.
   const { GET: runOneCycle } = await import('@/app/api/cron/one-cycle/route');
 
-  // Carry the plan on the URL. One Cycle treats an absent or unrecognised plan
-  // as `full_safety`, so a manual GET of that route is unaffected by this and
-  // still runs the complete machine. Headers are copied verbatim because the
-  // route authorises on the `authorization` header alone.
-  const cycleUrl = new URL(req.nextUrl.toString());
-  cycleUrl.searchParams.set('plan', decision.executionPlan);
-  const response = await runOneCycle(
-    new NextRequest(cycleUrl, { method: 'GET', headers: req.headers }),
-  );
+  // The plan travels through an INTERNAL async-context channel, never on the
+  // request. It was previously a `?plan=` query parameter, which made member
+  // selection caller-supplied — anything reaching One Cycle could have asked it
+  // to skip a member. Outside this scope One Cycle reads `full_safety`.
+  const response = await runWithExecutionPlan(decision.executionPlan, () => runOneCycle(req));
   try {
     const body = await response.clone().json();
     const completion = completionFromBody(body);

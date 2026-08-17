@@ -629,7 +629,7 @@ async function getCachedManifestPage(
       // coarse `search` tag is deliberately ABSENT (it used to expire all
       // nine shards on any listing change anywhere). BUILDING_MANIFEST_TAG
       // remains as the rare full-purge handle. Changes with no address
-      // context (media-sync hero/summary updates) ride the 30-min fallback
+      // context (media-sync hero/summary updates) ride the 10-min fallback
       // window — same stance as building payloads for media-only changes.
       { tags: [BUILDING_MANIFEST_TAG, manifestShardTag(shard)] },
     )(shard, cursor);
@@ -1167,7 +1167,7 @@ export type PublicBuildingPayload = Awaited<ReturnType<typeof buildBuildingPaylo
  * Shared cached accessor — the ONLY entry point for public building data.
  * Tagged with the canonical building tag (sync-invalidated when a listing at
  * this building materially changes → its building tag is revalidated by One
- * Cycle); 30-min sync-cadence fallback window. Deliberately NO coarse tag.
+ * Cycle); 10-min sync-cadence fallback window. Deliberately NO coarse tag.
  */
 export async function getBuildingDataCached(params: {
   streetNumber: string;
@@ -1186,7 +1186,7 @@ export async function getBuildingDataCached(params: {
       // search tag would expire EVERY building on EVERY sync that changed any
       // listing, recreating the crawler wake pattern. Sync now revalidates
       // the exact building tags it materially changed (buildingTagFromAddress
-      // in lib/idx/sync.ts); everything else stays cached, with the 30-min
+      // in lib/idx/sync.ts); everything else stays cached, with the 10-min
       // fallback as the safety net (media-JSON-only changes ride the fallback).
       tags: [buildingCacheTag(streetNumber, streetName, postalCode ?? undefined)],
     },

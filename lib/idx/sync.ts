@@ -453,25 +453,29 @@ export interface SyncResult {
  * probe under a global invalidation would live-fill every never-warmed
  * shard, recreating broad scheduled reads under the name "canary").
  */
-const SYNC_NOTES_WARMED_SHARDS_KEY = "manifest_warmed_shards";
-
-export function serializeWarmedShardsToNotes(shards: readonly string[]): string {
-  return JSON.stringify({ [SYNC_NOTES_WARMED_SHARDS_KEY]: [...shards] });
-}
-
-/** Fail-quiet parse: missing/malformed/legacy notes → [] (probe nothing —
- *  the canary is an instrument, never a warm). */
-export function parseWarmedShardsFromNotes(notes: string | null | undefined): string[] {
-  if (!notes) return [];
-  try {
-    const parsed = JSON.parse(notes) as Record<string, unknown>;
-    const shards = parsed?.[SYNC_NOTES_WARMED_SHARDS_KEY];
-    if (!Array.isArray(shards)) return [];
-    return shards.filter((s): s is string => typeof s === "string" && s.length > 0);
-  } catch {
-    return [];
-  }
-}
+// REVIEW FINDING (2026-08-16) — the `manifest_warmed_shards` notes key and its
+// two helpers are REMOVED, not renamed.
+//
+// They existed so the next run's persistence canary knew which shards to probe.
+// With the scheduled warm and canary gone (see the two TASK 2 blocks), the key
+// asserted something that never happened: those shards were INVALIDATED, not
+// warmed. Persisting a false claim is worse than persisting nothing.
+//
+// CENSUS BEFORE REMOVAL (required by review, recorded here so it is auditable):
+//   - writers of SyncState.notes for resource "Property": exactly ONE, the
+//     upsert in this file. No other writer anywhere in app/, lib/ or scripts/.
+//   - production readers of the notes CONTENT: ZERO. `parseWarmedShardsFromNotes`
+//     had no caller left; scripts/health/probe.ts reads the row but uses only
+//     last_run_at / last_run_status / rows_with_errors; the other two
+//     syncState.findUnique calls in this file select specific columns and not
+//     `notes`.
+//   - unrelated data in `notes`: NONE. The single writer stringified a
+//     single-key object, so there is nothing else to preserve. This is why the
+//     field can be nulled rather than read-modify-written — merging would need
+//     an extra Neon read per run, which is the exact cost TASK 2 removes.
+//
+// The shard attribution is NOT lost: it remains in the durable idx_sync audit
+// event as `affected_manifest_shards`, where it is a true statement.
 
 /**
  * ONE owner for "a publicly-visible listing change happened — expire what
@@ -1520,10 +1524,6 @@ export async function syncListings(
     if (watermarkFrozen) {
       advanceWatermark = false;
     }
-    // The shards this run is ABOUT to warm (the warm block below runs only
-    // when errors === 0). Persisted in `notes` so the NEXT run's canary
-    // probes exactly this set — see parseWarmedShardsFromNotes.
-    const shardsToRecord = errors === 0 ? [...affectedManifestShards].sort() : [];
     await prisma.syncState.upsert({
       where: { resource: "Property" },
       create: {
@@ -1549,7 +1549,10 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: serializeWarmedShardsToNotes(shardsToRecord),
+        // Cleared, not omitted: rows already carrying the obsolete
+        // `manifest_warmed_shards` claim must stop asserting it. See the
+        // census above this file's SyncState helpers.
+        notes: null,
       },
       update: {
         // Watermark and tie-breaker move together or not at all — a timestamp
@@ -1564,7 +1567,10 @@ export async function syncListings(
         rows_upserted: upserted,
         rows_skipped_by_gate: skippedGates,
         rows_with_errors: errors,
-        notes: serializeWarmedShardsToNotes(shardsToRecord),
+        // Cleared, not omitted: rows already carrying the obsolete
+        // `manifest_warmed_shards` claim must stop asserting it. See the
+        // census above this file's SyncState helpers.
+        notes: null,
       },
     });
   } catch (err) {

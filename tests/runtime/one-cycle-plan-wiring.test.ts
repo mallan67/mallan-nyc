@@ -1,15 +1,19 @@
 /// <reference types="jest" />
 /**
- * TASK 1 SEAM — the execution plan must actually REACH One Cycle.
+ * TASK 1 SEAM — the execution plan must reach One Cycle WITHOUT being
+ * caller-controllable.
  *
- * lib/idx/one-cycle-preflight.ts decides the plan and tests/runtime/
- * one-cycle-execution-plan.test.ts proves that decision. This file proves the
- * other half: that the preflight route forwards the plan across the dynamic
- * import boundary, so One Cycle can select members from it.
+ * REVIEW FINDING (2026-08-16), corrected here. The first implementation carried
+ * the plan as `?plan=` on the forwarded request. Even though the route requires
+ * the cron bearer token, that made member selection a CALLER-SUPPLIED input:
+ * anything able to reach the route could ask for a narrowed cycle, and a
+ * narrowed cycle silently skips a member. Trusted internal state must not make
+ * a round trip through an untrusted-shaped surface.
  *
- * Without this the decision is inert — the preflight would compute `media_only`
- * and One Cycle would still run the whole machine, and every unit test would
- * still pass.
+ * The plan now travels through an AsyncLocalStorage channel that only the
+ * preflight can set, and it FAILS CLOSED: any caller outside the channel —
+ * every direct HTTP request, including one that still passes `?plan=` — gets
+ * `full_safety`, the complete machine.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import type {
@@ -18,14 +22,24 @@ import type {
   OneCycleExecutionPlan,
   SourceSnapshot,
 } from '@/lib/idx/one-cycle-preflight';
+import {
+  currentExecutionPlan,
+  runWithExecutionPlan,
+} from '@/lib/idx/one-cycle-plan-channel';
+
+/** The plan visible INSIDE One Cycle at the moment it is invoked. */
+let observedPlan: OneCycleExecutionPlan | null = null;
 
 const runOneCycle: jest.MockedFunction<(req: NextRequest) => Promise<NextResponse>> = jest.fn(
-  async (_req: NextRequest) => NextResponse.json({
-    success: true,
-    complete: true,
-    outcome: 'success',
-    members: [{ member: 'media-sync', status: 'ok', summary: { backlog_remaining: 0 } }],
-  }),
+  async (_req: NextRequest) => {
+    observedPlan = currentExecutionPlan();
+    return NextResponse.json({
+      success: true,
+      complete: true,
+      outcome: 'success',
+      members: [{ member: 'media-sync', status: 'ok', summary: { backlog_remaining: 0 } }],
+    });
+  },
 );
 const decidePreflight: jest.MockedFunction<(now?: Date) => Promise<OneCyclePreflightDecision>> = jest.fn();
 const finalizePreflight = jest.fn(async () => undefined);
@@ -33,14 +47,18 @@ const finalizePreflight = jest.fn(async () => undefined);
 jest.mock('@/app/api/cron/one-cycle/route', () => ({
   GET: (req: NextRequest) => runOneCycle(req),
 }));
-jest.mock('@/lib/idx/one-cycle-preflight', () => ({
-  decideOneCyclePreflight: (now?: Date) => decidePreflight(now),
-  finalizeOneCyclePreflight: (
-    _decision: OneCyclePreflightDecision,
-    _completion: OneCycleCompletionInput,
-    _now?: Date,
-  ) => finalizePreflight(),
-}));
+jest.mock('@/lib/idx/one-cycle-preflight', () => {
+  const actual = jest.requireActual('@/lib/idx/one-cycle-preflight');
+  return {
+    ...actual,
+    decideOneCyclePreflight: (now?: Date) => decidePreflight(now),
+    finalizeOneCyclePreflight: (
+      _decision: OneCyclePreflightDecision,
+      _completion: OneCycleCompletionInput,
+      _now?: Date,
+    ) => finalizePreflight(),
+  };
+});
 
 process.env.CRON_SECRET = 'unit-secret';
 const AUTH = 'Bearer unit-secret';
@@ -54,10 +72,8 @@ const snapshot: SourceSnapshot = {
   capturedAt: '2026-08-02T06:56:00.000Z',
 };
 
-const makeReq = () =>
-  new NextRequest('https://mallan.nyc/api/cron/one-cycle-preflight', {
-    headers: { authorization: AUTH },
-  });
+const makeReq = (url = 'https://mallan.nyc/api/cron/one-cycle-preflight') =>
+  new NextRequest(url, { headers: { authorization: AUTH } });
 
 function decisionFor(plan: OneCycleExecutionPlan): OneCyclePreflightDecision {
   return {
@@ -72,43 +88,72 @@ function decisionFor(plan: OneCycleExecutionPlan): OneCyclePreflightDecision {
   };
 }
 
-/** The plan One Cycle actually received, read off the forwarded request. */
-function forwardedPlan(): string | null {
-  const req = runOneCycle.mock.calls[0]?.[0];
-  return req ? req.nextUrl.searchParams.get('plan') : null;
-}
-
 beforeEach(() => {
   runOneCycle.mockClear();
   decidePreflight.mockReset();
   finalizePreflight.mockClear();
+  observedPlan = null;
 });
 
-describe('execution plan reaches One Cycle', () => {
+describe('the plan channel fails closed', () => {
+  it('reports full_safety outside any channel scope', () => {
+    // This is the guarantee for every direct HTTP caller of One Cycle.
+    expect(currentExecutionPlan()).toBe('full_safety');
+  });
+
+  it('reports the scoped plan inside the channel, and restores afterwards', async () => {
+    const inside = await runWithExecutionPlan('media_only', async () => currentExecutionPlan());
+    expect(inside).toBe('media_only');
+    expect(currentExecutionPlan()).toBe('full_safety');
+  });
+
+  it('never lets a caller narrow the cycle to skip', async () => {
+    // Reaching One Cycle at all means a run was intended. Honouring "skip"
+    // there would run zero members and report a vacuous success.
+    const inside = await runWithExecutionPlan('skip', async () => currentExecutionPlan());
+    expect(inside).toBe('full_safety');
+  });
+});
+
+describe('execution plan reaches One Cycle internally', () => {
   it.each<OneCycleExecutionPlan>(['idx_only', 'media_only', 'idx_then_media', 'full_safety'])(
-    'forwards %s across the dynamic import boundary',
+    'delivers %s through the channel, not the URL',
     async (plan) => {
       decidePreflight.mockResolvedValue(decisionFor(plan));
 
       await GET(makeReq());
 
       expect(runOneCycle).toHaveBeenCalledTimes(1);
-      expect(forwardedPlan()).toBe(plan);
+      expect(observedPlan).toBe(plan);
+      // The plan must NOT appear as a request parameter.
+      expect(runOneCycle.mock.calls[0][0].nextUrl.searchParams.get('plan')).toBeNull();
     },
   );
+
+  it('ignores a caller-supplied ?plan= entirely', async () => {
+    // The attack shape: a caller that reaches the preflight with its own plan
+    // must not influence member selection. The preflight's decision wins, and
+    // the parameter is never read.
+    decidePreflight.mockResolvedValue(decisionFor('idx_then_media'));
+
+    await GET(makeReq('https://mallan.nyc/api/cron/one-cycle-preflight?plan=media_only'));
+
+    expect(observedPlan).toBe('idx_then_media');
+  });
 
   it('preserves the authorization header on the forwarded request', async () => {
     decidePreflight.mockResolvedValue(decisionFor('media_only'));
 
     await GET(makeReq());
 
-    // One Cycle authorises on this header alone. Rebuilding the request to add
-    // the query param must not drop it, or every planned cycle 401s.
     expect(runOneCycle.mock.calls[0][0].headers.get('authorization')).toBe(AUTH);
   });
 
   it('never invokes One Cycle at all when the plan is skip', async () => {
-    decidePreflight.mockResolvedValue({ ...decisionFor('skip'), reason: 'source_unchanged_no_backlog_due' });
+    decidePreflight.mockResolvedValue({
+      ...decisionFor('skip'),
+      reason: 'source_unchanged_no_backlog_due',
+    });
 
     const response = await GET(makeReq());
     const body = await response.json();

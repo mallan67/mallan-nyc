@@ -505,7 +505,7 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
     expect(mockWarm).not.toHaveBeenCalled();
   });
 
-  it("still records this run's affected shards in SyncState notes", async () => {
+  it("writes no obsolete 'warmed shards' claim into SyncState notes", async () => {
     const raw = rawRecord();
     const state: StoredState = {
       listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
@@ -520,11 +520,30 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
     await syncListings({ fullSync: true, maxRecords: 10 });
 
     const upsertArg = mockSyncStateUpsert.mock.calls[0][0] as {
-      update: { notes?: string };
-      create: { notes?: string };
+      update: { notes?: string | null };
+      create: { notes?: string | null };
     };
-    expect(JSON.parse(upsertArg.update.notes!)).toEqual({ manifest_warmed_shards: ["4"] });
-    expect(JSON.parse(upsertArg.create.notes!)).toEqual({ manifest_warmed_shards: ["4"] });
+
+    // REVIEW FINDING (2026-08-16). `notes` used to persist
+    // `{"manifest_warmed_shards":[...]}` so the NEXT run's canary knew what to
+    // probe. With the scheduled warm and canary removed, that key asserts
+    // something that never happened — shards were INVALIDATED, not warmed.
+    //
+    // The write is dropped rather than renamed: a census found exactly one
+    // writer of this field and ZERO production readers of its content, and the
+    // shard attribution is already durable in the idx_sync audit event
+    // (`affected_manifest_shards`), so the copy was redundant as well as false.
+    //
+    // Written as null rather than omitted so the stale claim does not survive
+    // in rows already carrying it.
+    expect(upsertArg.update.notes).toBeNull();
+    expect(upsertArg.create.notes).toBeNull();
+
+    // The attribution itself must still exist — in the audit, where it is true.
+    const auditCall = mockAuditCreate.mock.calls.find(
+      (c) => (c[0] as { data: { action: string } }).data.action === "idx_sync",
+    );
+    expect(auditCall).toBeDefined();
   });
 });
 
