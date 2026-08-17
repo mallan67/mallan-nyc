@@ -6,7 +6,15 @@
 // If not, creates a minimal record from the IDX search data provided in the body.
 //
 // Auth: agent or broker session required.
-// The listing is marked rls_eligible=false (external IDX listing, not our exclusive).
+//
+// SOURCE IDENTITY: the row is marked `rls_eligible = true`, because it IS an
+// RLS/Trestle-sourced listing. This header previously said `false` and the code
+// wrote `false`; both were wrong. Under the canonical contract
+// (lib/listings/mallan-source-identity.ts) `rls_eligible === false` marks a
+// MALLAN-AUTHORED local row and feeds `isMallanExclusiveListing`, which governs
+// data/media authority — so the old value made an external stub claim Mallan
+// provenance and take the unconditional "all_active" R2 mirror branch. See the
+// full impact note at the `rls_eligible` write below.
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";

@@ -4,6 +4,7 @@ import Link from 'next/link';
 // `redirect` (307) is deliberately NOT imported: every redirect this route
 // performs is a canonicalization, and canonicalization is permanent (308).
 import { notFound, permanentRedirect } from 'next/navigation';
+import { isPubliclyRetrievableStatus } from '@/lib/compliance/status';
 import { isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
 import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
@@ -913,6 +914,28 @@ export default async function ListingPage({ params }: Props) {
   }
 
   const listing = result.listing;
+
+  // PUBLICATION ELIGIBILITY — creation is not publication.
+  //
+  // The DB where-clause of this fetch already enforces the DISTRIBUTION gates
+  // (idx_display_yn / owner opt-out / participant-only / internet display), so
+  // only the STATUS half is applied here; calling the combined
+  // `isListingPubliclyRetrievable` would re-evaluate gate columns this select
+  // does not carry, and a missing column would fail closed to 404 on EVERY
+  // listing.
+  //
+  // What this closes: `crm/convert` creates a Mallan listing as `Draft` with
+  // `idx_display_yn: true`, because Draft is not TERMINAL and the gate helper
+  // only excludes terminal statuses. Draft is not in the canonical `Status`
+  // vocabulary at all, so the row was absent from search yet reachable at this
+  // URL. Per MALLAN-PLATFORM-MASTER-PLAN §4.1/§4.2/§5.1 a Mallan-created
+  // listing is canonical-and-PRIVATE until it is publication-eligible.
+  //
+  // Deliberately NOT `isActiveDisplayStatus`: that is public SEARCH membership
+  // and excludes `Pending`, which this page intentionally serves.
+  if (!isPubliclyRetrievableStatus(listing.status)) {
+    notFound();
+  }
 
   // Twin-safe open-house key (street+unit+ZIP), non-empty ONLY for Mallan-owned LOCAL exclusives
   // (SL-/RL-): lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that /api/open-houses

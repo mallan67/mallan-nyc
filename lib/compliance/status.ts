@@ -183,6 +183,42 @@ export function isComingSoonStatus(status: unknown): boolean {
   return normalizeStatus(status) === Status.COMING_SOON;
 }
 
+/**
+ * Is this status one a listing may be PUBLICLY RETRIEVED under at its detail
+ * URL? Deliberately BROADER than {@link isActiveDisplayStatus}, which answers a
+ * different question — public SEARCH membership.
+ *
+ * WHY THE TWO DIFFER, AND WHY THAT IS CORRECT
+ *
+ * `Pending` is intentionally absent from search (a signed-contract listing
+ * should not compete in results) while remaining reachable at its own URL, and
+ * production carries thousands of such rows. Collapsing detail onto the search
+ * set would remove them all. Terminal statuses are already excluded upstream by
+ * the `idx_display_yn` gate, which `computeGateColumns` derives from
+ * TERMINAL_STATUSES — this helper does not duplicate that.
+ *
+ * WHAT IT ACTUALLY CLOSES
+ *
+ * The MALLAN-PLATFORM-MASTER-PLAN separates SOURCE from AUTHORITY/VISIBILITY
+ * (§4.1) and states that a listing created inside Mallan "remains Mallan's
+ * canonical editable listing" (§4.2) — creation is not publication. Public
+ * inventory is scoped to ELIGIBLE listings (§5.1).
+ *
+ * `Draft` is a Mallan pre-publication workspace value. It is NOT in the
+ * canonical `Status` vocabulary at all, so `normalizeStatus` fails closed to
+ * null for it — while `normalizeStandardStatus` passes it through and
+ * TERMINAL_STATUSES does not contain it, which is exactly how a Draft ended up
+ * with `idx_display_yn: true` and became publicly retrievable.
+ *
+ * So the rule is simply: the status must be a RECOGNISED canonical status. That
+ * closes the Draft leak using the existing vocabulary, without inventing a
+ * parallel status system and without altering any status that is canonical
+ * today.
+ */
+export function isPubliclyRetrievableStatus(status: unknown): boolean {
+  return normalizeStatus(status) !== null;
+}
+
 /** The canonical set of values that should be used in DB `status` filters. */
 export const ACTIVE_DISPLAY_VALUES: readonly StatusValue[] = Object.freeze([
   Status.ACTIVE,

@@ -15,26 +15,34 @@
  *   LISTING DETAIL   filters on idx_display_yn WITHOUT any status check
  *                    -> a Draft is REACHABLE at its public URL.
  *
- * So a Mallan pre-publication workspace row is absent from search but servable
- * as a public page. That is a publication/compliance defect, and it is
- * PRE-EXISTING — not introduced by this branch.
+ * So a Mallan pre-publication workspace row was absent from search but servable
+ * as a public page. The defect was PRE-EXISTING, not introduced by this branch.
  *
- * WHY IT IS NOT "FIXED" HERE
+ * HOW IT IS RESOLVED — and why not with the obvious fix
  *
- * The obvious repair — gate listing detail on ACTIVE_DISPLAY_STATUSES — is
- * wrong. That set deliberately excludes `Pending`, and production carries
- * ~6.2k Pending rows with idx_display_yn true that the detail page is intended
- * to serve. Applying it would 404 all of them. The correct fix needs a
- * publication rule that separates "Mallan pre-publication workspace state" from
- * "non-active but still publicly servable", which is a display-gate decision on
- * a compliance surface and belongs to Maya, not to this branch.
+ * Gating detail on ACTIVE_DISPLAY_STATUSES would be wrong: that set excludes
+ * `Pending`, and production carries thousands of Pending rows the detail page
+ * intentionally serves. It would 404 all of them.
  *
- * These tests pin the CURRENT behaviour so the contradiction cannot drift
- * silently, and so the eventual fix has a failing test to flip.
+ * The rule is instead derived from authority already in the repo:
+ *
+ *   MALLAN-PLATFORM-MASTER-PLAN §4.1 separates SOURCE from
+ *   AUTHORITY/VISIBILITY; §4.2 says a listing created inside Mallan "remains
+ *   Mallan's canonical editable listing"; §5.1 scopes public inventory to
+ *   ELIGIBLE listings. Creation is not publication.
+ *
+ * and from the canonical status vocabulary: `Draft` is NOT a member of `Status`
+ * at all, so `normalizeStatus` already fails closed to null for it — while
+ * `normalizeStandardStatus` passes it through and TERMINAL_STATUSES does not
+ * contain it, which is exactly how it acquired `idx_display_yn: true`.
+ *
+ * So public-detail eligibility is "the status is a recognised canonical
+ * status", expressed once as `isPubliclyRetrievableStatus` and consumed by the
+ * detail route. Draft closes; every canonical status is untouched.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { isActiveDisplayStatus } from '@/lib/compliance/status';
+import { isActiveDisplayStatus, isPubliclyRetrievableStatus } from '@/lib/compliance/status';
 
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -88,13 +96,40 @@ describe('ensure-listing invalidates only on real public membership', () => {
   });
 });
 
-describe('KNOWN GAP — escalated, deliberately not repaired on this branch', () => {
-  it('public listing detail still filters on idx_display_yn without a status check', () => {
-    // Pinning the defect. When Maya authorizes the publication rule, this
-    // assertion is the one to flip.
+describe('CLOSED — public detail now enforces publication eligibility', () => {
+  it('Draft is not publicly retrievable; Pending and canonical statuses still are', () => {
+    // The canonical rule, derived from the master plan rather than invented:
+    // a Mallan-created listing is canonical-and-private until it is
+    // publication-eligible, and `Draft` is not in the canonical Status
+    // vocabulary at all.
+    expect(isPubliclyRetrievableStatus('Draft')).toBe(false);
+
+    // Everything canonical is unchanged — this is the narrowness proof.
+    for (const s of ['Active', 'ComingSoon', 'ActiveUnderContract', 'Pending', 'Closed', 'Withdrawn']) {
+      expect(isPubliclyRetrievableStatus(s)).toBe(true);
+    }
+  });
+
+  it('Pending is retrievable at detail but still absent from search', () => {
+    // The exact distinction that made reusing the search set the wrong fix.
+    expect(isPubliclyRetrievableStatus('Pending')).toBe(true);
+    expect(isActiveDisplayStatus('Pending')).toBe(false);
+  });
+
+  it('the detail route calls the canonical helper and 404s a non-public status', () => {
     const page = read('app/listing/[...slug]/page.tsx');
-    expect(page).toContain('idx_display_yn: true');
-    expect(page).not.toContain('ACTIVE_DISPLAY_VALUES');
-    expect(page).not.toContain('isActiveDisplayStatus');
+    expect(page).toContain('isPubliclyRetrievableStatus(listing.status)');
+    expect(page).toContain('notFound();');
+    // It must NOT have adopted the search-status set, which would 404 Pending.
+    // Checked as a CALL, not a bare substring — the page's comment names the
+    // helper precisely to explain why it is not used.
+    expect(page).not.toContain('isActiveDisplayStatus(');
+  });
+
+  it('unknown / garbage statuses fail closed', () => {
+    expect(isPubliclyRetrievableStatus('')).toBe(false);
+    expect(isPubliclyRetrievableStatus(null)).toBe(false);
+    expect(isPubliclyRetrievableStatus(undefined)).toBe(false);
+    expect(isPubliclyRetrievableStatus('NotAStatus')).toBe(false);
   });
 });

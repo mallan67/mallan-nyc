@@ -1,3 +1,4 @@
+import { isPubliclyRetrievableStatus } from '@/lib/compliance/status';
 import type { Prisma } from "@prisma/client";
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import {
@@ -153,4 +154,32 @@ export function isListingDisplayable(input: PermissionInput): boolean {
 
 export function canDisplayListingAddress(input: PermissionInput): boolean {
   return isAddressDisplayable(input);
+}
+
+/**
+ * THE canonical answer to "may this listing be served at its PUBLIC DETAIL
+ * URL?". One helper, so status checks are not spread across routes.
+ *
+ * Two independent conditions, both required:
+ *
+ *   1. PUBLICATION ELIGIBILITY — the status must be a recognised canonical
+ *      status. This is what keeps a Mallan `Draft` private: creation is not
+ *      publication (MALLAN-PLATFORM-MASTER-PLAN §4.1/§4.2/§5.1), and `Draft`
+ *      is not in the canonical Status vocabulary, so it fails closed here.
+ *      Deliberately NOT `isActiveDisplayStatus` — that is public SEARCH
+ *      membership, and it excludes `Pending`, which detail intentionally serves.
+ *
+ *   2. THE DISTRIBUTION GATES — unchanged, and still the authority on
+ *      idx_display_yn / owner opt-out / participant-only / internet-display.
+ *      Terminal statuses are already handled there via idx_display_yn.
+ *
+ * `isListingDisplayable` is left exactly as it was: it answers the gate
+ * question for the portal and other authenticated consumers, which legitimately
+ * see pre-publication rows.
+ */
+export function isListingPubliclyRetrievable(
+  input: PermissionInput & { status?: unknown },
+): boolean {
+  if (!isPubliclyRetrievableStatus(input.status)) return false;
+  return isListingDisplayable(input);
 }
