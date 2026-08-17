@@ -52,27 +52,32 @@ describe("thin pure-read building route + direct page accessor", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("warm clustering is wired: sync warms ONLY the affected shards, only on a fully successful run, after the SyncState upsert", () => {
+  it("the scheduled sync performs NO manifest warm and NO persistence probe", () => {
+    // TASK 2 (2026-08-16) — CONTRACT REVERSED. This assertion used to require
+    // the warm and the canary to be wired INTO the scheduled sync. Both are now
+    // removed: they were Neon reads taken on the cron's behalf, and the warm
+    // re-read exactly the shard pages the same request had just invalidated.
+    //
+    // Kept as a source-level guard, deliberately, because this is an
+    // ABSENCE contract. The behavioural proof that the scheduled path no longer
+    // warms or probes lives in sync-change-attribution-behavior.test.ts, which
+    // mocks both functions and asserts they are never invoked. This test exists
+    // to stop the call sites being reintroduced textually — including via the
+    // all-shard default form, which was the original regression risk.
     const sync = read("lib/idx/sync.ts");
-    // Scope B (2026-07-24): the warm call passes the affected-shard set —
-    // a bare warmBuildingManifestShards() (all-shard default) must NOT
-    // reappear in sync.
+    expect(sync).not.toContain("await warmBuildingManifestShards(");
     expect(sync).not.toContain("warmBuildingManifestShards()");
-    const warmIdx = sync.indexOf("warmBuildingManifestShards(sortedAffectedShards)");
-    const upsertIdx = sync.indexOf("prisma.syncState.upsert");
-    expect(warmIdx).toBeGreaterThan(-1);
-    expect(upsertIdx).toBeGreaterThan(-1);
-    expect(warmIdx).toBeGreaterThan(upsertIdx); // after feed state is committed
-    const guardIdx = sync.lastIndexOf("if (errors === 0 && sortedAffectedShards.length > 0)", warmIdx);
-    expect(guardIdx).toBeGreaterThan(upsertIdx); // full success + shards actually affected
-    // Scope A: the persistence canary runs at run START — before the fetch
-    // and before any tag revalidation in the request — and probes ONLY the
-    // previously-warmed shard set (never the all-shard default).
-    expect(sync).not.toContain("await probeManifestPersistence()");
-    const canaryIdx = sync.indexOf("await probeManifestPersistence(prevWarmedShards)");
-    const fetchIdx = sync.indexOf("await fetchFromTrestle(");
-    expect(canaryIdx).toBeGreaterThan(-1);
-    expect(canaryIdx).toBeLessThan(fetchIdx);
+    expect(sync).not.toContain("await probeManifestPersistence(");
+    expect(sync).not.toContain("probeManifestPersistence()");
+  });
+
+  it("keeps the affected-shard attribution that drives invalidation", () => {
+    // Removing the warm must NOT remove the shard attribution: it is what
+    // decides which manifest tags get invalidated, and therefore what the next
+    // real reader refills. Losing this would leave stale building pages.
+    const sync = read("lib/idx/sync.ts");
+    expect(sync).toContain("affectedManifestShards");
+    expect(sync).toContain("sortedAffectedShards");
   });
 });
 

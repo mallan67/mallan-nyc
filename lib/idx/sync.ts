@@ -48,11 +48,13 @@ import {
   safeRevalidateTags,
   type RevalidationCounters,
 } from "@/lib/cache/public-cache";
-import {
-  warmBuildingManifestShards,
-  probeManifestPersistence,
-  type ManifestWarmResult,
-  type ManifestPersistenceProbe,
+// TASK 2: the warm/probe FUNCTIONS are no longer imported here — the scheduled
+// sync does not call them. Only their result TYPES remain, because the
+// SyncResult and audit payload keep both fields (always null now) so no
+// downstream consumer of `write_paths` has to change.
+import type {
+  ManifestWarmResult,
+  ManifestPersistenceProbe,
 } from "@/lib/buildings/public-building-data";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 import {
@@ -524,32 +526,22 @@ export async function syncListings(
   const startTime = Date.now();
   const logger = createAuditEntry("fetch", "syncListings", "success");
 
-  // Scope A (2026-07-24, scope corrected per Maya review of #561):
-  // persistence canary — MUST run before ANYTHING in this request
-  // revalidates a tag, and probes ONLY the shards the PREVIOUS run actually
-  // warmed (read from SyncState.notes — see the upsert below). Probing the
-  // all-shard default here would recreate broad scheduled reads: under a
-  // global invalidation, every never-warmed shard would live-fill on probe.
-  // An empty/unknown previous set probes NOTHING (zero queries) — the
-  // canary is an instrument, never a warm. Cache-hit probes cost zero
-  // Neon; a lost page costs one bounded read that itself refills the page.
-  // Best-effort — never blocks the sync.
-  let manifestCanary: ManifestPersistenceProbe | null = null;
-  try {
-    const prevState = await prisma.syncState.findUnique({
-      where: { resource: "Property" },
-      select: { notes: true },
-    });
-    const prevWarmedShards = parseWarmedShardsFromNotes(prevState?.notes);
-    manifestCanary = await probeManifestPersistence(prevWarmedShards);
-    console.log("[IDX Sync] manifest persistence canary:", {
-      probed_shards: prevWarmedShards,
-      ...manifestCanary,
-    });
-  } catch (canaryErr) {
-    console.error("[IDX Sync] manifest canary failed (non-fatal):", canaryErr);
-    manifestCanary = null;
-  }
+  // TASK 2 (2026-08-16): the manifest persistence CANARY no longer runs on the
+  // scheduled path.
+  //
+  // It existed to prove that a warmed manifest page had survived in the data
+  // cache, and to do that it performed, on EVERY sync run:
+  //   - one `prisma.syncState.findUnique` to read the previous run's shard set;
+  //   - one first-page read per previously-warmed shard.
+  // Both are Neon reads taken on the cron's behalf, for no reader. A cache-hit
+  // probe was cheap, but a missed page cost a live fill — a scheduled read of
+  // exactly the data no one had asked for.
+  //
+  // `probeManifestPersistence` REMAINS EXPORTED for explicit/manual diagnostic
+  // use; what is removed is its automatic invocation from the scheduled sync.
+  // The field is retained (always null here) so the SyncResult shape, the audit
+  // payload, and every consumer of `write_paths.manifest_canary` are unchanged.
+  const manifestCanary: ManifestPersistenceProbe | null = null;
 
   let filter: string;
 
@@ -1616,32 +1608,37 @@ export async function syncListings(
     type: options.type || "all",
   });
 
-  // ── Building-Neon-wake clustering (AFTER the SyncState upsert, OUTSIDE its
-  // try/catch): refill manifest shards while the compute is already awake
-  // for this run. Only on a FULLY SUCCESSFUL run; failures are counted,
-  // never thrown — feed state is already committed above and cannot be
-  // advanced, blocked, or corrupted from here. Scope B (2026-07-24): ONLY
-  // the shards whose listings physically changed are warmed; when no
-  // manifest-affecting change happened the warm is SKIPPED ENTIRELY (zero
-  // manifest reads — the acceptance gate's "zero full-manifest warm when no
-  // public manifest field changed").
-  let buildingManifestWarm: ManifestWarmResult | null = null;
+  // ── TASK 2 (2026-08-16): the scheduled manifest WARM is removed.
+  //
+  // What used to happen here, on every successful run with an affected shard:
+  // this same request had already called safeRevalidateTags() with the
+  // `building-manifest-shard:N` tags, so the warm then re-read every page of
+  // every shard it had just expired. Shard granularity is the FIRST CHARACTER
+  // of StreetNumber, so one changed listing re-read that shard's entire gated
+  // population out of Neon — for no reader.
+  //
+  // It is NOT replaced by a re-warm. A re-warm would be more Neon work, not
+  // less, and the ordering defect it was covering for (media invalidating a
+  // shard IDX had already warmed, with no rewarm after) simply stops mattering
+  // once nothing is being warmed on a schedule.
+  //
+  // WHY THIS CANNOT LEAVE A PUBLIC SURFACE PERMANENTLY STALE:
+  //   1. Writer-side invalidation is UNCHANGED. `affectedManifestShards` is
+  //      still computed and the shard tags are still revalidated, so a changed
+  //      listing still expires the entries that contain it.
+  //   2. On the next real request the entry is a miss and refills from Neon —
+  //      the standard cachedPublicRead path. The data is fetched for a reader
+  //      that actually exists, instead of speculatively for one who may not.
+  //   3. Manifest pages pass no explicit `revalidate`, so they retain the
+  //      cachedPublicRead default of SYNC_CADENCE_SECONDS (600s). Even if a tag
+  //      were somehow missed, staleness is bounded by that TTL rather than
+  //      being permanent. (This TTL is the reason the manifest is NOT a
+  //      candidate for the event-driven `revalidate:false` conversion until its
+  //      invalidation coverage is separately proven complete.)
+  //
+  // `warmBuildingManifestShards` REMAINS EXPORTED for explicit/manual use.
+  const buildingManifestWarm: ManifestWarmResult | null = null;
   const sortedAffectedShards = [...affectedManifestShards].sort();
-  if (errors === 0 && sortedAffectedShards.length > 0) {
-    try {
-      buildingManifestWarm = await warmBuildingManifestShards(sortedAffectedShards);
-      console.log('[IDX Sync] building-manifest warm:', {
-        shards: sortedAffectedShards,
-        ...buildingManifestWarm,
-      });
-    } catch (warmErr) {
-      // Defense-in-depth: warmBuildingManifestShards never throws by design.
-      console.error('[IDX Sync] building-manifest warm-up error (non-fatal):', warmErr);
-      buildingManifestWarm = null;
-    }
-  } else if (errors === 0) {
-    console.log('[IDX Sync] building-manifest warm skipped: no manifest-affecting shard changed this run');
-  }
 
   // Phase-1 forensic (flag-gated): ONE compact line to runtime logs per ACTIVE
   // cycle — never audit_events. Emit EVEN on a zero-change cycle (empty top20,
