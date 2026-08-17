@@ -30,6 +30,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { classifyLegacyMediaItemProvenance } from '@/lib/media/media-provenance';
 
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -58,12 +59,55 @@ describe('Task 4 boundary — the relational table cannot yet carry ownership', 
     expect(model).not.toMatch(/uploaded_at|uploadedAt/);
   });
 
-  it('contentHash and uploadedAt remain the ONLY positive Mallan markers', () => {
-    const provenance = read('lib/media/media-provenance.ts');
-    // Both markers are still consulted, and still classify as a Mallan upload.
-    expect(provenance).toMatch(/item\.contentHash/);
-    expect(provenance).toMatch(/item\.uploadedAt/);
-    expect(provenance).toContain("'mallan-crm-upload'");
+  // CORRECTED (review round 3). An earlier version of this file asserted, by
+  // source-string match, that contentHash and uploadedAt are "the ONLY"
+  // positive Mallan markers. That was INACCURATE: a row the feed has never
+  // written is also positively classified Mallan, with no markers at all.
+  //
+  // These are behavioural tests of the real classifier, and they locate the
+  // boundary precisely — it is the TRESTLE-SYNCED row, not every row.
+  describe('classifier behaviour — where ownership actually becomes unprovable', () => {
+    const MALLAN_HOST = 'https://media.mallan.nyc/uploads/abc.jpg';
+
+    it('a never-synced row is Mallan-owned WITHOUT any marker', () => {
+      expect(
+        classifyLegacyMediaItemProvenance(
+          { url: MALLAN_HOST },
+          { listingIsTrestleSynced: false },
+        ),
+      ).toBe('mallan-crm-upload');
+    });
+
+    it('THE AMBIGUOUS CASE: a synced row with no marker is unprovable', () => {
+      // This is the entire boundary. On a Trestle-synced listing the write
+      // history proves nothing, so absent a marker the classifier fails closed
+      // to 'unknown' — the item is neither editable as Mallan media nor
+      // attributable to the feed.
+      expect(
+        classifyLegacyMediaItemProvenance(
+          { url: MALLAN_HOST },
+          { listingIsTrestleSynced: true },
+        ),
+      ).toBe('unknown');
+    });
+
+    it('on a synced row, contentHash is what rescues Mallan ownership', () => {
+      expect(
+        classifyLegacyMediaItemProvenance(
+          { url: MALLAN_HOST, contentHash: 'a'.repeat(64) },
+          { listingIsTrestleSynced: true },
+        ),
+      ).toBe('mallan-crm-upload');
+    });
+
+    it('on a synced row, uploadedAt is the other rescue', () => {
+      expect(
+        classifyLegacyMediaItemProvenance(
+          { url: MALLAN_HOST, uploadedAt: '2026-08-01T00:00:00.000Z' },
+          { listingIsTrestleSynced: true },
+        ),
+      ).toBe('mallan-crm-upload');
+    });
   });
 
   it('the legacy column is still read through ONE shared resolver, not two', () => {

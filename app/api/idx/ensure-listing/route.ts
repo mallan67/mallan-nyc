@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { isActiveDisplayStatus } from "@/lib/compliance/status";
 import {
   buildingAndManifestInvalidationTags,
   listingCacheTag,
@@ -186,22 +187,29 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // MISSING INVALIDATION, fixed 2026-08-16. This stub is created with
-    // `idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus)`, so a
-    // non-terminal create is immediately publicly displayable and satisfies the
-    // building-manifest and search predicates — yet the route emitted no cache
-    // tag, leaving the row invisible on cached public surfaces until the 600s
-    // TTL lapsed.
+    // MISSING INVALIDATION, fixed 2026-08-16; NARROWED 2026-08-17 after review.
+    //
+    // The first version invalidated whenever the status was merely
+    // non-terminal. That is not public RESULT MEMBERSHIP: the cached public
+    // collections admit only ACTIVE_DISPLAY_STATUSES (Active,
+    // ActiveUnderContract, ComingSoon), so a create in any other status —
+    // Draft, Pending, Withdrawn — cannot appear in them, and expiring those
+    // entries would evict correct data and force an avoidable Neon refill.
+    //
+    // Gated on the canonical helper rather than a local status list, so this
+    // cannot drift from the predicates the readers actually use.
     //
     // Insert, so there is no previous address: the helper is null-safe on the
     // missing side and yields one building tag plus that address's manifest
     // shard. `safeRevalidateTags` never throws, so it cannot fail a create that
     // has already committed.
-    safeRevalidateTags([
-      listingCacheTag(trimmedId),
-      ...buildingAndManifestInvalidationTags(addressJson),
-      SEARCH_CACHE_TAG,
-    ]);
+    if (isActiveDisplayStatus(canonicalStatus) && affirmPermission(body.internet_display_yn)) {
+      safeRevalidateTags([
+        listingCacheTag(trimmedId),
+        ...buildingAndManifestInvalidationTags(addressJson),
+        SEARCH_CACHE_TAG,
+      ]);
+    }
 
     await logAuditEvent(
       "create",

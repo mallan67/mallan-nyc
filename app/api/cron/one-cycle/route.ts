@@ -5,7 +5,7 @@ import { claimMachine } from '@/lib/idx/machine-claim';
 import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
 import type { MemberOutcome, MemberRunResult } from '@/lib/idx/idx-sync-member';
 import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
-import { requiredMembersForPlan } from '@/lib/idx/one-cycle-preflight';
+import { ONE_CYCLE_MEMBERS, requiredMembersForPlan } from '@/lib/idx/one-cycle-preflight';
 import { currentExecutionPlan } from '@/lib/idx/one-cycle-plan-channel';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
@@ -64,8 +64,13 @@ export const maxDuration = 300;
  */
 export const CYCLE_INTERVAL_MS = 600_000;
 
-/** Ordered required members (authority hierarchy: listings first, media second). */
-const MEMBER_NAMES = ['idx-sync', 'media-sync'] as const;
+// The ordered member list is owned by lib/idx/one-cycle-preflight.ts
+// (ONE_CYCLE_MEMBERS) and imported here. It was previously re-declared locally
+// as MEMBER_NAMES, so planning and budget validation each carried their own
+// copy of the same two names — a second truth that could drift from the one the
+// planner selects against. Budget validation, execution ordering and planning
+// now all read the SAME constant, and adding a member is a one-line change in
+// one file rather than a change that silently half-lands.
 
 /** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
 const MEMBER_BUDGETS_MS: Record<string, number> = {
@@ -90,7 +95,7 @@ function resolveBudgets():
   | { ok: false; error: string } {
   const budgets: Record<string, number> = {};
   let total = 0;
-  for (const name of MEMBER_NAMES) {
+  for (const name of ONE_CYCLE_MEMBERS) {
     const raw = process.env[`ONE_CYCLE_BUDGET_MS_${name.replace(/-/g, '_').toUpperCase()}`];
     let b: number;
     if (raw === undefined) {

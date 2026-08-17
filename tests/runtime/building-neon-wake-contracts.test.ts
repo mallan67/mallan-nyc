@@ -187,31 +187,53 @@ describe("writer invalidation contract — every building-visible writer names i
 // cache could be converted to revalidate:false — a tag that is never emitted
 // can never expire an entry that has no TTL.
 describe("writer invalidation contract — the gaps found by the census", () => {
-  it("crm/convert: a converted lead becomes a PUBLIC listing and must invalidate", () => {
+  it("NEGATIVE — crm/convert creates a Draft, so it must NOT invalidate", () => {
+    // CORRECTED (review round 3). This assertion previously REQUIRED an
+    // invalidation, reasoning that `!TERMINAL_STATUSES.has(status)` meant the
+    // row was publicly displayable. That is not public RESULT MEMBERSHIP: the
+    // route hardcodes `Draft`, which the canonical active-display set excludes,
+    // so the row cannot appear in any cached public collection and expiring
+    // them would be pure churn. Full reasoning + the escalated detail-page gap
+    // live in draft-publication-boundary.test.ts.
     const src = read("app/api/crm/convert/route.ts");
-    // It creates with idx_display_yn derived from TERMINAL_STATUSES, so a
-    // non-terminal conversion is immediately publicly displayable.
-    expect(src).toContain("idx_display_yn: !TERMINAL_STATUSES.has(");
-    expect(src).toContain("safeRevalidateTags");
-    expect(src).toContain("buildingAndManifestInvalidationTags");
-    expect(src).toContain("SEARCH_CACHE_TAG");
+    expect(src).toContain('normalizeStandardStatus("Draft")');
+    expect(src).not.toContain("safeRevalidateTags");
   });
 
-  it("idx/ensure-listing: a stub create is publicly displayable and must invalidate", () => {
+  it("idx/ensure-listing invalidates ONLY when the created row is publicly a member", () => {
     const src = read("app/api/idx/ensure-listing/route.ts");
-    expect(src).toContain("idx_display_yn: !TERMINAL_STATUSES.has(");
+    // Gated on the canonical helper rather than on non-terminality, so it
+    // cannot drift from the predicates the public readers use.
+    expect(src).toContain("isActiveDisplayStatus(canonicalStatus)");
     expect(src).toContain("safeRevalidateTags");
     expect(src).toContain("buildingAndManifestInvalidationTags");
     expect(src).toContain("SEARCH_CACHE_TAG");
   });
 
-  it("cron/dom-reset: days_on_market is a SEARCH-visible column and must invalidate", () => {
-    const src = read("app/api/cron/dom-reset/route.ts");
-    // days_on_market and first_active_date are both selected by the cached
-    // api-market-active read, so resetting them without a tag leaves the
-    // market surface serving pre-reset numbers.
-    expect(src).toContain("days_on_market");
-    expect(src).toContain("safeRevalidateTags");
-    expect(src).toContain("SEARCH_CACHE_TAG");
+  it("NEGATIVE — cron/dom-reset must NOT invalidate: its rows cannot be in the cached result", () => {
+    // REVIEW FINDING (round 3), and a correction to this file's own previous
+    // assertion, which REQUIRED an invalidation here.
+    //
+    // The earlier reasoning was that `days_on_market` and `first_active_date`
+    // appear in the cached api-market-active SELECT. That is the wrong test:
+    // membership in the SELECT list does not make a row part of the RESULT.
+    // What matters is the WHERE predicate.
+    //
+    // dom-reset mutates only Withdrawn/Cancelled rows; the cached active read
+    // admits only Active/ComingSoon/ActiveUnderContract. The sets are DISJOINT,
+    // so no row dom-reset touches can appear in that cached result, and
+    // invalidating it would evict a still-correct entry and force an avoidable
+    // Neon refill — the exact opposite of this branch's purpose.
+    const domReset = read("app/api/cron/dom-reset/route.ts");
+    const market = read("app/api/market/route.ts");
+
+    // Pin the disjointness the argument rests on, so this test fails if either
+    // predicate ever widens and the conclusion stops holding.
+    expect(domReset).toContain('status: { in: ["Withdrawn", "Cancelled"] }');
+    expect(market).toContain("status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] }");
+
+    // Therefore: no public cache invalidation from this cron.
+    expect(domReset).not.toContain("safeRevalidateTags");
+    expect(domReset).not.toContain("SEARCH_CACHE_TAG");
   });
 });

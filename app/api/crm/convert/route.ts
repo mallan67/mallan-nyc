@@ -6,12 +6,6 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadAccess } from "@/lib/crm/access";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
-import {
-  buildingAndManifestInvalidationTags,
-  listingCacheTag,
-  safeRevalidateTags,
-  SEARCH_CACHE_TAG,
-} from "@/lib/cache/public-cache";
 
 const VALID_ACTIONS = [
   "promote_to_listing",
@@ -237,21 +231,28 @@ async function handlePromoteToListing(
     },
   });
 
-  // MISSING INVALIDATION, fixed 2026-08-16. This create sets
-  // `idx_display_yn: !TERMINAL_STATUSES.has(...)` plus both internet-display
-  // gates, so a non-terminal conversion is IMMEDIATELY publicly displayable and
-  // satisfies the building-manifest and search predicates — yet the route
-  // emitted no cache tag, leaving the new listing invisible on cached public
-  // surfaces until the 600s TTL lapsed.
+  // NO public cache invalidation here — deliberately, and this REPLACES an
+  // incorrect invalidation added on 2026-08-16.
   //
-  // An insert has no previous address, so the helper is called with the new
-  // address alone; it is null-safe on the missing side and yields one building
-  // tag plus that address's manifest shard.
-  safeRevalidateTags([
-    listingCacheTag(generatedListingId),
-    ...buildingAndManifestInvalidationTags(addressJson),
-    SEARCH_CACHE_TAG,
-  ]);
+  // That earlier change reasoned "!TERMINAL_STATUSES.has(status) therefore the
+  // row is publicly displayable". That is not public RESULT MEMBERSHIP. This
+  // route hardcodes the initial status to `Draft`, and Draft is NOT in the
+  // canonical ACTIVE_DISPLAY_STATUSES set (lib/compliance/status.ts) that the
+  // public search and market predicates admit. A Draft conversion therefore
+  // cannot appear in any cached public collection, so expiring those entries
+  // would evict still-correct data and force an avoidable Neon refill.
+  //
+  // The listing becomes publicly eligible later, through the CRM publish path,
+  // and that writer already invalidates (app/api/crm/listings/[id]/route.ts).
+  //
+  // KNOWN GAP, NOT FIXED HERE — see
+  // tests/runtime/draft-publication-boundary.test.ts. The row IS created with
+  // idx_display_yn true, and the PUBLIC listing-detail page filters on
+  // idx_display_yn WITHOUT a status check, so a Draft is reachable at its
+  // public URL even though it is absent from search. Closing that gap is a
+  // display-gate change on a compliance surface and is NOT taken unilaterally:
+  // gating detail on ACTIVE_DISPLAY_STATUSES would also remove ~6.2k Pending
+  // listings the page intentionally serves. Escalated for Maya's decision.
 
   // H1 Tier-1 dual-write — lib/idx/sync.ts is the only listing-writer that
   // shares this pattern natively; non-sync writers (this route + 4 others)

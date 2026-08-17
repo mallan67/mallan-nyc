@@ -579,18 +579,55 @@ export function deriveOneCycleFollowup(
   completion: OneCycleCompletionInput,
   snapshotTrusted: boolean,
   now: Date = new Date(),
+  options: {
+    executionPlan?: OneCycleExecutionPlan;
+    priorState?: OneCyclePreflightState | null;
+  } = {},
 ): Pick<OneCyclePreflightState, 'forceRun' | 'backlogPending' | 'nextBacklogRunAt'> {
   const idx = completion.members.find((m) => m.member === 'idx-sync');
   const media = completion.members.find((m) => m.member === 'media-sync');
 
   const listingBatchFull = summaryNumber(idx?.summary, 'total_fetched') >= ONE_CYCLE_SOURCE_BATCH_LIMIT;
+  const forceRun = !completion.success || !completion.complete || !snapshotTrusted || listingBatchFull;
+
+  // ── BACKLOG PRESERVATION ────────────────────────────────────────────
+  // Only a media run that ACTUALLY REPORTED may change the backlog state.
+  //
+  // This function used to derive `backlogPending` purely from the current
+  // completion's media member. That was safe only while every cycle ran media:
+  // the member was always present, so its absence never had to be distinguished
+  // from "media ran and found nothing". Partial plans broke that assumption.
+  //
+  // The bug it caused: prior state carries backlogPending=true with
+  // nextBacklogRunAt an hour out (the default interval); the modification head
+  // moves inside that hour; the planner correctly selects idx_only; the
+  // completion contains no media member; `mediaBacklog` computes false; and
+  // finalize overwrites a real pending backlog with false/null. The queued
+  // media work is silently dropped.
+  //
+  // The discriminator is MEMBER EVIDENCE, not the plan, because it covers both
+  // ways media can fail to report: the plan never selected it, AND the plan
+  // selected it but the budget guard skipped it before it started. A skip is
+  // not evidence the backlog drained.
+  const mediaReported = media !== undefined && media.status !== 'budget_skipped';
+
+  if (!mediaReported) {
+    // Carry the prior state through UNCHANGED — including the original
+    // deadline. Recomputing `nextBacklogRunAt` from `now` here would let a
+    // stream of idx_only cycles push the backlog out indefinitely.
+    return {
+      forceRun,
+      backlogPending: options.priorState?.backlogPending ?? false,
+      nextBacklogRunAt: options.priorState?.nextBacklogRunAt ?? null,
+    };
+  }
+
   const mediaBacklog =
     summaryNumber(media?.summary, 'backlog_remaining') > 0 ||
     summaryNumber(media?.summary, 'failures') > 0 ||
     summaryNumber(media?.summary, 'r2_failed') > 0 ||
     summaryBoolean(media?.summary, 'time_budget_exhausted');
 
-  const forceRun = !completion.success || !completion.complete || !snapshotTrusted || listingBatchFull;
   return {
     forceRun,
     backlogPending: mediaBacklog,
@@ -613,7 +650,12 @@ export async function finalizeOneCyclePreflight(
   // fail-open cycle that had nothing to persist. Collapsing them hid the former.
   if (!redis) return 'redis_client_missing';
   if (!decision.snapshot) return 'no_snapshot';
-  const followup = deriveOneCycleFollowup(completion, decision.snapshotTrusted, now);
+  // priorState is load-bearing: when this cycle did not run media, the followup
+  // must carry the previous backlog forward rather than assert it is gone.
+  const followup = deriveOneCycleFollowup(completion, decision.snapshotTrusted, now, {
+    executionPlan: decision.executionPlan,
+    priorState: decision.priorState,
+  });
   const state: OneCyclePreflightState = {
     version: ONE_CYCLE_PREFLIGHT_VERSION,
     snapshot: decision.snapshot,

@@ -5,7 +5,6 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { DOM_RESET_DAYS } from "@/lib/compliance/dom-tracker";
-import { safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 
 export const maxDuration = 60;
 
@@ -65,22 +64,6 @@ export async function GET(req: NextRequest) {
   }));
 
   await prisma.auditEvent.createMany({ data: auditData });
-
-  // MISSING INVALIDATION, fixed 2026-08-16. `days_on_market` and
-  // `first_active_date` are both selected by the cached `api-market-active`
-  // read (app/api/market/route.ts), so resetting them without expiring the
-  // search tag left the market surface serving pre-reset numbers until the
-  // 600s TTL lapsed.
-  //
-  // Only the coarse search tag is emitted, deliberately. This job resets DOM on
-  // Withdrawn/Cancelled listings, which are terminal and therefore already
-  // excluded from the per-building and per-manifest-shard payloads by the
-  // display gates — naming those tags would expire entries that cannot contain
-  // these rows. `safeRevalidateTags` never throws, so a cache failure cannot
-  // fail the cron after the reset has already been written.
-  if (resetIds.length > 0) {
-    safeRevalidateTags([SEARCH_CACHE_TAG]);
-  }
 
   return NextResponse.json({
     reset: eligible.length,

@@ -214,6 +214,104 @@ describe('One Cycle execution plan — fail-open safety', () => {
   });
 });
 
+describe('a plan that did not run media must not erase the media backlog', () => {
+  /**
+   * REVIEW FINDING (round 3). `deriveOneCycleFollowup` derived `backlogPending`
+   * ONLY from a media-sync member in the CURRENT completion. Before the
+   * execution plan existed that was safe, because every cycle ran media, so the
+   * member was always present.
+   *
+   * With partial plans it is a data-loss bug: prior state can carry
+   * backlogPending=true with nextBacklogRunAt an hour out (the default backlog
+   * interval), the modification head can move inside that hour, the planner
+   * correctly selects idx_only, and the completion then contains NO media
+   * member — so `mediaBacklog` computes false and finalize overwrites a real
+   * pending backlog with false/null. The backlog is silently dropped and the
+   * queued media work never runs.
+   */
+  const priorWithBacklog: OneCyclePreflightState = {
+    ...state,
+    backlogPending: true,
+    nextBacklogRunAt: '2026-08-02T07:45:00.000Z', // still in the future at NOW
+  };
+
+  const idxOnlyCompletion = {
+    success: true,
+    complete: true,
+    outcome: 'success' as const,
+    members: [{ member: 'idx-sync', status: 'ok', summary: { total_fetched: 3 } }],
+  };
+
+  it('preserves a pending-but-not-yet-due backlog across an idx_only cycle', () => {
+    const followup = preflight.deriveOneCycleFollowup(
+      idxOnlyCompletion,
+      true,
+      NOW,
+      { executionPlan: 'idx_only', priorState: priorWithBacklog },
+    );
+
+    expect(followup.backlogPending).toBe(true);
+    // The ORIGINAL deadline survives — it must not be pushed out by a cycle
+    // that did no media work, or the backlog could be deferred indefinitely.
+    expect(followup.nextBacklogRunAt).toBe('2026-08-02T07:45:00.000Z');
+    expect(followup.forceRun).toBe(false);
+  });
+
+  it('recalculates the backlog when media-sync actually ran and cleared it', () => {
+    const followup = preflight.deriveOneCycleFollowup(
+      {
+        success: true,
+        complete: true,
+        outcome: 'success',
+        members: [
+          { member: 'idx-sync', status: 'ok', summary: { total_fetched: 3 } },
+          { member: 'media-sync', status: 'ok', summary: { backlog_remaining: 0 } },
+        ],
+      },
+      true,
+      NOW,
+      { executionPlan: 'idx_then_media', priorState: priorWithBacklog },
+    );
+
+    expect(followup.backlogPending).toBe(false);
+    expect(followup.nextBacklogRunAt).toBeNull();
+  });
+
+  it('preserves the prior backlog when media was selected but never started', () => {
+    // Budget exhaustion skips the member without running it. That is not
+    // evidence the backlog drained, so the prior state must survive.
+    const followup = preflight.deriveOneCycleFollowup(
+      {
+        success: false,
+        complete: false,
+        outcome: 'incomplete',
+        members: [
+          { member: 'idx-sync', status: 'ok', summary: { total_fetched: 3 } },
+          { member: 'media-sync', status: 'budget_skipped', summary: { skip_reason: 'insufficient_budget' } },
+        ],
+      },
+      true,
+      NOW,
+      { executionPlan: 'idx_then_media', priorState: priorWithBacklog },
+    );
+
+    expect(followup.backlogPending).toBe(true);
+    expect(followup.nextBacklogRunAt).toBe('2026-08-02T07:45:00.000Z');
+  });
+
+  it('still reports no backlog when there was none and media did not run', () => {
+    const followup = preflight.deriveOneCycleFollowup(
+      idxOnlyCompletion,
+      true,
+      NOW,
+      { executionPlan: 'idx_only', priorState: state },
+    );
+
+    expect(followup.backlogPending).toBe(false);
+    expect(followup.nextBacklogRunAt).toBeNull();
+  });
+});
+
 describe('requiredMembersForPlan — completion must follow the plan, not a constant', () => {
   it('requires only the members the plan actually selected', () => {
     expect(preflight.requiredMembersForPlan('skip')).toEqual([]);
