@@ -376,7 +376,9 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3 and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
-    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus');
+    // E-0: request the provider's media display authorization so suppressed rows
+    // can be refused before they become an agent-page card image.
+    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus,InternetEntireListingDisplayYN');
     mediaParams.set('$orderby', 'Order asc');
     // Codex #389: classification happens CLIENT-side (mapAgentCardMedia keeps
     // only canonical Photos), so the page needs headroom for the non-photo
@@ -400,7 +402,13 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     if (!resp.ok) return;
 
     const data = await resp.json();
-    const records = data.value || [];
+    // E-0: refuse rows Cotality marked NOT for internet display before any of
+    // them can become a card image. Only an explicit `false` blocks; null is
+    // "not suppressed" (the IDX Plus pre-filter rule).
+    const records = (data.value || []).filter(
+      (m: { InternetEntireListingDisplayYN?: boolean | null }) =>
+        m.InternetEntireListingDisplayYN !== false,
+    );
 
     // P1C3 (M3): canonical classification via the extracted pure helper —
     // the old `cat.includes('floor plan')` never matched the feed's no-space

@@ -124,6 +124,12 @@ import { POST } from '@/app/api/crm/listings/reset-sync/route';
 beforeEach(() => {
   upsertCalls.length = 0;
   process.env.IDX_ENABLED = 'true';
+  // PR #618 disabled this route's EXECUTABLE access in production (it is the
+  // only whole-table delete in the repo and emits no cache invalidation, so a
+  // run would leave permanent event-driven cache ghosts). These tests exercise
+  // the WRITER CONTRACT beneath that guard, not the guard itself — that is
+  // covered by reset-sync-disabled.test.ts — so they opt in explicitly.
+  process.env.RESET_SYNC_ENABLED = 'true';
 });
 
 describe('P1C1 — reset-sync must not stomp listings.media on the UPDATE branch', () => {

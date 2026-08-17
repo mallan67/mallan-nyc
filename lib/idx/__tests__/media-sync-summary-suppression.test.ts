@@ -91,6 +91,12 @@ describe("updateListingMediaSummary — suppression of unchanged summaries", () 
       rows_inserted: 0,
       rows_updated: 0,
       rows_failed: 0,
+      // E: storage-vs-public separation. A suppressed or hero/gallery write
+      // emits no provenance-only count; the three new buckets are asserted
+      // exhaustively so a future scope change cannot pass silently.
+      rows_provenance_only_no_invalidation: 0,
+      rows_public_gallery_change: 0,
+      rows_public_hero_change: 0,
     });
   });
 

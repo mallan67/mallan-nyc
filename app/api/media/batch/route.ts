@@ -107,7 +107,8 @@ export async function GET(req: NextRequest) {
         const filter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
-        params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription,MediaStatus");
+        // E-0: request the provider's media display authorization.
+        params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription,MediaStatus,InternetEntireListingDisplayYN");
         // Order by Order only — alphabetical sort on MediaCategory put
         // 'FloorPlan' BEFORE 'Photo' (alphabetical), causing detail galleries
         // to open on a floor plan. Photo-first ordering is now applied
@@ -123,6 +124,9 @@ export async function GET(req: NextRequest) {
           const data = await response.json();
           const rawByKey = new Map<string, Record<string, unknown>[]>();
           for (const m of (data.value || [])) {
+            // E-0: refuse provider-suppressed media before it can reach a
+            // gallery or become a hero. Explicit `false` only.
+            if (m.InternetEntireListingDisplayYN === false) continue;
             const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
             if (!mkey || !m.MediaURL) continue;
             if (!rawByKey.has(mkey)) rawByKey.set(mkey, []);
@@ -189,7 +193,8 @@ export async function GET(req: NextRequest) {
       const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus");
+      // E-0: request the provider's media display authorization.
+      params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus,InternetEntireListingDisplayYN");
       params.set("$orderby", "Order asc");
       params.set("$top", String(uncached.length * 2));
 
@@ -204,6 +209,8 @@ export async function GET(req: NextRequest) {
         // feed ordered first — a null-category DOCUMENT- floorplan could become the card.
         const rawByKey = new Map<string, Array<Record<string, unknown>>>();
         for (const m of (data.value || [])) {
+          // E-0: refuse provider-suppressed media before hero selection.
+          if (m.InternetEntireListingDisplayYN === false) continue;
           const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
           if (mkey && m.MediaURL) {
             if (!rawByKey.has(mkey)) rawByKey.set(mkey, []);

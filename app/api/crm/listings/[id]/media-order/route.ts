@@ -9,6 +9,7 @@ import {
   CAPABILITY_DENIED,
   CAPABILITY_LISTING_SELECT,
 } from "@/lib/auth/listing-capabilities";
+import { closeMediaWrite } from "@/lib/media/post-media-write-closure";
 
 export async function PATCH(
   req: NextRequest,
@@ -126,6 +127,14 @@ export async function PATCH(
     },
     ipAddress
   );
+
+  // ONE CANONICAL POST-MEDIA-WRITE CLOSURE. A reorder is the exact case the
+  // summary columns CANNOT detect: hero and photo_count can both stay identical
+  // while the public gallery order changes. `galleryMutated` supplies that
+  // evidence explicitly, and the classifier scopes it to the listing tag only —
+  // the manifest projection reads hero state, not order, so expiring building
+  // and manifest payloads here would be pure churn.
+  await closeMediaWrite(id, { galleryMutated: true });
 
   return NextResponse.json({
     listing_id: id,

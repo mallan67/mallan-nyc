@@ -114,9 +114,65 @@ describe('source lock — both media writers use the shared computation', () => 
   });
 
   it('media-sync.ts summary writer uses the shared computation, not a bare listing tag', () => {
-    expect(mediaSync).toMatch(/import \{ publicListingChangeTags \}/);
-    expect(mediaSync).toMatch(/publicListingChangeTags\(listingId, stored\?\.address, stored\?\.address\)/);
+    // The import is now multi-line because the writer also consumes
+    // `PublicListingChangeScope` — it must still be the SHARED owner, never a
+    // locally composed tag array.
+    expect(mediaSync).toMatch(
+      /import \{[\s\S]{0,200}?publicListingChangeTags[\s\S]{0,200}?\} from ['"]@\/lib\/cache\/public-listing-change-tags['"]/,
+    );
+    // The call now carries an explicit SCOPE: a gallery change that leaves the
+    // hero output identical expires the listing alone, because the manifest
+    // projection reads only hero state. Hero changes still expire all three.
+    expect(mediaSync).toMatch(
+      /publicListingChangeTags\(listingId, stored\?\.address, stored\?\.address, scope\)/,
+    );
     expect(mediaSync).not.toMatch(/safeRevalidateTags\(\[listingCacheTag\(listingId\)\]/);
+  });
+
+  it('the scope is derived from the classified public change, not hardcoded', () => {
+    // Guards against someone pinning the scope to 'listing-only' and silently
+    // stranding building/manifest payloads on a real hero change.
+    expect(mediaSync).toMatch(
+      /decision\.publicChange === 'public-hero' \? 'listing-building-manifest' : 'listing-only'/,
+    );
+  });
+
+  it('a provenance-only change emits NO tags at all', () => {
+    // The write-amplification fix: storage advances, public cache untouched.
+    expect(mediaSync).toMatch(/if \(decision\.publicChange === 'provenance-only'\)/);
+  });
+
+  it('INVARIANT: a manifest shard tag is never emitted without the exact building tag', () => {
+    // This is what makes it SAFE for `getBuildingDataCached` to carry only its
+    // building tag while consuming a shard-tagged manifest page.
+    //
+    // The outer building payload deliberately does NOT carry the shard tag: a
+    // shard is the first character of the street number (~10% of all
+    // buildings), so tagging every payload with it would expire a tenth of the
+    // site on one listing change — the exact crawler-wake amplification this
+    // work removes, and the opposite of what
+    // `neon-quiet-distinct-buildings.test.ts` pins.
+    //
+    // Safety instead comes from both tag families being derived from the SAME
+    // address list in ONE function, so they cannot diverge.
+    const addr = { StreetNumber: '400', StreetName: 'East 90th Street', PostalCode: '10128' };
+    const { tags, shards } = publicListingChangeTags('RLS1', addr, addr);
+
+    expect(shards.length).toBeGreaterThan(0);
+    for (const shard of shards) {
+      expect(tags).toContain(manifestShardTag(shard));
+    }
+    // …and the exact building tag rides along in the same emission.
+    expect(tags.some((t) => t.startsWith('building:'))).toBe(true);
+    expect(tags).toContain(listingCacheTag('RLS1'));
+  });
+
+  it('listing-only scope emits NEITHER a building nor a manifest shard tag', () => {
+    const addr = { StreetNumber: '400', StreetName: 'East 90th Street', PostalCode: '10128' };
+    const { tags, shards } = publicListingChangeTags('RLS1', addr, addr, 'listing-only');
+
+    expect(tags).toEqual([listingCacheTag('RLS1')]);
+    expect(shards).toEqual([]);
   });
 
   it('the media loop widened an EXISTING select rather than adding a query', () => {

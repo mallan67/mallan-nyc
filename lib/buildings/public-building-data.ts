@@ -822,7 +822,20 @@ async function buildBuildingPayload(
       // Order 0. With $top=1 a floorplan-first listing returned only that row and
       // getPhotoUrl (no media[0] fallback) yielded null — the unit lost its
       // thumbnail. 10 rows clears any realistic run of leading floorplans. (Codex #482)
-      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)";
+      // E-0: this expand serves PUBLIC building-page thumbnails (`photoUrl` →
+      // `/api/buildings` → `/buildings/[slug]`), so it needs the provider media
+      // display authorization like every other live media path. It was the last
+      // reader without it.
+      //
+      // Filtered SERVER-side. `ne false` keeps null rows, which is required —
+      // null means "not suppressed" — and that is LIVE VERIFIED, not assumed:
+      // `ne false` (1,690,414) === `eq true` (1,690,352) + `eq null` (62).
+      //
+      // A Property-level `checkDistributionGates` already runs below, but that
+      // is a LISTING gate; this is the per-media-row one.
+      const MEDIA_EXPAND =
+        "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,InternetEntireListingDisplayYN;" +
+        "$filter=InternetEntireListingDisplayYN ne false;$top=10;$orderby=Order)";
       const allParams = new URLSearchParams({
         $filter: addressFilter,
         $select: BUILDING_SELECT,
@@ -1188,6 +1201,27 @@ export async function getBuildingDataCached(params: {
       // the exact building tags it materially changed (buildingTagFromAddress
       // in lib/idx/sync.ts); everything else stays cached, with the 10-min
       // fallback as the safety net (media-JSON-only changes ride the fallback).
+      //
+      // ── WHY THE CONSUMED MANIFEST SHARD TAG IS *NOT* ADDED HERE ───────
+      // `buildBuildingPayload` reads `getBuildingManifestShard(shard)`, whose
+      // own entry carries `manifestShardTag(shard)`, so at first glance this
+      // consumer should carry its dependency's tag. It deliberately does not.
+      //
+      // A shard is the FIRST CHARACTER of the street number — roughly a tenth
+      // of every building on the site. Tagging each building payload with it
+      // would mean ONE listing change expires ~10% of all building payloads and
+      // re-reads Neon for buildings that did not change. That is precisely the
+      // crawler-wake amplification this work exists to remove, and
+      // `neon-quiet-distinct-buildings.test.ts` pins the opposite behaviour
+      // ("an unrelated building in the SAME shard stays cached").
+      //
+      // The disjointness is SAFE because of an invariant on the writer side,
+      // not because of luck: `publicListingChangeTags` derives the building
+      // tag(s) AND the shard tag(s) from the SAME address(es), so a shard is
+      // never invalidated without the exact building tag for the changed
+      // address being invalidated in the same call. The affected building's
+      // payload therefore always expires; unaffected ones correctly survive.
+      // `public-listing-change-tags.test.ts` pins that pairing.
       tags: [buildingCacheTag(streetNumber, streetName, postalCode ?? undefined)],
     },
   )(streetNumber, streetName, postalCode);

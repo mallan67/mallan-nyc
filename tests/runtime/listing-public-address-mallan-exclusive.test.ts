@@ -64,7 +64,22 @@ describe('detail page — address suppression respects opt-outs, slug from the s
   });
 
   it('isRlsBacked is rls_eligible !== false → website-only (SL-0004) is NOT RLS-backed → address shown', () => {
-    expect(page).toMatch(/const isRlsBacked = dbListing\.rls_eligible !== false/);
+    // CONTRACT MOVED (publication-eligibility collapse). The source class is no
+    // longer derived inline; it comes from the single `decidePublicDetailAccess`
+    // decision, whose `publicDetailSourceClass` is defined as
+    // `rls_eligible === false ? 'mallan-website-only' : 'rls-backed'` — i.e.
+    // byte-for-byte the same predicate, now with ONE owner instead of two.
+    expect(page).toMatch(/const isRlsBacked = access\.sourceClass === 'rls-backed'/);
+    // And the page must not have regrown a second, independent derivation.
+    expect(page).not.toMatch(/const isRlsBacked = dbListing\.rls_eligible/);
+  });
+
+  it('the source-class predicate itself is still rls_eligible === false', () => {
+    // Pinned where it now lives, so the move cannot silently change semantics.
+    const decision = read('lib/search/listing-access-decision.ts');
+    expect(decision).toMatch(
+      /input\.rls_eligible === false \? 'mallan-website-only' : 'rls-backed'/,
+    );
   });
 
   it('slug derives from the suppression DECISION, NOT the raw column (canonical owner)', () => {

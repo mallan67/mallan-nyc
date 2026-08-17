@@ -424,8 +424,24 @@ describe("buildCrmIdxODataFilter", () => {
     // isn't in the statusMap, so it falls through unchanged.
     // The resulting OData clause is:
     //   StandardStatus eq 'OFFEROUT'
-    // which never matches any Trestle enum (real values are 'Pending',
-    // 'Active', 'Closed', etc.). Returns 0.
+    //
+    // CORRECTION (PR #618, verified against the LIVE Cotality API 2026-08-17):
+    // this does NOT "return 0". `StandardStatus` is an ENUM-typed field, so an
+    // unknown member is rejected outright:
+    //
+    //   GET /odata/Property?$filter=StandardStatus eq 'OFFEROUT'  -> HTTP 400
+    //   GET /odata/Property?$filter=StandardStatus eq 'Hold'      -> HTTP 200, count=0
+    //
+    // i.e. an invalid member FAILS THE WHOLE QUERY, while a valid-but-unused
+    // member returns an empty set. The practical consequence is worse than the
+    // original note implied: selecting this sub-status breaks the search rather
+    // than returning no results, and any caller that treats a 400 as "no
+    // matches" reports a false empty. Live StandardStatus members are exactly:
+    // Active, ActiveUnderContract, Canceled, Closed, ComingSoon, Delete,
+    // Expired, Hold, Incomplete, Pending, Withdrawn.
+    //
+    // Still DEAD/out of scope for #618 — recorded here so the next person fixes
+    // it against verified provider behaviour instead of the wrong assumption.
     //
     // We exercise this here by passing a known sub-status string. When
     // real sub-status routing is added (route via MlsStatus + nested

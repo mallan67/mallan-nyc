@@ -18,31 +18,41 @@
  * So a Mallan pre-publication workspace row was absent from search but servable
  * as a public page. The defect was PRE-EXISTING, not introduced by this branch.
  *
- * HOW IT IS RESOLVED — and why not with the obvious fix
+ * HOW IT IS RESOLVED — and why not with either obvious fix
  *
- * Gating detail on ACTIVE_DISPLAY_STATUSES would be wrong: that set excludes
- * `Pending`, and production carries thousands of Pending rows the detail page
- * intentionally serves. It would 404 all of them.
+ * (a) Gating detail on ACTIVE_DISPLAY_STATUSES would be wrong: that set
+ *     excludes `Pending`, of which the LIVE Cotality feed carries 6,103 rows
+ *     (read-only probe, 2026-08-17). It would 404 all of them.
  *
- * The rule is instead derived from authority already in the repo:
+ * (b) Gating on "is a recognised canonical status" — the rule this branch
+ *     shipped at 3632fdb4 — is ALSO wrong, in the other direction. Recognition
+ *     is not eligibility: it admitted all seven terminal statuses, including
+ *     `Closed`, whose live population is 576,810.
  *
- *   MALLAN-PLATFORM-MASTER-PLAN §4.1 separates SOURCE from
- *   AUTHORITY/VISIBILITY; §4.2 says a listing created inside Mallan "remains
- *   Mallan's canonical editable listing"; §5.1 scopes public inventory to
- *   ELIGIBLE listings. Creation is not publication.
+ * The resolved rule is source-class aware and lives in ONE place,
+ * `decidePublicDetailAccess`, called from the SHARED resolver:
  *
- * and from the canonical status vocabulary: `Draft` is NOT a member of `Status`
- * at all, so `normalizeStatus` already fails closed to null for it — while
- * `normalizeStandardStatus` passes it through and TERMINAL_STATUSES does not
- * contain it, which is exactly how it acquired `idx_display_yn: true`.
+ *   VOCABULARY (both classes) — `isCanonicalStatus`. Kills Draft/Incomplete.
+ *   RLS-BACKED               — `isListingDisplayable`, which already owns
+ *                              terminality AND the UCBA Art. I §6 24-hour
+ *                              "marked closed" window.
+ *   WEBSITE-ONLY             — `isMallanPublicationEligibleStatus`, mirroring
+ *                              the shipped `buildPublishContract` contract
+ *                              (`exclusiveEligible = !isTerminal`), because no
+ *                              REBNY gate governs those rows.
  *
- * So public-detail eligibility is "the status is a recognised canonical
- * status", expressed once as `isPubliclyRetrievableStatus` and consumed by the
- * detail route. Draft closes; every canonical status is untouched.
+ * Behavioural proof of all of the above lives in
+ * `publication-eligibility-shared-resolver.test.ts`, which imports the real
+ * route module and calls `generateMetadata`. This file keeps only the
+ * STRUCTURAL assertions about the CRM writers.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { isActiveDisplayStatus, isPubliclyRetrievableStatus } from '@/lib/compliance/status';
+import {
+  isActiveDisplayStatus,
+  isCanonicalStatus,
+  isMallanPublicationEligibleStatus,
+} from '@/lib/compliance/status';
 
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -96,40 +106,58 @@ describe('ensure-listing invalidates only on real public membership', () => {
   });
 });
 
-describe('CLOSED — public detail now enforces publication eligibility', () => {
-  it('Draft is not publicly retrievable; Pending and canonical statuses still are', () => {
-    // The canonical rule, derived from the master plan rather than invented:
-    // a Mallan-created listing is canonical-and-private until it is
-    // publication-eligible, and `Draft` is not in the canonical Status
-    // vocabulary at all.
-    expect(isPubliclyRetrievableStatus('Draft')).toBe(false);
+describe('CLOSED — public detail enforces publication eligibility', () => {
+  it('the VOCABULARY gate rejects the pre-publication and unmodelled statuses', () => {
+    // `Draft` and `Incomplete` are CRM lifecycle values (the mapper's
+    // CRM_LIFECYCLE_STATUSES) absent from the canonical `Status` vocabulary.
+    // `Delete` is a REAL live Cotality StandardStatus this repo does not model
+    // (verified live 2026-08-17) — it must fail closed too, not be "fixed" by
+    // being added to INPUT_TO_CANONICAL without a visibility decision.
+    expect(isCanonicalStatus('Draft')).toBe(false);
+    expect(isCanonicalStatus('Incomplete')).toBe(false);
+    expect(isCanonicalStatus('Delete')).toBe(false);
 
-    // Everything canonical is unchanged — this is the narrowness proof.
-    for (const s of ['Active', 'ComingSoon', 'ActiveUnderContract', 'Pending', 'Closed', 'Withdrawn']) {
-      expect(isPubliclyRetrievableStatus(s)).toBe(true);
+    // Canonical values pass the VOCABULARY gate. Passing it is NOT permission
+    // to publish — the source-class contract runs next.
+    for (const s of ['Active', 'ComingSoon', 'ActiveUnderContract', 'Pending', 'Closed']) {
+      expect(isCanonicalStatus(s)).toBe(true);
     }
   });
 
-  it('Pending is retrievable at detail but still absent from search', () => {
-    // The exact distinction that made reusing the search set the wrong fix.
-    expect(isPubliclyRetrievableStatus('Pending')).toBe(true);
+  it('the MALLAN contract ends public eligibility at terminal', () => {
+    // Mirrors lib/crm/listing-publish-contract.ts (`exclusiveEligible =
+    // !isTerminal`). This closes the website-only hole: those rows carry
+    // idx_display_yn=false by construction, so no REBNY gate can decide them
+    // and "recognised status" was the only test left standing.
+    for (const s of ['Closed', 'Sold', 'Rented', 'Leased', 'Withdrawn', 'Cancelled', 'Expired']) {
+      expect(isMallanPublicationEligibleStatus(s)).toBe(false);
+    }
+    for (const s of ['Active', 'ComingSoon', 'ActiveUnderContract', 'Pending', 'Hold']) {
+      expect(isMallanPublicationEligibleStatus(s)).toBe(true);
+    }
+  });
+
+  it('Pending is publication-eligible at detail but still absent from search', () => {
+    // The distinction that makes reusing the search set the wrong fix.
+    expect(isMallanPublicationEligibleStatus('Pending')).toBe(true);
     expect(isActiveDisplayStatus('Pending')).toBe(false);
   });
 
-  it('the detail route calls the canonical helper and 404s a non-public status', () => {
+  it('the detail route no longer re-decides publication in the page component', () => {
     const page = read('app/listing/[...slug]/page.tsx');
-    expect(page).toContain('isPubliclyRetrievableStatus(listing.status)');
-    expect(page).toContain('notFound();');
-    // It must NOT have adopted the search-status set, which would 404 Pending.
-    // Checked as a CALL, not a bare substring — the page's comment names the
-    // helper precisely to explain why it is not used.
+    // ONE decision, in the shared resolver, before any DTO is built or cached.
+    expect(page).toContain('decidePublicDetailAccess(dbListing)');
+    // The page-local status re-check is GONE — that split is what leaked a
+    // Draft's address, price and OpenGraph card through generateMetadata.
+    expect(page).not.toContain('isPubliclyRetrievableStatus(listing.status)');
+    // And it must not have adopted the search-status set, which would 404 Pending.
     expect(page).not.toContain('isActiveDisplayStatus(');
   });
 
   it('unknown / garbage statuses fail closed', () => {
-    expect(isPubliclyRetrievableStatus('')).toBe(false);
-    expect(isPubliclyRetrievableStatus(null)).toBe(false);
-    expect(isPubliclyRetrievableStatus(undefined)).toBe(false);
-    expect(isPubliclyRetrievableStatus('NotAStatus')).toBe(false);
+    for (const s of ['', null, undefined, 'NotAStatus']) {
+      expect(isCanonicalStatus(s)).toBe(false);
+      expect(isMallanPublicationEligibleStatus(s)).toBe(false);
+    }
   });
 });

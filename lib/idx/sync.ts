@@ -1263,7 +1263,7 @@ export async function syncListings(
           const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey,InternetEntireListingDisplayYN"); // E-0: provider media display authorization
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           mediaParams.set("$top", String(batch.length * 30));
 
@@ -1311,6 +1311,8 @@ export async function syncListings(
             // `[]` here means AUTHORITATIVE empty.
             for (const key of batch) mediaByListing.set(String(key), []);
             for (const m of mediaRows as unknown as Record<string, unknown>[]) {
+              // E-0: refuse provider-suppressed media (explicit `false` only).
+              if (m.InternetEntireListingDisplayYN === false) continue;
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
@@ -1916,6 +1918,11 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     const mediaFilter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set("$filter", mediaFilter);
+    // E-0 DELIBERATELY NOT APPLIED HERE. `backfillEmptyMedia` has NO CALLER —
+    // `media-key-write-suppression.test.ts` pins it as an out-of-scope dead
+    // writer, and authorizing code that cannot execute would widen this PR for
+    // zero live effect. If it is ever revived it MUST request
+    // `InternetEntireListingDisplayYN` and refuse `false` like every live path.
     mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus");
     mediaParams.set("$orderby", "Order asc");
     mediaParams.set("$top", String(filterParts.length * 30));
@@ -2680,7 +2687,7 @@ export async function syncAgentHistory(
           const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey");
+          mediaParams.set("$select", "ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey,InternetEntireListingDisplayYN"); // E-0: provider media display authorization
           mediaParams.set("$orderby", "ResourceRecordKey asc,Order asc");
           // `$top` is a PAGE-SIZE HINT ONLY. It was previously the whole budget: a single
           // un-paginated request capped at `batch.length * 30` across the WHOLE batch, with only
@@ -2731,6 +2738,8 @@ export async function syncAgentHistory(
             // reachable once the fetch proved COMPLETE.
             for (const key of batch) mediaByKey.set(String(key), []);
             for (const m of mediaRows as unknown as Record<string, unknown>[]) {
+              // E-0: refuse provider-suppressed media (explicit `false` only).
+              if (m.InternetEntireListingDisplayYN === false) continue;
               const lid = String(m.ResourceRecordKey || "");
               if (!lid || !m.MediaURL) continue;
               if (!mediaByKey.has(lid)) mediaByKey.set(lid, []);
