@@ -1091,7 +1091,14 @@ describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () 
       const args = call[0] as {
         where?: { status?: string; OR?: Array<{ r2_key?: null; media_url_cached?: null }> };
       };
-      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+      // PHASE 3.5 CONTENT VERIFICATION is NOT backlog work. Its where-shape is otherwise
+      // identical to the backlog universe, so it is excluded by its content_check_* predicate,
+      // which the backlog universe never carries.
+      return (
+        !JSON.stringify(args?.where ?? {}).includes("content_check") &&
+        args?.where?.status === "active" &&
+        Array.isArray(args.where.OR)
+      );
     });
     expect(backlogCall).toBeDefined();
     const args = backlogCall![0] as {
@@ -1358,8 +1365,12 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
     // The parked-recovery selection carries a top-level r2_attempts predicate
     // (exact-match number since the #534-sentinel fix); the main backlog
     // selection never does. W3: the ids-only backlog_remaining PROBE is
-    // excluded too.
+    // excluded too. PHASE 3.5 CONTENT VERIFICATION is excluded by its
+    // content_check_* predicate — its where-shape is otherwise identical to the
+    // backlog universe, but semantically the two are disjoint: verification
+    // asserts delivery PRESENT (r2_key not null), the backlog asserts MISSING.
     return (
+      !JSON.stringify(args?.where ?? {}).includes("content_check") &&
       args?.where?.status === "active" &&
       Array.isArray(args.where.OR) &&
       args.where.r2_attempts === undefined &&

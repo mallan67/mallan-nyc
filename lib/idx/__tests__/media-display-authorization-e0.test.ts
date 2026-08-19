@@ -199,8 +199,9 @@ describe("E-0 — every live Cotality Media fetch path requests the field", () =
       listsChecked += literals.length;
     }
     // Pin the count so a path deleted (rather than fixed) is also caught.
-    // 9 = 10 live field lists minus the pinned-dead backfillEmptyMedia one.
-    expect(listsChecked).toBe(9);
+    // 10 = 11 live field lists minus the pinned-dead backfillEmptyMedia one.
+    // +1 (2026-08-19): the Phase 3.5 content-verification locator resolve in media-sync.ts.
+    expect(listsChecked).toBe(10);
   });
 
   it("fetchListingMedia refuses suppressed rows, not merely requests them", () => {

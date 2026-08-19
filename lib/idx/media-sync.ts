@@ -4868,7 +4868,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
                 const url =
                   `${TRESTLE_API}/odata/Media?$filter=` +
                   encodeURIComponent(`MediaKey eq '${String(mediaKey).replace(/'/g, "''")}'`) +
-                  `&$select=${encodeURIComponent("MediaKey,MediaURL")}&$top=1`;
+                  // E-0: every live Cotality media fetch path must request the display
+                  // authorization field. The verifier only compares bytes, but the guard is
+                  // deliberately blunt — a media path that does not ask for authorization is a
+                  // media path that could later be made to display unauthorized bytes.
+                  `&$select=${encodeURIComponent("MediaKey,MediaURL,InternetEntireListingDisplayYN")}&$top=1`;
                 const r = await fetch(url, {
                   headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
                 });
