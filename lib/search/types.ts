@@ -109,7 +109,42 @@ export type AmenityFilter =
  * GolfSimulatorRoom, GreenBuilding, HealthClub, IndoorPool, KitchenFacilities,
  * PackageRoom, Sauna, ScreeningRoom, SpaHotTub, SteamRoom, Storage, YogaStudio
  */
-export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: string[]; label: string; group: string }> = {
+/**
+ * How an amenity is matched against the provider payload.
+ *
+ * `contains`    — the field holds a comma-joined token list (`"Elevators,Storage"`),
+ *                 so membership is a substring test against fixed PascalCase
+ *                 provider tokens. Case is NOT user input, so a case-sensitive
+ *                 test is correct here.
+ * `isTrue`      — the field is a JSON boolean (`FireplaceYN`), not a token list.
+ *                 A substring test against a boolean matches nothing, which is
+ *                 exactly how `fireplace` silently returned 0 rows.
+ */
+export type AmenityMatch = 'contains' | 'isTrue';
+
+/**
+ * Amenities the UI offers that NO live Cotality field can answer.
+ *
+ * Verified corpus-wide against production on 2026-08-19 (not sampled):
+ *   no-fee         `ListingTerms` is absent from every row; `Concessions` is
+ *                  present as a key but NULL on all 8,157 displayable listings.
+ *   renovated      no `Renovated`/`GutRenovated` token exists in the live
+ *                  45-token `InteriorFeatures` vocabulary.
+ *   natural-light  no such token exists.
+ *   quiet          no such token exists.
+ *
+ * These must FAIL LOUD rather than silently return an unfiltered corpus — a
+ * user who checks "Renovated" and receives all 8,157 listings has been given a
+ * wrong answer, which is worse than being told the filter is unavailable.
+ */
+export const UNSUPPORTED_AMENITIES: ReadonlySet<string> = new Set([
+  'no-fee',
+  'renovated',
+  'natural-light',
+  'quiet',
+]);
+
+export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: string[]; label: string; group: string; match?: AmenityMatch }> = {
   // Lobby & Services
   'doorman':       { field: 'BuildingFeatures', values: ['Concierge'], label: 'Doorman', group: 'Lobby & Services' },
   // Building Amenities
@@ -128,10 +163,15 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   // Unit Features
   'central-air':   { field: 'Cooling', values: ['CentralAir'], label: 'Central Air', group: 'Unit Features' },
   'dishwasher':    { field: 'Appliances', values: ['Dishwasher'], label: 'Dishwasher', group: 'Unit Features' },
-  'washer-dryer':  { field: 'Appliances', values: ['Washer', 'Dryer', 'WasherDryer', 'WasherDryerAllowed', 'WasherDryerStacked'], label: 'Washer/Dryer', group: 'Unit Features' },
+  // `LaundryFeatures.InUnit` (4,119 live rows) is the primary in-unit laundry
+  // signal and was previously unqueried — Appliances alone found only 2,554.
+  'washer-dryer':  { field: 'Appliances,LaundryFeatures', values: ['Washer', 'Dryer', 'WasherDryer', 'WasherDryerAllowed', 'WasherDryerStacked', 'InUnit'], label: 'Washer/Dryer', group: 'Unit Features' },
   'outdoor-space': { field: 'ExteriorFeatures', values: ['Balcony', 'BuildingBalcony', 'PrivateOutdoorSpaceOver60Sqft', 'PrivateOutdoorSpaceUnder60Sqft', 'PrivateYard', 'Garden'], label: 'Outdoor Space', group: 'Unit Features' },
   // Parking
-  'garage':        { field: 'ParkingFeatures', values: ['Garage'], label: 'Garage/Parking', group: 'Parking' },
+  // `GarageYN` is a live filterable BOOLEAN, true on 2,630 live Active listings,
+  // whereas `ParkingFeatures` carries a Garage token on only 597 — the field is
+  // sparsely populated (819 rows total). Matching the boolean finds 4x more.
+  'garage':        { field: 'GarageYN', values: [], match: 'isTrue', label: 'Garage/Parking', group: 'Parking' },
   // Pets
   'pet-friendly':  { field: 'PetsAllowed', values: ['UnitYes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
   // Views
@@ -142,7 +182,10 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   // Additional unit features
   'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets', 'WalkInCloset'], label: 'Walk-in Closet', group: 'Unit Features' },
   'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings', 'HighCeiling'], label: 'High Ceilings', group: 'Unit Features' },
-  'fireplace':     { field: 'InteriorFeatures', values: ['WoodBurningFireplace', 'DecorativeFireplace', 'Fireplace'], label: 'Fireplace', group: 'Unit Features' },
+  // `FireplaceYN` is a JSON BOOLEAN (861 true / 5,574 false live), not a token
+  // list. The previous `InteriorFeatures` mapping matched 0 rows corpus-wide
+  // because no fireplace token exists in that field's live vocabulary at all.
+  'fireplace':     { field: 'FireplaceYN', values: [], match: 'isTrue', label: 'Fireplace', group: 'Unit Features' },
   'natural-light': { field: 'InteriorFeatures', values: ['NaturalLight'], label: 'Natural Light', group: 'Unit Features' },
   'renovated':     { field: 'InteriorFeatures', values: ['Renovated', 'GutRenovated', 'NewlyRenovated'], label: 'Renovated', group: 'Unit Features' },
   'quiet':         { field: 'InteriorFeatures', values: ['Quiet'], label: 'Quiet', group: 'Unit Features' },

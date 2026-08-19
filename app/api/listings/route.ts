@@ -11,6 +11,7 @@ import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, t
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
+import { UNSUPPORTED_AMENITIES } from '@/lib/search/types';
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
@@ -244,6 +245,30 @@ export async function GET(request: Request) {
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
     const propertySubTypes = searchParams.get('propertySubTypes') || searchParams.get('subTypes'); // accept both
     const amenitiesParam = searchParams.get('amenities'); // route-side pet-friendly RAW post-filter on the Trestle path
+
+    // Amenities the UI can request but NO live Cotality field can answer must
+    // be REJECTED, never quietly dropped. Verified corpus-wide on 2026-08-19:
+    // `no-fee` has no `ListingTerms` on any row and `Concessions` is NULL on
+    // all of them; `renovated`, `natural-light` and `quiet` have no
+    // corresponding token in the live feature vocabularies at all.
+    //
+    // Silently ignoring one of these returns the FULL unfiltered corpus to a
+    // user who asked to narrow it — a wrong answer presented as a right one.
+    // Failing loud is the fail-closed direction for a search contract.
+    const unsupportedAmenities = (amenitiesParam ?? '')
+      .split(',')
+      .map((a) => a.trim())
+      .filter((a) => UNSUPPORTED_AMENITIES.has(a));
+    if (unsupportedAmenities.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'UNSUPPORTED_FILTER',
+          message: `No live provider data backs these filters: ${unsupportedAmenities.join(', ')}.`,
+          unsupported: unsupportedAmenities,
+        },
+        { status: 400 },
+      );
+    }
     const openHouseParam = searchParams.get('openHouse') === 'true';
     const openHouseDateParam = searchParams.get('openHouseDate'); // 'weekend' | ISO date | undefined
     const excludeUndisclosed = searchParams.get('excludeUndisclosed') === 'true';

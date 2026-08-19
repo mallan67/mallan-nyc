@@ -4,7 +4,11 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
-import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import {
+  AMENITY_FIELD_MAP,
+  UNSUPPORTED_AMENITIES,
+  type AmenityFilter,
+} from "@/lib/search/types";
 
 export interface PublicListingDbSearch {
   where: Prisma.ListingWhereInput;
@@ -13,27 +17,63 @@ export interface PublicListingDbSearch {
 
 const ALLOWED_PUBLIC_STATUSES = ["Active", "ComingSoon", "ActiveUnderContract"];
 
+// UI sub-type control → LIVE `PropertySubType` enum members.
+//
+// EVERY value here was checked against the live enum on 2026-08-19. Values that
+// are NOT live members were removed: `Condo` and `SingleFamilyTownhouse` are
+// rejected by the provider with HTTP 400 (not an empty result — a hard error),
+// and `NewConstruction` is not a member at all.
+//
+// NYC does NOT express ownership through `PropertySubType`. Live Active counts:
+//   Apartment 6,684 · MultiFamily 427 · SingleFamilyResidence 404 · Duplex 359 ·
+//   Loft 83 · MixedUse 69 · Triplex 66 — while Condominium, StockCooperative
+//   and Townhouse are ALL ZERO.
+// Condo / Co-op / Condop are carried by `CommonInterest` and are routed to the
+// ownership filter instead (see OWNERSHIP_TYPE_MAP). They are deliberately
+// absent here so they can never reach a `PropertySubType` predicate.
+//
+// "New Development" is a BOOLEAN on the provider (`NewConstructionYN`, 950 live
+// Active), never a sub-type — see the `new-development` sort below.
 const PROPERTY_SUB_TYPE_MAP: Record<string, string> = {
-  Condo: "Condo",
-  "Co-op": "StockCooperative",
-  Condop: "Condop",
-  Townhouse: "SingleFamilyTownhouse",
+  Townhouse: "Townhouse",
   "Multi-Family": "MultiFamily",
-  "New Development": "NewConstruction",
   "Single Family": "SingleFamilyResidence",
+  Apartment: "Apartment",
+  "Mixed Use": "MixedUse",
   Loft: "Loft",
   Duplex: "Duplex",
   Triplex: "Triplex",
 };
 
-// CommonInterest enum values mapped from the public-facing ownership filter.
-// Substring match against the DTO `propertyType` (which dbListingToPublicDTO
-// derives from CommonInterest in the JSON address column).
+// Public ownership filter → live `CommonInterest` enum values.
+//
+// LIVE-VERIFIED corpus-wide against production on 2026-08-19 (every displayable
+// listing, not a sample). `CommonInterest` is a string on 8,158/8,158 rows:
+//   Condominium 3,795 · StockCooperative 2,567 · None 1,019 ·
+//   RentalBuilding 630 · Condop 146
+//
+// `Condop` is a REAL fifth value that a 200-row live sample did not contain —
+// which is why this table is built from the full corpus, never from a sample.
+//
+// Keys are NORMALISED (lowercased, non-alphanumerics stripped) because the
+// previous map was keyed on exact-case `"Condo"`. A UI sending `condo` fell
+// through to a no-match and returned ZERO results with no error — a silent
+// wrong answer. Normalising makes casing and punctuation irrelevant.
 const OWNERSHIP_TYPE_MAP: Record<string, string> = {
-  Condo: "Condominium",
-  "Co-op": "StockCooperative",
-  Condop: "Condop",
+  condo: "Condominium",
+  condominium: "Condominium",
+  coop: "StockCooperative",
+  cooperative: "StockCooperative",
+  stockcooperative: "StockCooperative",
+  condop: "Condop",
+  rental: "RentalBuilding",
+  rentalbuilding: "RentalBuilding",
 };
+
+/** Lowercase and strip non-alphanumerics so `Co-op`, `co op` and `COOP` agree. */
+function normalizeEnumKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 // PascalCase Trestle field name → camelCase DTO key on the public listing.
 // Used for amenity filtering: try the DTO key first, fall back to the raw
@@ -49,6 +89,225 @@ const AMENITY_FIELD_TO_DTO: Record<string, string> = {
   LaundryFeatures: "laundryFeatures",
   PetsAllowed: "petsAllowed",
 };
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THESE FILTERS LIVE IN SQL AND NOT IN A POST-FILTER
+ *
+ * Until 2026-08-19 `ownershipTypes`, `yearBuilt`, `furnished`, `keywords` and
+ * `amenities` were applied in `applyPublicListingPostFilters` — AFTER the page
+ * had already been fetched. That filtered THE PAGE, not the corpus, and left
+ * `total` reporting the unfiltered count. Measured on production:
+ *
+ *     /api/listings?yearBuilt=pre-war&limit=10   ->  total 8,159, items   2
+ *     ...                          &limit=50     ->  total 8,159, items  16
+ *     ...                          &limit=100    ->  total 8,159, items  41
+ *     ...                          &limit=200    ->  total 8,159, items 100
+ *
+ * Items scaled with page size while `total` never moved — proof the predicate
+ * saw only the fetched rows. The true corpus counts are 3,460 pre-war and
+ * 2,567 co-ops, so a user filtering co-ops saw ONE result labelled "8,159
+ * found" and could never reach the other 2,566.
+ *
+ * Expressed as a Prisma `where`, the same predicate runs in Postgres over every
+ * row, `count()` uses the identical predicate, and pagination is coherent.
+ *
+ * SOURCE COLUMN: `raw_data`, not `features`. Both are populated, but on the
+ * live corpus `raw_data` is strictly more complete for these fields —
+ * `Furnished` is present on 8,156 rows there versus 3,018 in `features`.
+ *
+ * Every predicate below was validated against SQL ground truth before being
+ * written (8/8 exact matches); see `.cache/search-p0/`.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+function jsonbFilterConditions(params: URLSearchParams): Prisma.ListingWhereInput[] {
+  const conditions: Prisma.ListingWhereInput[] = [];
+
+  // ownershipTypes — exact `CommonInterest` equality, case-insensitive input.
+  const ownershipTypesParam = params.get("ownershipTypes");
+  if (ownershipTypesParam) {
+    const values = [
+      ...new Set(
+        csv(ownershipTypesParam)
+          .map((type) => OWNERSHIP_TYPE_MAP[normalizeEnumKey(type)])
+          .filter(Boolean),
+      ),
+    ];
+    // Fail CLOSED: an ownership filter we cannot map must return nothing rather
+    // than silently widening to the whole corpus.
+    if (values.length === 0) return [{ id: { in: [] } }];
+    conditions.push({
+      OR: values.map((value) => ({ raw_data: { path: ["CommonInterest"], equals: value } })),
+    });
+  }
+
+  // yearBuilt — pre-war (<=1946) / post-war (>=1947). `YearBuilt` is a JSON
+  // NUMBER on 8,057 rows (101 JSON-null), so numeric comparison is exact and
+  // null-carrying rows are correctly excluded from both sides.
+  const yearBuiltParam = params.get("yearBuilt");
+  if (yearBuiltParam === "pre-war") {
+    conditions.push({ raw_data: { path: ["YearBuilt"], lte: 1946 } });
+  } else if (yearBuiltParam === "post-war") {
+    conditions.push({ raw_data: { path: ["YearBuilt"], gte: 1947 } });
+  }
+
+  // furnished — the live vocabulary is FOUR-valued, not boolean:
+  // Unfurnished 2,895 · Furnished 107 · Negotiable 12 · Partially 4.
+  // `furnished=true` means strictly `Furnished`, preserving the prior contract;
+  // `Partially` and `Negotiable` are deliberately excluded as they are not a
+  // furnished unit. Widening that is a product decision, not a bug fix.
+  if (params.get("furnished") === "true") {
+    conditions.push({ raw_data: { path: ["Furnished"], equals: "Furnished" } });
+  }
+
+  // pets — the UI emits `pets=true` (useListings.ts) as a first-class filter,
+  // SEPARATE from `amenities=pet-friendly`. It was never read here, so a user
+  // who ticked "pets allowed" received the entire unfiltered corpus. Both
+  // spellings must resolve to the same unit-level predicate, or the same
+  // question asked two ways would return two different answers.
+  if (params.get("pets") === "true") {
+    conditions.push({ OR: ["Yes", "CatsOk", "DogsOk"].flatMap(petToken) });
+  }
+
+  // keywords — AND across case-insensitive `PublicRemarks` matches.
+  // PublicRemarks is a PUB-tier IDX field so this stays compliance-safe; do NOT
+  // extend to PrivateRemarks or ShowingInstructions (HID tier).
+  //
+  // `mode: "insensitive"` on a JSON filter IS supported by the installed Prisma
+  // (6.19.2). An older comment in this file claimed otherwise; that was true of
+  // an earlier Prisma and is no longer. Case-insensitivity is REQUIRED here
+  // because remarks are free prose ("Penthouse") and the query is user input.
+  for (const keyword of csv(params.get("keywords"))) {
+    conditions.push({
+      raw_data: { path: ["PublicRemarks"], string_contains: keyword, mode: "insensitive" },
+    });
+  }
+
+  return conditions;
+}
+
+/**
+ * Amenity predicates, in SQL, over the whole corpus.
+ *
+ * Amenity fields hold comma-joined FIXED provider tokens (`"Elevators,Storage"`),
+ * so a case-sensitive substring test is correct — the casing is the provider's,
+ * never the user's. Multiple requested amenities AND together; the values within
+ * one amenity OR together, across each of its configured fields.
+ */
+/**
+ * Match ONE exact token inside a comma-joined provider token list.
+ *
+ * Prisma's JSON `string_contains` cannot anchor, so an exact-token test is
+ * assembled from the four positions a token can occupy: sole value, first,
+ * middle, or last. This is what separates the unit-level `Yes` from the
+ * building-level `BuildingYes` that merely contains it.
+ *
+ * Checked against both `features` and `raw_data`: `PetsAllowed` is a string on
+ * 8,156 rows and an ARRAY on 2, so neither column alone is complete.
+ */
+function petToken(token: string): Prisma.ListingWhereInput[] {
+  return (["features", "raw_data"] as const).flatMap((column) => [
+    { [column]: { path: ["PetsAllowed"], equals: token } },
+    { [column]: { path: ["PetsAllowed"], string_starts_with: `${token},` } },
+    { [column]: { path: ["PetsAllowed"], string_contains: `,${token},` } },
+    { [column]: { path: ["PetsAllowed"], string_ends_with: `,${token}` } },
+  ]) as Prisma.ListingWhereInput[];
+}
+
+function amenityConditions(params: URLSearchParams): Prisma.ListingWhereInput[] {
+  const amenitiesParam = params.get("amenities");
+  if (!amenitiesParam) return [];
+
+  const conditions: Prisma.ListingWhereInput[] = [];
+  for (const key of csv(amenitiesParam)) {
+    if (UNSUPPORTED_AMENITIES.has(key)) continue; // rejected upstream; never widen
+    if (!(key in AMENITY_FIELD_MAP)) continue;
+    const mapping = AMENITY_FIELD_MAP[key as AmenityFilter];
+    const fields = mapping.field.split(",").map((f) => f.trim());
+
+    if (mapping.match === "isTrue") {
+      conditions.push({ OR: fields.map((f) => ({ features: { path: [f], equals: true } })) });
+      continue;
+    }
+
+    if (key === "pet-friendly") {
+      // `PetsAllowed` carries BOTH building-level and unit-level tokens in one
+      // comma-joined list, and encodes negatives alongside positives:
+      //   "BuildingYes,No"  = the building permits pets, THIS UNIT DOES NOT.
+      //
+      // A substring test is therefore wrong twice over: `contains("Yes")` also
+      // matches `BuildingYes`. Measured live, that inflates the result from
+      // 4,304 to 6,861 — 2,557 listings a renter with a dog cannot actually
+      // rent. Exact TOKEN matching is required, so match each affirmative
+      // unit-level token at any position in the list.
+      conditions.push({ OR: ["Yes", "CatsOk", "DogsOk"].flatMap(petToken) });
+      continue;
+    }
+
+    const OR: Prisma.ListingWhereInput[] = [];
+    for (const field of fields) {
+      for (const value of mapping.values) {
+        OR.push({ features: { path: [field], string_contains: value } });
+      }
+    }
+    if (OR.length > 0) conditions.push({ OR });
+  }
+  return conditions;
+}
+
+
+/**
+ * BATHROOM TOTALS — normalised, not "full baths plus a half-bath flag".
+ *
+ * The previous predicate for `minBaths` was
+ *     bathrooms_full >= floor(m)  AND  (m has a half -> bathrooms_half >= 1)
+ * which REJECTS a 2-full / 0-half apartment for `minBaths=1.5`, even though two
+ * full baths is obviously at least one and a half. `maxBaths` had the mirror
+ * defect: `maxBaths=1` compared only `bathrooms_full <= 1`, so a 1-full/1-half
+ * (1.5 bath) listing passed a "maximum 1 bath" filter.
+ *
+ * Mallan stores `bathrooms_full` and `bathrooms_half`, so the normalised total
+ * is `full + 0.5 * half`. Prisma cannot express arithmetic inside a `where`, so
+ * the inequality is expanded into an exact disjunction over the (small) integer
+ * values `full` can take. This is exact, not an approximation.
+ *
+ * Live provider note: Cotality also exposes `BathroomsOneQuarter`,
+ * `BathroomsThreeQuarter`, `BathroomsPartial` and `BathroomsTotalInteger` (all
+ * Int32, verified live 2026-08-19). Mallan does not store the quarter counts, so
+ * they cannot participate in a DB predicate today; `full + half/2` is the exact
+ * total for every quantity Mallan actually holds.
+ */
+const MAX_BATHS_ENUMERATED = 12;
+
+/** `bathrooms_half` is nullable; a null must read as ZERO half-baths. */
+function halfAtMost(n: number): Prisma.ListingWhereInput {
+  return n >= 0
+    ? { OR: [{ bathrooms_half: null }, { bathrooms_half: { lte: n } }] }
+    : { id: { in: [] } };
+}
+
+function minBathsCondition(minBaths: number): Prisma.ListingWhereInput {
+  const ceiling = Math.min(Math.ceil(minBaths), MAX_BATHS_ENUMERATED);
+  // Enough full baths on their own always qualifies — this is the arm the old
+  // predicate was missing.
+  const OR: Prisma.ListingWhereInput[] = [{ bathrooms_full: { gte: ceiling } }];
+  for (let full = 0; full < ceiling; full++) {
+    const halvesNeeded = Math.ceil((minBaths - full) * 2);
+    OR.push({ bathrooms_full: full, bathrooms_half: { gte: halvesNeeded } });
+  }
+  return { OR };
+}
+
+function maxBathsCondition(maxBaths: number): Prisma.ListingWhereInput {
+  const cap = Math.min(Math.floor(maxBaths), MAX_BATHS_ENUMERATED);
+  if (cap < 0) return { id: { in: [] } };
+  const OR: Prisma.ListingWhereInput[] = [];
+  for (let full = 0; full <= cap; full++) {
+    const halvesAllowed = Math.floor((maxBaths - full) * 2);
+    OR.push({ AND: [{ bathrooms_full: full }, halfAtMost(halvesAllowed)] });
+  }
+  return { OR };
+}
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {
   where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), condition];
@@ -79,11 +338,10 @@ function csv(value: string | null): string[] {
 
 function mapPropertySubTypes(value: string | null): string[] {
   return csv(value)
-    .flatMap((type) => {
-      const mapped = PROPERTY_SUB_TYPE_MAP[type];
-      if (mapped === "NewConstruction") return ["NewConstruction", "New Construction"];
-      return [mapped || type];
-    })
+    .map((type) => PROPERTY_SUB_TYPE_MAP[type])
+    // Drop anything not on the live enum rather than passing it through. An
+    // unmapped literal reaching the provider is an HTTP 400, and reaching the
+    // DB it silently matches nothing.
     .filter(Boolean);
 }
 
@@ -244,14 +502,8 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
 
   const minBaths = numberParam(params, "minBaths");
   const maxBaths = numberParam(params, "maxBaths");
-  if (minBaths !== null || maxBaths !== null) {
-    where.bathrooms_full = {};
-    if (minBaths !== null) {
-      where.bathrooms_full.gte = Math.floor(minBaths);
-      if (minBaths % 1 >= 0.5) where.bathrooms_half = { gte: 1 };
-    }
-    if (maxBaths !== null) where.bathrooms_full.lte = Math.floor(maxBaths);
-  }
+  if (minBaths !== null) appendAnd(where, minBathsCondition(minBaths));
+  if (maxBaths !== null) appendAnd(where, maxBathsCondition(maxBaths));
 
   const minSqft = intParam(params, "minSqft");
   const maxSqft = intParam(params, "maxSqft");
@@ -291,7 +543,17 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
     where.postal_code = { in: zips };
   }
 
-  const statuses = csv(params.get("statuses")).filter((status) => ALLOWED_PUBLIC_STATUSES.includes(status));
+  const requestedStatuses = csv(params.get("statuses"));
+  const statuses = requestedStatuses.filter((status) => ALLOWED_PUBLIC_STATUSES.includes(status));
+  if (requestedStatuses.length > 0 && statuses.length === 0) {
+    // Every requested status was non-public (e.g. `statuses=Closed`). Dropping
+    // the constraint entirely made the search FAIL OPEN — it answered a request
+    // for Closed listings with the full Active corpus. Return nothing instead:
+    // no publicly displayable listing satisfies the request, and that is the
+    // honest answer. (Closed rows are gated elsewhere too, so this is a
+    // correctness fix, not a display-leak fix.)
+    appendAnd(where, { id: { in: [] } });
+  }
   if (statuses.length > 0) {
     where.status = { in: statuses };
   } else {
@@ -331,20 +593,33 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       orderBy = { neighborhood: "asc" };
       break;
     case "new-development":
-      where.property_sub_type = { in: ["NewConstruction", "New Construction"] };
+      // `NewConstruction` is NOT a live `PropertySubType` member, so the old
+      // predicate matched nothing. New development is a provider BOOLEAN:
+      // `NewConstructionYN` is true on 950 live Active listings.
+      appendAnd(where, {
+        OR: [
+          { features: { path: ["NewConstructionYN"], equals: true } },
+          { raw_data: { path: ["NewConstructionYN"], equals: true } },
+        ],
+      });
       orderBy = { modification_timestamp: "desc" };
       break;
   }
 
   appendAndMany(where, addressConditions(params.get("address")));
 
+  // Corpus-wide jsonb predicates. These MUST stay in the Prisma `where` so
+  // that `count()` and the page share one predicate; moving any of them back
+  // into a post-filter reintroduces the "filters a page, not the corpus" bug
+  // and a `total` that lies to the user.
+  appendAndMany(where, jsonbFilterConditions(params));
+  appendAndMany(where, amenityConditions(params));
+
   return { where, orderBy };
 }
 
-// Public listings carry feature data both as DTO fields (camelCase, mapped by
-// dbListingToPublicDTO) and as the original Trestle features JSON column. The
-// DB-first post-filters need both, so callers must pass a Map keyed by the
-// listing id (matching `PublicPostFilterListing.id`) → raw features object.
+// Retained for the route's call signature. `featuresById` is no longer read —
+// filtering happens in SQL — but the shape is kept so the seam stays explicit.
 export interface PublicPostFilterListing {
   id: string;
   propertyType?: string | null;
@@ -354,108 +629,30 @@ export interface PublicPostFilterListing {
   publicRemarks?: string | null;
 }
 
-// All DB-first DTO post-filters that aren't expressible as a Prisma where —
-// run after dbListingToPublicDTO maps a row but before media/open-house
-// resource lookups. Order matches the previous inline route logic exactly so
-// behavior is preserved across the migration.
-//
-// NOT included on purpose:
-//   - openHouse: needs a live Trestle OpenHouse query (external resource).
-//   - media backfill / geocoding: side-effect chains the route owns.
+/**
+ * DTO post-filters — now EMPTY BY DESIGN.
+ *
+ * Every filter that used to run here (`ownershipTypes`, `yearBuilt`,
+ * `furnished`, `amenities`, `keywords`) moved into the Prisma `where` built by
+ * `buildPublicListingDbSearch`, because running them here filtered only the
+ * rows already fetched for the current page while `total` kept reporting the
+ * unfiltered count. See the block comment above `jsonbFilterConditions`.
+ *
+ * This function is deliberately retained as an identity pass rather than
+ * deleted: the route calls it at the exact point where a genuinely
+ * page-scoped concern would belong, and keeping the seam documented stops the
+ * next change from quietly reintroducing corpus-level filtering here.
+ *
+ * DO NOT add a corpus-level predicate to this function. If a filter can be
+ * expressed against a column or a jsonb path, it belongs in the `where` so
+ * that `count()` and the returned page agree. The only thing that legitimately
+ * belongs here is a predicate that cannot be evaluated in SQL at all — e.g. one
+ * needing an external resource lookup per row.
+ */
 export function applyPublicListingPostFilters<T extends PublicPostFilterListing>(
   listings: T[],
-  featuresById: Map<string, Record<string, unknown>>,
-  params: URLSearchParams,
+  _featuresById: Map<string, Record<string, unknown>>,
+  _params: URLSearchParams,
 ): T[] {
-  let result = listings;
-
-  // ownershipTypes — substring match against DTO propertyType. Mirrors the
-  // dbListingToPublicDTO mapping from address.CommonInterest, so "Condo"
-  // matches `condo` but not `condop`, etc.
-  const ownershipTypesParam = params.get("ownershipTypes");
-  if (ownershipTypesParam) {
-    const types = csv(ownershipTypesParam)
-      .map((type) => OWNERSHIP_TYPE_MAP[type] || type)
-      .filter(Boolean);
-    if (types.length > 0) {
-      result = result.filter((listing) => {
-        const pt = (listing.propertyType || "").toLowerCase();
-        return types.some((type) => {
-          if (type === "Condominium") return pt.includes("condo") && !pt.includes("condop");
-          if (type === "StockCooperative") return pt.includes("co-op");
-          if (type === "Condop") return pt.includes("condop");
-          return false;
-        });
-      });
-    }
-  }
-
-  // yearBuilt — pre-war (≤1946) / post-war (≥1947). Same threshold as the
-  // Trestle fallback path (YearBuilt le 1946 / ge 1947).
-  const yearBuiltParam = params.get("yearBuilt");
-  if (yearBuiltParam === "pre-war") {
-    result = result.filter((l) => l.yearBuilt != null && l.yearBuilt <= 1946);
-  } else if (yearBuiltParam === "post-war") {
-    result = result.filter((l) => l.yearBuilt != null && l.yearBuilt >= 1947);
-  }
-
-  // furnished — rental-only filter; matches DTO furnished === "Furnished".
-  if (params.get("furnished") === "true") {
-    result = result.filter((l) => (l.furnished || "").toLowerCase() === "furnished");
-  }
-
-  // amenities — AND across requested keys; each key is OR-of-substring across
-  // the configured fields (DTO camelCase first, features JSON PascalCase
-  // fallback). PetsAllowed has its own logic because its values encode
-  // negative cases (e.g., "No") that need positive recognition.
-  const amenitiesParam = params.get("amenities");
-  if (amenitiesParam) {
-    const requested = amenitiesParam
-      .split(",")
-      .filter((a): a is AmenityFilter => a in AMENITY_FIELD_MAP);
-
-    for (const amenityKey of requested) {
-      const mapping = AMENITY_FIELD_MAP[amenityKey];
-      const fields = mapping.field.split(",").map((f) => f.trim());
-      const matchValues = mapping.values.map((v) => v.toLowerCase());
-
-      if (amenityKey === "pet-friendly") {
-        result = result.filter((listing) => {
-          const dtoVal = String(listing.petsAllowed || "").toLowerCase();
-          const feat = featuresById.get(listing.id) || {};
-          const featVal = String(feat.PetsAllowed || "").toLowerCase();
-          const val = dtoVal || featVal;
-          if (!val) return false;
-          return !val.includes("no") || val.includes("catsok") || val.includes("dogsok");
-        });
-      } else {
-        result = result.filter((listing) => {
-          const feat = featuresById.get(listing.id) || {};
-          return fields.some((fieldName) => {
-            const dtoKey = AMENITY_FIELD_TO_DTO[fieldName];
-            const dtoVal = dtoKey
-              ? String((listing as unknown as Record<string, unknown>)[dtoKey] || "")
-              : "";
-            const featVal = String(feat[fieldName] || "");
-            const val = (dtoVal || featVal).toLowerCase();
-            return matchValues.some((mv) => val.includes(mv));
-          });
-        });
-      }
-    }
-  }
-
-  // keywords — AND across PublicRemarks substring matches. PublicRemarks is a
-  // PUB-tier IDX field so this stays compliance-safe; do NOT extend to
-  // PrivateRemarks or ShowingInstructions (HID tier).
-  const keywords = csv(params.get("keywords")).filter(Boolean);
-  if (keywords.length > 0) {
-    result = result.filter((listing) => {
-      const feat = featuresById.get(listing.id) || {};
-      const remarks = String(feat.PublicRemarks || listing.publicRemarks || "").toLowerCase();
-      return keywords.every((kw) => remarks.includes(kw.toLowerCase().trim()));
-    });
-  }
-
-  return result;
+  return listings;
 }

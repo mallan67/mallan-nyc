@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import type { SearchTab, SearchFilters, AmenityFilter } from '@/lib/search/types';
 import {
   AMENITY_FIELD_MAP,
+  UNSUPPORTED_AMENITIES,
   TAB_CONFIG,
   RESIDENTIAL_PROPERTY_TYPES,
   OWNERSHIP_TYPES as OWNERSHIP_VALUES,
@@ -68,8 +69,15 @@ export default function SearchFilterPanel({
 
   const hasChanges = JSON.stringify(staged) !== JSON.stringify(currentFilters);
 
-  // Group amenities by their group
+  // Group amenities by their group.
+  //
+  // Amenities with NO live provider backing are not offered at all. Verified
+  // corpus-wide on 2026-08-19: `no-fee`, `renovated`, `natural-light` and
+  // `quiet` match nothing in the live feature vocabularies, so offering them
+  // could only ever mislead — the API rejects them, and a control that always
+  // errors is worse than no control.
   const amenityGroups = Object.entries(AMENITY_FIELD_MAP).reduce((acc, [key, config]) => {
+    if (UNSUPPORTED_AMENITIES.has(key)) return acc;
     if (!acc[config.group]) acc[config.group] = [];
     acc[config.group].push({ key: key as AmenityFilter, ...config });
     return acc;

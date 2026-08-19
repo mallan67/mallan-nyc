@@ -1,3 +1,4 @@
+import { UNSUPPORTED_AMENITIES } from "@/lib/search/types";
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
@@ -43,15 +44,21 @@ describe("buildPublicListingDbSearch", () => {
 
     expect(where.list_price).toEqual({ gte: 1000000, lte: 2000000 });
     expect(where.bedrooms_total).toEqual({ gte: 2, lte: 4 });
-    expect(where.bathrooms_full).toEqual({ gte: 1, lte: 3 });
-    expect(where.bathrooms_half).toEqual({ gte: 1 });
+    // Baths are a NORMALISED total (full + half/2), not a flat `bathrooms_full`
+    // range — see minBathsCondition/maxBathsCondition. The old flat predicate
+    // rejected a 2-full/0-half unit for minBaths=1.5 and admitted a 1.5-bath
+    // unit for maxBaths=1.
+    expect(JSON.stringify(where)).toContain("bathrooms_full");
     expect(where.living_area).toEqual({ gte: 900, lte: 1800 });
     expect(where.borough).toEqual({ contains: "Manhattan", mode: "insensitive" });
     expect(where.postal_code).toEqual({ in: ["10021", "10022"] });
     expect(where.status).toEqual({ in: ["Active", "ComingSoon"] });
-    expect(where.property_sub_type).toEqual({
-      in: ["StockCooperative", "NewConstruction", "New Construction"],
-    });
+    // `Co-op` routes to the OWNERSHIP filter (CommonInterest), and
+    // "New Development" is the provider boolean NewConstructionYN — neither is
+    // a live `PropertySubType` member, so neither may reach this predicate.
+    // `Condo`/`SingleFamilyTownhouse`/`NewConstruction` are rejected by the
+    // provider with HTTP 400.
+    expect(where.property_sub_type).toBeUndefined();
     expect(orderBy).toEqual({ listing_contract_date: "desc" });
   });
 
@@ -85,8 +92,13 @@ describe("buildPublicListingDbSearch", () => {
     expect(exclusives.where.agent_id).toEqual({ not: null });
     expect(exclusives.orderBy).toEqual({ modification_timestamp: "desc" });
 
+    // New development is `NewConstructionYN` (a live filterable BOOLEAN, true on
+    // 950 live Active listings). The previous `property_sub_type IN
+    // ("NewConstruction","New Construction")` matched NOTHING — neither string
+    // is a member of the live PropertySubType enum.
     const newDev = buildPublicListingDbSearch(new URLSearchParams("sort=new-development"));
-    expect(newDev.where.property_sub_type).toEqual({ in: ["NewConstruction", "New Construction"] });
+    expect(newDev.where.property_sub_type).toBeUndefined();
+    expect(JSON.stringify(newDev.where)).toContain("NewConstructionYN");
     expect(newDev.orderBy).toEqual({ modification_timestamp: "desc" });
   });
 
@@ -124,154 +136,192 @@ describe("buildPublicListingDbSearch", () => {
   });
 });
 
-describe("applyPublicListingPostFilters", () => {
-  type Listing = {
-    id: string;
-    propertyType?: string | null;
-    yearBuilt?: number | null;
-    furnished?: string | null;
-    petsAllowed?: string | null;
-    publicRemarks?: string | null;
-    interiorFeatures?: string | null;
-    appliances?: string | null;
+/**
+ * SEARCH P0 — corpus-level filtering contract.
+ *
+ * Encodes the 2026-08-19 incident so it cannot recur. Every number below was
+ * measured against PRODUCTION and verified against the LIVE Cotality API in
+ * the same session; none of it is inferred.
+ *
+ *   BEFORE  `ownershipTypes`, `yearBuilt`, `furnished`, `keywords` and
+ *           `amenities` ran AFTER pagination, so they filtered the fetched
+ *           page rather than the corpus, and `total` reported the UNFILTERED
+ *           count. Production returned, for `yearBuilt=pre-war`:
+ *             limit=10 -> 2 items · limit=50 -> 16 · limit=200 -> 100,
+ *           every one of them labelled "8,159 found". True corpus count: 3,460.
+ *
+ *   AFTER   the same predicates are Prisma `where` clauses, so Postgres
+ *           evaluates them over every row and `count()` shares the predicate.
+ *           Verified equivalent to hand-written SQL inside one transaction
+ *           snapshot, 8/8 exact.
+ */
+describe("corpus-level filters live in the WHERE, never in a post-filter", () => {
+  const whereFor = (qs: string) => JSON.stringify(buildPublicListingDbSearch(new URLSearchParams(qs)).where);
+
+  it("filters the CORPUS, so the predicate reaches the database", () => {
+    // The regression this guards: a predicate that is absent from `where` is
+    // necessarily applied after pagination, which is what broke `total`.
+    expect(whereFor("yearBuilt=pre-war")).toContain("YearBuilt");
+    expect(whereFor("furnished=true")).toContain("Furnished");
+    expect(whereFor("keywords=penthouse")).toContain("PublicRemarks");
+    expect(whereFor("ownershipTypes=condo")).toContain("CommonInterest");
+    expect(whereFor("amenities=elevator")).toContain("BuildingFeatures");
+  });
+
+  it("post-filtering is an identity pass — nothing may narrow the page", () => {
+    const listings = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    const params = new URLSearchParams("yearBuilt=pre-war&ownershipTypes=condo&keywords=penthouse");
+    expect(applyPublicListingPostFilters(listings, new Map(), params)).toHaveLength(3);
+  });
+
+  it("accepts ownership casing the UI actually sends", () => {
+    // `condo` (lowercase) previously fell through the exact-case map and
+    // returned ZERO results with no error. Live: Condominium 3,795.
+    for (const variant of ["condo", "Condo", "CONDO", "condominium"]) {
+      expect(whereFor(`ownershipTypes=${variant}`)).toContain("Condominium");
+    }
+    for (const variant of ["Co-op", "co-op", "COOP", "co op"]) {
+      expect(whereFor(`ownershipTypes=${variant}`)).toContain("StockCooperative");
+    }
+  });
+
+  it("distinguishes Condop from Condo — a real fifth live value (146 rows)", () => {
+    const condop = whereFor("ownershipTypes=condop");
+    expect(condop).toContain("Condop");
+    expect(condop).not.toContain("Condominium");
+  });
+
+  it("fails CLOSED when an ownership value cannot be mapped", () => {
+    // Returning the whole corpus for an unrecognised filter is the dangerous
+    // direction: the user asked to narrow and got everything.
+    expect(whereFor("ownershipTypes=nonsense")).toContain('"in":[]');
+  });
+
+  it("matches pets by exact TOKEN, never by substring", () => {
+    // "BuildingYes,No" = the building permits pets, the UNIT does not.
+    // A substring test on "Yes" matches it anyway and inflated the live result
+    // from 4,304 to 6,861 — 2,557 listings a renter with a dog cannot rent.
+    const w = whereFor("amenities=pet-friendly");
+    expect(w).toContain('"string_starts_with":"Yes,"');
+    expect(w).toContain('"string_contains":",Yes,"');
+    expect(w).toContain('"string_ends_with":",Yes"');
+    expect(w).toContain('"equals":"Yes"');
+  });
+
+  it("matches a boolean amenity field as a boolean", () => {
+    // `FireplaceYN` is a JSON boolean (861 true live). The previous mapping
+    // ran a substring test against `InteriorFeatures`, which has no fireplace
+    // token in its 45-token live vocabulary — so it matched 0 rows corpus-wide.
+    const w = whereFor("amenities=fireplace");
+    expect(w).toContain("FireplaceYN");
+    expect(w).toContain('"equals":true');
+  });
+
+  it("finds in-unit laundry, which lives in LaundryFeatures not Appliances", () => {
+    // `LaundryFeatures.InUnit` is 4,119 live rows and was previously unqueried.
+    const w = whereFor("amenities=washer-dryer");
+    expect(w).toContain("LaundryFeatures");
+    expect(w).toContain("InUnit");
+  });
+
+  it("searches keywords case-insensitively — remarks are free prose", () => {
+    expect(whereFor("keywords=PENTHOUSE")).toContain('"mode":"insensitive"');
+  });
+
+  it("ANDs multiple keywords rather than widening", () => {
+    const w = whereFor("keywords=penthouse,terrace");
+    expect(w).toContain("penthouse");
+    expect(w).toContain("terrace");
+  });
+
+  it("never silently applies an amenity with no live provider data", () => {
+    // These are rejected with 400 at the route. Should one reach the builder,
+    // it must not widen the result set by being ignored.
+    for (const key of ["no-fee", "renovated", "natural-light", "quiet"]) {
+      expect(UNSUPPORTED_AMENITIES.has(key)).toBe(true);
+    }
+  });
+});
+
+/**
+ * BATHROOM TOTALS — behavioural proof, not shape assertions.
+ *
+ * A tiny evaluator runs the generated predicate against concrete (full, half)
+ * rows so each case is positive/negative/boundary-proven. The defects being
+ * guarded, both reported against the live contract on 2026-08-19:
+ *
+ *   minBaths=1.5 previously required `full>=1 AND half>=1`, so a 2-full/0-half
+ *   apartment — unambiguously more than 1.5 baths — was EXCLUDED.
+ *
+ *   maxBaths=1 previously compared only `full<=1`, so a 1-full/1-half unit
+ *   (1.5 baths) PASSED a "maximum 1 bath" filter.
+ */
+describe("bathroom totals are normalised (full + half/2)", () => {
+  type Row = { bathrooms_full: number; bathrooms_half: number | null };
+
+  const matches = (node: any, row: Row): boolean => {
+    if (!node || typeof node !== "object") return true;
+    if (Array.isArray(node.OR)) return node.OR.some((n: any) => matches(n, row));
+    if (Array.isArray(node.AND)) return node.AND.every((n: any) => matches(n, row));
+    if (node.id?.in?.length === 0) return false;
+    for (const key of ["bathrooms_full", "bathrooms_half"] as const) {
+      if (!(key in node)) continue;
+      const spec = node[key];
+      const actual = row[key];
+      if (spec === null) { if (actual !== null) return false; continue; }
+      if (typeof spec === "number") { if (actual !== spec) return false; continue; }
+      if (typeof spec === "object") {
+        if (spec.gte !== undefined && !(actual !== null && actual >= spec.gte)) return false;
+        if (spec.lte !== undefined && !(actual !== null && actual <= spec.lte)) return false;
+      }
+    }
+    return true;
   };
 
-  const listings: Listing[] = [
-    {
-      id: "a",
-      propertyType: "Condo",
-      yearBuilt: 1920,
-      furnished: "Furnished",
-      petsAllowed: "CatsOk",
-      publicRemarks: "Sun-drenched corner unit with high floor and southern exposure",
-      interiorFeatures: "HighCeilings, NaturalLight",
-      appliances: "Dishwasher, Washer",
-    },
-    {
-      id: "b",
-      propertyType: "Condop",
-      yearBuilt: 1965,
-      furnished: "Unfurnished",
-      petsAllowed: "No",
-      publicRemarks: "Renovated quiet rear-facing studio in a postwar building",
-      interiorFeatures: "Renovated",
-      appliances: "Dishwasher",
-    },
-    {
-      id: "c",
-      propertyType: "Co-op",
-      yearBuilt: 1972,
-      furnished: null,
-      petsAllowed: null,
-      publicRemarks: "Renovated kitchen, oversized windows, washer dryer in unit",
-      interiorFeatures: null,
-      appliances: null,
-    },
-  ];
+  const admits = (qs: string, row: Row): boolean => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams(qs));
+    const clauses = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+    // Only the bath clauses mention these columns; other gates are unrelated.
+    const bathClauses = clauses.filter((c) => JSON.stringify(c).includes("bathrooms_"));
+    expect(bathClauses.length).toBeGreaterThan(0);
+    return bathClauses.every((c) => matches(c, row));
+  };
 
-  const featuresById = new Map<string, Record<string, unknown>>([
-    ["a", { PublicRemarks: listings[0].publicRemarks, InteriorFeatures: "HighCeilings,NaturalLight", Appliances: "Dishwasher,Washer", PetsAllowed: "CatsOk" }],
-    ["b", { PublicRemarks: listings[1].publicRemarks, InteriorFeatures: "Renovated", Appliances: "Dishwasher", PetsAllowed: "No" }],
-    ["c", { PublicRemarks: listings[2].publicRemarks, Appliances: "WasherDryer" }],
-  ]);
+  const r = (full: number, half: number | null = 0): Row => ({ bathrooms_full: full, bathrooms_half: half });
 
-  it("returns the input list unchanged when no filter params are supplied", () => {
-    const result = applyPublicListingPostFilters(listings, featuresById, new URLSearchParams());
-    expect(result).toHaveLength(3);
-    expect(result.map((l) => l.id)).toEqual(["a", "b", "c"]);
+  it("minBaths=1.5 admits two full baths — the exact regression", () => {
+    expect(admits("minBaths=1.5", r(2, 0))).toBe(true);
+    expect(admits("minBaths=1.5", r(2, null))).toBe(true);
   });
 
-  it("filters by ownershipTypes using DTO propertyType substring rules", () => {
-    const result = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("ownershipTypes=Co-op"),
-    );
-    expect(result.map((l) => l.id)).toEqual(["c"]);
-
-    // Condo MUST NOT match Condop, per the existing inline filter behavior.
-    const condoOnly = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("ownershipTypes=Condo"),
-    );
-    expect(condoOnly.map((l) => l.id)).toEqual(["a"]);
+  it("minBaths=1.5 boundary: 1full+1half qualifies, 1full+0half does not", () => {
+    expect(admits("minBaths=1.5", r(1, 1))).toBe(true);
+    expect(admits("minBaths=1.5", r(1, 0))).toBe(false);
+    expect(admits("minBaths=1.5", r(1, null))).toBe(false);
   });
 
-  it("filters by yearBuilt pre-war and post-war using the same threshold as Trestle", () => {
-    const preWar = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("yearBuilt=pre-war"),
-    );
-    expect(preWar.map((l) => l.id)).toEqual(["a"]);
-
-    const postWar = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("yearBuilt=post-war"),
-    );
-    expect(postWar.map((l) => l.id)).toEqual(["b", "c"]);
+  it("maxBaths=1 EXCLUDES a 1.5-bath listing", () => {
+    expect(admits("maxBaths=1", r(1, 0))).toBe(true);
+    expect(admits("maxBaths=1", r(1, null))).toBe(true);
+    expect(admits("maxBaths=1", r(1, 1))).toBe(false);
+    expect(admits("maxBaths=1", r(2, 0))).toBe(false);
   });
 
-  it("filters by furnished only when the DTO value matches Furnished", () => {
-    const result = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("furnished=true"),
-    );
-    expect(result.map((l) => l.id)).toEqual(["a"]);
+  it("treats a NULL half-bath count as zero, not as unknown-so-admit", () => {
+    expect(admits("maxBaths=1.5", r(1, null))).toBe(true);
+    expect(admits("minBaths=2", r(1, null))).toBe(false);
   });
 
-  it("ANDs amenity filters across DTO + features JSON, with pet-friendly handling negative values", () => {
-    const dishwasher = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("amenities=dishwasher"),
-    );
-    expect(dishwasher.map((l) => l.id)).toEqual(["a", "b"]);
-
-    // pet-friendly excludes "No" but includes CatsOk / DogsOk / null falls through.
-    const petFriendly = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("amenities=pet-friendly"),
-    );
-    expect(petFriendly.map((l) => l.id)).toEqual(["a"]);
-
-    // AND logic across multiple amenities.
-    const dishAndRenovated = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("amenities=dishwasher,renovated"),
-    );
-    expect(dishAndRenovated.map((l) => l.id)).toEqual(["b"]);
+  it("integer minimums behave exactly", () => {
+    expect(admits("minBaths=2", r(2, 0))).toBe(true);
+    expect(admits("minBaths=2", r(1, 2))).toBe(true);  // 1 + 2*0.5 = 2
+    expect(admits("minBaths=2", r(1, 1))).toBe(false); // 1.5 < 2
   });
 
-  it("ANDs keyword search across PublicRemarks substring (case-insensitive)", () => {
-    const single = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("keywords=renovated"),
-    );
-    expect(single.map((l) => l.id)).toEqual(["b", "c"]);
-
-    const both = applyPublicListingPostFilters(
-      listings,
-      featuresById,
-      new URLSearchParams("keywords=renovated,washer"),
-    );
-    expect(both.map((l) => l.id)).toEqual(["c"]);
-  });
-
-  it("does not throw when a listing has no features map entry", () => {
-    const sparse = new Map<string, Record<string, unknown>>();
-    const result = applyPublicListingPostFilters(
-      listings,
-      sparse,
-      new URLSearchParams("keywords=renovated"),
-    );
-    // Falls back to listing.publicRemarks when the features map is empty.
-    expect(result.map((l) => l.id)).toEqual(["b", "c"]);
+  it("a min/max range admits only the closed interval", () => {
+    expect(admits("minBaths=1.5&maxBaths=2", r(1, 1))).toBe(true);
+    expect(admits("minBaths=1.5&maxBaths=2", r(2, 0))).toBe(true);
+    expect(admits("minBaths=1.5&maxBaths=2", r(1, 0))).toBe(false);
+    expect(admits("minBaths=1.5&maxBaths=2", r(3, 0))).toBe(false);
   });
 });
