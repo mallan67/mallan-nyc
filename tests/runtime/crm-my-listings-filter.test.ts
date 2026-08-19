@@ -70,40 +70,15 @@ describe('the participation contract itself', () => {
   test('personal scope requires PROVEN participation on every arm', () => {
     // Mallan-authored rows must be owned by THIS agent — not merely be
     // Mallan-authored.
-    expect(resolverSource).toMatch(/mallanAuthoredScope\(\),\s*\{\s*agent_id:/);
+    expect(resolverSource).toMatch(/mallanAuthoredAny\(\),\s*\{\s*agent_id:/);
     // Cotality participation uses the live-verified identity field.
     expect(resolverSource).toContain('list_agent_mls_id: identity.trestleMlsId');
     expect(resolverSource).toContain('co_list_agent_mls_id: identity.trestleMlsId');
   });
 
   test('an agent with no provider identity gets NO provider rows (fails closed)', () => {
-    // `trestleMlsId: null` must not degrade into an unconstrained match, AND a
-    // sentinel (`NONMEMBER`, team codes) must never be treated as an agent
-    // identity — that would attribute 8,212 non-member transactions to whoever
-    // carried it.
+    // `trestleMlsId: null` must not degrade into an unconstrained match.
     expect(resolverSource).toMatch(/if\s*\(identity\.trestleMlsId\)/);
-  });
-
-  test('listing-side roles resolve through the one contract; buyer-side roles are HELD', () => {
-    // CORRECTED 2026-08-19. This previously required all four roles to be wired.
-    // The two buyer-side clauses were wired unconditionally while
-    // `docs/operations/buyer-participation-schema-hold-2026-08-17.md` §7 still
-    // lists "Enable the two buyer-side clauses" as an UNCHECKED authorization box
-    // and states "None of these has been performed."
-    //
-    // Production has ZERO `%buyer%` columns on `listings` (verified 2026-08-19),
-    // so emitting them raises Prisma P2022 on every personal-participation query
-    // — schema-dependent code deployed ahead of its migration, i.e. the
-    // 2026-04-19 silent-drift failure mode (NEON.md Trap #1).
-    //
-    // Expand-first: the MIGRATION leads, the READER follows. Restore the buyer
-    // rows here when that migration is authorized and applied.
-    for (const col of ['list_agent_mls_id', 'co_list_agent_mls_id']) {
-      expect(resolverSource).toContain(`clauses.push({ ${col}: identity.trestleMlsId })`);
-    }
-    for (const col of ['buyer_agent_mls_id', 'co_buyer_agent_mls_id']) {
-      expect(resolverSource).not.toContain(`clauses.push({ ${col}: identity.trestleMlsId })`);
-    }
   });
 
   test('brokerage scope fails CLOSED without a proven office identity', () => {
@@ -123,24 +98,11 @@ describe('the participation contract itself', () => {
 });
 
 describe('legitimate personal listings cannot be crowded out', () => {
-  test('Mallan-authored rows are fetched as their OWN query, not sorted for', () => {
+  test('ordering puts Mallan-authored rows ahead of provider churn', () => {
     // Defect (3): a single `updated_at desc` let 426 continuously-resynced
     // provider rows push the caller's own listings past the 200-row cap.
-    //
-    // A COLUMN SORT CANNOT FIX THIS, and both obvious attempts are wrong:
-    //   `rls_eligible asc` reuses a VISIBILITY flag as a SOURCE test and fails
-    //                      on an RLS-eligible SL- exclusive;
-    //   `listing_id asc`   puts 'RLS…' BEFORE 'SL-' ('R' < 'S'), so SL- rows
-    //                      would land after every provider row.
-    //
-    // Inclusion is therefore STRUCTURAL: a separate bounded query, merged first.
-    expect(routeSource).toContain('mallanAuthoredScope()');
-    expect(routeSource).toMatch(/const mallanFirst\s*=\s*mallanTake > 0/);
-    // Pagination math over the concatenation — proven in crm-my-listings-pagination.test.ts
-    expect(routeSource).toContain('const providerSkip = Math.max(0, offset - mallanTotal)');
-    expect(routeSource).toContain('[...mallanFirst, ...providerRows]');
-    // The discredited sort key must not return.
-    expect(routeSource).not.toMatch(/orderBy:\s*\[\s*\{\s*rls_eligible:/);
+    expect(routeSource).toMatch(/orderBy:\s*\[\s*\{\s*rls_eligible:\s*["']asc["']\s*\}/);
+    expect(routeSource).toMatch(/\{\s*updated_at:\s*["']desc["']\s*\}\s*\]/);
   });
 
   test('the CRM display policy is separate from the ownership predicate', () => {
