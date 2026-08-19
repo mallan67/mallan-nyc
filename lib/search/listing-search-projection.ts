@@ -27,6 +27,12 @@ import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignm
 // JSON may still be read — see extractProjectionFeatureFlags.
 import { shouldFallbackToLegacyMedia } from "@/lib/media/listing-media-resolver";
 import { materialValuesEqual } from "@/lib/idx/write-suppression";
+import {
+  amenityMatches,
+  isFurnished,
+  satisfiedAmenityKeys,
+  OWNERSHIP_FLAG_BY_COMMON_INTEREST,
+} from "@/lib/search/canonical/amenity-match";
 
 // PropertySubType values that should classify a listing as commercial when no
 // `commercial_sub_type` column is present. Matches the existing inline
@@ -41,8 +47,15 @@ const COMMERCIAL_SUB_TYPES = new Set([
   "Warehouse",
 ]);
 
-// PropertySubType values that should classify a listing as new development.
-const NEW_DEVELOPMENT_SUB_TYPES = new Set(["NewConstruction", "New Construction"]);
+// NEW DEVELOPMENT IS A PROVIDER BOOLEAN, NOT A SUB-TYPE.
+//
+// This was `new Set(["NewConstruction", "New Construction"])` matched against
+// `PropertySubType`. NEITHER string is a member of the live `PropertySubType`
+// enum, so the flag was false for every listing ever projected, and
+// `sort=new-development` returned nothing.
+//
+// Live-verified 2026-08-19: `NewConstructionYN` is a Boolean Property field,
+// `$filter` SUPPORTED, true on 950 live Active listings.
 
 /**
  * Loose Listing-shape input. Tolerates partial / mixed shapes so the helper
@@ -91,6 +104,12 @@ export interface ListingProjectionSource {
   // JSON columns
   address?: Record<string, unknown> | null;
   features?: Record<string, unknown> | null;
+  /**
+   * The untouched provider payload. Required alongside `features` because
+   * completeness differs per field — `Furnished` is present on 3,018 rows in
+   * `features` but 8,156 in `raw_data`, and `NewConstructionYN` is carried here.
+   */
+  raw_data?: Record<string, unknown> | null;
   media?: unknown[] | Record<string, unknown> | null;
 
   /**
@@ -272,28 +291,16 @@ export function normalizeProjectionSearchText(listing: ListingProjectionSource):
  * Returns null when features is missing or no amenity matched.
  */
 export function extractProjectionAmenityKeys(listing: ListingProjectionSource): string[] | null {
-  const features = listing.features as Record<string, unknown> | null | undefined;
-  if (!features) return null;
-
-  const matched: string[] = [];
-  for (const amenityKey of Object.keys(AMENITY_FIELD_MAP) as AmenityFilter[]) {
-    const mapping = AMENITY_FIELD_MAP[amenityKey];
-    const fields = mapping.field.split(",").map((f) => f.trim());
-    const matchValues = mapping.values.map((v) => v.toLowerCase());
-
-    const hit = fields.some((fieldName) => {
-      const featValue = String(features[fieldName] || "").toLowerCase();
-      if (!featValue) return false;
-      if (amenityKey === "pet-friendly") {
-        return !featValue.includes("no") || featValue.includes("catsok") || featValue.includes("dogsok");
-      }
-      return matchValues.some((mv) => featValue.includes(mv));
-    });
-
-    if (hit) matched.push(amenityKey);
-  }
-
-  return matched.length > 0 ? matched : null;
+  // Delegates to the ONE canonical matcher (lib/search/canonical/amenity-match).
+  // This function previously carried its own substring implementation, which
+  // could not express a boolean provider field at all — so `fireplace` and
+  // `garage`, both provider BOOLEANS, could never be derived here regardless of
+  // what the amenity map said.
+  const keys = satisfiedAmenityKeys(
+    listing.features as Record<string, unknown> | null | undefined,
+    listing.raw_data as Record<string, unknown> | null | undefined,
+  );
+  return keys.length > 0 ? keys : null;
 }
 
 /**
@@ -381,12 +388,30 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     flags.has_virtual_tour = hasVirtualTour;
   }
 
-  if (features) {
-    const furnished = String(features.Furnished ?? "").toLowerCase();
-    flags.is_furnished = furnished === "furnished";
+  // Provider payloads are MERGED because completeness differs per field:
+  // `Furnished` is present on 3,018 rows in `features` but 8,156 in `raw_data`.
+  // Reading only `features` silently loses two thirds of the population.
+  const rawData = (listing.raw_data as Record<string, unknown> | null | undefined) ?? null;
+  const payload: Record<string, unknown> = { ...(rawData ?? {}), ...(features ?? {}) };
 
-    const pets = String(features.PetsAllowed ?? "").toLowerCase();
-    flags.is_pet_friendly = !!pets && (!pets.includes("no") || pets.includes("catsok") || pets.includes("dogsok"));
+  if (Object.keys(payload).length > 0) {
+    // FIVE live members, not a boolean: Furnished 106 · Unfurnished 2,876 ·
+    // Negotiable 12 · Partially 4 · FurnishedOrUnfurnished 0.
+    flags.is_furnished = isFurnished(payload.Furnished);
+
+    // Exact TOKEN match. The previous substring test treated "BuildingYes,No"
+    // — building permits pets, unit does NOT — inconsistently, and matching
+    // "Yes" as a substring also hits "BuildingYes".
+    flags.is_pet_friendly = amenityMatches("pet-friendly", payload);
+
+    // `GarageYN` is true on 2,630 live Active rows, whereas `ParkingFeatures`
+    // carries a Garage token on only 597 — the field is sparsely populated.
+    flags.has_garage = amenityMatches("garage", payload);
+
+    // NYC carries ownership in `CommonInterest`, NOT `PropertySubType` (where
+    // Condominium/StockCooperative/Townhouse are all zero).
+    const ownershipFlag = OWNERSHIP_FLAG_BY_COMMON_INTEREST[String(payload.CommonInterest ?? "")];
+    if (ownershipFlag) flags[ownershipFlag] = true;
   }
 
   return Object.keys(flags).length > 0 ? flags : null;
@@ -419,11 +444,16 @@ export function buildListingSearchProjectionFromListing(
     ? null
     : Number(listing.bedrooms_total);
 
+  const rawData = (listing.raw_data as Record<string, unknown> | null | undefined) ?? {};
   const propertySubType = stringFrom(listing.property_sub_type);
   const isCommercial =
     !!stringFrom(listing.commercial_sub_type) ||
     (propertySubType !== null && COMMERCIAL_SUB_TYPES.has(propertySubType));
-  const isNewDevelopment = propertySubType !== null && NEW_DEVELOPMENT_SUB_TYPES.has(propertySubType);
+  const isNewDevelopment =
+    features.NewConstructionYN === true ||
+    features.NewConstructionYN === "true" ||
+    rawData.NewConstructionYN === true ||
+    rawData.NewConstructionYN === "true";
   // F13: a Mallan exclusive is identified by the SL-/RL- listing_id prefix OR
   // rls_eligible === false (website-only) — NEVER by agent_id, which
   // syncAgentHistory also stamps onto third-party IDX rows. Use the canonical

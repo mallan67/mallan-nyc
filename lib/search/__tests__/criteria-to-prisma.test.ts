@@ -447,3 +447,92 @@ describe("runProjectionListingSearch", () => {
     expect(args.where.modified_at).toEqual({ gte: since });
   });
 });
+
+/**
+ * PROVEN CRITERIA ON THE CANONICAL ENGINE.
+ *
+ * These criteria were verified against live Cotality on 2026-08-19 and are now
+ * answered from the projection's DERIVED columns. The architectural rule they
+ * guard: public Search, Saved Search and CMA must resolve the same user
+ * question through the same engine. Evaluating them from
+ * `listings.raw_data`/`features` in one reader and from the projection in
+ * another is the split this consolidates.
+ */
+describe("criteriaToProjectionWhere — criteria proven against live Cotality", () => {
+  const w = (criteria: Record<string, unknown>) => JSON.stringify(criteriaToProjectionWhere(criteria));
+
+  it("resolves ownership through CommonInterest-derived flags, not PropertySubType", () => {
+    // Live: PropertySubType Condominium/StockCooperative/Townhouse are ALL ZERO
+    // in the NYC feed; ownership is carried by CommonInterest.
+    expect(w({ ownershipTypes: ["Condo"] })).toContain("is_condo");
+    expect(w({ ownershipTypes: ["Co-op"] })).toContain("is_coop");
+    expect(w({ ownershipTypes: ["Condop"] })).toContain("is_condop");
+  });
+
+  it("accepts the casing the UI actually sends", () => {
+    for (const variant of ["condo", "Condo", "CONDO", "condominium"]) {
+      expect(w({ ownershipTypes: [variant] })).toContain("is_condo");
+    }
+    for (const variant of ["Co-op", "co-op", "COOP", "co op"]) {
+      expect(w({ ownershipTypes: [variant] })).toContain("is_coop");
+    }
+  });
+
+  it("fails CLOSED on an unmappable ownership value", () => {
+    expect(w({ ownershipTypes: ["nonsense"] })).toContain('"in":[]');
+  });
+
+  it("filters year built on the promoted column", () => {
+    expect(w({ yearBuilt: "pre-war" })).toContain('"year_built":{"lte":1946}');
+    expect(w({ yearBuilt: "post-war" })).toContain('"year_built":{"gte":1947}');
+    expect(w({ yearBuilt: "any" })).not.toContain("year_built");
+  });
+
+  it("reads furnished and pets from derived flags, never re-parsing provider JSON", () => {
+    expect(w({ furnished: true })).toContain("is_furnished");
+    expect(w({ pets: true })).toContain("is_pet_friendly");
+    // A reader must not re-derive from the multi-value: "BuildingYes,No" means
+    // the building permits pets and the UNIT does not.
+    expect(w({ pets: true })).not.toContain("PetsAllowed");
+  });
+
+  it("matches new development by the provider boolean", () => {
+    expect(w({ newDevelopment: true })).toContain('"is_new_development":true');
+  });
+
+  it("ANDs amenities against the derived keys", () => {
+    const out = w({ amenities: ["elevator", "dishwasher"] });
+    expect(out).toContain("amenity_keys");
+    expect(out).toContain("elevator");
+    expect(out).toContain("dishwasher");
+  });
+
+  it("never lets an unbacked amenity widen the result", () => {
+    // `no-fee`/`renovated`/`natural-light`/`quiet` have no live provider
+    // backing; ignoring one would return the whole corpus to a user who asked
+    // to narrow it.
+    expect(w({ amenities: ["renovated"] })).toContain('"in":[]');
+  });
+
+  it("searches keywords case-insensitively on the projected text", () => {
+    const out = w({ keywords: ["Penthouse"] });
+    expect(out).toContain("searchable_text");
+    expect(out).toContain('"mode":"insensitive"');
+  });
+
+  it("uses the projection's FUSED bathroom total, so 1.5 needs no expansion", () => {
+    // `bathrooms` is `full + half*0.5` at build time, so a 2-full/0-half unit
+    // has bathrooms=2 and satisfies minBaths=1.5 naturally — the defect the
+    // Listing-backed path had to expand a disjunction to avoid.
+    expect(w({ minBaths: 1.5 })).toContain('"bathrooms":{"gte":1.5}');
+    expect(w({ maxBaths: 1 })).toContain('"bathrooms":{"lte":1}');
+  });
+
+  it("keeps alert eligibility conservative while the CRM key list is gated", () => {
+    // The engine can filter these; alert REPLAY eligibility is a separate,
+    // two-file change gated on public/crm/**. Failing safe means alerts stay
+    // unavailable rather than replaying a search the index would answer
+    // differently.
+    expect(getUnsupportedProjectionCriteria({ amenities: ["elevator"] })).toContain("amenities");
+  });
+});

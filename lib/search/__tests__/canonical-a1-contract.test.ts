@@ -285,8 +285,21 @@ describe('A1 · ContractDecision discriminated-union narrowing', () => {
   });
 });
 
-describe('A1 · no runtime reader imports the canonical package (NOT WIRED)', () => {
-  it('no file under app/, lib/ (excluding canonical) or public/ imports the canonical package', () => {
+/**
+ * WIRING GUARD — was "nothing imports the canonical package".
+ *
+ * The blanket prohibition recorded the A1 phase, where the canonical package
+ * was a skeleton nothing consumed. That premise is superseded: the projection
+ * PRODUCER now derives `amenity_keys` and the feature flags through the one
+ * canonical matcher, which is the whole point of having a shared read model —
+ * public Search, Saved Search and CMA must answer the same question the same
+ * way, and they cannot if each re-implements the matching rules.
+ *
+ * The guard is NARROWED rather than deleted, so unreviewed wiring still trips
+ * it. Adding a file here is a deliberate act that has to be justified in review.
+ */
+describe('A1 · only authorised readers import the canonical package', () => {
+  it('no UNAUTHORISED file under app/, lib/ (excluding canonical) or public/ imports it', () => {
     const repoRoot = path.resolve(__dirname, '../../../');
     const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '.git', '__tests__', 'tests', 'coverage']);
     const CANONICAL_DIR = path.join(repoRoot, 'lib', 'search', 'canonical').replace(/\\/g, '/');
@@ -323,6 +336,16 @@ describe('A1 · no runtime reader imports the canonical package (NOT WIRED)', ()
       }
     }
 
-    expect(offenders).toEqual([]);
+    // Authorised consumers. The projection producer is the single derivation
+    // point for amenity keys and feature flags; everything downstream reads the
+    // DERIVED columns rather than re-deriving from provider payloads.
+    const AUTHORISED = new Set([
+      // Single derivation point for amenity_keys / feature_flags.
+      'lib/search/listing-search-projection.ts',
+      // Canonical criteria -> projection where-builder; reads the ownership
+      // flag names so the reader cannot invent a second spelling of them.
+      'lib/search/criteria-to-prisma.ts',
+    ]);
+    expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);
 });

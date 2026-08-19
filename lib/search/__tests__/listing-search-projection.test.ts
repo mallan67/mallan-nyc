@@ -199,8 +199,14 @@ describe("extractProjectionAmenityKeys", () => {
     expect(keys).toContain("dishwasher");
     expect(keys).toContain("washer-dryer");
     expect(keys).toContain("central-air");
-    expect(keys).toContain("renovated");
-    expect(keys).toContain("pet-friendly"); // CatsOk satisfies pet-friendly
+    expect(keys).toContain("pet-friendly"); // CatsOk is an affirmative UNIT token
+    // `renovated` has NO live provider backing. `PropertyCondition` is the
+    // correct field and DOES carry UpdatedRemodeled / UnderRenovation / Turnkey
+    // as enum members, but it is populated 0/500 on live Active listings, so no
+    // renovation filter can be answered today. It must not be derived from a
+    // substring of InteriorFeatures, whose 45-token live vocabulary has no
+    // renovation token at all.
+    expect(keys).not.toContain("renovated");
   });
 
   it("returns null when features is missing", () => {
@@ -511,10 +517,33 @@ describe("commercial / new-development / exclusive / rental flags", () => {
     }
   });
 
-  it("flags new-development when property_sub_type is NewConstruction", () => {
+  it("flags new-development from the NewConstructionYN boolean", () => {
+    // Live-verified: `NewConstructionYN` is a Boolean Property field, true on
+    // 950 live Active listings.
+    const row = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      features: { ...(baseSale.features ?? {}), NewConstructionYN: true },
+    });
+    expect(row.is_new_development).toBe(true);
+  });
+
+  it("does NOT flag new-development from a PropertySubType that cannot exist", () => {
+    // The previous derivation matched `property_sub_type` against
+    // "NewConstruction" / "New Construction". NEITHER is a member of the live
+    // PropertySubType enum — the provider answers $filter on them with HTTP 400
+    // — so the flag was false for every listing ever projected and
+    // sort=new-development returned nothing.
     const row = buildListingSearchProjectionFromListing({
       ...baseSale,
       property_sub_type: "NewConstruction",
+    });
+    expect(row.is_new_development).toBe(false);
+  });
+
+  it("reads NewConstructionYN from raw_data when features lacks it", () => {
+    const row = buildListingSearchProjectionFromListing({
+      ...baseSale,
+      raw_data: { NewConstructionYN: true },
     });
     expect(row.is_new_development).toBe(true);
   });

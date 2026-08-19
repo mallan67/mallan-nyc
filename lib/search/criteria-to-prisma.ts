@@ -3,6 +3,26 @@ import {
   buildProjectionSearchWhere,
   buildSearchDisplayWhere,
 } from "@/lib/search/listing-access-decision";
+import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from "@/lib/search/canonical/amenity-match";
+import { UNSUPPORTED_AMENITIES } from "@/lib/search/types";
+
+/**
+ * Normalised public ownership input → live `CommonInterest` member.
+ *
+ * Keyed on a normalised form (lowercase, non-alphanumerics stripped) because an
+ * exact-case map silently returned ZERO results for `condo` — the casing the UI
+ * actually sends — with no error.
+ */
+const OWNERSHIP_COMMON_INTEREST_BY_INPUT: Record<string, string> = {
+  condo: "Condominium",
+  condominium: "Condominium",
+  coop: "StockCooperative",
+  cooperative: "StockCooperative",
+  stockcooperative: "StockCooperative",
+  condop: "Condop",
+  rental: "RentalBuilding",
+  rentalbuilding: "RentalBuilding",
+};
 
 export type SearchCriteria = Record<string, unknown>;
 
@@ -56,6 +76,21 @@ const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
   "maxSqft",
   "sqftMin",
   "sqftMax",
+  // ── ALERT ELIGIBILITY IS DELIBERATELY NOT WIDENED YET ──────────────────
+  // As of 2026-08-19 the projection ENGINE can filter ownershipTypes,
+  // yearBuilt, furnished, pets, amenities, keywords, zipCodes and
+  // newDevelopment — they are derived at projection build time into
+  // `amenity_keys` / `feature_flags` / `year_built` / `is_new_development`
+  // (see `appendProvenProjectionCriteria`), so they are replayable.
+  //
+  // They are NOT listed here because this set must stay byte-parity with the
+  // frontend `_ALERT_SUPPORTED_KEYS` in `public/crm/js/search/saved-searches.js`,
+  // and `public/crm/**` is a standing authorization hold. Promoting them is a
+  // TWO-FILE change requiring that approval.
+  //
+  // Leaving them out fails SAFE: a Saved Search using one of these simply
+  // cannot enable alerts, rather than enabling an alert whose replay would
+  // disagree with the live search.
 ]);
 
 const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
@@ -114,6 +149,22 @@ function isSupportedProjectionCriterionValue(key: string, value: unknown): boole
 
   if (key === "statuses" || key === "status" || key === "standardStatus" || key === "standard_status") {
     return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (
+    key === "ownershipTypes" || key === "ownership_types" ||
+    key === "amenities" || key === "keywords" ||
+    key === "zipCodes" || key === "zip_codes" || key === "postal_code"
+  ) {
+    return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (key === "furnished" || key === "pets" || key === "newDevelopment" || key === "is_new_development") {
+    return typeof value === "boolean" || value === "true" || value === "false";
+  }
+
+  if (key === "yearBuilt" || key === "year_built") {
+    return value === "pre-war" || value === "post-war" || value === "any";
   }
 
   if (key === "property_type" || key === "property_types" || key === "propertyType" || key === "propertyTypes") {
@@ -312,6 +363,100 @@ export function criteriaToPrismaWhere(
  * gate columns AND the FK-relation filter for the Listing-only
  * `owner_opt_out` field (which the bounded PR 5A schema did not mirror).
  */
+
+/** Truthy across the shapes criteria arrive in (JSON bool, form string). */
+function booleanValue(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
+/**
+ * The criteria PROVEN against live Cotality on 2026-08-19, expressed against
+ * the projection's DERIVED columns rather than re-derived from provider JSON.
+ *
+ * This is the point of the read model. The public reader previously evaluated
+ * these against `listings.raw_data` / `listings.features` while Saved Search
+ * and the alert cron ran through the projection — two engines answering the
+ * same user question from different sources, which is exactly the split this
+ * consolidates. Deriving once at write time also means an amenity rule change
+ * is a projection rebuild, not a silent divergence between callers.
+ */
+function appendProvenProjectionCriteria(
+  where: Prisma.ListingSearchProjectionWhereInput,
+  criteria: SearchCriteria,
+): void {
+  const and: Prisma.ListingSearchProjectionWhereInput[] = [];
+
+  // ownershipTypes — NYC carries ownership in `CommonInterest`, NOT
+  // `PropertySubType` (where Condominium/StockCooperative/Townhouse are all
+  // ZERO live). The producer maps CommonInterest to a boolean feature flag.
+  const ownership = stringArray(first(criteria, ["ownershipTypes", "ownership_types"]));
+  if (ownership.length > 0) {
+    const flags = [
+      ...new Set(
+        ownership
+          .map((value) => OWNERSHIP_FLAG_BY_COMMON_INTEREST[
+            OWNERSHIP_COMMON_INTEREST_BY_INPUT[value.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? ""
+          ])
+          .filter(Boolean),
+      ),
+    ];
+    // Fail CLOSED — an ownership filter we cannot map must return nothing
+    // rather than silently widening to the whole corpus.
+    if (flags.length === 0) {
+      and.push({ id: { in: [] } });
+    } else {
+      and.push({ OR: flags.map((flag) => ({ feature_flags: { path: [flag], equals: true } })) });
+    }
+  }
+
+  // yearBuilt — pre-war <=1946 / post-war >=1947, on the promoted column.
+  const yearBuilt = first(criteria, ["yearBuilt", "year_built"]);
+  if (yearBuilt === "pre-war") and.push({ year_built: { lte: 1946 } });
+  else if (yearBuilt === "post-war") and.push({ year_built: { gte: 1947 } });
+
+  // furnished — five live members; `true` means strictly `Furnished` (106 live).
+  if (booleanValue(first(criteria, ["furnished"]))) {
+    and.push({ feature_flags: { path: ["is_furnished"], equals: true } });
+  }
+
+  // pets — unit-level affirmation only. "BuildingYes,No" means the building
+  // permits pets and the UNIT does not; the producer resolves that by exact
+  // token, so readers never re-parse the multi-value.
+  if (booleanValue(first(criteria, ["pets"]))) {
+    and.push({ feature_flags: { path: ["is_pet_friendly"], equals: true } });
+  }
+
+  // newDevelopment — `NewConstructionYN` (950 live Active), never a sub-type.
+  if (booleanValue(first(criteria, ["newDevelopment", "is_new_development"]))) {
+    and.push({ is_new_development: true });
+  }
+
+  // amenities — AND across requested keys, each matched against the derived
+  // `amenity_keys` array. Unsupported amenities never widen the result.
+  const amenities = stringArray(first(criteria, ["amenities"]));
+  for (const amenity of amenities) {
+    if (UNSUPPORTED_AMENITIES.has(amenity)) {
+      and.push({ id: { in: [] } });
+      continue;
+    }
+    and.push({ amenity_keys: { array_contains: [amenity] } });
+  }
+
+  // keywords — AND across case-insensitive matches on the projected text.
+  // `searchable_text` is built from PUB-tier fields only; it must never be
+  // extended to PrivateRemarks or ShowingInstructions (HID tier).
+  for (const keyword of stringArray(first(criteria, ["keywords"]))) {
+    and.push({ searchable_text: { contains: keyword, mode: "insensitive" } });
+  }
+
+  const zips = stringArray(first(criteria, ["zipCodes", "zip_codes", "postal_code"]));
+  if (zips.length > 0) and.push({ postal_code: { in: zips } });
+
+  if (and.length > 0) {
+    where.AND = Array.isArray(where.AND) ? [...where.AND, ...and] : where.AND ? [where.AND, ...and] : and;
+  }
+}
+
 export function criteriaToProjectionWhere(
   criteria: SearchCriteria,
   options: SearchWhereOptions = {},
@@ -369,6 +514,8 @@ export function criteriaToProjectionWhere(
     if (minSqft !== undefined) where.living_area.gte = minSqft;
     if (maxSqft !== undefined) where.living_area.lte = maxSqft;
   }
+
+  appendProvenProjectionCriteria(where, criteria);
 
   if (options.modifiedSince) {
     where.modified_at = { gte: options.modifiedSince };
