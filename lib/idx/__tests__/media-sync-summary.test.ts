@@ -68,6 +68,9 @@ describe("computeListingMediaSummary (pure function)", () => {
       primary_photo_r2_key: null,
       photo_count: 0,
       photos_change_timestamp: null,
+      // Structured hero identity — null when there is no hero. Derived from the
+      // `media_key` the row read already selects; never persisted.
+      primary_photo_media_key: null,
     });
   });
 
@@ -143,6 +146,7 @@ describe("computeListingMediaSummary (pure function)", () => {
       primary_photo_r2_key: null,
       photo_count: 0,
       photos_change_timestamp: null,
+      primary_photo_media_key: null,
     });
   });
 
@@ -228,6 +232,7 @@ describe("updateListingMediaSummary (DB-backed)", () => {
       primary_photo_r2_key: "photos/RLS-1/1.jpg",
       photo_count: 1,
       photos_change_timestamp: null,
+      primary_photo_media_key: null,
     });
 
     // findMany call shape
@@ -255,6 +260,9 @@ describe("updateListingMediaSummary (DB-backed)", () => {
     // listing.update call shape
     const updateArgs = mockListingUpdate.mock.calls[0][0] as { where: Record<string, unknown>; data: Record<string, unknown> };
     expect(updateArgs.where).toEqual({ listing_id: "RLS20012345" });
+    // GUARD: exactly FOUR columns. `primary_photo_media_key` is a derived
+    // in-memory field with no database column — writing it would fail every
+    // listing update with "column does not exist".
     expect(updateArgs.data).toEqual({
       primary_photo_url: "https://example.com/p.jpg",
       primary_photo_r2_key: "photos/RLS-1/1.jpg",

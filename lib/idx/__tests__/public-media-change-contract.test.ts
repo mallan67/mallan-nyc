@@ -93,6 +93,7 @@ const computed = (o: Partial<ListingMediaSummary> = {}): ListingMediaSummary =>
     primary_photo_r2_key: null,
     photo_count: 8,
     photos_change_timestamp: T1,
+    primary_photo_media_key: "MK-A",
     ...o,
   }) as ListingMediaSummary;
 
@@ -142,6 +143,80 @@ describe("classifier — storage equality is not public-material equality", () =
   it("nothing moved at all: no storage write, no tags", () => {
     const d = decideListingMediaSummaryChange(stored(), computed());
     expect(d).toEqual({ storageChanged: false, publicChange: "none" });
+  });
+
+  it("NEGATIVE COLLISION: different MediaKey + heuristic-equal locator MUST NOT be suppressed", () => {
+    // THE DANGEROUS CASE. If two DIFFERENT provider rows produced locators that
+    // collapse to the same heuristic key, and neither count nor gallery evidence
+    // moved, the locator heuristic ALONE would classify a REAL hero change as
+    // `provenance-only` and emit ZERO public tags — silently serving the wrong
+    // hero indefinitely under `revalidate = false`.
+    //
+    // Structured provider identity closes it: `MediaKey` is ROW IDENTITY, so a
+    // different key is a different hero regardless of what the locator looks like.
+    const d = decideListingMediaSummaryChange(
+      stored({ primary_photo_url: HERO_A }),
+      computed({
+        primary_photo_url: HERO_A_ROTATED, // heuristic-equal to HERO_A
+        primary_photo_media_key: "MK-NEW", // but a DIFFERENT provider row
+      }),
+      { galleryMutated: false, previousHeroMediaKey: "MK-OLD" },
+    );
+
+    expect(d.publicChange).toBe("public-hero");
+    expect(d.storageChanged).toBe(true);
+  });
+
+  it("SAME MediaKey with new change evidence is NOT a hero change", () => {
+    // IDENTITY vs CHANGE EVIDENCE. A row may gain a new `RecordSignature` or
+    // `MediaModificationTimestamp` — it was REVISED — while keeping the same
+    // `MediaKey`. That is a new VERSION of the same hero, not a different hero.
+    const d = decideListingMediaSummaryChange(
+      stored({ primary_photo_url: HERO_A, photos_change_timestamp: T1 }),
+      computed({
+        primary_photo_url: HERO_A_ROTATED,
+        primary_photo_media_key: "MK-SAME",
+        photos_change_timestamp: T2,
+      }),
+      { galleryMutated: false, previousHeroMediaKey: "MK-SAME" },
+    );
+
+    expect(d.publicChange).toBe("provenance-only");
+    expect(d.storageChanged).toBe(true); // the sync cursor still advances
+  });
+
+  it("structured identity OVERRIDES the locator heuristic in BOTH directions", () => {
+    // Identical locator, different identity -> hero change.
+    expect(
+      decideListingMediaSummaryChange(
+        stored({ primary_photo_url: HERO_A }),
+        computed({ primary_photo_url: HERO_A, primary_photo_media_key: "MK-B" }),
+        { galleryMutated: false, previousHeroMediaKey: "MK-A" },
+      ).publicChange,
+    ).toBe("public-hero");
+
+    // Completely different-looking locator, same identity -> no public change.
+    expect(
+      decideListingMediaSummaryChange(
+        stored({ primary_photo_url: HERO_A, photos_change_timestamp: T1 }),
+        computed({
+          primary_photo_url: HERO_B,
+          primary_photo_media_key: "MK-A",
+          photos_change_timestamp: T2,
+        }),
+        { galleryMutated: false, previousHeroMediaKey: "MK-A" },
+      ).publicChange,
+    ).toBe("provenance-only");
+  });
+
+  it("falls back to the heuristic ONLY when identity is unknown", () => {
+    // `previousHeroMediaKey: undefined` means "not known" — never "unchanged".
+    const d = decideListingMediaSummaryChange(
+      stored({ primary_photo_url: HERO_A }),
+      computed({ primary_photo_url: HERO_B }),
+      { galleryMutated: false },
+    );
+    expect(d.publicChange).toBe("public-hero");
   });
 
   it("missing stored row fails CLOSED to the widest scope", () => {

@@ -1,5 +1,40 @@
 # CLAUDE.md — Project Command Center · mallan.nyc
 
+> # 🛑 STOP GATE — READ BEFORE ANY LISTING / PROVIDER / DATA WORK
+>
+> **Do not read existing mappings, field lists, comments, audits, tests, snapshots or prior
+> work until you have read this gate.** Existing code is **NOT** provider authority.
+>
+> **AUTHORITY:** `MALLAN-PLATFORM-MASTER-PLAN.md` is the single Mallan product/system
+> authority and carries the FULL BINDING RULE.
+> **Implementation / reference text (NOT canonical, NOT a competing authority):**
+> `docs/architecture/COTALITY-API-AND-MALLAN-LOCAL-INPUT.md`.
+> ⚠️ **OPEN:** the rule is not yet carried in the Master Plan — enforcement is partial.
+>
+> **A listing in Mallan has exactly TWO possible origins. There is no third.**
+>
+> 1. **LIVE AUTHENTICATED COTALITY API** — external provider records (read-only observations)
+> 2. **MALLAN REAL ESTATE LOCAL INPUT** — broker/agent-created listings (Mallan-owned, editable)
+>
+> **`Cotality API` is the ONE external provider name** used in all Mallan architecture,
+> documentation, reports, identifiers and new code. If the Cotality API returns a raw
+> historical or source string, **preserve that raw value exactly at the provider boundary**
+> where provenance requires it — and **never promote it** into a Mallan architectural layer,
+> provider name, documentation taxonomy, or new code terminology.
+>
+> **Authority is split and the split is absolute:**
+>
+> | Question | Who decides |
+> |---|---|
+> | What the Cotality API contains, means, permits | **the live authenticated Cotality API. Nothing else.** |
+> | How Mallan names, organises and operates its product | **Maya / `MALLAN-PLATFORM-MASTER-PLAN.md`** |
+>
+> The Cotality API **cannot** dictate Mallan product terminology. Maya **cannot** assert a
+> Cotality API fact. Provider discovery **always** begins from the live authenticated
+> Cotality API — never from repo code, chat, memory, docs, or a saved snapshot.
+>
+> Guarded by `npm run cotality:startup-gate` (fails if these pointers disappear).
+
 > Lean indexed command center (rebuilt 2026-05-20).
 >
 > **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
@@ -21,6 +56,22 @@
 
 ## A. Absolute hard rules
 
+0. **COTALITY LIVE API IS THE ONLY AUTHORITY** — READ `memory/COTALITY-IS-THE-ONLY-AUTHORITY.md`
+   before asserting ANY Cotality fact (field meaning, value vocabulary, population,
+   filterability, relationship, or capability). Every such claim must come from an HTTP
+   response received from `api.cotality.com` **during the current session**. A repo constant,
+   `$select` list, mapper table, code comment, `artifacts/metadata.xml`,
+   `data/cotality-enums.live.json`, a prior audit, RESO/vendor docs, another agent's report,
+   or model memory are **NOT evidence** — a committed artifact may be refreshed and diffed,
+   never read as truth. Probes must **fail loud**: `SUPPORTED`, `PROVIDER_REJECTED` and
+   `UNVERIFIED` are three states that may **never** collapse, and an HTTP failure may never
+   become `0`/`null`/`[]`. `$metadata` **over-declares** what the licence grants, so a schema
+   declaration is never capability proof — **probe the endpoint**.
+   **This file carries the RULE, never the facts:** no status vocabulary, enum, field
+   definition, population or capability verdict may be written here. Provider facts live only
+   in the compiled contract (`npm run cotality:compile` → `data/cotality-contract/contract.json`,
+   drift-checked by `npm run cotality:verify`) or in dated evidence documents. Binds Claude and
+   every subagent; when dispatching agents, pass this rule and verify each one honoured it.
 1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
 2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
 3. **Memory file mirror policy** — every file created/updated under `memory/` must also be mirrored to `C:\Users\MayaAllan\Desktop\memory\` in the same session (byte-identical). Verify with `cmp` after write. The `memory/archive/` subdirectory itself is not mirrored, only its parent file movements.
@@ -128,16 +179,18 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 
 | Topic | Canonical file |
 |---|---|
+| **Cotality authority law** (read first for ANY Cotality claim) | `memory/COTALITY-IS-THE-ONLY-AUTHORITY.md` |
 | **Compliance per-area canonical map** (read first for any §D surface) | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
-| Trestle field registry (all 12 resources, ~1,364 fields) | `data/RLS-FIELD-REGISTRY.md` |
-| IDX Plus field CSV (902 fields, 7 resources) | `data/rebny-rls-property-fields.csv` |
-| Picklist values (2,066 lookups) | `data/rebny-rls-property-lookup.csv` |
+| **Cotality field truth (existence, type, population, enums, permissions)** | **LIVE `api.cotality.com/trestle` ONLY** — `npm run cotality:compile` → `data/cotality-contract/contract.json`, drift-checked by `npm run cotality:verify` |
+| IDX Plus field CSV — **SNAPSHOT, not authority** | `data/rebny-rls-property-fields.csv` — usable only after proving its regeneration date/source against live Cotality |
+| Picklist values — **SNAPSHOT, not authority** | `data/rebny-rls-property-lookup.csv` — same condition |
+| ~~Trestle field registry~~ **DEPRECATED / HISTORICAL** | `data/RLS-FIELD-REGISTRY.md` — verified 2026-03-20 only. **NOT field authority.** Historical evidence; never cite for current field existence, type, population, enums, permissions, mapping or semantics. |
 | UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` |
 | Syndication research (RLS feeds, vendors, costs, providers) | `data/RLS-Syndication-Research.md` |
-| Trestle live OData $metadata | `artifacts/metadata.xml` |
+| Trestle OData `$metadata` — **CAPTURED SNAPSHOT, not authority** | `artifacts/metadata.xml` — §A.0 already states it is NOT evidence and that it **over-declares** what the licence grants. Refresh and diff; never read as truth. |
 | Master refactor plan (10-PR backend rebuild) | `memory/REFACTOR-2026-04-25.md` |
 | Most recent comprehensive audit | `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` |
 | Post-reconciliation tightening audit (Phase A scope rationale) | `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` |

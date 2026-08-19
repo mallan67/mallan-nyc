@@ -1,3 +1,22 @@
+> ## ⛔ DEPRECATED / HISTORICAL SNAPSHOT — NOT FIELD AUTHORITY
+>
+> **Verified 2026-03-20 ONLY.** Built from the March 2026 IDX Plus spreadsheet.
+>
+> **NEVER use this file to establish current Cotality field existence, type, population,
+> enum values, permissions, mappings, or semantics. Verify LIVE against Cotality.**
+>
+> Authority chain (CLAUDE.md §A.0):
+> **LIVE COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER**
+>
+> A repo constant, `$select` list, mapper table, code comment, `artifacts/metadata.xml`, a prior
+> audit, or this file are **NOT evidence**. Field truth comes from an HTTP response received from
+> `api.cotality.com` **during the current session**, compiled via `npm run cotality:compile` and
+> drift-checked by `npm run cotality:verify`.
+>
+> Retained as **historical evidence** of what was believed on 2026-03-20. Deprecated 2026-08-19.
+
+---
+
 # REBNY RLS / IDX Plus Field Registry
 
 **Source:** REBNY — "Mallan Copy of IDX PLUS 3.15.26.xlsx" (received 2026-03-19)

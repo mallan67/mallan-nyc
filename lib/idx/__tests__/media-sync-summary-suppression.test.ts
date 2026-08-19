@@ -301,6 +301,7 @@ describe("updateListingMediaSummary — suppression of unchanged summaries", () 
       primary_photo_r2_key: "photos/L1/0.jpg",
       photo_count: 1,
       photos_change_timestamp: PCT,
+      primary_photo_media_key: null,
     });
   });
 });

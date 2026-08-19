@@ -64,6 +64,14 @@ import {
   uploadToR2 as defaultUploadToR2,
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
+// Recurrence verification — bounded, runs INSIDE this media member only. Deliberately NOT part of
+// the R2 backlog universe: see PHASE 3.5 for the five invariants.
+import {
+  buildContentVerificationWhere,
+  verifyRow,
+  MAX_VERIFICATION_ROWS_PER_CYCLE,
+  type VerifiableRow,
+} from "@/lib/media/content-verification";
 import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 // R2-1 mirror-admission policy — canonical helpers ONLY (no local re-derivation):
 //   - Ownership: `isMallanExclusiveListing` (SL-/RL- listing_id prefix OR
@@ -1005,55 +1013,53 @@ function mediaUrlIdentity(url: string | null | undefined): string {
 }
 
 /**
- * VERIFIED LOCATOR-ROTATION COMPARISON — "are these two DELIVERY LOCATORS the
- * same locator, differing only by the rotation Cotality applies per read?".
+ * ROTATION-SUPPRESSION HEURISTIC — **NOT** AN IDENTITY CONTRACT.
  *
- * THIS IS NOT AN ASSET ID, AND MUST NOT BECOME ONE. `MediaURL` is a delivery
- * locator; the live contract has not established it as a content identity, and
- * no canonical row/content decision may be taken from it. Structured provider
- * fields own that: `MediaKey` is ROW identity (5,000/5,000 populated and
- * distinct) and rows are matched on `media_key`; `RecordSignature` +
- * `MediaModificationTimestamp` are the provider's own CHANGE signals. This
- * function exists only to stop a per-read rotation being mistaken for a
- * consumer-visible change.
+ * ── READ THIS BEFORE RELYING ON IT ─────────────────────────────────────────
+ * This derives a key by DROPPING the last two path segments of a Cotality
+ * `MediaURL`. That shape was OBSERVED live (32 distinct MediaKeys across four
+ * type/category cohorts: the differing segments were `-2,-1` on 32/32, 0/32
+ * unchanged, 0 structured fields moved). An observation is not a contract.
+ * Cotality's authorized documentation does not define the URL's internal
+ * structure, so this codebase MUST NOT treat it as canonical asset identity.
  *
- * USED ONLY FOR THE PUBLIC-MATERIALITY DECISION, never for storage. That split
- * is the whole point:
+ * THE THREE ROLES ARE DISTINCT AND MUST NOT BE COLLAPSED:
  *
- *   STORAGE  keeps refreshing a rotated locator (see `mediaUrlIdentity`), so an
- *            unmirrored row never ends up serving a locator we cannot vouch for.
- *   PUBLIC   is told NOTHING, because the asset did not change and no consumer
- *            output differs.
+ *   IDENTITY          `MediaKey`   — 5,000/5,000 populated and distinct live.
+ *                                    This alone answers "is it the same row?".
+ *   CHANGE / VERSION  `RecordSignature`, `MediaModificationTimestamp`, and other
+ *                     EVIDENCE       verified structured fields. These say the row
+ *                                    was REVISED. A new signature or timestamp on
+ *                                    the SAME `MediaKey` is still the same asset
+ *                                    identity — it is a new version of it.
+ *   DELIVERY LOCATOR  `MediaURL`   — where to fetch it right now. Rotates.
  *
- * ── WHY origin+pathname CANNOT ANSWER THIS ─────────────────────────────────
- * It ignores the QUERY STRING, which encodes "the signed part rotates in the
- * query". That is FALSE for this feed: live Cotality `MediaURL`s carry no query
- * string at all, and the rotating epoch+signature are the last two PATH
- * segments. So a full-pathname compare reports a difference on EVERY read.
+ * Calling the change-evidence fields "identity" would mean every re-signed row
+ * looked like a different asset. Rows are matched on `media_key`; nothing in
+ * this heuristic participates in identity at all.
  *
- * ── ROTATION STRUCTURE, MEASURED FROM THE LIVE API ─────────────────────────
- * The trailing-segment count is NOT assumed from one observation. 32 distinct
- * MediaKeys were read TWICE each, spanning four live type/category cohorts
- * (Photo/Jpeg, FloorPlan/Jpeg, FloorPlan/Pdf, Photo/Png):
+ * ── WHY IT EXISTS AT ALL, AND THE SAFETY DIRECTION ─────────────────────────
+ * The stored media SUMMARY holds only `primary_photo_url` — a rotating locator
+ * — so a URL comparison is the only signal available at that layer today. Used
+ * naively it produces a spurious hero change on EVERY sync, because rotation is
+ * universal.
  *
- *   - the differing path segments were `-2,-1` on 32/32 rows, never any other
- *     index;
- *   - 0/32 rows returned an unchanged URL, so rotation is universal;
- *   - every cohort produced a 9-segment path;
- *   - 0 structured fields moved during rotation (RecordSignature,
- *     MediaModificationTimestamp, ModificationTimestamp, MediaObjectID, Order,
- *     PreferredPhotoYN, MediaCategory, MediaType, MediaClassification).
- *   - separately, 5,000 sampled rows yielded 5,000 distinct prefixes.
+ * It is therefore used in ONE direction only: to SUPPRESS a public invalidation,
+ * never to cause one, and only when structured evidence AGREES nothing changed
+ * (see `decideListingMediaSummaryChange`). If the URL shape ever changes, the
+ * heuristic stops matching and the system falls back to invalidating — the safe
+ * failure. It can never mask a change that a structured signal reported.
  *
- * NOT VERIFIED: the Photo/Gif cohort returned 0 rows, so Gif is unconfirmed;
- * and 32 rows is not the whole feed. The length guard below fails closed if a
- * shorter path ever appears, degrading to full-path comparison rather than
- * over-trimming and merging two genuinely different locators.
+ * ── THE DURABLE FIX (schema-gated, not done here) ──────────────────────────
+ * Persist the hero's `media_key` alongside the summary. The public hero decision
+ * then compares provider row identity directly and this heuristic can be deleted
+ * outright. That is a schema change and sits behind the standing authorization
+ * hold.
  *
- * Applied ONLY to known rotating provider hosts — stable URLs (R2, CRM uploads)
- * fall through to exact comparison, so a real delivery switch is never masked.
+ * Applied ONLY to known rotating provider hosts; stable URLs (R2, CRM uploads)
+ * fall through to exact comparison so a real delivery switch is never masked.
  */
-export function locatorIdentityIgnoringRotation(url: string | null | undefined): string {
+export function locatorRotationHeuristicKey(url: string | null | undefined): string {
   const raw = (url ?? "").trim();
   if (!raw) return "";
   try {
@@ -1076,11 +1082,11 @@ export function locatorIdentityIgnoringRotation(url: string | null | undefined):
 /**
  * Same DELIVERY LOCATOR, ignoring per-read rotation? null == null only.
  * Deliberately not phrased as "same asset": see
- * `locatorIdentityIgnoringRotation` — the locator is not a content identity.
+ * `locatorRotationHeuristicKey` — the locator is not a content identity.
  */
-function sameLocatorIgnoringRotation(a: string | null, b: string | null): boolean {
+function looksLikeSameLocatorAfterRotation(a: string | null, b: string | null): boolean {
   if (a === null || b === null) return a === null && b === null;
-  return locatorIdentityIgnoringRotation(a) === locatorIdentityIgnoringRotation(b);
+  return locatorRotationHeuristicKey(a) === locatorRotationHeuristicKey(b);
 }
 
 /** Which of the comparator's 12 base fields differ for one existing row, plus
@@ -1596,6 +1602,14 @@ export interface ListingMediaSummary {
   photo_count: number;
   /** Max `media_modification_ts` across all active rows for the listing. null if none. */
   photos_change_timestamp: Date | null;
+  /**
+   * PROVIDER ROW IDENTITY of the hero (`listing_media.media_key`).
+   *
+   * NOT persisted — derived per call from rows the summary already reads. It is
+   * the structured basis for "did the hero change?", and takes precedence over
+   * any inference from the rotating `MediaURL`.
+   */
+  primary_photo_media_key: string | null;
 }
 
 /** Per-row shape `computeListingMediaSummary()` needs. */
@@ -1787,6 +1801,12 @@ export function computeListingMediaSummary(
     primary_photo_r2_key: hero?.r2_key ?? null,
     photo_count: photos.length,
     photos_change_timestamp: pct,
+    // STRUCTURED HERO IDENTITY — the provider row identity of the hero.
+    //
+    // Derived from `media_key`, which the row read above ALREADY selects, so this
+    // costs no schema column and no extra query. It is the correct basis for
+    // "did the hero change?", replacing any inference from the rotating locator.
+    primary_photo_media_key: hero?.media_key ?? null,
   };
 }
 
@@ -1942,6 +1962,20 @@ export function listingMediaSummaryUnchanged(
 export interface AuthorizedMediaChangeEvidence {
   /** Authorized rows inserted, materially updated, or tombstoned this cycle. */
   galleryMutated: boolean;
+  /**
+   * `media_key` of the hero BEFORE this reconciliation, when the caller knows it.
+   *
+   * When supplied, hero change is decided by STRUCTURED PROVIDER IDENTITY —
+   * `previousHeroMediaKey !== summary.primary_photo_media_key` — and the
+   * locator heuristic is not consulted at all. This is the correct comparison:
+   * a row may gain a new `RecordSignature` or `MediaModificationTimestamp`
+   * (change evidence) while keeping the same `MediaKey` (identity), and that is
+   * a new VERSION of the same hero, not a different hero.
+   *
+   * `undefined` means "not known", NOT "unchanged": the classifier then falls
+   * back to the conservative locator heuristic.
+   */
+  previousHeroMediaKey?: string | null;
 }
 
 export type PublicMediaChangeClass =
@@ -2024,7 +2058,32 @@ export function decideListingMediaSummaryChange(
   // PUBLIC materiality — a rotated locator for the SAME locator is not a hero
   // change, even though it IS a storage change. This is the split that turns
   // per-read URL rotation from cache churn into a silent storage refresh.
-  const heroLocatorMoved = !sameLocatorIgnoringRotation(stored.primary_photo_url, summary.primary_photo_url);
+  // The stored hero URL differs byte-for-byte on essentially every sync, because
+  // rotation is universal (0/32 sampled reads returned an unchanged URL). An
+  // exact compare is therefore useless at this layer.
+  //
+  // SAFETY ARGUMENT FOR USING A HEURISTIC HERE. Its only possible harm is a
+  // FALSE SUPPRESSION — concluding "same asset" when the asset actually changed.
+  // That can only take effect in the `provenance-only` branch below, which is
+  // reached ONLY after `heroKeyMoved`, `countMoved` and `galleryMutated` have all
+  // been shown false. So a structured signal always wins; the heuristic decides
+  // nothing on its own, and it can never mask a change the reconciliation
+  // reported. If the URL shape ever changes the keys stop matching and the
+  // system falls back to invalidating — the safe direction.
+  // STRUCTURED IDENTITY WINS WHENEVER IT IS AVAILABLE.
+  //
+  // `MediaKey` is provider ROW IDENTITY; comparing it answers "is the hero the
+  // same row?" exactly. Only when the caller cannot supply the pre-reconciliation
+  // hero identity do we fall back to the locator heuristic — and that fallback
+  // is conservative (see `locatorRotationHeuristicKey`).
+  const heroIdentityKnown = evidence?.previousHeroMediaKey !== undefined;
+  const heroIdentityMoved =
+    heroIdentityKnown &&
+    (evidence?.previousHeroMediaKey ?? null) !== (summary.primary_photo_media_key ?? null);
+
+  const heroLocatorMoved = heroIdentityKnown
+    ? heroIdentityMoved
+    : !looksLikeSameLocatorAfterRotation(stored.primary_photo_url, summary.primary_photo_url);
 
   if (heroLocatorMoved || heroKeyMoved) {
     return { storageChanged: true, publicChange: 'public-hero' };
@@ -2921,6 +2980,7 @@ export async function mirrorMediaToR2(
   if (!existingKey && !stableMediaKey) {
     return { status: "skipped", reason: "no_media_key" };
   }
+
   const key =
     existingKey ?? buildMediaR2Key(row.listing_id, row.media_type, stableMediaKey);
 
@@ -3550,6 +3610,11 @@ export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
  *   - DEFAULT_PHASE2_RESERVE_MS = 12s  → Phase 3 runs at most ~43s; Phase 4 has 12s
  */
 export const DEFAULT_BUDGET_MS = 100_000;
+
+/** A VERIFIED row is re-checked after this long. */
+export const CONTENT_VERIFICATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30d
+/** INDETERMINATE rows retry on their OWN, much shorter clock so they cannot starve clean rows. */
+export const CONTENT_VERIFICATION_RETRY_MS = 24 * 60 * 60 * 1000; // 24h
 export const DEFAULT_PHASE1_RESERVE_MS = 55_000;
 export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
 /**
@@ -4742,6 +4807,106 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     } catch {
       // Non-fatal: on a failed flush the rows simply re-surface next firing
       // and are re-parked then (the write is idempotent). Never fails the run.
+    }
+  }
+
+  // ── PHASE 3.5: BOUNDED CONTENT VERIFICATION (recurrence detection) ───
+  //
+  // WHY IT LIVES HERE AND NOWHERE ELSE. Item 4 closed as OUTCOME B: a repaired
+  // row ends with BOTH delivery pointers populated, so
+  // `buildR2MirrorableBacklogUniverseWhere` (:2618) excludes it and the
+  // existence-only reuse (:3148-3177) self-certifies it. Repair RELOCATES the
+  // staleness defect to a new address rather than closing it. Only a durable
+  // per-row content-check clock closes it.
+  //
+  // FIVE INVARIANTS, ALL LOAD-BEARING:
+  //  1. Its selector is `buildContentVerificationWhere` — which asserts delivery
+  //     PRESENT (`r2_key not null`). The backlog universe asserts delivery
+  //     MISSING. The two are disjoint by construction, so verification can never
+  //     be mistaken for outstanding mirror work.
+  //  2. It NEVER contributes to `backlogRemaining` / `backlogPending`. It runs
+  //     BEFORE the Phase-4 probe and writes nothing the probe reads.
+  //  3. It can NEVER set `forceRun`: it does not touch `rowsFailed`, `r2Failed`
+  //     or `exitReason`, which are the only inputs to `finalStatus`.
+  //  4. It is BOUNDED at MAX_VERIFICATION_ROWS_PER_CYCLE and runs only if the
+  //     drain left budget. If it did not, verification simply waits for the next
+  //     ALREADY-SCHEDULED cycle — it never schedules one.
+  //  5. It writes ONLY `content_check_at` / `content_check_state`. It performs
+  //     no repair; a MISMATCH is handed to the human-gated targeted-remediation
+  //     path, never auto-repaired here.
+  let contentChecked = 0;
+  let contentVerified = 0;
+  let contentMismatch = 0;
+  let contentIndeterminate = 0;
+  if (remainingMs() > phase2ReserveMs) {
+    try {
+      const verifyNow = new Date(now());
+      const due = await prisma.listingMedia.findMany({
+        where: buildContentVerificationWhere(verifyNow, {
+          verificationIntervalMs: CONTENT_VERIFICATION_INTERVAL_MS,
+          retryIntervalMs: CONTENT_VERIFICATION_RETRY_MS,
+        }) as Prisma.ListingMediaWhereInput,
+        select: {
+          media_key: true, listing_id: true, r2_key: true,
+          media_url_original: true, content_check_at: true, content_check_state: true,
+        },
+        take: MAX_VERIFICATION_ROWS_PER_CYCLE,
+        orderBy: { media_key: "asc" },
+      });
+
+      if (due.length > 0) {
+        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+        const token = await defaultGetAccessToken();
+        for (const row of due) {
+          // Budget is re-checked EVERY row: an overrun would convert "slower"
+          // into "more wakes" via timed_out -> forceRun.
+          if (remainingMs() <= phase2ReserveMs) break;
+          const outcome = await verifyRow(
+            row as unknown as VerifiableRow,
+            {
+              async resolveFreshLocator(mediaKey) {
+                const url =
+                  `${TRESTLE_API}/odata/Media?$filter=` +
+                  encodeURIComponent(`MediaKey eq '${String(mediaKey).replace(/'/g, "''")}'`) +
+                  `&$select=${encodeURIComponent("MediaKey,MediaURL")}&$top=1`;
+                const r = await fetch(url, {
+                  headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                });
+                if (!r.ok) throw new Error(`provider HTTP ${r.status}`);
+                const j = (await r.json()) as { value?: Array<{ MediaURL?: string }> };
+                return j.value?.[0]?.MediaURL ?? null;
+              },
+              async fetchProviderBytes(url) {
+                const r = await fetch(url, {
+                  headers: { Authorization: `Bearer ${token}`, Accept: "image/*" },
+                });
+                if (!r.ok) throw new Error(`provider HTTP ${r.status}`);
+                return Buffer.from(await r.arrayBuffer());
+              },
+              async readR2Bytes(key) {
+                const r = await fetch(defaultGetR2PublicUrl(key));
+                if (!r.ok) throw new Error(`r2 HTTP ${r.status}`);
+                return Buffer.from(await r.arrayBuffer());
+              },
+              async recordCheck(mediaKey, at, state) {
+                await prisma.listingMedia.update({
+                  where: { media_key: mediaKey },
+                  data: { content_check_at: at, content_check_state: state },
+                });
+              },
+            },
+            verifyNow,
+          );
+          contentChecked++;
+          if (outcome.state === "VERIFIED") contentVerified++;
+          else if (outcome.state === "MISMATCH") contentMismatch++;
+          else contentIndeterminate++;
+        }
+      }
+    } catch {
+      // Non-fatal BY DESIGN. A verification failure must never degrade the media
+      // run: it cannot fail the cycle, cannot set exit_reason, and cannot wake
+      // Neon again. Rows simply stay due for the next already-scheduled cycle.
     }
   }
 

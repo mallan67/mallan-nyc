@@ -1,0 +1,28 @@
+-- STEP 1 of 2 — content-check state machine on `listing_media`.
+-- Authorized by Maya 2026-08-19. Applied manually to production, never via Vercel build.
+--
+-- WHY: Item 4 (recurrence) closed as OUTCOME B — no recurrence model is possible with the current
+-- storage state. A repaired row ends with BOTH delivery pointers populated, so it is excluded by
+-- buildR2MirrorableBacklogUniverseWhere (lib/idx/media-sync.ts:2618) and self-certifies through the
+-- existence-only reuse at :3148-3177. Repair RELOCATES RC3 to a new address rather than closing it.
+--
+-- MEANING: last time a content check was ATTEMPTED AND CONCLUDED for this MediaKey, whatever the
+-- outcome. Qualified by `content_check_state` (STEP 2). NULL = never checked.
+--
+-- SHAPE: one nullable column. No DEFAULT, no backfill, no index, no constraint.
+-- Adding a nullable column with no default is a catalog-only change on PostgreSQL: no heap rewrite,
+-- no long lock, no compute spike, regardless of the ~353,841 live rows (NEON.md section 4
+-- "Good SQL patterns"). `listing_media` is not in the business-hours-restricted table list.
+--
+-- ONE CHANGE PER COMMIT (NEON.md section 4): content_check_state ships as a SEPARATE migration so
+-- each has an independent rollback path. NO verifier code is enabled between the two steps — with
+-- only this column present the state machine cannot distinguish VERIFIED from INDETERMINATE and
+-- would read "couldn't establish equivalence" as "checked".
+--
+-- ROLLBACK:
+--   ALTER TABLE "listing_media" DROP COLUMN "content_check_at";
+-- Safe unconditionally while no deployed code reads the column.
+-- NOTE: Neon PITR history retention is 6 hours (NEON.md section 2.1, live-verified). Beyond that
+-- window the DROP above is the only rollback.
+
+ALTER TABLE "listing_media" ADD COLUMN "content_check_at" TIMESTAMP(3);

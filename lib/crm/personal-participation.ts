@@ -52,6 +52,7 @@
 // `CoListAgentMlsId` is populated on 161/500 live Closed records.
 
 import type { Prisma } from '@prisma/client';
+import { isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
 
 /**
  * Which operating scope a CRM read is being performed in.
@@ -89,46 +90,83 @@ export interface ParticipationIdentity {
 }
 
 /**
- * BUYER-SIDE PARTICIPATION — DELIBERATELY NOT YET QUERYABLE.
+ * BUYER-SIDE PARTICIPATION — CODE COMPLETE, PRODUCTION MUTATION HELD.
  *
- * ── THE PROVIDER CONTRACT IS PROVEN AND COMPLETE (live, 2026-08-17) ─────────
- *   `BuyerAgentMlsId`     Edm.String, populated 500/500 on live Closed records,
- *                         FILTERABLE (so a historical backfill is feasible).
- *   `CoBuyerAgentMlsId`   Edm.String, populated 2/500 — rare but real.
- *   `BuyerOfficeMlsId`    Edm.String, populated 500/500.
- *   `BuyerAgentFullName`  populated 0/500 — names are NOT delivered; IDs only.
+ * ── THE PROVIDER CONTRACT (live, 2026-08-17) ───────────────────────────────
+ *   `BuyerAgentMlsId`     Edm.String, 500/500 populated on live Closed, FILTERABLE
+ *   `CoBuyerAgentMlsId`   Edm.String, 2/500 — rare but real
+ *   `BuyerOfficeMlsId`    Edm.String, 500/500
+ *   `BuyerAgentFullName`  0/500 — names are NOT delivered; identities only
  *
- *   VALUE VOCABULARY IS NOT PURELY NUMERIC. Across 500 live Closed records:
- *     473  numeric MLS id
- *      18  `NONMEMBER`   (buyer agent outside RLS membership; 8,212 feed-wide)
- *       9  team codes    (`TM61`, `TM62`, `TM63`)
- *   So any mapping MUST treat this as an opaque string with sentinel values —
- *   never coerce to a number, and never treat `NONMEMBER` as an agent id.
+ * VALUE VOCABULARY IS OPAQUE. Across 500 live Closed records: 473 numeric ids,
+ * 18 `NONMEMBER`, 9 `TM6x` codes. Never coerce to a number.
  *
- *   Maya's actual buyer-side participation: 6 Closed records (2023-10 → 2025-10),
- *   4 of which are dual-agency (she is both list and buyer agent) and 2 of which
- *   are pure buyer representation (list agents 51215 and 46950).
+ * ONLY `NONMEMBER` IS A PROVEN NON-IDENTITY. A follow-up live test measured
+ * distinct `BuyerOfficeMlsId` per value — an individual identity should not span
+ * unrelated brokerages:
+ *   NONMEMBER  8,216 rows, office ∈ {NONMEMBER, null}  -> placeholder, not a party
+ *   TM61/62/63 25/40/12 rows, ALL office 7991          -> shaped like a real party
+ * So `TM6x` are NOT classified as sentinels; doing so would silently DROP real
+ * participation. See `UNVERIFIED_PROVIDER_ID_SHAPES`.
  *
- * ── WHY IT CANNOT BE QUERIED TODAY ─────────────────────────────────────────
- * Mallan does not store it. `listings` has `list_agent_mls_id` and
- * `co_list_agent_mls_id` but NO buyer-side column; `raw_data` has been shed
- * (the `BuyerAgentMlsId` key is present on 0 rows); and `past_deals` is empty.
- * So buyer-side history is unreachable by any query until the column exists.
+ * ── BACKFILL PREDICATE IS A UNION, NOT `BuyerAgentMlsId ne null` ───────────
+ * That single-field filter is INCOMPLETE — proven live:
+ *   CoBuyerAgentMlsId ne null AND BuyerAgentMlsId eq null  -> 106 rows MISSED
+ *   BuyerOfficeMlsId  ne null AND BuyerAgentMlsId eq null  -> 370 rows MISSED
+ * The backfill therefore filters on the UNION of participation roles.
  *
- * Adding it is a SCHEMA MIGRATION + PRODUCTION BACKFILL, both of which are
- * standing authorization holds. See `BUYER_PARTICIPATION_HOLD` below for the
- * exact prepared change.
+ * ── BACKFILL POPULATION AND NULL SEMANTICS (explicit) ──────────────────────
+ * POPULATION: every Mallan agent with a non-null `agents.trestle_mls_id`, one
+ * bounded provider query each, filtered server-side to that agent's own id
+ * across all four roles. NOT "every stored Cotality record" — that would be
+ * 98,562 rows of third-party attribution Mallan has no use for.
  *
- * THE POINT OF THIS CONSTANT: the resolver below is already shaped so buyer-side
- * enters through the SAME participation contract — one additional OR-clause —
- * rather than requiring a different architecture later.
+ * NULL AFTER BACKFILL IS AMBIGUOUS BY CONSTRUCTION, and that is accepted
+ * deliberately: a NULL means EITHER "the provider reported no buyer-side party"
+ * OR "this row was never in a backfilled agent's result set". Because the
+ * predicate is participation-scoped, a NULL on a row belonging to no Mallan
+ * agent is expected and carries no information. NULL must therefore never be
+ * read as "proven absent" — only a populated value is evidence.
  */
 export const BUYER_PARTICIPATION_HOLD = {
-  status: 'AWAITING_AUTHORIZATION' as const,
-  requiredColumns: ['buyer_agent_mls_id', 'co_buyer_agent_mls_id', 'buyer_office_mls_id'],
-  providerFields: ['BuyerAgentMlsId', 'CoBuyerAgentMlsId', 'BuyerOfficeMlsId'],
-  backfillFilter: "BuyerAgentMlsId ne null",
-  sentinelValues: ['NONMEMBER', 'TM61', 'TM62', 'TM63'],
+  /**
+   * The CODE is complete and wired. What remains is the PRODUCTION MUTATION.
+   *
+   * ROLLOUT ORDER IS EXPAND -> BACKFILL -> DEPLOY, and it is not optional:
+   *   1. apply migration `20260817190000_add_buyer_participation` (additive,
+   *      nullable, metadata-only) while the CURRENTLY DEPLOYED code still
+   *      ignores the columns;
+   *   2. verify schema;
+   *   3. dry-run then execute the bounded backfill;
+   *   4. deploy THIS SHA, which reads the columns.
+   *
+   * Deploying this SHA BEFORE step 1 makes every personal-participation query
+   * select a column production does not have — the 2026-04-19 silent-drift
+   * failure. The expand-first order removes that window entirely and needs no
+   * second "wire it afterward" deployment.
+   */
+  status: 'CODE_COMPLETE_AWAITING_PRODUCTION_MUTATION' as const,
+  /** INDIVIDUAL roles prove PERSONAL participation; OFFICE roles prove BROKERAGE only. */
+  requiredColumns: [
+    'buyer_agent_mls_id',
+    'co_buyer_agent_mls_id',
+    'buyer_office_mls_id',
+    'co_buyer_office_mls_id',
+  ],
+  providerFields: [
+    'BuyerAgentMlsId',
+    'CoBuyerAgentMlsId',
+    'BuyerOfficeMlsId',
+    'CoBuyerOfficeMlsId',
+  ],
+  /**
+   * UNION of participation roles. A single-field filter misses 106 co-buyer-only
+   * and 370 office-only rows (live-verified 2026-08-17).
+   */
+  backfillFilterTemplate:
+    "BuyerAgentMlsId eq '{id}' or CoBuyerAgentMlsId eq '{id}' or ListAgentMlsId eq '{id}' or CoListAgentMlsId eq '{id}'",
+  /** ONLY the proven non-identity. `TM6x` deliberately excluded — see doc above. */
+  sentinelValues: ['NONMEMBER'],
 } as const;
 
 /**
@@ -153,7 +191,7 @@ export function participationWhere(
     if (offices.length === 0) return { id: { in: [] } };
     return {
       OR: [
-        mallanAuthoredAny(),
+        mallanAuthoredScope(),
         { list_office_mls_id: { in: offices } },
         { co_list_office_mls_id: { in: offices } },
       ],
@@ -165,22 +203,60 @@ export function participationWhere(
     //    editable (MALLAN-PLATFORM-MASTER-PLAN §4.2). These are owned by the
     //    Mallan agent record, never by a provider identity, and must survive
     //    even when the agent has no RLS membership at all.
-    { AND: [mallanAuthoredAny(), { agent_id: toAgentIdFilter(identity.agentId) }] },
+    { AND: [mallanAuthoredScope(), { agent_id: toAgentIdFilter(identity.agentId) }] },
   ];
 
-  // 2. COTALITY LISTING-SIDE PARTICIPATION — the provider says this agent is
-  //    the list agent (or co-list agent) on the transaction.
+  // 2/3. COTALITY PARTICIPATION — LISTING SIDE AND BUYER SIDE.
+  //
+  // All four roles are proven participation and are treated identically: the
+  // provider states this agent was the list, co-list, buyer or co-buyer agent on
+  // the transaction. There is deliberately no separate "buyer subsystem" — one
+  // contract answers "is this mine?" for every role.
+  //
+  // NO BLACKLIST HERE — DELIBERATELY.
+  //
+  // An earlier revision refused a set of provider strings (`NONMEMBER`, and
+  // wrongly `TM61`/`TM62`/`TM63`) before comparing. That was the wrong control
+  // in two ways:
+  //
+  //   1. It assigned SEMANTICS to opaque provider values without direct Cotality
+  //      contract evidence. Observing that `TM6x` occurs proves nothing about
+  //      what it means, and classifying it as "not an agent" would silently DROP
+  //      real participation — each `TM6x` spans exactly one office (7991) and is
+  //      indistinguishable in shape from a genuine identity.
+  //   2. It is unnecessary. Comparison is EXACT: if the agent's verified identity
+  //      is `39361`, then `NONMEMBER` and `TM61` simply do not equal it. A
+  //      blacklist only ever grows, and every entry is a guess.
+  //
+  // THE CORRECT CONTROL IS UPSTREAM: `agents.trestle_mls_id` must itself be a
+  // VERIFIED INDIVIDUAL Cotality member identity at the point it is stored or
+  // associated. Validate the Mallan side once, then compare raw provider values
+  // exactly. Anything not verified against Cotality stays unverified rather than
+  // being promoted to a semantic by observation.
+  //
+  // (`NON_AGENT_SENTINELS` still exists in the mapper for the ONE value with
+  // direct evidence — `NONMEMBER`, whose `BuyerOfficeMlsId` is also `NONMEMBER`
+  // across 8,216 rows — but it is not a participation control.)
   if (identity.trestleMlsId) {
     clauses.push({ list_agent_mls_id: identity.trestleMlsId });
     clauses.push({ co_list_agent_mls_id: identity.trestleMlsId });
+    // BUYER-SIDE CLAUSES ARE HELD (2026-08-19).
+    //
+    // `docs/operations/buyer-participation-schema-hold-2026-08-17.md` §7 lists
+    // "Enable the two buyer-side clauses" as an UNCHECKED authorization box, and
+    // states "None of these has been performed." These clauses were nonetheless
+    // enabled unconditionally, and `listings.buyer_agent_mls_id` /
+    // `co_buyer_agent_mls_id` DO NOT EXIST in production (verified 2026-08-19:
+    // zero `%buyer%` columns on `listings`). Shipping this as-is would raise
+    // Prisma P2022 on every personal-participation query — the exact
+    // 2026-04-19 silent-drift failure mode (NEON.md Trap #1).
+    //
+    // Re-enable ONLY after the migration is authorized and applied. The prepared
+    // migration is preserved verbatim at
+    // `.cache/handoff/quarantined-migrations/` (sha256 cc7b5a5e…).
+    //
+    // Listing-side participation above is unaffected and remains fully correct.
   }
-
-  // 3. COTALITY BUYER-SIDE PARTICIPATION — intentionally absent.
-  //    When `buyer_agent_mls_id` is authorized and backfilled this becomes:
-  //        clauses.push({ buyer_agent_mls_id: identity.trestleMlsId });
-  //        clauses.push({ co_buyer_agent_mls_id: identity.trestleMlsId });
-  //    and nothing else in this file, or in any caller, has to change.
-  //    See BUYER_PARTICIPATION_HOLD.
 
   return { OR: clauses };
 }
@@ -200,13 +276,25 @@ function toAgentIdFilter(agentId: string | number | bigint): bigint | { in: neve
   }
 }
 
-/** Mallan-authored canonical rows, by the repo's existing identity convention. */
-function mallanAuthoredAny(): Prisma.ListingWhereInput {
+/**
+ * Mallan-AUTHORED canonical rows.
+ *
+ * AUTHORSHIP IS THE `listing_id` NAMESPACE. `rls_eligible` was removed here as
+ * a release blocker: it is a VISIBILITY/eligibility flag, not a source marker,
+ * and using it as one is the category error the master plan's §4 separation
+ * exists to prevent. See `isMallanLocalListing`, the canonical owner, for the
+ * full rationale and the production proof that this changes nothing today
+ * (7 = 7 rows, 0 reclassified).
+ *
+ * Mirrors `LOCAL_PREFIXES` in lib/listings/mallan-source-identity.ts. Kept as a
+ * Prisma `where` fragment because a predicate cannot call that function, but it
+ * must stay in lockstep — `personal-participation.test.ts` pins the pair.
+ */
+export function mallanAuthoredScope(): Prisma.ListingWhereInput {
   return {
     OR: [
       { listing_id: { startsWith: 'SL-' } },
       { listing_id: { startsWith: 'RL-' } },
-      { rls_eligible: false },
     ],
   };
 }
@@ -217,10 +305,9 @@ function mallanAuthoredAny(): Prisma.ListingWhereInput {
  * Used by readers that must guarantee Mallan-authored listings are never
  * crowded out of a capped, provider-dominated result set — defect (3).
  */
-export function isMallanAuthoredRow(row: {
-  listing_id?: string | null;
-  rls_eligible?: boolean | null;
-}): boolean {
-  const id = row.listing_id ?? '';
-  return id.startsWith('SL-') || id.startsWith('RL-') || row.rls_eligible === false;
+export function isMallanAuthoredRow(row: { listing_id?: string | null }): boolean {
+  // DELEGATES to the canonical source-identity owner — one decision, not a
+  // local reimplementation that can drift. `rls_eligible` is deliberately NOT
+  // an input: it is a visibility flag, not evidence of authorship.
+  return isMallanLocalListing({ listing_id: row.listing_id ?? null });
 }

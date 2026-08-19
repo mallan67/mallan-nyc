@@ -1,0 +1,36 @@
+-- STEP 2 of 2 — content-check state machine on `listing_media`.
+-- Authorized by Maya 2026-08-19. Applied manually to production, never via Vercel build.
+-- Sequenced AFTER 20260819030000_add_listing_media_content_check_at, which is confirmed applied.
+--
+-- MEANING (application-constrained, NOT a database enum):
+--   NULL           never checked                                          -> DUE
+--   VERIFIED       provider bytes and delivered R2 bytes hashed and EQUAL  -> DUE after verificationInterval
+--   MISMATCH       both sides obtained, hashes DIFFER                      -> NEVER verifier work
+--   INDETERMINATE  comparison could not be completed (null MediaURL, 429/
+--                  network after bounded retry, R2 read failure)           -> DUE after a separate retryInterval
+--
+-- WHY TWO FIELDS AND NOT ONE: a truthful "verified_at" cannot advance on a mismatch, so the row is
+-- permanently overdue; advancing it anyway makes the name a lie. WHY NOT TWO TIMESTAMPS: that fixes
+-- MISMATCH starvation and leaves INDETERMINATE starvation open — the closed census produced 8
+-- CURRENT_PROVIDER_UNAVAILABLE + 1 UNVERIFIABLE, and every transient 429 behaves identically.
+-- WHY NO THIRD "last verified" field: when state = VERIFIED, content_check_at IS that time.
+--
+-- WHY TEXT AND NOT AN ENUM: the repo already models controlled state as String (ListingMedia.status).
+-- A PG/Prisma enum adds a database type object and makes future value additions a migration, with no
+-- demonstrated benefit. The value domain is enforced by the application contract and its test suite.
+--
+-- SHAPE: one nullable column. No DEFAULT, no backfill, no index, no constraint. Catalog-only change;
+-- no heap rewrite across the ~353,841 live rows (NEON.md section 4 "Good SQL patterns").
+--
+-- SELECTOR ISOLATION (load-bearing): content verification is NOT part of
+-- buildR2MirrorableBacklogUniverseWhere (lib/idx/media-sync.ts:2618), not part of backlog_remaining,
+-- not part of backlogPending, and cannot set forceRun. That universe means MISSING R2 DELIVERY WORK
+-- and its count drives another One Cycle wake. Verification is a separate bounded selector running
+-- inside the ALREADY-RUNNING media member. No new cron, no new scheduler, no new wake source.
+--
+-- ROLLBACK:
+--   ALTER TABLE "listing_media" DROP COLUMN "content_check_state";
+-- Independent of Step 1's rollback — two changes, two rollback paths (NEON.md section 4).
+-- NOTE: Neon PITR history retention is 6 hours; beyond that the DROP above is the only rollback.
+
+ALTER TABLE "listing_media" ADD COLUMN "content_check_state" TEXT;

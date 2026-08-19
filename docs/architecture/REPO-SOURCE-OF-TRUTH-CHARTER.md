@@ -4,6 +4,33 @@
 
 This charter is the architecture rulebook for mallan-nyc. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Public Search, CRM Search, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle).
 
+---
+
+> ## 🛑 STOP GATE — SOURCE REQUIREMENT PRECEDES THIS CHARTER
+>
+> **AUTHORITY: `MALLAN-PLATFORM-MASTER-PLAN.md`** (single Mallan product/system authority).
+> Before any listing / provider / data work, read its source requirement — implementation and
+> reference text, NOT canonical, in
+> **`docs/architecture/COTALITY-API-AND-MALLAN-LOCAL-INPUT.md`** — and read it *before*
+> existing mappings, field lists, comments, audits, tests or snapshots.
+> **Existing code is NOT provider authority.**
+>
+> A listing has exactly **TWO** origins, and there is no third:
+> **LIVE AUTHENTICATED COTALITY API** (read-only observations) and
+> **MALLAN REAL ESTATE LOCAL INPUT** (broker/agent-created, Mallan-owned, editable).
+>
+> **`Cotality API` is the ONE external provider name** in all Mallan architecture,
+> documentation, reports, identifiers and new code. A raw value the Cotality API returns is
+> preserved exactly at the provider boundary where provenance requires it, and is **never
+> promoted** into Mallan architecture or terminology.
+>
+> Authority is split and absolute: **the live Cotality API decides Cotality API facts;
+> Maya / `MALLAN-PLATFORM-MASTER-PLAN.md` decides Mallan architecture and business rules.**
+>
+> Verify reachability with `npm run cotality:startup-gate`.
+
+---
+
 The repo has accumulated multiple files with similar names. AI tools have repeatedly invented new files (`search-v2.ts`, `featured-new.tsx`, `location-stuff.json`, `crm-search-final.js`) instead of using the correct existing source files. The charter exists to make those mistakes detectable and refusable.
 
 If you are unsure which system a file belongs to: **stop and ask. Do not create a parallel system.**
@@ -22,16 +49,16 @@ These rules apply to every commit. Violations should fail review.
 6. **Do not create parallel systems.** If a system exists, extend it. If extension is hard, raise the design question — do not silently fork.
 7. **If the right file is unclear, stop.** Report the uncertainty, list the candidates, and wait for direction. Do not guess.
 8. **No one-line "fix" guesses for layout/data bugs.** Identify the actual layer first; cite the file:line.
-9. **The Mallan LOCAL listing is canonical.** See Section 1A. This OVERRIDES any
-   older document, comment or test saying an RLS/Cotality copy should replace,
-   withdraw or supersede a local `SL-*` / `RL-*` listing.
+9. **The `MALLAN_LOCAL` listing is canonical.** See Section 1A. This OVERRIDES any
+   older document, comment or test saying a Cotality return-copy should replace,
+   withdraw or supersede a Mallan local listing.
 
 ---
 
 ## Section 1A — Mallan listing architecture (MANDATORY — read before any listing work)
 
 > **Maya's standing architecture.** OVERRIDES any prior instruction or repo
-> document stating that an RLS/Cotality copy should replace the local Mallan
+> document stating that a Cotality return-copy should replace the Mallan local
 > listing. Documents still describing the old model are SUPERSEDED, not
 > authoritative.
 
@@ -54,32 +81,79 @@ downstream** to Mallan through Cotality.
 
 ### When Mallan's own listing returns through Cotality
 
-It reappears as an `RLS*` row — the **Mallan RLS return-copy**.
+It appears as a `COTALITY_API` row — a **Cotality return-copy of a Mallan
+listing** (MALLAN-PLATFORM-MASTER-PLAN.md §4.4). It is NOT a third source: it
+is a `COTALITY_API` record that resolves to the same canonical `MALLAN_LOCAL`
+listing.
 
 | Row | Status |
 |---|---|
-| Local `SL-*` / `RL-*` | **CANONICAL** — public listing, canonical URL, Featured, agent page, CRM editing, media, open houses, seller report |
-| Mallan RLS return-copy | **SUPPRESSED on every public surface.** Retained internally for audit, reconciliation, source comparison, feed monitoring, compliance |
+| `MALLAN_LOCAL` listing | **CANONICAL** — public listing, canonical URL, Featured, agent page, CRM editing, media, open houses, seller report |
+| Cotality return-copy of it | **SUPPRESSED as a duplicate before public Search count/pagination/detail.** Retained internally for reconciliation/distribution evidence, audit, source comparison, feed monitoring, compliance |
 
-**DO NOT** withdraw an `SL-*`/`RL-*` because the RLS copy arrived. **DO NOT** pin
-the RLS copy in Featured, switch the public URL to it, or move CRM editing /
-open-house management onto it. **DO NOT** delete the returned RLS row — it is
+**DO NOT** withdraw a `MALLAN_LOCAL` listing because the Cotality return-copy
+arrived. **DO NOT** pin the return-copy in Featured, switch the public URL to it,
+or move CRM editing / open-house management onto it. **DO NOT** delete it — it is
 stored source evidence.
 
-A returned twin must **never** make the local row read-only. Local PATCH, local
-CRM media, local open houses and local publication keep working, and Cotality
-sync must not erase them.
+The return-copy must **never** make the `MALLAN_LOCAL` row read-only. Local PATCH,
+local CRM media, local open houses and local publication keep working, and
+Cotality API sync must not erase them.
 
-### Three ownership concepts — never conflate
+### SOURCE IS ESTABLISHED BY THE WRITER, NOT INFERRED (Maya, 2026-08-17)
 
-1. **`isMallanExclusiveListing()`** — Mallan-AUTHORED local listing (`SL-`/`RL-`
-   prefix OR `rls_eligible === false`). Governs **data/media authority**. Do NOT
-   broaden it to include the RLS return-copy.
-2. **Mallan RLS return-copy** — a Cotality row whose VERIFIED LIST-SIDE identity
-   is Mallan. Still **Cotality-source-owned**: its media stays Cotality-owned and
-   must never be cloned into the `crm:` namespace. It is only barred from being
-   the public canonical listing.
-3. **Third-party RLS/IDX** — normal IDX inventory, unchanged.
+**There are exactly TWO sources. There is no third.**
+
+| Source | Established by |
+|---|---|
+| **`MALLAN_LOCAL`** | the row was **created through Mallan Real Estate broker/agent local input** |
+| **`COTALITY_API`** | the row was **received through the authenticated Cotality API ingestion path** |
+
+**Source is a fact about WHICH WRITER CREATED THE ROW.** It is never inferred
+afterwards from eligibility, visibility, status, office, agent, price, property
+type, or any other incidental field. If a source decision reads such a field,
+that decision is wrong by construction — not merely inaccurate at the margins.
+
+> **`rls_eligible === false` was REMOVED as an authorship/source rule** (release
+> blocker, PR #618). It is an **eligibility** flag, not source authority, and it
+> failed in BOTH directions: a commercial third-party listing carries
+> `rls_eligible: false` by design and was misclassified as Mallan-authored, while
+> a genuinely Mallan-authored exclusive carries `rls_eligible: true` and was
+> missed. **Do not replace it with another inferred field.**
+
+**Current implementation signal.** `isMallanLocalListing()` currently tests the
+`SL-` / `RL-` `listing_id` prefix. That is a **compatibility signal for today's
+implementation**, not the architectural definition of source. It may be relied on
+only once BOTH are proven: (a) **every** Mallan local creation path emits the
+prefix, and (b) **no** Cotality API ingestion path can emit it.
+**PROOF STATUS: PENDING** — tracked in PR #618. The prefix must never be elevated
+into the architectural definition of source.
+
+### The three row kinds — never conflate
+
+1. **`MALLAN_LOCAL` listing** — created by Mallan broker/agent local input.
+   **Canonical, Mallan-owned, editable.** Governs data/media authority.
+2. **Cotality return-copy of a Mallan listing** — a `COTALITY_API` row
+   whose VERIFIED LIST-SIDE identity is Mallan. It is **still `COTALITY_API`
+   source-owned and read-only**: its media stays Cotality API-owned and must never
+   be cloned into the `crm:` namespace. It is retained for reconciliation, audit,
+   source comparison and feed monitoring, and it reconciles TO the one canonical
+   `MALLAN_LOCAL` listing. It is barred from being the public canonical listing.
+   **It is NOT a third source** — it is a `COTALITY_API` record resolving to the
+   same canonical `MALLAN_LOCAL` listing.
+3. **Third-party Cotality API listing** — normal inventory, unchanged.
+
+> **Terminology.** The Mallan term is **"Cotality return-copy of a Mallan
+> listing"** — taken verbatim from MALLAN-PLATFORM-MASTER-PLAN.md §4.4, the
+> single Mallan product/system authority. The older phrase "Mallan RLS
+> return-copy" is retired: `Cotality API` is the one external provider name.
+>
+> **COMPATIBILITY DEBT — deliberately unchanged:** the runtime identifier family
+> (`isMallanRlsReturnCopy`, `excludeMallanRlsReturnCopies`, the `rls_eligible`
+> column, `rls:*` npm scripts) keeps its current names. Renaming them requires a
+> separately scoped, dependency-traced migration — `rls_eligible` alone is a live
+> Postgres column in two tables carrying two indexes, so a rename is a schema
+> migration. **Prose and all NEW terminology change now; identifiers do not.**
 
 Identity for (2) must come from a verified list-side source field
 (`listing.list_office_mls_id` / `Property.ListOfficeMlsId`). **NEVER** infer it
@@ -121,9 +195,9 @@ listing-send public URLs, reports exposing public listing links, and any
 live-Trestle public fallback.
 
 `preferCrmExclusiveOverIdxDuplicate()` (`lib/listings/dedupe-crm-vs-idx.ts`) is
-the correct existing direction — keep local, suppress the IDX twin, delete
-nothing — and remains a valid second defense, but must NOT be the only thing
-preventing a return-copy from surfacing.
+the correct existing direction — keep the `MALLAN_LOCAL` listing, suppress the
+Cotality return-copy, delete nothing — and remains a valid second defense, but
+must NOT be the only thing preventing the return-copy from surfacing publicly.
 
 ### Forbidden
 
@@ -348,7 +422,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
 | RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
 | RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
+| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | **DEPRECATED / HISTORICAL (2026-03-20). NOT field authority** — verify live against Cotality |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
 | Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
@@ -483,7 +557,7 @@ If you are an AI/Codex/Claude session reading this charter:
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
 | `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
+| `data/RLS-FIELD-REGISTRY.md` | **DEPRECATED / HISTORICAL SNAPSHOT (verified 2026-03-20). NOT authoritative for field names or anything else.** Field truth comes from a LIVE Cotality pull only. |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
 | `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 
