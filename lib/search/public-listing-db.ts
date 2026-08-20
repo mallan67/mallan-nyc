@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { maxBathsAlternatives, minBathsAlternatives } from "@/lib/search/canonical/bath-contract";
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import {
   buildSearchDisplayWhere,
@@ -257,29 +258,19 @@ function amenityConditions(params: URLSearchParams): Prisma.ListingWhereInput[] 
 
 
 /**
- * BATHROOM TOTALS — normalised, not "full baths plus a half-bath flag".
+ * BATHROOM TOTALS — the Prisma rendering of the ONE canonical contract.
  *
- * The previous predicate for `minBaths` was
- *     bathrooms_full >= floor(m)  AND  (m has a half -> bathrooms_half >= 1)
- * which REJECTS a 2-full / 0-half apartment for `minBaths=1.5`, even though two
- * full baths is obviously at least one and a half. `maxBaths` had the mirror
- * defect: `maxBaths=1` compared only `bathrooms_full <= 1`, so a 1-full/1-half
- * (1.5 bath) listing passed a "maximum 1 bath" filter.
+ * The rule itself lives in `lib/search/canonical/bath-contract.ts` and is
+ * rendered here to Prisma and there to OData, so the DB path and the Trestle
+ * fallback cannot answer the same question differently. Both previously had
+ * their own broken variant of the same rule.
  *
- * Mallan stores `bathrooms_full` and `bathrooms_half`, so the normalised total
- * is `full + 0.5 * half`. Prisma cannot express arithmetic inside a `where`, so
- * the inequality is expanded into an exact disjunction over the (small) integer
- * values `full` can take. This is exact, not an approximation.
- *
- * Live provider note: Cotality also exposes `BathroomsOneQuarter`,
- * `BathroomsThreeQuarter`, `BathroomsPartial` and `BathroomsTotalInteger` (all
- * Int32, verified live 2026-08-19). Mallan does not store the quarter counts, so
- * they cannot participate in a DB predicate today; `full + half/2` is the exact
- * total for every quantity Mallan actually holds.
+ * See that module for the exhaustive live evidence: which components carry
+ * data, why `BathroomsTotalInteger` is refused, and why the inequality is
+ * expanded into a disjunction rather than expressed arithmetically.
  */
-const MAX_BATHS_ENUMERATED = 12;
 
-/** `bathrooms_half` is nullable; a null must read as ZERO half-baths. */
+/** `bathrooms_half` is nullable; a NULL must read as ZERO half-baths. */
 function halfAtMost(n: number): Prisma.ListingWhereInput {
   return n >= 0
     ? { OR: [{ bathrooms_half: null }, { bathrooms_half: { lte: n } }] }
@@ -287,26 +278,23 @@ function halfAtMost(n: number): Prisma.ListingWhereInput {
 }
 
 function minBathsCondition(minBaths: number): Prisma.ListingWhereInput {
-  const ceiling = Math.min(Math.ceil(minBaths), MAX_BATHS_ENUMERATED);
-  // Enough full baths on their own always qualifies — this is the arm the old
-  // predicate was missing.
-  const OR: Prisma.ListingWhereInput[] = [{ bathrooms_full: { gte: ceiling } }];
-  for (let full = 0; full < ceiling; full++) {
-    const halvesNeeded = Math.ceil((minBaths - full) * 2);
-    OR.push({ bathrooms_full: full, bathrooms_half: { gte: halvesNeeded } });
-  }
-  return { OR };
+  return {
+    OR: minBathsAlternatives(minBaths).map((a) =>
+      a.fullAtLeast !== undefined
+        ? { bathrooms_full: { gte: a.fullAtLeast } }
+        : { bathrooms_full: a.fullExactly, bathrooms_half: { gte: a.halfAtLeast } },
+    ),
+  };
 }
 
 function maxBathsCondition(maxBaths: number): Prisma.ListingWhereInput {
-  const cap = Math.min(Math.floor(maxBaths), MAX_BATHS_ENUMERATED);
-  if (cap < 0) return { id: { in: [] } };
-  const OR: Prisma.ListingWhereInput[] = [];
-  for (let full = 0; full <= cap; full++) {
-    const halvesAllowed = Math.floor((maxBaths - full) * 2);
-    OR.push({ AND: [{ bathrooms_full: full }, halfAtMost(halvesAllowed)] });
-  }
-  return { OR };
+  const alts = maxBathsAlternatives(maxBaths);
+  if (alts.length === 0) return { id: { in: [] } };
+  return {
+    OR: alts.map((a) => ({
+      AND: [{ bathrooms_full: a.fullExactly }, halfAtMost(a.halfAtMost)],
+    })),
+  };
 }
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {

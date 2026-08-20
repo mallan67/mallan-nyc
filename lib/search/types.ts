@@ -123,6 +123,27 @@ export type AmenityFilter =
 export type AmenityMatch = 'contains' | 'isTrue';
 
 /**
+ * EVERY provider token in AMENITY_FIELD_MAP was audited against the LIVE enum
+ * members AND an EXHAUSTIVE live token census of the whole Active corpus
+ * (8,102/8,102 rows, coverage complete, 2026-08-19). Membership alone is not
+ * enough — a token can be a valid enum member and appear on zero listings.
+ *
+ * Removed as NOT LIVE-PRESENT (each was silently matching nothing):
+ *   RoofDeck          -> BuildingRoofDeck (2,663)
+ *   OnCommonFloor     -> CommonOnFloor (1,228)
+ *   UnitYes           -> Yes (3,007)
+ *   Park              -> ParkGreenbelt (674)
+ *   WalkInCloset      -> WalkInClosets (921)
+ *   HighCeiling       -> HighCeilings (1,841)
+ *   WasherDryer       -> Washer (1,170) / Dryer (1,162) / WasherDryerAllowed (1,362)
+ *   Skyline, Downtown -> valid ENUM members but ZERO live rows; skyline uses
+ *                        City (3,651) / CityLights (629) / Panoramic (529)
+ *   Renovated, GutRenovated, NewlyRenovated -> not members at all; the live
+ *                        member is `Remodeled`, which is ZERO in the feed
+ *   NaturalLight, Quiet, NoFee, OwnerPays  -> not members at all
+ */
+
+/**
  * PROVIDER-SUPPORTED BUT CURRENTLY UNPOPULATED.
  *
  * The provider HAS a field for this concept and the sync already selects it —
@@ -131,16 +152,25 @@ export type AmenityMatch = 'contains' | 'isTrue';
  * "no such field exists" matters: one is a one-line change when data appears,
  * the other requires a provider capability that does not exist.
  *
- *   renovated  `PropertyCondition` is the correct field. Its live enum DOES
- *              carry `UpdatedRemodeled`, `UnderRenovation`, `Turnkey` and
- *              `NewConstruction`, and `lib/idx/trestle-mapper.ts` already
- *              selects it. EXHAUSTIVE live read on 2026-08-19 — not a sample:
- *              every Active row followed through `@odata.nextLink`, 8,110 rows
- *              read against a provider-declared count of 8,110 (coverage
- *              complete) — found `PropertyCondition` populated on 0 and ZERO
- *              distinct tokens. Note it is a MULTI enum, so `$filter eq` is
- *              rejected with HTTP 400 for every member; filtering would be
- *              Mallan-side against the stored value.
+ *   renovated  TWO live fields could express it, and BOTH are empty in the
+ *              current NYC feed — proven exhaustively, not sampled:
+ *
+ *              1. `InteriorFeatures.Remodeled` IS a live enum member. The
+ *                 exhaustive live token census (8,102/8,102 Active rows) found
+ *                 45 distinct InteriorFeatures tokens live-present and
+ *                 `Remodeled` is NOT among them — zero rows.
+ *              2. `PropertyCondition` carries `UpdatedRemodeled`,
+ *                 `UnderRenovation`, `Turnkey`, `NewConstruction`, and
+ *                 trestle-mapper already selects it. An exhaustive read of
+ *                 every Active row (8,110/8,110, coverage complete) found it
+ *                 populated on 0 with ZERO distinct tokens. It is also a MULTI
+ *                 enum, so `$filter eq` is rejected with HTTP 400 per member
+ *                 and any filtering would be Mallan-side.
+ *
+ *              The map points at `InteriorFeatures.Remodeled` as the correct
+ *              live member, so this becomes available the moment the feed
+ *              carries it. The earlier values `Renovated` / `GutRenovated` /
+ *              `NewlyRenovated` were not enum members at all.
  */
 export const UNPOPULATED_AMENITIES: ReadonlySet<string> = new Set(['renovated']);
 
@@ -180,9 +210,9 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'spa':           { field: 'BuildingFeatures', values: ['SpaHotTub'], label: 'Spa', group: 'Building Amenities' },
   'sauna':         { field: 'BuildingFeatures', values: ['Sauna'], label: 'Sauna', group: 'Building Amenities' },
   'steam-room':    { field: 'BuildingFeatures', values: ['SteamRoom'], label: 'Steam Room', group: 'Building Amenities' },
-  'roof-deck':     { field: 'ExteriorFeatures', values: ['RoofDeck', 'BuildingRoofDeck'], label: 'Roof Deck', group: 'Building Amenities' },
+  'roof-deck':     { field: 'ExteriorFeatures', values: ['BuildingRoofDeck'], label: 'Roof Deck', group: 'Building Amenities' },
   'playroom':      { field: 'BuildingFeatures', values: ['CommonPlayroom'], label: "Children's Playroom", group: 'Building Amenities' },
-  'laundry-room':  { field: 'LaundryFeatures', values: ['LaundryRoom', 'OnCommonFloor', 'CommonOnFloor', 'CommonArea'], label: 'Laundry Room', group: 'Building Amenities' },
+  'laundry-room':  { field: 'LaundryFeatures', values: ['LaundryRoom', 'CommonOnFloor', 'CommonArea'], label: 'Laundry Room', group: 'Building Amenities' },
   'elevator':      { field: 'BuildingFeatures,InteriorFeatures', values: ['Elevators', 'Elevator'], label: 'Elevator', group: 'Building Amenities' },
   'lounge':        { field: 'BuildingFeatures', values: ['CommonLounge'], label: "Residents' Lounge", group: 'Building Amenities' },
   'bike-storage':  { field: 'BuildingFeatures', values: ['BikeStorage'], label: 'Bike Storage', group: 'Building Amenities' },
@@ -192,7 +222,7 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'dishwasher':    { field: 'Appliances', values: ['Dishwasher'], label: 'Dishwasher', group: 'Unit Features' },
   // `LaundryFeatures.InUnit` (4,119 live rows) is the primary in-unit laundry
   // signal and was previously unqueried — Appliances alone found only 2,554.
-  'washer-dryer':  { field: 'Appliances,LaundryFeatures', values: ['Washer', 'Dryer', 'WasherDryer', 'WasherDryerAllowed', 'WasherDryerStacked', 'InUnit'], label: 'Washer/Dryer', group: 'Unit Features' },
+  'washer-dryer':  { field: 'Appliances,LaundryFeatures', values: ['Washer', 'Dryer', 'WasherDryerAllowed', 'WasherDryerStacked', 'InUnit'], label: 'Washer/Dryer', group: 'Unit Features' },
   'outdoor-space': { field: 'ExteriorFeatures', values: ['Balcony', 'BuildingBalcony', 'PrivateOutdoorSpaceOver60Sqft', 'PrivateOutdoorSpaceUnder60Sqft', 'PrivateYard', 'Garden'], label: 'Outdoor Space', group: 'Unit Features' },
   // Parking
   // `GarageYN` is a live filterable BOOLEAN, true on 2,630 live Active listings,
@@ -200,23 +230,23 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   // sparsely populated (819 rows total). Matching the boolean finds 4x more.
   'garage':        { field: 'GarageYN', values: [], match: 'isTrue', label: 'Garage/Parking', group: 'Parking' },
   // Pets
-  'pet-friendly':  { field: 'PetsAllowed', values: ['UnitYes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
+  'pet-friendly':  { field: 'PetsAllowed', values: ['Yes', 'CatsOk', 'DogsOk'], label: 'Pet Friendly', group: 'Pets' },
   // Views
-  'park-views':    { field: 'View', values: ['Park', 'ParkGreenbelt'], label: 'Park Views', group: 'Views' },
+  'park-views':    { field: 'View', values: ['ParkGreenbelt'], label: 'Park Views', group: 'Views' },
   'river-views':   { field: 'View', values: ['River', 'Water'], label: 'River Views', group: 'Views' },
-  'skyline-views': { field: 'View', values: ['City', 'CityLights', 'Skyline', 'Downtown'], label: 'Skyline Views', group: 'Views' },
-  'views':         { field: 'View', values: ['Park', 'ParkGreenbelt', 'River', 'Water', 'City', 'CityLights', 'Skyline', 'Downtown'], label: 'Views', group: 'Views' },
+  'skyline-views': { field: 'View', values: ['City', 'CityLights', 'Panoramic'], label: 'Skyline Views', group: 'Views' },
+  'views':         { field: 'View', values: ['ParkGreenbelt', 'River', 'Water', 'City', 'CityLights', 'Panoramic', 'Bridges'], label: 'Views', group: 'Views' },
   // Additional unit features
-  'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets', 'WalkInCloset'], label: 'Walk-in Closet', group: 'Unit Features' },
-  'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings', 'HighCeiling'], label: 'High Ceilings', group: 'Unit Features' },
+  'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets'], label: 'Walk-in Closet', group: 'Unit Features' },
+  'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings'], label: 'High Ceilings', group: 'Unit Features' },
   // `FireplaceYN` is a JSON BOOLEAN (861 true / 5,574 false live), not a token
   // list. The previous `InteriorFeatures` mapping matched 0 rows corpus-wide
   // because no fireplace token exists in that field's live vocabulary at all.
   'fireplace':     { field: 'FireplaceYN', values: [], match: 'isTrue', label: 'Fireplace', group: 'Unit Features' },
-  'natural-light': { field: 'InteriorFeatures', values: ['NaturalLight'], label: 'Natural Light', group: 'Unit Features' },
-  'renovated':     { field: 'InteriorFeatures', values: ['Renovated', 'GutRenovated', 'NewlyRenovated'], label: 'Renovated', group: 'Unit Features' },
-  'quiet':         { field: 'InteriorFeatures', values: ['Quiet'], label: 'Quiet', group: 'Unit Features' },
-  'no-fee':        { field: 'ListingTerms', values: ['NoFee', 'OwnerPays'], label: 'No Fee', group: 'Rental' },
+  'natural-light': { field: 'InteriorFeatures', values: [], label: 'Natural Light', group: 'Unit Features' },
+  'renovated':     { field: 'InteriorFeatures', values: ['Remodeled'], label: 'Renovated', group: 'Unit Features' },
+  'quiet':         { field: 'InteriorFeatures', values: [], label: 'Quiet', group: 'Unit Features' },
+  'no-fee':        { field: 'ListingTerms', values: [], label: 'No Fee', group: 'Rental' },
 };
 
 /** Tab configuration — maps UI tab to API params and available filter sections */

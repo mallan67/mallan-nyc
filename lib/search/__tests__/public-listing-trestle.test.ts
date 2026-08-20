@@ -10,15 +10,21 @@ describe("buildPublicListingTrestleFilter", () => {
       expect(filter).toBe(DEFAULT_STATUS);
     });
 
-    it("maps type=sale to PropertyType ne 'ResidentialLease'", () => {
+    it("maps type=sale to an EXPLICIT PropertyType inclusion, not an exclusion", () => {
+      // `PropertyType ne 'ResidentialLease'` returns the same 7,074 rows today
+      // ONLY because every other live PropertyType member is currently empty.
+      // It would silently admit CommercialSale, Land, Farm, BusinessOpportunity,
+      // Specialty, MultiFamily and ResidentialIncome the moment one appears.
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=sale"));
       expect(filter).toContain(DEFAULT_STATUS);
-      expect(filter).toContain("PropertyType ne 'ResidentialLease'");
+      expect(filter).toContain("PropertyType eq 'Residential'");
+      expect(filter).not.toContain("PropertyType ne");
     });
 
     it("treats type=buy the same as type=sale", () => {
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=buy"));
-      expect(filter).toContain("PropertyType ne 'ResidentialLease'");
+      expect(filter).toContain("PropertyType eq 'Residential'");
+      expect(filter).not.toContain("PropertyType ne");
     });
 
     it("maps type=rent to PropertyType eq 'ResidentialLease'", () => {
@@ -323,32 +329,32 @@ describe("buildPublicListingTrestleFilter", () => {
       expect(noParam).not.toContain("PropertySubType eq 'Office'");
     });
 
-    it("propertySubTypes='New Development' pushes the four PublicRemarks contains() phrases", () => {
+    it("propertySubTypes='New Development' uses the provider BOOLEAN, not prose", () => {
+      // The file asserted `NewConstructionYN` was "NOT exposed on IDX Plus".
+      // Live probe 2026-08-19: `NewConstructionYN eq true` is SUPPORTED and
+      // returns 951 Active listings. Matching prose in PublicRemarks is a
+      // heuristic answerable by no provider field — a listing whose remarks
+      // happen to say "brand new" is not new construction.
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("propertySubTypes=New Development"),
       );
-      expect(filter).toContain("contains(PublicRemarks,'new development')");
-      expect(filter).toContain("contains(PublicRemarks,'new construction')");
-      expect(filter).toContain("contains(PublicRemarks,'sponsor unit')");
-      expect(filter).toContain("contains(PublicRemarks,'brand new')");
+      expect(filter).toContain("NewConstructionYN eq true");
+      expect(filter).not.toContain("PublicRemarks");
     });
 
-    it("propertySubTypes mixes CommonInterest + new-dev contains in one OR group", () => {
+    it("mixes CommonInterest + the new-development boolean in one OR group", () => {
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("propertySubTypes=Condo,New Development"),
       );
-      expect(filter).toMatch(
-        /\(CommonInterest eq 'Condominium' or contains\(PublicRemarks,'new development'\)/,
-      );
+      expect(filter).toContain("(CommonInterest eq 'Condominium' or NewConstructionYN eq true)");
     });
 
-    it("sort=new-development without propertySubTypes adds the 3-phrase remark contains", () => {
+    it("sort=new-development uses the boolean too", () => {
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("sort=new-development"),
       );
-      expect(filter).toContain(
-        "(contains(PublicRemarks,'new development') or contains(PublicRemarks,'new construction') or contains(PublicRemarks,'sponsor unit'))",
-      );
+      expect(filter).toContain("NewConstructionYN eq true");
+      expect(filter).not.toContain("PublicRemarks");
     });
 
     it("sort=new-development is suppressed when propertySubTypes is also supplied", () => {

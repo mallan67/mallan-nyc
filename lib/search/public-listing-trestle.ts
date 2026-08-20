@@ -24,6 +24,22 @@
  */
 
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
+import { maxBathsOData, minBathsOData } from "@/lib/search/canonical/bath-contract";
+
+/**
+ * EXPLICIT transaction universes, from the live `PropertyType` enum.
+ *
+ * Live vocabulary has 13 members. Only these are populated in the current feed
+ * (verified 2026-08-19): Residential 7,074 · ResidentialLease 1,027. Every
+ * other member — CommercialSale, Land, Farm, BusinessOpportunity, Specialty,
+ * MultiFamily, ResidentialIncome, HighRise, DisasterReliefRental,
+ * ManufacturedInPark, CommercialLease — is currently ZERO.
+ *
+ * Listing them explicitly means a new member appearing in the feed cannot
+ * silently join Buy Residential; it stays out until someone decides it belongs.
+ */
+const SALE_PROPERTY_TYPES = ["Residential"] as const;
+const RENT_PROPERTY_TYPES = ["ResidentialLease"] as const;
 
 const ALLOWED_STATUSES = ["Active", "ComingSoon", "ActiveUnderContract"];
 const DEFAULT_STATUS_CLAUSE =
@@ -37,11 +53,41 @@ const COMMERCIAL_SUB_TYPES = ["Office", "Retail", "Industrial", "Warehouse", "Mi
 // Public ownership labels → Trestle CommonInterest enum values. Used by
 // propertySubTypes (when "Condo"/"Co-op"/"Condop" are passed), ownershipTypes,
 // and the legacy single propertyType param.
+// Public ownership control -> live `CommonInterest` member. Keys are NORMALISED
+// (lowercased, non-alphanumerics stripped) to match the projection path exactly:
+// an exact-case map silently returned ZERO for `condo`, the casing the UI sends.
+// Live Active population: Condominium 3,795 · StockCooperative 2,567 ·
+// Condop 146 · RentalBuilding 630 · None 1,019.
 const COMMON_INTEREST_MAP: Record<string, string> = {
-  Condo: "Condominium",
-  "Co-op": "StockCooperative",
-  Condop: "Condop",
+  condo: "Condominium",
+  condominium: "Condominium",
+  coop: "StockCooperative",
+  cooperative: "StockCooperative",
+  stockcooperative: "StockCooperative",
+  condop: "Condop",
+  rental: "RentalBuilding",
+  rentalbuilding: "RentalBuilding",
 };
+
+/** Live PetsAllowed is a MULTI enum; `has` does EXACT-TOKEN matching and is
+ *  live-verified SUPPORTED (Yes -> 3,007). `contains()` is rejected (HTTP 400),
+ *  and substring matching would wrongly treat `BuildingYes` as `Yes`. */
+/** Lowercase + strip non-alphanumerics so `Co-op`, `co op`, `COOP` all agree. */
+function normalizeOwnershipKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+const PETS_ALLOWED_ENUM = "Cotality.DataStandard.RESO.DD.Enums.Multi.PetsAllowed";
+const UNIT_PET_TOKENS_ODATA = ["Yes", "CatsOk", "DogsOk"];
+
+/** Push pet-friendly to the PROVIDER rather than post-filtering the page. */
+export function buildPetFriendlyFilterPart(params: URLSearchParams): string | null {
+  const wantsPets =
+    params.get("pets") === "true" ||
+    (params.get("amenities") ?? "").split(",").map((a) => a.trim()).includes("pet-friendly");
+  if (!wantsPets) return null;
+  return `(${UNIT_PET_TOKENS_ODATA.map((t) => `PetsAllowed has ${PETS_ALLOWED_ENUM}'${t}'`).join(" or ")})`;
+}
 
 // NYC borough names → REBNY CountyOrParish values. Trestle stores the county
 // name (e.g. "New York" for Manhattan), not the borough name.
@@ -160,8 +206,14 @@ function buildStatusFilterPart(params: URLSearchParams): string {
 
 function buildListingTypeFilterPart(params: URLSearchParams): string | null {
   const listingType = params.get("type");
-  if (listingType === "sale" || listingType === "buy") return "PropertyType ne 'ResidentialLease'";
-  if (listingType === "rent") return "PropertyType eq 'ResidentialLease'";
+  // EXPLICIT inclusion contract, not an exclusion. `ne 'ResidentialLease'`
+  // happens to return the same 7,074 rows today ONLY because every other
+  // PropertyType member is currently empty in this feed — it would silently
+  // admit CommercialSale, Land, Farm, BusinessOpportunity, Specialty,
+  // MultiFamily and ResidentialIncome the moment one appears.
+  // Live-verified 2026-08-19: PropertyType eq 'Residential' = 7,074 Active.
+  if (listingType === "sale" || listingType === "buy") return `(${SALE_PROPERTY_TYPES.map((t) => `PropertyType eq '${t}'`).join(" or ")})`;
+  if (listingType === "rent") return `(${RENT_PROPERTY_TYPES.map((t) => `PropertyType eq '${t}'`).join(" or ")})`;
   return null;
 }
 
@@ -180,14 +232,18 @@ function buildPriceBedsBathsSqftParts(params: URLSearchParams): string[] {
   if (minBeds !== null && minBeds !== "") parts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
   if (maxBeds !== null && maxBeds !== "") parts.push(`BedroomsTotal le ${parseInt(maxBeds, 10)}`);
 
+  // Baths go through the CANONICAL total-bath contract so this path and the
+  // projection path cannot answer the same question differently.
+  //
+  // The rule replaced here was `BathroomsFull ge floor(m)` plus, for a half,
+  // `BathroomsHalf ge 1`. That REJECTED a 2-full/0-half apartment for
+  // minBaths=1.5, and `BathroomsFull le floor(m)` ADMITTED a 1.5-bath listing
+  // for maxBaths=1. Live-verified: BathroomsHalf is non-zero on 2,023 Active
+  // rows, so this is not a corner case.
   const minBaths = params.get("minBaths");
   const maxBaths = params.get("maxBaths");
-  if (minBaths) {
-    const bathVal = Number(minBaths);
-    parts.push(`BathroomsFull ge ${Math.floor(bathVal)}`);
-    if (bathVal % 1 >= 0.5) parts.push("BathroomsHalf ge 1");
-  }
-  if (maxBaths) parts.push(`BathroomsFull le ${Math.floor(Number(maxBaths))}`);
+  if (minBaths) parts.push(minBathsOData(Number(minBaths)));
+  if (maxBaths) parts.push(maxBathsOData(Number(maxBaths)));
 
   const minSqft = params.get("minSqft");
   const maxSqft = params.get("maxSqft");
@@ -207,14 +263,13 @@ function buildPropertySubTypeFilterPart(params: URLSearchParams): string | null 
   // Push only CommonInterest values — PropertySubType, NewConstructionYN, and
   // NewDevelopmentYN all crash Trestle (502). Other types are post-filtered.
   for (const t of types) {
-    const ci = COMMON_INTEREST_MAP[t];
+    const ci = COMMON_INTEREST_MAP[normalizeOwnershipKey(t)];
     if (ci) odataParts.push(`CommonInterest eq '${ci}'`);
   }
 
   if (types.includes("New Development")) {
-    for (const phrase of NEW_DEV_REMARKS_CONTAINS) {
-      odataParts.push(`contains(PublicRemarks,'${phrase}')`);
-    }
+    // Structured provider boolean, not a prose heuristic.
+    odataParts.push("NewConstructionYN eq true");
   }
 
   if (odataParts.length === 0) return null;
@@ -224,7 +279,7 @@ function buildPropertySubTypeFilterPart(params: URLSearchParams): string | null 
 function buildSortNewDevelopmentFilterPart(params: URLSearchParams): string | null {
   if (params.get("sort") !== "new-development") return null;
   if (params.get("propertySubTypes") || params.get("subTypes")) return null;
-  return "(contains(PublicRemarks,'new development') or contains(PublicRemarks,'new construction') or contains(PublicRemarks,'sponsor unit'))";
+  return "NewConstructionYN eq true";
 }
 
 function buildOwnershipTypesFilterPart(params: URLSearchParams): string | null {
@@ -233,7 +288,7 @@ function buildOwnershipTypesFilterPart(params: URLSearchParams): string | null {
 
   const types = raw
     .split(",")
-    .map((t) => COMMON_INTEREST_MAP[t.trim()])
+    .map((t) => COMMON_INTEREST_MAP[normalizeOwnershipKey(t)])
     .filter((t): t is string => Boolean(t));
   if (types.length === 0) return null;
 
@@ -249,7 +304,7 @@ function buildLegacyPropertyTypeFilterPart(params: URLSearchParams): string | nu
   if (params.get("ownershipTypes")) return null;
 
   const safe = escapeOData(propertyTypeFilter);
-  const ci = COMMON_INTEREST_MAP[safe];
+  const ci = COMMON_INTEREST_MAP[normalizeOwnershipKey(safe)];
   if (!ci) return null;
   return `CommonInterest eq '${ci}'`;
 }

@@ -345,6 +345,11 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // Canonical criteria -> projection where-builder; reads the ownership
       // flag names so the reader cannot invent a second spelling of them.
       'lib/search/criteria-to-prisma.ts',
+      // Trestle fallback renders the SAME canonical bath contract to OData, so
+      // the two execution paths cannot answer the same question differently.
+      'lib/search/public-listing-trestle.ts',
+      // DB path renders the same canonical bath contract to Prisma.
+      'lib/search/public-listing-db.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);
