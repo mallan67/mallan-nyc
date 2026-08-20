@@ -163,3 +163,43 @@ export const TRESTLE_AMENITY_SELECT_FIELDS = [
   'GarageYN',
   'FireplaceYN',
 ] as const;
+
+/**
+ * UI structural sub-type label → LIVE `PropertySubType` member.
+ *
+ * ONE definition, consumed by the DB path and the Trestle builder, because the
+ * two previously disagreed: the DB path mapped these while the Trestle builder
+ * emitted NOTHING for them and the route then declined to post-filter — so a
+ * request for Lofts on the fallback returned unfiltered inventory.
+ *
+ * Mallan labels are NOT provider members. `Single Family` and `Mixed Use` are
+ * not live values (`SingleFamilyResidence` and `MixedUse` are), so emitting the
+ * label would be an HTTP 400 rather than a silent miss.
+ *
+ * Ownership labels (Condo / Co-op / Condop) are deliberately ABSENT — NYC
+ * carries those in `CommonInterest`, where PropertySubType Condominium /
+ * StockCooperative / Townhouse are all ZERO. `New Development` is absent too:
+ * it is the `NewConstructionYN` boolean, never a sub-type.
+ *
+ * Live Active counts (2026-08-19/20): MultiFamily 427 · SingleFamilyResidence
+ * 404 · Duplex 359 · Loft 83 · Triplex 66 · MixedUse 1,651 (all statuses).
+ * `Townhouse` and `Land` are live MEMBERS with zero Active NYC rows — a valid
+ * filter that currently matches nothing, which is different from an invalid one.
+ */
+export const STRUCTURAL_SUB_TYPE_BY_LABEL: Record<string, string> = {
+  loft: 'Loft',
+  duplex: 'Duplex',
+  triplex: 'Triplex',
+  townhouse: 'Townhouse',
+  multifamily: 'MultiFamily',
+  singlefamily: 'SingleFamilyResidence',
+  singlefamilyresidence: 'SingleFamilyResidence',
+  land: 'Land',
+  mixeduse: 'MixedUse',
+  apartment: 'Apartment',
+};
+
+/** Normalise a UI label the same way every reader does. */
+export function structuralSubTypeFor(label: string): string | undefined {
+  return STRUCTURAL_SUB_TYPE_BY_LABEL[label.toLowerCase().replace(/[^a-z0-9]/g, '')];
+}

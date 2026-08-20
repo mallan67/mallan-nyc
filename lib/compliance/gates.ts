@@ -132,15 +132,25 @@ function readFirst<T = unknown>(o: PermissionInput, keys: string[]): T | undefin
  * NOTE the live member list contains CASING DUPLICATES (`Idx`/`IDX`,
  * `Vow`/`VOW`), so token comparison is case-insensitive.
  */
-function readPermissionTokens(o: PermissionInput): string[] {
+export function readPermissionTokens(o: PermissionInput): string[] {
   const v = readFirst<unknown>(o, ["Permission", "Permissions", "permission", "permissions"]);
   if (v === null || v === undefined) return [];
   const raw = Array.isArray(v) ? v : String(v).split(",");
   return raw.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
 }
 
-/** Does the multi-enum carry this permission token? */
-function hasPermissionToken(o: PermissionInput, token: string): boolean {
+/**
+ * Does the multi-enum carry this permission token?
+ *
+ * EXPORTED as the single owner of provider-token interpretation. Higher layers
+ * (the IDX mapper, recovery tooling) COMPOSE this rather than re-parsing the
+ * field — a second parse is how the persisted gate columns and the runtime gate
+ * came to disagree about the same live value.
+ *
+ * Dependency direction is deliberate: compliance is the lower-level primitive
+ * and must NOT import the IDX mapper.
+ */
+export function hasPermissionToken(o: PermissionInput, token: string): boolean {
   return readPermissionTokens(o).includes(token.toLowerCase());
 }
 

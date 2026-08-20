@@ -4,9 +4,11 @@
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
 import { affirmPermission } from "@/lib/compliance/gates";
+import { hasPermissionToken } from '@/lib/compliance/gates';
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+import { mapBuyerParticipation } from "@/lib/idx/buyer-participation-mapper";
 
 // ═══════════════════════════════════════════════════════════
 // RESO-to-RLS RENAMES (23 fields)
@@ -893,17 +895,35 @@ export interface PermissionGates {
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
+  // `Property.Permission` is a MULTI-ENUM (live type
+  // `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`), and the feed
+  // delivers multi-token values — `IDX,SyndicateOptOut` occurs live.
+  //
+  // This previously did `permissions === 'Private'` on a scalar read, so a
+  // `"IDX,Private"` listing was persisted as NOT participant-only while
+  // `lib/compliance/gates.ts` gated the same value correctly. Two answers to one
+  // field, and this side writes the PERSISTED columns that feed idx_display_yn.
+  //
+  // Token interpretation now has ONE owner: the compliance primitive. This
+  // composes it rather than re-parsing. The direction matters — compliance is
+  // the lower-level module and must not depend on this mapper.
+  const permissionInput = { Permission: raw.Permission, Permissions: raw.Permissions };
   const permissions =
     typeof raw.Permission === 'string'
       ? raw.Permission
       : typeof raw.Permissions === 'string'
         ? raw.Permissions
-        : '';
-  const participantOnly = permissions === 'Private';
-  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
+        : Array.isArray(raw.Permission)
+          ? (raw.Permission as unknown[]).join(',')
+          : '';
+  const participantOnly = hasPermissionToken(permissionInput, 'Private');
+  // REBNY Gate 1 — retained as a FAIL-CLOSED guard. `OwnerOptOut` is NOT among
+  // the 20 live Permission members, so it cannot fire from provider data; it
+  // stays until a live field/value is confirmed rather than being dropped on
+  // field-truth alone.
   const ownerOptOut =
-    permissions === 'OwnerOptOut' ||
-    permissions === 'Owner Opt-Out' ||
+    hasPermissionToken(permissionInput, 'OwnerOptOut') ||
+    hasPermissionToken(permissionInput, 'Owner Opt-Out') ||
     String(raw.MlsStatus || '') === 'OwnerOptOut';
   return { permissions, participantOnly, ownerOptOut };
 }
@@ -1018,6 +1038,11 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   list_agent_mls_id: string | null;
   co_list_office_mls_id: string | null;
   co_list_agent_mls_id: string | null;
+  // BUYER-SIDE PARTICIPATION (#618). Opaque provider identities — see
+  // lib/idx/buyer-participation-mapper.ts for the live-verified contract.
+  buyer_agent_mls_id: string | null;
+  co_buyer_agent_mls_id: string | null;
+  buyer_office_mls_id: string | null;
   raw_data: Record<string, unknown>;
   modification_timestamp: Date;
   listing_contract_date: Date | null;
@@ -1252,6 +1277,19 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     // PII boundary: list_agent_email/list_agent_direct_phone are stored here but their
     // EXPOSURE stays gated by the DTO/portal-mask layer (Phase B readers).
     ...typedAgentCols,
+    // BUYER-SIDE PARTICIPATION — ONE canonical mapper, no second opinion.
+    //
+    // The listing side already flows through `typedAgentColumnsFromJson`; the
+    // buyer side flows through `mapBuyerParticipation`, which reads ONLY the
+    // three identity fields and preserves each value byte-for-byte (including
+    // the `NONMEMBER` sentinel and team codes). It deliberately maps none of the
+    // 40+ `BuyerAgent*` PII fields, and the live feed does not even populate
+    // `BuyerAgentFullName`.
+    //
+    // ORDERING: migration `20260817190000_add_buyer_participation` MUST be
+    // applied before this SHA is deployed, or every listing write fails with
+    // "column does not exist" (NEON.md Trap #1). See BUYER_PARTICIPATION_HOLD.
+    ...mapBuyerParticipation(rawInput),
     // raw_data goes through TWO filters before persistence:
     //   1. stripPrivateFields — REBNY/UCBA private fields (PrivateRemarks,
     //      ShowingInstructions, ShowingContactPhone, agent direct phone/email,

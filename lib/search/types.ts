@@ -300,6 +300,9 @@ export const RESIDENTIAL_PROPERTY_TYPES = [
   'New Development',
 ];
 
+/** Every sub-type label the UI can emit — the completeness gate's inventory. */
+export const PROPERTY_SUB_TYPES = RESIDENTIAL_PROPERTY_TYPES;
+
 /** Ownership type checkboxes (NYC-specific) — kept for backward compat but merged into property types UI */
 export const OWNERSHIP_TYPES = ['Condo', 'Condop', 'Co-op'];
 

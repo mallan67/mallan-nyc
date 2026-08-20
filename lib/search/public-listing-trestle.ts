@@ -25,6 +25,7 @@
 
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import { maxBathsOData, minBathsOData } from "@/lib/search/canonical/bath-contract";
+import { structuralSubTypeFor } from "@/lib/search/canonical/amenity-match";
 
 /**
  * EXPLICIT transaction universes, from the live `PropertyType` enum.
@@ -268,6 +269,17 @@ function buildPropertySubTypeFilterPart(params: URLSearchParams): string | null 
   for (const t of types) {
     const ci = COMMON_INTEREST_MAP[normalizeOwnershipKey(t)];
     if (ci) odataParts.push(`CommonInterest eq '${ci}'`);
+  }
+
+  // STRUCTURAL sub-types were emitted NOWHERE before this. The builder handled
+  // only ownership labels and New Development, and the route then did no
+  // route-side sub-type filter on the belief that "sub-types are pushed to the
+  // provider" — so a structural request was silently broadened to everything.
+  // Live-verified: `PropertySubType eq 'Loft'` is SUPPORTED (83 Active) and
+  // multi-value ORs are SUPPORTED, so there was never a provider reason to drop.
+  for (const t of types) {
+    const member = structuralSubTypeFor(t);
+    if (member) odataParts.push(`PropertySubType eq '${member}'`);
   }
 
   if (types.includes("New Development")) {

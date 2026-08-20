@@ -16,6 +16,7 @@ import {
   amenityMatches,
   TRESTLE_AMENITY_SELECT_FIELDS,
 } from '@/lib/search/canonical/amenity-match';
+import { computeFinalUniverse, computeHasMore } from '@/lib/search/canonical/final-universe';
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
@@ -813,7 +814,15 @@ export async function GET(request: Request) {
 
         // Fetch extra to account for gate filtering + post-filters
         // Property type, neighborhood, borough all need heavy post-filtering headroom
-        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
+        // Collection amenities are evaluated LOCALLY (lambda filters are HTTP
+        // 400), so they are post-filters and must size the fetch like any other.
+        // They were absent here, so an amenity request fetched a page sized for
+        // NO post-filtering and then discarded most of it.
+        const hasCollectionAmenityFilter = (amenitiesParam ?? '')
+          .split(',')
+          .map((a) => a.trim())
+          .some((a) => a && a !== 'pet-friendly' && !UNSUPPORTED_AMENITIES.has(a));
+        const hasPostFilter = !!(boundsParam || borough || neighborhood || sortParam === 'new-development' || hasCollectionAmenityFilter);
         const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 4 : 1.2) + 20), 1000);
 
         // Amenity fields ARE selectable. The comment here used to assert they
@@ -976,12 +985,27 @@ export async function GET(request: Request) {
           }
         }
 
-        // Step 4: Apply skip + limit and convert to public DTO
-        // When post-filtering (bounds, borough, neighborhood), use filtered.length as total
-        // because OData count doesn't account for server-side filtering.
-        const totalCount = (boundsParam || borough || neighborhood)
-          ? filtered.length
-          : (result.odataCount ?? filtered.length);
+        // Step 4: FINAL ELIGIBLE UNIVERSE, then pagination — in that order.
+        //
+        // `total` previously used the provider count unless bounds/borough/
+        // neighborhood were present. Collection amenities filter LOCALLY and
+        // were not in that list, so an elevator search returned elevator-only
+        // IDs beside the PRE-amenity provider total. Where a local filter WAS
+        // recognised the code used `filtered.length` — a locally-filtered slice
+        // of a BOUNDED head sample, which is not a corpus count either.
+        //
+        // The canonical helper refuses to fabricate: when a local filter is
+        // active and the head sample was saturated it reports the total as a
+        // LOWER BOUND and keeps paging open, rather than publishing a confident
+        // wrong number.
+        const finalUniverse = computeFinalUniverse({
+          providerCount: result.odataCount ?? null,
+          fetchedCount: result.records.length,
+          fetchTop,
+          locallyFilteredCount: filtered.length,
+          hasLocalFilter: !!(boundsParam || borough || neighborhood || hasCollectionAmenityFilter),
+        });
+        const totalCount = finalUniverse.total;
         const pageListings = filtered.slice(skip, skip + limit);
 
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
@@ -1153,7 +1177,7 @@ export async function GET(request: Request) {
           total: totalCount + annotatedMerged.length - publicListings.length,
           skip,
           limit,
-          hasMore: skip + limit < totalCount || result.hasMore,
+          hasMore: computeHasMore(finalUniverse, skip, limit) || result.hasMore,
           // SUMMARY CONTRACTION at the response boundary — cards get the
           // canonical hero + full photosCount, never the whole gallery.
           // Applied AFTER post-filters/dedupe/geocode/live-fallback and
