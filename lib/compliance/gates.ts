@@ -113,9 +113,35 @@ function readFirst<T = unknown>(o: PermissionInput, keys: string[]): T | undefin
   return undefined;
 }
 
-function readPermissionString(o: PermissionInput): string {
+/**
+ * `Property.Permission` is a MULTI-ENUM, not a scalar string.
+ *
+ * Live-verified 2026-08-20: the field is typed
+ * `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`, and the feed
+ * DOES deliver multi-token values — `IDX,SyndicateOptOut` occurs in a 12,000-row
+ * live sample. Today every other sampled row is the single token `IDX`, so no
+ * listing is currently mis-gated; the shape is proven real, not hypothetical.
+ *
+ * The previous reader returned the raw value only when `typeof v === "string"`
+ * and callers compared it with `===`. Against a multi-token value that is a
+ * FAIL-OPEN on a display gate: `"IDX,Private"` is not `=== "Private"`, so a
+ * participant-only listing would have passed Gate 2. Exact-token membership is
+ * strictly stronger than string equality — it still matches a lone `"Private"`
+ * and additionally matches it inside a list.
+ *
+ * NOTE the live member list contains CASING DUPLICATES (`Idx`/`IDX`,
+ * `Vow`/`VOW`), so token comparison is case-insensitive.
+ */
+function readPermissionTokens(o: PermissionInput): string[] {
   const v = readFirst<unknown>(o, ["Permission", "Permissions", "permission", "permissions"]);
-  return typeof v === "string" ? v : "";
+  if (v === null || v === undefined) return [];
+  const raw = Array.isArray(v) ? v : String(v).split(",");
+  return raw.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+}
+
+/** Does the multi-enum carry this permission token? */
+function hasPermissionToken(o: PermissionInput, token: string): boolean {
+  return readPermissionTokens(o).includes(token.toLowerCase());
 }
 
 function readStatus(o: PermissionInput): StatusValue | null {
@@ -132,9 +158,15 @@ function readStatus(o: PermissionInput): StatusValue | null {
 
 /** Is this listing owner-opted-out (Gate 1)? */
 export function isOwnerOptOut(input: PermissionInput): boolean {
-  const p = readPermissionString(input);
-  // Permission values per compliance/IDX-VOW-DISPLAY-RULES.md:31
-  if (p === "OwnerOptOut" || p === "Owner Opt-Out") return true;
+  // RETAINED AS A FAIL-CLOSED GUARD, NOT AS A PROVIDER FACT.
+  //
+  // `OwnerOptOut` is NOT among the 20 live `Permission` members (verified
+  // 2026-08-20), so this branch cannot fire from provider data today. It is kept
+  // deliberately: owner opt-out is COMPLIANCE Gate 1, and the fail-closed
+  // direction is to keep recognising the sentinel until a live field/value is
+  // confirmed. Removing it on field-truth alone would trade a harmless dead
+  // branch for a potential disclosure.
+  if (hasPermissionToken(input, "OwnerOptOut") || hasPermissionToken(input, "Owner Opt-Out")) return true;
   // Legacy MlsStatus sentinel
   const mls = readFirst<unknown>(input, ["MlsStatus", "status"]);
   if (mls === "OwnerOptOut") return true;
@@ -145,8 +177,9 @@ export function isOwnerOptOut(input: PermissionInput): boolean {
 
 /** Is this listing Participant-Only (Gate 2)? Permission='Private'. */
 export function isParticipantOnly(input: PermissionInput): boolean {
-  const p = readPermissionString(input);
-  if (p === "Private") return true;
+  // Exact TOKEN membership — `"IDX,Private"` must gate, and `=== "Private"`
+  // would not have caught it.
+  if (hasPermissionToken(input, "Private")) return true;
   if (affirmPermission(input.participant_only)) return true;
   return false;
 }
