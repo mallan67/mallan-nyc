@@ -138,3 +138,28 @@ export const OWNERSHIP_FLAG_BY_COMMON_INTEREST: Record<string, string> = {
   Condop: 'is_condop',
   RentalBuilding: 'is_rental_building',
 };
+
+/**
+ * Provider fields the Trestle fallback must $select so amenities can be matched
+ * Mallan-side by `amenityMatches`.
+ *
+ * Live-verified 2026-08-19: all of these $select together (HTTP 200) and every
+ * one is returned in the payload. The route previously asserted the opposite —
+ * that they are "unavailable on IDX Plus" — and therefore silently ignored every
+ * non-pet amenity on the fallback path. What IS rejected is `/any()` lambda
+ * FILTERING on the collection fields (HTTP 400); selection is unaffected.
+ */
+export const TRESTLE_AMENITY_SELECT_FIELDS = [
+  'BuildingFeatures',
+  'InteriorFeatures',
+  'ExteriorFeatures',
+  'Appliances',
+  'LaundryFeatures',
+  'Cooling',
+  'View',
+  'ParkingFeatures',
+  'PetsAllowed',
+  'NewConstructionYN',
+  'GarageYN',
+  'FireplaceYN',
+] as const;

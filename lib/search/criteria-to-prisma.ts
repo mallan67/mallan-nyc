@@ -4,6 +4,7 @@ import {
   buildSearchDisplayWhere,
 } from "@/lib/search/listing-access-decision";
 import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from "@/lib/search/canonical/amenity-match";
+import { maxBathsAlternatives, minBathsAlternatives } from "@/lib/search/canonical/bath-contract";
 import { UNSUPPORTED_AMENITIES } from "@/lib/search/types";
 
 /**
@@ -116,6 +117,13 @@ const SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS = new Set([
   "postal_code",
   "newDevelopment",
   "is_new_development",
+  // THE FOUR TABS. Public Search always emits `type` PLUS `commercial=true/false`
+  // for buy-residential / buy-commercial / rent-residential / rent-commercial.
+  // `type` alone does NOT identify the tab, so omitting `commercial` here let
+  // public Search and Saved Search disagree about which universe was requested.
+  // The projection producer already derives `is_commercial`.
+  "commercial",
+  "is_commercial",
 ]);
 
 const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
@@ -184,7 +192,11 @@ function isSupportedProjectionCriterionValue(key: string, value: unknown): boole
     return typeof value === "string" || isSupportedStringArray(value);
   }
 
-  if (key === "furnished" || key === "pets" || key === "newDevelopment" || key === "is_new_development") {
+  if (
+    key === "furnished" || key === "pets" ||
+    key === "newDevelopment" || key === "is_new_development" ||
+    key === "commercial" || key === "is_commercial"
+  ) {
     return typeof value === "boolean" || value === "true" || value === "false";
   }
 
@@ -337,6 +349,19 @@ export function canEnableAlertForCriteria(criteria: SearchCriteria): AlertGateDe
   };
 }
 
+/**
+ * @deprecated DORMANT — the Listing-backed twin of `criteriaToProjectionWhere`.
+ *
+ * Zero runtime callers, verified 2026-08-20: a repo-wide search finds it only in
+ * this module, its own tests, and a historical comment in `lib/search/core.ts`
+ * explaining that PR 5D/5E migrated its two callers (the saved-search execute
+ * route and the search-alerts cron) onto the projection runner.
+ *
+ * Prefer `criteriaToProjectionWhere`. New Search work must not reintroduce a
+ * second execution path; this exists for Listing-shaped callers that predate the
+ * projection and is kept in step with the canonical contracts so it cannot hand
+ * a future caller a stale answer.
+ */
 export function criteriaToPrismaWhere(
   criteria: SearchCriteria,
   options: SearchWhereOptions = {},
@@ -375,12 +400,37 @@ export function criteriaToPrismaWhere(
     if (maxBeds !== undefined) where.bedrooms_total.lte = maxBeds;
   }
 
+  // Baths render the CANONICAL total-bath contract, same as every other path.
+  //
+  // This previously applied the range DIRECTLY to `bathrooms_full`, so on an
+  // integer column `minBaths=1.5` became `>= 1.5` — excluding a 1-full/1-half
+  // unit that IS 1.5 baths — while `maxBaths=1` admitted every 1.5-bath listing.
+  // The function is dormant (see the deprecation note below), but a reusable
+  // helper carrying the old answer is a trap for the next caller.
   const minBaths = numberValue(first(criteria, ["min_baths", "minBaths", "baths", "bathsMin"]));
   const maxBaths = numberValue(first(criteria, ["max_baths", "maxBaths", "bathsMax"]));
-  if (minBaths !== undefined || maxBaths !== undefined) {
-    where.bathrooms_full = {};
-    if (minBaths !== undefined) where.bathrooms_full.gte = minBaths;
-    if (maxBaths !== undefined) where.bathrooms_full.lte = maxBaths;
+  const bathClauses: Prisma.ListingWhereInput[] = [];
+  if (minBaths !== undefined) {
+    bathClauses.push({
+      OR: minBathsAlternatives(minBaths).map((a) =>
+        a.fullAtLeast !== undefined
+          ? { bathrooms_full: { gte: a.fullAtLeast } }
+          : { bathrooms_full: a.fullExactly, bathrooms_half: { gte: a.halfAtLeast } },
+      ),
+    });
+  }
+  if (maxBaths !== undefined) {
+    bathClauses.push({
+      OR: maxBathsAlternatives(maxBaths).map((a) => ({
+        AND: [
+          { bathrooms_full: a.fullExactly },
+          { OR: [{ bathrooms_half: null }, { bathrooms_half: { lte: a.halfAtMost } }] },
+        ],
+      })),
+    });
+  }
+  if (bathClauses.length > 0) {
+    where.AND = Array.isArray(where.AND) ? [...where.AND, ...bathClauses] : where.AND ? [where.AND, ...bathClauses] : bathClauses;
   }
 
   const minSqft = numberValue(first(criteria, ["min_sqft", "minSqft", "sqftMin"]));
@@ -480,6 +530,20 @@ function appendProvenProjectionCriteria(
   // token, so readers never re-parse the multi-value.
   if (booleanValue(first(criteria, ["pets"]))) {
     and.push({ feature_flags: { path: ["is_pet_friendly"], equals: true } });
+  }
+
+  // commercial — the tab universe. `type=sale|rent` selects the transaction,
+  // `commercial` selects the inventory class, and BOTH are needed to name one of
+  // the four tabs. The projection derives `is_commercial` at build time, so this
+  // reads the derived column rather than re-deriving from sub-types.
+  //
+  // Explicitly three-state: absent means "no constraint" (used by feeds that
+  // span both), true means commercial only, false means residential only. A
+  // missing value must not silently mean "residential", which is how a
+  // commercial saved search could be replayed against residential inventory.
+  const commercialRaw = first(criteria, ["commercial", "is_commercial"]);
+  if (commercialRaw !== undefined) {
+    and.push({ is_commercial: booleanValue(commercialRaw) });
   }
 
   // newDevelopment — `NewConstructionYN` (950 live Active), never a sub-type.

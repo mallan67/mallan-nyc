@@ -61,7 +61,11 @@ describe("SearchCore criteriaToPrismaWhere", () => {
     expect(where.neighborhood).toEqual({ in: ["Chelsea"] });
     expect(where.list_price).toEqual({ gte: 1000000, lte: 2000000 });
     expect(where.bedrooms_total).toEqual({ gte: 1, lte: 3 });
-    expect(where.bathrooms_full).toEqual({ gte: 2 });
+    // Baths are the NORMALISED total (full + half/2), not a flat
+    // `bathrooms_full` range — the old form excluded a 1-full/1-half unit from
+    // minBaths=1.5 and admitted it under maxBaths=1.
+    expect(where.bathrooms_full).toBeUndefined();
+    expect(JSON.stringify(where.AND)).toContain('"bathrooms_full":{"gte":2}');
     expect(where.living_area).toEqual({ gte: 900 });
   });
 

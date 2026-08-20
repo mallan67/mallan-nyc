@@ -304,7 +304,32 @@ export const RESIDENTIAL_PROPERTY_TYPES = [
 export const OWNERSHIP_TYPES = ['Condo', 'Condop', 'Co-op'];
 
 /** Commercial sub-type checkboxes */
+/**
+ * Commercial sub-type controls — LIVE `PropertySubType` members only.
+ *
+ * Audited against the live enum on 2026-08-20 with per-member counts:
+ *   MixedUse 1,651 · Office 104 · Retail 4 · Industrial 0 · Warehouse 0
+ *
+ * REMOVED as NOT live members — the provider rejects a `$filter` on them, and a
+ * control that cannot be answered must not be offered:
+ *   `Hospitality`  ·  `Healthcare`  ·  `Parking`
+ *   `Mixed Use` (with a space) — the member is `MixedUse`
+ *
+ * Plausible-looking substitutes were NOT invented. The live enum does contain
+ * `HotelMotel`, `Institutional`, `DeededParking` and `Garage`, but mapping
+ * Hospitality->HotelMotel or Parking->DeededParking is a semantic guess about
+ * what the Mallan control means, not a verified provider fact. Restoring any of
+ * these three requires proving the intended field, semantics AND population
+ * first.
+ */
 export const COMMERCIAL_SUB_TYPES = [
-  'Office', 'Retail', 'Industrial', 'Warehouse', 'Mixed Use',
-  'Hospitality', 'Healthcare', 'Parking',
+  'Office', 'Retail', 'Industrial', 'Warehouse', 'MixedUse',
 ];
+
+/**
+ * Commercial controls withdrawn for want of a verified live basis. Kept named so
+ * their absence is a recorded decision rather than a silent deletion.
+ */
+export const UNVERIFIED_COMMERCIAL_SUB_TYPES: ReadonlySet<string> = new Set([
+  'Hospitality', 'Healthcare', 'Parking', 'Mixed Use',
+]);

@@ -48,6 +48,9 @@ const DEFAULT_STATUS_CLAUSE =
 // PropertySubType values valid under Residential PropertyType for commercial filter.
 // PropertySubType cannot be pushed to Trestle OData broadly (causes 502); these
 // specific values are validated as safe to push.
+// Live `PropertySubType` members only — MixedUse 1,651 · Office 104 · Retail 4
+// · Industrial 0 · Warehouse 0 (2026-08-20). Kept in lockstep with the UI list
+// in lib/search/types.ts so the tab universe cannot differ by execution source.
 const COMMERCIAL_SUB_TYPES = ["Office", "Retail", "Industrial", "Warehouse", "MixedUse"];
 
 // Public ownership labels → Trestle CommonInterest enum values. Used by
@@ -406,6 +409,13 @@ export function buildPublicListingTrestleFilter(params: URLSearchParams): string
 
   const ownershipPart = buildOwnershipTypesFilterPart(params);
   if (ownershipPart) filterParts.push(ownershipPart);
+
+  // Pets push to the PROVIDER via exact-token `has`. This was previously a RAW
+  // post-filter using substring logic, which is wrong twice over: it filtered a
+  // page rather than the corpus, and matching "Yes" as a substring also matches
+  // "BuildingYes" — the building permits pets while the UNIT does not.
+  const petPart = buildPetFriendlyFilterPart(params);
+  if (petPart) filterParts.push(petPart);
 
   const legacyPropertyTypePart = buildLegacyPropertyTypeFilterPart(params);
   if (legacyPropertyTypePart) filterParts.push(legacyPropertyTypePart);

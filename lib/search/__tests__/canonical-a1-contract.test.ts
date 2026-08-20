@@ -350,6 +350,9 @@ describe('A1 · only authorised readers import the canonical package', () => {
       'lib/search/public-listing-trestle.ts',
       // DB path renders the same canonical bath contract to Prisma.
       'lib/search/public-listing-db.ts',
+      // Trestle fallback matches collection amenities Mallan-side through the
+      // SAME matcher, replacing a route-local second engine.
+      'app/api/listings/route.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);
