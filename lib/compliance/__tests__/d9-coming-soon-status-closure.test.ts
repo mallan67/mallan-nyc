@@ -239,7 +239,16 @@ describe('GAP 1 — UCBA D9 "Coming Soon once per address" reaches every stored 
     // the address as unused. This test derives the list from the live transition
     // table precisely because a hand-written one missed that edge (it did, on the
     // first run of this assertion).
-    expect(missed).toEqual(['ActiveUnderContract', 'ComingSoon', 'Draft', 'Hold', 'Pending']);
+    //
+    // 'Canceled' (single L) joined this list on 2026-08-20, and its arrival is the
+    // test working as designed rather than a regression. The cancel state had NO
+    // inbound edge until then — it was keyed terminal but unreachable, so an agent
+    // could never cancel a listing at all. Supplying those edges made the whole
+    // cancel class transitively reachable from ComingSoon, and OLD_LITERAL carried
+    // only the Mallan spelling 'Cancelled', never the live Cotality member. The
+    // assertion below proves D9 already covers it, so reachability grew without
+    // opening a gap.
+    expect(missed).toEqual(['ActiveUnderContract', 'Canceled', 'ComingSoon', 'Draft', 'Hold', 'Pending']);
     // … and the fix covers all of them.
     const applied = new Set(resolveD9StatusSet().values);
     expect(missed.filter((s) => !applied.has(s))).toEqual([]);

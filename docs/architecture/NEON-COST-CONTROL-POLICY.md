@@ -129,9 +129,9 @@ When the underlying integration check stops asserting branch-limit failures (via
 | Concept | Value |
 |---|---|
 | **Production Neon project** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` (`DATABASE_URL` points here; repointed 2026-06-02) |
-| **Preview/integration Neon project** | `hidden-mountain-87248164` (Vercel-Neon integration creates preview branches here; UI lists product as `neon-green-school`) |
+| **Preview/integration Neon project** | `hidden-mountain-87248164` — **the same project as production above.** The Vercel-Neon integration creates preview branches inside the canonical production project (UI lists the product as `neon-green-school`); there is no separate preview project. |
 | **Credential rotation owner** | `.github/workflows/rotate-db-keys.yml` (GitHub Actions; **targets the legacy `morning-bread` project and is DISABLED until retargeted to cold-waterfall + host-guarded**) |
-| **Preview branch cleanup owner** | `app/api/cron/neon-branch-prune/route.ts` daily 04:00 UTC + `lib/neon/branches.ts` shared logic (Vercel cron; targets preview project per cron audit-event evidence) |
+| **Preview branch cleanup owner** | `app/api/cron/neon-branch-prune/route.ts` daily 04:00 UTC + `lib/neon/branches.ts` shared logic. **Corrected 2026-08-20:** this row previously said the cron “targets preview project”. There is no separate preview project — it targets `hidden-mountain-87248164`, the **canonical PRODUCTION** project, which **also hosts the preview branches**. `isCanonicalNeonProject` pins it there (fail-closed, 409 on any other project id), so the cron holds DELETE rights over every branch of the production project. Production is therefore refused deliberately in `isPrunable()` — by branch id, by branch name, by the `primary` / `protected` / `default` flags, and by requiring the `preview/` prefix — with identity gaps failing closed. See `tests/runtime/neon-branch-prune-guard.test.ts`. |
 
 ---
 

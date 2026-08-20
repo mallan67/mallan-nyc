@@ -20,6 +20,7 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { withStatusSpellings } from "@/lib/compliance/listing-status-vocabulary";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -41,21 +42,48 @@ import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capab
 // Exported so `lib/compliance/__tests__/listing-status-spelling-closure.test.ts`
 // can assert both spellings resolve to the SAME allowed-transition list rather
 // than re-declaring the map in the test and letting the two drift together.
+// ── CANCELLATION MUST BE REACHABLE ─────────────────────────────────────────
+// Before 2026-08-20 `Cancelled`/`Canceled` were keyed as terminal but NO state
+// listed either as an allowed NEXT value, so the cancel state had no inbound
+// edge and was unreachable: `updateStatus(id, "Cancelled")` returned HTTP 422
+// "Invalid status transition" from every source state. The CRM surfaced that as
+// "Saved as Draft. Publish failed: …" and an agent could not cancel a listing at
+// all. Cancellation is a real REBNY disposition, so the edges are supplied here.
+//
+// Targets are DERIVED from the shared spelling class, never hand-typed, so the
+// cancel state stays reachable under BOTH stored spellings (the Mallan CRM
+// writes `Cancelled`; mapTrestleToPrisma writes the live provider member
+// `Canceled` verbatim). Adding a tenth hand-typed literal is the defect class
+// that produced the UCBA DOM-reset failure — see listing-status-vocabulary.ts.
+const CANCEL_TARGETS = withStatusSpellings(["Cancelled"]);
+
 export const STATUS_TRANSITIONS: Record<string, string[]> = {
+  // Pre-publication. No listing agreement has been filed, so there is nothing
+  // to cancel — the disposition for an unwanted Draft is deletion.
   Draft: ["Active", "ComingSoon"],
-  ComingSoon: ["Active", "Withdrawn"],
-  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired"],
-  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn"],
-  Pending: ["Sold", "Rented", "Active", "Withdrawn"],
-  Hold: ["Active", "Draft"],
+  Incomplete: ["Active", "Draft"], // pre-publication, same shape as Draft
+
+  // Live or suspended agreement — cancellation ends it, so each needs an edge.
+  ComingSoon: ["Active", "Withdrawn", ...CANCEL_TARGETS],
+  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired", ...CANCEL_TARGETS],
+  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn", ...CANCEL_TARGETS],
+  Pending: ["Sold", "Rented", "Active", "Withdrawn", ...CANCEL_TARGETS],
+  Hold: ["Active", "Draft", ...CANCEL_TARGETS],
+
+  // Off-market peers. Withdrawal and expiry are not completions — the agreement
+  // can still be formally cancelled from either, and both already re-open to
+  // Active/Draft, so neither is terminal today.
+  Withdrawn: ["Active", "Draft", ...CANCEL_TARGETS],
+  Expired: ["Active", "Draft", ...CANCEL_TARGETS],
+
+  // Completed transactions. A closed deal is not cancellable.
   Sold: [], // Terminal
   Rented: [], // Terminal
-  Withdrawn: ["Active", "Draft"],
-  Expired: ["Active", "Draft"],
+
+  // Terminal dispositions. Cancellation itself stays terminal — no outbound edges.
   Cancelled: [], // Terminal — Mallan CRM canonical spelling
   Canceled: [], //  Terminal — LIVE Cotality member; same state, provider spelling
   Delete: [], //    Terminal — provider tombstone
-  Incomplete: ["Active", "Draft"], // pre-publication, same shape as Draft
 };
 
 export async function PATCH(

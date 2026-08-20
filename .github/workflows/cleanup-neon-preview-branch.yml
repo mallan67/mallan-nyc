@@ -1,34 +1,67 @@
 name: Cleanup Neon preview branch on PR close
 
 # =========================================================================
-# PRODUCTION ISOLATION — read this before editing.
+# PRODUCTION SAFETY — read this before editing.
 # -------------------------------------------------------------------------
+# WHAT THIS DOES
 # When a PR closes (merged or not), delete the ONE Neon preview branch that
-# the Vercel-Managed integration created for that PR's preview deploys.
-# This is hygiene only — it complements the daily `neon-branch-prune` cron
-# (24h retention) by cleaning a PR's branch immediately at close.
+# was created for that PR's preview deploys. Hygiene only — it complements
+# the daily `neon-branch-prune` cron (24h retention) by cleaning a PR's
+# branch immediately at close.
 #
-# It operates EXCLUSIVELY on the PREVIEW Neon project
-#   hidden-mountain-87248164  (Vercel label "neon-green-school")
-# via DEDICATED, PREVIEW-ONLY credentials:
-#   vars.NEON_PREVIEW_PROJECT_ID    -> must equal hidden-mountain-87248164
-#   secrets.NEON_PREVIEW_API_KEY    -> a Neon key scoped to the preview project
+# OWNERSHIP MODEL — CORRECTED 2026-08-20.
+# This header previously stated the INVERSE of system truth, which was a live
+# safety defect (it called hidden-mountain "the PREVIEW project" and named
+# morning-bread "PRODUCTION"). Corrected against the live Neon control plane:
 #
-# It MUST NEVER touch production:
-#   - Neon project  morning-bread-68708332  (mallandb / legacy do-not-serve — refuse here)
-#   - vars.NEON_PROJECT_ID   -> legacy morning-bread project (do NOT use here)
-#   - secrets.NEON_API_KEY   -> production credential-rotation key (do NOT use here)
+#   hidden-mountain-87248164  ("neon-green-school")
+#     = the CANONICAL PRODUCTION Neon project, AND the project that hosts the
+#       PR preview branches. Preview branches and production share ONE project.
+#       - production branch `main` = br-crimson-frog-adr7g9gt
+#         (primary=true, default=true, protected=FALSE, ~627 MB logical,
+#          compute ep-cold-waterfall-adno3ao2, ACTIVE)
+#       - example preview branch, same project, parented on production main:
+#         preview/fix/neon-p0-event-driven-wake-2026-08-16
+#         = br-spring-mouse-adfywa55 (compute ep-rapid-sea-add131is)
+#
+#   morning-bread-68708332    ("mallandb")
+#     = the STALE / DO-NOT-SERVE legacy project. Not production, not preview.
+#       Never target it. (Live: main br-old-tree-admdlb9z is `archived`,
+#       cpu_used_sec 0, project active_time 0.)
+#
+# WHY THAT MATTERS HERE — THIS JOB DELETES BRANCHES FROM THE PROJECT THAT
+# HOLDS PRODUCTION. Production must therefore be refused DELIBERATELY, by
+# NAME and by ID. It must NOT be left to survive incidentally on a jq
+# predicate: Neon reports production `main` with protected=FALSE, so
+# `.protected == false` does NOT exclude it. Only `.primary == false` and the
+# exact `preview/` name match stood between this job and production before.
+#
+# CREDENTIAL NAMES ARE LEGACY MISNOMERS (do not re-interpret them):
+#   vars.NEON_PREVIEW_PROJECT_ID  -> holds hidden-mountain-87248164, i.e. the
+#                                    CANONICAL PRODUCTION project id.
+#   secrets.NEON_PREVIEW_API_KEY  -> a Neon key for that same project.
+# They are named "PREVIEW" for historical reasons only. Renaming them is a
+# repo-settings change and is out of scope here; the workflow-local variables
+# below carry the truthful names.
+#
+# Never use here:
+#   vars.NEON_PROJECT_ID   -> points at the stale legacy project in Actions.
+#   secrets.NEON_API_KEY   -> the credential-rotation key.
 #
 # Refs:
-#   docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md  (canonical Neon/Vercel status)
-#   docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md  (§7 env-var ownership)
+#   docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md   (ownership + env-var map)
+#   docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md
+#   lib/ops/canonical-neon-target.ts                 (single source of truth)
+#   tests/runtime/neon-preview-cleanup-ownership.test.ts  (executes the guards)
 # =========================================================================
 
 on:
   pull_request:
     types: [closed]
 
-# Least privilege: no repo contents access is needed (no checkout; Neon API only).
+# Least privilege: no repo contents access is needed (no checkout; Neon API
+# only). Do NOT add actions/checkout — this job holds a Neon key, and checking
+# out a PR head would run PR-authored code with that key in scope.
 permissions:
   contents: read
 
@@ -42,89 +75,124 @@ jobs:
     # Skip fork PRs: they cannot access secrets, and we never act on external refs.
     if: github.event.pull_request.head.repo.full_name == github.repository
     env:
-      # Accept the preview project id whether it was stored as a repo VARIABLE
-      # or a repo SECRET (project ids are not sensitive; either placement works).
-      PREVIEW_PROJECT_ID: ${{ vars.NEON_PREVIEW_PROJECT_ID || secrets.NEON_PREVIEW_PROJECT_ID }}
-      EXPECTED_PREVIEW_PROJECT_ID: hidden-mountain-87248164
-      PROD_PROJECT_ID: morning-bread-68708332
+      # The project this job is pointed at. Accepted from a repo VARIABLE or a
+      # repo SECRET (project ids are not sensitive; either placement works).
+      # NOTE the legacy "PREVIEW" name on the GitHub side — see header.
+      CONFIGURED_PROJECT_ID: ${{ vars.NEON_PREVIEW_PROJECT_ID || secrets.NEON_PREVIEW_PROJECT_ID }}
+      # Canonical production project — this job may run ONLY here, and only
+      # because preview branches live in this same project.
+      CANONICAL_PRODUCTION_PROJECT_ID: hidden-mountain-87248164
+      # Stale / do-not-serve legacy project — never a valid target.
+      STALE_LEGACY_PROJECT_ID: morning-bread-68708332
+      # Production branch identity, refused deliberately by BOTH name and id.
+      PRODUCTION_BRANCH_NAME: main
+      PRODUCTION_BRANCH_ID: br-crimson-frog-adr7g9gt
       HEAD_REF: ${{ github.head_ref }}
     steps:
       # ---------------------------------------------------------------------
-      # Guard — fail CLOSED before the delete action runs. Reads $HEAD_REF via
-      # env (NOT inline ${{ }}) so a crafted branch name cannot inject shell.
+      # Guard — fail CLOSED before anything touches the Neon API. Reads
+      # $HEAD_REF via env (NOT inline expression interpolation) so a crafted
+      # branch name cannot inject shell.
       # ---------------------------------------------------------------------
-      - name: Guard — production isolation + branch-name safety
+      - name: Guard — canonical project identity + branch-name safety
         run: |
           set -euo pipefail
 
           # 0. Trim stray whitespace/newlines. A value pasted into a GitHub
           #    secret/variable box often carries a trailing newline, which
           #    silently breaks the exact-match guards below (seen in PR #316 smoke test).
-          PREVIEW_PROJECT_ID="$(printf '%s' "${PREVIEW_PROJECT_ID:-}" | tr -d '[:space:]')"
+          CONFIGURED_PROJECT_ID="$(printf '%s' "${CONFIGURED_PROJECT_ID:-}" | tr -d '[:space:]')"
           HEAD_REF="$(printf '%s' "${HEAD_REF:-}" | tr -d '\r\n')"
 
-          # 1. Preview project id must be present, must be the EXPECTED preview
-          #    project, and must NEVER equal the production project.
-          if [ -z "${PREVIEW_PROJECT_ID}" ]; then
+          # 1. The configured project must be present, must NOT be the stale
+          #    legacy project, and must BE the canonical project.
+          if [ -z "${CONFIGURED_PROJECT_ID}" ]; then
             echo "::error::NEON_PREVIEW_PROJECT_ID is not set — refusing to run."; exit 1
           fi
-          if [ "${PREVIEW_PROJECT_ID}" = "${PROD_PROJECT_ID}" ]; then
-            echo "::error::Preview project id equals PRODUCTION (${PROD_PROJECT_ID}) — aborting."; exit 1
+          if [ "${CONFIGURED_PROJECT_ID}" = "${STALE_LEGACY_PROJECT_ID}" ]; then
+            echo "::error::Configured project is the STALE legacy project (${STALE_LEGACY_PROJECT_ID}) — aborting."; exit 1
           fi
-          if [ "${PREVIEW_PROJECT_ID}" != "${EXPECTED_PREVIEW_PROJECT_ID}" ]; then
-            echo "::error::Preview project id '${PREVIEW_PROJECT_ID}' != expected '${EXPECTED_PREVIEW_PROJECT_ID}' — aborting."; exit 1
+          if [ "${CONFIGURED_PROJECT_ID}" != "${CANONICAL_PRODUCTION_PROJECT_ID}" ]; then
+            echo "::error::Configured project '${CONFIGURED_PROJECT_ID}' != canonical '${CANONICAL_PRODUCTION_PROJECT_ID}' — aborting."; exit 1
           fi
 
-          # 2. head_ref must be present.
+          # 2. The production branch identity must be declared, or this job has
+          #    nothing to protect production with.
+          if [ -z "${PRODUCTION_BRANCH_NAME:-}" ] || [ -z "${PRODUCTION_BRANCH_ID:-}" ]; then
+            echo "::error::Production branch identity is not declared — refusing to run."; exit 1
+          fi
+
+          # 3. head_ref must be present.
           if [ -z "${HEAD_REF}" ]; then
             echo "::error::Empty head_ref — aborting."; exit 1
           fi
 
-          # 3. Never act on a protected branch name.
+          # 4. Never act on a protected branch name, or on the production
+          #    branch's own name or id.
           case "${HEAD_REF}" in
-            main|master|production|preview/main)
+            main|master|production|preview/main|preview/master|preview/production)
               echo "::error::Refusing to act on protected branch '${HEAD_REF}'."; exit 1 ;;
           esac
+          if [ "${HEAD_REF}" = "${PRODUCTION_BRANCH_NAME}" ]; then
+            echo "::error::Refusing to act on the PRODUCTION branch name '${PRODUCTION_BRANCH_NAME}'."; exit 1
+          fi
+          if [ "${HEAD_REF}" = "${PRODUCTION_BRANCH_ID}" ]; then
+            echo "::error::Refusing to act on the PRODUCTION branch id '${PRODUCTION_BRANCH_ID}'."; exit 1
+          fi
 
-          # 4. Reject path-traversal / shell / glob metacharacters and whitespace:
+          # 5. Reject path-traversal / shell / glob metacharacters and whitespace:
           #    ..  ~  ^  :  \  [  ]  {  }  and spaces.
           case "${HEAD_REF}" in
             *..*|*"~"*|*"^"*|*":"*|*"\\"*|*"["*|*"]"*|*"{"*|*"}"*|*" "*)
               echo "::error::Suspicious character in head_ref '${HEAD_REF}' — aborting."; exit 1 ;;
           esac
 
+          # 6. Positive allow-list on top of the denylist above: git refs we
+          #    create use only these characters.
+          case "${HEAD_REF}" in
+            *[!A-Za-z0-9._/-]*)
+              echo "::error::head_ref '${HEAD_REF}' has a character outside the allow-list — aborting."; exit 1 ;;
+          esac
+
           echo "Guard passed. Cleanup target (if it exists): preview/${HEAD_REF}"
 
       # ---------------------------------------------------------------------
-      # Delete via a CONTROLLED Neon API call (not the official action) so we can
+      # Resolve — a CONTROLLED Neon API call (not the official action) so we can
       # distinguish failure modes instead of masking them (Codex review, PR #315):
       #   - missing API key / auth / list error  -> HARD FAIL (never silent)
-      #   - branch genuinely not found            -> success (the ONLY tolerated no-op)
-      #   - delete error                          -> HARD FAIL
-      # No blanket `continue-on-error`. Secrets are passed via env and never printed
-      # (no `set -x`, no `curl -v`); GitHub also masks them in logs.
+      #   - branch genuinely not found            -> handed on as an empty id
+      #   - wrong project                         -> HARD FAIL
+      # No blanket error suppression. Secrets are passed via env and never
+      # printed (no shell tracing, no verbose curl); GitHub also masks them.
       # ---------------------------------------------------------------------
-      - name: Delete the PR's Neon preview branch (preview project only)
+      - name: Resolve the PR's preview branch in the canonical project (read-only)
+        id: resolve
         env:
-          # PREVIEW ONLY — never secrets.NEON_API_KEY (that is the production rotation key).
+          # This key is scoped to the canonical project — never secrets.NEON_API_KEY
+          # (that is the credential-rotation key).
           NEON_API_KEY: ${{ secrets.NEON_PREVIEW_API_KEY }}
         run: |
           set -uo pipefail   # NOT -e: we inspect HTTP codes and decide explicitly
 
           # Re-trim here: job-level env reaches this step raw (the guard trimmed
           # only its own shell copy).
-          PID="$(printf '%s' "${PREVIEW_PROJECT_ID:-}" | tr -d '[:space:]')"
+          PID="$(printf '%s' "${CONFIGURED_PROJECT_ID:-}" | tr -d '[:space:]')"
           REF="$(printf '%s' "${HEAD_REF:-}" | tr -d '\r\n')"
           KEY="$(printf '%s' "${NEON_API_KEY:-}" | tr -d '[:space:]')"
+          PROD_ID="$(printf '%s' "${PRODUCTION_BRANCH_ID:-}" | tr -d '[:space:]')"
+          PROD_NAME="$(printf '%s' "${PRODUCTION_BRANCH_NAME:-}" | tr -d '[:space:]')"
 
-          # Codex review: fail HARD when the preview API key is absent/misnamed,
-          # rather than letting the delete silently no-op.
+          # Codex review: fail HARD when the API key is absent/misnamed, rather
+          # than letting the delete silently no-op.
           if [ -z "${KEY}" ]; then
             echo "::error::NEON_PREVIEW_API_KEY is not set — cannot manage preview branches. Failing."; exit 1
           fi
-          # Defense in depth: re-assert the preview project (guard already checked).
-          if [ "${PID}" != "hidden-mountain-87248164" ] || [ "${PID}" = "morning-bread-68708332" ]; then
-            echo "::error::Refusing: project id '${PID}' is not the expected preview project."; exit 1
+          # Defense in depth: re-assert the canonical project (guard already checked).
+          if [ "${PID}" != "${CANONICAL_PRODUCTION_PROJECT_ID}" ] || [ "${PID}" = "${STALE_LEGACY_PROJECT_ID}" ]; then
+            echo "::error::Refusing: project id '${PID}' is not the canonical project."; exit 1
+          fi
+          if [ -z "${PROD_ID}" ] || [ -z "${PROD_NAME}" ]; then
+            echo "::error::Production branch identity is not declared — refusing."; exit 1
           fi
 
           TARGET="preview/${REF}"
@@ -137,22 +205,141 @@ jobs:
             echo "::error::Neon list-branches returned HTTP ${HTTP} (auth/permission/API failure). Failing — not masking."; exit 1
           fi
 
-          # 2) Find the EXACT target, non-primary + non-protected (defense in depth).
-          BRANCH_ID=$(jq -r --arg n "${TARGET}" \
-            '.branches[] | select(.name==$n and .primary==false and .protected==false) | .id' \
-            /tmp/neon-branches.json | head -n1)
-
-          # 3) Genuinely-absent branch = the ONLY tolerated no-op (PR had no preview, or already pruned).
-          if [ -z "${BRANCH_ID}" ] || [ "${BRANCH_ID}" = "null" ]; then
-            echo "No deletable branch named '${TARGET}' (already gone or never created). Nothing to do."; exit 0
+          # 2) IDENTITY PROOF FROM LIVE DATA, not a string compare: the project we
+          #    are pointed at must actually contain the production branch, by id AND
+          #    name, flagged primary. If it does not, we are not where we think we
+          #    are — fail closed before anything is deleted.
+          PROVEN=$(jq -r --arg prod_id "${PROD_ID}" --arg prod_name "${PROD_NAME}" \
+            '[ .branches[] | select(.id == $prod_id and .name == $prod_name and .primary == true) ] | length' \
+            /tmp/neon-branches.json)
+          if [ "${PROVEN}" != "1" ]; then
+            echo "::error::Project '${PID}' does not contain ${PROD_NAME} (${PROD_ID}) as its primary branch — this is not the expected project. Failing closed."; exit 1
           fi
 
-          # 4) Delete. 404 = already gone; anything else non-2xx = HARD FAIL.
-          echo "Deleting '${TARGET}' (id ${BRANCH_ID}) from ${PID}..."
+          # 3) Select the EXACT target. Production is excluded by id AND by name,
+          #    the preview/ prefix is required, and primary/protected are still
+          #    excluded (defense in depth — note production main is NOT flagged
+          #    protected in Neon, so that predicate alone protects nothing).
+          SELECTED=$(jq -c --arg n "${TARGET}" --arg prod_id "${PROD_ID}" --arg prod_name "${PROD_NAME}" \
+            '[ .branches[]
+               | select(.name == $n
+                        and .id != $prod_id
+                        and .name != $prod_name
+                        and (.name | startswith("preview/"))
+                        and .primary == false
+                        and .protected == false)
+               | {id: .id, name: .name} ] | .[0] // empty' /tmp/neon-branches.json)
+
+          BRANCH_ID=""
+          BRANCH_NAME=""
+          if [ -n "${SELECTED}" ]; then
+            BRANCH_ID=$(printf '%s' "${SELECTED}" | jq -r '.id // empty')
+            BRANCH_NAME=$(printf '%s' "${SELECTED}" | jq -r '.name // empty')
+          fi
+          BRANCH_ID="$(printf '%s' "${BRANCH_ID}" | tr -d '[:space:]')"
+          BRANCH_NAME="$(printf '%s' "${BRANCH_NAME}" | tr -d '[:space:]')"
+
+          {
+            printf 'branch_id=%s\n' "${BRANCH_ID}"
+            printf 'branch_name=%s\n' "${BRANCH_NAME}"
+            printf 'target=%s\n' "${TARGET}"
+          } >> "${GITHUB_OUTPUT}"
+
+      # ---------------------------------------------------------------------
+      # Refuse production — PURE SHELL, no network, no JSON parsing. Kept as its
+      # own step so the production-protection decision is directly executable in
+      # a test (tests/runtime/neon-preview-cleanup-ownership.test.ts extracts and
+      # runs this block under bash and asserts its exit codes).
+      # ---------------------------------------------------------------------
+      - name: Refuse production by name and by id, then authorise the delete
+        id: safety
+        env:
+          BRANCH_ID: ${{ steps.resolve.outputs.branch_id }}
+          BRANCH_NAME: ${{ steps.resolve.outputs.branch_name }}
+          TARGET: ${{ steps.resolve.outputs.target }}
+        run: |
+          set -euo pipefail
+
+          BID="$(printf '%s' "${BRANCH_ID:-}" | tr -d '[:space:]')"
+          BNAME="$(printf '%s' "${BRANCH_NAME:-}" | tr -d '[:space:]')"
+          TGT="$(printf '%s' "${TARGET:-}" | tr -d '[:space:]')"
+          PROD_ID="$(printf '%s' "${PRODUCTION_BRANCH_ID:-}" | tr -d '[:space:]')"
+          PROD_NAME="$(printf '%s' "${PRODUCTION_BRANCH_NAME:-}" | tr -d '[:space:]')"
+
+          # The production identity must be declared, or nothing may be deleted.
+          if [ -z "${PROD_ID}" ] || [ -z "${PROD_NAME}" ]; then
+            echo "::error::Production branch identity is not declared — refusing."; exit 1
+          fi
+
+          # Genuinely-absent branch = the ONLY tolerated no-op (PR had no preview,
+          # or it was already pruned).
+          if [ -z "${BID}" ] || [ "${BID}" = "null" ]; then
+            echo "No deletable branch named '${TGT}' (already gone or never created). Nothing to do."
+            printf 'proceed=false\n' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          # 1. NEVER the production branch, by ID.
+          if [ "${BID}" = "${PROD_ID}" ]; then
+            echo "::error::Refusing to delete the PRODUCTION branch by id (${PROD_ID})."; exit 1
+          fi
+          # 2. NEVER the production branch, by NAME.
+          if [ "${BNAME}" = "${PROD_NAME}" ]; then
+            echo "::error::Refusing to delete the PRODUCTION branch by name ('${PROD_NAME}')."; exit 1
+          fi
+          case "${BNAME}" in
+            main|master|production|preview/main|preview/master|preview/production)
+              echo "::error::Refusing to delete protected branch '${BNAME}'."; exit 1 ;;
+          esac
+          # 3. Only a branch carrying the exact preview/ prefix may be deleted.
+          case "${BNAME}" in
+            preview/?*) : ;;
+            *) echo "::error::Refusing: '${BNAME}' is not a preview/ branch."; exit 1 ;;
+          esac
+          # 4. And it must be exactly the branch this PR asked for.
+          if [ "${BNAME}" != "${TGT}" ]; then
+            echo "::error::Refusing: resolved branch '${BNAME}' != computed target '${TGT}'."; exit 1
+          fi
+
+          echo "Authorised: '${BNAME}' (id ${BID}) is a deletable preview branch."
+          printf 'proceed=true\n' >> "${GITHUB_OUTPUT}"
+
+      # ---------------------------------------------------------------------
+      # Delete — runs ONLY when the pure-shell safety step authorised it.
+      #   404 = already gone; anything else non-2xx = HARD FAIL.
+      # ---------------------------------------------------------------------
+      - name: Delete the authorised preview branch
+        if: steps.safety.outputs.proceed == 'true'
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_PREVIEW_API_KEY }}
+          BRANCH_ID: ${{ steps.resolve.outputs.branch_id }}
+          BRANCH_NAME: ${{ steps.resolve.outputs.branch_name }}
+        run: |
+          set -uo pipefail   # NOT -e: we inspect HTTP codes and decide explicitly
+
+          PID="$(printf '%s' "${CONFIGURED_PROJECT_ID:-}" | tr -d '[:space:]')"
+          KEY="$(printf '%s' "${NEON_API_KEY:-}" | tr -d '[:space:]')"
+          BID="$(printf '%s' "${BRANCH_ID:-}" | tr -d '[:space:]')"
+          BNAME="$(printf '%s' "${BRANCH_NAME:-}" | tr -d '[:space:]')"
+
+          if [ -z "${KEY}" ]; then
+            echo "::error::NEON_PREVIEW_API_KEY is not set — cannot manage preview branches. Failing."; exit 1
+          fi
+          # Final re-assert (defense in depth): canonical project, and production
+          # refused once more by id AND by name.
+          if [ "${PID}" != "${CANONICAL_PRODUCTION_PROJECT_ID}" ] || [ "${PID}" = "${STALE_LEGACY_PROJECT_ID}" ]; then
+            echo "::error::Refusing: project id '${PID}' is not the canonical project."; exit 1
+          fi
+          if [ -z "${BID}" ] || [ "${BID}" = "${PRODUCTION_BRANCH_ID}" ] || [ "${BNAME}" = "${PRODUCTION_BRANCH_NAME}" ]; then
+            echo "::error::Refusing to delete the PRODUCTION branch."; exit 1
+          fi
+
+          API="https://console.neon.tech/api/v2/projects/${PID}/branches"
+          echo "Deleting '${BNAME}' (id ${BID}) from ${PID}..."
           DCODE=$(curl -sS -o /tmp/neon-del.json -w "%{http_code}" -X DELETE \
-                    -H "Authorization: Bearer ${KEY}" "${API}/${BRANCH_ID}" || echo "000")
+                    -H "Authorization: Bearer ${KEY}" "${API}/${BID}" || echo "000")
           case "${DCODE}" in
-            200|201|202) echo "Deleted '${TARGET}'." ;;
+            200|201|202) echo "Deleted '${BNAME}'." ;;
             404)         echo "Branch vanished before delete (404) — already gone." ;;
             *)           echo "::error::Delete returned HTTP ${DCODE} — failing (not masking)."; exit 1 ;;
           esac
