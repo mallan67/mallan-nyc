@@ -24,34 +24,98 @@ import * as path from "node:path";
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-// ── tag-aware memoizing stand-in for the Next data cache ───────────────────
-// Entries remember their tags; revalidateTag(tag) evicts matching entries —
-// the exact production semantics this design depends on.
+// Next's dist/server/app-render/async-local-storage.js reads
+// `globalThis.AsyncLocalStorage` ONCE at module load; the jest 'node'
+// environment does not expose it, so without this the REAL workAsyncStorage
+// degrades to FakeAsyncLocalStorage and `.run()` throws E504. Must execute
+// before the first require of anything under `next/`.
+(globalThis as unknown as Record<string, unknown>).AsyncLocalStorage =
+  require("node:async_hooks").AsyncLocalStorage;
+
+// ── REAL `unstable_cache` over a REAL in-memory incremental cache ──────────
+//
+// CORRECTED 2026-08-20. This suite previously mocked `next/cache` with a plain
+// Map memoizer keyed by (keyParts, args). That mock had NO WORK-UNIT CONCEPT,
+// so a cached read nested inside another cached read was transparent to it —
+// while in the installed Next 16.2.4 a nested `unstable_cache` SKIPS the cache
+// read entirely (dist/server/web/spec-extension/unstable-cache.js:132-134 sets
+// `isNestedUnstableCache`, :144-146 skips `incrementalCache.get`, :206 runs the
+// callback anyway, :214 still writes). Every assertion below therefore passed
+// against an execution shape production never had. The assertions are
+// UNCHANGED; only the cache underneath them is now real.
+//
+// `unstable_cache` is the genuine export. Only two things are modelled: the
+// incremental-cache backend (get / set / generateCacheKey — what Vercel's Data
+// Cache provides) and `revalidateTag`, whose production job is exactly "drop
+// every entry carrying this tag".
+const mockMemCache = new Map<string, { entry: unknown; tags: string[] }>();
+const mockIncrementalCache = {
+  isOnDemandRevalidate: false,
+  async generateCacheKey(invocationKey: string) {
+    return "k:" + Buffer.from(invocationKey).toString("base64");
+  },
+  async get(cacheKey: string) {
+    const hit = mockMemCache.get(cacheKey);
+    if (!hit) return null;
+    return { value: hit.entry, isStale: false };
+  },
+  async set(cacheKey: string, entry: unknown, ctx: { tags?: string[] }) {
+    mockMemCache.set(cacheKey, { entry, tags: ctx?.tags ?? [] });
+  },
+};
+function mockEvictTag(tag: string): void {
+  for (const [k, v] of mockMemCache) {
+    if (v.tags.includes(tag)) mockMemCache.delete(k);
+  }
+}
 jest.mock("next/cache", () => {
-  const store = new Map<string, { value: unknown; tags: string[] }>();
+  const actual = jest.requireActual("next/cache");
   return {
-    unstable_cache:
-      (
-        fn: (...a: unknown[]) => Promise<unknown>,
-        keyParts: string[],
-        opts?: { tags?: string[] },
-      ) =>
-      async (...args: unknown[]) => {
-        const k = JSON.stringify([keyParts, args]);
-        const hit = store.get(k);
-        if (hit) return hit.value;
-        const value = await fn(...args);
-        store.set(k, { value, tags: opts?.tags ?? [] });
-        return value;
-      },
-    revalidateTag: (tag: string) => {
-      for (const [k, entry] of store) {
-        if (entry.tags.includes(tag)) store.delete(k);
-      }
-    },
-    __storeForTests: store,
+    ...actual,
+    unstable_cache: actual.unstable_cache, // REAL — work-unit semantics intact
+    revalidateTag: (tag: string) => mockEvictTag(tag),
   };
 });
+
+function makeWorkStore(route: string) {
+  return {
+    route,
+    incrementalCache: mockIncrementalCache,
+    nextFetchId: 1,
+    fetchCache: undefined as unknown as string | undefined,
+    isOnDemandRevalidate: false,
+    isDraftMode: false,
+    isStaticGeneration: false,
+    pendingRevalidates: {} as Record<string, Promise<unknown>>,
+    forceDynamic: false,
+    forceStatic: false,
+    dynamicShouldError: false,
+    page: route,
+    isRevalidate: false,
+    isPrefetchRequest: false,
+    tags: [] as string[],
+  };
+}
+
+/** One public request. `cacheNewResult` (dist :214) is fire-and-forget into
+ *  `pendingRevalidates`; draining removes any "the SET had not finished yet"
+ *  confound from the next measurement. Both public callers of
+ *  `getBuildingDataCached` await `searchParams` / `nextUrl`, so each production
+ *  render is a DYNAMIC request exactly like this one. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function inRequest(fn: () => Promise<any>): Promise<any> {
+  const {
+    workAsyncStorage,
+  } = require("next/dist/server/app-render/work-async-storage.external");
+  const ws = makeWorkStore("/buildings/[slug]");
+  try {
+    return await workAsyncStorage.run(ws, fn);
+  } finally {
+    const pending = Object.values(ws.pendingRevalidates);
+    ws.pendingRevalidates = {};
+    await Promise.all(pending);
+  }
+}
 
 // Manifest-shaped prisma rows: every queried street gets one gated listing.
 // The mock answers the SHARD query (string_starts_with on StreetNumber) with
@@ -153,7 +217,7 @@ for (let i = 0; i < 100; i++) {
 
 async function crawlAll() {
   for (const b of CRAWL) {
-    const payload = await getBuildingDataCached({ ...b, buildingName: null });
+    const payload = await inRequest(() => getBuildingDataCached({ ...b, buildingName: null }));
     expect(payload.success).toBe(true);
   }
 }
@@ -206,9 +270,9 @@ describe("distinct-building crawl — bounded Neon, exact invalidation", () => {
     const t = tokenMock.mock.calls.length;
     const q = findManyMock.mock.calls.length;
     const base = { streetNumber: "555", streetName: "555th Street Test", postalCode: "10128" };
-    const p1 = await getBuildingDataCached({ ...base, buildingName: null });
-    const p2 = await getBuildingDataCached({ ...base, buildingName: "The Grand Test" });
-    const p3 = await getBuildingDataCached({ ...base, buildingName: "GRAND TEST TOWER" });
+    const p1 = await inRequest(() => getBuildingDataCached({ ...base, buildingName: null }));
+    const p2 = await inRequest(() => getBuildingDataCached({ ...base, buildingName: "The Grand Test" }));
+    const p3 = await inRequest(() => getBuildingDataCached({ ...base, buildingName: "GRAND TEST TOWER" }));
     // ONE assembly total — bn= variants share the canonical entry
     expect(tokenMock.mock.calls.length).toBe(t + 1);
     expect(findManyMock.mock.calls.length - q).toBeLessThanOrEqual(1);
@@ -272,9 +336,9 @@ describe("manifest completeness — keyset pagination, explicit overflow", () =>
     // the payload entry itself is cached from the earlier crawl — expire ITS
     // exact tag so the assembly (and therefore the shard fill) re-runs
     revalidateTag(buildingCacheTag("888", "888th Street Test", "10128"));
-    const payload = await getBuildingDataCached({
+    const payload = await inRequest(() => getBuildingDataCached({
       streetNumber: "888", streetName: "888th Street Test", postalCode: "10128", buildingName: null,
-    });
+    }));
     expect(payload.success).toBe(true);
     const shard8Calls = findManyMock.mock.calls.slice(before).filter((c) => {
       const conds = (c[0] as Record<string, any>)?.where?.AND ?? [];
@@ -296,7 +360,7 @@ describe("manifest completeness — keyset pagination, explicit overflow", () =>
     revalidateTag("search");
     try {
       await expect(
-        getBuildingDataCached({ streetNumber: "901", streetName: "901th Street Test", postalCode: "10128", buildingName: null }),
+        inRequest(() => getBuildingDataCached({ streetNumber: "901", streetName: "901th Street Test", postalCode: "10128", buildingName: null })),
       ).rejects.toThrow(/OVERFLOW/);
     } finally {
       OVERFLOW9.on = false;
@@ -316,7 +380,7 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     clearManifestPageMemory();
     revalidateTag("search");
     const before = findManyMock.mock.calls.length;
-    const r1 = await warmBuildingManifestShards();
+    const r1 = await inRequest(() => warmBuildingManifestShards());
     expect(r1.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(r1.shards_failed).toBe(0);
     const coldCalls = findManyMock.mock.calls.length - before;
@@ -326,7 +390,7 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     // pages_filled equals the cold-call count (no verification re-read).
     expect(r1.pages_filled).toBe(coldCalls);
     expect(r1.cache_hit_existing).toBe(0);
-    const r2 = await warmBuildingManifestShards();
+    const r2 = await inRequest(() => warmBuildingManifestShards());
     expect(r2.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
     expect(findManyMock.mock.calls.length - before).toBe(coldCalls); // second warm: ZERO new queries
   });
@@ -338,7 +402,7 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     // yet the DB layer is already warm from the previous test
     for (let i = 0; i < 20; i++) {
       const num = String(110 + i);
-      const p = await getBuildingDataCached({ streetNumber: num, streetName: num + "th Street Warmtest", postalCode: "10128", buildingName: null });
+      const p = await inRequest(() => getBuildingDataCached({ streetNumber: num, streetName: num + "th Street Warmtest", postalCode: "10128", buildingName: null }));
       expect(p.success).toBe(true);
     }
     expect(tokenMock.mock.calls.length).toBe(t0 + 20); // assemblies ran (cold entries)
@@ -351,7 +415,7 @@ describe("wake clustering — sync-driven manifest warm-up", () => {
     revalidateTag("search");
     FAIL_SHARDS.add("3");
     try {
-      const r = await warmBuildingManifestShards();
+      const r = await inRequest(() => warmBuildingManifestShards());
       expect(r.shards_failed).toBe(1);
       expect(r.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length - 1);
       expect(typeof r.duration_ms).toBe("number");
@@ -367,7 +431,7 @@ describe("writer-driven eviction — expiration/withdrawal/display-off cache sem
     const other = CRAWL.find((b) => b.streetNumber.startsWith("2") && b.streetNumber !== target.streetNumber)!;
     const gone = "L-" + target.streetNumber + "-00000";
 
-    const before = await getBuildingDataCached({ ...target, buildingName: null });
+    const before = await inRequest(() => getBuildingDataCached({ ...target, buildingName: null }));
     expect((before.activeUnits as Array<Record<string, unknown>>).map((u) => u.mlsId)).toContain(gone);
 
     // the writer's DATA change (listing left the gated set: expired /
@@ -387,12 +451,12 @@ describe("writer-driven eviction — expiration/withdrawal/display-off cache sem
       revalidateTag("building-manifest-shard:" + target.streetNumber.charAt(0));
       revalidateTag("search");
 
-      const after = await getBuildingDataCached({ ...target, buildingName: null });
+      const after = await inRequest(() => getBuildingDataCached({ ...target, buildingName: null }));
       expect((after.activeUnits as Array<Record<string, unknown>>).map((u) => u.mlsId)).not.toContain(gone);
 
       // unrelated building — SAME shard — remains cached: zero re-assembly
       const t0 = tokenMock.mock.calls.length;
-      const untouched = await getBuildingDataCached({ ...other, buildingName: null });
+      const untouched = await inRequest(() => getBuildingDataCached({ ...other, buildingName: null }));
       expect(untouched.success).toBe(true);
       expect(tokenMock.mock.calls.length).toBe(t0);
     } finally {

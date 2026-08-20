@@ -71,7 +71,22 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { runMediaSync } from "../media-sync";
+import { runMediaSync, RESOURCE_MEDIA } from "../media-sync";
+
+/**
+ * Phase 3.5 persists the content-verification SWEEP state on the SAME `media_sync_state`
+ * table under its own resource key (`MediaContentVerification`), so a raw call count over
+ * `mediaSyncState.upsert` no longer means "the media cursor was written once" — and the sweep
+ * write lands FIRST, because Phase 3.5 runs before the Phase 4 finalize. Every assertion below
+ * is about the MEDIA CURSOR row, so it is scoped to that resource rather than to the mock.
+ * (Before the sweep could END on an empty window, an empty window wrote nothing at all, which
+ * is exactly the terminal stall these assertions were silently depending on.)
+ */
+const mediaCursorUpserts = () =>
+  mockMediaSyncUpsert.mock.calls.filter(
+    (c) => (c[0] as { where?: { resource?: string } })?.where?.resource === RESOURCE_MEDIA,
+  );
+
 
 const GHOST_ID = "RLS20014678";
 const GHOST_KEY = "1107463938";
@@ -168,8 +183,8 @@ describe("RC5 — ghost listing at batch head must not freeze the keyset cursor"
 
     // The cursor write must carry the VALID listing's watermark — not the
     // preserved prior cursor (the freeze) and not a halt at the ghost.
-    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
-    const upsertArg = mockMediaSyncUpsert.mock.calls[0][0] as {
+    expect(mediaCursorUpserts()).toHaveLength(1);
+    const upsertArg = mediaCursorUpserts()[0][0] as {
       update: { last_photos_change: Date | null; last_listing_key: string | null };
     };
     expect(upsertArg.update.last_listing_key).toBe(VALID_KEY);
@@ -222,7 +237,7 @@ describe("RC5 — ghost listing at batch head must not freeze the keyset cursor"
 
     await runMediaSync(makeOptions([ghostProperty(), validProperty()]));
 
-    const upsertArg = mockMediaSyncUpsert.mock.calls[0][0] as {
+    const upsertArg = mediaCursorUpserts()[0][0] as {
       update: { last_photos_change: Date | null; last_listing_key: string | null };
     };
     // Prior cursor preserved — neither the ghost's nor the valid listing's

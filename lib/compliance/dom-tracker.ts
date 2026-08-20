@@ -13,14 +13,33 @@
  *   - Cannot circumvent by re-naming or re-listing
  */
 
+import { DOM_RESET_ELIGIBLE_STATUSES } from "@/lib/compliance/listing-status-vocabulary";
+
 /** Number of consecutive days in Withdrawn/Cancelled before DOM resets */
 export const DOM_RESET_DAYS = 30;
 
 /** Statuses where DOM actively accrues (subject to permissions check) */
 const DOM_ACCRUING_STATUSES = new Set(["Active", "ActiveUnderContract"]);
 
-/** Statuses that can trigger a DOM reset after DOM_RESET_DAYS */
-const DOM_RESET_ELIGIBLE_STATUSES = new Set(["Withdrawn", "Cancelled"]);
+// ── DOM_RESET_ELIGIBLE_STATUSES IS IMPORTED, NOT DECLARED HERE ─────────────
+//
+// It used to be the literal `new Set(["Withdrawn", "Cancelled"])`. Omitting the
+// provider's own spelling `Canceled` was a live UCBA 2026 Art. I §11 failure —
+// exactly the outcome the `getCurrentDom` doc block at the bottom of this file
+// warns about. `mapTrestleToPrisma` stores `raw.StandardStatus` VERBATIM, so a
+// provider cancellation lands in `listings.status` spelled `Canceled`, and this
+// exact-case Set never matched it. Proven by execution before the fix:
+//
+//   shouldResetDom({status:'Cancelled', status_changed_at:-60d, dom:42}) === true
+//   shouldResetDom({status:'Canceled',  ...identical...})                === false
+//
+// The provider row therefore never reset its DOM on reactivation while the
+// identical CRM-authored row did. Importing the shared set makes the two
+// spellings indistinguishable here BY CONSTRUCTION rather than by an author
+// remembering to list both — see `lib/compliance/listing-status-vocabulary.ts`.
+// Re-exported so the daily `dom-reset` cron reads the same object rather than
+// a tenth hand-copied duplicate.
+export { DOM_RESET_ELIGIBLE_STATUSES };
 
 /** Permissions values that suppress DOM accrual even when status is Active */
 const DOM_SUPPRESSING_PERMISSIONS = new Set([

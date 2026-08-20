@@ -1,7 +1,29 @@
 // GET /api/cron/feed-reconcile
 // Daily cron — feed reconciliation pass.
-// Detects listings marked Active in our DB but no longer in the Trestle Active
-// feed (ghosts), and transitions them to Withdrawn with a full audit trail.
+// Detects listings marked Active in our DB but no longer live on-market in the
+// Cotality feed (ghosts), asks the PROVIDER what each one's status actually is,
+// and records that answer with a full audit trail.
+//
+// STATUS TRUTH + PROVENANCE (2026-08-19). This cron used to stamp the single
+// literal "Withdrawn" on every ghost, decided purely from ABSENCE. Two defects
+// in one line:
+//   1. FACTUALLY WRONG for the common case. The absence diff covers only the
+//      on-market universe (Active ∪ Pending ∪ AUC ∪ ComingSoon), so a listing
+//      that went Closed upstream looks identical to one that left the feed. The
+//      live Closed population is 577,073 (probe 2026-08-19) and the live
+//      Withdrawn population is 0, so "Withdrawn" was the wrong answer nearly
+//      every time.
+//   2. DISHONEST PROVENANCE. That locally-derived value landed in the same
+//      `listings.status` column that carries provider observations, on rows
+//      whose `last_synced_from_trestle` marks them provider-sourced — with
+//      nothing anywhere saying Mallan invented it. Retention tiering reads that
+//      column. See lib/compliance/status-provenance.ts.
+// Now: `fetchGhostLiveTruth` resolves each candidate per-ListingId; a provider
+// record means the provider's own StandardStatus is stored VERBATIM and the
+// audit event records `status_origin: provider_asserted`; an empty HTTP 200
+// means genuine departure, DEPARTED_STATUS is used, and the audit event records
+// `status_origin: mallan_local_derivation` with its derivation reason. Anything
+// that is not a completed lookup is UNVERIFIED and is skipped, never guessed.
 //
 // WHY THIS EXISTS:
 // Incremental sync via ModificationTimestamp > watermark detects CHANGES but
@@ -29,8 +51,16 @@ import { getAccessToken } from "@/lib/idx/auth";
 import {
   mapTrestleToPrisma,
   checkDistributionGates,
+  computeGateColumns,
+  normalizeStandardStatus,
   validateRequiredFields,
 } from "@/lib/idx/trestle-mapper";
+import {
+  DERIVATION_REASON,
+  STATUS_ORIGIN,
+  type StatusOrigin,
+} from "@/lib/compliance/status-provenance";
+import { DEPARTED_STATUS, ON_MARKET_STATUSES } from "@/lib/idx/reconcile-decision";
 import type { Prisma } from "@prisma/client";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { feedReconcileAbortEmail } from "@/lib/email/templates";
@@ -86,7 +116,7 @@ const ORPHAN_FETCH_BATCH = 20;
 
 const TERMINAL_STATUSES = new Set([
   "Closed", "Sold", "Leased", "Rented",
-  "Withdrawn", "Expired", "Cancelled",
+  "Withdrawn", "Expired", "Cancelled", "Canceled",
 ]);
 
 const ACTIVE_SEED_STATUSES = new Set([
@@ -149,6 +179,106 @@ async function fetchTrestleEligibleNonActiveIds(token: string): Promise<Set<stri
     skip += pageSize;
   }
   return ids;
+}
+
+/** One ghost candidate's live truth, as the PROVIDER reports it. */
+type GhostLiveTruth =
+  /** The provider returned a record. `status` is its verbatim StandardStatus. */
+  | { kind: "present"; status: string; closeDate?: string; offMarketDate?: string }
+  /** HTTP 200 with an EMPTY result set for this exact ListingId — no such record. */
+  | { kind: "absent" }
+  /** The lookup did not complete. NOT "absent". Never acted on. */
+  | { kind: "unverified"; detail: string };
+
+/**
+ * Ask the provider what a candidate ghost's status ACTUALLY is, per ListingId.
+ *
+ * ── WHY THIS EXISTS (status-truth fix, 2026-08-19) ─────────────────────────
+ * The ghost set is computed by DIFFING our local Actives against the live
+ * ON-MARKET universe (Active ∪ Pending ∪ ActiveUnderContract ∪ ComingSoon). A
+ * listing can leave that universe for two completely different reasons, and the
+ * diff cannot tell them apart:
+ *
+ *   (a) it went TERMINAL upstream — overwhelmingly `Closed`, whose live
+ *       population is 577,073 (probe 2026-08-19). The provider has an answer
+ *       and it is `Closed`.
+ *   (b) it DEPARTED the licensed feed entirely. The provider has no record.
+ *
+ * Before this function, both were stamped with the single literal `"Withdrawn"`
+ * (route step 5b) — a status the live feed carries ZERO rows of
+ * (`StandardStatus eq 'Withdrawn'` → HTTP 200, `@odata.count` 0) — on rows whose
+ * `last_synced_from_trestle` marks them provider-sourced. So a listing the
+ * provider says is Closed was recorded locally as Withdrawn with provider
+ * provenance. Closed and Withdrawn are not interchangeable: Closed carries a
+ * ClosePrice and a CloseDate, drives comps/CMA, and triggers the UCBA Art. I §6
+ * 24-hour "removed or marked closed" rule; Withdrawn does none of that. The
+ * archive clock is also wrong in case (a) — `terminal_since` was the reconcile
+ * wall-clock instead of the provider's CloseDate/OffMarketDate.
+ *
+ * ── FAIL-CLOSED CONTRACT ───────────────────────────────────────────────────
+ * `absent` is returned ONLY for an HTTP 200 whose `value` array is empty for a
+ * ListingId-equality filter — probed 2026-08-19: a nonexistent ListingId
+ * returns exactly that (`{"value":[]}`), never an error. Any non-200, transport
+ * failure or unparseable body yields `unverified`, and an unverified ghost is
+ * SKIPPED, never transitioned. An HTTP failure may never be rendered as
+ * "departed".
+ *
+ * $select proven live 2026-08-19 (HTTP 200 for both the status-filter and the
+ * batched `ListingId eq …` OR-filter form); raw bodies + sha256 in
+ * `.cache/cotality-authority-m2/raw/select_*.json`.
+ */
+async function fetchGhostLiveTruth(
+  token: string,
+  ids: string[],
+  batchSize: number,
+): Promise<Map<string, GhostLiveTruth>> {
+  const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  const out = new Map<string, GhostLiveTruth>();
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    const filter = batch
+      .map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`)
+      .join(" or ");
+    const url =
+      `${base}/odata/Property?$filter=${encodeURIComponent(filter)}` +
+      `&$select=ListingId,StandardStatus,CloseDate,OffMarketDate&$top=${batchSize}`;
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) {
+        // UNVERIFIED — not absent. The whole batch is skipped this run.
+        for (const id of batch) out.set(id, { kind: "unverified", detail: `HTTP ${res.status}` });
+        console.error(`[feed-reconcile] ghost status lookup ${i}: HTTP ${res.status}`);
+        continue;
+      }
+      const page = (await res.json()) as {
+        value?: Array<{
+          ListingId?: string;
+          StandardStatus?: string;
+          CloseDate?: string;
+          OffMarketDate?: string;
+        }>;
+      };
+      const seen = new Set<string>();
+      for (const r of page.value ?? []) {
+        if (!r.ListingId) continue;
+        seen.add(r.ListingId);
+        out.set(r.ListingId, {
+          kind: "present",
+          // VERBATIM. The provider's own spelling is the record of what it said.
+          status: String(r.StandardStatus ?? ""),
+          closeDate: r.CloseDate,
+          offMarketDate: r.OffMarketDate,
+        });
+      }
+      // Requested by exact ListingId and not returned in a 200 ⇒ no such record.
+      for (const id of batch) if (!seen.has(id)) out.set(id, { kind: "absent" });
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      for (const id of batch) out.set(id, { kind: "unverified", detail });
+      console.error(`[feed-reconcile] ghost status lookup ${i} threw: ${detail}`);
+    }
+  }
+  return out;
 }
 
 export async function GET(req: NextRequest) {
@@ -531,19 +661,97 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 5a-bis. STATUS TRUTH — ask the provider what each ghost candidate ACTUALLY is
+    // before stamping anything. See `fetchGhostLiveTruth` for the full rationale and
+    // the live probes. Runs BEFORE the transition loop so the loop stays a pure
+    // writer, and after the orphan import so a failing lookup cannot cost the
+    // orphan work that already succeeded.
+    const ghostTruth = await fetchGhostLiveTruth(
+      token,
+      ghosts.map((g) => g.listing_id),
+      ORPHAN_FETCH_BATCH,
+    );
+
     // 5b. Transition each ghost
     let updated = 0;
     let errors = 0;
     let projectionFailures = 0;
+    // Status-truth telemetry — how each transitioned row's status was decided.
+    let ghostsProviderAsserted = 0;
+    let ghostsLocallyDerived = 0;
+    let ghostsUnverifiedSkipped = 0;
+    let ghostsSparedStillOnMarket = 0;
     for (const g of ghosts) {
+      const truth = ghostTruth.get(g.listing_id) ?? {
+        kind: "unverified" as const,
+        detail: "no lookup result",
+      };
+
+      // FAIL-CLOSED: a lookup that did not complete is UNVERIFIED, which is not
+      // the same fact as "departed". Skip; the next run retries. Never invent a
+      // status from a failed HTTP call.
+      if (truth.kind === "unverified") {
+        ghostsUnverifiedSkipped++;
+        console.warn(
+          `[feed-reconcile] ghost ${g.listing_id}: live status UNVERIFIED (${truth.detail}) — not transitioning`,
+        );
+        continue;
+      }
+
+      // The provider says it is still on-market. The set-diff and the per-id
+      // lookup disagree, which happens when a listing comes back on-market
+      // between the two queries. Believe the per-id lookup — it is the more
+      // specific and more recent read — and spare the row.
+      if (truth.kind === "present" && ON_MARKET_STATUSES.has(normalizeStandardStatus(truth.status))) {
+        ghostsSparedStillOnMarket++;
+        console.warn(
+          `[feed-reconcile] ghost ${g.listing_id}: provider reports on-market '${truth.status}' — sparing`,
+        );
+        continue;
+      }
+
+      // Two honest outcomes, never conflated:
+      //   present → the PROVIDER asserted this status; store it VERBATIM.
+      //   absent  → MALLAN derived a departure locally; DEPARTED_STATUS is a
+      //             Mallan value here, and the audit event says so.
+      const providerAsserted = truth.kind === "present";
+      const targetStatus = providerAsserted ? truth.status : DEPARTED_STATUS;
+      const statusOrigin: StatusOrigin = providerAsserted
+        ? STATUS_ORIGIN.PROVIDER_ASSERTED
+        : STATUS_ORIGIN.MALLAN_LOCAL_DERIVATION;
+
+      // Archive eligibility clock (#415). When the provider gave us a record, age
+      // the row off the provider's own stable date (CloseDate → OffMarketDate),
+      // not the reconcile wall-clock: a listing that closed months ago must not
+      // restart its 180-day archive clock on the day we noticed.
+      const terminalSincePatch = computeTerminalSincePatch({
+        previousStatus: g.status,
+        newStatus: targetStatus,
+        raw_data: providerAsserted
+          ? { CloseDate: truth.closeDate, OffMarketDate: truth.offMarketDate }
+          : null,
+        now,
+      });
+
+      // Recompute the display gate from the target status through the single
+      // helper rather than hardcoding false, so a non-terminal-but-non-displayable
+      // provider status (Hold / Incomplete / Delete) is handled by the same rule
+      // as everywhere else.
+      const gate = computeGateColumns({
+        status: targetStatus,
+        internetEntireListingDisplayYN: true,
+        participantOnly: false,
+        ownerOptOut: false,
+      });
+
       try {
         await prisma.$transaction([
           prisma.listing.update({
             where: { id: g.id },
             data: {
-              status: "Withdrawn",
+              status: targetStatus,
               status_changed_at: now,
-              idx_display_yn: false,
+              idx_display_yn: gate.idx_display_yn,
               // TRESTLE CURSOR SAFETY — `modification_timestamp: now` REMOVED
               // (post-correction audit, 2026-08-09).
               //
@@ -564,10 +772,14 @@ export async function GET(req: NextRequest) {
               // clocks SPECIFICALLY because modification_timestamp is re-stamped
               // by idx-sync (data-retention/route.ts:270-273). MT keeps its last
               // real Trestle value, which is the honest one.
-              // Archive eligibility clock (#415): ghosts are sourced from status='Active'
-              // (all non-terminal) → Withdrawn is always a real non-terminal→terminal
-              // transition; no stable off-market date for a ghost → wall-clock `now`.
-              terminal_since: now,
+              // Archive eligibility clock (#415). Ghosts are sourced from
+              // status='Active' (non-terminal), so this is always a real
+              // non-terminal→terminal transition. `computeTerminalSincePatch`
+              // prefers the PROVIDER's stable CloseDate/OffMarketDate and only
+              // falls back to the reconcile wall-clock when we have none —
+              // previously it was ALWAYS the wall-clock, which reset the
+              // 180-day archive clock on rows that closed long ago.
+              ...terminalSincePatch,
             },
           }),
           prisma.auditEvent.create({
@@ -579,9 +791,22 @@ export async function GET(req: NextRequest) {
               user_id: null,
               changes: {
                 from_status: g.status,
-                to_status: "Withdrawn",
+                to_status: targetStatus,
                 listing_id: g.listing_id,
-                reason: "Not present in Trestle Active feed at reconcile time",
+                // PROVENANCE, recorded explicitly (2026-08-19). Before this, the
+                // event said only "Not present in Trestle Active feed", and the
+                // row itself carried a locally-invented status while
+                // `last_synced_from_trestle` still marked it provider-sourced.
+                // Now the event states WHO decided the status. See
+                // lib/compliance/status-provenance.ts.
+                status_origin: statusOrigin,
+                provider_asserted_status: providerAsserted ? truth.status : null,
+                derivation_reason: providerAsserted
+                  ? null
+                  : DERIVATION_REASON.ABSENT_FROM_LICENSED_FEED,
+                reason: providerAsserted
+                  ? `Absent from the live on-market feed; provider reports StandardStatus '${truth.status}'`
+                  : "Absent from the live on-market feed AND no provider record for this ListingId — Mallan-local departure",
                 cron_run_at: now.toISOString(),
               },
             },
@@ -616,6 +841,8 @@ export async function GET(req: NextRequest) {
         }
 
         updated++;
+        if (providerAsserted) ghostsProviderAsserted++;
+        else ghostsLocallyDerived++;
       } catch (e) {
         errors++;
         console.error(
@@ -633,6 +860,14 @@ export async function GET(req: NextRequest) {
       ghosts_transitioned: updated,
       ghosts_errored: errors,
       ghosts_projection_failures: projectionFailures,
+      // Status-truth split (2026-08-19). `ghosts_transitioned` alone can no
+      // longer be read as "N listings Mallan withdrew": most of it is normally
+      // the provider's own terminal status being recorded faithfully.
+      ghosts_provider_asserted: ghostsProviderAsserted,
+      ghosts_locally_derived: ghostsLocallyDerived,
+      // Fail-closed outcomes — neither is a transition and neither is an error.
+      ghosts_unverified_skipped: ghostsUnverifiedSkipped,
+      ghosts_spared_still_on_market: ghostsSparedStillOnMarket,
       orphans_detected: orphans.length,
       orphans_created: orphansCreated,
       orphans_errored: orphansErrored,

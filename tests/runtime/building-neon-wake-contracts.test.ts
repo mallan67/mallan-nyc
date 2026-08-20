@@ -10,6 +10,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { DOM_RESET_ELIGIBLE_STATUSES } from "@/lib/compliance/listing-status-vocabulary";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -219,18 +220,36 @@ describe("writer invalidation contract — the gaps found by the census", () => 
     // membership in the SELECT list does not make a row part of the RESULT.
     // What matters is the WHERE predicate.
     //
-    // dom-reset mutates only Withdrawn/Cancelled rows; the cached active read
-    // admits only Active/ComingSoon/ActiveUnderContract. The sets are DISJOINT,
-    // so no row dom-reset touches can appear in that cached result, and
-    // invalidating it would evict a still-correct entry and force an avoidable
-    // Neon refill — the exact opposite of this branch's purpose.
+    // dom-reset mutates only DOM-reset-eligible (voluntarily off-market) rows;
+    // the cached active read admits only Active/ComingSoon/ActiveUnderContract.
+    // The sets are DISJOINT, so no row dom-reset touches can appear in that
+    // cached result, and invalidating it would evict a still-correct entry and
+    // force an avoidable Neon refill — the exact opposite of this branch's purpose.
     const domReset = read("app/api/cron/dom-reset/route.ts");
     const market = read("app/api/market/route.ts");
 
     // Pin the disjointness the argument rests on, so this test fails if either
     // predicate ever widens and the conclusion stops holding.
-    expect(domReset).toContain('status: { in: ["Withdrawn", "Cancelled"] }');
+    //
+    // UPDATED 2026-08-20. This used to pin the literal source text
+    // `status: { in: ["Withdrawn", "Cancelled"] }`. That literal was itself a
+    // defect: it omitted the provider spelling `Canceled`, so the daily cron
+    // never reset DOM on provider-cancelled rows (UCBA 2026 Art. I §11). The
+    // cron now spreads the shared DOM_RESET_ELIGIBLE_STATUSES set, so pinning
+    // the old source text would both fail here AND push a future author back
+    // toward the hand-written literal that caused the bug.
+    //
+    // Disjointness is now asserted against the REAL sets, which is strictly
+    // stronger than a string match: it keeps holding however either predicate is
+    // spelled, and it fails the moment they actually overlap.
+    expect(domReset).toContain("status: { in: [...DOM_RESET_ELIGIBLE_STATUSES] }");
     expect(market).toContain("status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] }");
+
+    const CACHED_ACTIVE = ["Active", "ComingSoon", "ActiveUnderContract"];
+    const overlap = [...DOM_RESET_ELIGIBLE_STATUSES].filter((s) => CACHED_ACTIVE.includes(s));
+    expect({ overlap }).toEqual({ overlap: [] });
+    // Non-empty, or "disjoint" would be vacuously true.
+    expect(DOM_RESET_ELIGIBLE_STATUSES.size).toBeGreaterThan(0);
 
     // Therefore: no public cache invalidation from this cron.
     expect(domReset).not.toContain("safeRevalidateTags");

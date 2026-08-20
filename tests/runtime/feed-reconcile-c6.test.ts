@@ -78,6 +78,11 @@ jest.mock('@/lib/idx/trestle-mapper', () => ({
   // the single source of truth (no duplicated status set in the test).
   TERMINAL_STATUSES: jest.requireActual('@/lib/idx/trestle-mapper').TERMINAL_STATUSES,
   normalizeStandardStatus: jest.requireActual('@/lib/idx/trestle-mapper').normalizeStandardStatus,
+  // Status-truth fix (2026-08-19): the ghost writer now recomputes the display
+  // gate from the TARGET status through the canonical helper instead of
+  // hardcoding `idx_display_yn: false`. Pass the REAL implementation through —
+  // a stub would let the test agree with a gate that does not exist.
+  computeGateColumns: jest.requireActual('@/lib/idx/trestle-mapper').computeGateColumns,
   validateRequiredFields: jest.fn(() => ({ valid: true, missingFields: [] })),
   checkDistributionGates: jest.fn((raw: Record<string, unknown>) =>
     String(raw.ListingId) === 'RLS-GATED'

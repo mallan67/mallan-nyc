@@ -22,6 +22,10 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
+import {
+  COMING_SOON_PRIOR_USE_STATUSES,
+  CRM_HIDDEN_STATUSES,
+} from "@/lib/compliance/listing-status-vocabulary";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -89,14 +93,20 @@ export async function GET(req: NextRequest) {
 
   // CRM DISPLAY POLICY — deliberately separate from OWNERSHIP above.
   //
-  // The previous code folded this into the ownership predicate as
-  // `status: { notIn: ["Withdrawn","Cancelled"] }` on the CRM-created arm. It is
-  // a grid-presentation choice, not a statement about who owns the listing, and
+  // The previous code folded this into the ownership predicate as a
+  // `status: { notIn: [...] }` clause on the CRM-created arm. It is a
+  // grid-presentation choice, not a statement about who owns the listing, and
   // mixing the two is what let an ownership bug hide behind a status filter.
   // Behaviour preserved exactly: withdrawn/cancelled Mallan rows stay out of the
   // default grid, but an explicit `?status=Withdrawn` still reaches them.
-  const CRM_HIDDEN_STATUSES = ["Withdrawn", "Cancelled"];
-  if (!status) where.status = { notIn: CRM_HIDDEN_STATUSES };
+  //
+  // The list is IMPORTED (2026-08-20) rather than written inline. As the inline
+  // literal `["Withdrawn", "Cancelled"]` it matched only the Mallan CRM spelling
+  // of cancellation; a row the PROVIDER cancelled carries the live Cotality
+  // spelling `Canceled` (single L, stored verbatim by mapTrestleToPrisma) and
+  // stayed VISIBLE in the default grid while its CRM-authored twin was hidden —
+  // an inconsistency an agent would read as data loss.
+  if (!status) where.status = { notIn: [...CRM_HIDDEN_STATUSES] };
 
   if (type) where.listing_type = type;
   if (status) where.status = status;
@@ -371,11 +381,40 @@ export async function POST(req: NextRequest) {
     }
 
     // D9: Coming Soon is one-time per address — cannot re-use for same property
+    //
+    // The status leg is IMPORTED (2026-08-20), not written inline. As the inline
+    // literal ["Active","Withdrawn","Expired","Sold","Rented","Cancelled"] it
+    // enumerated only the MALLAN CRM vocabulary.
+    //
+    // WHAT THAT ACTUALLY COST — the tight bound, not the flattering one. The
+    // `_wasComingSoon` leg below has exactly one writer (listings/[id]/status),
+    // gated on `mayManageMallanLocalListing`, so the reachable population is
+    // Mallan-local listings, not the whole corpus. Closing over STATUS_TRANSITIONS
+    // from ComingSoon gives the states such a listing can actually sit in; the old
+    // literal missed five of them — ActiveUnderContract, ComingSoon, Draft, Hold,
+    // Pending. Every one is an ordinary path (ComingSoon → Active → Pending is the
+    // common case; Withdrawn → Draft → ComingSoon puts a listing BACK in ComingSoon
+    // while D9 reports the address unused), and on each one D9 answered "no prior
+    // Coming Soon" and let a SECOND one be created for the same address — a false
+    // negative on a fail-closed UCBA gate.
+    //
+    // For scale on the status leg alone: it matched 14,422 of the 25,239 rows in
+    // the frozen production census (.cache/r2-census/DB-2026-08-18T13-20-59-918Z
+    // .ndjson), missing Pending (6,207), Closed (4,609) and ComingSoon (1); and 8
+    // of the 11 live Cotality StandardStatus members (ActiveUnderContract,
+    // Canceled, Closed, ComingSoon, Delete, Hold, Incomplete, Pending — re-probed
+    // 2026-08-20). Both facts are asserted in
+    // lib/compliance/__tests__/d9-coming-soon-status-closure.test.ts.
+    //
+    // COMING_SOON_PRIOR_USE_STATUSES is deliberately exhaustive — nothing
+    // un-consumes a prior Coming Soon, so this leg must never narrow. It is
+    // derived from the spelling classes, so a future status enrolls here with no
+    // edit at this call site. See lib/compliance/listing-status-vocabulary.ts.
     if (body.MlsStatus === "ComingSoon" && body.StreetName) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
-          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Cancelled"] },
+          status: { in: [...COMING_SOON_PRIOR_USE_STATUSES] },
           raw_data: {
             path: ["_wasComingSoon"],
             equals: true,

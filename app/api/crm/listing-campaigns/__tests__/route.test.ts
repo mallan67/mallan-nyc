@@ -30,9 +30,23 @@ jest.mock('@/lib/compliance/rls-enforcement', () => ({
   scanRecordForFairHousing: (a: unknown) => mockFhScan(a),
 }));
 jest.mock('@/lib/compliance/gates', () => ({ __esModule: true, affirmPermission: (v: unknown) => v === true }));
+// TERMINAL_STATUSES is taken from the REAL canonical vocabulary, not re-typed.
+//
+// This mock previously hard-coded a FOUR-element set
+//   new Set(['Closed', 'Cancelled', 'Expired', 'Withdrawn'])
+// against a real set that has always had more members (Sold / Rented / Leased),
+// and which gained the live provider member 'Canceled' on 2026-08-19. A mock
+// that under-states the set makes the route look correct in tests for statuses
+// it would actually mishandle in production — the test asserted against a world
+// that does not exist.
+//
+// `lib/compliance/listing-status-vocabulary.ts` is a pure constant module with no
+// Prisma, no network and no lib/idx dependency, so importing it inside the mock
+// factory is safe and keeps the mock honest by construction.
 jest.mock('@/lib/idx/trestle-mapper', () => ({
   __esModule: true,
-  TERMINAL_STATUSES: new Set(['Closed', 'Cancelled', 'Expired', 'Withdrawn']),
+  TERMINAL_STATUSES: jest.requireActual('@/lib/compliance/listing-status-vocabulary')
+    .TERMINAL_STATUSES,
   normalizeStandardStatus: (s: unknown) => String(s),
 }));
 jest.mock('@/lib/idx/db-to-public-dto', () => ({

@@ -188,7 +188,7 @@ describe('pacing — nothing may monopolize the verifier', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('separation from the R2 backlog (Gate 5)', () => {
   it('(10) the verification selector is structurally distinct from the backlog universe', () => {
-    const verification = buildContentVerificationWhere(NOW, INTERVALS);
+    const verification = buildContentVerificationWhere();
     const backlog = buildR2MirrorableBacklogUniverseWhere();
     expect(verification).not.toEqual(backlog);
     // the backlog universe is defined by MISSING delivery; verification never asserts that

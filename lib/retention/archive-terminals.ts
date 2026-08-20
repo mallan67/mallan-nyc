@@ -21,6 +21,7 @@ export const ARCHIVE_TERMINAL_STATUSES = [
   "Withdrawn",
   "Expired",
   "Cancelled",
+  "Canceled",
 ] as const;
 
 export const ARCHIVE_CUTOFF_DAYS = 180;

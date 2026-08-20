@@ -57,10 +57,36 @@ const ORPHAN_ABORT_CAP = 500;
 // orphans. Keeps URLs under 8KB and Trestle-request-size limits.
 const ORPHAN_FETCH_BATCH = 20;
 
-// Terminal statuses we don't need to update (defense in depth)
+// Terminal statuses we don't need to update (defense in depth).
+//
+// SCOPE OF THE GUARD — stated precisely, not inflated. The ghost set is
+// seeded by `prisma.listing.findMany({ where: { status: "Active", … } })`
+// below, so every `g` reaching `TERMINAL_STATUSES.has(g.status)` in
+// summarize() is Active and the guard cannot fire today. It is defense in
+// depth for the day that seed widens — which has precedent: the wired cron
+// twin (app/api/cron/feed-reconcile/route.ts) already unions the live
+// Pending/AUC/ComingSoon sets into its ghost decision.
+//
+// DIRECTION OF THE BUG THIS FIXES: the omission was from a SKIP set, so a
+// missed member causes EXTRA WRITES, not a display failure. A ghost already
+// terminal as 'Canceled' would fall through to the transition loop and be
+// rewritten to Withdrawn with a spurious audit_event and a
+// `terminal_since = now` that RESTARTS the retention/archive clock — churn
+// plus loss of the provider's own cancellation fact, not a leak.
+//
+// 'Canceled' (single L) ADDED 2026-08-20. mapTrestleToPrisma stores
+// StandardStatus verbatim and the live Cotality member is single-L (HTTP 200,
+// re-probed 2026-08-20); 'Cancelled' is the Mallan CRM spelling (provider
+// HTTP 400). Both are written by live code paths, so both must be here.
+//
+// Canonical set: lib/compliance/listing-status-vocabulary.ts TERMINAL_STATUSES.
+// This CommonJS runner cannot require() a .ts module (no compile step — same
+// constraint the orphan-deferral note below records), so the literal is
+// PINNED to the canonical set by
+// lib/compliance/__tests__/d9-coming-soon-status-closure.test.ts.
 const TERMINAL_STATUSES = new Set([
   "Closed", "Sold", "Leased", "Rented",
-  "Withdrawn", "Expired", "Cancelled",
+  "Withdrawn", "Expired", "Cancelled", "Canceled",
 ]);
 
 const MODE = process.argv.find((a) => a.startsWith("--")) || "--verify-only";

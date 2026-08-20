@@ -214,13 +214,24 @@ describe("upsertListingMedia — Checkpoint 2", () => {
     expect(args.data.status).toBe("active");
   });
 
-  it("update never resets r2_key or media_url_cached", async () => {
-    mockFindUnique.mockResolvedValueOnce({ id: 1n, listing_id: "RLS20012345", media_key: "MK-1" });
+  it("update of an ACTIVE row never resets r2_key or media_url_cached", async () => {
+    // `status: "active"` is now EXPLICIT. Production always projects the column
+    // (the findUnique select at media-sync.ts:1326), so a status-less row is a
+    // fixture artefact, not a reachable state — and D1 makes the distinction
+    // load-bearing: an UNKNOWN status is treated as a resurrection (fail-safe),
+    // because retaining a possibly-dead R2 pointer is the failure that guards.
+    mockFindUnique.mockResolvedValueOnce({
+      id: 1n, listing_id: "RLS20012345", media_key: "MK-1", status: "active",
+    });
     mockUpdate.mockResolvedValueOnce(undefined);
     await upsertListingMedia("RLS20012345", [makeRow({ MediaKey: "MK-1" })]);
     const args = mockUpdate.mock.calls[0][0];
-    // Checkpoint 2 must NOT touch r2_key or media_url_cached — those fields
-    // are owned by Checkpoint 4 (R2 upload path).
+    // Checkpoint 2 must NOT touch r2_key or media_url_cached on an ORDINARY
+    // update — those fields are owned by Checkpoint 4 (R2 upload path).
+    //
+    // THE ONE EXCEPTION is a RESURRECTION (stored status not 'active'), where the
+    // pointers name an object a retirement sweep may already have deleted. That
+    // path is proven in media-resurrection-r2-retirement-safety.test.ts.
     expect(args.data).not.toHaveProperty("r2_key");
     expect(args.data).not.toHaveProperty("media_url_cached");
   });

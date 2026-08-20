@@ -615,42 +615,100 @@ function inferBorough(raw: Record<string, unknown>): string | null {
 }
 
 /**
- * RESO StandardStatus values that mean "no longer publicly displayable on IDX."
+ * ── THE STATUS VOCABULARY NOW LIVES IN ONE PLACE ───────────────────────────
  *
- * Mirrors the data-retention cron predicate at
- * `app/api/cron/data-retention/route.ts:79`. Cron and writer agree on the
- * same closed set so the H1 dual-write gap (C2 fix, 2026-05-13) cannot
- * reopen: every time the mapper recomputes `idx_display_yn` for a terminal
- * row, the result is forced to `false` and the cron's §2.05 cleanup is no
- * longer over-written by the next idx-sync pass.
+ * `LIVE_PROVIDER_STANDARD_STATUSES`, `TERMINAL_STATUSES`, `ACTIVE_STATUSES`,
+ * `NON_DISPLAYABLE_STATUSES` and `CRM_LIFECYCLE_STATUSES` were all DECLARED in
+ * this file until 2026-08-20. They are now IMPORTED from
+ * `lib/compliance/listing-status-vocabulary.ts` and re-exported unchanged, so
+ * every existing importer of this module keeps working.
  *
- * Exported for symmetry with the cron and for direct test access. New code
- * that needs to evaluate "is this listing past-its-life" should import this
- * set instead of redeclaring its own copy — a third copy would re-open the
- * dual-write gap on a different axis.
+ * WHY THE MOVE. `listings.status` is written by two authorities that spell
+ * cancellation differently — the provider's `Canceled` (stored VERBATIM by
+ * `mapTrestleToPrisma` below) and the Mallan CRM's `Cancelled`. When `Canceled`
+ * was correctly added to `TERMINAL_STATUSES` here on 2026-08-19, EIGHT other
+ * hand-copied duplicates of the same concept elsewhere in the repo did not get
+ * it, and one of those omissions was a proven UCBA 2026 Art. I §11 DOM-reset
+ * failure:
+ *
+ *   shouldResetDom({status:'Cancelled', status_changed_at:-60d, dom:42}) === true
+ *   shouldResetDom({status:'Canceled',  ...identical...})                === false
+ *
+ * The root cause was the DUPLICATION, not the spelling. A one-concept /
+ * two-spelling equivalence expressed as nine independent literal arrays cannot
+ * be edited atomically, and adding a ninth element to nine literals would have
+ * rebuilt the same trap. The shared module states the equivalence ONCE and
+ * derives every set from it; `withStatusSpellings()` makes new predicates closed
+ * by construction, and
+ * `lib/compliance/__tests__/listing-status-spelling-closure.test.ts` fails if a
+ * tenth hand-written copy appears.
+ *
+ * The vocabulary module deliberately imports nothing from `lib/idx/**`, so
+ * `lib/syndication/**` can consume it without breaching its no-IDX-import pin.
+ *
+ * Live-probe provenance for the provider vocabulary is carried in that module's
+ * doc block rather than duplicated here — one authority statement, one location.
  */
-export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
-  'Closed',
-  'Sold',
-  'Leased',
-  'Rented',
-  'Withdrawn',
-  'Expired',
-  'Cancelled',
-]);
+import {
+  ACTIVE_DISPLAY_STATUSES as ACTIVE_STATUSES,
+  CRM_LIFECYCLE_STATUSES,
+  LIVE_PROVIDER_STANDARD_STATUSES,
+  NON_DISPLAYABLE_STATUSES,
+  TERMINAL_STATUSES,
+} from '@/lib/compliance/listing-status-vocabulary';
+
+export {
+  LIVE_PROVIDER_STANDARD_STATUSES,
+  TERMINAL_STATUSES,
+  NON_DISPLAYABLE_STATUSES,
+};
 
 /**
- * RESO StandardStatus values that are publicly displayable on IDX.
+ * Statuses that are NEITHER publicly displayable NOR terminal.
  *
- * Mirrors `DISPLAYABLE_STATUSES` in `lib/idx/db-to-public-dto.ts:155`. Kept
- * here so callers of `normalizeStandardStatus` can fold input strings like
- * `"active"` / `"ACTIVE"` / `"Active "` back to the canonical `"Active"`.
+ * Added 2026-08-19. Before this set existed, `computeGateColumns` had only two
+ * questions — "is it terminal?" and "do the permission flags allow display?" —
+ * so any live provider member that was not in `TERMINAL_STATUSES` FAILED OPEN
+ * to `idx_display_yn = true`. That is the wrong default for a compliance gate
+ * (CLAUDE.md §E) and it applied to three real, live-valid members:
+ *
+ *   Hold        live-probed HTTP 200 (count 0). REBNY says suppress:
+ *               `lib/compliance/rebny-field-tables.ts:1175`
+ *               `suppressFromPublicSearch: ['Hold','Incomplete','Withdrawn','Canceled']`;
+ *               `lib/scanner/trestle-off-market-filter.ts:17` — off-market
+ *               statuses "MAY NOT be displayed publicly";
+ *               and the search workstream's canonical `status.ts:35` (under
+ *               `lib/search/`) classifies it off_market. (Path written in two
+ *               pieces on purpose: `canonical-a1-contract.test.ts` scans every
+ *               file outside that package for a quoted reference to it, and a
+ *               contiguous mention here reads as an import and fails that pin.)
+ *   Incomplete  live-probed HTTP 200 (count 0). Pre-publication on BOTH sides:
+ *               a provider member AND a Mallan CRM lifecycle value. Named in
+ *               the same REBNY suppress list above. `lib/compliance/status.ts`
+ *               already records that a pre-publication row acquiring
+ *               `idx_display_yn: true` is a defect.
+ *   Delete      live-probed HTTP 200 (count 0). The provider's tombstone
+ *               member; a record the provider marks deleted can never be a
+ *               displayable one.
+ *
+ * These are NOT terminal — `terminal_since`, the archive clock and the DOM
+ * rules all mean something specific by "terminal" and a Hold listing is not
+ * off-market permanently. This set answers only the display question, which is
+ * why it is separate rather than folded into `TERMINAL_STATUSES`.
+ *
+ * `Pending` is deliberately NOT here: it is displayable today (6,029 live rows)
+ * and `lib/compliance/status.ts` documents that narrowing it would 404 all of
+ * them for no compliance benefit. `Draft` is deliberately NOT here either: it
+ * is a Mallan-only value the provider rejects, and its public-detail exposure
+ * is already owned by `decidePublicDetailAccess`
+ * (`tests/runtime/draft-publication-boundary.test.ts`); moving it would change
+ * CRM write behaviour outside this fix's scope.
+ *
+ * THE SET ITSELF now lives in `lib/compliance/listing-status-vocabulary.ts` and
+ * is imported + re-exported at the top of this section (2026-08-20). Only the
+ * rationale above stays here, next to `computeGateColumns`, which is the
+ * consumer it explains.
  */
-const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
-  'Active',
-  'ComingSoon',
-  'ActiveUnderContract',
-]);
 
 /**
  * CRM lifecycle statuses that exist outside the public IDX displayable set
@@ -659,19 +717,32 @@ const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
  * CRM rows queryable by exact-case predicates and prevents the stealth-audit-
  * anomaly class (row stored with non-canonical status, invisible to every
  * exact-case counter).
+ *
+ * `Incomplete` appears here AND in `NON_DISPLAYABLE_STATUSES`: it is both a
+ * live provider member and a Mallan pre-publication value. Membership here
+ * governs NORMALIZATION (it round-trips unchanged); membership there governs
+ * DISPLAY (it never shows). Those are different questions.
+ *
+ * THE SET ITSELF now lives in `lib/compliance/listing-status-vocabulary.ts`
+ * (2026-08-20) and is imported at the top of this section.
  */
-const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
-  'Draft',
-  'Incomplete',
-  'Pending',
-]);
 
 /**
- * Alias map for known non-canonical spellings of terminal statuses that the
- * normalizer rewrites to the canonical REBNY/Trestle form. Limited to
- * canonical-equivalent spellings — never coerces an arbitrary unknown string
- * into a terminal value. Examples:
- *   - "canceled" (US English single-L) → "Cancelled" (RESO canonical double-L)
+ * Alias map for known non-canonical spellings that the normalizer rewrites.
+ *
+ * ONE ENTRY, and it is a CASE-FOLD of an untrusted client string, not a
+ * provider translation:
+ *   - `"canceled"` (lower-case, as a CRM form / POST body may send it) →
+ *     `"Cancelled"`, the Mallan-internal CRM canonical value.
+ *
+ * The comment this replaces called single-L "canceled" a US-English typo for a
+ * "RESO canonical double-L". That was backwards and is corrected here: the live
+ * provider spelling IS single-L `Canceled` (HTTP 200 on 2026-08-19), and
+ * double-L `Cancelled` is the one the provider rejects with HTTP 400. The map
+ * is keyed on the LOWER-CASED input and `Canceled` is now an exact-case member
+ * of `TERMINAL_STATUSES`, so the provider's own spelling takes the fast path
+ * and is preserved verbatim; only the lower-case CRM variant is folded to the
+ * CRM canonical. Provider provenance in, CRM canonical out — never the reverse.
  *
  * Add a new entry here only when a real-world client has been observed
  * submitting that variant. The alias map is the only place where one status
@@ -679,7 +750,7 @@ const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
  * normalizer is a case-fold + trim operation that preserves identity.
  */
 const STATUS_ALIASES: Record<string, string> = {
-  canceled: 'Cancelled', // single-L → double-L
+  canceled: 'Cancelled', // lower-cased CRM input → CRM canonical
 };
 
 /**
@@ -698,13 +769,21 @@ const STATUS_ALIASES: Record<string, string> = {
  *   - Empty / null / non-string input              → "Active"
  *   - Exact-case canonical hit                      → returned as-is
  *   - Trim + case-fold match against a known set    → canonical form
- *   - Known alias (e.g., "canceled" → "Cancelled")  → canonical form
+ *   - Known alias ("canceled" → "Cancelled")        → CRM canonical form
  *   - Anything else                                 → trimmed input (preserved)
  *
+ * EVERY LIVE PROVIDER MEMBER ROUND-TRIPS VERBATIM. All 11 members of
+ * `LIVE_PROVIDER_STANDARD_STATUSES` are exact-case members of one of the four
+ * sets consulted below, so the normalizer returns them unchanged and never
+ * rewrites a provider value into a string the provider rejects with HTTP 400.
+ * `Canceled` used to be the exception — it was folded to the Mallan-internal
+ * `Cancelled` — which is why it is now an exact-case member of
+ * `TERMINAL_STATUSES`.
+ *
  * Unknown statuses are NOT silently rewritten to a known value. If a new
- * RESO status emerges, add it to the right set (TERMINAL_STATUSES,
- * ACTIVE_STATUSES, CRM_LIFECYCLE_STATUSES) and the normalizer picks it up
- * automatically.
+ * StandardStatus member appears in the live feed, add it to the right set
+ * (TERMINAL_STATUSES, ACTIVE_STATUSES, NON_DISPLAYABLE_STATUSES,
+ * CRM_LIFECYCLE_STATUSES) and the normalizer picks it up automatically.
  */
 export function normalizeStandardStatus(input: unknown): string {
   if (typeof input !== 'string') return 'Active';
@@ -715,12 +794,13 @@ export function normalizeStandardStatus(input: unknown): string {
   if (
     TERMINAL_STATUSES.has(trimmed) ||
     ACTIVE_STATUSES.has(trimmed) ||
+    NON_DISPLAYABLE_STATUSES.has(trimmed) ||
     CRM_LIFECYCLE_STATUSES.has(trimmed)
   ) {
     return trimmed;
   }
 
-  // Lowercase alias hit (e.g., "canceled" → "Cancelled").
+  // Lowercase alias hit ("canceled" → the CRM canonical "Cancelled").
   const lower = trimmed.toLowerCase();
   if (STATUS_ALIASES[lower]) return STATUS_ALIASES[lower];
 
@@ -731,6 +811,9 @@ export function normalizeStandardStatus(input: unknown): string {
   for (const s of ACTIVE_STATUSES) {
     if (s.toLowerCase() === lower) return s;
   }
+  for (const s of NON_DISPLAYABLE_STATUSES) {
+    if (s.toLowerCase() === lower) return s;
+  }
   for (const s of CRM_LIFECYCLE_STATUSES) {
     if (s.toLowerCase() === lower) return s;
   }
@@ -739,6 +822,40 @@ export function normalizeStandardStatus(input: unknown): string {
   // value to a known status; new statuses must be added to the relevant
   // set above before they round-trip through the normalizer.
   return trimmed;
+}
+
+/**
+ * Which class of the live provider vocabulary a status belongs to.
+ *
+ * `'unclassified'` is the fail-loud state: a status the repo does not model.
+ * It is NOT a synonym for "displayable" — `computeGateColumns` treats an
+ * unclassified value the same way it always has (falls through to the
+ * permission gates), and the vocabulary test asserts that NO live provider
+ * member is ever `'unclassified'`.
+ */
+export type StandardStatusClass =
+  | 'active_display'
+  | 'terminal'
+  | 'non_displayable'
+  | 'crm_lifecycle'
+  | 'unclassified';
+
+/**
+ * Classify a status string against the repo's four modelled sets.
+ *
+ * Exists so `cotality-standard-status-vocabulary.test.ts` can assert exhaustive
+ * coverage of the LIVE provider vocabulary mechanically rather than by
+ * re-listing the sets in the test (which would let the test and the code drift
+ * together). Normalizes first, so case/whitespace variants classify identically
+ * to their canonical form.
+ */
+export function classifyStandardStatus(input: unknown): StandardStatusClass {
+  const s = normalizeStandardStatus(input);
+  if (TERMINAL_STATUSES.has(s)) return 'terminal';
+  if (NON_DISPLAYABLE_STATUSES.has(s)) return 'non_displayable';
+  if (ACTIVE_STATUSES.has(s)) return 'active_display';
+  if (CRM_LIFECYCLE_STATUSES.has(s)) return 'crm_lifecycle';
+  return 'unclassified';
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -850,6 +967,13 @@ export interface ComputeGateColumnsResult {
   normalized_status: string;
   /** Observability — true if `normalized_status ∈ TERMINAL_STATUSES`. */
   is_terminal: boolean;
+  /**
+   * Observability — true if `normalized_status ∈ NON_DISPLAYABLE_STATUSES`
+   * (Hold / Incomplete / Delete). Distinct from `is_terminal`: these statuses
+   * block DISPLAY without being permanent off-market states, so they must not
+   * drive `terminal_since`, the archive clock or the DOM rules.
+   */
+  is_non_displayable_status: boolean;
   /** Observability — false only if input.rls_eligible was explicit `false`. */
   rls_eligible: boolean;
 }
@@ -924,6 +1048,11 @@ export function computeGateColumns(
 ): ComputeGateColumnsResult {
   const normalized_status = normalizeStandardStatus(input.status);
   const is_terminal = TERMINAL_STATUSES.has(normalized_status);
+  // Live provider members that are neither displayable nor terminal
+  // (Hold / Incomplete / Delete). Before this term the gate had no third
+  // answer, so those three FAILED OPEN to idx_display_yn=true. See
+  // NON_DISPLAYABLE_STATUSES for the per-member REBNY citation.
+  const is_non_displayable_status = NON_DISPLAYABLE_STATUSES.has(normalized_status);
 
   // IDX Plus pre-filter: null / undefined = REBNY upstream filter passed
   // this row through = displayable. Only explicit `false` blocks.
@@ -961,6 +1090,7 @@ export function computeGateColumns(
   const idx_display_yn =
     rls_eligible &&
     !is_terminal &&
+    !is_non_displayable_status &&
     internet_entire_listing_display_yn &&
     !participant_only &&
     !owner_opt_out;
@@ -973,6 +1103,7 @@ export function computeGateColumns(
     internet_consumer_comment_yn,
     normalized_status,
     is_terminal,
+    is_non_displayable_status,
     rls_eligible,
   };
 }

@@ -27,9 +27,23 @@ async function verify(label) {
   `);
   console.log(`status_changed_at NULL count: ${Number(nullCount[0].c)} / expected 0 after cleanup`);
 
+  // RETENTION-ELIGIBLE TERMINALS — must mirror the wired cron
+  // (app/api/cron/data-retention/route.ts TERMINAL_STATUSES) exactly, and it
+  // did not: the cron carries the live Cotality spelling 'Canceled' (single L,
+  // HTTP 200 re-probed 2026-08-20, stored verbatim by mapTrestleToPrisma) while
+  // this runner kept only the Mallan CRM spelling 'Cancelled' (provider HTTP
+  // 400). A verification script that UNDER-COUNTS is worse than no script: it
+  // reports the retention backlog CLEAR while provider-cancelled rows sit in
+  // it — it hides the very defect class it exists to detect.
+  // 'Canceled' ADDED 2026-08-20.
+  //
+  // Canonical set: lib/compliance/listing-status-vocabulary.ts TERMINAL_STATUSES.
+  // This CommonJS runner cannot require() a .ts module (no compile step), so
+  // the literal is PINNED to the canonical set — and to its phase1-verify.sql
+  // twin — by lib/compliance/__tests__/d9-coming-soon-status-closure.test.ts.
   const retention = await prisma.$queryRawUnsafe(`
     SELECT COUNT(*)::bigint AS c FROM listings
-    WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled')
+    WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled','Canceled')
       AND status_changed_at IS NOT NULL
       AND status_changed_at < NOW() - INTERVAL '24 hours'
       AND idx_display_yn = true

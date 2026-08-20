@@ -70,6 +70,20 @@ import {
   buildContentVerificationWhere,
   verifyRow,
   MAX_VERIFICATION_ROWS_PER_CYCLE,
+  VERIFICATION_UNIVERSE_MEASURED,
+  VERIFICATION_GUARANTEED_CYCLES_PER_DAY,
+  VERIFICATION_UTILIZATION_TARGET,
+  requiredVerificationIntervalMs,
+  maxVerificationSweepDurationMs,
+  verificationSweepGapMs,
+  verificationCapacityShortfallMs,
+  parseSweepState,
+  serializeSweepState,
+  shouldRunVerificationCycle,
+  sweepStartFor,
+  advanceSweepState,
+  describeSweepHealth,
+  isDueInSweep,
   type VerifiableRow,
 } from "@/lib/media/content-verification";
 import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
@@ -92,6 +106,71 @@ import {
 
 /** Resource-key constant for the media-sync state row. */
 export const RESOURCE_MEDIA = "Media" as const;
+
+/**
+ * Resource key for the content-verification SWEEP state row (D3).
+ *
+ * `media_sync_state` is defined as a per-RESOURCE cursor table with `resource` UNIQUE
+ * (schema.prisma:2484-2503), and every access in the repo is a `findUnique` on that key
+ * (media-sync.ts:141/373, watermark.ts:59-64, scripts/ops-health.js:411) — nothing counts or
+ * enumerates rows — so a second resource key adds no reader and breaks no consumer.
+ *
+ * COLUMN REUSE, STATED PLAINLY. On THIS row `last_listing_key` (TEXT) carries the whole
+ * sweep state as one opaque JSON document, not a listing key. That is a deliberate
+ * no-migration choice: schema migrations are HELD (CLAUDE.md §C) and one opaque column is
+ * far easier to reason about — and later migrate — than four columns each given a second,
+ * silent meaning. The properly-named columns
+ *   ALTER TABLE "media_sync_state"
+ *     ADD COLUMN "verification_cursor"        TEXT,
+ *     ADD COLUMN "verification_sweep_started_at"   TIMESTAMP(3),
+ *     ADD COLUMN "verification_next_eligible_at"   TIMESTAMP(3);
+ * are part of the authorization request carried in `content-verification.ts`. Nothing here
+ * is applied.
+ */
+export const RESOURCE_MEDIA_CONTENT_VERIFICATION = "MediaContentVerification" as const;
+
+/**
+ * Read the verification sweep state. Total: any read failure or unreadable payload degrades
+ * to the empty state, which STARTS a sweep — an unreadable cursor must never be able to
+ * silence verification.
+ */
+export async function getContentVerificationSweepState() {
+  try {
+    const row = await prisma.mediaSyncState.findUnique({
+      where: { resource: RESOURCE_MEDIA_CONTENT_VERIFICATION },
+      select: { last_listing_key: true },
+    });
+    return parseSweepState(row?.last_listing_key ?? null);
+  } catch {
+    return parseSweepState(null);
+  }
+}
+
+/**
+ * Persist the verification sweep state. Non-fatal by design: a failed write means the sweep
+ * repeats a window next cycle (idempotent — verification has no side effect beyond
+ * `content_check_*`), which is strictly safer than failing the media run.
+ */
+export async function putContentVerificationSweepState(
+  state: ReturnType<typeof parseSweepState>,
+  now: Date,
+): Promise<void> {
+  const payload = serializeSweepState(state);
+  try {
+    await prisma.mediaSyncState.upsert({
+      where: { resource: RESOURCE_MEDIA_CONTENT_VERIFICATION },
+      create: {
+        resource: RESOURCE_MEDIA_CONTENT_VERIFICATION,
+        last_listing_key: payload,
+        last_run_at: now,
+        last_run_status: "ok",
+      },
+      update: { last_listing_key: payload, last_run_at: now, last_run_status: "ok" },
+    });
+  } catch {
+    /* observability only — never fails the media run */
+  }
+}
 
 /**
  * Two-tier cursor for the incremental media-sync cron.
@@ -904,6 +983,79 @@ export function mediaRowDelivered(existing: {
   );
 }
 
+/**
+ * D1 — is this stored row about to be RESURRECTED?
+ *
+ * The material-write branch re-asserts `status: "active"` unconditionally, so ANY stored
+ * row that is not already active is being brought back from a tombstone ('deleted') or a
+ * replacement ('replaced'). Fail-safe on an absent/unknown status: `undefined` means the
+ * caller did not project the column, and treating an unknown state as a resurrection only
+ * costs one re-mirror — treating it as "already active" would keep a possibly-dead pointer.
+ */
+export function mediaRowIsResurrecting(existing: { status?: string | null }): boolean {
+  return existing.status !== "active";
+}
+
+/**
+ * D1 — the delivery state a RESURRECTED row must be returned to.
+ *
+ * WHY THE POINTERS CANNOT SURVIVE A RESURRECTION.
+ * A tombstoned row keeps `r2_key` / `media_url_cached` until
+ * `compactExpiredMediaTombstones` (lib/retention/media-tombstone-compaction.ts:78-83)
+ * nulls them 30 days later. Inside that window the object those pointers name is a
+ * legitimate delete candidate for R2 retirement. If the row then reappears in the Cotality
+ * media set, the old code re-activated it with BOTH pointers intact, which is terminal:
+ *   * `buildR2MirrorableBacklogUniverseWhere` requires `r2_key IS NULL OR
+ *     media_url_cached IS NULL`, so the mirror can never re-fetch the row;
+ *   * `decideMediaRowPersistence` sees `mediaRowDelivered() === true` and suppresses even
+ *     the locator refresh, so `media_url_original` goes stale as well;
+ *   * content verification DETECTS the divergence but is forbidden to repair
+ *     (lib/media/content-verification.ts:134, :167-169);
+ *   * `pickFullSizeUrl(cached, original)` is cached-first, so the public gallery serves the
+ *     dead R2 URL indefinitely.
+ * That is the mechanism that made R2 TIER 4 a NO-GO.
+ *
+ * WHY CLEARING IS CHEAP AND CANNOT ORPHAN ANYTHING.
+ * `buildMediaR2Key(listing_id, mediaType, media_key)` is deterministic, so the re-mirror
+ * recomputes the SAME key. If the object still exists the existence-reuse path
+ * (:3169-3187) re-adopts it with one HEAD and one narrow UPDATE — no re-upload, no second
+ * object. If it was deleted, the row is re-fetched, which is exactly the repair required.
+ * In the gap between this write and the re-mirror the gallery falls back to
+ * `media_url_original`, which this same statement rewrites with the locator just received
+ * from Cotality (a row cannot reach the material-write branch without a non-null MediaURL —
+ * see the `if (!url) { skippedInvalid++; continue; }` guard at :1249-1252), so there is no
+ * blank-image window.
+ *
+ * WHY THE CONTENT-CHECK VERDICT GOES WITH THEM.
+ * `content_check_state` is a statement about the bytes at `r2_key`. Once that pointer is
+ * cleared the verdict describes nothing. Keeping it would be actively harmful: a stale
+ * 'VERIFIED' suppresses re-checking for a whole interval after the re-mirror, and a stale
+ * 'MISMATCH' is NEVER verifier work again (content-verification.ts:99), so the row would
+ * leave the verification universe permanently.
+ *
+ * WHAT IS DELIBERATELY NOT RESET. `r2_attempts`, `r2_last_attempt_at` and
+ * `r2_policy_excluded_at` are left exactly as they stand. They record real failure history
+ * and a real policy decision; a reappearance in the feed is not evidence that either has
+ * changed. A row tombstoned by the permanent-4xx path carries `r2_attempts >= 3`
+ * (R2_TOMBSTONE_4XX_THRESHOLD), still below the exhaustion threshold of 8, so it re-enters
+ * the backlog normally. A policy-excluded or attempts-exhausted row does not re-enter the
+ * backlog — but it is then UN-delivered, so `decideMediaRowPersistence` keeps refreshing its
+ * locator and it serves live Cotality bytes. In no branch can a dead URL be emitted.
+ */
+export function resurrectionDeliveryReset(): {
+  r2_key: null;
+  media_url_cached: null;
+  content_check_at: null;
+  content_check_state: null;
+} {
+  return {
+    r2_key: null,
+    media_url_cached: null,
+    content_check_at: null,
+    content_check_state: null,
+  };
+}
+
 /** Date equality that treats null==null and compares by instant otherwise. */
 function sameInstant(a: Date | null | undefined, b: Date | null | undefined): boolean {
   // Total & non-throwing: null and undefined are both "empty" and equal to each
@@ -1373,6 +1525,12 @@ export async function upsertListingMedia(
       // repeated every cycle, forever. Exactly 8 stays reachable (recovery)
       // and keeps refreshing.
       const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
+      // D1 — R2 RETIREMENT SAFETY. A row whose stored status is not 'active' is
+      // about to be RESURRECTED by the `status: "active"` re-assertion below.
+      // Its delivery pointers describe an object from its previous life which a
+      // retirement sweep may already have deleted, so they must NOT survive the
+      // resurrection. See `resurrectionDeliveryReset` for the full argument.
+      const resurrecting = mediaRowIsResurrecting(existing);
       const mirrorUnreachable = mediaRowMirrorUnreachable(existing);
       // (1) THE MISSING NO-OP GATE. The material comparator deliberately
       // EXCLUDES the URL, so "material unchanged" says nothing about the
@@ -1449,6 +1607,7 @@ export async function upsertListingMedia(
             modification_ts: row.modificationTs,
             photos_change_ts_snapshot: row.photosChangeTsSnapshot,
             status: "active",
+            ...(resurrecting ? resurrectionDeliveryReset() : {}),
           },
         });
         // Reaching here means `decision.kind === 'material-write'`; the
@@ -3611,9 +3770,73 @@ export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
  */
 export const DEFAULT_BUDGET_MS = 100_000;
 
-/** A VERIFIED row is re-checked after this long. */
-export const CONTENT_VERIFICATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30d
-/** INDETERMINATE rows retry on their OWN, much shorter clock so they cannot starve clean rows. */
+/**
+ * How long a VERIFIED row stays clean before it is due again — DERIVED FROM MEASURED
+ * CAPACITY, never asserted.
+ *
+ * The previous hand-written `30 * DAY` was arithmetically impossible. The eligible universe
+ * measured 280,543 rows (frozen census 2026-08-18; 280,502 once the 41 Mallan-local `crm:`
+ * rows are excluded) and the cap is 60 rows/cycle, so ONE full pass is 4,676 cycles: 32.5
+ * days at the 144-poll/day ceiling and 194.8 days at the guaranteed 24-cycle/day floor (the
+ * hourly One Cycle freshness heartbeat). Steady-state demand at the ceiling was 64.9
+ * rows/cycle against a hard cap of 60 — a permanent 100% duty cycle that never completed a
+ * single pass. Deriving the interval makes that class of drift impossible rather than fixed
+ * once; `content-verification-scope-pacing-ordering.test.ts` fails if the two ever disagree.
+ *
+ * It is derived at the FLOOR because the failure modes are asymmetric: too SHORT is
+ * permanent over-subscription, too LONG is idle time. See `requiredVerificationIntervalMs`
+ * for the authorization requests (per-cycle concurrency) that would bring this number down.
+ *
+ * THIS IS THE BOUND, NOT THE SCHEDULE. It states the worst age any row may reach. The
+ * schedule that HONOURS it is `CONTENT_VERIFICATION_SWEEP_GAP_MS` below.
+ */
+export const CONTENT_VERIFICATION_INTERVAL_MS = requiredVerificationIntervalMs(
+  VERIFICATION_UNIVERSE_MEASURED,
+  MAX_VERIFICATION_ROWS_PER_CYCLE,
+  VERIFICATION_GUARANTEED_CYCLES_PER_DAY,
+  VERIFICATION_UTILIZATION_TARGET,
+);
+/**
+ * The longest a full sweep can take: the whole universe at the cap, at the GUARANTEED FLOOR
+ * cadence. 4,676 cycles / 24 per day = 194.8 -> 195 days. A faster cadence can only shorten it.
+ */
+export const CONTENT_VERIFICATION_MAX_SWEEP_MS = maxVerificationSweepDurationMs(
+  VERIFICATION_UNIVERSE_MEASURED,
+  MAX_VERIFICATION_ROWS_PER_CYCLE,
+  VERIFICATION_GUARANTEED_CYCLES_PER_DAY,
+);
+/**
+ * Gap between one sweep ENDING and the next STARTING: 244 - 195 = 49 days.
+ *
+ * A row at fraction f of the key space is visited at S + f*D_N and again at
+ * S + D_N + G + f*D_{N+1}, so its age is D_N*(1-f) + D_{N+1}*f + G and the worst case over
+ * every row and every f is `max(D_N, D_{N+1}) + G <= Dmax + G = interval`. That inequality is
+ * the whole point of deriving G rather than reusing the interval: the previous revision armed
+ * the gate at `sweepStartedAt + interval`, which leaves the worst case at
+ * `interval + (D_slow - D_fast)` — up to 407 days when the cadence swings between the floor
+ * and the ceiling across two consecutive passes.
+ */
+export const CONTENT_VERIFICATION_SWEEP_GAP_MS = verificationSweepGapMs(
+  CONTENT_VERIFICATION_INTERVAL_MS,
+  CONTENT_VERIFICATION_MAX_SWEEP_MS,
+);
+/**
+ * Zero while capacity can honour the interval. Turns positive only if the universe outgrows
+ * the cap at the floor cadence, at which point the verifier sweeps continuously and the
+ * shortfall is REPORTED rather than silently absorbed into a shorter gap.
+ */
+export const CONTENT_VERIFICATION_CAPACITY_SHORTFALL_MS = verificationCapacityShortfallMs(
+  CONTENT_VERIFICATION_INTERVAL_MS,
+  CONTENT_VERIFICATION_MAX_SWEEP_MS,
+);
+/**
+ * A FLOOR on re-checking an INDETERMINATE row — no longer a driver.
+ *
+ * It used to be the pacing rule for INDETERMINATE rows, 30x tighter than the verification
+ * clock, which let transient failures re-appear in the selector 30x more often than
+ * never-checked rows and starve them. The keyset sweep now gives every row exactly ONE visit
+ * per pass whatever its state, so this only matters if a sweep ever wraps in under a day.
+ */
 export const CONTENT_VERIFICATION_RETRY_MS = 24 * 60 * 60 * 1000; // 24h
 export const DEFAULT_PHASE1_RESERVE_MS = 55_000;
 export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
@@ -4834,33 +5057,83 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   //  5. It writes ONLY `content_check_at` / `content_check_state`. It performs
   //     no repair; a MISMATCH is handed to the human-gated targeted-remediation
   //     path, never auto-repaired here.
+  //  6. (D3) SELECTION IS A KEYSET WINDOW, NOT A RE-SCAN AND NOT A DUE-SET. The cursor is
+  //     persisted in `media_sync_state` under RESOURCE_MEDIA_CONTENT_VERIFICATION, so each
+  //     cycle is a forward RANGE on the `media_key` UNIQUE btree. Before the cursor, every
+  //     cycle re-scanned the whole already-verified prefix — growing toward 280K heap visits
+  //     on each of up to 144 cycles a day. Between sweeps the query is not issued AT ALL.
+  //  7. (D2) MALLAN-LOCAL `crm:` ROWS ARE OUT OF SCOPE. Cotality cannot hold a MediaKey it
+  //     never issued; asking recorded INDETERMINATE and re-armed them every 24h forever.
+  //  8. (D3-fix) THE WINDOW CARRIES NO TIME PREDICATE. Range exhaustion and due-ness are two
+  //     different questions and the previous revision answered both with one short page: from
+  //     pass two on a short page meant "nothing is due YET", the code read it as "the key
+  //     range is exhausted", reset the cursor and shut the gate for a whole interval after
+  //     visiting as few as 30 of 1,207 rows. The window now returns the next `cap` rows BY
+  //     KEY — so a short page can only mean exhaustion — and `isDueInSweep` decides in memory
+  //     which of them to fetch from the provider. A not-due row is still EXAMINED, so the
+  //     cursor always moves and the sweep always terminates.
   let contentChecked = 0;
   let contentVerified = 0;
   let contentMismatch = 0;
   let contentIndeterminate = 0;
+  let contentSkippedLocal = 0;
+  let contentNotDue = 0;
   if (remainingMs() > phase2ReserveMs) {
     try {
       const verifyNow = new Date(now());
-      const due = await prisma.listingMedia.findMany({
-        where: buildContentVerificationWhere(verifyNow, {
-          verificationIntervalMs: CONTENT_VERIFICATION_INTERVAL_MS,
-          retryIntervalMs: CONTENT_VERIFICATION_RETRY_MS,
-        }) as Prisma.ListingMediaWhereInput,
-        select: {
-          media_key: true, listing_id: true, r2_key: true,
-          media_url_original: true, content_check_at: true, content_check_state: true,
-        },
-        take: MAX_VERIFICATION_ROWS_PER_CYCLE,
-        orderBy: { media_key: "asc" },
-      });
+      const sweep = await getContentVerificationSweepState();
+      const sweepHealth = describeSweepHealth(sweep, verifyNow);
+      // The idle gate. Between sweeps the window is not issued at all.
+      const queried = shouldRunVerificationCycle(sweep, verifyNow);
+      // The instant THIS sweep began — the watermark `isDueInSweep` compares against. Taken
+      // from the same helper the state machine uses, so the two can never disagree about
+      // which sweep a cycle belongs to.
+      const sweepStartedAt = sweepStartFor(sweep, verifyNow);
+      const scannedRaw = queried
+        ? await prisma.listingMedia.findMany({
+            where: buildContentVerificationWhere(sweep.cursor) as Prisma.ListingMediaWhereInput,
+            select: {
+              media_key: true, listing_id: true, r2_key: true,
+              media_url_original: true, content_check_at: true, content_check_state: true,
+            },
+            take: MAX_VERIFICATION_ROWS_PER_CYCLE,
+            // Must stay in lock-step with the keyset predicate: the cursor is only a valid
+            // resume point while the scan order is media_key ASC.
+            orderBy: { media_key: "asc" },
+          })
+        : [];
+      // ONE source of truth for the page. `media_key` is nullable in the schema and the WHERE
+      // already excludes nulls, so this filter is a no-op — but keeping the rows and the keys
+      // the same length by CONSTRUCTION is what stops a hypothetical null from shortening the
+      // page and being read as range exhaustion.
+      const scanned = scannedRaw.filter(
+        (r): r is (typeof scannedRaw)[number] & { media_key: string } => typeof r.media_key === "string",
+      );
+      // Rows this cycle EXAMINED — checked, or deliberately declined. Only these may advance
+      // the cursor: a budget break must not skip the rows it did not reach.
+      const processedKeys: string[] = [];
 
-      if (due.length > 0) {
+      if (scanned.length > 0) {
         const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        const token = await defaultGetAccessToken();
-        for (const row of due) {
+        // Lazily acquired: a window can legitimately contain no due row at all (every row
+        // already concluded in this sweep), and that must not cost an OAuth round trip.
+        let cachedToken: string | null = null;
+        const token = async () => (cachedToken ??= await defaultGetAccessToken());
+        for (const row of scanned) {
           // Budget is re-checked EVERY row: an overrun would convert "slower"
           // into "more wakes" via timed_out -> forceRun.
           if (remainingMs() <= phase2ReserveMs) break;
+          // DUE-NESS, IN MEMORY, AFTER THE WINDOW. A declined row is still examined, so the
+          // cursor moves past it and the sweep can reach its end.
+          if (!isDueInSweep(row as unknown as VerifiableRow, sweepStartedAt, verifyNow, {
+            verificationIntervalMs: CONTENT_VERIFICATION_INTERVAL_MS,
+            retryIntervalMs: CONTENT_VERIFICATION_RETRY_MS,
+          })) {
+            processedKeys.push(row.media_key);
+            if (isCrmMediaKey(row.media_key)) contentSkippedLocal++;
+            else contentNotDue++;
+            continue;
+          }
           const outcome = await verifyRow(
             row as unknown as VerifiableRow,
             {
@@ -4874,7 +5147,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
                   // media path that could later be made to display unauthorized bytes.
                   `&$select=${encodeURIComponent("MediaKey,MediaURL,InternetEntireListingDisplayYN")}&$top=1`;
                 const r = await fetch(url, {
-                  headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+                  headers: { Authorization: `Bearer ${await token()}`, Accept: "application/json" },
                 });
                 if (!r.ok) throw new Error(`provider HTTP ${r.status}`);
                 const j = (await r.json()) as { value?: Array<{ MediaURL?: string }> };
@@ -4882,7 +5155,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
               },
               async fetchProviderBytes(url) {
                 const r = await fetch(url, {
-                  headers: { Authorization: `Bearer ${token}`, Accept: "image/*" },
+                  headers: { Authorization: `Bearer ${await token()}`, Accept: "image/*" },
                 });
                 if (!r.ok) throw new Error(`provider HTTP ${r.status}`);
                 return Buffer.from(await r.arrayBuffer());
@@ -4901,16 +5174,84 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
             },
             verifyNow,
           );
+          processedKeys.push(row.media_key);
+          // `state === null` means NO CHECK WAS APPLICABLE and nothing was written (a
+          // Mallan-local row). Counting it as INDETERMINATE would reproduce D2 in the
+          // telemetry after fixing it in the database.
+          if (outcome.state === null) {
+            contentSkippedLocal++;
+            continue;
+          }
           contentChecked++;
           if (outcome.state === "VERIFIED") contentVerified++;
           else if (outcome.state === "MISMATCH") contentMismatch++;
           else contentIndeterminate++;
         }
       }
+
+      // NO-OP GUARD. An idle cycle (and a cycle that could not move) leaves the sweep state
+      // byte-identical; writing it anyway would be a pure `@updatedAt` churn write on every
+      // one of up to 144 cycles a day for the whole idle window — the same
+      // write-amplification class the #530/#541 media guards exist to remove.
+      const nextSweep = advanceSweepState(sweep, verifyNow, {
+        queried,
+        scannedKeys: scanned.map((r) => r.media_key),
+        processedKeys,
+        cap: MAX_VERIFICATION_ROWS_PER_CYCLE,
+        gapMs: CONTENT_VERIFICATION_SWEEP_GAP_MS,
+      });
+      if (serializeSweepState(nextSweep) !== serializeSweepState(sweep)) {
+        await putContentVerificationSweepState(nextSweep, verifyNow);
+      }
+
+      // OBSERVABILITY. These counters were computed and then DROPPED — nothing read them, so
+      // the verifier was invisible in production: no way to see whether a sweep advances, how
+      // many MISMATCHes exist, or whether pacing converges. That is not a cosmetic gap when
+      // the whole point of D3 is a convergence claim.
+      //
+      // `sweep_phase` IS THE WATCHDOG. The previous revision emitted `sweep_idle`, and a
+      // terminally stalled sweep — cursor pinned, window empty, idle gate defeated because
+      // `cursor !== null` — produced EXACTLY the telemetry of a healthy idle one: selected 0,
+      // cursor_advanced false, complete false, idle false. No alarm, and no recovery short of
+      // a manual reset. `phase` separates them by construction (`stalled` is reachable only
+      // while a sweep is in flight and has not moved for `verificationSweepStallAfterMs()`),
+      // and `sweep_recovered` marks the cycle on which the state machine reset itself.
+      //
+      // Emitted through the EXISTING log-only channel: console.log, no DB writer, nothing
+      // the Phase-4 probe or the One Cycle control plane can read. It therefore cannot
+      // contribute to backlog_remaining, backlogPending or forceRun (invariants 2 and 3).
+      // Deliberately NOT added to RunMediaSyncResult — that shape is enumerated field by
+      // field in lib/idx/media-sync-member.ts:63-120, which this change does not own.
+      emitCursorTelemetry("content_verification", runId, {
+        selected: scanned.length,
+        checked: contentChecked,
+        verified: contentVerified,
+        mismatch: contentMismatch,
+        indeterminate: contentIndeterminate,
+        skipped_mallan_local: contentSkippedLocal,
+        skipped_not_due: contentNotDue,
+        examined: processedKeys.length,
+        sweep_phase: sweepHealth.phase,
+        sweep_stalled: sweepHealth.stalled,
+        sweep_since_progress_ms: sweepHealth.sinceProgressMs,
+        sweep_cursor_advanced: nextSweep.cursor !== sweep.cursor,
+        // RANGE EXHAUSTION — asked of the KEYS only, never of the clocks.
+        sweep_range_exhausted: queried && scanned.length < MAX_VERIFICATION_ROWS_PER_CYCLE,
+        // Completion is the ONLY transition that arms the gate, so read it off the state
+        // rather than recomputing the predicate and letting the two drift apart. The
+        // watchdog reset also clears the cursor but leaves the gate null, so it cannot be
+        // mistaken for a completed sweep.
+        sweep_complete: queried && nextSweep.cursor === null && nextSweep.nextSweepEligibleAt !== null,
+        sweep_no_progress: queried && processedKeys.length === 0,
+        sweep_recovered: sweepHealth.stalled && nextSweep.sweepStartedAt === null,
+        sweep_idle: !queried,
+        capacity_shortfall_ms: CONTENT_VERIFICATION_CAPACITY_SHORTFALL_MS,
+      });
     } catch {
       // Non-fatal BY DESIGN. A verification failure must never degrade the media
       // run: it cannot fail the cycle, cannot set exit_reason, and cannot wake
       // Neon again. Rows simply stay due for the next already-scheduled cycle.
+      // The cursor is simply not advanced, so the same window is re-attempted.
     }
   }
 

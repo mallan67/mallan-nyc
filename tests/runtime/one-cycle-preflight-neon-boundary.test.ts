@@ -134,6 +134,50 @@ describe('FAIL OPEN — every uncertain condition runs the full machine', () => 
     expect(runOneCycleMock).toHaveBeenCalledTimes(1);
   });
 
+  it('the Neon-wake COST of a run is echoed into the runtime log', async () => {
+    // The compute model for this cron is (cycle wall clock + autosuspend delay)
+    // per waking poll. The autosuspend delay comes from the Neon control plane;
+    // the cycle wall clock lived only in the `one_cycle_run` audit row, which
+    // needs production SQL to read. Echoing One Cycle's own `duration_ms` here
+    // makes it measurable from Vercel runtime logs alone.
+    runOneCycleMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true, complete: true, outcome: 'success', members: [], duration_ms: 18_432 }), { status: 200 }),
+    );
+    mockDecide.mockResolvedValue({ shouldRun: true, reason: 'source_changed', snapshotTrusted: true, snapshot: null });
+    const logged: string[] = [];
+    const spy = jest.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { logged.push(String(a[0])); });
+    try {
+      await callRoute();
+    } finally {
+      spy.mockRestore();
+    }
+    const finalize = logged
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .find((o) => o && o.event === 'external_state_finalize');
+    expect(finalize).toBeTruthy();
+    expect(finalize.cycle_duration_ms).toBe(18_432);
+  });
+
+  it('a missing or non-numeric duration is reported as null, never as 0', async () => {
+    // An absent measurement must not read as "the cycle took no time".
+    runOneCycleMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true, complete: true, outcome: 'success', members: [] }), { status: 200 }),
+    );
+    mockDecide.mockResolvedValue({ shouldRun: true, reason: 'source_changed', snapshotTrusted: true, snapshot: null });
+    const logged: string[] = [];
+    const spy = jest.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { logged.push(String(a[0])); });
+    try {
+      await callRoute();
+    } finally {
+      spy.mockRestore();
+    }
+    const finalize = logged
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .find((o) => o && o.event === 'external_state_finalize');
+    expect(finalize).toBeTruthy();
+    expect(finalize.cycle_duration_ms).toBeNull();
+  });
+
   it('a decision that throws must not silently skip', async () => {
     // A preflight failure is uncertainty; uncertainty must never look like
     // "unchanged". The route surfaces the error rather than returning skipped.

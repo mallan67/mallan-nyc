@@ -111,6 +111,18 @@ export async function GET(req: NextRequest) {
   try {
     const body = await response.clone().json();
     const completion = completionFromBody(body);
+    // THE NEON-WAKE COST OF THIS POLL, in the runtime log.
+    //
+    // A poll that runs holds the Neon endpoint active for (cycle wall clock +
+    // the autosuspend delay). The autosuspend delay is readable from the Neon
+    // control plane; the cycle wall clock was NOT readable anywhere except the
+    // `one_cycle_run` audit row, which needs production SQL. It was therefore
+    // the one ESTIMATED term in every compute figure written about this cron
+    // (previous work carried it as "12-35 s inferred"). One Cycle already
+    // returns it in its response body; echoing it here makes it measurable from
+    // Vercel runtime logs alone. Instrumentation only — nothing reads it.
+    const cycleDurationMs =
+      isRecord(body) && typeof body.duration_ms === 'number' ? body.duration_ms : null;
     if (completion) {
       // The finalize outcome is the ONLY signal that distinguishes "the machine
       // is healthy and had nothing to skip" from "the completion state never
@@ -124,6 +136,7 @@ export async function GET(req: NextRequest) {
         event: 'external_state_finalize',
         outcome,
         decision_reason: decision.reason,
+        cycle_duration_ms: cycleDurationMs,
       }));
     } else {
       console.log(JSON.stringify({
@@ -131,6 +144,7 @@ export async function GET(req: NextRequest) {
         event: 'external_state_finalize',
         outcome: 'not_finalizable',
         decision_reason: decision.reason,
+        cycle_duration_ms: cycleDurationMs,
       }));
     }
   } catch (err) {

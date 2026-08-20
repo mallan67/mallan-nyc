@@ -96,13 +96,41 @@ export const SYNC_CADENCE_SECONDS = 10 * 60;
  *        a formatted current date inside the cached payload, so the
  *        user-facing "data last updated" string freezes with the entry.
  *
- * 3. STRUCTURAL — disjoint nested tag sets.
- *    `buildBuildingPayload` is cached under the building tag while internally
- *    awaiting `getBuildingManifestShard`, cached under the manifest-shard
- *    tags. The two sets do not intersect, so a correct shard invalidation does
- *    NOT invalidate the outer payload. Today only the outer TTL reconciles the
- *    layers; removing it would let a building page serve a stale manifest
- *    indefinitely. Fixable by having the outer entry carry the shard tag.
+ * 3. STRUCTURAL — disjoint building/manifest tag sets.
+ *    CORRECTED 2026-08-20. This paragraph previously stated that the building
+ *    payload is "cached under the building tag while internally awaiting
+ *    `getBuildingManifestShard`", that "only the outer TTL reconciles the
+ *    layers", and that the fix is "having the outer entry carry the shard tag".
+ *    All three statements were wrong, and the last one is actively harmful.
+ *
+ *    (a) There is no longer an INTERNAL await. Nesting one `unstable_cache`
+ *        inside another does not layer two caches: the installed Next 16.2.4
+ *        SKIPS the nested read (dist unstable-cache.js:132-134 sets
+ *        `isNestedUnstableCache`, :144-146 skips `incrementalCache.get`) while
+ *        still running the callback (:206) and still writing (:214). The nested
+ *        manifest entry was write-only, so every cold building payload re-walked
+ *        its whole shard against Neon — measured at 144 `findMany` calls for a
+ *        100-building crawl the design bounds at 13. The shard walk is now
+ *        resolved OUTSIDE the per-building entry
+ *        (`makeManifestShardResolver` in lib/buildings/public-building-data.ts).
+ *
+ *    (b) The TTL never reconciled the layers, and no reconciliation is needed.
+ *        `publicListingChangeTags` derives the building tag(s) AND the manifest
+ *        shard tag(s) from the SAME address(es) (previous + next), so a shard is
+ *        never expired without the exact building tag of every changed address
+ *        being expired in the same call. A building whose payload survives a
+ *        shard invalidation is precisely a building none of whose rows changed.
+ *        `public-listing-change-tags.test.ts` pins that pairing.
+ *
+ *    (c) Adding the shard tag to the per-building entry would be a REGRESSION,
+ *        not a fix: a shard is the first character of the street number, so one
+ *        listing change would expire roughly a tenth of every building payload
+ *        on the site. See the rationale block at
+ *        lib/buildings/public-building-data.ts:1314-1334, which this comment
+ *        used to contradict.
+ *
+ *    The building payload's remaining reason to hold a TTL is (2) above — its
+ *    `_compliance.attribution` embeds a formatted current date.
  *
  * SPECIAL CASE — lib/geo/geocode.ts: `GEOCODE_MANIFEST_TAG` has ZERO
  * production writers (verified: it appears only at its own definition and its

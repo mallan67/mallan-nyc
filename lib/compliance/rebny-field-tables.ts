@@ -17,6 +17,7 @@
  *   5. INTERNAL-ONLY otherwise
  *   6. Fail closed — any uncertainty defaults to NON-DISPLAY
  */
+import { withStatusSpellings } from './listing-status-vocabulary';
 
 export const REBNY_FIELD_TABLES = {
 
@@ -200,12 +201,52 @@ export const REBNY_FIELD_TABLES = {
     ] as const,
     CoBrokeAgreement: ['Rundba', 'Ucba'] as const,
     Concessions: ['CallListingAgent', 'No', 'Yes'] as const,
+    // STATUS-SPELLING-EXEMPT: picklist VOCABULARY from the RLS lookup CSV, not a
+    // predicate over stored status. Provider spellings only, by definition.
     MlsStatus: [
       'Active', 'Canceled', 'Closed', 'ComingSoon', 'Expired',
       'Hold', 'Incomplete', 'Pending', 'Withdrawn',
     ] as const,
+    // CORRECTED 2026-08-19 against the LIVE provider, not the lookup CSV.
+    // This list previously held 6 values and was missing 5 real members
+    // (ActiveUnderContract, Delete, Incomplete, Pending, Withdrawn) — including
+    // Pending, whose live population is 6,029. A short list here reads as "the
+    // provider has no such status", which is a false provider claim.
+    //
+    // Evidence, live `api.cotality.com/trestle` on 2026-08-19 (raw + sha256 in
+    // `.cache/cotality-authority-m2/raw/`): `/odata/Property/$count?$filter=
+    // StandardStatus eq '<X>'` returned HTTP 200 for exactly these 11 strings
+    // and HTTP 400 "not a valid enumeration type constant" for Cancelled / Sold
+    // / Rented / Leased / Draft / OwnerOptOut / TemporarilyOffMarket.
+    // `/odata/$metadata` declares EnumType StandardStatus with these same 11 and
+    // no others (used only to prove the probed candidate list was closed).
+    //
+    // Live populations at that moment: Active 8,103 · Pending 6,029 ·
+    // Closed 577,073 · ComingSoon 1 · every other member 0. A 0 count is a
+    // POPULATION fact, never grounds for dropping a member from the vocabulary.
+    //
+    // NOTE the enum-level split with `MlsStatus` above. They are DIFFERENT
+    // vocabularies and must not be merged — but their evidential status also
+    // differs, and that difference is load-bearing:
+    //   StandardStatus  every member PROBED (HTTP 200 per value). SUPPORTED.
+    //   MlsStatus       members are DECLARED by `$metadata` (25 there, adding
+    //                   Contingent, Terminated, Leased, CanceledRelisted, the
+    //                   Pending* variants, …) but CANNOT be probed: live
+    //                   2026-08-19, `$filter=MlsStatus eq 'Active'` and
+    //                   `$orderby=MlsStatus` both return HTTP 400 — "Results
+    //                   from 'RLS' has been suppressed (provider Level) as field
+    //                   MlsStatus' cannot be used for filtering or ordering
+    //                   queries". `$select` works (HTTP 200) but returned
+    //                   MlsStatus: null on every sampled row.
+    // So the 9-value MlsStatus list above is UNVERIFIED — a CSV snapshot that no
+    // probe can confirm or refute. Do not promote it to proven, do not expand it
+    // from `$metadata` (which over-declares), and do not build any query,
+    // filter or gate on MlsStatus.
+    // STATUS-SPELLING-EXEMPT: the live provider ENUM declaration. Only strings
+    // the provider accepts belong here; `Cancelled` is HTTP 400 at the provider.
     StandardStatus: [
-      'Active', 'Canceled', 'Closed', 'ComingSoon', 'Expired', 'Hold',
+      'Active', 'ActiveUnderContract', 'Canceled', 'Closed', 'ComingSoon',
+      'Delete', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn',
     ] as const,
     Permissions: ['OwnerOptOut', 'Private'] as const,
     StructureType: [
@@ -498,12 +539,27 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['LeaseType'],
     },
 
-    // ── Status-dependent ──
+    // ── Status-dependent ────────────────────────────────────────────────────
+    //
+    // EVERY `MlsStatus` LIST BELOW IS A LIVE PREDICATE, NOT A VOCABULARY.
+    // `conditionMatches` (lib/compliance/rls-enforcement.ts §8) evaluates
+    // `expected.includes(actual)` against the caller-supplied payload, so each
+    // list is an exact-case test over an UNTRUSTED client string. Two Mallan
+    // writers spell the cancel state differently (`Canceled` from the provider,
+    // `Cancelled` from the CRM), so a hand-written literal here silently covers
+    // only half the rows it means to.
+    //
+    // Every one is therefore built with `withStatusSpellings()` — closed BY
+    // CONSTRUCTION from `STATUS_SPELLING_CLASSES`, not by the author of the next
+    // rule remembering. The seed stays the single canonical spelling; the
+    // closure is computed at runtime. `lib/compliance/__tests__/
+    // rebny-conditional-rules-status-closure.test.ts` audits the WHOLE exported
+    // table BY VALUE and fails if any list here loses its closure.
     {
       code: 'COMINGSOON-001',
       description: 'Coming Soon requires ActivationDate',
       appliesWhen: {
-        MlsStatus: ['ComingSoon'],
+        MlsStatus: withStatusSpellings(['ComingSoon']),
       },
       requireFields: ['ActivationDate'],
     },
@@ -511,7 +567,7 @@ export const REBNY_FIELD_TABLES = {
       code: 'ACTIVE-001',
       description: 'Active requires OnMarketDate',
       appliesWhen: {
-        MlsStatus: ['Active'],
+        MlsStatus: withStatusSpellings(['Active']),
       },
       requireFields: ['OnMarketDate'],
     },
@@ -519,7 +575,7 @@ export const REBNY_FIELD_TABLES = {
       code: 'CLOSED-001',
       description: 'Closed requires CloseDate, ClosePrice, BuyerAgentRLSParticipantYN',
       appliesWhen: {
-        MlsStatus: ['Closed'],
+        MlsStatus: withStatusSpellings(['Closed']),
       },
       requireFields: [
         'CloseDate',
@@ -530,8 +586,44 @@ export const REBNY_FIELD_TABLES = {
     {
       code: 'CANCELLED-001',
       description: 'Cancelled requires CancellationDate',
+      // ── SPELLING-CLOSED (fixed 2026-08-20) ──────────────────────────────
+      // This rule listed ONLY the provider spelling `Canceled`, so the BLOCKER
+      // never fired for the spelling the CRM actually writes. Proven by
+      // execution on the pre-fix tree, with the payload shape
+      // `public/crm/SALE-FORM-REDESIGN.html` submits when an agent cancels a
+      // sale listing — `OffMarketDate` filled (the form does collect that one)
+      // and no `CancellationDate` (the form has no such input at all):
+      //
+      //   assertRlsCompliantPayload({MlsStatus:'Canceled',  OffMarketDate:…})
+      //     -> [{ code:'CF-CANCELLED-001', severity:'BLOCKER', field:'CancellationDate' }]
+      //   assertRlsCompliantPayload({MlsStatus:'Cancelled', OffMarketDate:…})
+      //     -> []                                    <-- BLOCKER NEVER RAISED
+      //
+      // Reachability, end to end: `public/crm/SALE-FORM-REDESIGN.html` maps
+      // `CRM_TO_RESO_STATUS['Cancelled'] = 'Cancelled'` (line 8584) and sets
+      // `data.MlsStatus = getResoMlsStatus(data.saleStatus)` (line 7429); that
+      // body is POSTed to `/api/crm/listings`, which hands it straight to
+      // `assertRlsCompliantPayload` for every RLS-eligible listing
+      // (route.ts:362). `PATCH /api/crm/listings/[id]` does the same with the
+      // merged payload (route.ts:181). So the one spelling the canonical sale
+      // form actually sends was the one this gate ignored.
+      //
+      // Same root cause and same shape as the CF-OFFMARKET-001 gap 24 lines
+      // below — a hand-written literal covering one spelling of a two-spelling
+      // concept — which is why the fix is the shared constructor and not a
+      // second hand-typed literal.
+      //
+      // DOWNSTREAM, reported rather than absorbed: with this closed, a
+      // `Cancelled` submission from that form now 422s on CF-CANCELLED-001 as
+      // well as CF-OFFMARKET-001 — exactly as the `Canceled` spelling already
+      // did before this change, so the two form variants stop disagreeing.
+      // `CancellationDate` is collected by NO Mallan form (grep: zero hits in
+      // `public/crm/**`), so the CRM needs a CancellationDate input before an
+      // agent can cancel an RLS-eligible synced listing through the UI. That is
+      // a `public/crm/**` change, which is under the CLAUDE.md §C hold —
+      // flagged for Maya, not made here.
       appliesWhen: {
-        MlsStatus: ['Canceled'],
+        MlsStatus: withStatusSpellings(['Canceled']),
       },
       requireFields: ['CancellationDate'],
     },
@@ -539,7 +631,7 @@ export const REBNY_FIELD_TABLES = {
       code: 'WITHDRAWN-001',
       description: 'Withdrawn requires WithdrawnDate (must equal OffMarketDate)',
       appliesWhen: {
-        MlsStatus: ['Withdrawn'],
+        MlsStatus: withStatusSpellings(['Withdrawn']),
       },
       requireFields: ['WithdrawnDate'],
     },
@@ -547,15 +639,41 @@ export const REBNY_FIELD_TABLES = {
       code: 'PENDING-001',
       description: 'Pending requires PurchaseContractDate',
       appliesWhen: {
-        MlsStatus: ['Pending'],
+        MlsStatus: withStatusSpellings(['Pending']),
       },
       requireFields: ['PurchaseContractDate'],
     },
     {
       code: 'OFFMARKET-001',
       description: 'Off-market statuses require OffMarketDate',
+      // ── SPELLING-CLOSED (fixed 2026-08-20) ──────────────────────────────
+      // `conditionMatches` (lib/compliance/rls-enforcement.ts) evaluates
+      // `expected.includes(actual)` against the CRM payload's `MlsStatus`, so
+      // this list is a LIVE exact-case predicate over an untrusted client
+      // string — not a vocabulary declaration.
+      //
+      // It listed only the PROVIDER spelling `Canceled`. The Mallan CRM's own
+      // canonical value is `Cancelled` (double L — `lib/crm/status-mapping.ts`
+      // `CANONICAL_STATUSES`), so this REBNY conditional-field BLOCKER silently
+      // failed to fire for CRM-authored cancellations. Proven by execution
+      // before the fix:
+      //   assertRlsCompliantPayload({MlsStatus:'Canceled'})  -> CF-OFFMARKET-001 raised
+      //   assertRlsCompliantPayload({MlsStatus:'Cancelled'}) -> NOT raised
+      // i.e. an agent could cancel a listing through the CRM with no
+      // OffMarketDate at all. This is the exact MIRROR of the provider-side
+      // `Canceled` gap that motivated the shared vocabulary: same root cause
+      // (a hand-written literal covering one spelling of a two-spelling
+      // concept), opposite direction.
       appliesWhen: {
-        MlsStatus: ['Canceled', 'Closed', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn'],
+        MlsStatus: withStatusSpellings([
+          'Canceled',
+          'Closed',
+          'Expired',
+          'Hold',
+          'Incomplete',
+          'Pending',
+          'Withdrawn',
+        ]),
       },
       requireFields: ['OffMarketDate'],
     },
@@ -1172,7 +1290,21 @@ export const REBNY_FIELD_TABLES = {
   publicDisplay: {
     hideWhenPermissions: ['OwnerOptOut', 'Private'] as const,
     hideWhenMlsStatus: ['Closed', 'Expired'] as const,
-    suppressFromPublicSearch: ['Hold', 'Incomplete', 'Withdrawn', 'Canceled'] as const,
+    // SPELLING-CLOSED BY CONSTRUCTION (2026-08-20). Still has no code consumer
+    // (grep over lib/ app/ scripts/ tests/: only doc references in
+    // `lib/idx/trestle-mapper.ts` and
+    // `lib/compliance/__tests__/cotality-standard-status-vocabulary.test.ts`),
+    // and until 2026-08-20 it carried a STATUS-SPELLING-EXEMPT marker resting on
+    // exactly that fact, with a comment telling whoever wired it up to wrap it
+    // first. A comment is not a guard — the CANCELLED-001 defect this pass fixed
+    // sat under a longer one. Wrapping it now costs nothing (nothing reads it)
+    // and removes the trap: whoever does wire it up gets both spellings.
+    //
+    // This is a MALLAN table expressing a REBNY rule over MALLAN-stored values.
+    // Mallan stores one cancel state under two spellings, so listing both is not
+    // a claim about REBNY's vocabulary — it is the same rule, correctly
+    // projected onto the column it has to be evaluated against.
+    suppressFromPublicSearch: withStatusSpellings(['Hold', 'Incomplete', 'Withdrawn', 'Canceled']),
 
     // IDX display gates — must be true for listing to appear on IDX. Live Trestle
     // (verified 2026-04-19) consolidates the master display flag into

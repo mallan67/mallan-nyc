@@ -17,6 +17,7 @@
  * already serialized through NextResponse.json — no Date/BigInt/Decimal
  * instances), so the #523→#528 serialization hazard does not apply.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { getPrimaryPhoto, classifyMediaItem } from '@/lib/media/listing-media-resolver';
 import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
@@ -677,6 +678,61 @@ export async function getBuildingManifestShard(shard: string): Promise<ManifestL
 }
 
 /**
+ * Build the ONE manifest-shard reader a single building payload assembly may
+ * use. Two guarantees, both load-bearing:
+ *
+ * 1. IT NEVER RUNS NESTED. `getBuildingDataCached` calls this BEFORE it enters
+ *    `cachedPublicRead`, so `AsyncLocalStorage.snapshot()` captures the
+ *    REQUEST's async context. Invoking the returned reader from inside the
+ *    per-building cached body restores that context, so every manifest page
+ *    read sees `workUnitStore.type === 'request'` (dist unstable-cache.js:137 →
+ *    a plain `break`: no nesting flag, no tag accumulation) instead of
+ *    `'unstable-cache'` (:132-134 → `isNestedUnstableCache`, :144-146 → the
+ *    cache read is skipped and the page is re-fetched from Neon).
+ *    `snapshot()` is public Node API (>= 18.16 / 20.0); Next 16 itself requires
+ *    Node >= 20.9 and this project pins 24.x, so the fallback below is defence,
+ *    not an expected path.
+ *
+ * 2. IT IS LAZY, AND RUNS AT MOST ONCE. A bare top-level `await` would have
+ *    fixed the nesting too, but it would make EVERY building request walk the
+ *    manifest — including requests whose payload entry is a HIT, which cost
+ *    exactly zero today. Worse, after a sync revalidated a shard tag, each such
+ *    warm request would wake Neon to refill pages that request never reads.
+ *    Deferring keeps a warm outer at zero and still reads the manifest cache
+ *    un-nested on a miss.
+ *
+ * An empty shard (masked / absent street number) resolves to an empty manifest
+ * and touches nothing — the same guard the inline call site used to carry.
+ */
+export async function makeManifestShardResolver(
+  shard: string,
+): Promise<ManifestShardResolver> {
+  if (!shard) return async () => [];
+  const snapshot =
+    typeof AsyncLocalStorage.snapshot === 'function' ? AsyncLocalStorage.snapshot() : null;
+  if (snapshot) {
+    let inflight: Promise<ManifestListing[]> | null = null;
+    return () => (inflight ??= snapshot(() => getBuildingManifestShard(shard)));
+  }
+  // No `snapshot()` on this runtime: resolve NOW, at the caller's own level, so
+  // the manifest cache is still read UN-NESTED (correctness first). The only
+  // loss is laziness. The outcome — value OR error — is replayed at the reader's
+  // call site inside `buildBuildingPayload`'s try/catch, so the
+  // structural-failure-propagates / transient-outage-degrades semantics are
+  // identical on both paths and no error can escape this factory.
+  let settled: { rows: ManifestListing[] } | { err: unknown };
+  try {
+    settled = { rows: await getBuildingManifestShard(shard) };
+  } catch (err) {
+    settled = { err };
+  }
+  return async () => {
+    if ('err' in settled) throw settled.err;
+    return settled.rows;
+  };
+}
+
+/**
  * CANONICAL building-ownership classifier (Maya 2026-07-23, approved rule).
  *
  * The displayed type is determined by the BUILDING'S OWNERSHIP STRUCTURE —
@@ -737,11 +793,45 @@ function unitDisplayType(
   return mapPropertyTypeToDisplay(rowCommonInterest ?? undefined, propertySubType ?? null, legacy);
 }
 
+/**
+ * A reader for ONE manifest shard, guaranteed by its constructor to execute
+ * OUTSIDE the per-building `unstable_cache` work unit — see
+ * `makeManifestShardResolver` for why that guarantee is load-bearing.
+ */
+export type ManifestShardResolver = () => Promise<ManifestListing[]>;
+
+/**
+ * ── WHY THE MANIFEST READ IS HANDED IN INSTEAD OF CALLED HERE ─────────────
+ *
+ * PROVEN DEFECT (installed Next 16.2.4, dist
+ * server/web/spec-extension/unstable-cache.js):
+ *   :132-134  a cached read whose surrounding work unit is already of type
+ *             `'unstable-cache'` sets `isNestedUnstableCache = true`
+ *   :144-146  that flag SKIPS `incrementalCache.get` entirely
+ *   :206      the callback runs regardless
+ *   :214      the result is still WRITTEN
+ * A nested entry is therefore WRITE-ONLY: it can never be read back.
+ *
+ * `getBuildingDataCached` wraps this function in `cachedPublicRead`. While this
+ * body called `getBuildingManifestShard` directly, every manifest PAGE read was
+ * nested inside that entry, so EVERY cold building payload re-walked the whole
+ * shard against Neon however fresh the page entries were. Measured on the real
+ * cache: a 100-distinct-building crawl issued 144 `prisma.listing.findMany`
+ * calls where the design promises at most 13 — the manifest delivered ZERO Neon
+ * savings and cost strictly more than a per-building query would have.
+ *
+ * The resolver is built by `getBuildingDataCached` BEFORE the cache boundary and
+ * bound to the caller's async context, so manifest pages are read as TOP-LEVEL
+ * entries. The call site stays HERE, inside the existing try/catch, so the
+ * structural-failure-propagates / transient-outage-degrades semantics below are
+ * untouched.
+ */
 /** Assemble the complete public building payload (PURE READ — no Neon writes). */
 async function buildBuildingPayload(
   streetNumber: string,
   streetName: string,
   postalCode: string | null,
+  resolveManifestShard: ManifestShardResolver,
 ) {
   // Canonical identity is number+street+zip. buildingName is display-only and
   // deliberately NOT a parameter: unstable_cache keys include the wrapped
@@ -770,8 +860,11 @@ async function buildBuildingPayload(
     // take 50.
     let dbListings: ManifestListing[] = [];
     try {
-      const shard = cleanStreetNumber.charAt(0);
-      const manifest = shard ? await getBuildingManifestShard(shard) : [];
+      // The shard walk itself runs in the CALLER's async context (see
+      // makeManifestShardResolver) — never nested inside this cached entry.
+      // The `''` street-number guard lives in the resolver, which returns an
+      // empty manifest for it, exactly as the previous inline check did.
+      const manifest = await resolveManifestShard();
       dbListings = manifest
         .filter((l) => {
           const a = l.address;
@@ -1191,8 +1284,24 @@ export async function getBuildingDataCached(params: {
   const streetNumber = params.streetNumber.trim();
   const streetName = params.streetName.trim();
   const postalCode = params.postalCode?.trim() || null;
+  // Built HERE, one statement BEFORE the cache boundary, because that is what
+  // binds it to the request's async context. Moving it inside the wrapped
+  // callback re-creates the nested-`unstable_cache` shape whose cache read Next
+  // silently skips (dist unstable-cache.js:132-134/144-146) — the defect that
+  // made every cold building payload re-walk its whole shard against Neon.
+  // Shard derivation matches `buildBuildingPayload`'s former inline expression
+  // exactly: the first character of `sanitizeOData(streetNumber)`.
+  const resolveManifestShard = await makeManifestShardResolver(
+    sanitizeOData(streetNumber).charAt(0),
+  );
   const payload = await cachedPublicRead(
-    buildBuildingPayload,
+    // Arrow, not `buildBuildingPayload` itself, so the resolver travels by
+    // CLOSURE and never becomes a cache-key argument. The key is unchanged by
+    // this edit: `cachedPublicRead` wraps whatever it is given in its own
+    // `capturing` function, and `unstable_cache` keys on THAT function's source
+    // text plus `keyParts` plus the serialized args (dist :74, :82).
+    (sn: string, st: string, pc: string | null) =>
+      buildBuildingPayload(sn, st, pc, resolveManifestShard),
     ['building-data', streetNumber.toUpperCase(), streetName.toUpperCase(), postalCode ?? ''],
     {
       // EXACT tag only (Neon-quiet distinct-building correction): the coarse
@@ -1203,9 +1312,10 @@ export async function getBuildingDataCached(params: {
       // fallback as the safety net (media-JSON-only changes ride the fallback).
       //
       // ── WHY THE CONSUMED MANIFEST SHARD TAG IS *NOT* ADDED HERE ───────
-      // `buildBuildingPayload` reads `getBuildingManifestShard(shard)`, whose
-      // own entry carries `manifestShardTag(shard)`, so at first glance this
-      // consumer should carry its dependency's tag. It deliberately does not.
+      // The assembly consumes `resolveManifestShard()`, i.e.
+      // `getBuildingManifestShard(shard)`, whose page entries carry
+      // `manifestShardTag(shard)`, so at first glance this consumer should
+      // carry its dependency's tag. It deliberately does not.
       //
       // A shard is the FIRST CHARACTER of the street number — roughly a tenth
       // of every building on the site. Tagging each building payload with it

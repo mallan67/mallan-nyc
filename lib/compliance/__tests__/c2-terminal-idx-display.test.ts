@@ -50,8 +50,9 @@ function buildRaw(overrides: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe('C2 — TERMINAL_STATUSES constant', () => {
-  it('contains exactly the 7 statuses the cron also targets', () => {
-    expect(TERMINAL_STATUSES.size).toBe(7);
+  it('contains exactly the 8 statuses the cron also targets', () => {
+    // 8 since 2026-08-19. The 8th is 'Canceled' (single-L) — see below.
+    expect(TERMINAL_STATUSES.size).toBe(8);
     expect(TERMINAL_STATUSES.has('Closed')).toBe(true);
     expect(TERMINAL_STATUSES.has('Sold')).toBe(true);
     expect(TERMINAL_STATUSES.has('Leased')).toBe(true);
@@ -63,21 +64,47 @@ describe('C2 — TERMINAL_STATUSES constant', () => {
     expect(TERMINAL_STATUSES.has('Active')).toBe(false);
     expect(TERMINAL_STATUSES.has('ComingSoon')).toBe(false);
     expect(TERMINAL_STATUSES.has('ActiveUnderContract')).toBe(false);
-    // Common spelling variant kept distinct — Trestle / REBNY use double-L.
-    expect(TERMINAL_STATUSES.has('Canceled')).toBe(false);
+  });
+
+  it("'Canceled' (single-L) is terminal — it is the LIVE provider spelling", () => {
+    // CORRECTED 2026-08-19. This assertion used to read
+    //   expect(TERMINAL_STATUSES.has('Canceled')).toBe(false);
+    // with the comment "Trestle / REBNY use double-L". Both the assertion and
+    // the comment were wrong, and together they pinned a live retention defect.
+    //
+    // LIVE PROBE, api.cotality.com/trestle, 2026-08-19 (raw + sha256 in
+    // .cache/cotality-authority-m2/raw/):
+    //   StandardStatus eq 'Canceled'  -> HTTP 200, @odata.count 0  (real member)
+    //   StandardStatus eq 'Cancelled' -> HTTP 400, "not a valid enumeration
+    //                                    type constant"            (not a member)
+    // $metadata (HTTP 200) declares EnumType StandardStatus with exactly:
+    //   Active, ActiveUnderContract, Canceled, Closed, ComingSoon, Delete,
+    //   Expired, Hold, Incomplete, Pending, Withdrawn.
+    //
+    // WHY IT MATTERED: `mapTrestleToPrisma` stores `raw.StandardStatus`
+    // VERBATIM, so a provider Canceled row is stored spelled 'Canceled'. Every
+    // exact-case terminal predicate listed only 'Cancelled', so such a row was
+    // invisible to the T+24h REBNY RLS §2.05 removal sweep, to the T+30d
+    // media-null and to the T+180 archive — its media JSON and raw_data would
+    // have been retained indefinitely.
+    expect(TERMINAL_STATUSES.has('Canceled')).toBe(true);
+    // 'Cancelled' (double-L) stays: it is the Mallan-internal CRM canonical
+    // value (lib/crm/status-mapping.ts), NOT a provider value. Two vocabularies,
+    // both terminal, deliberately.
+    expect(TERMINAL_STATUSES.has('Cancelled')).toBe(true);
   });
 });
 
 describe('C2 — terminal statuses force idx_display_yn=false', () => {
-  it.each([
-    'Closed',
-    'Sold',
-    'Leased',
-    'Rented',
-    'Withdrawn',
-    'Expired',
-    'Cancelled',
-  ])('%s + display permissions all-true → idx_display_yn=false', (status) => {
+  // DERIVED from the canonical set, not hand-listed.
+  //
+  // This was a 7-element literal that omitted the live provider member
+  // 'Canceled' after it was added to TERMINAL_STATUSES on 2026-08-19. A
+  // provider-cancelled row — the ONLY cancellation spelling the feed can
+  // actually produce — was therefore never asserted against by the test whose
+  // whole job is proving terminal rows cannot display. Deriving the list makes
+  // coverage follow the set automatically.
+  it.each([...TERMINAL_STATUSES])('%s + display permissions all-true → idx_display_yn=false', (status) => {
     const raw = buildRaw({
       StandardStatus: status,
       InternetEntireListingDisplayYN: true,

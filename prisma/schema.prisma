@@ -702,9 +702,9 @@ model SyncError {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LISTINGS ARCHIVE — Minimal past-sales / historical data
-// Populated by Phase 4 lifecycle cron for terminal listings >180d.
-// Kept for 6 years per NY DOS recordkeeping requirements.
+// LISTINGS ARCHIVE — Minimal past-sales / historical data. Populated by the Phase 4 lifecycle cron for terminal listings >180d.
+// CORRECTED 2026-08-20: this box previously read “Kept for 6 years per NY DOS recordkeeping requirements.” That is withdrawn. The NY DOS broker recordkeeping rule is 19 NYCRR 175.23 and its operative term is THREE years — “each licensed broker shall keep and maintain for a period of three years” — and it enumerates Article 12-A transaction records (contract/price+deposit, commission paid, gross profit on resale, the listing / commission / buyer-broker agreement). It says nothing about a cached copy of a third-party MLS listing row, and nothing about photographs or any binary media.
+// This table's justification is FK integrity (PriceHistory / MarketingActivity / Showing / Offer) plus a durable Mallan-side summary for reconciliation and comps — NOT a statutory floor. Any retention floor added here later must cite its own dated authority rather than inherit this comment. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md` (sha256 31ac0e51…, two independent sources).
 // ═══════════════════════════════════════════════════════════
 model ListingsArchive {
   id                   BigInt    @id @default(autoincrement())

@@ -23,7 +23,25 @@ import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capab
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
-const STATUS_TRANSITIONS: Record<string, string[]> = {
+//
+// ── EVERY REACHABLE STORED STATUS MUST BE KEYED ────────────────────────────
+// An unkeyed `currentStatus` makes `allowed` undefined, and the handler returns
+// HTTP 400 "Unknown current status" (see the guard below). Before 2026-08-20
+// the map keyed only the Mallan CRM spelling `Cancelled` (double L), so a
+// listing the PROVIDER had cancelled — stored as `Canceled` (single L, the live
+// Cotality member, written verbatim by mapTrestleToPrisma) — was a HARD 400 on
+// every status transition attempt: the row could not be moved out of that state
+// through the CRM at all. `Canceled` is now keyed identically.
+//
+// The live provider members `Delete` and `Incomplete` are keyed too, for the
+// same reason: they are valid StandardStatus values (HTTP 200, count 0 today)
+// that a future feed row can carry, and a status route that 400s on a real
+// stored value is a dead end for the agent, not a safety property.
+//
+// Exported so `lib/compliance/__tests__/listing-status-spelling-closure.test.ts`
+// can assert both spellings resolve to the SAME allowed-transition list rather
+// than re-declaring the map in the test and letting the two drift together.
+export const STATUS_TRANSITIONS: Record<string, string[]> = {
   Draft: ["Active", "ComingSoon"],
   ComingSoon: ["Active", "Withdrawn"],
   Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired"],
@@ -34,7 +52,10 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   Rented: [], // Terminal
   Withdrawn: ["Active", "Draft"],
   Expired: ["Active", "Draft"],
-  Cancelled: [], // Terminal
+  Cancelled: [], // Terminal — Mallan CRM canonical spelling
+  Canceled: [], //  Terminal — LIVE Cotality member; same state, provider spelling
+  Delete: [], //    Terminal — provider tombstone
+  Incomplete: ["Active", "Draft"], // pre-publication, same shape as Draft
 };
 
 export async function PATCH(

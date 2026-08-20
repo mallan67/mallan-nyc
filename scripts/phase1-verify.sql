@@ -43,11 +43,24 @@ ORDER BY status;
 
 -- 4. Retention cron eligibility — closed listings past 24h window that the
 -- cron should now flag for idx_display_yn = false (REBNY RLS §2.05)
+--
+-- 'Canceled' (single L) ADDED 2026-08-20. This list must mirror
+-- app/api/cron/data-retention/route.ts TERMINAL_STATUSES exactly, and it did
+-- not: the cron gained the live Cotality spelling 'Canceled' while this script
+-- kept only the Mallan CRM spelling 'Cancelled'. A verification script that
+-- under-counts is worse than no script — it reported the retention backlog as
+-- CLEAR while provider-cancelled rows sat in it, i.e. it hid the very defect it
+-- exists to find. Both spellings are required: mapTrestleToPrisma stores
+-- StandardStatus verbatim ('Canceled') and the CRM writes 'Cancelled'.
+--
+-- Canonical set: lib/compliance/listing-status-vocabulary.ts TERMINAL_STATUSES.
+-- SQL cannot import it, so this literal is pinned to it by
+-- lib/compliance/__tests__/listing-status-spelling-closure.test.ts.
 SELECT
   'retention_eligible_terminal_listings' AS metric,
   COUNT(*)::text AS value
 FROM listings
-WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled')
+WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled','Canceled')
   AND status_changed_at IS NOT NULL
   AND status_changed_at < NOW() - INTERVAL '24 hours'
   AND idx_display_yn = true;

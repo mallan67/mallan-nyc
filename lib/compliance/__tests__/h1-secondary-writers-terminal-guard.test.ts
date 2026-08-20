@@ -43,16 +43,12 @@ function guardAllowsDisplay(status: string | null | undefined): boolean {
 }
 
 describe('H1 — secondary-writer terminal-status guard', () => {
-  describe('terminal statuses (all 7) force idx_display_yn=false', () => {
-    it.each([
-      'Closed',
-      'Sold',
-      'Leased',
-      'Rented',
-      'Withdrawn',
-      'Expired',
-      'Cancelled',
-    ])('%s → false', (status) => {
+  // "all 7" was a hard-coded claim that went stale the moment TERMINAL_STATUSES
+  // gained an 8th member ('Canceled', 2026-08-19) — and the literal below went
+  // stale with it, so the guard was never exercised against the provider's own
+  // cancellation spelling. Both the count and the list are now DERIVED.
+  describe(`terminal statuses (all ${TERMINAL_STATUSES.size}) force idx_display_yn=false`, () => {
+    it.each([...TERMINAL_STATUSES])('%s → false', (status) => {
       expect(guardAllowsDisplay(status)).toBe(false);
     });
   });

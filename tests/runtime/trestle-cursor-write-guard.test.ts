@@ -107,7 +107,13 @@ describe('no unjustified local-clock modification_timestamp writes', () => {
     );
     // The ghost update still records the transition on the stable clocks.
     expect(code).toMatch(/status_changed_at: now/);
-    expect(code).toMatch(/terminal_since: now/);
+    // UPDATED 2026-08-19 (status-truth fix): `terminal_since` is no longer the
+    // hardcoded wall-clock. It comes from `computeTerminalSincePatch`, which
+    // prefers the PROVIDER's CloseDate/OffMarketDate and falls back to `now`.
+    // What this guard actually protects — that the ghost transition records
+    // itself on the STABLE clocks and never bumps modification_timestamp with a
+    // local clock — is unchanged and still asserted.
+    expect(code).toMatch(/\.\.\.terminalSincePatch/);
     expect(LOCAL_CLOCK_MT.test(code)).toBe(false);
   });
 

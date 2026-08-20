@@ -594,6 +594,156 @@ function summaryBoolean(summary: Record<string, unknown> | undefined, key: strin
   return summary?.[key] === true;
 }
 
+/**
+ * Present AND numeric. Deliberately NOT {@link summaryNumber}, which folds an
+ * ABSENT counter into 0 — correct for "is there a backlog", wrong for "prove
+ * this lane had no failures". Absence is not evidence of zero.
+ */
+function summaryCounterAtLeastZero(
+  summary: Record<string, unknown> | undefined,
+  key: string,
+): number | null {
+  const value = summary?.[key];
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/**
+ * Did the SOURCE → NEON traversal itself succeed?
+ *
+ * WHY THIS EXISTS — the latch it removes.
+ *
+ * `completion.success` (app/api/cron/one-cycle/route.ts) is
+ * `complete && every required member 'ok'`, and the media member reports
+ * 'partial' for `rows_failed > 0 || r2_failed > 0`
+ * (lib/idx/media-sync-member.ts). Those two counters are not the same kind of
+ * fact:
+ *
+ *   - `rows_failed` is incremented in `runMediaSync` PHASE 1 (source ingest),
+ *     which also pushes `ok:false` into `processed` — and that HALTS
+ *     `pickKeysetWatermark`. The media keyset cursor therefore does NOT advance
+ *     past the failure, so the run must be retried or those rows are only
+ *     revisited if the provider head happens to move again.
+ *   - `r2_failed` is incremented in PHASE 3 (R2 enrichment backlog), which runs
+ *     strictly AFTER the PHASE 2 cursor checkpoint has already committed via
+ *     `advanceMediaSyncCursor`. It provably cannot affect source traversal, and
+ *     the failed row stays in the R2 backlog — which ALREADY has its own bounded
+ *     drain schedule right here (`backlogPending` + `nextBacklogRunAt`,
+ *     DEFAULT_BACKLOG_INTERVAL_SECONDS).
+ *   (Phase ordering verified against lib/idx/media-sync.ts at the `── PHASE n`
+ *   banners; exact line numbers deliberately omitted — that file is large and
+ *   moves, the phase order is the invariant.)
+ *
+ * Collapsing both into `success:false` therefore DOUBLE-SCHEDULED the R2 lane:
+ * once as a bounded hourly drain, and again as `forceRun`, an immediate
+ * full-machine retry on the very next poll. Worse, it LATCHED in two places at
+ * once — `forceRun` is cleared only by a cycle with `success:true`, and
+ * `lastSuccessfulFullCycleAt` advances only on `success:true`. So any run of
+ * cycles carrying a non-zero `r2_failed` for longer than one hour disabled
+ * skipping outright: `forced_retry` on the next poll, then
+ * `freshness_heartbeat_due` on every poll after that, until one perfectly
+ * clean cycle happened.
+ *
+ * PROVENANCE, STATED EXACTLY. The latch is proven from these code paths and
+ * from the RED runs of the direct tests; it is NOT proven from a production
+ * log, and an earlier version of this comment wrongly said it was. The cited
+ * sample (artifacts/.wake-redis-samples.jsonl, 2026-08-14T22:48:05Z — heads
+ * unchanged, `forceRun:true`, `forced_retry`) carries `backlogPending:false`
+ * in the SAME atomically-written state object, and `mediaBacklog` below
+ * includes `r2_failed > 0` — so `r2_failed === 0` in that cycle and its
+ * `forceRun` had another cause, one this exemption still forces. All 13
+ * consecutive samples in that file show `backlogPending:false`. The FREQUENCY
+ * of `r2_failed > 0` in production is therefore UNMEASURED — not "routine".
+ * What is established is that the state is reachable and that it latched.
+ *
+ * WHAT IS NOT RELAXED. Every source-side failure still fails closed: an
+ * incomplete cycle; any member that is not `ok` or `partial` (failed /
+ * member_error / timed_out / skipped / budget_skipped); ANY `rows_failed`; a
+ * partial IDX lane; and a `success:false` that no member in the ledger
+ * explains. Evidence must be PRESENT to earn the exemption — a missing
+ * `rows_failed` or `r2_failed` counter counts as unproven, never as zero.
+ *
+ * WHAT IS *NOT* GUARDED, SAID PLAINLY. The one thing that genuinely leaves
+ * source work unconsumed is a PHASE-1 budget cut, `exit_reason ===
+ * "budget_phase1"`. It is not guarded here, for two reasons, and neither is an
+ * oversight:
+ *   1. It is not observable. `exit_reason` matches none of the prefixes in
+ *      SUMMARY_KEY_PREFIXES (app/api/cron/one-cycle/route.ts), so it never
+ *      reaches this function. Do not infer it from `time_budget_exhausted` —
+ *      that flag means the opposite (see below).
+ *   2. Guarding it HERE ONLY would be incoherent. A `budget_phase1` cut with
+ *      clean counters already yields media status `ok` → `success:true`, which
+ *      advances the heartbeat and clears `forceRun` today and always has.
+ *      Blocking it solely on the `r2_failed > 0` path would make that path
+ *      stricter than the `r2_failed === 0` path — reinstating exactly the
+ *      asymmetry this predicate exists to remove. It is also cursor-safe:
+ *      PHASE 2 advances the watermark only over rows PHASE 1 actually
+ *      processed, so the remainder is durably queued behind the cursor, not
+ *      lost. If it should be treated as unsound, that must be decided for BOTH
+ *      paths, which means surfacing `exit_reason` first.
+ * Pinned as a deliberate, recorded gap by
+ * tests/runtime/one-cycle-neon-wake-discriminator.test.ts section (D).
+ *
+ * COMPLIANCE. The hourly heartbeat guarantees an authoritative Neon-backed
+ * traversal of the SOURCE inside the REBNY §2.05 24-hour window (closed-listing
+ * display removed within 24h — a listing-lane status-propagation duty; see
+ * docs/compliance/COMPLIANCE-CANONICAL-INDEX.md:178, the §14 Fail-closed row). An R2 mirror failure is
+ * photo delivery to our own CDN; it does not falsify that traversal. Nor did
+ * the old predicate make the guarantee stronger: it made the "hourly sweep"
+ * fire on EVERY poll, which is not a bound, it is a constant.
+ */
+export function cycleTraversalSound(completion: OneCycleCompletionInput): boolean {
+  // "Every member the PLAN required ran to settlement" is already decided by
+  // the route and carried here as `complete`.
+  if (!completion.complete) return false;
+
+  let exemptedMembers = 0;
+  for (const member of completion.members) {
+    if (member.status === 'ok') continue;
+    // failed / member_error / timed_out / skipped / budget_skipped — the work
+    // did not settle cleanly, and none of them is an R2-lane condition.
+    if (member.status !== 'partial') return false;
+    // Only the media lane HAS a downstream mirror lane with its own schedule.
+    // A partial IDX lane means `errors > 0` in syncListings, which freezes the
+    // Property keyset cursor exactly the way a media row failure does.
+    if (member.member !== ONE_CYCLE_MEMBER_MEDIA) return false;
+
+    const rowsFailed = summaryCounterAtLeastZero(member.summary, 'rows_failed');
+    const r2Failed = summaryCounterAtLeastZero(member.summary, 'r2_failed');
+    if (rowsFailed === null || r2Failed === null) return false; // unproven ≠ clean
+    if (rowsFailed > 0) return false;                            // source cursor frozen
+    // NO `time_budget_exhausted` GUARD HERE — deliberately. This corrects a
+    // factual error in the first version of this predicate, which read the flag
+    // as "the budget ran out mid-traversal, so the source was not fully
+    // consumed" and returned false on it.
+    //
+    // The flag means the opposite. lib/idx/media-sync.ts defines it as
+    // `exit_reason === "budget_phase2"`, and `budget_phase2` is assignable ONLY
+    // while `exitReason === "completed"` — so it is POSITIVE evidence that the
+    // PHASE-1 source loop consumed its whole batch without breaking out. It
+    // reports that the PHASE-3 R2 drain stopped between chunks. Blocking on it
+    // left this exemption inert for the shape it most needs to cover: failed
+    // mirror attempts are the slowest units in the drain, so `r2_failed > 0`
+    // and `budget_phase2` correlate POSITIVELY, and a chronically large,
+    // partly-failing R2 backlog produces both together.
+    //
+    // The same field is read CORRECTLY ~60 lines below in `mediaBacklog`, as
+    // "the drain stopped early, so work remains" — which is what keeps those
+    // R2 rows on the bounded hourly cadence rather than dropping them.
+    // Pinned against the real media-sync source by
+    // tests/runtime/one-cycle-neon-wake-discriminator.test.ts section (D).
+    // `partial` with nothing in the R2 counter is an UNEXPLAINED partial.
+    if (r2Failed <= 0) return false;
+    exemptedMembers++;
+  }
+
+  // `success:false` over an all-`ok` member ledger cannot be reconciled from
+  // here. The route should not be able to produce it; if it ever does, the safe
+  // reading is that something failed which the ledger did not record.
+  if (!completion.success && exemptedMembers === 0) return false;
+
+  return true;
+}
+
 export function deriveOneCycleFollowup(
   completion: OneCycleCompletionInput,
   snapshotTrusted: boolean,
@@ -607,7 +757,11 @@ export function deriveOneCycleFollowup(
   const media = completion.members.find((m) => m.member === ONE_CYCLE_MEMBER_MEDIA);
 
   const listingBatchFull = summaryNumber(idx?.summary, 'total_fetched') >= ONE_CYCLE_SOURCE_BATCH_LIMIT;
-  const forceRun = !completion.success || !completion.complete || !snapshotTrusted || listingBatchFull;
+  // `cycleTraversalSound` subsumes `completion.complete` and everything
+  // `!completion.success` used to cover EXCEPT the one case the bounded media
+  // backlog already schedules — see its doc comment. `snapshotTrusted` and
+  // `listingBatchFull` are unchanged and still force an immediate retry.
+  const forceRun = !cycleTraversalSound(completion) || !snapshotTrusted || listingBatchFull;
 
   // ── BACKLOG PRESERVATION ────────────────────────────────────────────
   // Only a media run that ACTUALLY REPORTED may change the backlog state.
@@ -643,6 +797,17 @@ export function deriveOneCycleFollowup(
 
   const mediaBacklog =
     summaryNumber(media?.summary, 'backlog_remaining') > 0 ||
+    // `failures` is DEAD TODAY and deliberately kept. It is an exact alias of
+    // `r2_failed` (declared as such in lib/idx/media-sync.ts), but it reaches
+    // nothing: SUMMARY_KEY_PREFIXES (app/api/cron/one-cycle/route.ts) contains
+    // 'failed', and 'failures'.startsWith('failed') is FALSE, so the executor
+    // filters the key out before this function sees it. `summaryNumber` folds
+    // the absent key to 0, so the term is inert and the decision below is
+    // identical with or without it. Deleting it would silently drop an input
+    // the moment the alias stops holding; the honest fix is to make the
+    // deadness a PINNED FACT instead — see
+    // tests/runtime/one-cycle-neon-wake-discriminator.test.ts section (D),
+    // which fails loud if `failures` ever becomes observable here.
     summaryNumber(media?.summary, 'failures') > 0 ||
     summaryNumber(media?.summary, 'r2_failed') > 0 ||
     summaryBoolean(media?.summary, 'time_budget_exhausted');
@@ -680,18 +845,27 @@ export async function finalizeOneCyclePreflight(
     snapshot: decision.snapshot,
     ...followup,
     lastCompletedAt: now.toISOString(),
-    // Heartbeat advances ONLY on a successful, complete AND AUTHORITATIVE
-    // cycle. A partial or incomplete run must not buy another hour of silence —
-    // it carries the prior value forward (or stays null), so the next poll keeps
-    // forcing a run until the machine is genuinely healthy again.
+    // Heartbeat advances ONLY on an AUTHORITATIVE cycle whose SOURCE→NEON
+    // traversal was sound. An incomplete run, a failed/timed-out member, a
+    // frozen cursor or a partial listing lane must not buy another hour of
+    // silence — those carry the prior value forward (or stay null), so the next
+    // poll keeps forcing a run until the machine is genuinely healthy again.
     //
-    // `planIsAuthoritative` is the addition that makes partial plans safe. A
-    // successful idx_only or media_only cycle is a real success, but it did NOT
-    // run the whole machine, so it must not reset the compliance clock. Without
-    // this, one photo-only cycle per hour would satisfy the heartbeat forever
-    // and the hourly authoritative sweep would silently stop happening.
+    // `planIsAuthoritative` is what makes partial plans safe: a successful
+    // idx_only or media_only cycle is a real success, but it did NOT run the
+    // whole machine, so it must not reset the compliance clock. Without it, one
+    // photo-only cycle per hour would satisfy the heartbeat forever and the
+    // hourly authoritative sweep would silently stop happening.
+    //
+    // `cycleTraversalSound` replaces the previous `completion.success &&
+    // completion.complete`. It keeps every source-side failure frozen and
+    // exempts ONLY a downstream R2-mirror failure, which is already scheduled
+    // on the bounded media backlog — see its doc comment. Under the old
+    // predicate a chronic `r2_failed` froze this clock permanently, so the
+    // hourly bound degenerated into "run on every poll" and the guarantee
+    // stopped being a guarantee.
     lastSuccessfulFullCycleAt:
-      completion.success && completion.complete && planIsAuthoritative(decision.executionPlan)
+      cycleTraversalSound(completion) && planIsAuthoritative(decision.executionPlan)
         ? now.toISOString()
         : decision.priorState?.lastSuccessfulFullCycleAt ?? null,
     lastOutcome: completion.outcome,

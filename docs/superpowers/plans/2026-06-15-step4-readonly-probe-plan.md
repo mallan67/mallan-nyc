@@ -69,8 +69,9 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
     `agent_info`/`media`) + `.../validate/route.ts:43-50`. Dropping these blanks CRM edit/search
     fields.
 - **ARCHIVE-critical reads are ALSO BLOCKERS (Codex #404).** The data-retention archiver
-  (`app/api/cron/data-retention/route.ts:187-239`) reads several JSON columns to build the NY-DOS
-  6-year `listings_archive` summary; stripping those from live rows without migrating the archiver
+  (`app/api/cron/data-retention/route.ts:187-239`) reads several JSON columns to build the
+  `listings_archive` summary (CORRECTED 2026-08-20: read “the NY-DOS 6-year `listings_archive`
+  summary” — 19 NYCRR 175.23 is three years, and it enumerates Article 12-A transaction records — it does not reach a mirrored third-party MLS row, or any photo bytes. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md`. Operative schedule: `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14 Fail-closed row.); stripping those from live rows without migrating the archiver
   blanks historical archive fields on future terminal rows:
   - **`raw_data`** → `close_price`, `close_date`, `original_list_price` (`:225-228`).
   - **`address`** → `address_line` (`:198-209`).
