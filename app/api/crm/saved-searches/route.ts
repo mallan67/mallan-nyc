@@ -15,7 +15,7 @@ import { assertLeadIdStringAccess } from "@/lib/crm/access";
 import {
   canEnableAlertForCriteria,
   criteriaToProjectionWhere,
-  getUnsupportedProjectionCriteria,
+  getUnsupportedSearchCriteria,
   isPlainSearchCriteria,
 } from "@/lib/search/criteria-to-prisma";
 
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
 
     const serialized = await Promise.all(searches.map(async (s) => {
       const criteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
-      const unsupportedCriteria = criteria ? getUnsupportedProjectionCriteria(criteria) : [];
+      const unsupportedCriteria = criteria ? getUnsupportedSearchCriteria(criteria) : [];
       const countStatus: SavedSearchCountStatus = !criteria
         ? "invalid_criteria"
         : unsupportedCriteria.length > 0

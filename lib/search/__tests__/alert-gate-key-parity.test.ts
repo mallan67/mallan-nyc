@@ -2,6 +2,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import {
+  _ALERT_KEYS_FOR_TEST,
+  _SEARCH_KEYS_FOR_TEST,
+  getUnsupportedAlertCriteria,
+  getUnsupportedSearchCriteria,
+} from "@/lib/search/criteria-to-prisma";
+import {
   canEnableAlertForCriteria,
   getUnsupportedProjectionCriteria,
 } from "@/lib/search/criteria-to-prisma";
@@ -11,7 +17,7 @@ import {
 //
 // The alert gate is enforced server-side at /api/crm/saved-searches
 // POST/PATCH and the search-alerts cron, all reading
-// `PROJECTION_SUPPORTED_CRITERIA_KEYS` in lib/search/criteria-to-prisma.ts.
+// `ALERT_SUPPORTED_CRITERIA_KEYS` in lib/search/criteria-to-prisma.ts.
 // The frontend (`public/crm/js/search/saved-searches.js`) keeps an
 // independent JS mirror in `_ALERT_SUPPORTED_KEYS` so the modal can
 // gray the alert dropdown before the user submits.
@@ -29,14 +35,14 @@ function readFile(rel: string): string {
   return fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
 }
 
-/** Pull the literal Set members from PROJECTION_SUPPORTED_CRITERIA_KEYS. */
+/** Pull the literal Set members from ALERT_SUPPORTED_CRITERIA_KEYS. */
 function backendSupportedKeys(): Set<string> {
   const src = readFile("lib/search/criteria-to-prisma.ts");
   const match = src.match(
-    /PROJECTION_SUPPORTED_CRITERIA_KEYS\s*=\s*new\s+Set\(\[\s*([\s\S]*?)\]\)/,
+    /ALERT_SUPPORTED_CRITERIA_KEYS\s*=\s*new\s+Set\(\[\s*([\s\S]*?)\]\)/,
   );
   if (!match) {
-    throw new Error("Could not locate PROJECTION_SUPPORTED_CRITERIA_KEYS in criteria-to-prisma.ts");
+    throw new Error("Could not locate ALERT_SUPPORTED_CRITERIA_KEYS in criteria-to-prisma.ts");
   }
   const body = match[1];
   // Extract every double-quoted token. The body is a JS array literal
@@ -64,7 +70,7 @@ function frontendSupportedKeys(): Set<string> {
 }
 
 describe("Codex Risk P0 fix #3 — alert-gate key parity", () => {
-  it("frontend _ALERT_SUPPORTED_KEYS matches backend PROJECTION_SUPPORTED_CRITERIA_KEYS plus the reserved key", () => {
+  it("frontend _ALERT_SUPPORTED_KEYS matches backend ALERT_SUPPORTED_CRITERIA_KEYS plus the reserved key", () => {
     const backend = backendSupportedKeys();
     const frontend = frontendSupportedKeys();
 
@@ -119,5 +125,52 @@ describe("Codex Risk P0 fix #3 — alert-gate key parity", () => {
     const frontend = frontendSupportedKeys();
     expect(frontend.has("address")).toBe(false);
     expect(getUnsupportedProjectionCriteria({ address: "x" })).toContain("address");
+  });
+});
+
+/**
+ * SEARCH CAPABILITY vs ALERT ELIGIBILITY — the invariant is CONTAINMENT.
+ *
+ * These were one set, and `saved-searches/[id]/execute` gated SEARCH EXECUTION
+ * on it. So a criterion the engine could genuinely execute became unrunnable
+ * merely because the alert key list — which must stay byte-parity with a
+ * frontend file under a standing authorization hold — had not been widened.
+ *
+ * Correct relationship:
+ *     ALERT_SUPPORTED_KEYS  ⊆  SEARCH_ENGINE_SUPPORTED_KEYS
+ * never equality. Alerts are an authorized SUBSET of what Search can do.
+ */
+describe("alert eligibility is a strict subset of search capability", () => {
+  it("every alert-supported key is executable by the search engine", () => {
+    for (const key of _ALERT_KEYS_FOR_TEST) {
+      expect(_SEARCH_KEYS_FOR_TEST.has(key)).toBe(true);
+    }
+  });
+
+  it("the search engine reaches criteria alerts cannot replay", () => {
+    // If these ever became equal, the containment would have collapsed back
+    // into the coupling this guards against.
+    const extra = [..._SEARCH_KEYS_FOR_TEST].filter((k) => !_ALERT_KEYS_FOR_TEST.has(k));
+    expect(extra.length).toBeGreaterThan(0);
+    expect(extra).toEqual(expect.arrayContaining(["amenities", "keywords", "ownershipTypes", "yearBuilt"]));
+  });
+
+  it("SEARCH capability admits the newly verified criteria", () => {
+    // The regression: these returned "unsupported" and blocked execution.
+    for (const criteria of [
+      { amenities: ["elevator"] },
+      { keywords: ["penthouse"] },
+      { ownershipTypes: ["Condo"] },
+      { yearBuilt: "pre-war" },
+      { furnished: true },
+      { pets: true },
+    ]) {
+      expect(getUnsupportedSearchCriteria(criteria)).toEqual([]);
+    }
+  });
+
+  it("ALERT eligibility stays conservative for those same criteria", () => {
+    // Unchanged until the held CRM key list is widened with approval.
+    expect(getUnsupportedAlertCriteria({ amenities: ["elevator"] })).toEqual(["amenities"]);
   });
 });

@@ -34,7 +34,20 @@ export function isPlainSearchCriteria(value: unknown): value is SearchCriteria {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
+/**
+ * ── ALERT ELIGIBILITY — a strict SUBSET of what the engine can execute ──────
+ *
+ * These are the criteria an alert may REPLAY. The set must stay byte-parity
+ * with the frontend `_ALERT_SUPPORTED_KEYS` in
+ * `public/crm/js/search/saved-searches.js`, which is a standing authorization
+ * hold — so widening it is a deliberate two-file change.
+ *
+ * THIS SET MUST NEVER GATE SEARCH EXECUTION. Search capability and alert
+ * eligibility are different questions, and conflating them made newly verified
+ * criteria unexecutable for Saved Search rather than merely un-alertable. The
+ * invariant is ALERT_SUPPORTED ⊆ SEARCH_ENGINE_SUPPORTED — never equality.
+ */
+const ALERT_SUPPORTED_CRITERIA_KEYS = new Set([
   "listing_type",
   "listingType",
   "type",
@@ -76,21 +89,33 @@ const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
   "maxSqft",
   "sqftMin",
   "sqftMax",
-  // ── ALERT ELIGIBILITY IS DELIBERATELY NOT WIDENED YET ──────────────────
-  // As of 2026-08-19 the projection ENGINE can filter ownershipTypes,
-  // yearBuilt, furnished, pets, amenities, keywords, zipCodes and
-  // newDevelopment — they are derived at projection build time into
-  // `amenity_keys` / `feature_flags` / `year_built` / `is_new_development`
-  // (see `appendProvenProjectionCriteria`), so they are replayable.
-  //
-  // They are NOT listed here because this set must stay byte-parity with the
-  // frontend `_ALERT_SUPPORTED_KEYS` in `public/crm/js/search/saved-searches.js`,
-  // and `public/crm/**` is a standing authorization hold. Promoting them is a
-  // TWO-FILE change requiring that approval.
-  //
-  // Leaving them out fails SAFE: a Saved Search using one of these simply
-  // cannot enable alerts, rather than enabling an alert whose replay would
-  // disagree with the live search.
+]);
+
+/**
+ * ── SEARCH ENGINE CAPABILITY — everything `criteriaToProjectionWhere` executes ─
+ *
+ * The full verified criteria set. Alerts are an authorized subset of THIS.
+ *
+ * The criteria below the spread were each verified against live Cotality on
+ * 2026-08-19 and are derived at projection BUILD time into `amenity_keys`,
+ * `feature_flags`, `year_built` and `is_new_development` — so the engine can
+ * genuinely execute them, which is what this set is allowed to assert.
+ */
+const SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS = new Set([
+  ...ALERT_SUPPORTED_CRITERIA_KEYS,
+  "ownershipTypes",
+  "ownership_types",
+  "yearBuilt",
+  "year_built",
+  "furnished",
+  "pets",
+  "amenities",
+  "keywords",
+  "zipCodes",
+  "zip_codes",
+  "postal_code",
+  "newDevelopment",
+  "is_new_development",
 ]);
 
 const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
@@ -211,24 +236,55 @@ function isSupportedProjectionCriterionValue(key: string, value: unknown): boole
   return false;
 }
 
-export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): string[] {
+function unsupportedAgainst(criteria: SearchCriteria, allowed: ReadonlySet<string>): string[] {
   const unsupported = new Set<string>();
-
   for (const [key, value] of Object.entries(criteria)) {
     if (PROJECTION_RESERVED_CRITERIA_KEYS.has(key)) continue;
-
-    if (!PROJECTION_SUPPORTED_CRITERIA_KEYS.has(key)) {
+    if (!allowed.has(key)) {
       unsupported.add(key);
       continue;
     }
-
     if (!isSupportedProjectionCriterionValue(key, value)) {
       unsupported.add(key);
     }
   }
-
   return [...unsupported].sort();
 }
+
+/**
+ * Criteria the projection SEARCH ENGINE cannot execute.
+ *
+ * Use this to decide whether a saved search can be RUN or COUNTED. Do NOT use
+ * it to decide alert eligibility — that is a narrower, separately authorized
+ * question (`getUnsupportedAlertCriteria`).
+ */
+export function getUnsupportedSearchCriteria(criteria: SearchCriteria): string[] {
+  return unsupportedAgainst(criteria, SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS);
+}
+
+/**
+ * Criteria alerts may not REPLAY, even where the engine can execute them.
+ * Strict subset of the engine's capability.
+ */
+export function getUnsupportedAlertCriteria(criteria: SearchCriteria): string[] {
+  return unsupportedAgainst(criteria, ALERT_SUPPORTED_CRITERIA_KEYS);
+}
+
+/**
+ * @deprecated Ambiguous — it conflated "can the engine run this?" with "may an
+ * alert replay this?", and gating execution on the ALERT set made newly
+ * verified criteria unrunnable rather than merely un-alertable. Call
+ * `getUnsupportedSearchCriteria` or `getUnsupportedAlertCriteria` explicitly.
+ * Retained pointing at SEARCH capability, which is what every current caller
+ * except the alert gate actually means.
+ */
+export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): string[] {
+  return getUnsupportedSearchCriteria(criteria);
+}
+
+/** Exported for the invariant test: ALERT_SUPPORTED must be a SUBSET of SEARCH. */
+export const _ALERT_KEYS_FOR_TEST: ReadonlySet<string> = ALERT_SUPPORTED_CRITERIA_KEYS;
+export const _SEARCH_KEYS_FOR_TEST: ReadonlySet<string> = SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS;
 
 // ── Saved-search alert gate (P0-3) ──────────────────────────────────────
 //
@@ -266,7 +322,7 @@ export interface AlertGateDecision {
 }
 
 export function canEnableAlertForCriteria(criteria: SearchCriteria): AlertGateDecision {
-  const unsupported = getUnsupportedProjectionCriteria(criteria);
+  const unsupported = getUnsupportedAlertCriteria(criteria);
   if (unsupported.length === 0) {
     return { ok: true, unsupported: [], code: "ok", message: "Alerts can be enabled for this search." };
   }

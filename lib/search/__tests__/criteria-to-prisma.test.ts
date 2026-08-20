@@ -1,4 +1,11 @@
 import {
+  UNPOPULATED_AMENITIES,
+  UNMAPPED_AMENITIES,
+  UNSUPPORTED_AMENITIES,
+} from "@/lib/search/types";
+import {
+  getUnsupportedAlertCriteria,
+  getUnsupportedSearchCriteria,
   criteriaToProjectionWhere,
   criteriaToPrismaWhere,
   getUnsupportedProjectionCriteria,
@@ -528,11 +535,47 @@ describe("criteriaToProjectionWhere — criteria proven against live Cotality", 
     expect(w({ maxBaths: 1 })).toContain('"bathrooms":{"lte":1}');
   });
 
-  it("keeps alert eligibility conservative while the CRM key list is gated", () => {
-    // The engine can filter these; alert REPLAY eligibility is a separate,
-    // two-file change gated on public/crm/**. Failing safe means alerts stay
-    // unavailable rather than replaying a search the index would answer
-    // differently.
-    expect(getUnsupportedProjectionCriteria({ amenities: ["elevator"] })).toContain("amenities");
+  it("separates SEARCH capability from ALERT eligibility", () => {
+    // The engine MUST be able to execute these — gating execution on the alert
+    // key list made verified criteria unrunnable rather than merely
+    // un-alertable. Alerts remain conservative until the held CRM key list is
+    // widened with approval. Invariant: ALERT ⊆ SEARCH, never equality.
+    expect(getUnsupportedSearchCriteria({ amenities: ["elevator"] })).toEqual([]);
+    expect(getUnsupportedAlertCriteria({ amenities: ["elevator"] })).toEqual(["amenities"]);
+  });
+});
+
+/**
+ * AMENITY AVAILABILITY TAXONOMY.
+ *
+ * "Cannot answer this today" has two distinct causes and they must not be
+ * merged. One resolves itself when the feed changes; the other never does.
+ */
+describe("unavailable amenities are classified by CAUSE, not lumped together", () => {
+  it("renovated is PROVIDER-SUPPORTED but currently UNPOPULATED", () => {
+    // `PropertyCondition` is the correct field, its live enum carries
+    // UpdatedRemodeled / UnderRenovation / Turnkey, and the sync already
+    // selects it. An EXHAUSTIVE live read (8,110/8,110 Active rows, coverage
+    // complete against the provider-declared count) found 0 populated.
+    // If the feed ever populates it, this becomes available — so it must not
+    // be recorded as a missing provider capability.
+    expect(UNPOPULATED_AMENITIES.has("renovated")).toBe(true);
+    expect(UNMAPPED_AMENITIES.has("renovated")).toBe(false);
+  });
+
+  it("no-fee / natural-light / quiet have NO live field at all", () => {
+    // `ListingTerms` has 67 live members and includes neither NoFee nor
+    // OwnerPays; the other two have no token in any live vocabulary.
+    for (const key of ["no-fee", "natural-light", "quiet"]) {
+      expect(UNMAPPED_AMENITIES.has(key)).toBe(true);
+      expect(UNPOPULATED_AMENITIES.has(key)).toBe(false);
+    }
+  });
+
+  it("both causes are unavailable today and neither may widen a result", () => {
+    for (const key of [...UNPOPULATED_AMENITIES, ...UNMAPPED_AMENITIES]) {
+      expect(UNSUPPORTED_AMENITIES.has(key)).toBe(true);
+      expect(JSON.stringify(criteriaToProjectionWhere({ amenities: [key] }))).toContain('"in":[]');
+    }
   });
 });

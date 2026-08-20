@@ -122,6 +122,22 @@ so the `PetsAllowed` multi-enum parse must stay. Probing prevented a wrong "simp
    tokens: `"BuildingYes,No"` means the building allows pets and **the unit does not**. A
    substring test on `Yes` also matches `BuildingYes`, inflating 4,304 to 6,861 — 2,557
    listings a renter with a dog cannot actually rent. Now exact-token matched.
+9a. **Renovated — corrected classification (exhaustive, not sampled).**
+   An earlier note here called `renovated` unbacked on the strength of a 0/500
+   sample. That was a sample, and the rule is exhaustive live verification. The
+   full Active corpus was then read by following `@odata.nextLink` to the end:
+   **8,110 rows read against a provider-declared count of 8,110 (coverage
+   complete), `PropertyCondition` populated on 0, zero distinct tokens.**
+   The correct classification is **PROVIDER-SUPPORTED BUT CURRENTLY
+   UNPOPULATED**, not unbacked: `PropertyCondition` is the right field, its live
+   enum carries `UpdatedRemodeled` / `UnderRenovation` / `Turnkey` /
+   `NewConstruction`, and `lib/idx/trestle-mapper.ts` already selects it. It is a
+   MULTI enum, so `$filter eq` is rejected with HTTP 400 for every member and any
+   filtering would be Mallan-side. The control stays hidden while population is
+   zero; the code records the cause in `UNPOPULATED_AMENITIES`, separate from
+   `UNMAPPED_AMENITIES` (`no-fee`, `natural-light`, `quiet`), which no live field
+   carries at all.
+
 9. **Amenities.** Collection fields reject `/any()` lambda filters (HTTP 400), so amenity
    filtering must be Mallan-side — it cannot be pushed to the provider. Corpus-wide, five
    amenities matched **nothing**: `fireplace` (pointed at `InteriorFeatures`, which has no
@@ -130,6 +146,30 @@ so the `PetsAllowed` multi-enum parse must stay. Probing prevented a wrong "simp
    **no live provider backing at all**. Those four are now rejected with HTTP 400 and
    removed from the UI. `washer-dryer` missed `LaundryFeatures.InUnit` (4,119 rows);
    `garage` used `ParkingFeatures` (597) instead of `GarageYN` (2,630).
+
+---
+
+## D.10 Search capability is NOT alert eligibility
+
+`PROJECTION_SUPPORTED_CRITERIA_KEYS` was one set serving two questions, and
+`app/api/crm/saved-searches/[id]/execute` gated **search execution** on it. So a
+criterion the engine could genuinely execute became unrunnable purely because the
+alert key list — which must stay byte-parity with a frontend file under a
+standing authorization hold — had not been widened. Declining to widen it (to
+respect the hold) therefore caused a capability regression, not a conservative
+default.
+
+Split into two sets with **containment**, never equality:
+
+    ALERT_SUPPORTED_CRITERIA_KEYS  ⊆  SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS
+
+- `getUnsupportedSearchCriteria` — can the engine run/count this? Used by the
+  saved-search count and execute routes.
+- `getUnsupportedAlertCriteria` — may an alert replay this? Used by the alert
+  gate only. Unchanged, still byte-parity with the held CRM list.
+
+`public/crm/**` was not touched. The invariant is asserted by test, including a
+guard that the two sets have not collapsed back into equality.
 
 ---
 

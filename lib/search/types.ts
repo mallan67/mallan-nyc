@@ -123,25 +123,52 @@ export type AmenityFilter =
 export type AmenityMatch = 'contains' | 'isTrue';
 
 /**
- * Amenities the UI offers that NO live Cotality field can answer.
+ * PROVIDER-SUPPORTED BUT CURRENTLY UNPOPULATED.
  *
- * Verified corpus-wide against production on 2026-08-19 (not sampled):
- *   no-fee         `ListingTerms` is absent from every row; `Concessions` is
- *                  present as a key but NULL on all 8,157 displayable listings.
- *   renovated      no `Renovated`/`GutRenovated` token exists in the live
- *                  45-token `InteriorFeatures` vocabulary.
- *   natural-light  no such token exists.
- *   quiet          no such token exists.
+ * The provider HAS a field for this concept and the sync already selects it —
+ * there is simply no data in the current feed. This is a POPULATION gap, and it
+ * closes on its own the moment the feed carries values. Distinguishing it from
+ * "no such field exists" matters: one is a one-line change when data appears,
+ * the other requires a provider capability that does not exist.
+ *
+ *   renovated  `PropertyCondition` is the correct field. Its live enum DOES
+ *              carry `UpdatedRemodeled`, `UnderRenovation`, `Turnkey` and
+ *              `NewConstruction`, and `lib/idx/trestle-mapper.ts` already
+ *              selects it. EXHAUSTIVE live read on 2026-08-19 — not a sample:
+ *              every Active row followed through `@odata.nextLink`, 8,110 rows
+ *              read against a provider-declared count of 8,110 (coverage
+ *              complete) — found `PropertyCondition` populated on 0 and ZERO
+ *              distinct tokens. Note it is a MULTI enum, so `$filter eq` is
+ *              rejected with HTTP 400 for every member; filtering would be
+ *              Mallan-side against the stored value.
+ */
+export const UNPOPULATED_AMENITIES: ReadonlySet<string> = new Set(['renovated']);
+
+/**
+ * NO LIVE COTALITY FIELD CARRIES THIS CONCEPT AT ALL.
+ *
+ *   no-fee         `ListingTerms` exists with 67 live members but has NEITHER
+ *                  `NoFee` NOR `OwnerPays`; `Concessions` is present as a key
+ *                  and NULL on every displayable listing.
+ *   natural-light  absent from the live 45-token `InteriorFeatures` vocabulary.
+ *   quiet          likewise absent.
+ */
+export const UNMAPPED_AMENITIES: ReadonlySet<string> = new Set([
+  'no-fee',
+  'natural-light',
+  'quiet',
+]);
+
+/**
+ * Amenities that cannot be answered TODAY, for either reason above.
  *
  * These must FAIL LOUD rather than silently return an unfiltered corpus — a
- * user who checks "Renovated" and receives all 8,157 listings has been given a
+ * user who checks "Renovated" and receives all 8,110 listings has been given a
  * wrong answer, which is worse than being told the filter is unavailable.
  */
 export const UNSUPPORTED_AMENITIES: ReadonlySet<string> = new Set([
-  'no-fee',
-  'renovated',
-  'natural-light',
-  'quiet',
+  ...UNPOPULATED_AMENITIES,
+  ...UNMAPPED_AMENITIES,
 ]);
 
 export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: string[]; label: string; group: string; match?: AmenityMatch }> = {
