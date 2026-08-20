@@ -8,7 +8,6 @@ import { hasPermissionToken } from '@/lib/compliance/gates';
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
-import { mapBuyerParticipation } from "@/lib/idx/buyer-participation-mapper";
 
 // ═══════════════════════════════════════════════════════════
 // RESO-to-RLS RENAMES (23 fields)
@@ -1038,11 +1037,6 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   list_agent_mls_id: string | null;
   co_list_office_mls_id: string | null;
   co_list_agent_mls_id: string | null;
-  // BUYER-SIDE PARTICIPATION (#618). Opaque provider identities — see
-  // lib/idx/buyer-participation-mapper.ts for the live-verified contract.
-  buyer_agent_mls_id: string | null;
-  co_buyer_agent_mls_id: string | null;
-  buyer_office_mls_id: string | null;
   raw_data: Record<string, unknown>;
   modification_timestamp: Date;
   listing_contract_date: Date | null;
@@ -1277,19 +1271,6 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     // PII boundary: list_agent_email/list_agent_direct_phone are stored here but their
     // EXPOSURE stays gated by the DTO/portal-mask layer (Phase B readers).
     ...typedAgentCols,
-    // BUYER-SIDE PARTICIPATION — ONE canonical mapper, no second opinion.
-    //
-    // The listing side already flows through `typedAgentColumnsFromJson`; the
-    // buyer side flows through `mapBuyerParticipation`, which reads ONLY the
-    // three identity fields and preserves each value byte-for-byte (including
-    // the `NONMEMBER` sentinel and team codes). It deliberately maps none of the
-    // 40+ `BuyerAgent*` PII fields, and the live feed does not even populate
-    // `BuyerAgentFullName`.
-    //
-    // ORDERING: migration `20260817190000_add_buyer_participation` MUST be
-    // applied before this SHA is deployed, or every listing write fails with
-    // "column does not exist" (NEON.md Trap #1). See BUYER_PARTICIPATION_HOLD.
-    ...mapBuyerParticipation(rawInput),
     // raw_data goes through TWO filters before persistence:
     //   1. stripPrivateFields — REBNY/UCBA private fields (PrivateRemarks,
     //      ShowingInstructions, ShowingContactPhone, agent direct phone/email,
