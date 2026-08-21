@@ -319,3 +319,77 @@ describe('reserved dimensions: 12 placeholders, none wired', () => {
     }
   });
 });
+
+/**
+ * FACTUAL AUTHORITY IS NOT A PER-FIELD CONSTANT.
+ *
+ * Mallan uses the SAME canonical fields for Mallan-authored local listings and
+ * third-party Cotality inventory. `list_price` on a local listing is authored by
+ * MALLAN; on third-party inventory it is authored by Cotality/RLS. A static
+ * per-field authority is therefore false half the time, and the suppressed
+ * Cotality representation of a Mallan listing does not transfer authorship of
+ * the local canonical value to the provider.
+ *
+ * The registry declares HOW authority is resolved; `AttributionEnvelope`
+ * carries the answer per fact at runtime.
+ */
+describe("authority resolution, not a static per-field author", () => {
+  const get = (k: string) => FIELD_REGISTRY.find((f) => f.canonicalKey === k)!;
+
+  it("every entry declares how its authorship is decided", () => {
+    for (const spec of FIELD_REGISTRY) {
+      expect(spec.authorityResolution).toBeDefined();
+    }
+  });
+
+  it("authorable listing facts are resolved BY LISTING AUTHORITY, never fixed", () => {
+    // The exact category error: these are Mallan-authored on a local listing.
+    for (const key of ["list_price", "address", "bedrooms", "bathrooms", "ownership", "media"]) {
+      const spec = get(key);
+      expect(spec.authorityResolution).toBe("by_listing_authority");
+      // A fixed author would be a lie for half the corpus.
+      expect(spec.sourceAuthority).toBeUndefined();
+      expect(spec.authorityByListingKind).toEqual({
+        mallanLocal: "mallan_crm",
+        providerListing: "cotality_rebny",
+      });
+    }
+  });
+
+  it("a fixed author is declared ONLY where it is genuinely permanent", () => {
+    // Provider identifiers exist only for provider records; CRM state only for Mallan.
+    expect(get("listing_key").sourceAuthority).toBe("cotality_rebny");
+    expect(get("mallan_exclusive").sourceAuthority).toBe("mallan_crm");
+    expect(get("acris_sale_history").sourceAuthority).toBe("acris");
+    for (const key of ["listing_key", "mallan_exclusive", "acris_sale_history"]) {
+      expect(get(key).authorityResolution).toBe("fixed");
+    }
+  });
+
+  it("UNRESOLVED is not a synonym for mallan_derived", () => {
+    // Each of these has a LIVE Cotality candidate that has not been probed:
+    //   achieved_rent   LeaseAmount / TotalActualRent
+    //   assessment      TaxOtherAnnualAssessmentAmount
+    //   price_per_sqft  CustomProperty.PricePerArea + PricePerAreaUnit
+    // Declaring them Mallan-derived before probing would bake in a wrong answer.
+    for (const key of ["achieved_rent", "assessment", "price_per_sqft", "owner_opt_out"]) {
+      const spec = get(key);
+      expect(spec.authorityResolution).toBe("unresolved");
+      expect(spec.sourceAuthority).toBeUndefined();
+    }
+  });
+
+  it("geography stays provisional until the live NYC study", () => {
+    for (const key of ["borough", "neighborhood"]) {
+      expect(get(key).authorityResolution).toBe("unresolved");
+    }
+  });
+
+  it("pipeline lineage is never treated as listing authorship", () => {
+    // SourceSystem*/OriginatingSystem* describe RLS -> REBNY -> Trestle. On 35
+    // live Mallan-office rows SourceSystemName and SourceSystemKey were BOTH 0/35.
+    const spec = get("source");
+    expect(spec.notes).toMatch(/PIPELINE/i);
+    expect(spec.notes).toMatch(/NOT canonical listing authorship/i);
+  });
+});
