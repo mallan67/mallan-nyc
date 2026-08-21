@@ -104,9 +104,24 @@ describe('4. needs_probe fields cannot be treated as verified', () => {
     expect(requiresLiveProbe('needs_probe')).toBe(true);
   });
   it('a needs_probe field returns a probe-required error, not usable', () => {
+    // `new_development` used to be the example here. It is now VERIFIED —
+    // `NewConstructionYN` is a live filterable Boolean, true on 951 Active, and
+    // the registry claim that it "does not exist" was false.
+    //
+    // `parking` is the better example, and for a more interesting reason: its
+    // FIELD is verified (GarageYN, 2,630 live true) while its SEMANTICS are not.
+    // GarageYN proves a garage; the UI label also promises generic parking.
+    // Token health never upgrades an unproven meaning to verified.
+    const parking = getField('parking')!;
+    expect(parking.filterable).toBe('needs_probe');
+    expect(assertCapabilityUsable(parking, 'filterable')).toMatch(/needs_probe/);
+    expect(parking.semanticEquivalenceProven).toBe(false);
+  });
+
+  it('new_development is now VERIFIED against live Cotality', () => {
     const nd = getField('new_development')!;
-    expect(nd.filterable).toBe('needs_probe');
-    expect(assertCapabilityUsable(nd, 'filterable')).toMatch(/needs_probe/);
+    expect(nd.cotalityField).toBe('NewConstructionYN');
+    expect(nd.filterable).toBe('yes');
   });
 });
 

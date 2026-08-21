@@ -29,10 +29,10 @@
  *    6,861 — 2,557 listings a renter with a dog cannot rent. Exact-token
  *    matching is mandatory here, not a refinement.
  */
-import {
-  CANONICAL_AMENITIES,
-  UNSUPPORTED_AMENITIES,
-} from '@/lib/search/canonical/amenity-vocabulary';
+import { AMENITY_TOKENS, type AmenityTokenSpec } from '@/lib/search/canonical/amenity-vocabulary';
+// Capability comes from the REGISTRY (the single Search mapping authority);
+// only the exact tokens come from the subordinate vocabulary.
+import { UNSUPPORTED_AMENITY_KEYS } from '@/lib/search/canonical/field-registry';
 
 // The canonical layer owns its vocabulary. It must NOT import from
 // `lib/search/types.ts` — that is the PUBLIC Search types module, and the
@@ -70,10 +70,10 @@ function isTruthyBoolean(value: unknown): boolean {
  * merges both so a field present in only one still counts.
  */
 export function amenityMatches(amenityKey: string, payload: Record<string, unknown>): boolean {
-  if (UNSUPPORTED_AMENITIES.has(amenityKey)) return false;
-  if (!(amenityKey in CANONICAL_AMENITIES)) return false;
+  if (UNSUPPORTED_AMENITY_KEYS.has(amenityKey)) return false;
+  if (!(amenityKey in AMENITY_TOKENS)) return false;
 
-  const mapping = CANONICAL_AMENITIES[amenityKey];
+  const mapping: AmenityTokenSpec = AMENITY_TOKENS[amenityKey];
   const fields = mapping.field.split(',').map((f) => f.trim());
 
   if (mapping.match === 'isTrue') {
@@ -105,7 +105,7 @@ export function satisfiedAmenityKeys(
 ): string[] {
   const payload: Record<string, unknown> = { ...(rawData ?? {}), ...(features ?? {}) };
   if (Object.keys(payload).length === 0) return [];
-  return Object.keys(CANONICAL_AMENITIES).filter((key) => amenityMatches(key, payload));
+  return Object.keys(AMENITY_TOKENS).filter((key) => amenityMatches(key, payload));
 }
 
 /**

@@ -1,8 +1,8 @@
 import {
   UNPOPULATED_AMENITIES,
   UNMAPPED_AMENITIES,
-  UNSUPPORTED_AMENITIES,
 } from "@/lib/search/canonical/amenity-vocabulary";
+import { UNSUPPORTED_AMENITY_KEYS } from "@/lib/search/canonical/field-registry";
 import {
   getUnsupportedAlertCriteria,
   getUnsupportedSearchCriteria,
@@ -578,7 +578,7 @@ describe("unavailable amenities are classified by CAUSE, not lumped together", (
 
   it("both causes are unavailable today and neither may widen a result", () => {
     for (const key of [...UNPOPULATED_AMENITIES, ...UNMAPPED_AMENITIES]) {
-      expect(UNSUPPORTED_AMENITIES.has(key)).toBe(true);
+      expect(UNSUPPORTED_AMENITY_KEYS.has(key)).toBe(true);
       expect(JSON.stringify(criteriaToProjectionWhere({ amenities: [key] }))).toContain('"in":[]');
     }
   });

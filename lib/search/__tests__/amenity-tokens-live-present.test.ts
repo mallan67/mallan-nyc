@@ -18,10 +18,8 @@
  *   NaturalLight · Quiet · NoFee · OwnerPays
  */
 import census from "@/data/cotality-live-token-census.json";
-import {
-  CANONICAL_AMENITIES,
-  UNSUPPORTED_AMENITIES,
-} from "@/lib/search/canonical/amenity-vocabulary";
+import { AMENITY_TOKENS } from "@/lib/search/canonical/amenity-vocabulary";
+import { UNSUPPORTED_AMENITY_KEYS } from "@/lib/search/canonical/field-registry";
 
 const tokens = census.tokens as Record<string, Record<string, number>>;
 
@@ -32,11 +30,11 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
   });
 
   it.each(
-    Object.keys(CANONICAL_AMENITIES).filter(
-      (k) => !UNSUPPORTED_AMENITIES.has(k) && CANONICAL_AMENITIES[k].match !== "isTrue",
+    Object.keys(AMENITY_TOKENS).filter(
+      (k) => !UNSUPPORTED_AMENITY_KEYS.has(k) && AMENITY_TOKENS[k].match !== "isTrue",
     ),
   )("%s matches at least one live-present token", (key) => {
-    const mapping = CANONICAL_AMENITIES[key];
+    const mapping = AMENITY_TOKENS[key];
     const fields = mapping.field.split(",").map((f) => f.trim());
     const livePresent = mapping.values.filter((v) =>
       fields.some((f) => (tokens[f]?.[v] ?? 0) > 0),
@@ -48,7 +46,7 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
   });
 
   it("known-stale literals are gone from the map entirely", () => {
-    const serialized = JSON.stringify(CANONICAL_AMENITIES);
+    const serialized = JSON.stringify(AMENITY_TOKENS);
     for (const stale of [
       "UnitYes", "OnCommonFloor", "WalkInCloset\"", "HighCeiling\"",
       "GutRenovated", "NewlyRenovated", "NaturalLight", "NoFee", "OwnerPays",
@@ -61,6 +59,6 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
     // `renovated` points at `Remodeled` — a real live enum member with ZERO
     // live rows. It must be unavailable rather than silently matching nothing.
     expect(tokens.InteriorFeatures?.Remodeled ?? 0).toBe(0);
-    expect(UNSUPPORTED_AMENITIES.has("renovated")).toBe(true);
+    expect(UNSUPPORTED_AMENITY_KEYS.has("renovated")).toBe(true);
   });
 });

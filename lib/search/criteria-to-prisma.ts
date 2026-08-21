@@ -5,7 +5,7 @@ import {
 } from "@/lib/search/listing-access-decision";
 import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from "@/lib/search/canonical/amenity-match";
 import { maxBathsAlternatives, minBathsAlternatives } from "@/lib/search/canonical/bath-contract";
-import { UNSUPPORTED_AMENITIES } from "@/lib/search/canonical/amenity-vocabulary";
+import { UNSUPPORTED_AMENITY_KEYS } from "@/lib/search/canonical/field-registry";
 
 /**
  * Normalised public ownership input → live `CommonInterest` member.
@@ -555,7 +555,7 @@ function appendProvenProjectionCriteria(
   // `amenity_keys` array. Unsupported amenities never widen the result.
   const amenities = stringArray(first(criteria, ["amenities"]));
   for (const amenity of amenities) {
-    if (UNSUPPORTED_AMENITIES.has(amenity)) {
+    if (UNSUPPORTED_AMENITY_KEYS.has(amenity)) {
       and.push({ id: { in: [] } });
       continue;
     }

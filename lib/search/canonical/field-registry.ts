@@ -16,6 +16,7 @@
 
 import type { AudienceVisibility, CapabilityStatus, FailureBehavior } from './capability';
 import type { CanonicalFilterKey } from './filter-keys';
+import { AMENITY_TOKENS } from './amenity-vocabulary';
 
 export type FieldCategory =
   | 'identity_source_attribution'
@@ -50,7 +51,23 @@ export const REQUIRED_FAMILIES: readonly FieldCategory[] = Object.freeze([
   'agent_private_restricted', 'report_cma_investor', 'engagement_marketing',
 ]);
 
-export type ProviderMappingStatus = 'mapped' | 'partial' | 'none' | 'needs_probe' | 'reserved';
+export type ProviderMappingStatus =
+  | 'mapped'
+  | 'partial'
+  | 'none'
+  | 'needs_probe'
+  | 'reserved'
+  /**
+   * MALLAN-OWNED enrichment, not provider fact.
+   *
+   * Geography and transit are the canonical cases: Cotality declares nullable
+   * `Latitude`/`Longitude`, but a nullable metadata declaration is NOT a Search
+   * capability. Mallan geo is Cotality address -> canonical Mallan address ->
+   * Google geocoding -> canonical coordinate, with MTA/Google transit enrichment
+   * on top. Such a value may be USED, but must never be attributed to the
+   * provider or presented as provider truth.
+   */
+  | 'mallan_derived';
 
 export type FieldType =
   | 'string' | 'number' | 'money' | 'boolean' | 'enum' | 'multi_enum'
@@ -77,6 +94,24 @@ export interface FieldSpec {
   sortable: CapabilityStatus;
   alertable: CapabilityStatus;
   reportable: CapabilityStatus;
+  /**
+   * Key into the SUBORDINATE token vocabulary
+   * (`lib/search/canonical/amenity-vocabulary.ts`).
+   *
+   * The registry owns the criterion; the vocabulary owns only which exact
+   * provider tokens express it. Composition, never competition — two files
+   * describing one capability is how drift returns.
+   */
+  amenityKey?: string;
+  /**
+   * Has SEMANTIC equivalence between `uiLabel` and the provider token been
+   * proven — not merely field existence and live population?
+   *
+   * `BuildingFeatures.Concierge` is live and populated on 1,523 listings, and a
+   * concierge is still not a doorman. Until the equivalence itself is proven the
+   * criterion stays `needs_probe` no matter how healthy the token looks.
+   */
+  semanticEquivalenceProven?: boolean;
   /** true ⇒ rendering this field's row requires source/courtesy attribution. */
   requiresAttribution: boolean;
   failureBehavior: FailureBehavior;
@@ -124,8 +159,32 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
   f({ canonicalKey: 'neighborhood', uiLabel: 'Neighborhood', category: 'address_location_building', type: 'string', providerMappingStatus: 'partial', cotalityField: 'SubdivisionName', dbColumn: 'neighborhood', searchParam: 'neighborhood', filterKeys: ['neighborhood'], visibility: V_PUBLIC, filterable: 'yes', sortable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'Resolves 3 ways today (ZIP expansion vs SubdivisionName vs name) — analysis B-4.' }),
   f({ canonicalKey: 'borough', uiLabel: 'Borough', category: 'address_location_building', type: 'string', providerMappingStatus: 'partial', cotalityField: 'CountyOrParish', dbColumn: 'borough', searchParam: 'borough', filterKeys: ['borough'], visibility: V_PUBLIC, filterable: 'yes', alertable: 'yes', reportable: 'yes', notes: 'CountyOrParish vs CityRegion split (analysis B-3) — needs_probe on canonical field.' }),
   f({ canonicalKey: 'postal_code', uiLabel: 'ZIP', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'PostalCode', dbColumn: 'postal_code', searchParam: 'zip', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes' }),
-  f({ canonicalKey: 'building_name', uiLabel: 'Building', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'BuildingName', searchParam: 'buildingName', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'Building-name text works on Trestle path only (analysis §4).' }),
-  f({ canonicalKey: 'geo', uiLabel: 'Map Location', category: 'address_location_building', type: 'geo', providerMappingStatus: 'partial', cotalityField: 'Latitude/Longitude', dbColumn: 'latitude/longitude', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'Lat/Lng mostly null on feed; geocoder backfills — needs_probe.' }),
+  f({ canonicalKey: 'building_name', uiLabel: 'Building', category: 'address_location_building', type: 'string', providerMappingStatus: 'mapped', cotalityField: 'BuildingName', searchParam: 'buildingName', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'BuildingName is Edm.String(50), non-null on 3,903 of 8,056 Search-eligible listings (48%) — a NAME, not an identity, and absent on half the corpus. It cannot key Building Search. See building_identity.' }),
+
+  /**
+   * BUILDING IDENTITY — MALLAN-DERIVED. The provider cannot supply it.
+   *
+   * Probed live 2026-08-20, exhaustively over the Search-eligible universe
+   * (8,056/8,056 rows, coverage complete):
+   *   BuildingKey         Edm.String(300)  populated on 0 rows
+   *   BuildingKeyNumeric  Edm.Int64        populated on 0 rows
+   *   GET /Building                        PROVIDER_REJECTED_403 (not licensed)
+   *
+   * Both fields exist and are correctly typed, and BOTH ARE EMPTY. The Building
+   * entity is declared in $metadata but the licence does not grant it — a
+   * textbook case of $metadata over-declaring what is actually available.
+   *
+   * So Building Search CANNOT be provider-derived, and no amount of Property
+   * filtering turns listing rows into buildings. Identity must be MALLAN-DERIVED:
+   * Cotality address -> canonical Mallan address -> Google geocoding -> canonical
+   * building identity, grouping Property rows by canonical address WITHOUT the
+   * unit. StreetNumber / StreetName / PostalCode are non-null on 8,056/8,056, so
+   * the inputs exist even though the provider key does not.
+   *
+   * This is Mallan-owned enrichment and must never be attributed to Cotality.
+   */
+  f({ canonicalKey: 'building_identity', uiLabel: 'Building', category: 'address_location_building', type: 'computed', providerMappingStatus: 'mallan_derived', cotalityField: null, visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', failureBehavior: 'fail_closed', requiresAttribution: true, semanticEquivalenceProven: false, notes: 'BuildingKey/BuildingKeyNumeric are populated 0/8,056 and GET /Building is 403. Derive from canonical address + Google geocoding; never present as provider fact.' }),
+  f({ canonicalKey: 'geo', uiLabel: 'Map Location', category: 'address_location_building', type: 'geo', cotalityField: null, dbColumn: 'latitude/longitude', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', providerMappingStatus: 'mallan_derived', notes: 'CORRECTED 2026-08-20. A nullable Latitude/Longitude declaration in $metadata is NOT a Search capability and must never be used as one on that basis. Mallan geo is Cotality address -> canonical Mallan address -> Google geocoding -> canonical coordinate, with MTA/Google transit enrichment layered on. Mallan-owned, attributable to Mallan, never to the provider.' }),
 
   // ── transaction (sale / rent) ────────────────────────────────────────────
   f({ canonicalKey: 'transaction_type', uiLabel: 'Buy / Rent', category: 'transaction', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'PropertyType', dbColumn: 'listing_type', searchParam: 'type', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes', notes: 'sale=Residential, rental=ResidentialLease (no space). Expressed 3 ways today (analysis §1.5).' }),
@@ -176,19 +235,19 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
   f({ canonicalKey: 'media', uiLabel: 'Photos / Tour', category: 'media', type: 'array', providerMappingStatus: 'partial', cotalityField: 'Media (ResourceRecordKey)', visibility: V_PUBLIC, reportable: 'yes', notes: 'Media keyed by ResourceRecordKey (needs_probe). Photo count / hero / floorplan / tour → media-intelligence (reserved).' }),
 
   // ── amenities ────────────────────────────────────────────────────────────
-  f({ canonicalKey: 'amenities', uiLabel: 'Amenities', category: 'amenities', type: 'multi_enum', providerMappingStatus: 'partial', cotalityField: 'BuildingFeatures/Appliances/View/... (substring)', searchParam: 'amenities', visibility: V_PUBLIC, filterable: 'needs_probe', alertable: 'unsupported', reportable: 'yes', failureBehavior: 'fail_closed', notes: 'No YN booleans (ElevatorYN/DoormanYN absent); substring over multi-value picklists. Silently no-op on Trestle fallback except pet-friendly (D2). Some map to InteriorFeatures but live enum is InteriorOrRoomFeatures → needs_probe.' }),
+  f({ canonicalKey: 'amenities', uiLabel: 'Amenities', category: 'amenities', type: 'multi_enum', providerMappingStatus: 'partial', cotalityField: 'BuildingFeatures/Appliances/View/... (substring)', searchParam: 'amenities', visibility: V_PUBLIC, filterable: 'needs_probe', alertable: 'unsupported', reportable: 'yes', failureBehavior: 'fail_closed', amenityKey: '(per-amenity; see AMENITY_TOKENS)', notes: 'CORRECTED 2026-08-20. Exact-TOKEN matching, never substring — a substring test on PetsAllowed "Yes" also matches "BuildingYes", i.e. the building permits pets while the UNIT does not. Some amenities ARE provider booleans (GarageYN 2,630 / FireplaceYN 861 / NewConstructionYN 951); ElevatorYN and DoormanYN remain absent. Collection fields reject /any() lambda filters (HTTP 400) so they are matched Mallan-side, but they DO $select. Tokens live in the subordinate AMENITY_TOKENS vocabulary; capability is decided here.' }),
 
   // ── parking / garage ─────────────────────────────────────────────────────
-  f({ canonicalKey: 'parking', uiLabel: 'Parking / Garage', category: 'parking_garage', type: 'multi_enum', providerMappingStatus: 'partial', cotalityField: 'ParkingFeatures', searchParam: 'amenities:garage', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'ParkingFeatures enum verified live; GarageYN boolean does not exist.' }),
+  f({ canonicalKey: 'parking', uiLabel: 'Parking / Garage', category: 'parking_garage', type: 'multi_enum', providerMappingStatus: 'partial', cotalityField: 'ParkingFeatures', searchParam: 'amenities:garage', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', amenityKey: 'garage', semanticEquivalenceProven: false, notes: 'CORRECTED 2026-08-20: the claim "GarageYN boolean does not exist" was FALSE — GarageYN is a live filterable Boolean, true on 2,630 Active, vs a Garage token on only 591 ParkingFeatures rows. Still needs_probe for a SEMANTIC reason, not a field one: GarageYN proves a garage, while the UI label also promises generic parking (valet/assigned/on-street/deeded are separate tokens).' }),
 
   // ── pets ─────────────────────────────────────────────────────────────────
-  f({ canonicalKey: 'pets', uiLabel: 'Pets', category: 'pets', type: 'multi_enum', providerMappingStatus: 'mapped', cotalityField: 'PetsAllowed', searchParam: 'amenities:pet-friendly', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes', notes: 'PetsAllowed enum verified live; the one amenity honored on the Trestle fallback.' }),
+  f({ canonicalKey: 'pets', uiLabel: 'Pets', category: 'pets', type: 'multi_enum', providerMappingStatus: 'mapped', cotalityField: 'PetsAllowed', searchParam: 'amenities:pet-friendly', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes', amenityKey: 'pet-friendly', semanticEquivalenceProven: true, notes: 'PetsAllowed is a MULTI-enum mixing building- and unit-level tokens: "BuildingYes,No" means the building permits pets and THE UNIT DOES NOT. Exact-token match on unit-level Yes/CatsOk/DogsOk gives 4,304 live; substring gives 6,861, i.e. 2,557 listings a renter with a dog cannot rent. `PetsAllowedYN` exists and is filterable but is populated ZERO, so the multi-value parse must stay.' }),
 
   // ── furnished ────────────────────────────────────────────────────────────
-  f({ canonicalKey: 'furnished', uiLabel: 'Furnished', category: 'furnished', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'Furnished', searchParam: 'furnished', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', notes: 'Furnished enum verified live; DB path applies it post-pagination (D1).' }),
+  f({ canonicalKey: 'furnished', uiLabel: 'Furnished', category: 'furnished', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'Furnished', searchParam: 'furnished', visibility: V_PUBLIC, reportable: 'yes', filterable: 'yes', notes: 'FIVE live members — Furnished 106 / Unfurnished 2,876 / Negotiable 12 / Partially 4 / FurnishedOrUnfurnished 0. Not a boolean. furnished=true means STRICTLY Furnished; widening to Partially/Negotiable is a product decision, not a mapping one.' }),
 
   // ── new development / new construction ───────────────────────────────────
-  f({ canonicalKey: 'new_development', uiLabel: 'New Development', category: 'new_development', type: 'boolean', providerMappingStatus: 'none', cotalityField: null, visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', failureBehavior: 'fail_closed', notes: 'NewDevelopmentYN/NewConstruction NOT live members; detected via PublicRemarks/DevelopmentStatus. needs_probe.' }),
+  f({ canonicalKey: 'new_development', uiLabel: 'New Development', category: 'new_development', type: 'boolean', providerMappingStatus: 'mapped', visibility: V_PUBLIC, reportable: 'yes', failureBehavior: 'fail_closed', cotalityField: 'NewConstructionYN', filterable: 'yes', notes: 'CORRECTED 2026-08-20: NewConstructionYN IS a live filterable Boolean, true on 951 Active. NewDevelopmentYN genuinely IS rejected (HTTP 400) and `NewConstruction` is not a PropertySubType member — that half was right. Detection via PublicRemarks prose is REMOVED: it is answerable by no provider field, and a listing whose remarks say "brand new" is not new construction.' }),
 
   // ── Mallan exclusive / internal ──────────────────────────────────────────
   f({ canonicalKey: 'mallan_exclusive', uiLabel: 'Mallan Exclusive', category: 'mallan_exclusive_internal', type: 'boolean', providerMappingStatus: 'partial', cotalityField: null, searchParam: 'exclusive', visibility: V_PUBLIC, filterable: 'yes', sortable: 'needs_probe', reportable: 'yes', notes: 'Company data. Expressed ≥3 ways today (analysis §1.6); sort=exclusives uses the weak agent_id!=null signal.' }),
@@ -260,4 +319,50 @@ export function alertableFilterKeys(): CanonicalFilterKey[] {
     if (s.alertable === 'yes' && s.filterKeys) for (const k of s.filterKeys) keys.add(k);
   }
   return [...keys];
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AMENITY CAPABILITY — decided HERE, from the subordinate token vocabulary.
+//
+// The registry owns whether a criterion may be offered. `amenity-vocabulary.ts`
+// owns only which exact provider tokens express it. Callers must ask THIS, never
+// infer capability from the vocabulary, or the two will drift apart again.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * No live token expresses these, so a filter built on one matches nothing and
+ * fails silently — indistinguishable to a user from "no results".
+ *
+ * `renovated` is provider-SUPPORTED but unpopulated and resolves on its own if
+ * the feed ever carries `InteriorFeatures.Remodeled`; the others have no live
+ * field at all. Both are unavailable today.
+ */
+export const UNSUPPORTED_AMENITY_KEYS: ReadonlySet<string> = new Set(
+  Object.entries(AMENITY_TOKENS)
+    .filter(([, spec]) => spec.values.length === 0 && spec.match !== 'isTrue')
+    .map(([key]) => key),
+);
+
+/**
+ * Tokens exist and are well populated, but the token has NOT been proven to MEAN
+ * the UI label. These are `needs_probe`, NOT verified — offering them as
+ * functional asserts an equivalence nobody established.
+ *
+ *   doorman        `Concierge` (1,523 live) — a concierge is not a doorman, and
+ *                  the live vocabulary has no `Doorman` token at all
+ *   garage         `GarageYN` proves a GARAGE; the label also promises generic
+ *                  PARKING, which valet/assigned/on-street/deeded do not follow from
+ *   skyline-views  `City`/`CityLights`/`Panoramic` are not SKYLINE specifically —
+ *                  a ground-floor city view is not a skyline view
+ */
+export const SEMANTICALLY_UNPROVEN_AMENITY_KEYS: ReadonlySet<string> = new Set(
+  Object.entries(AMENITY_TOKENS)
+    .filter(([, spec]) => Boolean(spec.semanticNote))
+    .map(([key]) => key),
+);
+
+/** May this amenity be executed as a filter at all? */
+export function isAmenityExecutable(key: string): boolean {
+  return key in AMENITY_TOKENS && !UNSUPPORTED_AMENITY_KEYS.has(key);
 }
