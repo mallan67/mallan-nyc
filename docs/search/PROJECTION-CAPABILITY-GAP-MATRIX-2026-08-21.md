@@ -102,25 +102,27 @@ Calling this "a translator gap — the columns exist" collapses the identity pro
 workstream spent its longest stretch fixing. It cannot be closed with another
 `criteriaToProjectionWhere` clause.
 
-The broker control means Cotality `Property.ListingId`. What that resolves to depends on
-WHOSE listing it is:
+The broker control means **`Cotality.Property.ListingId`** — a field of the Cotality API.
+(Its VALUES carry a raw `RLS…` prefix; that string is provider provenance to preserve at the
+boundary, and never a reason to call the field or its source "RLS".) What it resolves to
+depends on WHOSE listing it is:
 
-| the RLS ID belongs to | correct result |
+| the Cotality `ListingId` belongs to | correct result |
 |---|---|
 | third-party inventory | that third-party canonical listing |
-| **a Mallan-authored listing** | the RLS ID belongs to the **SUPPRESSED representation**, while canonical identity is the local `SL-`/`RL-` row — so Search must return the **LOCAL** listing |
+| **a Mallan-authored listing** | the Cotality `ListingId` belongs to the **SUPPRESSED representation**, while canonical identity is the local `SL-`/`RL-` row — so Search must return the **LOCAL** listing |
 
 The naive implementation is actively broken:
 
-    search projection for RLS ListingId -> finds the provider representation
+    search projection for Cotality ListingId -> finds the provider representation
                                         -> suppression excludes it
                                         -> returns ZERO
 
-Maya searches an RLS ID belonging to one of her own listings and gets nothing.
+Maya searches a Cotality `ListingId` belonging to one of her own listings and gets nothing.
 
 Required contract:
 
-    RLS ListingId
+    Cotality ListingId
       -> locate provider identity/evidence
       -> classify (third-party vs Mallan-office representation)
       -> if representation: existing canonical twin resolver
@@ -128,8 +130,8 @@ Required contract:
       -> no twin                 -> stay suppressed + integrity defect
       -> ambiguous               -> stay suppressed + integrity defect
 
-**Never make the provider representation visible merely because the user searched its RLS
-ID.** Reuse the existing twin resolver; do not add a second one.
+**Never make the provider representation visible merely because the user searched its
+Cotality `ListingId`.** Reuse the existing twin resolver; do not add a second one.
 
 `ListingId` and `ListingKey` are separate identifiers — add distinct inputs only if the
 product genuinely needs both, and never conflate them.
@@ -201,7 +203,7 @@ Sorting a page is the same class of defect as filtering a page.
 ## 4b. SOURCE-CLASS / AUDIENCE ELIGIBILITY — A CUTOVER GAP I OVERSTATED
 
 My commit said the projection fix keeps "local Mallan listings admitted". **That is only
-true for the subset that satisfies the RLS display gates**, and the test proving it was
+true for the subset that satisfies the IDX display gates**, and the test proving it was
 structural, not behavioural — it asserted that the serialized `where` CONTAINS the strings
 `SL-`, `RL-` and `rls_eligible`, which demonstrates nothing about row inclusion.
 

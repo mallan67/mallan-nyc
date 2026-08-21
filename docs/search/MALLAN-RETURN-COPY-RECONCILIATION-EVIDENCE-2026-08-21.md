@@ -19,8 +19,13 @@ not its local twin has yet been proven — see §5. It does NOT apply to third-p
 inventory.
 
 The intermediary that performs the submission is deliberately not named anywhere in this
-contract. It is not Mallan architecture, not a source system and not a data authority; the
-system contract is Cotality/RLS.
+contract. It is not Mallan architecture, not a source system and not a data authority.
+
+**The Cotality API is the ONLY external source.** REBNY RLS is the MLS / rules body the
+listing is filed with — it is not the API, not the source of any field, and not an
+architectural source name. Where a Cotality response carries a raw `RLS…` string (a
+`ListingId` value, `OriginatingSystemName = RLS`), that is provider provenance preserved
+exactly at the boundary, never promoted into a Mallan layer or used as a source term.
 
 ---
 
@@ -60,7 +65,7 @@ Measured across all 35 Mallan-office rows:
 | `SourceSystemID` | 35/35 | `TRESTLE` |
 | `OriginatingSystemName` | 35/35 | `RLS` |
 | `OriginatingSystemID` | 31/35 | `REBNY` — **null on both Active rows** |
-| `OriginatingSystemKey` | 35/35 | RLS's own key (e.g. 34332844), not Mallan's |
+| `OriginatingSystemKey` | 35/35 | the MLS pipeline's own key (e.g. 34332844), not Mallan's |
 
 Every "source system" field describes the MLS pipeline (RLS / REBNY / Trestle). None
 carries a Mallan-side identifier. The round trip is **lossy with respect to Mallan

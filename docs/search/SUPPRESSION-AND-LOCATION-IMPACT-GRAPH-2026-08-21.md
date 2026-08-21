@@ -333,6 +333,6 @@ resolver.
   counts, Neon.
 - The neighborhood contract. The live Cotality geography study must map `SubdivisionName` /
   `CityRegion` / `MLSAreaMajor` / `MLSAreaMinor` / `PostalCity` onto **Mallan's existing**
-  RLS neighborhood GeoJSON vocabulary, aliases and polygons. One canonical neighborhood for
+  existing Mallan neighborhood GeoJSON vocabulary, aliases and polygons (built by `scripts/build-rls-geo-derived.js` — an existing artifact name, not a source claim). One canonical neighborhood for
   Sale, Rental, CMA, Building, Saved Search and the map — never a second taxonomy, and never
   `neighborhood = SubdivisionName` because the field exists.

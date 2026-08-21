@@ -20,6 +20,21 @@ Public consumer Search is **zero-delta** against production and must stay that w
 5. **Live authenticated Cotality is the only provider-data authority.** No field is VERIFIED
    from metadata existence, an old audit, a committed census, or a code comment.
 6. **RED first.** Prove the defect against the current head before correcting it.
+7. **THE COTALITY API IS THE ONLY SOURCE.**
+   REBNY RLS is the MLS / rules body the listing is filed with. It is NOT the API, NOT the
+   source of any field, and NOT an architectural source term. Never write "Cotality/RLS" as
+   though they were one system contract. Write `Cotality ListingId`, never "RLS ListingId" —
+   the field belongs to the Cotality API contract.
+   - Where a Cotality response carries a raw historical string (e.g. `ListingId` values
+     prefixed `RLS…`, or `OriginatingSystemName = RLS`), **preserve it exactly at the
+     provider boundary** as provenance — and never promote it into a Mallan layer, provider
+     name, documentation taxonomy or new code.
+   - "REBNY RLS" stays only where it genuinely means REBNY as a body (its rules, UCBA,
+     display obligations, a provider-health tracker), and in EXISTING identifiers that
+     cannot be renamed without a schema or public-surface change — `rls_eligible`,
+     `rls:validate`, `isMallanRlsReturnCopy` (already documented as legacy naming).
+   - This was corrected on 2026-08-21 after these documents repeatedly said "RLS ListingId"
+     and "RLS display gates", treating the MLS body as the data source.
 
 ### Safe invocation for any verification script
 
@@ -139,7 +154,8 @@ that gate blindly.**
 2. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
    resolve the canonical twin for a Mallan-office representation, return the LOCAL listing;
    no-twin/ambiguous stays suppressed with an integrity defect. Otherwise searching your own
-   RLS ID returns ZERO.
+   Cotality `ListingId` returns ZERO. Note the VALUES carry a raw `RLS…` prefix — that is
+   provider provenance, not evidence that the field belongs to REBNY RLS.
 3. Remaining A/B translator gaps (arbitrary year range).
 4. Inspect C/D facts before promoting anything — no schema growth is justified by the matrix.
 5. **Live census of the E rows**, in order: achieved rent (`LeaseAmount` /
@@ -201,3 +217,9 @@ Worth reading before continuing — each cost a correction cycle:
   importing an untracked module; `type-check` and `jest` both passed locally.
 - **Solving a leak by relocating it.** Removing `doorman` and inventing `concierge-present`
   created a second unregistered vocabulary.
+- **Letting the MLS body drift into the source name.** Three documents said "RLS ListingId",
+  "RLS display gates" and "the system contract is Cotality/RLS". The Cotality API is the only
+  source; REBNY RLS is a rules body. Raw `RLS…` values in a response are provenance to
+  preserve at the boundary — never a licence to name the source that way. This is the
+  CLAUDE.md STOP GATE rule, and it eroded gradually rather than in one wrong statement,
+  which is what made it hard to notice.
