@@ -1,9 +1,13 @@
 # CRM UI — BROKERAGE AUDIT AND CORRECTION MAP
 
-**Evidence level: `CODE` at head `f0f16253`, adversarially verified.** 268 findings across
-seven surfaces; 203 sampled claims re-checked by independent verifiers against the cited
-file and line — **194 confirmed, 9 refuted.** Not independently reproduced by a second
-party outside this session.
+**Evidence level: `CODE` at head `f0f16253`.** Three passes:
+
+1. Seven parallel investigators — 268 findings, each requiring file:line + a verbatim quote.
+2. An adversarial verification pass — 203 sampled claims re-checked; **194 confirmed, 9 refuted.**
+3. **A personal re-verification of every claim this document acts on** — which caught **five
+   more errors the adversarial pass had let through.** §11 lists them.
+
+Not independently reproduced by a second party outside this session.
 
 **No code was changed by this audit.** It is a map, and the order at the end is the point.
 
@@ -36,12 +40,30 @@ These are not UX debt. They put false statements in front of a broker or a clien
 
 ### 2.1 Transit is fabricated
 
-`pagination.js:2061-2131` synthesizes subway arrival times **from the ASCII code of the line
-letter**, refreshes them on a timer, and presents them under a badge reading
-**"Live — MTA schedule data."** The commute calculator (`2238-2257`) is self-described as
-*"Simulate reasonable NYC commute times"*, is hardcoded to Midtown, and **accepts an address
-input it ignores**. With no coordinate on the listing, the station list falls back to Upper
-East Side stations **for every listing**.
+**Arrival times.** `pagination.js:2076` — `var lineCode = lines[i].charCodeAt(0);` then
+`offset = ((lineCode * 37 + now.getMinutes()) % (headway.max - headway.min)) + headway.min`.
+The next-train times are arithmetic on the **letter of the line**. The code's own comment
+says *"Stagger arrivals per line using line char code as seed."* They refresh on a timer,
+under a badge at `pagination.js:771` reading:
+
+> `Live — MTA schedule data · Refreshes every 30s`
+
+**Commute calculator** (`pagination.js:2232-2256`). Verified line by line:
+
+```js
+var address = document.getElementById('detailCommuteAddress').value.trim();
+if (!address) { showToast('Please enter your work address.', 'warning'); return; }
+...
+// Simulate reasonable NYC commute times
+var midtownDist = haversineDistance(baseLat, baseLng, 40.7549, -73.9840);
+var subwayMin = Math.max(10, Math.round(midtownDist * 8 + 5));
+```
+
+The address the broker types is read **only to check it is non-empty**, then never referenced
+again. Every commute is computed to a hardcoded Midtown coordinate, as **straight-line
+distance × a constant** — no routing, no transit data. With no listing coordinate the origin
+falls back to `40.7831, -73.9554`. Asking for the address makes the broker believe it drove
+the answer.
 
 There is no honest partial version of this. **Delete it.**
 
@@ -59,10 +81,17 @@ block. Shipping it unbound is an affirmative false claim.
 showing instruction. That is a made-up MLS showing code. Of everything in this audit it is
 the item most likely to cause a broker to do the wrong thing. **Render `---`.**
 
-Adjacent: **fabricated listing records ship in the markup** — `RLS-78921`, `RLS-82345`,
-`RLS-65432`, `RLS-54321`, `RLS-43210`, `RLS-91234` in `search-form-and-results.html`
-(7153-7821), inside a hidden block. Fabricated identifiers should not exist in a licensed
-IDX product even while hidden.
+Adjacent, and worse than first reported: **fabricated listing records ship in the markup,
+labelled as provider-sourced.** `search-form-and-results.html:7240` —
+
+```html
+data-listing-id="RLS-78921" data-building="432 Park" data-source="REBNY-RLS"
+```
+
+Seven such identifiers (`RLS-78921`, `-82345`, `-65432`, `-54321`, `-43210`, `-91234`).
+The `data-source="REBNY-RLS"` attribute makes them assert an MLS origin. Fabricated
+identifiers carrying a provider-source attribute should not exist in a licensed IDX product
+even inside a hidden block.
 
 ---
 
@@ -188,7 +217,10 @@ an agent working file.
   localStorage, and **sends nothing**. The real server-side route the rest of the CRM uses
   (`app/api/crm/email/route.ts`) is never called from Reports.
 - **The entire "Customize" tab** — ~100 field checkboxes and a "Save Selection" button —
-  **changes nothing in any HTML report.** It only reaches CSV/Excel.
+  **changes nothing in any HTML report.** The audit first said it "only reaches CSV/Excel";
+  the real mechanism is worse. `getSelectedReportFields()` **is** called in the HTML builder
+  at `reports.js:559`, assigned to `customFields`, and that variable appears **exactly once
+  in the file**. The selection is read and thrown away.
 - Nine of the 32 Step-3 option checkboxes are never read.
 - `report-package.js` — **1,050 lines, loaded by nothing**, promising a "Full Package
   combining all 8 report sections" the product does not have.
@@ -205,10 +237,13 @@ an agent working file.
 
 Mobile specifics:
 
-- Every select/input is pinned to **38px / 13px** by `liquid-theme.css` `!important` at
-  higher specificity — defeating both the 44px touch minimum **and** the iOS focus-zoom
-  prevention that `responsive.css:8` was written to provide. The agent fights a zoom cycle
-  on **every field** across a form with 51 selects and ~93 inputs.
+- Every select/input is pinned to **38px** by `liquid-theme.css:227,243`
+  (`min-height: 38px !important`), while `responsive.css:242,245` sets `min-height: 44px`
+  **with no `!important` at all**. The specificity argument is not even needed —
+  `!important` decides it outright, and `liquid-theme.css` also loads later (index.html
+  line 50 vs 48). The 44px touch minimum never applies to any control in the search form,
+  and the iOS focus-zoom prevention at `responsive.css:8` loses the same way. The agent
+  fights a zoom cycle on **every field** across a form with 51 selects and ~93 inputs.
 - **831 checkboxes** are explicitly excluded from the touch-target rule and render at
   **15×15px**.
 - The date picker is a `position:fixed` **520px** panel that JS positions at **`left:-153px`**
@@ -222,13 +257,32 @@ Mobile specifics:
   `.mobile-menu-btn`, `.sidebar-overlay`, `.mobile-tabs`, `.hide-mobile` all have **zero
   occurrences**. There is no mobile navigation because the navigation it was written for was
   never included.
-- **There are no responsive or viewport tests of any kind.**
+- **No viewport test covers the CRM.** Mobile e2e specs *do* exist —
+  `listing-detail-mobile.spec.ts` runs at 390×844 — but every one navigates to
+  `/listing/${slug}`, the **public consumer** page. `grep -rln "crm" tests/e2e/*.ts` returns
+  **nothing**. So the surface with 1,101 controls has zero viewport coverage, while the
+  public page that has some is out of scope for this work.
 
 ---
 
 ## 9. WHY THIS KEEPS LOOPING
 
-Four mechanisms, and every finding above is one of them:
+### A bug shape the deeper pass found twice — READ-THEN-DISCARD
+
+Not "never called". **Called, assigned to a variable, and never referenced again.** It
+defeats every "is this wired?" check that greps for a caller, which is why both instances
+survived the first two passes:
+
+| input | read at | used |
+|---|---|---|
+| the work address in the commute calculator | `pagination.js:2232` | only as a non-empty gate; never in the calculation |
+| the ~100 Customize-tab report fields | `reports.js:559` — `var customFields = getSelectedReportFields();` | **never.** `customFields` occurs exactly once in the entire file |
+
+Both surfaces take deliberate input from a broker and visibly respond, while the input
+reaches nothing. This is the most deceptive class of defect in the codebase because the UI
+confirms receipt.
+
+### And four structural mechanisms — every finding above is one of them:
 
 1. **UI was built ahead of the data contract.** Controls, columns and panels were shipped
    for facts the route never fetches. Nothing failed loudly, so nothing got fixed — a dead
@@ -317,24 +371,46 @@ The subagent reports were **not** accepted as written. An adversarial pass re-ch
 sampled claims and refuted 9. I then personally re-verified every claim this document acts
 on. Three survived-the-verifier claims still failed when I checked them at source:
 
-| agent claim | what I found | outcome |
+### FIVE agent claims failed my own check
+
+| agent claim | what I found at source | outcome |
 |---|---|---|
-| "718 controls, 186 reach the provider, 520 dead" | I could not reproduce **any** of the three numbers | **REMOVED.** Replaced with counts I re-ran (1,101 / 831 / 421) |
-| `#searchBasicModeRental` / `Building` are "never rendered, never scanned" | **False.** `init-ui.js:34-39` converts their selects at init; `saved-searches.js:384,398` writes restore state into them | **REWRITTEN**, and the finding got sharper — a saved rental search restores into a hidden panel the collector never reads. It also made the proposed 1,250-line deletion unsafe as written |
-| mansion tax "2.5% vs 2.25%, $17,500 on a $7M deal" | Real rates are **3.25% / 2.5% / flat 1%** — a **$112,500 spread on $5M** | **CORRECTED.** Discrepancy larger than reported; the agent's figures were wrong |
+| "718 controls, 186 reach the provider, 520 dead" | could not reproduce **any** of the three | **REMOVED.** Replaced with counts I re-ran: 1,101 / 831 / 421 |
+| `#searchBasicModeRental` / `Building` "never rendered, never scanned" | **False.** `init-ui.js:34-39` converts their selects; `saved-searches.js:384,398` writes restore state into them | **REWRITTEN.** Sharper finding — a saved rental search restores into a hidden panel the collector never reads — and it made the proposed 1,250-line deletion **unsafe as written** |
+| mansion tax "2.5% vs 2.25%, $17,500 on $7M" | **3.25% / 2.5% / flat 1%** across three files — **$112,500 spread on $5M** | **CORRECTED.** Larger than reported; the figures were wrong |
+| "no responsive or viewport tests of any kind" | **False.** `listing-detail-mobile.spec.ts` runs at 390×844 | **CORRECTED** to the true, narrower claim: those specs target `/listing/${slug}` on the **public** site; `grep -rln "crm" tests/e2e/*.ts` returns nothing |
+| Customize tab "only reaches CSV/Excel" | **False.** It IS called in the HTML builder at `reports.js:559` | **CORRECTED**, and the real mechanism is worse — assigned to `customFields`, which appears **once in the file**. Read and discarded |
 
-Claims I re-verified at source and **confirmed verbatim**: the ASCII-seeded arrival times
-(`charCodeAt(0)` at `pagination.js:2076`), the "Live — MTA schedule data" badge
-(`pagination.js:771`), the `(UCOM)` fabricated showing instruction (`pagination.js:526`),
-the twelve unbound amenity cards (`pagination.js:643-654`), `toggleSortOrder` having zero
-callers, `expandMedia:false` with no `expandCustomProperty`, the 200-row cap
-(`search-engine.js:508`), the absent `app/reports` route behind the "Shareable Link" button,
-and the buyer/seller tax mixing at `workspace.js:3635-3636`.
+### Claims I re-verified at source and confirmed
 
-**The lesson for the next reader:** an adversarial verification pass caught 9 of 203, and
-still let three material errors through — two of them in the headline numbers. **Verify any
-finding personally before deleting code on it.** The aggregate picture is sound; individual
-figures are not automatically.
+`charCodeAt(0)`-seeded arrivals (`pagination.js:2076`) · the "Live — MTA schedule data"
+badge (`771`) · the commute address read only as a gate (`2232`) then a hardcoded Midtown
+haversine (`2249`) · `(UCOM)` showing instruction (`526`) · twelve unbound amenity cards
+(`643-654`) · seven fabricated `RLS-*` IDs carrying `data-source="REBNY-RLS"` (`7240`) ·
+`toggleSortOrder` zero callers · `expandMedia:false`, no `expandCustomProperty` · the
+200-row cap (`search-engine.js:508`) · `StoriesTotal`/`NumberOfUnitsTotal` present in
+`SEARCH_SELECT_FIELDS` (`route.ts:48,50`) and absent from the mapper · Open House column
+`locked: true` (`data-loader.js:131`) · `geocodeListings` imported only by
+`app/api/listings/route.ts` and `[id]/route.ts`, never the CRM route · the spiral fallback
+capped at `0.005°` (`results-map.js`) with a 9px "Approximate location" note (`282`) ·
+`app/reports` absent behind "Shareable Link" · email writing `status: 'delivered'` with
+`method: 'simulated'` (`reports.js:1892-1902`) · `report-package.js` 1,050 lines, zero
+references · buyer/seller tax mixing (`workspace.js:3635-3636`).
+
+### One code comment that understates its own behaviour
+
+`results-map.js` caps the fallback radius at `0.005°` and comments *"Max radius ~0.005° ≈
+2-3 blocks — tight enough to stay on land."* 0.005° of latitude is ~555 m — closer to **six
+or seven** NYC short blocks. The comment reads as reassurance; the number does not support
+it.
+
+### The lesson
+
+Seven investigators produced 268 findings. An adversarial pass refuted 9 of 203. **A third,
+personal pass still found five more material errors — two of them the headline numbers.**
+
+**Verify personally before deleting code on any single finding.** The aggregate picture held
+up under all three passes; individual figures did not.
 
 ---
 
