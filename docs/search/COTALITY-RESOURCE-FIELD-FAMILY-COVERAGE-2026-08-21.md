@@ -131,10 +131,23 @@ before drawing conclusions for CMA.
 
 > ### A CONTROL WITH NO COTALITY FIELD IS NOT AUTOMATICALLY A DEFECT
 >
-> A Mallan listing has exactly **two** origins: the live Cotality API, or **Mallan Real
-> Estate local input**. Several authenticated Search controls — the commercial section in
-> particular — carry fields that exist in **no** Cotality resource, because they describe
-> **Mallan-authored listings**, which the provider has never seen.
+> **Today, Cotality is Mallan's connected external listing-data provider. Mallan-authored
+> listings are local canonical inventory.** Several authenticated Search controls — the
+> commercial section in particular — carry fields that exist in **no** Cotality resource,
+> because they describe **Mallan-authored listings**, which the provider has never seen.
+>
+> **This is deliberately NOT written as "a listing has exactly two origins."** That would
+> encode the current integration as a permanent architectural invariant, and a future
+> provider may be connected. The durable rule is:
+>
+> > A future data provider maps into **the same Mallan canonical facts**. It must never
+> > require a second Search engine, a second canonical listing model, or a second CRM
+> > history.
+>
+> The runtime classification stays three-way, which is what the resolver already implements:
+> **Mallan local canonical** · **a Mallan listing's suppressed provider representation** ·
+> **third-party provider inventory**. Note "provider", not "Cotality" — that axis is about
+> the ROLE, so it survives a provider change.
 >
 > So "not in the Cotality API" splits into two very different verdicts:
 >
@@ -145,7 +158,7 @@ before drawing conclusions for CMA.
 >
 > Neither is a reason to delete a control. Every field family below must record WHICH of the
 > two it is before any UI change, and a field family that exists only for Mallan local input
-> is `mallan_crm`-authored, never `cotality_rebny`.
+> is `mallan_crm`-authored, never provider-authored.
 
 ---
 

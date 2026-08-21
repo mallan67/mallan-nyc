@@ -25,17 +25,39 @@ wire contract.
 
 ## CATEGORY 1 — EXACT COTALITY RAW CONTRACT · preserved, never renamed
 
-Verified live in `$metadata`. These strings are what the API returns; renaming them would
-break the wire contract.
+All of these stay exactly as spelled. But they were **not all established the same way**,
+and an earlier version of this table said "verified live in `$metadata`" over the whole
+set — which is false for half of it. That is precisely the blending the evidence discipline
+was introduced to stop, so the table is split.
+
+### 1a · EXACT_COTALITY_RAW_NAME — `$metadata`, `INDEPENDENTLY_REPRODUCED`
+
+Declared field and type names. Confirmed against the connector by a second party.
 
 | term | where |
 |---|---|
-| `MlsStatus` | `Property` field, `Cotality.DataStandard.RESO.DD.Enums.MlsStatus` |
-| `ListAgentMlsId` · `ListOfficeMlsId` | `Property` fields (distinct from `ListAgentKey` / `ListOfficeKey`) |
-| `Cotality.DataStandard.RESO.DD.Enums.*` · `…Enums.Multi.*` | every enum type reference, including `PropertySubType`, `StructureType`, `CommonInterest` |
-| `OriginatingSystemName` and its observed value `RLS` | provider lineage — a **raw observed value**, preserved at the boundary as provenance |
-| `ListingId` values carrying an `RLS…` prefix | raw provider values; provenance, never a source claim |
-| `BuyerAgentRLSParticipantYN` | an observed `CustomFields` extension key — the provider's own key name |
+| `MlsStatus` | `Property` field, type `Cotality.DataStandard.RESO.DD.Enums.MlsStatus` |
+| `ListAgentMlsId` · `ListOfficeMlsId` | `Property` fields, distinct from `ListAgentKey` / `ListOfficeKey` |
+| `Cotality.DataStandard.RESO.DD.Enums.*` · `…Enums.Multi.*` | every enum type reference — `PropertySubType`, `StructureType`, `CommonInterest`, … |
+
+### 1b · EXACT_COTALITY_RAW_VALUE — live row observation, `CLAUDE_LIVE_RUN`
+
+**Not `$metadata` facts.** These are values seen in responses, so they are observations, and
+**independent reproduction is PENDING** — the connector available for independent checking
+does not expose arbitrary population queries.
+
+| term | how it was established |
+|---|---|
+| observed `OriginatingSystemName` value `"RLS"` | 35/35 Mallan-office rows in a live census |
+| observed `SourceSystemID` value `"TRESTLE"` | same census |
+| `ListingId` values carrying an `RLS…` prefix | observed in live responses |
+| `BuyerAgentRLSParticipantYN` | an observed key inside the opaque `CustomFields` payload — **not declared anywhere in `$metadata`** |
+
+**Preserve these only as explicitly labelled provider evidence**, in the form
+`Observed Cotality OriginatingSystemName value = "RLS"`. Do **not** convert an observation
+into Mallan architecture terminology — that is how `RLS → REBNY → Trestle` came to exist as
+a pipeline concept the provider never described. That chain is now removed from
+`field-registry.ts`, and the observed values are quoted individually in its place.
 
 > **`Mls` in a Cotality field name is Cotality's spelling, not ours.** It is not evidence of
 > a Mallan terminology problem and must not be "cleaned up".
@@ -99,6 +121,30 @@ consumed by any runtime reader**, so no broker-facing text changed.
 > `uiLabel` is nonetheless *intended* broker-facing wording. `'Listing ID'` is proposed, not
 > imposed: if brokers should read something else, that is a product call.
 
+**The rename alone was not enough — it fixed the vocabulary and left the authority defect
+underneath.** The entry still declared `fixed` / `cotality` while its own note said the
+value may be a Mallan `SL-`/`RL-` identifier, which cannot be Cotality-authored. Proven from
+`prisma/schema.prisma`, model `Listing`:
+
+```
+id          BigInt @id @default(autoincrement())   <- canonical OBJECT identity, Mallan-generated
+listing_id  String @unique                         <- canonical REFERENCE, DUAL-DOMAIN
+```
+
+So **three identities are now separated**, and the resolver enforces the difference:
+
+| criterion | maps to | authority | may a suppressed provider row supply it? |
+|---|---|---|---|
+| `listing_object_identity` | `Listing.id` | `fixed` / `mallan_crm` | **no** |
+| `listing_id_canonical` | `Listing.listing_id` | **`by_listing_authority`** | **no** — resolve the local twin first |
+| `provider_listing_id` | Cotality `ListingId` | `fixed` / `cotality` | **yes — that is what evidence means** |
+| `listing_key` | Cotality `ListingKey` | `fixed` / `cotality` | yes; also the media join key |
+
+The suppressed-source rule needed no new mechanism: the resolver already admits a value from
+a `mallan_office_representation` **only** when it is `fixed` / `cotality`, so correcting the
+declaration corrected the behaviour. `listing_id_canonical` moved from the resolver's
+ALLOWED list to REFUSED, and `provider_listing_id` took its place. 12 negative tests pin it.
+
 ---
 
 ## CATEGORY 4 — PRESERVED, WITH THE REASON DOCUMENTED
@@ -106,9 +152,22 @@ consumed by any runtime reader**, so no broker-facing text changed.
 | term | why it stays |
 |---|---|
 | `mls_status` (canonical key) · `uiLabel 'MLS Status'` | mirrors the **exact** Cotality field `MlsStatus`. Renaming would break the correspondence with the provider field it maps |
-| `rls_eligible` · `rls:validate` · `isMallanRlsReturnCopy` | existing identifiers that cannot be renamed without a schema or public-surface change. Already documented as legacy naming |
+| *(the three legacy `rls*` identifiers are no longer grouped — see below)* | grouping them was too broad; they are three different problems |
 | "REBNY RLS" where it means **the body** | its rules, UCBA, display obligations, provider-health tracking. This is the correct use of the name |
 | `mls_status` **projection column** | renaming a column is a schema migration — **HELD** |
+
+---
+
+## LEGACY `rls*` IDENTIFIERS — categorised INDIVIDUALLY, after tracing
+
+Grouping these as "cannot be renamed" was too broad. They are three different problems with
+three different answers.
+
+| identifier | traced | category | decision |
+|---|---|---|---|
+| **`rls_eligible`** | **4 Prisma column declarations · ~700 references across 137 files** | **`LEGACY_PERSISTED_NAME`** | **MIGRATION HELD.** It is a real database column with readers throughout storage, projection and gates. Renaming needs a controlled migration plus a compatibility layer, and schema changes are held |
+| **`isMallanRlsReturnCopy`** | **0 in Prisma · 5 files** (`lib/auth/listing-capabilities.ts`, `lib/listings/mallan-source-identity.ts`, `lib/listings/return-copy-canonical.ts`, `app/api/listings/suggest/route.ts`, + its test) | **`LEGACY_INTERNAL_SYMBOL`** | **Safe to rename — a refactor, not a schema problem.** `mallan_office_representation` already exists as the canonical term for the same concept. **DEFERRED, with a reason:** `tests/runtime/mallan-rls-return-copy-suppression.test.ts` currently has **uncommitted changes from another workstream**, and renaming across it would collide with in-flight work |
+| **`rls:validate`** → `scripts/validate-rls-compliance.js` | npm script + CI | **`CURRENT_COMPLIANCE_TERM`** | **PRESERVED, and the reason is real:** the script header reads *"REBNY RLS COMPLIANCE VALIDATOR"* — it validates compliance with **the body's** display and submission rules. "REBNY RLS" here means the rules body, which is the correct use of the name, not a data-source claim |
 
 ---
 
@@ -127,9 +186,13 @@ name will be wrong.
 
 ## WHAT THIS AUDIT DOES **NOT** CLAIM
 
-- It does not claim the whole repository is terminology-clean. It covers
-  `lib/search/canonical/**`, its tests, and the Search documents in `docs/search/` and
-  `docs/idx/`.
+**The terminology work is NOT complete, and this document does not say it is.**
+
+- It covers `lib/search/canonical/**`, its tests, and the Search documents in
+  `docs/search/` and `docs/idx/`. Corrected in this pass: the `RLS → REBNY → Trestle`
+  pipeline chain, `RLS-side keys`, and `provider/REBNY factual-source obligation` — all in
+  `field-registry.ts`, all replaced with either the provider-role wording or the raw
+  observed values quoted individually.
 - It does not cover `prisma/schema.prisma` comments, `public/crm/**`, or the PR body. The
   schema comments are **known** to carry stale provider-layer wording (Category 2 above) and
   a schema-comment-only pass is recorded as follow-up.

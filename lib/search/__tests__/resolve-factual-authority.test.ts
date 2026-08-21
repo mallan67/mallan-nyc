@@ -145,6 +145,12 @@ describe("a suppressed representation supplies provider evidence and nothing els
     ["comp_set", "Mallan-derived — would re-enter CMA"],
     ["achieved_rent", "unresolved field contract"],
     ["mallan_exclusive", "Mallan CRM state"],
+    // CORRECTED 2026-08-21: this used to sit in ALLOWED. Letting a suppressed
+    // representation supply the canonical REFERENCE is exactly how a provider row
+    // stands in for the Mallan listing. The provider's own ListingId is available
+    // as `provider_listing_id`, which IS evidence.
+    ["listing_id_canonical", "Mallan canonical reference — resolve the local twin first"],
+    ["listing_object_identity", "Mallan canonical object identity"],
     ["acris_sale_history", "ACRIS fact reaching through another source"],
   ] as const;
 
@@ -154,7 +160,7 @@ describe("a suppressed representation supplies provider evidence and nothing els
     if (!out.resolved) expect(out.reason).toBe("NON_CANONICAL_SOURCE");
   });
 
-  const ALLOWED = ["listing_key", "listing_id_canonical", "provider_lineage", "mls_status", "permission"] as const;
+  const ALLOWED = ["listing_key", "provider_listing_id", "provider_lineage", "mls_status", "permission"] as const;
 
   it.each(ALLOWED)("%s DOES resolve as provider evidence", (key) => {
     const out = resolve(key, "mallan_office_representation");
