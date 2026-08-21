@@ -8,13 +8,19 @@ UNVERIFIED below rather than guessed.
 ## The contract this serves
 
 A Mallan-authored listing exists twice: the **canonical local Mallan listing** (created in
-the Mallan web app, editable) and a **Cotality return-copy** that comes back through the
-provider feed after external submission. Until a direct Mallan → Cotality feed is
-implemented and proven, the local listing wins and the return-copy is suppressed as a
-competing listing — while remaining useful provider evidence.
+the Mallan web app, editable) and a **Mallan-office Cotality representation** that comes
+back through the provider feed after an external submission path files it with REBNY RLS.
+Until a direct Mallan → Cotality feed is implemented and proven, the local listing wins and
+the provider representation is suppressed as a competing listing — while remaining useful
+provider evidence.
 
-Suppression applies **only** to proven Mallan return-copies. Third-party Cotality
-inventory is not suppressed.
+Suppression applies to **every verified Mallan-office Cotality representation**, whether or
+not its local twin has yet been proven — see §5. It does NOT apply to third-party Cotality
+inventory.
+
+The intermediary that performs the submission is deliberately not named anywhere in this
+contract. It is not Mallan architecture, not a source system and not a data authority; the
+system contract is Cotality/RLS.
 
 ---
 
@@ -104,25 +110,58 @@ building cannot collapse.
 
 ---
 
-## 5. OPEN DEFECT — suppression does not require a proven twin
+## 5. TWO SEPARATE DECISIONS — and one must never reverse the other
 
-`excludeMallanRlsReturnCopies()` suppresses on `list_office_mls_id ∈ MALLAN_LIST_OFFICE_MLS_IDS`
-**alone**. It does not ask whether a local canonical twin actually exists.
+An earlier version of this section concluded that a Mallan-office row with no local twin
+"must remain visible". **That was wrong for the current business rule**, and the reasoning
+behind it was wrong too: it treated VISIBILITY as the thing to protect, when the thing to
+protect is CANONICAL AUTHORITY.
 
-Two different situations are therefore treated identically:
+The two decisions are independent:
 
-| situation | correct behaviour | current behaviour |
-|---|---|---|
-| Mallan Cotality row **with** a proven local twin | suppress the duplicate; show the local | suppressed — correct |
-| Mallan Cotality row with **no** local twin | it is Mallan's only representation of that listing — it must remain visible, or be raised for reconciliation | **suppressed — the listing disappears entirely** |
+**1. CLASSIFICATION — is this a Mallan-office Cotality representation?**
+Answered by verified list-side office identity (`ListOfficeMlsId = 7041`) alone.
 
-That is the same gap issue #622 describes as "Mallan Cotality participation + no proven
-local canonical row — the missing product path".
+**2. TWIN RESOLUTION — which local Mallan listing does it reconcile to?**
+A stricter identity problem: `MATCHED` / `AMBIGUOUS` / `UNRESOLVED`.
 
-**UNVERIFIED:** whether either of the two live Active rows actually has a local twin. That
-requires reading production Neon, which is deliberately not done while the Neon acceptance
-window is open. It must be answered against the isolated Preview database or after the
-window closes — never assumed.
+**Failure of (2) NEVER reverses (1).** Until a direct Mallan → Cotality feed is implemented
+and proven, EVERY verified Mallan-office representation stays suppressed as a competing
+listing:
+
+| situation | required behaviour |
+|---|---|
+| representation **+ exactly one** local twin | suppress the provider copy · use the local canonical listing · reconcile provider identity/evidence onto it |
+| representation **+ no** local twin | **keep suppressed** · raise a HIGH-SEVERITY reconciliation/canonical-data defect · do NOT expose the provider copy as fallback canonical inventory |
+| representation **+ multiple** candidate twins | **keep suppressed** · classify `AMBIGUOUS` · raise an integrity defect · do not guess |
+| third-party Cotality listing | normal read-only inventory, unaffected by this suppression |
+
+Mallan authors the listing locally FIRST. A missing local row is therefore an integrity
+failure to repair, not a licence for the provider copy to become canonical. This is
+fail-closed on canonical AUTHORITY, never fail-open to Cotality.
+
+### Terminology
+
+Two terms, deliberately distinct, because "return-copy" wrongly implies the local target
+has already been proven:
+
+- **Mallan-office Cotality representation** — classification only. Decision (1).
+- **matched Mallan return-copy** — a representation whose local twin is PROVEN. Decision (2).
+
+Every one of the 35 rows is a representation. How many are matched return-copies is
+**UNVERIFIED** — that needs production Neon, deliberately not read while the Neon
+acceptance window is open. It must be answered against the isolated Preview database or
+after the window closes, never assumed.
+
+### Suppressed means
+
+Not independently searchable · not independently counted · not separately rendered · not
+used in CMA candidate pools · not separately represented in Building inventory · not
+exposed in Reports/CRM/client portal/public pages · not an independent Media authority.
+
+It does **not** mean deleted. `ListingKey`, `ListingKeyNumeric`, `ListingId`, provider
+statuses, permissions, timestamps, attribution and Media relationships are all retained as
+provider evidence.
 
 ---
 
@@ -138,7 +177,22 @@ prerequisite for media reconciliation, not a parallel exercise.
 
 ---
 
-## 7. What must not be done
+## 7. Future direct feed
+
+The absence of a round-tripped Mallan identifier (§2) is the thing the direct feed must
+fix. When Mallan submits directly, the provider `ListingKey`/`ListingId` returned in the
+submission acknowledgement should be persisted against the local listing, making future
+reconciliation DETERMINISTIC rather than address-inferential.
+
+That depends on the authorized Cotality WRITE contract supporting such an
+acknowledgement, which has not been verified and must not be assumed now.
+
+Suppression is not removed when direct-feed development begins. It is removed only after
+the full round trip is proven end-to-end, with zero duplicates and one retained identity —
+and the transition must never create a period where both representations are
+independently visible.
+
+## 8. What must not be done
 
 - Do NOT use `source = Cotality` as the editability decision. A Mallan-authored listing
   legitimately HAS a Cotality return-copy; observation path is not ownership.

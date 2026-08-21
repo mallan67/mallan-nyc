@@ -13,11 +13,32 @@
  *      namespace. It is only barred from being the PUBLIC CANONICAL listing.
  *   3. Third-party RLS/IDX — normal public inventory, untouched.
  *
- * WHY A RETURN-COPY EXISTS AT ALL: Mallan enters its listing into RealPlus,
- * RealPlus submits to REBNY RLS, and the listing returns to Mallan through
- * Cotality as an `RLS*` row. That return trip is OUTSIDE this system; Mallan
- * never writes back. The local `SL-`/`RL-` row stays canonical and the returned
- * copy is publicly suppressed but retained for audit/reconciliation.
+ * WHY A REPRESENTATION EXISTS AT ALL: Mallan authors the listing locally, an
+ * EXTERNAL SUBMISSION PATH files it with REBNY RLS, and it returns to Mallan
+ * through Cotality as an `RLS*` row. That return trip is OUTSIDE this system;
+ * Mallan never writes back.
+ *
+ * The intermediary that performs the submission is deliberately NOT named here.
+ * It is not Mallan architecture, not a source system and not a data authority,
+ * and naming it invites a future session to build product logic, source enums or
+ * canonical terminology around a vendor. The system contract is Cotality/RLS.
+ *
+ * The local `SL-`/`RL-` row stays canonical; the returned representation is
+ * SUPPRESSED AS A COMPETING LISTING — not merely "publicly" — and retained for
+ * audit/reconciliation.
+ *
+ * TWO SEPARATE DECISIONS, never collapsed:
+ *   1. CLASSIFICATION — is this a Mallan-office Cotality representation?
+ *      Answered by verified list-side office identity alone.
+ *   2. TWIN RESOLUTION — which local Mallan listing does it reconcile to?
+ *      A stricter problem: MATCHED / AMBIGUOUS / UNRESOLVED.
+ *
+ * Failure of (2) NEVER reverses (1). Until a direct Mallan -> Cotality feed is
+ * implemented and proven, EVERY verified Mallan-office representation stays
+ * suppressed. If the expected local listing cannot be found, that is an
+ * integrity defect to surface and repair — it does not transfer canonical or
+ * display authority to the provider copy. Fail closed on canonical AUTHORITY,
+ * never fail open to Cotality.
  *
  * IDENTITY IS SOURCE-FIELD ONLY. Never `agent_id` (that is a CRM history/roster
  * association — `syncAgentHistory` sets it from BOTH list-side and BUYER-side
