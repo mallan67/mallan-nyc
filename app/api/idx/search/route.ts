@@ -19,6 +19,7 @@ import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
+import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
 // ── Fields we actually need (validated against IDX Plus feed 2026-03-04) ──
@@ -113,6 +114,53 @@ function setCache(key: string, data: unknown): void {
     if (firstKey !== undefined) cache.delete(firstKey);
   }
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+/**
+ * Which KIND of failure this was — and therefore what the client should do.
+ *
+ * Exported so the decision is testable on its own. Folding it back into the
+ * catch block is how it became a single 502 in the first place.
+ *
+ *   400  the request cannot be served as written. Permanent, client-fixable,
+ *        and it names what to fix. Never "try again later".
+ *   503  the provider rate-limited us. Retryable, with a delay.
+ *   502  the upstream genuinely failed. Retryable, cause not the client's.
+ *
+ * Collapsing these is the same error as collapsing SUPPORTED /
+ * PROVIDER_REJECTED / UNVERIFIED at the probe layer: it turns three different
+ * facts into one unactionable message.
+ */
+export function idxSearchErrorResponse(error: unknown): {
+  status: number;
+  body: Record<string, unknown>;
+  headers?: Record<string, string>;
+} {
+  if (error instanceof UnknownPropertySubTypeError) {
+    return {
+      status: 400,
+      body: {
+        error: "Unsupported search criterion.",
+        code: "UNSUPPORTED_CRITERION",
+        criterion: "propertySubType",
+        unsupportedValues: [...error.unknownTokens],
+      },
+    };
+  }
+
+  const message = error instanceof Error ? error.message : "Unknown error";
+
+  if (message.includes("429") || message.includes("rate limit")) {
+    return {
+      status: 503,
+      body: { error: "Search temporarily unavailable. Please try again shortly." },
+      headers: { "Retry-After": "30" },
+    };
+  }
+
+  // The raw provider text is logged, never returned — it can carry host and
+  // query detail that has no business reaching a browser.
+  return { status: 502, body: { error: "Search failed. Please try again later." } };
 }
 
 // ── Route handler ──────────────────────────────────────────────────────
@@ -436,33 +484,17 @@ export async function GET(req: NextRequest) {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown error";
-
-    // Handle specific error types
-    if (message.includes("429") || message.includes("rate limit")) {
-      logger.complete("error", "Rate limited by Trestle");
-      return NextResponse.json(
-        { error: "Search temporarily unavailable. Please try again shortly." },
-        {
-          status: 503,
-          headers: {
-            "Cache-Control": "private, no-store",
-            "Retry-After": "30",
-          },
-        }
-      );
-    }
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const mapped = idxSearchErrorResponse(error);
 
     logger.complete("error", message);
-    console.error("[IDX Search] Error:", message);
+    // A rejected criterion is a client mistake, not an incident — log it, but
+    // do not report it as a provider failure.
+    if (mapped.status !== 400) console.error("[IDX Search] Error:", message);
 
-    return NextResponse.json(
-      { error: "Search failed. Please try again later." },
-      {
-        status: 502,
-        headers: { "Cache-Control": "private, no-store" },
-      }
-    );
+    return NextResponse.json(mapped.body, {
+      status: mapped.status,
+      headers: { "Cache-Control": "private, no-store", ...(mapped.headers ?? {}) },
+    });
   }
 }

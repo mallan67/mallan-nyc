@@ -26,12 +26,12 @@
  * production route. Safe to run while a Neon autosuspend window is collecting.
  */
 import { getAccessToken } from '../../lib/idx/auth';
-import {
-  CANONICAL_AMENITIES,
-  UNSUPPORTED_AMENITIES,
-} from '../../lib/search/canonical/amenity-vocabulary';
+import { AMENITY_TOKENS } from '../../lib/search/canonical/amenity-vocabulary';
+// Capability is the REGISTRY's call; the verifier checks the registry.
+import { UNSUPPORTED_AMENITY_KEYS } from '../../lib/search/canonical/field-registry';
 import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from '../../lib/search/canonical/amenity-match';
 import { BATH_COMPONENTS_LIVE } from '../../lib/search/canonical/bath-contract';
+import { PROPERTY_SUB_TYPE_LIVE } from '../../lib/search/canonical/property-subtype-contract';
 
 const API = process.env.TRESTLE_API_URL ?? 'https://api.cotality.com/trestle';
 const JSON_OUT = process.argv.includes('--json');
@@ -174,9 +174,9 @@ if (declared !== null && rows !== declared) {
 }
 log(`   census complete: ${rows}/${declared} Active rows`);
 
-for (const key of Object.keys(CANONICAL_AMENITIES)) {
-  if (UNSUPPORTED_AMENITIES.has(key)) continue;
-  const mapping = CANONICAL_AMENITIES[key];
+for (const key of Object.keys(AMENITY_TOKENS)) {
+  if (UNSUPPORTED_AMENITY_KEYS.has(key)) continue;
+  const mapping = AMENITY_TOKENS[key];
   if (mapping.match === 'isTrue') continue; // booleans covered by field checks
   const fields = mapping.field.split(',').map((f) => f.trim());
   for (const value of mapping.values) {
@@ -188,8 +188,8 @@ for (const key of Object.keys(CANONICAL_AMENITIES)) {
 }
 // An amenity classified unavailable that has STARTED being populated should be
 // surfaced — that is a filter Mallan could now offer.
-for (const key of UNSUPPORTED_AMENITIES) {
-  const mapping = CANONICAL_AMENITIES[key];
+for (const key of UNSUPPORTED_AMENITY_KEYS) {
+  const mapping = AMENITY_TOKENS[key];
   if (!mapping || mapping.values.length === 0) continue;
   const fields = mapping.field.split(',').map((f) => f.trim());
   const nowPresent = mapping.values.filter((v) => fields.some((f) => (seen.get(f)?.get(v) ?? 0) > 0));
@@ -208,9 +208,16 @@ const FILTER_CLAIMS: Array<{ label: string; filter: string; expect: 'SUPPORTED' 
   { label: 'BathroomsHalf ge 1', filter: `${ACTIVE} and BathroomsHalf ge 1`, expect: 'SUPPORTED' },
   { label: "PetsAllowed has 'Yes' (exact token)", filter: `${ACTIVE} and PetsAllowed has Cotality.DataStandard.RESO.DD.Enums.Multi.PetsAllowed'Yes'`, expect: 'SUPPORTED' },
   { label: "Furnished eq 'Furnished'", filter: `${ACTIVE} and Furnished eq 'Furnished'`, expect: 'SUPPORTED' },
+  { label: "PropertySubType in ('Apartment','Loft')", filter: `${ACTIVE} and PropertySubType in ('Apartment','Loft')`, expect: 'SUPPORTED' },
+  { label: 'PropertySubType OR of exact members', filter: `${ACTIVE} and (PropertySubType eq 'Office' or PropertySubType eq 'Retail')`, expect: 'SUPPORTED' },
   // Claims the contract relies on being REJECTED. If one starts working, a
   // Mallan-side post-filter could move to the provider — worth knowing.
   { label: 'contains(PetsAllowed,..) [expected rejected]', filter: `${ACTIVE} and contains(PetsAllowed,'Yes')`, expect: 'REJECTED' },
+  // The operator the CRM builder used to emit. It is HTTP 400 because `contains`
+  // takes strings and PropertySubType is an enum. Pinned here so the substring
+  // form cannot creep back in unnoticed — and so that if the provider ever DID
+  // start accepting it, that is a deliberate revisit rather than a silent one.
+  { label: 'contains(PropertySubType,..) [expected rejected]', filter: `${ACTIVE} and contains(PropertySubType,'Apartment')`, expect: 'REJECTED' },
   { label: 'BuildingFeatures/any(..) [expected rejected]', filter: `${ACTIVE} and BuildingFeatures/any(a: a eq 'Elevators')`, expect: 'REJECTED' },
   { label: 'arithmetic div [expected rejected]', filter: `${ACTIVE} and BathroomsFull add (BathroomsHalf div 2) ge 2`, expect: 'REJECTED' },
 ];
@@ -240,6 +247,68 @@ for (const field of BATH_COMPONENTS_LIVE.presentButAlwaysZero) {
   await sleep(300);
 }
 log(`   ${BATH_COMPONENTS_LIVE.presentButAlwaysZero.length} components re-checked`);
+
+// ── 6. PROPERTY SUB-TYPE CONTRACT ──────────────────────────────────────────
+// The registry called this a `multi_enum` for months while pointing at a SCALAR
+// field, and the CRM builder emitted a `contains()` the provider 400s. Both
+// survived because nothing re-read the provider. This section does.
+log('\n6. PROPERTY SUB-TYPE (shape · vocabulary · population)');
+
+const subTypeDeclared = propertyProps.get('PropertySubType');
+if (!subTypeDeclared) {
+  fail('subtype-shape', 'PropertySubType is NOT declared on the live Property entity');
+} else {
+  if (subTypeDeclared.startsWith('Collection(')) {
+    fail('subtype-shape', `PropertySubType is now ${subTypeDeclared} — the contract treats it as SCALAR`);
+  }
+  // The MULTI sibling lives in the `.Enums.Multi.` namespace. If PropertySubType
+  // ever moved there, exact `eq` would stop meaning what the contract says.
+  if (subTypeDeclared.includes('.Enums.Multi.')) {
+    fail('subtype-shape', `PropertySubType is now a MULTI enum (${subTypeDeclared}) — the contract treats it as scalar`);
+  }
+  if (PROPERTY_SUB_TYPE_LIVE.shape !== 'scalar_enum') {
+    fail('subtype-shape', `contract declares shape '${PROPERTY_SUB_TYPE_LIVE.shape}', live is scalar`);
+  }
+}
+
+// Vocabulary: the contract's member list against the live enum declaration.
+const liveSubTypeMembers = enumByShort.get('PropertySubType') ?? [];
+if (liveSubTypeMembers.length === 0) {
+  notes.push('PropertySubType enum absent from data/cotality-enums.live.json — vocabulary not cross-checked here.');
+} else {
+  const contractSet = new Set<string>(PROPERTY_SUB_TYPE_LIVE.members);
+  const missing = liveSubTypeMembers.filter((m) => !contractSet.has(m));
+  const extra = [...contractSet].filter((m) => !liveSubTypeMembers.includes(m));
+  if (missing.length > 0) fail('subtype-vocabulary', `live members absent from the contract: ${missing.join(', ')}`);
+  if (extra.length > 0) fail('subtype-vocabulary', `contract members no longer live: ${extra.join(', ')}`);
+}
+
+// Population: the census the contract records must still hold. A member that
+// gains or loses rows changes what the UI can honestly offer.
+for (const [member, recorded] of Object.entries(PROPERTY_SUB_TYPE_LIVE.populatedActive)) {
+  const r = await get(`${API}/odata/Property?$filter=${encodeURIComponent(`${ACTIVE} and PropertySubType eq '${member}'`)}&$count=true&$top=1`);
+  if (!r) abortUnverified(`sub-type census probe for ${member}`, 'no response');
+  if (!r.ok) { fail('subtype-census', `${member} could not be probed (HTTP ${r.status}) — population UNVERIFIED`); continue; }
+  const count = ((await r.json()) as Record<string, unknown>)['@odata.count'] as number;
+  if (count === 0) {
+    fail('subtype-census', `${member} was ${recorded} live and is NOW ZERO — the contract records it as populated`);
+  }
+  await sleep(300);
+}
+
+// The four the UI offers that this feed has never carried. If one starts
+// carrying rows, that is good news the product should hear about.
+for (const member of PROPERTY_SUB_TYPE_LIVE.neverPopulatedAnyStatus) {
+  const r = await get(`${API}/odata/Property?$filter=${encodeURIComponent(`PropertySubType eq '${member}'`)}&$count=true&$top=1`);
+  if (!r) abortUnverified(`sub-type absence probe for ${member}`, 'no response');
+  if (!r.ok) { fail('subtype-census', `${member} could not be probed (HTTP ${r.status}) — absence UNVERIFIED`); continue; }
+  const count = ((await r.json()) as Record<string, unknown>)['@odata.count'] as number;
+  if (count > 0) {
+    fail('subtype-census', `${member} is recorded as never-populated but NOW has ${count} rows — the UI option is live and the contract must say so`);
+  }
+  await sleep(300);
+}
+log(`   shape + ${PROPERTY_SUB_TYPE_LIVE.members.length} members + ${Object.keys(PROPERTY_SUB_TYPE_LIVE.populatedActive).length} populated + ${PROPERTY_SUB_TYPE_LIVE.neverPopulatedAnyStatus.length} absent re-checked`);
 
 // ── VERDICT ────────────────────────────────────────────────────────────────
 if (JSON_OUT) {

@@ -357,11 +357,23 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // Trestle fallback renders the SAME canonical bath contract to OData, so
       // the two execution paths cannot answer the same question differently.
       'lib/search/public-listing-trestle.ts',
+      // Authenticated CRM OData builder — renders the SAME canonical
+      // property-sub-type contract the projection renders to Prisma. It used to
+      // emit `contains(PropertySubType,…)`, which the live provider answers with
+      // HTTP 400, while the projection had no sub-type predicate at all: two
+      // paths, two different answers, one of them not an answer. Reading the
+      // canonical module is what collapses them back to one.
+      'lib/search/crm-idx-filter.ts',
       // DB path renders the same canonical bath contract to Prisma.
       'lib/search/public-listing-db.ts',
       // Trestle fallback matches collection amenities Mallan-side through the
       // SAME matcher, replacing a route-local second engine.
       'app/api/listings/route.ts',
+      // Imports ONLY the UnknownPropertySubTypeError type, to tell a rejected
+      // criterion (400, client-fixable) apart from an upstream failure (502).
+      // Without the canonical error class the route would have to string-match
+      // its own message — a second, drifting definition of the same condition.
+      'app/api/idx/search/route.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);

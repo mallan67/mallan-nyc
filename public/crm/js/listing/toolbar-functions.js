@@ -94,12 +94,24 @@
                         searchResultsState.filteredListings = typeof filterListings === 'function'
                             ? filterListings(listings, criteria) : listings.slice();
                         searchResultsState.currentPage = 1;
+                        // The server answered for the current criteria, so this
+                        // set is authoritative again. `_replaceListings` above
+                        // downgraded it to a preview on the way through, which is
+                        // right for a background reload but wrong here.
+                        if (typeof markSearchResultsAuthoritative === 'function') markSearchResultsAuthoritative();
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
                     }
                 }).catch(function(err) {
                     _serverSearchActive = false;
-                    console.warn('[Sort] Server re-fetch failed, using local sort:', err.message);
+                    console.warn('[Sort] Server re-fetch failed:', err.message);
+                    // Was: silently `renderSearchResults()` — a client-side sort
+                    // of whatever was already there, with no signal. The rows on
+                    // screen are no longer a completed answer for these criteria,
+                    // so say so and drop them out of authoritative state rather
+                    // than presenting a re-ordered stale set as the result.
+                    if (typeof markSearchResultsProvisional === 'function') markSearchResultsProvisional();
+                    showToast('Could not re-sort — the search did not complete. Showing the previous order.', 'error');
                     renderSearchResults();
                 });
                 return;

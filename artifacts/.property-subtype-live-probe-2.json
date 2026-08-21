@@ -1,0 +1,180 @@
+{
+  "probedAt": "2026-08-21T13:46:18.356Z",
+  "api": "https://api.cotality.com/trestle",
+  "results": [
+    {
+      "label": "in-operator: PropertySubType in ('Apartment','Loft')",
+      "filter": "StandardStatus eq 'Active' and PropertySubType in ('Apartment','Loft')",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6704
+    },
+    {
+      "label": "OR of all 8 live-populated members",
+      "filter": "StandardStatus eq 'Active' and (PropertySubType eq 'Apartment' or PropertySubType eq 'MultiFamily' or PropertySubType eq 'SingleFamilyResidence' or PropertySubType eq 'Duplex' or PropertySubType eq 'Loft' or PropertySubType eq 'MixedUse' or PropertySubType eq 'Triplex' or PropertySubType eq 'Office')",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 8021
+    },
+    {
+      "label": "lowercase literal 'apartment'",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'apartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "mixed populated + zero member OR (Apartment/Townhouse)",
+      "filter": "StandardStatus eq 'Active' and (PropertySubType eq 'Apartment' or PropertySubType eq 'Townhouse')",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6625
+    },
+    {
+      "label": "namespace-qualified scalar literal",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq Cotality.DataStandard.RESO.DD.Enums.PropertySubType'Apartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6625
+    },
+    {
+      "label": "Additional: has-operator (multi-enum idiom)",
+      "filter": "StandardStatus eq 'Active' and PropertySubTypeAdditional has Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional'Apartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6625
+    },
+    {
+      "label": "Additional: eq 'Loft'",
+      "filter": "StandardStatus eq 'Active' and PropertySubTypeAdditional eq 'Loft'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 79
+    },
+    {
+      "label": "Additional: differs from SubType (Apartment additional, not-Apartment subtype)",
+      "filter": "StandardStatus eq 'Active' and PropertySubTypeAdditional eq 'Apartment' and PropertySubType ne 'Apartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "Additional non-null where SubType null",
+      "filter": "StandardStatus eq 'Active' and PropertySubTypeAdditional ne null and PropertySubType eq null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "rental slice: Apartment on ResidentialLease",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'Apartment' and PropertyType eq 'ResidentialLease'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 903
+    },
+    {
+      "label": "sale slice: Apartment on Residential",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'Apartment' and PropertyType eq 'Residential'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 5722
+    },
+    {
+      "label": "Townhouse across ALL statuses (not just Active)",
+      "filter": "PropertySubType eq 'Townhouse'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "Condominium across ALL statuses",
+      "filter": "PropertySubType eq 'Condominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "StockCooperative across ALL statuses",
+      "filter": "PropertySubType eq 'StockCooperative'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "Retail across ALL statuses",
+      "filter": "PropertySubType eq 'Retail'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "label": "UnimprovedLand across ALL statuses",
+      "filter": "PropertySubType eq 'UnimprovedLand'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    }
+  ],
+  "sample": [
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110466",
+      "PropertyType": "Residential"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110463",
+      "PropertyType": "ResidentialLease"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110462",
+      "PropertyType": "Residential"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110456",
+      "PropertyType": "Residential"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110455",
+      "PropertyType": "Residential"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110453",
+      "PropertyType": "Residential"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110450",
+      "PropertyType": "ResidentialLease"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110449",
+      "PropertyType": "Residential"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110446",
+      "PropertyType": "ResidentialLease"
+    },
+    {
+      "PropertySubType": "Apartment",
+      "PropertySubTypeAdditional": "Apartment",
+      "ListingId": "RLS20110441",
+      "PropertyType": "ResidentialLease"
+    }
+  ]
+}

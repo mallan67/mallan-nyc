@@ -424,6 +424,11 @@
                 } else {
                     searchResultsState.filteredListings = listings.slice();
                 }
+                // This is a LOCAL re-filter of the freshly bootstrapped catalogue,
+                // not a server answer — so it must not inherit the authority of
+                // whatever search ran before it. Downgrade to a preview, which
+                // closes the downstream broker actions until a real search runs.
+                if (typeof markSearchResultsProvisional === 'function') markSearchResultsProvisional();
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
             }

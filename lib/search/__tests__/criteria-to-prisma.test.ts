@@ -1,3 +1,4 @@
+import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 import {
   UNPOPULATED_AMENITIES,
   UNMAPPED_AMENITIES,
@@ -9,6 +10,8 @@ import {
   criteriaToProjectionWhere,
   criteriaToPrismaWhere,
   getUnsupportedProjectionCriteria,
+  _ALERT_KEYS_FOR_TEST,
+  _SEARCH_KEYS_FOR_TEST,
 } from "@/lib/search/criteria-to-prisma";
 import {
   buildProjectionSearchWhere,
@@ -305,6 +308,10 @@ describe("getUnsupportedProjectionCriteria", () => {
   });
 
   it("returns unsupported criteria for keys that projection does not support", () => {
+    // `propertySubType` LEFT this list on 2026-08-21: the projection now executes
+    // it as an exact `IN` on the indexed `property_sub_type` column, against the
+    // live-verified 75-member enum. `Condominium` is a real member (populated
+    // zero on this feed, which is a capability fact, not an execution failure).
     expect(getUnsupportedProjectionCriteria({
       zip: "10001",
       listing_id: "RLS20059088",
@@ -313,7 +320,6 @@ describe("getUnsupportedProjectionCriteria", () => {
     }).sort()).toEqual([
       "listing_id",
       "min_year",
-      "propertySubType",
       "zip",
     ]);
   });
@@ -598,5 +604,120 @@ describe("unavailable amenities are classified by CAUSE, not lumped together", (
       expect(UNSUPPORTED_AMENITY_KEYS.has(key)).toBe(true);
       expect(JSON.stringify(criteriaToProjectionWhere({ amenities: [key] }))).toContain('"in":[]');
     }
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * PROPERTY SUB-TYPE — the projection half of ONE criterion.
+ *
+ * The OData half lives in `crm-idx-filter.test.ts`. Both read the same contract
+ * module, so the provider and the projection cannot answer the same broker
+ * question with different universes.
+ *
+ * Live contract probed 2026-08-21 —
+ * `docs/idx/cotality-property-subtype-live-contract-2026-08-21.md`.
+ */
+describe("propertySubType → projection predicate", () => {
+  it("translates one exact member into an IN of one", () => {
+    const where = criteriaToProjectionWhere({ propertySubType: "Apartment" });
+    expect(where.property_sub_type).toEqual({ in: ["Apartment"] });
+  });
+
+  it("translates several members into an exact IN — the OR of the OData renderer", () => {
+    const where = criteriaToProjectionWhere({ propertySubType: "Office,Retail" });
+    expect(where.property_sub_type).toEqual({ in: ["Office", "Retail"] });
+  });
+
+  it("accepts an array as well as the comma string the CRM collector emits", () => {
+    const where = criteriaToProjectionWhere({ propertySubType: ["MixedUse", "MultiFamily"] });
+    expect(where.property_sub_type).toEqual({ in: ["MixedUse", "MultiFamily"] });
+  });
+
+  it("adds NO predicate when the criterion is absent", () => {
+    expect(criteriaToProjectionWhere({ listing_type: "sale" }).property_sub_type).toBeUndefined();
+  });
+
+  it("never substring-matches — the old local prefilter used indexOf", () => {
+    // Scoped to the sub-type predicate: the surrounding where legitimately
+    // carries `startsWith` for the SL-/RL- return-copy suppression.
+    const where = criteriaToProjectionWhere({ propertySubType: "MultiFamily" });
+    expect(where.property_sub_type).toEqual({ in: ["MultiFamily"] });
+    expect(JSON.stringify(where.property_sub_type)).not.toContain("contains");
+    expect(JSON.stringify(where.property_sub_type)).not.toContain("startsWith");
+  });
+
+  it("FAILS LOUD on a token the live provider does not declare", () => {
+    expect(() => criteriaToProjectionWhere({ propertySubType: "Brownstone" })).toThrow(
+      UnknownPropertySubTypeError,
+    );
+  });
+
+  it("FAILS LOUD on a mis-cased member rather than returning an empty universe", () => {
+    expect(() => criteriaToProjectionWhere({ propertySubType: "apartment" })).toThrow(
+      UnknownPropertySubTypeError,
+    );
+  });
+
+  it("is a SUPPORTED search criterion, so a saved search carrying it can run", () => {
+    expect(getUnsupportedSearchCriteria({ propertySubType: "Apartment" })).toEqual([]);
+  });
+
+  it("a saved search carrying an unknown member is reported unsupported, not executed", () => {
+    expect(getUnsupportedSearchCriteria({ propertySubType: "Brownstone" })).toEqual([
+      "propertySubType",
+    ]);
+  });
+
+  it("gives findMany and count the SAME predicate — one universe, pagination only on findMany", async () => {
+    const db = {
+      listingSearchProjection: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+
+    await runProjectionListingSearch(db, { listing_type: "sale", propertySubType: "Apartment,Loft" });
+
+    const findManyArgs = db.listingSearchProjection.findMany.mock.calls[0][0];
+    const countArgs = db.listingSearchProjection.count.mock.calls[0][0];
+
+    expect(findManyArgs.where.property_sub_type).toEqual({ in: ["Apartment", "Loft"] });
+    expect(countArgs.where).toEqual(findManyArgs.where);
+    expect(countArgs.take).toBeUndefined();
+    expect(countArgs.skip).toBeUndefined();
+  });
+});
+
+/**
+ * RUNNABLE IS NOT ALERTABLE.
+ *
+ * `property_sub_type` joined SEARCH capability on 2026-08-21 but deliberately
+ * NOT alert capability. Alerts replay unattended against a moving feed, and the
+ * live enum's population is exactly what moves — four members the UI offers have
+ * never carried a row. Promoting sub-type to alertable is a separate decision
+ * that needs its own evidence, so the subset invariant records the gap instead
+ * of quietly closing it.
+ *
+ * This also protects the alerts cron: a saved search carrying a sub-type is
+ * gated out with `unsupported_criteria` rather than executed.
+ */
+describe("property sub-type: SEARCH capability without ALERT capability", () => {
+  it("can be RUN by the projection engine", () => {
+    expect(getUnsupportedSearchCriteria({ propertySubType: "Apartment" })).toEqual([]);
+  });
+
+  it("may NOT be replayed by an alert", () => {
+    expect(getUnsupportedAlertCriteria({ propertySubType: "Apartment" })).toEqual([
+      "propertySubType",
+    ]);
+  });
+
+  it("keeps ALERT a strict subset of SEARCH", () => {
+    for (const key of _ALERT_KEYS_FOR_TEST) {
+      expect(_SEARCH_KEYS_FOR_TEST.has(key)).toBe(true);
+    }
+    expect(_SEARCH_KEYS_FOR_TEST.has("propertySubType")).toBe(true);
+    expect(_ALERT_KEYS_FOR_TEST.has("propertySubType")).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { buildCrmIdxODataFilter, escapeOData } from "@/lib/search/crm-idx-filter";
+import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 
 describe("buildCrmIdxODataFilter", () => {
   it("builds core sale filters with default active statuses", () => {
@@ -61,8 +62,12 @@ describe("buildCrmIdxODataFilter", () => {
       dateFrom: "2026-04-01",
       dateTo: "2026-04-02",
       buildingName: "The Plaza",
+      // CORRECTED 2026-08-21: was `propertySubType: "Condo,Co-op"`. Neither is a
+      // live Cotality PropertySubType member — the enum carries `Condominium` and
+      // `StockCooperative` — and the old expectation asserted a `contains()`
+      // expression the provider answers with HTTP 400. Both halves were wrong.
       managementCompany: "O'Brien Realty",
-      propertySubType: "Condo,Co-op",
+      propertySubType: "Apartment,Loft",
       ownership: "Condominium,StockCooperative",
       listingId: "RLS123",
     }));
@@ -71,7 +76,7 @@ describe("buildCrmIdxODataFilter", () => {
     expect(filter).toContain("ModificationTimestamp le 2026-04-02T23:59:59Z");
     expect(filter).toContain("contains(BuildingName,'The Plaza')");
     expect(filter).toContain("contains(ListOfficeName,'O''Brien Realty')");
-    expect(filter).toContain("(contains(PropertySubType,'Condo') or contains(PropertySubType,'Co-op'))");
+    expect(filter).toContain("(PropertySubType eq 'Apartment' or PropertySubType eq 'Loft')");
     expect(filter).toContain("(CommonInterest eq 'Condominium' or CommonInterest eq 'StockCooperative')");
     expect(filter).toContain("ListingId eq 'RLS123'");
   });
@@ -228,11 +233,59 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).toContain("CloseDate le 2026-03-31");
   });
 
-  it("propertySubType single → contains(PropertySubType,'X') (no parens)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Condominium" }));
-    expect(f).toContain("contains(PropertySubType,'Condominium')");
-    // Single-value path is bare contains() — no OR grouping
-    expect(f).not.toContain("(contains(PropertySubType,'Condominium'))");
+  it("propertySubType single → PropertySubType eq 'X' (no parens)", () => {
+    const f = buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Apartment" }));
+    expect(f).toContain("PropertySubType eq 'Apartment'");
+    // Single-value path is a bare equality — no OR grouping
+    expect(f).not.toContain("(PropertySubType eq 'Apartment')");
+  });
+
+  /**
+   * PROVEN LIVE 2026-08-21 against api.cotality.com — see
+   * `docs/idx/cotality-property-subtype-live-contract-2026-08-21.md`.
+   *
+   * `PropertySubType` is a SCALAR enum. `contains()` on it is HTTP 400:
+   *   "No function signature for the function with name 'contains' matches the
+   *    specified arguments … contains(Edm.String, Edm.String)."
+   *
+   * So every authenticated search carrying a property-type box was failing at the
+   * provider, and `/api/idx/search` was converting that 400 into its own 502.
+   */
+  describe("propertySubType — exact live enum, never substring", () => {
+    it("NEVER emits contains(PropertySubType,…) — the provider answers HTTP 400", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Apartment,Loft" }));
+      expect(f).not.toContain("contains(PropertySubType");
+    });
+
+    it("expands the commercial Office,Retail checkbox into two exact members", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Office,Retail" }));
+      expect(f).toContain("(PropertySubType eq 'Office' or PropertySubType eq 'Retail')");
+    });
+
+    it("accepts a valid member that is live-populated ZERO — valid-and-empty is not invalid", () => {
+      // `Townhouse` has never been carried by this feed, at any status. It is
+      // still a well-formed query returning 200/0, and must not be rejected.
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Townhouse" }));
+      expect(f).toContain("PropertySubType eq 'Townhouse'");
+    });
+
+    it("FAILS LOUD on a token that is not a live member", () => {
+      expect(() =>
+        buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Brownstone" })),
+      ).toThrow(UnknownPropertySubTypeError);
+    });
+
+    it("FAILS LOUD on a mis-cased member — the provider would return 200 with zero rows", () => {
+      expect(() =>
+        buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "apartment" })),
+      ).toThrow(UnknownPropertySubTypeError);
+    });
+
+    it("FAILS LOUD rather than silently dropping the invalid half of a mixed list", () => {
+      expect(() =>
+        buildCrmIdxODataFilter(new URLSearchParams({ propertySubType: "Apartment,Brownstone" })),
+      ).toThrow(UnknownPropertySubTypeError);
+    });
   });
 
   it("ownership single → CommonInterest eq 'X' (no parens)", () => {

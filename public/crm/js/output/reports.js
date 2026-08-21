@@ -130,6 +130,28 @@
         // ── REBNY/IDX compliance validation ──
         function validateReportState() {
             var errors = [];
+
+            // A report LEAVES the CRM — CSV, Excel, a public shareable link, a
+            // printed sheet, an email to a client. It may only ever be built
+            // from a completed search.
+            //
+            // This gate used to ask only whether the rows may be DISPLAYED
+            // (IDX / internet opt-out). It never asked whether they were an
+            // ANSWER. So when a server search failed and the local preview rows
+            // stayed on screen, a report built from them validated cleanly and
+            // could be published or emailed to a client as search results.
+            //
+            // Deliberately keyed on `searchResultsAreStale()`, not on
+            // `!hasAuthoritativeSearchResults()`: reporting over the loaded
+            // catalogue BEFORE any search is existing behaviour and is not what
+            // this fixes.
+            if (typeof searchResultsAreStale === 'function' && searchResultsAreStale()) {
+                errors.push(
+                    'These rows are a preview, not a completed search — run the search again before ' +
+                    'generating a report. A failed or in-flight search cannot be delivered to a client.'
+                );
+            }
+
             if (reportState.selectedListingIds.length === 0) errors.push('Select at least 1 listing.');
             if (reportState.selectedListingIds.length > 250) errors.push('Maximum 250 listings allowed per report.');
             // Compliance: block agent-only comments in CSV/Excel customer export

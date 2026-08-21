@@ -139,6 +139,11 @@
                 if (typeof searchResultsState !== 'undefined' && typeof listings !== 'undefined') {
                     searchResultsState.filteredListings = filterListings(listings, parsed.criteria);
                     searchResultsState.currentPage = 1;
+                    // "Last Search" recall never asks the server — it re-filters
+                    // the catalogue that happens to be loaded. Whatever it
+                    // produces is a preview, so it must not inherit the
+                    // authority of the search that ran before it.
+                    if (typeof markSearchResultsProvisional === 'function') markSearchResultsProvisional();
                     var searchResultsSection = document.getElementById('searchResultsSection');
                     if (searchResultsSection) {
                         searchResultsSection.style.display = 'block';

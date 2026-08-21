@@ -6,6 +6,11 @@ import {
 import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from "@/lib/search/canonical/amenity-match";
 import { maxBathsAlternatives, minBathsAlternatives } from "@/lib/search/canonical/bath-contract";
 import { isAmenityExecutable } from "@/lib/search/canonical/field-registry";
+import {
+  isPropertySubTypeMember,
+  parsePropertySubTypeCriterion,
+  propertySubTypePrisma,
+} from "@/lib/search/canonical/property-subtype-contract";
 
 /**
  * Normalised public ownership input → live `CommonInterest` member.
@@ -117,6 +122,13 @@ const SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS = new Set([
   "postal_code",
   "newDevelopment",
   "is_new_development",
+  // PropertySubType — live-verified 2026-08-21 as a scalar 75-member enum with
+  // `eq`/`in` SUPPORTED, and executed here as an exact `IN` on the indexed
+  // `property_sub_type` projection column.
+  "property_sub_type",
+  "propertySubType",
+  "property_sub_types",
+  "propertySubTypes",
   // THE FOUR TABS. Public Search always emits `type` PLUS `commercial=true/false`
   // for buy-residential / buy-commercial / rent-residential / rent-commercial.
   // `type` alone does NOT identify the tab, so omitting `commercial` here let
@@ -206,6 +218,27 @@ function isSupportedProjectionCriterionValue(key: string, value: unknown): boole
 
   if (key === "property_type" || key === "property_types" || key === "propertyType" || key === "propertyTypes") {
     return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (
+    key === "property_sub_type" || key === "propertySubType" ||
+    key === "property_sub_types" || key === "propertySubTypes"
+  ) {
+    // Support is per-VALUE, not merely per-key. A saved search holding a token
+    // the live enum no longer declares must be reported unsupported rather than
+    // replayed — the provider would answer a mis-cased or retired literal with
+    // 200 and zero rows, which reads as "nothing matched" instead of "this
+    // search can no longer be executed".
+    const tokens = Array.isArray(value)
+      ? value
+      : typeof value === "string"
+        ? value.split(",")
+        : null;
+    if (tokens === null) return false;
+    return tokens.every((token) => {
+      const trimmed = typeof token === "string" ? token.trim() : "";
+      return trimmed === "" || isPropertySubTypeMember(trimmed);
+    });
   }
 
   if (key === "borough" || key === "neighborhood" || key === "searchTab") {
@@ -593,6 +626,26 @@ export function criteriaToProjectionWhere(
 
   const propertyTypes = stringArray(first(criteria, ["property_type", "property_types", "propertyType", "propertyTypes"]));
   if (propertyTypes.length > 0) where.property_type = { in: propertyTypes };
+
+  // PropertySubType is a DIFFERENT provider fact from PropertyType — a scalar
+  // 75-member enum, probed live 2026-08-21. Rendered from the same contract that
+  // renders the OData half in `crm-idx-filter.ts`, so the provider path and the
+  // projection path describe ONE universe rather than two.
+  //
+  // `parsePropertySubTypeCriterion` throws `UnknownPropertySubTypeError` on a
+  // token that is not a live member. That is deliberate: the provider answers a
+  // MIS-CASED literal with HTTP 200 and zero rows, so a silently-dropped token
+  // would hand a broker a plausible-looking wrong result set with no signal.
+  const subTypeMembers = parsePropertySubTypeCriterion(
+    first(criteria, [
+      "property_sub_type",
+      "propertySubType",
+      "property_sub_types",
+      "propertySubTypes",
+    ]) as string | string[] | undefined,
+  );
+  const subTypePredicate = propertySubTypePrisma(subTypeMembers);
+  if (subTypePredicate) where.property_sub_type = subTypePredicate;
 
   const borough = first(criteria, ["borough"]);
   if (typeof borough === "string" && borough.trim() !== "") {

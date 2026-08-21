@@ -173,3 +173,103 @@ describe("source-class eligibility under the projection gate", () => {
     expect(admits(row({ owner_opt_out: true, listing_id: "RLS888" }))).toBe(false);
   });
 });
+
+/**
+ * THE SUB-TYPE CRITERION COMPOSES WITH THE SOURCE-CLASS GATE.
+ *
+ * Closure requirement (Maya, 2026-08-21): a sub-type search must return
+ * third-party Cotality inventory AND Mallan-authored local listings, while the
+ * suppressed Mallan-office Cotality representation stays out — ONE universe,
+ * not a sub-type filter bolted onto a different population.
+ *
+ * Each case asserts both an admission and an exclusion, so the test fails if
+ * the sub-type predicate is dropped as well as if the source-class gate is.
+ */
+describe("property sub-type composes with source-class eligibility", () => {
+  type Row = {
+    property_sub_type: string;
+    rls_eligible: boolean;
+    idx_display_yn: boolean;
+    internet_entire_listing_display_yn: boolean;
+    participant_only_yn: boolean;
+    listing: { owner_opt_out: boolean; listing_id: string; list_office_mls_id: string | null; rls_eligible: boolean };
+  };
+
+  const CRITERIA = { propertySubType: "Apartment,Loft" };
+
+  /** Evaluate the FULL criteria where — gate AND sub-type — against one row. */
+  const admits = (row: Row): boolean => {
+    const w = criteriaToProjectionWhere(CRITERIA) as Record<string, unknown>;
+
+    const subType = w.property_sub_type as { in: string[] } | undefined;
+    if (!subType) throw new Error("no property_sub_type predicate — the translator is missing");
+    if (!subType.in.includes(row.property_sub_type)) return false;
+
+    for (const [k, v] of Object.entries(w)) {
+      if (k === "listing" || k === "mls_status" || k === "property_sub_type") continue;
+      if ((row as unknown as Record<string, unknown>)[k] !== v) return false;
+    }
+    const rel = (w.listing ?? {}) as Record<string, unknown>;
+    if (rel.owner_opt_out !== undefined && row.listing.owner_opt_out !== rel.owner_opt_out) return false;
+    const or = rel.OR as Array<Record<string, unknown>> | undefined;
+    if (!or) return true;
+    return or.some((arm) => {
+      if ("rls_eligible" in arm) return row.listing.rls_eligible === arm.rls_eligible;
+      if ("list_office_mls_id" in arm) {
+        const spec = arm.list_office_mls_id as unknown;
+        if (spec === null) return row.listing.list_office_mls_id === null;
+        if (typeof spec === "object" && spec && "notIn" in (spec as Record<string, unknown>)) {
+          const notIn = (spec as { notIn: string[] }).notIn;
+          return row.listing.list_office_mls_id !== null && !notIn.includes(row.listing.list_office_mls_id);
+        }
+      }
+      if ("listing_id" in arm) {
+        const spec = arm.listing_id as { startsWith?: string };
+        return spec.startsWith ? row.listing.listing_id.startsWith(spec.startsWith) : false;
+      }
+      return false;
+    });
+  };
+
+  const row = (o: Partial<Row["listing"]> & Partial<Row>): Row => ({
+    property_sub_type: "Apartment",
+    rls_eligible: true,
+    idx_display_yn: true,
+    internet_entire_listing_display_yn: true,
+    participant_only_yn: false,
+    ...(o as Partial<Row>),
+    listing: {
+      owner_opt_out: false,
+      listing_id: "RLS123",
+      list_office_mls_id: "9999",
+      rls_eligible: true,
+      ...(o as Partial<Row["listing"]>),
+    },
+  });
+
+  it("admits third-party Cotality inventory whose sub-type matches", () => {
+    expect(admits(row({ listing_id: "RLS777", list_office_mls_id: "9999", property_sub_type: "Apartment" }))).toBe(true);
+  });
+
+  it("excludes third-party Cotality inventory whose sub-type does NOT match", () => {
+    expect(admits(row({ listing_id: "RLS777", list_office_mls_id: "9999", property_sub_type: "MultiFamily" }))).toBe(false);
+  });
+
+  it("admits a Mallan-authored local SL- listing whose sub-type matches", () => {
+    expect(admits(row({ listing_id: "SL-0004", list_office_mls_id: "7041", property_sub_type: "Loft" }))).toBe(true);
+  });
+
+  it("excludes a Mallan-authored local listing whose sub-type does NOT match", () => {
+    expect(admits(row({ listing_id: "SL-0004", list_office_mls_id: "7041", property_sub_type: "Office" }))).toBe(false);
+  });
+
+  it("keeps the Mallan-office representation suppressed even when its sub-type matches", () => {
+    // The dangerous case: a matching sub-type must not readmit the duplicate.
+    expect(admits(row({ listing_id: "RLS20099289", list_office_mls_id: "7041", property_sub_type: "Apartment" }))).toBe(false);
+  });
+
+  it("admits BOTH selected members — one criterion, one universe", () => {
+    expect(admits(row({ listing_id: "RLS777", property_sub_type: "Apartment" }))).toBe(true);
+    expect(admits(row({ listing_id: "SL-0004", list_office_mls_id: "7041", property_sub_type: "Loft" }))).toBe(true);
+  });
+});

@@ -1,4 +1,8 @@
 import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
+import {
+  parsePropertySubTypeCriterion,
+  propertySubTypeOData,
+} from "@/lib/search/canonical/property-subtype-contract";
 
 /**
  * Expand a canonical neighborhood name into all SubdivisionName variants
@@ -214,15 +218,23 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const mgmtCompany = params.get("managementCompany");
   if (mgmtCompany) parts.push(`contains(ListOfficeName,'${escapeOData(mgmtCompany)}')`);
 
+  // PropertySubType — ONE canonical criterion, rendered here for the provider and
+  // in `criteria-to-prisma.ts` for the projection. Both read the same contract, so
+  // the two paths cannot answer the same broker question differently.
+  //
+  // This used to emit `contains(PropertySubType,'…')`. Probed live 2026-08-21:
+  // that is HTTP 400 — `contains` takes strings and PropertySubType is a scalar
+  // enum — so every authenticated search carrying a property-type box failed at
+  // the provider and surfaced as this route's own 502. `eq` (and OR of `eq`) is
+  // SUPPORTED. See `docs/idx/cotality-property-subtype-live-contract-2026-08-21.md`.
+  //
+  // Validation is Mallan-side and case-exact BY NECESSITY: the provider rejects an
+  // unparseable literal with 400 but answers a MIS-CASED one with 200 and zero
+  // rows, which is indistinguishable from a legitimate empty result.
   const subType = params.get("propertySubType");
   if (subType) {
-    const subTypes = subType.split(",").map((value) => value.trim()).filter(Boolean);
-    if (subTypes.length === 1) {
-      parts.push(`contains(PropertySubType,'${escapeOData(subTypes[0])}')`);
-    } else if (subTypes.length > 1) {
-      const stParts = subTypes.map((value) => `contains(PropertySubType,'${escapeOData(value)}')`);
-      parts.push(`(${stParts.join(" or ")})`);
-    }
+    const rendered = propertySubTypeOData(parsePropertySubTypeCriterion(subType));
+    if (rendered) parts.push(rendered);
   }
 
   const ownership = params.get("ownership");

@@ -207,9 +207,11 @@
                     ? filterListings(listings, activeSearchCriteria)
                     : [];
 
-                // Show results section (with local results or empty while server loads)
+                // Show results section (with local results or empty while server loads).
+                // PROVISIONAL: rendered for responsiveness, not an answer yet.
                 searchResultsState.filteredListings = localResults;
                 searchResultsState.currentPage = 1;
+                _setResultProvenance('provisional');
                 _showSearchResults();
 
                 // Always also query the server for fresh results
@@ -220,6 +222,111 @@
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
         }
+
+        // ══════════════════════════════════════════════════════════════════
+        // RESULT PROVENANCE — is what is on screen an ANSWER, or a preview?
+        //
+        //   'none'          no result universe. Nothing has been answered.
+        //   'provisional'   a local preview, rendered for responsiveness while
+        //                   the authoritative request is in flight.
+        //   'authoritative' the server answered. THIS is a Search result.
+        //
+        // WHY THIS EXISTS. `performSearch` renders a local pre-render into
+        // `searchResultsState.filteredListings` before the server replies. Until
+        // 2026-08-21 a server FAILURE left those rows in place and showed an
+        // error only when there were none — so a failed search terminated
+        // looking like a successful one.
+        //
+        // AND THOSE ROWS ARE NOT WHAT THEIR OLD COMMENTS CLAIMED. `listings` is
+        // not a fixture and not "canonical local Mallan inventory": it is loaded
+        // once at page load by `_loadFromIDX()` as the first 200 rows of an
+        // UNFILTERED search (ModificationTimestamp desc), falling back to a
+        // 200-row local-DB page. Capped, stale, and unrelated to the broker's
+        // criteria — while looking exactly like real inventory.
+        //
+        // The pre-render is a latency optimisation. It is not a second search
+        // engine and it may never become the final answer.
+        // ══════════════════════════════════════════════════════════════════
+
+        /** True only when the CURRENT rows came from a successful server search. */
+        function hasAuthoritativeSearchResults() {
+            return Boolean(
+                typeof searchResultsState !== 'undefined' &&
+                searchResultsState &&
+                searchResultsState.resultProvenance === 'authoritative'
+            );
+        }
+
+        /**
+         * Gate for any broker action that consumes the result set — Compare,
+         * Reports/CMA, Save Search result counts, client email/share, export.
+         * Returns false and explains, rather than operating on preview rows.
+         *
+         * Fail-closed: an ABSENT marker is not authoritative.
+         */
+        function requireAuthoritativeSearchResults(actionLabel) {
+            if (hasAuthoritativeSearchResults()) return true;
+            var what = actionLabel || 'This action';
+            showToast(
+                what + ' needs a completed search. These rows are a preview, not verified ' +
+                'search results — run the search again.',
+                'error'
+            );
+            return false;
+        }
+
+        /**
+         * A search WAS attempted and did not leave an authoritative universe —
+         * it is still previewing, or it failed.
+         *
+         * Distinct from `!hasAuthoritativeSearchResults()`, which is also true
+         * before any search has run at all. Downstream surfaces that may
+         * legitimately operate on the loaded catalogue BEFORE a search (Reports
+         * over "all results", for one) must refuse on THIS condition only —
+         * refusing on the absent marker too would change untouched pre-search
+         * behaviour rather than fixing the defect.
+         */
+        function searchResultsAreStale() {
+            if (typeof searchResultsState === 'undefined' || !searchResultsState) return false;
+            var provenance = searchResultsState.resultProvenance;
+            return provenance === 'provisional' || provenance === 'none';
+        }
+
+        window.searchResultsAreStale = searchResultsAreStale;
+
+        function _setResultProvenance(provenance) {
+            if (typeof searchResultsState === 'undefined' || !searchResultsState) return;
+            searchResultsState.resultProvenance = provenance;
+        }
+
+        window.hasAuthoritativeSearchResults = hasAuthoritativeSearchResults;
+        window.requireAuthoritativeSearchResults = requireAuthoritativeSearchResults;
+
+        /**
+         * Downgrade to a preview. Exposed for any surface OUTSIDE this file that
+         * writes `filteredListings` from a LOCAL filter rather than a server
+         * answer — `_replaceListings` in data-loader.js does exactly that on a
+         * background reload while the results view is open.
+         *
+         * Anything that writes the result set without a server round-trip must
+         * call this, or the rows inherit the previous run's authority.
+         */
+        window.markSearchResultsProvisional = function() {
+            _setResultProvenance('provisional');
+        };
+
+        /**
+         * Restore authority after a COMPLETED server round-trip for the current
+         * criteria — the sort re-fetch in toolbar-functions.js is the one caller.
+         *
+         * Only ever call this when the server has actually answered for the
+         * criteria on screen. It exists because the re-sort path legitimately
+         * re-queries and would otherwise be left permanently provisional by the
+         * `_replaceListings` downgrade it triggers on the way through.
+         */
+        window.markSearchResultsAuthoritative = function() {
+            _setResultProvenance('authoritative');
+        };
 
         function _hasServerIgnoredCriteria(criteria) {
             return Boolean(criteria && (
@@ -406,15 +513,23 @@
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
-                    // Server returned 0. Trestle is the source of truth for IDX
-                    // search — DO NOT keep the pre-display local fixture
-                    // results visible, because they include cross-borough
-                    // fixture rows that don't match the actual IDX query
-                    // (e.g. Manhattan + 1 bed search briefly showing Bronx/
-                    // Queens fixtures while server loads). Clear the display
-                    // so the empty-state + toast surfaces honestly.
+                    // Server returned 0. The server is the source of truth for
+                    // this search — DO NOT keep the pre-render rows visible.
+                    //
+                    // (Comment corrected 2026-08-21: these were called "local
+                    // fixture rows". They are not fixtures. `listings` is the
+                    // 200-row UNFILTERED page loaded at startup by
+                    // `_loadFromIDX()`, so the rows are real listings that
+                    // simply do not answer this query — which is precisely why
+                    // leaving them up would read as a result set.)
+                    //
+                    // Clear the display so the empty-state + toast surface honestly.
                     searchResultsState.filteredListings = [];
                     searchResultsState.currentPage = 1;
+                    // A genuinely empty universe IS an answer. `Townhouse` is a
+                    // valid live member with zero rows — nothing failed here, so
+                    // this stays authoritative and downstream actions stay open.
+                    _setResultProvenance('authoritative');
                     try {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -470,20 +585,26 @@
                     }
                 });
 
-                // REPLACE the pre-display local fixture results with the
-                // authoritative Trestle server results. Previously this
-                // merged `localResults` (fixture-side filter output) with
-                // `serverListings`, which polluted IDX search results with
-                // cross-borough fixtures — e.g. Manhattan+1bed search would
-                // render Bronx/Queens fixture rows above the actual Manhattan
-                // listings because filterListings(listings, criteria) on the
-                // ~126-row local fixture set is not borough/neighborhood-
-                // strict and IDX search is server-authoritative anyway.
+                // REPLACE the provisional pre-render with the AUTHORITATIVE
+                // server universe. Previously this MERGED `localResults` with
+                // `serverListings`, so rows that answered no part of the query
+                // rendered above the ones that did.
+                //
+                // (Comment corrected 2026-08-21. It described `listings` as a
+                // "~126-row local fixture set". It is not a fixture set — that
+                // number belongs to the TEST fixtures in scripts/crm-tests/.
+                // At runtime `listings` is whatever `_loadFromIDX()` fetched at
+                // page load: 200 unfiltered rows ordered by
+                // ModificationTimestamp desc, or a 200-row local-DB page on
+                // fallback. Capped, stale and criteria-independent — real rows
+                // that are not an answer, which is the harder case to spot.)
+                //
                 // serverListings has been merged into the global `listings`
                 // array above so existing-by-id lookups still work; we just
                 // stop polluting the rendered list.
                 searchResultsState.filteredListings = serverListings;
                 searchResultsState.currentPage = 1;
+                _setResultProvenance('authoritative');
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -495,11 +616,38 @@
                 console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
             }).catch(function(err) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.error('[Search] Trestle search failed:', err);
-                // Keep local results visible — they're already rendered
-                if (localResults.length === 0) {
-                    showToast('Search temporarily unavailable. Please try again.', 'error');
+                console.error('[Search] Search failed:', err);
+
+                // FAIL CLOSED. This used to keep the local pre-render visible and
+                // show an error ONLY when `localResults.length === 0` — so a
+                // failed search with rows on screen was indistinguishable from a
+                // successful one. Those rows are a stale, criteria-independent
+                // 200-row page from page load, and they are not an answer.
+                //
+                // A failed search yields NO result universe:
+                //   - the rows are cleared,
+                //   - the provenance drops to 'none' so every downstream broker
+                //     action (Compare / Reports / client send / saved counts) is
+                //     refused by requireAuthoritativeSearchResults(),
+                //   - the persisted state is discarded so a refresh cannot
+                //     resurrect the preview as a completed search,
+                //   - and the failure is ALWAYS surfaced, whatever was on screen.
+                void localResults;
+                searchResultsState.filteredListings = [];
+                searchResultsState.currentPage = 1;
+                _setResultProvenance('none');
+
+                try { sessionStorage.removeItem('_searchState'); } catch (storageErr) { void storageErr; }
+
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof refreshResultsMap === 'function') refreshResultsMap();
+                } catch (renderErr) {
+                    console.error('[Search] Render after failed search failed:', renderErr);
                 }
+
+                showToast('Search failed — no results to show. Please try again.', 'error');
             });
         }
 
@@ -1524,12 +1672,26 @@
                     if (!match) return false;
                 }
 
-                // PropertySubType filter
+                // PropertySubType filter — EXACT scalar-enum match.
+                //
+                // Was `sub.indexOf(v) !== -1` on both sides lower-cased: a
+                // case-folded SUBSTRING test. `Family` swept in MultiFamily AND
+                // SingleFamilyResidence; `Apart` matched Apartment.
+                //
+                // Cotality declares PropertySubType a SCALAR Enum (probed live
+                // 2026-08-21, 75 members) where `eq` is SUPPORTED and
+                // `contains()` is HTTP 400. Case is significant: `eq 'apartment'`
+                // returns 200 with ZERO rows. This local predicate must mean
+                // exactly what the canonical criterion means on the server —
+                // exact member, case-sensitive, OR across the selected values —
+                // or the preview describes a different universe than the search.
                 if (criteria.propertySubType) {
-                    var pstValues = criteria.propertySubType.split(',').map(function(v) { return v.toLowerCase(); });
-                    var sub = (listing.propertySubType || '').toLowerCase();
-                    var pstMatch = pstValues.some(function(v) { return sub.indexOf(v) !== -1; });
-                    if (!pstMatch) return false;
+                    var pstValues = String(criteria.propertySubType)
+                        .split(',')
+                        .map(function(v) { return v.trim(); })
+                        .filter(Boolean);
+                    var sub = listing.propertySubType || '';
+                    if (pstValues.indexOf(sub) === -1) return false;
                 }
 
                 // Address / building name filter — partial match
@@ -2206,11 +2368,20 @@
                     }
                 }
 
-                // Rebuild filteredListings from saved IDs
+                // Rebuild filteredListings from saved IDs.
+                //
+                // This is a LOCAL reconstruction: the ids are intersected with
+                // whatever `listings` holds right now, so any row that is no
+                // longer in that array is silently dropped and the restored set
+                // can be an unannounced subset of what the search returned. It
+                // has not been re-asked of the server, so it is a preview —
+                // which also keeps report delivery closed until a real search
+                // runs, rather than letting a refresh re-open it.
                 var idSet = {};
                 state.filteredIds.forEach(function(id) { idSet[id] = true; });
                 searchResultsState.filteredListings = listings.filter(function(l) { return idSet[l.id]; });
                 searchResultsState.currentPage = state.page || 1;
+                _setResultProvenance('provisional');
 
                 return true;
             } catch (e) { return false; }

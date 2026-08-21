@@ -1,0 +1,742 @@
+{
+  "probedAt": "2026-08-21T13:44:29.486Z",
+  "api": "https://api.cotality.com/trestle",
+  "metadata": {
+    "PropertySubType": {
+      "rawDeclaration": "<Property Name=\"PropertySubType\" Type=\"Cotality.DataStandard.RESO.DD.Enums.PropertySubType\" />",
+      "declaredType": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+      "nullable": "not-declared(OData default: true)",
+      "isCollection": false,
+      "enumTypeName": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+      "memberCount": 75,
+      "members": [
+        "Acreage",
+        "Agriculture",
+        "Apartment",
+        "Attached",
+        "BoatSlip",
+        "Building",
+        "BuildingBusiness",
+        "BuildingLand",
+        "BuildingLandBusiness",
+        "Business",
+        "BusinessLand",
+        "Cabin",
+        "Chalet",
+        "Cluster",
+        "Commercial",
+        "Condominium",
+        "CoOwnership",
+        "DeededParking",
+        "Detached",
+        "Dockominium",
+        "Duplex",
+        "Earthship",
+        "Farm",
+        "FlexibleSpace",
+        "Fractional",
+        "Garage",
+        "HalfDuplex",
+        "HotelMotel",
+        "ImprovedLand",
+        "Industrial",
+        "Institutional",
+        "Investment",
+        "Land",
+        "LiveWork",
+        "Loft",
+        "ManufacturedHome",
+        "ManufacturedOnLand",
+        "MiningClaim",
+        "MixedUse",
+        "MobileHome",
+        "MobileHomePark",
+        "ModularHome",
+        "MultiFamily",
+        "MultipleParcels",
+        "NewHomeCommunity",
+        "NewHomePlan",
+        "NewHomeSpecHome",
+        "NoLand",
+        "Office",
+        "Other",
+        "OwnYourOwn",
+        "ParkModel",
+        "Quadruplex",
+        "Ranch",
+        "Recreation",
+        "Residential",
+        "Retail",
+        "RoomingHouse",
+        "RoomsForRent",
+        "SemiDetached",
+        "SingleFamilyResidence",
+        "SitePlanned",
+        "SpecialPurpose",
+        "StockCooperative",
+        "Studio",
+        "TenancyInCommon",
+        "Timeshare",
+        "ToBeBuilt",
+        "Townhouse",
+        "Triplex",
+        "TwoApartment",
+        "UnimprovedLand",
+        "Villa",
+        "Warehouse",
+        "WaterPositionWithLand"
+      ]
+    },
+    "PropertySubTypeAdditional": {
+      "rawDeclaration": "<Property Name=\"PropertySubTypeAdditional\" Type=\"Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional\">",
+      "declaredType": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+      "nullable": "not-declared(OData default: true)",
+      "isCollection": false,
+      "enumTypeName": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+      "memberCount": 75,
+      "members": [
+        "Acreage",
+        "Agriculture",
+        "Apartment",
+        "Attached",
+        "BoatSlip",
+        "Building",
+        "BuildingBusiness",
+        "BuildingLand",
+        "BuildingLandBusiness",
+        "Business",
+        "BusinessLand",
+        "Cabin",
+        "Chalet",
+        "Cluster",
+        "Commercial",
+        "Condominium",
+        "CoOwnership",
+        "DeededParking",
+        "Detached",
+        "Dockominium",
+        "Duplex",
+        "Earthship",
+        "Farm",
+        "FlexibleSpace",
+        "Fractional",
+        "Garage",
+        "HalfDuplex",
+        "HotelMotel",
+        "ImprovedLand",
+        "Industrial",
+        "Institutional",
+        "Investment",
+        "Land",
+        "LiveWork",
+        "Loft",
+        "ManufacturedHome",
+        "ManufacturedOnLand",
+        "MiningClaim",
+        "MixedUse",
+        "MobileHome",
+        "MobileHomePark",
+        "ModularHome",
+        "MultiFamily",
+        "MultipleParcels",
+        "NewHomeCommunity",
+        "NewHomePlan",
+        "NewHomeSpecHome",
+        "NoLand",
+        "Office",
+        "Other",
+        "OwnYourOwn",
+        "ParkModel",
+        "Quadruplex",
+        "Ranch",
+        "Recreation",
+        "Residential",
+        "Retail",
+        "RoomingHouse",
+        "RoomsForRent",
+        "SemiDetached",
+        "SingleFamilyResidence",
+        "SitePlanned",
+        "SpecialPurpose",
+        "StockCooperative",
+        "Studio",
+        "TenancyInCommon",
+        "Timeshare",
+        "ToBeBuilt",
+        "Townhouse",
+        "Triplex",
+        "TwoApartment",
+        "UnimprovedLand",
+        "Villa",
+        "Warehouse",
+        "WaterPositionWithLand"
+      ]
+    },
+    "PropertyType": {
+      "rawDeclaration": "<Property Name=\"PropertyType\" Type=\"Cotality.DataStandard.RESO.DD.Enums.PropertyType\" />",
+      "declaredType": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+      "memberCount": 13,
+      "members": [
+        "BusinessOpportunity",
+        "CommercialLease",
+        "CommercialSale",
+        "DisasterReliefRental",
+        "Farm",
+        "HighRise",
+        "Land",
+        "ManufacturedInPark",
+        "MultiFamily",
+        "Residential",
+        "ResidentialIncome",
+        "ResidentialLease",
+        "Specialty"
+      ]
+    },
+    "CommonInterest": {
+      "rawDeclaration": "<Property Name=\"CommonInterest\" Type=\"Cotality.DataStandard.RESO.DD.Enums.CommonInterest\" />",
+      "declaredType": "Cotality.DataStandard.RESO.DD.Enums.CommonInterest"
+    }
+  },
+  "operatorProbes": [
+    {
+      "label": "baseline: Active only",
+      "filter": "StandardStatus eq 'Active'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 8032
+    },
+    {
+      "label": "PropertySubType eq 'Apartment'",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'Apartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6625
+    },
+    {
+      "label": "contains(PropertySubType,'Apartment')",
+      "filter": "StandardStatus eq 'Active' and contains(PropertySubType,'Apartment')",
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "count": null,
+      "body": "{\"error\":{\"code\":\"\",\"message\":\"The query specified in the URI is not valid. No function signature for the function with name 'contains' matches the specified arguments. The function signatures considered are: contains(Edm.String Nullable=true, Edm.String Nullable=true).\",\"details\":[],\"innererror\":{\""
+    },
+    {
+      "label": "PropertySubType eq 'Townhouse'",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'Townhouse'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "contains(PropertySubType,'Townhouse')",
+      "filter": "StandardStatus eq 'Active' and contains(PropertySubType,'Townhouse')",
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "count": null,
+      "body": "{\"error\":{\"code\":\"\",\"message\":\"The query specified in the URI is not valid. No function signature for the function with name 'contains' matches the specified arguments. The function signatures considered are: contains(Edm.String Nullable=true, Edm.String Nullable=true).\",\"details\":[],\"innererror\":{\""
+    },
+    {
+      "label": "OR of two exact members (Office/Retail)",
+      "filter": "StandardStatus eq 'Active' and (PropertySubType eq 'Office' or PropertySubType eq 'Retail')",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "label": "PropertySubType ne null",
+      "filter": "StandardStatus eq 'Active' and PropertySubType ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 8021
+    },
+    {
+      "label": "PropertySubType eq null",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 11
+    },
+    {
+      "label": "INVALID member literal",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'NotARealMemberZZZ'",
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "count": null,
+      "body": "{\"error\":{\"code\":\"\",\"message\":\"The query specified in the URI is not valid. The string 'NotARealMemberZZZ' is not a valid enumeration type constant.\",\"details\":[],\"innererror\":{\"message\":\"The string 'NotARealMemberZZZ' is not a valid enumeration type constant.\",\"type\":\"Microsoft.OData.ODataException"
+    },
+    {
+      "label": "PropertySubTypeAdditional eq 'Apartment'",
+      "filter": "StandardStatus eq 'Active' and PropertySubTypeAdditional eq 'Apartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6625
+    },
+    {
+      "label": "contains(PropertySubTypeAdditional,'Apartment')",
+      "filter": "StandardStatus eq 'Active' and contains(PropertySubTypeAdditional,'Apartment')",
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "count": null,
+      "body": "{\"error\":{\"code\":\"\",\"message\":\"The query specified in the URI is not valid. No function signature for the function with name 'contains' matches the specified arguments. The function signatures considered are: contains(Edm.String Nullable=true, Edm.String Nullable=true).\",\"details\":[],\"innererror\":{\""
+    },
+    {
+      "label": "PropertySubTypeAdditional ne null",
+      "filter": "StandardStatus eq 'Active' and PropertySubTypeAdditional ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6781
+    }
+  ],
+  "census": [
+    {
+      "member": "Acreage",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Agriculture",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Apartment",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6625
+    },
+    {
+      "member": "Attached",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "BoatSlip",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Building",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "BuildingBusiness",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "BuildingLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "BuildingLandBusiness",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Business",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "BusinessLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Cabin",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Chalet",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Cluster",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Commercial",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Condominium",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "CoOwnership",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "DeededParking",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Detached",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Dockominium",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Duplex",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 354
+    },
+    {
+      "member": "Earthship",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Farm",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "FlexibleSpace",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Fractional",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Garage",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "HalfDuplex",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "HotelMotel",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "ImprovedLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Industrial",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Institutional",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Investment",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Land",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "LiveWork",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Loft",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 79
+    },
+    {
+      "member": "ManufacturedHome",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "ManufacturedOnLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "MiningClaim",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "MixedUse",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 72
+    },
+    {
+      "member": "MobileHome",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "MobileHomePark",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "ModularHome",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "MultiFamily",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 425
+    },
+    {
+      "member": "MultipleParcels",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "NewHomeCommunity",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "NewHomePlan",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "NewHomeSpecHome",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "NoLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Office",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "member": "Other",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "OwnYourOwn",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "ParkModel",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Quadruplex",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Ranch",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Recreation",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Residential",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Retail",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "RoomingHouse",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "RoomsForRent",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "SemiDetached",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "SingleFamilyResidence",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 402
+    },
+    {
+      "member": "SitePlanned",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "SpecialPurpose",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "StockCooperative",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Studio",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "TenancyInCommon",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Timeshare",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "ToBeBuilt",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Townhouse",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Triplex",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 63
+    },
+    {
+      "member": "TwoApartment",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "UnimprovedLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Villa",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "Warehouse",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "member": "WaterPositionWithLand",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    }
+  ]
+}

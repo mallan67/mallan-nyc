@@ -91,6 +91,11 @@ fallback.
 | `LivingAreaUnits` | `SquareFeet` on 8,104/8,104 — no normalization needed |
 | Mallan-office rows | 35 total, **2 search-eligible**; `SourceSystemName`/`SourceSystemKey` **0/35** — no Mallan identifier round-trips |
 | coordinates | Cotality **declares** `Latitude`/`Longitude`; usable population **UNVERIFIED**. Populated today by the **US Census** geocoder — never Google |
+| `Property.PropertySubType` | **SCALAR** nullable Enum, **75 members** — NOT a multi-enum. The MULTI field is the separate `PropertySubTypeAdditional` (`.Enums.Multi.` namespace, same 75-member vocabulary, 6,781 non-null vs 8,021, never disagreeing) |
+| sub-type operators | `eq` / `in` / `or` **SUPPORTED**. **`contains(PropertySubType,…)` is HTTP 400** — `contains` takes strings, this is an enum. The registry's "502" was **Mallan's own** `/api/idx/search` converting that 400 |
+| sub-type case sensitivity | an invalid literal is rejected **400**, but a **MIS-CASED** one returns **200 with ZERO rows**. The provider will not catch `'apartment'` — validation must be Mallan-side and case-exact |
+| sub-type population | exhaustive census, **75/75 probed, 0 UNVERIFIED**: Apartment 6,625 · MultiFamily 425 · SingleFamilyResidence 402 · Duplex 354 · Loft 79 · MixedUse 72 · Triplex 63 · Office 1 = **8,021 = `ne null` exactly**. The other 67 are zero |
+| sub-type dead UI options | `Townhouse` · `Condominium` · `StockCooperative` · `UnimprovedLand` are **ZERO at EVERY status** — valid literals this feed has never carried. `Retail` = 4 all-status, 0 Active. **Valid-and-zero is not invalid** and the two may never collapse |
 
 ---
 
@@ -141,17 +146,92 @@ that gate blindly.**
 - Live contract verifier, proven to FAIL on injected drift
 - Committed-tree import scanner (catches the class that broke the build once)
 
-`type-check` 0 · search+compliance+api **1,249/1,249** · compliance-check 95/0 ·
-`rls:validate` UNKNOWN 0 · `ucba:audit` 0 REGRESSIONS
+### PROPERTY SUB-TYPE — the EXECUTION CONTRACT is closed (2026-08-21)
+
+> **Scope of this claim, precisely.** The `PropertySubType` **scalar-enum execution
+> contract** is closed. The broader **Property Type / ownership UI family remains OPEN**
+> for four zero-population semantic mappings — `Townhouse`, `Condominium`,
+> `StockCooperative`, `UnimprovedLand` (see OPEN below). Do not let the next handoff read
+> this section as "the Property Type controls are solved". They are not.
+>
+> **The four controls stay.** Zero population on ONE candidate field is evidence that a UI
+> label may be mapped to the WRONG Cotality fact — never evidence that the brokerage
+> capability is dead. Nothing here removes or disables them.
+
+Probed live FIRST, which is what caught it: had the translator been written from the
+registry, `PropertySubType` would have been encoded as a multi-enum with a `contains()`
+push, and both are wrong.
+
+| link | what changed |
+|---|---|
+| live contract | `docs/idx/cotality-property-subtype-live-contract-2026-08-21.md` + `artifacts/.property-subtype-live-probe{,-2}.json` |
+| canonical criterion | NEW `lib/search/canonical/property-subtype-contract.ts` — 75 live members, exact case-sensitive validation, ONE OData renderer + ONE Prisma renderer |
+| `FIELD_REGISTRY` | `multi_enum`→`enum` · `partial`→`mapped` · `needs_probe`→`yes` · `searchParam` `subTypes`→`propertySubType` · `dbColumn`/`projectionColumn` filled · notes rewritten from live |
+| stale factory comment | the "`sourceAuthority` is REQUIRED here" line that contradicted the next sentence is gone |
+| provider execution | `contains(PropertySubType,…)` → exact `eq` / OR-of-`eq` in `crm-idx-filter.ts` |
+| projection execution | `property_sub_type IN […]` in `criteriaToProjectionWhere`; SEARCH-capable, deliberately **NOT** alert-capable |
+| unsupported criterion | `/api/idx/search` now answers **400 + the offending tokens**, not a 502 "try again later" |
+| authenticated frontend | local pre-render is exact-token; **a failed search leaves NO result universe** |
+| verifier | new §6 re-probes shape · 75 members · the 8-member census · the 4 never-populated; `contains` pinned REJECTED. **PASS** |
+
+**The frontend defect this uncovered.** `_serverSearch`'s catch kept the local pre-render on
+screen as the terminal result and showed an error ONLY when there were no local rows. With
+`contains(…)` failing at the provider, every authenticated search carrying a Property Type
+box showed a full screen of rows with no error. Those rows are not a fixture and not
+"canonical local Mallan inventory" — `listings` is the 200-row UNFILTERED page fetched at
+page load, so every row looks real. Now: preview is `provisional`, a server answer is
+`authoritative`, a failure is `none` — and `validateReportState` refuses to build a CSV /
+Excel / public share link / client email from anything that is not `authoritative`. The
+other three writers (`_replaceListings` reload, `recallLastSearch`, `toggleSortOrder`)
+downgrade or restore provenance correctly.
+
+`type-check` 0 · `lib/search` **845/845** · runtime **4,435 passed** (7 failures ALL
+pre-existing — proven by re-running the same 5 suites with these changes stashed) ·
+`crm:test` 39/39 · compliance-check 95/0 · `rls:validate` UNKNOWN 0 · `ucba:audit` 0
+REGRESSIONS · `search:verify-live` **PASS**
+
+`idx:validate` reports 1 critical — `field-registry.ts: Potential hardcoded API key`. It is
+a FALSE POSITIVE on the `provider_lineage` entry's slash-joined `cotalityField` string,
+which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced here.
 
 ---
 
 ## NEXT, IN ORDER
 
-1. **`propertySubType` translator** — column exists and is populated; only the translator is
-   missing. Use **verified live enum semantics**; do NOT copy the current
-   `contains(PropertySubType, …)` behaviour.
-2. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
+1. ~~**`propertySubType` translator**~~ — **EXECUTION CONTRACT DONE 2026-08-21.** See
+   COMPLETED. The old framing was wrong twice over: the column is written by the projection
+   builder but production population is still UNVERIFIED, and the defect was not "only the
+   translator is missing" — the provider execution was a hard HTTP 400.
+
+2. **FOUR-CONTROL LIVE SEMANTIC CENSUS — before `listingId`.** Bounded. Establishes which
+   provider fact each UI label actually means. Nothing is removed.
+   - **Townhouse** — `PropertySubType eq 'Townhouse'` vs exact-token `StructureType has …`.
+     Compare returned IDs and PropertyType context; decide which carries NYC townhouse
+     inventory. Do not infer from enum existence.
+   - **Condo** — `CommonInterest eq 'Condominium'` vs `PropertySubType eq 'Condominium'`.
+     One canonical Condo criterion. Do not create separate "residential condo" and
+     "commercial condo" field truths unless the provider contract genuinely requires an
+     extra criterion such as `PropertyType`.
+   - **Co-op** — `CommonInterest eq 'StockCooperative'` vs `PropertySubType eq …`. Same
+     rule; one section must not use `CommonInterest` while another uses `PropertySubType`
+     for the same business concept.
+   - **Land** — `PropertyType eq 'Land'`, then examine `PropertySubType`,
+     `PropertySubTypeAdditional`, `StructureType` and land-classification fields on those
+     rows. "Land" must NOT silently mean `UnimprovedLand`; a narrower Unimproved Land
+     option is a separate criterion if the product later needs one.
+   - **Multi-Family** — declared on `PropertyType`, `PropertySubType` AND `StructureType`.
+     Measure population, overlap, disagreement.
+
+   Output: four rows added to the EXISTING capability/field contract — **not a new
+   registry** — as: UI label → canonical business meaning → Cotality resource/field(s) →
+   shape → live population → operator → Mallan storage → projection → exact execution →
+   status. Status is `VERIFIED` / `NEEDS_PROBE` / `UNSUPPORTED`, **never "dead"** merely
+   because one candidate field is unpopulated.
+
+3. **RESOURCE / FIELD-FAMILY COVERAGE MATRIX — before resuming any one-field loop.**
+   See METHOD CORRECTION below. This replaces "fix the next translator" as the unit of work.
+
+4. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
    resolve the canonical twin for a Mallan-office representation, return the LOCAL listing;
    no-twin/ambiguous stays suppressed with an integrity defect. Otherwise searching your own
    Cotality `ListingId` returns ZERO. Note the VALUES carry a raw `RLS…` prefix — that is
@@ -201,6 +281,77 @@ Production is the only frozen SHA. Never hard-code either moving head.
 
 ---
 
+## METHOD CORRECTION — AUDIT FIELD FAMILIES AND PROVIDER RESOURCES, NOT "CONTROLS"
+
+**The 39-control inventory is CURRENT UI WIRING ONLY.** It is not the Cotality Property
+capability inventory, and it is not the required Mallan brokerage Search/workspace
+contract. Those are three different measurements and conflating them is why whole field
+families keep disappearing between sessions.
+
+Preserve the number with its real meaning:
+
+> **39 currently reachable authenticated UI inputs.**
+>
+> Provider resource coverage is measured against ALL applicable Cotality Property field
+> families and related resources — never against the number of controls wired into the
+> current form. **A field family is not complete merely because the form has no control
+> for it.**
+
+**Stop the one-field loop.** Do not patch `listingId`, then a year range, then rooms, and
+discover Media four fields later. Build the resource / field-family coverage matrix FIRST
+— it is the execution artifact beneath the master plan and `FIELD_REGISTRY`, not another
+audit — then implement in bounded groups:
+
+`A` identity/classification · `B` Sale core · `C` Rental core · `D` building/parcel ·
+`E` amenities · `F` financial/financing · `G` OpenHouse · `H` Media ·
+`I` result/workspace/report hydration.
+
+### Families to map (from the LIVE contract, extracted mechanically)
+
+Identity · Address/Geography · **Block/Lot/Parcel/Building identity** (`TaxBlock`,
+`TaxLot`, `TaxMapNumber`, `ParcelNumber`, `UniversalParcelId`, `UniversalPropertyId`,
+`UniversalPropertySubId`, `CLIP`, `BuildingName`) · Property classification ·
+Price/Transaction · Rooms/Size · **Amenities—UNIT** · **Amenities—BUILDING/ASSOCIATION**
+(kept separate; the UI showing both under one "Amenities" heading is not a reason to merge
+them) · **Financing/Terms** · Carrying costs/Financial (condo common charges, co-op
+maintenance and other fees stay semantically distinct) · Rental · Remarks/Documents
+(private remarks and showing instructions stay agent-private) · Permissions/Attribution.
+
+### Related resources are NOT optional
+
+The Property row is only the parent. `CustomProperty` · `PropertyRooms` (distinct from
+`RoomsTotal`) · `PropertyUnitTypes` (multifamily / building / investment analysis) ·
+`OpenHouse` · `Building` · `Member` / `Office`. Field counts to be taken from live
+`$metadata`, never from memory or another agent's report.
+
+### Media is a full resource contract, not three booleans
+
+Not `has_photo` / `has_floorplan` / `has_video`. `MediaCategory`, `MediaClassification`
+and `MediaType` are DIFFERENT fields and must not be collapsed. Consumers: search hero ·
+gallery · floor plans · video · tours · listing detail · Building workspace · CMA ·
+Reports · client portal · CRM workspace · marketing · public publication. Identity rule
+holds: **listing identity resolves first, media follows canonical listing identity** — a
+suppressed Mallan-office representation never becomes a second gallery or hero source.
+
+### A verified fact is not automatically a Search control
+
+757 Property fields must not become 757 filters. Classify each verified fact by ROLE:
+`SEARCHABLE` · `RESULT-SUMMARY` · `DETAIL/WORKSPACE` · `CMA` · `REPORT` · `CRM-INTERNAL` ·
+`COMPLIANCE-ONLY` · `PROVIDER-EVIDENCE-ONLY` · `UNSUPPORTED/UNVERIFIED`.
+
+**Hard completion criterion, not a later enhancement:** agents keep missing information, so
+"the filter works" is not done. The authenticated listing workspace must expose every
+useful verified section — property, building, block/lot/parcel, financial, financing,
+amenities, rooms, unit types, open houses, media, agent/office, documents/remarks,
+activity/CMA/marketing — hydrated from the SAME canonical Listing/resources Search uses.
+No second listing-detail data system.
+
+Basic stays fast (type · price · beds/baths · location · status · key ownership).
+Advanced exposes the verified families. **Switching Basic ↔ Advanced never drops active
+state.**
+
+---
+
 ## RECURRING FAILURE MODES FROM THIS SESSION
 
 Worth reading before continuing — each cost a correction cycle:
@@ -223,3 +374,21 @@ Worth reading before continuing — each cost a correction cycle:
   preserve at the boundary — never a licence to name the source that way. This is the
   CLAUDE.md STOP GATE rule, and it eroded gradually rather than in one wrong statement,
   which is what made it hard to notice.
+- **Attributing our own error code to the provider.** The registry recorded that sub-type
+  filtering "cannot be pushed to `$filter` (502)". Cotality answers **400**; the 502 was
+  `/api/idx/search`'s own catch block converting it. The note then justified a whole
+  post-filtering design on a provider behaviour the provider never exhibited. Read the
+  status the PROVIDER returned, not the one your route re-raised.
+- **Assuming the provider validates for you.** `PropertySubType eq 'NotARealMember'` is
+  rejected 400, so it looked as though bad tokens fail loud. `eq 'apartment'` is NOT — it
+  returns 200 with zero rows. A validator that leans on provider rejection silently passes
+  the mis-cased case, which is the one a UI actually produces.
+- **A failure path that renders success.** `_serverSearch` kept the local preview on screen
+  after a 502 and suppressed the toast whenever those rows were non-empty. Every
+  green check stayed green: the request failed loudly at every layer and the SCREEN said
+  nothing. When a preview and an answer share one state field, the failure path is where
+  they get confused — mark provenance, don't infer it from row count.
+- **Calling local data canonical because it is local.** The in-code comments described
+  `listings` as "the ~126-row local fixture set". It is not a fixture — that number belongs
+  to `scripts/crm-tests/`. At runtime it is the 200-row UNFILTERED page fetched at page load.
+  Trace what populated an array before naming its authority.

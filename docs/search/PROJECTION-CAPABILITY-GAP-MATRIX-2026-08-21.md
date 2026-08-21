@@ -78,7 +78,7 @@ itself the count/pagination defect pattern.
 | `zip` | postal_code | `postal_code` | **A** | yes | — |
 | `keyword` | keywords | `searchable_text` | **A** | yes | verify what the text is built from |
 | `ownership` | ownership | `feature_flags.is_condo/coop/condop` | **B** | yes | — |
-| **`propertySubType`** | property_sub_type | **`property_sub_type` EXISTS** | **A** | **NO** | **TRANSLATOR GAP, not storage.** The column is present and populated; `criteriaToProjectionWhere` simply does not execute this criterion |
+| **`propertySubType`** | property_sub_type | **`property_sub_type` EXISTS** | **A** | **CLOSED 2026-08-21** | Was a translator gap. `criteriaToProjectionWhere` now executes it as an exact `IN` against the live-verified 75-member enum. The projection column exists and the projection writer maps `Listing.property_sub_type` into it; **actual eligible-row population/parity remains UNVERIFIED until the Neon cutover census** — code proves a writer, not production population. See §2c |
 | **`listingId`** | listing_id_mls | `listing_id`, `listing_key` | **A** | **NO** | **NOT a translator gap — an IDENTITY-RESOLUTION capability. See §2b** |
 | **`unit`** | unit | — | **D** | no | `Listing.address.UnitNumber` |
 | **`address`** | address | — | **D** | no | `Listing.address` structured parts; needs the address field-family contract |
@@ -90,9 +90,10 @@ itself the count/pagination defect pattern.
 | `checkboxFilters` | amenities + flags | `amenity_keys`, `feature_flags` | **B/E** | partial | maps `LaundryFeatures`, `SecurityFeatures`, `PoolFeatures`, `PetsAllowedYN`, `AvailableLeaseType`, `ConstructionMaterials`, `NewConstructionYN` — **`PetsAllowedYN` is live-populated ZERO**, and `SecurityFeatures`/`ConstructionMaterials`/`AvailableLeaseType` are uncensused |
 | `gridFilter` | — | n/a | — | n/a | client-side result filter, not a Search criterion — must stay outside the canonical universe |
 
-Across all **39** controls: `propertySubType` needs no storage work (column exists,
-populated, simply not translated); `listingId` is a different problem entirely (§2b); the
-rest are class C/D promotions or translator work.
+Across all **39** controls: `propertySubType` needed no storage work — the column exists
+and the projection writer populates it, though production row-level population stays
+UNVERIFIED until the Neon cutover census (§2c); `listingId` is a different problem
+entirely (§2b); the rest are class C/D promotions or translator work.
 
 ---
 
