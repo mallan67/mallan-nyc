@@ -18,7 +18,87 @@ Two invariants under test:
 
 ---
 
-## A. THE HEADLINE DEFECT — suppression stops at the projection boundary
+## A0. THE STRUCTURAL CONFLICT — the primary authenticated Search is provider-only
+
+**The graph originally missed the Search the brokers actually use.** It analysed the
+projection path, Saved Search, alerts, CRM, CMA, portal and reports — while the live broker
+Search runs somewhere else entirely:
+
+    public/crm/js/search/search-engine.js
+      -> MallanAPI.idx.search            (search-engine.js:405, :646)
+      -> GET /api/idx/search
+      -> buildCrmIdxODataFilter          (route.ts:148)
+      -> fetchFromTrestle                (route.ts:171)   LIVE COTALITY
+      -> mapTrestleToCrmListing          (route.ts:213)
+      -> authenticated results workspace
+
+Verified in the committed route:
+
+| fact | evidence |
+|---|---|
+| does NOT use `buildProjectionSearchWhere` | no reference |
+| does NOT call the suppression authority | no `excludeMallanRls*` reference |
+| **NEVER reads the local `Listing` table** | no `prisma.listing` / `findMany` reference anywhere in the route |
+| total comes from the PROVIDER | `finalTotal = result.odataCount` (route.ts:323) |
+| feeds Building on the live path | `upsertBuildingFromSearchResult(...)` (route.ts:207) |
+
+### The conflict
+
+Two committed contracts cannot both hold:
+
+1. **Listing authority** — a Mallan local listing is canonical; its Cotality representation
+   is suppressed.
+2. **Authenticated Search** — is 100% provider-sourced.
+
+Under (2), a Mallan-authored listing appears in broker Search **only** through its Cotality
+representation. Under (1), that representation must be suppressed. So:
+
+> **Applying suppression to `/api/idx/search` without sourcing the local canonical listing
+> would remove Mallan's own listings from Mallan's own broker Search.**
+
+That is why the projection patch must NOT be applied as "the" suppression fix, and why
+"one gate fixes four rows" is true for projection/Saved Search/alerts and **false for
+authenticated Search as a whole**.
+
+### The required universe
+
+    Mallan local canonical listings
+  + third-party Cotality inventory
+  - Mallan-office Cotality representations
+  ------------------------------------------
+  = ONE identity, ONE count, ONE pagination universe
+
+Not "Cotality Search minus Mallan rows", and not a Cotality search plus a local search
+stitched together in browser JavaScript. The result set needs one owner, following
+COTALITY RAW CONTRACT -> VERIFIED MAPPING -> MALLAN STORAGE -> MALLAN BUSINESS RULE ->
+AUTHENTICATED SEARCH CONSUMER.
+
+**Open question to answer before any Search patch:** can the existing
+`listing_search_projection` + canonical `Listing` storage already supply BOTH local Mallan
+listings and synchronised Cotality inventory with the full Sale/Rental criteria? If yes,
+authenticated Search converges there. If not, the exact missing verified fields must be
+named. Either way: no new search table, no parallel engine.
+
+### Count and pagination
+
+Because `finalTotal` is the provider count, post-fetch JavaScript suppression is NOT
+sufficient — rows could look right while `total`, `hasMore` and page boundaries stay wrong.
+Suppression and canonical replacement must happen at the result-universe boundary, before
+count/pagination are finalised.
+
+Required proof: one Mallan local listing + its Cotality representation -> **count = 1**,
+exactly one returned canonical Mallan listing, correct next-page boundary.
+
+### Building upsert is on this path
+
+`upsertBuildingFromSearchResult()` runs over raw provider records during Search. A
+suppressed representation must not create a second building participation merely because
+Search fetched it. Recorded here; Building must consume canonical listing identity rather
+than be patched opportunistically.
+
+---
+
+## A. SECONDARY DEFECT — suppression stops at the projection boundary
 
 `lib/search/listing-access-decision.ts` exports two gates. Only one suppresses:
 
@@ -67,20 +147,23 @@ and requires production Neon.
 | Building Search (authenticated) | not yet built | n/a | n/a | n/a | n/a | n/a | must consult suppression by construction |
 | Building profile inventory | `lib/buildings/public-building-data.ts` | **yes** | yes | n/a | excluded | none | none |
 | Reports — selection/preview/customize `public/crm/js/output/reports.js` | derives from the shared Search result set (12 refs) | inherits caller | inherits | inherits | inherits | inherits | fixed by fixing Search |
-| Reports — package `report-package.js` | no shared-result refs; own path | **UNTRACED SOURCE** | UNVERIFIED | UNVERIFIED | UNVERIFIED | needs trace | trace its listing source before report work |
+| Reports — package `report-package.js` | accepts a `listings` argument; fetches nothing | **apparently unreachable/legacy** | n/a | n/a | n/a | none proven | NOT an active independent listing source — `public/crm/index.html` does not load it and no caller was found. Do not delete in this scope; re-classify only if a runtime loader is proven |
 | Report PDF / print / email / share | downstream of report selection | inherits | inherits | inherits | inherits | inherits | follows Reports fix |
 | Seller report `lib/seller-report/build-report.ts` | no direct `prisma.listing` | n/a | n/a | n/a | n/a | none observed | confirm its input source during report work |
-| marketing / eblast `listing-campaign.js` | no shared-result refs; own path | **UNTRACED SOURCE** | UNVERIFIED | UNVERIFIED | UNVERIFIED | needs trace | trace before marketing work |
+| **marketing / eblast** `listing-campaign.js` -> `POST /api/crm/listing-campaigns` | server does `prisma.listing.findUnique({ listing_id })` on a RAW client-supplied id | **NO** | n/a | **no** | a campaign can be built from the suppressed duplicate | **HIGH** | needs a server-side canonical IDENTITY boundary — see §I |
 | Open Houses `lib/open-houses/upcoming-open-houses.ts` | Listing, Mallan-office scoped | **NO** | yes | no | a representation's OH could surface | **MEDIUM** | trace, then apply the canonical gate |
 | Media hero / gallery / floorplan / video / tours | `listing_media` joined by provider key | **NO** | n/a | **no** | parallel media authority | **HIGH** | identity resolves FIRST (§G) |
 | results map (authenticated) | client, consumes result set | inherits caller | inherits | inherits | inherits | inherits | fixed by fixing its source |
 | public search map | client, consumes DTO | inherits (suppressed upstream) | inherits | n/a | n/a | none | none — evidence only |
 | SEO / schema / sitemap | Listing | **yes** | n/a | n/a | excluded | none | none |
 
-Two rows remain **UNTRACED SOURCE** — `report-package.js` and `listing-campaign.js` obtain
-listings by a path this pass did not establish. They are named rather than silently omitted,
-and must be traced before Reports or marketing work begins. No reader is patched on the
-strength of an untraced row.
+Both previously-untraced rows are now resolved. `report-package.js` accepts a `listings`
+argument, fetches nothing, is not loaded by `public/crm/index.html`, and has no located
+caller — apparently unreachable/legacy, not an active listing source (do not delete in this
+scope). `listing-campaign.js` is the opposite: definitely live, and MORE dangerous than the
+first pass recorded — it posts a raw `listing_id` that the server resolves directly. See §I.
+
+No row is left "needs trace", and no reader is patched on the strength of an untraced row.
 
 **One gate fixes four rows.** Projection search, Saved Search count, Saved Search execute
 and alert replay all pass through `buildProjectionSearchWhere`. That is the correction to
@@ -214,6 +297,31 @@ Listing identity resolves FIRST; media authority follows it. Provider Media
 `ResourceRecordKey` stays in its proper Cotality `ListingKey` domain — identity is not
 "fixed" by repointing Media at the Mallan local id. Trace the exact readers before altering
 any media join.
+
+---
+
+## I. CAMPAIGNS NEED AN IDENTITY BOUNDARY, NOT A UI ASSUMPTION
+
+`listing-campaign.js` posts a raw `listing_id` and the route resolves it with
+`prisma.listing.findUnique({ where: { listing_id } })`. The campaign distribution gate
+checks opt-out, participant-only, status and IDX/internet permissions — it does NOT check
+Mallan-office representation identity.
+
+So a caller can address a suppressed representation **directly**, even after the CRM UI
+stops displaying it. "The UI won't show that row" is not a boundary.
+
+Required server-side resolution:
+
+    campaign listing input
+      -> canonical identity resolution
+      -> Mallan local canonical listing  : continue on the local row
+      -> third-party Cotality            : applicable distribution policy
+      -> Mallan-office representation    : resolve to the canonical local twin
+      -> unresolved / ambiguous          : REFUSE with an integrity error
+
+Do NOT put Mallan-office matching inside `campaign-distribution-gate.ts` — that module owns
+distribution PERMISSIONS, not listing IDENTITY. Reuse the existing canonical identity
+resolver.
 
 ---
 
