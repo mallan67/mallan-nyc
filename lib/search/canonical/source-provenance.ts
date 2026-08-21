@@ -21,8 +21,13 @@ export const SOURCE_AUTHORITIES = Object.freeze([
   'nyc_dob',
   'mallan_crm',
   /**
-   * Mallan COMPUTES the fact from verified inputs — Google geocoding, MTA
-   * transit, canonical address normalisation.
+   * Mallan COMPUTES the fact from verified inputs — geocoding, transit data,
+   * canonical address normalisation.
+   *
+   * No specific vendor is named here on purpose: an earlier version named Google,
+   * which is NOT the geocoder this repo uses (the populator is the US Census
+   * geocoder via scripts/batch-geocode.js into geocode_cache, source=census).
+   * This enum classifies the SOURCE CLASS, not the vendor.
    *
    * Distinct from `mallan_crm`, which is Mallan-owned BUSINESS data (exclusivity,
    * internal flags, CRM state). A derived coordinate is neither provider fact nor
@@ -80,9 +85,10 @@ export const ACCESS_METHODS_BY_AUTHORITY: Readonly<
   acris: Object.freeze(['public_api', 'public_dataset'] as const),
   nyc_dob: Object.freeze(['public_api', 'public_dataset'] as const),
   mallan_crm: Object.freeze(['internal_system', 'manual_agent_research'] as const),
-  // Mallan computes the value in its own systems from a licensed third-party
-  // API (Google geocoding, MTA/Google transit). `licensed_api` describes the
-  // upstream input; `internal_system` the derivation that produces the fact.
+  // Mallan computes the value in its own systems from an upstream API
+  // (geocoding, transit). `licensed_api` describes the upstream input;
+  // `internal_system` the derivation that produces the fact. Vendors are
+  // deliberately unnamed — this axis is the source CLASS, not the supplier.
   mallan_derived: Object.freeze(['licensed_api', 'internal_system'] as const),
   supplemental: Object.freeze([
     'licensed_api',

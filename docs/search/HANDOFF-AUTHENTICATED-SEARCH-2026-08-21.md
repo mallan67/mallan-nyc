@@ -519,6 +519,17 @@ Worth reading before continuing — each cost a correction cycle:
   `FlipTax` (89%) and the rest of the NYC co-op/condo facts a broker most needs. The
   registry meanwhile records `DoormanYN` and `ElevatorYN` as ABSENT. A schema is a floor,
   not a ceiling: read rows, union the keys.
+- **Letting an over-claim ride because the narrow version was true.** I asserted "Google is
+  no longer named anywhere in the file" — true of `field-registry.ts`, which is what the
+  script asserted. It was NOT true of `source-provenance.ts`, `resolve-factual-authority.ts`
+  or the A1 test, all of which still carried it. The scope was in the sentence and the
+  impression was broader. **Scope a claim to exactly what was checked, or check the wider
+  scope before claiming it.**
+- **Presenting a repo-internal reading as a provider statement.** Classifying
+  `Field`/`Lookup`/`Model` as "provider-schema support with no brokerage consumer" is an
+  INFERENCE from their content. Cotality says no such thing. Anything not received from the
+  provider is labelled `INFERENCE`, and no authoritative-source claim is made without
+  retrieving the source.
 - **Measuring coverage against the current form.** "39 controls" measured UI wiring and
   could never have surfaced any of the above, because none of it is wired. Coverage is
   measured against provider resources and field families.

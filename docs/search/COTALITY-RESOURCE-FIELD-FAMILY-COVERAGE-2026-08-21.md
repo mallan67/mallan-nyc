@@ -18,6 +18,32 @@ Evidence: `artifacts/.cotality-live-resource-inventory.json` ·
 >
 > And a third for meaning: **a populated key name is not a proven semantic.**
 
+## EVIDENCE LEVEL — every row carries one
+
+No claim in this document is asserted without saying how it is known. Independent
+verification must not have to guess which is which.
+
+| level | meaning |
+|---|---|
+| **`LIVE`** | probed against the authorized live Cotality connector during the session dated on this document. Reproducible — see REPRODUCTION at the end. |
+| **`CODE`** | read directly in this repository at the SHA this document was committed at. |
+| **`CI`** | actual execution evidence — a test run or validator at that SHA. |
+| **`INFERENCE`** | follows from `LIVE`/`CODE` facts, but the provider never stated it. **Not a provider fact.** |
+| **`RECOMMENDATION`** | architecture or product judgement. **Not a statement about what Cotality does.** |
+| **`UNVERIFIED`** | named because it is declared or observed, but neither population nor semantics has been established. |
+
+**Nothing here is authorised for implementation on the strength of a `LIVE` count
+alone.** A count proves presence; a consumer decision additionally needs semantics. And
+where an independent checker can verify the underlying Cotality contract directly, that
+check should be preferred over trusting this document.
+
+**Two claims are explicitly NOT made anywhere in this document**, because no authoritative
+Cotality source was retrieved for either: that Cotality *recommends* `Field`/`Lookup` for
+complex mappings, and that Cotality has said `CustomFields` may be deprecated. If either
+appears in any downstream summary, it did not come from here.
+
+---
+
 > **This replaces "39 controls" as the completeness claim.** 39 was *currently reachable
 > authenticated UI inputs*. Coverage is measured against provider resources and field
 > families. **A family is not complete because the current form has no control for it.**
@@ -25,6 +51,14 @@ Evidence: `artifacts/.cotality-live-resource-inventory.json` ·
 ---
 
 ## PART A — RESOURCE COVERAGE (all 17 declared entity types, endpoint-probed)
+
+**Evidence level: `LIVE`** for every declared-field count, collection state, row count
+and `$expand` result below — each is an HTTP response captured in
+`artifacts/.cotality-live-resource-inventory.json` and
+`artifacts/.cotality-resource-accessibility.json`.
+
+**The `role` column is `RECOMMENDATION`** — it is Mallan's product judgement about where
+a resource belongs, not something Cotality states.
 
 | resource | declared fields | collection GET | live rows | `$expand` from Property | role |
 |---|---|---|---|---|---|
@@ -41,10 +75,10 @@ Evidence: `artifacts/.cotality-live-resource-inventory.json` ·
 | **Teams** | 48 | **PROVIDER_REJECTED 400** | — | n/a | **NOT AVAILABLE TO THIS LICENCE** |
 | **TeamMembers** | 29 | **PROVIDER_REJECTED 400** | — | n/a | **NOT AVAILABLE TO THIS LICENCE** |
 | **Building** | **1** | **PROVIDER_REJECTED 403** | — | 0/3 payload | **NOT LICENSED** — identity must be Mallan-derived |
-| `Field` | 15 | SUPPORTED | 2,246 | n/a | **provider-schema support** — no brokerage consumer |
-| `Lookup` | 15 | SUPPORTED | 191,323 | n/a | **provider-schema support** — no brokerage consumer |
-| `Model` | 8 | SUPPORTED | 17 | n/a | **provider-schema support** — no brokerage consumer |
-| `Enumeration` | 8 | **PROVIDER_REJECTED 404** | — | n/a | **provider-schema support**, endpoint absent |
+| `Field` | 15 | SUPPORTED | 2,246 | n/a | **provider-schema support** — no brokerage consumer *(`INFERENCE` — Cotality states no such role; this is our reading of the content)* |
+| `Lookup` | 15 | SUPPORTED | 191,323 | n/a | **provider-schema support** — no brokerage consumer *(`INFERENCE`)* |
+| `Model` | 8 | SUPPORTED | 17 | n/a | **provider-schema support** — no brokerage consumer *(`INFERENCE`)* |
+| `Enumeration` | 8 | **PROVIDER_REJECTED 404** | — | n/a | **provider-schema support**, endpoint absent *(`INFERENCE` on the role; the 404 is `LIVE`)* |
 
 **1,456 declared fields · 185 enums (114 multi) · Property = 576 scalar / 81 enum / 100 multi-enum.**
 
@@ -63,6 +97,26 @@ before drawing conclusions for CMA.
 
 ---
 
+> ### A CONTROL WITH NO COTALITY FIELD IS NOT AUTOMATICALLY A DEFECT
+>
+> A Mallan listing has exactly **two** origins: the live Cotality API, or **Mallan Real
+> Estate local input**. Several authenticated Search controls — the commercial section in
+> particular — carry fields that exist in **no** Cotality resource, because they describe
+> **Mallan-authored listings**, which the provider has never seen.
+>
+> So "not in the Cotality API" splits into two very different verdicts:
+>
+> | | meaning | action |
+> |---|---|---|
+> | **mis-mapped** | the concept IS a Cotality fact, pointed at the wrong field | re-point (Townhouse, Condo, Co-op) |
+> | **Mallan local input** | the concept is Mallan-authored and has no provider equivalent | **keep — it is searching Mallan inventory, and a provider field is not expected** |
+>
+> Neither is a reason to delete a control. Every field family below must record WHICH of the
+> two it is before any UI change, and a field family that exists only for Mallan local input
+> is `mallan_crm`-authored, never `cotality_rebny`.
+
+---
+
 ## PART B — FIELD FAMILIES
 
 Legend for **role**: `SEARCHABLE` · `RESULT` (grid/gallery summary) · `WORKSPACE`
@@ -77,7 +131,10 @@ Legend for **state**: `VERIFIED` · `NEEDS_PROBE` · `VERIFIED_ZERO_POPULATION_C
 | fact | resource / path | kind | population | operator | role | state |
 |---|---|---|---|---|---|---|
 | `ListingId` | Property | scalar | 100% | `eq` | SEARCHABLE · RESULT · EVIDENCE | VERIFIED — **identity resolution, not a scalar filter** |
-| `ListingKey` · `SourceSystemKey` | Property | scalar | UNVERIFIED | `eq` | EVIDENCE | UNVERIFIED |
+| `ListingKey` | Property | `Edm.String` (`LIVE`) | UNVERIFIED | `eq` | EVIDENCE | UNVERIFIED — **a DIFFERENT field from `SourceSystemKey`; never interchange them** |
+| `SourceSystemKey` | Property | `Edm.String` (`LIVE`) | UNVERIFIED | `eq` | EVIDENCE | UNVERIFIED — `crm-idx-mapper` currently uses it as `wid` (`CODE`) |
+| `StandardStatus` · `MlsStatus` | Property | two SEPARATE enums (`LIVE`) | — | `eq` | SEARCHABLE · RESULT | VERIFIED distinct — **keep both provider names exactly as Cotality spells them** |
+| `ListAgentKey` / `ListAgentMlsId` · `ListOfficeKey` / `ListOfficeMlsId` | Property | separate fields (`LIVE`) | — | `eq` | attribution · EVIDENCE | VERIFIED distinct — **the `MlsId` spelling is Cotality's own field name and is NOT renamed** |
 | `SourceSystem*` / `OriginatingSystem*` | Property | scalar | Mallan-office rows: SourceSystemName 0/35 | — | **EVIDENCE only** | VERIFIED — pipeline lineage, **never authorship** |
 | listing authority (local vs provider) | Mallan | derived | — | — | COMPLIANCE · EVIDENCE | VERIFIED |
 
@@ -108,8 +165,9 @@ Legend for **state**: `VERIFIED` · `NEEDS_PROBE` · `VERIFIED_ZERO_POPULATION_C
 | fact | resource / path | kind | population | role | state |
 |---|---|---|---|---|---|
 | `TaxBlock` | Property | scalar | **8,014 / 8,032** | SEARCHABLE? · BUILDING · WORKSPACE | NEEDS_PROBE |
-| `TaxLot` · `TaxMapNumber` · `ParcelNumber` | Property | scalar | UNVERIFIED | BUILDING · WORKSPACE | UNVERIFIED |
-| `CLIP` · `UniversalParcelId` · `UniversalPropertyId` · `UniversalPropertySubId` | Property | scalar | UNVERIFIED | EVIDENCE · BUILDING | UNVERIFIED |
+| `TaxLot` · `TaxMapNumber` · `ParcelNumber` | Property | `Edm.String` (`LIVE`) | UNVERIFIED | BUILDING · WORKSPACE | UNVERIFIED — population not censused |
+| `CLIP` | Property | **`Edm.Int64`, nullable** (`LIVE`) | UNVERIFIED | EVIDENCE? | **UNVERIFIED — only the field's existence and type are proven. Its business semantics, and whether it may participate in Mallan building identity, need authoritative semantic proof. Do not describe it as a cross-dataset identifier until that exists** |
+| `UniversalParcelId` · `UniversalPropertyId` · `UniversalPropertySubId` | Property | `Edm.String` (`LIVE`) | UNVERIFIED | EVIDENCE · BUILDING | UNVERIFIED — existence and type only |
 | **`BuildingTaxLot`** | CustomFields (observed) | string | **100%** | BUILDING | NEEDS_PROBE |
 | `BuildingName` | Property | string(50) | 3,903 / 8,056 (48%) | RESULT · WORKSPACE | VERIFIED — **a name, not an identity** |
 | **building identity** | Mallan-derived | computed | — | BUILDING | **NEEDS_PROBE** |
@@ -126,7 +184,8 @@ Legend for **state**: `VERIFIED` · `NEEDS_PROBE` · `VERIFIED_ZERO_POPULATION_C
 | `ListPrice` · `OriginalListPrice` · `PreviousListPrice` · `ClosePrice` | Property | UNVERIFIED | SEARCHABLE · RESULT · CMA | partly VERIFIED (price filters live) |
 | `ListingContractDate` · `OnMarketDate` · `CloseDate` · `ActivationDate` | Property | UNVERIFIED | SEARCHABLE · CMA | NEEDS_PROBE |
 | `DaysOnMarket` · `CumulativeDaysOnMarket` | Property | UNVERIFIED | RESULT · CMA | NEEDS_PROBE |
-| **price/status change history** | ~~`HistoryTransactional`~~ | — | CMA · WORKSPACE · CRM timeline | **NOT_AVAILABLE (400)** — needs another source |
+| **price/status change history** | ~~`HistoryTransactional`~~ | — | CMA · WORKSPACE · CRM timeline | **NOT_AVAILABLE (400)** (`LIVE`) |
+| **change timestamps — the live substitute** | Property: `PriceChangeTimestamp` · `StatusChangeTimestamp` · `PhotosChangeTimestamp` · `DocumentsChangeTimestamp` · `OpenHouseModificationTimestamp` — all `Edm.DateTimeOffset` (`LIVE`) | population UNVERIFIED | SEARCHABLE ("recently updated") · RESULT · CMA | **NEEDS_PROBE** — these DECLARE when a price/status/photo/document last changed but carry no previous value. They can support recency and change DETECTION; they cannot reconstruct a history series. Census required |
 
 ### B6 · Rooms & size
 
@@ -353,3 +412,41 @@ identity. A suppressed Mallan-office representation never becomes a second galle
   they are not rediscovered inside a separate CMA engine.
 
 **No production Neon · no schema/migration/backfill · public consumer Search zero-delta.**
+
+---
+
+## REPRODUCTION — verify any `LIVE` row independently
+
+Every `LIVE` number in this document came from one of these runs. They are read-only, GET
+only, touch `api.cotality.com` and nothing else, and use the sanctioned preview invocation
+so an accidental Prisma import cannot reach production Neon.
+
+```
+vercel env run -e preview --git-branch=fix/neon-p0-event-driven-wake-2026-08-16 -- npx tsx <script>
+```
+
+| to reproduce | script | artifact |
+|---|---|---|
+| 17 entity types · 1,456 fields · 185 enums · navigation properties | `scripts/search/probe-live-resource-inventory.mts` | `.cotality-live-resource-inventory.json` |
+| every collection GET + `$expand` state (the 400/403/404 findings) | `scripts/search/probe-resource-accessibility.mts` | `.cotality-resource-accessibility.json` |
+| `PropertySubType` shape · 75 members · operators · full census | `scripts/search/verify-live-search-contract.mts` §6 | `.property-subtype-live-probe{,-2}.json` |
+| Townhouse / Multi-Family / Land four-surface ID-level census | `scripts/search/probe-classification-four-surface-census.mts` | `.classification-four-surface-census.json` |
+| the 52 `CustomFields` keys, 8,010/8,010 rows | `scripts/search/probe-customfields-key-census.mts` | `.customfields-key-census.json` |
+| `MaximumFinancingPercent` distribution · `AttendanceType` vocabulary | `scripts/search/probe-customfields-semantics.mts` | `.customfields-semantics.json` |
+| `CommonInterest` census · financing field discovery | `scripts/search/probe-property-type-family-census.mts` · `probe-coop-financing-policy.mts` | `.property-type-family-census.json` · `.coop-financing-policy-probe.json` |
+
+**Drift check, not a one-off:** `npm run search:verify-live` re-probes the contract modules
+against live Cotality and exits non-zero on drift, exit 2 as `UNVERIFIED` if the provider
+cannot be reached. It never reports a transport failure as zero.
+
+Each probe keeps `SUPPORTED` / `PROVIDER_REJECTED` / `UNVERIFIED` distinct and aborts
+rather than letting an HTTP failure render as `0`. Where a census claims completeness, the
+artifact records `rowsRead` against the provider-declared count so the claim can be checked
+rather than taken.
+
+### Standing caution for whoever validates this
+
+The counts move — Townhouse read 612 on one run and 610 twenty minutes later; Active total
+read 8,032, 8,028 and 8,010 across runs. **A small delta is the feed, not a contradiction.**
+A large one, a state change, or a `PROVIDER_REJECTED` where this document says `SUPPORTED`
+is a real finding and should be treated as drift.

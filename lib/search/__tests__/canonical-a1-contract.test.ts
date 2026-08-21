@@ -59,7 +59,7 @@ const AUDIENCES: readonly Audience[] = ['public', 'client', 'agent', 'internal_r
 describe('A1 · enum exhaustiveness + guards', () => {
   const cases: Array<[string, readonly string[], string[], (v: unknown) => boolean]> = [
     // `mallan_derived` added 2026-08-20: Mallan COMPUTES the fact from verified
-    // inputs (Google geocoding, MTA transit, canonical address normalisation).
+    // inputs (geocoding, transit, canonical address normalisation).
     // Distinct from `mallan_crm`, which is Mallan-owned BUSINESS data. Needed
     // because Cotality BuildingKey/BuildingKeyNumeric are populated 0/8,056 and
     // GET /Building is 403, so building identity and coordinates must be

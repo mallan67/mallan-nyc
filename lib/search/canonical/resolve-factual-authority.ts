@@ -12,7 +12,7 @@
  * per-field authority it replaced, just in the other direction. A local Mallan
  * listing can legitimately carry values Mallan did not author:
  *
- *   - a Google-geocoded coordinate           -> mallan_derived
+ *   - a Mallan-derived coordinate            -> mallan_derived
  *   - an ACRIS transaction record            -> acris
  *   - a genuine Cotality ListingKey attached
  *     to the suppressed representation       -> cotality_rebny

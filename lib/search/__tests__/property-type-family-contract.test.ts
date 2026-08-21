@@ -150,3 +150,33 @@ describe("max_financing — live, populated, and INVISIBLE to $metadata", () => 
     expect(notes).toMatch(/CurrentFinancing|BuyerFinancing|ListingTerms/);
   });
 });
+
+/**
+ * MALLAN CAN AUTHOR THIS ON A MALLAN LISTING.
+ *
+ * A listing has exactly TWO origins: the live Cotality API, or Mallan Real
+ * Estate local input. `max_financing` was declared `fixed` / `cotality_rebny`,
+ * which asserts the provider authored it on EVERY listing — false on every
+ * Mallan-authored one, where a Mallan agent enters it.
+ *
+ * Same category error the registry already documents for `list_price`: a single
+ * static authority per FIELD is wrong for authorable listing facts.
+ */
+describe("max_financing authority follows the listing, not the field", () => {
+  const e = () => FIELD_REGISTRY.find((f) => f.canonicalKey === "max_financing")!;
+
+  it("is resolved BY LISTING AUTHORITY, not fixed to the provider", () => {
+    expect(e().authorityResolution).toBe("by_listing_authority");
+  });
+
+  it("carries no static sourceAuthority — no single value could be truthful", () => {
+    expect(e().sourceAuthority).toBeUndefined();
+  });
+
+  it("names Mallan as the author on a Mallan-authored listing", () => {
+    expect(e().authorityByListingKind).toEqual({
+      mallanLocal: "mallan_crm",
+      providerListing: "cotality_rebny",
+    });
+  });
+});
