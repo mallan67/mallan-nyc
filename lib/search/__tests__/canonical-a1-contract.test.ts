@@ -64,10 +64,10 @@ describe('A1 · enum exhaustiveness + guards', () => {
     // because Cotality BuildingKey/BuildingKeyNumeric are populated 0/8,056 and
     // GET /Building is 403, so building identity and coordinates must be
     // Mallan-derived — and must never be attributed to the provider.
-    ['SourceAuthority', SOURCE_AUTHORITIES, ['cotality_rebny', 'acris', 'nyc_dob', 'mallan_crm', 'mallan_derived', 'supplemental'], isSourceAuthority],
+    ['SourceAuthority', SOURCE_AUTHORITIES, ['cotality', 'acris', 'nyc_dob', 'mallan_crm', 'mallan_derived', 'supplemental'], isSourceAuthority],
     ['ObservationPlatform', OBSERVATION_PLATFORMS, ['streeteasy', 'zillow', 'direct_broker_feed', 'property_manager_feed', 'owner_submitted', 'manual_agent_research', 'none'], isObservationPlatform],
     ['SourceAccessMethod', SOURCE_ACCESS_METHODS, ['licensed_api', 'licensed_feed', 'direct_partner', 'public_api', 'public_dataset', 'internal_system', 'manual_agent_research'], isSourceAccessMethod],
-    ['InventoryScope', INVENTORY_SCOPES, ['public_inventory', 'client_inventory', 'agent_complete_inventory', 'cotality_rebny_only', 'mallan_exclusive', 'supplemental_only', 'missing_from_cotality', 'verification_required', 'source_conflicts'], isInventoryScope],
+    ['InventoryScope', INVENTORY_SCOPES, ['public_inventory', 'client_inventory', 'agent_complete_inventory', 'cotality_only', 'mallan_exclusive', 'supplemental_only', 'missing_from_cotality', 'verification_required', 'source_conflicts'], isInventoryScope],
     ['VerificationStatus', VERIFICATION_STATUSES, ['verified', 'verification_required', 'stale', 'conflicted'], undefined as unknown as (v: unknown) => boolean],
     ['SupplementalLifecycleStatus', SUPPLEMENTAL_LIFECYCLE_STATUSES, ['active', 'removed_at_source', 'superseded_by_rebny', 'license_blocked'], undefined as unknown as (v: unknown) => boolean],
     ['EvidenceClassification', EVIDENCE_CLASSIFICATIONS, ['VALUATION_EVIDENCE', 'ACTIVE_COMPETITION', 'SUPPLEMENTAL_MARKET_OBSERVATION', 'PROPERTY_FACT', 'UNVERIFIED_LEAD'], undefined as unknown as (v: unknown) => boolean],
@@ -125,7 +125,7 @@ describe('A1 · required audience × scope matrix (fail-closed)', () => {
   // true = Allow, false = Deny. "broker" ≡ agent/internal_report.
   const EXPECT: Record<string, Record<Audience, boolean>> = {
     public_inventory: { public: true, client: true, agent: true, internal_report: true },
-    cotality_rebny_only: { public: true, client: true, agent: true, internal_report: true },
+    cotality_only: { public: true, client: true, agent: true, internal_report: true },
     mallan_exclusive: { public: true, client: true, agent: true, internal_report: true },
     client_inventory: { public: false, client: true, agent: true, internal_report: true },
     agent_complete_inventory: { public: false, client: false, agent: true, internal_report: true },
@@ -206,10 +206,10 @@ describe('A1 · authority / platform / access are separate axes', () => {
   it('the three vocabularies are distinct dimensions', () => {
     // A platform value is not an authority; an authority is not a platform.
     expect(isSourceAuthority('streeteasy')).toBe(false);
-    expect(isObservationPlatform('cotality_rebny')).toBe(false);
+    expect(isObservationPlatform('cotality')).toBe(false);
     // access-method mapping is per-authority and complete
-    expect(isAccessMethodAllowedForAuthority('cotality_rebny', 'licensed_api')).toBe(true);
-    expect(isAccessMethodAllowedForAuthority('cotality_rebny', 'public_api')).toBe(false);
+    expect(isAccessMethodAllowedForAuthority('cotality', 'licensed_api')).toBe(true);
+    expect(isAccessMethodAllowedForAuthority('cotality', 'public_api')).toBe(false);
     expect(ACCESS_METHODS_BY_AUTHORITY.acris).toContain('public_api');
     expect(ACCESS_METHODS_BY_AUTHORITY.mallan_crm).toContain('internal_system');
   });
@@ -226,9 +226,9 @@ describe('A1 · authority / platform / access are separate axes', () => {
     expect(env.listingBrokerage).toBeUndefined(); // platform ≠ brokerage
     // no courtesy line for a non-Cotality authority
     expect(attributionEnvelopeCourtesy(env)).toBeNull();
-    // courtesy only for cotality_rebny, from a stated brokerage
+    // courtesy only for cotality, from a stated brokerage
     const rls: AttributionEnvelope = {
-      factualAuthority: 'cotality_rebny',
+      factualAuthority: 'cotality',
       observationPlatform: 'none',
       accessMethod: 'licensed_api',
       observedAt: '2026-07-10T00:00:00Z',

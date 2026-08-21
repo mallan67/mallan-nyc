@@ -351,14 +351,14 @@ describe("authority resolution, not a static per-field author", () => {
       expect(spec.sourceAuthority).toBeUndefined();
       expect(spec.authorityByListingKind).toEqual({
         mallanLocal: "mallan_crm",
-        providerListing: "cotality_rebny",
+        providerListing: "cotality",
       });
     }
   });
 
   it("a fixed author is declared ONLY where it is genuinely permanent", () => {
     // Provider identifiers exist only for provider records; CRM state only for Mallan.
-    expect(get("listing_key").sourceAuthority).toBe("cotality_rebny");
+    expect(get("listing_key").sourceAuthority).toBe("cotality");
     expect(get("mallan_exclusive").sourceAuthority).toBe("mallan_crm");
     expect(get("acris_sale_history").sourceAuthority).toBe("acris");
     for (const key of ["listing_key", "mallan_exclusive", "acris_sale_history"]) {
@@ -409,7 +409,7 @@ describe("authority resolution, not a static per-field author", () => {
     // ListingKey is not in any typed Listing column — raw_data carries it.
     expect(key.dbColumn).toBeNull();
 
-    const mlsId = get("listing_id_mls");
-    expect(mlsId.notes).toMatch(/DUAL-DOMAIN/i);
+    const canonicalListingId = get("listing_id_canonical");
+    expect(canonicalListingId.notes).toMatch(/DUAL-DOMAIN/i);
   });
 });

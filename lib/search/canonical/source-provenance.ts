@@ -16,7 +16,7 @@
 
 // 1. Factual authority --------------------------------------------------------
 export const SOURCE_AUTHORITIES = Object.freeze([
-  'cotality_rebny',
+  'cotality',
   'acris',
   'nyc_dob',
   'mallan_crm',
@@ -24,10 +24,10 @@ export const SOURCE_AUTHORITIES = Object.freeze([
    * Mallan COMPUTES the fact from verified inputs — geocoding, transit data,
    * canonical address normalisation.
    *
-   * No specific vendor is named here on purpose: an earlier version named Google,
-   * which is NOT the geocoder this repo uses (the populator is the US Census
-   * geocoder via scripts/batch-geocode.js into geocode_cache, source=census).
-   * This enum classifies the SOURCE CLASS, not the vendor.
+   * FACTUAL AUTHORITY DOES NOT ENCODE AN UPSTREAM VENDOR. This axis classifies
+   * the SOURCE CLASS — who authored the fact — not which supplier was called to
+   * compute it. Naming a vendor here would make the authority model change every
+   * time an integration changes, which is precisely backwards.
    *
    * Distinct from `mallan_crm`, which is Mallan-owned BUSINESS data (exclusivity,
    * internal flags, CRM state). A derived coordinate is neither provider fact nor
@@ -81,7 +81,7 @@ export function isSourceAccessMethod(v: unknown): v is SourceAccessMethod {
 export const ACCESS_METHODS_BY_AUTHORITY: Readonly<
   Record<SourceAuthority, readonly SourceAccessMethod[]>
 > = Object.freeze({
-  cotality_rebny: Object.freeze(['licensed_api', 'licensed_feed'] as const),
+  cotality: Object.freeze(['licensed_api', 'licensed_feed'] as const),
   acris: Object.freeze(['public_api', 'public_dataset'] as const),
   nyc_dob: Object.freeze(['public_api', 'public_dataset'] as const),
   mallan_crm: Object.freeze(['internal_system', 'manual_agent_research'] as const),

@@ -155,7 +155,7 @@ describe("max_financing — live, populated, and INVISIBLE to $metadata", () => 
  * MALLAN CAN AUTHOR THIS ON A MALLAN LISTING.
  *
  * A listing has exactly TWO origins: the live Cotality API, or Mallan Real
- * Estate local input. `max_financing` was declared `fixed` / `cotality_rebny`,
+ * Estate local input. `max_financing` was declared `fixed` / `cotality`,
  * which asserts the provider authored it on EVERY listing — false on every
  * Mallan-authored one, where a Mallan agent enters it.
  *
@@ -176,7 +176,7 @@ describe("max_financing authority follows the listing, not the field", () => {
   it("names Mallan as the author on a Mallan-authored listing", () => {
     expect(e().authorityByListingKind).toEqual({
       mallanLocal: "mallan_crm",
-      providerListing: "cotality_rebny",
+      providerListing: "cotality",
     });
   });
 });

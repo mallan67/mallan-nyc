@@ -143,6 +143,6 @@ export function isAttributionEnvelope(v: unknown): v is AttributionEnvelope {
  * never produces a courtesy line. Returns null when not required / no brokerage.
  */
 export function attributionEnvelopeCourtesy(env: AttributionEnvelope): string | null {
-  if (env.factualAuthority !== 'cotality_rebny') return null;
+  if (env.factualAuthority !== 'cotality') return null;
   return courtesyLabel(env.listingBrokerage);
 }

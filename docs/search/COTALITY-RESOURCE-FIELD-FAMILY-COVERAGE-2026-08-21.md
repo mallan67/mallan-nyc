@@ -23,6 +23,12 @@ Evidence: `artifacts/.cotality-live-resource-inventory.json` ·
 No claim in this document is asserted without saying how it is known. Independent
 verification must not have to guess which is which.
 
+Two dimensions, because they are two different questions: **how is it known**, and
+**who established it**. Collapsing them lets "LIVE" be read as "two independent parties
+agree", which is not what it means.
+
+### What kind of evidence
+
 | level | meaning |
 |---|---|
 | **`LIVE`** | probed against the authorized live Cotality connector during the session dated on this document. Reproducible — see REPRODUCTION at the end. |
@@ -31,6 +37,32 @@ verification must not have to guess which is which.
 | **`INFERENCE`** | follows from `LIVE`/`CODE` facts, but the provider never stated it. **Not a provider fact.** |
 | **`RECOMMENDATION`** | architecture or product judgement. **Not a statement about what Cotality does.** |
 | **`UNVERIFIED`** | named because it is declared or observed, but neither population nor semantics has been established. |
+
+### Who established it
+
+| origin | meaning |
+|---|---|
+| **`CLAUDE_LIVE_RUN`** | produced by a Claude-run reproducible script. **Independent reproduction PENDING.** |
+| **`INDEPENDENTLY_REPRODUCED`** | a second party checked it against the Cotality connector directly. |
+| **`CURRENT_GITHUB_CODE`** | read at the exact pushed SHA. |
+| **`CI_EXECUTION`** | a CI run at that SHA. |
+
+### How that applies here, precisely
+
+| claim class | evidence | origin |
+|---|---|---|
+| **`$metadata`-level facts** — Property 757 fields · Media 56 · OpenHouse 47 · CustomProperty 142 · declared types of `ListingKey`, `SourceSystemKey`, `CLIP`, `TaxBlock` … · `PropertySubType` scalar vs `PropertySubTypeAdditional` multi · `CustomFields` is `Edm.String` · `Restrictions` is a multi-enum | `LIVE` | **`INDEPENDENTLY_REPRODUCED`** — confirmed by Maya against the Cotality connector |
+| **row-population censuses** — Property 591,244 · Media 1,977,836 · Townhouse 610 · Multi-Family union 981 · `CommonInterest` counts · the 8,010-row `CustomFields` census · `MaximumFinancingPercent` 6,803 and its distributions · `AttendanceType` distributions · Land zero across 11 probes | `LIVE` | **`CLAUDE_LIVE_RUN` — independent reproduction PENDING.** The connector available for independent checking does not expose arbitrary listing-population queries |
+| **endpoint accessibility** — `HistoryTransactional` 400 · `PropertyGreenVerification` 404 · `Teams`/`TeamMembers` 400 · `Building` 403 · `PropertyRooms` 86 rows · `PropertyUnitTypes` 1 row | `LIVE` | **`CLAUDE_LIVE_RUN` — independent reproduction PENDING** |
+| **current-code defects** — the D-register in Part E | `CODE` | `CURRENT_GITHUB_CODE` |
+
+**The numbers are not softened because they are unreproduced — they are labelled.** Each is
+the true output of the script named in REPRODUCTION. What must not happen is the next
+handoff reading `LIVE` as "two parties verified this."
+
+**Anything marked `CLAUDE_LIVE_RUN` should be independently reproduced before it authorises
+an implementation decision**, wherever the underlying Cotality contract can be checked
+directly.
 
 **Nothing here is authorised for implementation on the strength of a `LIVE` count
 alone.** A count proves presence; a consumer decision additionally needs semantics. And
@@ -376,6 +408,7 @@ identity. A suppressed Mallan-office representation never becomes a second galle
 | D7 | Registry records `ElevatorYN` / `DoormanYN` ABSENT while `ElevatorsTotal` and `AttendanceType` are 100% live in CustomFields | census | OPEN |
 | D8 | In-code comment says CustomFields carries **41** keys; live says **52** | census | OPEN |
 | D9 | `/api/idx/search` is provider-only while Mallan local listings are canonical — **the structural conflict none of this resolves** | prior | **OPEN — the real blocker** |
+| D10 | the projection column **named `mls_status` carries `StandardStatus`**, not `MlsStatus` — the column name contradicts its contents | `CODE` | **OPEN** — renaming a column is a schema migration and is HELD |
 
 ---
 

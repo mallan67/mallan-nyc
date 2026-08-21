@@ -15,7 +15,7 @@
  *   - a Mallan-derived coordinate            -> mallan_derived
  *   - an ACRIS transaction record            -> acris
  *   - a genuine Cotality ListingKey attached
- *     to the suppressed representation       -> cotality_rebny
+ *     to the suppressed representation       -> cotality
  *
  * So the resolution consults the FIELD's declared model first, and only
  * `by_listing_authority` fields ever consult the listing kind.
@@ -25,7 +25,7 @@
  * There are THREE listing kinds, not two. A Mallan-office Cotality
  * representation is a provider ROW, but it is the provider's copy of a
  * MALLAN-AUTHORED listing. Treating it as ordinary third-party inventory would
- * route its authorable facts to `cotality_rebny` — transferring authorship of
+ * route its authorable facts to `cotality` — transferring authorship of
  * Mallan's own price, address and beds back to the provider through the very
  * duplicate the suppression contract exists to neutralise.
  *
@@ -109,7 +109,7 @@ export function resolveFactualAuthority(
   //
   // Permitted: genuinely fixed Cotality provider evidence — ListingKey,
   // ListingId, provider lineage, provider MlsStatus, Permission/display facts,
-  // provider timestamps, Media provider keys. Those stay `cotality_rebny` and are
+  // provider timestamps, Media provider keys. Those stay `cotality` and are
   // retained for reconciliation/audit.
   //
   // Refused: everything else, including Mallan-derived and analytical facts,
@@ -120,7 +120,7 @@ export function resolveFactualAuthority(
   // consumer.
   if (listingKind === 'mallan_office_representation') {
     const isProviderEvidence =
-      spec.authorityResolution === 'fixed' && spec.sourceAuthority === 'cotality_rebny';
+      spec.authorityResolution === 'fixed' && spec.sourceAuthority === 'cotality';
     if (!isProviderEvidence) {
       return {
         resolved: false,

@@ -17,7 +17,7 @@ describe("factual authority resolves per listing, not per field", () => {
   it("a third-party listing resolves authorable facts to Cotality", () => {
     for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
       const out = resolve(key, "provider_third_party");
-      expect(out).toMatchObject({ resolved: true, authority: "cotality_rebny" });
+      expect(out).toMatchObject({ resolved: true, authority: "cotality" });
     }
   });
 
@@ -70,11 +70,11 @@ describe("factual authority resolves per listing, not per field", () => {
     // not erase the provider's own facts, which are retained for reconciliation.
     expect(resolve("listing_key", "mallan_office_representation")).toMatchObject({
       resolved: true,
-      authority: "cotality_rebny",
+      authority: "cotality",
     });
     expect(resolve("provider_lineage", "mallan_office_representation")).toMatchObject({
       resolved: true,
-      authority: "cotality_rebny",
+      authority: "cotality",
     });
   });
 
@@ -82,7 +82,7 @@ describe("factual authority resolves per listing, not per field", () => {
     // A genuine Cotality ListingKey attached to a Mallan canonical listing is
     // still Cotality's fact — `fixed` must ignore listing kind entirely.
     for (const kind of ["mallan_local", "mallan_office_representation", "provider_third_party"] as const) {
-      expect(resolve("listing_key", kind)).toMatchObject({ resolved: true, authority: "cotality_rebny" });
+      expect(resolve("listing_key", kind)).toMatchObject({ resolved: true, authority: "cotality" });
     }
   });
 
@@ -112,7 +112,7 @@ describe("factual authority resolves per listing, not per field", () => {
     // The guard against by_listing_authority degrading into
     // "row is local => everything is mallan_crm".
     const localProviderFact = resolve("listing_key", "mallan_local");
-    expect(localProviderFact).toMatchObject({ authority: "cotality_rebny" });
+    expect(localProviderFact).toMatchObject({ authority: "cotality" });
     const localDerived = resolve("building_identity", "mallan_local");
     expect(localDerived).toMatchObject({ authority: "mallan_derived" });
     const localUnresolved = resolve("assessment", "mallan_local");
@@ -154,11 +154,11 @@ describe("a suppressed representation supplies provider evidence and nothing els
     if (!out.resolved) expect(out.reason).toBe("NON_CANONICAL_SOURCE");
   });
 
-  const ALLOWED = ["listing_key", "listing_id_mls", "provider_lineage", "mls_status", "permission"] as const;
+  const ALLOWED = ["listing_key", "listing_id_canonical", "provider_lineage", "mls_status", "permission"] as const;
 
   it.each(ALLOWED)("%s DOES resolve as provider evidence", (key) => {
     const out = resolve(key, "mallan_office_representation");
-    expect(out).toMatchObject({ resolved: true, authority: "cotality_rebny" });
+    expect(out).toMatchObject({ resolved: true, authority: "cotality" });
   });
 
   it("the same Mallan-derived facts resolve normally on a LOCAL listing", () => {
