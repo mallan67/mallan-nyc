@@ -1,7 +1,12 @@
 # Suppression & location — consumer impact graph
 
-**One complete trace before any reader is patched.** Produced by reading the committed
-code, not by patching surfaces as they were discovered. Production Neon was NOT queried —
+**The full consumer trace, produced before any reader is patched** — deliberately not
+surface-by-surface as defects were found.
+
+Every consumer below has been traced for ONE question: does it consult the suppression
+authority? That axis is complete. A SECOND axis — what each currently returns in production
+— needs Neon and is marked UNVERIFIED per row. Those are different claims and are not
+merged. Production Neon was NOT queried —
 the acceptance window is open — so every row marked UNVERIFIED stays unverified.
 
 Two invariants under test:
@@ -51,12 +56,31 @@ and requires production Neon.
 | **Saved Search count** `/api/crm/saved-searches` | Projection | **NO** | **yes** | **no** | **counted** | **HIGH** | same one gate |
 | **Saved Search execute** `/api/crm/saved-searches/[id]/execute` | Projection | **NO** | **yes** | **no** | **returned** | **HIGH** | same one gate |
 | **alert replay** `/api/cron/search-alerts` | Projection | **NO** | **yes** | **no** | **emailed to a client** | **HIGH** | same one gate |
-| CRM listings `/api/crm/listings` | Listing + participation scope | **no** | yes | no | appears in the agent's own list | **needs decision** | see §C |
-| CMA engine `lib/cma/engine.ts` | own `prisma.listing.findMany` | **no** | yes | no | enters the comparable pool | **HIGH** | route through the canonical engine |
-| Open Houses `lib/open-houses/upcoming-open-houses.ts` | Listing | **no** | yes | no | UNVERIFIED | needs trace | trace before deciding |
-| Media / hero / gallery | `listing_media` by provider key | **no** | n/a | **no** | UNVERIFIED | **HIGH** — parallel media authority | identity must resolve first |
+| CRM listings `/api/crm/listings` | Listing + participation scope | **NO** | yes | no | appears as a second row in the agent's own list | **HIGH** | canonical local listing only; provider IDs as evidence INSIDE it (§C) |
+| CRM listing workspace | same reader | **NO** | n/a | no | second workspace possible | **HIGH** | one workspace = the local listing |
+| CRM client assignment / actions | CRM listing reader | **NO** | n/a | no | actions attachable to the wrong identity | **HIGH** | follows the CRM reader fix |
+| client portal `app/api/portal/*` (listings · comparables · favorites · offers) | 4 routes doing their own `prisma.listing.findMany` | **NO** | yes | no | client-visible duplicate | **HIGH** | route through the canonical gate |
+| Compare `CompareProperties.tsx` | consumes selected result set | inherits caller | inherits | inherits | inherits | inherits | fixed by fixing the source |
+| **CMA candidate generation** `lib/cma/engine.ts` | own `prisma.listing.findMany` | **NO** | yes | no | enters the comparable pool | **HIGH** | NOT a local patch — must consume the corrected Search foundation (§F) |
+| CMA selected-comp analysis | downstream of candidates | inherits | inherits | inherits | inherits | inherits | follows candidate fix |
+| CMA report | downstream of selection | inherits | inherits | inherits | inherits | inherits | follows candidate fix |
+| Building Search (authenticated) | not yet built | n/a | n/a | n/a | n/a | n/a | must consult suppression by construction |
+| Building profile inventory | `lib/buildings/public-building-data.ts` | **yes** | yes | n/a | excluded | none | none |
+| Reports — selection/preview/customize `public/crm/js/output/reports.js` | derives from the shared Search result set (12 refs) | inherits caller | inherits | inherits | inherits | inherits | fixed by fixing Search |
+| Reports — package `report-package.js` | no shared-result refs; own path | **UNTRACED SOURCE** | UNVERIFIED | UNVERIFIED | UNVERIFIED | needs trace | trace its listing source before report work |
+| Report PDF / print / email / share | downstream of report selection | inherits | inherits | inherits | inherits | inherits | follows Reports fix |
+| Seller report `lib/seller-report/build-report.ts` | no direct `prisma.listing` | n/a | n/a | n/a | n/a | none observed | confirm its input source during report work |
+| marketing / eblast `listing-campaign.js` | no shared-result refs; own path | **UNTRACED SOURCE** | UNVERIFIED | UNVERIFIED | UNVERIFIED | needs trace | trace before marketing work |
+| Open Houses `lib/open-houses/upcoming-open-houses.ts` | Listing, Mallan-office scoped | **NO** | yes | no | a representation's OH could surface | **MEDIUM** | trace, then apply the canonical gate |
+| Media hero / gallery / floorplan / video / tours | `listing_media` joined by provider key | **NO** | n/a | **no** | parallel media authority | **HIGH** | identity resolves FIRST (§G) |
 | results map (authenticated) | client, consumes result set | inherits caller | inherits | inherits | inherits | inherits | fixed by fixing its source |
-| public search map | client, consumes DTO | inherits (suppressed upstream) | inherits | n/a | n/a | none | none |
+| public search map | client, consumes DTO | inherits (suppressed upstream) | inherits | n/a | n/a | none | none — evidence only |
+| SEO / schema / sitemap | Listing | **yes** | n/a | n/a | excluded | none | none |
+
+Two rows remain **UNTRACED SOURCE** — `report-package.js` and `listing-campaign.js` obtain
+listings by a path this pass did not establish. They are named rather than silently omitted,
+and must be traced before Reports or marketing work begins. No reader is patched on the
+strength of an untraced row.
 
 **One gate fixes four rows.** Projection search, Saved Search count, Saved Search execute
 and alert replay all pass through `buildProjectionSearchWhere`. That is the correction to
@@ -65,31 +89,50 @@ the authority already exists and simply is not called there.
 
 ---
 
-## C. CRM LISTINGS NEEDS A PRODUCT DECISION, NOT A PATCH
+## C. CRM — ALREADY DECIDED, NOT AN OPEN QUESTION
 
-`/api/crm/listings` scopes to the caller's proven participation. A Mallan agent's own
-Cotality representation legitimately IS their participation, so excluding it blindly could
-hide a real record from the person who listed it.
+An earlier version of this section asked Maya to choose between two CRM behaviours. That
+was wrong: the rule is already committed in `lib/listings/mallan-source-identity.ts`, which
+states a Mallan-office Cotality representation may not independently participate as a
+canonical listing in CRM, client portal, Reports, CMA, Open House, Media authority,
+marketing or Search.
 
-Two defensible behaviours, and this is Maya's call:
+**Required CRM behaviour:**
 
-1. **Suppress like everywhere else** — the agent sees only the canonical local listing.
-2. **Show it as explicitly labelled provider evidence** — visibly not a second listing,
-   never editable, never counted as separate inventory.
+| case | behaviour |
+|---|---|
+| matched representation | the canonical LOCAL Mallan listing is THE one listing and THE one workspace. Cotality IDs, status, permissions and timestamps may appear as PROVIDER EVIDENCE **inside** that canonical workspace |
+| | never a second inventory row · never a second count · never independently editable · never an alternative canonical record |
+| unresolved / ambiguous | representation stays suppressed · integrity defect raised · NO fallback provider listing or workspace |
 
-What is NOT acceptable is the current state: it appears with no indication that it is the
-provider's copy of a listing the agent already owns locally.
-
----
+"Provider evidence" means fields rendered within the canonical listing. It does **not**
+mean a second listing row labelled "provider evidence", and no second provider-evidence
+listing type is to be created.
 
 ## D. LOCATION FINDINGS
 
-### D.1 Cotality supplies no coordinates
+### D.1 Cotality DECLARES coordinates; their usable population is UNPROVEN
 
-`lib/geo/geocode.ts` states the IDX Plus feed returns null `Latitude`/`Longitude`.
-Coordinates come from the **US Census** geocoder via `scripts/batch-geocode.js` into
-`geocode_cache` (`source=census`). No Google, Mapbox or other authority is involved, and
-none may be introduced.
+An earlier version of this section said "Cotality supplies no coordinates". **That was too
+strong, and it was sourced from a repo comment** — the exact failure mode this workstream
+keeps correcting elsewhere. No field is established from a document.
+
+The accurate statement:
+
+- Live authenticated Cotality **declares** `Property.Latitude` and `Property.Longitude` as
+  nullable coordinate fields.
+- What is **NOT proven** is their usable population in Mallan's current authorized feed.
+- Existing Mallan code (`lib/geo/geocode.ts`) reports them commonly null and therefore
+  falls back to the Census-backed map-resolution support.
+- **Metadata declaration alone does not make provider coordinates usable**, and neither
+  does a code comment make them absent.
+
+**Added to the live census backlog:** measure `Latitude`/`Longitude` population across the
+Search-eligible universe, exhaustively, before any reliance or dismissal.
+
+Coordinates are populated today by the **US Census** geocoder via
+`scripts/batch-geocode.js` into `geocode_cache` (`source=census`). Google was never
+involved — an earlier draft invented it. No new location authority may be introduced.
 
 ### D.2 Two independent layers fabricate precise-looking positions
 
@@ -141,7 +184,40 @@ without becoming one product.
 
 ---
 
-## E. WHAT THIS GRAPH DOES NOT ESTABLISH
+## F. CMA DOES NOT GET A LOCAL FIX
+
+`lib/cma/engine.ts` runs its own `prisma.listing.findMany`, so representations can enter
+the comparable pool. Pasting a suppression clause into that query would make the symptom go
+away and PRESERVE the actual defect — a second search engine.
+
+CMA must consume the corrected foundation:
+
+    ComparableCriteria -> corrected canonical Search/provider execution
+                       -> eligible candidate universe
+                       -> CMA-specific ranking and analysis
+
+The suppression correction for CMA therefore happens during the CMA refactor, not now.
+
+---
+
+## G. MEDIA NEEDS IDENTITY RESOLUTION, NOT DELETION
+
+The representation's Media rows are legitimate Cotality provider evidence and must be
+retained. What they must never become is a second gallery, hero, floorplan, video or report
+media source.
+
+    Mallan local listing        -> canonical listing identity AND media authority
+    matching representation     -> provider Media kept as evidence/reconciliation input
+                                -> never an independent gallery/hero/report source
+
+Listing identity resolves FIRST; media authority follows it. Provider Media
+`ResourceRecordKey` stays in its proper Cotality `ListingKey` domain — identity is not
+"fixed" by repointing Media at the Mallan local id. Trace the exact readers before altering
+any media join.
+
+---
+
+## H. WHAT THIS GRAPH DOES NOT ESTABLISH
 
 - Whether either live search-eligible representation has a proven local twin — needs
   production Neon.
