@@ -513,6 +513,22 @@ export async function pruneBranches(opts: {
   projectId: string;
   retentionHours?: number;
   execute: boolean;
+  /**
+   * Evaluation clock. Defaults to the real clock, so production behaviour is
+   * unchanged. It exists so a caller can PIN the clock.
+   *
+   * `isPrunable` has always accepted an injectable `now`, but `pruneBranches`
+   * read `new Date()` internally and never passed a caller's value down. A test
+   * could therefore declare a fixed clock, believe its ages were deterministic,
+   * and silently drift: a fixture built as "1 hour idle" against a hardcoded
+   * NOW becomes 25 hours idle the next day and falls out of a 24 hour retention
+   * window. That is exactly how neon-branch-prune-guard §G4 passed on
+   * 2026-08-20 and failed on 2026-08-21 with `too_recent_count` 1 -> 0.
+   *
+   * A test that asserts determinism it does not actually have is a time bomb.
+   * The determinism is now real rather than assumed.
+   */
+  now?: Date;
 }): Promise<PruneResult> {
   const retentionHours = opts.retentionHours ?? DEFAULT_RETENTION_HOURS;
   const branches = await listBranches(opts.apiKey, opts.projectId);
@@ -528,7 +544,9 @@ export async function pruneBranches(opts: {
   };
   if (!Array.isArray(branches)) return result;
 
-  const now = new Date();
+  // Pinned by the caller when supplied; otherwise the real clock. Resolved ONCE
+  // so every branch in a single run is judged against the same instant.
+  const now = opts.now ?? new Date();
   for (const branch of branches) {
     const decision = isPrunable(branch, retentionHours, now);
 

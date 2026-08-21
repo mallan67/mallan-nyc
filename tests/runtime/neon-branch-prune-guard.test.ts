@@ -486,6 +486,7 @@ describe('§G — pruneBranches integration: production is never DELETEd end-to-
       projectId: 'hidden-mountain-87248164',
       retentionHours: RETENTION,
       execute: true,
+      now: NOW,
     });
     expect(deletedIds()).toEqual(['br-spring-mouse-adfywa55']);
     expect(deletedIds()).not.toContain(PROD_ID);
@@ -505,6 +506,7 @@ describe('§G — pruneBranches integration: production is never DELETEd end-to-
       projectId: 'hidden-mountain-87248164',
       retentionHours: RETENTION,
       execute: true,
+      now: NOW,
     });
     expect(deletedIds()).toEqual(['br-preview-ok']);
     expect(deletedIds()).not.toContain(PROD_ID);
@@ -523,6 +525,7 @@ describe('§G — pruneBranches integration: production is never DELETEd end-to-
       projectId: 'hidden-mountain-87248164',
       retentionHours: RETENTION,
       execute: false,
+      now: NOW,
     });
     expect(deletedIds()).toEqual([]);
     expect(r.pruned.map((b) => b.name)).toEqual(['preview/pr-9']);
@@ -541,6 +544,7 @@ describe('§G — pruneBranches integration: production is never DELETEd end-to-
       projectId: 'hidden-mountain-87248164',
       retentionHours: RETENTION,
       execute: true,
+      now: NOW,
     });
     expect(r.examined).toBe(4);
     expect(r.primary_count).toBe(1);
@@ -569,6 +573,7 @@ describe('§G — pruneBranches integration: production is never DELETEd end-to-
       projectId: 'hidden-mountain-87248164',
       retentionHours: RETENTION,
       execute: true,
+      now: NOW,
     });
     expect(deletedIds()).toEqual([]);
     expect(r.pruned).toEqual([]);
