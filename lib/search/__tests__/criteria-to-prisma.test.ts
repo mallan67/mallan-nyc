@@ -168,14 +168,31 @@ describe("SearchCore address display", () => {
 // ── PR 5D — projection-backed search path ─────────────────────────────
 
 describe("PROJECTION_DISPLAY_GATE", () => {
-  it("mirrors the four projection-side gate columns and applies owner_opt_out via the listing relation", () => {
-    expect(PROJECTION_DISPLAY_GATE).toEqual({
+  it("mirrors the four projection-side gate columns", () => {
+    expect(PROJECTION_DISPLAY_GATE).toMatchObject({
       rls_eligible: true,
       idx_display_yn: true,
       internet_entire_listing_display_yn: true,
       participant_only_yn: false,
-      listing: { owner_opt_out: false },
     });
+  });
+
+  it("applies BOTH Listing-side invariants through the FK relation", () => {
+    // owner_opt_out is not a projection column. Neither is Mallan-office
+    // suppression — and that one was MISSING until 2026-08-21, so the projection
+    // path (Saved Search count/execute, alert replay) could surface a
+    // Mallan-office Cotality representation as its own listing.
+    const rel = (PROJECTION_DISPLAY_GATE as Record<string, unknown>).listing as Record<string, unknown>;
+    expect(rel.owner_opt_out).toBe(false);
+    expect(JSON.stringify(rel)).toContain("list_office_mls_id");
+  });
+
+  it("does not copy the office rule into the projection model", () => {
+    // One authority. A projection-side duplicate is how this gate drifted from
+    // buildSearchDisplayWhere in the first place.
+    const { listing, ...projectionSide } = PROJECTION_DISPLAY_GATE as Record<string, unknown>;
+    void listing;
+    expect(JSON.stringify(projectionSide)).not.toContain("list_office_mls_id");
   });
 });
 
