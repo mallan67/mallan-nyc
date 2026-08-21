@@ -203,8 +203,48 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    builder but production population is still UNVERIFIED, and the defect was not "only the
    translator is missing" — the provider execution was a hard HTTP 400.
 
-2. **FOUR-CONTROL LIVE SEMANTIC CENSUS — before `listingId`.** Bounded. Establishes which
-   provider fact each UI label actually means. Nothing is removed.
+2. ~~**FOUR-CONTROL LIVE SEMANTIC CENSUS**~~ — **DONE 2026-08-21.** Every one of the four
+   was mapped to the WRONG provider fact, and the census also surfaced a 52-key NYC field
+   family invisible to `$metadata`. Full evidence:
+   `docs/idx/cotality-property-type-family-and-customfields-2026-08-21.md`.
+
+   | control | was | live | ACTUALLY | live | status |
+   |---|---|---|---|---|---|
+   | Townhouse | `PropertySubType` | **0** | **`StructureType`** (Multi-Enum, `has`) | **612 Active** | VERIFIED |
+   | Condo | `PropertySubType` | **0** | **`CommonInterest`** | **3,722 Active** | VERIFIED |
+   | Co-op | `PropertySubType` | **0** | **`CommonInterest`** | **2,509 Active** | VERIFIED |
+   | Land | `PropertySubType=UnimprovedLand` | **0** | no candidate carries it (`PropertyType=Land` also 0) | **0** | UNSUPPORTED — no live inventory, control retained |
+   | Multi-Family | `PropertySubType` | 426 | **`PropertySubType` OR `StructureType`** | **~982** | VERIFIED — single field misses ~57% |
+
+   Registry rows added/corrected in the EXISTING `FIELD_REGISTRY`: `structure_type` (new),
+   `max_financing` (new), `ownership` and `property_sub_type` (corrected). No new registry.
+
+   **UI re-pointing is NOT yet done** — the evidence now names the correct field for each
+   control, and changing the CRM mapping is the next bounded implementation step.
+
+3. **`MaximumFinancingPercent` AND THE UNDECLARED `CustomFields` FAMILY.** The building
+   financing limit Maya asked for EXISTS, live, on **84.9% of active inventory** — inside
+   `CustomProperty.CustomFields`, an **undeclared JSON object carried in one declared
+   `Edm.String`**. Exhaustive census: 8,010/8,010 Active rows, 0 null, 0 unparsable, **52
+   distinct keys**. The declared financing fields (`CurrentFinancing`, `BuyerFinancing`,
+   `ListingTerms`) are populated **ZERO**.
+
+   The same blob carries `AttendanceType` (**100%** — the doorman/concierge fact this
+   registry still records as ABSENT), `ElevatorsTotal` (**100%**), `FlipTax` (89%),
+   `SponsorUnitYN` (97%), `TaxAbatementYN` (99.9%), `TaxDeductionPercent` (59.3%),
+   `PercentOfCommonElements` (86%), `BuildingRules`, `BuildingStaffType`,
+   `PrivateOutdoorSpaceSize`, `MaxLeaseMonths`, `GuarantorsAcceptedYN`, `CeilingHeight*`,
+   `AreaOver/UnderFAR`, `RoofRightsYN` and more.
+
+   **CAPABILITY CONSTRAINT:** `$filter` cannot reach inside an `Edm.String`, so **none of
+   these 52 keys is provider-filterable.** They must be read via `$expand=CustomProperty`
+   and matched Mallan-side, or derived onto the projection at build time the way
+   `amenity_keys` already is. Record that before building on any of them.
+
+4. **FOUR-CONTROL UI RE-POINTING** — bounded, evidence already in hand. Re-point Townhouse
+   to `StructureType`, Condo/Co-op to `CommonInterest`, Multi-Family to the OR of both,
+   and keep Land as a retained UNSUPPORTED control. Basic and Advanced both. Nothing is
+   removed.
    - **Townhouse** — `PropertySubType eq 'Townhouse'` vs exact-token `StructureType has …`.
      Compare returned IDs and PropertyType context; decide which carries NYC townhouse
      inventory. Do not infer from enum existence.
@@ -228,10 +268,15 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    status. Status is `VERIFIED` / `NEEDS_PROBE` / `UNSUPPORTED`, **never "dead"** merely
    because one candidate field is unpopulated.
 
-3. **RESOURCE / FIELD-FAMILY COVERAGE MATRIX — before resuming any one-field loop.**
+5. **RESOURCE / FIELD-FAMILY COVERAGE MATRIX — before resuming any one-field loop.**
    See METHOD CORRECTION below. This replaces "fix the next translator" as the unit of work.
+   The live inventory foundation is already captured mechanically in
+   `artifacts/.cotality-live-resource-inventory.json`: **17 entity types · 1,456 declared
+   fields · 185 enums (114 multi) · Property 757 (576 scalar / 81 enum / 100 multi-enum) ·
+   14 navigation properties**. Note the inventory is NOT complete on its own — §6 of the
+   evidence doc shows an undeclared family living inside a declared string.
 
-4. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
+6. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
    resolve the canonical twin for a Mallan-office representation, return the LOCAL listing;
    no-twin/ambiguous stays suppressed with an integrity defect. Otherwise searching your own
    Cotality `ListingId` returns ZERO. Note the VALUES carry a raw `RLS…` prefix — that is
@@ -392,3 +437,20 @@ Worth reading before continuing — each cost a correction cycle:
   `listings` as "the ~126-row local fixture set". It is not a fixture — that number belongs
   to `scripts/crm-tests/`. At runtime it is the 200-row UNFILTERED page fetched at page load.
   Trace what populated an array before naming its authority.
+- **Reading zero population as a dead capability.** Four Property Type controls returned 0
+  and looked unavailable. Every one was pointed at the WRONG provider fact: Townhouse is
+  carried by `StructureType` (612 Active, not 0), condo and co-op by `CommonInterest`
+  (3,722 and 2,509). Multi-Family needed TWO fields and the single-field mapping was
+  missing ~57% of live inventory. **Zero on the first field checked is a mapping
+  hypothesis, not a verdict** — census the siblings before concluding anything is
+  unavailable, and never delete a brokerage capability on that evidence.
+- **Auditing only what is DECLARED.** Every field-level audit here started from
+  `$metadata`, so all of them were structurally blind to `CustomProperty.CustomFields` — an
+  undeclared 52-key JSON family carried inside one declared `Edm.String`, holding
+  `MaximumFinancingPercent` (84.9%), `AttendanceType` (100%), `ElevatorsTotal` (100%),
+  `FlipTax` (89%) and the rest of the NYC co-op/condo facts a broker most needs. The
+  registry meanwhile records `DoormanYN` and `ElevatorYN` as ABSENT. A schema is a floor,
+  not a ceiling: read rows, union the keys.
+- **Measuring coverage against the current form.** "39 controls" measured UI wiring and
+  could never have surfaced any of the above, because none of it is wired. Coverage is
+  measured against provider resources and field families.

@@ -1,0 +1,190 @@
+{
+  "probedAt": "2026-08-21T19:01:45.007Z",
+  "api": "https://api.cotality.com/trestle",
+  "customPropertySample": [
+    {
+      "ListingId": "RLS20110540",
+      "CommonInterest": "StockCooperative",
+      "CustomProperty": [
+        {
+          "AdditionalFee": null,
+          "CustomFields": "{\n  \"BuildingRules\": \"PiedATerreAllowed\",\n  \"ElevatorsTotal\": \"0\",\n  \"CommercialUnitsYN\": \"0\",\n  \"FlipTaxRemarks\": \"Paid by Seller\",\n  \"FlipTax\": \"2.00\",\n  \"BuildingTaxLot\": \"0011\",\n  \"MaximumFinancingRemarks\": \"Confirm with listing agent.\",\n  \"SponsorUnitYN\": \"0\",\n  \"GuarantorsAcceptedYN\": \"0\",\n  \"CertificateOfOccupancyYN\": \"0\",\n  \"FlipTaxType\": \"Percent\",\n  \"TaxAbatementYN\": \"0\",\n  \"AttendanceType\": \"None\",\n  \"MaximumFinancingPercent\": \"80.00\",\n  \"ListingKey\": \"1183681390\"\n}",
+          "UnitLocation": null,
+          "AdditionalFeeDescription": null,
+          "Restrictions": "RentalAllowed",
+          "AssociationFeeTotal": null,
+          "ComplexName": null,
+          "ApplicationFee": null
+        }
+      ]
+    },
+    {
+      "ListingId": "RLS20110538",
+      "CommonInterest": "RentalBuilding",
+      "CustomProperty": [
+        {
+          "AdditionalFee": null,
+          "CustomFields": "{\n  \"ElevatorsTotal\": \"1\",\n  \"PercentOfCommonElements\": \"0.00\",\n  \"FlipTax\": \"0.00\",\n  \"LandmarkStatusYN\": \"0\",\n  \"CapitalReservesYN\": \"0\",\n  \"BuildingTaxLot\": \"7502\",\n  \"MaximumFinancingRemarks\": \"0\",\n  \"PrivateOutdoorSpaceSize\": \"LessThan60SqFt\",\n  \"ViewRemarks\": \"C\",\n  \"SponsorUnitYN\": \"0\",\n  \"TaxDeductionPercent\": \"0.00\",\n  \"CertificateOfOccupancyYN\": \"1\",\n  \"TaxMonthlyAmount\": \"0.00\",\n  \"MaxLeaseMonths\": \"12\",\n  \"TaxAbatementYN\": \"0\",\n  \"AttendanceType\": \"DoormanFullTime,ConciergeFullTime\",\n  \"UnitLine\": \"D\",\n  \"MaximumFinancingPercent\": \"0.00\",\n  \"ListingKey\": \"1183680774\"\n}",
+          "UnitLocation": null,
+          "AdditionalFeeDescription": null,
+          "Restrictions": null,
+          "AssociationFeeTotal": null,
+          "ComplexName": null,
+          "ApplicationFee": null
+        }
+      ]
+    },
+    {
+      "ListingId": "RLS20110536",
+      "CommonInterest": "Condominium",
+      "CustomProperty": [
+        {
+          "AdditionalFee": null,
+          "CustomFields": "{\n  \"ElevatorsTotal\": \"7\",\n  \"PercentOfCommonElements\": \"0.00\",\n  \"KitchenCondition\": \"Excellent\",\n  \"FlipTaxRemarks\": \"NONE\",\n  \"FlipTax\": \"0.00\",\n  \"LandmarkStatusYN\": \"0\",\n  \"CapitalReservesYN\": \"0\",\n  \"BuildingTaxLot\": \"7501\",\n  \"MaximumFinancingRemarks\": \"90%\",\n  \"ViewRemarks\": \"SL,PA,R,F,S\",\n  \"BuildingStaffType\": \"SuperLiveIn\",\n  \"BathroomCondition\": \"Excellent\",\n  \"BuildingParkingTotal\": \"200\",\n  \"SponsorUnitYN\": \"1\",\n  \"TaxDeductionPercent\": \"0.00\",\n  \"CertificateOfOccupancyYN\": \"1\",\n  \"TaxMonthlyAmount\": \"1986.00\",\n  \"TaxAbatementYN\": \"0\",\n  \"AttendanceType\": \"DoormanFullTime,ConciergeFullTime,ElevatorAttendanceYes\",\n  \"MaximumFinancingPercent\": \"90.00\",\n  \"ListingKey\": \"1183674675\"\n}",
+          "UnitLocation": null,
+          "AdditionalFeeDescription": null,
+          "Restrictions": null,
+          "AssociationFeeTotal": null,
+          "ComplexName": null,
+          "ApplicationFee": null
+        }
+      ]
+    },
+    {
+      "ListingId": "RLS20110533",
+      "CommonInterest": "Condominium",
+      "CustomProperty": [
+        {
+          "AdditionalFee": null,
+          "CustomFields": "{\n  \"ElevatorsTotal\": \"4\",\n  \"PercentOfCommonElements\": \"0.00\",\n  \"FlipTaxRemarks\": \"0.0\",\n  \"FlipTax\": \"0.00\",\n  \"LandmarkStatusYN\": \"0\",\n  \"CapitalReservesYN\": \"0\",\n  \"BuildingTaxLot\": \"0045\",\n  \"MaximumFinancingRemarks\": \"none\",\n  \"ViewRemarks\": \"PA,P,S\",\n  \"SponsorUnitYN\": \"0\",\n  \"TaxDeductionPercent\": \"0.00\",\n  \"CertificateOfOccupancyYN\": \"1\",\n  \"TaxMonthlyAmount\": \"3967.00\",\n  \"TaxAbatementYN\": \"0\",\n  \"AttendanceType\": \"DoormanFullTime,ConciergeYes\",\n  \"UnitLine\": \"B\",\n  \"MaximumFinancingPercent\": \"0.00\",\n  \"ListingKey\": \"1183672397\"\n}",
+          "UnitLocation": null,
+          "AdditionalFeeDescription": null,
+          "Restrictions": null,
+          "AssociationFeeTotal": null,
+          "ComplexName": null,
+          "ApplicationFee": null
+        }
+      ]
+    },
+    {
+      "ListingId": "RLS20110532",
+      "CommonInterest": "Condominium",
+      "CustomProperty": [
+        {
+          "AdditionalFee": null,
+          "CustomFields": "{\n  \"ElevatorsTotal\": \"2\",\n  \"GuarantorsAcceptedYN\": \"0\",\n  \"CertificateOfOccupancyYN\": \"0\",\n  \"CommercialUnitsYN\": \"0\",\n  \"MaxLeaseMonths\": \"24\",\n  \"TaxAbatementYN\": \"0\",\n  \"BuildingTaxLot\": \"7501\",\n  \"AttendanceType\": \"DoormanYes,DoormanFullTime\",\n  \"BathroomCondition\": \"Excellent\",\n  \"ListingKey\": \"1183672249\"\n}",
+          "UnitLocation": null,
+          "AdditionalFeeDescription": null,
+          "Restrictions": null,
+          "AssociationFeeTotal": null,
+          "ComplexName": null,
+          "ApplicationFee": null
+        }
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "label": "CurrentFinancing ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "BuyerFinancing ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ListingTerms ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "AssociationFee ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 7261
+    },
+    {
+      "label": "TaxAnnualAmount ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 3316
+    },
+    {
+      "label": "TaxBlock ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 8014
+    },
+    {
+      "label": "TaxLot ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 8013
+    },
+    {
+      "label": "GrossIncome ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "NetOperatingIncome ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 6
+    },
+    {
+      "label": "TotalActualRent ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "OperatingExpense ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "label": "PublicRemarks contains 'financing'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 545
+    },
+    {
+      "label": "PublicRemarks contains '% financing'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 328
+    },
+    {
+      "label": "PublicRemarks contains 'max financing'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "label": "PublicRemarks contains 'financing allowed'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 38
+    },
+    {
+      "label": "PublicRemarks contains 'sublet'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 622
+    },
+    {
+      "label": "PublicRemarks contains 'flip tax'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 456
+    }
+  ]
+}
