@@ -40,9 +40,12 @@ describe("the projection gate suppresses Mallan-office representations", () => {
     expect(JSON.stringify(projectionSide)).not.toContain("list_office_mls_id");
   });
 
-  it("admits Mallan LOCAL listings — suppression must not hide our own inventory", () => {
-    // The failure that would be worse than the defect: excluding by office and
-    // thereby dropping the canonical local listing too.
+  it("STRUCTURAL ONLY: the local-admitting arms are present in the relation", () => {
+    // Anti-regression, NOT behavioural proof. An earlier version of this test
+    // asserted these strings and was described as proving "local Mallan listings
+    // are admitted". It proves no such thing — see the source-class tests below,
+    // which show website-only local inventory is in fact EXCLUDED by the
+    // top-level gate.
     const rel = JSON.stringify(listingRelation(buildProjectionSearchWhere() as Record<string, unknown>));
     expect(rel).toContain("SL-");
     expect(rel).toContain("RL-");
@@ -73,5 +76,100 @@ describe("the projection gate suppresses Mallan-office representations", () => {
     const s = JSON.stringify(where);
     expect(s).toContain("list_office_mls_id");
     expect(s).toContain("amenity_keys");
+  });
+});
+
+/**
+ * SOURCE-CLASS BEHAVIOUR — what the gate actually admits, evaluated per row.
+ *
+ * The previous test asserted that the serialized `where` CONTAINED "SL-" and
+ * concluded "local Mallan listings are admitted". That is a string assertion, not
+ * row behaviour, and the conclusion was wrong for part of the corpus.
+ *
+ * These evaluate the real predicate against concrete rows.
+ */
+describe("source-class eligibility under the projection gate", () => {
+  type Row = {
+    rls_eligible: boolean;
+    idx_display_yn: boolean;
+    internet_entire_listing_display_yn: boolean;
+    participant_only_yn: boolean;
+    listing: { owner_opt_out: boolean; listing_id: string; list_office_mls_id: string | null; rls_eligible: boolean };
+  };
+
+  /** Evaluate the generated projection `where` against one row. */
+  const admits = (row: Row): boolean => {
+    const w = buildProjectionSearchWhere() as Record<string, unknown>;
+    for (const [k, v] of Object.entries(w)) {
+      if (k === "listing" || k === "mls_status") continue;
+      if ((row as unknown as Record<string, unknown>)[k] !== v) return false;
+    }
+    const rel = (w.listing ?? {}) as Record<string, unknown>;
+    if (rel.owner_opt_out !== undefined && row.listing.owner_opt_out !== rel.owner_opt_out) return false;
+    const or = rel.OR as Array<Record<string, unknown>> | undefined;
+    if (!or) return true;
+    return or.some((arm) => {
+      if ("rls_eligible" in arm) return row.listing.rls_eligible === arm.rls_eligible;
+      if ("list_office_mls_id" in arm) {
+        const spec = arm.list_office_mls_id as unknown;
+        if (spec === null) return row.listing.list_office_mls_id === null;
+        if (typeof spec === "object" && spec && "notIn" in (spec as Record<string, unknown>)) {
+          const notIn = (spec as { notIn: string[] }).notIn;
+          return row.listing.list_office_mls_id !== null && !notIn.includes(row.listing.list_office_mls_id);
+        }
+      }
+      if ("listing_id" in arm) {
+        const spec = arm.listing_id as { startsWith?: string };
+        return spec.startsWith ? row.listing.listing_id.startsWith(spec.startsWith) : false;
+      }
+      return false;
+    });
+  };
+
+  const row = (o: Partial<Row["listing"]> & Partial<Row>): Row => ({
+    rls_eligible: true,
+    idx_display_yn: true,
+    internet_entire_listing_display_yn: true,
+    participant_only_yn: false,
+    ...(o as Partial<Row>),
+    listing: {
+      owner_opt_out: false,
+      listing_id: "RLS123",
+      list_office_mls_id: "9999",
+      rls_eligible: true,
+      ...(o as Partial<Row["listing"]>),
+    },
+  });
+
+  it("third-party Cotality inventory is ADMITTED", () => {
+    expect(admits(row({ listing_id: "RLS777", list_office_mls_id: "9999" }))).toBe(true);
+  });
+
+  it("a Mallan-office representation is EXCLUDED", () => {
+    expect(admits(row({ listing_id: "RLS20099289", list_office_mls_id: "7041" }))).toBe(false);
+  });
+
+  it("an RLS-eligible Mallan local SL- listing is ADMITTED", () => {
+    expect(admits(row({ listing_id: "SL-0004", list_office_mls_id: "7041" }))).toBe(true);
+  });
+
+  it("a WEBSITE-ONLY Mallan local listing is EXCLUDED by the top-level gate", () => {
+    // THE CORRECTION. rls_eligible=false fails the projection's own
+    // `rls_eligible: true` before the relation is ever consulted. The gate was
+    // shaped for alert replay and public redistribution, and it structurally
+    // excludes Mallan's own website-only canonical inventory.
+    //
+    // Recorded as a cutover gap, NOT patched here: authenticated Search needs a
+    // source-class/audience policy, and client-alert eligibility must not define
+    // what the broker can search.
+    expect(admits(row({ rls_eligible: false, listing_id: "SL-0009", list_office_mls_id: null }))).toBe(false);
+  });
+
+  it("unknown provenance keeps normal treatment", () => {
+    expect(admits(row({ listing_id: "RLS555", list_office_mls_id: null }))).toBe(true);
+  });
+
+  it("owner opt-out is still enforced through the same relation", () => {
+    expect(admits(row({ owner_opt_out: true, listing_id: "RLS888" }))).toBe(false);
   });
 });

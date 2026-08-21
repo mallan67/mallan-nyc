@@ -38,7 +38,33 @@ is not evidence that a fact is unstored.
 
 ## 1. CURRENT AUTHENTICATED CONTROLS
 
-The 29 criteria `buildCrmIdxODataFilter` accepts today.
+**39 reachable controls**, extracted mechanically, not summarised by hand.
+
+> **METHOD CORRECTION.** An earlier version of this section said "29 criteria" and then
+> classified rooms, floors, building-unit count, sqft and arbitrary year range as
+> capabilities "no path supports today". **All five are already implemented.** They are
+> declared in a RANGE TABLE at `crm-idx-filter.ts:162-171`, not as individual
+> `params.get()` calls, so a grep for the latter missed them — and a hand-written total
+> then made the omission invisible.
+>
+> The inventory is now generated from the code: `params.get()` calls PLUS the range-table
+> tuples PLUS route-level params. The lesson is the method, not the five rows: **never fix
+> the code to a number decided in advance.**
+
+### Controls I previously misclassified — all ALREADY SUPPORTED
+
+| control | provider field | op | projection | class | translator |
+|---|---|---|---|---|---|
+| `minRooms` / `maxRooms` | `RoomsTotal` | ge/le | — | **D** (`features.RoomsTotal`, live 8,156) | no |
+| `minSqft` / `maxSqft` | `LivingArea` | ge/le | `living_area` | **A** | **yes** |
+| `minYear` / `maxYear` | `YearBuilt` | ge/le | `year_built` | **A** | **no** — translator does pre/post-war buckets only, so ARBITRARY ranges are a translator gap |
+| `minFloors` / `maxFloors` | `StoriesTotal` | ge/le | — | **D** (`features.StoriesTotal`) | no |
+| `minUnits` / `maxUnits` | `NumberOfUnitsTotal` | ge/le | — | **D** (`features.NumberOfUnitsTotal`, live 8,158) | no |
+
+`sponsorUnit` is also a real Search criterion, executed as a route-level POST-FETCH filter
+rather than in the OData builder (`route.ts:323-330`, where it also overwrites `finalTotal`).
+**Execution mechanism does not stop it being a criterion** — and post-fetch execution is
+itself the count/pagination defect pattern.
 
 | control | canonical key | projection | class | translator executes it? | gap |
 |---|---|---|---|---|---|
@@ -53,7 +79,7 @@ The 29 criteria `buildCrmIdxODataFilter` accepts today.
 | `keyword` | keywords | `searchable_text` | **A** | yes | verify what the text is built from |
 | `ownership` | ownership | `feature_flags.is_condo/coop/condop` | **B** | yes | — |
 | **`propertySubType`** | property_sub_type | **`property_sub_type` EXISTS** | **A** | **NO** | **TRANSLATOR GAP, not storage.** The column is present and populated; `criteriaToProjectionWhere` simply does not execute this criterion |
-| **`listingId`** | listing_id_mls / listing_key | `listing_id`, `listing_key` | **A** | **NO** | translator gap — both identity columns exist |
+| **`listingId`** | listing_id_mls | `listing_id`, `listing_key` | **A** | **NO** | **NOT a translator gap — an IDENTITY-RESOLUTION capability. See §2b** |
 | **`unit`** | unit | — | **D** | no | `Listing.address.UnitNumber` |
 | **`address`** | address | — | **D** | no | `Listing.address` structured parts; needs the address field-family contract |
 | **`buildingName`** | building_name | — | **D** | no | `features/raw_data.BuildingName` (live 3,903/8,056) |
@@ -64,21 +90,60 @@ The 29 criteria `buildCrmIdxODataFilter` accepts today.
 | `checkboxFilters` | amenities + flags | `amenity_keys`, `feature_flags` | **B/E** | partial | maps `LaundryFeatures`, `SecurityFeatures`, `PoolFeatures`, `PetsAllowedYN`, `AvailableLeaseType`, `ConstructionMaterials`, `NewConstructionYN` — **`PetsAllowedYN` is live-populated ZERO**, and `SecurityFeatures`/`ConstructionMaterials`/`AvailableLeaseType` are uncensused |
 | `gridFilter` | — | n/a | — | n/a | client-side result filter, not a Search criterion — must stay outside the canonical universe |
 
-**Nine of 29 controls are translator or storage gaps.** Two of those (`propertySubType`,
-`listingId`) need no storage work at all — the columns exist and are populated.
+Across all **39** controls: `propertySubType` needs no storage work (column exists,
+populated, simply not translated); `listingId` is a different problem entirely (§2b); the
+rest are class C/D promotions or translator work.
 
 ---
 
-## 2. CRITERIA A BROKER NEEDS THAT NO PATH SUPPORTS TODAY
+## 2b. `listingId` IS IDENTITY RESOLUTION, NOT A SCALAR FILTER
 
-Not currently in `/api/idx/search` either, so these are capability gaps in **both** engines.
+Calling this "a translator gap — the columns exist" collapses the identity problem this
+workstream spent its longest stretch fixing. It cannot be closed with another
+`criteriaToProjectionWhere` clause.
+
+The broker control means Cotality `Property.ListingId`. What that resolves to depends on
+WHOSE listing it is:
+
+| the RLS ID belongs to | correct result |
+|---|---|
+| third-party inventory | that third-party canonical listing |
+| **a Mallan-authored listing** | the RLS ID belongs to the **SUPPRESSED representation**, while canonical identity is the local `SL-`/`RL-` row — so Search must return the **LOCAL** listing |
+
+The naive implementation is actively broken:
+
+    search projection for RLS ListingId -> finds the provider representation
+                                        -> suppression excludes it
+                                        -> returns ZERO
+
+Maya searches an RLS ID belonging to one of her own listings and gets nothing.
+
+Required contract:
+
+    RLS ListingId
+      -> locate provider identity/evidence
+      -> classify (third-party vs Mallan-office representation)
+      -> if representation: existing canonical twin resolver
+      -> exactly one local twin  -> return the LOCAL canonical listing
+      -> no twin                 -> stay suppressed + integrity defect
+      -> ambiguous               -> stay suppressed + integrity defect
+
+**Never make the provider representation visible merely because the user searched its RLS
+ID.** Reuse the existing twin resolver; do not add a second one.
+
+`ListingId` and `ListingKey` are separate identifiers — add distinct inputs only if the
+product genuinely needs both, and never conflate them.
+
+---
+
+## 2. CRITERIA NO PATH SUPPORTS TODAY
+
+Genuinely absent from `/api/idx/search` as well — capability gaps in **both** engines.
+Rooms, floors, unit count, sqft and year range have been REMOVED from this section; they
+are current controls (§1).
 
 | fact | projection | class | note |
 |---|---|---|---|
-| rooms total | — | **D** | `features.RoomsTotal`, live 8,156 |
-| stories / floors | — | **D** | `features.StoriesTotal` |
-| building unit count | — | **D** | `features.NumberOfUnitsTotal` |
-| arbitrary year range | `year_built` | **A** | column exists; translator only does pre/post-war buckets |
 | `ClosePrice` | — | **D** | CMA census pending |
 | `OriginalListPrice` / previous price | — | **D** | `raw_data.OriginalListPrice`, live 8,158 |
 | DOM / CDOM | — | **C** | `Listing.days_on_market`, `cumulative_days_on_market` |
@@ -130,6 +195,40 @@ Required broker sorts: Newest · Price low/high · Price/SF *when verified* · S
 
 **Sorting must operate on the canonical universe BEFORE page boundaries are determined.**
 Sorting a page is the same class of defect as filtering a page.
+
+---
+
+## 4b. SOURCE-CLASS / AUDIENCE ELIGIBILITY — A CUTOVER GAP I OVERSTATED
+
+My commit said the projection fix keeps "local Mallan listings admitted". **That is only
+true for the subset that satisfies the RLS display gates**, and the test proving it was
+structural, not behavioural — it asserted that the serialized `where` CONTAINS the strings
+`SL-`, `RL-` and `rls_eligible`, which demonstrates nothing about row inclusion.
+
+`PROJECTION_DISPLAY_GATE` begins with:
+
+    rls_eligible: true
+    idx_display_yn: true
+    internet_entire_listing_display_yn: true
+    participant_only_yn: false
+
+So a **Mallan website-only local listing (`rls_eligible = false`) is excluded at the top
+level**, regardless of the nested return-copy predicate admitting local rows. That gate was
+shaped for Saved Search alerts and public redistribution, and it structurally excludes
+Mallan's own website-only canonical inventory.
+
+**Do NOT change that gate blindly.** The distinction to establish first — the same shape as
+"Search capability ≠ alert eligibility", now applied to inventory visibility:
+
+| source class | authenticated Search eligibility |
+|---|---|
+| Mallan local canonical listing | Mallan BUSINESS visibility rules |
+| third-party Cotality | authorized provider/IDX visibility rules |
+| Mallan-office representation | suppressed |
+| client alert / email / share | a SEPARATE distribution-eligibility layer applied later |
+
+**Client-alert eligibility must not define what the broker can search.** This stays ONE
+canonical query foundation with an audience policy — never two Search engines.
 
 ---
 
