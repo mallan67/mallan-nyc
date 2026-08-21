@@ -1,6 +1,6 @@
 # Handoff — authenticated backend Search (#618)
 
-**Head `662bbfbe` · 24 commits ahead of production `a0db2dac` · draft, preview-only.**
+**Head `b064ea66` · 26 commits ahead of production `a0db2dac` · draft, preview-only.**
 Public consumer Search is **zero-delta** against production and must stay that way.
 
 ---
