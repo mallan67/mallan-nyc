@@ -90,7 +90,6 @@ describe("factual authority resolves per listing, not per field", () => {
     // Geocoding a provider address does not make Cotality the author of the
     // coordinate.
     for (const kind of ["mallan_local", "provider_third_party"] as const) {
-      expect(resolve("map_location", kind)).toMatchObject({ resolved: true, authority: "mallan_derived" });
       expect(resolve("building_identity", kind)).toMatchObject({ resolved: true, authority: "mallan_derived" });
     }
   });
@@ -114,7 +113,7 @@ describe("factual authority resolves per listing, not per field", () => {
     // "row is local => everything is mallan_crm".
     const localProviderFact = resolve("listing_key", "mallan_local");
     expect(localProviderFact).toMatchObject({ authority: "cotality_rebny" });
-    const localDerived = resolve("map_location", "mallan_local");
+    const localDerived = resolve("building_identity", "mallan_local");
     expect(localDerived).toMatchObject({ authority: "mallan_derived" });
     const localUnresolved = resolve("assessment", "mallan_local");
     expect(localUnresolved.resolved).toBe(false);
@@ -141,7 +140,6 @@ describe("a suppressed representation supplies provider evidence and nothing els
   const REFUSED = [
     ["list_price", "authorable listing fact"],
     ["address", "authorable listing fact"],
-    ["map_location", "Mallan-derived — would re-enter the Map"],
     ["building_identity", "Mallan-derived — would re-enter Building Search"],
     ["total_monthly_cost", "Mallan-derived analytic"],
     ["comp_set", "Mallan-derived — would re-enter CMA"],
@@ -167,7 +165,7 @@ describe("a suppressed representation supplies provider evidence and nothing els
     // Proving the refusal is about the SOURCE, not the field: geo and building
     // identity are perfectly resolvable once the canonical local listing is the
     // one being asked about.
-    for (const key of ["map_location", "building_identity"]) {
+    for (const key of ["building_identity"]) {
       expect(resolve(key, "mallan_local")).toMatchObject({ resolved: true, authority: "mallan_derived" });
       expect(resolve(key, "provider_third_party")).toMatchObject({ resolved: true, authority: "mallan_derived" });
     }
@@ -177,8 +175,8 @@ describe("a suppressed representation supplies provider evidence and nothing els
     // Two different failures: NON_CANONICAL_SOURCE means the contract is fine and
     // the source is not permitted. Collapsing them would hide a real integrity
     // defect behind "we never mapped that field".
-    const sourceRefusal = resolve("map_location", "mallan_office_representation");
-    const contractGap = resolve("map_location", "mallan_local");
+    const sourceRefusal = resolve("building_identity", "mallan_office_representation");
+    const contractGap = resolve("building_identity", "mallan_local");
     expect(sourceRefusal.resolved).toBe(false);
     if (!sourceRefusal.resolved) expect(sourceRefusal.reason).toBe("NON_CANONICAL_SOURCE");
     expect(contractGap.resolved).toBe(true);

@@ -98,7 +98,7 @@ export const REQUIRED_FAMILIES: readonly FieldCategory[] = Object.freeze([
 /**
  * PROVIDER MAPPING STATE — how well this criterion maps to the Cotality feed.
  *
- * Deliberately says NOTHING about who authored the value. A Google-derived
+ * Deliberately says NOTHING about who authored the value. A Mallan-derived
  * coordinate is not an odd kind of Cotality mapping; it is a different SOURCE
  * CLASS. Overloading this enum with `mallan_derived` conflated two orthogonal
  * facts, so source authority is its own property below. Both live in this
@@ -285,15 +285,24 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
    *
    * So Building Search CANNOT be provider-derived, and no amount of Property
    * filtering turns listing rows into buildings. Identity must be MALLAN-DERIVED:
-   * Cotality address -> canonical Mallan address -> Google geocoding -> canonical
+   * Cotality structured address -> canonical Mallan address -> canonical
    * building identity, grouping Property rows by canonical address WITHOUT the
    * unit. StreetNumber / StreetName / PostalCode are non-null on 8,056/8,056, so
    * the inputs exist even though the provider key does not.
    *
+   * BUILDING IDENTITY DOES NOT DERIVE FROM A COORDINATE. An earlier version of
+   * this block routed identity through a geocoding service, which was wrong
+   * twice: it named a service this repo does not use, and a coordinate is the
+   * WRONG KIND of input for an identity key - two addresses can share a point
+   * and one address can resolve to several. Identity comes from the structured
+   * address. NYC parcel facts (TaxBlock 8,014/8,032, TaxLot, TaxMapNumber,
+   * ParcelNumber, and BuildingTaxLot at 100% inside CustomProperty.CustomFields)
+   * are candidate identity INPUTS, contracted separately in the resource /
+   * field-family coverage matrix.
+   *
    * This is Mallan-owned enrichment and must never be attributed to Cotality.
    */
-  f({ canonicalKey: 'building_identity', authorityResolution: 'mallan_derived', sourceAuthority: 'mallan_derived', uiLabel: 'Building', category: 'address_location_building', type: 'computed', providerMappingStatus: 'none', cotalityField: null, visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', failureBehavior: 'fail_closed', attributionObligations: ['mallan_derived_disclosure', 'provenance_disclosure'], semanticEquivalenceProven: false, notes: 'BuildingKey/BuildingKeyNumeric are populated 0/8,056 and GET /Building is 403. Derive from canonical address + Google geocoding; never present as provider fact.' }),
-  f({ canonicalKey: 'map_location', authorityResolution: 'mallan_derived', sourceAuthority: 'mallan_derived', uiLabel: 'Map Location', category: 'address_location_building', type: 'computed', providerMappingStatus: 'none', cotalityField: null, dbColumn: null, projectionColumn: null, searchParam: null, visibility: V_PUBLIC, filterable: 'no', sortable: 'no', alertable: 'no', reportable: 'needs_probe', failureBehavior: 'fail_closed', attributionObligations: ['mallan_derived_disclosure', 'provenance_disclosure'], semanticEquivalenceProven: false, notes: 'CONCEPT CORRECTED 2026-08-21 — was canonicalKey `geo` with dbColumn latitude/longitude, described as "Cotality address -> Google geocoding -> canonical coordinate". BOTH halves were wrong. (a) COTALITY SUPPLIES NO GEO: lib/geo/geocode.ts states the IDX Plus feed returns null Latitude/Longitude, so there is no provider coordinate to map. (b) GOOGLE WAS NEVER INVOLVED — I invented it. The actual populator is the US Census geocoder via scripts/batch-geocode.js into geocode_cache (source=census). Do NOT introduce Google, Mapbox or any new service. THERE IS NO SEPARATE MALLAN GEO FACT FAMILY: coordinates are an implementation artifact of the map integration, not an independent canonical listing fact and not a Search axis — hence filterable/sortable/alertable all `no`, and Latitude/Longitude are never exposed as broker Search fields. THE MAP SYSTEM OWNS SPATIAL RESOLUTION: public/crm/js/render/results-map.js (MapLibre GL + OpenFreeMap) and neighborhood-map.js (existing RLS neighborhood GeoJSON polygons/aliases from scripts/build-rls-geo-derived.js). Correct chain: Cotality structured address -> canonical Mallan address -> EXISTING map/geography system -> pin/neighborhood/map filtering. KNOWN DEFECT, not to be preserved: TWO layers currently fabricate precise-looking positions — results-map.js falls back to a neighborhood centroid plus a spiral offset (several blocks), and geocode.ts falls back to a ZIP centroid plus deterministic jitter. Required instead: resolved address -> exact pin; neighborhood only -> explicitly neighborhood-level geography; unresolvable -> NO fake building pin. Never manufacture a nearby point to make a marker appear. If no exact address resolver exists for a case, that is a MAP INTEGRATION GAP to record, not to paper over.' }),
+  f({ canonicalKey: 'building_identity', authorityResolution: 'mallan_derived', sourceAuthority: 'mallan_derived', uiLabel: 'Building', category: 'address_location_building', type: 'computed', providerMappingStatus: 'none', cotalityField: null, visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', failureBehavior: 'fail_closed', attributionObligations: ['mallan_derived_disclosure', 'provenance_disclosure'], semanticEquivalenceProven: false, notes: 'BuildingKey/BuildingKeyNumeric are populated 0/8,056, the live Building entity declares exactly ONE field, and GET /Building is 403 - $metadata over-declaring what the licence grants. Derive from the CANONICAL STRUCTURED ADDRESS, never from a coordinate: the previous note routed identity through a geocoding service, naming one this repo does not use and using the wrong kind of input for an identity key. NYC parcel facts (TaxBlock/TaxLot/TaxMapNumber/ParcelNumber/BuildingTaxLot) are candidate identity inputs, contracted separately in the resource/field-family coverage matrix. Never present as a provider fact.' }),
 
   // ── transaction (sale / rent) ────────────────────────────────────────────
   f({ canonicalKey: 'transaction_type', authorityResolution: 'by_listing_authority', authorityByListingKind: { mallanLocal: 'mallan_crm', providerListing: 'cotality_rebny' }, uiLabel: 'Buy / Rent', category: 'transaction', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'PropertyType', dbColumn: 'listing_type', searchParam: 'type', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes', notes: 'sale=Residential, rental=ResidentialLease (no space). Expressed 3 ways today (analysis §1.5).' }),

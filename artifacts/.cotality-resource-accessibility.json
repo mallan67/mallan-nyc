@@ -1,0 +1,163 @@
+{
+  "probedAt": "2026-08-21T19:36:47.749Z",
+  "api": "https://api.cotality.com/trestle",
+  "collections": {
+    "Property": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 591244
+    },
+    "Member": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 11152
+    },
+    "Office": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 575
+    },
+    "Media": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 1977836
+    },
+    "OpenHouse": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 3162
+    },
+    "CustomProperty": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 591286
+    },
+    "PropertyRooms": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 86
+    },
+    "PropertyUnitTypes": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 1
+    },
+    "PropertyGreenVerification": {
+      "state": "PROVIDER_REJECTED",
+      "status": 404,
+      "detail": "\"Page not found\""
+    },
+    "HistoryTransactional": {
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "detail": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 10c29911-d202-4672-91f6-c201e3e224c3\",\"message\":\"No OriginatingSystemNames available for querying given request! This is an indication t"
+    },
+    "Teams": {
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "detail": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: f6a3801c-c49e-4598-a28c-5fc707e74313\",\"message\":\"No OriginatingSystemNames available for querying given request! This is an indication t"
+    },
+    "TeamMembers": {
+      "state": "PROVIDER_REJECTED",
+      "status": 400,
+      "detail": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 22e9e43a-bf52-4063-aea5-f4c5dd428035\",\"message\":\"No OriginatingSystemNames available for querying given request! This is an indication t"
+    },
+    "Building": {
+      "state": "PROVIDER_REJECTED (not licensed)",
+      "status": 403,
+      "detail": "{\"error\":{\"code\":\"Forbidden[403]. TraceId: 7e48e31d-67a6-4d54-a288-d2b22cbdc8ae\",\"message\":\"Resource Cotality.DataStandard.RESO.DD.Building not available\"}}"
+    },
+    "Field": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 2246
+    },
+    "Lookup": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 191323
+    },
+    "Model": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 17
+    },
+    "Enumeration": {
+      "state": "PROVIDER_REJECTED",
+      "status": 404,
+      "detail": "\"Page not found\""
+    }
+  },
+  "navigation": {
+    "Media": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "3/3 sampled parents carry a payload"
+    },
+    "OpenHouse": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "1/3 sampled parents carry a payload"
+    },
+    "CustomProperty": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "3/3 sampled parents carry a payload"
+    },
+    "Rooms": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    },
+    "UnitTypes": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    },
+    "Building": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    },
+    "ListAgent": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "3/3 sampled parents carry a payload"
+    },
+    "ListOffice": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "3/3 sampled parents carry a payload"
+    },
+    "BuyerAgent": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    },
+    "BuyerOffice": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    },
+    "CoListAgent": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "1/3 sampled parents carry a payload"
+    },
+    "CoListOffice": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "1/3 sampled parents carry a payload"
+    },
+    "CoBuyerAgent": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    },
+    "CoBuyerOffice": {
+      "state": "SUPPORTED",
+      "status": 200,
+      "detail": "0/3 sampled parents carry a payload"
+    }
+  }
+}

@@ -1,5 +1,24 @@
 # PROPERTY TYPE FAMILY + THE UNDECLARED `CustomFields` RESOURCE
 
+> ## ⚠️ PARTIALLY SUPERSEDED — read `cotality-classification-four-surface-census-2026-08-21.md` WITH this
+>
+> This document compared only `PropertyType`, `PropertySubType` and `StructureType`. It
+> **never probed `PropertySubTypeAdditional`**, which is a fourth live surface. Three
+> conclusions below were therefore reached without the evidence:
+>
+> | § | said | corrected |
+> |---|---|---|
+> | §1 Townhouse | `StructureType` carries it | **proven EXCLUSIVE** — `PropertySubTypeAdditional` is 0 and `PropertyType` **rejects** the literal (400). Count is **610** Active, not 612 (the feed moves) |
+> | §4 Land | "UNSUPPORTED / no candidate carries it" | **`VERIFIED_ZERO_POPULATION_CURRENT_FEED`** — 11 probes, all HTTP 200, all empty. The provider supports the criterion; only the inventory is empty. **Capability retained** |
+> | §5 Multi-Family | "needs `PropertySubType` OR `StructureType`" | **four** surfaces, union **981**, none present on all four. **NEEDS_PROBE — no OR is canonical.** The business definition is not made |
+>
+> §6 (`CustomFields`) also needs its model corrected: the 52 inner keys are **observed
+> extension keys** inside a declared `Edm.String`, not `$metadata` fields — and
+> `AttendanceType` is a 16-token / 5-role vocabulary that must **not** be called "doorman".
+>
+> Everything else here — the `CommonInterest` census, the resource inventory, the
+> `CustomFields` discovery itself — stands.
+
 **Probed live 2026-08-21 against `https://api.cotality.com/trestle`.** Read-only, GET only,
 preview env, never production Neon. Raw evidence:
 `artifacts/.property-type-family-census.json` ·
@@ -23,8 +42,8 @@ never evidence that a brokerage capability was dead — it was evidence of a mis
 | **Townhouse** | `PropertySubType = Townhouse` | **0** (all statuses) | **`StructureType` (Multi-Enum)** | **612 Active · 5,951 all-status** |
 | **Condo** | `PropertySubType = Condominium` | **0** (all statuses) | **`CommonInterest = Condominium`** | **3,722 Active · 240,272 all-status** |
 | **Co-op** | `PropertySubType = StockCooperative` | **0** (all statuses) | **`CommonInterest = StockCooperative`** | **2,509 Active · 129,041 all-status** |
-| **Land** | `PropertySubType = UnimprovedLand` | **0** | *no candidate carries it* — see §4 | `PropertyType = Land` is **0** too |
-| **Multi-Family** | `PropertySubType = MultiFamily` | 426 Active | **`PropertySubType` OR `StructureType`** | **~982 Active — the single field misses ~57%** |
+| **Land** | `PropertySubType = UnimprovedLand` | **0** | see the correction above — **zero population, NOT unsupported** | 11 probes, all empty |
+| **Multi-Family** | `PropertySubType = MultiFamily` | 424 Active | **four surfaces — see the correction above** | union **981**; **no OR is canonical yet** |
 
 ---
 
@@ -102,7 +121,7 @@ stands and is now recorded — `PropertyType = Land` (the general concept) and
 `PropertySubType = UnimprovedLand` (a narrower one) are different facts and "Land" must
 never silently mean "UnimprovedLand".
 
-Status is **UNSUPPORTED — no live inventory in ANY candidate field**, not "dead". The
+**SUPERSEDED 2026-08-21** by `cotality-classification-four-surface-census-2026-08-21.md`: this section tested only `PropertyType` and `PropertySubType` and never probed `PropertySubTypeAdditional`, so the verdict below was reached without the evidence. The corrected state is **`VERIFIED_ZERO_POPULATION_CURRENT_FEED`**, NOT `UNSUPPORTED` — eleven probes all returned HTTP 200 with well-formed empty results, so the provider supports the criterion and only the inventory is empty. The
 control stays. If land inventory ever appears, `PropertyType eq 'Land'` is the general
 criterion and Unimproved Land becomes a separate, narrower one.
 
@@ -123,8 +142,10 @@ So the two populated fields **overlap on only 159** rows (715 − 556), and the 
 roughly **982**. The current UI, which reads `PropertySubType` alone, returns 426 — it
 **misses about 57% of live multifamily inventory.**
 
-Multi-Family therefore needs **`PropertySubType` OR `StructureType`**, not a choice between
-them. `PropertyType eq 'MultiFamily'` is declared but empty and contributes nothing.
+**CORRECTED:** a fourth surface (`PropertySubTypeAdditional`, 75 rows) was never measured here,
+and the union across all four is **981** with **no listing present on all four**. No OR is
+canonical: the four dimensions describe different things and the brokerage definition of
+Multi-Family is a product decision, still **NEEDS_PROBE**.
 
 ---
 

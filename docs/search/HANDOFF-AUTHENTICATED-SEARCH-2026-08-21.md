@@ -95,7 +95,7 @@ fallback.
 | sub-type operators | `eq` / `in` / `or` **SUPPORTED**. **`contains(PropertySubType,…)` is HTTP 400** — `contains` takes strings, this is an enum. The registry's "502" was **Mallan's own** `/api/idx/search` converting that 400 |
 | sub-type case sensitivity | an invalid literal is rejected **400**, but a **MIS-CASED** one returns **200 with ZERO rows**. The provider will not catch `'apartment'` — validation must be Mallan-side and case-exact |
 | sub-type population | exhaustive census, **75/75 probed, 0 UNVERIFIED**: Apartment 6,625 · MultiFamily 425 · SingleFamilyResidence 402 · Duplex 354 · Loft 79 · MixedUse 72 · Triplex 63 · Office 1 = **8,021 = `ne null` exactly**. The other 67 are zero |
-| sub-type dead UI options | `Townhouse` · `Condominium` · `StockCooperative` · `UnimprovedLand` are **ZERO at EVERY status** — valid literals this feed has never carried. `Retail` = 4 all-status, 0 Active. **Valid-and-zero is not invalid** and the two may never collapse |
+| sub-type zero-population members | `Townhouse` · `Condominium` · `StockCooperative` · `UnimprovedLand` are **ZERO on this field at every status**. **That was a MIS-MAPPING, not an absent capability** — Townhouse is carried by `StructureType` (610 Active) and condo/co-op by `CommonInterest` (3,722 / 2,509). `Retail` = 4 all-status, 0 Active. Valid-and-zero, provider-rejected and unavailable are three different states that may never collapse |
 
 ---
 
@@ -219,12 +219,15 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    | Condo | `PropertySubType` | **0** | **`CommonInterest`** | **3,722 Active** | VERIFIED |
    | Co-op | `PropertySubType` | **0** | **`CommonInterest`** | **2,509 Active** | VERIFIED |
    | Land | `PropertySubType=UnimprovedLand` | **0** | **11 probes** across `PropertyType` · `PropertySubType` · `PropertySubTypeAdditional`, Active AND all-status — all SUPPORTED, all zero | **0** | **`VERIFIED_ZERO_POPULATION_CURRENT_FEED`** — NOT unsupported. Provider supports it; inventory is empty. **Capability retained** |
-   | Multi-Family | `PropertySubType` | 424 | **four** surfaces: PropertyType 0 · PropertySubType 424 (253 excl) · PropertySubTypeAdditional 75 (1 excl) · StructureType 714 (556 excl) | **union 981, none on all four** | **NEEDS_PROBE** on business semantics |
+   | Multi-Family | `PropertySubType` | 424 | **four** surfaces: PropertyType 0 · PropertySubType 424 (253 excl) · PropertySubTypeAdditional 75 (1 excl) · StructureType 714 (556 excl) | **union 981, none on all four** | **NEEDS_PROBE** — measured, but the business definition is NOT made. No OR encoded |
 
-   Multi-Family's union is **not automatically the criterion** — the four dimensions mean
-   different things and 69 rows are `MultiFamily,Townhouse`, so whether a 2-unit townhouse
-   is brokerage Multi-Family is a product decision. Recommended pending Maya:
-   `PropertySubType` OR `StructureType` = 979 / 981.
+   **Multi-Family stays `NEEDS_PROBE`. Do NOT encode any OR as canonical yet.** The four
+   dimensions describe different things, and "a multi-family property for sale" is not the
+   same brokerage concept as "a unit inside a multi-unit structure" — 69 rows are
+   `MultiFamily,Townhouse`. Townhouses, two-family houses, rental buildings and apartment
+   units need distinct business treatment. `NumberOfUnitsTotal` also carries a `-1`
+   sentinel, so it cannot simply be layered on. The measurement is complete; the business
+   definition is Maya's and is not yet made.
 
    Registry rows added/corrected in the EXISTING `FIELD_REGISTRY`: `structure_type` (new),
    `max_financing` (new), `ownership` and `property_sub_type` (corrected). No new registry.
@@ -278,10 +281,10 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    `"1"` / `"0"` — matching neither list. The in-code comment also says 41 keys; live says
    **52**.
 
-4. **FOUR-CONTROL UI RE-POINTING** — bounded, evidence already in hand. Re-point Townhouse
-   to `StructureType`, Condo/Co-op to `CommonInterest`, Multi-Family to the OR of both,
-   and keep Land as a retained UNSUPPORTED control. Basic and Advanced both. Nothing is
-   removed.
+4. **THE CENSUS DETAIL BEHIND STEP 2** (kept as evidence — this is NOT a licence to
+   re-point yet; UI re-pointing is step 8, after the storage path and the business
+   definitions). Multi-Family carries NO canonical OR, and Land is
+   `VERIFIED_ZERO_POPULATION_CURRENT_FEED`, not `UNSUPPORTED`.
    - **Townhouse** — `PropertySubType eq 'Townhouse'` vs exact-token `StructureType has …`.
      Compare returned IDs and PropertyType context; decide which carries NYC townhouse
      inventory. Do not infer from enum existence.
@@ -302,18 +305,46 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    Output: four rows added to the EXISTING capability/field contract — **not a new
    registry** — as: UI label → canonical business meaning → Cotality resource/field(s) →
    shape → live population → operator → Mallan storage → projection → exact execution →
-   status. Status is `VERIFIED` / `NEEDS_PROBE` / `UNSUPPORTED`, **never "dead"** merely
+   status. Status is `VERIFIED` / `NEEDS_PROBE` / **`VERIFIED_ZERO_POPULATION_CURRENT_FEED`** /
+   `UNSUPPORTED` — and the last two are DIFFERENT facts: a criterion the provider serves
+   with an empty result is not an unsupported one. **Never "dead"** merely
    because one candidate field is unpopulated.
 
-5. **RESOURCE / FIELD-FAMILY COVERAGE MATRIX — before resuming any one-field loop.**
-   See METHOD CORRECTION below. This replaces "fix the next translator" as the unit of work.
-   The live inventory foundation is already captured mechanically in
-   `artifacts/.cotality-live-resource-inventory.json`: **17 entity types · 1,456 declared
-   fields · 185 enums (114 multi) · Property 757 (576 scalar / 81 enum / 100 multi-enum) ·
-   14 navigation properties**. Note the inventory is NOT complete on its own — §6 of the
-   evidence doc shows an undeclared family living inside a declared string.
+5. ~~**RESOURCE / FIELD-FAMILY COVERAGE MATRIX**~~ — **BUILT 2026-08-21.**
+   **`docs/search/COTALITY-RESOURCE-FIELD-FAMILY-COVERAGE-2026-08-21.md`** is now the
+   execution artifact beneath the master plan and `FIELD_REGISTRY`. All 17 entity types
+   endpoint-probed, 15 field families with consumer roles, the 52-key observed-extension
+   family, a Media contract and a 9-item defect register.
 
-6. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
+   **Endpoint probing overturned four planning assumptions** — declaration is not access:
+
+   | resource | expected | live |
+   |---|---|---|
+   | `HistoryTransactional` | price/status history · DOM · CMA chronology · CRM timeline | **400 — not available to this licence** |
+   | `PropertyUnitTypes` | multifamily / building / investment analysis | **1 row in the entire feed** |
+   | `PropertyRooms` | the real rooms contract beyond `RoomsTotal` | **86 rows in the entire feed** |
+   | `PropertyGreenVerification` | classify for Detail/Report | **404 — endpoint does not exist** |
+   | `Teams` / `TeamMembers` | listing-team attribution | **400 — not available** |
+   | `Building` | (already known) | **403 — not licensed**, and declares exactly 1 field |
+
+   Accessible and real: Property 591,244 · CustomProperty 591,286 · **Media 1,977,836** ·
+   Member 11,152 · Office 575 · OpenHouse 3,162. `Field`/`Lookup`/`Model` are
+   provider-schema support with no brokerage consumer.
+
+6. **CLOSE THE `CustomProperty` STORAGE PATH (D1–D3) BEFORE EXPOSING ANY OF THE 52 KEYS.**
+   Finding the keys is not enough — the canonical pipeline still throws them away.
+   Prove: provider fetch → `$expand=CustomProperty` → preserve in EXISTING Mallan JSON →
+   reload → mapper → projection/workspace. **No schema change.** Fix `SponsorUnit`
+   `"1"`/`"0"` parsing as part of that family.
+
+7. **Semantic contracts for the remaining 50 CustomFields keys** (2 of 52 studied),
+   then the business definitions: Multi-Family · `Restrictions` vs `BuildingRules` ·
+   parcel/BBL identity · co-op vs condo carrying costs.
+
+8. **UI re-pointing** — Townhouse → `StructureType`, Condo/Co-op → `CommonInterest`, Land
+   retained as zero-population. **Multi-Family waits for its business definition.**
+
+9. **`listingId` as identity resolution** — NOT a scalar filter. Classify the provider ID,
    resolve the canonical twin for a Mallan-office representation, return the LOCAL listing;
    no-twin/ambiguous stays suppressed with an integrity defect. Otherwise searching your own
    Cotality `ListingId` returns ZERO. Note the VALUES carry a raw `RLS…` prefix — that is
