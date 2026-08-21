@@ -95,6 +95,45 @@ export function resolveFactualAuthority(
   spec: Pick<FieldSpec, 'canonicalKey' | 'authorityResolution' | 'sourceAuthority' | 'authorityByListingKind'>,
   listingKind: ListingAuthorityKind,
 ): AuthorityResolutionOutcome {
+  // ── SOURCE-PERMISSION GUARD, BEFORE ANY AUTHORITY QUESTION ────────────────
+  //
+  // A suppressed Mallan-office representation may supply PROVIDER EVIDENCE, and
+  // nothing else. This runs first because the per-mode branches answer "who
+  // authored it", which is a different question from "may this row supply it" —
+  // and an earlier version checked the representation only inside
+  // `by_listing_authority`, so `mallan_derived` resolved before the check ever
+  // ran. That let a suppressed row independently produce `geo`,
+  // `building_identity`, `total_monthly_cost` and `comp_set`, re-entering Map,
+  // Building Search, CMA and Reports through the side door while its authorable
+  // fields were correctly blocked.
+  //
+  // Permitted: genuinely fixed Cotality provider evidence — ListingKey,
+  // ListingId, provider lineage, provider MlsStatus, Permission/display facts,
+  // provider timestamps, Media provider keys. Those stay `cotality_rebny` and are
+  // retained for reconciliation/audit.
+  //
+  // Refused: everything else, including Mallan-derived and analytical facts,
+  // Mallan CRM state, ACRIS facts and unresolved contracts.
+  //
+  // The representation's RAW address may still be read internally by the twin
+  // resolver — that is reconciliation evidence, not a canonical fact reaching a
+  // consumer.
+  if (listingKind === 'mallan_office_representation') {
+    const isProviderEvidence =
+      spec.authorityResolution === 'fixed' && spec.sourceAuthority === 'cotality_rebny';
+    if (!isProviderEvidence) {
+      return {
+        resolved: false,
+        reason: 'NON_CANONICAL_SOURCE',
+        because:
+          `'${spec.canonicalKey}' is not provider evidence, and a suppressed Mallan-office ` +
+          'representation may not supply a canonical Mallan listing fact. Resolve the canonical local ' +
+          'twin first and derive this from the LOCAL listing; if no twin is proven, the fact is ' +
+          'unavailable and the missing local record is an integrity defect.',
+      };
+    }
+  }
+
   switch (spec.authorityResolution) {
     case 'fixed': {
       // Permanent regardless of listing kind — provider identifiers stay
@@ -127,35 +166,9 @@ export function resolveFactualAuthority(
       if (listingKind === 'provider_third_party') {
         return { resolved: true, authority: byKind.providerListing, because: 'third-party inventory: the provider authored it' };
       }
-      if (listingKind === 'mallan_office_representation') {
-        // REFUSED — and NOT because the provider authored it. It did not.
-        //
-        // An earlier version returned `mallan_crm` here, reasoning that the
-        // representation reflects a Mallan-authored fact. True, and still wrong:
-        // it let the SUPPRESSED provider row supply the canonical value. A
-        // consumer could read the representation's ListPrice, receive
-        // `authority: mallan_crm`, and proceed as though it held a valid Mallan
-        // canonical fact — defeating suppression in exactly the case the rule
-        // exists for, where the local record is missing or ambiguous.
-        //
-        // The caller must instead resolve the canonical local twin FIRST, using
-        // the existing machinery (`resolveReturnCopyCanonicalTarget`), then read
-        // the value from the LOCAL row and resolve it as `mallan_local`. No twin,
-        // or an ambiguous twin, means the canonical fact is simply NOT AVAILABLE
-        // — a high-severity integrity defect, never a fallback.
-        //
-        // Deliberately NOT solved by embedding twin resolution here: that would
-        // grow a second reconciliation system inside the authority resolver.
-        return {
-          resolved: false,
-          reason: 'NON_CANONICAL_SOURCE',
-          because:
-            `'${spec.canonicalKey}' is an authorable canonical fact and a suppressed Mallan-office ` +
-            'representation may not supply it. Resolve the canonical local twin first and read the value ' +
-            'from the local listing; if no twin is proven, the fact is unavailable and the missing local ' +
-            'record is an integrity defect.',
-        };
-      }
+      // `mallan_office_representation` never reaches here — the source-permission
+      // guard above refuses it, because the question "may this row supply the
+      // value" is answered before "who authored it".
       return { resolved: true, authority: byKind.mallanLocal, because: 'Mallan authored this listing' };
     }
 
