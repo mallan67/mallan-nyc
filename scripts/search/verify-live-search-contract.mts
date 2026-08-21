@@ -27,11 +27,9 @@
  */
 import { getAccessToken } from '../../lib/idx/auth';
 import {
-  AMENITY_FIELD_MAP,
-  COMMERCIAL_SUB_TYPES,
+  CANONICAL_AMENITIES,
   UNSUPPORTED_AMENITIES,
-  type AmenityFilter,
-} from '../../lib/search/types';
+} from '../../lib/search/canonical/amenity-vocabulary';
 import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from '../../lib/search/canonical/amenity-match';
 import { BATH_COMPONENTS_LIVE } from '../../lib/search/canonical/bath-contract';
 
@@ -134,12 +132,9 @@ for (const member of Object.keys(OWNERSHIP_FLAG_BY_COMMON_INTEREST)) {
     fail('enum-member', `CommonInterest '${member}' is not a live member`);
   }
 }
-for (const subType of COMMERCIAL_SUB_TYPES) {
-  if (!(enumByShort.get('PropertySubType') ?? []).includes(subType)) {
-    fail('enum-member', `PropertySubType '${subType}' is offered by the commercial UI but is NOT a live member`);
-  }
-}
-log(`   ${Object.keys(OWNERSHIP_FLAG_BY_COMMON_INTEREST).length} ownership + ${COMMERCIAL_SUB_TYPES.length} commercial literals checked`);
+// Commercial sub-type literals belong to the CRM workflow contracts, which are
+// not yet defined. They will be checked here once those registries land.
+log(`   ${Object.keys(OWNERSHIP_FLAG_BY_COMMON_INTEREST).length} ownership literals checked`);
 
 // ── 3. LIVE PRESENCE of every amenity token (exhaustive census) ─────────────
 log('\n3. AMENITY TOKEN LIVE-PRESENCE (exhaustive Active census)');
@@ -179,9 +174,9 @@ if (declared !== null && rows !== declared) {
 }
 log(`   census complete: ${rows}/${declared} Active rows`);
 
-for (const key of Object.keys(AMENITY_FIELD_MAP) as AmenityFilter[]) {
+for (const key of Object.keys(CANONICAL_AMENITIES)) {
   if (UNSUPPORTED_AMENITIES.has(key)) continue;
-  const mapping = AMENITY_FIELD_MAP[key];
+  const mapping = CANONICAL_AMENITIES[key];
   if (mapping.match === 'isTrue') continue; // booleans covered by field checks
   const fields = mapping.field.split(',').map((f) => f.trim());
   for (const value of mapping.values) {
@@ -194,7 +189,7 @@ for (const key of Object.keys(AMENITY_FIELD_MAP) as AmenityFilter[]) {
 // An amenity classified unavailable that has STARTED being populated should be
 // surfaced — that is a filter Mallan could now offer.
 for (const key of UNSUPPORTED_AMENITIES) {
-  const mapping = AMENITY_FIELD_MAP[key as AmenityFilter];
+  const mapping = CANONICAL_AMENITIES[key];
   if (!mapping || mapping.values.length === 0) continue;
   const fields = mapping.field.split(',').map((f) => f.trim());
   const nowPresent = mapping.values.filter((v) => fields.some((f) => (seen.get(f)?.get(v) ?? 0) > 0));

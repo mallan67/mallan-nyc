@@ -2,7 +2,7 @@ import {
   UNPOPULATED_AMENITIES,
   UNMAPPED_AMENITIES,
   UNSUPPORTED_AMENITIES,
-} from "@/lib/search/types";
+} from "@/lib/search/canonical/amenity-vocabulary";
 import {
   getUnsupportedAlertCriteria,
   getUnsupportedSearchCriteria,

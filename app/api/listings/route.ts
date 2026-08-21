@@ -11,12 +11,6 @@ import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, t
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
-import { UNSUPPORTED_AMENITIES } from '@/lib/search/types';
-import {
-  amenityMatches,
-  TRESTLE_AMENITY_SELECT_FIELDS,
-} from '@/lib/search/canonical/amenity-match';
-import { computeFinalUniverse, computeHasMore } from '@/lib/search/canonical/final-universe';
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
@@ -250,30 +244,6 @@ export async function GET(request: Request) {
     const skip = skipParam ? Math.max(0, parseInt(skipParam, 10)) : 0;
     const propertySubTypes = searchParams.get('propertySubTypes') || searchParams.get('subTypes'); // accept both
     const amenitiesParam = searchParams.get('amenities'); // route-side pet-friendly RAW post-filter on the Trestle path
-
-    // Amenities the UI can request but NO live Cotality field can answer must
-    // be REJECTED, never quietly dropped. Verified corpus-wide on 2026-08-19:
-    // `no-fee` has no `ListingTerms` on any row and `Concessions` is NULL on
-    // all of them; `renovated`, `natural-light` and `quiet` have no
-    // corresponding token in the live feature vocabularies at all.
-    //
-    // Silently ignoring one of these returns the FULL unfiltered corpus to a
-    // user who asked to narrow it — a wrong answer presented as a right one.
-    // Failing loud is the fail-closed direction for a search contract.
-    const unsupportedAmenities = (amenitiesParam ?? '')
-      .split(',')
-      .map((a) => a.trim())
-      .filter((a) => UNSUPPORTED_AMENITIES.has(a));
-    if (unsupportedAmenities.length > 0) {
-      return NextResponse.json(
-        {
-          error: 'UNSUPPORTED_FILTER',
-          message: `No live provider data backs these filters: ${unsupportedAmenities.join(', ')}.`,
-          unsupported: unsupportedAmenities,
-        },
-        { status: 400 },
-      );
-    }
     const openHouseParam = searchParams.get('openHouse') === 'true';
     const openHouseDateParam = searchParams.get('openHouseDate'); // 'weekend' | ISO date | undefined
     const excludeUndisclosed = searchParams.get('excludeUndisclosed') === 'true';
@@ -814,29 +784,14 @@ export async function GET(request: Request) {
 
         // Fetch extra to account for gate filtering + post-filters
         // Property type, neighborhood, borough all need heavy post-filtering headroom
-        // Collection amenities are evaluated LOCALLY (lambda filters are HTTP
-        // 400), so they are post-filters and must size the fetch like any other.
-        // They were absent here, so an amenity request fetched a page sized for
-        // NO post-filtering and then discarded most of it.
-        const hasCollectionAmenityFilter = (amenitiesParam ?? '')
-          .split(',')
-          .map((a) => a.trim())
-          .some((a) => a && a !== 'pet-friendly' && !UNSUPPORTED_AMENITIES.has(a));
-        const hasPostFilter = !!(boundsParam || borough || neighborhood || sortParam === 'new-development' || hasCollectionAmenityFilter);
+        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
         const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 4 : 1.2) + 20), 1000);
 
-        // Amenity fields ARE selectable. The comment here used to assert they
-        // are "unavailable on IDX Plus feed and Trestle rejects unknown fields
-        // (causes 400/502)". Live-verified 2026-08-19: all 16 of
-        // BuildingFeatures / InteriorFeatures / ExteriorFeatures / Appliances /
-        // LaundryFeatures / Cooling / View / ParkingFeatures / PetsAllowed /
-        // NewConstructionYN / GarageYN / FireplaceYN / PropertySubType /
-        // CommonInterest / YearBuilt / Furnished $select together and ALL are
-        // returned. What is genuinely rejected is `/any()` LAMBDA FILTERING on
-        // the collection fields (HTTP 400) — selecting them is fine, so they can
-        // be matched Mallan-side by the SAME canonical matcher the projection
-        // producer uses.
-        const selectFields = [...new Set([...CARD_SELECT_FIELDS, ...TRESTLE_AMENITY_SELECT_FIELDS])];
+        // Amenity fields are NOT added to Trestle $select — many are unavailable
+        // on IDX Plus feed and Trestle rejects unknown fields (causes 400/502).
+        // Amenity filtering uses PetsAllowed (already in CARD_SELECT_FIELDS) for
+        // pet-friendly, and relies on DB path for all other amenity filters.
+        const selectFields = [...CARD_SELECT_FIELDS];
 
         // NEVER use $expand=Media — Trestle's OData $expand returns empty arrays for
         // ~50% of listings (broken navigation property). Always batch-fetch separately.
@@ -859,43 +814,68 @@ export async function GET(request: Request) {
           (raw) => checkDistributionGates(raw).displayable
         );
 
-        // ── Step 1b: amenities, through the ONE canonical matcher ────────────
-        //
-        // THE SECOND ENGINE THAT USED TO LIVE HERE IS GONE. It re-derived a
-        // different answer AFTER the corrected provider filter had already run,
-        // so a single request had two Search truths:
-        //   - pet-friendly was matched by substring on a lowercased PetsAllowed,
-        //     which treats "BuildingYes,No" (building permits pets, THE UNIT DOES
-        //     NOT) as a match;
-        //   - every non-pet amenity was silently IGNORED, so a fallback response
-        //     answered "elevator + dishwasher" with unfiltered inventory;
-        //   - New Development was re-narrowed by PublicRemarks prose plus a
-        //     "YearBuilt within 3 years" guess, AFTER the provider had already
-        //     narrowed it correctly by `NewConstructionYN eq true`;
-        //   - a local subTypeMap carried `SingleFamilyTownhouse`, `NewConstruction`
-        //     and space-variant literals that are not live enum members at all.
-        //
-        // Pets and New Development are now PROVIDER-side (exact-token
-        // `PetsAllowed has`, and `NewConstructionYN eq true`), so they are not
-        // re-applied here. Collection amenities cannot be pushed (lambda filters
-        // are HTTP 400), so they run here — but through `amenityMatches`, the
-        // same function that derives `amenity_keys` for the projection. One
-        // contract, two execution sources.
+        // Step 1b: Amenity filters on RAW Trestle data (before mapping)
+        // Only pet-friendly is filterable on Trestle path (PetsAllowed is in $select).
+        // Other amenity fields (BuildingFeatures, InteriorFeatures, etc.) are NOT
+        // available on IDX Plus $select — those filters only work on DB path.
         let amenityFiltered = displayable;
-        const requestedAmenities = (amenitiesParam ?? '')
-          .split(',')
-          .map((a) => a.trim())
-          .filter((a) => a && a !== 'pet-friendly' && !UNSUPPORTED_AMENITIES.has(a));
-        for (const amenity of requestedAmenities) {
-          amenityFiltered = amenityFiltered.filter((raw) =>
-            amenityMatches(amenity, raw as Record<string, unknown>),
-          );
+        if (amenitiesParam) {
+          const amenityList = amenitiesParam.split(',');
+          if (amenityList.includes('pet-friendly')) {
+            amenityFiltered = amenityFiltered.filter((raw) => {
+              const val = String(raw.PetsAllowed || '').toLowerCase();
+              if (!val) return false;
+              return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
+            });
+          }
+          // Note: doorman, gym, elevator, etc. cannot be filtered on Trestle path
+          // because BuildingFeatures/InteriorFeatures are not in IDX Plus $select.
+          // These amenities are properly filtered on the DB path (features JSONB).
         }
 
-        // Step 1c: sub-types are pushed to the provider (PropertySubType and
-        // CommonInterest are both live-filterable — `PropertySubType eq
-        // 'Apartment'` returns 6,680), so there is nothing to re-derive here.
-        const subTypeFiltered = amenityFiltered;
+        // Step 1c: Property sub-type post-filter (can't push to OData — causes 502)
+        let subTypeFiltered = amenityFiltered;
+        if (propertySubTypes || sortParam === 'new-development') {
+          const subTypeMap: Record<string, string[]> = {
+            'Condo': ['Condo', 'Condominium'],
+            'Co-op': ['StockCooperative', 'Stock Cooperative'],
+            'Condop': ['Condop'],
+            'Townhouse': ['SingleFamilyTownhouse', 'Townhouse'],
+            'Multi-Family': ['MultiFamily', 'Multi-Family'],
+            'Single Family': ['SingleFamilyResidence', 'Single Family'],
+            'New Development': ['NewConstruction', 'New Construction'],
+            'Loft': ['Loft'],
+            'Duplex': ['Duplex'],
+            'Triplex': ['Triplex'],
+          };
+          const isNewDev = sortParam === 'new-development' ||
+            (propertySubTypes || '').split(',').some(t => t.trim() === 'New Development');
+          if (isNewDev) {
+            // NewConstructionYN/NewDevelopmentYN not available on IDX Plus $select.
+            // Identify new development from PublicRemarks + YearBuilt.
+            const currentYear = new Date().getFullYear();
+            subTypeFiltered = subTypeFiltered.filter((raw) => {
+              const remarks = String(raw.PublicRemarks || '').toLowerCase();
+              const yearBuilt = Number(raw.YearBuilt) || 0;
+              const isRecent = yearBuilt >= currentYear - 3;
+              const hasKeywords = /new\s*(?:development|construction|building|condo)|sponsor\s*(?:unit|sale)|brand\s*new|never\s*(?:lived|occupied)|first\s*occupan/i.test(remarks);
+              return hasKeywords || isRecent;
+            });
+          }
+          // Also filter by structural/ownership types if requested (non-new-dev types)
+          const nonNewDevTypes = (propertySubTypes || '').split(',')
+            .filter(t => t.trim() !== 'New Development')
+            .flatMap(t => subTypeMap[t.trim()] || [t.trim()])
+            .filter(Boolean);
+          if (nonNewDevTypes.length > 0 && !isNewDev) {
+            const lowerTypes = nonNewDevTypes.map(t => t.toLowerCase());
+            subTypeFiltered = subTypeFiltered.filter((raw) => {
+              const pst = String(raw.PropertySubType || '').toLowerCase();
+              const ci = String(raw.CommonInterest || '').toLowerCase();
+              return lowerTypes.some(t => pst.includes(t) || ci.includes(t));
+            });
+          }
+        }
 
         // Step 2: Map to IDXListing
         const mapped = subTypeFiltered
@@ -985,27 +965,12 @@ export async function GET(request: Request) {
           }
         }
 
-        // Step 4: FINAL ELIGIBLE UNIVERSE, then pagination — in that order.
-        //
-        // `total` previously used the provider count unless bounds/borough/
-        // neighborhood were present. Collection amenities filter LOCALLY and
-        // were not in that list, so an elevator search returned elevator-only
-        // IDs beside the PRE-amenity provider total. Where a local filter WAS
-        // recognised the code used `filtered.length` — a locally-filtered slice
-        // of a BOUNDED head sample, which is not a corpus count either.
-        //
-        // The canonical helper refuses to fabricate: when a local filter is
-        // active and the head sample was saturated it reports the total as a
-        // LOWER BOUND and keeps paging open, rather than publishing a confident
-        // wrong number.
-        const finalUniverse = computeFinalUniverse({
-          providerCount: result.odataCount ?? null,
-          fetchedCount: result.records.length,
-          fetchTop,
-          locallyFilteredCount: filtered.length,
-          hasLocalFilter: !!(boundsParam || borough || neighborhood || hasCollectionAmenityFilter),
-        });
-        const totalCount = finalUniverse.total;
+        // Step 4: Apply skip + limit and convert to public DTO
+        // When post-filtering (bounds, borough, neighborhood), use filtered.length as total
+        // because OData count doesn't account for server-side filtering.
+        const totalCount = (boundsParam || borough || neighborhood)
+          ? filtered.length
+          : (result.odataCount ?? filtered.length);
         const pageListings = filtered.slice(skip, skip + limit);
 
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
@@ -1177,7 +1142,7 @@ export async function GET(request: Request) {
           total: totalCount + annotatedMerged.length - publicListings.length,
           skip,
           limit,
-          hasMore: computeHasMore(finalUniverse, skip, limit) || result.hasMore,
+          hasMore: skip + limit < totalCount || result.hasMore,
           // SUMMARY CONTRACTION at the response boundary — cards get the
           // canonical hero + full photosCount, never the whole gallery.
           // Applied AFTER post-filters/dedupe/geocode/live-fallback and

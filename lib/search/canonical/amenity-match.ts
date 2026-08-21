@@ -29,7 +29,14 @@
  *    6,861 — 2,557 listings a renter with a dog cannot rent. Exact-token
  *    matching is mandatory here, not a refinement.
  */
-import { AMENITY_FIELD_MAP, UNSUPPORTED_AMENITIES, type AmenityFilter } from '@/lib/search/types';
+import {
+  CANONICAL_AMENITIES,
+  UNSUPPORTED_AMENITIES,
+} from '@/lib/search/canonical/amenity-vocabulary';
+
+// The canonical layer owns its vocabulary. It must NOT import from
+// `lib/search/types.ts` — that is the PUBLIC Search types module, and the
+// dependency made a backend provider fact hostage to a public UI file.
 
 /** Affirmative UNIT-level pet tokens. Building-level `Building*` tokens are
  *  deliberately excluded — they describe the building, not the unit. */
@@ -64,9 +71,9 @@ function isTruthyBoolean(value: unknown): boolean {
  */
 export function amenityMatches(amenityKey: string, payload: Record<string, unknown>): boolean {
   if (UNSUPPORTED_AMENITIES.has(amenityKey)) return false;
-  if (!(amenityKey in AMENITY_FIELD_MAP)) return false;
+  if (!(amenityKey in CANONICAL_AMENITIES)) return false;
 
-  const mapping = AMENITY_FIELD_MAP[amenityKey as AmenityFilter];
+  const mapping = CANONICAL_AMENITIES[amenityKey];
   const fields = mapping.field.split(',').map((f) => f.trim());
 
   if (mapping.match === 'isTrue') {
@@ -98,7 +105,7 @@ export function satisfiedAmenityKeys(
 ): string[] {
   const payload: Record<string, unknown> = { ...(rawData ?? {}), ...(features ?? {}) };
   if (Object.keys(payload).length === 0) return [];
-  return Object.keys(AMENITY_FIELD_MAP).filter((key) => amenityMatches(key, payload));
+  return Object.keys(CANONICAL_AMENITIES).filter((key) => amenityMatches(key, payload));
 }
 
 /**

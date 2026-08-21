@@ -19,10 +19,9 @@
  */
 import census from "@/data/cotality-live-token-census.json";
 import {
-  AMENITY_FIELD_MAP,
+  CANONICAL_AMENITIES,
   UNSUPPORTED_AMENITIES,
-  type AmenityFilter,
-} from "@/lib/search/types";
+} from "@/lib/search/canonical/amenity-vocabulary";
 
 const tokens = census.tokens as Record<string, Record<string, number>>;
 
@@ -33,11 +32,11 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
   });
 
   it.each(
-    (Object.keys(AMENITY_FIELD_MAP) as AmenityFilter[]).filter(
-      (k) => !UNSUPPORTED_AMENITIES.has(k) && AMENITY_FIELD_MAP[k].match !== "isTrue",
+    Object.keys(CANONICAL_AMENITIES).filter(
+      (k) => !UNSUPPORTED_AMENITIES.has(k) && CANONICAL_AMENITIES[k].match !== "isTrue",
     ),
   )("%s matches at least one live-present token", (key) => {
-    const mapping = AMENITY_FIELD_MAP[key];
+    const mapping = CANONICAL_AMENITIES[key];
     const fields = mapping.field.split(",").map((f) => f.trim());
     const livePresent = mapping.values.filter((v) =>
       fields.some((f) => (tokens[f]?.[v] ?? 0) > 0),
@@ -49,7 +48,7 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
   });
 
   it("known-stale literals are gone from the map entirely", () => {
-    const serialized = JSON.stringify(AMENITY_FIELD_MAP);
+    const serialized = JSON.stringify(CANONICAL_AMENITIES);
     for (const stale of [
       "UnitYes", "OnCommonFloor", "WalkInCloset\"", "HighCeiling\"",
       "GutRenovated", "NewlyRenovated", "NaturalLight", "NoFee", "OwnerPays",

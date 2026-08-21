@@ -5,7 +5,7 @@ import {
 } from "@/lib/search/listing-access-decision";
 import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from "@/lib/search/canonical/amenity-match";
 import { maxBathsAlternatives, minBathsAlternatives } from "@/lib/search/canonical/bath-contract";
-import { UNSUPPORTED_AMENITIES } from "@/lib/search/types";
+import { UNSUPPORTED_AMENITIES } from "@/lib/search/canonical/amenity-vocabulary";
 
 /**
  * Normalised public ownership input → live `CommonInterest` member.

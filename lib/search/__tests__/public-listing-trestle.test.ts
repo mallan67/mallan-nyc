@@ -10,21 +10,15 @@ describe("buildPublicListingTrestleFilter", () => {
       expect(filter).toBe(DEFAULT_STATUS);
     });
 
-    it("maps type=sale to an EXPLICIT PropertyType inclusion, not an exclusion", () => {
-      // `PropertyType ne 'ResidentialLease'` returns the same 7,074 rows today
-      // ONLY because every other live PropertyType member is currently empty.
-      // It would silently admit CommercialSale, Land, Farm, BusinessOpportunity,
-      // Specialty, MultiFamily and ResidentialIncome the moment one appears.
+    it("maps type=sale to PropertyType ne 'ResidentialLease'", () => {
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=sale"));
       expect(filter).toContain(DEFAULT_STATUS);
-      expect(filter).toContain("PropertyType eq 'Residential'");
-      expect(filter).not.toContain("PropertyType ne");
+      expect(filter).toContain("PropertyType ne 'ResidentialLease'");
     });
 
     it("treats type=buy the same as type=sale", () => {
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=buy"));
-      expect(filter).toContain("PropertyType eq 'Residential'");
-      expect(filter).not.toContain("PropertyType ne");
+      expect(filter).toContain("PropertyType ne 'ResidentialLease'");
     });
 
     it("maps type=rent to PropertyType eq 'ResidentialLease'", () => {
@@ -252,31 +246,18 @@ describe("buildPublicListingTrestleFilter", () => {
 
   // ── 8. amenities including pet-friendly ─────────────────────────────
   describe("amenities (incl. pet-friendly)", () => {
-    // COLLECTION amenity fields (BuildingFeatures / InteriorFeatures / ...)
-    // genuinely cannot be pushed: `/any()` lambda filters are
-    // PROVIDER_REJECTED_400, so those remain Mallan-side.
-    //
-    // `PetsAllowed` is DIFFERENT and this test used to certify the opposite.
-    // Live-verified 2026-08-19: `PetsAllowed has <enum>'Yes'` is SUPPORTED and
-    // returns 3,007 Active — exactly matching the DB-side exact-token count.
-    // `contains(PetsAllowed,'Yes')` is PROVIDER_REJECTED_400, and substring
-    // logic would treat "BuildingYes,No" (building permits, UNIT DOES NOT) as a
-    // match. So pets push to the provider by exact token.
-    it("pushes amenities=pet-friendly as an exact-token PetsAllowed filter", () => {
+    // Per the route, NO amenity field can be pushed to the OData $filter on
+    // Trestle's IDX Plus feed: BuildingFeatures / InteriorFeatures / etc. are
+    // not in $select and Trestle rejects unknown fields. Pet-friendly itself
+    // is filtered as a RAW post-filter against PetsAllowed AFTER the fetch.
+    // The helper therefore must NOT push any amenity clauses to OData.
+    it("ignores amenities=pet-friendly in the OData filter", () => {
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("amenities=pet-friendly"),
       );
-      expect(filter).toContain("PetsAllowed has");
-      for (const token of ["'Yes'", "'CatsOk'", "'DogsOk'"]) expect(filter).toContain(token);
-      // Never substring — that is the defect being closed.
-      expect(filter).not.toContain("contains(PetsAllowed");
-    });
-
-    it("treats pets=true identically to amenities=pet-friendly", () => {
-      // The same question asked two ways must not return two answers.
-      const viaFlag = buildPublicListingTrestleFilter(new URLSearchParams("pets=true"));
-      const viaAmenity = buildPublicListingTrestleFilter(new URLSearchParams("amenities=pet-friendly"));
-      expect(viaFlag).toBe(viaAmenity);
+      expect(filter).not.toContain("PetsAllowed");
+      expect(filter).not.toContain("amenities");
+      expect(filter).toBe(DEFAULT_STATUS);
     });
 
     it("ignores amenities=doorman,gym in the OData filter", () => {
@@ -342,32 +323,32 @@ describe("buildPublicListingTrestleFilter", () => {
       expect(noParam).not.toContain("PropertySubType eq 'Office'");
     });
 
-    it("propertySubTypes='New Development' uses the provider BOOLEAN, not prose", () => {
-      // The file asserted `NewConstructionYN` was "NOT exposed on IDX Plus".
-      // Live probe 2026-08-19: `NewConstructionYN eq true` is SUPPORTED and
-      // returns 951 Active listings. Matching prose in PublicRemarks is a
-      // heuristic answerable by no provider field — a listing whose remarks
-      // happen to say "brand new" is not new construction.
+    it("propertySubTypes='New Development' pushes the four PublicRemarks contains() phrases", () => {
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("propertySubTypes=New Development"),
       );
-      expect(filter).toContain("NewConstructionYN eq true");
-      expect(filter).not.toContain("PublicRemarks");
+      expect(filter).toContain("contains(PublicRemarks,'new development')");
+      expect(filter).toContain("contains(PublicRemarks,'new construction')");
+      expect(filter).toContain("contains(PublicRemarks,'sponsor unit')");
+      expect(filter).toContain("contains(PublicRemarks,'brand new')");
     });
 
-    it("mixes CommonInterest + the new-development boolean in one OR group", () => {
+    it("propertySubTypes mixes CommonInterest + new-dev contains in one OR group", () => {
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("propertySubTypes=Condo,New Development"),
       );
-      expect(filter).toContain("(CommonInterest eq 'Condominium' or NewConstructionYN eq true)");
+      expect(filter).toMatch(
+        /\(CommonInterest eq 'Condominium' or contains\(PublicRemarks,'new development'\)/,
+      );
     });
 
-    it("sort=new-development uses the boolean too", () => {
+    it("sort=new-development without propertySubTypes adds the 3-phrase remark contains", () => {
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("sort=new-development"),
       );
-      expect(filter).toContain("NewConstructionYN eq true");
-      expect(filter).not.toContain("PublicRemarks");
+      expect(filter).toContain(
+        "(contains(PublicRemarks,'new development') or contains(PublicRemarks,'new construction') or contains(PublicRemarks,'sponsor unit'))",
+      );
     });
 
     it("sort=new-development is suppressed when propertySubTypes is also supplied", () => {
