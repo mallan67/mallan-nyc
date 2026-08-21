@@ -29,16 +29,53 @@ describe("factual authority resolves per listing, not per field", () => {
     }
   });
 
-  it("a Mallan-office representation NEVER transfers authority back to Cotality", () => {
-    // It is a provider ROW, but it is the provider's copy of a Mallan-authored
-    // listing. Routing it through the third-party branch would hand authorship
-    // of Mallan's own price and address to the provider through the very
-    // duplicate that suppression exists to neutralise.
+  it("a suppressed representation can NEVER supply an authorable canonical fact", () => {
+    // STRONGER than "never transfers authority to Cotality". An earlier version
+    // resolved these to `mallan_crm` — which correctly refused to credit the
+    // provider, and then let the SUPPRESSED row become the SOURCE of the value.
+    // A consumer could read the representation's ListPrice, receive
+    // `authority: mallan_crm`, and proceed as though it held a valid canonical
+    // fact — defeating suppression precisely where the local record is missing.
+    //
+    // Authorship and permission to act as a canonical value source are
+    // different things.
     for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
       const out = resolve(key, "mallan_office_representation");
-      expect(out).toMatchObject({ resolved: true, authority: "mallan_crm" });
-      if (out.resolved) expect(out.authority).not.toBe("cotality_rebny");
+      expect(out.resolved).toBe(false);
+      if (!out.resolved) expect(out.reason).toBe("NON_CANONICAL_SOURCE");
     }
+  });
+
+  it("refusal is NOT the provider claiming authorship", () => {
+    // The refusal must not be mistaken for "Cotality authored it".
+    const out = resolve("list_price", "mallan_office_representation");
+    expect(out.resolved).toBe(false);
+    if (!out.resolved) {
+      expect(out.reason).not.toBe("UNRESOLVED_FIELD_CONTRACT");
+      expect(out.because).toMatch(/local twin/i);
+    }
+  });
+
+  it("the canonical value comes from the LOCAL row, resolved as mallan_local", () => {
+    // The required path: representation -> twin resolution -> read the LOCAL
+    // row -> resolve THAT as mallan_local. Twin resolution stays in the existing
+    // machinery; this resolver does not grow a second reconciliation system.
+    for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
+      expect(resolve(key, "mallan_local")).toMatchObject({ resolved: true, authority: "mallan_crm" });
+    }
+  });
+
+  it("provider evidence on the SAME representation still resolves normally", () => {
+    // Suppression removes its right to supply Mallan canonical values. It does
+    // not erase the provider's own facts, which are retained for reconciliation.
+    expect(resolve("listing_key", "mallan_office_representation")).toMatchObject({
+      resolved: true,
+      authority: "cotality_rebny",
+    });
+    expect(resolve("provider_lineage", "mallan_office_representation")).toMatchObject({
+      resolved: true,
+      authority: "cotality_rebny",
+    });
   });
 
   it("provider identifiers stay provider facts even on a Mallan listing", () => {
@@ -62,7 +99,9 @@ describe("factual authority resolves per listing, not per field", () => {
     // The failure mode that produced achieved_rent = mallan_derived before
     // anyone looked at LeaseAmount or TotalActualRent.
     for (const key of ["achieved_rent", "assessment", "price_per_sqft", "owner_opt_out"]) {
-      for (const kind of ["mallan_local", "mallan_office_representation", "provider_third_party"] as const) {
+      // On a representation the refusal is NON_CANONICAL_SOURCE and takes
+      // precedence; on the other kinds it is the missing field contract.
+      for (const kind of ["mallan_local", "provider_third_party"] as const) {
         const out = resolve(key, kind);
         expect(out.resolved).toBe(false);
         if (!out.resolved) expect(out.reason).toBe("UNRESOLVED_FIELD_CONTRACT");

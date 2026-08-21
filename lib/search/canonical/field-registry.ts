@@ -233,7 +233,9 @@ function f(
   // `sourceAuthority` is REQUIRED here, not defaulted. This is the compile-time
   // gate: a new field cannot be added without deciding who authored the fact.
   // `authorityResolution` is REQUIRED — a new field cannot be added without
-  // deciding HOW its authorship is determined.
+  // deciding HOW its authorship is determined. `sourceAuthority` is CONDITIONAL:
+  // supplied only for `fixed`/`mallan_derived` facts, and deliberately absent for
+  // `by_listing_authority` ones, where no static value could be truthful.
   base: Pick<FieldSpec, 'canonicalKey' | 'uiLabel' | 'category' | 'type' | 'authorityResolution'> & FieldDefaults,
 ): FieldSpec {
   return {
