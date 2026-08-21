@@ -32,7 +32,10 @@
 import { AMENITY_TOKENS, type AmenityTokenSpec } from '@/lib/search/canonical/amenity-vocabulary';
 // Capability comes from the REGISTRY (the single Search mapping authority);
 // only the exact tokens come from the subordinate vocabulary.
-import { UNSUPPORTED_AMENITY_KEYS } from '@/lib/search/canonical/field-registry';
+import {
+  UNSUPPORTED_AMENITY_KEYS,
+  SEMANTICALLY_UNPROVEN_AMENITY_KEYS,
+} from '@/lib/search/canonical/field-registry';
 
 // The canonical layer owns its vocabulary. It must NOT import from
 // `lib/search/types.ts` — that is the PUBLIC Search types module, and the
@@ -105,7 +108,30 @@ export function satisfiedAmenityKeys(
 ): string[] {
   const payload: Record<string, unknown> = { ...(rawData ?? {}), ...(features ?? {}) };
   if (Object.keys(payload).length === 0) return [];
-  return Object.keys(AMENITY_TOKENS).filter((key) => amenityMatches(key, payload));
+
+  const derived: string[] = [];
+  for (const key of Object.keys(AMENITY_TOKENS)) {
+    if (!amenityMatches(key, payload)) continue;
+
+    // SEMANTIC LEAK GUARD.
+    //
+    // A mechanically matching token must NOT become a stronger Mallan canonical
+    // fact than the evidence supports. `Concierge` matches the `doorman` token
+    // list, but a concierge is not a doorman — deriving `doorman` here would
+    // launder an unproven equivalence into the projection, where Search, Saved
+    // Search, alerts, CMA and reports would all then treat it as established.
+    //
+    // The observation IS preserved (`concierge-present`, `garage-present`,
+    // `city-view-present`) so no evidence is lost. Only the CONCLUSION is
+    // withheld, until equivalence is proven in FIELD_REGISTRY.
+    if (SEMANTICALLY_UNPROVEN_AMENITY_KEYS.has(key)) {
+      const observed = AMENITY_TOKENS[key].observedKey;
+      if (observed) derived.push(observed);
+      continue;
+    }
+    derived.push(key);
+  }
+  return derived;
 }
 
 /**

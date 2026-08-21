@@ -72,6 +72,14 @@ export interface AmenityTokenSpec {
   /** `isTrue` for provider BOOLEANS — a substring test against one matches nothing. */
   match?: AmenityMatch;
   /**
+   * The HONEST observation to derive instead, when `semanticNote` is present.
+   *
+   * `Concierge` is a real, verified provider fact. `Doorman` is a conclusion
+   * nobody proved. So the derivation stores the observation and withholds the
+   * conclusion — the evidence is preserved without asserting the equivalence.
+   */
+  observedKey?: string;
+  /**
    * A live enum MEMBER that would express this amenity but is currently
    * populated on zero listings. Distinguishes "the provider has no such field"
    * from "the provider has it and the feed is empty" — only the latter can
@@ -95,7 +103,8 @@ export const AMENITY_TOKENS: Record<string, AmenityTokenSpec> = {
   // other, and the live BuildingFeatures vocabulary has no `Doorman` token at
   // all. Token existence does not establish that the token MEANS the UI label.
   doorman: { field: 'BuildingFeatures', values: ['Concierge'], label: 'Doorman', group: 'Lobby & Services',
-    semanticNote: 'Concierge != Doorman. Equivalence unproven; registry keeps this needs_probe.' },
+    semanticNote: 'Concierge != Doorman. Equivalence unproven; registry keeps this needs_probe.',
+    observedKey: 'concierge-present' },
   gym: { field: 'BuildingFeatures', values: ['FitnessCenter', 'HealthClub', 'YogaStudio'], label: 'Gym/Fitness', group: 'Building Amenities' },
   pool: { field: 'BuildingFeatures', values: ['IndoorPool'], label: 'Pool', group: 'Building Amenities' },
   spa: { field: 'BuildingFeatures', values: ['SpaHotTub'], label: 'Spa', group: 'Building Amenities' },
@@ -116,13 +125,15 @@ export const AMENITY_TOKENS: Record<string, AmenityTokenSpec> = {
   // Provider BOOLEAN, true on 2,630 live — `ParkingFeatures` carries a Garage
   // token on only 591, so the boolean finds ~4x more.
   garage: { field: 'GarageYN', values: [], match: 'isTrue', label: 'Garage/Parking', group: 'Parking',
-    semanticNote: 'GarageYN proves a GARAGE. The UI label also promises generic PARKING, which a garage boolean does not establish (valet, assigned, on-street and deeded parking are separate ParkingFeatures tokens). Equivalence unproven; registry keeps this needs_probe.' },
+    semanticNote: 'GarageYN proves a GARAGE. The UI label also promises generic PARKING, which a garage boolean does not establish (valet, assigned, on-street and deeded parking are separate ParkingFeatures tokens). Equivalence unproven; registry keeps this needs_probe.',
+    observedKey: 'garage-present' },
   // Unit-level affirmative tokens ONLY. `BuildingYes` describes the BUILDING.
   'pet-friendly': { field: 'PetsAllowed', values: ['Yes', 'CatsOk', 'DogsOk'], label: 'Pet Friendly', group: 'Pets' },
   'park-views': { field: 'View', values: ['ParkGreenbelt'], label: 'Park Views', group: 'Views' },
   'river-views': { field: 'View', values: ['River', 'Water'], label: 'River Views', group: 'Views' },
   'skyline-views': { field: 'View', values: ['City', 'CityLights', 'Panoramic'], label: 'Skyline Views', group: 'Views',
-    semanticNote: 'City / CityLights / Panoramic are live and populated, but none of them means SKYLINE specifically — a ground-floor city view is not a skyline view. Equivalence unproven; registry keeps this needs_probe.' },
+    semanticNote: 'City / CityLights / Panoramic are live and populated, but none of them means SKYLINE specifically — a ground-floor city view is not a skyline view. Equivalence unproven; registry keeps this needs_probe.',
+    observedKey: 'city-view-present' },
   views: { field: 'View', values: ['ParkGreenbelt', 'River', 'Water', 'City', 'CityLights', 'Panoramic', 'Bridges'], label: 'Views', group: 'Views' },
   'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets'], label: 'Walk-in Closet', group: 'Unit Features' },
   'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings'], label: 'High Ceilings', group: 'Unit Features' },

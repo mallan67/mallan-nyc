@@ -190,7 +190,14 @@ describe("normalizeProjectionSearchText", () => {
 describe("extractProjectionAmenityKeys", () => {
   it("returns the canonical amenity keys that match the features JSON", () => {
     const keys = extractProjectionAmenityKeys(baseSale);
-    expect(keys).toContain("doorman");
+    // SEMANTIC LEAK GUARD. The fixture carries `Concierge`, which matches the
+    // `doorman` token list mechanically. Deriving `doorman` would launder an
+    // unproven equivalence into the projection, where Search, Saved Search,
+    // alerts, CMA and reports would all subsequently treat it as established.
+    //
+    // The observation is preserved; only the CONCLUSION is withheld.
+    expect(keys).not.toContain("doorman");
+    expect(keys).toContain("concierge-present");
     expect(keys).toContain("gym");
     expect(keys).toContain("elevator");
     expect(keys).toContain("steam-room");

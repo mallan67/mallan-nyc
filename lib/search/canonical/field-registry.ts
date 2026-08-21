@@ -17,6 +17,7 @@
 import type { AudienceVisibility, CapabilityStatus, FailureBehavior } from './capability';
 import type { CanonicalFilterKey } from './filter-keys';
 import { AMENITY_TOKENS } from './amenity-vocabulary';
+import type { SourceAuthority } from './source-provenance';
 
 export type FieldCategory =
   | 'identity_source_attribution'
@@ -51,23 +52,20 @@ export const REQUIRED_FAMILIES: readonly FieldCategory[] = Object.freeze([
   'agent_private_restricted', 'report_cma_investor', 'engagement_marketing',
 ]);
 
-export type ProviderMappingStatus =
-  | 'mapped'
-  | 'partial'
-  | 'none'
-  | 'needs_probe'
-  | 'reserved'
-  /**
-   * MALLAN-OWNED enrichment, not provider fact.
-   *
-   * Geography and transit are the canonical cases: Cotality declares nullable
-   * `Latitude`/`Longitude`, but a nullable metadata declaration is NOT a Search
-   * capability. Mallan geo is Cotality address -> canonical Mallan address ->
-   * Google geocoding -> canonical coordinate, with MTA/Google transit enrichment
-   * on top. Such a value may be USED, but must never be attributed to the
-   * provider or presented as provider truth.
-   */
-  | 'mallan_derived';
+/**
+ * PROVIDER MAPPING STATE — how well this criterion maps to the Cotality feed.
+ *
+ * Deliberately says NOTHING about who authored the value. A Google-derived
+ * coordinate is not an odd kind of Cotality mapping; it is a different SOURCE
+ * CLASS. Overloading this enum with `mallan_derived` conflated two orthogonal
+ * facts, so source authority is its own property below. Both live in this
+ * registry — orthogonal properties in one authority, not two authorities.
+ */
+export type ProviderMappingStatus = 'mapped' | 'partial' | 'none' | 'needs_probe' | 'reserved';
+
+// Source authority is NOT redefined here. `source-provenance.ts` already owns
+// that vocabulary (and `attribution.ts` the six-facet envelope); defining a rival
+// enum in this file would recreate the split this registry exists to prevent.
 
 export type FieldType =
   | 'string' | 'number' | 'money' | 'boolean' | 'enum' | 'multi_enum'
@@ -112,7 +110,27 @@ export interface FieldSpec {
    * criterion stays `needs_probe` no matter how healthy the token looks.
    */
   semanticEquivalenceProven?: boolean;
-  /** true ⇒ rendering this field's row requires source/courtesy attribution. */
+  /** Who authored this fact. Orthogonal to `providerMappingStatus`. */
+  sourceAuthority: SourceAuthority;
+  /**
+   * Attribution duties this field triggers, in the vocabulary already used by
+   * `AttributionEnvelope.audienceObligations` — not a new boolean set.
+   *
+   * A single `requiresAttribution` boolean collapsed unrelated duties into one
+   * answer, and the consequence was concrete: a Mallan-DERIVED coordinate or
+   * building identity inherited "requires Cotality courtesy attribution",
+   * crediting the provider for a fact it never stated.
+   *
+   * Distinct duties, never merged:
+   *   'attribution_required'    provider/REBNY factual-source obligation
+   *   'listing_brokerage'       "Listing Courtesy of ..." — a BROKERAGE duty,
+   *                             not a data-source one
+   *   'mallan_derived_disclosure'  must be disclosed as Mallan enrichment and
+   *                             never presented as provider truth
+   *   'provenance_disclosure'   origin visible to the audience regardless of author
+   */
+  attributionObligations: readonly string[];
+  /** @deprecated Collapsed four duties into one. Read `attribution` instead. */
   requiresAttribution: boolean;
   failureBehavior: FailureBehavior;
   notes?: string;
@@ -139,6 +157,8 @@ function f(base: Pick<FieldSpec, 'canonicalKey' | 'uiLabel' | 'category' | 'type
     sortable: 'no',
     alertable: 'no',
     reportable: 'no',
+    sourceAuthority: 'cotality_rebny',
+    attributionObligations: [],
     requiresAttribution: false,
     failureBehavior: 'fail_closed',
     ...base,
@@ -183,8 +203,8 @@ export const FIELD_REGISTRY: readonly FieldSpec[] = Object.freeze([
    *
    * This is Mallan-owned enrichment and must never be attributed to Cotality.
    */
-  f({ canonicalKey: 'building_identity', uiLabel: 'Building', category: 'address_location_building', type: 'computed', providerMappingStatus: 'mallan_derived', cotalityField: null, visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', failureBehavior: 'fail_closed', requiresAttribution: true, semanticEquivalenceProven: false, notes: 'BuildingKey/BuildingKeyNumeric are populated 0/8,056 and GET /Building is 403. Derive from canonical address + Google geocoding; never present as provider fact.' }),
-  f({ canonicalKey: 'geo', uiLabel: 'Map Location', category: 'address_location_building', type: 'geo', cotalityField: null, dbColumn: 'latitude/longitude', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', providerMappingStatus: 'mallan_derived', notes: 'CORRECTED 2026-08-20. A nullable Latitude/Longitude declaration in $metadata is NOT a Search capability and must never be used as one on that basis. Mallan geo is Cotality address -> canonical Mallan address -> Google geocoding -> canonical coordinate, with MTA/Google transit enrichment layered on. Mallan-owned, attributable to Mallan, never to the provider.' }),
+  f({ canonicalKey: 'building_identity', uiLabel: 'Building', category: 'address_location_building', type: 'computed', providerMappingStatus: 'none', sourceAuthority: 'mallan_derived', cotalityField: null, visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', failureBehavior: 'fail_closed', attributionObligations: ['mallan_derived_disclosure', 'provenance_disclosure'], semanticEquivalenceProven: false, notes: 'BuildingKey/BuildingKeyNumeric are populated 0/8,056 and GET /Building is 403. Derive from canonical address + Google geocoding; never present as provider fact.' }),
+  f({ canonicalKey: 'geo', uiLabel: 'Map Location', category: 'address_location_building', type: 'geo', cotalityField: null, dbColumn: 'latitude/longitude', visibility: V_PUBLIC, filterable: 'needs_probe', reportable: 'yes', providerMappingStatus: 'none', sourceAuthority: 'mallan_derived', attributionObligations: ['mallan_derived_disclosure', 'provenance_disclosure'], notes: 'CORRECTED 2026-08-20. A nullable Latitude/Longitude declaration in $metadata is NOT a Search capability and must never be used as one on that basis. Mallan geo is Cotality address -> canonical Mallan address -> Google geocoding -> canonical coordinate, with MTA/Google transit enrichment layered on. Mallan-owned, attributable to Mallan, never to the provider.' }),
 
   // ── transaction (sale / rent) ────────────────────────────────────────────
   f({ canonicalKey: 'transaction_type', uiLabel: 'Buy / Rent', category: 'transaction', type: 'enum', providerMappingStatus: 'mapped', cotalityField: 'PropertyType', dbColumn: 'listing_type', searchParam: 'type', visibility: V_PUBLIC, filterable: 'yes', reportable: 'yes', notes: 'sale=Residential, rental=ResidentialLease (no space). Expressed 3 ways today (analysis §1.5).' }),
@@ -362,7 +382,33 @@ export const SEMANTICALLY_UNPROVEN_AMENITY_KEYS: ReadonlySet<string> = new Set(
     .map(([key]) => key),
 );
 
-/** May this amenity be executed as a filter at all? */
+/**
+ * May this amenity be executed as a Search filter?
+ *
+ * TWO INDEPENDENT GATES, deliberately not collapsed:
+ *
+ *   1. MECHANICAL — is there a live-present token or boolean to match at all?
+ *   2. SEMANTIC   — has the token been proven to MEAN the UI label?
+ *
+ * Mechanical matchability is not business-semantic validity. `Concierge` matches
+ * cleanly and is populated on 1,523 listings; filtering `doorman` by it would
+ * still answer a question the broker did not ask. Passing gate 1 while failing
+ * gate 2 is exactly the case this function exists to refuse.
+ */
 export function isAmenityExecutable(key: string): boolean {
-  return key in AMENITY_TOKENS && !UNSUPPORTED_AMENITY_KEYS.has(key);
+  if (!(key in AMENITY_TOKENS)) return false;
+  if (UNSUPPORTED_AMENITY_KEYS.has(key)) return false;        // gate 1
+  if (SEMANTICALLY_UNPROVEN_AMENITY_KEYS.has(key)) return false; // gate 2
+  return true;
+}
+
+/**
+ * Why an amenity cannot be executed — so callers can fail LOUD with a reason
+ * instead of silently returning nothing.
+ */
+export function amenityRefusalReason(key: string): string | null {
+  if (!(key in AMENITY_TOKENS)) return 'UNKNOWN_AMENITY';
+  if (UNSUPPORTED_AMENITY_KEYS.has(key)) return 'NO_LIVE_TOKEN';
+  if (SEMANTICALLY_UNPROVEN_AMENITY_KEYS.has(key)) return 'SEMANTIC_EQUIVALENCE_UNPROVEN';
+  return null;
 }

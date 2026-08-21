@@ -19,7 +19,12 @@
  */
 import census from "@/data/cotality-live-token-census.json";
 import { AMENITY_TOKENS } from "@/lib/search/canonical/amenity-vocabulary";
-import { UNSUPPORTED_AMENITY_KEYS } from "@/lib/search/canonical/field-registry";
+import {
+  UNSUPPORTED_AMENITY_KEYS,
+  isAmenityExecutable,
+  amenityRefusalReason,
+} from "@/lib/search/canonical/field-registry";
+import { satisfiedAmenityKeys } from "@/lib/search/canonical/amenity-match";
 
 const tokens = census.tokens as Record<string, Record<string, number>>;
 
@@ -60,5 +65,60 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
     // live rows. It must be unavailable rather than silently matching nothing.
     expect(tokens.InteriorFeatures?.Remodeled ?? 0).toBe(0);
     expect(UNSUPPORTED_AMENITY_KEYS.has("renovated")).toBe(true);
+  });
+});
+
+/**
+ * SEMANTIC LEAK GUARD — a matching token must not become a stronger fact.
+ *
+ * Mechanical matchability and business-semantic validity are separate gates.
+ * `Concierge` is live, populated on 1,523 listings, and matches the `doorman`
+ * token list cleanly. It is still not a doorman.
+ *
+ * The derivation therefore stores the OBSERVATION and withholds the CONCLUSION,
+ * so no evidence is lost and no unproven equivalence enters the projection.
+ */
+describe("semantically unproven tokens never become canonical conclusions", () => {
+  const derive = (payload: Record<string, unknown>) => satisfiedAmenityKeys(payload, null);
+
+  it("Concierge yields concierge-present, NEVER doorman", () => {
+    const keys = derive({ BuildingFeatures: "Concierge,Elevators" });
+    expect(keys).toContain("concierge-present");
+    expect(keys).not.toContain("doorman");
+    // the proven amenity alongside it is unaffected
+    expect(keys).toContain("elevator");
+  });
+
+  it("GarageYN yields garage-present, NEVER generic parking", () => {
+    const keys = derive({ GarageYN: true });
+    expect(keys).toContain("garage-present");
+    expect(keys).not.toContain("garage");
+  });
+
+  it("City views yield city-view-present, NEVER skyline-views", () => {
+    const keys = derive({ View: "City,CityLights" });
+    expect(keys).toContain("city-view-present");
+    expect(keys).not.toContain("skyline-views");
+  });
+
+  it("refuses to EXECUTE an unproven amenity, with a reason", () => {
+    for (const key of ["doorman", "garage", "skyline-views"]) {
+      expect(isAmenityExecutable(key)).toBe(false);
+      expect(amenityRefusalReason(key)).toBe("SEMANTIC_EQUIVALENCE_UNPROVEN");
+    }
+  });
+
+  it("distinguishes an unproven amenity from an unbacked one", () => {
+    // Different causes must not collapse — one is a missing proof, the other a
+    // missing token.
+    expect(amenityRefusalReason("doorman")).toBe("SEMANTIC_EQUIVALENCE_UNPROVEN");
+    expect(amenityRefusalReason("no-fee")).toBe("NO_LIVE_TOKEN");
+    expect(amenityRefusalReason("elevator")).toBeNull();
+  });
+
+  it("still executes amenities whose meaning IS established", () => {
+    for (const key of ["elevator", "dishwasher", "pet-friendly", "washer-dryer"]) {
+      expect(isAmenityExecutable(key)).toBe(true);
+    }
   });
 });

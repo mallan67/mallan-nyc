@@ -20,6 +20,17 @@ export const SOURCE_AUTHORITIES = Object.freeze([
   'acris',
   'nyc_dob',
   'mallan_crm',
+  /**
+   * Mallan COMPUTES the fact from verified inputs — Google geocoding, MTA
+   * transit, canonical address normalisation.
+   *
+   * Distinct from `mallan_crm`, which is Mallan-owned BUSINESS data (exclusivity,
+   * internal flags, CRM state). A derived coordinate is neither provider fact nor
+   * CRM business data, and it must never be attributed to the provider: Cotality
+   * never stated it. Added here rather than in a second enum so provenance keeps
+   * exactly one vocabulary.
+   */
+  'mallan_derived',
   'supplemental',
 ] as const);
 export type SourceAuthority = (typeof SOURCE_AUTHORITIES)[number];
@@ -69,6 +80,10 @@ export const ACCESS_METHODS_BY_AUTHORITY: Readonly<
   acris: Object.freeze(['public_api', 'public_dataset'] as const),
   nyc_dob: Object.freeze(['public_api', 'public_dataset'] as const),
   mallan_crm: Object.freeze(['internal_system', 'manual_agent_research'] as const),
+  // Mallan computes the value in its own systems from a licensed third-party
+  // API (Google geocoding, MTA/Google transit). `licensed_api` describes the
+  // upstream input; `internal_system` the derivation that produces the fact.
+  mallan_derived: Object.freeze(['licensed_api', 'internal_system'] as const),
   supplemental: Object.freeze([
     'licensed_api',
     'licensed_feed',

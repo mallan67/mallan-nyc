@@ -58,7 +58,13 @@ const AUDIENCES: readonly Audience[] = ['public', 'client', 'agent', 'internal_r
 
 describe('A1 · enum exhaustiveness + guards', () => {
   const cases: Array<[string, readonly string[], string[], (v: unknown) => boolean]> = [
-    ['SourceAuthority', SOURCE_AUTHORITIES, ['cotality_rebny', 'acris', 'nyc_dob', 'mallan_crm', 'supplemental'], isSourceAuthority],
+    // `mallan_derived` added 2026-08-20: Mallan COMPUTES the fact from verified
+    // inputs (Google geocoding, MTA transit, canonical address normalisation).
+    // Distinct from `mallan_crm`, which is Mallan-owned BUSINESS data. Needed
+    // because Cotality BuildingKey/BuildingKeyNumeric are populated 0/8,056 and
+    // GET /Building is 403, so building identity and coordinates must be
+    // Mallan-derived — and must never be attributed to the provider.
+    ['SourceAuthority', SOURCE_AUTHORITIES, ['cotality_rebny', 'acris', 'nyc_dob', 'mallan_crm', 'mallan_derived', 'supplemental'], isSourceAuthority],
     ['ObservationPlatform', OBSERVATION_PLATFORMS, ['streeteasy', 'zillow', 'direct_broker_feed', 'property_manager_feed', 'owner_submitted', 'manual_agent_research', 'none'], isObservationPlatform],
     ['SourceAccessMethod', SOURCE_ACCESS_METHODS, ['licensed_api', 'licensed_feed', 'direct_partner', 'public_api', 'public_dataset', 'internal_system', 'manual_agent_research'], isSourceAccessMethod],
     ['InventoryScope', INVENTORY_SCOPES, ['public_inventory', 'client_inventory', 'agent_complete_inventory', 'cotality_rebny_only', 'mallan_exclusive', 'supplemental_only', 'missing_from_cotality', 'verification_required', 'source_conflicts'], isInventoryScope],
