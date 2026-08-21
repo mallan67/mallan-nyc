@@ -81,24 +81,47 @@ describe("amenity tokens are present in the live feed, not merely valid", () => 
 describe("semantically unproven tokens never become canonical conclusions", () => {
   const derive = (payload: Record<string, unknown>) => satisfiedAmenityKeys(payload, null);
 
-  it("Concierge yields concierge-present, NEVER doorman", () => {
-    const keys = derive({ BuildingFeatures: "Concierge,Elevators" });
-    expect(keys).toContain("concierge-present");
+  it("Concierge derives NOTHING — not doorman, and not a substitute key", () => {
+    const payload = { BuildingFeatures: "Concierge,Elevators" };
+    const keys = derive(payload);
     expect(keys).not.toContain("doorman");
-    // the proven amenity alongside it is unaffected
+    // And no invented stand-in either. An earlier fix pushed `concierge-present`
+    // here, which merely relocated the problem: an unregistered key free to leak
+    // into CMA, alerts, cards and reports as if it were canonical.
+    expect(keys.some((k) => k.includes("concierge"))).toBe(false);
+    // The proven amenity alongside it is unaffected.
     expect(keys).toContain("elevator");
+    // No evidence is lost — the observation remains a verified PROVIDER FACT on
+    // the row, readable wherever provider fields are read.
+    expect(payload.BuildingFeatures).toContain("Concierge");
   });
 
-  it("GarageYN yields garage-present, NEVER generic parking", () => {
-    const keys = derive({ GarageYN: true });
-    expect(keys).toContain("garage-present");
+  it("GarageYN derives NOTHING — not generic parking, and no stand-in", () => {
+    const payload = { GarageYN: true };
+    const keys = derive(payload);
     expect(keys).not.toContain("garage");
+    expect(keys.some((k) => k.includes("garage"))).toBe(false);
+    expect(payload.GarageYN).toBe(true);
   });
 
-  it("City views yield city-view-present, NEVER skyline-views", () => {
-    const keys = derive({ View: "City,CityLights" });
-    expect(keys).toContain("city-view-present");
+  it("City views derive NOTHING — not skyline-views, and no stand-in", () => {
+    const payload = { View: "City,CityLights" };
+    const keys = derive(payload);
     expect(keys).not.toContain("skyline-views");
+    expect(keys.some((k) => k.includes("city"))).toBe(false);
+    expect(payload.View).toContain("City");
+  });
+
+  it("amenity_keys contains ONLY registered, executable canonical keys", () => {
+    // The invariant that makes the projection trustworthy: every derived key is
+    // a real Search criterion the registry will execute.
+    const keys = derive({
+      BuildingFeatures: "Concierge,Elevators,BikeStorage",
+      GarageYN: true,
+      View: "City",
+      Appliances: "Dishwasher",
+    });
+    for (const key of keys) expect(isAmenityExecutable(key)).toBe(true);
   });
 
   it("refuses to EXECUTE an unproven amenity, with a reason", () => {

@@ -9,8 +9,13 @@
  *
  * The projection producer derives `amenity_keys` ONCE at write time using this
  * function; readers then filter on the derived keys instead of re-deriving.
- * That is what keeps public Search, Saved Search and CMA answering the same
- * question the same way.
+ * That is what keeps the authenticated SALE, RENTAL, CMA and BUILDING workflows
+ * answering the same question the same way.
+ *
+ * NOT public Search. An earlier version of this comment claimed this module keeps
+ * "public Search" aligned — it does not, and must not. Public mallan.nyc Search
+ * is a separate product held at zero-delta, and this backend foundation must
+ * never become an accidental dependency of it.
  *
  * ── PROVIDER SHAPES THIS MUST HANDLE (live-verified 2026-08-19) ─────────────
  *
@@ -121,14 +126,18 @@ export function satisfiedAmenityKeys(
     // launder an unproven equivalence into the projection, where Search, Saved
     // Search, alerts, CMA and reports would all then treat it as established.
     //
-    // The observation IS preserved (`concierge-present`, `garage-present`,
-    // `city-view-present`) so no evidence is lost. Only the CONCLUSION is
-    // withheld, until equivalence is proven in FIELD_REGISTRY.
-    if (SEMANTICALLY_UNPROVEN_AMENITY_KEYS.has(key)) {
-      const observed = AMENITY_TOKENS[key].observedKey;
-      if (observed) derived.push(observed);
-      continue;
-    }
+    // NOTHING is substituted. An earlier attempt pushed invented observation
+    // keys (`concierge-present`, …) instead, which merely relocated the problem:
+    // those are not registered Search criteria, so they would have become a
+    // second hidden vocabulary free to leak into CMA, alerts, cards and reports.
+    //
+    // No evidence is lost by omitting them. The observations already exist as
+    // VERIFIED PROVIDER FACTS on the row — `BuildingFeatures=Concierge`,
+    // `GarageYN=true`, `View=City` — and remain readable there. If one of them
+    // should become a first-class Mallan fact, it gets an explicit FIELD_REGISTRY
+    // entry with its own semantics, visibility and provenance; it is never
+    // introduced sideways through the amenity projection.
+    if (SEMANTICALLY_UNPROVEN_AMENITY_KEYS.has(key)) continue;
     derived.push(key);
   }
   return derived;

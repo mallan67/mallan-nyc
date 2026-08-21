@@ -197,7 +197,9 @@ describe("extractProjectionAmenityKeys", () => {
     //
     // The observation is preserved; only the CONCLUSION is withheld.
     expect(keys).not.toContain("doorman");
-    expect(keys).toContain("concierge-present");
+    // No substitute key either — the observation stays a provider fact on the
+    // row rather than becoming an unregistered pseudo-canonical alias.
+    expect(keys.some((k) => k.includes("concierge"))).toBe(false);
     expect(keys).toContain("gym");
     expect(keys).toContain("elevator");
     expect(keys).toContain("steam-room");

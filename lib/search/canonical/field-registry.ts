@@ -1,5 +1,26 @@
 /**
- * field-registry.ts — the canonical field registry SKELETON (PURE; not wired to any reader).
+ * field-registry.ts — THE CANONICAL SEARCH MAPPING AUTHORITY.
+ *
+ * NO LONGER A SKELETON. This header used to say "SKELETON (PURE; not wired to any
+ * reader)" and "nothing here is wired to runtime". Both became false during
+ * Search P0: amenity capability, the semantic-equivalence gate and the canonical
+ * matcher all read from this file at runtime. A stale "not wired" header is
+ * actively dangerous at handoff, because the next reader will assume edits here
+ * are inert.
+ *
+ * WHAT MAY RELY ON IT: only entries whose capability is explicitly proven.
+ * `needs_probe` and `unsupported` are NOT usable — see `capability.ts`. The
+ * registry is being wired INCREMENTALLY, one proven consumer at a time.
+ *
+ * WHAT IT OWNS: the criterion. Provider mapping state, source authority,
+ * capability per axis, audience visibility, attribution obligations and failure
+ * behaviour. Subordinate tables (`amenity-vocabulary.ts`) supply exact provider
+ * tokens and nothing else.
+ *
+ * SCOPE: authenticated CRM/backend Search — SALE, RENTAL, CMA and BUILDING.
+ * Public mallan.nyc Search is a SEPARATE product and is deliberately zero-delta;
+ * nothing here may become a dependency of `app/search`, `SearchFilterPanel`,
+ * `/api/listings` or the public listing readers.
  *
  * Every major field family from the analysis is represented with an EXPLICIT capability status.
  * Honesty rule (Maya directive):
@@ -18,6 +39,7 @@ import type { AudienceVisibility, CapabilityStatus, FailureBehavior } from './ca
 import type { CanonicalFilterKey } from './filter-keys';
 import { AMENITY_TOKENS } from './amenity-vocabulary';
 import type { SourceAuthority } from './source-provenance';
+import type { AudienceObligation } from './attribution';
 
 export type FieldCategory =
   | 'identity_source_attribution'
@@ -129,7 +151,7 @@ export interface FieldSpec {
    *                             never presented as provider truth
    *   'provenance_disclosure'   origin visible to the audience regardless of author
    */
-  attributionObligations: readonly string[];
+  attributionObligations: readonly AudienceObligation[];
   /** @deprecated Collapsed four duties into one. Read `attribution` instead. */
   requiresAttribution: boolean;
   failureBehavior: FailureBehavior;
