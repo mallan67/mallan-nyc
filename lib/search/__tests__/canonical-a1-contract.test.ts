@@ -351,6 +351,9 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // Canonical criteria -> projection where-builder; reads the ownership
       // flag names so the reader cannot invent a second spelling of them.
       'lib/search/criteria-to-prisma.ts',
+      // Instance-level authority resolver — reads the registry's declared
+      // resolution model; introduces no second provenance system.
+      'lib/search/canonical/resolve-factual-authority.ts',
       // Trestle fallback renders the SAME canonical bath contract to OData, so
       // the two execution paths cannot answer the same question differently.
       'lib/search/public-listing-trestle.ts',

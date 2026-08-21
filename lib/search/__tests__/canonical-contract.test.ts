@@ -385,11 +385,31 @@ describe("authority resolution, not a static per-field author", () => {
     }
   });
 
-  it("pipeline lineage is never treated as listing authorship", () => {
-    // SourceSystem*/OriginatingSystem* describe RLS -> REBNY -> Trestle. On 35
-    // live Mallan-office rows SourceSystemName and SourceSystemKey were BOTH 0/35.
-    const spec = get("source");
-    expect(spec.notes).toMatch(/PIPELINE/i);
-    expect(spec.notes).toMatch(/NOT canonical listing authorship/i);
+  it("pipeline lineage is a separate concept, not a canonical source", () => {
+    // The canonical key `source` was RENAMED to `provider_lineage`, because the
+    // model — not just the note — was wrong. SourceSystem*/OriginatingSystem*
+    // describe RLS -> REBNY -> Trestle. On 35 live Mallan-office rows
+    // SourceSystemName and SourceSystemKey were BOTH 0/35.
+    expect(FIELD_REGISTRY.find((f) => f.canonicalKey === "source")).toBeUndefined();
+    const lineage = get("provider_lineage");
+    expect(lineage.notes).toMatch(/pipeline/i);
+    // Lineage is evidence, never a Search axis.
+    expect(lineage.filterable).toBe("no");
+    expect(lineage.sortable).toBe("no");
+    expect(lineage.reportable).toBe("no");
+  });
+
+  it("provider ListingKey and Mallan listing_id are DIFFERENT identity domains", () => {
+    // Schema documents Listing.listing_id as "Trestle ListingId OR internal
+    // SL-/RL- prefix", while ListingsArchive.listing_key is "Trestle ListingKey".
+    // Mapping ListingKey onto the ListingId column conflates two identifiers.
+    const key = get("listing_key");
+    expect(key.cotalityField).toBe("ListingKey");
+    expect(key.dbColumn).not.toBe("listing_id");
+    // ListingKey is not in any typed Listing column — raw_data carries it.
+    expect(key.dbColumn).toBeNull();
+
+    const mlsId = get("listing_id_mls");
+    expect(mlsId.notes).toMatch(/DUAL-DOMAIN/i);
   });
 });
