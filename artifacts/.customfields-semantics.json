@@ -1,0 +1,247 @@
+{
+  "probedAt": "2026-08-21T19:19:15.680Z",
+  "api": "https://api.cotality.com/trestle",
+  "coverage": {
+    "rowsRead": 8010,
+    "providerDeclaredActive": 8010,
+    "complete": true
+  },
+  "maximumFinancingPercent": {
+    "byCommonInterest": {
+      "Condominium": {
+        "rowsWithKey": 3615,
+        "totalRows": 3720,
+        "values": {
+          "90.00": 2313,
+          "0.00": 576,
+          "80.00": 549,
+          "75.00": 47,
+          "100.00": 34,
+          "95.00": 25,
+          "85.00": 18,
+          "20.00": 11,
+          "10.00": 9,
+          "70.00": 9,
+          "99.00": 7,
+          "97.00": 6,
+          "1.00": 5,
+          "96.00": 2,
+          "50.00": 2
+        }
+      },
+      "RentalBuilding": {
+        "rowsWithKey": 242,
+        "totalRows": 640,
+        "values": {
+          "0.00": 225,
+          "90.00": 10,
+          "1.00": 4,
+          "100.00": 3
+        }
+      },
+      "StockCooperative": {
+        "rowsWithKey": 2497,
+        "totalRows": 2507,
+        "values": {
+          "80.00": 1192,
+          "75.00": 483,
+          "0.00": 243,
+          "50.00": 194,
+          "90.00": 156,
+          "70.00": 82,
+          "65.00": 50,
+          "85.00": 20,
+          "60.00": 17,
+          "20.00": 14,
+          "40.00": 11,
+          "66.00": 6,
+          "100.00": 6,
+          "30.00": 6,
+          "33.00": 4
+        }
+      },
+      "None": {
+        "rowsWithKey": 310,
+        "totalRows": 996,
+        "values": {
+          "100.00": 103,
+          "0.00": 102,
+          "90.00": 46,
+          "80.00": 43,
+          "70.00": 5,
+          "95.00": 4,
+          "75.00": 3,
+          "1.00": 2,
+          "97.00": 2
+        }
+      },
+      "Condop": {
+        "rowsWithKey": 139,
+        "totalRows": 147,
+        "values": {
+          "80.00": 73,
+          "90.00": 31,
+          "0.00": 23,
+          "85.00": 9,
+          "75.00": 3
+        }
+      }
+    },
+    "buildingAgreement": {
+      "buildingsSeen": 3402,
+      "buildingsWithDisagreeingValues": 380,
+      "examples": [
+        {
+          "building": "36|SUTTON|10022",
+          "values": [
+            "50.00",
+            "60.00"
+          ]
+        },
+        {
+          "building": "252|SOUTH|10002",
+          "values": [
+            "90.00",
+            "75.00",
+            "25.00"
+          ]
+        },
+        {
+          "building": "10|MADISON|10010",
+          "values": [
+            "90.00",
+            "0.00"
+          ]
+        },
+        {
+          "building": "201|25TH|10010",
+          "values": [
+            "0.00",
+            "80.00"
+          ]
+        },
+        {
+          "building": "80|PARK|10016",
+          "values": [
+            "90.00",
+            "80.00"
+          ]
+        },
+        {
+          "building": "101|67TH|10023",
+          "values": [
+            "0.00",
+            "90.00"
+          ]
+        },
+        {
+          "building": "310|56TH|10019",
+          "values": [
+            "75.00",
+            "80.00"
+          ]
+        },
+        {
+          "building": "20|PINE|10005",
+          "values": [
+            "90.00",
+            "0.00"
+          ]
+        },
+        {
+          "building": "555|59TH|10019",
+          "values": [
+            "90.00",
+            "80.00",
+            "0.00"
+          ]
+        },
+        {
+          "building": "155|68TH|10023",
+          "values": [
+            "90.00",
+            "80.00"
+          ]
+        }
+      ]
+    }
+  },
+  "attendanceType": {
+    "distinctRawValues": 84,
+    "topRawValues": {
+      "None": 2967,
+      "DoormanFullTime": 1457,
+      "DoormanFullTime,ConciergeFullTime": 902,
+      "DoormanFullTime,ConciergeYes": 657,
+      "ConciergeFullTime,DoormanFullTime,LobbyAttendantFullTime": 293,
+      "DoormanYes,DoormanFullTime": 202,
+      "DoormanPartTime": 196,
+      "ConciergeYes,DoormanFullTime": 182,
+      "DoormanYes": 173,
+      "VideoDoormanYes": 143,
+      "DoormanFullTime,LobbyAttendantFullTime": 114,
+      "ConciergeYes,LobbyAttendantFullTime": 90,
+      "ConciergeYes,DoormanYes,DoormanFullTime": 84,
+      "DoormanYes,ConciergeYes": 61,
+      "ConciergeFullTime,DoormanFullTime": 51,
+      "VideoDoormanFullTime": 36,
+      "DoormanFullTime,ElevatorAttendanceYes": 34,
+      "DoormanPartTime,LobbyAttendantPartTime": 33,
+      "DoormanFullTime,ConciergePartTime": 27,
+      "DoormanPartTime,ConciergeYes": 26
+    },
+    "tokenVocabulary": {
+      "DoormanFullTime": 4152,
+      "None": 2971,
+      "ConciergeFullTime": 1347,
+      "ConciergeYes": 1177,
+      "DoormanYes": 563,
+      "LobbyAttendantFullTime": 533,
+      "DoormanPartTime": 298,
+      "VideoDoormanYes": 163,
+      "ElevatorAttendanceYes": 86,
+      "ElevatorAttendanceFullTime": 52,
+      "VideoDoormanFullTime": 52,
+      "ConciergePartTime": 43,
+      "LobbyAttendantPartTime": 36,
+      "LobbyAttendantYes": 12,
+      "VideoDoormanPartTime": 4,
+      "ElevatorAttendancePartTime": 1
+    },
+    "correlation": [
+      {
+        "token": "DoormanFullTime",
+        "rows": 4152,
+        "alsoDoormanOrConciergeInDeclaredAmenities": 1380,
+        "buildingStaffType": {
+          "SuperLiveIn": 947,
+          "(absent)": 3072,
+          "ResidentManagerFullTime": 122,
+          "SuperOffsite": 11
+        }
+      },
+      {
+        "token": "ConciergeFullTime",
+        "rows": 1347,
+        "alsoDoormanOrConciergeInDeclaredAmenities": 734,
+        "buildingStaffType": {
+          "(absent)": 876,
+          "SuperLiveIn": 396,
+          "ResidentManagerFullTime": 67,
+          "SuperOffsite": 8
+        }
+      },
+      {
+        "token": "None",
+        "rows": 2971,
+        "alsoDoormanOrConciergeInDeclaredAmenities": 23,
+        "buildingStaffType": {
+          "(absent)": 2852,
+          "SuperLiveIn": 93,
+          "SuperOffsite": 22,
+          "ResidentManagerFullTime": 4
+        }
+      }
+    ]
+  }
+}

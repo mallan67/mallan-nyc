@@ -208,13 +208,23 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    family invisible to `$metadata`. Full evidence:
    `docs/idx/cotality-property-type-family-and-customfields-2026-08-21.md`.
 
+   **Corrected 2026-08-21 by a FOUR-SURFACE ID-level census** — the first pass omitted
+   `PropertySubTypeAdditional`, so Townhouse exclusivity was unproven, Multi-Family was
+   incomplete, and Land was not proven absent at all.
+   `docs/idx/cotality-classification-four-surface-census-2026-08-21.md`.
+
    | control | was | live | ACTUALLY | live | status |
    |---|---|---|---|---|---|
-   | Townhouse | `PropertySubType` | **0** | **`StructureType`** (Multi-Enum, `has`) | **612 Active** | VERIFIED |
+   | Townhouse | `PropertySubType` | **0** | **`StructureType`** — now proven **EXCLUSIVE** (other three surfaces 0, `PropertyType` **rejects** the literal 400) | **610 Active** | VERIFIED |
    | Condo | `PropertySubType` | **0** | **`CommonInterest`** | **3,722 Active** | VERIFIED |
    | Co-op | `PropertySubType` | **0** | **`CommonInterest`** | **2,509 Active** | VERIFIED |
-   | Land | `PropertySubType=UnimprovedLand` | **0** | no candidate carries it (`PropertyType=Land` also 0) | **0** | UNSUPPORTED — no live inventory, control retained |
-   | Multi-Family | `PropertySubType` | 426 | **`PropertySubType` OR `StructureType`** | **~982** | VERIFIED — single field misses ~57% |
+   | Land | `PropertySubType=UnimprovedLand` | **0** | **11 probes** across `PropertyType` · `PropertySubType` · `PropertySubTypeAdditional`, Active AND all-status — all SUPPORTED, all zero | **0** | **`VERIFIED_ZERO_POPULATION_CURRENT_FEED`** — NOT unsupported. Provider supports it; inventory is empty. **Capability retained** |
+   | Multi-Family | `PropertySubType` | 424 | **four** surfaces: PropertyType 0 · PropertySubType 424 (253 excl) · PropertySubTypeAdditional 75 (1 excl) · StructureType 714 (556 excl) | **union 981, none on all four** | **NEEDS_PROBE** on business semantics |
+
+   Multi-Family's union is **not automatically the criterion** — the four dimensions mean
+   different things and 69 rows are `MultiFamily,Townhouse`, so whether a 2-unit townhouse
+   is brokerage Multi-Family is a product decision. Recommended pending Maya:
+   `PropertySubType` OR `StructureType` = 979 / 981.
 
    Registry rows added/corrected in the EXISTING `FIELD_REGISTRY`: `structure_type` (new),
    `max_financing` (new), `ownership` and `property_sub_type` (corrected). No new registry.
@@ -239,7 +249,34 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    **CAPABILITY CONSTRAINT:** `$filter` cannot reach inside an `Edm.String`, so **none of
    these 52 keys is provider-filterable.** They must be read via `$expand=CustomProperty`
    and matched Mallan-side, or derived onto the projection at build time the way
-   `amenity_keys` already is. Record that before building on any of them.
+   `amenity_keys` already is.
+
+   **MODEL — two provider-contract layers, not one.** These 52 are **observed extension
+   keys** inside a declared `Edm.String`, NOT `$metadata` fields. Two rules coexist:
+   *"not declared in `$metadata`" does not mean "not supplied by Cotality"*, AND *"a JSON
+   key exists" does not mean its semantics are verified*. Each key proposed for
+   Search/Workspace/CMA needs its own extraction + semantic contract.
+
+   **`MaximumFinancingPercent` — measured, not assumed.** StockCooperative 2,497/2,507 with
+   a real board-rule spread (80/75/50/90/70/65); Condominium 3,615/3,720 clustering at 90;
+   RentalBuilding only 242/640 of which **93% are `0.00`**. **`0.00` is a NOT-SPECIFIED
+   SENTINEL**, not a 0% limit. And it is a **LISTING-level** fact: **380 of 3,402 buildings
+   carry disagreeing values**, so it may not be exposed as a building rule without
+   reconciliation. State **NEEDS_PROBE**.
+
+   **`AttendanceType` — NO brokerage label attached.** 16 tokens over **five roles**
+   (Doorman · Concierge · LobbyAttendant · **VideoDoorman** · ElevatorAttendance) at four
+   coverage levels. The declared amenity fields miss **67%** of `DoormanFullTime` rows, and
+   `BuildingStaffType` is a different concept (superintendent) absent on ~74% of them.
+   Collapsing this to "doorman" would repeat the Concierge ≠ Doorman error at scale —
+   **a video doorman is not a doorman.** Vocabulary VERIFIED; mapping **NEEDS_PROBE**.
+
+   **STORAGE TRACED — two defects found, recorded not fixed.** `/api/idx/search` never sets
+   `expandCustomProperty`, so `CustomProperty` is never expanded on the Search path and the
+   one wired key (`sponsorUnit`) is `null` on every result. And the mapper accepts
+   `true|"true"|"Yes"|1` / `false|"false"|"No"|0` while the live values are the **strings**
+   `"1"` / `"0"` — matching neither list. The in-code comment also says 41 keys; live says
+   **52**.
 
 4. **FOUR-CONTROL UI RE-POINTING** — bounded, evidence already in hand. Re-point Townhouse
    to `StructureType`, Condo/Co-op to `CommonInterest`, Multi-Family to the OR of both,
@@ -454,3 +491,26 @@ Worth reading before continuing — each cost a correction cycle:
 - **Measuring coverage against the current form.** "39 controls" measured UI wiring and
   could never have surfaced any of the above, because none of it is wired. Coverage is
   measured against provider resources and field families.
+- **Censusing SOME candidate surfaces and concluding as if it were all of them.** The first
+  property-type census compared `PropertySubType` and `StructureType` and omitted
+  `PropertySubTypeAdditional`. That made "StructureType carries Townhouse" an unproven
+  exclusivity claim, left Multi-Family at 2 of 4 surfaces, and produced a **Land verdict
+  that had not been tested at all**. Re-run across every declared surface: Townhouse turned
+  out genuinely exclusive, Multi-Family gained a fourth dimension, and Land needed a
+  different classification entirely. **Enumerate the candidate set from the live contract
+  before measuring, not from the ones you happened to think of.**
+- **Collapsing UNSUPPORTED into zero-population.** "Land is a genuine absence /
+  UNSUPPORTED" was wrong in kind. Every Land probe returned **HTTP 200 with a well-formed
+  empty result** — the provider supports the criterion perfectly and the current inventory
+  is empty. `VERIFIED_ZERO_POPULATION_CURRENT_FEED` and `UNSUPPORTED` are different facts,
+  and only the second is a reason to stop offering a broker capability.
+- **Reading a JSON key name as its meaning.** `AttendanceType` is populated 100%, and the
+  first write-up called it "the doorman/concierge fact". Enumerating the vocabulary showed
+  **16 tokens over five roles** including `VideoDoorman` and `ElevatorAttendance` — and a
+  video doorman is not a doorman. Same trap as `Concierge` ≠ `Doorman`, one layer deeper.
+  Population proves presence; only correlation and vocabulary prove meaning.
+- **Trusting a numeric extension value without a sentinel check.** `MaximumFinancingPercent`
+  is 84.9% populated and looks like a clean percentage. `0.00` is a NOT-SPECIFIED sentinel
+  — 93% of the RentalBuilding rows carrying it — so a naive range filter would silently
+  exclude every listing that just did not state a limit. And 380 of 3,402 buildings
+  disagree with themselves, so it is listing-level, not the building rule its name implies.

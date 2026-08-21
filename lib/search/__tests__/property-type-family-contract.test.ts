@@ -38,14 +38,61 @@ describe("structure_type — the field that actually carries Townhouse and Multi
     expect(entry("structure_type")!.filterable).toBe("yes");
   });
 
-  it("records the Townhouse correction with its live counts", () => {
+  it("records Townhouse as PROVEN EXCLUSIVE across all four surfaces", () => {
     const notes = entry("structure_type")!.notes ?? "";
-    expect(notes).toMatch(/612/);
-    expect(notes).toMatch(/Townhouse/);
+    expect(notes).toMatch(/610/);
+    expect(notes).toMatch(/EXCLUSIVE/i);
+    // PropertySubTypeAdditional was omitted from the first census; its zero is
+    // what makes the exclusivity claim provable rather than assumed.
+    expect(notes).toMatch(/PropertySubTypeAdditional/);
   });
 
-  it("records that Multi-Family needs BOTH fields, not a choice between them", () => {
-    expect(entry("structure_type")!.notes ?? "").toMatch(/MultiFamily/);
+  it("records Multi-Family across FOUR surfaces, with the union and the exclusives", () => {
+    const notes = entry("structure_type")!.notes ?? "";
+    expect(notes).toMatch(/981/);   // union
+    expect(notes).toMatch(/424/);   // PropertySubType
+    expect(notes).toMatch(/714/);   // StructureType
+  });
+
+  it("does NOT assert the union as the business criterion", () => {
+    // Four surfaces mean four different things. Token equality is not semantics.
+    const notes = entry("structure_type")!.notes ?? "";
+    expect(notes).toMatch(/BUSINESS decision|NEEDS_PROBE/);
+  });
+});
+
+describe("Land is zero-population, NOT unsupported", () => {
+  it("distinguishes a supported-but-empty criterion from an unsupported one", () => {
+    const notes = entry("property_sub_type")!.notes ?? "";
+    expect(notes).toMatch(/VERIFIED_ZERO_POPULATION_CURRENT_FEED/);
+    expect(notes).toMatch(/capability is retained/i);
+  });
+
+  it("records that every candidate surface was probed, not just PropertySubType", () => {
+    expect(entry("property_sub_type")!.notes ?? "").toMatch(/eleven probes|PropertySubTypeAdditional/i);
+  });
+});
+
+describe("CustomFields keys are OBSERVED EXTENSION keys, not metadata fields", () => {
+  it("models the declared field and the observed key as different layers", () => {
+    const notes = entry("max_financing")!.notes ?? "";
+    expect(notes).toMatch(/OBSERVED EXTENSION KEY/i);
+    expect(notes).toMatch(/declared type=Edm\.String/);
+  });
+
+  it("records 0.00 as a sentinel rather than a real limit", () => {
+    expect(entry("max_financing")!.notes ?? "").toMatch(/SENTINEL/i);
+  });
+
+  it("records that it is LISTING-level, because buildings disagree", () => {
+    const notes = entry("max_financing")!.notes ?? "";
+    expect(notes).toMatch(/LISTING-LEVEL/i);
+    expect(notes).toMatch(/380/);
+  });
+
+  it("refuses the AttendanceType -> doorman substitution", () => {
+    // Population is not meaning. The system already learned Concierge != Doorman.
+    expect(entry("max_financing")!.notes ?? "").toMatch(/VideoDoormanYes is not a doorman/);
   });
 });
 
