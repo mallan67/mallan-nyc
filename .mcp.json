@@ -10,6 +10,11 @@
         "TRESTLE_API_URL": "${TRESTLE_API_URL}"
       },
       "description": "Live Cotality field lookup — all fields/enums across the RLS resources, parsed from the multi-namespace $metadata. 10-min TTL (TRESTLE_METADATA_TTL_MS), aligned to the system's Cotality idx-sync cadence unless Cotality specifies otherwise."
+    },
+    "neon": {
+      "type": "http",
+      "url": "https://mcp.neon.tech/mcp",
+      "description": "Official Neon MCP control-plane connection. Mallan production authority is project hidden-mountain-87248164, branch br-crimson-frog-adr7g9gt, endpoint ep-cold-waterfall-adno3ao2. Do not create replacement projects/branches/endpoints or use morning-bread-68708332 or round-recipe-12208101 as Mallan production."
     }
   }
 }
