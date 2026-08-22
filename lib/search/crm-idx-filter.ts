@@ -1,4 +1,4 @@
-import { isStandardStatusMember } from "@/lib/search/canonical/status-token-contract";
+import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
 import {
@@ -115,25 +115,20 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   if (status === "*") {
     // Intentionally no status filter; used by RLS tracker for total count.
   } else if (status) {
-    // STEP 2 — only a value that is a REAL StandardStatus member may be sent.
+    // STEP 2 — the canonical contract owns this mapping and FAILS CLOSED.
     //
-    // This previously interpolated whatever arrived, so a Mallan-only token like
-    // `OFFEROUT` became `StandardStatus eq 'OFFEROUT'` and the provider answered
-    // HTTP 400 — a whole search lost to a criterion the provider cannot express.
-    // A criterion with no provider member is DROPPED rather than sent as if it
-    // could work; substituting a near neighbour is what sent Pending searches to
-    // the empty ActiveUnderContract member.
-    const requested = status.split(",").map((v) => v.trim().replace(/\s+/g, ""));
-    const members = requested.filter(isStandardStatusMember);
-    const unsupported = requested.filter((v) => v && !isStandardStatusMember(v));
-    if (unsupported.length > 0) {
-      console.warn(
-        `[crm-idx-filter] dropped status criteria with no live StandardStatus member: ${unsupported.join(", ")}`,
-      );
-    }
-    if (members.length > 0) {
-      parts.push(`(${members.map((m) => `StandardStatus eq '${escapeOData(m)}'`).join(" or ")})`);
-    }
+    // A first cut of this validated members here and console.warn()ed the rest.
+    // That was worse than the defect it replaced: dropping an unsupported token
+    // removes the status clause entirely, so a broker asking for one status gets
+    // EVERY status back, with an HTTP 200 and nothing to indicate the question
+    // changed. The previous behaviour at least failed loudly with a 400.
+    //
+    // `standardStatusOData` throws `UnsupportedStatusCriterionError`, which
+    // app/api/idx/search/route.ts renders as the same typed
+    // UNSUPPORTED_CRITERION 400 already used for PropertySubType. A mixed
+    // valid+unsupported request fails as written and is never half-executed.
+    const { filter: statusFilter } = standardStatusOData(status.split(","));
+    if (statusFilter) parts.push(statusFilter);
   } else {
     parts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
   }

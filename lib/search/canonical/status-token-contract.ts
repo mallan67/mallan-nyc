@@ -127,6 +127,52 @@ const MEMBER_TO_TOKEN: Readonly<Record<StandardStatusMember, CrmStatusToken>> = 
   Delete: 'DELETE',
 });
 
+/**
+ * Legacy / UI spellings that mean an existing canonical token.
+ *
+ * These live HERE, in the one authority, rather than in a second table in the
+ * browser. An alias may only be added when it is a SPELLING of a token that
+ * already exists — never when it is a new concept hoping to borrow a member.
+ *
+ * `FUTURE` is deliberately ABSENT. The browser used to send it as `Incomplete`.
+ * Cotality declares `Incomplete`; it does not declare `Future`. That one exists
+ * establishes nothing about the other's meaning — the same unverified-equivalence
+ * mistake as `PENDING -> ActiveUnderContract`. `FUTURE` stays unsupported until
+ * Mallan decides what it means, and an unsupported criterion FAILS rather than
+ * being dropped.
+ */
+const TOKEN_ALIASES: Readonly<Record<string, Exclude<CrmStatusToken, 'UNKNOWN'>>> = Object.freeze({
+  CONTRACT: 'UNDER_CONTRACT',
+  ACTIVEUNDERCONTRACT: 'UNDER_CONTRACT',
+  'ACTIVE_UNDER_CONTRACT': 'UNDER_CONTRACT',
+  CANCELED: 'CANCELLED',
+  COMINGSOON: 'COMING_SOON',
+});
+
+/**
+ * A status criterion carried a token with no live provider member.
+ *
+ * Thrown rather than warned. Dropping the criterion and continuing turns a
+ * broker's NARROW query into a BROAD one while still looking successful —
+ * strictly worse than the HTTP 400 it replaced, because a 400 is visible and a
+ * silently widened result set is not.
+ */
+export class UnsupportedStatusCriterionError extends Error {
+  readonly unsupportedTokens: readonly string[];
+
+  constructor(unsupportedTokens: readonly string[]) {
+    super(
+      `Unsupported status criterion: ${unsupportedTokens.map((t) => `'${t}'`).join(', ')}. ` +
+        `Not a live Cotality StandardStatus member. A criterion the provider cannot ` +
+        `express is never dropped and never substituted — dropping it would widen the ` +
+        `search rather than narrow it, and substituting a near neighbour is what sent ` +
+        `Pending searches to the empty ActiveUnderContract member.`,
+    );
+    this.name = 'UnsupportedStatusCriterionError';
+    this.unsupportedTokens = unsupportedTokens;
+  }
+}
+
 /** Is this a member of the live provider vocabulary? */
 export function isStandardStatusMember(value: unknown): value is StandardStatusMember {
   return typeof value === 'string' && (STANDARD_STATUS_MEMBERS as readonly string[]).includes(value);
@@ -141,7 +187,12 @@ export function isStandardStatusMember(value: unknown): value is StandardStatusM
  */
 export function crmTokenToStandardStatus(token: unknown): StandardStatusMember | null {
   if (typeof token !== 'string') return null;
-  const key = token.trim().toUpperCase() as Exclude<CrmStatusToken, 'UNKNOWN'>;
+  // Whitespace is stripped before lookup so the spaced UI spellings
+  // ("Coming Soon", "Active Under Contract") resolve through the SAME alias
+  // table as everything else. The previous writer stripped whitespace itself;
+  // doing it here keeps one authority instead of two normalisers.
+  const raw = token.trim().replace(/\s+/g, '').toUpperCase();
+  const key = (TOKEN_ALIASES[raw] ?? raw) as Exclude<CrmStatusToken, 'UNKNOWN'>;
   return TOKEN_TO_MEMBER[key] ?? null;
 }
 
@@ -160,9 +211,13 @@ export function standardStatusToCrmToken(standardStatus: unknown): CrmStatusToke
 /**
  * The OData predicate for a set of CRM tokens.
  *
- * Returns the rendered `$filter` fragment plus the tokens that had no provider
- * member, so a caller can surface a dropped criterion instead of silently
- * narrowing or widening the broker's question.
+ * THROWS `UnsupportedStatusCriterionError` if ANY token has no provider member.
+ *
+ * It does not drop the token and continue. Dropping it removes the status clause
+ * and the search widens to every status while still returning HTTP 200 — a
+ * broker's narrow question answered broadly, with nothing to indicate it. That
+ * is worse than the HTTP 400 an invalid enum member used to cause, because a 400
+ * is visible.
  *
  * Rendered as positive `eq` predicates. `ne` is NOT used: it is well-behaved on
  * `StandardStatus` (verified — the enum has no case-variant member pairs) but
@@ -185,6 +240,13 @@ export function standardStatusOData(tokens: readonly unknown[]): {
       continue;
     }
     if (!members.includes(member)) members.push(member);
+  }
+
+  // FAIL CLOSED. A mixed valid+unsupported request is NOT partially executed:
+  // running the valid half answers a different question from the one the broker
+  // asked, and does so without telling them.
+  if (unsupportedTokens.length > 0) {
+    throw new UnsupportedStatusCriterionError(unsupportedTokens);
   }
 
   const filter =

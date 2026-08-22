@@ -336,8 +336,24 @@ describe('A1 · only authorised readers import the canonical package', () => {
     const reRelative = /['"](\.\.?\/)+canonical(\/[^'"]*)?['"]/;
     const offenders: string[] = [];
     for (const f of files) {
-      const content = fs.readFileSync(f, 'utf8');
-      if (reAbsolute.test(content) || reRelative.test(content)) {
+      // PRECISION FIX 2026-08-22. This used to test the WHOLE FILE at once.
+      // `[^'"]*` crosses newlines, so any file containing a quote anywhere and
+      // the words "search/canonical" anywhere else — a prose comment, for
+      // instance — matched. public/crm/js/search/search-engine.js tripped it
+      // purely for naming the module in a comment while importing nothing.
+      //
+      // That is not a harmless false positive: it creates pressure to add
+      // non-importing files to the AUTHORISED list, which would hollow out the
+      // guard. Scanning per line, skipping comments, catches every real import
+      // (a `from '…'` clause is always on one line) without the false ones.
+      const codeLines = fs
+        .readFileSync(f, 'utf8')
+        .split(String.fromCharCode(10))
+        .filter((l: string) => {
+          const t = l.trim();
+          return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*');
+        });
+      if (codeLines.some((l: string) => reAbsolute.test(l) || reRelative.test(l))) {
         offenders.push(f.replace(/\\/g, '/').replace(repoRoot.replace(/\\/g, '/') + '/', ''));
       }
     }
@@ -392,6 +408,13 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // two paths, two definitions of what a sale IS. Reading the canonical
       // module is what keeps the four traversals and the CRM filter identical.
       'lib/idx/fetch.ts',
+      // The market route renders the SAME status universe to OData that Search
+      // does. Its Cotality fallback previously filtered on MlsStatus — which the
+      // provider suppresses, so it returned HTTP 400 every run — and asked for
+      // Active only while the DB branch of that same route defines active as
+      // Active + ComingSoon + ActiveUnderContract. Reading the canonical status
+      // contract is what stops one endpoint answering two different questions.
+      'lib/market/query-contract.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);

@@ -20,6 +20,7 @@ import { logFetchAttempt } from "@/lib/idx/logger";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
+import { UnsupportedStatusCriterionError } from "@/lib/search/canonical/status-token-contract";
 import { hasUsableListingIdentity, mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
 // ── Fields we actually need (validated against IDX Plus feed 2026-03-04) ──
@@ -201,6 +202,21 @@ export function idxSearchErrorResponse(error: unknown): {
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 } {
+  if (error instanceof UnsupportedStatusCriterionError) {
+    // Same shape as the PropertySubType case below — one error architecture, not
+    // two. A status the provider cannot express is a client-fixable 400, never a
+    // silently widened 200.
+    return {
+      status: 400,
+      body: {
+        error: "Unsupported search criterion.",
+        code: "UNSUPPORTED_CRITERION",
+        criterion: "status",
+        unsupportedValues: [...error.unsupportedTokens],
+      },
+    };
+  }
+
   if (error instanceof UnknownPropertySubTypeError) {
     return {
       status: 400,

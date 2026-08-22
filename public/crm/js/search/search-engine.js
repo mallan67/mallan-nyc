@@ -474,9 +474,22 @@
             // that is the genuine contract state, and it stays DISTINCT from
             // Pending. Selecting both now yields two criteria, not one.
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
-                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
-                params.status = resoStatuses.join(',');
+                // The browser sends CANONICAL MALLAN TOKENS unchanged. It no
+                // longer keeps a second status table.
+                //
+                // There used to be a JS map here translating tokens to RESO
+                // PascalCase, maintained by hand in parallel with the server's
+                // contract. Two authorities for one mapping is how 'PENDING'
+                // came to mean ActiveUnderContract on one side and Pending on
+                // the other. It also carried FUTURE -> Incomplete: Cotality
+                // declares Incomplete and does not declare Future, and one
+                // existing establishes nothing about the other's meaning.
+                //
+                // lib/search/canonical/status-token-contract.ts is now the only
+                // mapping, and it FAILS CLOSED - a token with no provider member
+                // returns HTTP 400 UNSUPPORTED_CRITERION rather than being
+                // dropped, which would widen the search instead of narrowing it.
+                var resoStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData

@@ -508,16 +508,22 @@ describe("buildCrmIdxODataFilter", () => {
     // We exercise this here by passing a known sub-status string. When
     // real sub-status routing is added (route via MlsStatus + nested
     // OData filter, or a separate param), this test should be updated.
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      status: "OFFEROUT",
-    }));
-    // FIXED 2026-08-22: the builder no longer produces the literal clause. An
-    // invalid enum member fails the WHOLE query with HTTP 400, so a caller
-    // treating that as "no matches" reports a false empty. The criterion is now
-    // dropped with a warning instead of breaking the search.
-    expect(f).not.toContain("StandardStatus eq 'OFFEROUT'");
-    // Verify proper mapping is NOT present:
-    expect(f).not.toContain("MlsStatus");
+    // FIXED 2026-08-22, then CORRECTED. An invalid enum member fails the WHOLE
+    // query with HTTP 400, so a caller treating that as "no matches" reports a
+    // false empty. Dropping the criterion instead is WORSE — it removes the
+    // status clause and widens the search to every status, with an HTTP 200 and
+    // nothing to show the question changed. It now throws, and the route renders
+    // the typed UNSUPPORTED_CRITERION 400 already used for PropertySubType.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ status: "OFFEROUT" }))).toThrow(
+      /Unsupported status criterion/,
+    );
+    // And a VALID status still renders normally, so the fail-closed behaviour is
+    // scoped to unsupported tokens rather than disabling the criterion wholesale.
+    // MlsStatus must never appear either way: it is a different vocabulary AND
+    // the provider suppresses it for filtering (HTTP 400), verified live.
+    const valid = buildCrmIdxODataFilter(new URLSearchParams({ status: "Active" }));
+    expect(valid).toContain("StandardStatus eq 'Active'");
+    expect(valid).not.toContain("MlsStatus");
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -570,18 +576,16 @@ describe("buildCrmIdxODataFilter", () => {
     // so simulate the actual wire shape the backend receives.
     for (const s of subStatuses) {
       const upper = s.toUpperCase();
-      const f = buildCrmIdxODataFilter(new URLSearchParams({ status: upper }));
-      // FIXED 2026-08-22. The builder used to emit `StandardStatus eq '<UPPER>'`
-      // for each of these Mallan-only sub-statuses. StandardStatus is an ENUM,
-      // so an unknown member does not return zero rows — it fails the WHOLE
-      // query with HTTP 400, and any caller treating that as "no matches"
-      // reports a false empty. The criterion is now dropped with a warning.
-      expect(f).not.toContain(`StandardStatus eq '${upper}'`);
-      // Still must not have leaked into MlsStatus. Beyond being the wrong
-      // routing, MlsStatus is suppressed by the provider for filtering AND
-      // ordering at licence level (HTTP 400), so routing there would break the
-      // query too. Verified live 2026-08-22.
-      expect(f).not.toContain("MlsStatus");
+      // FIXED 2026-08-22, then CORRECTED to fail CLOSED. These Mallan-only
+      // sub-statuses used to be emitted as `StandardStatus eq '<UPPER>'`, and an
+      // unknown enum member fails the WHOLE query with HTTP 400 rather than
+      // returning zero rows. Silently dropping them is worse still: the status
+      // clause disappears and the search widens to every status. Each one now
+      // raises UnsupportedStatusCriterionError, which the route renders as a
+      // typed 400 naming the offending value.
+      expect(() => buildCrmIdxODataFilter(new URLSearchParams({ status: upper }))).toThrow(
+        /Unsupported status criterion/,
+      );
     }
   });
 
